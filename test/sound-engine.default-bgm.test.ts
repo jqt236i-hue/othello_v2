@@ -329,7 +329,7 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.getEffectFilePath('super_buoyancy_move')).toBe(
-      'assets/audio/sound-effect/超浮力で石が浮上したタイミング.mp3'
+      'assets/audio/sound-effect/浮力系で石が浮上したタイミング.mp3'
     );
   });
 
@@ -379,6 +379,15 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.getEffectFilePath('living_will_restored')).toBe(
       'assets/audio/sound-effect/生きる意志で復活するタイミング.mp3'
     );
+  });
+
+  test('registered effect sound files exist', () => {
+    const soundEngine = loadSoundEngine();
+
+    for (const key of Object.keys(soundEngine.effectSoundFiles)) {
+      const effectPath = soundEngine.getEffectFilePath(key);
+      expect(fs.existsSync(path.resolve(__dirname, '..', effectPath))).toBe(true);
+    }
   });
 
   test('primeEffectSounds preloads one pooled audio element per registered effect path', () => {
