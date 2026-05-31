@@ -1979,6 +1979,10 @@ describe('pending selection flow contracts', () => {
       row: 4,
       col: 4,
       actionPayload: { teleportTarget: { row: 4, col: 4 } },
+      initialBoardEntries: [
+        { row: 3, col: 3, value: 1 },
+        { row: 4, col: 4, value: 0 }
+      ],
       buildNextCardState: (cardState) => ({
         ...cloneJson(cardState),
         pendingEffectByPlayer: { black: null, white: null }
@@ -2057,10 +2061,16 @@ describe('pending selection flow contracts', () => {
     }
   ])(
     'network continue-turn deferred selection previews resolved local state before publish settles for $pendingType',
-    async ({ pendingType, row, col, actionPayload, buildNextCardState, buildNextGameState, assertPreview, initialMarkers, initialBoardValue }) => {
+    async ({ pendingType, row, col, actionPayload, buildNextCardState, buildNextGameState, assertPreview, initialMarkers, initialBoardValue, initialBoardEntries }) => {
       attachPlaybackStateManager();
       let resolvePublish = null;
       const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+      if (Array.isArray(initialBoardEntries)) {
+        initialBoardEntries.forEach((entry) => {
+          if (!entry) return;
+          board[entry.row][entry.col] = entry.value;
+        });
+      }
       if (typeof initialBoardValue === 'number') {
         board[row][col] = initialBoardValue;
       }
