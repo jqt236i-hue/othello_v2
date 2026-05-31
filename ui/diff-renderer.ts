@@ -3039,7 +3039,6 @@ function renderBoardDiff(boardEl: any) {
         boardDomSignature = null;
     }
     if (boardEl) boardDomElement = boardEl;
-    _syncSelectionModeForDiff(boardEl);
     // Single Visual Writer detection: prevent diff/rerender during active playback
     const boardUpdateSyncContext = _peekBoardUpdateSyncContextForDiff();
     const allowBoardUpdateDuringPlayback = !!(
@@ -3065,6 +3064,7 @@ function renderBoardDiff(boardEl: any) {
             return 0;
         }
     }
+    _syncSelectionModeForDiff(boardEl);
 
     // One-shot suppression set by AnimationEngine at the end of playback.
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.

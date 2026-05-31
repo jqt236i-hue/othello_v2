@@ -1099,6 +1099,19 @@ function _resolveBoardDiffRenderDelegate() {
     return null;
 }
 
+function _resolveBoardDiffResetDelegate() {
+    try {
+        const diffRendererModule = _require('./diff-renderer');
+        if (diffRendererModule && typeof diffRendererModule.resetRenderStats === 'function') {
+            return diffRendererModule.resetRenderStats;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.resetRenderStats === 'function') return window.resetRenderStats;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function renderBoardFull() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
@@ -1112,6 +1125,10 @@ function renderBoardFull() {
     }
     const diffRender = _resolveBoardDiffRenderDelegate();
     if (typeof diffRender === 'function') {
+        const resetDiffRender = _resolveBoardDiffResetDelegate();
+        if (typeof resetDiffRender === 'function') {
+            resetDiffRender();
+        }
         diffRender(boardEl);
         return;
     }
