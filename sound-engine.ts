@@ -14,6 +14,11 @@ interface BgmTrack {
     loopEnd?: number;
 }
 
+interface ResultBgmTrack {
+    file: string;
+    loop: boolean;
+}
+
 interface EffectVolumeScales {
     [key: string]: number;
 }
@@ -49,6 +54,13 @@ const SoundEngine = {
     bgmVolume: 0.091,
     currentTrackIndex: 5,
     allowBgmPlay: true, // Default to true requested by user
+    resultBgmTracks: {
+        win: { file: 'assets/audio/other/勝利リザルト-bpm165.mp3', loop: false },
+        lose: { file: 'assets/audio/other/敗北リザルト-bpm115.mp3', loop: true }
+    } as Record<string, ResultBgmTrack>,
+    _resultBgm: null as HTMLAudioElement | null,
+    _resultBgmOutcomeKey: null as string | null,
+    _resultBgmPausedNormalBgm: false,
     _bgmBufferedState: null as BgmBufferedState | null,
     _bgmBufferCache: {} as Record<string, AudioBuffer | Promise<AudioBuffer>>,
     _effectAudioPools: {} as EffectAudioPools,
@@ -190,6 +202,11 @@ const SoundEngine = {
 
     _getBgmOutputVolume() {
         return this._clamp01(this._toNonNegativeNumber(this.bgmVolume, 0) * (this.isMuted ? 0 : 1));
+    },
+
+    _updateResultBgmVolume() {
+        if (!this._resultBgm) return;
+        this._resultBgm.volume = this._getBgmOutputVolume();
     },
 
     _updateBufferedBgmVolume(state?: BgmBufferedState | null) {
@@ -804,12 +821,84 @@ const SoundEngine = {
         return true;
     },
 
+    _resolveResultBgmTrack(outcomeKey: string) {
+        const key = String(outcomeKey || '').trim();
+        return (this.resultBgmTracks && this.resultBgmTracks[key]) || null;
+    },
+
+    _createResultBgmAudio(track: ResultBgmTrack) {
+        if (typeof Audio !== 'function') return null;
+        const audio = new Audio(track.file);
+        audio.preload = 'auto';
+        audio.loop = track.loop === true;
+        audio.volume = this._getBgmOutputVolume();
+        if (typeof audio.load === 'function') {
+            try { audio.load(); } catch (e) { /* ignore */ }
+        }
+        return audio;
+    },
+
+    playResultBgm(outcomeKey: string) {
+        const track = this._resolveResultBgmTrack(outcomeKey);
+        if (!track) return false;
+        this.stopResultBgm({ resumeBgm: false });
+
+        const audio = this._createResultBgmAudio(track);
+        if (!audio) return false;
+
+        this.pauseBgm();
+        this._resultBgm = audio;
+        this._resultBgmOutcomeKey = String(outcomeKey || '').trim();
+        this._resultBgmPausedNormalBgm = true;
+        audio.onended = () => {
+            if (this._resultBgm !== audio) return;
+            this._resultBgm = null;
+            this._resultBgmOutcomeKey = null;
+            audio.onended = null;
+            audio.onerror = null;
+        };
+        audio.onerror = () => {
+            console.warn(`Result BGM play failed: ${track.file}`);
+        };
+
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch((e: any) => {
+                console.warn(`Result BGM play failed (${track.file}): ${e && e.message ? e.message : e}`);
+            });
+        }
+        return true;
+    },
+
+    stopResultBgm(options: any = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const audio = this._resultBgm;
+        const shouldResumeBgm = opts.resumeBgm === true && (audio || this._resultBgmPausedNormalBgm);
+
+        this._resultBgm = null;
+        this._resultBgmOutcomeKey = null;
+        this._resultBgmPausedNormalBgm = false;
+
+        if (audio) {
+            audio.onended = null;
+            audio.onerror = null;
+            try { audio.pause(); } catch (e) { /* ignore */ }
+            try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+        }
+
+        if (shouldResumeBgm) {
+            this.playBgm();
+        }
+        return !!audio || shouldResumeBgm;
+    },
+
     toggleMute() {
         this.isMuted = !this.isMuted;
         if (this.bgm) {
             this.bgm.volume = this._getBgmOutputVolume();
         }
         this._updateBufferedBgmVolume();
+        this._updateResultBgmVolume();
         return this.isMuted;
     },
 
@@ -823,6 +912,7 @@ const SoundEngine = {
             this.bgm.volume = this._getBgmOutputVolume();
         }
         this._updateBufferedBgmVolume();
+        this._updateResultBgmVolume();
     },
 
     playBgm() {

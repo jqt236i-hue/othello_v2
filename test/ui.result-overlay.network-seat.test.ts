@@ -23,6 +23,11 @@ describe('result overlay seat perspective', () => {
     global.cpuSmartness = { black: 1, white: 1 };
     global.countDiscs = jest.fn(() => ({ black: 0, white: 0 }));
     global.resetGame = jest.fn();
+    global.SoundEngine = {
+      playResultBgm: jest.fn(),
+      stopResultBgm: jest.fn()
+    };
+    window.SoundEngine = global.SoundEngine;
     window.MATCH_MODE = 'cpu';
   });
 
@@ -42,6 +47,7 @@ describe('result overlay seat perspective', () => {
     delete global.countDiscs;
     delete global.resetGame;
     delete global.isGameOver;
+    delete global.SoundEngine;
   });
 
   test('network白席で白優勢なら勝利表示になる', () => {
@@ -117,6 +123,34 @@ describe('result overlay seat perspective', () => {
     expect(countsLine && countsLine.textContent).toContain('白 16枚');
     expect(title && title.nextElementSibling).toBe(countsLine);
     expect(countsLine && countsLine.nextElementSibling).toBe(totalScore);
+  });
+
+  test('勝利リザルト表示時は勝利リザルトBGMを開始する', () => {
+    global.countDiscs.mockReturnValue({ black: 48, white: 16 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    expect(global.SoundEngine.playResultBgm).toHaveBeenCalledWith('win');
+  });
+
+  test('敗北リザルト表示時は敗北リザルトBGMを開始する', () => {
+    global.countDiscs.mockReturnValue({ black: 16, white: 48 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    expect(global.SoundEngine.playResultBgm).toHaveBeenCalledWith('lose');
+  });
+
+  test('引き分けリザルト表示時はBGMを変更しない', () => {
+    global.countDiscs.mockReturnValue({ black: 32, white: 32 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    expect(global.SoundEngine.playResultBgm).not.toHaveBeenCalled();
+    expect(global.SoundEngine.stopResultBgm).not.toHaveBeenCalled();
   });
 
   test('CPU勝利時は観測石報酬を表示して保存する', () => {
@@ -471,6 +505,7 @@ describe('result overlay seat perspective', () => {
     restartBtn.click();
     await Promise.resolve();
 
+    expect(global.SoundEngine.stopResultBgm).toHaveBeenCalledWith({ resumeBgm: true });
     expect(requestRematch).toHaveBeenCalledTimes(1);
     expect(global.resetGame).not.toHaveBeenCalled();
   });
@@ -492,8 +527,24 @@ describe('result overlay seat perspective', () => {
 
     restartBtn.click();
 
+    expect(global.SoundEngine.stopResultBgm).toHaveBeenCalledWith({ resumeBgm: true });
     expect(requestRematch).not.toHaveBeenCalled();
     expect(global.resetGame).toHaveBeenCalledTimes(1);
+  });
+
+  test('閉じるボタンはリザルトBGMを止めて通常BGMを再開する', () => {
+    global.countDiscs.mockReturnValue({ black: 48, white: 16 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    const closeBtn = document.querySelector('.result-btn-row .premium-btn.secondary');
+    expect(closeBtn).toBeTruthy();
+
+    closeBtn.click();
+
+    expect(global.SoundEngine.stopResultBgm).toHaveBeenCalledWith({ resumeBgm: true });
+    expect(document.getElementById('result-overlay')).toBeNull();
   });
 
   test('syncResultPresentationFromSnapshot は stateVersion ごとに 1 回だけ結果表示する', () => {

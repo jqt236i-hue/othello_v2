@@ -14,6 +14,8 @@ interface SoundEngine {
   bgm?: {
     paused?: boolean;
   };
+  playResultBgm?: (outcomeKey: string) => boolean;
+  stopResultBgm?: (options?: { resumeBgm?: boolean }) => boolean;
 }
 
 interface RootRef {

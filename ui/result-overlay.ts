@@ -55,6 +55,7 @@ const ResultOverlayGachaHelpersModule = resolveResultOverlayModuleOrNull('../sha
 const ResultOverlayGachaProgressModule = resolveResultOverlayModuleOrNull('./storage/gacha-progress', 'GachaProgressStorageModule');
 const ResultOverlayBoardUtilsModule = resolveResultOverlayModuleOrNull('../shared/shared-board-utils', 'SharedBoardUtils');
 const ResultOverlayBoardUtilsNewModule = resolveResultOverlayModuleOrNull('../shared/board-utils', 'BoardUtils');
+const ResultOverlaySoundEngineAccessModule = resolveResultOverlayModuleOrNull('./sound-engine-access', 'SoundEngineAccessModule');
 
 function createEmptyResultPresentationState() {
     return {
@@ -80,6 +81,49 @@ function resetResultPresentationState(resultState: any) {
     target.lastResultVersionShown = null;
     target.resultShownForUnversioned = false;
     return target;
+}
+
+function resolveResultSoundEngine() {
+    try {
+        const rootRef = (typeof window !== 'undefined')
+            ? window
+            : (typeof globalThis !== 'undefined' ? globalThis : null);
+        if (
+            ResultOverlaySoundEngineAccessModule
+            && typeof ResultOverlaySoundEngineAccessModule.resolveSoundEngine === 'function'
+        ) {
+            const fromAccess = ResultOverlaySoundEngineAccessModule.resolveSoundEngine(rootRef);
+            if (fromAccess) return fromAccess;
+        }
+        if (rootRef && (rootRef as any).SoundEngine) return (rootRef as any).SoundEngine;
+    } catch (e: any) { /* ignore */ }
+
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SoundEngine) {
+            return (globalThis as any).SoundEngine;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function playResultBgmForOutcome(localOutcomeKey: any) {
+    const outcomeKey = String(localOutcomeKey || '').trim();
+    if (outcomeKey !== 'win' && outcomeKey !== 'lose') return false;
+    const engine = resolveResultSoundEngine();
+    if (!engine || typeof engine.playResultBgm !== 'function') return false;
+    try {
+        return !!engine.playResultBgm(outcomeKey);
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
+function stopResultBgmForDismissal() {
+    const engine = resolveResultSoundEngine();
+    if (!engine || typeof engine.stopResultBgm !== 'function') return false;
+    try {
+        return !!engine.stopResultBgm({ resumeBgm: true });
+    } catch (e: any) { /* ignore */ }
+    return false;
 }
 
 function normalizeDiscCounts(counts: any) {
@@ -694,10 +738,13 @@ function submitSharedLeaderboardScore(scoreSummary: any, viewerKey: any) {
     } catch (e: any) { /* ignore */ }
 }
 
-function removeExistingResultOverlay() {
+function removeExistingResultOverlay(options: any = {}) {
     const doc = (typeof document !== 'undefined') ? document : null;
     if (!doc) return;
     const existing = doc.getElementById('result-overlay');
+    if (existing && options.stopResultBgm !== false) {
+        stopResultBgmForDismissal();
+    }
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 }
 
@@ -872,7 +919,7 @@ function showResultOverlay() {
     const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
     if (!othelloMode) submitSharedLeaderboardScore(scoreSummary, viewerKey);
 
-    removeExistingResultOverlay();
+    removeExistingResultOverlay({ stopResultBgm: false });
 
     const overlay = document.createElement('div');
     overlay.id = 'result-overlay';
@@ -949,6 +996,7 @@ function showResultOverlay() {
         );
 
         if (canRequestNetworkRematch) {
+            stopResultBgmForDismissal();
             const idleLabel = restartBtn.textContent;
             restartBtn.disabled = true;
             restartBtn.textContent = '再戦中...';
@@ -965,8 +1013,7 @@ function showResultOverlay() {
             return;
         }
 
-        const el = document.getElementById('result-overlay');
-        if (el && el.parentNode) el.parentNode.removeChild(el);
+        dismissResultOverlayIfPresent();
         if (typeof resetGame === 'function') resetGame();
     };
 
@@ -974,8 +1021,7 @@ function showResultOverlay() {
     closeBtn.className = 'premium-btn secondary';
     closeBtn.textContent = '閉じる';
     closeBtn.onclick = () => {
-        const el = document.getElementById('result-overlay');
-        if (el && el.parentNode) el.parentNode.removeChild(el);
+        dismissResultOverlayIfPresent();
     };
 
     btnRow.appendChild(restartBtn);
@@ -984,6 +1030,7 @@ function showResultOverlay() {
 
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
+    playResultBgmForOutcome(localOutcomeKey);
 
     // Trigger entrance animation with a tiny delay
     setTimeout(() => {

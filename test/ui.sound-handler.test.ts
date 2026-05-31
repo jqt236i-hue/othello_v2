@@ -179,4 +179,87 @@ describe('sound handler', () => {
 
     dom.window.close();
   });
+
+  test('real sound engine plays victory result BGM once and leaves normal BGM stopped after it ends', () => {
+    const createdAudio = [];
+    function FakeAudio(src) {
+      this.src = src || '';
+      this.preload = '';
+      this.loop = false;
+      this.volume = 0;
+      this.currentTime = 0;
+      this.paused = true;
+      this.play = jest.fn(() => {
+        this.paused = false;
+        return Promise.resolve();
+      });
+      this.pause = jest.fn(() => {
+        this.paused = true;
+      });
+      this.load = jest.fn();
+      createdAudio.push(this);
+    }
+
+    const engine = loadSoundEngine({ Audio: FakeAudio });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+    engine.bgmVolume = 0.25;
+
+    expect(engine.playResultBgm('win')).toBe(true);
+
+    const resultAudio = createdAudio[0];
+    expect(engine.allowBgmPlay).toBe(false);
+    expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
+    expect(resultAudio.src).toBe('assets/audio/other/勝利リザルト-bpm165.mp3');
+    expect(resultAudio.loop).toBe(false);
+    expect(resultAudio.volume).toBeCloseTo(0.25);
+    expect(resultAudio.play).toHaveBeenCalledTimes(1);
+
+    resultAudio.onended();
+
+    expect(engine.allowBgmPlay).toBe(false);
+    expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
+  });
+
+  test('real sound engine loops defeat result BGM and resumes normal BGM when stopped for dismissal', () => {
+    const createdAudio = [];
+    function FakeAudio(src) {
+      this.src = src || '';
+      this.preload = '';
+      this.loop = false;
+      this.volume = 0;
+      this.currentTime = 9;
+      this.paused = true;
+      this.play = jest.fn(() => {
+        this.paused = false;
+        return Promise.resolve();
+      });
+      this.pause = jest.fn(() => {
+        this.paused = true;
+      });
+      this.load = jest.fn();
+      createdAudio.push(this);
+    }
+
+    const engine = loadSoundEngine({ Audio: FakeAudio });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+    engine.playBgm = jest.fn(function () {
+      this.allowBgmPlay = true;
+      this.bgm.paused = false;
+    });
+
+    expect(engine.playResultBgm('lose')).toBe(true);
+
+    const resultAudio = createdAudio[0];
+    expect(resultAudio.src).toBe('assets/audio/other/敗北リザルト-bpm115.mp3');
+    expect(resultAudio.loop).toBe(true);
+
+    expect(engine.stopResultBgm({ resumeBgm: true })).toBe(true);
+
+    expect(resultAudio.pause).toHaveBeenCalledTimes(1);
+    expect(resultAudio.currentTime).toBe(0);
+    expect(engine.playBgm).toHaveBeenCalledTimes(1);
+    expect(engine.allowBgmPlay).toBe(true);
+  });
 });
