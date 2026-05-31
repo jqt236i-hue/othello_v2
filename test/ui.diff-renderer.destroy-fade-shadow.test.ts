@@ -19,7 +19,10 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     global.getLegalMoves = () => [];
     global.CardLogic = {
       getCardContext: () => ({ protectedStones: [], permaProtectedStones: [], bombs: [] }),
-      getSelectableTargets: () => []
+      getSelectableTargets: () => [],
+      getCardDef: () => null,
+      getReinforcementWillTargets: () => [],
+      getSupportTroopsWillTargets: () => []
     };
 
     global.cardState = { markers: [], pendingEffectByPlayer: {} };
@@ -102,6 +105,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
       'legal-free',
       'effect-target-highlight',
       'effect-target-highlight-positive',
+      'random-spawn-preview',
       'selectable-friendly',
       'selectable-friendly-no-circle',
       'time-stop-legal-emphasis'
@@ -113,6 +117,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(cell.classList.contains('legal-free')).toBe(false);
     expect(cell.classList.contains('effect-target-highlight')).toBe(false);
     expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(cell.classList.contains('random-spawn-preview')).toBe(false);
     expect(cell.classList.contains('selectable-friendly')).toBe(false);
     expect(cell.classList.contains('selectable-friendly-no-circle')).toBe(false);
     expect(cell.classList.contains('time-stop-legal-emphasis')).toBe(false);
@@ -296,6 +301,33 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('previews SUPPORT_TROOPS_WILL random spawn candidates and restores legal hints after deselection', () => {
+    global.getLegalMoves = () => [{ row: 0, col: 0 }];
+    global.CardLogic.getCardDef = () => ({ type: 'SUPPORT_TROOPS_WILL' });
+    global.CardLogic.getSupportTroopsWillTargets = () => [{ row: 0, col: 1 }, { row: 1, col: 1 }, { row: 2, col: 1 }];
+    global.cardState.selectedCardId = 'support_troops_01';
+    global.cardState.selectedCardOwnerKey = 'black';
+
+    const diff = require('../ui/diff-renderer.js');
+    diff.renderBoardDiff(boardEl);
+
+    const legalCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const firstPreviewCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    const secondPreviewCell = boardEl.querySelector('.cell[data-row="1"][data-col="1"]');
+    expect(legalCell.classList.contains('legal')).toBe(false);
+    expect(firstPreviewCell.classList.contains('random-spawn-preview')).toBe(true);
+    expect(secondPreviewCell.classList.contains('random-spawn-preview')).toBe(true);
+    expect(firstPreviewCell.classList.contains('selectable-friendly')).toBe(false);
+
+    global.cardState.selectedCardId = null;
+    global.cardState.selectedCardOwnerKey = null;
+    diff.renderBoardDiff(boardEl);
+
+    expect(legalCell.classList.contains('legal')).toBe(true);
+    expect(firstPreviewCell.classList.contains('random-spawn-preview')).toBe(false);
+    expect(secondPreviewCell.classList.contains('random-spawn-preview')).toBe(false);
   });
 
   test('previews SUPER_ATTRACTION_WILL hover paths after the first target is selected', () => {

@@ -35,6 +35,7 @@ declare const EMPTY: number;
  * @property {boolean} isLegal - 合法手かどうか
  * @property {boolean} isLegalFree - 自由配置可能かどうか
  * @property {boolean} isTabooLegal - 禁忌の反転で置けるかどうか
+ * @property {boolean} isRandomSpawnPreview - 増援/援軍の候補プレビューかどうか
  * @property {boolean} isExtendLifeTarget - 延命カード選択対象かどうか
  * @property {boolean} isProtected - 一時保護されているか
  * @property {boolean} isPermaProtected - 永久保護されているか
@@ -632,6 +633,69 @@ function _collectPendingSelectedTargetHighlightKeysForDiff(pending: any) {
     return out;
 }
 
+function _collectRandomSpawnPreviewHighlightKeysForDiff(cardStateValue: any, gameStateValue: any, playerKey: any, options?: any) {
+    const helper = _getDiscStoneHelperForDiff('collectRandomSpawnPreviewHighlightKeys');
+    if (typeof helper === 'function') {
+        const result = helper(cardStateValue, gameStateValue, playerKey, options);
+        if (result instanceof Set) return result;
+        if (Array.isArray(result)) return new Set(result);
+    }
+
+    const out = new Set();
+    if (options && options.enabled === false) return out;
+    if (options && options.pending) return out;
+    if (
+        !cardStateValue ||
+        !gameStateValue ||
+        (playerKey !== 'black' && playerKey !== 'white') ||
+        typeof CardLogic === 'undefined' ||
+        !CardLogic
+    ) {
+        return out;
+    }
+    const selectedCardId = cardStateValue.selectedCardId;
+    if (!selectedCardId) return out;
+
+    const selectedOwnerKey = (cardStateValue.selectedCardOwnerKey === 'white' || cardStateValue.selectedCardOwnerKey === 'black')
+        ? cardStateValue.selectedCardOwnerKey
+        : playerKey;
+    if (selectedOwnerKey !== playerKey) return out;
+
+    let selectedCardType = '';
+    try {
+        if (typeof CardLogic.getCardType === 'function') {
+            selectedCardType = String(CardLogic.getCardType(selectedCardId) || '');
+        }
+    } catch (e: any) { /* ignore */ }
+    if (!selectedCardType) {
+        try {
+            const selectedCardDef = typeof CardLogic.getCardDef === 'function'
+                ? CardLogic.getCardDef(selectedCardId)
+                : null;
+            selectedCardType = String(selectedCardDef && selectedCardDef.type ? selectedCardDef.type : '');
+        } catch (e: any) { /* ignore */ }
+    }
+
+    let targets: any[] = [];
+    try {
+        if (selectedCardType === 'REINFORCEMENT_WILL' && typeof CardLogic.getReinforcementWillTargets === 'function') {
+            targets = CardLogic.getReinforcementWillTargets(cardStateValue, gameStateValue, playerKey) || [];
+        } else if (selectedCardType === 'SUPPORT_TROOPS_WILL' && typeof CardLogic.getSupportTroopsWillTargets === 'function') {
+            targets = CardLogic.getSupportTroopsWillTargets(cardStateValue, gameStateValue, playerKey) || [];
+        }
+    } catch (e: any) {
+        targets = [];
+    }
+
+    for (const target of Array.isArray(targets) ? targets : []) {
+        const row = Number(target && target.row);
+        const col = Number(target && target.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        out.add(`${row},${col}`);
+    }
+    return out;
+}
+
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
@@ -924,6 +988,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 isLegal: false,
                 isLegalFree: false,
                 isTabooLegal: false,
+                isRandomSpawnPreview: false,
                 isSelectedTargetHighlighted: false,
                 isSuperAttractionPathPreview: false,
                 isSuperAttractionPreviewDestination: false,
@@ -1809,7 +1874,16 @@ function buildCurrentCellState() {
         (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') &&
         (pending.stage === 'selectTarget' || pending.stage == null)
     );
-    const showLegalHints = isHumanTurn && !isSelectingTarget && canControlCurrentTurn;
+    const randomSpawnPreviewSet = isHumanTurn
+        ? _collectRandomSpawnPreviewHighlightKeysForDiff(cardState, gameState, playerKey, {
+            enabled: canControlCurrentTurn,
+            pending
+        })
+        : new Set();
+    const showLegalHints = isHumanTurn
+        && !isSelectingTarget
+        && randomSpawnPreviewSet.size <= 0
+        && canControlCurrentTurn;
     const expansions = _getExpansionDescriptorsForDiff(gameState);
 
     let normalLegalSet = new Set();
@@ -2056,6 +2130,7 @@ function buildCurrentCellState() {
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
+            const isRandomSpawnPreview = isHumanTurn && randomSpawnPreviewSet.has(key);
             const isSelectedTargetHighlighted = isHumanTurn && selectedTargetHighlightSet.has(key);
             const isSuperAttractionPathPreview = isHumanTurn && superAttractionPreviewKeys.pathKeys.has(key);
             const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(key);
@@ -2097,6 +2172,7 @@ function buildCurrentCellState() {
                 isLegal: isLegal && !isLegalFree,
                 isLegalFree,
                 isTabooLegal,
+                isRandomSpawnPreview,
                 isSelectedTargetHighlighted,
                 isSuperAttractionPathPreview,
                 isSuperAttractionPreviewDestination,
@@ -2153,6 +2229,7 @@ function buildCurrentCellState() {
         const isLegal = showLegalHints && expVal === EMPTY && legalSet.has(expKey);
         const isTabooLegal = showLegalHints && expVal === EMPTY && tabooLegalSet.has(expKey);
         const isLegalFree = showLegalHints && expVal === EMPTY && freePlacementActive;
+        const isRandomSpawnPreview = isHumanTurn && randomSpawnPreviewSet.has(expKey);
         const isSelectedTargetHighlighted = isHumanTurn && selectedTargetHighlightSet.has(expKey);
         const isSuperAttractionPathPreview = isHumanTurn && superAttractionPreviewKeys.pathKeys.has(expKey);
         const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(expKey);
@@ -2193,6 +2270,7 @@ function buildCurrentCellState() {
             isLegal: isLegal && !isLegalFree,
             isLegalFree,
             isTabooLegal,
+            isRandomSpawnPreview,
             isSelectedTargetHighlighted,
             isSuperAttractionPathPreview,
             isSuperAttractionPreviewDestination,
@@ -2254,6 +2332,7 @@ function cellStatesEqual(a: any, b: any) {
     if (a.isLegal !== b.isLegal) return false;
     if (a.isLegalFree !== b.isLegalFree) return false;
     if (!!a.isTabooLegal !== !!b.isTabooLegal) return false;
+    if (!!a.isRandomSpawnPreview !== !!b.isRandomSpawnPreview) return false;
     if (!!a.isSelectedTargetHighlighted !== !!b.isSelectedTargetHighlighted) return false;
     if (!!a.isSuperAttractionPathPreview !== !!b.isSuperAttractionPathPreview) return false;
     if (!!a.isSuperAttractionPreviewDestination !== !!b.isSuperAttractionPreviewDestination) return false;
@@ -2417,6 +2496,9 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
     }
     if (state.isTabooLegal && !state.blockade && !state.frozen) {
         cell.classList.add('effect-target-highlight-positive');
+    }
+    if (state.isRandomSpawnPreview && !state.blockade && !state.frozen) {
+        cell.classList.add('random-spawn-preview');
     }
     if (state.isSelectableFriendly && !state.blockade && !state.frozen) {
         cell.classList.add('selectable-friendly');
@@ -2742,6 +2824,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             const shouldShowLegalFree = !!(canShowHint && state && state.isLegalFree);
             const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
             const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
+            const shouldShowRandomSpawnPreview = !!(canShowHint && state && state.isRandomSpawnPreview);
             const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
             const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
             const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
@@ -2752,6 +2835,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             cell.classList.toggle('legal', shouldShowLegal);
             cell.classList.toggle('effect-target-highlight', false);
             cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal);
+            cell.classList.toggle('random-spawn-preview', shouldShowRandomSpawnPreview);
             cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
             cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);

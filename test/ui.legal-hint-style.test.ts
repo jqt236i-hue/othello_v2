@@ -9,9 +9,11 @@ describe('legal hint styles', () => {
     expect(css).not.toMatch(/\.cell\.legal::after/);
     expect(css).not.toMatch(/\.cell\.legal-free::after/);
     expect(css).not.toMatch(/\.cell\.selectable-friendly::after/);
+    expect(css).not.toMatch(/\.cell\.random-spawn-preview::after/);
     expect(css).not.toMatch(/time-stop-legal-emphasis::after/);
     expect(css).toContain('@keyframes timeStopLegalGlow');
     expect(css).toContain('body.time-stop-active #board .cell.time-stop-legal-emphasis {');
+    expect(css).toContain('.cell.random-spawn-preview {');
     expect(timeStopGlowBlock?.[0]).not.toMatch(/background-color:/);
   });
 

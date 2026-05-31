@@ -550,6 +550,69 @@ function collectPendingSelectedTargetHighlightKeys(pending: any) {
     return out;
 }
 
+function _resolveSelectedCardOwnerKeyForBoardPreview(cardStateValue: any, fallbackPlayerKey: any) {
+    if (cardStateValue && (cardStateValue.selectedCardOwnerKey === 'white' || cardStateValue.selectedCardOwnerKey === 'black')) {
+        return cardStateValue.selectedCardOwnerKey;
+    }
+    return fallbackPlayerKey === 'white' || fallbackPlayerKey === 'black'
+        ? fallbackPlayerKey
+        : null;
+}
+
+function _resolveRandomSpawnPreviewTargetsForBoard(cardStateValue: any, gameStateValue: any, playerKey: any) {
+    if (
+        typeof CardLogic === 'undefined' ||
+        !CardLogic ||
+        !cardStateValue ||
+        !gameStateValue ||
+        (playerKey !== 'black' && playerKey !== 'white')
+    ) {
+        return [];
+    }
+    const selectedCardId = cardStateValue.selectedCardId;
+    if (!selectedCardId) return [];
+
+    let selectedCardType = '';
+    try {
+        if (typeof CardLogic.getCardType === 'function') {
+            selectedCardType = String(CardLogic.getCardType(selectedCardId) || '');
+        }
+    } catch (e: any) { /* ignore */ }
+    if (!selectedCardType) {
+        try {
+            const selectedCardDef = typeof CardLogic.getCardDef === 'function'
+                ? CardLogic.getCardDef(selectedCardId)
+                : null;
+            selectedCardType = String(selectedCardDef && selectedCardDef.type ? selectedCardDef.type : '');
+        } catch (e: any) { /* ignore */ }
+    }
+
+    if (selectedCardType === 'REINFORCEMENT_WILL' && typeof CardLogic.getReinforcementWillTargets === 'function') {
+        return CardLogic.getReinforcementWillTargets(cardStateValue, gameStateValue, playerKey) || [];
+    }
+    if (selectedCardType === 'SUPPORT_TROOPS_WILL' && typeof CardLogic.getSupportTroopsWillTargets === 'function') {
+        return CardLogic.getSupportTroopsWillTargets(cardStateValue, gameStateValue, playerKey) || [];
+    }
+    return [];
+}
+
+function collectRandomSpawnPreviewHighlightKeys(cardStateValue: any, gameStateValue: any, playerKey: any, options?: any) {
+    const out = new Set();
+    if (options && options.enabled === false) return out;
+    if (options && options.pending) return out;
+    const selectedOwnerKey = _resolveSelectedCardOwnerKeyForBoardPreview(cardStateValue, playerKey);
+    if (!selectedOwnerKey || selectedOwnerKey !== playerKey) return out;
+
+    const targets = _resolveRandomSpawnPreviewTargetsForBoard(cardStateValue, gameStateValue, playerKey);
+    for (const target of Array.isArray(targets) ? targets : []) {
+        const row = Number(target && target.row);
+        const col = Number(target && target.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        out.add(`${row},${col}`);
+    }
+    return out;
+}
+
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
@@ -923,12 +986,22 @@ function renderBoardFull() {
             : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network')));
     // FATE_WILL: show legal hints and allow interaction during the controlled (victim's) turn.
     const isFateWillControlledTurn = !!(cardState && cardState.fateWillControllerByTurnOwner && cardState.fateWillControllerByTurnOwner[playerKey]);
+    const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForBoard();
     const isHumanTurn = isNetworkMode
-        ? _canLocalPlayerControlCurrentTurnForBoard()
+        ? canControlCurrentTurn
         : ((gameState.currentPlayer === BLACK) ||
             (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
             isFateWillControlledTurn);
-    const showLegalHints = isHumanTurn && !isSelectingTarget && _canLocalPlayerControlCurrentTurnForBoard();
+    const randomSpawnPreviewSet = isHumanTurn
+        ? collectRandomSpawnPreviewHighlightKeys(cardState, gameState, playerKey, {
+            enabled: canControlCurrentTurn,
+            pending
+        })
+        : new Set();
+    const showLegalHints = isHumanTurn
+        && !isSelectingTarget
+        && randomSpawnPreviewSet.size <= 0
+        && canControlCurrentTurn;
     const selectedTargetHighlightSet = isHumanTurn
         ? collectPendingSelectedTargetHighlightKeys(pending)
         : new Set();
@@ -1084,6 +1157,7 @@ function renderBoardFull() {
             // Human turn gets legal move hints (Black always, White in HvH)
             const key = r + ',' + c;
             const isSelectedTargetHighlighted = selectedTargetHighlightSet.has(key);
+            const isRandomSpawnPreview = randomSpawnPreviewSet.has(key);
             if (showLegalHints && gameState.board[r][c] === EMPTY) {
                 if (freePlacementActive) {
                     cell.classList.add('legal-free');
@@ -1096,6 +1170,9 @@ function renderBoardFull() {
             }
             if (isSelectedTargetHighlighted) {
                 cell.classList.add('effect-target-highlight-positive');
+            }
+            if (isRandomSpawnPreview) {
+                cell.classList.add('random-spawn-preview');
             }
             if (isHumanTurn && (selectableTargetSet.has(key) || boardShrinkGodPreviewHighlightSet.has(key))) {
                 cell.classList.add('selectable-friendly');
@@ -1453,6 +1530,7 @@ const BoardRenderer = {
             updateOccupancyUI,
             applyTimeStopLegalEmphasis,
             collectPendingSelectedTargetHighlightKeys,
+            collectRandomSpawnPreviewHighlightKeys,
             ensureDiscSkeleton,
             getDiscHudRoot,
             applyDiscRenderState,
@@ -1465,6 +1543,7 @@ if (typeof window !== 'undefined') {
     window.renderBoard = renderBoard;
     window.updateOccupancyUI = window.updateOccupancyUI || updateOccupancyUI;
     window.collectPendingSelectedTargetHighlightKeys = window.collectPendingSelectedTargetHighlightKeys || collectPendingSelectedTargetHighlightKeys;
+    window.collectRandomSpawnPreviewHighlightKeys = window.collectRandomSpawnPreviewHighlightKeys || collectRandomSpawnPreviewHighlightKeys;
     window.ensureDiscSkeleton = window.ensureDiscSkeleton || ensureDiscSkeleton;
     window.getDiscHudRoot = window.getDiscHudRoot || getDiscHudRoot;
     window.applyDiscRenderState = window.applyDiscRenderState || applyDiscRenderState;

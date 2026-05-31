@@ -76,6 +76,56 @@ function _getDebugActions() {
     return null;
 }
 
+function _readCardInteractionRuntimeFunction(functionName: string) {
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as CardInteractionRuntimeRoot)[functionName] === 'function') {
+            return (globalThis as CardInteractionRuntimeRoot)[functionName];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof global !== 'undefined' && typeof (global as CardInteractionRuntimeRoot)[functionName] === 'function') {
+            return (global as CardInteractionRuntimeRoot)[functionName];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof (window as CardInteractionRuntimeRoot)[functionName] === 'function') {
+            return (window as CardInteractionRuntimeRoot)[functionName];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _resolveEmitBoardUpdateFn() {
+    if (typeof emitBoardUpdate === 'function') return emitBoardUpdate;
+    return _readCardInteractionRuntimeFunction('emitBoardUpdate');
+}
+
+function _resolveRenderBoardFn() {
+    if (typeof renderBoard === 'function') return renderBoard;
+    return _readCardInteractionRuntimeFunction('renderBoard');
+}
+
+function _renderBoardImmediately() {
+    const renderBoardFn = _resolveRenderBoardFn();
+    if (typeof renderBoardFn !== 'function') return false;
+    renderBoardFn();
+    return true;
+}
+
+function _requestImmediateBoardRefresh() {
+    const emitBoardUpdateFn = _resolveEmitBoardUpdateFn();
+    if (typeof emitBoardUpdateFn === 'function') {
+        emitBoardUpdateFn();
+        return;
+    }
+    _renderBoardImmediately();
+}
+
+function _requestImmediateVisualBoardRefresh() {
+    if (_renderBoardImmediately()) return;
+    _requestImmediateBoardRefresh();
+}
+
 function _rememberResolvedDebugActions(candidate: any) {
     if (!candidate || typeof candidate !== 'object') return null;
     const hasFill = typeof candidate.fillDebugHand === 'function';
@@ -568,8 +618,8 @@ function _getCardInteractionOverlaySelectionDeps() {
         runPipelineAction: _runPipelineAction,
         addLog,
         renderCardUI: (typeof renderCardUI === 'function') ? renderCardUI : null,
-        emitBoardUpdate: (typeof emitBoardUpdate === 'function') ? emitBoardUpdate : null,
-        renderBoard: (typeof renderBoard === 'function') ? renderBoard : null,
+        emitBoardUpdate: _resolveEmitBoardUpdateFn(),
+        renderBoard: _resolveRenderBoardFn(),
         hasHandRemovePlaybackEvent: _hasHandRemovePlaybackEvent,
         renderCardUiWithOptionalPlaybackDelay: _renderCardUiWithOptionalPlaybackDelay,
         ensureCurrentPlayerCanActOrPass: (typeof ensureCurrentPlayerCanActOrPass === 'function') ? ensureCurrentPlayerCanActOrPass : null,
@@ -1770,6 +1820,7 @@ function _resolveSelectedHandCardActionContext(options: any) {
         _clearSelectedCardSelection();
         addLog('自分の手札からカードを選択してください');
         renderCardUI();
+        _requestImmediateVisualBoardRefresh();
         return null;
     }
 
@@ -1804,8 +1855,7 @@ function _finalizeCardActionUi(options: any) {
         _renderCardUiWithOptionalPlaybackDelay(opts.delayHandVisual === true, renderOptions);
     }
     if (opts.boardUpdateMode === 'immediate') {
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        else if (typeof renderBoard === 'function') renderBoard();
+        _requestImmediateVisualBoardRefresh();
     } else if (opts.boardUpdateMode === 'playback-aware') {
         _emitBoardUpdateWithOptionalPlaybackDelay(opts.delayBoardVisual === true);
     }
@@ -1899,8 +1949,7 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) 
 
 function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
     const renderBoardSync = () => {
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-        else if (typeof renderBoard === 'function') renderBoard();
+        _requestImmediateBoardRefresh();
     };
     const renderBoardSyncSafely = () => {
         try { renderBoardSync(); } catch (e) { /* ignore */ }
@@ -2236,6 +2285,7 @@ function onCardClick(cardId: any, ownerKey: any) {
         }
 
         renderCardUI();
+        _requestImmediateVisualBoardRefresh();
         return;
     }
     if (pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget') {
@@ -2254,6 +2304,7 @@ function onCardClick(cardId: any, ownerKey: any) {
     }
 
     renderCardUI();
+    _requestImmediateVisualBoardRefresh();
 }
 
 function destroySelectedHandCard() {
@@ -2442,8 +2493,7 @@ function cancelPendingSelection(specificPlayerKey: any) {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の対象選択をキャンセルしました`);
     }
     renderCardUI();
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-    else if (typeof renderBoard === 'function') renderBoard();
+    _requestImmediateVisualBoardRefresh();
 }
 
 function cancelPendingDestroy(specificPlayerKey: any) {

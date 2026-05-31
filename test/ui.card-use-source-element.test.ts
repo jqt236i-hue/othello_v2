@@ -70,6 +70,7 @@ describe('card use source element selection', () => {
     global.playCardUseHandAnimation = jest.fn(() => Promise.resolve());
     global.renderCardUI = jest.fn();
     global.emitBoardUpdate = jest.fn();
+    global.renderBoard = jest.fn();
     global.addLog = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.isProcessing = false;
@@ -85,6 +86,7 @@ describe('card use source element selection', () => {
     delete global.PlaybackStateManager;
     delete global.window;
     delete global.document;
+    delete global.renderBoard;
   });
 
   test('prefers owner hand element when same card id exists in both hands', () => {
@@ -195,6 +197,27 @@ describe('card use source element selection', () => {
     window.onCardClick('dup_card', 'white');
     expect(global.cardState.selectedCardId).toBe('dup_card');
     expect(global.cardState.selectedCardOwnerKey).toBe('white');
+  });
+
+  test('onCardClick refreshes the board when selection changes', () => {
+    require('../cards/card-interaction.js');
+
+    global.cardState.selectedCardId = null;
+    global.cardState.selectedCardOwnerKey = null;
+
+    window.onCardClick('dup_card', 'black');
+
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+    expect(global.renderCardUI).toHaveBeenCalledTimes(1);
+    expect(global.renderBoard).toHaveBeenCalledTimes(1);
+
+    window.onCardClick('dup_card', 'black');
+
+    expect(global.cardState.selectedCardId).toBeNull();
+    expect(global.cardState.selectedCardOwnerKey).toBeNull();
+    expect(global.renderCardUI).toHaveBeenCalledTimes(2);
+    expect(global.renderBoard).toHaveBeenCalledTimes(2);
   });
 
   test('network mode resolves local seat from BOARD_VIEWER_KEY when LOCAL_PLAYER_KEY is missing', () => {
@@ -1075,6 +1098,7 @@ describe('card use source element selection', () => {
 
       require('../cards/card-interaction.js');
       global.emitBoardUpdate.mockClear();
+      global.renderBoard.mockClear();
       global.renderCardUI.mockClear();
       global.addLog.mockClear();
 
@@ -1085,7 +1109,8 @@ describe('card use source element selection', () => {
         expect.objectContaining({ type: 'cancel_card' })
       );
       expect(global.renderCardUI).toHaveBeenCalledTimes(1);
-      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      expect(global.renderBoard).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
       expect(global.addLog).toHaveBeenCalledWith('黒の対象選択をキャンセルしました');
     });
   });

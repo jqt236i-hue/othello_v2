@@ -42,7 +42,10 @@ describe('board-renderer fallback legal hints', () => {
         permaProtectedStones: [{ row: 5, col: 5 }],
         bombs: []
       }),
-      getSelectableTargets: () => []
+      getSelectableTargets: () => [],
+      getCardDef: () => null,
+      getReinforcementWillTargets: () => [],
+      getSupportTroopsWillTargets: () => []
     };
 
     global.gameState = {
@@ -152,6 +155,26 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell).toBeTruthy();
     expect(legalCell.classList.contains('legal')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('renderBoardFull previews random spawn targets for REINFORCEMENT_WILL without using selectable target styling', () => {
+    global.CardLogic.getCardDef = jest.fn(() => ({ type: 'REINFORCEMENT_WILL' }));
+    global.CardLogic.getReinforcementWillTargets = jest.fn(() => [{ row: 0, col: 1 }, { row: 1, col: 1 }]);
+    global.cardState.selectedCardId = 'reinforcement_01';
+    global.cardState.selectedCardOwnerKey = 'black';
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    const legalCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const firstPreviewCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    const secondPreviewCell = global.boardEl.querySelector('.cell[data-row="1"][data-col="1"]');
+    expect(global.boardEl.classList.contains('selection-mode')).toBe(false);
+    expect(legalCell.classList.contains('legal')).toBe(false);
+    expect(firstPreviewCell.classList.contains('random-spawn-preview')).toBe(true);
+    expect(secondPreviewCell.classList.contains('random-spawn-preview')).toBe(true);
+    expect(firstPreviewCell.classList.contains('selectable-friendly')).toBe(false);
+    expect(secondPreviewCell.classList.contains('selectable-friendly')).toBe(false);
   });
 
   test('renderBoardFull highlights the first selected stone during POSITION_SWAP_WILL targeting', () => {
