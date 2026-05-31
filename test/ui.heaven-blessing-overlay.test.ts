@@ -1,5 +1,11 @@
 import { JSDOM } from 'jsdom';
 
+async function flushOverlaySelection() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('HEAVEN_BLESSING overlay flow', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -45,6 +51,7 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     global.emitBoardUpdate = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.addLog = jest.fn();
+    global.processPassTurn = jest.fn();
     global.ActionManager = {
       ActionManager: {
         createAction: (type, player, extra) => ({ type, player, ...(extra || {}) }),
@@ -67,6 +74,7 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     delete global.SoundEngine;
     delete global.window;
     delete global.document;
+    delete global.processPassTurn;
   });
 
   test('shows overlay and confirms selected offer with select button', () => {
@@ -177,5 +185,97 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('hand_card_select');
     expect(global.cardState.selectedCardId).toBe('offer_2');
     expect(global.cardState.selectedCardOwnerKey).toBe('white');
+  });
+
+  test('HEAVEN_BLESSING selection settles and re-enables interaction after local resolution', async () => {
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn((cardState, gameState, playerKey, action) => ({
+      ok: true,
+      nextCardState: {
+        ...cardState,
+        selectedCardId: null,
+        selectedCardOwnerKey: null,
+        hands: {
+          ...cardState.hands,
+          [playerKey]: [...cardState.hands[playerKey], action.heavenBlessingCardId]
+        },
+        pendingEffectByPlayer: {
+          ...cardState.pendingEffectByPlayer,
+          [playerKey]: null
+        }
+      },
+      nextGameState: gameState,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    const selectionFlow = require('../game/card-effects/selection-flow.js');
+
+    window.updateCardDetailPanel();
+    const overlay = document.getElementById('heaven-blessing-overlay');
+    const offers = overlay.querySelectorAll('.heaven-offer-card');
+    offers[0].click();
+    document.getElementById('heaven-blessing-select-btn').click();
+
+    await flushOverlaySelection();
+
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
+    expect(window.isProcessing).toBe(false);
+    expect(window.isCardAnimating).toBe(false);
+
+    window.onCardClick('dummy_01', 'black');
+    expect(global.cardState.selectedCardId).toBe('dummy_01');
+  });
+
+  test('CONDEMN_WILL selection settles and re-enables interaction after local resolution', async () => {
+    global.cardState.hands.white = ['offer_1', 'offer_2'];
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [
+        { handIndex: 0, cardId: 'offer_1' },
+        { handIndex: 1, cardId: 'offer_2' }
+      ]
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn((cardState, gameState, playerKey, action) => {
+      const opponentKey = playerKey === 'black' ? 'white' : 'black';
+      const nextOpponentHand = [...cardState.hands[opponentKey]];
+      nextOpponentHand.splice(action.condemnTargetIndex, 1);
+      return {
+        ok: true,
+        nextCardState: {
+          ...cardState,
+          selectedCardId: null,
+          selectedCardOwnerKey: null,
+          hands: {
+            ...cardState.hands,
+            [opponentKey]: nextOpponentHand
+          },
+          pendingEffectByPlayer: {
+            ...cardState.pendingEffectByPlayer,
+            [playerKey]: null
+          }
+        },
+        nextGameState: gameState,
+        playbackEvents: []
+      };
+    });
+
+    require('../cards/card-interaction.js');
+    const selectionFlow = require('../game/card-effects/selection-flow.js');
+
+    window.updateCardDetailPanel();
+    const overlay = document.getElementById('heaven-blessing-overlay');
+    const offers = overlay.querySelectorAll('.heaven-offer-card');
+    offers[1].click();
+    document.getElementById('heaven-blessing-select-btn').click();
+
+    await flushOverlaySelection();
+
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
+    expect(window.isProcessing).toBe(false);
+    expect(window.isCardAnimating).toBe(false);
+
+    window.onCardClick('dummy_01', 'black');
+    expect(global.cardState.selectedCardId).toBe('dummy_01');
   });
 });

@@ -56,7 +56,9 @@ function finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runR
         ensureCurrentPlayerCanActOrPass: typeof deps.ensureCurrentPlayerCanActOrPass === 'function'
             ? deps.ensureCurrentPlayerCanActOrPass
             : null
-    })).catch(() => {
+    })).then(() => {
+        deps.setPendingSelectionBusy(false);
+    }).catch(() => {
         deps.setPendingSelectionBusy(false);
         deps.ensureCurrentPlayerCanActOrPassSafely();
     });
