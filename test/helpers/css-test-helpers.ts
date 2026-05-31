@@ -3,10 +3,10 @@ import * as path from 'path';
 
 export const LAYOUT_STYLE_FILES = [
   'styles-layout.css',
+  'styles-layout-controls.css',
+  'styles-layout-info.css',
   'styles-layout-result.css',
   'styles-layout-characters.css',
-  'styles-layout-info.css',
-  'styles-layout-controls.css',
 ];
 
 export const CORE_UI_STYLE_FILES = [
