@@ -290,6 +290,9 @@ function getExpansionDescriptorsForCard(gameState: GameState): any[] {
         ? (gameState as any).boardExpansion
         : null;
     if (!expansion) return [];
+    if (BoardUtils && typeof BoardUtils.collectExpansionDescriptors === 'function') {
+        return BoardUtils.collectExpansionDescriptors(expansion, gameState);
+    }
     const boardConfig = resolveCardBoardConfig(gameState);
 
     const out: any[] = [];

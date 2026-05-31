@@ -219,6 +219,59 @@ describe('custom board config foundations', () => {
     });
   });
 
+  test('shared expansion descriptors preserve legacy active expansion when cells are empty', () => {
+    const BoardOps = require('../game/logic/board_ops.js');
+    const gameState = Core.createGameState({ rows: 8, cols: 9 });
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 2,
+      owner: Core.WHITE,
+      usedByPlayer: { black: true, white: true },
+      cells: []
+    };
+
+    const expected = [
+      { side: 'right', row: 2, col: 9, owner: Core.WHITE }
+    ];
+
+    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual(expected);
+    expect(BoardOps.getExpansionDescriptors(gameState)).toEqual(expected);
+    expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual(expected);
+  });
+
+  test('expansion descriptor helpers agree on legacy and cells normalization', () => {
+    const BoardOps = require('../game/logic/board_ops.js');
+    const gameState = Core.createGameState({ rows: 8, cols: 9 });
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 2,
+      owner: Core.WHITE,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'top', row: -1, col: 0, owner: Core.WHITE },
+        { side: 'right', row: 4, owner: Core.BLACK },
+        { side: 'right', row: 4, col: 9, owner: Core.WHITE },
+        { side: 'bottom', row: 8, col: 8, owner: 999 },
+        { side: 'left', row: 1, col: -1, owner: Core.BLACK },
+        { side: 'left', row: 1, col: -1, owner: Core.WHITE },
+        { side: 'top', row: 0, col: 0, owner: Core.BLACK }
+      ]
+    };
+
+    const expected = [
+      { side: 'top', row: -1, col: 0, owner: Core.WHITE },
+      { side: 'right', row: 4, col: 9, owner: Core.BLACK },
+      { side: 'bottom', row: 8, col: 8, owner: Core.EMPTY },
+      { side: 'left', row: 1, col: -1, owner: Core.BLACK }
+    ];
+
+    expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual(expected);
+    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual(expected);
+    expect(BoardOps.getExpansionDescriptors(gameState)).toEqual(expected);
+  });
+
   test('board config clamps above-limit requests to 10x10 and accepts full 10x10 boards', () => {
     expect(SharedBoardUtils.buildBoardConfig(11, 12)).toMatchObject({
       rows: 10,

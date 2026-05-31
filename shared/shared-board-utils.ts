@@ -587,7 +587,8 @@
         };
         if (Array.isArray(obj.cells)) {
             for (const cell of obj.cells) push(cell);
-        } else if (obj.active === true) {
+        }
+        if (out.length === 0 && obj.active === true) {
             push(boardExpansion);
         }
         return out;
