@@ -718,6 +718,56 @@ describe('pending selection flow contracts', () => {
 
   });
 
+  test('finalizePendingSelectionFlow releases hand overlay busy before playback wait', async () => {
+    attachPlaybackStateManager();
+
+    global.cardState = { turnIndex: 3 };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    flow.createPendingSelectionAction('black', 'CONDEMN_WILL', {
+      condemnTargetIndex: 0
+    }, { cardState: global.cardState });
+
+    global.isProcessing = true;
+    global.isCardAnimating = true;
+    flow.setSelectionBusy(true);
+    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+      const poll = () => {
+        const playbackStateManager = global.PlaybackStateManager;
+        if (!playbackStateManager || (!playbackStateManager.getProcessing() && !playbackStateManager.getCardAnimating())) {
+          resolve();
+          return;
+        }
+        setTimeout(poll, 0);
+      };
+      setTimeout(poll, 0);
+    }));
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'CONDEMN_WILL',
+      playbackEvents: [{ type: 'hand_remove', phase: 1 }],
+      gameStateValue: {
+        currentPlayer: 1,
+        turnNumber: 7,
+        board: Array.from({ length: 8 }, () => Array(8).fill(0))
+      },
+      cardStateValue: {
+        turnIndex: 3,
+        hands: { white: [], black: [] },
+        pendingEffectByPlayer: { white: null, black: null }
+      }
+    });
+
+    expect(result).toBe(true);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+  });
+
   test('finalizePendingSelectionFlow skips publish for deferred multi-stage intermediate selection while pending remains active', async () => {
     const ensureCurrentPlayerCanActOrPass = jest.fn();
     attachPlaybackStateManager();

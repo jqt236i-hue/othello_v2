@@ -672,6 +672,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getNetworkTurnHandoff,
             setSelectionProcessing,
             setSelectionCardAnimating,
+            setSelectionBusy,
             publishPendingSelectionSnapshot,
             scheduleWhiteCpuTurn,
             waitForPlaybackViaBridge: async (playbackEvents: any) => {

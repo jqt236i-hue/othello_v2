@@ -13,6 +13,7 @@ interface SelectionFlowNetworkHandoffDeps {
     getNetworkTurnHandoff: () => any;
     setSelectionProcessing: (nextValue: any) => any;
     setSelectionCardAnimating: (nextValue: any) => any;
+    setSelectionBusy?: (nextValue: any) => any;
     publishPendingSelectionSnapshot: (meta: any) => any;
     waitForPlaybackViaBridge?: (playbackEvents: any) => Promise<any>;
     scheduleWhiteCpuTurn: (options: any) => boolean;
@@ -32,6 +33,19 @@ async function waitForSelectionPlaybackIdle(playbackEvents: any, deps: Selection
     if (networkTurnHandoff && typeof networkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
         return networkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
     }
+}
+
+function shouldReleaseSelectionBusyBeforePlaybackWait(contract: any) {
+    return !!(contract && contract.kind === 'hand_overlay' && contract.waitForPlaybackIdle === true);
+}
+
+function releaseSelectionBusyForPlaybackWait(deps: SelectionFlowNetworkHandoffDeps, clearCardAnimatingOnFinish: boolean) {
+    if (typeof deps.setSelectionBusy === 'function') {
+        deps.setSelectionBusy(false);
+        return;
+    }
+    deps.setSelectionProcessing(false);
+    if (clearCardAnimatingOnFinish) deps.setSelectionCardAnimating(false);
 }
 
 async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNetworkHandoffDeps) {
@@ -145,6 +159,9 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
         && !skipNetworkPublish
     );
     if (contract && contract.waitForPlaybackIdle && !shouldDeferPlaybackWaitUntilAfterPublish) {
+        if (shouldReleaseSelectionBusyBeforePlaybackWait(contract)) {
+            releaseSelectionBusyForPlaybackWait(deps, clearCardAnimatingOnFinish);
+        }
         await waitForSelectionPlaybackIdle(playbackEvents, deps);
     }
 
@@ -159,6 +176,9 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
     }
 
     if (contract && contract.waitForPlaybackIdle && shouldDeferPlaybackWaitUntilAfterPublish) {
+        if (shouldReleaseSelectionBusyBeforePlaybackWait(contract)) {
+            releaseSelectionBusyForPlaybackWait(deps, clearCardAnimatingOnFinish);
+        }
         await waitForSelectionPlaybackIdle(playbackEvents, deps);
     }
 
@@ -182,6 +202,7 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
 
 const SelectionFlowNetworkHandoffModule = {
     waitForSelectionPlaybackIdle,
+    shouldReleaseSelectionBusyBeforePlaybackWait,
     finalizePendingSelectionFlow
 };
 
