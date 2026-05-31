@@ -1887,18 +1887,11 @@
 }
 
 .heaven-blessing-offers .heaven-offer-card {
-    width: var(--layout-size-card-large-width);
-    height: var(--layout-size-card-large-height);
+    width: var(--layout-size-card-width);
+    height: var(--layout-size-card-height);
+    flex: 0 0 auto;
     pointer-events: auto;
     cursor: pointer;
-    transition: transform 120ms ease, box-shadow 120ms ease;
-}
-
-.heaven-blessing-offers .heaven-offer-card:hover {
-    transform: translateY(-3px);
-    box-shadow:
-        0 0 16px rgba(255, 210, 122, 0.38),
-        0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .heaven-blessing-detail {
@@ -1961,11 +1954,6 @@
 @media (max-width: 42.5em) {
     .heaven-blessing-panel {
         width: min(96vw, 340px);
-    }
-
-    .heaven-blessing-offers .heaven-offer-card {
-        width: var(--layout-size-card-width);
-        height: var(--layout-size-card-height);
     }
 
     .heaven-blessing-detail-name {
