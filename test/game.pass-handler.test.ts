@@ -537,6 +537,63 @@ describe('pass-handler flows', () => {
         expect((global as any).cardState.hands.white).toEqual(['white_draw']);
     });
 
+    test('network FATE_WILL pass publish は controller seat を actor に使う', async () => {
+        delete require.cache[modPath];
+        const publishSnapshotMock = jest.fn();
+        (global as any).MATCH_MODE = 'network';
+        (global as any).LOCAL_PLAYER_KEY = 'black';
+        (global as any).cardState = {
+            turnIndex: 3,
+            turnCountByPlayer: { black: 1, white: 0 },
+            lastTurnStartedFor: 'white',
+            fateWillControllerByTurnOwner: { black: null, white: 'black' },
+            hands: { black: ['black_card'], white: ['white_card'] }
+        };
+        (global as any).gameState = { currentPlayer: (global as any).WHITE, turnNumber: 7, consecutivePasses: 0 };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).BLACK, turnNumber: 8, consecutivePasses: 1 }),
+                cardState: Object.assign({}, cs, {
+                    turnIndex: 4,
+                    turnCountByPlayer: { black: 1, white: 0 },
+                    lastTurnStartedFor: 'white',
+                    fateWillControllerByTurnOwner: { black: null, white: 'black' },
+                    hands: { black: ['black_card'], white: ['white_card'] }
+                }),
+                events: []
+            }))
+        };
+        (global as any).getLegalMoves = jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]);
+        (global as any).onTurnStart = jest.fn(() => {
+            (global as any).cardState.hands.black = ['black_card', 'black_draw'];
+            (global as any).cardState.turnIndex = 5;
+            (global as any).cardState.turnCountByPlayer.black = 2;
+            (global as any).cardState.lastTurnStartedFor = 'black';
+        });
+        (global as any).NetworkMatchClient = {
+            isActive: jest.fn(() => true),
+            publishSnapshot: publishSnapshotMock
+        };
+
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        const ok = await ph.processPassTurn('black', false);
+
+        expect(ok).toBe(true);
+        expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'white',
+            expect.objectContaining({ type: 'pass', turnIndex: 3 })
+        );
+        expect(publishSnapshotMock).toHaveBeenCalledTimes(1);
+        const payload = publishSnapshotMock.mock.calls[0][0];
+        expect(payload.playerKey).toBe('black');
+        expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 4 });
+        expect((global as any).cardState.hands.black).toEqual(['black_card', 'black_draw']);
+    });
+
     test('pass reject clears processing through runtime bridge', async () => {
         delete require.cache[modPath];
         const setBusyStateMock = jest.fn();
