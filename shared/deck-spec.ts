@@ -326,8 +326,8 @@
         return normalizeDeckSpec(Array.isArray(cardIds) ? cardIds : [], options);
     }
 
-    function expandDeckSpec(deckSpec: unknown): string[] {
-        const normalized = normalizeDeckSpec(deckSpec);
+    function expandDeckSpec(deckSpec: unknown, options?: NormalizeOptions): string[] {
+        const normalized = normalizeDeckSpec(deckSpec, options);
         const cardIds: string[] = [];
         normalized.cards.forEach((entry) => {
             for (let index = 0; index < entry.count; index += 1) {

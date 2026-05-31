@@ -28,7 +28,7 @@ export function createCardDeckSetup(deps?: CardDeckSetupDeps) {
         if (!deckSpecHelpers || typeof deckSpecHelpers.expandDeckSpec !== 'function') {
             throw new Error('DeckSpecHelpers is required for custom deck initialization');
         }
-        return deckSpecHelpers.expandDeckSpec(deckSpec);
+        return deckSpecHelpers.expandDeckSpec(deckSpec, { requireFullDeck: false });
     }
 
     function normalizeInitialDeckCardIds(deckCardIds: any) {

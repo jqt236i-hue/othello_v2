@@ -92,6 +92,27 @@ describe('CardLogic commitDraw reshuffle cycle policy', () => {
     expect(cardState.decks.white.filter((cardId) => cardId === enabledIds[0])).toHaveLength(3);
   });
 
+  test('partial initialDeckSpec initializes both players with the requested deck size', () => {
+    const enabledIds = (SharedConstants.CARD_DEFS || [])
+      .filter((card) => card && card.enabled !== false && card.id)
+      .map((card) => card.id)
+      .slice(0, 4);
+
+    expect(enabledIds).toHaveLength(4);
+
+    const customDeckIds = enabledIds.concat(enabledIds[0]);
+    const deckSpec = DeckSpecHelpers.createDeckSpecFromCardIds(customDeckIds, { requireFullDeck: false });
+    const expandedDeckIds = DeckSpecHelpers.expandDeckSpec(deckSpec, { requireFullDeck: false });
+    const prng = { shuffle: (arr) => arr, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng, { initialDeckSpec: deckSpec });
+
+    expect(cardState.initialDeckSize).toBe(5);
+    expect(cardState.initialDeckSizeByPlayer.black).toBe(5);
+    expect(cardState.initialDeckSizeByPlayer.white).toBe(5);
+    expect(cardState.decks.black).toEqual(expandedDeckIds);
+    expect(cardState.decks.white).toEqual(expandedDeckIds);
+  });
+
   test('initialDeckCardIdsByPlayer accepts duplicate-heavy custom decks', () => {
     const duplicateDeckIds = Array(15).fill('perma_01').concat(Array(15).fill('observer_01'));
     const prng = { shuffle: (arr) => arr, random: () => 0.5 };
