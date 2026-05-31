@@ -437,14 +437,40 @@ function getPendingSelectionActionConfig(cardType: any): PendingSelectionActionC
     return entry && entry.action ? entry.action : null;
 }
 
-function getPendingSelectionCpuHandlerNamesByDispatchKey(): Record<string, string[]> {
+function areCpuHandlerNameListsEqual(left: string[], right: string[]): boolean {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+        if (left[index] !== right[index]) return false;
+    }
+    return true;
+}
+
+function buildPendingSelectionCpuHandlerNamesByDispatchKey(): Record<string, string[]> {
     const out: Record<string, string[]> = {};
+    const firstCardTypeByDispatchKey: Record<string, string> = {};
     Object.keys(PENDING_SELECTION_REGISTRY).forEach((cardType) => {
         const entry = PENDING_SELECTION_REGISTRY[cardType];
         if (!entry || !entry.dispatchKey || !Array.isArray(entry.cpuHandlerNames)) return;
-        if (!out[entry.dispatchKey]) out[entry.dispatchKey] = entry.cpuHandlerNames.slice();
+        const nextHandlerNames = entry.cpuHandlerNames.slice();
+        if (!out[entry.dispatchKey]) {
+            out[entry.dispatchKey] = nextHandlerNames;
+            firstCardTypeByDispatchKey[entry.dispatchKey] = cardType;
+            return;
+        }
+        if (!areCpuHandlerNameListsEqual(out[entry.dispatchKey], nextHandlerNames)) {
+            throw new Error(
+                `Pending selection dispatchKey "${entry.dispatchKey}" has inconsistent CPU handlers between `
+                + `${firstCardTypeByDispatchKey[entry.dispatchKey]} and ${cardType}`
+            );
+        }
     });
     return Object.freeze(out);
+}
+
+const PENDING_SELECTION_CPU_HANDLER_NAMES_BY_DISPATCH_KEY = buildPendingSelectionCpuHandlerNamesByDispatchKey();
+
+function getPendingSelectionCpuHandlerNamesByDispatchKey(): Record<string, string[]> {
+    return PENDING_SELECTION_CPU_HANDLER_NAMES_BY_DISPATCH_KEY;
 }
 
 export = {

@@ -515,6 +515,10 @@ const _cardInteractionDetailActionsModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-detail-actions'
 });
 
+const _pendingSelectionUiMetadataModule = _resolveCardInteractionModule({
+    requirePath: './pending-selection-ui-metadata'
+});
+
 const _cardInteractionDetailTabModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-detail-tab'
 });
@@ -679,17 +683,10 @@ function _isCancellablePendingSelectionForCardUi(pendingType: any) {
     if (pendingStateManager && typeof pendingStateManager.isCancellablePendingType === 'function') {
         return pendingStateManager.isCancellablePendingType(pendingType);
     }
-    return (
-        pendingType === 'DESTROY_ONE_STONE' ||
-        pendingType === 'POSITION_SWAP_WILL' ||
-        pendingType === 'BOARD_EXPANSION_WILL' ||
-        pendingType === 'BOARD_EXPANSION_GOD' ||
-        pendingType === 'BOARD_SHRINK_WILL' ||
-        pendingType === 'BOARD_SHRINK_GOD' ||
-        pendingType === 'BLOCKADE_WILL' ||
-        pendingType === 'METEOR_WILL' ||
-        pendingType === 'FREEZE_WILL'
-    );
+    if (_pendingSelectionUiMetadataModule && typeof _pendingSelectionUiMetadataModule.isCancellablePendingSelectionFallback === 'function') {
+        return _pendingSelectionUiMetadataModule.isCancellablePendingSelectionFallback(pendingType);
+    }
+    return false;
 }
 
 function _isHandOverlayPendingTypeForCardUi(pendingType: any) {
@@ -702,10 +699,10 @@ function _isHandOverlayPendingTypeForCardUi(pendingType: any) {
             return contract.kind === 'hand_overlay';
         }
     }
-    return (
-        normalizedType === 'HEAVEN_BLESSING'
-        || normalizedType === 'CONDEMN_WILL'
-    );
+    if (_pendingSelectionUiMetadataModule && typeof _pendingSelectionUiMetadataModule.isHandOverlayPendingSelectionFallback === 'function') {
+        return _pendingSelectionUiMetadataModule.isHandOverlayPendingSelectionFallback(normalizedType);
+    }
+    return false;
 }
 
 function _normalizeCardDescText(text: any) {

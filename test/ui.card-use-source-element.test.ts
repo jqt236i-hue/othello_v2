@@ -790,6 +790,29 @@ describe('card use source element selection', () => {
     expect(document.getElementById('cancel-card-btn').style.display).toBe(expectedCancelDisplay);
   });
 
+  test('updateCardDetailPanel keeps SEED_WILL cancellable when pending-state-manager fallback is used', () => {
+    jest.doMock('../game/logic/cards-internal/pending-state-manager', () => {
+      throw new Error('pending-state-manager unavailable');
+    });
+
+    try {
+      require('../cards/card-interaction.js');
+
+      global.cardState.pendingEffectByPlayer.black = {
+        type: 'SEED_WILL',
+        stage: 'selectTarget',
+        cardId: 'seed_01'
+      };
+
+      window.updateCardDetailPanel();
+
+      expect(document.getElementById('use-card-reason').textContent).toBe('種をまく空きマスを選んでください');
+      expect(document.getElementById('cancel-card-btn').style.display).toBe('block');
+    } finally {
+      jest.dontMock('../game/logic/cards-internal/pending-state-manager');
+    }
+  });
+
   test('useSelectedCard blocks cards that are not currently usable by rules in local mode', () => {
     global.CardLogic = {
       getCardDef: (id) => ({ id, name: 'Duplicate Card', desc: 'd', cost: 1 }),
