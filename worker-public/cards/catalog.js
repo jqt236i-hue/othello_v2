@@ -714,7 +714,7 @@ window.CardCatalog = {
       "id": "stone_salvation_god_01",
       "name_ja": "救済神",
       "type": "STONE_SALVATION_GOD",
-      "cost": 25,
+      "cost": 20,
       "desc_ja": "次に置く石を救済神化。10ターンの間、破壊された石を救済神の持ち主の通常石として空きマスに復活させる。救済神自身は復活しない。",
       "display_type_ja": "繁栄",
       "name": "救済神",
@@ -785,10 +785,10 @@ window.CardCatalog = {
       "name_ja": "盤面縮小",
       "type": "BOARD_SHRINK_WILL",
       "cost": 19,
-      "desc_ja": "現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に同時に穴化する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。",
+      "desc_ja": "外周の連続した3マスを選び、穴マス化して盤面を縮小する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。",
       "display_type_ja": "禁忌",
       "name": "盤面縮小",
-      "desc": "現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に同時に穴化する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。"
+      "desc": "外周の連続した3マスを選び、穴マス化して盤面を縮小する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。"
     },
     {
       "id": "board_shrink_god_01",
@@ -844,7 +844,7 @@ window.CardCatalog = {
       "id": "salvation_01",
       "name_ja": "救済の意志",
       "type": "SALVATION_WILL",
-      "cost": 17,
+      "cost": 10,
       "desc_ja": "直前の相手ターンで破壊された全ての石を救済し、自分の通常石として空きマスにランダム配置。",
       "display_type_ja": "繁栄",
       "name": "救済の意志",
@@ -865,16 +865,26 @@ window.CardCatalog = {
       "name_ja": "増援の意志",
       "type": "REINFORCEMENT_WILL",
       "cost": 6,
-      "desc_ja": "石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)",
+      "desc_ja": "既存石の近くの空きマスに、自分の通常石を1個ランダム配置(反転可)",
       "display_type_ja": "繁栄",
       "name": "増援の意志",
-      "desc": "石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)"
+      "desc": "既存石の近くの空きマスに、自分の通常石を1個ランダム配置(反転可)"
+    },
+    {
+      "id": "support_troops_01",
+      "name_ja": "援軍の意志",
+      "type": "SUPPORT_TROOPS_WILL",
+      "cost": 14,
+      "desc_ja": "既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)",
+      "display_type_ja": "繁栄",
+      "name": "援軍の意志",
+      "desc": "既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)"
     },
     {
       "id": "equality_will_01",
       "name_ja": "平等の意志",
       "type": "EQUALITY_WILL",
-      "cost": 15,
+      "cost": 8,
       "desc_ja": "空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。",
       "display_type_ja": "繁栄",
       "name": "平等の意志",

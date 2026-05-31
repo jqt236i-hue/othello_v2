@@ -350,4 +350,162 @@ describe('sound handler', () => {
     expect(createdGains[0].disconnect).toHaveBeenCalledTimes(1);
     expect(engine.playBgm).toHaveBeenCalledTimes(1);
   });
+
+  test('real sound engine falls back to HTML Audio when result AudioContext creation fails', () => {
+    const createdAudio = [];
+    class ThrowingAudioContext {
+      constructor() {
+        throw new Error('audio context blocked');
+      }
+    }
+    function FakeAudio(src) {
+      this.src = src || '';
+      this.preload = '';
+      this.loop = false;
+      this.volume = 0;
+      this.currentTime = 0;
+      this.paused = true;
+      this.play = jest.fn(() => {
+        this.paused = false;
+        return Promise.resolve();
+      });
+      this.pause = jest.fn(() => {
+        this.paused = true;
+      });
+      this.load = jest.fn();
+      createdAudio.push(this);
+    }
+
+    const engine = loadSoundEngine({
+      AudioContext: ThrowingAudioContext,
+      fetch: jest.fn(),
+      Audio: FakeAudio
+    });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+
+    expect(engine.playResultBgm('lose')).toBe(true);
+
+    expect(createdAudio).toHaveLength(1);
+    expect(createdAudio[0].src).toBe('assets/audio/other/敗北リザルト-bpm115.mp3');
+    expect(createdAudio[0].play).toHaveBeenCalledTimes(1);
+  });
+
+  test('real sound engine resumes normal BGM when buffered result load and fallback audio both fail', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    class FakeAudioContext {
+      constructor() {
+        this.state = 'running';
+        this.destination = {};
+        this.currentTime = 0;
+        this.decodeAudioData = jest.fn();
+      }
+
+      resume() {
+        this.state = 'running';
+        return Promise.resolve();
+      }
+
+      createBufferSource() {
+        return {
+          connect: jest.fn(),
+          start: jest.fn(),
+          stop: jest.fn(),
+          disconnect: jest.fn()
+        };
+      }
+
+      createGain() {
+        return {
+          gain: { value: 0 },
+          connect: jest.fn(),
+          disconnect: jest.fn()
+        };
+      }
+    }
+
+    const engine = loadSoundEngine({
+      AudioContext: FakeAudioContext,
+      fetch: jest.fn(() => Promise.reject(new Error('network unavailable'))),
+      Audio: undefined
+    });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+    engine.playBgm = jest.fn(function () {
+      this.allowBgmPlay = true;
+      this.bgm.paused = false;
+    });
+
+    expect(engine.playResultBgm('lose')).toBe(true);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
+    expect(engine.playBgm).toHaveBeenCalledTimes(1);
+    expect(engine.allowBgmPlay).toBe(true);
+    expect(engine.bgm.paused).toBe(false);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Buffered result BGM unavailable for assets/audio/other/敗北リザルト-bpm115.mp3: network unavailable'
+    );
+    warnSpy.mockRestore();
+  });
+
+  test('real sound engine reports buffered result BGM stopped without resuming normal BGM', async () => {
+    const createdSources = [];
+    class FakeAudioContext {
+      constructor() {
+        this.state = 'running';
+        this.destination = {};
+        this.currentTime = 0;
+        this.decodeAudioData = jest.fn(() => Promise.resolve({ duration: 46.956553 }));
+      }
+
+      resume() {
+        this.state = 'running';
+        return Promise.resolve();
+      }
+
+      createBufferSource() {
+        const source = {
+          buffer: null,
+          loop: false,
+          loopStart: 0,
+          loopEnd: 0,
+          connect: jest.fn(),
+          start: jest.fn(),
+          stop: jest.fn(),
+          disconnect: jest.fn(),
+          onended: null
+        };
+        createdSources.push(source);
+        return source;
+      }
+
+      createGain() {
+        return {
+          gain: { value: 0, setValueAtTime: jest.fn() },
+          connect: jest.fn(),
+          disconnect: jest.fn()
+        };
+      }
+    }
+
+    const engine = loadSoundEngine({
+      AudioContext: FakeAudioContext,
+      fetch: jest.fn(() => Promise.resolve({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8))
+      })),
+      Audio: undefined
+    });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+    engine.playBgm = jest.fn();
+
+    expect(engine.playResultBgm('lose')).toBe(true);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(engine.stopResultBgm({ resumeBgm: false })).toBe(true);
+    expect(createdSources[0].stop).toHaveBeenCalledTimes(1);
+    expect(engine.playBgm).not.toHaveBeenCalled();
+  });
 });

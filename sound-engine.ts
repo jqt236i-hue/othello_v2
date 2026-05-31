@@ -842,7 +842,12 @@ const SoundEngine = {
 
     _createResultBgmAudio(track: ResultBgmTrack) {
         if (typeof Audio !== 'function') return null;
-        const audio = new Audio(track.file);
+        let audio: HTMLAudioElement;
+        try {
+            audio = new Audio(track.file);
+        } catch (e) {
+            return null;
+        }
         audio.preload = 'auto';
         audio.loop = track.loop === true;
         audio.volume = this._getBgmOutputVolume();
@@ -855,7 +860,12 @@ const SoundEngine = {
     _canUseBufferedResultBgm(track: ResultBgmTrack | null) {
         if (!track || track.loop !== true) return false;
         if (typeof fetch !== 'function') return false;
-        const ctx = this.ctx || this._ensureAudioContext(false);
+        let ctx: AudioContext | null = null;
+        try {
+            ctx = this.ctx || this._ensureAudioContext(false);
+        } catch (e) {
+            return false;
+        }
         return !!(
             ctx &&
             typeof ctx.createBufferSource === 'function' &&
@@ -921,9 +931,14 @@ const SoundEngine = {
                 console.warn(`Buffered result BGM unavailable for ${track.file}: ${e && e.message ? e.message : e}`);
                 this._resultBgmLoadToken = null;
                 this._resultBgmOutcomeKey = null;
-                this._resultBgmPausedNormalBgm = false;
                 const audio = this._createResultBgmAudio(track);
-                if (!audio) return;
+                if (!audio) {
+                    if (this._resultBgmPausedNormalBgm) {
+                        this._resultBgmPausedNormalBgm = false;
+                        this.playBgm();
+                    }
+                    return;
+                }
                 this.pauseBgm();
                 this._resultBgm = audio;
                 this._resultBgmOutcomeKey = String(outcomeKey || '').trim();
@@ -1011,7 +1026,7 @@ const SoundEngine = {
         if (shouldResumeBgm) {
             this.playBgm();
         }
-        return !!audio || shouldResumeBgm;
+        return !!audio || !!source || !!gainNode || shouldResumeBgm;
     },
 
     toggleMute() {
