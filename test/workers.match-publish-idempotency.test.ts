@@ -1200,11 +1200,22 @@ describe('match worker publish idempotency', () => {
     expect(result.replay.status).toBe(200);
     expect(result.replay.payload && result.replay.payload.ok).toBe(true);
     expect(result.replay.payload.idempotentReplay).toBe(true);
-    expect(result.replay.payload.stateVersion).toBe(3);
-    expect(result.replay.payload.publishMeta).toEqual(expect.objectContaining({
-      kind: 'idempotent_replay',
-      operationId: 'op_history_black_1',
-      replayedStateVersion: 1
+    expect(result.replay.payload).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'IDH1',
+      idempotentReplay: true,
+      stateVersion: 3,
+      snapshot: expect.any(Object),
+      seats: expect.any(Object),
+      seatNames: expect.any(Object),
+      turnTimer: expect.any(Object),
+      publishMeta: expect.objectContaining({
+        kind: 'idempotent_replay',
+        operationId: 'op_history_black_1',
+        actionType: 'place',
+        authoritativeStateVersion: 3,
+        replayedStateVersion: 1
+      })
     }));
 
     expect(result.finalStateVersion).toBe(3);

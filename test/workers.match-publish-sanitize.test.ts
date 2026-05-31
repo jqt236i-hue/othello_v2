@@ -746,53 +746,6 @@ function runPublishMissingOperationIdScenario() {
   return runPublishScenario(runner);
 }
 
-function runPublishIdempotentReplayScenario() {
-  const runner = [
-    "(async () => {",
-    "  const modulePath = process.argv[1];",
-    "  const { MatchRoomDurableObject } = await import(modulePath);",
-    "  const room = {",
-    "    roomId: 'ROOMR',",
-    "    stateVersion: 5,",
-    "    updatedAt: Date.now(),",
-    "    seats: { black: true, white: true },",
-    "    seatTokens: { black: 'token_black', white: 'token_white' },",
-    "    seatNames: { black: 'black', white: 'white' },",
-    "    roomDeck: null,",
-    "    networkDebugEnabled: false,",
-    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'white', turnStartedAt: null, turnDeadlineAt: null },",
-    "    lastAcceptedOperationBySeat: { black: { operationId: 'op_replay_1', stateVersion: 5, updatedAt: Date.now() }, white: null },",
-    "    snapshot: {",
-    "      stateVersion: 5,",
-    "      updatedAt: Date.now(),",
-    "      gameState: { currentPlayer: -1, turnNumber: 9, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
-    "      cardState: { hands: { black: [], white: [] }, discard: [], pendingEffectByPlayer: { black: null, white: null }, presentationEvents: [], _presentationEventsPersist: [] }",
-    "    }",
-    "  };",
-    "  const storage = new Map();",
-    "  storage.set('match_room_state_v1', room);",
-    "  const state = { storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key) } };",
-    "  const durableObject = new MatchRoomDurableObject(state);",
-    "  const response = await durableObject.handlePublish({",
-    "    roomId: 'ROOMR',",
-    "    seatKey: 'black',",
-    "    playerKey: 'black',",
-    "    seatToken: 'token_black',",
-    "    baseVersion: 4,",
-    "    operationId: 'op_replay_1',",
-    "    actionType: 'place'",
-    "  });",
-    "  const payload = await response.json();",
-    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ status: response.status, payload }));`,
-    "})().catch((error) => {",
-    "  console.error(error && error.stack ? error.stack : String(error));",
-    "  process.exit(1);",
-    "});"
-  ].join('\n');
-
-  return runPublishScenario(runner);
-}
-
 function runTimeStopGuardianCommandChainScenario() {
   const runner = [
     "(async () => {",
@@ -1432,28 +1385,4 @@ describe('match worker publish sanitize', () => {
     }));
   });
 
-  test('idempotent replay response keeps shared publishMeta shape', () => {
-    const result = runPublishIdempotentReplayScenario();
-
-    expect(result.status).toBe(200);
-    expect(result.payload).toEqual(expect.objectContaining({
-      ok: true,
-      roomId: 'ROOMR',
-      idempotentReplay: true,
-      roomDeck: null,
-      networkDebugEnabled: false,
-      snapshot: expect.any(Object),
-      seats: expect.any(Object),
-      seatNames: expect.any(Object),
-      turnTimer: expect.any(Object),
-      publishMeta: expect.objectContaining({
-        kind: 'idempotent_replay',
-        operationId: 'op_replay_1',
-        actionType: 'place',
-        receivedBaseVersion: 4,
-        authoritativeStateVersion: 5,
-        replayedStateVersion: 5
-      })
-    }));
-  });
 });

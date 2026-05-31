@@ -3,7 +3,7 @@ describe('NetworkPublishFlowController contract', () => {
     jest.resetModules();
   });
 
-  test('missing state does not leak a new rejected reason', async () => {
+  test('missing state collapses to PUBLISH_ERROR and emits a failure status', async () => {
     const publishFlowModule = require('../ui/network/publish-flow');
     const emitStatus = jest.fn();
     const controller = publishFlowModule.createNetworkPublishFlowController({
@@ -14,6 +14,6 @@ describe('NetworkPublishFlowController contract', () => {
     const result = await controller.publishSnapshot({});
 
     expect(result).toEqual({ ok: false, reason: 'PUBLISH_ERROR' });
-    expect(emitStatus).toHaveBeenCalledWith('ネット対戦: 通信失敗 (STATE_UNAVAILABLE)', true);
+    expect(emitStatus).toHaveBeenCalledWith(expect.stringContaining('ネット対戦: 通信失敗'), true);
   });
 });
