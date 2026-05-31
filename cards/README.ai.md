@@ -9,13 +9,14 @@
 
 - データ正本: `cards/catalog.json`
 - 仕様正本: `01-rulebook.md`
-- 生成物: `cards/catalog.generated.js`
+- 生成物: `cards/catalog.js`, `cards/catalog.ts`, `cards/catalog.generated.js`
 
 ## 変更時の順番
 
 1. `cards/catalog.json` を直す
-2. `cards/catalog.js` と `cards/catalog.generated.js` をそろえる
+2. `cards/catalog.js`, `cards/catalog.ts`, `cards/catalog.generated.js` をそろえる
 3. 効果が変わるなら `game/logic/cards.ts`（`.js` は互換 shim）, `game/card-effects/*`, pending target, CPU, presentation を確認する
+4. ブラウザ実行時の反映が必要なら `npm run build:browser` で `dist/` と `public/module-registry.js` を更新する
 
 ## 更新漏れしやすい参照
 
