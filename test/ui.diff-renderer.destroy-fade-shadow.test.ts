@@ -214,14 +214,20 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
   test('updates BOARD_SHRINK_GOD first-target highlight as pending selection changes', () => {
     const diff = require('../ui/diff-renderer.js');
-    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
+    global.CardLogic.getSelectableTargets = () => [{
+      row: 0,
+      col: 1,
+      lineCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }]
+    }];
 
     diff.renderBoardDiff(boardEl);
 
     const firstCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
     const selectableCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    const previewCell = boardEl.querySelector('.cell[data-row="0"][data-col="2"]');
     expect(firstCell).toBeTruthy();
     expect(selectableCell).toBeTruthy();
+    expect(previewCell).toBeTruthy();
     expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     global.cardState.pendingEffectByPlayer = {
@@ -237,7 +243,10 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     diff.renderBoardDiff(boardEl);
 
     expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(firstCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(selectableCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
+    expect(previewCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
     expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBe('right');
@@ -248,6 +257,8 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
     expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBeNull();
     expect(selectableCell.querySelector('.board-shrink-god-direction-hint')).toBeNull();
+    expect(selectableCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
+    expect(previewCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
   });
 
   test('updates BOARD_EXPANSION_GOD selected-target highlight from firstTarget and selectedTargets', () => {

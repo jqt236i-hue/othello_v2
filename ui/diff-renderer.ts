@@ -634,6 +634,7 @@ function _collectPendingSelectedTargetHighlightKeysForDiff(pending: any) {
 
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
+const BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS = 'board-shrink-god-preview-highlight';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
     'board-shrink-god-direction-up',
     'board-shrink-god-direction-down',
@@ -675,6 +676,29 @@ function _buildBoardShrinkGodDirectionHintMapForDiff(pending: any, selectableTar
         const direction = _resolveBoardShrinkGodDirectionForDiff(pending.firstTarget, target);
         if (!direction) continue;
         out.set(`${row},${col}`, direction);
+    }
+    return out;
+}
+
+function _collectBoardShrinkGodPreviewHighlightKeysForDiff(pending: any, selectableTargets: any) {
+    const out = new Set();
+    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
+        return out;
+    }
+    const firstRow = Number(pending.firstTarget && pending.firstTarget.row);
+    const firstCol = Number(pending.firstTarget && pending.firstTarget.col);
+    if (!Number.isInteger(firstRow) || !Number.isInteger(firstCol) || !Array.isArray(selectableTargets)) {
+        return out;
+    }
+    for (const target of selectableTargets) {
+        const lineCells = Array.isArray(target && target.lineCells) ? target.lineCells : [target];
+        for (const cell of lineCells) {
+            const row = Number(cell && cell.row);
+            const col = Number(cell && cell.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            if (row === firstRow && col === firstCol) continue;
+            out.add(`${row},${col}`);
+        }
     }
     return out;
 }
@@ -902,6 +926,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 isLegalFree: false,
                 isTabooLegal: false,
                 isSelectedTargetHighlighted: false,
+                isBoardShrinkGodPreviewHighlighted: false,
                 isSuperAttractionPathPreview: false,
                 isSuperAttractionPreviewDestination: false,
                 isSelectableFriendly: false,
@@ -1824,6 +1849,9 @@ function buildCurrentCellState() {
     const selectedTargetHighlightSet = isHumanTurn
         ? _collectPendingSelectedTargetHighlightKeysForDiff(pending)
         : new Set();
+    const boardShrinkGodPreviewHighlightSet = isHumanTurn
+        ? _collectBoardShrinkGodPreviewHighlightKeysForDiff(pending, selectableTargets)
+        : new Set();
     const superAttractionPreview = isHumanTurn
         ? _getActiveSuperAttractionPreviewForDiff(pending)
         : null;
@@ -2031,6 +2059,7 @@ function buildCurrentCellState() {
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
             const isSelectedTargetHighlighted = isHumanTurn && selectedTargetHighlightSet.has(key);
+            const isBoardShrinkGodPreviewHighlighted = isHumanTurn && boardShrinkGodPreviewHighlightSet.has(key);
             const isSuperAttractionPathPreview = isHumanTurn && superAttractionPreviewKeys.pathKeys.has(key);
             const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(key);
             const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(key);
@@ -2072,6 +2101,7 @@ function buildCurrentCellState() {
                 isLegalFree,
                 isTabooLegal,
                 isSelectedTargetHighlighted,
+                isBoardShrinkGodPreviewHighlighted,
                 isSuperAttractionPathPreview,
                 isSuperAttractionPreviewDestination,
                 isSelectableFriendly,
@@ -2128,6 +2158,7 @@ function buildCurrentCellState() {
         const isTabooLegal = showLegalHints && expVal === EMPTY && tabooLegalSet.has(expKey);
         const isLegalFree = showLegalHints && expVal === EMPTY && freePlacementActive;
         const isSelectedTargetHighlighted = isHumanTurn && selectedTargetHighlightSet.has(expKey);
+        const isBoardShrinkGodPreviewHighlighted = isHumanTurn && boardShrinkGodPreviewHighlightSet.has(expKey);
         const isSuperAttractionPathPreview = isHumanTurn && superAttractionPreviewKeys.pathKeys.has(expKey);
         const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(expKey);
         const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(expKey);
@@ -2168,6 +2199,7 @@ function buildCurrentCellState() {
             isLegalFree,
             isTabooLegal,
             isSelectedTargetHighlighted,
+            isBoardShrinkGodPreviewHighlighted,
             isSuperAttractionPathPreview,
             isSuperAttractionPreviewDestination,
             isSelectableFriendly,
@@ -2229,6 +2261,7 @@ function cellStatesEqual(a: any, b: any) {
     if (a.isLegalFree !== b.isLegalFree) return false;
     if (!!a.isTabooLegal !== !!b.isTabooLegal) return false;
     if (!!a.isSelectedTargetHighlighted !== !!b.isSelectedTargetHighlighted) return false;
+    if (!!a.isBoardShrinkGodPreviewHighlighted !== !!b.isBoardShrinkGodPreviewHighlighted) return false;
     if (!!a.isSuperAttractionPathPreview !== !!b.isSuperAttractionPathPreview) return false;
     if (!!a.isSuperAttractionPreviewDestination !== !!b.isSuperAttractionPreviewDestination) return false;
     if (a.isSelectableFriendly !== b.isSelectableFriendly) return false;
@@ -2382,6 +2415,9 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
     }
     if (state.isSelectedTargetHighlighted) {
         cell.classList.add('effect-target-highlight-positive');
+    }
+    if (state.isBoardShrinkGodPreviewHighlighted) {
+        cell.classList.add(BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS);
     }
     if (state.isSuperAttractionPathPreview) {
         cell.classList.add('super-attraction-path-preview');
@@ -2717,6 +2753,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
             const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
             const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
+            const shouldShowBoardShrinkGodPreviewHighlight = !!(state && state.isBoardShrinkGodPreviewHighlighted);
             const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
             const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
             const shouldShowSelectable = !!(canShowHint && state && state.isSelectableFriendly);
@@ -2726,6 +2763,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             cell.classList.toggle('legal', shouldShowLegal);
             cell.classList.toggle('effect-target-highlight', false);
             cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal);
+            cell.classList.toggle(BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS, shouldShowBoardShrinkGodPreviewHighlight);
             cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
             cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);

@@ -209,7 +209,11 @@ describe('board-renderer fallback legal hints', () => {
 
   test('renderBoardFull highlights the first selected corner during BOARD_SHRINK_GOD targeting', () => {
     global.getLegalMoves.mockReturnValue([]);
-    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{
+      row: 0,
+      col: 1,
+      lineCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }]
+    }]);
     global.cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_SHRINK_GOD',
       stage: 'selectTarget',
@@ -222,10 +226,15 @@ describe('board-renderer fallback legal hints', () => {
 
     const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
     const selectableCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    const previewCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="2"]');
     expect(firstCell).toBeTruthy();
     expect(selectableCell).toBeTruthy();
+    expect(previewCell).toBeTruthy();
     expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(firstCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(selectableCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
+    expect(previewCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
     expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBe('right');

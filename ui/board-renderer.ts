@@ -552,6 +552,7 @@ function collectPendingSelectedTargetHighlightKeys(pending: any) {
 
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
+const BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS = 'board-shrink-god-preview-highlight';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
     'board-shrink-god-direction-up',
     'board-shrink-god-direction-down',
@@ -593,6 +594,29 @@ function _buildBoardShrinkGodDirectionHintMapForBoard(pending: any, selectableTa
         const direction = _resolveBoardShrinkGodDirectionForBoard(pending.firstTarget, target);
         if (!direction) continue;
         out.set(`${row},${col}`, direction);
+    }
+    return out;
+}
+
+function _collectBoardShrinkGodPreviewHighlightKeysForBoard(pending: any, selectableTargets: any) {
+    const out = new Set();
+    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
+        return out;
+    }
+    const firstRow = Number(pending.firstTarget && pending.firstTarget.row);
+    const firstCol = Number(pending.firstTarget && pending.firstTarget.col);
+    if (!Number.isInteger(firstRow) || !Number.isInteger(firstCol) || !Array.isArray(selectableTargets)) {
+        return out;
+    }
+    for (const target of selectableTargets) {
+        const lineCells = Array.isArray(target && target.lineCells) ? target.lineCells : [target];
+        for (const cell of lineCells) {
+            const row = Number(cell && cell.row);
+            const col = Number(cell && cell.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            if (row === firstRow && col === firstCol) continue;
+            out.add(`${row},${col}`);
+        }
     }
     return out;
 }
@@ -909,6 +933,9 @@ function renderBoardFull() {
     const selectedTargetHighlightSet = isHumanTurn
         ? collectPendingSelectedTargetHighlightKeys(pending)
         : new Set();
+    const boardShrinkGodPreviewHighlightSet = isHumanTurn
+        ? _collectBoardShrinkGodPreviewHighlightKeysForBoard(pending, selectableTargets)
+        : new Set();
 
     let normalLegalSet = new Set();
     if (showLegalHints) {
@@ -1058,6 +1085,7 @@ function renderBoardFull() {
             // Human turn gets legal move hints (Black always, White in HvH)
             const key = r + ',' + c;
             const isSelectedTargetHighlighted = selectedTargetHighlightSet.has(key);
+            const isBoardShrinkGodPreviewHighlighted = boardShrinkGodPreviewHighlightSet.has(key);
             if (showLegalHints && gameState.board[r][c] === EMPTY) {
                 if (freePlacementActive) {
                     cell.classList.add('legal-free');
@@ -1070,6 +1098,9 @@ function renderBoardFull() {
             }
             if (isSelectedTargetHighlighted) {
                 cell.classList.add('effect-target-highlight-positive');
+            }
+            if (isBoardShrinkGodPreviewHighlighted) {
+                cell.classList.add(BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS);
             }
             if (isHumanTurn && selectableTargetSet.has(key)) {
                 cell.classList.add('selectable-friendly');
