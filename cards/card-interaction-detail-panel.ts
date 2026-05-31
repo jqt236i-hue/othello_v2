@@ -103,6 +103,15 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         return count <= 0 ? '増援不可能' : `${count}マス候補`;
     }
 
+    function getSupportTroopsWillLiveStateText(ownerKey: any) {
+        const cardLogic = cfg.getCardLogic();
+        const cardStateValue = cfg.getCardStateValue();
+        const gameStateValue = cfg.getGameStateValue();
+        if (!ownerKey || !cardLogic || typeof cardLogic.getSupportTroopsWillTargetCount !== 'function') return '';
+        const count = Math.max(0, Number(cardLogic.getSupportTroopsWillTargetCount(cardStateValue, gameStateValue, ownerKey)) || 0);
+        return count <= 0 ? '援軍不可能' : `${count}マス候補`;
+    }
+
     function getCardDetailLiveStateText(cardDef: any, ownerKey: any) {
         if (!cardDef || !ownerKey) return '';
         if (cardDef.type === 'SALVATION_WILL') {
@@ -110,6 +119,9 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         }
         if (cardDef.type === 'REINFORCEMENT_WILL') {
             return getReinforcementWillLiveStateText(ownerKey);
+        }
+        if (cardDef.type === 'SUPPORT_TROOPS_WILL') {
+            return getSupportTroopsWillLiveStateText(ownerKey);
         }
         if (cardDef.type === 'EQUALITY_WILL') {
             return getEqualityWillLiveStateText();

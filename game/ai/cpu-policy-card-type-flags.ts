@@ -41,7 +41,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isChainWill = chainWillCardTypes.includes(cardType);
         const isLastResort = cardType === 'LAST_RESORT';
         const isEqualityWill = cardType === 'EQUALITY_WILL';
-        const isReinforcementWill = cardType === 'REINFORCEMENT_WILL';
+        const isReinforcementWill = (cardType === 'REINFORCEMENT_WILL' || cardType === 'SUPPORT_TROOPS_WILL');
         const isFreePlacement = (cardType === 'FREE_PLACEMENT' || cardType === 'LAST_RESORT');
         const isSniperWill = cardType === 'SNIPER_WILL';
         const isStrongWindWill = cardType === 'STRONG_WIND_WILL';

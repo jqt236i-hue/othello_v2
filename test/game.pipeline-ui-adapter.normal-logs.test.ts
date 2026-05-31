@@ -54,4 +54,11 @@ describe('pipeline_ui_adapter normal logs', () => {
     ], [], 'black');
     expect(out).toEqual(['黒: 増援の意志: 通常石1個を配置、2枚を反転']);
   });
+
+  test('maps support troops resolution to player-facing effect log', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'support_troops_will_resolved', player: 'black', spawnedCount: 3, flippedCount: 4 }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 援軍の意志: 通常石3個を配置、4枚を反転']);
+  });
 });

@@ -100,6 +100,11 @@ export function createCardAvailability(deps?: CardAvailabilityDeps) {
         return getReinforcementWillTargets(cardState, gameState, playerKey).length;
     }
 
+    function getSupportTroopsWillTargetCount(cardState: any, gameState: any, playerKey: any) {
+        if (!getReinforcementWillTargets) return 0;
+        return getReinforcementWillTargets(cardState, gameState, playerKey).length;
+    }
+
     return {
         countDiscsForCardComparison,
         getDiscDisadvantageForPlayer,
@@ -107,6 +112,7 @@ export function createCardAvailability(deps?: CardAvailabilityDeps) {
         hasFewerDiscsThanOpponentForPlayer,
         canUseLastResortForPlayer,
         canUseEqualityWillForPlayer,
-        getReinforcementWillTargetCount
+        getReinforcementWillTargetCount,
+        getSupportTroopsWillTargetCount
     };
 }

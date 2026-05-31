@@ -1428,6 +1428,51 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(topLevelCues).toHaveLength(0);
   });
 
+  test('support_troops_will_resolved は最初の spawn と breeding_spawn を card_use_animation の消失時へ寄せる', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 5,
+        targets: [{ cardId: 'support_troops_01', owner: 'black' }]
+      },
+      {
+        type: 'spawn',
+        phase: 5,
+        targets: [{ r: 2, col: 4, cause: 'SUPPORT_TROOPS_WILL', reason: 'support_troops_will_spawn' }]
+      }
+    ];
+    const raw = [{ type: 'support_troops_will_resolved', player: 'black', spawnedCount: 3 }];
+    const pres = [{ type: 'CARD_USED', player: 'black', cardId: 'support_troops_01' }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
+    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
+    const disappearEvents = cardUseEv && cardUseEv.targets && cardUseEv.targets[0]
+      ? cardUseEv.targets[0].disappearPlaybackEvents
+      : null;
+    const topLevelSpawns = out.filter((ev) => ev && ev.type === 'spawn' && ev.targets && ev.targets[0] && ev.targets[0].cause === 'SUPPORT_TROOPS_WILL');
+    const topLevelCues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.meta &&
+      ev.meta.sourceType === 'support_troops_will_spawn'
+    ));
+
+    expect(cardUseEv).toBeTruthy();
+    expect(disappearEvents).toEqual([
+      expect.objectContaining({
+        type: 'spawn',
+        targets: [expect.objectContaining({ cause: 'SUPPORT_TROOPS_WILL', reason: 'support_troops_will_spawn', r: 2, col: 4 })]
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: [expect.objectContaining({ soundKey: 'breeding_spawn' })],
+        meta: expect.objectContaining({ sourceType: 'support_troops_will_spawn' })
+      })
+    ]);
+    expect(topLevelSpawns).toHaveLength(0);
+    expect(topLevelCues).toHaveLength(0);
+  });
+
   test('strong_will_promoted は status_applied の phase で進化音を再生する', () => {
     const base = [{
       type: 'status_applied',

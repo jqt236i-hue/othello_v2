@@ -111,6 +111,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   OBSERVER_WILL: '観測者石で布石を得る',
   SALVATION_WILL: '破壊された石を救済する',
   REINFORCEMENT_WILL: '内側空きマスへ増援する',
+  SUPPORT_TROOPS_WILL: '既存石の近くへ援軍を出す',
   EQUALITY_WILL: '空きマスに石を増やす'
 });
 

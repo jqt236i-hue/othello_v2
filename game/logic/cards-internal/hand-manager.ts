@@ -608,6 +608,11 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
                 if (!helpers.canUseReinforcementWillForPlayer(cardState, gameState, playerKey)) continue;
             }
 
+            if (type === 'SUPPORT_TROOPS_WILL') {
+                if (typeof helpers.canUseSupportTroopsWillForPlayer !== 'function') continue;
+                if (!helpers.canUseSupportTroopsWillForPlayer(cardState, gameState, playerKey)) continue;
+            }
+
             if (type === 'TIME_STOP_GOD') {
                 if (typeof helpers.canUseTimeStopGodForPlayer !== 'function') continue;
                 if (!helpers.canUseTimeStopGodForPlayer(cardState, gameState, playerKey)) continue;

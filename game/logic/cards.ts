@@ -274,6 +274,7 @@ const {
     const RIBO_WILL_OWNER_TURNS = 9;
     const RIBO_WILL_SHORTAGE_DESTROY_COUNT = 2;
     const REINFORCEMENT_WILL_SPAWN_COUNT = 1;
+    const SUPPORT_TROOPS_WILL_SPAWN_COUNT = 3;
     const EQUALITY_WILL_MAX_SPAWNS = 3;
     const FLIP_CHARGE_MULTIPLIER_EFFECTS = Object.freeze({
         GOLD_STONE: { multiplier: 4, effectFlag: 'goldStoneUsed', destroyReason: 'gold_stone_sacrifice' },
@@ -354,7 +355,8 @@ const {
             readCardPendingEffect,
             clearCardPendingEffect,
             equalityWillMaxSpawns: EQUALITY_WILL_MAX_SPAWNS,
-            reinforcementWillSpawnCount: REINFORCEMENT_WILL_SPAWN_COUNT
+            reinforcementWillSpawnCount: REINFORCEMENT_WILL_SPAWN_COUNT,
+            supportTroopsWillSpawnCount: SUPPORT_TROOPS_WILL_SPAWN_COUNT
         };
     }
 
@@ -769,12 +771,24 @@ const {
         return getReinforcementTargets(cardState, gameState, playerKey);
     }
 
+    function getSupportTroopsWillTargets(cardState: any, gameState: any, playerKey: any) {
+        return getReinforcementTargets(cardState, gameState, playerKey);
+    }
+
     function canUseReinforcementWillForPlayer(cardState: any, gameState: any, playerKey: any) {
         return CardRandomBoardSpawnModule.canUseReinforcementWillForPlayer(cardState, gameState, playerKey, getCardRandomBoardSpawnDeps());
     }
 
+    function canUseSupportTroopsWillForPlayer(cardState: any, gameState: any, playerKey: any) {
+        return CardRandomBoardSpawnModule.canUseSupportTroopsWillForPlayer(cardState, gameState, playerKey, getCardRandomBoardSpawnDeps());
+    }
+
     function resolveReinforcementWillUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
         return CardRandomBoardSpawnModule.resolveReinforcementWillUsage(cardState, gameState, playerKey, prng, getCardRandomBoardSpawnDeps());
+    }
+
+    function resolveSupportTroopsWillUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardRandomBoardSpawnModule.resolveSupportTroopsWillUsage(cardState, gameState, playerKey, prng, getCardRandomBoardSpawnDeps());
     }
 
     function processRiboWillTurnStartEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
@@ -901,6 +915,7 @@ const {
                 canUseLastResortForPlayer,
                 canUseEqualityWillForPlayer,
                 canUseReinforcementWillForPlayer,
+                canUseSupportTroopsWillForPlayer,
                 canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer,
                 getDestroyTargets,
@@ -1783,6 +1798,10 @@ const {
         return requireCardAvailability().getReinforcementWillTargetCount(cardState, gameState, playerKey);
     }
 
+    function getSupportTroopsWillTargetCount(cardState: any, gameState: any, playerKey: any) {
+        return requireCardAvailability().getSupportTroopsWillTargetCount(cardState, gameState, playerKey);
+    }
+
     function _ensureHandDestroyFlags(cardState: any) {
         return requireCardHandAccess().ensureHandDestroyFlags(cardState);
     }
@@ -1863,6 +1882,7 @@ const {
             canUseLastResortForPlayer,
             canUseEqualityWillForPlayer,
             canUseReinforcementWillForPlayer,
+            canUseSupportTroopsWillForPlayer,
             canUseTimeStopGodForPlayer,
             countOpponentOccupiedCornersForPlayer,
             getDestroyTargets,
@@ -1905,6 +1925,7 @@ const {
             getSalvationWillTargetCount,
             getExecutionWillTargetCount,
             getReinforcementWillTargetCount,
+            getSupportTroopsWillTargetCount,
             removeHandCardAt,
             addCardToDiscard,
             addChargeValue,
@@ -3663,8 +3684,11 @@ const cardsApi: any = {
         applySeedWill,
         getEqualityWillBoardCounts,
         getReinforcementWillTargets,
+        getSupportTroopsWillTargets,
         getReinforcementWillTargetCount,
+        getSupportTroopsWillTargetCount,
         canUseReinforcementWillForPlayer,
+        canUseSupportTroopsWillForPlayer,
         getLossWillRemovableCount,
         applyLossWill,
         getSalvationWillTargetCount,
@@ -3682,6 +3706,7 @@ const cardsApi: any = {
         armRiboWillEffect,
         resolveEqualityWillUsage,
         resolveReinforcementWillUsage,
+        resolveSupportTroopsWillUsage,
         getTimeStopGodDestroyableCount,
         resolveTimeStopGodUsage,
         consumeTimeStopConsecutiveTurn,

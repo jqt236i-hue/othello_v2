@@ -353,6 +353,30 @@ describe('card detail effect tags', () => {
     expect(stateEl.style.display).toBe('block');
   });
 
+  test('SUPPORT_TROOPS_WILL detail panel shows current candidate count as live state', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'support_troops_01',
+      name: '援軍の意志',
+      type: 'SUPPORT_TROOPS_WILL',
+      cost: 14,
+      desc: '既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+    global.CardLogic.getSupportTroopsWillTargetCount = () => 6;
+
+    window.updateCardDetailPanel();
+
+    const stateEl = document.getElementById('card-detail-live-state');
+    expect(stateEl).not.toBeNull();
+    expect(stateEl.textContent).toBe('6マス候補');
+    expect(stateEl.style.display).toBe('block');
+  });
+
   test('non-salvation detail panel hides live salvage state', () => {
     require('../cards/card-interaction.js');
 

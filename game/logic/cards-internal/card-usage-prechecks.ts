@@ -92,6 +92,14 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
+    if (cardType === 'SUPPORT_TROOPS_WILL') {
+        if (!context || !context.gameState || typeof context.canUseSupportTroopsWillForPlayer !== 'function') {
+            return buildFailureResult();
+        }
+        return context.canUseSupportTroopsWillForPlayer(context.cardState, context.gameState, context.playerKey)
+            ? result
+            : buildFailureResult();
+    }
     if (cardType === 'CORNER_TRIBUTE') {
         if (!context || !context.gameState || typeof context.countOpponentOccupiedCornersForPlayer !== 'function') {
             return buildFailureResult();

@@ -699,6 +699,14 @@ window.CardCatalog = {
       "display_type_ja": "繁栄"
     },
     {
+      "id": "support_troops_01",
+      "name_ja": "援軍の意志",
+      "type": "SUPPORT_TROOPS_WILL",
+      "cost": 14,
+      "desc_ja": "既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)",
+      "display_type_ja": "繁栄"
+    },
+    {
       "id": "equality_will_01",
       "name_ja": "平等の意志",
       "type": "EQUALITY_WILL",

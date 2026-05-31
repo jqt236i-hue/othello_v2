@@ -430,6 +430,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             reason.indexOf('regen_capture_flip') === 0 ||
             reason.indexOf('equality_will_flip') === 0 ||
             reason.indexOf('reinforcement_will_flip') === 0 ||
+            reason.indexOf('support_troops_will_flip') === 0 ||
             reason.indexOf('salvation_flip') === 0 ||
             reason.indexOf('breeding_flip') === 0 ||
             reason.indexOf('hyperactive_flip') === 0 ||
@@ -785,6 +786,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             reasonPrefix: 'reinforcement_will_spawn',
             rawResolvedType: 'reinforcement_will_resolved',
             soundSourceType: 'reinforcement_will_spawn',
+            phaseStartIndex: 1
+        }),
+        Object.freeze({
+            spawnIntent: 'normal_spawn',
+            cause: 'SUPPORT_TROOPS_WILL',
+            reasonPrefix: 'support_troops_will_spawn',
+            rawResolvedType: 'support_troops_will_resolved',
+            soundSourceType: 'support_troops_will_spawn',
             phaseStartIndex: 1
         }),
         Object.freeze({

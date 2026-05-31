@@ -54,6 +54,7 @@ const POSITIVE_SPAWN_LIKE_EFFECTS = Object.freeze([
     Object.freeze({ spawnIntent: 'breeding_spawn', cause: 'BREEDING', reasonPrefix: 'breeding_spawn' }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+    Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SUPPORT_TROOPS_WILL', reasonPrefix: 'support_troops_will_spawn' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SEED_WILL', reasonPrefix: 'seed_sprout' }),
@@ -64,6 +65,7 @@ const POSITIVE_SPAWN_LIKE_EFFECTS = Object.freeze([
 const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = Object.freeze([
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+    Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SUPPORT_TROOPS_WILL', reasonPrefix: 'support_troops_will_spawn' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SEED_WILL', reasonPrefix: 'seed_sprout' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })

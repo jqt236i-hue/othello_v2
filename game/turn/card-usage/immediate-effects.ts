@@ -143,6 +143,26 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         });
     }
 
+    if (pendingType === 'SUPPORT_TROOPS_WILL') {
+        const res = (typeof opts.CardLogic.resolveSupportTroopsWillUsage === 'function')
+            ? opts.CardLogic.resolveSupportTroopsWillUsage(opts.cardState, opts.gameState, opts.playerKey, p)
+            : null;
+        if (!res || res.applied !== true) {
+            throw new Error('SUPPORT_TROOPS_WILL resolve failed');
+        }
+        opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
+        applyImmediateFlipResolutionFollowups(opts, res, 'support_troops_will_immediate');
+        opts.events.push({
+            type: 'support_troops_will_resolved',
+            player: opts.playerKey,
+            requestedCount: Number(res.requestedCount) || 0,
+            spawnedCount: Number(res.spawnedCount) || 0,
+            spawned: Array.isArray(res.spawned) ? res.spawned.slice() : [],
+            flippedCount: Number(res.flippedCount) || 0,
+            flipped: Array.isArray(res.flipped) ? res.flipped.slice() : []
+        });
+    }
+
     if (pendingType === 'TIME_STOP_GOD') {
         const res = (typeof opts.CardLogic.resolveTimeStopGodUsage === 'function')
             ? opts.CardLogic.resolveTimeStopGodUsage(opts.cardState, opts.gameState, opts.playerKey, p)

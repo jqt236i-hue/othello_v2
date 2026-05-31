@@ -32,4 +32,19 @@ describe('PresentationEffectProfiles', () => {
       meta: { spawnIntent: 'normal_spawn' }
     }, profile)).toBe(false);
   });
+
+  test('support troops will is treated as a positive normal spawn profile', () => {
+    const profile = profiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.find((one) => one && one.cause === 'SUPPORT_TROOPS_WILL');
+    expect(profile).toEqual(expect.objectContaining({
+      cause: 'SUPPORT_TROOPS_WILL',
+      reasonPrefix: 'support_troops_will_spawn',
+      spawnIntent: 'normal_spawn'
+    }));
+
+    expect(profiles.matchesSpawnProfileTarget({
+      cause: 'SUPPORT_TROOPS_WILL',
+      reason: 'support_troops_will_spawn',
+      meta: { spawnIntent: 'normal_spawn' }
+    }, 'SUPPORT_TROOPS_WILL', 'support_troops_will_spawn', profile)).toBe(true);
+  });
 });

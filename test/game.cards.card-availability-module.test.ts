@@ -50,7 +50,7 @@ describe('card availability module', () => {
     }, 'black')).toBe(true);
   });
 
-  test('forwards reinforcement target counts and disc disadvantage helpers', () => {
+  test('forwards reinforcement-like target counts and disc disadvantage helpers', () => {
     const getTargets = jest.fn(() => [{}, {}, {}]);
     const availability = createCardAvailability({
       constants: { BLACK: 1, WHITE: 2 },
@@ -67,6 +67,7 @@ describe('card availability module', () => {
     expect(availability.getEqualityWillBoardCounts(gameState)).toEqual({ black: 2, white: 1 });
     expect(availability.hasFewerDiscsThanOpponentForPlayer(gameState, 'white')).toBe(true);
     expect(availability.getReinforcementWillTargetCount({ state: true }, gameState, 'black')).toBe(3);
+    expect(availability.getSupportTroopsWillTargetCount({ state: true }, gameState, 'black')).toBe(3);
     expect(getTargets).toHaveBeenCalledWith({ state: true }, gameState, 'black');
   });
 });

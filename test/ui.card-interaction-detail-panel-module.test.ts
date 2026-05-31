@@ -20,7 +20,8 @@ function createController(overrides?: Record<string, unknown>) {
   const cardLogic = {
     getSalvationWillTargetCount: jest.fn(() => 0),
     getEqualityWillBoardCounts: jest.fn(() => ({ black: 3, white: 5 })),
-    getReinforcementWillTargetCount: jest.fn(() => 0)
+    getReinforcementWillTargetCount: jest.fn(() => 0),
+    getSupportTroopsWillTargetCount: jest.fn(() => 0)
   } as any;
   const effectsModule = {
     resolveCardDescriptionTexts: jest.fn((cardDef: any) => ({

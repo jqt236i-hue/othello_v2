@@ -21,6 +21,7 @@ type RandomBoardSpawnDeps = {
     clearCardPendingEffect: (cardState: any, playerKey: any, options?: any) => any;
     equalityWillMaxSpawns: number;
     reinforcementWillSpawnCount: number;
+    supportTroopsWillSpawnCount: number;
 };
 
 function collectRandomBoardSpawnablePositions(cardState: any, gameState: any, predicate: any, deps: RandomBoardSpawnDeps) {
@@ -210,31 +211,35 @@ function canUseReinforcementWillForPlayer(cardState: any, gameState: any, player
     return deps.getReinforcementWillTargets(cardState, gameState, playerKey).length > 0;
 }
 
-function resolveReinforcementWillUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RandomBoardSpawnDeps) {
+function resolveReinforcementLikeUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RandomBoardSpawnDeps, options: any) {
+    const requestedCount = Number.isFinite(Number(options && options.requestedCount))
+        ? Math.max(0, Math.trunc(Number(options.requestedCount)))
+        : 0;
+    const pendingType = String(options && options.pendingType || '');
     const pending = deps.readCardPendingEffect(cardState, playerKey);
-    if (!pending || pending.type !== 'REINFORCEMENT_WILL') {
+    if (!pending || pending.type !== pendingType) {
         return { applied: false, reason: 'not_pending', requestedCount: 0, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
     }
     const targetSet = new Set(deps.getReinforcementWillTargets(cardState, gameState, playerKey).map((cell: any) => `${cell.row},${cell.col}`));
     if (targetSet.size <= 0) {
         deps.clearCardPendingEffect(cardState, playerKey);
-        return { applied: false, reason: 'no_targets', requestedCount: deps.reinforcementWillSpawnCount, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
+        return { applied: false, reason: 'no_targets', requestedCount, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
     }
     const result = resolveRandomBoardSpawnEffectUsage(
         cardState,
         gameState,
         playerKey,
-        deps.reinforcementWillSpawnCount,
+        requestedCount,
         prng,
-        'REINFORCEMENT_WILL',
-        'reinforcement_will_spawn',
+        options.cause,
+        options.spawnReason,
         {
             normalFlip: true,
-            flipReason: 'reinforcement_will_flip',
+            flipReason: options.flipReason,
             targetFilter: (cell: any) => targetSet.has(`${cell.row},${cell.col}`),
             spawnMetaFactory: (spawnIndex: any) => ({
                 owner: playerKey,
-                requestedCount: deps.reinforcementWillSpawnCount,
+                requestedCount,
                 spawnIndex
             })
         },
@@ -244,10 +249,36 @@ function resolveReinforcementWillUsage(cardState: any, gameState: any, playerKey
     return result;
 }
 
+function resolveReinforcementWillUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RandomBoardSpawnDeps) {
+    return resolveReinforcementLikeUsage(cardState, gameState, playerKey, prng, deps, {
+        pendingType: 'REINFORCEMENT_WILL',
+        requestedCount: deps.reinforcementWillSpawnCount,
+        cause: 'REINFORCEMENT_WILL',
+        spawnReason: 'reinforcement_will_spawn',
+        flipReason: 'reinforcement_will_flip'
+    });
+}
+
+function canUseSupportTroopsWillForPlayer(cardState: any, gameState: any, playerKey: any, deps: RandomBoardSpawnDeps) {
+    return canUseReinforcementWillForPlayer(cardState, gameState, playerKey, deps);
+}
+
+function resolveSupportTroopsWillUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RandomBoardSpawnDeps) {
+    return resolveReinforcementLikeUsage(cardState, gameState, playerKey, prng, deps, {
+        pendingType: 'SUPPORT_TROOPS_WILL',
+        requestedCount: deps.supportTroopsWillSpawnCount,
+        cause: 'SUPPORT_TROOPS_WILL',
+        spawnReason: 'support_troops_will_spawn',
+        flipReason: 'support_troops_will_flip'
+    });
+}
+
 module.exports = {
     collectRandomBoardSpawnablePositions,
     resolveRandomBoardSpawnEffectUsage,
     resolveEqualityWillUsage,
     canUseReinforcementWillForPlayer,
-    resolveReinforcementWillUsage
+    resolveReinforcementWillUsage,
+    canUseSupportTroopsWillForPlayer,
+    resolveSupportTroopsWillUsage
 };

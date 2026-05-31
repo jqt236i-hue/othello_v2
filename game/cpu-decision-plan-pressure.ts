@@ -49,6 +49,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     EXTREME_HYPERACTIVE_WILL: makePlanPressureProfile(3, 4, 3, 3),
     EQUALITY_WILL: makePlanPressureProfile(2, 3, 2, 2),
     REINFORCEMENT_WILL: makePlanPressureProfile(1, 2, 1, 2),
+    SUPPORT_TROOPS_WILL: makePlanPressureProfile(1, 2, 1, 2),
     FATE_WILL: makePlanPressureProfile(2, 3, 2, 2),
     FREE_PLACEMENT: makePlanPressureProfile(2, 4, 2, 0),
     FREEZE_WILL: makePlanPressureProfile(1, 2, 1, 1),

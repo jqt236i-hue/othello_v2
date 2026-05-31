@@ -431,6 +431,34 @@ describe('cpu-policy-core', () => {
         }));
     });
 
+    test('chooseHandDestroyTargetForCycle immediately destroys SUPPORT_TROOPS_WILL when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['support_troops_01'],
+            [],
+            () => 14,
+            () => ({ id: 'support_troops_01', type: 'SUPPORT_TROOPS_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                ownCharge: 20,
+                handSize: 1,
+                empties: 24,
+                discDiff: -4,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 4,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'support_troops_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
     test('chooseHandDestroyTargetForCycle immediately destroys CORNER_TRIBUTE when currently unusable', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['corner_tribute_01'],
@@ -2559,6 +2587,15 @@ describe('cpu-policy-core', () => {
         expect(core.hasUsageStyleForCardType('REINFORCEMENT_WILL')).toBe(true);
         expect(core.hasMovePlanProfileForCardType('REINFORCEMENT_WILL')).toBe(true);
         expect(core.getMovePlanProfileForCardType('REINFORCEMENT_WILL')).toEqual(expect.objectContaining({
+            archetype: 'recoveryReposition',
+            placementWeight: 0
+        }));
+    });
+
+    test('SUPPORT_TROOPS_WILL keeps an explicit recovery-reposition move plan profile', () => {
+        expect(core.hasUsageStyleForCardType('SUPPORT_TROOPS_WILL')).toBe(true);
+        expect(core.hasMovePlanProfileForCardType('SUPPORT_TROOPS_WILL')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('SUPPORT_TROOPS_WILL')).toEqual(expect.objectContaining({
             archetype: 'recoveryReposition',
             placementWeight: 0
         }));

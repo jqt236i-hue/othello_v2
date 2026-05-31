@@ -27,6 +27,7 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 canUseLastResortForPlayer: helpers.canUseLastResortForPlayer,
                 canUseEqualityWillForPlayer: helpers.canUseEqualityWillForPlayer,
                 canUseReinforcementWillForPlayer: helpers.canUseReinforcementWillForPlayer,
+                canUseSupportTroopsWillForPlayer: helpers.canUseSupportTroopsWillForPlayer,
                 canUseTimeStopGodForPlayer: helpers.canUseTimeStopGodForPlayer,
                 countOpponentOccupiedCornersForPlayer: helpers.countOpponentOccupiedCornersForPlayer,
                 getDestroyTargets: helpers.getDestroyTargets,
