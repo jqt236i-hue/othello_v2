@@ -418,6 +418,15 @@ function planSelectionSoundCues(ctx: any, deps: SoundCuePlannerDeps) {
         pushSoundCue(ctx, 'freeze_select', freezeSelectPhase, 'freeze_selected', deps);
     }
 
+    const seedPlacePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'SEED',
+        ctx.fallbackPhase
+    );
+    if (deps.hasRawEvent(ctx.raw, 'seed_selected', (ev: any) => !!(ev && ev.applied))) {
+        pushSoundCue(ctx, 'seed_place', seedPlacePhase, 'seed_selected', deps);
+    }
+
     const trapTriggeredEvent = ctx.raw.find((ev: any) => ev && ev.type === 'trap_triggered' && deps.rawDetailCount(ev) > 0);
     const trapTriggeredDetail = trapTriggeredEvent && Array.isArray(trapTriggeredEvent.details)
         ? trapTriggeredEvent.details[0]

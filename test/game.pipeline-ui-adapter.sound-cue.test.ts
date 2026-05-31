@@ -236,6 +236,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('seed_selected 成功時は SEED の status_applied phase で seed_place を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 15,
+      targets: [{ r: 2, col: 6, after: { special: 'SEED', timer: 5 } }],
+      meta: { special: 'SEED', timer: 5 }
+    }];
+    const raw = [{ type: 'seed_selected', applied: true, target: { row: 2, col: 6 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'seed_place');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(15);
+  });
+
+  test('seed_selected が不成立なら seed_place を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 6,
+      targets: [{ r: 1, col: 7, after: { special: 'SEED', timer: 5 } }],
+      meta: { special: 'SEED', timer: 5 }
+    }];
+    const raw = [{ type: 'seed_selected', applied: false, target: { row: 1, col: 7 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'seed_place');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('condemn_selected は相手手札の hand_remove phase で stone_destroy を再生する', () => {
     const base = [
       {

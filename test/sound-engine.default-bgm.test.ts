@@ -373,6 +373,14 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
+  test('seed place sound key resolves to the shipped filename', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('seed_place')).toBe(
+      'assets/audio/sound-effect/種まきの意志で種をまいたタイミング.mp3'
+    );
+  });
+
   test('living will restored sound key resolves to the shipped filename', () => {
     const soundEngine = loadSoundEngine();
 

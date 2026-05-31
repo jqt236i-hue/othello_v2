@@ -97,6 +97,7 @@ const SoundEngine = {
         ultimate_anchor_move: '究極反転龍・究極破壊神・意志狩りの王が移動したタイミング.mp3',
         robot_vacuum_suck: 'ロボット掃除機で敵石を吸い込んだタイミング.mp3',
         breeding_spawn: 'カード効果で石が生成されたタイミング.mp3',
+        seed_place: '種まきの意志で種をまいたタイミング.mp3',
         seed_sprout: '種まきの意志で芽生えるタイミング.mp3',
         card_effect_flip: 'カード効果で石が反転したタイミング.mp3',
         bomb_explode: '爆弾系の石が起爆したタイミング.mp3',
