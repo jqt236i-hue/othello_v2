@@ -847,47 +847,43 @@ function _bindCardDetailTagAutoDismiss() {
 }
 
 function _setPendingSelectionBusy(active: any) {
-    if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.setSelectionBusy === 'function') {
-        _pendingSelectionFlowModule.setSelectionBusy(active);
+    const normalized = !!active;
+    const mirrorLegacyBusyFlags = () => {
+        const rootRef = _getUiRootRef();
+        const targets: any[] = [];
+        if (rootRef && typeof rootRef === 'object') targets.push(rootRef);
         try {
-            const rootRef = _getUiRootRef();
-            if (rootRef) {
-                rootRef.isProcessing = !!active;
-                rootRef.isCardAnimating = !!active;
-            } else {
-                (globalThis as CardInteractionRuntimeRoot).isProcessing = !!active;
-                (globalThis as CardInteractionRuntimeRoot).isCardAnimating = !!active;
+            if (typeof globalThis !== 'undefined' && globalThis && targets.indexOf(globalThis) === -1) {
+                targets.push(globalThis);
             }
         } catch (e) { /* ignore */ }
+        for (let index = 0; index < targets.length; index += 1) {
+            try {
+                targets[index].isProcessing = normalized;
+                targets[index].isCardAnimating = normalized;
+            } catch (e) { /* ignore */ }
+        }
+    };
+    if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.setSelectionBusy === 'function') {
+        _pendingSelectionFlowModule.setSelectionBusy(active);
+        if (_playbackStateModule && typeof _playbackStateModule.setBusyState === 'function') {
+            _playbackStateModule.setBusyState({
+                processing: normalized,
+                cardAnimating: normalized
+            });
+        }
+        mirrorLegacyBusyFlags();
         return;
     }
-    const normalized = !!active;
-    const rootRef = _getUiRootRef();
     if (_playbackStateModule && typeof _playbackStateModule.setBusyState === 'function') {
         _playbackStateModule.setBusyState({
             processing: normalized,
             cardAnimating: normalized
         });
-        try {
-            if (rootRef) {
-                rootRef.isProcessing = normalized;
-                rootRef.isCardAnimating = normalized;
-            } else {
-                (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized;
-                (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized;
-            }
-        } catch (e) { /* ignore */ }
+        mirrorLegacyBusyFlags();
         return;
     }
-    try {
-        if (rootRef) {
-            rootRef.isProcessing = normalized;
-            rootRef.isCardAnimating = normalized;
-        } else {
-            (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized;
-            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized;
-        }
-    } catch (e) { /* ignore */ }
+    mirrorLegacyBusyFlags();
 }
 
 function _isSelectionSettlementLocked() {

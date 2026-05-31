@@ -391,7 +391,7 @@ function waitForVisualPlaybackDrain(options?: any): Promise<void> {
           return;
         }
       } catch (e) { /* ignore */ }
-      pollHandle = setTimeout(callback, 16);
+      pollHandle = setTimeout(callback, 0);
       pollHandleType = 'timeout';
     };
 

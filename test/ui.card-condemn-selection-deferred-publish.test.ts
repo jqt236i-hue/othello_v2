@@ -386,6 +386,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     releasePlayback();
     await Promise.resolve();
     await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
