@@ -377,6 +377,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkCommentaryModule: any = null;
     let networkActionSchemaModule: any = null;
     let networkPublishRequestModule: any = null;
+    let networkPublishFlowModule: any = null;
     let networkSnapshotModule: any = null;
     let networkSessionSeatModule: any = null;
     let networkSessionLifecycleModule: any = null;
@@ -407,10 +408,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkStreamSessionController: any = null;
     let networkTransportController: any = null;
     let networkTurnTimerController: any = null;
+    let networkPublishFlowController: any = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
     networkPublishRequestModule = resolveNetworkClientModule('./network/publish-request', null);
+    networkPublishFlowModule = resolveNetworkClientModule('./network/publish-flow', null);
     networkSnapshotModule = resolveNetworkClientModule('./network/snapshot', null);
     networkSessionSeatModule = resolveNetworkClientModule('./network/session-seat', null);
     networkSessionLifecycleModule = resolveNetworkClientModule('./network/session-lifecycle', null);
@@ -560,6 +563,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
         networkPublishRequestModule = resolveNetworkClientGlobal('NetworkPublishRequestModule');
         return networkPublishRequestModule;
+    }
+
+    function resolveNetworkPublishFlowModule() {
+        if (networkPublishFlowModule) return networkPublishFlowModule;
+
+        networkPublishFlowModule = resolveNetworkClientGlobal('NetworkPublishFlowModule');
+        return networkPublishFlowModule;
     }
 
     function getNetworkCommentaryController() {
@@ -849,6 +859,48 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             syncLatestState
         });
         return networkTurnTimerController;
+    }
+
+    function getNetworkPublishFlowController() {
+        if (networkPublishFlowController) return networkPublishFlowController;
+        const mod = resolveNetworkPublishFlowModule();
+        if (!mod || typeof mod.createNetworkPublishFlowController !== 'function') return null;
+        networkPublishFlowController = mod.createNetworkPublishFlowController({
+            getState: () => state,
+            isActive,
+            normalizePlayerKey,
+            emitStatus,
+            createOperationId,
+            resolveNetworkPublishRequestModule,
+            getCurrentPublishTurnIndex,
+            buildPublishCommandPayload,
+            sanitizePlaybackEventsForPublish,
+            getSnapshotMeta,
+            createTrackedPublish,
+            settleTrackedPublish,
+            markTrackedPublishInFlight,
+            publishRequestWithRetry,
+            getKnownProjectedSnapshotHash,
+            applyPayloadSessionState,
+            resolveRejectedPublishSnapshotHandling,
+            getVersionConflictTelemetryKey,
+            recordNetworkTelemetry,
+            applySnapshotThroughCoordinator,
+            rememberPendingForceSyncPlaybackRecovery,
+            shouldRetryVersionConflictPublish,
+            syncLatestStateWithRetry,
+            buildVersionConflictRetryPayload,
+            getAppliedStateVersion,
+            markTrackedPublishResponse,
+            shouldSkipPublishResponseSnapshot,
+            shouldApplyPublishResponseAsShadowPlayback,
+            buildShadowAwarePlaybackApplyOptions,
+            hasTrackedPublishPresentedResult,
+            emitPayloadEffectLogs,
+            pruneTrackedPublishes,
+            getSnapshotStateVersion
+        });
+        return networkPublishFlowController;
     }
 
     function invokeControllerMethod(resolveController: any, methodName: any, argsLike: any, fallback: any) {
@@ -2109,249 +2161,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function publishSnapshot(meta: any) {
-        if (!isActive()) return Promise.resolve({ ok: false, reason: 'INACTIVE' });
-        if (!state.seatToken) return Promise.resolve({ ok: false, reason: 'SEAT_TOKEN_REQUIRED' });
-
-        const info = meta || {};
-        const playerKey = normalizePlayerKey(info.playerKey || state.seatKey);
-        if (playerKey !== state.seatKey) {
-            emitStatus(`ネット対戦: 操作主体が座席と不一致です (${playerKey} != ${state.seatKey})`, true);
-            return Promise.resolve({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
+        const controller = getNetworkPublishFlowController();
+        if (!controller || typeof controller.publishSnapshot !== 'function') {
+            return Promise.resolve({ ok: false, reason: 'PUBLISH_FLOW_UNAVAILABLE' });
         }
-        const operationId = createOperationId();
-        const publishRequestModule = resolveNetworkPublishRequestModule();
-        const publishRequest = publishRequestModule && typeof publishRequestModule.buildPublishRequest === 'function'
-            ? publishRequestModule.buildPublishRequest(info, {
-                playerKey,
-                operationId,
-                roomId: state.roomId,
-                seatKey: state.seatKey,
-                seatToken: state.seatToken,
-                baseVersion: state.stateVersion,
-                turnIndex: getCurrentPublishTurnIndex(),
-                buildPublishCommandPayload: buildPublishCommandPayload
-            })
-            : null;
-        if (!publishRequest || !publishRequest.commandPayload || !publishRequest.requestPayload) {
-            return Promise.resolve({ ok: false, reason: 'COMMAND_REQUIRED' });
-        }
-        const commandPayload = publishRequest.commandPayload;
-        const queuedPlaybackEvents = sanitizePlaybackEventsForPublish(info.playbackEvents);
-        const queuedActionType = publishRequest.queuedActionType;
-        const trackedPublish = createTrackedPublish(operationId, {
-            actionType: queuedActionType,
-            actor: commandPayload ? (commandPayload.actor || playerKey) : playerKey,
-            params: commandPayload ? (commandPayload.params || {}) : null,
-            playbackEvents: queuedPlaybackEvents,
-            usedSnapshotFallback: info.usedSnapshotFallback === true,
-            snapshotProjectedHash: (getSnapshotMeta(info && info.snapshot) || {} as any).projectedSnapshotHash
-        });
-
-        state.publishChain = state.publishChain
-            .then(async () => {
-                if (!isActive()) {
-                    settleTrackedPublish(trackedPublish);
-                    return { ok: false, reason: 'INACTIVE' };
-                }
-                if (!state.seatToken) {
-                    settleTrackedPublish(trackedPublish);
-                    return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
-                }
-
-                const payload = Object.assign({}, publishRequest.requestPayload, {
-                    roomId: state.roomId,
-                    seatKey: state.seatKey,
-                    seatToken: state.seatToken,
-                    playerKey,
-                    actionType: queuedActionType,
-                    operationId,
-                    baseVersion: state.stateVersion
-                });
-
-                markTrackedPublishInFlight(trackedPublish);
-                let res = await publishRequestWithRetry(payload);
-                if (!res.ok || !res.data || res.data.ok !== true) {
-                    const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
-                    const localProjectedSnapshotHashBefore = getKnownProjectedSnapshotHash();
-                    applyPayloadSessionState(res.data);
-                    const rejectionHandling = resolveRejectedPublishSnapshotHandling(trackedPublish, res.data, reason, {
-                        localProjectedSnapshotHash: localProjectedSnapshotHashBefore
-                    });
-                    const versionTelemetryKey = getVersionConflictTelemetryKey(reason);
-                    recordNetworkTelemetry(versionTelemetryKey || 'publish_rejected', {
-                        reason,
-                        operationId,
-                        sequence: trackedPublish.sequence,
-                        snapshotVersion: rejectionHandling.snapshotVersion,
-                        rejectionStateVersion: rejectionHandling.rejectionStateVersion,
-                        localStateVersionBefore: rejectionHandling.localStateVersionBefore
-                    });
-                    if (versionTelemetryKey && versionTelemetryKey !== 'publish_version_mismatch') {
-                        recordNetworkTelemetry('publish_version_mismatch', {
-                            reason,
-                            operationId,
-                            sequence: trackedPublish.sequence,
-                            snapshotVersion: rejectionHandling.snapshotVersion,
-                            rejectionStateVersion: rejectionHandling.rejectionStateVersion,
-                            localStateVersionBefore: rejectionHandling.localStateVersionBefore
-                        });
-                    }
-                    if (rejectionHandling.shouldApplySnapshot) {
-                        const rejectionPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
-                        const applied = applySnapshotThroughCoordinator(res.data.snapshot, {
-                            source: 'publish_rejection',
-                            trackedPublish,
-                            applyOptions: {
-                                force: true,
-                                playbackEvents: rejectionPlaybackEvents
-                            }
-                        });
-                        if (applied) {
-                            rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
-                                source: 'publish_rejection',
-                                force: true,
-                                playbackEvents: rejectionPlaybackEvents
-                            });
-                        }
-                        recordNetworkTelemetry('publish_rejection_snapshot_applied', {
-                            reason,
-                            operationId,
-                            applied,
-                            snapshotVersion: rejectionHandling.snapshotVersion
-                        });
-                    } else {
-                        recordNetworkTelemetry('publish_rejection_snapshot_skipped', {
-                            reason,
-                            operationId,
-                            skipReason: rejectionHandling.skipReason,
-                            snapshotVersion: rejectionHandling.snapshotVersion
-                        });
-                    }
-                    let retryAcceptedAfterResync = false;
-                    if (shouldRetryVersionConflictPublish(reason, queuedActionType, trackedPublish)) {
-                        try {
-                            await syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 150 });
-                            const retryPayload = buildVersionConflictRetryPayload(payload);
-                            recordNetworkTelemetry('publish_version_conflict_retry', {
-                                reason,
-                                operationId,
-                                sequence: trackedPublish.sequence,
-                                retryBaseVersion: retryPayload.baseVersion,
-                                retryTurnIndex: retryPayload.turnIndex
-                            });
-                            const retryRes = await publishRequestWithRetry(retryPayload);
-                            if (retryRes && retryRes.ok && retryRes.data && retryRes.data.ok === true) {
-                                res = retryRes;
-                                retryAcceptedAfterResync = true;
-                                recordNetworkTelemetry('publish_version_conflict_retry_accepted', {
-                                    reason,
-                                    operationId,
-                                    sequence: trackedPublish.sequence,
-                                    responseStateVersion: Number.isFinite(Number(retryRes.data.stateVersion))
-                                        ? Number(retryRes.data.stateVersion)
-                                        : null
-                                });
-                            } else {
-                                recordNetworkTelemetry('publish_version_conflict_retry_rejected', {
-                                    reason: (retryRes && retryRes.data && retryRes.data.rejectedReason) || 'PUBLISH_REJECTED',
-                                    operationId,
-                                    sequence: trackedPublish.sequence
-                                });
-                            }
-                        } catch (e: any) {
-                            recordNetworkTelemetry('publish_version_conflict_retry_failed', {
-                                reason,
-                                operationId,
-                                sequence: trackedPublish.sequence,
-                                error: e && e.message ? String(e.message) : String(e || '')
-                            });
-                        }
-                    }
-                    if (!retryAcceptedAfterResync) {
-                        settleTrackedPublish(trackedPublish);
-                        emitStatus(`ネット対戦: 操作が拒否されました (${reason})`, true);
-                        return { ok: false, reason };
-                    }
-                }
-                applyPayloadSessionState(res.data);
-                const responseStateVersion = Number.isFinite(Number(res.data.stateVersion))
-                    ? Number(res.data.stateVersion)
-                    : null;
-                if (responseStateVersion !== null) {
-                    const currentAppliedVersion = getAppliedStateVersion();
-                    if (currentAppliedVersion === null || responseStateVersion >= currentAppliedVersion) {
-                        state.stateVersion = responseStateVersion;
-                    }
-                }
-                markTrackedPublishResponse(trackedPublish, responseStateVersion);
-                if (res.data && res.data.idempotentReplay === true) {
-                    recordNetworkTelemetry('publish_idempotent_replay_ack', {
-                        operationId,
-                        responseStateVersion
-                    });
-                }
-                if (res.data && res.data.snapshot) {
-                    const shouldSkipPublishResponse = shouldSkipPublishResponseSnapshot(
-                        trackedPublish,
-                        res.data.snapshot
-                    );
-                    const serverPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
-                    const shouldShadowPlaybackResponse = shouldApplyPublishResponseAsShadowPlayback(
-                        trackedPublish,
-                        res.data.snapshot,
-                        serverPlaybackEvents
-                    );
-                    const publishResponsePlaybackApplyOptions = buildShadowAwarePlaybackApplyOptions(
-                        serverPlaybackEvents,
-                        shouldShadowPlaybackResponse,
-                        'publish_response_shadow'
-                    );
-                    const applied = shouldSkipPublishResponse
-                        ? false
-                        : applySnapshotThroughCoordinator(res.data.snapshot, {
-                            source: 'publish_response',
-                            trackedPublish,
-                            applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, {
-                                force: true,
-                                skipResultOverlay: hasTrackedPublishPresentedResult(trackedPublish)
-                            })
-                        });
-                    if (applied) {
-                        rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, Object.assign({}, publishResponsePlaybackApplyOptions, {
-                            source: 'publish_response',
-                            force: true
-                        }));
-                        emitPayloadEffectLogs(res.data);
-                        recordNetworkTelemetry('publish_response_snapshot_applied', {
-                            operationId,
-                            applied,
-                            responseStateVersion,
-                            playbackEventCount: serverPlaybackEvents.length,
-                            usedShadowPlayback: shouldShadowPlaybackResponse
-                        });
-                    } else {
-                        recordNetworkTelemetry('publish_response_snapshot_skipped', {
-                            operationId,
-                            responseStateVersion,
-                            snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
-                            skipReason: shouldSkipPublishResponse ? 'self_snapshot_already_applied' : 'apply_rejected'
-                        });
-                    }
-                }
-                pruneTrackedPublishes();
-                return { ok: true };
-            })
-            .catch((error: any) => {
-                const message = error && error.message ? error.message : 'PUBLISH_ERROR';
-                settleTrackedPublish(trackedPublish);
-                emitStatus(`ネット対戦: 通信失敗 (${message})`, true);
-                return { ok: false, reason: 'PUBLISH_ERROR' };
-            })
-            .finally(() => {
-                pruneTrackedPublishes();
-            });
-
-        return state.publishChain;
+        return controller.publishSnapshot(meta);
     }
 
     function publishCommand(meta: any) {
