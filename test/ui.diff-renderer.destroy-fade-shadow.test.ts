@@ -243,22 +243,22 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     diff.renderBoardDiff(boardEl);
 
     expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
-    expect(firstCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
+    expect(firstCell.classList.contains('selectable-friendly')).toBe(false);
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
-    expect(selectableCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
-    expect(previewCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+    expect(previewCell.classList.contains('selectable-friendly')).toBe(true);
     expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBe('right');
     expect(selectableCell.querySelector('.board-shrink-god-direction-hint')?.textContent).toBe('→');
 
     global.cardState.pendingEffectByPlayer = { black: null, white: null };
+    global.CardLogic.getSelectableTargets = () => [];
     diff.renderBoardDiff(boardEl);
 
     expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBeNull();
     expect(selectableCell.querySelector('.board-shrink-god-direction-hint')).toBeNull();
-    expect(selectableCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
-    expect(previewCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
+    expect(selectableCell.classList.contains('selectable-friendly')).toBe(false);
+    expect(previewCell.classList.contains('selectable-friendly')).toBe(false);
   });
 
   test('updates BOARD_EXPANSION_GOD selected-target highlight from firstTarget and selectedTargets', () => {

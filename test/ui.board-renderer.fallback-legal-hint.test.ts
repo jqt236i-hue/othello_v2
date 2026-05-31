@@ -231,12 +231,11 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell).toBeTruthy();
     expect(previewCell).toBeTruthy();
     expect(firstCell.classList.contains('effect-target-highlight-positive')).toBe(true);
-    expect(firstCell.classList.contains('board-shrink-god-preview-highlight')).toBe(false);
+    expect(firstCell.classList.contains('selectable-friendly')).toBe(false);
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
-    expect(selectableCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
-    expect(previewCell.classList.contains('board-shrink-god-preview-highlight')).toBe(true);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+    expect(previewCell.classList.contains('selectable-friendly')).toBe(true);
     expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBe('right');
     expect(selectableCell.querySelector('.board-shrink-god-direction-hint')?.textContent).toBe('→');
   });

@@ -552,7 +552,6 @@ function collectPendingSelectedTargetHighlightKeys(pending: any) {
 
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
-const BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS = 'board-shrink-god-preview-highlight';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
     'board-shrink-god-direction-up',
     'board-shrink-god-direction-down',
@@ -1085,7 +1084,6 @@ function renderBoardFull() {
             // Human turn gets legal move hints (Black always, White in HvH)
             const key = r + ',' + c;
             const isSelectedTargetHighlighted = selectedTargetHighlightSet.has(key);
-            const isBoardShrinkGodPreviewHighlighted = boardShrinkGodPreviewHighlightSet.has(key);
             if (showLegalHints && gameState.board[r][c] === EMPTY) {
                 if (freePlacementActive) {
                     cell.classList.add('legal-free');
@@ -1099,10 +1097,7 @@ function renderBoardFull() {
             if (isSelectedTargetHighlighted) {
                 cell.classList.add('effect-target-highlight-positive');
             }
-            if (isBoardShrinkGodPreviewHighlighted) {
-                cell.classList.add(BOARD_SHRINK_GOD_PREVIEW_HIGHLIGHT_CLASS);
-            }
-            if (isHumanTurn && selectableTargetSet.has(key)) {
+            if (isHumanTurn && (selectableTargetSet.has(key) || boardShrinkGodPreviewHighlightSet.has(key))) {
                 cell.classList.add('selectable-friendly');
             }
             applyTimeStopLegalEmphasis(cell, timeStopActive);
