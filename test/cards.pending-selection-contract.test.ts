@@ -6,7 +6,7 @@ import * as PendingStateManager from '../game/logic/cards-internal/pending-state
 import * as CardUsagePrechecks from '../game/logic/cards-internal/card-usage-prechecks.js';
 import * as PendingTargetSelector from '../game/turn-handlers/pending-target-selector.js';
 import * as CpuTurnHandler from '../game/cpu-turn-handler.js';
-import * as PendingSelectionUiMetadata from '../cards/pending-selection-ui-metadata.js';
+import * as CardInteractionDetailActions from '../cards/card-interaction-detail-actions.js';
 
 const repoRoot = path.resolve(__dirname, '..');
 
@@ -135,11 +135,11 @@ describe('pending selection card contracts', () => {
     const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY;
 
     for (const [cardType, entry] of Object.entries(registry) as any[]) {
-      expect(PendingSelectionUiMetadata.isCancellablePendingSelectionFallback(cardType)).toBe(!!entry.cancellable);
-      expect(PendingSelectionUiMetadata.isHandOverlayPendingSelectionFallback(cardType)).toBe(entry.kind === 'hand_overlay');
+      expect(CardInteractionDetailActions.isCancellablePendingSelectionFallback(cardType)).toBe(!!entry.cancellable);
+      expect(CardInteractionDetailActions.isHandOverlayPendingSelectionFallback(cardType)).toBe(entry.kind === 'hand_overlay');
 
       if (entry.needsTargetSelection) {
-        const prompt = PendingSelectionUiMetadata.getPendingSelectionPrompt(
+        const prompt = CardInteractionDetailActions.getPendingSelectionPrompt(
           { type: cardType, stage: 'selectTarget' },
           { posToNotation: (row: any, col: any) => `${Number(row) + 1}-${Number(col) + 1}` }
         );

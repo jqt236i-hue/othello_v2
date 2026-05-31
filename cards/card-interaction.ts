@@ -515,10 +515,6 @@ const _cardInteractionDetailActionsModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-detail-actions'
 });
 
-const _pendingSelectionUiMetadataModule = _resolveCardInteractionModule({
-    requirePath: './pending-selection-ui-metadata'
-});
-
 const _cardInteractionDetailTabModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-detail-tab'
 });
@@ -683,8 +679,8 @@ function _isCancellablePendingSelectionForCardUi(pendingType: any) {
     if (pendingStateManager && typeof pendingStateManager.isCancellablePendingType === 'function') {
         return pendingStateManager.isCancellablePendingType(pendingType);
     }
-    if (_pendingSelectionUiMetadataModule && typeof _pendingSelectionUiMetadataModule.isCancellablePendingSelectionFallback === 'function') {
-        return _pendingSelectionUiMetadataModule.isCancellablePendingSelectionFallback(pendingType);
+    if (_cardInteractionDetailActionsModule && typeof _cardInteractionDetailActionsModule.isCancellablePendingSelectionFallback === 'function') {
+        return _cardInteractionDetailActionsModule.isCancellablePendingSelectionFallback(pendingType);
     }
     return false;
 }
@@ -699,8 +695,8 @@ function _isHandOverlayPendingTypeForCardUi(pendingType: any) {
             return contract.kind === 'hand_overlay';
         }
     }
-    if (_pendingSelectionUiMetadataModule && typeof _pendingSelectionUiMetadataModule.isHandOverlayPendingSelectionFallback === 'function') {
-        return _pendingSelectionUiMetadataModule.isHandOverlayPendingSelectionFallback(normalizedType);
+    if (_cardInteractionDetailActionsModule && typeof _cardInteractionDetailActionsModule.isHandOverlayPendingSelectionFallback === 'function') {
+        return _cardInteractionDetailActionsModule.isHandOverlayPendingSelectionFallback(normalizedType);
     }
     return false;
 }

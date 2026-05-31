@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
-import { createCardInteractionDetailActions } from '../cards/card-interaction-detail-actions';
+import {
+  createCardInteractionDetailActions,
+  getPendingSelectionPrompt as getPendingSelectionPromptStatic,
+  isHandOverlayPendingSelectionFallback
+} from '../cards/card-interaction-detail-actions';
 
 function createController(overrides?: Record<string, any>) {
   const dom = new JSDOM(`
@@ -120,5 +124,11 @@ describe('card interaction detail actions module', () => {
       selectedCount: 1,
       maxSelections: 3
     })).toBe('盤面縮小: 外周マスをあと2つ選んでください');
+  });
+
+  test('standalone pending helpers preserve fallback behavior', () => {
+    expect(isHandOverlayPendingSelectionFallback('HEAVEN_BLESSING')).toBe(true);
+    expect(isHandOverlayPendingSelectionFallback('SEED_WILL')).toBe(false);
+    expect(getPendingSelectionPromptStatic({ type: 'UNKNOWN_PENDING', stage: 'selectTarget' })).toBe('破壊対象を選んでください（キャンセル可）');
   });
 });
