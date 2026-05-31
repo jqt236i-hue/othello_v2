@@ -379,6 +379,19 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                 };
             }
 
+            const previousCardStateSnapshot = deps.cloneData(stateRefs.cardState);
+            const previousGameStateSnapshot = deps.cloneData(stateRefs.gameState);
+            executionResult = preview.result;
+            appliedSelection = preview.appliedSelection;
+            const appliedState = deps.applySelectionStateResult(executionResult, stateRefs);
+            playbackEvents = deps.shouldSuppressLocalPlaybackForDeferredNetworkSelection(resolvedPendingType)
+                ? []
+                : (Array.isArray(executionResult.playbackEvents) ? executionResult.playbackEvents : []);
+
+            if (opts.emitStateChanges !== false) {
+                deps.emitSelectionStateChangeSignals(playbackEvents);
+            }
+
             const publishResult = await Promise.resolve(deps.publishPendingSelectionSnapshot({
                 playerKey,
                 actionType,
@@ -386,7 +399,18 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                 playbackEvents: []
             }));
             if (!publishResult || publishResult.ok !== true) {
+                deps.applySelectionStateResult({
+                    nextCardState: previousCardStateSnapshot,
+                    nextGameState: previousGameStateSnapshot
+                }, stateRefs);
+                if (opts.emitStateChanges !== false) {
+                    deps.emitSelectionStateChangeSignals([]);
+                }
                 markPendingActionFailure('network_publish_failed');
+                const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
+                if (typeof ensureFn === 'function') {
+                    ensureFn({ useBlackDelay: true });
+                }
                 return {
                     ok: false,
                     reason: 'network_publish_failed',
@@ -394,19 +418,28 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                 };
             }
 
-            const authoritativeState = deps.resolveAuthoritativeSelectionState();
-            if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
-                deps.clearPendingSelectionAction(playerKey);
+            if (typeof opts.afterStateChange === 'function') {
+                await opts.afterStateChange(Object.assign({}, baseContext, {
+                    action: pendingAction,
+                    result: executionResult,
+                    appliedSelection,
+                    cardState: appliedState.cardState,
+                    gameState: appliedState.gameState,
+                    playbackEvents
+                }));
             }
+
+            skipFinalizeNetworkPublish = true;
+            shouldFinalize = true;
 
             return {
                 ok: true,
                 pendingType: resolvedPendingType,
                 action: pendingAction,
-                result: preview.result,
+                result: executionResult,
                 publishResult,
-                appliedSelection: preview.appliedSelection,
-                playbackEvents: [],
+                appliedSelection,
+                playbackEvents,
                 publishedByNetwork: true
             };
         }
