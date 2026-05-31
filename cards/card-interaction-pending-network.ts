@@ -2,6 +2,7 @@ export {};
 
 type PendingNetworkDeps = {
     getUiRootRef: () => any;
+    getCardStateValue?: () => any;
     readDirectWaitForPlaybackIdle?: () => any;
     isCardAnimatingNow: () => boolean;
     isStaleVisualPlaybackLock: () => boolean;
@@ -129,6 +130,32 @@ function waitForCardUseAnimationIdle(deps: PendingNetworkDeps) {
     return waitForCardAnimationIdle();
 }
 
+function clearOrphanNetworkPlaybackQueues(deps: PendingNetworkDeps) {
+    const rootRef = deps.getUiRootRef();
+    const cardStateRef = typeof deps.getCardStateValue === 'function'
+        ? deps.getCardStateValue()
+        : (rootRef && rootRef.cardState
+            ? rootRef.cardState
+            : ((typeof globalThis !== 'undefined' && globalThis) ? (globalThis as any).cardState : null));
+    if (!cardStateRef || typeof cardStateRef !== 'object') return false;
+
+    const removeFromQueue = (queue: any) => {
+        if (!Array.isArray(queue)) return 0;
+        const before = queue.length;
+        for (let index = queue.length - 1; index >= 0; index -= 1) {
+            const entry = queue[index];
+            if (entry && entry.type === 'PLAYBACK_EVENTS') {
+                queue.splice(index, 1);
+            }
+        }
+        return before - queue.length;
+    };
+
+    const removed = removeFromQueue(cardStateRef.presentationEvents)
+        + removeFromQueue(cardStateRef._presentationEventsPersist);
+    return removed > 0;
+}
+
 function getNetworkMatchClientRoot() {
     if (typeof window !== 'undefined' && window && (window as any).NetworkMatchClient) {
         return window;
@@ -172,6 +199,7 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
                             deps.playbackStateManager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
                         }
                     } catch (e) { /* ignore */ }
+                    clearOrphanNetworkPlaybackQueues(deps);
                     deps.setPendingSelectionBusy(false);
             deps.renderCardUiSafely();
         };
@@ -223,6 +251,7 @@ module.exports = {
     getWaitForPlaybackIdleFn,
     getTrackedWaitForPlaybackIdlePromise,
     waitForCardUseAnimationIdle,
+    clearOrphanNetworkPlaybackQueues,
     getNetworkMatchClientRoot,
     getActiveNetworkMatchClient,
     startNetworkOnlyPendingSelectionPublish

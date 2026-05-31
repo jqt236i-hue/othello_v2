@@ -332,8 +332,11 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     releasePlayback();
     await Promise.resolve();
     await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
+    expect((global.cardState.presentationEvents || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
+    expect((global.cardState._presentationEventsPersist || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
   });
 
   test('overlay destroy click does not publish twice before deferred selection settles', async () => {

@@ -526,6 +526,7 @@ const _cardInteractionHandDomModule = _resolveCardInteractionModule({
 function _getCardInteractionPendingNetworkDeps() {
     return {
         getUiRootRef: _getUiRootRef,
+        getCardStateValue: _getCardStateRef,
         readDirectWaitForPlaybackIdle: () => (typeof waitForPlaybackIdle === 'function' ? waitForPlaybackIdle : null),
         isCardAnimatingNow: _isCardAnimatingNow,
         isStaleVisualPlaybackLock: _isStaleVisualPlaybackLock,
