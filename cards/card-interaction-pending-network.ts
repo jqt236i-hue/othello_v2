@@ -156,6 +156,21 @@ function clearOrphanNetworkPlaybackQueues(deps: PendingNetworkDeps) {
     return removed > 0;
 }
 
+function keepInteractionLockedWithoutSelectionPlaybackLock(deps: PendingNetworkDeps) {
+    if (!deps.playbackStateManager
+        || typeof deps.playbackStateManager.clearPlaybackLock !== 'function'
+        || typeof deps.playbackStateManager.setBusyState !== 'function') {
+        return false;
+    }
+    deps.playbackStateManager.clearPlaybackLock();
+    deps.playbackStateManager.setBusyState({
+        processing: true,
+        cardAnimating: true,
+        playbackActive: false
+    });
+    return true;
+}
+
 function getNetworkMatchClientRoot() {
     if (typeof window !== 'undefined' && window && (window as any).NetworkMatchClient) {
         return window;
@@ -192,19 +207,21 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
     };
 
     const settleSuccessAfterPublish = () => {
-                const finish = () => {
-                    clearPublishLock();
-                    try {
-                        if (deps.playbackStateManager && typeof deps.playbackStateManager.clearPlaybackLock === 'function') {
-                            deps.playbackStateManager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
-                        }
-                    } catch (e) { /* ignore */ }
-                    clearOrphanNetworkPlaybackQueues(deps);
-                    deps.setPendingSelectionBusy(false);
+        const finish = () => {
+            clearPublishLock();
+            try {
+                if (deps.playbackStateManager && typeof deps.playbackStateManager.clearPlaybackLock === 'function') {
+                    deps.playbackStateManager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
+                }
+            } catch (e) { /* ignore */ }
+            clearOrphanNetworkPlaybackQueues(deps);
+            deps.setPendingSelectionBusy(false);
             deps.renderCardUiSafely();
         };
         try {
             Promise.resolve().then(() => {
+                clearOrphanNetworkPlaybackQueues(deps);
+                keepInteractionLockedWithoutSelectionPlaybackLock(deps);
                 const trackedWait = getTrackedWaitForPlaybackIdlePromise(deps);
                 if (!trackedWait) {
                     finish();

@@ -381,6 +381,52 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(global.isCardAnimating).toBe(false);
   });
 
+  test('overlay destroy publish does not wait on its own selection lock forever', async () => {
+    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+      const poll = () => {
+        const playbackStateManager = global.PlaybackStateManager;
+        if (!playbackStateManager || typeof playbackStateManager.getPlaybackActive !== 'function' || !playbackStateManager.getPlaybackActive()) {
+          resolve();
+          return;
+        }
+        setTimeout(poll, 0);
+      };
+      setTimeout(poll, 0);
+    }));
+    globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    global.NetworkMatchClient = client;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    expect(selectBtn).toBeTruthy();
+    expect(selectBtn.disabled).toBe(false);
+
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runTurnMock).not.toHaveBeenCalled();
+    expect(publishBodies).toHaveLength(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.PlaybackStateManager.getPlaybackActive()).toBe(false);
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+    expect((global.cardState.presentationEvents || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
+    expect((global.cardState._presentationEventsPersist || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
+  });
+
   test('overlay destroy button does not play stone_destroy locally for condemn selection', async () => {
     require('../cards/card-interaction.js');
 
