@@ -568,7 +568,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function resolveNetworkPublishFlowModule() {
         if (networkPublishFlowModule) return networkPublishFlowModule;
 
-        networkPublishFlowModule = resolveNetworkClientGlobal('NetworkPublishFlowModule');
+        networkPublishFlowModule = resolveNetworkClientCandidate(() => _require('./network/publish-flow'))
+            || resolveNetworkClientGlobal('NetworkPublishFlowModule');
         return networkPublishFlowModule;
     }
 
@@ -2163,7 +2164,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function publishSnapshot(meta: any) {
         const controller = getNetworkPublishFlowController();
         if (!controller || typeof controller.publishSnapshot !== 'function') {
-            return Promise.resolve({ ok: false, reason: 'PUBLISH_FLOW_UNAVAILABLE' });
+            emitStatus('ネット対戦: 通信失敗 (PUBLISH_FLOW_UNAVAILABLE)', true);
+            return Promise.resolve({ ok: false, reason: 'PUBLISH_ERROR' });
         }
         return controller.publishSnapshot(meta);
     }

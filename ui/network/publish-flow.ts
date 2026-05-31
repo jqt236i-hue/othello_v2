@@ -26,7 +26,10 @@ function createNetworkPublishFlowController(config?: any): any {
 
   function publishSnapshot(meta: any): Promise<any> {
     const state = getState();
-    if (!state || typeof state !== 'object') return Promise.resolve({ ok: false, reason: 'STATE_UNAVAILABLE' });
+    if (!state || typeof state !== 'object') {
+      emitStatus('ネット対戦: 通信失敗 (STATE_UNAVAILABLE)', true);
+      return Promise.resolve({ ok: false, reason: 'PUBLISH_ERROR' });
+    }
     if (!isActive()) return Promise.resolve({ ok: false, reason: 'INACTIVE' });
     if (!state.seatToken) return Promise.resolve({ ok: false, reason: 'SEAT_TOKEN_REQUIRED' });
 
