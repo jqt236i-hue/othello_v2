@@ -169,6 +169,10 @@ function attachPlaybackStateManager() {
   return playbackStateManager;
 }
 
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 describe('pending selection flow contracts', () => {
   afterEach(() => {
     try {
@@ -1718,6 +1722,254 @@ describe('pending selection flow contracts', () => {
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
   });
+
+  test.each([
+    {
+      pendingType: 'BLOCKADE_WILL',
+      row: 2,
+      col: 2,
+      actionPayload: { blockadeTarget: { row: 2, col: 2 } },
+      buildNextCardState: (cardState) => ({
+        ...cloneJson(cardState),
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [{
+          id: 'blockade_1',
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'BLOCKADE', remainingOwnerTurns: 3 }
+        }]
+      }),
+      buildNextGameState: (gameState) => cloneJson(gameState),
+      assertPreview: ({ cardState }) => {
+        expect(cardState.markers).toEqual([
+          expect.objectContaining({
+            row: 2,
+            col: 2,
+            owner: 'black',
+            data: expect.objectContaining({ type: 'BLOCKADE', remainingOwnerTurns: 3 })
+          })
+        ]);
+      }
+    },
+    {
+      pendingType: 'FREEZE_WILL',
+      row: 4,
+      col: 1,
+      actionPayload: { freezeTarget: { row: 4, col: 1 } },
+      buildNextCardState: (cardState) => ({
+        ...cloneJson(cardState),
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [{
+          id: 'freeze_1',
+          kind: 'specialStone',
+          row: 4,
+          col: 1,
+          owner: 'black',
+          data: { type: 'FREEZE', remainingOwnerTurns: 2 }
+        }]
+      }),
+      buildNextGameState: (gameState) => cloneJson(gameState),
+      assertPreview: ({ cardState }) => {
+        expect(cardState.markers).toEqual([
+          expect.objectContaining({
+            row: 4,
+            col: 1,
+            owner: 'black',
+            data: expect.objectContaining({ type: 'FREEZE', remainingOwnerTurns: 2 })
+          })
+        ]);
+      }
+    },
+    {
+      pendingType: 'TIME_BOMB',
+      row: 3,
+      col: 4,
+      actionPayload: { bombTarget: { row: 3, col: 4 } },
+      buildNextCardState: (cardState) => ({
+        ...cloneJson(cardState),
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [{
+          id: 'bomb_1',
+          kind: 'specialStone',
+          row: 3,
+          col: 4,
+          owner: 'black',
+          data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 }
+        }]
+      }),
+      buildNextGameState: (gameState) => cloneJson(gameState),
+      assertPreview: ({ cardState }) => {
+        expect(cardState.markers).toEqual([
+          expect.objectContaining({
+            row: 3,
+            col: 4,
+            owner: 'black',
+            data: expect.objectContaining({ type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 })
+          })
+        ]);
+      }
+    },
+    {
+      pendingType: 'EXTEND_LIFE_WILL',
+      row: 2,
+      col: 2,
+      actionPayload: { extendTarget: { row: 2, col: 2 } },
+      initialMarkers: [{
+        id: 220,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 2 }
+      }],
+      buildNextCardState: (cardState) => ({
+        ...cloneJson(cardState),
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [{
+          id: 220,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 4 }
+        }]
+      }),
+      buildNextGameState: (gameState) => cloneJson(gameState),
+      assertPreview: ({ cardState }) => {
+        expect(cardState.markers).toEqual([
+          expect.objectContaining({
+            id: 220,
+            row: 2,
+            col: 2,
+            owner: 'black',
+            data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 4 })
+          })
+        ]);
+      }
+    },
+    {
+      pendingType: 'METEOR_WILL',
+      row: 2,
+      col: 2,
+      actionPayload: { meteorTarget: { row: 2, col: 2 } },
+      buildNextCardState: (cardState) => ({
+        ...cloneJson(cardState),
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [{
+          id: 'meteor_hole_1',
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'METEOR_HOLE' }
+        }]
+      }),
+      buildNextGameState: (gameState) => {
+        const nextGameState = cloneJson(gameState);
+        nextGameState.board[2][2] = 0;
+        return nextGameState;
+      },
+      initialBoardValue: -1,
+      assertPreview: ({ cardState, gameState }) => {
+        expect(gameState.board[2][2]).toBe(0);
+        expect(cardState.markers).toEqual([
+          expect.objectContaining({
+            row: 2,
+            col: 2,
+            owner: 'black',
+            data: expect.objectContaining({ type: 'METEOR_HOLE' })
+          })
+        ]);
+      }
+    }
+  ])(
+    'network continue-turn deferred selection previews resolved local state before publish settles for $pendingType',
+    async ({ pendingType, row, col, actionPayload, buildNextCardState, buildNextGameState, assertPreview, initialMarkers, initialBoardValue }) => {
+      attachPlaybackStateManager();
+      let resolvePublish = null;
+      const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+      if (typeof initialBoardValue === 'number') {
+        board[row][col] = initialBoardValue;
+      }
+      global.MATCH_MODE = 'network';
+      global.cardState = {
+        turnIndex: 5,
+        markers: initialMarkers ? cloneJson(initialMarkers) : [],
+        pendingEffectByPlayer: {
+          black: { type: pendingType, stage: 'selectTarget' },
+          white: null
+        }
+      };
+      global.gameState = {
+        currentPlayer: 1,
+        turnNumber: 9,
+        board
+      };
+      global.ActionManager = {
+        ActionManager: {
+          createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+        }
+      };
+      global.NetworkMatchClient = {
+        isActive: jest.fn(() => true),
+        publishSnapshot: jest.fn(() => new Promise((resolve) => {
+          resolvePublish = resolve;
+        }))
+      };
+      global.waitForPlaybackIdle = jest.fn(() => new Promise(() => {}));
+      global.emitCardStateChange = jest.fn();
+      global.emitBoardUpdate = jest.fn();
+      global.emitGameStateChange = jest.fn();
+      global.emitLogAdded = jest.fn();
+      global.TurnPipeline = {};
+      global.TurnPipelineUIAdapter = {
+        runTurnWithAdapter: jest.fn(() => ({
+          ok: true,
+          nextCardState: buildNextCardState(global.cardState),
+          nextGameState: buildNextGameState(global.gameState),
+          playbackEvents: [{ type: 'status_applied', phase: 1 }]
+        }))
+      };
+      global.isProcessing = false;
+      global.isCardAnimating = false;
+
+      const pendingPromise = flow.executePendingSelection({
+        row,
+        col,
+        playerKey: 'black',
+        pendingType,
+        actionPayload
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(typeof resolvePublish).toBe('function');
+      expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+      expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+      expect(global.emitCardStateChange).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      expect(global.emitGameStateChange).toHaveBeenCalledTimes(1);
+      assertPreview({
+        cardState: global.cardState,
+        gameState: global.gameState
+      });
+
+      resolvePublish({ ok: true });
+      const result = await pendingPromise;
+      expect(result).toEqual(expect.objectContaining({
+        ok: true,
+        pendingType,
+        publishedByNetwork: true,
+        playbackEvents: []
+      }));
+      expect(global.isProcessing).toBe(false);
+      expect(global.isCardAnimating).toBe(false);
+    }
+  );
 
   test('network continue-turn deferred selection rolls back local preview when publish fails', async () => {
     attachPlaybackStateManager();
