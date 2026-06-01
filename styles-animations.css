@@ -49,7 +49,7 @@ the fade-in starts. */
 /* flip class performs a visible squash-flip (works without 3D perspective) */
 .disc.flip {
     will-change: transform, filter;
-    animation: stone-flip 0.6s cubic-bezier(.2,.85,.3,1);
+    animation: stone-flip 0.3s cubic-bezier(.2,.85,.3,1);
 }
 
 /* destroy fade fallback (keyframes-based; do not override board styles) */

@@ -50,6 +50,7 @@ describe('UI stone rendering', () => {
       'animated disc states should keep the 3D/backface settings'
     );
     assert.ok(/\.disc\.flip\s*\{[\s\S]*?will-change:\s*transform,\s*filter;/.test(animationCss), 'flip animation should opt in to transform layer promotion');
+    assert.ok(/\.disc\.flip\s*\{[\s\S]*?animation:\s*stone-flip\s+0\.3s\s+cubic-bezier\(\.2,\.85,\.3,1\);/.test(animationCss), 'flip animation CSS should use the temporary 2x validation speed');
   });
 
   test('setDiscStoneImage helper creates the disc skeleton and sets black base render state', () => {
