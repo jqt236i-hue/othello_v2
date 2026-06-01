@@ -524,7 +524,7 @@
       "id": "theory_incarnation",
       "name_ja": "理論の化身",
       "type": "THEORY_INCARNATION",
-      "cost": 25,
+      "cost": 21,
       "desc_ja": "次に置く石を理論の化身にする。盤面にいる間、その所有者の数字マス布石を2倍にする。10ターン持続。",
       "display_type_ja": "特殊石"
     },
