@@ -16,7 +16,7 @@ const ANIMATION_TIMINGS: Record<string, number> = {
     PLACEMENT_RETREAT_DURATION: 300,  // Hand retreat duration
     
     // Board flip animation
-    FLIP_ANIMATION_DURATION: 300,     // Temporary validation speed: double-speed flip vs original 0.6s
+    FLIP_ANIMATION_DURATION: 462,     // Time for disc to flip (~0.46s, 30% faster than 0.6s)
     BREEDING_SPAWN_FADE_MS: 500,      // Fade-in when BREEDING spawns a new stone
     REGEN_CONSUME_FADE_MS: 500,       // Fade when REGEN visual is consumed and returns to normal
     

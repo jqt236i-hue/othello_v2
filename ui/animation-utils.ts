@@ -183,7 +183,7 @@ const scaleHandMotionDuration = (baseMs: number): number => Math.max(1, Math.rou
 const PLACE_HAND_SPEED_BOOST = 1.2;
 const DRAW_HAND_SPEED_BOOST = 1.1;
 const boostHandDuration = (baseMs: number, boost: number): number => Math.max(1, Math.round(baseMs / boost));
-const HAND_ACTION_SPEED_BOOST = 2.0;
+const HAND_ACTION_SPEED_BOOST = 1.3;
 const applyHandActionSpeedBoost = (baseMs: number): number => Math.max(1, Math.round(baseMs / HAND_ACTION_SPEED_BOOST));
 const HAND_PLACE_APPROACH_MS = applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST));
 const HAND_PLACE_BOB_MS = applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST));

@@ -67,7 +67,7 @@ describe('DiffRenderer flip fallback', () => {
 		expect(disc).toBeTruthy();
 		expect(disc.classList.contains('flip')).toBe(true);
 
-		jest.advanceTimersByTime(320);
+		jest.advanceTimersByTime(500);
 
 		expect(disc.classList.contains('flip')).toBe(false);
 	});
