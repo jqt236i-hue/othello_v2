@@ -731,6 +731,16 @@ function createNetworkSnapshotController(config: any): any {
         try { if (renderCardUI) renderCardUI(); } catch (e) { /* ignore */ }
     }
 
+    function syncCardDetailPanelDirect(): boolean {
+        const updateCardDetailPanel = resolveGlobalFunction('updateCardDetailPanel', cfg.updateCardDetailPanel);
+        if (typeof updateCardDetailPanel !== 'function') return false;
+        try {
+            updateCardDetailPanel();
+            return true;
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
     function requestDeferredBoardRefreshAfterPlayback(request: any, source: string): boolean {
         if (!playbackRequestStarted(request)) return false;
         const networkPlaybackBatchId = request.networkPlaybackBatchId || '';
@@ -815,6 +825,8 @@ function createNetworkSnapshotController(config: any): any {
             renderCardUiAfterPlaybackIfNeeded({
                 deferUntilPlaybackIdle: opts.deferCardUiUntilPlaybackIdle === true
             });
+        } else if (opts.deferCardUiUntilPlaybackIdle !== true) {
+            syncCardDetailPanelDirect();
         }
         return {
             cardStateChangeRequested,
