@@ -517,24 +517,53 @@ if (!scheduleRetry) {
 function hasQueuedPresentationEventsForTurnManager() {
     try {
         if (!cardState || typeof cardState !== 'object') return false;
-        const nonBlockingPlaybackTypes = new Set([
-            'hand_remove',
-            'hand_add',
-            'sound_effect'
-        ]);
-        const queuedPlaybackBatchBlocksBoardClick = (event: any) => {
-            if (!event || event.type !== 'PLAYBACK_EVENTS') return false;
-            if (!Array.isArray(event.events) || event.events.length === 0) return true;
-            return event.events.some((playbackEvent: any) => {
-                const playbackType = String(playbackEvent && playbackEvent.type ? playbackEvent.type : '').trim().toLowerCase();
-                if (!playbackType) return true;
-                return !nonBlockingPlaybackTypes.has(playbackType);
-            });
+        const hasQueuedPlaybackEvents = (queue: any) => {
+            if (!Array.isArray(queue) || queue.length === 0) return false;
+            for (let index = 0; index < queue.length; index += 1) {
+                if (doesTurnManagerPresentationEntryBlockBoardClick(queue[index])) return true;
+            }
+            return false;
         };
-        const hasQueuedPlaybackEvents = (queue: any) => Array.isArray(queue)
-            && queue.some((event) => queuedPlaybackBatchBlocksBoardClick(event));
         return hasQueuedPlaybackEvents(cardState.presentationEvents)
             || hasQueuedPlaybackEvents(cardState._presentationEventsPersist);
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function doesTurnManagerPresentationEntryBlockBoardClick(event: any) {
+    if (!event || typeof event !== 'object') return false;
+    const eventType = String(event.type || '').trim().toUpperCase();
+    if (eventType === 'HAND_REMOVE' || eventType === 'HAND_ADD' || eventType === 'SOUND_EFFECT') return false;
+    if (eventType !== 'PLAYBACK_EVENTS') return false;
+    const playbackEvents = Array.isArray(event.events) ? event.events : null;
+    if (!playbackEvents || playbackEvents.length === 0) return true;
+    for (let index = 0; index < playbackEvents.length; index += 1) {
+        const playbackEvent = playbackEvents[index];
+        const playbackType = String(playbackEvent && playbackEvent.type ? playbackEvent.type : '').trim().toLowerCase();
+        if (!playbackType) return true;
+        if (playbackType !== 'hand_remove' && playbackType !== 'hand_add' && playbackType !== 'sound_effect') {
+            return true;
+        }
+    }
+    return false;
+}
+
+function clearSettledNonBlockingPresentationEventsForTurnManager() {
+    try {
+        if (!cardState || typeof cardState !== 'object') return false;
+        let removed = 0;
+        const stripQueue = (queue: any) => {
+            if (!Array.isArray(queue) || queue.length === 0) return;
+            for (let index = queue.length - 1; index >= 0; index -= 1) {
+                if (!doesTurnManagerPresentationEntryBlockBoardClick(queue[index])) {
+                    queue.splice(index, 1);
+                    removed += 1;
+                }
+            }
+        };
+        stripQueue(cardState.presentationEvents);
+        stripQueue(cardState._presentationEventsPersist);
+        return removed > 0;
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -567,6 +596,10 @@ function handleCellClick(row: number, col: number) {
         ? resolvePendingSelectionDispatchKeyForTurnManager(pending.type)
         : null;
     const allowPendingSelectionDuringAnimation = shouldAllowPendingSelectionDuringAnimation(playerKey, pending, pendingDispatchKey);
+
+    if (!readTurnManagerProcessing() && !readTurnManagerCardAnimating() && !isVisualPlaybackActiveForTurnManager()) {
+        clearSettledNonBlockingPresentationEventsForTurnManager();
+    }
 
     // Block while animations are running
     if (isAnimationInProgress() && !allowPendingSelectionDuringAnimation) {

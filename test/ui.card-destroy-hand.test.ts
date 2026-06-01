@@ -220,4 +220,54 @@ describe('手札破壊ボタン', () => {
     delete global.isProcessing;
     delete global.isCardAnimating;
   });
+
+  test('idle 状態で残った hand-only playback queue は通常配置前に掃除される', () => {
+    global.getActiveProtectionForPlayer = jest.fn(() => []);
+    global.getFlipBlockers = jest.fn(() => []);
+    global.findMoveForCell = jest.fn((player, row, col) => (
+      player === 1 && row === 2 && col === 3
+        ? { player, row, col, flips: [[3, 3]] }
+        : null
+    ));
+    global.executeMove = jest.fn();
+    global.playHandAnimation = jest.fn();
+    global.VisualPlaybackActive = false;
+    global.isProcessing = false;
+    global.isCardAnimating = false;
+    global.cardState.presentationEvents = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'hand_remove', phase: 1, targets: [{ player: 'black', count: 1 }] }] }
+    ];
+    global.cardState._presentationEventsPersist = [
+      { type: 'HAND_REMOVE', player: 'black', count: 1 },
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'hand_remove', phase: 1, targets: [{ player: 'black', count: 1 }] }] }
+    ];
+
+    const turnManager = require('../game/turn-manager.js');
+    turnManager.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key) => global[key],
+      writeRuntimeValue: (key, value) => { global[key] = value; }
+    });
+
+    turnManager.handleCellClick(2, 3);
+
+    expect(global.executeMove).toHaveBeenCalledWith(expect.objectContaining({
+      row: 2,
+      col: 3
+    }));
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+
+    if (typeof turnManager.replaceUIImpl === 'function') {
+      turnManager.replaceUIImpl({});
+    }
+    delete global.getActiveProtectionForPlayer;
+    delete global.getFlipBlockers;
+    delete global.findMoveForCell;
+    delete global.executeMove;
+    delete global.playHandAnimation;
+    delete global.VisualPlaybackActive;
+    delete global.isProcessing;
+    delete global.isCardAnimating;
+  });
 });
