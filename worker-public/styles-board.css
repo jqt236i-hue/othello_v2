@@ -270,10 +270,38 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
     pointer-events: none;
     z-index: 9;
     overflow: hidden;
+    isolation: isolate;
     background: var(--board-frame-fill-background,
         linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 30%, transparent 70%, rgba(255, 255, 255, 0.02) 100%),
         repeating-linear-gradient(45deg, rgba(30, 30, 30, 1) 0px, #1a1a1a 1px, #050505 1px, #050505 3px),
         linear-gradient(to bottom, #2a2a2a, #000000));
+}
+
+.cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark::before,
+.cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark::before {
+    z-index: 1;
+    background-image: url('assets/images/other/aaa.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center;
+    opacity: 0.82;
+}
+
+.cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark::after {
+    z-index: 2;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 28%, rgba(0, 0, 0, 0.22) 100%),
+        radial-gradient(circle at center, transparent 48%, rgba(0, 0, 0, 0.46) 100%);
+    box-shadow:
+        inset 0 0 0 var(--layout-size-border-thin) rgba(0, 0, 0, 0.72),
+        inset 0 0 calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
 }
 
 .cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark.board-shrink-hole-push-in {
@@ -302,7 +330,7 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
 .cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark .board-shrink-hole-inner-edge {
     position: absolute;
     pointer-events: none;
-    z-index: 1;
+    z-index: 3;
 }
 
 .cell.blocked-cell.board-shrink-hole-cell .board-shrink-hole-mark .board-shrink-hole-inner-edge.inner-edge-top {

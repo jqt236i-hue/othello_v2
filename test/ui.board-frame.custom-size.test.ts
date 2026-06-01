@@ -25,6 +25,8 @@ describe('custom board frame styling', () => {
     expect(boardCss).toMatch(/#board \.disc[\s\S]*top:\s*var\(--board-disc-inset\)/);
     expect(boardCss).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell[\s\S]*border:\s*none/);
     expect(boardCss).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell\s+\.board-shrink-hole-mark[\s\S]*background:\s*var\(--board-frame-fill-background/);
+    expect(boardCss).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell\s+\.board-shrink-hole-mark::before[\s\S]*background-image:\s*url\('assets\/images\/other\/aaa\.png'\)/);
+    expect(boardCss).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell\s+\.board-shrink-hole-mark[\s\S]*isolation:\s*isolate/);
     expect(boardCss).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell\s+\.board-shrink-hole-mark[\s\S]*inset:\s*calc\(-1\s*\*\s*var\(--layout-size-border-thin\)\)/);
     expect(boardCss).toMatch(/\.board-shrink-hole-inner-edge\.inner-edge-bottom[\s\S]*height:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(boardCss).toMatch(/\.board-shrink-hole-inner-edge\.inner-edge-right[\s\S]*width:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
