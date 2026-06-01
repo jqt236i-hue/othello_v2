@@ -365,6 +365,23 @@ describe('turn-manager scheduling', () => {
   });
 
   test.each([
+    ['presentationEvents', { presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'hand_remove', phase: 1 }, { type: 'sound_effect', phase: 1 }] }], _presentationEventsPersist: [] }],
+    ['_presentationEventsPersist', { presentationEvents: [], _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'hand_add', phase: 1 }] }] }]
+  ])('queued %s hand-only playback does not block board clicks', (_label, queues) => {
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: queues.presentationEvents,
+      _presentationEventsPersist: queues._presentationEventsPersist
+    };
+
+    const rm = require('../game/turn-manager.js');
+    rm.handleCellClick(0, 0);
+
+    expect(global.findMoveForCell).toHaveBeenCalled();
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
     ['presentationEvents', { presentationEvents: [{ type: 'CARD_USED', player: 'black', cardId: 'capture_01' }], _presentationEventsPersist: [] }],
     ['_presentationEventsPersist', { presentationEvents: [], _presentationEventsPersist: [{ type: 'HAND_REMOVE', player: 'black', cardId: 'capture_01' }] }]
   ])('queued %s non-playback presentation does not block board clicks', (_label, queues) => {

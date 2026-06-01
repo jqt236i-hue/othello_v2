@@ -153,4 +153,71 @@ describe('手札破壊ボタン', () => {
     expect(global.cardState.hands.black).toEqual(['use_card_1']);
     expect(global.cardState.discard).toEqual(expect.arrayContaining(['trash_card', 'trash_card_2']));
   });
+
+  test('hand_remove 再生中でも手札破壊後の同ターン通常配置はブロックされない', () => {
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn((_cs, _gs, _player, action) => {
+      if (action.type === 'destroy_hand_card') {
+        const hand = (global.cardState.hands.black || []).filter((id) => id !== action.destroyCardId);
+        const nextCardState = {
+          ...global.cardState,
+          hands: { black: hand, white: [] },
+          hasDestroyedCardThisTurnByPlayer: { black: true, white: false },
+          discard: [...(global.cardState.discard || []), action.destroyCardId],
+          selectedCardId: null,
+          selectedCardOwnerKey: null
+        };
+        global.cardState = nextCardState;
+        return {
+          ok: true,
+          nextCardState,
+          nextGameState: global.gameState,
+          playbackEvents: [{ type: 'hand_remove', phase: 1, targets: [{ player: 'black', count: 1 }] }]
+        };
+      }
+      return { ok: false, rejectedReason: 'UNSUPPORTED' };
+    });
+
+    global.getActiveProtectionForPlayer = jest.fn(() => []);
+    global.getFlipBlockers = jest.fn(() => []);
+    global.findMoveForCell = jest.fn((player, row, col) => (
+      player === 1 && row === 2 && col === 3
+        ? { player, row, col, flips: [[3, 3]] }
+        : null
+    ));
+    global.executeMove = jest.fn();
+    global.playHandAnimation = jest.fn();
+    global.VisualPlaybackActive = false;
+    global.isProcessing = false;
+    global.isCardAnimating = false;
+
+    const turnManager = require('../game/turn-manager.js');
+    turnManager.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key) => global[key],
+      writeRuntimeValue: (key, value) => { global[key] = value; }
+    });
+
+    require('../cards/card-interaction.js');
+
+    window.onCardClick('trash_card', 'black');
+    window.destroySelectedHandCard();
+    turnManager.handleCellClick(2, 3);
+
+    expect(global.executeMove).toHaveBeenCalledWith(expect.objectContaining({
+      row: 2,
+      col: 3
+    }));
+
+    if (typeof turnManager.replaceUIImpl === 'function') {
+      turnManager.replaceUIImpl({});
+    }
+    delete global.getActiveProtectionForPlayer;
+    delete global.getFlipBlockers;
+    delete global.findMoveForCell;
+    delete global.executeMove;
+    delete global.playHandAnimation;
+    delete global.VisualPlaybackActive;
+    delete global.isProcessing;
+    delete global.isCardAnimating;
+  });
 });

@@ -517,8 +517,22 @@ if (!scheduleRetry) {
 function hasQueuedPresentationEventsForTurnManager() {
     try {
         if (!cardState || typeof cardState !== 'object') return false;
+        const nonBlockingPlaybackTypes = new Set([
+            'hand_remove',
+            'hand_add',
+            'sound_effect'
+        ]);
+        const queuedPlaybackBatchBlocksBoardClick = (event: any) => {
+            if (!event || event.type !== 'PLAYBACK_EVENTS') return false;
+            if (!Array.isArray(event.events) || event.events.length === 0) return true;
+            return event.events.some((playbackEvent: any) => {
+                const playbackType = String(playbackEvent && playbackEvent.type ? playbackEvent.type : '').trim().toLowerCase();
+                if (!playbackType) return true;
+                return !nonBlockingPlaybackTypes.has(playbackType);
+            });
+        };
         const hasQueuedPlaybackEvents = (queue: any) => Array.isArray(queue)
-            && queue.some((event) => event && event.type === 'PLAYBACK_EVENTS');
+            && queue.some((event) => queuedPlaybackBatchBlocksBoardClick(event));
         return hasQueuedPlaybackEvents(cardState.presentationEvents)
             || hasQueuedPlaybackEvents(cardState._presentationEventsPersist);
     } catch (e) { /* ignore */ }
