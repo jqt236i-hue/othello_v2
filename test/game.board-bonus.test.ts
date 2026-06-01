@@ -3,6 +3,7 @@ import * as CardLogic from '../game/logic/cards.js';
 import * as CardExpansion from '../game/logic/cards/expansion.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
+import * as TurnPipelineUIAdapter from '../game/turn/pipeline_ui_adapter.js';
 
 function createInitialGameState() {
   const gameState = {
@@ -278,9 +279,226 @@ describe('数字マス（初期配置・配置報酬）', () => {
 
     const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
     const placementEffects = result.events.find((ev) => ev && ev.type === 'placement_effects');
+    const theoryTicks = (result.presentationEvents || []).filter((ev) => (
+      ev &&
+      ev.type === 'STATUS_TICK' &&
+      ev.meta &&
+      ev.meta.reason === 'theory_incarnation_number_bonus'
+    ));
+    const playback = TurnPipelineUIAdapter.mapToPlaybackEvents(
+      result.presentationEvents || [],
+      result.cardState,
+      result.gameState
+    );
+
     expect(Number(cardState.charge.black || 0) - before).toBe(1 + (targetBonus * 2));
     expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 2, multiplier: 2, boostedBy: 'THEORY_INCARNATION' });
     expect(placementEffects.effects).toMatchObject({ theoryIncarnationUsed: true, theoryIncarnationGain: targetBonus * 2, chargeGained: 1 });
+    expect(theoryTicks).toEqual([
+      expect.objectContaining({
+        type: 'STATUS_TICK',
+        row: 2,
+        col: 3,
+        meta: expect.objectContaining({
+          special: 'THEORY_INCARNATION',
+          timer: 10,
+          owner: 'black',
+          reason: 'theory_incarnation_number_bonus',
+          highlightTone: 'positive'
+        })
+      })
+    ]);
+    expect(playback).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_TICK',
+        meta: expect.objectContaining({
+          special: 'THEORY_INCARNATION',
+          timer: 10,
+          owner: 'black',
+          reason: 'theory_incarnation_number_bonus',
+          highlightTone: 'positive'
+        }),
+        targets: [expect.objectContaining({ r: 2, col: 3 })]
+      })
+    ]));
+  });
+
+  test('THEORY_INCARNATION が複数ある時は同所有者アンカー全てを紫ハイライトし、倍率は2倍のまま', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+
+    gameState.board[2][2] = Shared.BLACK;
+    gameState.board[5][5] = Shared.BLACK;
+    gameState.board[6][6] = Shared.WHITE;
+    CardLogic.addMarker(cardState, 'specialStone', 2, 2, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 10 });
+    CardLogic.addMarker(cardState, 'specialStone', 5, 5, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 7 });
+    CardLogic.addMarker(cardState, 'specialStone', 6, 6, 'white', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 9 });
+
+    const targetKey = '0,0';
+    const targetBonus = Number(cardState.boardBonusByCell[targetKey] || 0);
+    expect(targetBonus).toBeGreaterThan(0);
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+    const before = Number(cardState.charge.black || 0);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+    const theoryTicks = (result.presentationEvents || []).filter((ev) => (
+      ev &&
+      ev.type === 'STATUS_TICK' &&
+      ev.meta &&
+      ev.meta.reason === 'theory_incarnation_number_bonus'
+    ));
+
+    expect(Number(cardState.charge.black || 0) - before).toBe(targetBonus * 2);
+    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 2, multiplier: 2, boostedBy: 'THEORY_INCARNATION' });
+    expect(theoryTicks).toHaveLength(2);
+    expect(theoryTicks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 2,
+        col: 2,
+        meta: expect.objectContaining({ timer: 10, owner: 'black', special: 'THEORY_INCARNATION' })
+      }),
+      expect.objectContaining({
+        row: 5,
+        col: 5,
+        meta: expect.objectContaining({ timer: 7, owner: 'black', special: 'THEORY_INCARNATION' })
+      })
+    ]));
+    expect(theoryTicks.some((ev) => ev && ev.row === 6 && ev.col === 6)).toBe(false);
+  });
+
+  test('THEORY_INCARNATION は数字マス以外の配置では発動ハイライトを出さない', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+
+    gameState.board[0][0] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 10 });
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    expect(result.events.find((ev) => ev && ev.type === 'board_bonus_gain')).toBeFalsy();
+    expect((result.presentationEvents || []).some((ev) => (
+      ev &&
+      ev.type === 'STATUS_TICK' &&
+      ev.meta &&
+      ev.meta.reason === 'theory_incarnation_number_bonus'
+    ))).toBe(false);
+  });
+
+  test('THEORY_INCARNATION は消費済み数字マスへの再配置では発動ハイライトを出さない', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+
+    gameState.board[2][2] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 2, 2, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 10 });
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+
+    TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    gameState.board[0][0] = Shared.EMPTY;
+    gameState.currentPlayer = Shared.BLACK;
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    expect(result.events.find((ev) => ev && ev.type === 'board_bonus_gain')).toBeFalsy();
+    expect((result.presentationEvents || []).some((ev) => (
+      ev &&
+      ev.type === 'STATUS_TICK' &&
+      ev.meta &&
+      ev.meta.reason === 'theory_incarnation_number_bonus'
+    ))).toBe(false);
+  });
+
+  test('THEORY_INCARNATION は布石上限で実獲得が0なら発動ハイライトを出さない', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+
+    gameState.board[2][2] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 2, 2, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 10 });
+    cardState.charge.black = 99;
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+
+    expect(cardState.charge.black).toBe(99);
+    expect(bonusEvent).toMatchObject({
+      row: 0,
+      col: 0,
+      multiplier: 2,
+      boostedBy: 'THEORY_INCARNATION',
+      gained: 0
+    });
+    expect((result.presentationEvents || []).some((ev) => (
+      ev &&
+      ev.type === 'STATUS_TICK' &&
+      ev.meta &&
+      ev.meta.reason === 'theory_incarnation_number_bonus'
+    ))).toBe(false);
   });
 
   test('THEORY_INCARNATION は通常反転で特殊石状態を失い、倍率も終了する', () => {

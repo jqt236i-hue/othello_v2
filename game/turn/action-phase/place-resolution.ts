@@ -29,6 +29,13 @@ type ResolvePlacementActionResult = {
     turnNumberBeforePlace?: number;
 };
 
+type TheoryIncarnationAnchor = {
+    col: number;
+    owner: string;
+    row: number;
+    timer: number;
+};
+
 function emitFlipEvadeEvents(events: any[], flipEvadeResult: any): void {
     if (!flipEvadeResult) return;
     const movedList = Array.isArray(flipEvadeResult.moved) ? flipEvadeResult.moved : [];
@@ -57,19 +64,31 @@ function getOwnerValue(Core: any, ownerKey: string): any {
     return ownerKey === 'white' ? Core.WHITE : Core.BLACK;
 }
 
-function hasActiveTheoryIncarnationForPlayer(cardState: any, gameState: any, playerKey: string, Core: any): boolean {
+function getActiveTheoryIncarnationAnchorsForPlayer(cardState: any, gameState: any, playerKey: string, Core: any): TheoryIncarnationAnchor[] {
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
     const ownerValue = getOwnerValue(Core, playerKey);
+    const anchorsByCell = new Map<string, TheoryIncarnationAnchor>();
     for (const marker of markers) {
         if (!marker || marker.kind !== 'specialStone' || marker.owner !== playerKey) continue;
         const data = marker.data || {};
         if (String(data.type || '').toUpperCase() !== 'THEORY_INCARNATION') continue;
-        if (Number.isFinite(Number(data.remainingOwnerTurns)) && Number(data.remainingOwnerTurns) <= 0) continue;
+        const timer = Number(data.remainingOwnerTurns);
+        if (!Number.isFinite(timer) || timer <= 0) continue;
         const boardRow = gameState && gameState.board ? gameState.board[marker.row] : null;
-        if (!Array.isArray(boardRow) || boardRow[marker.col] !== ownerValue) continue;
-        return true;
+        const row = Number(marker.row);
+        const col = Number(marker.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        if (!Array.isArray(boardRow) || boardRow[col] !== ownerValue) continue;
+        const key = `${row},${col}`;
+        if (anchorsByCell.has(key)) continue;
+        anchorsByCell.set(key, {
+            row,
+            col,
+            owner: playerKey,
+            timer: Math.trunc(timer)
+        });
     }
-    return false;
+    return Array.from(anchorsByCell.values());
 }
 
 function buildNumberCellMultiplierConfig(pendingConfig: any, theoryActive: boolean): any {
@@ -94,6 +113,34 @@ function buildNumberCellMultiplierConfig(pendingConfig: any, theoryActive: boole
         extraGainFields: configs.slice(1).map((config) => config.gainField).filter(Boolean),
         boostedBy: configs.map((config) => config.boostedBy || null).filter(Boolean).join('+')
     };
+}
+
+function numberCellBoostedBySource(boostedBy: any, source: string): boolean {
+    const expected = String(source || '').trim().toUpperCase();
+    if (!expected) return false;
+    return String(boostedBy || '')
+        .split('+')
+        .map((part) => String(part || '').trim().toUpperCase())
+        .includes(expected);
+}
+
+function emitTheoryIncarnationNumberBonusStatusTicks(CardLogic: any, cardState: any, anchors: TheoryIncarnationAnchor[]): void {
+    if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
+    for (const anchor of Array.isArray(anchors) ? anchors : []) {
+        if (!anchor) continue;
+        CardLogic.emitPresentationEvent(cardState, {
+            type: 'STATUS_TICK',
+            row: anchor.row,
+            col: anchor.col,
+            meta: {
+                special: 'THEORY_INCARNATION',
+                timer: anchor.timer,
+                owner: anchor.owner,
+                reason: 'theory_incarnation_number_bonus',
+                highlightTone: 'positive'
+            }
+        });
+    }
 }
 
 function resolvePlacementAction(options: ResolvePlacementActionOptions): ResolvePlacementActionResult {
@@ -229,11 +276,17 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
         opts.CardLogic.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS &&
         opts.CardLogic.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS[pendingPlacementType]
     ) || null;
+    const theoryIncarnationAnchors = getActiveTheoryIncarnationAnchorsForPlayer(
+        opts.cardState,
+        opts.gameState,
+        opts.playerKey,
+        opts.Core
+    );
     const numberCellMultiplierConfig = buildNumberCellMultiplierConfig(
         pendingNumberCellMultiplierConfig
             ? Object.assign({}, pendingNumberCellMultiplierConfig, { boostedBy: pendingPlacementType })
             : null,
-        hasActiveTheoryIncarnationForPlayer(opts.cardState, opts.gameState, opts.playerKey, opts.Core)
+        theoryIncarnationAnchors.length > 0
     );
     let boardBonusGained = 0;
     if (!opts.cardState.boardBonusConsumedByCell || typeof opts.cardState.boardBonusConsumedByCell !== 'object') {
@@ -268,6 +321,18 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
                 ? (numberCellMultiplierConfig.boostedBy || pendingPlacementType || null)
                 : null
         });
+        if (
+            gained > 0 &&
+            theoryIncarnationAnchors.length > 0 &&
+            numberCellBoostedBySource(
+                numberCellMultiplierConfig
+                    ? (numberCellMultiplierConfig.boostedBy || pendingPlacementType || null)
+                    : null,
+                'THEORY_INCARNATION'
+            )
+        ) {
+            emitTheoryIncarnationNumberBonusStatusTicks(opts.CardLogic, opts.cardState, theoryIncarnationAnchors);
+        }
     }
 
     if (!tabooReverseApplied && flips.length > 0 && typeof opts.CardLogic.clearBombAt === 'function') {
