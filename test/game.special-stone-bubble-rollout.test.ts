@@ -291,4 +291,49 @@ describe('special stone speech rollout', () => {
     ]));
     expect(bubbles.some((event) => event.scenario === 'duration_end' || event.scenario === 'destroy')).toBe(false);
   });
+
+  test.each([
+    ['STONE_SALVATION_GOD', 'STONE_SALVATION_GOD'],
+    ['THEORY_INCARNATION', 'THEORY_INCARNATION']
+  ])('%s placement emits a generic place speech bubble', (cardType, specialType) => {
+    const prng = createPrng(0);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    const def = getCardDef(cardType);
+
+    cardState.debugNoDraw = true;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+
+    gameState.board[2][4] = Core.WHITE;
+    gameState.board[2][5] = Core.BLACK;
+    gameState.board[2][6] = Core.WHITE;
+
+    TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: def.id, useCardOwnerKey: 'black' },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    const placeRes = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    expect(getSpecialStoneBubbles(placeRes.presentationEvents)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        special: specialType,
+        scenario: 'place',
+        row: 2,
+        col: 3
+      })
+    ]));
+  });
 });

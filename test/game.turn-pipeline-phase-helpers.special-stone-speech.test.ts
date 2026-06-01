@@ -105,4 +105,30 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('GLUTTONOUS', 'duration_end')).toBeNull();
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('OBSERVER', 'duration_end')).toBeNull();
   });
+
+  test('adds five basic trigger lines for newly speaking special stones', () => {
+    const speakingStones = [
+      'BREEDING',
+      'ULTIMATE_DESTROY_GOD',
+      'DESTROY_DRAGON',
+      'SNIPER',
+      'LIGHTNING',
+      'HYPERACTIVE',
+      'EXTREME_HYPERACTIVE',
+      'ROBOT_VACUUM',
+      'ULTIMATE_HYPERACTIVE',
+      'STONE_SALVATION_GOD',
+      'THEORY_INCARNATION'
+    ];
+
+    for (const special of speakingStones) {
+      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'place')).toHaveLength(5);
+      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'destroy')).toHaveLength(5);
+      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'duration_end')).toHaveLength(5);
+    }
+
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('STONE_SALVATION_GOD', 'place')).toContain('迷える石たちよ、私の光のもとへ。');
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('THEORY_INCARNATION', 'place')).toContain('ここから、盤面の理を証明いたします。');
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('THEORY_INCARNATION', 'destroy')).toContain('未証明の命題が、前世からまだ私を呼んでおります。');
+  });
 });
