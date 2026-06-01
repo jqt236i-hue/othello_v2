@@ -1,4 +1,5 @@
 import { BLACK, WHITE, EMPTY, CHARGE_MAX } from '../../../shared-constants';
+import * as ExpansionFallback from '../cards-internal/expansion-fallback';
 
 type PlayerKey = 'black' | 'white';
 type BoardValue = number | string | null;
@@ -55,108 +56,22 @@ function ensureAnchors(cardState: CardState): Record<PlayerKey, { row: number; c
   return cardState.workAnchorPosByPlayer;
 }
 
-function normalizeExpansionOwner(owner: BoardValue): BoardValue {
-  return owner === BLACK || owner === WHITE ? owner : EMPTY;
-}
-
-function resolveBoardDims(gameState: GameState): { rows: number; cols: number } {
-  const board = Array.isArray(gameState.board) ? gameState.board : null;
-  const rows = board && board.length > 0 ? board.length : 8;
-  const firstRow = board && Array.isArray(board[0]) ? board[0] : null;
-  const cols = firstRow && firstRow.length > 0 ? firstRow.length : rows;
-  return { rows, cols };
-}
-
-function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
-  const dims = resolveBoardDims(gameState);
-  return Number.isInteger(row) && row >= 0 && row < dims.rows && Number.isInteger(col) && col >= 0 && col < dims.cols;
-}
-
-function resolveExpansionSide(side: string | null | undefined, row: number, col: number, gameState: GameState): string | null {
-  if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-  const dims = resolveBoardDims(gameState);
-  if (col === -1) return 'left';
-  if (col === dims.cols) return 'right';
-  if (row === -1) return 'top';
-  if (row === dims.rows) return 'bottom';
-  return null;
-}
-
-function isExpansionCoordinate(row: number, col: number, gameState: GameState): boolean {
-  if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-  const dims = resolveBoardDims(gameState);
-  if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
-  return !isMainBoardCell(row, col, gameState);
-}
-
-function getExpansionCells(gameState: GameState): Array<{ side: string | null; row: number; col: number; owner: BoardValue }> {
-  const expansion = gameState.boardExpansion;
-  if (!expansion || typeof expansion !== 'object') return [];
-
-  const cells: Array<{ side: string | null; row: number; col: number; owner: BoardValue }> = [];
-  const pushCell = (source: { side?: string | null; row?: number; col?: number; owner?: BoardValue }) => {
-    let row = source.row;
-    let col = source.col;
-    const side = source.side;
-    if (!Number.isInteger(col) && side === 'left') col = -1;
-    if (!Number.isInteger(col) && side === 'right') col = resolveBoardDims(gameState).cols;
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-    const resolvedRow = row;
-    const resolvedCol = col;
-    if (typeof resolvedRow !== 'number' || typeof resolvedCol !== 'number') return;
-    if (!isExpansionCoordinate(resolvedRow, resolvedCol, gameState)) return;
-    if (cells.some((cell) => cell.row === resolvedRow && cell.col === resolvedCol)) return;
-    cells.push({
-      side: resolveExpansionSide(side, resolvedRow, resolvedCol, gameState),
-      row: resolvedRow,
-      col: resolvedCol,
-      owner: normalizeExpansionOwner(source.owner ?? EMPTY)
-    });
-  };
-
-  if (Array.isArray(expansion.cells)) {
-    for (const cell of expansion.cells) pushCell(cell);
-  }
-  if (cells.length === 0 && expansion.active === true) {
-    pushCell({ side: expansion.side, row: expansion.row ?? undefined, col: expansion.col, owner: expansion.owner });
-  }
-  return cells;
-}
-
-function syncLegacyExpansionFields(expansion: NonNullable<GameState['boardExpansion']>, gameState: GameState): void {
-  if (!Array.isArray(expansion.cells)) expansion.cells = [];
-  const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-  expansion.active = !!latest;
-  expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
-  expansion.row = latest ? latest.row : null;
-  expansion.owner = latest ? normalizeExpansionOwner(latest.owner ?? EMPTY) : EMPTY;
-}
+const normalizeExpansionOwner = (owner: BoardValue): BoardValue => ExpansionFallback.normalizeExpansionOwner(owner as any) as BoardValue;
+const isMainBoardCell = ExpansionFallback.isMainBoardCell as unknown as (row: number, col: number, gameState: GameState) => boolean;
+const isExpansionCoordinate = ExpansionFallback.isExpansionCoordinate as unknown as (row: number, col: number, gameState: GameState) => boolean;
+const getExpansionCells = ExpansionFallback.getExpansionCells as unknown as (gameState: GameState) => Array<{ side: string | null; row: number; col: number; owner: BoardValue }>;
+const getFallbackCellValue = ExpansionFallback.getCellValue as unknown as (gameState: GameState, row: number, col: number) => BoardValue;
+const setFallbackCellValue = ExpansionFallback.setCellValue as unknown as (gameState: GameState, row: number, col: number, value: BoardValue) => boolean;
 
 function clearExpansionCellOwner(gameState: GameState, row: number, col: number): boolean {
   if (!isExpansionCoordinate(row, col, gameState)) return false;
-  const expansion = gameState.boardExpansion;
-  if (!expansion) return false;
-  const cells = getExpansionCells(gameState);
-  if (cells.length === 0) return false;
-  let changed = false;
-  expansion.cells = cells.map((cell) => {
-    if (cell.row === row && cell.col === col) {
-      changed = changed || cell.owner !== EMPTY;
-      return { ...cell, owner: EMPTY };
-    }
-    return { ...cell, owner: normalizeExpansionOwner(cell.owner) };
-  });
-  syncLegacyExpansionFields(expansion, gameState);
-  return changed;
+  const before = getFallbackCellValue(gameState, row, col);
+  if (before === null || before === EMPTY) return false;
+  return setFallbackCellValue(gameState, row, col, EMPTY);
 }
 
 function getCellValue(gameState: GameState, row: number, col: number): BoardValue {
-  for (const cell of getExpansionCells(gameState)) {
-    if (cell.row === row && cell.col === col) return normalizeExpansionOwner(cell.owner);
-  }
-  if (!Array.isArray(gameState.board)) return null;
-  if (!isMainBoardCell(row, col, gameState)) return null;
-  return gameState.board[row]?.[col] ?? null;
+  return getFallbackCellValue(gameState, row, col);
 }
 
 function addChargeWithTotal(cardState: CardState, playerKey: PlayerKey, amount: number): number {

@@ -43,14 +43,15 @@ function resolveUdgModuleOrGlobal(id: string, globalKey: string): any {
 const SharedConstants = resolveUdgModuleOrGlobal('../../../shared-constants', 'SharedConstants');
 const BoardOpsModule = resolveUdgModuleOrGlobal('../board_ops', 'BoardOps');
 const RandomSourceModule = resolveUdgModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
+const ExpansionFallbackModule = resolveUdgModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;
 const P_WHITE = (WHITE === undefined || WHITE === null) ? -1 : WHITE;
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
 
-function normalizeExpansionOwner(owner: any): number {
-    return (owner === P_BLACK || owner === P_WHITE) ? owner : P_EMPTY;
+if (!ExpansionFallbackModule) {
+    throw new Error('CardExpansionFallback missing required helpers');
 }
 
 interface BoardDims {
@@ -58,167 +59,28 @@ interface BoardDims {
     cols: number;
 }
 
-function resolveBoardDims(gameState: GameState): BoardDims {
-    const board = gameState && Array.isArray((gameState as any).board) ? (gameState as any).board : null;
-    const rows = board && board.length > 0 ? board.length : 8;
-    const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return { rows, cols };
-}
-
-function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
-    const dims = resolveBoardDims(gameState);
-    return Number.isInteger(row) && row >= 0 && row < dims.rows && Number.isInteger(col) && col >= 0 && col < dims.cols;
-}
-
-function resolveExpansionSide(side: any, row: number, col: number, gameState: GameState): string | null {
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const dims = resolveBoardDims(gameState);
-    if (col === -1) return 'left';
-    if (col === dims.cols) return 'right';
-    if (row === -1) return 'top';
-    if (row === dims.rows) return 'bottom';
-    return null;
-}
-
-function isExpansionCoordinate(row: number, col: number, gameState: GameState): boolean {
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const dims = resolveBoardDims(gameState);
-    if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
-    if (isMainBoardCell(row, col, gameState)) return false;
-    return true;
-}
-
-function syncLegacyExpansionFields(expansion: any, gameState: GameState): void {
-    if (!expansion || typeof expansion !== 'object') return;
-    if (!Array.isArray(expansion.cells)) expansion.cells = [];
-    const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-    expansion.active = !!latest;
-    expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
-    expansion.row = latest ? latest.row : null;
-    expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
-}
+const normalizeExpansionOwner = ExpansionFallbackModule.normalizeExpansionOwner as (owner: any) => number;
+const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: GameState) => BoardDims;
 
 function getExpansionCells(gameState: GameState): any[] {
     if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
         return BoardOpsModule.getExpansionDescriptors(gameState);
     }
-    const expansion = (gameState && (gameState as any).boardExpansion && typeof (gameState as any).boardExpansion === 'object')
-        ? (gameState as any).boardExpansion
-        : null;
-    if (!expansion) return [];
-
-    const cells: any[] = [];
-    const pushCell = (source: any, legacyRow?: any, legacyOwner?: any) => {
-        let side: any = null;
-        let row: any = null;
-        let col: any = null;
-        let owner: any = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = resolveBoardDims(gameState).cols;
-        } else {
-            side = source;
-            row = legacyRow;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = resolveBoardDims(gameState).cols;
-        }
-
-        if (!isExpansionCoordinate(row, col, gameState)) return;
-        if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-        cells.push({
-            side: resolveExpansionSide(side, row, col, gameState),
-            row,
-            col,
-            owner: normalizeExpansionOwner(owner)
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-
-    if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-
-    return cells;
-}
-
-function ensureExpansionStateMutable(gameState: GameState): any {
-    if (!(gameState as any).boardExpansion || typeof (gameState as any).boardExpansion !== 'object') {
-        (gameState as any).boardExpansion = {
-            active: false,
-            side: null,
-            row: null,
-            owner: EMPTY,
-            usedByPlayer: { black: false, white: false },
-            cells: []
-        };
-        return (gameState as any).boardExpansion;
-    }
-    const expansion = (gameState as any).boardExpansion;
-    const cells = getExpansionCells(gameState);
-    expansion.cells = cells.map((cell: any) => ({
-        side: cell.side,
-        row: cell.row,
-        col: cell.col,
-        owner: normalizeExpansionOwner(cell.owner)
-    }));
-    syncLegacyExpansionFields(expansion, gameState);
-    return expansion;
+    return ExpansionFallbackModule.getExpansionCells(gameState);
 }
 
 function getCellValue(gameState: GameState, row: number, col: number): any {
     if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
         return BoardOpsModule.getCellValue(gameState, row, col);
     }
-    if (isMainBoardCell(row, col, gameState)) return (gameState as any).board[row][col];
-    const expansionCells = getExpansionCells(gameState);
-    for (const expansion of expansionCells) {
-        if (!expansion) continue;
-        if (expansion.row === row && expansion.col === col) return expansion.owner;
-    }
-    return null;
+    return ExpansionFallbackModule.getCellValue(gameState, row, col);
 }
 
 function setCellValue(gameState: GameState, row: number, col: number, value: any): boolean {
     if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
         return BoardOpsModule.setCellValue(gameState, row, col, value);
     }
-    if (isMainBoardCell(row, col, gameState)) {
-        (gameState as any).board[row][col] = value;
-        return true;
-    }
-    const expansionState = ensureExpansionStateMutable(gameState);
-    if (!Array.isArray(expansionState.cells)) return false;
-    const normalizedOwner = normalizeExpansionOwner(value);
-    for (let i = 0; i < expansionState.cells.length; i++) {
-        const cell = expansionState.cells[i];
-        if (!cell) continue;
-        const cellCol = Number.isInteger(cell.col)
-            ? cell.col
-            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? resolveBoardDims(gameState).cols : null));
-        if (cellCol === null) continue;
-        if (cell.row === row && cellCol === col) {
-            expansionState.cells[i] = {
-                side: resolveExpansionSide(cell.side, cell.row, cellCol, gameState),
-                row: cell.row,
-                col: cellCol,
-                owner: normalizedOwner
-            };
-            syncLegacyExpansionFields(expansionState, gameState);
-            return true;
-        }
-    }
-    return false;
+    return ExpansionFallbackModule.setCellValue(gameState, row, col, value);
 }
 
 function isBlockedDestinationCell(cardState: CardState, row: number, col: number): boolean {

@@ -165,184 +165,47 @@ const CardSniper = /**
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+    const ExpansionFallbackModule = (() => {
+        try {
+            if (typeof require === 'function') {
+                return require('../cards-internal/expansion-fallback');
+            }
+        } catch (_error) { /* ignore */ }
+        if (typeof self !== 'undefined' && (self as any).CardExpansionFallback) {
+            return (self as any).CardExpansionFallback;
+        }
+        return null;
+    })();
 
     if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants missing required values');
     }
 
-    function normalizeExpansionOwner(owner: unknown): SniperOwnerValue {
-        return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+    if (!ExpansionFallbackModule) {
+        throw new Error('CardExpansionFallback missing required helpers');
     }
 
-    function resolveBoardDims(gameState: SniperGameState): SniperBoardDims {
-        const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-        const rows = board && board.length > 0 ? board.length : 8;
-        const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-        return { rows, cols };
-    }
-
-    function isMainBoardCell(row: number, col: number, gameState: SniperGameState): boolean {
-        const dims = resolveBoardDims(gameState);
-        return Number.isInteger(row) && row >= 0 && row < dims.rows && Number.isInteger(col) && col >= 0 && col < dims.cols;
-    }
-
-    function resolveExpansionSide(side: unknown, row: number, col: number, gameState: SniperGameState): SniperExpansionSide | null {
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        const dims = resolveBoardDims(gameState);
-        if (col === -1) return 'left';
-        if (col === dims.cols) return 'right';
-        if (row === -1) return 'top';
-        if (row === dims.rows) return 'bottom';
-        return null;
-    }
-
-    function isExpansionCoordinate(row: unknown, col: unknown, gameState: SniperGameState): boolean {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        const numericRow = Number(row);
-        const numericCol = Number(col);
-        const dims = resolveBoardDims(gameState);
-        if (numericRow < -1 || numericRow > dims.rows || numericCol < -1 || numericCol > dims.cols) return false;
-        if (isMainBoardCell(numericRow, numericCol, gameState)) return false;
-        return true;
-    }
-
-    function syncLegacyExpansionFields(expansion: SniperExpansionState | null | undefined, gameState: SniperGameState): void {
-        if (!expansion || typeof expansion !== 'object') return;
-        if (!Array.isArray(expansion.cells)) expansion.cells = [];
-        const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-        expansion.active = !!latest;
-        expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
-        expansion.row = latest ? latest.row : null;
-        expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
-    }
+    const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: SniperGameState) => SniperBoardDims;
 
     function getExpansionCells(gameState: SniperGameState): SniperExpansionCell[] {
         if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
             return BoardOpsModule.getExpansionDescriptors(gameState);
         }
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (!expansion) return [];
-
-        const cells: SniperExpansionCell[] = [];
-        const pushCell = (
-            source: SniperExpansionCell | SniperExpansionState | SniperExpansionSide | null | undefined,
-            legacyRow?: number | null,
-            legacyOwner?: unknown
-        ): void => {
-            let side: unknown = null;
-            let row: number | null | undefined = null;
-            let col: number | null | undefined = null;
-            let owner = legacyOwner;
-
-            if (source && typeof source === 'object') {
-                side = source.side;
-                row = source.row;
-                col = source.col;
-                owner = source.owner;
-                if (!Number.isInteger(col) && side === 'left') col = -1;
-                if (!Number.isInteger(col) && side === 'right') col = resolveBoardDims(gameState).cols;
-            } else {
-                side = source;
-                row = legacyRow;
-                if (side === 'left') col = -1;
-                if (side === 'right') col = resolveBoardDims(gameState).cols;
-            }
-
-            if (!isExpansionCoordinate(row, col, gameState)) return;
-            const normalizedRow = Number(row);
-            const normalizedCol = Number(col);
-            if (cells.some((cell) => cell && cell.row === normalizedRow && cell.col === normalizedCol)) return;
-            cells.push({
-                side: resolveExpansionSide(side, normalizedRow, normalizedCol, gameState),
-                row: normalizedRow,
-                col: normalizedCol,
-                owner: normalizeExpansionOwner(owner)
-            });
-        };
-
-        if (Array.isArray(expansion.cells)) {
-            for (const cell of expansion.cells) {
-                if (!cell || typeof cell !== 'object') continue;
-                pushCell(cell);
-            }
-        }
-
-        if (cells.length === 0 && expansion.active === true) {
-            pushCell(expansion);
-        }
-
-        return cells;
-    }
-
-    function ensureExpansionStateMutable(gameState: SniperGameState): SniperExpansionState {
-        if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
-            gameState.boardExpansion = {
-                active: false,
-                side: null,
-                row: null,
-                owner: EMPTY,
-                usedByPlayer: { black: false, white: false },
-                cells: []
-            };
-            return gameState.boardExpansion;
-        }
-        const expansion = gameState.boardExpansion;
-        const cells = getExpansionCells(gameState);
-        expansion.cells = cells.map((cell) => ({
-            side: cell.side,
-            row: cell.row,
-            col: cell.col,
-            owner: normalizeExpansionOwner(cell.owner)
-        }));
-        syncLegacyExpansionFields(expansion, gameState);
-        return expansion;
+        return ExpansionFallbackModule.getExpansionCells(gameState);
     }
 
     function getCellValue(gameState: SniperGameState, row: number, col: number): SniperOwnerValue | null {
         if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
             return BoardOpsModule.getCellValue(gameState, row, col);
         }
-        if (isMainBoardCell(row, col, gameState) && gameState.board) return gameState.board[row][col];
-        const expansionCells = getExpansionCells(gameState);
-        for (const expansion of expansionCells) {
-            if (!expansion) continue;
-            if (expansion.row === row && expansion.col === col) return expansion.owner;
-        }
-        return null;
+        return ExpansionFallbackModule.getCellValue(gameState, row, col);
     }
 
     function setCellValue(gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue): boolean {
         if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
             return BoardOpsModule.setCellValue(gameState, row, col, value);
         }
-        if (isMainBoardCell(row, col, gameState) && gameState.board) {
-            gameState.board[row][col] = value;
-            return true;
-        }
-        const expansionState = ensureExpansionStateMutable(gameState);
-        if (!Array.isArray(expansionState.cells)) return false;
-        const normalizedOwner = normalizeExpansionOwner(value);
-        for (let i = 0; i < expansionState.cells.length; i++) {
-            const cell = expansionState.cells[i];
-            if (!cell) continue;
-            const cellCol = Number.isInteger(cell.col)
-                ? cell.col
-                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? resolveBoardDims(gameState).cols : null));
-            if (cellCol === null) continue;
-            if (cell.row === row && cellCol === col) {
-                expansionState.cells[i] = {
-                    side: resolveExpansionSide(cell.side, cell.row, cellCol, gameState),
-                    row: cell.row,
-                    col: cellCol,
-                    owner: normalizedOwner
-                };
-                syncLegacyExpansionFields(expansionState, gameState);
-                return true;
-            }
-        }
-        return false;
+        return ExpansionFallbackModule.setCellValue(gameState, row, col, value);
     }
 
     function cleanupExpiredSnipers(cardState: SniperCardState): void {

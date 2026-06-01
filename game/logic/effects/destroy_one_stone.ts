@@ -38,6 +38,7 @@ function resolveDestroyOneStoneModuleOrGlobal(id: string, globalKey: string): an
 
 const BoardOpsModule = resolveDestroyOneStoneModuleOrGlobal('../board_ops', 'BoardOps');
 const DestroyOutcomeContract = resolveDestroyOneStoneModuleOrGlobal('../../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
+const ExpansionFallbackModule = resolveDestroyOneStoneModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
     || Object.freeze({
@@ -48,125 +49,12 @@ const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.
         EVADED_MOVE: 'evaded_move'
     });
 
-interface BoardDims { rows: number; cols: number }
-
-function resolveBoardDims(gameState: GameState): BoardDims {
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-    const rows = board && board.length > 0 ? board.length : 8;
-    const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return { rows, cols };
+if (!ExpansionFallbackModule) {
+    throw new Error('CardExpansionFallback missing required helpers');
 }
 
-function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
-    const dims = resolveBoardDims(gameState);
-    return Number.isInteger(row) && row >= 0 && row < dims.rows && Number.isInteger(col) && col >= 0 && col < dims.cols;
-}
-
-function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState): string | null {
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const dims = resolveBoardDims(gameState);
-    if (col === -1) return 'left';
-    if (col === dims.cols) return 'right';
-    if (row === -1) return 'top';
-    if (row === dims.rows) return 'bottom';
-    return null;
-}
-
-function isExpansionCoordinate(row: number, col: number, gameState: GameState): boolean {
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const dims = resolveBoardDims(gameState);
-    if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
-    if (isMainBoardCell(row, col, gameState)) return false;
-    return true;
-}
-
-function normalizeExpansionOwner(owner: number): number {
-    return (owner === 1 || owner === -1) ? owner : 0;
-}
-
-interface ExpansionCell {
-    side: string | null;
-    row: number;
-    col: number;
-    owner: number;
-}
-
-function getExpansionCells(gameState: GameState): ExpansionCell[] {
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion as any
-        : null;
-    if (!expansion) return [];
-
-    const cells: ExpansionCell[] = [];
-    const pushCell = (source: any, legacyRow?: number, legacyOwner?: number) => {
-        let side: string | null = null;
-        let row: any = null;
-        let col: any = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = resolveBoardDims(gameState).cols;
-        } else {
-            side = source;
-            row = legacyRow;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = resolveBoardDims(gameState).cols;
-        }
-
-        if (!isExpansionCoordinate(row, col, gameState)) return;
-        if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-        cells.push({
-            side: resolveExpansionSide(side, row, col, gameState),
-            row,
-            col,
-            owner: normalizeExpansionOwner(owner || 0)
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-
-    if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-
-    return cells;
-}
-
-function syncLegacyExpansionFields(expansion: any, gameState: GameState) {
-    if (!expansion || typeof expansion !== 'object') return;
-    if (!Array.isArray(expansion.cells)) expansion.cells = [];
-    const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-    expansion.active = !!latest;
-    expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
-    expansion.row = latest ? latest.row : null;
-    expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : 0;
-}
-
-function getCellValue(gameState: GameState, row: number, col: number): number | null {
-    if (!gameState || !Array.isArray(gameState.board)) return null;
-    if (isMainBoardCell(row, col, gameState)) {
-        return gameState.board[row][col];
-    }
-
-    for (const cell of getExpansionCells(gameState)) {
-        if (!cell) continue;
-        if (cell.row === row && cell.col === col) {
-            return normalizeExpansionOwner(cell.owner);
-        }
-    }
-
-    return null;
-}
+const getCellValue = ExpansionFallbackModule.getCellValue as (gameState: GameState, row: number, col: number) => number | null;
+const setCellValue = ExpansionFallbackModule.setCellValue as (gameState: GameState, row: number, col: number, value: number) => boolean;
 
 function createDestroyOutcome(kindOrResult?: string | any, details?: any): any {
     if (DestroyOutcomeContract && typeof DestroyOutcomeContract.createDestroyOutcome === 'function') {
@@ -252,26 +140,7 @@ function applyDestroyOneStone(cardState: CardState, gameState: GameState, player
     if (cardState && cardState.markers) {
         cardState.markers = cardState.markers.filter((m: any) => !(m.row === row && m.col === col));
     }
-    if (isMainBoardCell(row, col, gameState)) {
-        gameState.board[row][col] = 0;
-    } else if (gameState.boardExpansion && typeof gameState.boardExpansion === 'object') {
-        const expansion = gameState.boardExpansion as any;
-        const cells = getExpansionCells(gameState).map((cell) => ({ ...cell }));
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i];
-            if (!cell || typeof cell !== 'object') continue;
-            if (cell.row === row && cell.col === col) {
-                cells[i] = Object.assign({}, cell, { owner: 0 });
-            }
-        }
-        expansion.cells = cells.map((cell) => ({
-            side: cell.side,
-            row: cell.row,
-            col: cell.col,
-            owner: normalizeExpansionOwner(cell.owner)
-        }));
-        syncLegacyExpansionFields(expansion, gameState);
-    }
+    setCellValue(gameState, row, col, 0);
     const cs = cardState as any;
     cs.pendingEffectByPlayer = cs.pendingEffectByPlayer || { black: null, white: null };
     cs.pendingEffectByPlayer[playerKey] = null;

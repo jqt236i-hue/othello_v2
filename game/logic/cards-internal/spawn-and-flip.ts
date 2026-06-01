@@ -259,10 +259,12 @@ const CardSpawnAndFlip = {
     spawnAndFlipBatch
 };
 
-if (typeof globalThis !== 'undefined') {
-    (globalThis as any).CardSpawnAndFlip = CardSpawnAndFlip;
-} else if (typeof self !== 'undefined') {
-    (self as any).CardSpawnAndFlip = CardSpawnAndFlip;
+const spawnAndFlipRuntimeRoot = typeof self !== 'undefined'
+    ? (self as any)
+    : (typeof global !== 'undefined' ? (global as any) : null);
+
+if (spawnAndFlipRuntimeRoot) {
+    spawnAndFlipRuntimeRoot.CardSpawnAndFlip = CardSpawnAndFlip;
 }
 
 module.exports = CardSpawnAndFlip;
