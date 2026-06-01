@@ -6,6 +6,7 @@ type RandomBoardSpawnDeps = {
     sampleRandomPositions: (positions: any, count: any, prng: any) => any[];
     BoardOpsModule?: any;
     CardBreedingModule?: any;
+    spawnAndFlipBatch?: any;
     getCardContext: (cardState: any, gameState: any) => any;
     getFlipsWithContextLocal: (context: any, row: any, col: any, player: any, options?: any) => any;
     clearBombAt: (cardState: any, row: any, col: any) => any;
@@ -59,7 +60,9 @@ function resolveRandomBoardSpawnEffectUsage(cardState: any, gameState: any, play
     let sharedSpawnCount = 0;
 
     if (normalFlip && deps.BoardOpsModule && typeof deps.BoardOpsModule.spawnAt === 'function' && typeof deps.BoardOpsModule.changeAt === 'function') {
-        if (deps.CardBreedingModule && typeof deps.CardBreedingModule.spawnAndFlipBatch === 'function') {
+        if (typeof deps.spawnAndFlipBatch === 'function') {
+            sharedSpawnAndFlipBatch = deps.spawnAndFlipBatch;
+        } else if (deps.CardBreedingModule && typeof deps.CardBreedingModule.spawnAndFlipBatch === 'function') {
             sharedSpawnAndFlipBatch = deps.CardBreedingModule.spawnAndFlipBatch;
         }
         if (sharedSpawnAndFlipBatch) {

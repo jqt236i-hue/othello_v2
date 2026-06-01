@@ -114,12 +114,28 @@ function isSpawnEventLike(ev: PresentationSubject | null | undefined, profile: C
     return matchesCauseReasonProfile(ev, profile);
 }
 
+function inferSpawnIntent(cause: unknown, reason: unknown): string | null {
+    const causeUpper = String(cause || '').toUpperCase();
+    const reasonLower = String(reason || '').toLowerCase();
+    if (causeUpper === 'CLONE_WILL') return 'clone_spawn';
+    if (causeUpper === 'BREEDING') return 'breeding_spawn';
+    if (causeUpper === 'PROLIFERATION_WILL') return 'proliferation_spawn';
+    if (causeUpper === 'SALVATION_WILL') return 'salvation_spawn';
+    if (causeUpper === STONE_SALVATION_GOD_CAUSE) return 'salvation_spawn';
+    if (causeUpper === 'LIVING_WILL') return 'restore_spawn';
+    if (causeUpper === 'EQUALITY_WILL' || causeUpper === 'REINFORCEMENT_WILL' || reasonLower.indexOf('_spawn') >= 0) {
+        return 'normal_spawn';
+    }
+    return null;
+}
+
 export = {
     STONE_SALVATION_GOD_CAUSE,
     STONE_SALVATION_GOD_REVIVE_REASON,
     SPECIAL_DESTROY_TARGET_PROFILES,
     POSITIVE_SPAWN_LIKE_EFFECTS,
     POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS,
+    inferSpawnIntent,
     matchesCauseAndReasonPrefix,
     matchesCauseReasonProfile,
     matchesSpawnProfileTarget,

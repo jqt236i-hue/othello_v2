@@ -150,10 +150,15 @@ interface BreedingModuleApi {
     spawnAndFlipBatch(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps): BreedingBatchResult;
 }
 
+interface BreedingSpawnAndFlipModule {
+    spawnAndFlipBatch?: (cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps) => BreedingBatchResult;
+}
+
 interface BreedingRoot {
     SharedConstants?: BreedingSharedConstants;
     SharedBoardUtils?: BreedingSharedBoardUtilsModule | null;
     CardRandomSource?: BreedingRandomSourceModule | null;
+    CardSpawnAndFlip?: BreedingSpawnAndFlipModule | null;
     CardBreeding?: BreedingModuleApi;
 }
 
@@ -162,24 +167,28 @@ const CardBreeding = /**
  * @description Breeding effect helpers (Shared between Browser and Headless)
  */
 
-(function (root: BreedingRoot, factory: (constants: BreedingSharedConstants, boardUtils: BreedingSharedBoardUtilsModule | null, randomSource: BreedingRandomSourceModule | null) => BreedingModuleApi) {
+(function (root: BreedingRoot, factory: (constants: BreedingSharedConstants, boardUtils: BreedingSharedBoardUtilsModule | null, randomSource: BreedingRandomSourceModule | null, spawnAndFlipModule: BreedingSpawnAndFlipModule | null) => BreedingModuleApi) {
     if (root && root.SharedConstants) {
-        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null);
+        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, root.CardSpawnAndFlip || null);
     }
     if (typeof module === 'object' && module.exports) {
         return module.exports = factory(
             require('../../../shared-constants'),
             require('../../../shared/shared-board-utils'),
-            require('../cards-internal/random-source')
+            require('../cards-internal/random-source'),
+            require('../cards-internal/spawn-and-flip')
         );
     } else {
         if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
-        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null);
+        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, root.CardSpawnAndFlip || null);
     }
-}(typeof self !== 'undefined' ? self as unknown as BreedingRoot : globalThis as unknown as BreedingRoot, function (SharedConstants: BreedingSharedConstants, SharedBoardUtils: BreedingSharedBoardUtilsModule | null, RandomSourceModule: BreedingRandomSourceModule | null) {
+}(typeof self !== 'undefined' ? self as unknown as BreedingRoot : globalThis as unknown as BreedingRoot, function (SharedConstants: BreedingSharedConstants, SharedBoardUtils: BreedingSharedBoardUtilsModule | null, RandomSourceModule: BreedingRandomSourceModule | null, SpawnAndFlipModule: BreedingSpawnAndFlipModule | null) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+    const sharedSpawnAndFlipBatch = SpawnAndFlipModule && typeof SpawnAndFlipModule.spawnAndFlipBatch === 'function'
+        ? SpawnAndFlipModule.spawnAndFlipBatch
+        : null;
 
     if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants missing required values');
@@ -420,7 +429,7 @@ const CardBreeding = /**
         return list[Math.max(0, Math.min(list.length - 1, idx))];
     }
 
-    function spawnAndFlipBatch(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps): BreedingBatchResult {
+    function _spawnAndFlipBatchLocal(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps): BreedingBatchResult {
         const spawned: BreedingSpawnedPosition[] = [];
         const flipped: BreedingPosition[] = [];
         const flippedSet = new Set<string>();
@@ -481,6 +490,13 @@ const CardBreeding = /**
             clearHyperactiveAtPositions(cardState, flipped);
         }
         return { spawned, flipped };
+    }
+
+    function spawnAndFlipBatch(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps): BreedingBatchResult {
+        if (sharedSpawnAndFlipBatch) {
+            return sharedSpawnAndFlipBatch(cardState, gameState, playerKey, player, targets, cause, reason, anchorPos, deps);
+        }
+        return _spawnAndFlipBatchLocal(cardState, gameState, playerKey, player, targets, cause, reason, anchorPos, deps);
     }
 
     function _processTurnStartAnchor(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, row: number, col: number, prng: BreedingRandomLike, deps: BreedingProcessDeps = {}): BreedingProcessResult {

@@ -47,4 +47,18 @@ describe('PresentationEffectProfiles', () => {
       meta: { spawnIntent: 'normal_spawn' }
     }, 'SUPPORT_TROOPS_WILL', 'support_troops_will_spawn', profile)).toBe(true);
   });
+
+  test('inferSpawnIntent preserves board ops spawn intent mappings and fallback', () => {
+    expect(profiles.inferSpawnIntent('CLONE_WILL', 'clone_spawn')).toBe('clone_spawn');
+    expect(profiles.inferSpawnIntent('BREEDING', 'breeding_spawn_immediate')).toBe('breeding_spawn');
+    expect(profiles.inferSpawnIntent('PROLIFERATION_WILL', 'proliferation_spawn')).toBe('proliferation_spawn');
+    expect(profiles.inferSpawnIntent('SALVATION_WILL', 'salvation_spawn')).toBe('salvation_spawn');
+    expect(profiles.inferSpawnIntent('STONE_SALVATION_GOD', 'stone_salvation_god_revive')).toBe('salvation_spawn');
+    expect(profiles.inferSpawnIntent('LIVING_WILL', 'living_will_restored')).toBe('restore_spawn');
+    expect(profiles.inferSpawnIntent('EQUALITY_WILL', 'not_a_spawn_reason')).toBe('normal_spawn');
+    expect(profiles.inferSpawnIntent('REINFORCEMENT_WILL', 'also_not_a_spawn_reason')).toBe('normal_spawn');
+    expect(profiles.inferSpawnIntent('SUPPORT_TROOPS_WILL', 'support_troops_will_spawn')).toBe('normal_spawn');
+    expect(profiles.inferSpawnIntent('SYSTEM', 'standard_spawn')).toBe('normal_spawn');
+    expect(profiles.inferSpawnIntent('SEED_WILL', 'seed_sprout')).toBe(null);
+  });
 });

@@ -59,6 +59,7 @@ const TargetResolver = resolveCardLogicModuleOrGlobal('../cards/target-resolver'
 const CardCaptureSourceModule = resolveCardLogicModuleOrGlobal('./cards-internal/capture-source', 'CardCaptureSource');
 const CardProgressionModule = resolveCardLogicModuleOrGlobal('./cards-internal/progression', 'CardProgression');
 const CardRandomBoardSpawnModule = resolveCardLogicModuleOrGlobal('./cards-internal/random-board-spawn', 'CardRandomBoardSpawn');
+const CardSpawnAndFlipModule = resolveCardLogicModuleOrGlobal('./cards-internal/spawn-and-flip', 'CardSpawnAndFlip');
 const CardRiboTimeStopModule = resolveCardLogicModuleOrGlobal('./cards-internal/ribo-time-stop', 'CardRiboTimeStop');
 const CardTargetAccessModule = resolveCardLogicModuleOrGlobal('./cards-internal/target-access', 'CardTargetAccess');
 const CardContextBuildersModule = resolveCardLogicModuleOrGlobal('./cards-internal/context-builders', 'CardContextBuilders');
@@ -341,6 +342,9 @@ const {
             sampleRandomPositions,
             BoardOpsModule,
             CardBreedingModule,
+            spawnAndFlipBatch: CardSpawnAndFlipModule && typeof CardSpawnAndFlipModule.spawnAndFlipBatch === 'function'
+                ? CardSpawnAndFlipModule.spawnAndFlipBatch
+                : null,
             getCardContext,
             getFlipsWithContextLocal,
             clearBombAt,

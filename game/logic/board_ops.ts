@@ -39,6 +39,7 @@ CardMarkersModule = safeRequire('./cards/markers') || getRuntimeGlobalValue('Car
 SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
 
 const SharedConstants = safeRequire('../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || getRuntimeGlobalValue('PresentationEffectProfiles');
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
@@ -1673,6 +1674,9 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
 }
 
 function _inferSpawnIntent(cause: string | null, reason: string | null): string | null {
+    if (PresentationEffectProfiles && typeof PresentationEffectProfiles.inferSpawnIntent === 'function') {
+        return PresentationEffectProfiles.inferSpawnIntent(cause, reason);
+    }
     const causeUpper = String(cause || '').toUpperCase();
     const reasonLower = String(reason || '').toLowerCase();
     if (causeUpper === 'CLONE_WILL') return 'clone_spawn';
