@@ -56,6 +56,7 @@ describe('DiffRenderer flip fallback', () => {
 	});
 
 	test('adds flip class when occupied owner changes without playback suppression', () => {
+		window.AnimationConstants = require('../ui/animation-constants.ts');
 		gameState.board[0][0] = BLACK;
 		diffRenderer.renderBoardDiff(boardEl);
 
@@ -66,7 +67,7 @@ describe('DiffRenderer flip fallback', () => {
 		expect(disc).toBeTruthy();
 		expect(disc.classList.contains('flip')).toBe(true);
 
-		jest.advanceTimersByTime(650);
+		jest.advanceTimersByTime(500);
 
 		expect(disc.classList.contains('flip')).toBe(false);
 	});
