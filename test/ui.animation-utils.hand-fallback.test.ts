@@ -291,7 +291,7 @@ describe('animation-utils hand fallback', () => {
     expect(transformDurations).toEqual([198, 74, 148]);
   });
 
-  test('playDrawCardHandAnimation uses 30%-faster draw motion durations', async () => {
+  test('playDrawCardHandAnimation uses 10%-slower draw motion durations than the current baseline', async () => {
     jest.useFakeTimers();
 
     const animateMock = jest.fn(() => ({
@@ -331,7 +331,7 @@ describe('animation-utils hand fallback', () => {
       .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
       .map((call) => call[1].duration);
 
-    expect(transformDurations).toEqual([98, 252, 154]);
+    expect(transformDurations).toEqual([109, 280, 171]);
   });
 
   test('playClearHandAnimation initializes staged reveal state with zero visible cards', async () => {
