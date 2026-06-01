@@ -1778,4 +1778,161 @@ describe('pending selection flow contracts', () => {
       turnIndex: 9
     }));
   });
+
+  function loadIsolatedSelectionFlowScenario(options = {}) {
+    let isolatedFlow = null;
+    jest.isolateModules(() => {
+      isolatedFlow = require('../game/card-effects/selection-flow.js');
+    });
+    const cardState = {
+      turnIndex: 5,
+      pendingEffectByPlayer: {
+        black: { type: 'TRAP_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    const gameState = {
+      currentPlayer: 1,
+      turnNumber: 9,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    const busyState = {
+      processing: options.busy === true,
+      cardAnimating: false
+    };
+    const turnPipeline = {};
+    const adapter = {
+      runTurnWithAdapter: jest.fn(() => (
+        options.adapterResult || {
+          ok: true,
+          nextCardState: {
+            ...cardState,
+            pendingEffectByPlayer: { black: null, white: null }
+          },
+          nextGameState: gameState,
+          playbackEvents: [{ type: 'trap_selected' }],
+          rawEvents: [{ type: 'trap_selected', applied: true }]
+        }
+      ))
+    };
+    const publishSnapshot = jest.fn(() => Promise.resolve(
+      options.publishResult || { ok: true }
+    ));
+    const bridge = {
+      readMatchMode: () => options.matchMode || 'local',
+      getGameState: () => gameState,
+      getCardState: () => cardState,
+      setGameState: () => true,
+      setCardState: () => true,
+      getTurnPipelineUIAdapter: () => adapter,
+      getTurnPipeline: () => turnPipeline,
+      getActionManager: () => ({
+        ActionManager: {
+          createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+        }
+      }),
+      setSelectionProcessing: (next) => {
+        busyState.processing = next === true;
+        return true;
+      },
+      setSelectionCardAnimating: (next) => {
+        busyState.cardAnimating = next === true;
+        return true;
+      },
+      readSelectionBusyState: (payload) => ({
+        processing: !!(payload && payload.settlementLocked === true) || busyState.processing === true,
+        cardAnimating: !!(payload && payload.settlementLocked === true) || busyState.cardAnimating === true
+      }),
+      shouldAllowSelectionEntryDuringPlayback: () => false,
+      clearSelectionEntryPlaybackContext: () => true,
+      acquireSelectionSettlementLock: () => null,
+      releaseSelectionSettlementLock: () => true,
+      isNetworkPublishActive: () => options.matchMode === 'network',
+      publishSnapshot,
+      emitPlaybackEvents: jest.fn(() => true),
+      emitStateChanges: jest.fn(() => true),
+      emitMessage: jest.fn(() => true),
+      emitBoardUpdate: jest.fn(() => true),
+      ensureCurrentPlayerCanActOrPass: jest.fn(() => true),
+      waitForPlaybackIdle: jest.fn(() => Promise.resolve())
+    };
+    if (options.forceFallback === true) {
+      bridge.SelectionFlowPendingExecution = {};
+    }
+    isolatedFlow.setSignalBridge(bridge);
+    return { flow: isolatedFlow, adapter, bridge, busyState, publishSnapshot };
+  }
+
+  function summarizeSelectionAction(action) {
+    if (!action || typeof action !== 'object') return null;
+    return {
+      type: action.type,
+      player: action.player,
+      trapTarget: action.trapTarget,
+      deferNetworkPublish: action.deferNetworkPublish,
+      turnIndex: action.turnIndex
+    };
+  }
+
+  function summarizeSelectionResult(result) {
+    return {
+      ok: result && result.ok,
+      reason: result && result.reason,
+      pendingType: result && result.pendingType,
+      appliedSelection: result && result.appliedSelection,
+      publishedByNetwork: result && result.publishedByNetwork,
+      playbackEvents: Array.isArray(result && result.playbackEvents)
+        ? result.playbackEvents.map((event) => event && event.type)
+        : result && result.playbackEvents,
+      action: summarizeSelectionAction(result && result.action),
+      resultOk: result && result.result && result.result.ok,
+      resultReason: result && result.result && result.result.reason,
+      publishResultOk: result && result.publishResult && result.publishResult.ok
+    };
+  }
+
+  function summarizePublishCalls(publishSnapshot) {
+    return publishSnapshot.mock.calls.map(([payload]) => ({
+      playerKey: payload && payload.playerKey,
+      actionType: payload && payload.actionType,
+      playbackEvents: payload && payload.playbackEvents,
+      action: summarizeSelectionAction(payload && payload.action)
+    }));
+  }
+
+  async function runTrapSelectionObservation(options = {}) {
+    const scenario = loadIsolatedSelectionFlowScenario(options);
+    const result = await scenario.flow.executePendingSelection({
+      row: 3,
+      col: 4,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { trapTarget: { row: 3, col: 4 } },
+      invalidMessage: 'invalid trap target',
+      validateResult: ({ result: executionResult }) => {
+        const event = executionResult && Array.isArray(executionResult.rawEvents)
+          ? executionResult.rawEvents.find((entry) => entry && entry.type === 'trap_selected')
+          : null;
+        return !!(event && event.applied);
+      }
+    });
+    return {
+      result: summarizeSelectionResult(result),
+      adapterCalls: scenario.adapter.runTurnWithAdapter.mock.calls.length,
+      publishCalls: summarizePublishCalls(scenario.publishSnapshot),
+      busyState: { ...scenario.busyState }
+    };
+  }
+
+  test.each([
+    ['success', {}],
+    ['busy', { busy: true }],
+    ['selection rejected', { adapterResult: { ok: false, reason: 'invalid_selection' } }],
+    ['network publish failed', { matchMode: 'network', publishResult: { ok: false, reason: 'OUT_OF_TURN' } }]
+  ])('compatibility fallback matches regular pending execution for TRAP_WILL: %s', async (_name, options) => {
+    const regular = await runTrapSelectionObservation({ ...options, forceFallback: false });
+    const fallback = await runTrapSelectionObservation({ ...options, forceFallback: true });
+
+    expect(fallback).toEqual(regular);
+  });
 });

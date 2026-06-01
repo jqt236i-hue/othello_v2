@@ -13,6 +13,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     let cachedSelectionFlowRuntimeModule: any = null;
     let cachedSelectionFlowNetworkHandoffModule: any = null;
     let cachedSelectionFlowPendingExecutionModule: any = null;
+    let cachedSelectionFlowExecutionCoreModule: any = null;
     let selectionSignalBridge: any = null;
     const localSelectionBusyState = {
         processing: false,
@@ -172,6 +173,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             './selection-flow-pending-execution.js'
         ]);
         return cachedSelectionFlowPendingExecutionModule;
+    }
+
+    function getSelectionFlowExecutionCoreModule() {
+        if (cachedSelectionFlowExecutionCoreModule && typeof cachedSelectionFlowExecutionCoreModule === 'object') {
+            return cachedSelectionFlowExecutionCoreModule;
+        }
+        const globalExecutionCoreModule = resolveGlobalValue('SelectionFlowExecutionCore');
+        if (globalExecutionCoreModule && typeof globalExecutionCoreModule === 'object') {
+            cachedSelectionFlowExecutionCoreModule = globalExecutionCoreModule;
+            return cachedSelectionFlowExecutionCoreModule;
+        }
+        cachedSelectionFlowExecutionCoreModule = requireSelectionFlowModuleWithFallback([
+            './selection-flow-execution-core',
+            './selection-flow-execution-core.js'
+        ]);
+        return cachedSelectionFlowExecutionCoreModule;
     }
 
     function getPendingStateManager() {
@@ -948,202 +965,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
-    async function executePendingSelectionCompatibilityFallback(options: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const row = Number(opts.row);
-        const col = Number(opts.col);
-        const playerKey = normalizeSelectionPlayerKey(opts.playerKey);
-        const actionType = typeof opts.actionType === 'string' && opts.actionType
-            ? opts.actionType
-            : 'place';
-        const stateRefs = resolveSelectionStateRefs(opts);
-        const pendingCoordinator = getPendingCoordinator();
-        const pending = (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function')
-            ? pendingCoordinator.readPendingEffect(stateRefs.cardState, playerKey)
-            : (stateRefs.cardState && stateRefs.cardState.pendingEffectByPlayer
-                ? stateRefs.cardState.pendingEffectByPlayer[playerKey]
-                : null);
-        const resolvedPendingType = normalizePendingType(pending && pending.type);
-        const allowSelectionEntryDuringPlayback = shouldAllowSelectionEntryDuringPlayback(playerKey, resolvedPendingType);
-        const busyState = readSelectionBusyState();
-        if (
-            allowSelectionEntryDuringPlayback !== true
-            && (busyState.processing === true || busyState.cardAnimating === true)
-        ) {
-            return { ok: false, reason: 'busy' };
-        }
-        if (allowSelectionEntryDuringPlayback === true) {
-            clearSelectionEntryDuringPlayback();
-        }
-        const selectionSettlementLockToken = beginSelectionSettlementLock({
-            playerKey,
-            pendingType: resolvedPendingType,
-            actionType,
-            source: 'selection_flow_compatibility'
-        });
-        const ownsSelectionCardAnimating = allowSelectionEntryDuringPlayback !== true;
-        setSelectionProcessing(true);
-        if (ownsSelectionCardAnimating) {
-            setSelectionCardAnimating(true);
-        }
-        let shouldFinalize = false;
-        let pendingAction: any = null;
-        let playbackEvents: any[] = [];
-        let executionResult: any = null;
-        let appliedSelection = null;
-        let shouldClearPendingActionOnExit = false;
-
-        function markPendingActionFailure() {
-            if (!pendingAction || typeof pendingAction !== 'object') return;
-            shouldClearPendingActionOnExit = true;
-        }
-
-        try {
-            if (!pending || !resolvedPendingType) {
-                return { ok: false, reason: 'pending_unavailable' };
-            }
-            const baseContext = {
-                row,
-                col,
-                playerKey,
-                pending,
-                pendingType: resolvedPendingType,
-                cardState: stateRefs.cardState,
-                gameState: stateRefs.gameState,
-                stateRefs
-            };
-            if (typeof opts.beforeRun === 'function') {
-                const beforeRunResult = await opts.beforeRun(baseContext);
-                if (beforeRunResult === false) {
-                    return { ok: false, reason: 'before_run_rejected' };
-                }
-            }
-            const actionPayload = (typeof opts.buildActionPayload === 'function')
-                ? (await opts.buildActionPayload(baseContext))
-                : Object.assign({}, opts.actionPayload || {});
-            pendingAction = createPendingSelectionAction(playerKey, resolvedPendingType, actionPayload, {
-                cardState: stateRefs.cardState,
-                actionType
-            });
-            const adapter = resolveTurnPipelineUIAdapter();
-            const pipeline = resolveTurnPipeline();
-            executionResult = (adapter && pipeline && typeof adapter.runTurnWithAdapter === 'function')
-                ? adapter.runTurnWithAdapter(stateRefs.cardState, stateRefs.gameState, playerKey, pendingAction, pipeline)
-                : null;
-            if (!executionResult || executionResult.ok === false) {
-                markPendingActionFailure();
-                emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: executionResult
-                }));
-                return {
-                    ok: false,
-                    reason: 'selection_rejected',
-                    result: executionResult
-                };
-            }
-
-            appliedSelection = (typeof opts.validateResult === 'function')
-                ? (await opts.validateResult(Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: executionResult
-                })))
-                : true;
-            if (!appliedSelection) {
-                markPendingActionFailure();
-                emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: executionResult
-                }));
-                return {
-                    ok: false,
-                    reason: 'selection_not_applied',
-                    result: executionResult
-                };
-            }
-
-            const appliedState = applySelectionStateResult(executionResult, stateRefs);
-            playbackEvents = Array.isArray(executionResult.playbackEvents)
-                ? executionResult.playbackEvents
-                : [];
-            const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
-                ? opts.buildPlaybackMeta(Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: executionResult,
-                    appliedSelection,
-                    cardState: appliedState.cardState,
-                    gameState: appliedState.gameState,
-                    playbackEvents
-                }))
-                : { cause: resolvedPendingType, target: { row, col } };
-            emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
-            if (opts.emitStateChanges !== false) {
-                emitSelectionStateChangeSignals(playbackEvents);
-            }
-            if (typeof opts.afterStateChange === 'function') {
-                await opts.afterStateChange(Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: executionResult,
-                    appliedSelection,
-                    cardState: appliedState.cardState,
-                    gameState: appliedState.gameState,
-                    playbackEvents
-                }));
-            }
-            shouldFinalize = true;
-            return {
-                ok: true,
-                pendingType: resolvedPendingType,
-                action: pendingAction,
-                result: executionResult,
-                appliedSelection,
-                playbackEvents,
-                fallbackExecution: true
-            };
-        } finally {
-            endSelectionSettlementLock(selectionSettlementLockToken);
-            if (shouldFinalize) {
-                try {
-                    const finalizeOptions = Object.assign({
-                        playerKey,
-                        pendingType: resolvedPendingType,
-                        actionType,
-                        action: pendingAction,
-                        playbackEvents,
-                        gameStateValue: stateRefs.gameState,
-                        cardStateValue: stateRefs.cardState,
-                        onSettled: defaultSelectionHandoffRender,
-                        onHumanTurnReady: defaultSelectionHandoffRender,
-                        ensureCurrentPlayerCanActOrPass: resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
-                        clearCardAnimatingOnFinish: true
-                    }, (opts.finalizeOptions && typeof opts.finalizeOptions === 'object') ? opts.finalizeOptions : {});
-                    await finalizePendingSelectionFlow(finalizeOptions);
-                } catch (e) {
-                    setSelectionProcessing(false);
-                    setSelectionCardAnimating(false);
-                }
-            } else {
-                if (shouldClearPendingActionOnExit) {
-                    clearPendingSelectionFailureState(stateRefs.cardState, playerKey, {
-                        clearPendingEffect: false,
-                        failureReason: 'selection_failed'
-                    });
-                }
-                setSelectionProcessing(false);
-                setSelectionCardAnimating(false);
-            }
-        }
-    }
-
-    async function executePendingSelection(options: any) {
-        const pendingExecutionModule = getSelectionFlowPendingExecutionModule();
-        if (!pendingExecutionModule || typeof pendingExecutionModule.executePendingSelection !== 'function') {
-            return executePendingSelectionCompatibilityFallback(options);
-        }
-        const opts = (options && typeof options === 'object')
-            ? Object.assign({ defaultSelectionHandoffRender }, options)
-            : { defaultSelectionHandoffRender };
-        return pendingExecutionModule.executePendingSelection(opts, {
+    function buildPendingSelectionExecutionDeps() {
+        return {
             normalizePendingType,
             normalizeSelectionPlayerKey,
             resolveSelectionStateRefs,
@@ -1177,7 +1000,29 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             resolveRootFunction,
             finalizePendingSelectionFlow,
             clearPendingSelectionFailureState
-        });
+        };
+    }
+
+    async function executePendingSelectionCompatibilityFallback(options: any) {
+        const executionCore = getSelectionFlowExecutionCoreModule();
+        if (!executionCore || typeof executionCore.executePendingSelectionCore !== 'function') {
+            return { ok: false, reason: 'pending_execution_unavailable' };
+        }
+        const opts = (options && typeof options === 'object')
+            ? Object.assign({ defaultSelectionHandoffRender }, options)
+            : { defaultSelectionHandoffRender };
+        return executionCore.executePendingSelectionCore(opts, buildPendingSelectionExecutionDeps());
+    }
+
+    async function executePendingSelection(options: any) {
+        const pendingExecutionModule = getSelectionFlowPendingExecutionModule();
+        if (!pendingExecutionModule || typeof pendingExecutionModule.executePendingSelection !== 'function') {
+            return executePendingSelectionCompatibilityFallback(options);
+        }
+        const opts = (options && typeof options === 'object')
+            ? Object.assign({ defaultSelectionHandoffRender }, options)
+            : { defaultSelectionHandoffRender };
+        return pendingExecutionModule.executePendingSelection(opts, buildPendingSelectionExecutionDeps());
     }
 
 export = {
