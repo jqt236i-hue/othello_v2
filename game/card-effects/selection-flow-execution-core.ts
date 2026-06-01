@@ -121,6 +121,15 @@ async function previewPendingSelectionExecution(options: any, deps: SelectionPen
     };
 }
 
+function createSelectionSettlementLockReleaser(deps: SelectionPendingExecutionDeps, token: any) {
+    let released = false;
+    return function releaseSelectionSettlementLock() {
+        if (released) return false;
+        released = true;
+        return deps.endSelectionSettlementLock(token);
+    };
+}
+
 async function executePendingSelectionCore(options: any, deps: SelectionPendingExecutionDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const row = Number(opts.row);
@@ -152,12 +161,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
         actionType,
         source: 'selection_flow_pending_execution'
     });
-    let selectionSettlementLockReleased = false;
-    function releaseSelectionSettlementLock() {
-        if (selectionSettlementLockReleased) return false;
-        selectionSettlementLockReleased = true;
-        return deps.endSelectionSettlementLock(selectionSettlementLockToken);
-    }
+    const releaseSelectionSettlementLock = createSelectionSettlementLockReleaser(deps, selectionSettlementLockToken);
     const ownsSelectionCardAnimating = allowSelectionEntryDuringPlayback !== true;
     deps.setSelectionProcessing(true);
     if (ownsSelectionCardAnimating) {
