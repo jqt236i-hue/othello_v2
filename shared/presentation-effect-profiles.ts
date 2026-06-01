@@ -71,6 +71,14 @@ const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = Object.freeze([
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
 ]);
 
+const CARD_EFFECT_SPAWN_PLAYBACK_PROFILES = Object.freeze([
+    Object.freeze({ spawnIntent: 'normal_spawn', reasonPrefix: 'equality_will_spawn' }),
+    Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+    Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SUPPORT_TROOPS_WILL', reasonPrefix: 'support_troops_will_spawn' }),
+    Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
+    Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
+]);
+
 function getProfileCauses(profile: CauseReasonProfile | null | undefined): unknown[] {
     if (!profile) return [];
     if (Array.isArray(profile.causes)) return profile.causes;
@@ -135,6 +143,7 @@ export = {
     SPECIAL_DESTROY_TARGET_PROFILES,
     POSITIVE_SPAWN_LIKE_EFFECTS,
     POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS,
+    CARD_EFFECT_SPAWN_PLAYBACK_PROFILES,
     inferSpawnIntent,
     matchesCauseAndReasonPrefix,
     matchesCauseReasonProfile,

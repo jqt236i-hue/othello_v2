@@ -772,47 +772,39 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('proliferation_spawn') === 0;
     }
 
-    const CARD_EFFECT_SPAWN_PROFILES = Object.freeze([
-        Object.freeze({
-            spawnIntent: 'normal_spawn',
-            reasonPrefix: 'equality_will_spawn',
+    const CARD_EFFECT_SPAWN_PLAYBACK_UI_META = Object.freeze({
+        equality_will_spawn: Object.freeze({
             rawResolvedType: 'equality_will_resolved',
             soundSourceType: 'equality_will_spawn',
             phaseStartIndex: 2
         }),
-        Object.freeze({
-            spawnIntent: 'normal_spawn',
-            cause: 'REINFORCEMENT_WILL',
-            reasonPrefix: 'reinforcement_will_spawn',
+        reinforcement_will_spawn: Object.freeze({
             rawResolvedType: 'reinforcement_will_resolved',
             soundSourceType: 'reinforcement_will_spawn',
             phaseStartIndex: 1
         }),
-        Object.freeze({
-            spawnIntent: 'normal_spawn',
-            cause: 'SUPPORT_TROOPS_WILL',
-            reasonPrefix: 'support_troops_will_spawn',
+        support_troops_will_spawn: Object.freeze({
             rawResolvedType: 'support_troops_will_resolved',
             soundSourceType: 'support_troops_will_spawn',
             phaseStartIndex: 1
         }),
-        Object.freeze({
-            spawnIntent: 'salvation_spawn',
-            cause: 'SALVATION_WILL',
-            reasonPrefix: 'salvation_spawn',
+        salvation_spawn: Object.freeze({
             rawResolvedType: 'salvation_will_resolved',
             soundSourceType: 'salvation_spawn',
             phaseStartIndex: 1
         }),
-        Object.freeze({
-            spawnIntent: 'salvation_spawn',
-            cause: STONE_SALVATION_GOD_CAUSE,
-            reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON,
+        [STONE_SALVATION_GOD_REVIVE_REASON]: Object.freeze({
             soundSourceType: STONE_SALVATION_GOD_REVIVE_REASON,
             phaseStartIndex: 0,
             alwaysAdvancePhase: true
         })
-    ]);
+    });
+    const CARD_EFFECT_SPAWN_PROFILES = Object.freeze(
+        (PresentationEffectProfiles.CARD_EFFECT_SPAWN_PLAYBACK_PROFILES || []).map((profile: any) => Object.freeze({
+            ...profile,
+            ...(CARD_EFFECT_SPAWN_PLAYBACK_UI_META as any)[String(profile && profile.reasonPrefix ? profile.reasonPrefix : '')]
+        }))
+    );
     const DEFERRED_SPAWN_PLAYBACK_PROFILES = Object.freeze([
         Object.freeze({
             cause: STONE_SALVATION_GOD_CAUSE,

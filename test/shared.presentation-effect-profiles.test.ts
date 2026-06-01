@@ -48,6 +48,23 @@ describe('PresentationEffectProfiles', () => {
     }, 'SUPPORT_TROOPS_WILL', 'support_troops_will_spawn', profile)).toBe(true);
   });
 
+  test('card-effect spawn playback profiles centralize cause and reason matching', () => {
+    expect(profiles.CARD_EFFECT_SPAWN_PLAYBACK_PROFILES).toEqual([
+      { spawnIntent: 'normal_spawn', reasonPrefix: 'equality_will_spawn' },
+      { spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' },
+      { spawnIntent: 'normal_spawn', cause: 'SUPPORT_TROOPS_WILL', reasonPrefix: 'support_troops_will_spawn' },
+      { spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' },
+      { spawnIntent: 'salvation_spawn', cause: 'STONE_SALVATION_GOD', reasonPrefix: 'stone_salvation_god_revive' }
+    ]);
+
+    const equalityProfile = profiles.CARD_EFFECT_SPAWN_PLAYBACK_PROFILES[0];
+    expect(profiles.isSpawnEventLike({
+      cause: 'LEGACY_EQUALITY_SOURCE',
+      reason: 'equality_will_spawn_0',
+      meta: { spawnIntent: 'normal_spawn' }
+    }, equalityProfile)).toBe(true);
+  });
+
   test('inferSpawnIntent preserves board ops spawn intent mappings and fallback', () => {
     expect(profiles.inferSpawnIntent('CLONE_WILL', 'clone_spawn')).toBe('clone_spawn');
     expect(profiles.inferSpawnIntent('BREEDING', 'breeding_spawn_immediate')).toBe('breeding_spawn');
