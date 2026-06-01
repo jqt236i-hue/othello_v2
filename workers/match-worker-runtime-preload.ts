@@ -114,6 +114,7 @@ installRuntimeModule('CardTimeBomb', () => require('../game/logic/cards/time_bom
 installRuntimeModule('CardBreeding', () => require('../game/logic/cards/breeding.js'));
 installRuntimeModule('DragonEffects', () => require('../game/logic/effects/dragon.js'));
 installRuntimeModule('CardUdg', () => require('../game/logic/cards/udg.js'));
+installRuntimeModule('CardHyperactiveBoardShape', () => require('../game/logic/cards/hyperactive-board-shape.js'));
 installRuntimeModule('CardHyperactive', () => require('../game/logic/cards/hyperactive.js'));
 installRuntimeModule('CardSniper', () => require('../game/logic/cards/sniper.js'));
 installRuntimeModule('CardLightning', () => require('../game/logic/cards/lightning.js'));

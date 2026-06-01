@@ -3,17 +3,27 @@ import * as path from 'path';
 import * as ts from 'typescript';
 import * as vm from 'vm';
 
-function loadHyperactiveWithWorkerLikeGlobals(): any {
-  const sourcePath = path.resolve(__dirname, '..', 'game', 'logic', 'cards', 'hyperactive.ts');
+function transpileCommonJs(sourcePath: string): string {
   const source = fs.readFileSync(sourcePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
+  return ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2019,
       esModuleInterop: true
     }
   }).outputText;
+}
 
+function runCommonJsModuleInSandbox(sourcePath: string, sandbox: any): any {
+  sandbox.module = { exports: {} };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInContext(transpileCommonJs(sourcePath), sandbox, { filename: sourcePath });
+  return sandbox.module.exports;
+}
+
+function loadHyperactiveWithWorkerLikeGlobals(): any {
+  const boardShapePath = path.resolve(__dirname, '..', 'game', 'logic', 'cards', 'hyperactive-board-shape.ts');
+  const sourcePath = path.resolve(__dirname, '..', 'game', 'logic', 'cards', 'hyperactive.ts');
   const sandbox: any = {
     console,
     module: { exports: {} },
@@ -27,8 +37,8 @@ function loadHyperactiveWithWorkerLikeGlobals(): any {
   sandbox.SharedConstants = { BLACK: 1, WHITE: -1, EMPTY: 0 };
 
   vm.createContext(sandbox);
-  vm.runInContext(compiled, sandbox, { filename: sourcePath });
-  return sandbox.module.exports;
+  runCommonJsModuleInSandbox(boardShapePath, sandbox);
+  return runCommonJsModuleInSandbox(sourcePath, sandbox);
 }
 
 describe('CardHyperactive worker runtime globals', () => {

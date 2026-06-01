@@ -17,6 +17,8 @@ describe('match worker card module preload', () => {
     const effectResolverIndex = source.indexOf("installRuntimeModule('CardEffectResolver'");
     const timingProcessorIndex = source.indexOf("installRuntimeModule('CardTimingProcessor'");
     const targetResolverIndex = source.indexOf("installRuntimeModule('CardTargetResolver'");
+    const hyperactiveBoardShapeIndex = source.indexOf("installRuntimeModule('CardHyperactiveBoardShape'");
+    const hyperactiveIndex = source.indexOf("installRuntimeModule('CardHyperactive'");
 
     expect(cardCatalogIndex).toBeGreaterThanOrEqual(0);
     expect(sharedConstantsIndex).toBeGreaterThanOrEqual(0);
@@ -29,6 +31,9 @@ describe('match worker card module preload', () => {
     expect(effectResolverIndex).toBeGreaterThanOrEqual(0);
     expect(timingProcessorIndex).toBeGreaterThanOrEqual(0);
     expect(targetResolverIndex).toBeGreaterThanOrEqual(0);
+    expect(hyperactiveBoardShapeIndex).toBeGreaterThanOrEqual(0);
+    expect(hyperactiveIndex).toBeGreaterThanOrEqual(0);
+    expect(hyperactiveBoardShapeIndex).toBeLessThan(hyperactiveIndex);
     expect(source).toContain("require('../cards/catalog.js')");
     expect(source).toContain("require('../game/logic/card-resolution/status-cells.js')");
   });
