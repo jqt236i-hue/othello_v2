@@ -123,7 +123,15 @@ export function createCpuDecisionMovePlan(config: CpuDecisionMovePlanConfig): an
             : 0;
         const lowDiscEmergency = !!(decisionContext && decisionContext.lowDiscEmergency === true);
         const criticalLowDiscEmergency = !!(decisionContext && decisionContext.criticalLowDiscEmergency === true);
+        const discDiff = Number.isFinite(decisionContext && decisionContext.discDiff)
+            ? Number(decisionContext.discDiff)
+            : 0;
+        const recoveryCostGap = Number.isFinite(decisionContext && decisionContext.recoveryCostGap)
+            ? Math.max(0, Number(decisionContext.recoveryCostGap))
+            : 0;
+        const whiteLv6Mode = !!(decisionContext && decisionContext.whiteLv6Mode === true);
         const hasCornerMoveNow = !!(plan && plan.hasCornerMoveNow === true);
+        const cornerEmergency = !!(plan && plan.cornerEmergency === true);
         const lowChargeTight = ownCharge <= Math.max(8, reserveChargeFloor + 2);
         const maxLegalFlips = Number.isFinite(decisionContext && decisionContext.maxLegalFlips)
             ? Math.max(0, Math.floor(Number(decisionContext.maxLegalFlips)))
@@ -149,7 +157,17 @@ export function createCpuDecisionMovePlan(config: CpuDecisionMovePlanConfig): an
                 Number(decisionContext.oppCharge) >= 3)
         );
 
-        if (hasCornerMoveNow && !forceUseCard) {
+        const allowCornerWindowException = (
+            whiteLv6Mode &&
+            cfg.keepCardTypesForLowCharge.has(cardType) &&
+            (
+                criticalLowDiscEmergency ||
+                (cornerEmergency && (lowDiscEmergency || legalMovesCount <= 2 || discDiff <= -10)) ||
+                (recoveryCostGap > 0 && legalMovesCount <= 2 && discDiff <= -6)
+            )
+        );
+
+        if (hasCornerMoveNow && !forceUseCard && !allowCornerWindowException) {
             return false;
         }
 

@@ -1650,6 +1650,32 @@ describe('cpu-policy-core', () => {
         expect(out.minUseScore).toBeLessThanOrEqual(2);
     });
 
+    test('scoreCardUseDecision keeps LAST_RESORT available for white Lv6 in critical corner emergency', () => {
+        const out = core.scoreCardUseDecision(
+            'last_resort',
+            () => 9,
+            () => ({ id: 'last_resort', type: 'LAST_RESORT' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -22,
+                ownDiscs: 4,
+                empties: 18,
+                ownCharge: 16,
+                handSize: 2,
+                usableCardIds: ['last_resort'],
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: true,
+                hasEdgeMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThanOrEqual(out.minUseScore);
+    });
+
     test('scoreCardUseDecision values LOSS_WILL when opponent has more specials', () => {
         const strong = core.scoreCardUseDecision(
             'loss',

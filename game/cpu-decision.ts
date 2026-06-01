@@ -2465,15 +2465,6 @@ function selectCardToUse(playerKey: any): any {
         ? getTargetAwareUsableCardIds(playerKey)
         : [];
     const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableNow);
-    if (
-        Number.isFinite(level) &&
-        level >= 6 &&
-        decisionContext &&
-        decisionContext.hasCornerMoveNow === true &&
-        decisionContext.forceUseCard !== true
-    ) {
-        return null;
-    }
     const quiescenceSnapshot = buildCardQuiescenceSnapshot(playerKey, level, legalMoves, decisionContext);
     const cornerPlanState = decisionContext.cornerPlanState || buildCornerPlanState(playerKey, legalMoves, usableNow);
     const isAllowedChoice = (choice: any) => {
@@ -2523,7 +2514,7 @@ function selectCardToUse(playerKey: any): any {
     if (typeof CardLogic !== 'undefined') {
         const usable = usableNow;
         if (shouldUseSharedPolicyTableCoreCardDecision(level)) {
-            return selectCardBySharedPolicyTableCore(
+            const sharedCoreChoice = selectCardBySharedPolicyTableCore(
                 playerKey,
                 level,
                 legalMoves.length,
@@ -2531,6 +2522,7 @@ function selectCardToUse(playerKey: any): any {
                 usable,
                 decisionContext
             ) || null;
+            return isAllowedChoice(sharedCoreChoice) ? sharedCoreChoice : null;
         }
         if (usable.length) {
             const lv6Consensus = selectCardByLevel6Consensus(

@@ -1191,8 +1191,22 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
 
 
         if (whiteLv6Mode && isLastResort && !ctx.forceUseCard) {
-            if (ctx.legalMovesCount > 0) score -= 420;
-            if (ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 180;
+            const desperateLastResortWindow = (
+                cornerEmergency &&
+                (
+                    criticalLowDiscEmergency ||
+                    (lowDiscEmergency && ctx.legalMovesCount <= 1) ||
+                    Number(ctx.discDiff || 0) <= -18
+                )
+            );
+            if (desperateLastResortWindow) {
+                if (ctx.legalMovesCount > 0) score -= 80;
+                if (ctx.legalMovesCount <= 1) score += 48;
+                if (criticalLowDiscEmergency) score += 124;
+            } else {
+                if (ctx.legalMovesCount > 0) score -= 420;
+                if (ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 180;
+            }
             if (ctx.discDiff >= 0) score -= 420;
             if (leadStable && !cornerEmergency) score -= 110;
         }

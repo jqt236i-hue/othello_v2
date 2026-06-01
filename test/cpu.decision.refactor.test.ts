@@ -32,6 +32,7 @@ describe('cpu decision refactor helpers', () => {
     delete global.MATCH_MODE;
     delete global.CPU_TURN_DELAY_MS;
     delete global.OthelloBrowserCpuRuntime;
+    delete global.AISystem;
     if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {
       cpuDecision.setCpuDecisionRuntime(null);
       cpuDecision.setCpuDecisionRuntime({
@@ -340,6 +341,7 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('selectCardToUse shared Lv6 policy-table core can keep recovery card choice when risk score allows it', () => {
+    global.AISystem = null;
     global.gameState = {
       board: [
         [-1, 0, 0, 0, 0, 0, 0, 0],
@@ -355,8 +357,15 @@ describe('cpu decision refactor helpers', () => {
     };
     global.cpuSmartness.white = 6;
     global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }];
-    global.cardState.hands.white = ['destroy_01'];
-    global.cardState.charge = { white: 30, black: 10 };
+    global.cardState = {
+      hands: { white: ['destroy_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 30, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
     global.CardLogic = {
       getUsableCardIds: () => ['destroy_01'],
       getCardDef: () => ({ id: 'destroy_01', name: '破壊の意志', type: 'DESTROY_ONE_STONE' }),
@@ -400,6 +409,46 @@ describe('cpu decision refactor helpers', () => {
 
     const res = cpuDecision.selectCardToUse('white');
     expect(res).toBeNull();
+  });
+
+  test('selectCardToUse keeps POSITION_SWAP_WILL available in severe corner emergency even when a corner move exists', () => {
+    global.AISystem = null;
+    global.CpuPolicyTableRuntime = null;
+    global.gameState = {
+      board: [
+        [1, 1, 1, 0, 0, 0, 0, 0],
+        [1, 1, 1, 0, 0, 0, 0, 0],
+        [1, 1, -1, -1, 0, 0, 0, 0],
+        [0, 1, -1, 1, 0, 0, 0, 0],
+        [0, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 1]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['pswap_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 18, black: 12 },
+      turnIndex: 22
+    };
+    global.cpuSmartness.white = 6;
+    global.getLegalMoves = () => [
+      { row: 0, col: 7, flips: [{ row: 1, col: 6 }] },
+      { row: 2, col: 4, flips: [{ row: 2, col: 3 }] }
+    ];
+    global.CardLogic = {
+      getUsableCardIds: () => ['pswap_01'],
+      getCardDef: () => ({ id: 'pswap_01', name: '位置交換の意志', type: 'POSITION_SWAP_WILL' }),
+      getCardCost: () => 12
+    };
+
+    const res = cpuDecision.selectCardToUse('white');
+    expect(res).toBeDefined();
+    expect(res.cardId).toBe('pswap_01');
   });
 
   test('selectCardToUse still allows high-yield GOLD_STONE when charge is tight', () => {
