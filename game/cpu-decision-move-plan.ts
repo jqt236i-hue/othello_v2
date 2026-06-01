@@ -189,7 +189,18 @@ export function createCpuDecisionMovePlan(config: CpuDecisionMovePlanConfig): an
 
         const planPressure = cfg.computeCardPlanPressure(level, legalMovesCount, plan, decisionContext);
         const requiredPressure = cfg.resolveCardPlanPressureThreshold(legalMovesCount, plan, profile);
-        return planPressure >= requiredPressure;
+        if (planPressure >= requiredPressure) return true;
+
+        const allowTightDestroyRecoveryWindow = (
+            whiteLv6Mode &&
+            cardType === 'DESTROY_ONE_STONE' &&
+            hasCornerMoveNow !== true &&
+            !!(plan && plan.cornerHoldMode === true) &&
+            legalMovesCount <= 1 &&
+            discDiff <= 4 &&
+            (planPressure + 1) >= requiredPressure
+        );
+        return allowTightDestroyRecoveryWindow;
     }
 
     function buildMovePlanContext(playerKey: any, level: any, candidateMoves: any): any {

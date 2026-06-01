@@ -2522,7 +2522,9 @@ function selectCardToUse(playerKey: any): any {
                 usable,
                 decisionContext
             ) || null;
-            return isAllowedChoice(sharedCoreChoice) ? sharedCoreChoice : null;
+            if (isAllowedChoice(sharedCoreChoice)) {
+                return sharedCoreChoice;
+            }
         }
         if (usable.length) {
             const lv6Consensus = selectCardByLevel6Consensus(

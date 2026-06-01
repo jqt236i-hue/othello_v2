@@ -237,6 +237,67 @@ describe('cpu decision refactor helpers', () => {
     expect(cpuPolicyCore.chooseCardWithRiskProfile).toHaveBeenCalled();
   });
 
+  test('selectCardToUse falls through when shared Lv6 choice fails high-confidence gate', () => {
+    global.AISystem = null;
+    global.gameState = {
+      board: [
+        [-1, -1, -1, -1, -1, -1, 0, 0],
+        [-1, -1, -1, -1, -1, -1, 0, 0],
+        [-1, -1, -1, -1, -1, -1, 0, 0],
+        [-1, -1, -1, -1, -1, -1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0],
+        [-1, -1, -1, -1, 1, 1, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.getLegalMoves = () => [
+      { row: 2, col: 6, flips: [{ row: 2, col: 5 }] },
+      { row: 3, col: 6, flips: [{ row: 3, col: 5 }] },
+      { row: 4, col: 6, flips: [{ row: 4, col: 5 }] },
+      { row: 5, col: 6, flips: [{ row: 5, col: 5 }] },
+      { row: 6, col: 6, flips: [{ row: 6, col: 5 }] }
+    ];
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: ['guard_01', 'time_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getUsableCardIds: () => ['guard_01', 'time_01'],
+      canUseCard: () => true,
+      getCardDef: (id) => {
+        if (id === 'guard_01') return { id, name: 'guard', type: 'GUARD_WILL' };
+        if (id === 'time_01') return { id, name: 'time', type: 'TIME_BOMB' };
+        return { id, name: id, type: 'TREASURE_BOX' };
+      },
+      getCardCost: (id) => (id === 'time_01' ? 10 : 2)
+    };
+    global.CpuPolicyTableRuntime = {
+      getActionScoreForKey: jest.fn((key) => (key === 'use_card:time_01' ? 9999 : 0))
+    };
+    jest.spyOn(cpuPolicyCore, 'scoreCardUseDecision').mockImplementation((cardId) => {
+      if (cardId === 'time_01') return { score: 24, minUseScore: 20, shouldUse: true };
+      if (cardId === 'guard_01') return { score: 30, minUseScore: 20, shouldUse: true };
+      return { score: 0, minUseScore: 0, shouldUse: false };
+    });
+    jest.spyOn(cpuPolicyCore, 'chooseCardWithRiskProfile').mockImplementation(() => (
+      { cardId: 'guard_01', cardDef: { id: 'guard_01', name: 'guard', type: 'GUARD_WILL' } }
+    ));
+
+    const res = cpuDecision.selectCardToUse('white');
+
+    expect(res).toBeDefined();
+    expect(res.cardId).toBe('guard_01');
+    expect(cpuPolicyCore.chooseCardWithRiskProfile).toHaveBeenCalled();
+  });
+
   test('selectCardToUse はカスタム盤面で policy-table 学習カード評価を使わない', () => {
     global.gameState = {
       board: Array.from({ length: 7 }, () => Array(9).fill(0)),

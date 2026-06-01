@@ -125,6 +125,38 @@ describe('cpu decision move plan module', () => {
     expect(allowed).toBe(true);
   });
 
+  test('isCardChoiceAllowedByPlan allows narrow DESTROY_ONE_STONE recovery window one point below pressure', () => {
+    const movePlan = createMovePlan({
+      countCornerControl: () => ({ ownCorners: 1, oppCorners: 0 }),
+      resolveCardType: (cardId: any) => {
+        if (cardId === 'destroy') return 'DESTROY_ONE_STONE';
+        return String(cardId || '');
+      },
+      getCardPlanPressureProfile: (cardType: any) => (cardType === 'DESTROY_ONE_STONE'
+        ? { basePressure: 4, cornerWindowPressure: 5, recoveryGapPressure: 4, recoveryEmergencyPressure: 0 }
+        : null),
+      computeCardPlanPressure: () => 3,
+      resolveCardPlanPressureThreshold: () => 4
+    });
+
+    const allowed = movePlan.isCardChoiceAllowedByPlan(
+      'white',
+      6,
+      1,
+      'destroy',
+      { id: 'destroy', type: 'DESTROY_ONE_STONE' },
+      { hasCornerMoveNow: false, cornerHoldMode: true, cornerEmergency: false },
+      {
+        ownCharge: 30,
+        reserveChargeFloor: 0,
+        whiteLv6Mode: true,
+        discDiff: 2
+      }
+    );
+
+    expect(allowed).toBe(true);
+  });
+
   test('buildMovePlanContext assembles pending placement and reserve recovery context', () => {
     const movePlan = createMovePlan({
       cardState: {

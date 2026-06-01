@@ -52,4 +52,10 @@ describe('cpu decision plan pressure module', () => {
       recoveryCostGap: 3
     }, profile)).toBe(4);
   });
+
+  test('DESTROY_ONE_STONE keeps strict base pressure outside targeted exceptions', () => {
+    const profile = cpuDecisionPlanPressure.getCardPlanPressureProfile('DESTROY_ONE_STONE');
+
+    expect(profile.basePressure).toBe(4);
+  });
 });
