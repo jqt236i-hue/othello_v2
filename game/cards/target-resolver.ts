@@ -752,12 +752,19 @@ const Targets = CardTargets || {};
         };
     }
 
-    function getSelectableTargets(cardState: any, gameState: any, playerKey: any) {
-        const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
-        if (!pending) return [];
-
-        // Build local selectors map
-        const localSelectors = {
+    function buildLocalPendingTargetSelectors() {
+        const callSelectorsMethod = (methodName: string) => (...args: any[]) => {
+            const selector = Selectors && Selectors[methodName];
+            return typeof selector === 'function' ? selector(...args) : [];
+        };
+        return {
+            getDestroyTargets,
+            getStrongWindTargets: callSelectorsMethod('getStrongWindTargets'),
+            getBuoyancyTargets: callSelectorsMethod('getBuoyancyTargets'),
+            getSuperBuoyancyTargets: callSelectorsMethod('getSuperBuoyancyTargets'),
+            getGravityTargets: callSelectorsMethod('getGravityTargets'),
+            getSuperGravityTargets: callSelectorsMethod('getSuperGravityTargets'),
+            getSuperAttractionTargets: callSelectorsMethod('getSuperAttractionTargets'),
             getTrapTargets,
             getGuardTargets,
             getTimeBombTargets,
@@ -771,9 +778,10 @@ const Targets = CardTargets || {};
             getFreezeTargets,
             getSeedTargets,
             getTemptTargets,
+            getTemptWillTargets: getTemptTargets,
             getCaptureTargets,
+            getCaptureWillTargets: getCaptureTargets,
             getPositionSwapTargets,
-            getDestroyTargets,
             getSwapTargets,
             getLivingWillTargets,
             getHyperactiveInheritTargets,
@@ -782,57 +790,61 @@ const Targets = CardTargets || {};
             getBoardExpansionGodTargets,
             getBoardShrinkGodTargets
         };
+    }
 
+    function getPendingSelectorArgs(argsKey: string, context: any) {
+        switch (argsKey) {
+        case 'board':
+            return [context.cardState, context.gameState];
+        case 'player_pending':
+            return [context.cardState, context.gameState, context.playerKey, context.pending];
+        case 'player':
+        default:
+            return [context.cardState, context.gameState, context.playerKey];
+        }
+    }
+
+    function buildSelectableTargetContext(cardState: any, gameState: any, playerKey: any, pending: any) {
+        return {
+            cardState,
+            gameState,
+            playerKey,
+            pending,
+            selectorsModule: Selectors,
+            constants: { BLACK, WHITE, EMPTY },
+            helpers: {
+                getCurrentBoardShapeCellsForCard: getCurrentBoardShapeCells,
+                getCellValueForCard: getCellValue,
+                getExpansionDescriptorsForCard: getExpansionCells,
+                isPositionSwapProtectedCell
+            },
+            localSelectors: buildLocalPendingTargetSelectors()
+        };
+    }
+
+    function getSelectableTargetsViaRegistry(context: any) {
+        const registry = safeRequire('../logic/cards-internal/pending-selection-registry');
+        if (!registry || typeof registry.getPendingSelectionEntry !== 'function') return [];
+        const entry = registry.getPendingSelectionEntry(context && context.pending && context.pending.type);
+        const target = entry && entry.target;
+        if (!target || !target.method) return [];
+        const selector = context.localSelectors && context.localSelectors[target.method];
+        if (typeof selector !== 'function') return [];
+        const targets = selector(...getPendingSelectorArgs(target.argsKey, context));
+        return Array.isArray(targets) ? targets : [];
+    }
+
+    function getSelectableTargets(cardState: any, gameState: any, playerKey: any) {
+        const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+        if (!pending) return [];
+        const context = buildSelectableTargetContext(cardState, gameState, playerKey, pending);
         const SelectorOrchestrator = safeRequire('../logic/cards-internal/selector-orchestrator');
 
         if (SelectorOrchestrator && typeof SelectorOrchestrator.getSelectableTargetsForPending === 'function') {
-            return SelectorOrchestrator.getSelectableTargetsForPending({
-                cardState,
-                gameState,
-                playerKey,
-                pending,
-                selectorsModule: Selectors,
-                constants: { BLACK, WHITE, EMPTY },
-                helpers: {
-                    getCurrentBoardShapeCellsForCard: getCurrentBoardShapeCells,
-                    getCellValueForCard: getCellValue,
-                    getExpansionDescriptorsForCard: getExpansionCells,
-                    isPositionSwapProtectedCell
-                },
-                localSelectors
-            });
+            return SelectorOrchestrator.getSelectableTargetsForPending(context);
         }
 
-        // Fallback for common pending types
-        const type = pending.type;
-        if (type === 'TRAP_WILL') return getTrapTargets(cardState, gameState, playerKey);
-        if (type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') return getGuardTargets(cardState, gameState, playerKey);
-        if (type === 'TIME_BOMB') return getTimeBombTargets(cardState, gameState, playerKey);
-        if (type === 'TELEPORT_WILL') return getTeleportTargets(cardState, gameState);
-        if (type === 'CELL_TELEPORT_WILL') return getCellTeleportTargets(cardState, gameState);
-        if (type === 'CLONE_WILL') return getCloneTargets(cardState, gameState, playerKey);
-        if (type === 'BOARD_EXPANSION_WILL') return getBoardExpansionTargets(cardState, gameState, playerKey);
-        if (type === 'BOARD_SHRINK_WILL') return getBoardShrinkTargets(cardState, gameState, playerKey);
-        if (type === 'BLOCKADE_WILL') return getBlockadeTargets(cardState, gameState, playerKey);
-        if (type === 'METEOR_WILL') return getMeteorTargets(cardState, gameState, playerKey);
-        if (type === 'FREEZE_WILL') return getFreezeTargets(cardState, gameState, playerKey);
-        if (type === 'SEED_WILL') return getSeedTargets(cardState, gameState, playerKey);
-        if (type === 'TEMPT_WILL') return getTemptTargets(cardState, gameState, playerKey);
-        if (type === 'CAPTURE_WILL') return getCaptureTargets(cardState, gameState, playerKey);
-        if (type === 'POSITION_SWAP_WILL') return getPositionSwapTargets(cardState, gameState, playerKey, pending);
-        if (type === 'SUPER_ATTRACTION_WILL' && typeof Selectors.getSuperAttractionTargets === 'function') {
-            return Selectors.getSuperAttractionTargets(cardState, gameState, playerKey, pending);
-        }
-        if (type === 'DESTROY_ONE_STONE') return getDestroyTargets(cardState, gameState);
-        if (type === 'SWAP_WITH_ENEMY') return getSwapTargets(cardState, gameState, playerKey);
-        if (type === 'LIVING_WILL') return getLivingWillTargets(cardState, gameState, playerKey);
-        if (type === 'HYPERACTIVE_INHERIT_WILL') return getHyperactiveInheritTargets(cardState, gameState, playerKey);
-        if (type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') return getExtendLifeTargets(cardState, gameState, playerKey);
-        if (type === 'CORROSION_WILL') return getCorrosionTargets(cardState, gameState, playerKey);
-        if (type === 'BOARD_EXPANSION_GOD') return getBoardExpansionGodTargets(cardState, gameState, playerKey);
-        if (type === 'BOARD_SHRINK_GOD') return getBoardShrinkGodTargets(cardState, gameState, playerKey);
-
-        return [];
+        return getSelectableTargetsViaRegistry(context);
     }
 
     function getDestroyTargets(cardState: any, gameState: any) {
