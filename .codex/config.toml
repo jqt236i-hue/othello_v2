@@ -1,0 +1,3 @@
+# Read-only defaults for planning and consultation in this repository.
+sandbox_mode = "read-only"
+approval_policy = "never"
