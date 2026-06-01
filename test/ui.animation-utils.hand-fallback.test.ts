@@ -246,7 +246,7 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
-  test('playHandAnimation uses 30%-faster placement motion durations', async () => {
+  test('playHandAnimation uses 5%-slower placement motion durations than the current baseline', async () => {
     jest.useFakeTimers();
 
     const animateMock = jest.fn(() => ({
@@ -288,7 +288,7 @@ describe('animation-utils hand fallback', () => {
       .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
       .map((call) => call[1].duration);
 
-    expect(transformDurations).toEqual([198, 74, 148]);
+    expect(transformDurations).toEqual([208, 78, 156]);
   });
 
   test('playDrawCardHandAnimation uses 10%-slower draw motion durations than the current baseline', async () => {
@@ -438,7 +438,7 @@ describe('animation-utils hand fallback', () => {
     await jest.advanceTimersByTimeAsync(240);
     expect(document.querySelector('.held-draw-card')).toBeNull();
 
-    await jest.advanceTimersByTimeAsync(320);
+    await jest.advanceTimersByTimeAsync(340);
     let queuedDrawCard = null;
     for (let i = 0; i < 5; i++) {
       await Promise.resolve();
