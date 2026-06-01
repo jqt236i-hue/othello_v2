@@ -111,7 +111,7 @@ describe('TRAP_WILL (罠の意志)', () => {
     expect(gameState.currentPlayer).toBe(Core.WHITE);
   });
 
-  test('trigger: steals up to 20 charge and destroys all victim hand cards', () => {
+  test('trigger: steals up to 10 charge and destroys all victim hand cards', () => {
     const { cardState, gameState } = makeState();
 
     // Trap owned by black at C3 (2,2), currently flipped by white on white turn.
@@ -136,15 +136,15 @@ describe('TRAP_WILL (罠の意志)', () => {
     expect(res.expired.length).toBe(0);
     expect(res.disarmed.length).toBe(0);
 
-    expect(cardState.charge.white).toBe(14);
-    expect(cardState.charge.black).toBe(25);
+    expect(cardState.charge.white).toBe(24);
+    expect(cardState.charge.black).toBe(15);
     expect(cardState.hands.black).toEqual(['b1', 'b2', 'b3', 'b4']);
     expect(cardState.hands.white).toEqual([]);
     expect(cardState.decks.black).toEqual(['d0']);
     expect(cardState.discard).toEqual(['w1', 'w2', 'w3', 'w4']);
 
-    expect(res.triggered[0].stolenCharge).toBe(20);
-    expect(res.triggered[0].gainedCharge).toBe(20);
+    expect(res.triggered[0].stolenCharge).toBe(10);
+    expect(res.triggered[0].gainedCharge).toBe(10);
     expect(res.triggered[0].destroyedHandCount).toBe(4);
     expect(res.triggered[0].toHandCount).toBe(0);
     expect(res.triggered[0].toDeckCount).toBe(0);
@@ -153,7 +153,7 @@ describe('TRAP_WILL (罠の意志)', () => {
     expect(remainingTrap).toBeUndefined();
   });
 
-  test('trigger: steals all remaining charge when victim has less than 20', () => {
+  test('trigger: steals up to 10 charge when victim has 16 charge', () => {
     const { cardState, gameState } = makeState();
 
     gameState.board[2][2] = -1;
@@ -173,10 +173,10 @@ describe('TRAP_WILL (罠の意志)', () => {
     const res = CardLogic.processTrapEffects(cardState, gameState, 'white', { expireOnOwnerTurnStart: false });
 
     expect(res.triggered).toHaveLength(1);
-    expect(cardState.charge.white).toBe(0);
-    expect(cardState.charge.black).toBe(19);
-    expect(res.triggered[0].stolenCharge).toBe(16);
-    expect(res.triggered[0].gainedCharge).toBe(16);
+    expect(cardState.charge.white).toBe(6);
+    expect(cardState.charge.black).toBe(13);
+    expect(res.triggered[0].stolenCharge).toBe(10);
+    expect(res.triggered[0].gainedCharge).toBe(10);
     expect(cardState.hands.white).toEqual([]);
     expect(cardState.discard).toEqual(['w1']);
   });

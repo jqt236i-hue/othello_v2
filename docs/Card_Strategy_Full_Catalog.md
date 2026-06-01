@@ -22,7 +22,7 @@
 | position_swap_01 | 入替の意志 | POSITION_SWAP_WILL | 13 | 位置入替のみ（直接布石増減なし） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 盤面に石が2個以上必要 | あり | 同一マス選択・空マス選択・対象不足 | 位置入替のみ（直接布石増減なし） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:41<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | perma_01 | 強い意志 | PERMA_PROTECT_NEXT_STONE | 15 | 次配置石の永続反転耐性 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | コスト不足/使用済み | 次配置石の永続反転耐性 | 条件未充足で使用不可/低効率 | 未確認（個別の明示ロジックなし） | cards/catalog.json:55<br>game/logic/cards.js:2293<br>shared-constants.js:102 |
 | strong_wind_01 | 強風の意志 | STRONG_WIND_WILL | 9 | 最長方向へ石を移動（同距離ランダム） | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 上下左右いずれかへ移動可能な石が必要 | あり | 移動可能対象なし・対象不正 | 最長方向へ石を移動（同距離ランダム） | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:62<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
-| trap_01 | 罠の意志 | TRAP_WILL | 4 | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い | 自分石1つを罠化してターン終了。発動時: 相手布石最大20奪取 + 相手手札全破壊 | 条件未充足で使用不可/低効率 | 中盤劣勢〜拮抗 | cards/catalog.json:69<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
+| trap_01 | 罠の意志 | TRAP_WILL | 4 | 自分石1つを罠化してターン終了。発動時: 相手布石最大10奪取 + 相手手札全破壊 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要 | あり | 対象不足・次相手ターンで未発動のまま消滅・このターンの配置価値が高い | 自分石1つを罠化してターン終了。発動時: 相手布石最大10奪取 + 相手手札全破壊 | 条件未充足で使用不可/低効率 | 中盤劣勢〜拮抗 | cards/catalog.json:69<br>cards/card-interaction.js / cards/card-interaction-effects.js<br>cards/card-interaction.js / cards/card-interaction-effects.js |
 | tempt_01 | 誘惑の意志 | TEMPT_WILL | 23 | 相手特殊石の所有権奪取 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 相手特殊石（GUARD以外）が1個以上必要 | あり | 対象が相手特殊石でない/対象不足/GUARD保護 | 相手特殊石の所有権奪取 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json:76<br>game/logic/cards.js:942<br>game/logic/cards.js:1114 |
 | double_chain_01 | 二連鎖の意志 | DOUBLE_CHAIN_WILL | 22 | 通常反転後に追加反転1回 + 三連鎖生成 | 手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） | なし | 一次反転を起点に候補が無い場合は追加連鎖なし | 追加反転1回 + 使用後に三連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
 | triple_chain_01 | 三連鎖の意志 | TRIPLE_CHAIN_WILL | 22 | 通常反転後に追加反転2回 + 四連鎖生成 | generated-only（使用後生成で入手） | なし | 一次反転起点から候補が不足すると途中終了 | 追加反転2回 + 使用後に四連鎖の意志が手札追加 | 高分散札（優勢時はCPU減点） | 未確認（個別の明示ロジックなし） | cards/catalog.json<br>game/logic/cards.js |
@@ -238,7 +238,7 @@
   - game/card-effects/strong-wind.js:46
 
 ### trap_01 / 罠の意志（TRAP_WILL）
-- 効果詳細（処理順含む）: 自分石1つを罠化してターン終了。次の相手ターンに反転されると発動時: 相手布石最大20奪取 + 相手手札全破壊
+- 効果詳細（処理順含む）: 自分石1つを罠化してターン終了。次の相手ターンに反転されると発動時: 相手布石最大10奪取 + 相手手札全破壊
 - 合理的な使い方
   - 発動条件「手札所持・布石コスト充足・このターン未使用（`applyCardUsage`） + 自分石の有効対象が1個以上必要」を満たす局面で使う。
   - 自分の通常配置を手放してでも、相手に反転を強要できる接触点で使う。
