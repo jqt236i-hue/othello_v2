@@ -122,6 +122,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'ROBOT_VACUUM',
         'SNIPER',
         'STONE_SALVATION_GOD',
+        'THEORY_INCARNATION',
         'TIME_STOP',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_HYPERACTIVE',

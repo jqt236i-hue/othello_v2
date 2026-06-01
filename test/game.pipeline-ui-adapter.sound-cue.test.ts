@@ -439,6 +439,24 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
+  test('理論の化身の持続切れ通常石化は special_reverted を再生する', () => {
+    const base = [{
+      type: 'status_removed',
+      phase: 7,
+      row: 4,
+      col: 4,
+      cause: 'SYSTEM',
+      reason: 'duration_end',
+      meta: { special: 'THEORY_INCARNATION', owner: 'black', reason: 'duration_end', reverted: true }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(7);
+  });
+
   test('trap_triggered は発動セルの flip phase で専用音を再生する', () => {
     const base = [{
       type: 'flip',
