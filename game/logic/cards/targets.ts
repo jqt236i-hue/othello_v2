@@ -42,7 +42,6 @@ function resolveTargetsModuleOrGlobal(id: string, globalKey: string): any {
 
 const SharedConstants = resolveTargetsModuleOrGlobal('../../../shared-constants', 'SharedConstants');
 const BoardUtils = resolveTargetsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-const CaptureSourceModule = resolveTargetsModuleOrGlobal('../cards-internal/capture-source', 'CardCaptureSource');
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
@@ -236,13 +235,6 @@ function getCaptureMarkerAt(cardState: any, row: number, col: number): any | nul
             : null;
         if (ruleClass === 'true_special_stone') return markerEntry;
         if (isGhostStoneStatusMarker(cardUtils, markerEntry)) return markerEntry;
-        if (
-            CaptureSourceModule &&
-            typeof CaptureSourceModule.resolveCaptureSourceInfo === 'function' &&
-            CaptureSourceModule.resolveCaptureSourceInfo(markerEntry)
-        ) {
-            return markerEntry;
-        }
         return null;
     }
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
@@ -320,26 +312,7 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
 
 function getCaptureWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
     const targets = getTemptWillTargets(cardState, gameState, playerKey);
-    const seen = new Set(targets.map((target) => `${target.row},${target.col}`));
-    const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    forEachBoardShapeCell(gameState, (row, col) => {
-        const key = `${row},${col}`;
-        if (seen.has(key)) return;
-        if (getCellValue(gameState, row, col) === P_EMPTY) return;
-        const markerEntry = getCaptureMarkerAt(cardState, row, col);
-        if (!markerEntry) return;
-        const marker = markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
-        if (marker && marker.owner && marker.owner !== opponentKey) return;
-        seen.add(key);
-        targets.push({ row, col });
-    });
-    if (!CaptureSourceModule || typeof CaptureSourceModule.resolveCaptureSourceInfo !== 'function') {
-        return targets.filter((target) => !!getCaptureMarkerAt(cardState, target.row, target.col));
-    }
-    return targets.filter((target) => {
-        const markerEntry = getCaptureMarkerAt(cardState, target.row, target.col);
-        return !!CaptureSourceModule.resolveCaptureSourceInfo(markerEntry);
-    });
+    return targets.filter((target) => !!getCaptureMarkerAt(cardState, target.row, target.col));
 }
 
 export = {
