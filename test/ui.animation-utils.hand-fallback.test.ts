@@ -246,6 +246,94 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
+  test('playHandAnimation uses 30 percent faster placement motion durations', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    board.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 480,
+      height: 480,
+      right: 480,
+      bottom: 480
+    });
+    cell.getBoundingClientRect = () => ({
+      left: 180,
+      top: 180,
+      width: 60,
+      height: 60,
+      right: 240,
+      bottom: 240
+    });
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = new Promise((resolve) => {
+      mod.playHandAnimation(global.BLACK, 0, 0, resolve);
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+    await expect(promise).resolves.toBeUndefined();
+
+    const transformDurations = animateMock.mock.calls
+      .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
+      .map((call) => call[1].duration);
+
+    expect(transformDurations).toEqual([198, 74, 148]);
+  });
+
+  test('playDrawCardHandAnimation uses 30 percent faster draw motion durations', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const deck = document.getElementById('deck-black');
+    const hand = document.getElementById('hand-black');
+    deck.getBoundingClientRect = () => ({
+      left: 300,
+      top: 520,
+      width: 120,
+      height: 160,
+      right: 420,
+      bottom: 680
+    });
+    hand.getBoundingClientRect = () => ({
+      left: 180,
+      top: 560,
+      width: 180,
+      height: 120,
+      right: 360,
+      bottom: 680
+    });
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+    await expect(promise).resolves.toBeUndefined();
+
+    const transformDurations = animateMock.mock.calls
+      .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
+      .map((call) => call[1].duration);
+
+    expect(transformDurations).toEqual([98, 252, 154]);
+  });
+
   test('playClearHandAnimation initializes staged reveal state with zero visible cards', async () => {
     const hand = document.getElementById('hand-black');
     hand.innerHTML = '<div class="card-item visible"></div><div class="card-item visible"></div>';
@@ -347,10 +435,10 @@ describe('animation-utils hand fallback', () => {
       drawPromise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
     });
 
-    await jest.advanceTimersByTimeAsync(550);
+    await jest.advanceTimersByTimeAsync(400);
     expect(document.querySelector('.held-draw-card')).toBeNull();
 
-    await jest.advanceTimersByTimeAsync(350);
+    await jest.advanceTimersByTimeAsync(250);
     let queuedDrawCard = null;
     for (let i = 0; i < 5; i++) {
       await Promise.resolve();
