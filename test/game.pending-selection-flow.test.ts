@@ -1750,6 +1750,66 @@ describe('pending selection flow contracts', () => {
     expect(global.isCardAnimating).toBe(false);
   });
 
+  test('board shrink final selection releases settlement lock before waiting for playback idle', async () => {
+    const playbackStateManager = attachPlaybackStateManager();
+    global.MATCH_MODE = 'local';
+    global.cardState = {
+      turnIndex: 5,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_SHRINK_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_shrink_god_01',
+          firstTarget: { row: 0, col: 0 }
+        },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 9,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { black: null, white: null }
+        },
+        nextGameState: { ...global.gameState },
+        playbackEvents: [{ type: 'status_applied' }],
+        rawEvents: [{ type: 'board_shrink_selected', applied: true, completed: true }]
+      }))
+    };
+    global.emitCardStateChange = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.waitForPlaybackIdle = jest.fn(() => (
+      playbackStateManager.hasSelectionSettlementLock()
+        ? new Promise(() => {})
+        : Promise.resolve()
+    ));
+
+    const result = await Promise.race([
+      BoardShrinkEffects.handleBoardShrinkSelection(0, 1, 'black'),
+      new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: 'timeout' }), 50))
+    ]);
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'BOARD_SHRINK_GOD'
+    }));
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(playbackStateManager.hasSelectionSettlementLock()).toBe(false);
+  });
+
   test('syncPendingSelectionActionCache prunes stale cache while keeping matching multi-stage pending type', () => {
     global.cardState = { turnIndex: 9 };
     global.ActionManager = {

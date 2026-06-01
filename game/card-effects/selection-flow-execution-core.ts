@@ -152,6 +152,12 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
         actionType,
         source: 'selection_flow_pending_execution'
     });
+    let selectionSettlementLockReleased = false;
+    function releaseSelectionSettlementLock() {
+        if (selectionSettlementLockReleased) return false;
+        selectionSettlementLockReleased = true;
+        return deps.endSelectionSettlementLock(selectionSettlementLockToken);
+    }
     const ownsSelectionCardAnimating = allowSelectionEntryDuringPlayback !== true;
     deps.setSelectionProcessing(true);
     if (ownsSelectionCardAnimating) {
@@ -493,8 +499,8 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             playbackEvents
         };
     } finally {
-        deps.endSelectionSettlementLock(selectionSettlementLockToken);
         if (shouldFinalize) {
+            releaseSelectionSettlementLock();
             try {
                 const finalizeOptions = Object.assign({
                     playerKey,
@@ -530,6 +536,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             deps.setSelectionProcessing(false);
             deps.setSelectionCardAnimating(false);
         }
+        releaseSelectionSettlementLock();
     }
 }
 
