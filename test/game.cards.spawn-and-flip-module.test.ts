@@ -5,6 +5,11 @@ function createBoard(rows = 8, cols = 8, fill = 0) {
 }
 
 describe('cards spawn-and-flip module', () => {
+  test('registers runtime global for browser-loaded consumers', () => {
+    expect(globalThis.CardSpawnAndFlip).toBeTruthy();
+    expect(globalThis.CardSpawnAndFlip.spawnAndFlipBatch).toBe(spawnAndFlipBatch);
+  });
+
   test('preserves spawn bookkeeping and dedupes flipped output inside a spawn block', () => {
     const cardState = {
       markers: [
@@ -79,5 +84,39 @@ describe('cards spawn-and-flip module', () => {
     });
     expect(gameState.board[1][1]).toBe(-1);
     expect(gameState.board[1][2]).toBe(-1);
+  });
+
+  test('falls back to expansion-cell writes when target lives outside the main board', () => {
+    const gameState = {
+      board: createBoard(4, 4),
+      boardExpansion: {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        cells: [{ side: 'top', row: -1, col: 0, owner: 0 }]
+      }
+    };
+
+    const result = spawnAndFlipBatch(
+      {},
+      gameState,
+      'black',
+      1,
+      [{ row: -1, col: 0 }],
+      'BREEDING',
+      'breeding_spawned',
+      { row: 0, col: 0 },
+      {
+        getCardContext: () => ({ protectedStones: [] }),
+        getFlipsWithContext: () => []
+      }
+    );
+
+    expect(result).toEqual({
+      spawned: [{ row: -1, col: 0, anchorRow: 0, anchorCol: 0, stoneId: undefined }],
+      flipped: []
+    });
+    expect(gameState.boardExpansion.cells[0]).toEqual({ side: 'top', row: -1, col: 0, owner: 1 });
   });
 });

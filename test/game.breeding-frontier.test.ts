@@ -188,4 +188,38 @@ describe('BREEDING_WILL frontier propagation', () => {
     expect(immediate.spawned[0]).toMatchObject({ row: 3, col: 9, anchorRow: 3, anchorCol: 10 });
     expect(gameState.board[3][9]).toBe(1);
   });
+
+  test('fallback spawnAndFlip writes into expansion destination when BoardOps is absent', () => {
+    const CardBreeding = require('../game/logic/cards/breeding.ts');
+    const cardState = {
+      markers: [{
+        id: 401,
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'BREEDING', remainingOwnerTurns: BREEDING_OWNER_TURNS }
+      }]
+    };
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardExpansion: {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        cells: [{ side: 'top', row: -1, col: -1, owner: 0 }]
+      }
+    };
+    gameState.board[0][0] = 1;
+
+    const immediate = CardBreeding.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 0, 0, { random: () => 0.0 }, {
+      getCardContext: () => ({ protectedStones: [] }),
+      getFlipsWithContext: () => []
+    });
+
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: -1, col: -1, anchorRow: 0, anchorCol: 0 });
+    expect(gameState.boardExpansion.cells[0]).toEqual({ side: 'top', row: -1, col: -1, owner: 1 });
+  });
 });

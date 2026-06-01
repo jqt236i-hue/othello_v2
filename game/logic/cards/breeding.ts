@@ -162,6 +162,21 @@ interface BreedingRoot {
     CardBreeding?: BreedingModuleApi;
 }
 
+function _resolveSpawnAndFlipRuntimeModule(root: BreedingRoot): BreedingSpawnAndFlipModule | null {
+    if (root && root.CardSpawnAndFlip && typeof root.CardSpawnAndFlip.spawnAndFlipBatch === 'function') {
+        return root.CardSpawnAndFlip;
+    }
+    try {
+        if (typeof require === 'function') {
+            const requiredModule = require('../cards-internal/spawn-and-flip');
+            if (requiredModule && typeof requiredModule.spawnAndFlipBatch === 'function') {
+                return requiredModule;
+            }
+        }
+    } catch (_error) { /* ignore */ }
+    return null;
+}
+
 const CardBreeding = /**
  * @file breeding.js
  * @description Breeding effect helpers (Shared between Browser and Headless)
@@ -169,7 +184,7 @@ const CardBreeding = /**
 
 (function (root: BreedingRoot, factory: (constants: BreedingSharedConstants, boardUtils: BreedingSharedBoardUtilsModule | null, randomSource: BreedingRandomSourceModule | null, spawnAndFlipModule: BreedingSpawnAndFlipModule | null) => BreedingModuleApi) {
     if (root && root.SharedConstants) {
-        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, root.CardSpawnAndFlip || null);
+        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, _resolveSpawnAndFlipRuntimeModule(root));
     }
     if (typeof module === 'object' && module.exports) {
         return module.exports = factory(
@@ -180,7 +195,7 @@ const CardBreeding = /**
         );
     } else {
         if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
-        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, root.CardSpawnAndFlip || null);
+        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, _resolveSpawnAndFlipRuntimeModule(root));
     }
 }(typeof self !== 'undefined' ? self as unknown as BreedingRoot : globalThis as unknown as BreedingRoot, function (SharedConstants: BreedingSharedConstants, SharedBoardUtils: BreedingSharedBoardUtilsModule | null, RandomSourceModule: BreedingRandomSourceModule | null, SpawnAndFlipModule: BreedingSpawnAndFlipModule | null) {
     'use strict';

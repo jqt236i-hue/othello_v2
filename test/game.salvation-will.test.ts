@@ -69,7 +69,7 @@ describe('SALVATION_WILL（救済の意志）', () => {
     expect(salvationDef).toBeTruthy();
     expect(salvationDef.id).toBe('salvation_01');
     expect(salvationDef.type).toBe('SALVATION_WILL');
-    expect(Number(salvationDef.cost)).toBe(17);
+    expect(Number(salvationDef.cost)).toBe(10);
   });
 
   test('使用不可: 直前の相手ターンで破壊された石が0枚の場合', () => {
