@@ -17,6 +17,12 @@ describe('legal hint styles', () => {
     expect(timeStopGlowBlock?.[0]).not.toMatch(/background-color:/);
   });
 
+  test('styles-board.css gives expanded legal hint cells enough specificity to override their base background', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+
+    expect(css).toMatch(/#board\s+\.cell-expanded\.legal,\s*#board\s+\.cell-expanded\.legal-free,\s*#board\s+\.cell-expanded\.selectable-friendly\s*\{[\s\S]*?background-color:\s*#00695c;[\s\S]*?box-shadow:\s*inset 0 0 15px rgba\(100,\s*255,\s*218,\s*0\.1\),\s*inset 1px 1px 4px rgba\(0,\s*0,\s*0,\s*0\.6\);[\s\S]*?\}/);
+  });
+
   test('styles-responsive.css does not restore legal hint circle hover styles', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-responsive.css'), 'utf8');
 

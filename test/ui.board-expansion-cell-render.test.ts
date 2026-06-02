@@ -134,6 +134,33 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(boardEl.classList.contains('board-expanded-bottom')).toBe(true);
   });
 
+  test('marks the left-top expansion corner as legal-free during FREE_PLACEMENT', () => {
+    const diff = require('../ui/diff-renderer.js');
+    diff.resetRenderStats();
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'FREE_PLACEMENT',
+      stage: 'awaitPlace',
+      cardId: 'free_placement_01'
+    };
+    global.gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: global.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'left', row: -1, col: -1, owner: global.EMPTY }
+      ]
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    expect(cornerCell).toBeTruthy();
+    expect(cornerCell.classList.contains('legal-free')).toBe(true);
+    expect(cornerCell.classList.contains('legal')).toBe(false);
+  });
+
   test('adds fade-in class only to newly appeared expansion cells', () => {
     const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
