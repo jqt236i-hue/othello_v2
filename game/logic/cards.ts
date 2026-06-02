@@ -2387,6 +2387,9 @@ const {
             applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
                 ? BoardOpsModule.applyHoleAt
                 : null,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock
                 : null,
@@ -2396,8 +2399,7 @@ const {
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-            isAbsoluteProtectedCell,
-            isFrozenCell
+            isAbsoluteProtectedCell
         });
     }
 
@@ -2411,6 +2413,9 @@ const {
             applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
                 ? BoardOpsModule.applyHoleAt
                 : null,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock
                 : null,
@@ -2420,8 +2425,7 @@ const {
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-            isAbsoluteProtectedCell,
-            isFrozenCell
+            isAbsoluteProtectedCell
         });
     }
 
@@ -2447,6 +2451,9 @@ const {
                 : null,
             applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
                 ? BoardOpsModule.applyHoleAt
+                : null,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
                 : null,
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock

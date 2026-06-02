@@ -92,6 +92,37 @@ describe('METEOR_WILL（隕石）', () => {
     expect(meteorTargets.some((t) => t.row === 5 && t.col === -1)).toBe(false);
   });
 
+  test('絶対保護マスは隕石の候補に出ず、直接指定してもpendingは残る', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[3][3] = Core.BLACK;
+    cardState.markers.push({
+      id: 'abs_1',
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+    });
+    cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'meteor_01'
+    };
+
+    const targetsBefore = CardLogic.getMeteorTargets(cardState, gameState, 'black');
+    expect(targetsBefore.some((t) => t.row === 3 && t.col === 3)).toBe(false);
+
+    const res = CardLogic.applyMeteorWill(cardState, gameState, 'black', 3, 3);
+    expect(res).toEqual({ applied: false, reason: 'invalid_target' });
+    expect(cardState.pendingEffectByPlayer.black).toMatchObject({ type: 'METEOR_WILL' });
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
+    expect((cardState.markers || []).some((m) => m && m.row === 3 && m.col === 3 && m.data && m.data.type === 'METEOR_HOLE')).toBe(false);
+  });
+
   test('封鎖済みセルにも隕石を落とせる（封鎖を消去して穴化）', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
@@ -184,6 +215,21 @@ describe('METEOR_WILL（隕石）', () => {
     expect(originMarkers.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
     expect(originMarkers.some((m) => m.data && m.data.type === 'LIVING_WILL')).toBe(false);
     expect((cardState.markers || []).some((m) => m && m.row === 5 && m.col === 5 && m.data && m.data.type === 'LIVING_WILL')).toBe(false);
+
+    const visualEvents = (cardState.presentationEvents || []).filter((event) => (
+      event &&
+      (
+        (event.type === 'DESTROY' && event.cause === 'METEOR_WILL') ||
+        (event.type === 'STATUS_APPLIED' && event.meta && event.meta.special === 'METEOR_HOLE') ||
+        (event.type === 'STATUS_REMOVED' && event.cause === 'LIVING_WILL') ||
+        ((event.type === 'SPAWN' || event.type === 'CHANGE') && event.cause === 'LIVING_WILL')
+      )
+    ));
+    expect(visualEvents.map((event) => event.type)).toEqual(['DESTROY', 'STATUS_APPLIED', 'STATUS_REMOVED', 'SPAWN']);
+    expect(visualEvents[0].effectBlockId).toBeTruthy();
+    expect(visualEvents[1].effectBlockId).toBe(visualEvents[0].effectBlockId);
+    expect(visualEvents[2].effectBlockId).toBe(visualEvents[0].effectBlockId);
+    expect(visualEvents[3].effectBlockId).toBe(visualEvents[0].effectBlockId);
   });
 
   test('ターン進行経由でも生きる意志付きの石へ隕石を使える', () => {

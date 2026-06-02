@@ -180,6 +180,55 @@ describe('盤面縮小 / 盤面縮小神', () => {
     expect(CardLogic.isBlockedCell(cardState, 0, 0, gameState)).toBe(true);
   });
 
+  test('盤面縮小は生きる意志付きの石を穴化してから別マスへ復活させる', () => {
+    const rng = createPrng(0);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[0][0] = Core.BLACK;
+    gameState.board[5][5] = Core.EMPTY;
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'LIVING_WILL',
+      stage: 'selectTarget',
+      cardId: 'living_will_01'
+    };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 0, 0)).toMatchObject({ applied: true });
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedCount: 2,
+      maxSelections: 3,
+      selectedTargets: [{ row: 0, col: 1 }, { row: 0, col: 2 }]
+    };
+
+    const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 0);
+    expect(finalRes).toEqual(expect.objectContaining({
+      applied: true,
+      completed: true
+    }));
+    expect(gameState.board[0][0]).toBe(Core.EMPTY);
+    expect(gameState.board[5][5]).toBe(Core.BLACK);
+    expect(getMarkersAt(cardState, 0, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+
+    const visualEvents = (cardState.presentationEvents || []).filter((event) => (
+      event &&
+      (
+        (event.type === 'DESTROY' && event.cause === 'BOARD_SHRINK_WILL' && event.row === 0 && event.col === 0) ||
+        (event.type === 'STATUS_APPLIED' && event.row === 0 && event.col === 0 && event.meta && event.meta.special === 'METEOR_HOLE') ||
+        (event.type === 'STATUS_REMOVED' && event.cause === 'LIVING_WILL') ||
+        ((event.type === 'SPAWN' || event.type === 'CHANGE') && event.cause === 'LIVING_WILL')
+      )
+    ));
+    expect(visualEvents.map((event) => event.type)).toEqual(['DESTROY', 'STATUS_APPLIED', 'STATUS_REMOVED', 'SPAWN']);
+    expect(visualEvents[1].meta.visualVariant).toBe('BOARD_FRAME');
+  });
+
   test('盤面縮小神は角から辺方向を選び、絶対保護を残して1列を穴化する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
@@ -238,6 +287,56 @@ describe('盤面縮小 / 盤面縮小神', () => {
       }
     }
     expect(getMarkersAt(cardState, 0, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+  });
+
+  test('盤面縮小神も生きる意志付きの石を穴化してから別マスへ復活させる', () => {
+    const rng = createPrng(0);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[0][0] = Core.BLACK;
+    gameState.board[5][5] = Core.EMPTY;
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'LIVING_WILL',
+      stage: 'selectTarget',
+      cardId: 'living_will_01'
+    };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 0, 0)).toMatchObject({ applied: true });
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01'
+    };
+
+    expect(CardLogic.applyBoardShrinkGod(cardState, gameState, 'black', 0, 0)).toEqual(expect.objectContaining({
+      applied: true,
+      completed: false
+    }));
+    const finalRes = CardLogic.applyBoardShrinkGod(cardState, gameState, 'black', 0, 1);
+    expect(finalRes).toEqual(expect.objectContaining({
+      applied: true,
+      completed: true
+    }));
+    expect(gameState.board[0][0]).toBe(Core.EMPTY);
+    expect(gameState.board[5][5]).toBe(Core.BLACK);
+    expect(getMarkersAt(cardState, 0, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+
+    const visualEvents = (cardState.presentationEvents || []).filter((event) => (
+      event &&
+      (
+        (event.type === 'DESTROY' && event.cause === 'BOARD_SHRINK_GOD' && event.row === 0 && event.col === 0) ||
+        (event.type === 'STATUS_APPLIED' && event.row === 0 && event.col === 0 && event.meta && event.meta.special === 'METEOR_HOLE') ||
+        (event.type === 'STATUS_REMOVED' && event.cause === 'LIVING_WILL') ||
+        ((event.type === 'SPAWN' || event.type === 'CHANGE') && event.cause === 'LIVING_WILL')
+      )
+    ));
+    expect(visualEvents.map((event) => event.type)).toEqual(['DESTROY', 'STATUS_APPLIED', 'STATUS_REMOVED', 'SPAWN']);
+    expect(visualEvents[1].meta.visualVariant).toBe('BOARD_FRAME');
   });
 
   test('盤面拡張神でできたL字拡張では、盤面縮小神の1手目は真の外角だけを角候補にする', () => {

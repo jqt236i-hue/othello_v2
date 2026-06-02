@@ -47,9 +47,9 @@ interface ShrinkDeps {
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
     applyHoleAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, meta: any): any;
+    applyCellRemovalAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, options: any): any;
     runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     isAbsoluteProtectedCell?(cardState: CardState, row: number, col: number): boolean;
-    isFrozenCell?(cardState: CardState, row: number, col: number): boolean;
     random?: { random(): number };
     getBoardShrinkTargets?(cardState: CardState, gameState: GameState, playerKey: string): Target[];
     getBoardShrinkGodTargets?(cardState: CardState, gameState: GameState, playerKey: string): Array<Target & { lineCells?: Target[]; lineKey?: string }>;
@@ -111,8 +111,8 @@ function applyHoleAt(cardState: CardState, gameState: GameState, playerKey: stri
     const removeMarkersAt = resolvedDeps.removeMarkersAt || (() => {});
     const addMarker = resolvedDeps.addMarker || (() => false);
     const applyHoleAtDep = resolvedDeps.applyHoleAt || null;
+    const applyCellRemovalAtDep = resolvedDeps.applyCellRemovalAt || null;
     const isAbsoluteProtectedCell = resolvedDeps.isAbsoluteProtectedCell || (() => false);
-    const isFrozenCell = resolvedDeps.isFrozenCell || (() => false);
     const random = resolvedDeps.random || null;
     const cardType = typeof resolvedOptions.cardType === 'string' && resolvedOptions.cardType
         ? resolvedOptions.cardType
@@ -121,9 +121,37 @@ function applyHoleAt(cardState: CardState, gameState: GameState, playerKey: stri
         ? resolvedOptions.destroyReason
         : 'board_shrink_cell_destroy';
 
-    if (isFrozenCell(cardState, row, col)) {
-        return { applied: false, reason: 'frozen_protected', row, col };
+    if (typeof applyCellRemovalAtDep === 'function') {
+        const result = applyCellRemovalAtDep(
+            cardState,
+            gameState,
+            row,
+            col,
+            playerKey,
+            cardType,
+            destroyReason,
+            {
+                removalPolicy: 'absolute_only',
+                removalKind: 'meteor_hole',
+                random,
+                randomSource: random,
+                holeMeta: {
+                    visualVariant: BOARD_SHRINK_HOLE_VISUAL_VARIANT
+                }
+            }
+        );
+        if (!result || !result.applied) {
+            return {
+                applied: false,
+                reason: (result && result.reason) || 'hole_failed',
+                row,
+                col,
+                destroyed: !!(result && result.destroyed)
+            };
+        }
+        return { applied: true, row, col, destroyed: !!result.destroyed };
     }
+
     if (isAbsoluteProtectedCell(cardState, row, col)) {
         return { applied: false, reason: 'absolute_protected', row, col };
     }
@@ -144,7 +172,7 @@ function applyHoleAt(cardState: CardState, gameState: GameState, playerKey: stri
                 { ignoreGuard: true, ignoreRegen: true, random, randomSource: random }
             );
             destroyed = isDestroyResolved(result);
-            if (result && (result.reason === 'out_of_board' || result.reason === 'absolute_protected' || result.reason === 'frozen_protected')) {
+            if (result && (result.reason === 'out_of_board' || result.reason === 'absolute_protected')) {
                 return { applied: false, reason: result.reason, row, col };
             }
         }

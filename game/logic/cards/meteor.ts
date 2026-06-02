@@ -43,6 +43,7 @@ interface MeteorDeps {
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
     applyHoleAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, meta: any): any;
+    applyCellRemovalAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, options: any): any;
     runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     random?: { random(): number };
 }
@@ -71,6 +72,7 @@ function applyMeteorWill(cardState: CardState, gameState: GameState, playerKey: 
     const removeMarkersAt = deps.removeMarkersAt || (() => {});
     const addMarker = deps.addMarker || (() => false);
     const applyHoleAt = deps.applyHoleAt || null;
+    const applyCellRemovalAt = deps.applyCellRemovalAt || null;
     const runCellRemovalBlock = deps.runCellRemovalBlock || null;
     const random = deps.random || null;
 
@@ -78,9 +80,41 @@ function applyMeteorWill(cardState: CardState, gameState: GameState, playerKey: 
     const allowed = Array.isArray(targets) && targets.some((target) => target && target.row === row && target.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
 
+    if (typeof applyCellRemovalAt === 'function') {
+        const removeCell = () => applyCellRemovalAt(
+            cardState,
+            gameState,
+            row,
+            col,
+            playerKey,
+            'METEOR_WILL',
+            'meteor_cell_destroy',
+            {
+                removalPolicy: 'absolute_only',
+                removalKind: 'meteor_hole',
+                random,
+                randomSource: random
+            }
+        );
+        const result = (typeof runCellRemovalBlock === 'function')
+            ? runCellRemovalBlock(cardState, gameState, removeCell, { randomSource: random })
+            : removeCell();
+        if (!result || !result.applied) {
+            return {
+                applied: false,
+                reason: (result && result.reason) || 'hole_failed',
+                row,
+                col,
+                destroyed: !!(result && result.destroyed)
+            };
+        }
+
+        (cardState as any).pendingEffectByPlayer[playerKey] = null;
+        return { applied: true, row, col, destroyed: !!result.destroyed };
+    }
+
     const cellValue = getCellValueForCard(gameState, row, col);
     if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-
     let destroyed = false;
     const applyHoleOnly = () => {
         if (typeof applyHoleAt === 'function') {

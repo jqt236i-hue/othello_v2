@@ -312,7 +312,6 @@ function hasShrinkGodHoleCandidate(cardState: CardState, lineDescriptor: LineDes
         cell &&
         Number.isInteger(cell.row) &&
         Number.isInteger(cell.col) &&
-        !isFrozenCell(cardState, cell.row, cell.col) &&
         !isAbsoluteProtectedCell(cardState, cell.row, cell.col)
     ));
 }
@@ -1284,7 +1283,7 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isMeteorHoleCell(cardState, r, c)) return;
-        if (isFrozenCell(cardState, r, c)) return;
+        if (isAbsoluteProtectedCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -1306,7 +1305,7 @@ function getBoardShrinkTargets(cardState: CardState, gameState: GameState, playe
         .filter((cell: any) => {
             if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) return false;
             if (selectedKeys.has(toTargetKey(cell.row, cell.col))) return false;
-            return !isFrozenCell(cardState, cell.row, cell.col);
+            return true;
         })
         .map((cell: any) => ({ row: cell.row, col: cell.col }));
     return filterBoardShrinkContinuousTargets(selectedTargets, perimeterTargets);

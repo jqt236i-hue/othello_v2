@@ -1163,6 +1163,19 @@ function _removeOccupiedCellForCellRemoval(
     destroyMeta.removalKind = removalKind;
     if (removalCause) destroyMeta.removalCause = removalCause;
 
+    const cardLivingWillModule = getCardLivingWillModule();
+    const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
+        ? cardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
+        : null;
+    const shouldRestoreLivingWillAfterHole = !!(
+        livingWillMarker &&
+        cardLivingWillModule &&
+        typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function'
+    );
+    if (shouldRestoreLivingWillAfterHole) {
+        destroyMeta.livingWillTriggered = true;
+    }
+
     setStoneIdAt(cardState, gameState, row, col, null);
     setCellValue(gameState, row, col, EMPTY);
     const cardMarkers = getCardMarkersModule();
@@ -1185,24 +1198,43 @@ function _removeOccupiedCellForCellRemoval(
         meta: destroyMeta
     });
 
-    const activeTurnPlayer = cardState._activeTurnPlayer;
-    const beneficiaryPlayer = activeTurnPlayer === 'black'
-        ? 'white'
-        : (activeTurnPlayer === 'white' ? 'black' : null);
-    if (beneficiaryPlayer) {
-        if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
-            cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
-        }
-        if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
-            cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
-        }
-        cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
-            row,
-            col,
-            owner: ownerBeforeKey,
-            wasSpecial: wasSpecialStoneForSalvation
+    if (shouldRestoreLivingWillAfterHole) {
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, {
+            reason: 'cell_removed',
+            cellRemoval: true,
+            removalPolicy,
+            removalKind,
+            livingWillRestorePending: true,
+            pendingLivingWillCellRemovalRestore: {
+                marker: livingWillMarker,
+                from: { row, col },
+                owner: ownerBeforeKey,
+                cause: cause || null,
+                reason: reason || null,
+                trigger: {
+                    triggerKind: 'destroy',
+                    sourceRow: row,
+                    sourceCol: col,
+                    cause: cause || null,
+                    reason: reason || null
+                },
+                random: (options && (options.random || options.randomSource)) || null,
+                salvationFallback: {
+                    wasStoneSalvationGod,
+                    wasSpecial: wasSpecialStoneForSalvation,
+                    destroyMeta
+                }
+            }
         });
     }
+
+    _recordCellRemovalForSalvationFallback(cardState, {
+        from: { row, col },
+        owner: ownerBeforeKey,
+        salvationFallback: {
+            wasSpecial: wasSpecialStoneForSalvation
+        }
+    });
 
     const stoneSalvationGodReviveQueued = wasStoneSalvationGod
         ? null
@@ -1213,6 +1245,91 @@ function _removeOccupiedCellForCellRemoval(
         removalPolicy,
         removalKind
     }, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
+        stoneSalvationGodReviveQueued: true
+    } : {}));
+}
+
+function _recordCellRemovalForSalvationFallback(cardState: any, pending: any): void {
+    if (!pending || !pending.from) return;
+    const activeTurnPlayer = cardState._activeTurnPlayer;
+    const beneficiaryPlayer = activeTurnPlayer === 'black'
+        ? 'white'
+        : (activeTurnPlayer === 'white' ? 'black' : null);
+    if (!beneficiaryPlayer) return;
+    if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+        cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
+    }
+    if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
+        cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
+    }
+    cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
+        row: pending.from.row,
+        col: pending.from.col,
+        owner: pending.owner,
+        wasSpecial: !!(pending.salvationFallback && pending.salvationFallback.wasSpecial)
+    });
+}
+
+function _restorePendingLivingWillForCellRemoval(cardState: any, gameState: any, destroyResult: any): any {
+    const pending = destroyResult && destroyResult.pendingLivingWillCellRemovalRestore;
+    if (!pending || !pending.marker) return destroyResult;
+    const cardLivingWillModule = getCardLivingWillModule();
+    const livingWillResult = cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function'
+        ? cardLivingWillModule.restoreFromLivingWillSnapshot(
+            cardState,
+            gameState,
+            pending.marker,
+            pending.trigger || {
+                triggerKind: 'destroy',
+                sourceRow: pending.from && pending.from.row,
+                sourceCol: pending.from && pending.from.col,
+                cause: pending.cause || null,
+                reason: pending.reason || null
+            },
+            {
+                BoardOps: {
+                    spawnAt,
+                    changeAt,
+                    getCellValue,
+                    getExpansionDescriptors,
+                    emitPresentationEvent
+                },
+                random: pending.random || null
+            }
+        )
+        : null;
+    if (livingWillResult && livingWillResult.restored) {
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
+            reason: 'living_will_restored',
+            cellRemoval: true,
+            removalPolicy: destroyResult && destroyResult.removalPolicy,
+            removalKind: destroyResult && destroyResult.removalKind,
+            from: pending.from,
+            to: livingWillResult.destination || pending.from,
+            owner: livingWillResult.owner || pending.owner,
+            livingWillRevived: true,
+            relocated: !!livingWillResult.relocated
+        });
+    }
+
+    _recordCellRemovalForSalvationFallback(cardState, pending);
+    const fallback = pending.salvationFallback || {};
+    const queued = fallback.wasStoneSalvationGod
+        ? null
+        : _queueDestroyedStoneForStoneSalvationGod(
+            cardState,
+            pending.from && pending.from.row,
+            pending.from && pending.from.col,
+            pending.owner,
+            pending.cause || null,
+            pending.reason || null,
+            fallback.destroyMeta || {}
+        );
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, Object.assign({}, destroyResult || {}, {
+        reason: 'cell_removed',
+        livingWillRestorePending: false,
+        pendingLivingWillCellRemovalRestore: null
+    }, queued && queued.queued ? {
         stoneSalvationGodReviveQueued: true
     } : {}));
 }
@@ -1257,6 +1374,9 @@ function applyCellRemovalAt(
             destroyed,
             destroyResult
         };
+    }
+    if (destroyResult && destroyResult.pendingLivingWillCellRemovalRestore) {
+        destroyResult = _restorePendingLivingWillForCellRemoval(cardState, gameState, destroyResult);
     }
     return { applied: true, row, col, destroyed, destroyResult, holeResult };
 }

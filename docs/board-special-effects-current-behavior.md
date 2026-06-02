@@ -121,7 +121,7 @@
 
 **発生する presentation event**
 - `DESTROY`。Ghost/増殖/Regen で破壊が実際には空化しない場合も、meta に `blockedByGhost`, `proliferated`, `regenerated` などを付けた `DESTROY` が出る。
-- 隕石/盤面縮小のセル消滅は `DESTROY` の後に `STATUS_APPLIED` (`special: METEOR_HOLE`) が続く。
+- 隕石/盤面縮小のセル消滅は `DESTROY` の後に `STATUS_APPLIED` (`special: METEOR_HOLE`) が続く。生きる意志で復活する場合も、穴化の `STATUS_APPLIED` 後に `STATUS_REMOVED` / `SPAWN` または `CHANGE` が続く。
 - 持続切れ・通常石化は `DESTROY` ではなく `STATUS_REMOVED`。
 
 **playback phase の決まり方**
@@ -379,7 +379,10 @@
    - reason: `meteor_cell_destroy`
 2. `STATUS_APPLIED`
    - meta.special: `METEOR_HOLE`
-3. `SPAWN`（救済神がいる場合のみ）
+3. `STATUS_REMOVED` / `SPAWN` または `CHANGE`（生きる意志で復活する場合のみ）
+   - cause: `LIVING_WILL`
+   - reason: `living_will_consumed` / `living_will_restored`
+4. `SPAWN`（救済神がいる場合のみ）
    - cause: `STONE_SALVATION_GOD`
    - reason: `stone_salvation_god_revive`
 4. playback:
@@ -680,7 +683,7 @@
 - `_reviveDestroyedStoneByStoneSalvationGod()` は `spawnAt(..., 'STONE_SALVATION_GOD', 'stone_salvation_god_revive')` を呼び、meta に `sourceSpecial`, `revivedFromRow/Col`, `sourceRow/Col`, `sameTurnRevive`, `destroyedCause`, `destroyedReason` を入れる。
 - `runEffectBlock()` は default `rescueFlush !== false` で、外側 effect block 終了時に flush する。
 - `runDestroyBlock()` は外側 destroy block 終了時に flush する。
-- 隕石/盤面縮小は `DESTROY -> STATUS_APPLIED -> SPAWN` が `test/game.stone-salvation-god.test.ts` で確認されている。
+- 隕石/盤面縮小 + 救済神は `DESTROY -> STATUS_APPLIED -> SPAWN`、隕石/盤面縮小 + 生きる意志は `DESTROY -> STATUS_APPLIED -> STATUS_REMOVED -> SPAWN/CHANGE` がテストで確認されている。
 
 **presentation / playback / sound / animation**
 - raw presentation は `SPAWN`。
