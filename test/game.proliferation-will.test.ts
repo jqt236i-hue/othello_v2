@@ -41,6 +41,16 @@ function findProliferationMarker(cardState, row, col) {
   )) || null;
 }
 
+function expectNoGeneratedSpawnFlipTransientState(cardState) {
+  expect(Object.keys(cardState)).not.toEqual(expect.arrayContaining([
+    '_deferredGeneratedSpawnFlipQueue',
+    '_resolvedGeneratedSpawnFlipResults'
+  ]));
+  const serialized = JSON.stringify(cardState);
+  expect(serialized).not.toContain('_deferredGeneratedSpawnFlipQueue');
+  expect(serialized).not.toContain('_resolvedGeneratedSpawnFlipResults');
+}
+
 describe('PROLIFERATION_WILL（増殖の意志）', () => {
   test('配置時に増殖石マーカーが付く', () => {
     const { cardState, gameState } = createState();
@@ -114,6 +124,7 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     }
     gameState.board[3][3] = Shared.BLACK;
     gameState.board[2][2] = Shared.EMPTY;
+    gameState.board[2][4] = Shared.BLACK;
     cardState.markers.push({
       id: 1101,
       kind: 'specialStone',
@@ -143,6 +154,7 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     });
     expect(gameState.board[3][3]).toBe(Shared.BLACK);
     expect(gameState.board[2][2]).toBe(Shared.BLACK);
+    expect(gameState.board[2][3]).toBe(Shared.BLACK);
     expect(findProliferationMarker(cardState, 3, 3)).toBeTruthy();
     expect(findProliferationMarker(cardState, 2, 2)).toBeTruthy();
 
@@ -177,6 +189,54 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
       proliferationOriginCol: 3
     }));
     expect(presentationEvents.indexOf(destroyEvent)).toBeLessThan(presentationEvents.indexOf(spawnEvent));
+  });
+
+  test('turn pipeline 経由の増殖反転は生成石の持ち主に布石を入れる', () => {
+    const { cardState, gameState, prng } = createState([0]);
+
+    gameState.currentPlayer = Shared.WHITE;
+    gameState.turnNumber = 4;
+    cardState.charge.black = 0;
+    cardState.charge.white = 0;
+    cardState.chargeGainedTotal.black = 0;
+    cardState.chargeGainedTotal.white = 0;
+
+    for (let row = 2; row <= 4; row++) {
+      for (let col = 2; col <= 4; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[2][2] = Shared.EMPTY;
+    gameState.board[2][4] = Shared.BLACK;
+    cardState.markers.push({
+      id: 1102,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'PROLIFERATION' }
+    });
+    cardState.pendingEffectByPlayer.white = {
+      type: 'DESTROY_ONE_STONE',
+      stage: 'selectTarget',
+      cardId: 'destroy_one_stone_01'
+    };
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'white',
+      { type: 'place', destroyTarget: { row: 3, col: 3 } },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    expect(result.gameState.board[2][2]).toBe(Shared.BLACK);
+    expect(result.gameState.board[2][3]).toBe(Shared.BLACK);
+    expect(result.cardState.charge.black).toBe(1);
+    expect(result.cardState.chargeGainedTotal.black).toBe(1);
+    expect(result.cardState.charge.white).toBe(0);
   });
 
   test('周囲に空きが無い時は最も近い空きへ増殖する', () => {
@@ -523,6 +583,7 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
       event.targets.some((target) => target && target.soundKey === 'clone_spawn')
     ));
     expect(soundCue).toBeTruthy();
+    expectNoGeneratedSpawnFlipTransientState(result.cardState);
   });
 
   test('DESTROY_ONE_STONE on a proliferation stone hands off the turn after proliferation resolves', () => {

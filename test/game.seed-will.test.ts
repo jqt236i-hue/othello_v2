@@ -2,6 +2,7 @@ import * as CardLogic from '../game/logic/cards.js';
 import * as Core from '../game/logic/core.js';
 import * as BoardOps from '../game/logic/board_ops.js';
 import * as SharedConstants from '../shared-constants.js';
+import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 
 function createPrng(randomValue = 0.5) {
   return {
@@ -26,7 +27,7 @@ function findSeedMarker(cardState, row, col) {
 }
 
 describe('SEED_WILL（種まきの意志）', () => {
-  test('カード使用で種をまき、5回目の自ターン開始で通常石が芽生えても反転しない', () => {
+  test('カード使用で種をまき、5回目の自ターン開始で通常石が芽生えると通常反転する', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'SEED_WILL');
     expect(def).toBeTruthy();
 
@@ -69,7 +70,36 @@ describe('SEED_WILL（種まきの意志）', () => {
 
     expect(findSeedMarker(cardState, 3, 2)).toBeNull();
     expect(gameState.board[3][2]).toBe(Core.BLACK);
-    expect(gameState.board[3][1]).toBe(Core.WHITE);
+    expect(gameState.board[3][1]).toBe(Core.BLACK);
+  });
+
+  test('turn start の芽生え反転でも布石と反転後追従処理を通す', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    cardState.charge.black = 0;
+    cardState.chargeGainedTotal.black = 0;
+
+    gameState.board = createEmptyBoard();
+    gameState.board[3][0] = Core.BLACK;
+    gameState.board[3][1] = Core.WHITE;
+    cardState.markers.push({
+      id: 71,
+      kind: 'specialStone',
+      row: 3,
+      col: 2,
+      owner: 'black',
+      data: { type: 'SEED', remainingOwnerTurns: 1 }
+    });
+
+    const events = [];
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', events, createPrng());
+
+    expect(findSeedMarker(cardState, 3, 2)).toBeNull();
+    expect(gameState.board[3][2]).toBe(Core.BLACK);
+    expect(gameState.board[3][1]).toBe(Core.BLACK);
+    expect(cardState.charge.black).toBe(1);
+    expect(cardState.chargeGainedTotal.black).toBe(1);
   });
 
   test('種マスに石が置かれると種が無効化される', () => {

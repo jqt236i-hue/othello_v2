@@ -63,12 +63,14 @@ const SharedBoardUtils = loadRuntimeModule('../../shared/shared-board-utils', 'S
 const CardMarkers = loadRuntimeModule('../logic/cards/markers', 'CardMarkers');
 const CardSelectors = loadRuntimeModule('../logic/cards/selectors', 'CardSelectors');
 const CardTargets = loadRuntimeModule('../logic/cards/targets', 'CardTargets');
+const CardFlips = loadRuntimeModule('../logic/cards/flips', 'CardFlips');
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS, BOARD_SIZE } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;
 const Markers = CardMarkers || {};
 const Selectors = CardSelectors || {};
 const Targets = CardTargets || {};
+const Flips = CardFlips || {};
 
 
 
@@ -402,8 +404,33 @@ const Targets = CardTargets || {};
 
     function getCardContext(cardState: any) {
         const specials = getSpecialMarkers(cardState);
+        const protectedStones = specials
+            .filter((s: any) => s.data && s.data.type === 'PROTECTED')
+            .map((s: any) => ({ row: s.row, col: s.col, owner: s.owner }));
         const absoluteProtectedStones = specials
             .filter((s: any) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
+            .map((s: any) => ({
+                row: s.row,
+                col: s.col,
+                owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
+            }));
+        const permaProtectedStones = specials
+            .filter((s: any) => {
+                if (!s.data) return false;
+                return (
+                    s.data.type === 'ABSOLUTE_PROTECTED' ||
+                    s.data.type === 'PERMA_PROTECTED' ||
+                    s.data.type === 'DRAGON' ||
+                    s.data.type === 'BREEDING' ||
+                    s.data.type === 'DESTROY_DRAGON' ||
+                    s.data.type === 'LIGHTNING' ||
+                    s.data.type === 'GLUTTONOUS' ||
+                    s.data.type === 'ULTIMATE_DESTROY_GOD' ||
+                    s.data.type === 'GUARD' ||
+                    s.data.type === 'STONE_SALVATION_GOD' ||
+                    s.data.type === 'FREEZE'
+                );
+            })
             .map((s: any) => ({
                 row: s.row,
                 col: s.col,
@@ -419,7 +446,9 @@ const Targets = CardTargets || {};
         }
 
         return {
+            protectedStones,
             absoluteProtectedStones,
+            permaProtectedStones,
             blockedCells
         };
     }
@@ -716,6 +745,28 @@ const Targets = CardTargets || {};
         return candidates;
     }
 
+    function getReverseWillTargets(cardState: any, gameState: any) {
+        if (!gameState || !Array.isArray(gameState.board)) return [];
+        if (!Flips || typeof Flips.getOccupiedOriginFlipsWithContext !== 'function') return [];
+        const context = getCardContext(cardState);
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (row: any, col: any, owner: any) => {
+            if (owner !== BLACK && owner !== WHITE) return;
+            const flips = Flips.getOccupiedOriginFlipsWithContext(gameState, row, col, owner, context);
+            if (!Array.isArray(flips) || flips.length === 0) return;
+            res.push({
+                row,
+                col,
+                owner: owner === BLACK ? 'black' : 'white',
+                flipCount: flips.length,
+                flips: flips.map((pos: any) => Array.isArray(pos)
+                    ? { row: pos[0], col: pos[1] }
+                    : { row: pos.row, col: pos.col })
+            });
+        });
+        return res;
+    }
+
     function pickTabooReverseFlips(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps: any = {}) {
         const candidates = typeof deps.getTabooReverseCandidates === 'function'
             ? deps.getTabooReverseCandidates(cardState, gameState, playerKey, row, col)
@@ -759,6 +810,7 @@ const Targets = CardTargets || {};
         };
         return {
             getDestroyTargets,
+            getReverseWillTargets,
             getStrongWindTargets: callSelectorsMethod('getStrongWindTargets'),
             getBuoyancyTargets: callSelectorsMethod('getBuoyancyTargets'),
             getSuperBuoyancyTargets: callSelectorsMethod('getSuperBuoyancyTargets'),
@@ -1278,6 +1330,7 @@ export = {
     getBoardShrinkTargets,
     getTabooReverseCandidates,
     pickTabooReverseFlips,
+    getReverseWillTargets,
     getSelectableTargets,
     getDestroyTargets,
     getSwapTargets,

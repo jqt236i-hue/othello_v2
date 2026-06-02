@@ -67,6 +67,7 @@ let SharedConstants: any = null;
 let BoardUtils: any = null;
 let RandomSourceModule: any = null;
 let StoneStatusSnapshot: any = null;
+let EvasionStatusModule: any = null;
 let HyperactiveCoreUtils: any = null;
 let HyperactiveBoardShape: any = null;
 let BLACK: any;
@@ -78,6 +79,7 @@ function refreshHyperactiveRuntimeModules(): void {
     BoardUtils = resolveHyperactiveModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
     RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
     StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
+    EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
     HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
     HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
     const constants = SharedConstants || {};
@@ -88,8 +90,6 @@ function refreshHyperactiveRuntimeModules(): void {
 
 refreshHyperactiveRuntimeModules();
 
-const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
-const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
 const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'INHERITED_HYPERACTIVE', 'LIVING_WILL']);
 
 function logHyperactiveDebug(...args: any[]): void {
@@ -769,20 +769,43 @@ function normalizeFlipCell(cell: any): Position | null {
     return null;
 }
 
+type FlipEvadeProfile = {
+    flipDefault?: number;
+    destroyDefault?: number;
+    visualFlipDefault?: number;
+    flipCause?: string;
+    flipMoveReason?: string;
+    requiresActiveDuration?: boolean;
+    pruneWhenBothDepleted?: boolean;
+};
+
+function getEvasionStatusModule(): any {
+    if (EvasionStatusModule) return EvasionStatusModule;
+    EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
+    return EvasionStatusModule;
+}
+
+function getFlipEvadeProfile(markerTypeUpper: string): FlipEvadeProfile | null {
+    const evasionStatus = getEvasionStatusModule();
+    if (!markerTypeUpper || !evasionStatus || typeof evasionStatus.getEvasionProfile !== 'function') return null;
+    return evasionStatus.getEvasionProfile(markerTypeUpper) || null;
+}
+
 function getFlipEvadeMarkerType(entry: MarkerEntry): string | null {
-    const type = String(entry && entry.data && entry.data.type ? entry.data.type : '').toUpperCase();
+    const evasionStatus = getEvasionStatusModule();
+    const type = evasionStatus && typeof evasionStatus.normalizeEvasionType === 'function'
+        ? evasionStatus.normalizeEvasionType(entry)
+        : String(entry && entry.data && entry.data.type ? entry.data.type : '').toUpperCase();
+    if (!type) return null;
+    const profile = getFlipEvadeProfile(type);
+    if (!profile) return null;
     if (
-        type === 'HYPERACTIVE' ||
-        type === 'ESCAPE_HYPERACTIVE' ||
-        type === 'INHERITED_HYPERACTIVE' ||
-        type === 'EXTREME_HYPERACTIVE' ||
-        type === 'ULTIMATE_HYPERACTIVE' ||
-        type === 'WILL_HUNTER_KING' ||
-        type === 'AFTERIMAGE_WILL'
+        profile.flipDefault === undefined &&
+        !(evasionStatus && typeof evasionStatus.readFlipEvadeRemaining === 'function' && evasionStatus.readFlipEvadeRemaining(entry) !== null)
     ) {
-        return type;
+        return null;
     }
-    return null;
+    return type;
 }
 
 function findFlipEvadeMarkersAt(cardState: CardState, row: number, col: number): MarkerEntry[] {
@@ -798,54 +821,22 @@ function findFlipEvadeMarkersAt(cardState: CardState, row: number, col: number):
 }
 
 function canUseFlipEvade(entry: MarkerEntry, markerTypeUpper: string): boolean {
-    if (!entry || !markerTypeUpper) return false;
-
-    if (markerTypeUpper === 'ULTIMATE_HYPERACTIVE') {
-        const remaining = Number(entry.data && entry.data.remainingOwnerTurns);
-        if (Number.isFinite(remaining) && remaining <= 0) return false;
-        const evadeRemainingRaw = Number(entry.data && entry.data.flipEvadeRemaining);
-        const evadeRemaining = Number.isFinite(evadeRemainingRaw)
-            ? Math.max(0, Math.trunc(evadeRemainingRaw))
-            : ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT;
-        return evadeRemaining > 0;
-    }
-
-    if (entry.data && entry.data.instantPlacementOnly === true) return false;
-
-    const remaining = Number(entry.data && entry.data.flipEvadeRemaining);
-    const normalized = Number.isFinite(remaining)
-        ? remaining
-        : (markerTypeUpper === 'AFTERIMAGE_WILL'
-            ? 3
-            : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1));
-    return normalized > 0;
+    const evasionStatus = getEvasionStatusModule();
+    if (!entry || !markerTypeUpper || !evasionStatus || typeof evasionStatus.canUseFlipEvade !== 'function') return false;
+    return !!evasionStatus.canUseFlipEvade(entry);
 }
 
 function consumeFlipEvade(entry: MarkerEntry, markerTypeUpper: string): void {
-    if (!entry || !markerTypeUpper) return;
-    if (!entry.data || typeof entry.data !== 'object') entry.data = {};
-    const remaining = Number(entry.data.flipEvadeRemaining);
-    const normalized = Number.isFinite(remaining)
-        ? remaining
-        : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE'
-            ? ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT
-            : (markerTypeUpper === 'AFTERIMAGE_WILL'
-                ? 3
-                : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT : 1)));
-    entry.data.flipEvadeRemaining = Math.max(0, normalized - 1);
+    const evasionStatus = getEvasionStatusModule();
+    if (!entry || !markerTypeUpper || !evasionStatus || typeof evasionStatus.consumeFlipEvade !== 'function') return;
+    evasionStatus.consumeFlipEvade(entry);
 }
 
 function pruneAfterimageMarkerIfDepleted(cardState: CardState, entry: MarkerEntry): void {
     if (!cardState || !Array.isArray((cardState as any).markers) || !entry || !entry.data) return;
-    const typeUpper = String(entry.data.type || '').toUpperCase();
-    if (typeUpper !== 'AFTERIMAGE_WILL') return;
-    const flipRemaining = Number.isFinite(Number(entry.data.flipEvadeRemaining))
-        ? Math.max(0, Math.trunc(Number(entry.data.flipEvadeRemaining)))
-        : 0;
-    const destroyRemaining = Number.isFinite(Number(entry.data.destroyEvadeRemaining))
-        ? Math.max(0, Math.trunc(Number(entry.data.destroyEvadeRemaining)))
-        : 0;
-    if (flipRemaining > 0 || destroyRemaining > 0) return;
+    const evasionStatus = getEvasionStatusModule();
+    if (!evasionStatus || typeof evasionStatus.shouldPruneEvasionMarker !== 'function') return;
+    if (!evasionStatus.shouldPruneEvasionMarker(entry)) return;
     (cardState as any).markers = (cardState as any).markers.filter((marker: any) => marker !== entry);
 }
 
@@ -864,33 +855,19 @@ function removeFlipEvadeMarkerAt(cardState: CardState, row: number, col: number,
 }
 
 function getFlipEvadeCause(markerTypeUpper: string): string {
-    if (markerTypeUpper === 'WILL_HUNTER_KING') return 'WILL_HUNTER_KING';
-    if (markerTypeUpper === 'AFTERIMAGE_WILL') return 'AFTERIMAGE_WILL';
-    if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'ESCAPE_HYPERACTIVE';
-    if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'HYPERACTIVE_INHERIT_WILL';
-    if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'EXTREME_HYPERACTIVE_WILL';
-    if (markerTypeUpper === 'ULTIMATE_HYPERACTIVE') return 'ULTIMATE_HYPERACTIVE_GOD';
+    const evasionStatus = getEvasionStatusModule();
+    if (evasionStatus && typeof evasionStatus.getFlipEvadeCause === 'function') {
+        return evasionStatus.getFlipEvadeCause(markerTypeUpper) || 'HYPERACTIVE';
+    }
     return 'HYPERACTIVE';
 }
 
 function getFlipEvadeMoveReason(markerTypeUpper: string): string {
-    if (markerTypeUpper === 'WILL_HUNTER_KING') return 'will_hunter_king_flip_evade_move';
-    if (markerTypeUpper === 'AFTERIMAGE_WILL') return 'afterimage_will_flip_evade_move';
-    if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'escape_hyperactive_flip_evade_move';
-    if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'inherited_hyperactive_flip_evade_move';
-    if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'extreme_hyperactive_flip_evade_move';
-    if (markerTypeUpper === 'ULTIMATE_HYPERACTIVE') return 'ultimate_hyperactive_flip_evade_move';
+    const evasionStatus = getEvasionStatusModule();
+    if (evasionStatus && typeof evasionStatus.getFlipEvadeMoveReason === 'function') {
+        return evasionStatus.getFlipEvadeMoveReason(markerTypeUpper) || 'hyperactive_flip_evade_move';
+    }
     return 'hyperactive_flip_evade_move';
-}
-
-function getFlipEvadeNoCandidateReason(markerTypeUpper: string): string {
-    if (markerTypeUpper === 'WILL_HUNTER_KING') return 'will_hunter_king_flip_evade_no_candidates';
-    if (markerTypeUpper === 'AFTERIMAGE_WILL') return 'afterimage_will_flip_evade_no_candidates';
-    if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') return 'escape_hyperactive_flip_evade_no_candidates';
-    if (markerTypeUpper === 'INHERITED_HYPERACTIVE') return 'inherited_hyperactive_flip_evade_no_candidates';
-    if (markerTypeUpper === 'EXTREME_HYPERACTIVE') return 'extreme_hyperactive_flip_evade_no_candidates';
-    if (markerTypeUpper === 'ULTIMATE_HYPERACTIVE') return 'ultimate_hyperactive_flip_evade_no_candidates';
-    return 'hyperactive_flip_evade_no_candidates';
 }
 
 function resolveHyperactiveFlipEvasion(
@@ -916,15 +893,6 @@ function resolveHyperactiveFlipEvasion(
     const isBlockedCell = (deps && typeof deps.isBlockedCell === 'function')
         ? deps.isBlockedCell
         : (() => false);
-    const destroyAt = deps.destroyAt || ((cs: CardState, gs: GameState, row: number, col: number) => {
-        const cell = getBoardCell(gs, row, col);
-        if (cell === null || cell === undefined || cell === EMPTY) return false;
-        if (cs && Array.isArray((cs as any).markers)) {
-            (cs as any).markers = (cs as any).markers.filter((m: any) => !(m && m.row === row && m.col === col));
-        }
-        setBoardCell(gs, row, col, EMPTY);
-        return true;
-    });
 
     const blackVal = BLACK || 1;
     const whiteVal = WHITE || -1;
@@ -961,7 +929,6 @@ function resolveHyperactiveFlipEvasion(
 
         const cause = getFlipEvadeCause(markerTypeUpper);
         const moveReason = getFlipEvadeMoveReason(markerTypeUpper);
-        const noCandidateReason = getFlipEvadeNoCandidateReason(markerTypeUpper);
 
         let candidatePool = getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell })
             .filter((candidate) => !forbiddenTargets.has(`${candidate.row},${candidate.col}`));
@@ -1024,47 +991,6 @@ function resolveHyperactiveFlipEvasion(
         }
 
         if (movedRes) continue;
-
-        if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') {
-            const blastTargets = [{ row: entry.row, col: entry.col }];
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dc = -1; dc <= 1; dc++) {
-                    if (dr === 0 && dc === 0) continue;
-                    const row = entry.row + dr;
-                    const col = entry.col + dc;
-                    if (!hasBoardShapeCell(gameState, row, col)) continue;
-                    blastTargets.push({ row, col });
-                }
-            }
-
-            for (const pos of blastTargets) {
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, pos.row, pos.col, cause, noCandidateReason, { evade: true });
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = !!destroyAt(cardState, gameState, pos.row, pos.col);
-                }
-                if (destroyedRes) {
-                    destroyed.push({ row: pos.row, col: pos.col, specialType: markerTypeUpper });
-                }
-            }
-            removeFlipEvadeMarkerAt(cardState, entry.row, entry.col, deps);
-            evadedSet.add(key);
-            continue;
-        }
-
-        let destroyedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, cause, noCandidateReason, { evade: true });
-            destroyedRes = !!(res && res.destroyed);
-        } else {
-            destroyedRes = !!destroyAt(cardState, gameState, entry.row, entry.col);
-        }
-        if (destroyedRes) {
-            destroyed.push({ row: entry.row, col: entry.col, specialType: markerTypeUpper });
-            evadedSet.add(key);
-        }
     }
 
     const remainingFlips: Array<[number, number]> = [];
@@ -2512,11 +2438,16 @@ function applyHyperactiveInheritWill(
     });
 
     (cardState as any).hyperactiveSeqCounter = ((cardState as any).hyperactiveSeqCounter || 0) + 1;
+    const evasionStatus = getEvasionStatusModule();
     addMarker(cardState, 'specialStone', row, col, playerKey, {
         type: 'INHERITED_HYPERACTIVE',
         remainingOwnerTurns: inheritedTurns,
-        flipEvadeRemaining: 1,
-        destroyEvadeRemaining: 1,
+        flipEvadeRemaining: evasionStatus && typeof evasionStatus.getFlipEvadeDefault === 'function'
+            ? (evasionStatus.getFlipEvadeDefault('INHERITED_HYPERACTIVE') || 1)
+            : 1,
+        destroyEvadeRemaining: evasionStatus && typeof evasionStatus.getDestroyEvadeDefault === 'function'
+            ? (evasionStatus.getDestroyEvadeDefault('INHERITED_HYPERACTIVE') || 1)
+            : 1,
         hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
     });
     if (typeof deps.emitPresentationEvent === 'function') {

@@ -3,6 +3,37 @@
  * @description Turn-start and placement-effect orchestration shared between Browser and Headless.
  */
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+function _require(id: string): any {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
+
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return null;
+}
+
+const EvasionStatus = safeRequire('../../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
 
 interface Context {
     constants?: any;
@@ -57,6 +88,27 @@ interface TurnStartSummary {
         totalDestroyed: number;
         completedCount: number;
     };
+    generatedSpawnFlipResults?: any[];
+}
+
+function getFlipEvadeDefault(type: string, fallback: number, mode: 'runtime' | 'info' | 'visual' = 'runtime'): number {
+    if (EvasionStatus && typeof EvasionStatus.getFlipEvadeDefault === 'function') {
+        const value = EvasionStatus.getFlipEvadeDefault(type, { mode });
+        if (Number.isFinite(Number(value))) {
+            return Number(value);
+        }
+    }
+    return fallback;
+}
+
+function getDestroyEvadeDefault(type: string, fallback: number, mode: 'runtime' | 'info' | 'visual' = 'runtime'): number {
+    if (EvasionStatus && typeof EvasionStatus.getDestroyEvadeDefault === 'function') {
+        const value = EvasionStatus.getDestroyEvadeDefault(type, { mode });
+        if (Number.isFinite(Number(value))) {
+            return Number(value);
+        }
+    }
+    return fallback;
 }
 
 function getConstants(context: Context): Constants {
@@ -155,6 +207,11 @@ function getLivingWillModule(context: Context): any {
     return modules.CardLivingWillModule || modules.LivingWillModule || null;
 }
 
+function getSpawnAndFlipModule(context: Context): any {
+    const modules = getModules(context);
+    return modules.CardSpawnAndFlipModule || modules.SpawnAndFlipModule || null;
+}
+
 function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
     return {
         BoardOps: getBoardOps(context),
@@ -170,19 +227,19 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             sniperTurns: constants && constants.SNIPER_WILL_TURNS,
             observerTurns: constants && constants.OBSERVER_WILL_TURNS,
             ghostTurns: constants && constants.GHOST_WILL_TURNS,
-            afterimageFlipEvadeLimit: constants && constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
-            afterimageDestroyEvadeLimit: constants && constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
+            afterimageFlipEvadeLimit: getFlipEvadeDefault('AFTERIMAGE_WILL', constants && constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT),
+            afterimageDestroyEvadeLimit: getDestroyEvadeDefault('AFTERIMAGE_WILL', constants && constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT),
             timeStopTurns: constants && constants.TIME_STOP_GOD_TURNS,
             willHunterKingTurns: constants && constants.WILL_HUNTER_KING_TURNS,
             destroyDragonTurns: constants && constants.DESTROY_DRAGON_TURNS,
             lightningTurns: constants && constants.LIGHTNING_WILL_TURNS,
-            extremeHyperactiveFlipEvadeLimit: constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            extremeHyperactiveDestroyEvadeLimit: constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            extremeHyperactiveFlipEvadeLimit: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            extremeHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             robotVacuumTurns: constants && constants.ROBOT_VACUUM_TURNS,
             inheritedHyperactiveTurns: 10,
             ultimateHyperactiveTurns: constants && constants.ULTIMATE_HYPERACTIVE_TURNS,
-            ultimateHyperactiveFlipEvadeLimit: constants && constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            ultimateHyperactiveDestroyEvadeLimit: constants && constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            ultimateHyperactiveFlipEvadeLimit: getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', constants && constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            ultimateHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', constants && constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             guardTurns: 3,
             guardianGodTurns: 10,
             workTurns: 5
@@ -331,7 +388,7 @@ function clearSeedMarker(cardState: any, helpers: any, specialStoneKind: string,
     });
 }
 
-function resolveSeedExpiration(cardState: any, gameState: any, marker: any, helpers: any, BoardOpsModule: any, constants: Constants, specialStoneKind: string): { sprouted: boolean; reason?: string; spawnRes?: any } {
+function resolveSeedExpiration(cardState: any, gameState: any, marker: any, helpers: any, BoardOpsModule: any, constants: Constants, specialStoneKind: string, context: Context): { sprouted: boolean; reason?: string; spawnRes?: any; flipBatch?: any } {
     if (!marker || !Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return { sprouted: false };
     const row = marker.row;
     const col = marker.col;
@@ -345,6 +402,48 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
     }
     if (getSeedCellValue(helpers, gameState, row, col) !== constants.EMPTY) {
         return { sprouted: false, reason: 'occupied' };
+    }
+
+    const spawnAndFlipModule = getSpawnAndFlipModule(context);
+    const spawnAndFlipBatch = spawnAndFlipModule && typeof spawnAndFlipModule.spawnAndFlipBatch === 'function'
+        ? spawnAndFlipModule.spawnAndFlipBatch
+        : null;
+    if (
+        spawnAndFlipBatch &&
+        BoardOpsModule &&
+        typeof BoardOpsModule.spawnAt === 'function' &&
+        typeof helpers.getCardContext === 'function' &&
+        typeof helpers.getFlipsWithContext === 'function'
+    ) {
+        const playerValue = ownerKey === 'white' ? constants.WHITE : constants.BLACK;
+        const flipBatch = spawnAndFlipBatch(
+            cardState,
+            gameState,
+            ownerKey,
+            playerValue,
+            [{ row, col }],
+            'SEED_WILL',
+            'seed_sprout',
+            { row, col },
+            {
+                BoardOps: BoardOpsModule,
+                getCardContext: helpers.getCardContext,
+                getFlipsWithContext: helpers.getFlipsWithContext,
+                clearBombAt: helpers.clearBombAt,
+                clearHyperactiveAtPositions: helpers.clearHyperactiveAtPositions,
+                changeCause: 'SEED_WILL',
+                changeReason: 'seed_sprout_flip',
+                spawnMeta: {
+                    seedSprout: true,
+                    seedOwner: ownerKey
+                }
+            }
+        );
+        return {
+            sprouted: !!(flipBatch && Array.isArray(flipBatch.spawned) && flipBatch.spawned.length > 0),
+            spawnRes: flipBatch,
+            flipBatch
+        };
     }
 
     if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
@@ -542,7 +641,15 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
         if (dataType === 'SEED' && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0) {
-                resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind);
+                const seedExpiration = resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind, context);
+                if (seedExpiration && seedExpiration.sprouted && seedExpiration.flipBatch) {
+                    summary.generatedSpawnFlipResults = summary.generatedSpawnFlipResults || [];
+                    summary.generatedSpawnFlipResults.push(Object.assign({
+                        ownerKey: normalizeMarkerOwnerKey(marker.owner),
+                        cause: 'SEED_WILL',
+                        reason: 'seed_sprout'
+                    }, seedExpiration.flipBatch));
+                }
             }
             continue;
         }
@@ -840,8 +947,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     if (pending && pending.type === 'AFTERIMAGE_WILL' && typeof helpers.addMarker === 'function') {
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'AFTERIMAGE_WILL',
-            flipEvadeRemaining: constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
-            destroyEvadeRemaining: constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT
+            flipEvadeRemaining: getFlipEvadeDefault('AFTERIMAGE_WILL', constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT),
+            destroyEvadeRemaining: getDestroyEvadeDefault('AFTERIMAGE_WILL', constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT)
         });
         effects.afterimagePlaced = true;
     }
@@ -861,8 +968,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'WILL_HUNTER_KING',
             remainingOwnerTurns: constants.WILL_HUNTER_KING_TURNS,
-            flipEvadeRemaining: 2,
-            destroyEvadeRemaining: 2
+            flipEvadeRemaining: getFlipEvadeDefault('WILL_HUNTER_KING', 2),
+            destroyEvadeRemaining: getDestroyEvadeDefault('WILL_HUNTER_KING', 2)
         });
         effects.willHunterKingPlaced = true;
     }
@@ -887,7 +994,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'HYPERACTIVE',
-            flipEvadeRemaining: 1,
+            flipEvadeRemaining: getFlipEvadeDefault('HYPERACTIVE', 1),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -897,8 +1004,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'EXTREME_HYPERACTIVE',
-            flipEvadeRemaining: constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            destroyEvadeRemaining: constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            flipEvadeRemaining: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            destroyEvadeRemaining: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -909,7 +1016,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ESCAPE_HYPERACTIVE',
-            flipEvadeRemaining: 1,
+            flipEvadeRemaining: getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 1),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -953,8 +1060,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ULTIMATE_HYPERACTIVE',
             remainingOwnerTurns: constants.ULTIMATE_HYPERACTIVE_TURNS,
-            flipEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            destroyEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT
+            flipEvadeRemaining: getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            destroyEvadeRemaining: getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT)
         });
         effects.ultimateHyperactivePlaced = true;
     }

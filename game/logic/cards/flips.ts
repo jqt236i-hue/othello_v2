@@ -222,7 +222,20 @@ function getFlipsWithContext(state: GameState, row: number, col: number, player:
     return allFlips;
 }
 
+function getOccupiedOriginFlipsWithContext(state: GameState, row: number, col: number, player: number, context: any = {}): number[][] {
+    if (getCellValue(state, row, col) !== player) return [];
+    const allFlips: number[][] = [];
+    for (const dir of (DIRECTIONS || [])) {
+        const flips = getDirectionalChainFlips(state, row, col, player, dir, context);
+        if (flips && flips.length) {
+            for (const f of flips) allFlips.push([f.row, f.col]);
+        }
+    }
+    return allFlips;
+}
+
 export = {
     getDirectionalChainFlips,
-    getFlipsWithContext
+    getFlipsWithContext,
+    getOccupiedOriginFlipsWithContext
 };

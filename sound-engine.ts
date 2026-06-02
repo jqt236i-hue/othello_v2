@@ -53,7 +53,8 @@ const SoundEngine = {
     isMuted: false,
     volume: 0.56,
     bgm: null as any,
-    bgmVolume: 1.1,
+    bgmVolume: 0.665,
+    bgmOutputVolumeScale: 0.364,
     currentTrackIndex: 5,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {
@@ -206,7 +207,9 @@ const SoundEngine = {
     },
 
     _getBgmOutputVolume() {
-        return this._clamp01(this._toNonNegativeNumber(this.bgmVolume, 0) * (this.isMuted ? 0 : 1));
+        const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
+        const outputScale = this._toNonNegativeNumber(this.bgmOutputVolumeScale, 1);
+        return this._clamp01(sliderVolume * outputScale * (this.isMuted ? 0 : 1));
     },
 
     _updateResultBgmVolume() {

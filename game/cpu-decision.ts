@@ -4636,6 +4636,45 @@ async function cpuSelectCloneWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 /**
+ * 反転の意志 対象選択
+ * @param {string} playerKey - 'black' または 'white'
+ */
+async function cpuSelectReverseWillWithPolicy(playerKey: any): Promise<any> {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getReverseWillTargets === 'function')
+        ? CardLogic.getReverseWillTargets(cardState, gameState)
+        : ((typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+            : []);
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 反転の意志の対象なし`);
+        clearCpuPendingEffect(playerKey);
+        return;
+    }
+
+    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'REVERSE_WILL', targets, null) || targets[0];
+    cpuDebugLog(`[CPU] ${playerKey}: 反転の意志ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { reverseWillTarget: { row: target.row, col: target.col } },
+        'REVERSE_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyReverseWill === 'function') {
+        const res = CardLogic.applyReverseWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            clearCpuPendingEffect(playerKey);
+        }
+        emitCpuSelectionStateChange();
+    } else {
+        clearCpuPendingEffect(playerKey);
+        emitCpuSelectionStateChange();
+    }
+}
+
+/**
  * テレポート 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -4855,6 +4894,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectFreezeWillWithPolicy,
         cpuSelectSeedWillWithPolicy,
         cpuSelectCloneWillWithPolicy,
+        cpuSelectReverseWillWithPolicy,
         cpuSelectTemptWillWithPolicy,
         computeCpuAction,
         setCpuRng,

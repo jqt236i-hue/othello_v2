@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '誘惑の意志',
   type: 'TEMPT_WILL',
   cost: 23,
-  desc_ja: '相手の特殊石を1つ選んで自分の色に変える。',
+  desc_ja: '相手の特殊石本体を1つ選んで自分の色に変える。',
   display_type_ja: '執行'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '誘惑の意志',
-  desc: '相手の特殊石を1つ選んで自分の色に変える。'
+  desc: '相手の特殊石本体を1つ選んで自分の色に変える。'
 });
 
-const EXPECTED_QUICK_TEXT = '相手の特殊石を1つ選んで自分の色に変える。';
-const EXPECTED_DETAIL_TEXT = '対象は相手の特殊石のみ。\n残りターンなどの状態を維持したまま自分側になる。';
+const EXPECTED_QUICK_TEXT = '相手の特殊石本体を1つ選んで自分の色に変える。';
+const EXPECTED_DETAIL_TEXT = '対象は相手の特殊石本体のみ。\n残りターンなどの状態を維持したまま自分側になる。\n幽体は対象に選べるが、色は変わらない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

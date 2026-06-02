@@ -128,6 +128,92 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return { regenRes, livingWillRes };
     }
 
+    function resolveGeneratedSpawnFlipSourceType(result: any, phase: 'immediate' | 'turn_start'): string {
+        const cause = String(result && result.cause ? result.cause : '').toUpperCase();
+        if (phase === 'turn_start') {
+            if (cause === 'SEED_WILL') return 'seed_turn_start';
+            if (cause === 'PROLIFERATION_WILL') return 'proliferation_turn_start';
+            if (cause === 'STONE_SALVATION_GOD') return 'stone_salvation_god_turn_start';
+            return 'generated_spawn_turn_start';
+        }
+        if (cause === 'CLONE_WILL') return 'clone_will_selection';
+        if (cause === 'PROLIFERATION_WILL') return 'proliferation_immediate';
+        if (cause === 'STONE_SALVATION_GOD') return 'stone_salvation_god_immediate';
+        return 'generated_spawn_immediate';
+    }
+
+    function applyGeneratedSpawnFlipResultsImmediate(CardLogic: any, cardState: any, gameState: any, events: any[], results: any[]) {
+        const entries = Array.isArray(results) ? results : [];
+        for (const result of entries) {
+            const flipped = Array.isArray(result && result.flipped) ? result.flipped : [];
+            if (!flipped.length) continue;
+            const ownerKey = result && result.ownerKey === 'white' ? 'white' : 'black';
+            const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, flipped, ownerKey);
+            const regenRes = reviveRes.regenRes;
+            const livingWillRes = reviveRes.livingWillRes;
+            if (regenRes && regenRes.regened && regenRes.regened.length) {
+                events.push({ type: 'regen_triggered', details: regenRes.regened });
+            }
+            if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
+                if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
+                    CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
+                }
+                const firstCapture = regenRes.captureFlips[0] || {};
+                awardBoardChargeGain(CardLogic, cardState, ownerKey, regenRes.captureFlips.length, {
+                    targetRow: firstCapture.row,
+                    targetCol: firstCapture.col,
+                    sourceType: 'regen_capture_immediate'
+                });
+                events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+            }
+            if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
+            }
+            const firstFlip = flipped[0] || {};
+            awardBoardChargeGain(CardLogic, cardState, ownerKey, flipped.length, {
+                targetRow: firstFlip.row,
+                targetCol: firstFlip.col,
+                sourceType: resolveGeneratedSpawnFlipSourceType(result, 'immediate')
+            });
+        }
+    }
+
+    function applyGeneratedSpawnFlipResultsTurnStart(CardLogic: any, cardState: any, gameState: any, events: any[], results: any[]) {
+        const entries = Array.isArray(results) ? results : [];
+        for (const result of entries) {
+            const flipped = Array.isArray(result && result.flipped) ? result.flipped : [];
+            if (!flipped.length) continue;
+            const ownerKey = result && result.ownerKey === 'white' ? 'white' : 'black';
+            const reviveRes = applyPostFlipRevives(CardLogic, cardState, gameState, flipped, ownerKey);
+            const regenRes = reviveRes.regenRes;
+            const livingWillRes = reviveRes.livingWillRes;
+            if (regenRes && regenRes.regened && regenRes.regened.length) {
+                events.push({ type: 'regen_triggered_start', details: regenRes.regened });
+            }
+            if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
+                if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
+                    CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
+                }
+                const firstCapture = regenRes.captureFlips[0] || {};
+                awardBoardChargeGain(CardLogic, cardState, ownerKey, regenRes.captureFlips.length, {
+                    targetRow: firstCapture.row,
+                    targetCol: firstCapture.col,
+                    sourceType: 'regen_capture_turn_start'
+                });
+                events.push({ type: 'regen_capture_flipped_start', details: regenRes.captureFlips });
+            }
+            if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
+                events.push({ type: 'living_will_triggered_start', details: livingWillRes.restored });
+            }
+            const firstFlip = flipped[0] || {};
+            awardBoardChargeGain(CardLogic, cardState, ownerKey, flipped.length, {
+                targetRow: firstFlip.row,
+                targetCol: firstFlip.col,
+                sourceType: resolveGeneratedSpawnFlipSourceType(result, 'turn_start')
+            });
+        }
+    }
+
     function normalizePendingTypeForActionPhase(pendingType: any) {
         return String(pendingType || '').trim().toUpperCase();
     }
@@ -779,6 +865,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     }
                 }
             }
+            if (turnStartSummary && Array.isArray(turnStartSummary.generatedSpawnFlipResults) && turnStartSummary.generatedSpawnFlipResults.length) {
+                applyGeneratedSpawnFlipResultsTurnStart(
+                    CardLogic,
+                    cardState,
+                    gameState,
+                    events,
+                    turnStartSummary.generatedSpawnFlipResults
+                );
+            }
 
             if (othelloMode) {
                 return { ok: true, events };
@@ -814,6 +909,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 };
             const hyperAggregated = processedTurnStartMarkers.hyperAggregated;
             const observerStartSummary = processedTurnStartMarkers.observerStartSummary;
+            if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
+                applyGeneratedSpawnFlipResultsTurnStart(
+                    CardLogic,
+                    cardState,
+                    gameState,
+                    events,
+                    CardLogic.consumeGeneratedSpawnFlipResults(cardState)
+                );
+            }
 
             if (TurnStartPostProcessingModule && typeof TurnStartPostProcessingModule.finalizeTurnStartMarkerProcessing === 'function') {
                 TurnStartPostProcessingModule.finalizeTurnStartMarkerProcessing({
@@ -919,6 +1023,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         awardBoardChargeGain,
                         emitHandRemovePresentation
                     });
+                }
+                if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
+                    applyGeneratedSpawnFlipResultsImmediate(
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        events,
+                        CardLogic.consumeGeneratedSpawnFlipResults(cardState)
+                    );
                 }
 
             }
@@ -1156,6 +1269,26 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     emitHandRemovePresentation: (payload: any) => emitHandRemovePresentation(CardLogic, cardState, payload)
                 });
                 if (handledPrePlacementSelection) {
+                    const immediateSelectionResult = handledPrePlacementSelection && typeof handledPrePlacementSelection === 'object'
+                        ? handledPrePlacementSelection.immediateFlipResult
+                        : null;
+                    if (immediateSelectionResult && Array.isArray(immediateSelectionResult.flipped) && immediateSelectionResult.flipped.length) {
+                        applyGeneratedSpawnFlipResultsImmediate(CardLogic, cardState, gameState, events, [{
+                            ownerKey: playerKey,
+                            cause: 'CLONE_WILL',
+                            reason: 'clone_spawn',
+                            flipped: immediateSelectionResult.flipped
+                        }]);
+                    }
+                    if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
+                        applyGeneratedSpawnFlipResultsImmediate(
+                            CardLogic,
+                            cardState,
+                            gameState,
+                            events,
+                            CardLogic.consumeGeneratedSpawnFlipResults(cardState)
+                        );
+                    }
                     return;
                 }
             }
@@ -1236,9 +1369,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             if (!effects) {
                 throw new Error('TurnPipeline placement effects module unavailable');
             }
-            if (ActionPhasePlacementImmediateEffectsModule && typeof ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects === 'function') {
-                ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects({
-                    CardLogic,
+                if (ActionPhasePlacementImmediateEffectsModule && typeof ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects === 'function') {
+                    ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects({
+                        CardLogic,
                     cardState,
                     gameState,
                     playerKey,
@@ -1261,9 +1394,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     workPlaceLines: WORK_PLACE_LINES,
                     pushTrapEvents,
                     emitTrapHandRemoveEvents,
-                    debugLog: logTurnPipelinePhasesDebug
-                });
-            }
+                        debugLog: logTurnPipelinePhasesDebug
+                    });
+                }
+                if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
+                    applyGeneratedSpawnFlipResultsImmediate(
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        events,
+                        CardLogic.consumeGeneratedSpawnFlipResults(cardState)
+                    );
+                }
 
             if (ActionPhaseContinuationModule && typeof ActionPhaseContinuationModule.resolvePlacementContinuation === 'function') {
                 ActionPhaseContinuationModule.resolvePlacementContinuation({

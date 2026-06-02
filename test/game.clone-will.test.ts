@@ -1,6 +1,7 @@
 import * as CardLogic from '../game/logic/cards.js';
 import * as Core from '../game/logic/core.js';
 import * as SharedConstants from '../shared-constants.js';
+const TurnPipeline = require('../game/turn/turn_pipeline.js');
 
 function createPrng(randomValue = 0.5) {
   return {
@@ -29,7 +30,7 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(targets).toEqual([{ row: 6, col: 6 }]);
   });
 
-  test('選択石の周囲空きからランダム1マスへ複製し、生成だけでは反転しない。特殊石は持続値を引き継ぐ', () => {
+  test('選択石の周囲空きからランダム1マスへ複製し、生成後に通常反転する。特殊石は持続値を引き継ぐ', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
@@ -57,6 +58,7 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(res && res.applied).toBe(true);
     expect(Array.isArray(res.spawned)).toBe(true);
     expect(res.spawned.length).toBe(1);
+    expect(res.flipped).toEqual([{ row: 3, col: 5 }]);
 
     expect(res.spawned[0]).toEqual({ row: 3, col: 4 });
 
@@ -74,7 +76,7 @@ describe('CLONE_WILL（複製の意志）', () => {
       expect(copied.data.remainingOwnerTurns).toBe(2);
     }
 
-    expect(gameState.board[3][5]).toBe(Core.WHITE);
+    expect(gameState.board[3][5]).toBe(Core.BLACK);
     expect(gameState.board[2][2]).toBe(Core.EMPTY);
     expect(gameState.board[2][3]).toBe(Core.EMPTY);
     expect(gameState.board[2][4]).toBe(Core.EMPTY);
@@ -83,6 +85,40 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(gameState.board[4][3]).toBe(Core.EMPTY);
     expect(gameState.board[4][4]).toBe(Core.EMPTY);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('turn pipeline 経由の複製でも生成反転ぶんの布石が入る', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.turnNumber = 1;
+
+    gameState.board[3][3] = Core.BLACK;
+    gameState.board[3][5] = Core.WHITE;
+    gameState.board[3][6] = Core.BLACK;
+    cardState.pendingEffectByPlayer.black = {
+      type: 'CLONE_WILL',
+      stage: 'selectTarget',
+      cardId: 'clone_01'
+    };
+    cardState.charge.black = 0;
+    cardState.chargeGainedTotal.black = 0;
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', cloneTarget: { row: 3, col: 3 } },
+      createPrng(0.5),
+      { skipTurnStart: true }
+    );
+
+    expect(result.gameState.board[3][4]).toBe(Core.BLACK);
+    expect(result.gameState.board[3][5]).toBe(Core.BLACK);
+    expect(result.cardState.charge.black).toBe(1);
+    expect(result.cardState.chargeGainedTotal.black).toBe(1);
   });
 
   test('expansion stone can be cloned into an adjacent main-board cell', () => {

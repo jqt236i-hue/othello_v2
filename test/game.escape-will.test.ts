@@ -172,6 +172,67 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
     expect(placeEvent.flips).toEqual([[3, 4]]);
   });
 
+  test('反転回避で移動先が無い場合は爆発せず通常反転される', () => {
+    const prng = makePrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+
+    gameState.board = createEmptyBoard();
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[3][3] = Core.WHITE;
+    gameState.board[3][4] = Core.BLACK;
+
+    for (const [row, col] of [
+      [2, 2], [2, 3], [2, 4],
+      [4, 2], [4, 3], [4, 4]
+    ]) {
+      gameState.board[row][col] = Core.BLACK;
+    }
+
+    cardState.markers.push({
+      id: 193,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'white',
+      data: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5, flipEvadeRemaining: 1 }
+    });
+
+    const events = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 3, col: 2 },
+      events,
+      prng,
+      BoardOps
+    );
+
+    expect(gameState.board[3][2]).toBe(Core.BLACK);
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
+    expect(gameState.board[2][2]).toBe(Core.BLACK);
+    expect(gameState.board[2][3]).toBe(Core.BLACK);
+    expect(gameState.board[2][4]).toBe(Core.BLACK);
+    expect(gameState.board[4][2]).toBe(Core.BLACK);
+    expect(gameState.board[4][3]).toBe(Core.BLACK);
+    expect(gameState.board[4][4]).toBe(Core.BLACK);
+
+    const marker = (cardState.markers || []).find((m) => (
+      m && m.kind === 'specialStone' && m.data && m.data.type === 'ESCAPE_HYPERACTIVE'
+    ));
+    expect(marker).toBeUndefined();
+
+    expect(events.some((ev) => ev && ev.type === 'hyperactive_moved_immediate')).toBe(false);
+    expect(events.some((ev) => ev && ev.type === 'hyperactive_destroyed_immediate')).toBe(false);
+
+    const placeEvent = events.find((ev) => ev && ev.type === 'place');
+    expect(placeEvent).toBeTruthy();
+    expect(placeEvent.flips).toEqual([[3, 3]]);
+  });
+
   test('expansion cell can be chosen as an escape destination', () => {
     const prng = makePrng(0.99);
     const cardState = CardLogic.createCardState(prng);

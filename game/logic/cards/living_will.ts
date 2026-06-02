@@ -44,6 +44,7 @@ const SharedConstants = resolveLivingWillModuleOrGlobal('../../../shared-constan
 const CardMarkersModule = resolveLivingWillModuleOrGlobal('./markers', 'CardMarkers');
 const CardWorkModule = resolveLivingWillModuleOrGlobal('./work_will', 'CardWork');
 const RandomSourceModule = resolveLivingWillModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
+const EvasionStatusModule = resolveLivingWillModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus');
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
@@ -92,6 +93,26 @@ function isOverlayOnlySpecialStoneType(type: string): boolean {
     }
     const typeUpper = String(type || '').toUpperCase();
     return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+}
+
+function getFlipEvadeDefault(type: string, fallback: number): number {
+    if (EvasionStatusModule && typeof EvasionStatusModule.getFlipEvadeDefault === 'function') {
+        const value = EvasionStatusModule.getFlipEvadeDefault(type);
+        if (Number.isFinite(Number(value))) {
+            return Number(value);
+        }
+    }
+    return fallback;
+}
+
+function getDestroyEvadeDefault(type: string, fallback: number): number {
+    if (EvasionStatusModule && typeof EvasionStatusModule.getDestroyEvadeDefault === 'function') {
+        const value = EvasionStatusModule.getDestroyEvadeDefault(type);
+        if (Number.isFinite(Number(value))) {
+            return Number(value);
+        }
+    }
+    return fallback;
 }
 
 function cloneStructuredValue(value: any): any {
@@ -335,19 +356,19 @@ function getDurationDefaults(deps: LivingWillDeps): DurationDefaults {
         observerTurns: getNumericDefault(source.observerTurns, 5),
         theoryIncarnationTurns: getNumericDefault(source.theoryIncarnationTurns, 10),
         ghostTurns: getNumericDefault(source.ghostTurns, 5),
-        afterimageFlipEvadeLimit: getNumericDefault(source.afterimageFlipEvadeLimit, 3),
-        afterimageDestroyEvadeLimit: getNumericDefault(source.afterimageDestroyEvadeLimit, 3),
+        afterimageFlipEvadeLimit: getNumericDefault(source.afterimageFlipEvadeLimit, getFlipEvadeDefault('AFTERIMAGE_WILL', 3)),
+        afterimageDestroyEvadeLimit: getNumericDefault(source.afterimageDestroyEvadeLimit, getDestroyEvadeDefault('AFTERIMAGE_WILL', 3)),
         timeStopTurns: getNumericDefault(source.timeStopTurns, 3),
         willHunterKingTurns: getNumericDefault(source.willHunterKingTurns, 8),
         destroyDragonTurns: getNumericDefault(source.destroyDragonTurns, 3),
         lightningTurns: getNumericDefault(source.lightningTurns, 5),
-        extremeHyperactiveFlipEvadeLimit: getNumericDefault(source.extremeHyperactiveFlipEvadeLimit, 3),
-        extremeHyperactiveDestroyEvadeLimit: getNumericDefault(source.extremeHyperactiveDestroyEvadeLimit, 1),
+        extremeHyperactiveFlipEvadeLimit: getNumericDefault(source.extremeHyperactiveFlipEvadeLimit, getFlipEvadeDefault('EXTREME_HYPERACTIVE', 3)),
+        extremeHyperactiveDestroyEvadeLimit: getNumericDefault(source.extremeHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('EXTREME_HYPERACTIVE', 1)),
         robotVacuumTurns: getNumericDefault(source.robotVacuumTurns, 5),
         inheritedHyperactiveTurns: getNumericDefault(source.inheritedHyperactiveTurns, 10),
         ultimateHyperactiveTurns: getNumericDefault(source.ultimateHyperactiveTurns, 10),
-        ultimateHyperactiveFlipEvadeLimit: getNumericDefault(source.ultimateHyperactiveFlipEvadeLimit, 1),
-        ultimateHyperactiveDestroyEvadeLimit: getNumericDefault(source.ultimateHyperactiveDestroyEvadeLimit, 1),
+        ultimateHyperactiveFlipEvadeLimit: getNumericDefault(source.ultimateHyperactiveFlipEvadeLimit, getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', 3)),
+        ultimateHyperactiveDestroyEvadeLimit: getNumericDefault(source.ultimateHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', 1)),
         guardTurns: getNumericDefault(source.guardTurns, 3),
         guardianGodTurns: getNumericDefault(source.guardianGodTurns, 10),
         workTurns: getNumericDefault(source.workTurns, 5)
@@ -403,8 +424,8 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         break;
     case 'WILL_HUNTER_KING':
         markerData.remainingOwnerTurns = defaults.willHunterKingTurns;
-        markerData.flipEvadeRemaining = 2;
-        markerData.destroyEvadeRemaining = 2;
+        markerData.flipEvadeRemaining = getFlipEvadeDefault('WILL_HUNTER_KING', 2);
+        markerData.destroyEvadeRemaining = getDestroyEvadeDefault('WILL_HUNTER_KING', 2);
         break;
     case 'DESTROY_DRAGON':
         markerData.remainingOwnerTurns = defaults.destroyDragonTurns;
@@ -413,14 +434,14 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         markerData.remainingOwnerTurns = defaults.lightningTurns;
         break;
     case 'HYPERACTIVE':
-        markerData.flipEvadeRemaining = 1;
+        markerData.flipEvadeRemaining = getFlipEvadeDefault('HYPERACTIVE', 1);
         break;
     case 'EXTREME_HYPERACTIVE':
         markerData.flipEvadeRemaining = defaults.extremeHyperactiveFlipEvadeLimit;
         markerData.destroyEvadeRemaining = defaults.extremeHyperactiveDestroyEvadeLimit;
         break;
     case 'ESCAPE_HYPERACTIVE':
-        markerData.flipEvadeRemaining = 1;
+        markerData.flipEvadeRemaining = getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 1);
         break;
     case 'ROBOT_VACUUM':
         markerData.remainingOwnerTurns = defaults.robotVacuumTurns;
@@ -435,8 +456,8 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         break;
     case 'INHERITED_HYPERACTIVE':
         markerData.remainingOwnerTurns = defaults.inheritedHyperactiveTurns;
-        markerData.flipEvadeRemaining = 1;
-        markerData.destroyEvadeRemaining = 1;
+        markerData.flipEvadeRemaining = getFlipEvadeDefault('INHERITED_HYPERACTIVE', 1);
+        markerData.destroyEvadeRemaining = getDestroyEvadeDefault('INHERITED_HYPERACTIVE', 1);
         break;
     case 'GUARD':
         markerData.remainingOwnerTurns = markerData.sourceType === 'GUARDIAN_GOD'

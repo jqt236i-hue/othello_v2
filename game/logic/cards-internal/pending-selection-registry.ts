@@ -40,6 +40,17 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseDestroyTarget', field: 'destroyTarget' },
         cpuHandlerNames: ['cpuSelectDestroyWithPolicy']
     },
+    REVERSE_WILL: {
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
+        deferNetworkPublish: true,
+        waitForPlaybackIdle: true,
+        needsTargetSelection: true,
+        dispatchKey: 'reverse_will',
+        target: { method: 'getReverseWillTargets', argsKey: 'board' },
+        action: { policyMethod: 'chooseReverseWillTarget', field: 'reverseWillTarget' },
+        cpuHandlerNames: ['cpuSelectReverseWillWithPolicy']
+    },
     STRONG_WIND_WILL: {
         kind: 'end_turn',
         turnOutcome: 'end_turn',

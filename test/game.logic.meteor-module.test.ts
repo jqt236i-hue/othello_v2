@@ -28,8 +28,8 @@ describe('CardMeteor module', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('applyMeteorWill uses destroyAt for occupied cells before leaving a hole', () => {
-    const destroyed = [];
+  test('applyMeteorWill uses cell removal for occupied cells before leaving a hole', () => {
+    const removed = [];
     const cardState = {
       pendingEffectByPlayer: { white: { type: 'METEOR_WILL', stage: 'selectTarget', cardId: 'meteor_02' } },
       markers: []
@@ -38,20 +38,27 @@ describe('CardMeteor module', () => {
     const result = CardMeteor.applyMeteorWill(cardState, {}, 'white', 3, 3, {
       getMeteorTargets: () => [{ row: 3, col: 3 }],
       getCellValueForCard: () => 1,
-      destroyAt: (cs, gs, row, col, cause, reason, meta) => {
-        destroyed.push({ row, col, cause, reason, meta });
-        return { destroyed: true };
-      },
-      isDestroyResolved: (value) => !!(value && value.destroyed),
-      removeMarkersAt: jest.fn(),
-      addMarker: jest.fn((cs, kind, row, col, owner, data) => {
-        cs.markers.push({ kind, row, col, owner, data });
-        return true;
-      })
+      applyCellRemovalAt: (cs, gs, row, col, owner, cause, reason, options) => {
+        removed.push({ row, col, owner, cause, reason, options });
+        cs.markers.push({ kind: 'specialStone', row, col, owner, data: { type: 'METEOR_HOLE' } });
+        return { applied: true, row, col, destroyed: true };
+      }
     });
 
     expect(result).toEqual({ applied: true, row: 3, col: 3, destroyed: true });
-    expect(destroyed).toEqual([{ row: 3, col: 3, cause: 'METEOR_WILL', reason: 'meteor_cell_destroy', meta: { ignoreGuard: true, ignoreRegen: true } }]);
+    expect(removed).toEqual([
+      expect.objectContaining({
+        row: 3,
+        col: 3,
+        owner: 'white',
+        cause: 'METEOR_WILL',
+        reason: 'meteor_cell_destroy',
+        options: expect.objectContaining({
+          removalPolicy: 'absolute_only',
+          removalKind: 'meteor_hole'
+        })
+      })
+    ]);
     expect(cardState.markers).toEqual([{ kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'METEOR_HOLE' } }]);
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });

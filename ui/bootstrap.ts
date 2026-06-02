@@ -693,6 +693,31 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 } catch (e: any) { /* ignore */ }
                 return false;
             },
+            armBoardUpdateDuringPlayback: (context: any) => {
+                try {
+                    const runtime = typeof _require === 'function'
+                        ? _require('./board-update-sync-runtime')
+                        : null;
+                    if (runtime && typeof runtime.armBoardUpdateSyncContext === 'function') {
+                        runtime.armBoardUpdateSyncContext(Object.assign({}, context, {
+                            allowBoardUpdateDuringPlayback: true
+                        }));
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    const runtime = typeof globalThis !== 'undefined'
+                        ? (globalThis as any).BoardUpdateSyncRuntime
+                        : null;
+                    if (runtime && typeof runtime.armBoardUpdateSyncContext === 'function') {
+                        runtime.armBoardUpdateSyncContext(Object.assign({}, context, {
+                            allowBoardUpdateDuringPlayback: true
+                        }));
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
             getGameState: () => {
                 try {
                     return typeof globalThis !== 'undefined' ? (globalThis as any).gameState : null;
@@ -2326,6 +2351,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     dispatchPendingSelection: (payload: any) => {
                         const handlerNames: Record<string, string> = {
                             destroy: 'handleDestroySelection',
+                            reverse_will: 'handleReverseWillSelection',
                             strong_wind: 'handleStrongWindSelection',
                             buoyancy: 'handleBuoyancySelection',
                             super_buoyancy: 'handleSuperBuoyancySelection',

@@ -106,6 +106,7 @@ describe('手札破壊ボタン', () => {
     require('../cards/card-interaction.js');
 
     window.onCardClick('trash_card', 'black');
+    global.emitBoardUpdate.mockClear();
     window.destroySelectedHandCard();
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
@@ -219,6 +220,81 @@ describe('手札破壊ボタン', () => {
     delete global.VisualPlaybackActive;
     delete global.isProcessing;
     delete global.isCardAnimating;
+  });
+
+  test('hand_remove 再生がある手札破壊は renderBoard 直呼びで playback flush を迂回しない', () => {
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn((_cs, _gs, _player, action) => {
+      if (action.type === 'destroy_hand_card') {
+        const hand = (global.cardState.hands.black || []).filter((id) => id !== action.destroyCardId);
+        const nextCardState = {
+          ...global.cardState,
+          hands: { black: hand, white: [] },
+          hasDestroyedCardThisTurnByPlayer: { black: true, white: false },
+          discard: [...(global.cardState.discard || []), action.destroyCardId],
+          selectedCardId: null,
+          selectedCardOwnerKey: null
+        };
+        global.cardState = nextCardState;
+        return {
+          ok: true,
+          nextCardState,
+          nextGameState: global.gameState,
+          playbackEvents: [{ type: 'hand_remove', phase: 1, targets: [{ player: 'black', count: 1, cardId: action.destroyCardId }] }]
+        };
+      }
+      return { ok: false, rejectedReason: 'UNSUPPORTED' };
+    });
+    global.renderBoard = jest.fn();
+    global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+
+    require('../cards/card-interaction.js');
+
+    window.onCardClick('trash_card', 'black');
+    global.emitBoardUpdate.mockClear();
+    global.renderBoard.mockClear();
+    window.destroySelectedHandCard();
+
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+
+    delete global.renderBoard;
+    delete global.waitForPlaybackIdle;
+  });
+
+  test('hand_remove 以外の playback がある手札破壊も playback flush を迂回しない', () => {
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn((_cs, _gs, _player, action) => {
+      if (action.type === 'destroy_hand_card') {
+        const hand = (global.cardState.hands.black || []).filter((id) => id !== action.destroyCardId);
+        const nextCardState = {
+          ...global.cardState,
+          hands: { black: hand, white: [] },
+          hasDestroyedCardThisTurnByPlayer: { black: true, white: false },
+          discard: [...(global.cardState.discard || []), action.destroyCardId],
+          selectedCardId: null,
+          selectedCardOwnerKey: null
+        };
+        global.cardState = nextCardState;
+        return {
+          ok: true,
+          nextCardState,
+          nextGameState: global.gameState,
+          playbackEvents: [{ type: 'sound_effect', phase: 1, targets: [{ key: 'stone_destroy' }] }]
+        };
+      }
+      return { ok: false, rejectedReason: 'UNSUPPORTED' };
+    });
+    global.renderBoard = jest.fn();
+
+    require('../cards/card-interaction.js');
+
+    window.onCardClick('trash_card', 'black');
+    global.emitBoardUpdate.mockClear();
+    global.renderBoard.mockClear();
+    window.destroySelectedHandCard();
+
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(global.renderBoard).not.toHaveBeenCalled();
+
+    delete global.renderBoard;
   });
 
   test('idle 状態で残った hand-only playback queue は通常配置前に掃除される', () => {

@@ -76,6 +76,18 @@ function createPlaybackBridgeMethods(playbackStateManager) {
         return true;
       }
       return false;
+    },
+    armBoardUpdateDuringPlayback: (context) => {
+      try {
+        const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+        if (boardUpdateSyncRuntime && typeof boardUpdateSyncRuntime.armBoardUpdateSyncContext === 'function') {
+          boardUpdateSyncRuntime.armBoardUpdateSyncContext(Object.assign({}, context, {
+            allowBoardUpdateDuringPlayback: true
+          }));
+          return true;
+        }
+      } catch (e) { /* ignore */ }
+      return false;
     }
   };
 }
@@ -2296,6 +2308,65 @@ describe('pending selection flow contracts', () => {
     expect(global.isCardAnimating).toBe(false);
   });
 
+  test('network multi-stage intermediate preview arms board update during playback so pending highlights can rerender', async () => {
+    const scenario = loadIsolatedSelectionFlowScenario({
+      matchMode: 'network',
+      cardState: {
+        turnIndex: 5,
+        pendingEffectByPlayer: {
+          black: {
+            type: 'BOARD_SHRINK_GOD',
+            stage: 'selectTarget',
+            cardId: 'board_shrink_god_01'
+          },
+          white: null
+        }
+      },
+      adapterResult: {
+        ok: true,
+        nextCardState: {
+          turnIndex: 5,
+          pendingEffectByPlayer: {
+            black: {
+              type: 'BOARD_SHRINK_GOD',
+              stage: 'selectTarget',
+              cardId: 'board_shrink_god_01',
+              firstTarget: { row: 0, col: 0 }
+            },
+            white: null
+          }
+        },
+        nextGameState: {
+          currentPlayer: 1,
+          turnNumber: 9,
+          board: Array.from({ length: 8 }, () => Array(8).fill(0))
+        },
+        playbackEvents: []
+      }
+    });
+
+    const result = await scenario.flow.executePendingSelection({
+      row: 0,
+      col: 0,
+      playerKey: 'black',
+      pendingType: 'BOARD_SHRINK_GOD',
+      actionPayload: {
+        shrinkTarget: { row: 0, col: 0 }
+      }
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'BOARD_SHRINK_GOD',
+      intermediatePreviewApplied: true
+    }));
+    expect(scenario.bridge.armBoardUpdateDuringPlayback).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'selection-flow',
+      reason: 'selection_state_sync'
+    }));
+    expect(scenario.bridge.emitStateChanges).toHaveBeenCalledTimes(1);
+  });
+
   test('board shrink final selection releases settlement lock before waiting for playback idle', async () => {
     const playbackStateManager = attachPlaybackStateManager();
     global.MATCH_MODE = 'local';
@@ -2390,14 +2461,14 @@ describe('pending selection flow contracts', () => {
     jest.isolateModules(() => {
       isolatedFlow = require('../game/card-effects/selection-flow.js');
     });
-    const cardState = {
+    const cardState = options.cardState || {
       turnIndex: 5,
       pendingEffectByPlayer: {
         black: { type: 'TRAP_WILL', stage: 'selectTarget' },
         white: null
       }
     };
-    const gameState = {
+    const gameState = options.gameState || {
       currentPlayer: 1,
       turnNumber: 9,
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
@@ -2455,6 +2526,8 @@ describe('pending selection flow contracts', () => {
       releaseSelectionSettlementLock: () => true,
       isNetworkPublishActive: () => options.matchMode === 'network',
       publishSnapshot,
+      armSelectionBoardUpdateContext: jest.fn(() => true),
+      armBoardUpdateDuringPlayback: jest.fn(() => true),
       emitPlaybackEvents: jest.fn(() => true),
       emitStateChanges: jest.fn(() => true),
       emitMessage: jest.fn(() => true),

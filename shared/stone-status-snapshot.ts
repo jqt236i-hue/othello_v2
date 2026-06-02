@@ -1,14 +1,18 @@
 (function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let SpecialStoneRegistry = null;
+        let EvasionStatus = null;
         try {
             SpecialStoneRegistry = require('./special-stone-registry');
         } catch (e) { /* ignore */ }
-        module.exports = factory(SpecialStoneRegistry);
+        try {
+            EvasionStatus = require('./evasion-status');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(SpecialStoneRegistry, EvasionStatus);
     } else {
-        root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null);
+        root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null, root.EvasionStatus || null);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SpecialStoneRegistry: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SpecialStoneRegistry: unknown, EvasionStatus: unknown) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -104,6 +108,46 @@
         return fallback !== undefined ? String(fallback) : 'special-timer';
     }
 
+    function getEvasionStatusModule(): unknown {
+        const candidate = EvasionStatus as { getFlipEvadeDefault?: unknown; getDestroyEvadeDefault?: unknown } | null;
+        if (
+            candidate &&
+            typeof candidate.getFlipEvadeDefault === 'function' &&
+            typeof candidate.getDestroyEvadeDefault === 'function'
+        ) {
+            return candidate;
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).EvasionStatus) {
+            return (globalThis as Record<string, unknown>).EvasionStatus;
+        }
+        if (typeof self !== 'undefined' && (self as Record<string, unknown>).EvasionStatus) {
+            return (self as Record<string, unknown>).EvasionStatus;
+        }
+        return null;
+    }
+
+    function readFlipEvadeDefault(rawTypeOrSource: unknown, mode: 'runtime' | 'info' | 'visual'): number | null {
+        const evasionStatus = getEvasionStatusModule();
+        if (evasionStatus && typeof (evasionStatus as { getFlipEvadeDefault?: (v: unknown, o?: unknown) => number | null }).getFlipEvadeDefault === 'function') {
+            return (evasionStatus as { getFlipEvadeDefault: (v: unknown, o?: unknown) => number | null }).getFlipEvadeDefault(rawTypeOrSource, { mode });
+        }
+        const info = getSpecialStoneInfo(rawTypeOrSource);
+        if (!info) return null;
+        if (mode === 'info') return toCounterOrNull(info.tagFlipEvadeDefault);
+        if (mode === 'visual') return toCounterOrNull(info.visualFlipEvadeDefault);
+        return toCounterOrNull(info.tagFlipEvadeDefault);
+    }
+
+    function readDestroyEvadeDefault(rawTypeOrSource: unknown, mode: 'runtime' | 'info' | 'visual'): number | null {
+        const evasionStatus = getEvasionStatusModule();
+        if (evasionStatus && typeof (evasionStatus as { getDestroyEvadeDefault?: (v: unknown, o?: unknown) => number | null }).getDestroyEvadeDefault === 'function') {
+            return (evasionStatus as { getDestroyEvadeDefault: (v: unknown, o?: unknown) => number | null }).getDestroyEvadeDefault(rawTypeOrSource, { mode });
+        }
+        const info = getSpecialStoneInfo(rawTypeOrSource);
+        if (!info || mode === 'visual') return null;
+        return toCounterOrNull(info.tagDestroyEvadeDefault);
+    }
+
     function toCounterOrNull(value: unknown): number | null {
         if (value === null || value === undefined || value === '') return null;
         const n = Number(value);
@@ -153,14 +197,14 @@
         const ultimateExpired = type === 'ULTIMATE_HYPERACTIVE' && displayTimer !== null && displayTimer <= 0;
 
         let flipEvadeRemaining = toCounterOrNull(source.flipEvadeRemaining);
-        if (flipEvadeRemaining === null && info) {
-            if (mode === 'info') flipEvadeRemaining = toCounterOrNull(info.tagFlipEvadeDefault);
-            else if (mode === 'visual') flipEvadeRemaining = toCounterOrNull(info.visualFlipEvadeDefault);
+        if (flipEvadeRemaining === null) {
+            if (mode === 'info') flipEvadeRemaining = readFlipEvadeDefault(source, 'info');
+            else if (mode === 'visual') flipEvadeRemaining = readFlipEvadeDefault(source, 'visual');
         }
 
         let destroyEvadeRemaining = toCounterOrNull(source.destroyEvadeRemaining);
-        if (destroyEvadeRemaining === null && info && mode === 'info') {
-            destroyEvadeRemaining = toCounterOrNull(info.tagDestroyEvadeDefault);
+        if (destroyEvadeRemaining === null && mode === 'info') {
+            destroyEvadeRemaining = readDestroyEvadeDefault(source, 'info');
         }
 
         const hasGuard = source.hasGuard === true;

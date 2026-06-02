@@ -94,8 +94,10 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
         const disc = cell.querySelector('.disc');
         const preserveDiscOnDestroy = deps.shouldPreserveDiscOnDestroy(target);
         const destroyHighlightMinimumMs = deps.resolveDestroyTargetHighlightMinimumMs(target);
+        const canRenderDestroyGhostWithoutDisc = resolveDestroyGhostVisualState(target, ownerColor) !== null;
         const shouldPreserveDestroyPlaybackWithoutDisc =
             isSuperCrushCollision ||
+            canRenderDestroyGhostWithoutDisc ||
             !!deps.resolveEffectTargetHighlightTone(deps.eventTypes.DESTROY, target);
         if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) return;
 

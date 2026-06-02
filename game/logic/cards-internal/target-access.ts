@@ -37,6 +37,10 @@ function getDestroyTargets(cardState: any, gameState: any, deps: TargetAccessDep
     return resolveTargetResolverTargets('getDestroyTargets', [cardState, gameState], deps);
 }
 
+function getReverseWillTargets(cardState: any, gameState: any, deps: TargetAccessDeps) {
+    return resolveTargetResolverTargets('getReverseWillTargets', [cardState, gameState], deps);
+}
+
 function getSwapTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
     return resolveTargetResolverTargets('getSwapTargets', [cardState, gameState, playerKey], deps);
 }
@@ -232,6 +236,7 @@ module.exports = {
     getTemptTargets,
     getCaptureTargets,
     getDestroyTargets,
+    getReverseWillTargets,
     getSwapTargets,
     getPositionSwapTargets,
     getBreedingTargets,

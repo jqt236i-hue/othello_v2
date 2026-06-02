@@ -1536,18 +1536,26 @@ try {
   console.warn("[boot] skip " + "dist/game/card-effects/clone: " + e.message);
 }
 
+// dist/game/card-effects/reverse-will
+try {
+  var _mod185 = require("./dist/game/card-effects/reverse-will");
+  if (_mod185) Object.assign(window, _mod185);
+} catch (e) {
+  console.warn("[boot] skip " + "dist/game/card-effects/reverse-will: " + e.message);
+}
+
 // dist/game/card-effects-applier
 try {
-  var _mod185 = require("./dist/game/card-effects-applier");
-  if (_mod185) Object.assign(window, _mod185);
+  var _mod186 = require("./dist/game/card-effects-applier");
+  if (_mod186) Object.assign(window, _mod186);
 } catch (e) {
   console.warn("[boot] skip " + "dist/game/card-effects-applier: " + e.message);
 }
 
 // dist/constants/cpu-lv6-shared-profile
 try {
-  var _mod186 = require("./dist/constants/cpu-lv6-shared-profile");
-  if (_mod186) Object.assign(window, _mod186);
+  var _mod187 = require("./dist/constants/cpu-lv6-shared-profile");
+  if (_mod187) Object.assign(window, _mod187);
 } catch (e) {
   console.warn("[boot] skip " + "dist/constants/cpu-lv6-shared-profile: " + e.message);
 }

@@ -130,10 +130,27 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.volume).toBe(0.56);
   });
 
-  test('startup default BGM volume is 1.1', () => {
+  test('startup default BGM volume is 0.665', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.bgmVolume).toBe(1.1);
+    expect(soundEngine.bgmVolume).toBe(0.665);
+  });
+
+  test('startup default BGM output is scaled without moving the volume slider', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.allowBgmPlay = false;
+    soundEngine.loadBgm(0);
+
+    expect(soundEngine.bgmVolume).toBe(0.665);
+    expect(soundEngine.bgmOutputVolumeScale).toBe(0.364);
+    expect(instances[0].volume).toBeCloseTo(0.665 * 0.364, 6);
+
+    soundEngine.setBgmVolume(1);
+
+    expect(soundEngine.bgmVolume).toBe(1);
+    expect(instances[0].volume).toBeCloseTo(0.364, 6);
   });
 
   test('duration-end revert sound uses the renamed asset mapping', () => {

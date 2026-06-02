@@ -88,6 +88,7 @@ describe('board-renderer fallback legal hints', () => {
     delete global.CardLogic;
     delete global.gameState;
     delete global.cardState;
+    delete global.PlaybackStateManager;
   });
 
   test('renderBoardFull passes protected and perma arrays to getLegalMoves', () => {
@@ -103,6 +104,26 @@ describe('board-renderer fallback legal hints', () => {
     const legalCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
     expect(legalCell).toBeTruthy();
     expect(legalCell.classList.contains('legal')).toBe(true);
+  });
+
+  test('renderBoard honors allowBoardUpdateDuringPlayback sync context even when playback defers ordinary board updates', () => {
+    const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+    boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
+    global.PlaybackStateManager = {
+      shouldDeferBoardUpdate: jest.fn(() => true)
+    };
+    global.window.PlaybackStateManager = global.PlaybackStateManager;
+    boardUpdateSyncRuntime.armBoardUpdateSyncContext({
+      allowBoardUpdateDuringPlayback: true,
+      source: 'unit-test',
+      reason: 'board-selection-preview'
+    });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoard();
+
+    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+    boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 
   test('renderBoardFull marks all empty cells as legal-free for UDR pending placement', () => {

@@ -1591,7 +1591,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.dataset.col = '2';
     board.appendChild(targetCell);
 
-    const ghostSpy = jest.spyOn(engine, '_animateDestroyGhostAtCell').mockResolvedValue(undefined);
+    const createDiscSpy = jest.spyOn(engine, 'createDisc');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -1605,8 +1605,11 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(ghostSpy).toHaveBeenCalledTimes(1);
-    ghostSpy.mockRestore();
+    expect(createDiscSpy).toHaveBeenCalledWith(expect.objectContaining({
+      color: 1,
+      owner: 'black'
+    }));
+    createDiscSpy.mockRestore();
     sleepSpy.mockRestore();
   });
 

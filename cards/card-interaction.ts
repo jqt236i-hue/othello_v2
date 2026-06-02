@@ -1582,8 +1582,16 @@ function _hasPlaybackEventType(runResult: any, eventType: any) {
     return _getRunResultPlaybackEvents(runResult).some((ev: any) => ev && ev.type === eventType);
 }
 
+function _hasAnyPlaybackEvent(runResult: any) {
+    return _getRunResultPlaybackEvents(runResult).length > 0;
+}
+
 function _hasHandRemovePlaybackEvent(runResult: any) {
     return _hasPlaybackEventType(runResult, 'hand_remove');
+}
+
+function _resolveBoardUpdateModeForRunResult(runResult: any, fallbackMode: any) {
+    return _hasAnyPlaybackEvent(runResult) ? 'playback-aware' : fallbackMode;
 }
 
 function _hasBoardMutatingPlaybackEvent(runResult: any) {
@@ -2354,9 +2362,11 @@ function destroySelectedHandCard() {
     addLog(`${playerName}が手札を破壊: ${cardDef ? cardDef.name : cardId}`);
 
     _clearSelectedCardSelection();
+    const hasHandRemovePlayback = _hasHandRemovePlaybackEvent(result);
     _finalizeCardActionUi({
-        delayHandVisual: _hasHandRemovePlaybackEvent(result),
-        boardUpdateMode: 'immediate'
+        delayHandVisual: hasHandRemovePlayback,
+        boardUpdateMode: _resolveBoardUpdateModeForRunResult(result, 'immediate'),
+        delayBoardVisual: false
     });
 }
 

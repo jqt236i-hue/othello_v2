@@ -179,7 +179,7 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
     expect(gameState.board[destination.row][destination.col]).toBe(Shared.BLACK);
   });
 
-  test('反転回避に移動先が無い時は不成立で消滅する', () => {
+  test('反転回避に移動先が無い時は不成立で通常反転へ残る', () => {
     const { cardState, gameState } = createState(0);
 
     for (let row = 0; row < 8; row++) {
@@ -208,14 +208,17 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
       createPrng(0)
     );
 
-    expect(out.remainingFlips).toHaveLength(0);
-    expect(out.destroyed).toContainEqual(expect.objectContaining({
-      row: 4,
-      col: 4,
-      specialType: 'AFTERIMAGE_WILL'
-    }));
-    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
-    expect(cardState.markers.find((m) => m && m.id === 9401)).toBeUndefined();
+    expect(out.remainingFlips).toEqual([[4, 4]]);
+    expect(out.moved).toEqual([]);
+    expect(out.destroyed).toEqual([]);
+    expect(gameState.board[4][4]).toBe(Shared.BLACK);
+
+    const marker = cardState.markers.find((m) => m && m.id === 9401);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(4);
+    expect(marker.col).toBe(4);
+    expect(marker.data.flipEvadeRemaining).toBe(3);
+    expect(marker.data.destroyEvadeRemaining).toBe(3);
   });
 
   test('空きマスが無い時は破壊回避せずそのまま破壊される', () => {
@@ -245,6 +248,46 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
     expect(out.evaded).toBe(false);
     expect(gameState.board[4][4]).toBe(Shared.EMPTY);
     expect(cardState.markers.find((m) => m && m.id === 9501)).toBeUndefined();
+  });
+
+  test('destroyEvadeRemaining 未設定でも profile default で破壊回避できる', () => {
+    const { cardState, gameState } = createState();
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.BLACK;
+      }
+    }
+    gameState.board[4][4] = Shared.BLACK;
+    gameState.board[7][7] = Shared.EMPTY;
+
+    cardState.markers.push({
+      id: 9551,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: {
+        type: 'AFTERIMAGE_WILL'
+      }
+    });
+
+    const out = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy');
+
+    expect(out).toMatchObject({
+      kind: 'evaded_move',
+      destroyed: false,
+      evaded: true,
+      reason: 'destroy_evaded',
+      from: { row: 4, col: 4 },
+      to: { row: 7, col: 7 }
+    });
+
+    const marker = cardState.markers.find((m) => m && m.id === 9551);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(7);
+    expect(marker.col).toBe(7);
+    expect(marker.data.destroyEvadeRemaining).toBe(2);
   });
 
   test('反転回避0で通常反転された時は destroy 回数が残っていても通常石へ戻る', () => {

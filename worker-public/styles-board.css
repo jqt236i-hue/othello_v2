@@ -144,6 +144,13 @@
     box-shadow: inset 0 0 15px rgba(100, 255, 218, 0.1), inset 1px 1px 4px rgba(0, 0, 0, 0.6);
 }
 
+#board .cell-expanded.legal,
+#board .cell-expanded.legal-free,
+#board .cell-expanded.selectable-friendly {
+    background-color: #00695c;
+    box-shadow: inset 0 0 15px rgba(100, 255, 218, 0.1), inset 1px 1px 4px rgba(0, 0, 0, 0.6);
+}
+
 .cell.random-spawn-preview {
     background-color: rgba(124, 182, 255, 0.18);
     outline: calc(1px * var(--layout-stage-scale)) dashed rgba(186, 223, 255, 0.78);
