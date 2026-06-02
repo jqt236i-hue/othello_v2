@@ -3269,7 +3269,7 @@ const {
         if (!cardState || !Array.isArray(cardState.markers)) return;
         cardState.markers = cardState.markers.filter((m: any) => {
             if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
-            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER' && m.data.type !== 'THEORY_INCARNATION')) return true;
+            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER' && m.data.type !== 'THEORY_INCARNATION' && m.data.type !== 'AFTERIMAGE_WILL' && m.data.type !== 'WILL_HUNTER_KING')) return true;
             if (findSpecialMarkerAt(cardState, m.row, m.col, 'GHOST')) return true;
             return !removeSet.has(`${m.row},${m.col}`);
         });

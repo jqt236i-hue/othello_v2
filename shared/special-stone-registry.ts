@@ -232,7 +232,8 @@
         WILL_HUNTER_KING: Object.freeze({
             name: '意志狩りの王',
             desc: '敵石を狙って移動し、破壊する。',
-            tagFlipEvadeDefault: 1
+            tagFlipEvadeDefault: 2,
+            tagDestroyEvadeDefault: 2
         }),
         METEOR_HOLE: Object.freeze({
             name: '流星穴',
