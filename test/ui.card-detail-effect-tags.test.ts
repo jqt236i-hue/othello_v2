@@ -271,7 +271,7 @@ describe('card detail effect tags', () => {
   test('RIBO_WILL detail panel shows effect summary and unlock note separately', () => {
     require('../cards/card-interaction.js');
 
-    const riboSummary = '布石を30得る。その後9ターンの間4返済。足りない場合は自石2個を消滅させる。';
+    const riboSummary = '布石を30得る。その後9ターンの間4返済。足りない場合は自石4個を消滅させる。';
     const cardDef = {
       id: 'ribo_01',
       name: 'リボ払いの意志',
@@ -296,7 +296,7 @@ describe('card detail effect tags', () => {
 
     const detailMoreEl = document.getElementById('card-detail-more');
     expect(detailMoreEl.textContent).toContain('自ターン開始ごとに4布石を返済する');
-    expect(detailMoreEl.textContent).toContain('ランダム2個消滅');
+    expect(detailMoreEl.textContent).toContain('ランダム4個消滅');
 
     global.cardState.turnIndex = 19;
     window.updateCardDetailPanel();

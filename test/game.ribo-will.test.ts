@@ -65,7 +65,7 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
       expect.objectContaining({
         remainingOwnerTurns: 9,
         repaymentAmount: 4,
-        shortageDestroyCount: 2
+        shortageDestroyCount: 4
       })
     ]);
     expect(cardState.discard).toContain(riboDef.id);
@@ -79,7 +79,7 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
     cardState.riboRepaymentsByPlayer.black = [{
       remainingOwnerTurns: 9,
       repaymentAmount: 4,
-      shortageDestroyCount: 2
+      shortageDestroyCount: 4
     }];
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' }, prng);
@@ -96,12 +96,12 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
       expect.objectContaining({
         remainingOwnerTurns: 8,
         repaymentAmount: 4,
-        shortageDestroyCount: 2
+        shortageDestroyCount: 4
       })
     ]);
   });
 
-  test('布石不足ならランダム2個まで自石を破壊し、布石は減らない', () => {
+  test('布石不足ならランダム4個まで自石を破壊し、布石は減らない', () => {
     const { prng, cardState, gameState } = makeState(0);
     cardState.debugNoDraw = true;
     cardState.lastTurnStartedFor = 'white';
@@ -109,12 +109,14 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
     cardState.riboRepaymentsByPlayer.black = [{
       remainingOwnerTurns: 9,
       repaymentAmount: 4,
-      shortageDestroyCount: 2
+      shortageDestroyCount: 4
     }];
 
     gameState.board[0][0] = SharedConstants.BLACK;
     gameState.board[0][1] = SharedConstants.BLACK;
     gameState.board[0][2] = SharedConstants.BLACK;
+    gameState.board[0][3] = SharedConstants.BLACK;
+    gameState.board[0][4] = SharedConstants.BLACK;
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' }, prng);
     const shortageEvent = res.events.find((event) => event && event.type === 'ribo_will_shortage');
@@ -127,15 +129,17 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
 
     expect(shortageEvent).toMatchObject({
       player: 'black',
-      destroyedCount: 2,
+      destroyedCount: 4,
       remainingOwnerTurns: 8,
       completed: false
     });
     expect(cardState.charge.black).toBe(3);
     expect(gameState.board[0][0]).toBe(SharedConstants.EMPTY);
     expect(gameState.board[0][1]).toBe(SharedConstants.EMPTY);
-    expect(gameState.board[0][2]).toBe(SharedConstants.BLACK);
-    expect(destroyEvents).toHaveLength(2);
+    expect(gameState.board[0][2]).toBe(SharedConstants.EMPTY);
+    expect(gameState.board[0][3]).toBe(SharedConstants.EMPTY);
+    expect(gameState.board[0][4]).toBe(SharedConstants.BLACK);
+    expect(destroyEvents).toHaveLength(4);
   });
 
   test('9回の自ターン開始で効果が終了する', () => {
@@ -145,7 +149,7 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
     cardState.riboRepaymentsByPlayer.black = [{
       remainingOwnerTurns: 9,
       repaymentAmount: 4,
-      shortageDestroyCount: 2
+      shortageDestroyCount: 4
     }];
 
     let lastSummary = null;
