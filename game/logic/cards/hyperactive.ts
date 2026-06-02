@@ -1025,34 +1025,7 @@ function resolveHyperactiveFlipEvasion(
 
         if (movedRes) continue;
 
-        if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') {
-            const blastTargets = [{ row: entry.row, col: entry.col }];
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dc = -1; dc <= 1; dc++) {
-                    if (dr === 0 && dc === 0) continue;
-                    const row = entry.row + dr;
-                    const col = entry.col + dc;
-                    if (!hasBoardShapeCell(gameState, row, col)) continue;
-                    blastTargets.push({ row, col });
-                }
-            }
-
-            for (const pos of blastTargets) {
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, pos.row, pos.col, cause, noCandidateReason, { evade: true });
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = !!destroyAt(cardState, gameState, pos.row, pos.col);
-                }
-                if (destroyedRes) {
-                    destroyed.push({ row: pos.row, col: pos.col, specialType: markerTypeUpper });
-                }
-            }
-            removeFlipEvadeMarkerAt(cardState, entry.row, entry.col, deps);
-            evadedSet.add(key);
-            continue;
-        }
+        if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') continue;
 
         let destroyedRes = false;
         if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
