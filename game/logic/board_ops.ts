@@ -40,6 +40,7 @@ SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRu
 
 const SharedConstants = safeRequire('../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
 const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || getRuntimeGlobalValue('PresentationEffectProfiles');
+const EvasionStatus = safeRequire('../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
@@ -629,7 +630,9 @@ function _getDestroyEvadeMarkerAt(cardState: any, row: number, col: number): any
     let bestMarker: any = null;
     let bestCreatedSeq = Number.POSITIVE_INFINITY;
     for (const marker of markersAtCell) {
-        const remaining = _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
+        const remaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
+            ? EvasionStatus.readDestroyEvadeRemaining(marker)
+            : _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
         if (remaining === null || remaining <= 0) continue;
         const createdSeq = Number.isFinite(Number(marker && marker.createdSeq))
             ? Number(marker.createdSeq)
@@ -1290,11 +1293,8 @@ function _addSpecialStoneMarker(cardState: any, row: number, col: number, owner:
 
 function _pruneAfterimageMarkerIfDepleted(cardState: any, marker: any): void {
     if (!cardState || !Array.isArray(cardState.markers) || !marker || !marker.data) return;
-    const typeUpper = String(marker.data.type || '').toUpperCase();
-    if (typeUpper !== 'AFTERIMAGE_WILL') return;
-    const flipRemaining = _normalizeCounterValue(marker.data && marker.data.flipEvadeRemaining) || 0;
-    const destroyRemaining = _normalizeCounterValue(marker.data && marker.data.destroyEvadeRemaining) || 0;
-    if (flipRemaining > 0 || destroyRemaining > 0) return;
+    if (!(EvasionStatus && typeof EvasionStatus.shouldPruneEvasionMarker === 'function')) return;
+    if (!EvasionStatus.shouldPruneEvasionMarker(marker)) return;
     cardState.markers = cardState.markers.filter((entry: any) => entry !== marker);
 }
 
@@ -1435,7 +1435,9 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
         let inheritedFlipEvadeRemaining: number | null = null;
         let destroyEvadeRemaining: number | null = null;
         const destroyEvadeTotal = markersAtCell.reduce((sum: number, marker: any) => {
-            const remaining = _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
+            const remaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
+            ? EvasionStatus.readDestroyEvadeRemaining(marker)
+            : _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
             return remaining === null ? sum : (sum + remaining);
         }, 0);
         if (destroyEvadeTotal > 0 || markersAtCell.some((marker: any) => _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining) === 0)) {
@@ -1861,13 +1863,20 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
     if (destroyEvadeMarker) {
         const destination = _findDestroyEvadeDestination(cardState, gameState, row, col, meta);
         if (destination) {
-            const beforeRemaining = _normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining) || 0;
-            const afterRemaining = Math.max(0, beforeRemaining - 1);
-            destroyEvadeMarker.data.destroyEvadeRemaining = afterRemaining;
-            const afterimageWillDepleted = (
-                String(destroyEvadeMarker.data && destroyEvadeMarker.data.type ? destroyEvadeMarker.data.type : '').toUpperCase() === 'AFTERIMAGE_WILL' &&
-                afterRemaining <= 0 &&
-                (_normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.flipEvadeRemaining) || 0) <= 0
+            const beforeRawDestroyRemaining = destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining;
+            const beforeRemaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
+                ? (EvasionStatus.readDestroyEvadeRemaining(destroyEvadeMarker) || 0)
+                : (_normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining) || 0);
+            const afterRemaining = EvasionStatus && typeof EvasionStatus.consumeDestroyEvade === 'function'
+                ? EvasionStatus.consumeDestroyEvade(destroyEvadeMarker)
+                : Math.max(0, beforeRemaining - 1);
+            if (!(EvasionStatus && typeof EvasionStatus.consumeDestroyEvade === 'function')) {
+                destroyEvadeMarker.data.destroyEvadeRemaining = afterRemaining;
+            }
+            const afterimageWillDepleted = !!(
+                EvasionStatus &&
+                typeof EvasionStatus.shouldPruneEvasionMarker === 'function' &&
+                EvasionStatus.shouldPruneEvasionMarker(destroyEvadeMarker)
             );
             const visual = _getSpecialVisualMeta(cardState, row, col);
             const moveMeta = Object.assign({}, meta, {
@@ -1910,7 +1919,7 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
                     to: { row: destination.row, col: destination.col }
                 });
             }
-            destroyEvadeMarker.data.destroyEvadeRemaining = beforeRemaining;
+            destroyEvadeMarker.data.destroyEvadeRemaining = beforeRawDestroyRemaining;
         }
     }
 

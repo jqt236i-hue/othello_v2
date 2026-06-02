@@ -1,10 +1,14 @@
 (function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
+        let EvasionStatus = null;
+        try {
+            EvasionStatus = require('./evasion-status');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(EvasionStatus);
     } else {
-        root.SpecialStoneRegistry = factory();
+        root.SpecialStoneRegistry = factory(root.EvasionStatus || null);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function () {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (EvasionStatus: unknown) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -42,6 +46,30 @@
         TRAP_REVEAL: 'TRAP',
         ULTIMATE_HYPERACTIVE_GOD: 'ULTIMATE_HYPERACTIVE'
     });
+
+    function readFlipDefault(type: string): number | undefined {
+        if (!EvasionStatus || typeof (EvasionStatus as { getFlipEvadeDefault?: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault !== 'function') {
+            return undefined;
+        }
+        const value = (EvasionStatus as { getFlipEvadeDefault: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault(type, { mode: 'info' });
+        return Number.isFinite(Number(value)) ? Number(value) : undefined;
+    }
+
+    function readDestroyDefault(type: string): number | undefined {
+        if (!EvasionStatus || typeof (EvasionStatus as { getDestroyEvadeDefault?: (t: string, o?: unknown) => number | null }).getDestroyEvadeDefault !== 'function') {
+            return undefined;
+        }
+        const value = (EvasionStatus as { getDestroyEvadeDefault: (t: string, o?: unknown) => number | null }).getDestroyEvadeDefault(type, { mode: 'info' });
+        return Number.isFinite(Number(value)) ? Number(value) : undefined;
+    }
+
+    function readVisualFlipDefault(type: string): number | undefined {
+        if (!EvasionStatus || typeof (EvasionStatus as { getFlipEvadeDefault?: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault !== 'function') {
+            return undefined;
+        }
+        const value = (EvasionStatus as { getFlipEvadeDefault: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault(type, { mode: 'visual' });
+        return Number.isFinite(Number(value)) ? Number(value) : undefined;
+    }
 
     const SPECIAL_STONE_REGISTRY: Readonly<SpecialStoneRegistryMap> = Object.freeze({
         PROTECTED: Object.freeze({
@@ -97,21 +125,21 @@
             name: '多動石',
             desc: 'ターン開始時に移動し、移動後に反転する。',
             mobility: true,
-            tagFlipEvadeDefault: 1
+            tagFlipEvadeDefault: readFlipDefault('HYPERACTIVE')
         }),
         EXTREME_HYPERACTIVE: Object.freeze({
             name: '極悪多動魔',
             desc: 'ターン開始時に移動し、周囲の石を押しのける。',
             mobility: true,
-            tagFlipEvadeDefault: 3,
-            tagDestroyEvadeDefault: 1,
-            visualFlipEvadeDefault: 3
+            tagFlipEvadeDefault: readFlipDefault('EXTREME_HYPERACTIVE'),
+            tagDestroyEvadeDefault: readDestroyDefault('EXTREME_HYPERACTIVE'),
+            visualFlipEvadeDefault: readVisualFlipDefault('EXTREME_HYPERACTIVE')
         }),
         ESCAPE_HYPERACTIVE: Object.freeze({
             name: '逃亡石',
             desc: 'ターン開始時に近くの石から逃げる。',
             mobility: true,
-            tagFlipEvadeDefault: 1
+            tagFlipEvadeDefault: readFlipDefault('ESCAPE_HYPERACTIVE')
         }),
         ROBOT_VACUUM: Object.freeze({
             name: 'ロボット掃除機石',
@@ -126,16 +154,16 @@
             name: '究極多動神',
             desc: 'ターン開始時に大きく移動し、移動後に反転する。',
             mobility: true,
-            tagFlipEvadeDefault: 3,
-            tagDestroyEvadeDefault: 1,
-            visualFlipEvadeDefault: 3
+            tagFlipEvadeDefault: readFlipDefault('ULTIMATE_HYPERACTIVE'),
+            tagDestroyEvadeDefault: readDestroyDefault('ULTIMATE_HYPERACTIVE'),
+            visualFlipEvadeDefault: readVisualFlipDefault('ULTIMATE_HYPERACTIVE')
         }),
         INHERITED_HYPERACTIVE: Object.freeze({
             name: '継承多動石',
             desc: '多動状態が付与されている。',
             mobility: true,
-            tagFlipEvadeDefault: 1,
-            tagDestroyEvadeDefault: 1,
+            tagFlipEvadeDefault: readFlipDefault('INHERITED_HYPERACTIVE'),
+            tagDestroyEvadeDefault: readDestroyDefault('INHERITED_HYPERACTIVE'),
             overlayOnlyVisual: true
         }),
         REGEN: Object.freeze({
@@ -226,8 +254,8 @@
         AFTERIMAGE_WILL: Object.freeze({
             name: '残像石',
             desc: '反転や破壊を回避する。',
-            tagFlipEvadeDefault: 3,
-            tagDestroyEvadeDefault: 3
+            tagFlipEvadeDefault: readFlipDefault('AFTERIMAGE_WILL'),
+            tagDestroyEvadeDefault: readDestroyDefault('AFTERIMAGE_WILL')
         }),
         WILL_HUNTER_KING: Object.freeze({
             name: '意志狩りの王',

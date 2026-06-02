@@ -150,12 +150,14 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveLength(1);
-    expect(out.destroyed[0]).toMatchObject({ row: 5, col: 3 });
+    expect(out.destroyed).toHaveLength(0);
     expect(out.moved).toHaveLength(1);
     expect(out.moved[0]).toMatchObject({ to: { row: 5, col: 3 } });
     expect(gameState.board[5][3]).toBe(Shared.BLACK);
     expect(gameState.board[3][5]).toBe(Shared.WHITE);
+    const inherited = cardState.markers.find((m) => m && m.id === 8112);
+    expect(inherited).toBeTruthy();
+    expect([inherited.row, inherited.col]).not.toEqual([5, 3]);
   });
 
   test('特殊石優先は visual-effects-map 未登録でも盤上特殊石なら優先する', () => {

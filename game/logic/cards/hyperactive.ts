@@ -67,6 +67,7 @@ let SharedConstants: any = null;
 let BoardUtils: any = null;
 let RandomSourceModule: any = null;
 let StoneStatusSnapshot: any = null;
+let EvasionStatusModule: any = null;
 let HyperactiveCoreUtils: any = null;
 let HyperactiveBoardShape: any = null;
 let BLACK: any;
@@ -78,6 +79,7 @@ function refreshHyperactiveRuntimeModules(): void {
     BoardUtils = resolveHyperactiveModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
     RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
     StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
+    EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
     HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
     HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
     const constants = SharedConstants || {};
@@ -88,8 +90,6 @@ function refreshHyperactiveRuntimeModules(): void {
 
 refreshHyperactiveRuntimeModules();
 
-const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
-const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
 const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'INHERITED_HYPERACTIVE', 'LIVING_WILL']);
 
 function logHyperactiveDebug(...args: any[]): void {
@@ -770,59 +770,42 @@ function normalizeFlipCell(cell: any): Position | null {
 }
 
 type FlipEvadeProfile = {
-    defaultRemaining: number;
-    cause: string;
-    moveReason: string;
+    flipDefault?: number;
+    destroyDefault?: number;
+    visualFlipDefault?: number;
+    flipCause?: string;
+    flipMoveReason?: string;
     requiresActiveDuration?: boolean;
+    pruneWhenBothDepleted?: boolean;
 };
 
-const FLIP_EVADE_PROFILES: Readonly<Record<string, FlipEvadeProfile>> = Object.freeze({
-    HYPERACTIVE: Object.freeze({
-        defaultRemaining: 1,
-        cause: 'HYPERACTIVE',
-        moveReason: 'hyperactive_flip_evade_move'
-    }),
-    ESCAPE_HYPERACTIVE: Object.freeze({
-        defaultRemaining: 1,
-        cause: 'ESCAPE_HYPERACTIVE',
-        moveReason: 'escape_hyperactive_flip_evade_move'
-    }),
-    INHERITED_HYPERACTIVE: Object.freeze({
-        defaultRemaining: 1,
-        cause: 'HYPERACTIVE_INHERIT_WILL',
-        moveReason: 'inherited_hyperactive_flip_evade_move'
-    }),
-    EXTREME_HYPERACTIVE: Object.freeze({
-        defaultRemaining: EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
-        cause: 'EXTREME_HYPERACTIVE_WILL',
-        moveReason: 'extreme_hyperactive_flip_evade_move'
-    }),
-    ULTIMATE_HYPERACTIVE: Object.freeze({
-        defaultRemaining: ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
-        cause: 'ULTIMATE_HYPERACTIVE_GOD',
-        moveReason: 'ultimate_hyperactive_flip_evade_move',
-        requiresActiveDuration: true
-    }),
-    WILL_HUNTER_KING: Object.freeze({
-        defaultRemaining: 2,
-        cause: 'WILL_HUNTER_KING',
-        moveReason: 'will_hunter_king_flip_evade_move'
-    }),
-    AFTERIMAGE_WILL: Object.freeze({
-        defaultRemaining: 3,
-        cause: 'AFTERIMAGE_WILL',
-        moveReason: 'afterimage_will_flip_evade_move'
-    })
-});
+function getEvasionStatusModule(): any {
+    if (EvasionStatusModule) return EvasionStatusModule;
+    EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
+    return EvasionStatusModule;
+}
 
 function getFlipEvadeProfile(markerTypeUpper: string): FlipEvadeProfile | null {
-    if (!markerTypeUpper) return null;
-    return FLIP_EVADE_PROFILES[markerTypeUpper] || null;
+    const evasionStatus = getEvasionStatusModule();
+    if (!markerTypeUpper || !evasionStatus || typeof evasionStatus.getEvasionProfile !== 'function') return null;
+    return evasionStatus.getEvasionProfile(markerTypeUpper) || null;
 }
 
 function getFlipEvadeMarkerType(entry: MarkerEntry): string | null {
-    const type = String(entry && entry.data && entry.data.type ? entry.data.type : '').toUpperCase();
-    return getFlipEvadeProfile(type) ? type : null;
+    const evasionStatus = getEvasionStatusModule();
+    const type = evasionStatus && typeof evasionStatus.normalizeEvasionType === 'function'
+        ? evasionStatus.normalizeEvasionType(entry)
+        : String(entry && entry.data && entry.data.type ? entry.data.type : '').toUpperCase();
+    if (!type) return null;
+    const profile = getFlipEvadeProfile(type);
+    if (!profile) return null;
+    if (
+        profile.flipDefault === undefined &&
+        !(evasionStatus && typeof evasionStatus.readFlipEvadeRemaining === 'function' && evasionStatus.readFlipEvadeRemaining(entry) !== null)
+    ) {
+        return null;
+    }
+    return type;
 }
 
 function findFlipEvadeMarkersAt(cardState: CardState, row: number, col: number): MarkerEntry[] {
@@ -838,48 +821,22 @@ function findFlipEvadeMarkersAt(cardState: CardState, row: number, col: number):
 }
 
 function canUseFlipEvade(entry: MarkerEntry, markerTypeUpper: string): boolean {
-    if (!entry || !markerTypeUpper) return false;
-    const profile = getFlipEvadeProfile(markerTypeUpper);
-    if (!profile) return false;
-
-    if (profile.requiresActiveDuration) {
-        const remaining = Number(entry.data && entry.data.remainingOwnerTurns);
-        if (Number.isFinite(remaining) && remaining <= 0) return false;
-        const evadeRemainingRaw = Number(entry.data && entry.data.flipEvadeRemaining);
-        const evadeRemaining = Number.isFinite(evadeRemainingRaw)
-            ? Math.max(0, Math.trunc(evadeRemainingRaw))
-            : profile.defaultRemaining;
-        return evadeRemaining > 0;
-    }
-
-    if (entry.data && entry.data.instantPlacementOnly === true) return false;
-
-    const remaining = Number(entry.data && entry.data.flipEvadeRemaining);
-    const normalized = Number.isFinite(remaining) ? remaining : profile.defaultRemaining;
-    return normalized > 0;
+    const evasionStatus = getEvasionStatusModule();
+    if (!entry || !markerTypeUpper || !evasionStatus || typeof evasionStatus.canUseFlipEvade !== 'function') return false;
+    return !!evasionStatus.canUseFlipEvade(entry);
 }
 
 function consumeFlipEvade(entry: MarkerEntry, markerTypeUpper: string): void {
-    if (!entry || !markerTypeUpper) return;
-    const profile = getFlipEvadeProfile(markerTypeUpper);
-    if (!profile) return;
-    if (!entry.data || typeof entry.data !== 'object') entry.data = {};
-    const remaining = Number(entry.data.flipEvadeRemaining);
-    const normalized = Number.isFinite(remaining) ? remaining : profile.defaultRemaining;
-    entry.data.flipEvadeRemaining = Math.max(0, normalized - 1);
+    const evasionStatus = getEvasionStatusModule();
+    if (!entry || !markerTypeUpper || !evasionStatus || typeof evasionStatus.consumeFlipEvade !== 'function') return;
+    evasionStatus.consumeFlipEvade(entry);
 }
 
 function pruneAfterimageMarkerIfDepleted(cardState: CardState, entry: MarkerEntry): void {
     if (!cardState || !Array.isArray((cardState as any).markers) || !entry || !entry.data) return;
-    const typeUpper = String(entry.data.type || '').toUpperCase();
-    if (typeUpper !== 'AFTERIMAGE_WILL') return;
-    const flipRemaining = Number.isFinite(Number(entry.data.flipEvadeRemaining))
-        ? Math.max(0, Math.trunc(Number(entry.data.flipEvadeRemaining)))
-        : 0;
-    const destroyRemaining = Number.isFinite(Number(entry.data.destroyEvadeRemaining))
-        ? Math.max(0, Math.trunc(Number(entry.data.destroyEvadeRemaining)))
-        : 0;
-    if (flipRemaining > 0 || destroyRemaining > 0) return;
+    const evasionStatus = getEvasionStatusModule();
+    if (!evasionStatus || typeof evasionStatus.shouldPruneEvasionMarker !== 'function') return;
+    if (!evasionStatus.shouldPruneEvasionMarker(entry)) return;
     (cardState as any).markers = (cardState as any).markers.filter((marker: any) => marker !== entry);
 }
 
@@ -898,13 +855,19 @@ function removeFlipEvadeMarkerAt(cardState: CardState, row: number, col: number,
 }
 
 function getFlipEvadeCause(markerTypeUpper: string): string {
-    const profile = getFlipEvadeProfile(markerTypeUpper);
-    return profile ? profile.cause : 'HYPERACTIVE';
+    const evasionStatus = getEvasionStatusModule();
+    if (evasionStatus && typeof evasionStatus.getFlipEvadeCause === 'function') {
+        return evasionStatus.getFlipEvadeCause(markerTypeUpper) || 'HYPERACTIVE';
+    }
+    return 'HYPERACTIVE';
 }
 
 function getFlipEvadeMoveReason(markerTypeUpper: string): string {
-    const profile = getFlipEvadeProfile(markerTypeUpper);
-    return profile ? profile.moveReason : 'hyperactive_flip_evade_move';
+    const evasionStatus = getEvasionStatusModule();
+    if (evasionStatus && typeof evasionStatus.getFlipEvadeMoveReason === 'function') {
+        return evasionStatus.getFlipEvadeMoveReason(markerTypeUpper) || 'hyperactive_flip_evade_move';
+    }
+    return 'hyperactive_flip_evade_move';
 }
 
 function resolveHyperactiveFlipEvasion(
@@ -2475,11 +2438,16 @@ function applyHyperactiveInheritWill(
     });
 
     (cardState as any).hyperactiveSeqCounter = ((cardState as any).hyperactiveSeqCounter || 0) + 1;
+    const evasionStatus = getEvasionStatusModule();
     addMarker(cardState, 'specialStone', row, col, playerKey, {
         type: 'INHERITED_HYPERACTIVE',
         remainingOwnerTurns: inheritedTurns,
-        flipEvadeRemaining: 1,
-        destroyEvadeRemaining: 1,
+        flipEvadeRemaining: evasionStatus && typeof evasionStatus.getFlipEvadeDefault === 'function'
+            ? (evasionStatus.getFlipEvadeDefault('INHERITED_HYPERACTIVE') || 1)
+            : 1,
+        destroyEvadeRemaining: evasionStatus && typeof evasionStatus.getDestroyEvadeDefault === 'function'
+            ? (evasionStatus.getDestroyEvadeDefault('INHERITED_HYPERACTIVE') || 1)
+            : 1,
         hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
     });
     if (typeof deps.emitPresentationEvent === 'function') {

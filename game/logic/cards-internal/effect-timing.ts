@@ -3,6 +3,37 @@
  * @description Turn-start and placement-effect orchestration shared between Browser and Headless.
  */
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+function _require(id: string): any {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
+
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return null;
+}
+
+const EvasionStatus = safeRequire('../../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
 
 interface Context {
     constants?: any;
@@ -57,6 +88,26 @@ interface TurnStartSummary {
         totalDestroyed: number;
         completedCount: number;
     };
+}
+
+function getFlipEvadeDefault(type: string, fallback: number, mode: 'runtime' | 'info' | 'visual' = 'runtime'): number {
+    if (EvasionStatus && typeof EvasionStatus.getFlipEvadeDefault === 'function') {
+        const value = EvasionStatus.getFlipEvadeDefault(type, { mode });
+        if (Number.isFinite(Number(value))) {
+            return Number(value);
+        }
+    }
+    return fallback;
+}
+
+function getDestroyEvadeDefault(type: string, fallback: number, mode: 'runtime' | 'info' | 'visual' = 'runtime'): number {
+    if (EvasionStatus && typeof EvasionStatus.getDestroyEvadeDefault === 'function') {
+        const value = EvasionStatus.getDestroyEvadeDefault(type, { mode });
+        if (Number.isFinite(Number(value))) {
+            return Number(value);
+        }
+    }
+    return fallback;
 }
 
 function getConstants(context: Context): Constants {
@@ -170,19 +221,19 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             sniperTurns: constants && constants.SNIPER_WILL_TURNS,
             observerTurns: constants && constants.OBSERVER_WILL_TURNS,
             ghostTurns: constants && constants.GHOST_WILL_TURNS,
-            afterimageFlipEvadeLimit: constants && constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
-            afterimageDestroyEvadeLimit: constants && constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
+            afterimageFlipEvadeLimit: getFlipEvadeDefault('AFTERIMAGE_WILL', constants && constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT),
+            afterimageDestroyEvadeLimit: getDestroyEvadeDefault('AFTERIMAGE_WILL', constants && constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT),
             timeStopTurns: constants && constants.TIME_STOP_GOD_TURNS,
             willHunterKingTurns: constants && constants.WILL_HUNTER_KING_TURNS,
             destroyDragonTurns: constants && constants.DESTROY_DRAGON_TURNS,
             lightningTurns: constants && constants.LIGHTNING_WILL_TURNS,
-            extremeHyperactiveFlipEvadeLimit: constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            extremeHyperactiveDestroyEvadeLimit: constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            extremeHyperactiveFlipEvadeLimit: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            extremeHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             robotVacuumTurns: constants && constants.ROBOT_VACUUM_TURNS,
             inheritedHyperactiveTurns: 10,
             ultimateHyperactiveTurns: constants && constants.ULTIMATE_HYPERACTIVE_TURNS,
-            ultimateHyperactiveFlipEvadeLimit: constants && constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            ultimateHyperactiveDestroyEvadeLimit: constants && constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            ultimateHyperactiveFlipEvadeLimit: getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', constants && constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            ultimateHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', constants && constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             guardTurns: 3,
             guardianGodTurns: 10,
             workTurns: 5
@@ -840,8 +891,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     if (pending && pending.type === 'AFTERIMAGE_WILL' && typeof helpers.addMarker === 'function') {
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'AFTERIMAGE_WILL',
-            flipEvadeRemaining: constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
-            destroyEvadeRemaining: constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT
+            flipEvadeRemaining: getFlipEvadeDefault('AFTERIMAGE_WILL', constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT),
+            destroyEvadeRemaining: getDestroyEvadeDefault('AFTERIMAGE_WILL', constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT)
         });
         effects.afterimagePlaced = true;
     }
@@ -861,8 +912,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'WILL_HUNTER_KING',
             remainingOwnerTurns: constants.WILL_HUNTER_KING_TURNS,
-            flipEvadeRemaining: 2,
-            destroyEvadeRemaining: 2
+            flipEvadeRemaining: getFlipEvadeDefault('WILL_HUNTER_KING', 2),
+            destroyEvadeRemaining: getDestroyEvadeDefault('WILL_HUNTER_KING', 2)
         });
         effects.willHunterKingPlaced = true;
     }
@@ -887,7 +938,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'HYPERACTIVE',
-            flipEvadeRemaining: 1,
+            flipEvadeRemaining: getFlipEvadeDefault('HYPERACTIVE', 1),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -897,8 +948,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'EXTREME_HYPERACTIVE',
-            flipEvadeRemaining: constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            destroyEvadeRemaining: constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            flipEvadeRemaining: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            destroyEvadeRemaining: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -909,7 +960,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ESCAPE_HYPERACTIVE',
-            flipEvadeRemaining: 1,
+            flipEvadeRemaining: getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 1),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -953,8 +1004,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ULTIMATE_HYPERACTIVE',
             remainingOwnerTurns: constants.ULTIMATE_HYPERACTIVE_TURNS,
-            flipEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
-            destroyEvadeRemaining: constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT
+            flipEvadeRemaining: getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT),
+            destroyEvadeRemaining: getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT)
         });
         effects.ultimateHyperactivePlaced = true;
     }
