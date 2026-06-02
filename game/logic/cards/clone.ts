@@ -104,6 +104,12 @@ interface CloneDeps {
     getSpecialMarkers?(cardState: CardState): any[];
     getBombMarkers?(cardState: CardState): any[];
     collectEmptyNeighborCellsForCard?(cardState: CardState, gameState: GameState, row: number, col: number): Array<{row: number; col: number}>;
+    BoardOps?: any;
+    spawnAndFlipBatch?(cardState: CardState, gameState: GameState, playerKey: string, player: number, targets: Array<{row: number; col: number}>, cause: string, reason: string, anchorPos: {row: number; col: number}, deps: any): any;
+    getCardContext?(cardState: CardState): any;
+    getFlipsWithContext?(gameState: GameState, row: number, col: number, playerValue: number, context: any): Array<[number, number]>;
+    clearBombAt?(cardState: CardState, row: number, col: number): void;
+    clearHyperactiveAtPositions?(cardState: CardState, positions: Array<{row: number; col: number}>): void;
     spawnAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, meta: any): any;
     runSpawnBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     setCellValueForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
@@ -115,6 +121,7 @@ interface CloneResult {
     reason?: string;
     source?: {row: number; col: number};
     spawned?: Array<{row: number; col: number}>;
+    flipped?: Array<{row: number; col: number}>;
     durationChanges?: Array<any>;
 }
 
@@ -130,6 +137,7 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     const getBombMarkers = deps.getBombMarkers || (() => []);
     const collectEmptyNeighborCellsForCard = deps.collectEmptyNeighborCellsForCard || (() => []);
     const spawnAt = deps.spawnAt || null;
+    const spawnAndFlipBatch = typeof deps.spawnAndFlipBatch === 'function' ? deps.spawnAndFlipBatch : null;
     const runSpawnBlock = typeof deps.runSpawnBlock === 'function' ? deps.runSpawnBlock : null;
     const setCellValueForCard = deps.setCellValueForCard || (() => false);
     const addMarker = deps.addMarker || (() => false);
@@ -149,17 +157,53 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     const randomSource = resolveRandomSource(prng);
     const target = spawnTargets[resolveRandomIndex(randomSource, spawnTargets.length)] || spawnTargets[0];
     const spawned: Array<{row: number; col: number}> = [];
-    const applyCloneSpawn = () => applySpawnWithValidation(spawnAt, setCellValueForCard, cardState, gameState, target, playerKey, playerValue, 'CLONE_WILL', 'clone_spawn', {
-        fromRow: row,
-        fromCol: col,
-        cloneVisual: true,
-        spawnIntent: 'clone_spawn'
-    });
-    const spawnOutcome = runSpawnBlock
-        ? runSpawnBlock(cardState, gameState, applyCloneSpawn, { cause: 'CLONE_WILL', reason: 'clone_spawn', owner: playerKey })
-        : applyCloneSpawn();
-    if (!spawnOutcome.applied)
-        return spawnOutcome as CloneResult;
+    let flipped: Array<{row: number; col: number}> = [];
+    if (spawnAndFlipBatch) {
+        const batch = spawnAndFlipBatch(
+            cardState,
+            gameState,
+            playerKey,
+            playerValue,
+            [target],
+            'CLONE_WILL',
+            'clone_spawn',
+            { row, col },
+            {
+                BoardOps: deps.BoardOps || null,
+                getCardContext: deps.getCardContext,
+                getFlipsWithContext: deps.getFlipsWithContext,
+                clearBombAt: deps.clearBombAt,
+                clearHyperactiveAtPositions: deps.clearHyperactiveAtPositions,
+                changeCause: 'CLONE_WILL',
+                changeReason: 'clone_spawn_flip',
+                spawnMeta: {
+                    fromRow: row,
+                    fromCol: col,
+                    cloneVisual: true,
+                    spawnIntent: 'clone_spawn'
+                }
+            }
+        );
+        if (!batch || !Array.isArray(batch.spawned) || batch.spawned.length === 0) {
+            return { applied: false, reason: 'spawn_failed' };
+        }
+        spawned.push(...batch.spawned.map((entry: any) => ({ row: entry.row, col: entry.col })));
+        flipped = Array.isArray(batch.flipped) ? batch.flipped.slice() : [];
+    } else {
+        const applyCloneSpawn = () => applySpawnWithValidation(spawnAt, setCellValueForCard, cardState, gameState, target, playerKey, playerValue, 'CLONE_WILL', 'clone_spawn', {
+            fromRow: row,
+            fromCol: col,
+            cloneVisual: true,
+            spawnIntent: 'clone_spawn'
+        });
+        const spawnOutcome = runSpawnBlock
+            ? runSpawnBlock(cardState, gameState, applyCloneSpawn, { cause: 'CLONE_WILL', reason: 'clone_spawn', owner: playerKey })
+            : applyCloneSpawn();
+        if (!spawnOutcome.applied) {
+            return spawnOutcome as CloneResult;
+        }
+        spawned.push({ row: target.row, col: target.col });
+    }
     for (const special of sourceSpecials) {
         const owner = special.owner === 'white' ? 'white' : 'black';
         addMarker(cardState, 'specialStone', target.row, target.col, owner, cloneMarkerData(special.data || {}));
@@ -168,9 +212,8 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
         const owner = bomb.owner === 'white' ? 'white' : 'black';
         addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign({}, cloneMarkerData(bomb.data || {}), { category: 'bomb', type: (bomb.data && bomb.data.type) || 'TIME_BOMB' }));
     }
-    spawned.push({ row: target.row, col: target.col });
     cs.pendingEffectByPlayer[playerKey] = null;
-    return { applied: true, source: { row, col }, spawned };
+    return { applied: true, source: { row, col }, spawned, flipped };
 }
 
 export = {

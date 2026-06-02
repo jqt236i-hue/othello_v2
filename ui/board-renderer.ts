@@ -426,6 +426,18 @@ if (!PlaybackStateModule) {
     } catch (e: any) { /* ignore */ }
 }
 
+function _getBoardUpdateSyncRuntimeForBoardRenderer() {
+    if (typeof require === 'function') {
+        try { return require('./board-update-sync-runtime'); } catch (e: any) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).BoardUpdateSyncRuntime) {
+            return (globalThis as any).BoardUpdateSyncRuntime;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function _isVisualPlaybackActiveForBoardRenderer() {
     if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
         return PlaybackStateModule.getPlaybackActive() === true;
@@ -461,6 +473,17 @@ function _shouldSkipBoardRenderForPlayback() {
         } catch (e: any) { /* ignore */ }
     }
     return _isVisualPlaybackActiveForBoardRenderer() || _hasPendingPlaybackEventsForBoardRenderer();
+}
+
+function _peekBoardUpdateSyncContextForBoardRenderer() {
+    const runtime = _getBoardUpdateSyncRuntimeForBoardRenderer();
+    if (runtime && typeof runtime.peekBoardUpdateSyncContext === 'function') {
+        try {
+            const context = runtime.peekBoardUpdateSyncContext();
+            if (context && typeof context === 'object') return context;
+        } catch (e: any) { /* ignore */ }
+    }
+    return null;
 }
 
 function _isTimeStopActiveForBoardRenderer() {
@@ -900,7 +923,12 @@ function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, pending: any, s
 function renderBoard() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
-    if (_shouldSkipBoardRenderForPlayback()) {
+    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
+    const allowBoardUpdateDuringPlayback = !!(
+        boardUpdateSyncContext
+        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
+    );
+    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
         return;
     }
     // Determine whether we are in a "target selection" card mode.

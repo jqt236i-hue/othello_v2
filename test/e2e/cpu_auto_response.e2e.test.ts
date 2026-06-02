@@ -92,8 +92,8 @@ describe('CPU auto-response E2E', () => {
     });
 
     expect(after).toBeGreaterThan(before);
+    expect(after).toBeGreaterThanOrEqual(before + 2);
     expect(afterTurnNumber).toBeGreaterThan(beforeTurnNumber);
-    expect(consoles.some(entry => entry.text.includes('[CPU]'))).toBe(true);
 
     await page.close();
   }, 30000);

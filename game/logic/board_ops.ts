@@ -815,6 +815,73 @@ function _ensureStoneSalvationGodBlockQueue(cardState: any): any[] {
     return cardState._stoneSalvationGodReviveBlockQueue;
 }
 
+function _ensureHiddenArrayProperty(cardState: any, prop: string): any[] {
+    _ensureCardState(cardState);
+    const existing = Array.isArray(cardState[prop]) ? cardState[prop] : [];
+    const descriptor = Object.getOwnPropertyDescriptor(cardState, prop);
+    if (!descriptor || descriptor.enumerable || descriptor.value !== existing) {
+        Object.defineProperty(cardState, prop, {
+            value: existing,
+            enumerable: false,
+            writable: true,
+            configurable: true
+        });
+    }
+    return existing;
+}
+
+function _ensureDeferredGeneratedSpawnFlipQueue(cardState: any): any[] {
+    return _ensureHiddenArrayProperty(cardState, '_deferredGeneratedSpawnFlipQueue');
+}
+
+function _appendResolvedGeneratedSpawnFlipResults(cardState: any, results: any[]): void {
+    if (!Array.isArray(results) || results.length === 0) return;
+    _ensureHiddenArrayProperty(cardState, '_resolvedGeneratedSpawnFlipResults').push(...results);
+}
+
+function _queueDeferredGeneratedSpawnFlip(cardState: any, entry: any): void {
+    if (!entry || !Number.isInteger(entry.row) || !Number.isInteger(entry.col)) return;
+    _ensureDeferredGeneratedSpawnFlipQueue(cardState).push({
+        row: entry.row,
+        col: entry.col,
+        ownerKey: entry.ownerKey === 'white' ? 'white' : 'black',
+        cause: entry.cause || null,
+        reason: entry.reason || null,
+        changeCause: entry.changeCause || null,
+        changeReason: entry.changeReason || null,
+        changeMeta: entry.changeMeta || null
+    });
+}
+
+function _resolveDeferredGeneratedSpawnFlips(cardState: any, gameState: any, meta: any = {}): any {
+    const queue = _ensureDeferredGeneratedSpawnFlipQueue(cardState).slice();
+    cardState._deferredGeneratedSpawnFlipQueue.length = 0;
+    if (!queue.length) {
+        return { resolved: [], requestedCount: 0, resolvedCount: 0 };
+    }
+    const resolver = cardState && typeof cardState._generatedSpawnFlipResolver === 'function'
+        ? cardState._generatedSpawnFlipResolver
+        : null;
+    if (!resolver) {
+        return { resolved: [], requestedCount: queue.length, resolvedCount: 0 };
+    }
+    const resolvedCandidate = resolver(cardState, gameState, queue, meta);
+    const resolved = Array.isArray(resolvedCandidate) ? resolvedCandidate : [];
+    _appendResolvedGeneratedSpawnFlipResults(cardState, resolved);
+    return {
+        resolved,
+        requestedCount: queue.length,
+        resolvedCount: resolved.length
+    };
+}
+
+function consumeResolvedGeneratedSpawnFlipResults(cardState: any): any[] {
+    const results = _ensureHiddenArrayProperty(cardState, '_resolvedGeneratedSpawnFlipResults');
+    const out = results.slice();
+    results.length = 0;
+    return out;
+}
+
 function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, ownerKey: string): boolean {
     return _getSpecialMarkersAt(cardState, row, col).some((marker: any) => (
         marker &&
@@ -882,6 +949,17 @@ function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any
         'stone_salvation_god_revive',
         reviveMeta
     );
+    if (spawnResult && spawnResult.spawned) {
+        _queueDeferredGeneratedSpawnFlip(cardState, {
+            row: destination.row,
+            col: destination.col,
+            ownerKey,
+            cause: 'STONE_SALVATION_GOD',
+            reason: 'stone_salvation_god_revive',
+            changeCause: 'STONE_SALVATION_GOD',
+            changeReason: 'stone_salvation_god_revive_flip'
+        });
+    }
     return {
         revived: !!(spawnResult && spawnResult.spawned),
         row: destination.row,
@@ -1024,6 +1102,7 @@ function runEffectBlock(cardState: any, gameState: any, options: any, fn: any): 
                 cardState._stoneSalvationGodDestroyBlockDepth = previousDepth;
                 if (previousEffectDepth === 0) {
                     _flushStoneSalvationGodDestroyBlock(cardState, gameState, Object.assign({}, meta, { effectBlockId }));
+                    _resolveDeferredGeneratedSpawnFlips(cardState, gameState, Object.assign({}, meta, { effectBlockId }));
                 }
             }
         } finally {
@@ -1059,6 +1138,7 @@ function runDestroyBlock(cardState: any, gameState: any, fn: any, meta: any = {}
         cardState._stoneSalvationGodDestroyBlockDepth = previousDepth;
         if (previousDepth === 0) {
             _flushStoneSalvationGodDestroyBlock(cardState, gameState, meta);
+            _resolveDeferredGeneratedSpawnFlips(cardState, gameState, meta);
         }
     }
 }
@@ -1166,16 +1246,109 @@ function _removeOccupiedCellForCellRemoval(
     destroyMeta.removalKind = removalKind;
     if (removalCause) destroyMeta.removalCause = removalCause;
 
+    const cardMarkers = getCardMarkersModule();
+    const removeCellMarkers = () => {
+        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+            cardMarkers.removeMarkersAt(cardState, row, col);
+        } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+            MarkersAdapter.removeMarkersAt(cardState, row, col);
+        } else if (Array.isArray(cardState.markers)) {
+            cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
+        }
+    };
+    const recordCellRemovalForSalvation = () => {
+        const activeTurnPlayer = cardState._activeTurnPlayer;
+        const beneficiaryPlayer = activeTurnPlayer === 'black'
+            ? 'white'
+            : (activeTurnPlayer === 'white' ? 'black' : null);
+        if (beneficiaryPlayer) {
+            if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+                cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
+            }
+            if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
+                cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
+            }
+            cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
+                row,
+                col,
+                owner: ownerBeforeKey,
+                wasSpecial: wasSpecialStoneForSalvation
+            });
+        }
+    };
+
+    const cardLivingWillModule = getCardLivingWillModule();
+    const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
+        ? cardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
+        : null;
+    if (livingWillMarker && cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
+        destroyMeta.livingWillTriggered = true;
+        setStoneIdAt(cardState, gameState, row, col, null);
+        setCellValue(gameState, row, col, EMPTY);
+        removeCellMarkers();
+        emitPresentationEvent(cardState, {
+            type: 'DESTROY',
+            stoneId,
+            row,
+            col,
+            ownerBefore: ownerBeforeKey,
+            cause: cause || null,
+            reason: reason || null,
+            meta: destroyMeta
+        });
+        const livingWillResult = cardLivingWillModule.restoreFromLivingWillSnapshot(
+            cardState,
+            gameState,
+            livingWillMarker,
+            {
+                triggerKind: 'destroy',
+                sourceRow: row,
+                sourceCol: col,
+                cause: cause || null,
+                reason: reason || null
+            },
+            {
+                BoardOps: {
+                    spawnAt,
+                    changeAt,
+                    getCellValue,
+                    getExpansionDescriptors,
+                    emitPresentationEvent
+                },
+                random: (options && (options.random || options.randomSource)) || null
+            }
+        );
+        if (livingWillResult && livingWillResult.restored) {
+            return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
+                reason: 'living_will_restored',
+                cellRemoval: true,
+                removalPolicy,
+                removalKind,
+                from: { row, col },
+                to: livingWillResult.destination || { row, col },
+                owner: livingWillResult.owner || ownerBeforeKey,
+                livingWillRevived: true,
+                relocated: !!livingWillResult.relocated
+            });
+        }
+
+        recordCellRemovalForSalvation();
+        const stoneSalvationGodReviveQueued = wasStoneSalvationGod
+            ? null
+            : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKey, cause, reason, destroyMeta);
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, Object.assign({
+            reason: 'cell_removed',
+            cellRemoval: true,
+            removalPolicy,
+            removalKind
+        }, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
+            stoneSalvationGodReviveQueued: true
+        } : {}));
+    }
+
     setStoneIdAt(cardState, gameState, row, col, null);
     setCellValue(gameState, row, col, EMPTY);
-    const cardMarkers = getCardMarkersModule();
-    if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
-        cardMarkers.removeMarkersAt(cardState, row, col);
-    } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-        MarkersAdapter.removeMarkersAt(cardState, row, col);
-    } else if (Array.isArray(cardState.markers)) {
-        cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
-    }
+    removeCellMarkers();
 
     emitPresentationEvent(cardState, {
         type: 'DESTROY',
@@ -1188,24 +1361,7 @@ function _removeOccupiedCellForCellRemoval(
         meta: destroyMeta
     });
 
-    const activeTurnPlayer = cardState._activeTurnPlayer;
-    const beneficiaryPlayer = activeTurnPlayer === 'black'
-        ? 'white'
-        : (activeTurnPlayer === 'white' ? 'black' : null);
-    if (beneficiaryPlayer) {
-        if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
-            cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
-        }
-        if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
-            cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
-        }
-        cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
-            row,
-            col,
-            owner: ownerBeforeKey,
-            wasSpecial: wasSpecialStoneForSalvation
-        });
-    }
+    recordCellRemovalForSalvation();
 
     const stoneSalvationGodReviveQueued = wasStoneSalvationGod
         ? null
@@ -1435,9 +1591,7 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
         let inheritedFlipEvadeRemaining: number | null = null;
         let destroyEvadeRemaining: number | null = null;
         const destroyEvadeTotal = markersAtCell.reduce((sum: number, marker: any) => {
-            const remaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
-            ? EvasionStatus.readDestroyEvadeRemaining(marker)
-            : _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
+            const remaining = _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
             return remaining === null ? sum : (sum + remaining);
         }, 0);
         if (destroyEvadeTotal > 0 || markersAtCell.some((marker: any) => _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining) === 0)) {
@@ -1971,6 +2125,15 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
                 spawnMeta
             );
             if (spawnResult && spawnResult.spawned) {
+                _queueDeferredGeneratedSpawnFlip(cardState, {
+                    row: destination.row,
+                    col: destination.col,
+                    ownerKey: ownerBeforeKey,
+                    cause: 'PROLIFERATION_WILL',
+                    reason: 'proliferation_spawn',
+                    changeCause: 'PROLIFERATION_WILL',
+                    changeReason: 'proliferation_spawn_flip'
+                });
                 _addSpecialStoneMarker(cardState, destination.row, destination.col, ownerBeforeKey, {
                     type: 'PROLIFERATION',
                     remainingOwnerTurns: proliferationOwnerTurns
@@ -2565,6 +2728,7 @@ export = {
     emitPresentationEvent,
     setActionContext,
     clearActionContext,
+    consumeResolvedGeneratedSpawnFlipResults,
     consumeStoneSalvationGodRevives,
     runEffectBlock,
     runDestroyBlock,

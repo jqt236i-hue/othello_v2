@@ -18,7 +18,8 @@ const PENDING_SELECTION_CONSUMER_SCRIPTS = [
   'game/card-effects/blockade.js',
   'game/card-effects/meteor.js',
   'game/card-effects/freeze.js',
-  'game/card-effects/clone.js'
+  'game/card-effects/clone.js',
+  'game/card-effects/reverse-will.js'
 ];
 
 function expectPendingSelectionConsumersLoadAfterSelectionFlow(html: string, rootPath: string) {

@@ -980,6 +980,11 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       },
       {
         type: 'flip',
+        phase: 10.5,
+        targets: [{ r: 6, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'REVERSE_WILL', reason: 'reverse_will_flip' }]
+      },
+      {
+        type: 'flip',
         phase: 11,
         targets: [{ r: 5, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'BREEDING', reason: 'breeding_flip' }]
       },
@@ -997,6 +1002,26 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
         type: 'flip',
         phase: 14,
         targets: [{ r: 6, col: 6, ownerBefore: 'white', ownerAfter: 'black', cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 15,
+        targets: [{ r: 1, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'CLONE_WILL', reason: 'clone_spawn_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 16,
+        targets: [{ r: 2, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'SEED_WILL', reason: 'seed_sprout_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 17,
+        targets: [{ r: 3, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'PROLIFERATION_WILL', reason: 'proliferation_spawn_flip' }]
+      },
+      {
+        type: 'flip',
+        phase: 18,
+        targets: [{ r: 4, col: 5, ownerBefore: 'white', ownerAfter: 'black', cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive_flip' }]
       }
     ];
     const raw = [
@@ -1011,7 +1036,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip')
       .map((ev) => ev.phase);
 
-    expect(cues).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(cues).toEqual([5, 6, 7, 8, 9, 10, 10.5, 11, 12, 13, 14, 15, 16, 17, 18]);
   });
 
   test('Stone Salvation God revive uses the positive spawn sound cue', () => {

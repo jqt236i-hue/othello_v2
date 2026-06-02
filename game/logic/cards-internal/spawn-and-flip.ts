@@ -51,8 +51,8 @@ type SpawnAndFlipChangeResult = {
 } | null | undefined;
 
 type SpawnAndFlipBoardOps = {
-    spawnAt?: (cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, row: number, col: number, playerKey: any, cause: string, reason: string) => SpawnAndFlipSpawnResult;
-    changeAt?: (cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, row: number, col: number, playerKey: any, cause: string, reason: string) => SpawnAndFlipChangeResult;
+    spawnAt?: (cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, row: number, col: number, playerKey: any, cause: string, reason: string, meta?: any) => SpawnAndFlipSpawnResult;
+    changeAt?: (cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, row: number, col: number, playerKey: any, cause: string, reason: string, meta?: any) => SpawnAndFlipChangeResult;
     runSpawnBlock?: (cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, fn: () => void, meta: Record<string, unknown>) => unknown;
 };
 
@@ -64,6 +64,9 @@ type SpawnAndFlipDeps = {
     clearHyperactiveAtPositions?: (cardState: SpawnAndFlipCardState, positions: SpawnAndFlipPosition[]) => void;
     changeCause?: string;
     changeReason?: string;
+    spawnMeta?: Record<string, unknown> | null;
+    changeMeta?: Record<string, unknown> | null;
+    buildSpawnMeta?: (target: SpawnAndFlipPosition, anchorPos: SpawnAndFlipPosition, playerKey: any, cause: string, reason: string) => Record<string, unknown> | null | undefined;
 };
 
 type SpawnAndFlipSpawnedPosition = SpawnAndFlipPosition & {
@@ -176,12 +179,24 @@ function setBoardCell(gameState: SpawnAndFlipGameState, row: number, col: number
     return true;
 }
 
+function getBoardCell(gameState: SpawnAndFlipGameState, row: number, col: number): any {
+    if (isMainBoardCell(gameState, row, col)) {
+        if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return null;
+        return gameState.board[row][col];
+    }
+
+    const ref = getExpansionCellRef(gameState, row, col);
+    if (!ref) return null;
+    return ref.legacy
+        ? ref.expansion.owner
+        : ref.cell.owner;
+}
+
 function toPositionKey(row: number, col: number): string {
     return `${row},${col}`;
 }
 
-function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, playerKey: any, player: any, targets: SpawnAndFlipPosition[], cause: string, reason: string, anchorPos: SpawnAndFlipPosition, deps: SpawnAndFlipDeps): SpawnAndFlipBatchResult {
-    const spawned: SpawnAndFlipSpawnedPosition[] = [];
+function resolveGeneratedFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, playerKey: any, player: any, targets: SpawnAndFlipPosition[], deps: SpawnAndFlipDeps): SpawnAndFlipPosition[] {
     const flipped: SpawnAndFlipPosition[] = [];
     const flippedSet = new Set<string>();
     const getCardContext = deps.getCardContext || (() => ({ protectedStones: [], permaProtectedStones: [] }));
@@ -197,18 +212,59 @@ function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAnd
             ));
         }
     });
-    const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
     const changeCause = deps.changeCause || 'BREEDING';
     const changeReason = deps.changeReason || 'breeding_flip';
+    const changeMeta = deps.changeMeta;
+
+    for (const target of targets) {
+        const originalValue = getBoardCell(gameState, target.row, target.col);
+        if (originalValue !== null && originalValue !== 0) {
+            setBoardCell(gameState, target.row, target.col, 0);
+        }
+        const context = getCardContext(cardState);
+        const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
+        if (originalValue !== null && originalValue !== 0) {
+            setBoardCell(gameState, target.row, target.col, originalValue);
+        }
+        for (const [flipRow, flipCol] of flips) {
+            let changed = true;
+            if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
+                const changeRes = deps.BoardOps.changeAt(cardState, gameState, flipRow, flipCol, playerKey, changeCause, changeReason, changeMeta);
+                changed = !!(changeRes && changeRes.changed);
+            } else {
+                setBoardCell(gameState, flipRow, flipCol, player);
+            }
+            if (!changed) continue;
+            clearBombAt(cardState, flipRow, flipCol);
+            const flipKey = toPositionKey(flipRow, flipCol);
+            if (!flippedSet.has(flipKey)) {
+                flippedSet.add(flipKey);
+                flipped.push({ row: flipRow, col: flipCol });
+            }
+        }
+    }
+
+    return flipped;
+}
+
+function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, playerKey: any, player: any, targets: SpawnAndFlipPosition[], cause: string, reason: string, anchorPos: SpawnAndFlipPosition, deps: SpawnAndFlipDeps): SpawnAndFlipBatchResult {
+    const spawned: SpawnAndFlipSpawnedPosition[] = [];
+    const flipped: SpawnAndFlipPosition[] = [];
+    const flippedSet = new Set<string>();
+    const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
+    const buildSpawnMeta = typeof deps.buildSpawnMeta === 'function' ? deps.buildSpawnMeta : null;
+    const spawnMeta = deps.spawnMeta || null;
 
     const applyBatch = (): void => {
         for (const target of targets) {
-            const context = getCardContext(cardState);
-            const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
-
             let spawnRes = null;
+            const nextSpawnMeta = buildSpawnMeta
+                ? buildSpawnMeta(target, anchorPos, playerKey, cause, reason)
+                : spawnMeta;
             if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
-                spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason);
+                spawnRes = nextSpawnMeta == null
+                    ? deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason)
+                    : deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason, nextSpawnMeta);
             } else {
                 setBoardCell(gameState, target.row, target.col, player);
             }
@@ -220,20 +276,12 @@ function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAnd
                 stoneId: spawnRes ? spawnRes.stoneId : undefined
             });
 
-            for (const [flipRow, flipCol] of flips) {
-                let changed = true;
-                if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-                    const changeRes = deps.BoardOps.changeAt(cardState, gameState, flipRow, flipCol, playerKey, changeCause, changeReason);
-                    changed = !!(changeRes && changeRes.changed);
-                } else {
-                    setBoardCell(gameState, flipRow, flipCol, player);
-                }
-                if (!changed) continue;
-                clearBombAt(cardState, flipRow, flipCol);
-                const flipKey = toPositionKey(flipRow, flipCol);
+            const flippedNow = resolveGeneratedFlipBatch(cardState, gameState, playerKey, player, [target], deps);
+            for (const pos of flippedNow) {
+                const flipKey = toPositionKey(pos.row, pos.col);
                 if (!flippedSet.has(flipKey)) {
                     flippedSet.add(flipKey);
-                    flipped.push({ row: flipRow, col: flipCol });
+                    flipped.push(pos);
                 }
             }
         }
@@ -256,6 +304,7 @@ function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAnd
 }
 
 const CardSpawnAndFlip = {
+    resolveGeneratedFlipBatch,
     spawnAndFlipBatch
 };
 

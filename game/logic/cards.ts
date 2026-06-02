@@ -72,6 +72,7 @@ const CardSalvationEffectModule = resolveCardLogicModuleOrGlobal('./cards-intern
 const CardLossEffectModule = resolveCardLogicModuleOrGlobal('./cards-internal/loss-effect', 'CardLossEffect');
 const CardFateEffectModule = resolveCardLogicModuleOrGlobal('./cards-internal/fate-effect', 'CardFateEffect');
 const CardBoardShapeAccessModule = resolveCardLogicModuleOrGlobal('./cards-internal/board-shape-access', 'CardBoardShapeAccess');
+const CardFlipsModule = resolveCardLogicModuleOrGlobal('./cards/flips', 'CardFlips');
 
 const {
         CARD_DEFS,
@@ -396,6 +397,72 @@ const {
         };
     }
 
+    function ensureGeneratedSpawnFlipResolver(cardState: any) {
+        if (!cardState || typeof cardState !== 'object') return cardState;
+        if (cardState._generatedSpawnFlipResolverInstalled === true && typeof cardState._generatedSpawnFlipResolver === 'function') {
+            return cardState;
+        }
+        const resolveGeneratedFlipBatch = CardSpawnAndFlipModule && typeof CardSpawnAndFlipModule.resolveGeneratedFlipBatch === 'function'
+            ? CardSpawnAndFlipModule.resolveGeneratedFlipBatch
+            : null;
+        const generatedSpawnFlipResolver = (nextCardState: any, nextGameState: any, entries: any[]) => {
+            if (!resolveGeneratedFlipBatch || !Array.isArray(entries) || entries.length === 0) return [];
+            const results: any[] = [];
+            for (const entry of entries) {
+                if (!entry || !Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
+                const ownerKey = entry.ownerKey === 'white' ? 'white' : 'black';
+                const ownerValue = ownerKey === 'white' ? WHITE : BLACK;
+                const flipped = resolveGeneratedFlipBatch(
+                    nextCardState,
+                    nextGameState,
+                    ownerKey,
+                    ownerValue,
+                    [{ row: entry.row, col: entry.col }],
+                    {
+                        BoardOps: BoardOpsModule,
+                        getCardContext,
+                        getFlipsWithContext: getFlipsWithContextLocal,
+                        clearBombAt,
+                        changeCause: entry.changeCause || entry.cause || 'SYSTEM',
+                        changeReason: entry.changeReason || `${String(entry.reason || 'generated_spawn').toLowerCase()}_flip`,
+                        changeMeta: entry.changeMeta || null
+                    }
+                );
+                if (flipped.length > 0 && typeof clearHyperactiveAtPositions === 'function') {
+                    clearHyperactiveAtPositions(nextCardState, flipped);
+                }
+                results.push({
+                    ownerKey,
+                    cause: entry.cause || null,
+                    reason: entry.reason || null,
+                    spawned: [{ row: entry.row, col: entry.col }],
+                    flipped
+                });
+            }
+            return results;
+        };
+        Object.defineProperty(cardState, '_generatedSpawnFlipResolver', {
+            value: generatedSpawnFlipResolver,
+            configurable: true,
+            writable: true,
+            enumerable: false
+        });
+        Object.defineProperty(cardState, '_generatedSpawnFlipResolverInstalled', {
+            value: true,
+            configurable: true,
+            writable: true,
+            enumerable: false
+        });
+        return cardState;
+    }
+
+    function consumeGeneratedSpawnFlipResults(cardState: any) {
+        if (!BoardOpsModule || typeof BoardOpsModule.consumeResolvedGeneratedSpawnFlipResults !== 'function') {
+            return [];
+        }
+        return BoardOpsModule.consumeResolvedGeneratedSpawnFlipResults(cardState);
+    }
+
     function getCardTargetAccessDeps() {
         return {
             CardTargetsModule,
@@ -579,7 +646,6 @@ const {
     /** @type {any} */
     const CardLivingWillModule = resolveRequiredCardModule('./cards/living_will', 'CardLivingWill');
     const CardTargetsModule = resolveRequiredCardModule('./cards/targets', 'CardTargets');
-    const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
     const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
     const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
     const CardTimeBombModule = resolveRequiredCardModule('./cards/time_bomb', 'CardTimeBomb');
@@ -911,6 +977,7 @@ const {
                 CardSelectorsModule,
                 CardWorkModule,
                 CardLivingWillModule,
+                CardSpawnAndFlipModule,
                 BoardOpsModule,
                 StoneStatusSnapshot
             },
@@ -943,6 +1010,7 @@ const {
                 getCloneTargets,
                 getSwapTargets,
                 getPositionSwapTargets,
+                getReverseWillTargets,
                 getReinforcementWillTargets,
                 getOccupiedBoardShapeCellsForCard,
                 getBoardExpansionTargets,
@@ -965,12 +1033,15 @@ const {
                 commitDraw,
                 getSpecialMarkers,
                 getCardContext,
+                getFlipsWithContext: getFlipsWithContextLocal,
                 removeMarkersAt,
                 isFrozenCellForCard,
                 emitPresentationEvent,
                 addChargeValue,
                 addChargeWithTotal,
                 addMarker,
+                clearBombAt,
+                clearHyperactiveAtPositions,
                 applyStrongWill,
                 applyAbsoluteProtect,
                 applyRegenWill,
@@ -1503,7 +1574,9 @@ const {
         if (!CardStateFactory || typeof CardStateFactory.createCardState !== 'function') {
             throw new Error('[cards.js] CardStateFactory.createCardState not available');
         }
-        return CardStateFactory.createCardState(prng, options, getCardStateFactoryContext());
+        return ensureGeneratedSpawnFlipResolver(
+            CardStateFactory.createCardState(prng, options, getCardStateFactoryContext())
+        );
     }
 
     /**
@@ -1515,7 +1588,9 @@ const {
         if (!CardStateFactory || typeof CardStateFactory.copyCardState !== 'function') {
             throw new Error('[cards.js] CardStateFactory.copyCardState not available');
         }
-        return CardStateFactory.copyCardState(cs, getCardStateFactoryContext());
+        return ensureGeneratedSpawnFlipResolver(
+            CardStateFactory.copyCardState(cs, getCardStateFactoryContext())
+        );
     }
 
     /**
@@ -1856,6 +1931,7 @@ const {
      * @returns {boolean} success
      */
     function applyCardUsage(cardState: any, playerKey: any, cardId: any) {
+        ensureGeneratedSpawnFlipResolver(cardState);
         // Backward-compatible signature: (cardState, gameState, playerKey, cardId)
         // Detect if gameState is provided as 2nd argument.
         let gameState = null;
@@ -1890,6 +1966,7 @@ const {
             canUseTimeStopGodForPlayer,
             countOpponentOccupiedCornersForPlayer,
             getDestroyTargets,
+            getReverseWillTargets,
             getTemptWillTargets,
             getCaptureWillTargets,
             getStrongWindTargets,
@@ -2337,6 +2414,14 @@ const {
             getSpecialMarkers,
             getBombMarkers,
             collectEmptyNeighborCellsForCard,
+            BoardOps: BoardOpsModule,
+            spawnAndFlipBatch: CardSpawnAndFlipModule && typeof CardSpawnAndFlipModule.spawnAndFlipBatch === 'function'
+                ? CardSpawnAndFlipModule.spawnAndFlipBatch
+                : null,
+            getCardContext,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
             spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
                 ? BoardOpsModule.spawnAt
                 : null,
@@ -2387,6 +2472,9 @@ const {
             applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
                 ? BoardOpsModule.applyHoleAt
                 : null,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock
                 : null,
@@ -2396,8 +2484,7 @@ const {
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-            isAbsoluteProtectedCell,
-            isFrozenCell
+            isAbsoluteProtectedCell
         });
     }
 
@@ -2411,6 +2498,9 @@ const {
             applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
                 ? BoardOpsModule.applyHoleAt
                 : null,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock
                 : null,
@@ -2420,8 +2510,7 @@ const {
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-            isAbsoluteProtectedCell,
-            isFrozenCell
+            isAbsoluteProtectedCell
         });
     }
 
@@ -2447,6 +2536,9 @@ const {
                 : null,
             applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
                 ? BoardOpsModule.applyHoleAt
+                : null,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
                 : null,
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock
@@ -2707,6 +2799,140 @@ const {
         return requireCardContextBuilders().getCardHandManagerContext();
     }
 
+    function ownerKeyFromValue(value: any): PlayerKey | null {
+        if (value === BLACK) return 'black';
+        if (value === WHITE) return 'white';
+        return null;
+    }
+
+    function normalizeFlipPositions(flips: any): Array<{ row: number; col: number }> {
+        if (!Array.isArray(flips)) return [];
+        return flips.map((entry: any) => {
+            if (Array.isArray(entry)) return { row: entry[0], col: entry[1] };
+            return { row: entry && entry.row, col: entry && entry.col };
+        }).filter((entry: any) => Number.isInteger(entry.row) && Number.isInteger(entry.col));
+    }
+
+    function normalizeReverseWillCell(row: any, col: any) {
+        const normalizedRow = Number(row);
+        const normalizedCol = Number(col);
+        if (!Number.isInteger(normalizedRow) || !Number.isInteger(normalizedCol)) return null;
+        return { row: normalizedRow, col: normalizedCol };
+    }
+
+    function getReverseWillFlips(cardState: any, gameState: any, row: any, col: any) {
+        const ownerValue = getCellValueForCard(gameState, row, col);
+        const ownerKey = ownerKeyFromValue(ownerValue);
+        if (!ownerKey) return { ownerKey: null, ownerValue, flips: [] };
+        const getOccupiedOriginFlips = CardFlipsModule && typeof CardFlipsModule.getOccupiedOriginFlipsWithContext === 'function'
+            ? CardFlipsModule.getOccupiedOriginFlipsWithContext
+            : null;
+        const rawFlips = getOccupiedOriginFlips
+            ? getOccupiedOriginFlips(gameState, row, col, ownerValue, getCardContext(cardState))
+            : [];
+        return {
+            ownerKey,
+            ownerValue,
+            flips: normalizeFlipPositions(rawFlips)
+        };
+    }
+
+    function getReverseWillTargets(cardState: any, gameState: any) {
+        if (TargetResolver && typeof TargetResolver.getReverseWillTargets === 'function') {
+            const targets = TargetResolver.getReverseWillTargets(cardState, gameState);
+            if (Array.isArray(targets)) return targets;
+        }
+        const targets: any[] = [];
+        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
+            if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+            const res = getReverseWillFlips(cardState, gameState, cell.row, cell.col);
+            if (!res.ownerKey || res.flips.length <= 0) continue;
+            targets.push({
+                row: cell.row,
+                col: cell.col,
+                owner: res.ownerKey,
+                flipCount: res.flips.length,
+                flips: res.flips
+            });
+        }
+        return targets;
+    }
+
+    function applyReverseWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        const targetCell = normalizeReverseWillCell(row, col);
+        const invalidTarget = targetCell || { row, col };
+        if (!targetCell) {
+            return { applied: false, reason: 'invalid_target', owner: null, target: invalidTarget, flipped: [], blocked: [], logicalFlipCount: 0, flipCount: 0 };
+        }
+        const matchingTarget = getReverseWillTargets(cardState, gameState).find((target: any) => (
+            target &&
+            target.row === targetCell.row &&
+            target.col === targetCell.col &&
+            Array.isArray(target.flips) &&
+            target.flips.length > 0
+        ));
+        if (!matchingTarget) {
+            return { applied: false, reason: 'invalid_target', owner: null, target: targetCell, flipped: [], blocked: [], logicalFlipCount: 0, flipCount: 0 };
+        }
+        const reverse = getReverseWillFlips(cardState, gameState, targetCell.row, targetCell.col);
+        if (!reverse.ownerKey || reverse.flips.length <= 0) {
+            return { applied: false, reason: 'no_flips', owner: reverse.ownerKey, target: targetCell, flipped: [], blocked: [], logicalFlipCount: 0, flipCount: 0 };
+        }
+        const appliedFlips: Array<{ row: number; col: number }> = [];
+        const blockedFlips: Array<{ row: number; col: number; reason?: string }> = [];
+        let blockedByGhost = false;
+        for (const pos of reverse.flips) {
+            let changed = true;
+            if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
+                const changeRes = BoardOpsModule.changeAt(
+                    cardState,
+                    gameState,
+                    pos.row,
+                    pos.col,
+                    reverse.ownerKey,
+                    'REVERSE_WILL',
+                    'reverse_will_flip',
+                    { sourceRow: targetCell.row, sourceCol: targetCell.col, cardUser: playerKey }
+                );
+                changed = !!(changeRes && changeRes.changed);
+                if (!changed) {
+                    if (changeRes && changeRes.blockedByGhost === true) blockedByGhost = true;
+                    blockedFlips.push({
+                        row: pos.row,
+                        col: pos.col,
+                        reason: changeRes && changeRes.reason ? String(changeRes.reason) : 'unchanged'
+                    });
+                }
+            } else {
+                changed = setCellValueForCard(gameState, pos.row, pos.col, reverse.ownerValue);
+                if (!changed) blockedFlips.push({ row: pos.row, col: pos.col, reason: 'unchanged' });
+            }
+            if (!changed) continue;
+            clearBombAt(cardState, pos.row, pos.col);
+            appliedFlips.push({ row: pos.row, col: pos.col });
+        }
+        if (appliedFlips.length > 0) {
+            clearHyperactiveAtPositions(cardState, appliedFlips);
+            addChargeWithTotal(cardState, reverse.ownerKey, appliedFlips.length, {
+                popupKind: 'board',
+                sourceType: 'reverse_will_flip_gain',
+                anchorRow: targetCell.row,
+                anchorCol: targetCell.col
+            });
+        }
+        clearCardPendingEffect(cardState, playerKey);
+        return {
+            applied: true,
+            owner: reverse.ownerKey,
+            target: targetCell,
+            flipped: appliedFlips,
+            blocked: blockedFlips,
+            blockedByGhost,
+            logicalFlipCount: reverse.flips.length,
+            flipCount: appliedFlips.length
+        };
+    }
+
     function getCardStateFactoryContext() {
         return requireCardContextBuilders().getCardStateFactoryContext();
     }
@@ -2725,6 +2951,7 @@ const {
         if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.onTurnStart !== 'function') {
             throw new Error('[cards.js] CardTimingProcessor.onTurnStart not available');
         }
+        ensureGeneratedSpawnFlipResolver(cardState);
         const opts = (options && typeof options === 'object') ? options : {};
         return CardTimingProcessorModule.onTurnStart(
             cardState,
@@ -2773,6 +3000,7 @@ const {
         if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.applyPlacementEffects !== 'function') {
             throw new Error('[cards.js] CardTimingProcessor.applyPlacementEffects not available');
         }
+        ensureGeneratedSpawnFlipResolver(cardState);
         return CardTimingProcessorModule.applyPlacementEffects(
             cardState,
             gameState,
@@ -3456,6 +3684,7 @@ const {
      * Delegates to effects/destroy_one_stone.js module.
     */
     function applyDestroyEffectDetailed(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        ensureGeneratedSpawnFlipResolver(cardState);
         return DestroyOneStoneModule.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
     }
 
@@ -3650,6 +3879,7 @@ const cardsApi: any = {
         // Game flow
         onTurnStart,
         consumeStoneSalvationGodRevives,
+        consumeGeneratedSpawnFlipResults,
         onTurnEnd,
         applyPlacementEffects,
         tickBombs,
@@ -3748,6 +3978,8 @@ const cardsApi: any = {
         getSuperAttractionPathPreview,
         getTabooReverseCandidates,
         pickTabooReverseFlips,
+        getReverseWillTargets,
+        applyReverseWill,
         cancelPendingSelection,
         getTemptWillTargets,
         getCaptureWillTargets,

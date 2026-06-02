@@ -46,6 +46,7 @@
         TRAP_REVEAL: 'TRAP',
         ULTIMATE_HYPERACTIVE_GOD: 'ULTIMATE_HYPERACTIVE'
     });
+
     function getEvasionStatusModule(): unknown {
         const candidate = EvasionStatus as { getFlipEvadeDefault?: unknown; getDestroyEvadeDefault?: unknown } | null;
         if (
@@ -285,7 +286,7 @@
         }),
         METEOR_HOLE: Object.freeze({
             name: '流星穴',
-            desc: '隕石で破壊された永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
+            desc: '隕石や盤面縮小で生じた永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
         }),
         ABSOLUTE_PROTECTED: Object.freeze({
             name: '絶対保護石',

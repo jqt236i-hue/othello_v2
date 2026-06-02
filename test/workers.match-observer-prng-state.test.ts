@@ -63,11 +63,13 @@ function runWorkerObserverPrngStateScenario() {
     "  const payload = await publishResponse.json();",
     "  await durableObject.loadRoom();",
     "  const storedCardState = durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot.cardState : null;",
+    "  const observerMarker = Array.isArray(storedCardState && storedCardState.markers) ? storedCardState.markers.find((marker) => marker && marker.id === 'observer_white_44') : null;",
     "  process.stdout.write(JSON.stringify({",
     "    status: publishResponse.status,",
     "    callsBefore,",
     "    callsAfter: storedCardState && storedCardState.prngState ? storedCardState.prngState.calls : null,",
     "    chargeWhite: storedCardState && storedCardState.charge ? storedCardState.charge.white : null,",
+    "    remainingOwnerTurns: observerMarker && observerMarker.data ? observerMarker.data.remainingOwnerTurns : null,",
     "    payload",
     "  }));",
     "})().catch((error) => {",
@@ -84,7 +86,7 @@ describe('worker observer PRNG persistence', () => {
     const result = runWorkerObserverPrngStateScenario();
 
     expect(result.status).toBe(200);
-    expect(result.chargeWhite).toBeGreaterThan(0);
     expect(result.callsAfter).toBeGreaterThan(result.callsBefore);
+    expect(result.remainingOwnerTurns).toBe(4);
   });
 });

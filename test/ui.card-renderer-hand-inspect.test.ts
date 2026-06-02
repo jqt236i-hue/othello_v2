@@ -307,9 +307,9 @@ describe('card renderer hand inspection', () => {
         id: 'theory_incarnation',
         name: '理論の化身',
         desc: 'd',
-        cost: 25,
+        cost: 21,
         type: 'THEORY_INCARNATION',
-        display_type_ja: '特殊石'
+        display_type_ja: '採掘'
       }
     ];
 
@@ -321,6 +321,8 @@ describe('card renderer hand inspection', () => {
     expect(blackCardEl.style.getPropertyValue('--card-special-art-image')).toContain('theory_incarnation-black.png');
     expect(whiteCardEl.style.getPropertyValue('--card-special-art-image')).toContain('theory_incarnation-white.png');
     expect(blackCardEl.dataset.cardVisualEffect).toBe('theoryIncarnationStone');
+    expect(blackCardEl.dataset.cardType).toBe('mining');
+    expect(blackCardEl.querySelector('.card-type-badge').textContent).toBe('\u26CF\uFE0E 採掘');
 
     dom.window.close();
   });

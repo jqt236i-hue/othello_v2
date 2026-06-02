@@ -417,6 +417,25 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('REVERSE_WILL invokes cpuSelectReverseWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectReverseWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'REVERSE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('REVERSE_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectReverseWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'REVERSE_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('TELEPORT_WILL invokes cpuSelectTeleportWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectTeleportWillWithPolicy = mock;

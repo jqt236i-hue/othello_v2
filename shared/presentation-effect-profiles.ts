@@ -130,6 +130,7 @@ function inferSpawnIntent(cause: unknown, reason: unknown): string | null {
     if (causeUpper === 'PROLIFERATION_WILL') return 'proliferation_spawn';
     if (causeUpper === 'SALVATION_WILL') return 'salvation_spawn';
     if (causeUpper === STONE_SALVATION_GOD_CAUSE) return 'salvation_spawn';
+    if (causeUpper === 'SEED_WILL') return 'normal_spawn';
     if (causeUpper === 'LIVING_WILL') return 'restore_spawn';
     if (causeUpper === 'EQUALITY_WILL' || causeUpper === 'REINFORCEMENT_WILL' || reasonLower.indexOf('_spawn') >= 0) {
         return 'normal_spawn';

@@ -88,6 +88,7 @@ interface TurnStartSummary {
         totalDestroyed: number;
         completedCount: number;
     };
+    generatedSpawnFlipResults?: any[];
 }
 
 function getFlipEvadeDefault(type: string, fallback: number, mode: 'runtime' | 'info' | 'visual' = 'runtime'): number {
@@ -204,6 +205,11 @@ function getPermaProtectNextStoneModule(context: Context): any {
 function getLivingWillModule(context: Context): any {
     const modules = getModules(context);
     return modules.CardLivingWillModule || modules.LivingWillModule || null;
+}
+
+function getSpawnAndFlipModule(context: Context): any {
+    const modules = getModules(context);
+    return modules.CardSpawnAndFlipModule || modules.SpawnAndFlipModule || null;
 }
 
 function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
@@ -382,7 +388,7 @@ function clearSeedMarker(cardState: any, helpers: any, specialStoneKind: string,
     });
 }
 
-function resolveSeedExpiration(cardState: any, gameState: any, marker: any, helpers: any, BoardOpsModule: any, constants: Constants, specialStoneKind: string): { sprouted: boolean; reason?: string; spawnRes?: any } {
+function resolveSeedExpiration(cardState: any, gameState: any, marker: any, helpers: any, BoardOpsModule: any, constants: Constants, specialStoneKind: string, context: Context): { sprouted: boolean; reason?: string; spawnRes?: any; flipBatch?: any } {
     if (!marker || !Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return { sprouted: false };
     const row = marker.row;
     const col = marker.col;
@@ -396,6 +402,48 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
     }
     if (getSeedCellValue(helpers, gameState, row, col) !== constants.EMPTY) {
         return { sprouted: false, reason: 'occupied' };
+    }
+
+    const spawnAndFlipModule = getSpawnAndFlipModule(context);
+    const spawnAndFlipBatch = spawnAndFlipModule && typeof spawnAndFlipModule.spawnAndFlipBatch === 'function'
+        ? spawnAndFlipModule.spawnAndFlipBatch
+        : null;
+    if (
+        spawnAndFlipBatch &&
+        BoardOpsModule &&
+        typeof BoardOpsModule.spawnAt === 'function' &&
+        typeof helpers.getCardContext === 'function' &&
+        typeof helpers.getFlipsWithContext === 'function'
+    ) {
+        const playerValue = ownerKey === 'white' ? constants.WHITE : constants.BLACK;
+        const flipBatch = spawnAndFlipBatch(
+            cardState,
+            gameState,
+            ownerKey,
+            playerValue,
+            [{ row, col }],
+            'SEED_WILL',
+            'seed_sprout',
+            { row, col },
+            {
+                BoardOps: BoardOpsModule,
+                getCardContext: helpers.getCardContext,
+                getFlipsWithContext: helpers.getFlipsWithContext,
+                clearBombAt: helpers.clearBombAt,
+                clearHyperactiveAtPositions: helpers.clearHyperactiveAtPositions,
+                changeCause: 'SEED_WILL',
+                changeReason: 'seed_sprout_flip',
+                spawnMeta: {
+                    seedSprout: true,
+                    seedOwner: ownerKey
+                }
+            }
+        );
+        return {
+            sprouted: !!(flipBatch && Array.isArray(flipBatch.spawned) && flipBatch.spawned.length > 0),
+            spawnRes: flipBatch,
+            flipBatch
+        };
     }
 
     if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
@@ -593,7 +641,15 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
         if (dataType === 'SEED' && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0) {
-                resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind);
+                const seedExpiration = resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind, context);
+                if (seedExpiration && seedExpiration.sprouted && seedExpiration.flipBatch) {
+                    summary.generatedSpawnFlipResults = summary.generatedSpawnFlipResults || [];
+                    summary.generatedSpawnFlipResults.push(Object.assign({
+                        ownerKey: normalizeMarkerOwnerKey(marker.owner),
+                        cause: 'SEED_WILL',
+                        reason: 'seed_sprout'
+                    }, seedExpiration.flipBatch));
+                }
             }
             continue;
         }

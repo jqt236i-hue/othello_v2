@@ -198,6 +198,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'dragon_converted_immediate',
         'chain_flipped',
         'taboo_reverse_flipped',
+        'reverse_will_flipped',
         'regen_triggered_start',
         'regen_triggered',
         'regen_capture_flipped_start',
@@ -427,6 +428,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return isChainFlipPresentationEvent(ev) ||
             reason.indexOf('dragon_convert') === 0 ||
             reason.indexOf('taboo_reverse_flip') === 0 ||
+            reason.indexOf('reverse_will_flip') === 0 ||
             reason.indexOf('regen_triggered') === 0 ||
             reason.indexOf('regen_capture_flip') === 0 ||
             reason.indexOf('equality_will_flip') === 0 ||
@@ -434,6 +436,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             reason.indexOf('support_troops_will_flip') === 0 ||
             reason.indexOf('salvation_flip') === 0 ||
             reason.indexOf('breeding_flip') === 0 ||
+            reason.indexOf('clone_spawn_flip') === 0 ||
+            reason.indexOf('seed_sprout_flip') === 0 ||
+            reason.indexOf('proliferation_spawn_flip') === 0 ||
+            reason.indexOf('stone_salvation_god_revive_flip') === 0 ||
             reason.indexOf('hyperactive_flip') === 0 ||
             reason.indexOf('escape_hyperactive_flip') === 0 ||
             reason.indexOf('inherited_hyperactive_flip') === 0 ||

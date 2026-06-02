@@ -76,6 +76,6 @@ describe('PresentationEffectProfiles', () => {
     expect(profiles.inferSpawnIntent('REINFORCEMENT_WILL', 'also_not_a_spawn_reason')).toBe('normal_spawn');
     expect(profiles.inferSpawnIntent('SUPPORT_TROOPS_WILL', 'support_troops_will_spawn')).toBe('normal_spawn');
     expect(profiles.inferSpawnIntent('SYSTEM', 'standard_spawn')).toBe('normal_spawn');
-    expect(profiles.inferSpawnIntent('SEED_WILL', 'seed_sprout')).toBe(null);
+    expect(profiles.inferSpawnIntent('SEED_WILL', 'seed_sprout')).toBe('normal_spawn');
   });
 });

@@ -15,7 +15,7 @@ type ResolvePrePlacementSelectionActionOptions = {
     emitHandRemovePresentation: (payload: any) => void;
 };
 
-function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectionActionOptions): boolean {
+function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectionActionOptions): any {
     const opts = (options && typeof options === 'object') ? options : ({} as ResolvePrePlacementSelectionActionOptions);
     const pending = opts.pending;
     const action = opts.action || {};
@@ -63,6 +63,35 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
         return true;
     } else if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget == null) {
         throw new Error('DESTROY_ONE_STONE requires destroyTarget before placement');
+    }
+
+    if (pending && pending.type === 'REVERSE_WILL' && action.reverseWillTarget) {
+        const res = opts.CardLogic.applyReverseWill(
+            opts.cardState,
+            opts.gameState,
+            opts.playerKey,
+            action.reverseWillTarget.row,
+            action.reverseWillTarget.col
+        );
+        if (!res || res.applied !== true) {
+            throw new Error('REVERSE_WILL: invalid target');
+        }
+        opts.events.push({
+            type: 'reverse_will_flipped',
+            player: opts.playerKey,
+            owner: res && res.owner ? res.owner : null,
+            target: action.reverseWillTarget,
+            applied: !!(res && res.applied),
+            details: res && Array.isArray(res.flipped) ? res.flipped.slice() : [],
+            blocked: res && Array.isArray(res.blocked) ? res.blocked.slice() : [],
+            blockedByGhost: !!(res && res.blockedByGhost),
+            logicalFlipCount: Number.isInteger(res && res.logicalFlipCount) ? res.logicalFlipCount : 0,
+            flipCount: Number.isInteger(res && res.flipCount) ? res.flipCount : 0
+        });
+        opts.applyTrapEffectsAfterSelection();
+        return true;
+    } else if (pending && pending.type === 'REVERSE_WILL' && action.reverseWillTarget == null) {
+        throw new Error('REVERSE_WILL requires reverseWillTarget before placement');
     }
 
     if (pending && pending.type === 'STRONG_WIND_WILL' && action.strongWindTarget) {
@@ -522,9 +551,10 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             target: action.cloneTarget,
             applied: !!(res && res.applied),
             details: (res && Array.isArray(res.spawned)) ? res.spawned : [],
-            spawned: (res && Array.isArray(res.spawned)) ? res.spawned : []
+            spawned: (res && Array.isArray(res.spawned)) ? res.spawned : [],
+            flipped: (res && Array.isArray(res.flipped)) ? res.flipped : []
         });
-        return true;
+        return { handled: true, immediateFlipResult: res, immediateFlipSourceType: 'clone_will_selection' };
     } else if (pending && pending.type === 'CLONE_WILL' && action.cloneTarget == null) {
         throw new Error('CLONE_WILL requires cloneTarget before placement');
     }

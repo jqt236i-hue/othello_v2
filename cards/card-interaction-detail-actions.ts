@@ -40,6 +40,7 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     CELL_TELEPORT_WILL: 'マステレポートさせるマスを選んでください',
     SWAP_WITH_ENEMY: '交換する敵石を選んでください',
     TRAP_WILL: '罠を設置する自分の石を選んでください（選択後にターン終了）',
+    REVERSE_WILL: '反転を起動する石を選んでください',
     TEMPT_WILL: '対象の相手特殊石を選んでください',
     CAPTURE_WILL: '捕獲する相手特殊石を選んでください',
     GUARD_WILL: '守る石にする自分の石を選んでください',

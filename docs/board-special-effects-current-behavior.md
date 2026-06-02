@@ -36,7 +36,7 @@
 - 繁殖の意志 (`BREEDING_WILL`), 増殖の意志 (`PROLIFERATION_WILL`), 複製の意志 (`CLONE_WILL`), 平等の意志 (`EQUALITY_WILL`), 増援の意志 (`REINFORCEMENT_WILL`), 種まきの意志 (`SEED_WILL` 芽生え), 救済神 (`STONE_SALVATION_GOD` revive)。
 
 **仕様上の説明**
-- `01-rulebook.md` では、繁殖・増殖・複製・平等・増援・種・救済神が盤面に石を追加する。救済神 revive と種の芽生えは通常反転を行わない。平等/増援は生成石を起点に通常反転する。
+- `01-rulebook.md` では、繁殖・増殖・複製・平等・増援・種・救済神が盤面に石を追加する。各生成石、種の芽生え石、救済神 revive 石で挟める列があれば通常反転する。
 
 **実装上の処理順**
 - `BoardOps.spawnAt()` が空き/封鎖を確認し、着地点の `SEED` を `_invalidateSeedMarkerAt()` で `STATUS_REMOVED` にしてから、盤面値・`stoneId` を設定し `SPAWN` を emit する。
@@ -106,7 +106,7 @@
 - 狙撃の意志 (`SNIPER_WILL`), 雷撃の意志 (`LIGHTNING_WILL`), 破壊龍 (`DESTROY_DRAGON_WILL` / `DESTROY_DRAGON`), 究極破壊神 (`ULTIMATE_DESTROY_GOD`), 時限爆弾 (`TIME_BOMB`), 十字爆弾 (`CROSS_BOMB`), X爆弾 (`X_BOMB`), 悪食の意志 (`GLUTTONOUS_WILL`), 意志狩りの王 (`WILL_HUNTER_KING`), ロボット掃除機 (`ROBOT_VACUUM_WILL` / `ROBOT_VACUUM`), 隕石 (`METEOR_WILL`), 盤面縮小 (`BOARD_SHRINK_WILL` / `BOARD_SHRINK_GOD`), 破壊の意志 (`DESTROY_ONE_STONE`)。
 
 **仕様上の説明**
-- `01-rulebook.md` では破壊は石を `EMPTY` にする処理で、チャージ加算対象外。完全保護は通常破壊を防ぐが、隕石/盤面縮小のマス破壊は完全保護を貫通し、絶対保護はそれも防ぐ。
+- `01-rulebook.md` では破壊は石を `EMPTY` にする処理で、チャージ加算対象外。完全保護は通常破壊を防ぐが、隕石/盤面縮小の穴化は完全保護や既存マス状態を上書きし、絶対保護石があるマスだけ残す。
 - 爆弾は範囲破壊、狙撃/雷撃/破壊龍/究極破壊神は turn start または配置直後のアンカー効果、悪食/意志狩り/ロボ掃除機は移動と破壊が絡む。
 
 **実装上の処理順**
@@ -348,8 +348,8 @@
 
 **実装上の処理順**
 - `BoardOps.applyHoleAt()` はセルを `EMPTY` にし、既存 marker を削除し、`METEOR_HOLE` marker を追加して `STATUS_APPLIED` を emit する。
-- `game/logic/cards/meteor.ts` は対象セルが石ありなら `destroyAt(..., 'METEOR_WILL', 'meteor_cell_destroy', { ignoreGuard: true, ignoreRegen: true })` 後に穴化する。
-- `game/logic/cards/shrink.ts` も `BOARD_SHRINK_*` cause で破壊/穴化する。
+- `game/logic/cards/meteor.ts` は対象セルを `BoardOps.applyCellRemovalAt(..., 'METEOR_WILL', 'meteor_cell_destroy')` へ渡し、絶対保護石がなければ石・封鎖・凍結・種など既存状態ごと穴化する。
+- `game/logic/cards/shrink.ts` も `BOARD_SHRINK_*` cause と `visualVariant: BOARD_FRAME` 付きで同じセル消滅経路を使う。
 - `game/cards/effects/status-cells.ts`: `applyBlockadeWill()`, `applyFreezeWill()`, `applySeedWill()` は pending target を確認し、既存同 type marker を除去して `addMarker()` で `BLOCKADE` / `FREEZE` / `SEED` を付ける。
 
 **主な BoardOps API**
@@ -672,7 +672,7 @@
 ## 救済神 (`STONE_SALVATION_GOD`) 深掘り
 
 **確認できた事実**
-- 仕様: `01-rulebook.md` では、救済神が盤面にいる間、自石が破壊された場合、同じターンの同一破壊ブロック完了後に救済する。救済神自身は救済対象外。救済後は通常石になり、特殊状態・保護・爆弾・回避回数・付帯効果を引き継がない。復活では通常反転しない。
+- 仕様: `01-rulebook.md` では、救済神が盤面にいる間、自石が破壊された場合、同じターンの同一破壊ブロック完了後に救済する。救済神自身は救済対象外。救済後は通常石になり、特殊状態・保護・爆弾・回避回数・付帯効果を引き継がない。復活石で挟める列があれば通常反転する。
 - 実装: `BoardOps._findStoneSalvationGodMarker()` が owner の有効な marker を探す。
 - `BoardOps._queueDestroyedStoneForStoneSalvationGod()` は owner/cause/reason/meta/turnIndex を `_stoneSalvationGodReviveBlockQueue` に積む。
 - `BoardOps._isStoneSalvationGodMarkerAt()` により、破壊された石自身が救済神 marker だった場合は queue しない。
@@ -722,7 +722,7 @@
 | `MOVE -> DESTROY -> SPAWN` | 究極破壊神・ロボット掃除機などは移動後に破壊する。複数アンカーが同ターンに存在すると、action/effect block の識別が phase と sound cue に影響する。 | `game/logic/cards/udg.ts`, `game/logic/cards/hyperactive.ts`, `game/turn/turn_pipeline_phases.ts`, `game/turn/pipeline_ui_adapter.ts` |
 | 破壊音の重複抑制 | `SNIPER_WILL` / `LIGHTNING_WILL` の命中破壊は命中数ぶん `stone_destroy` を鳴らす。一方で究極破壊神などの一括破壊は playback phase ごとに 1 回へ集約する。 | `game/turn/pipeline_ui_adapter.ts`: `_planDestroySoundCues()`, `_pushRepeatedCueForMatchingTargets()`, `_pushCueForMatchingEventPhases()` |
 | `DESTROY` outcome meta | Ghost/Regen/増殖/破壊回避は `DESTROY` event を出しても盤面から消えないことがある。`DESTROY` を常に空化とみなすと animation/sound が壊れる。 | `game/logic/board_ops.ts`: `_destroyAtCore()` / `shared/destroy-outcome-contract.ts` |
-| `STATUS_APPLIED` と穴マス化 | 隕石・盤面縮小は石破壊と穴化が連続する。穴化だけのカードと、破壊+穴化のカードを同じ扱いにすると救済神 trigger が誤る。 | `game/logic/cards/meteor.ts`, `game/logic/cards/shrink.ts`, `game/logic/board_ops.ts`: `applyHoleAt()` |
+| `STATUS_APPLIED` と穴マス化 | 隕石・盤面縮小は共通セル消滅で穴化する。石があるマスは破壊+穴化、石がない封鎖・凍結・種などは状態上書きの穴化として扱い、救済神 trigger は石破壊を伴う場合だけ発生する。 | `game/logic/cards/meteor.ts`, `game/logic/cards/shrink.ts`, `game/logic/board_ops.ts`: `applyCellRemovalAt()` / `applyHoleAt()` |
 | ターン開始アンカー順 | `createdSeq` 順の解決と、各アンカーを個別 effect block にする前提が演出順・救済順に影響する。 | `game/turn/turn_pipeline_phases.ts` |
 | presentation と UI playback の境界 | `game/` は headless で、音・DOM・timer を持たない。UI 側の都合を `game/` に持ち込むと network/headless parity が壊れる。 | `docs/architecture-contracts.md`, `game/turn/pipeline_ui_adapter.ts`, `ui/animation-engine.ts` |
 | worker mirror / network parity | root 実装が正本で `worker-public/` は mirror。root 変更後に mirror や playback contract を同期しないとネット対戦とブラウザ配布面がずれる。 | `scripts/prepare-worker-assets.ts`, `test/network.playback-event-assembly.contract.test.ts`, `npm run test:network:parity` |

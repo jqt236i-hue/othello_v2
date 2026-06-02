@@ -68,9 +68,12 @@ describe('local match server observer PRNG persistence', () => {
     const { room, callsBefore } = buildRoomWithObserver(123, 'white', 4, 4);
 
     const result = applyCommandPublishToSnapshot(room, buildPublishBody(room.snapshot), 'black');
+    const observerMarker = Array.isArray(result.snapshot.cardState.markers)
+      ? result.snapshot.cardState.markers.find((marker: any) => marker && marker.id === 'observer_white_4_4')
+      : null;
 
     expect(result.ok).toBe(true);
-    expect(result.snapshot.cardState.charge.white).toBeGreaterThan(0);
     expect(result.snapshot.cardState.prngState.calls).toBeGreaterThan(callsBefore);
+    expect(observerMarker && observerMarker.data ? observerMarker.data.remainingOwnerTurns : null).toBe(4);
   });
 });

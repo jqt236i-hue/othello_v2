@@ -123,6 +123,62 @@ describe('METEOR_WILL（隕石）', () => {
     expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
   });
 
+  test('凍結マスや種マスにも隕石を落とせ、既存マス状態を消去して穴化する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[2][2] = Core.BLACK;
+    cardState.markers.push(
+      {
+        id: 'freeze_1',
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'white',
+        data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 'seed_1',
+        kind: 'specialStone',
+        row: 2,
+        col: 3,
+        owner: 'black',
+        data: { type: 'SEED', remainingOwnerTurns: 5 }
+      }
+    );
+    cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'meteor_01'
+    };
+
+    const targetsBefore = CardLogic.getMeteorTargets(cardState, gameState, 'black');
+    expect(targetsBefore).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: 2 }),
+      expect.objectContaining({ row: 2, col: 3 })
+    ]));
+
+    const frozenRes = CardLogic.applyMeteorWill(cardState, gameState, 'black', 2, 2);
+    expect(frozenRes).toMatchObject({ applied: true, row: 2, col: 2, destroyed: true });
+    expect(gameState.board[2][2]).toBe(Core.EMPTY);
+    let markersAtCell = (cardState.markers || []).filter((m) => m && m.row === 2 && m.col === 2);
+    expect(markersAtCell.some((m) => m.data && m.data.type === 'FREEZE')).toBe(false);
+    expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'meteor_01'
+    };
+    const seedRes = CardLogic.applyMeteorWill(cardState, gameState, 'black', 2, 3);
+    expect(seedRes).toMatchObject({ applied: true, row: 2, col: 3, destroyed: false });
+    markersAtCell = (cardState.markers || []).filter((m) => m && m.row === 2 && m.col === 3);
+    expect(markersAtCell.some((m) => m.data && m.data.type === 'SEED')).toBe(false);
+    expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
+  });
+
   test('復活の意志付きの石に隕石を使うと復活せず元マスは穴になる', () => {
     const rng = createPrng(0);
     const cardState = CardLogic.createCardState(rng);

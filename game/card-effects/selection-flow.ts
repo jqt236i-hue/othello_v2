@@ -69,6 +69,27 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
+    function getSelectionPlaybackStateManager() {
+        const manager = invokeSignalBridgeMethod('getPlaybackStateManager');
+        return manager && typeof manager === 'object' ? manager : null;
+    }
+
+    function writeSelectionGlobalFlag(name: string, value: any) {
+        const normalizedName = typeof name === 'string' ? name : '';
+        if (!normalizedName) return false;
+        const normalizedValue = value === true;
+        try {
+            const root = (typeof globalThis !== 'undefined')
+                ? (globalThis as any)
+                : (typeof self !== 'undefined' ? (self as any) : null);
+            if (!root || typeof root !== 'object') return false;
+            root[normalizedName] = normalizedValue;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     function resolveGlobalValue(name: any) {
         if (typeof name !== 'string' || !name) return undefined;
         const bridge = getSignalBridge();
@@ -218,6 +239,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             playbackToken: null
         };
         token.playbackToken = invokeSignalBridgeMethod('acquireSelectionSettlementLock', [token.meta]) || null;
+        if (!token.playbackToken) {
+            const playbackState = getSelectionPlaybackStateManager();
+            if (playbackState && typeof playbackState.acquireSelectionSettlementLock === 'function') {
+                try {
+                    token.playbackToken = playbackState.acquireSelectionSettlementLock(token.meta) || null;
+                } catch (e) { /* ignore */ }
+            }
+        }
         activeSelectionSettlementLocks.push(token);
         return { id: token.id };
     }
@@ -230,12 +259,26 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const [lockEntry] = activeSelectionSettlementLocks.splice(lockIndex, 1);
         if (lockEntry && lockEntry.playbackToken) {
             invokeSignalBridgeMethod('releaseSelectionSettlementLock', [lockEntry.playbackToken]);
+            const playbackState = getSelectionPlaybackStateManager();
+            if (playbackState && typeof playbackState.releaseSelectionSettlementLock === 'function') {
+                try {
+                    playbackState.releaseSelectionSettlementLock(lockEntry.playbackToken);
+                } catch (e) { /* ignore */ }
+            }
         }
         return true;
     }
 
     function isSelectionSettlementLocked() {
-        return activeSelectionSettlementLocks.length > 0;
+        if (activeSelectionSettlementLocks.length > 0) return true;
+        if (sharedSelectionBusyLockToken) return true;
+        const playbackState = getSelectionPlaybackStateManager();
+        if (playbackState && typeof playbackState.hasSelectionSettlementLock === 'function') {
+            try {
+                return playbackState.hasSelectionSettlementLock() === true;
+            } catch (e) { /* ignore */ }
+        }
+        return false;
     }
 
     function resolvePendingSelectionContract(pendingType: any) {
@@ -389,14 +432,44 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function setSelectionProcessing(nextValue: any) {
         const normalized = nextValue === true;
         localSelectionBusyState.processing = normalized;
-        invokeSignalBridgeMethod('setSelectionProcessing', [normalized]);
+        const explicitResult = invokeSignalBridgeMethod('setSelectionProcessing', [normalized]);
+        if (explicitResult === undefined) {
+            const playbackState = getSelectionPlaybackStateManager();
+            if (playbackState) {
+                if (typeof playbackState.setBusyState === 'function') {
+                    try {
+                        playbackState.setBusyState({ processing: normalized });
+                    } catch (e) { /* ignore */ }
+                } else if (typeof playbackState.setProcessing === 'function') {
+                    try {
+                        playbackState.setProcessing(normalized);
+                    } catch (e) { /* ignore */ }
+                }
+                writeSelectionGlobalFlag('isProcessing', normalized);
+            }
+        }
         return true;
     }
 
     function setSelectionCardAnimating(nextValue: any) {
         const normalized = nextValue === true;
         localSelectionBusyState.cardAnimating = normalized;
-        invokeSignalBridgeMethod('setSelectionCardAnimating', [normalized]);
+        const explicitResult = invokeSignalBridgeMethod('setSelectionCardAnimating', [normalized]);
+        if (explicitResult === undefined) {
+            const playbackState = getSelectionPlaybackStateManager();
+            if (playbackState) {
+                if (typeof playbackState.setBusyState === 'function') {
+                    try {
+                        playbackState.setBusyState({ cardAnimating: normalized });
+                    } catch (e) { /* ignore */ }
+                } else if (typeof playbackState.setCardAnimating === 'function') {
+                    try {
+                        playbackState.setCardAnimating(normalized);
+                    } catch (e) { /* ignore */ }
+                }
+                writeSelectionGlobalFlag('isCardAnimating', normalized);
+            }
+        }
         return true;
     }
 
@@ -412,7 +485,29 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         localSelectionBusyState.processing = normalized;
         localSelectionBusyState.cardAnimating = normalized;
-        invokeSignalBridgeMethod('setSelectionBusy', [normalized]);
+        const explicitResult = invokeSignalBridgeMethod('setSelectionBusy', [normalized]);
+        if (explicitResult === undefined) {
+            const playbackState = getSelectionPlaybackStateManager();
+            if (playbackState) {
+                if (typeof playbackState.setBusyState === 'function') {
+                    try {
+                        playbackState.setBusyState({
+                            processing: normalized,
+                            cardAnimating: normalized
+                        });
+                    } catch (e) { /* ignore */ }
+                } else {
+                    if (typeof playbackState.setProcessing === 'function') {
+                        try { playbackState.setProcessing(normalized); } catch (e) { /* ignore */ }
+                    }
+                    if (typeof playbackState.setCardAnimating === 'function') {
+                        try { playbackState.setCardAnimating(normalized); } catch (e) { /* ignore */ }
+                    }
+                }
+                writeSelectionGlobalFlag('isProcessing', normalized);
+                writeSelectionGlobalFlag('isCardAnimating', normalized);
+            }
+        }
         return true;
     }
 
@@ -920,8 +1015,24 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return invokeSignalBridgeMethod('armSelectionBoardUpdateContext', [context]) === true;
     }
 
+    function armSelectionStateBoardUpdateDuringPlayback(playbackEvents: any) {
+        if (Array.isArray(playbackEvents) && playbackEvents.length > 0) return false;
+        if (!isSelectionSettlementLocked()) return false;
+        const syncContext = {
+            source: 'selection-flow',
+            reason: 'selection_state_sync'
+        };
+        if (invokeSignalBridgeMethod('armBoardUpdateDuringPlayback', [syncContext]) === true) {
+            return true;
+        }
+        return invokeSignalBridgeMethod('armSelectionBoardUpdateContext', [Object.assign({
+            allowBoardUpdateDuringPlayback: true
+        }, syncContext)]) === true;
+    }
+
     function emitSelectionStateChangeSignals(playbackEvents: any) {
         armSelectionBoardUpdateContext(playbackEvents);
+        armSelectionStateBoardUpdateDuringPlayback(playbackEvents);
         const emitStateChangesViaBridge = readSignalBridgeMethod('emitStateChanges');
         if (typeof emitStateChangesViaBridge === 'function') {
             try {
@@ -946,6 +1057,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function defaultSelectionHandoffRender() {
+        armSelectionStateBoardUpdateDuringPlayback(null);
         const emitBoardUpdateViaBridge = readSignalBridgeMethod('emitBoardUpdate');
         if (typeof emitBoardUpdateViaBridge === 'function') {
             try {

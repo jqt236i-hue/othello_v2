@@ -46,6 +46,7 @@ declare const cpuSelectMeteorWillWithPolicy: any;
 declare const cpuSelectFreezeWillWithPolicy: any;
 declare const cpuSelectSeedWillWithPolicy: any;
 declare const cpuSelectCloneWillWithPolicy: any;
+declare const cpuSelectReverseWillWithPolicy: any;
 
 // CPU turn orchestration extracted from turn-manager
 
@@ -472,11 +473,23 @@ function readCpuProcessing() {
 
 function setCpuProcessing(active: any) {
     const next = active === true;
+    let handled = false;
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.setProcessing === 'function') {
             __uiImpl_cpu.setProcessing(next);
+            handled = true;
         }
     } catch (e) { /* ignore */ }
+    if (!handled) {
+        try {
+            const runtimeRoot = (typeof globalThis !== 'undefined')
+                ? (globalThis as any)
+                : (typeof self !== 'undefined' ? (self as any) : null);
+            if (runtimeRoot && typeof runtimeRoot === 'object') {
+                runtimeRoot['isProcessing'] = next;
+            }
+        } catch (e) { /* ignore */ }
+    }
     return next;
 }
 

@@ -39,6 +39,16 @@ function createState(sequence = [0]) {
   return { cardState, gameState, prng };
 }
 
+function expectNoGeneratedSpawnFlipTransientState(cardState: any) {
+  expect(Object.keys(cardState)).not.toEqual(expect.arrayContaining([
+    '_deferredGeneratedSpawnFlipQueue',
+    '_resolvedGeneratedSpawnFlipResults'
+  ]));
+  const serialized = JSON.stringify(cardState);
+  expect(serialized).not.toContain('_deferredGeneratedSpawnFlipQueue');
+  expect(serialized).not.toContain('_resolvedGeneratedSpawnFlipResults');
+}
+
 function getStoneSalvationGodDef() {
   return (Shared.CARD_DEFS || []).find((card) => card && card.type === 'STONE_SALVATION_GOD');
 }
@@ -88,9 +98,12 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
 
   test('destroyed own stone revives in the same destroy block without reviving the salvation god itself', () => {
     const { cardState, gameState, prng } = createState([0]);
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.WHITE));
     gameState.board[0][0] = Shared.BLACK;
+    gameState.board[0][1] = Shared.EMPTY;
+    gameState.board[0][2] = Shared.WHITE;
+    gameState.board[0][3] = Shared.BLACK;
     gameState.board[1][1] = Shared.BLACK;
-    gameState.board[2][2] = Shared.WHITE;
     cardState.markers.push(
       { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
       { id: 2, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'OBSERVER', remainingOwnerTurns: 3 } }
@@ -103,6 +116,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(destroyedOwn.stoneSalvationGodReviveQueued).toBe(true);
     expect(gameState.board[1][1]).toBe(Shared.EMPTY);
     expect(gameState.board[0][1]).toBe(Shared.BLACK);
+    expect(gameState.board[0][2]).toBe(Shared.BLACK);
     expect(reviveEvents).toHaveLength(1);
     expect(reviveEvents[0]).toMatchObject({ row: 0, col: 1, ownerAfter: 'black', cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive' });
     expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
@@ -622,6 +636,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(visualEvents[2]).toMatchObject({ ownerAfter: 'black', cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive' });
     expect(cardState.markers.some((marker: any) => marker && marker.row === 1 && marker.col === 1 && marker.data && marker.data.type === 'METEOR_HOLE')).toBe(true);
     expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
+    expectNoGeneratedSpawnFlipTransientState(cardState);
   });
 
   test('meteor hole on an empty cell does not trigger salvation god', () => {

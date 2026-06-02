@@ -36,7 +36,7 @@ describe('CardClone module', () => {
       })
     });
 
-    expect(result).toEqual({ applied: true, source: { row: 3, col: 3 }, spawned: [{ row: 3, col: 4 }] });
+    expect(result).toEqual({ applied: true, source: { row: 3, col: 3 }, spawned: [{ row: 3, col: 4 }], flipped: [] });
     expect(added).toEqual(expect.arrayContaining([
       { kind: 'specialStone', row: 3, col: 4, owner: 'black', data: { type: 'DRAGON', remainingOwnerTurns: 2 } },
       { kind: 'specialStone', row: 3, col: 4, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 } }
