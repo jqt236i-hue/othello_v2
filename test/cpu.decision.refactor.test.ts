@@ -2301,38 +2301,6 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(candidates[0]);
   });
 
-  test('selectCpuMoveWithPolicy uses stable edge for OBSERVER_WILL instead of vulnerable inner seat', () => {
-    const candidates = [
-      { row: 0, col: 3, flips: [{ row: 1, col: 3 }] },
-      { row: 2, col: 4, flips: [{ row: 2, col: 3 }, { row: 3, col: 3 }, { row: 3, col: 4 }] }
-    ];
-    global.gameState = {
-      board: [
-        [-1, 0, 0, 0, 0, 0, 0, -1],
-        [0, 0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, -1, 1, 0, 0, 0],
-        [0, 0, 0, 1, -1, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [1, 0, 0, 0, 0, 0, 0, 1]
-      ],
-      currentPlayer: -1
-    };
-    global.cpuSmartness.white = 6;
-    global.cardState = {
-      hands: { white: [], black: [] },
-      pendingEffectByPlayer: { white: { type: 'OBSERVER_WILL', stage: 'awaitPlace' }, black: null },
-      hasUsedCardThisTurnByPlayer: { white: true, black: false },
-      charge: { white: 20, black: 10 },
-      boardBonusByCell: { '2,4': 6 },
-      boardBonusConsumedByCell: {}
-    };
-
-    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
-    expect(move).toBe(candidates[0]);
-  });
-
   test('selectCpuMoveWithPolicy still prefers stable edge for GOLD_STONE pending move', () => {
     const candidates = [
       { row: 0, col: 3, flips: [{ row: 1, col: 3 }] },
@@ -3723,3 +3691,4 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CardLogic.applyCardUsage).not.toHaveBeenCalled();
   });
 });
+

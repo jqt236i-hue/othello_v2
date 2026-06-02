@@ -3,7 +3,6 @@ import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 describe('special stone registry rule classification', () => {
   test('classifies enduring active stones as true_special_stone', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('HYPERACTIVE')).toBe('true_special_stone');
-    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('OBSERVER')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('DESTROY_DRAGON')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('STONE_SALVATION_GOD')).toBe('true_special_stone');
   });
@@ -32,3 +31,4 @@ describe('special stone registry rule classification', () => {
     })).toBe('placement_effect');
   });
 });
+

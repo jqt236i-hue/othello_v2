@@ -29,7 +29,6 @@ describe('CardContextBuilders module', () => {
         SNIPER_WILL_TURNS: 5,
         DESTROY_DRAGON_TURNS: 3,
         LIGHTNING_WILL_TURNS: 5,
-        OBSERVER_WILL_TURNS: 5,
         GHOST_WILL_TURNS: 5,
         SEED_WILL_TURNS: 5,
         WILL_HUNTER_KING_TURNS: 5,
@@ -168,3 +167,4 @@ describe('CardContextBuilders module', () => {
     expect(() => builders.getCardEffectTimingContext()).toThrow('[cards.js] CardEffectResolver.getCardEffectTimingContext not available');
   });
 });
+

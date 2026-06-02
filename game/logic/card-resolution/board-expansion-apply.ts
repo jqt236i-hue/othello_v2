@@ -16,6 +16,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 function applyBoardExpansionWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getBoardExpansionTargets = deps && deps.getBoardExpansionTargets;
+    const resolveCardBoardConfig = deps && deps.resolveCardBoardConfig;
     const ensureMutableBoardExpansionForCard = deps && deps.ensureMutableBoardExpansionForCard;
     const getExpansionDescriptorsForCard = deps && deps.getExpansionDescriptorsForCard;
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
@@ -26,6 +27,7 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     if (
         typeof readCardPendingEffect !== 'function' ||
         typeof getBoardExpansionTargets !== 'function' ||
+        typeof resolveCardBoardConfig !== 'function' ||
         typeof ensureMutableBoardExpansionForCard !== 'function' ||
         typeof getExpansionDescriptorsForCard !== 'function' ||
         typeof resolveExpansionSideForCard !== 'function' ||
@@ -44,26 +46,33 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     const allowed = targets.some((t: any) => t.row === row && t.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
 
-    const side = col === 0 ? 'left' : (col === 7 ? 'right' : null);
-    if (!side || !Number.isInteger(row) || row < 0 || row >= 8) {
+    const boardConfig = resolveCardBoardConfig(gameState);
+    const baseBounds = boardConfig && boardConfig.baseBounds ? boardConfig.baseBounds : null;
+    const outerBounds = boardConfig && boardConfig.outerBounds ? boardConfig.outerBounds : null;
+    if (!baseBounds || !outerBounds) {
+        return { applied: false, reason: 'invalid_target' };
+    }
+
+    const side = col === baseBounds.minCol ? 'left' : (col === baseBounds.maxCol ? 'right' : null);
+    if (!side || !Number.isInteger(row) || row < baseBounds.minRow || row > baseBounds.maxRow) {
         return { applied: false, reason: 'invalid_target' };
     }
 
     const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
     const cells = getExpansionDescriptorsForCard(gameState);
-    const targetCol = side === 'left' ? -1 : 8;
+    const targetCol = side === 'left' ? outerBounds.minCol : outerBounds.maxCol;
     const alreadyExists = cells.some((cell: any) => cell && cell.row === row && cell.col === targetCol);
     if (alreadyExists) return { applied: false, reason: 'already_expanded' };
 
     cells.push({ side, row, col: targetCol, owner: EMPTY });
 
     boardExpansion.cells = cells.map((cell: any) => ({
-        side: resolveExpansionSideForCard(cell.side, cell.row, cell.col),
+        side: resolveExpansionSideForCard(cell.side, cell.row, cell.col, gameState),
         row: cell.row,
         col: cell.col,
         owner: normalizeExpansionOwnerForCard(cell.owner)
     }));
-    syncLegacyExpansionFieldsForCard(boardExpansion);
+    syncLegacyExpansionFieldsForCard(boardExpansion, gameState);
 
     boardExpansion.usedByPlayer[playerKey] = true;
 
@@ -135,7 +144,7 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     const additions = [];
     const additionKeys = new Set();
     for (const target of nextSelections) {
-        const targetAdditions = getBoardExpansionGodAdditionsForCard(target.row, target.col);
+        const targetAdditions = getBoardExpansionGodAdditionsForCard(target.row, target.col, gameState);
         if (!targetAdditions || targetAdditions.length !== 3) {
             return { applied: false, reason: 'invalid_target' };
         }
@@ -151,7 +160,7 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
 
     for (const cell of additions) {
         cells.push({
-            side: resolveExpansionSideForCard(null, cell.row, cell.col),
+            side: resolveExpansionSideForCard(null, cell.row, cell.col, gameState),
             row: cell.row,
             col: cell.col,
             owner: EMPTY
@@ -159,12 +168,12 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     }
 
     boardExpansion.cells = cells.map((cell: any) => ({
-        side: resolveExpansionSideForCard(cell.side, cell.row, cell.col),
+        side: resolveExpansionSideForCard(cell.side, cell.row, cell.col, gameState),
         row: cell.row,
         col: cell.col,
         owner: normalizeExpansionOwnerForCard(cell.owner)
     }));
-    syncLegacyExpansionFieldsForCard(boardExpansion);
+    syncLegacyExpansionFieldsForCard(boardExpansion, gameState);
 
     boardExpansion.usedByPlayer[playerKey] = true;
 

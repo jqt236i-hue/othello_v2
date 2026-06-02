@@ -141,8 +141,6 @@ const TARGETED_PENDING_PLACE_TYPES = [
   'GOLD_STONE',
   'SILVER_STONE',
   'CRYSTAL_STONE',
-  'THEORY_INCARNATION',
-  'OBSERVER_WILL',
   'SALVATION_WILL',
   'REINFORCEMENT_WILL',
   'SUPPORT_TROOPS_WILL',
@@ -161,3 +159,4 @@ describe('workers pending place parity smoke for previously uncovered card types
     expect(result.playbackCount).toBeGreaterThan(0);
   });
 });
+

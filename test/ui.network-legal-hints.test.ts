@@ -21,6 +21,7 @@ function setupGlobalsForWhiteNetworkTurn() {
   global.getLegalMoves = jest.fn(() => [{ row: 2, col: 3, flips: [[2, 4]] }]);
   global.applyStoneVisualEffect = jest.fn();
   global.renderBoardDiff = jest.fn();
+  global.forceFullRender = (el) => require('../ui/diff-renderer.js').forceFullRender(el);
   global.updateOccupancyUI = jest.fn();
   global.renderCardUI = jest.fn();
 
@@ -47,6 +48,20 @@ function setupGlobalsForWhiteNetworkTurn() {
   window.__LOCAL_PLAYER_KEY = 'white';
 }
 
+function addEmptyLeftExpansionCell() {
+  global.gameState.boardExpansion = {
+    active: true,
+    side: 'left',
+    row: 3,
+    owner: global.EMPTY,
+    usedByPlayer: { black: true, white: true },
+    cells: [
+      { side: 'left', row: 3, col: -1, owner: global.EMPTY }
+    ]
+  };
+  global.getLegalMoves.mockReturnValue([{ row: 3, col: -1, flips: [[3, 0]] }]);
+}
+
 function cleanupGlobals(dom) {
   try {
     if (dom && dom.window && typeof dom.window.close === 'function') {
@@ -67,6 +82,7 @@ function cleanupGlobals(dom) {
   delete global.getLegalMoves;
   delete global.applyStoneVisualEffect;
   delete global.renderBoardDiff;
+  delete global.forceFullRender;
   delete global.updateOccupancyUI;
   delete global.renderCardUI;
   delete global.CardLogic;
@@ -105,6 +121,32 @@ describe('network legal hints for join seat', () => {
     expect(global.getLegalMoves).toHaveBeenCalledTimes(1);
     expect(legalCell).toBeTruthy();
     expect(legalCell.classList.contains('legal')).toBe(true);
+  });
+
+  test('diff-renderer shows legal hint on expansion cell for controllable network seat', () => {
+    addEmptyLeftExpansionCell();
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(global.boardEl);
+
+    const expansionCell = global.boardEl.querySelector('.cell-expanded-left[data-row="3"][data-col="-1"]');
+    expect(global.getLegalMoves).toHaveBeenCalledTimes(1);
+    expect(expansionCell).toBeTruthy();
+    expect(expansionCell.classList.contains('legal')).toBe(true);
+  });
+
+  test('diff-renderer hides expansion legal hint for non-controlling network seat', () => {
+    addEmptyLeftExpansionCell();
+    window.LOCAL_PLAYER_KEY = 'black';
+    window.BOARD_VIEWER_KEY = 'black';
+    window.__LOCAL_PLAYER_KEY = 'black';
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(global.boardEl);
+
+    const expansionCell = global.boardEl.querySelector('.cell-expanded-left[data-row="3"][data-col="-1"]');
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(expansionCell).toBeTruthy();
+    expect(expansionCell.classList.contains('legal')).toBe(false);
   });
 
   test('diff-renderer adds time-stop legal emphasis when time stop class is active', () => {

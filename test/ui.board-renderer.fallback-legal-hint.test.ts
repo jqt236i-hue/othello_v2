@@ -21,6 +21,7 @@ describe('board-renderer fallback legal hints', () => {
     global.handleCellClick = jest.fn();
     global.applyStoneVisualEffect = jest.fn();
     global.renderBoardDiff = jest.fn();
+    global.forceFullRender = (el) => require('../ui/diff-renderer.js').forceFullRender(el);
     global.updateOccupancyUI = jest.fn();
     global.renderCardUI = jest.fn();
     global.SoundEngine = {
@@ -80,6 +81,7 @@ describe('board-renderer fallback legal hints', () => {
     delete global.handleCellClick;
     delete global.applyStoneVisualEffect;
     delete global.renderBoardDiff;
+    delete global.forceFullRender;
     delete global.updateOccupancyUI;
     delete global.renderCardUI;
     delete global.SoundEngine;
@@ -360,5 +362,67 @@ describe('board-renderer fallback legal hints', () => {
 
     expect(global.getLegalMoves).not.toHaveBeenCalled();
     expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
+  });
+
+  test('renderBoardDiff leaves selection-mode unchanged while PLAYBACK_EVENTS are pending', () => {
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BLOCKADE_WILL',
+      stage: 'selectTarget',
+      cardId: 'blockade_01'
+    };
+    global.cardState.presentationEvents = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const updatedCount = diffRenderer.renderBoardDiff(global.boardEl);
+    warnSpy.mockRestore();
+
+    expect(updatedCount).toBe(0);
+    expect(global.boardEl.classList.contains('selection-mode')).toBe(false);
+    expect(global.boardEl.children).toHaveLength(0);
+  });
+
+  test('renderBoardFull delegates to canonical full render when available', () => {
+    global.forceFullRender = jest.fn();
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    expect(global.forceFullRender).toHaveBeenCalledTimes(1);
+    expect(global.forceFullRender).toHaveBeenCalledWith(global.boardEl);
+    expect(global.renderBoardDiff).not.toHaveBeenCalled();
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
+
+    delete global.forceFullRender;
+  });
+
+  test('renderBoardFull falls back to diff renderer when canonical full render is unavailable', () => {
+    delete global.forceFullRender;
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+    expect(global.renderBoardDiff).toHaveBeenCalledWith(global.boardEl);
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
+  });
+
+  test('renderBoardFull fallback restores missing cells through a full refresh', () => {
+    const diffRenderer = require('../ui/diff-renderer.js');
+    global.renderBoardDiff = jest.fn((board) => diffRenderer.renderBoardDiff(board));
+    delete global.forceFullRender;
+    delete window.forceFullRender;
+
+    diffRenderer.forceFullRender(global.boardEl);
+    global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]')?.remove();
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+    expect(global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]')).toBeTruthy();
+    expect(global.boardEl.children).toHaveLength(64);
   });
 });

@@ -132,6 +132,10 @@ var StoneStatusSnapshotModule: any = null;
 if (typeof require === 'function') {
     try { StoneStatusSnapshotModule = require('../shared/stone-status-snapshot'); } catch (e: any) { /* ignore */ }
 }
+var SharedBoardUtilsModule: any = null;
+if (typeof require === 'function') {
+    try { SharedBoardUtilsModule = require('../shared/shared-board-utils'); } catch (e: any) { /* ignore */ }
+}
 var BoardUpdateSyncRuntimeModule: any = null;
 if (typeof require === 'function') {
     try { BoardUpdateSyncRuntimeModule = require('./board-update-sync-runtime'); } catch (e: any) { /* ignore */ }
@@ -159,6 +163,12 @@ function _getBoardUpdateSyncRuntimeForDiff() {
     if (BoardUpdateSyncRuntimeModule) return BoardUpdateSyncRuntimeModule;
     const globalScope = _getGlobalScopeForDiff();
     return globalScope.BoardUpdateSyncRuntime || null;
+}
+
+function _getSharedBoardUtilsForDiff() {
+    if (SharedBoardUtilsModule) return SharedBoardUtilsModule;
+    const globalScope = _getGlobalScopeForDiff();
+    return globalScope.SharedBoardUtils || null;
 }
 
 function _getDiscStoneHelperForDiff(name: any) {
@@ -243,6 +253,11 @@ function _isMainBoardCellForDiff(row: any, col: any, shapeOrGameState?: any) {
 }
 
 function _resolveExpansionSideForDiff(side: any, row: any, col: any, shapeOrGameState: any) {
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (sharedBoardUtils && typeof sharedBoardUtils.resolveExpansionSide === 'function') {
+        const resolved = sharedBoardUtils.resolveExpansionSide(side, row, col, shapeOrGameState);
+        if (resolved) return resolved;
+    }
     const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
     if (col === -1) return 'left';
@@ -253,6 +268,10 @@ function _resolveExpansionSideForDiff(side: any, row: any, col: any, shapeOrGame
 }
 
 function _isExpansionCoordinateForDiff(row: any, col: any, shapeOrGameState: any) {
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (sharedBoardUtils && typeof sharedBoardUtils.isExpansionCoordinate === 'function') {
+        return !!sharedBoardUtils.isExpansionCoordinate(row, col, shapeOrGameState);
+    }
     const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
     if (row < -1 || row > shape.rows || col < -1 || col > shape.cols) return false;
@@ -288,12 +307,16 @@ function _applyExpansionCellPositionForDiff(cell: any, row: any, col: any, shape
     cell.style.bottom = '';
 }
 
-function _getExpansionDescriptorsForDiff(gameState: any) {
+function _getExpansionDescriptorsForDiff(gameState: any): any[] {
     const boardShape = _getBoardShapeForDiff(gameState);
     const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
         ? gameState.boardExpansion
         : null;
     if (!expansion) return [];
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (sharedBoardUtils && typeof sharedBoardUtils.collectExpansionDescriptors === 'function') {
+        return sharedBoardUtils.collectExpansionDescriptors(expansion, gameState);
+    }
 
     const out: any[] = [];
     const pushDescriptor = (source: any, legacyRow?: any, legacyOwner?: any) => {
@@ -2978,6 +3001,30 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
     });
 }
 
+function _syncSelectionModeForDiff(boardEl: any) {
+    if (!boardEl || !boardEl.classList) return;
+    try {
+        const gameState = _resolveGameStateForDiffRender();
+        const cardState = _resolveCardStateForDiffRender();
+        const playerKey = getPlayerKey(gameState && gameState.currentPlayer);
+        const pending = cardState && cardState.pendingEffectByPlayer
+            ? cardState.pendingEffectByPlayer[playerKey]
+            : null;
+        const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
+            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+            : [];
+        const isSelectingTarget = !!(
+            pending &&
+            pending.stage === 'selectTarget' &&
+            Array.isArray(selectableTargets) &&
+            selectableTargets.length > 0
+        );
+        boardEl.classList.toggle('selection-mode', isSelectingTarget);
+    } catch (e: any) {
+        boardEl.classList.remove('selection-mode');
+    }
+}
+
 /**
  * 差分レンダリング実行
  * Execute differential rendering
@@ -3017,6 +3064,7 @@ function renderBoardDiff(boardEl: any) {
             return 0;
         }
     }
+    _syncSelectionModeForDiff(boardEl);
 
     // One-shot suppression set by AnimationEngine at the end of playback.
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.

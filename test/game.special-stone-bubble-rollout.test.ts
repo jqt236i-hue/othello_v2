@@ -293,8 +293,7 @@ describe('special stone speech rollout', () => {
   });
 
   test.each([
-    ['STONE_SALVATION_GOD', 'STONE_SALVATION_GOD'],
-    ['THEORY_INCARNATION', 'THEORY_INCARNATION']
+    ['STONE_SALVATION_GOD', 'STONE_SALVATION_GOD']
   ])('%s placement emits a generic place speech bubble', (cardType, specialType) => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
@@ -337,3 +336,4 @@ describe('special stone speech rollout', () => {
     ]));
   });
 });
+

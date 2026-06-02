@@ -13,6 +13,7 @@ declare const getPlayerKey: (...args: any[]) => any;
 declare const CardLogic: any;
 declare const getLegalMoves: (...args: any[]) => any;
 declare const renderBoardDiff: (...args: any[]) => any;
+declare const forceFullRender: (...args: any[]) => any;
 declare const BLACK: number;
 declare const WHITE: number;
 declare const EMPTY: number;
@@ -1078,7 +1079,63 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
     return currentPlayerKey === localPlayerKey;
 }
 
+function _resolveBoardFullRenderDelegate() {
+    try {
+        if (typeof forceFullRender === 'function') return forceFullRender;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.forceFullRender === 'function') return window.forceFullRender;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveBoardDiffRenderDelegate() {
+    try {
+        if (typeof renderBoardDiff === 'function') return renderBoardDiff;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.renderBoardDiff === 'function') return window.renderBoardDiff;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveBoardDiffResetDelegate() {
+    try {
+        const diffRendererModule = _require('./diff-renderer');
+        if (diffRendererModule && typeof diffRendererModule.resetRenderStats === 'function') {
+            return diffRendererModule.resetRenderStats;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && typeof window.resetRenderStats === 'function') return window.resetRenderStats;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function renderBoardFull() {
+    _syncTimeStopClassForBoardRenderer();
+    // Single Visual Writer: skip renders while playback is active or already queued.
+    if (_shouldSkipBoardRenderForPlayback()) {
+        return;
+    }
+    const fullRender = _resolveBoardFullRenderDelegate();
+    if (typeof fullRender === 'function') {
+        fullRender(boardEl);
+        return;
+    }
+    const diffRender = _resolveBoardDiffRenderDelegate();
+    if (typeof diffRender === 'function') {
+        const resetDiffRender = _resolveBoardDiffResetDelegate();
+        if (typeof resetDiffRender === 'function') {
+            resetDiffRender();
+        }
+        diffRender(boardEl);
+        return;
+    }
+    renderBoardFullLegacy();
+}
+
+function renderBoardFullLegacy() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
     if (_shouldSkipBoardRenderForPlayback()) {

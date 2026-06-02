@@ -109,6 +109,7 @@ describe('applySnapshot single-writer baseline', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.updateCardDetailPanel;
     delete global.BoardOps;
     delete global.handlePresentationEvent;
     delete global.onBoardUpdated;
@@ -226,6 +227,27 @@ describe('applySnapshot single-writer baseline', () => {
 
     expect(global.emitBoardUpdate).toHaveBeenCalled();
     expect(order).toEqual(['presentation-drain', 'board-update']);
+  });
+
+  test('network playback 後 refresh は event-bus 処理済みでも detail UI を直接同期する', async () => {
+    const stateObj = { stateVersion: 10 };
+    global.emitCardStateChange = jest.fn(() => true);
+    global.updateCardDetailPanel = jest.fn();
+    global.onBoardUpdated = jest.fn(() => Promise.resolve());
+    global.emitBoardUpdate = jest.fn(() => true);
+    const ctrl = createController(stateObj);
+
+    ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [{ type: 'flip', phase: 1, targets: [] }]
+    });
+
+    expect(global.updateCardDetailPanel).not.toHaveBeenCalled();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(global.updateCardDetailPanel).toHaveBeenCalledTimes(1);
   });
 
   test('network playback は直接 PresentationHandler に渡し、最終盤面 board update を playback 後へ遅延する', async () => {

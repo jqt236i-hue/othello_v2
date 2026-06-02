@@ -423,6 +423,12 @@ function createPassNetworkAction(playerKey: string, cardStateValue: any) {
     return action;
 }
 
+function resolvePassPublishPlayerKey(turnOwnerKey: string) {
+    const normalizedTurnOwnerKey = normalizePlayerKey(turnOwnerKey, 'black');
+    const effectiveOperatorKey = getEffectiveTurnOperatorKey(normalizedTurnOwnerKey);
+    return normalizePlayerKey(effectiveOperatorKey, normalizedTurnOwnerKey);
+}
+
 function publishPassSnapshot(playerKey: string, actionOverride?: any) {
     const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
     const action = (actionOverride && typeof actionOverride === 'object')
@@ -617,18 +623,19 @@ async function _postApplyPassCommon(lastPlayerKey: string) {
     emitPassHandlerBoardUpdate();
     emitPassHandlerGameStateChange();
 
-    const publishAction = createPassNetworkAction(lastPlayerKey || 'black', cardState);
+    const publishPlayerKey = resolvePassPublishPlayerKey(lastPlayerKey || 'black');
+    const publishAction = createPassNetworkAction(publishPlayerKey, cardState);
 
-    return finalizePassTurnHandoff(lastPlayerKey || 'black', publishAction);
+    return finalizePassTurnHandoff(lastPlayerKey || 'black', publishPlayerKey, publishAction);
 }
 
-async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishAction: any) {
-    const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
+async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: string, publishAction: any) {
+    const safePublishPlayerKey = normalizePlayerKey(publishPlayerKey, normalizePlayerKey(lastPlayerKey, 'black'));
 
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
         showPassHandlerResultIfAvailable();
         setPassHandlerProcessing(false);
-        publishPassSnapshot(safeLastPlayerKey, publishAction);
+        publishPassSnapshot(safePublishPlayerKey, publishAction);
         return true;
     }
 
@@ -653,7 +660,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
             showPassHandlerResultIfAvailable();
             setPassHandlerProcessing(false);
-            publishPassSnapshot(safeLastPlayerKey, publishAction);
+            publishPassSnapshot(safePublishPlayerKey, publishAction);
             return true;
         }
 
@@ -672,7 +679,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
             // Delegate to black-pass handler for additional delays/flows
             handleBlackPassWhenNoMoves();
         }
-        publishPassSnapshot(safeLastPlayerKey, publishAction);
+        publishPassSnapshot(safePublishPlayerKey, publishAction);
         return true;
     }
 
@@ -689,14 +696,15 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
         emitPassHandlerBoardUpdate();
     }
-    publishPassSnapshot(safeLastPlayerKey, publishAction);
+    publishPassSnapshot(safePublishPlayerKey, publishAction);
     return true;
 }
 
-async function finalizePassTurnHandoff(lastPlayerKey: string, publishAction: any) {
+async function finalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: string, publishAction: any) {
     const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
+    const safePublishPlayerKey = normalizePlayerKey(publishPlayerKey, safeLastPlayerKey);
     if (isExplicitNetworkMatchMode()) {
-        return legacyFinalizePassTurnHandoff(safeLastPlayerKey, publishAction);
+        return legacyFinalizePassTurnHandoff(safeLastPlayerKey, safePublishPlayerKey, publishAction);
     }
     const handoff = resolvePassHandlerNetworkTurnHandoff();
     const finalizeTurn = (handoff && typeof handoff.finalizeNetworkTurnHandoff === 'function')
@@ -704,14 +712,14 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishAction: any
         : null;
 
     if (typeof finalizeTurn !== 'function') {
-        return legacyFinalizePassTurnHandoff(safeLastPlayerKey, publishAction);
+        return legacyFinalizePassTurnHandoff(safeLastPlayerKey, safePublishPlayerKey, publishAction);
     }
 
     const humanMode = isHumanVsHumanModeEnabled();
     const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
 
     await finalizeTurn({
-        playerKey: safeLastPlayerKey,
+        playerKey: safePublishPlayerKey,
         actionType: 'pass',
         action: publishAction,
         playbackEvents: [],
