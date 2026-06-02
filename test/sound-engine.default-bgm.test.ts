@@ -130,10 +130,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.volume).toBe(0.56);
   });
 
-  test('startup default BGM volume is 1.35', () => {
+  test('startup default BGM volume is 1.1', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.bgmVolume).toBe(1.35);
+    expect(soundEngine.bgmVolume).toBe(1.1);
   });
 
   test('duration-end revert sound uses the renamed asset mapping', () => {

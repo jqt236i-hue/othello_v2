@@ -53,7 +53,7 @@ const SoundEngine = {
     isMuted: false,
     volume: 0.56,
     bgm: null as any,
-    bgmVolume: 1.35,
+    bgmVolume: 1.1,
     currentTrackIndex: 5,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {

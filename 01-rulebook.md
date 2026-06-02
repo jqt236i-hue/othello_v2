@@ -1782,7 +1782,8 @@
 ### 12.15 サウンド既定値
 
 - 起動時の既定BGMは `assets/audio/bgm/The Observer’s Tears.mp3` を使用する
-- 起動時の BGM 音量スライダー既定値は `1.35` とする
+- 起動時の BGM 音量スライダー既定値は `1.1` とする
+- BGM 音量スライダー上限は `1.2` とし、起動直後もつまみが見える余白を残す
 - BGM 選択一覧は `assets/audio/bgm/c-reversi.mp3`、`assets/audio/bgm/c-reversi-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3`、`assets/audio/bgm/The Observer’s Tears.mp3` の 6 曲を含める
 - BGM は曲ごとに `loopStart` / `loopEnd` 秒を持ってよく、明示された範囲をループしてよい。`loopStart > 0` の曲は初回だけ 0 秒から再生し、ループ時は `loopStart` 秒へ戻す
 - `assets/audio/bgm/盤喰いの小鬼戦.mp3` は `loopStart = 1.655` とし、イントロはループしない
