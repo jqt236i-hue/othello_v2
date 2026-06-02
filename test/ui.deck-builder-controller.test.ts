@@ -720,10 +720,12 @@ describe('deck builder controller', () => {
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
+    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
 
     expect(options.initialDeckSpecByPlayer.black).toBeUndefined();
-    expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('reinforcement_01');
-    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(whiteCardIds).toContain('reinforcement_01');
+    expect(whiteCardIds).not.toContain('observer_01');
+    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(29);
   });
 
   test('CPU Lv6対戦ではプレイヤー黒カスタムと白CPU専用デッキを両立する', () => {
