@@ -206,7 +206,7 @@ describe('card detail effect tags', () => {
       name: '罠の意志',
       type: 'TRAP_WILL',
       cost: 4,
-      desc: '自分石1つを罠化してターン終了。次の相手ターン中に反転されると、相手の布石を最大20奪う＋手札全破壊。'
+      desc: '自分石1つを罠化してターン終了。次の相手ターン中に反転されると、相手の布石を最大10奪う＋手札全破壊。'
     };
 
     global.cardState.selectedCardId = cardDef.id;

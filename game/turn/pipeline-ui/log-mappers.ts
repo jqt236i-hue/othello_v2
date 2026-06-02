@@ -463,7 +463,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 const details = Array.isArray(ev.details) ? ev.details : [];
                 if (details.length > 0) {
                     const destroyedHand = details.reduce((sum: any, d: any) => sum + (Number(d && (d.destroyedHandCount ?? d.stolenHandCount)) || 0), 0);
-                    push(`罠石が発動: 布石最大20奪取 / 手札全破壊（${destroyedHand}枚）`);
+                    push(`罠石が発動: 布石最大10奪取 / 手札全破壊（${destroyedHand}枚）`);
                 }
                 break;
             }

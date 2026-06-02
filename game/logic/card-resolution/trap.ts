@@ -8,7 +8,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
-const DEFAULT_TRAP_WILL_STEAL_MAX = 20;
+const DEFAULT_TRAP_WILL_STEAL_MAX = 10;
 
 function applyTrapWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;

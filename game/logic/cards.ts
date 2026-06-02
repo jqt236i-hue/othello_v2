@@ -267,7 +267,7 @@ const {
     const BLOCKADE_TURNS = 3;
     const FREEZE_TURNS = 5;
     const SEED_WILL_TURNS = 5;
-    const TRAP_WILL_STEAL_MAX = 20;
+    const TRAP_WILL_STEAL_MAX = 10;
     const GUARD_WILL_TURNS = 3;
     const GUARDIAN_GOD_TURNS = 10;
     const RIBO_WILL_UNLOCK_TURN_INDEX = 19;
