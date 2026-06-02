@@ -108,9 +108,28 @@
         return fallback !== undefined ? String(fallback) : 'special-timer';
     }
 
+    function getEvasionStatusModule(): unknown {
+        const candidate = EvasionStatus as { getFlipEvadeDefault?: unknown; getDestroyEvadeDefault?: unknown } | null;
+        if (
+            candidate &&
+            typeof candidate.getFlipEvadeDefault === 'function' &&
+            typeof candidate.getDestroyEvadeDefault === 'function'
+        ) {
+            return candidate;
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).EvasionStatus) {
+            return (globalThis as Record<string, unknown>).EvasionStatus;
+        }
+        if (typeof self !== 'undefined' && (self as Record<string, unknown>).EvasionStatus) {
+            return (self as Record<string, unknown>).EvasionStatus;
+        }
+        return null;
+    }
+
     function readFlipEvadeDefault(rawTypeOrSource: unknown, mode: 'runtime' | 'info' | 'visual'): number | null {
-        if (EvasionStatus && typeof (EvasionStatus as { getFlipEvadeDefault?: (v: unknown, o?: unknown) => number | null }).getFlipEvadeDefault === 'function') {
-            return (EvasionStatus as { getFlipEvadeDefault: (v: unknown, o?: unknown) => number | null }).getFlipEvadeDefault(rawTypeOrSource, { mode });
+        const evasionStatus = getEvasionStatusModule();
+        if (evasionStatus && typeof (evasionStatus as { getFlipEvadeDefault?: (v: unknown, o?: unknown) => number | null }).getFlipEvadeDefault === 'function') {
+            return (evasionStatus as { getFlipEvadeDefault: (v: unknown, o?: unknown) => number | null }).getFlipEvadeDefault(rawTypeOrSource, { mode });
         }
         const info = getSpecialStoneInfo(rawTypeOrSource);
         if (!info) return null;
@@ -120,8 +139,9 @@
     }
 
     function readDestroyEvadeDefault(rawTypeOrSource: unknown, mode: 'runtime' | 'info' | 'visual'): number | null {
-        if (EvasionStatus && typeof (EvasionStatus as { getDestroyEvadeDefault?: (v: unknown, o?: unknown) => number | null }).getDestroyEvadeDefault === 'function') {
-            return (EvasionStatus as { getDestroyEvadeDefault: (v: unknown, o?: unknown) => number | null }).getDestroyEvadeDefault(rawTypeOrSource, { mode });
+        const evasionStatus = getEvasionStatusModule();
+        if (evasionStatus && typeof (evasionStatus as { getDestroyEvadeDefault?: (v: unknown, o?: unknown) => number | null }).getDestroyEvadeDefault === 'function') {
+            return (evasionStatus as { getDestroyEvadeDefault: (v: unknown, o?: unknown) => number | null }).getDestroyEvadeDefault(rawTypeOrSource, { mode });
         }
         const info = getSpecialStoneInfo(rawTypeOrSource);
         if (!info || mode === 'visual') return null;

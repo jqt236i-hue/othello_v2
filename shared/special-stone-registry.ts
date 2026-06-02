@@ -46,28 +46,48 @@
         TRAP_REVEAL: 'TRAP',
         ULTIMATE_HYPERACTIVE_GOD: 'ULTIMATE_HYPERACTIVE'
     });
+    function getEvasionStatusModule(): unknown {
+        const candidate = EvasionStatus as { getFlipEvadeDefault?: unknown; getDestroyEvadeDefault?: unknown } | null;
+        if (
+            candidate &&
+            typeof candidate.getFlipEvadeDefault === 'function' &&
+            typeof candidate.getDestroyEvadeDefault === 'function'
+        ) {
+            return candidate;
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).EvasionStatus) {
+            return (globalThis as Record<string, unknown>).EvasionStatus;
+        }
+        if (typeof self !== 'undefined' && (self as Record<string, unknown>).EvasionStatus) {
+            return (self as Record<string, unknown>).EvasionStatus;
+        }
+        return null;
+    }
 
     function readFlipDefault(type: string): number | undefined {
-        if (!EvasionStatus || typeof (EvasionStatus as { getFlipEvadeDefault?: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault !== 'function') {
+        const evasionStatus = getEvasionStatusModule();
+        if (!evasionStatus || typeof (evasionStatus as { getFlipEvadeDefault?: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault !== 'function') {
             return undefined;
         }
-        const value = (EvasionStatus as { getFlipEvadeDefault: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault(type, { mode: 'info' });
+        const value = (evasionStatus as { getFlipEvadeDefault: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault(type, { mode: 'info' });
         return Number.isFinite(Number(value)) ? Number(value) : undefined;
     }
 
     function readDestroyDefault(type: string): number | undefined {
-        if (!EvasionStatus || typeof (EvasionStatus as { getDestroyEvadeDefault?: (t: string, o?: unknown) => number | null }).getDestroyEvadeDefault !== 'function') {
+        const evasionStatus = getEvasionStatusModule();
+        if (!evasionStatus || typeof (evasionStatus as { getDestroyEvadeDefault?: (t: string, o?: unknown) => number | null }).getDestroyEvadeDefault !== 'function') {
             return undefined;
         }
-        const value = (EvasionStatus as { getDestroyEvadeDefault: (t: string, o?: unknown) => number | null }).getDestroyEvadeDefault(type, { mode: 'info' });
+        const value = (evasionStatus as { getDestroyEvadeDefault: (t: string, o?: unknown) => number | null }).getDestroyEvadeDefault(type, { mode: 'info' });
         return Number.isFinite(Number(value)) ? Number(value) : undefined;
     }
 
     function readVisualFlipDefault(type: string): number | undefined {
-        if (!EvasionStatus || typeof (EvasionStatus as { getFlipEvadeDefault?: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault !== 'function') {
+        const evasionStatus = getEvasionStatusModule();
+        if (!evasionStatus || typeof (evasionStatus as { getFlipEvadeDefault?: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault !== 'function') {
             return undefined;
         }
-        const value = (EvasionStatus as { getFlipEvadeDefault: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault(type, { mode: 'visual' });
+        const value = (evasionStatus as { getFlipEvadeDefault: (t: string, o?: unknown) => number | null }).getFlipEvadeDefault(type, { mode: 'visual' });
         return Number.isFinite(Number(value)) ? Number(value) : undefined;
     }
 
@@ -260,8 +280,8 @@
         WILL_HUNTER_KING: Object.freeze({
             name: '意志狩りの王',
             desc: '敵石を狙って移動し、破壊する。',
-            tagFlipEvadeDefault: 2,
-            tagDestroyEvadeDefault: 2
+            tagFlipEvadeDefault: readFlipDefault('WILL_HUNTER_KING'),
+            tagDestroyEvadeDefault: readDestroyDefault('WILL_HUNTER_KING')
         }),
         METEOR_HOLE: Object.freeze({
             name: '流星穴',
@@ -309,10 +329,29 @@
         return SPECIAL_STONE_TYPE_ALIASES[upper] || upper;
     }
 
+    function hydrateEvasionDefaults(type: string, info: Readonly<SpecialStoneInfo> | null): Readonly<SpecialStoneInfo> | null {
+        if (!type || !info) return info;
+        const tagFlipEvadeDefault = info.tagFlipEvadeDefault !== undefined ? info.tagFlipEvadeDefault : readFlipDefault(type);
+        const tagDestroyEvadeDefault = info.tagDestroyEvadeDefault !== undefined ? info.tagDestroyEvadeDefault : readDestroyDefault(type);
+        const visualFlipEvadeDefault = info.visualFlipEvadeDefault !== undefined ? info.visualFlipEvadeDefault : readVisualFlipDefault(type);
+        if (
+            tagFlipEvadeDefault === info.tagFlipEvadeDefault &&
+            tagDestroyEvadeDefault === info.tagDestroyEvadeDefault &&
+            visualFlipEvadeDefault === info.visualFlipEvadeDefault
+        ) {
+            return info;
+        }
+        return Object.freeze(Object.assign({}, info, {
+            tagFlipEvadeDefault,
+            tagDestroyEvadeDefault,
+            visualFlipEvadeDefault
+        }));
+    }
+
     function getSpecialStoneInfo(rawType: unknown): Readonly<SpecialStoneInfo> | null {
         const type = normalizeSpecialStoneType(rawType);
         if (!type) return null;
-        return SPECIAL_STONE_REGISTRY[type] || null;
+        return hydrateEvasionDefaults(type, SPECIAL_STONE_REGISTRY[type] || null);
     }
 
     function getSpecialStoneDisplayName(rawType: unknown, fallback?: unknown): string {

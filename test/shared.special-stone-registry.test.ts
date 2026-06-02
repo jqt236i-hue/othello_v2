@@ -31,4 +31,30 @@ describe('special stone registry rule classification', () => {
       data: { type: 'HYPERACTIVE', instantPlacementOnly: true }
     })).toBe('placement_effect');
   });
+
+  test('late-bound global EvasionStatus still supplies evade defaults', () => {
+    const previous = (globalThis as any).EvasionStatus;
+    try {
+      jest.resetModules();
+      jest.doMock('../shared/evasion-status', () => ({}));
+      const realEvasionStatus = jest.requireActual('../shared/evasion-status');
+      const lateRegistry = require('../shared/special-stone-registry');
+      (globalThis as any).EvasionStatus = realEvasionStatus;
+
+      expect(lateRegistry.getSpecialStoneInfo('AFTERIMAGE_WILL')).toMatchObject({
+        tagFlipEvadeDefault: 3,
+        tagDestroyEvadeDefault: 3
+      });
+      expect(lateRegistry.getSpecialStoneInfo('ULTIMATE_HYPERACTIVE')).toMatchObject({
+        tagFlipEvadeDefault: 3,
+        tagDestroyEvadeDefault: 1,
+        visualFlipEvadeDefault: 3
+      });
+    } finally {
+      jest.dontMock('../shared/evasion-status');
+      if (previous === undefined) delete (globalThis as any).EvasionStatus;
+      else (globalThis as any).EvasionStatus = previous;
+      jest.resetModules();
+    }
+  });
 });
