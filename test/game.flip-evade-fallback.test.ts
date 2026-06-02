@@ -118,6 +118,8 @@ describe('flip evasion fallback to normal flip', () => {
 
     const markerBefore = cardState.markers.find((entry) => entry && entry.id === 9901);
     expect(markerBefore).toBeTruthy();
+    const flipEvadeRemainingBefore = markerBefore.data.flipEvadeRemaining;
+    const destroyEvadeRemainingBefore = markerBefore.data.destroyEvadeRemaining;
 
     const out = CardLogic.resolveHyperactiveFlipEvasion(
       cardState,
@@ -137,8 +139,8 @@ describe('flip evasion fallback to normal flip', () => {
     expect(markerAfter).toBeTruthy();
     expect(markerAfter.row).toBe(3);
     expect(markerAfter.col).toBe(3);
-    expect(markerAfter.data.flipEvadeRemaining).toBe(markerBefore.data.flipEvadeRemaining);
-    expect(markerAfter.data.destroyEvadeRemaining).toBe(markerBefore.data.destroyEvadeRemaining);
+    expect(markerAfter.data.flipEvadeRemaining).toBe(flipEvadeRemainingBefore);
+    expect(markerAfter.data.destroyEvadeRemaining).toBe(destroyEvadeRemainingBefore);
   });
 
   test.each(FLIP_EVADE_CASES)('%s は配置反転で退避先が無いと通常どおり反転される', ({ markerData }) => {
