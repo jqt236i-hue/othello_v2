@@ -1728,6 +1728,12 @@ function handleState(req: any, res: any, urlObj: any) {
     }
 
     const serverTime = Date.now();
+    const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
+        room.sseEventBuffer,
+        room.stateVersion,
+        viewerSeatKey
+    );
+    const recoveredMeta = (recoveredPayload && typeof recoveredPayload === 'object') ? recoveredPayload : {};
     writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
         ok: true,
         stateVersion: room.stateVersion,
@@ -1736,6 +1742,12 @@ function handleState(req: any, res: any, urlObj: any) {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         snapshot: toPublicSnapshot(room, viewerSeatKey),
         turnTimer: toPublicTurnTimer(room, serverTime),
+        playbackEvents: Array.isArray((recoveredMeta as any).playbackEvents) ? (recoveredMeta as any).playbackEvents : [],
+        effectLogs: MatchAuthority.normalizeEffectLogMessages((recoveredMeta as any).effectLogs),
+        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics((recoveredMeta as any).playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        operationId: (recoveredMeta as any).operationId ? String((recoveredMeta as any).operationId) : null,
+        playerKey: (recoveredMeta as any).playerKey ? normalizePlayerKey((recoveredMeta as any).playerKey) : null,
+        actionType: (recoveredMeta as any).actionType ? String((recoveredMeta as any).actionType) : null,
         serverTime
     }));
 }

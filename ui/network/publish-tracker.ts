@@ -101,6 +101,7 @@ function createNetworkPublishTracker(config?: any): any {
         actor: requestMeta.actor || null,
         params: (requestMeta.params && typeof requestMeta.params === 'object') ? cloneFn(requestMeta.params) : null,
         playbackEvents: Array.isArray(requestMeta.playbackEvents) ? cloneFn(requestMeta.playbackEvents) : [],
+        localPlaybackEmitted: requestMeta.localPlaybackEmitted === true,
         usedSnapshotFallback: requestMeta.usedSnapshotFallback === true,
         snapshotProjectedHash: (typeof requestMeta.snapshotProjectedHash === 'string' && requestMeta.snapshotProjectedHash)
           ? requestMeta.snapshotProjectedHash
@@ -117,6 +118,10 @@ function createNetworkPublishTracker(config?: any): any {
       ? entry.requestMeta.playbackEvents
       : [];
     return playbackEvents;
+  }
+
+  function hasTrackedPublishLocalPlaybackEmitted(entry: any): boolean {
+    return !!(entry && entry.requestMeta && entry.requestMeta.localPlaybackEmitted === true);
   }
 
   function findTrackedPublish(operationId: string): any {
@@ -210,6 +215,7 @@ function createNetworkPublishTracker(config?: any): any {
     resetPublishTracker,
     createTrackedPublish,
     getTrackedPublishRequestedPlaybackEvents,
+    hasTrackedPublishLocalPlaybackEmitted,
     findTrackedPublish,
     settleTrackedPublish,
     markTrackedPublishInFlight,

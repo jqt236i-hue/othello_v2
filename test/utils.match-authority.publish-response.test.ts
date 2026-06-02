@@ -656,6 +656,34 @@ describe('match authority publish response payload', () => {
     ]);
   });
 
+  test('finds buffered snapshot payload for current state version and viewer', () => {
+    let buffer = [];
+    buffer = MatchAuthority.appendBufferedSseEvent(buffer, {
+      eventId: 'ROOM_1_1',
+      eventName: 'snapshot',
+      payloadByViewer: {
+        black: { roomId: 'ROOM', stateVersion: 1, playbackEvents: [{ type: 'old' }] },
+        white: { roomId: 'ROOM', stateVersion: 1, playbackEvents: [] }
+      }
+    });
+    buffer = MatchAuthority.appendBufferedSseEvent(buffer, {
+      eventId: 'ROOM_2_2',
+      eventName: 'snapshot',
+      payloadByViewer: {
+        black: { roomId: 'ROOM', stateVersion: 2, playbackEvents: [{ type: 'move' }] },
+        white: { roomId: 'ROOM', stateVersion: 2, playbackEvents: [{ type: 'hidden_safe' }] }
+      }
+    });
+
+    expect(MatchAuthority.getBufferedSnapshotPayloadForStateVersion(buffer, 2, 'black')).toEqual(
+      expect.objectContaining({
+        stateVersion: 2,
+        playbackEvents: [{ type: 'move' }]
+      })
+    );
+    expect(MatchAuthority.getBufferedSnapshotPayloadForStateVersion(buffer, 3, 'black')).toBeNull();
+  });
+
   test('returns null when Last-Event-ID is not in the buffer', () => {
     const buffer = MatchAuthority.appendBufferedSseEvent([], {
       eventId: 'ROOM_5_8',

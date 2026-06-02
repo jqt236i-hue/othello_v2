@@ -1274,6 +1274,18 @@ function _resolveNetworkLocalPlayerKeyForDiff() {
 }
 
 function _canLocalPlayerControlCurrentTurnForDiff() {
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveNetworkInputPermissions === 'function') {
+            return OwnerHelpersModule.resolveNetworkInputPermissions({
+                rootRef: typeof window !== 'undefined' ? window : null,
+                cardState: typeof cardState !== 'undefined' ? cardState : null,
+                gameState: typeof gameState !== 'undefined' ? gameState : null,
+                currentPlayer: gameState && gameState.currentPlayer,
+                localPlayerKey: _resolveNetworkLocalPlayerKeyForDiff(),
+                debugHumanVsHuman: typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true
+            }).canOperateBoard === true;
+        }
+    } catch (e: any) { /* fallback to legacy local checks */ }
     let isNetworkMode = false;
     try {
         isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')

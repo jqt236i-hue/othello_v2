@@ -58,6 +58,14 @@ function getSelectorsBoardShapeDeps() {
     };
 }
 
+function getSelectorsBoardShapeDeps() {
+    return {
+        SharedBoardUtils,
+        SharedConstants,
+        P_EMPTY
+    };
+}
+
 function isBlockingMarkerType(type: string): boolean {
     if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isBlockingMarkerType === 'function') {
         return SelectorsCoreUtils.isBlockingMarkerType(type);

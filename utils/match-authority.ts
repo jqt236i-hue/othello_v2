@@ -1791,6 +1791,53 @@ function getBufferedSseReplayEvents(
     return replayEvents;
 }
 
+function resolveBufferedSnapshotPayloadForViewer(
+    entry: MatchAuthorityBufferedSseEventRecord,
+    viewerSeatKey: unknown
+): unknown | null {
+    if (!entry || typeof entry !== 'object') return null;
+    if (String(entry.event || '').trim() !== 'snapshot') return null;
+
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    if (entry.payloadByViewer && typeof entry.payloadByViewer === 'object') {
+        if (!viewer || !Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) return null;
+        return entry.payloadByViewer[viewer] || null;
+    }
+    return Object.prototype.hasOwnProperty.call(entry, 'payload') ? (entry.payload || null) : null;
+}
+
+function getPayloadStateVersion(payloadValue: unknown): number | null {
+    const payload = asRecord(payloadValue);
+    const directVersion = normalizeStateVersion(payload.stateVersion);
+    if (directVersion !== null) return directVersion;
+
+    const snapshot = asRecord(payload.snapshot);
+    const snapshotVersion = normalizeStateVersion(snapshot.stateVersion);
+    if (snapshotVersion !== null) return snapshotVersion;
+
+    return normalizeStateVersion(asRecord(snapshot._meta).version);
+}
+
+function getBufferedSnapshotPayloadForStateVersion(
+    bufferValue: unknown,
+    stateVersionValue: unknown,
+    viewerSeatKey: unknown
+): unknown | null {
+    const stateVersion = normalizeStateVersion(stateVersionValue);
+    if (stateVersion === null) return null;
+
+    const buffer: MatchAuthorityBufferedSseEventRecord[] = Array.isArray(bufferValue) ? bufferValue : [];
+    for (let index = buffer.length - 1; index >= 0; index -= 1) {
+        const entry = buffer[index];
+        const payload = resolveBufferedSnapshotPayloadForViewer(entry, viewerSeatKey);
+        if (!payload) continue;
+        if (getPayloadStateVersion(payload) === stateVersion) {
+            return deepClone(payload);
+        }
+    }
+    return null;
+}
+
 const matchAuthority = assertMatchAuthorityPublicApi({
     PLAYER_KEYS,
     OPERATION_ID_MAX_LENGTH,
@@ -1876,7 +1923,8 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     appendAuthorityLog,
     createBufferedSseEventRecord,
     appendBufferedSseEvent,
-    getBufferedSseReplayEvents
+    getBufferedSseReplayEvents,
+    getBufferedSnapshotPayloadForStateVersion
 });
 
 export = matchAuthority;

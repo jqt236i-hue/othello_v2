@@ -1,5 +1,7 @@
 'use strict';
 
+const MatchEntryPayload = require('../../shared/match-entry-payload');
+
 function createNetworkSessionLifecycleController(config: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const roomIdPattern = cfg.roomIdPattern instanceof RegExp ? cfg.roomIdPattern : /^[A-Z0-9]{3}$/;
@@ -14,22 +16,87 @@ function createNetworkSessionLifecycleController(config: any): any {
     return state;
   }
 
-  function cloneData(value: any): any {
-    if (typeof cfg.cloneData === 'function') {
-      return cfg.cloneData(value);
-    }
-    try {
-      if (typeof globalThis !== 'undefined' && typeof (globalThis as any).structuredClone === 'function') {
-        return (globalThis as any).structuredClone(value);
-      }
-    } catch (e) { /* ignore */ }
-    return JSON.parse(JSON.stringify(value));
-  }
-
   function emitPlayerNameRequired(): void {
     if (typeof cfg.emitStatus === 'function') {
       cfg.emitStatus('ニックネームを1〜' + String(playerNameMax) + '文字で入力してください', true);
     }
+  }
+
+  function emitDeckCodeFallback(): void {
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus('選択中のカスタムデッキを読み込めなかったため、標準デッキで続行します', false);
+    }
+  }
+
+  function emitDeckCodeInvalid(): void {
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus('選択中のデッキコードが無効です', true);
+    }
+  }
+
+  function emitMatchApiMissing(): void {
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
+    }
+  }
+
+  function createEntryPayloadHelpers(): any {
+    return {
+      normalizePlayerName: cfg.normalizePlayerName,
+      normalizeRoomId: cfg.normalizeRoomId,
+      sanitizeDeckCode: cfg.sanitizeDeckCode,
+      cloneData: cfg.cloneData,
+      readSelectedHandSkinId: cfg.readSelectedHandSkinId,
+      readSeatClaim: cfg.readSeatClaim,
+      roomIdPattern: roomIdPattern,
+      defaultSelectedHandSkinId: 'default'
+    };
+  }
+
+  function emitEntryPayloadFailure(reason: any): any {
+    if (reason === 'PLAYER_NAME_REQUIRED') {
+      emitPlayerNameRequired();
+      return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
+    }
+    if (reason === 'ROOM_ID_REQUIRED') {
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus('部屋番号を入力してください', true);
+      }
+      return { ok: false, reason: 'ROOM_ID_REQUIRED' };
+    }
+    if (reason === 'ROOM_ID_INVALID') {
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus('部屋番号は英数字' + String(roomIdLength) + '文字で入力してください', true);
+      }
+      return { ok: false, reason: 'ROOM_ID_INVALID' };
+    }
+    return { ok: false, reason: String(reason || 'ENTRY_PAYLOAD_INVALID') };
+  }
+
+  function emitDeckCodeFallbackIfNeeded(entry: any): void {
+    if (entry && entry.invalidDeckCode === true) {
+      emitDeckCodeFallback();
+    }
+  }
+
+  function handleRoomEntryFailure(res: any, options: { fallbackReason: string; fallbackMessage: string }): any {
+    const opts = (options && typeof options === 'object') ? options : { fallbackReason: 'REQUEST_FAILED', fallbackMessage: '失敗しました' };
+    if (typeof cfg.isMatchApiMissing === 'function' && cfg.isMatchApiMissing(res)) {
+      emitMatchApiMissing();
+      return { ok: false, reason: 'MATCH_API_NOT_FOUND' };
+    }
+    if (res.data && res.data.reason === 'PLAYER_NAME_REQUIRED') {
+      emitPlayerNameRequired();
+      return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
+    }
+    if (res.data && res.data.reason === 'DECK_CODE_INVALID') {
+      emitDeckCodeInvalid();
+      return { ok: false, reason: 'DECK_CODE_INVALID' };
+    }
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus(opts.fallbackMessage, true);
+    }
+    return { ok: false, reason: (res.data && res.data.reason) || opts.fallbackReason };
   }
 
   function openStream(): void {
@@ -44,48 +111,22 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
-    const playerName = typeof cfg.normalizePlayerName === 'function'
-      ? cfg.normalizePlayerName(opts.playerName)
-      : String(opts.playerName || '').trim();
-    if (!playerName) {
-      emitPlayerNameRequired();
-      return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
+    const entryPayload = MatchEntryPayload.buildCreateRoomPayload(opts, createEntryPayloadHelpers());
+    if (!entryPayload.ok) {
+      return emitEntryPayloadFailure(entryPayload.reason);
     }
+    emitDeckCodeFallbackIfNeeded(entryPayload);
 
-    const requestPayload: any = { playerName: playerName };
-    if (opts.networkDebugEnabled === true) {
-      requestPayload.networkDebugEnabled = true;
-    }
-    if (opts.deckCode) {
-      requestPayload.deckCode = String(opts.deckCode).trim();
-    }
-    if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
-      requestPayload.roomBoardConfig = cloneData(opts.roomBoardConfig);
-    }
-    if (typeof cfg.readSelectedHandSkinId === 'function') {
-      requestPayload.selectedHandSkinId = cfg.readSelectedHandSkinId();
-    }
-
-    const res = await cfg.requestJson('POST', '/api/match/create', requestPayload);
+    const res = await cfg.requestJson('POST', '/api/match/create', entryPayload.payload);
     if (!res.ok || !res.data || res.data.ok !== true) {
-      if (typeof cfg.isMatchApiMissing === 'function' && cfg.isMatchApiMissing(res)) {
-        if (typeof cfg.emitStatus === 'function') {
-          cfg.emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
-        }
-        return { ok: false, reason: 'MATCH_API_NOT_FOUND' };
-      }
-      if (res.data && res.data.reason === 'PLAYER_NAME_REQUIRED') {
-        emitPlayerNameRequired();
-        return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
-      }
-      if (typeof cfg.emitStatus === 'function') {
-        cfg.emitStatus('部屋作成に失敗しました', true);
-      }
-      return { ok: false, reason: (res.data && res.data.reason) || 'CREATE_FAILED' };
+      return handleRoomEntryFailure(res, {
+        fallbackReason: 'CREATE_FAILED',
+        fallbackMessage: '部屋作成に失敗しました'
+      });
     }
 
     if (typeof cfg.activateSessionFromResponse === 'function') {
-      cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: playerName }), '');
+      cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), '');
     }
     if (typeof cfg.resetNetworkTelemetry === 'function') {
       cfg.resetNetworkTelemetry();
@@ -102,7 +143,7 @@ function createNetworkSessionLifecycleController(config: any): any {
       ok: true,
       roomId: state.roomId,
       seatKey: state.seatKey,
-      playerName: playerName,
+      playerName: entryPayload.playerName,
       networkDebugEnabled: state.networkDebugEnabled === true
     };
   }
@@ -113,88 +154,33 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
-    const playerName = typeof cfg.normalizePlayerName === 'function'
-      ? cfg.normalizePlayerName(opts.playerName)
-      : String(opts.playerName || '').trim();
-    if (!playerName) {
-      emitPlayerNameRequired();
-      return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
+    const entryPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers());
+    if (!entryPayload.ok) {
+      return emitEntryPayloadFailure(entryPayload.reason);
     }
+    emitDeckCodeFallbackIfNeeded(entryPayload);
 
-    const normalizedRoomId = typeof cfg.normalizeRoomId === 'function'
-      ? cfg.normalizeRoomId(roomId)
-      : String(roomId || '').trim().toUpperCase();
-    if (!normalizedRoomId) {
-      if (typeof cfg.emitStatus === 'function') {
-        cfg.emitStatus('部屋番号を入力してください', true);
-      }
-      return { ok: false, reason: 'ROOM_ID_REQUIRED' };
-    }
-    if (!roomIdPattern.test(normalizedRoomId)) {
-      if (typeof cfg.emitStatus === 'function') {
-        cfg.emitStatus('部屋番号は英数字' + String(roomIdLength) + '文字で入力してください', true);
-      }
-      return { ok: false, reason: 'ROOM_ID_INVALID' };
-    }
-
-    const joinPayload: any = {
-      roomId: normalizedRoomId,
-      playerName: playerName,
-      selectedHandSkinId: typeof cfg.readSelectedHandSkinId === 'function'
-        ? cfg.readSelectedHandSkinId()
-        : 'default'
-    };
-    if (opts.deckCode) {
-      joinPayload.deckCode = String(opts.deckCode).trim();
-    }
-    const storedClaim = typeof cfg.readSeatClaim === 'function'
-      ? cfg.readSeatClaim(normalizedRoomId)
-      : null;
-    let usedStoredClaim = false;
-    if (storedClaim) {
-      joinPayload.seatKey = storedClaim.seatKey;
-      joinPayload.seatToken = storedClaim.seatToken;
-      usedStoredClaim = true;
-    }
-
-    let res = await cfg.requestJson('POST', '/api/match/join', joinPayload);
+    let res = await cfg.requestJson('POST', '/api/match/join', entryPayload.payload);
     if ((!res.ok || !res.data || res.data.ok !== true)
-      && usedStoredClaim
+      && entryPayload.usedStoredClaim === true
       && typeof cfg.shouldRetryJoinWithoutStoredClaim === 'function'
       && cfg.shouldRetryJoinWithoutStoredClaim(res)) {
       if (typeof cfg.clearSeatClaim === 'function') {
-        cfg.clearSeatClaim(normalizedRoomId);
+        cfg.clearSeatClaim(entryPayload.roomId);
       }
-      const retryPayload: any = {
-        roomId: normalizedRoomId,
-        playerName: playerName,
-        selectedHandSkinId: joinPayload.selectedHandSkinId
-      };
-      if (opts.deckCode) {
-        retryPayload.deckCode = String(opts.deckCode).trim();
-      }
+      const retryPayload = MatchEntryPayload.buildJoinRetryPayload(entryPayload);
       res = await cfg.requestJson('POST', '/api/match/join', retryPayload);
     }
 
     if (!res.ok || !res.data || res.data.ok !== true) {
-      if (typeof cfg.isMatchApiMissing === 'function' && cfg.isMatchApiMissing(res)) {
-        if (typeof cfg.emitStatus === 'function') {
-          cfg.emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
-        }
-        return { ok: false, reason: 'MATCH_API_NOT_FOUND' };
-      }
-      if (res.data && res.data.reason === 'PLAYER_NAME_REQUIRED') {
-        emitPlayerNameRequired();
-        return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
-      }
-      if (typeof cfg.emitStatus === 'function') {
-        cfg.emitStatus('部屋参加に失敗しました', true);
-      }
-      return { ok: false, reason: (res.data && res.data.reason) || 'JOIN_FAILED' };
+      return handleRoomEntryFailure(res, {
+        fallbackReason: 'JOIN_FAILED',
+        fallbackMessage: '部屋参加に失敗しました'
+      });
     }
 
     if (typeof cfg.activateSessionFromResponse === 'function') {
-      cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: playerName }), normalizedRoomId);
+      cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), entryPayload.roomId);
     }
     if (typeof cfg.resetNetworkTelemetry === 'function') {
       cfg.resetNetworkTelemetry();
@@ -211,7 +197,7 @@ function createNetworkSessionLifecycleController(config: any): any {
       ok: true,
       roomId: state.roomId,
       seatKey: state.seatKey,
-      playerName: playerName,
+      playerName: entryPayload.playerName,
       networkDebugEnabled: state.networkDebugEnabled === true
     };
   }
@@ -243,17 +229,23 @@ function createNetworkSessionLifecycleController(config: any): any {
         })
         : false;
       if (!skipSnapshot) {
+        const playbackEvents = typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
+          ? cfg.resolveStateSyncRecoveredPlaybackEvents(res.data)
+          : (Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : []);
         appliedSnapshot = typeof cfg.applySnapshotThroughCoordinator === 'function'
           ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
             source: 'state_sync',
-            applyOptions: { force: true }
+            applyOptions: {
+              force: true,
+              playbackEvents: playbackEvents
+            }
           })
           : false;
         if (appliedSnapshot && typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
           cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
             source: 'state_sync',
             force: true,
-            playbackEvents: []
+            playbackEvents: playbackEvents
           });
         }
         if (typeof cfg.recordNetworkTelemetry === 'function') {
@@ -261,7 +253,9 @@ function createNetworkSessionLifecycleController(config: any): any {
             snapshotVersion: typeof cfg.getSnapshotStateVersion === 'function'
               ? cfg.getSnapshotStateVersion(res.data.snapshot)
               : null,
-            force: true
+            force: true,
+            playbackEventCount: playbackEvents.length,
+            usedRecoveredPlayback: playbackEvents.length > 0
           });
         }
       } else if (typeof cfg.recordNetworkTelemetry === 'function') {

@@ -30,6 +30,7 @@ describe('NetworkSessionLifecycleController', () => {
       setServerUrl: jest.fn(),
       normalizePlayerName: jest.fn((name) => String(name || '').trim()),
       normalizeRoomId: jest.fn((id) => String(id || '').trim().toUpperCase()),
+      sanitizeDeckCode: jest.fn((deckCode) => ({ value: String(deckCode || '').trim(), invalid: false })),
       requestJson: jest.fn(),
       emitStatus: jest.fn(),
       activateSessionFromResponse: jest.fn((data) => {
@@ -57,6 +58,7 @@ describe('NetworkSessionLifecycleController', () => {
       shouldSkipForceSyncSnapshot: jest.fn(() => false),
       applySnapshotThroughCoordinator: jest.fn(() => true),
       rememberPendingForceSyncPlaybackRecovery: jest.fn(),
+      resolveStateSyncRecoveredPlaybackEvents: jest.fn((data) => Array.isArray(data?.playbackEvents) ? data.playbackEvents : []),
       recordNetworkTelemetry: jest.fn(),
       getSnapshotStateVersion: jest.fn((snapshot) => snapshot?.stateVersion || null),
       clearPlaybackStateForLeave: jest.fn(),
@@ -124,6 +126,26 @@ describe('NetworkSessionLifecycleController', () => {
         })
       );
     });
+
+    test('無効なデッキコードは標準デッキへフォールバックする', async () => {
+      mockConfig.sanitizeDeckCode.mockReturnValue({ value: '', invalid: true });
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC'
+      }));
+
+      await controller.createRoom({
+        playerName: 'テスト',
+        deckCode: 'BROKEN_DECK'
+      });
+
+      const createPayload = mockConfig.requestJson.mock.calls[0][2];
+      expect(createPayload.deckCode).toBeUndefined();
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith(
+        '選択中のカスタムデッキを読み込めなかったため、標準デッキで続行します',
+        false
+      );
+    });
   });
 
   describe('createRoom - エラーハンドリング', () => {
@@ -157,6 +179,19 @@ describe('NetworkSessionLifecycleController', () => {
 
       expect(result.ok).toBe(false);
       expect(result.reason).toBe('SERVER_ERROR');
+    });
+
+    test('無効なデッキコードは専用メッセージを表示する', async () => {
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(400, {
+        ok: false,
+        reason: 'DECK_CODE_INVALID'
+      }));
+
+      const result = await controller.createRoom({ playerName: 'テスト', deckCode: 'BROKEN_DECK' });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('DECK_CODE_INVALID');
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith('選択中のデッキコードが無効です', true);
     });
   });
 
@@ -208,6 +243,26 @@ describe('NetworkSessionLifecycleController', () => {
           seatKey: 'black',
           seatToken: 'stored_token'
         })
+      );
+    });
+
+    test('join でも無効なデッキコードは標準デッキへフォールバックする', async () => {
+      mockConfig.sanitizeDeckCode.mockReturnValue({ value: '', invalid: true });
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC'
+      }));
+
+      await controller.joinRoom('ABC', {
+        playerName: 'テスト',
+        deckCode: 'BROKEN_DECK'
+      });
+
+      const joinPayload = mockConfig.requestJson.mock.calls[0][2];
+      expect(joinPayload.deckCode).toBeUndefined();
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith(
+        '選択中のカスタムデッキを読み込めなかったため、標準デッキで続行します',
+        false
       );
     });
   });
@@ -288,6 +343,23 @@ describe('NetworkSessionLifecycleController', () => {
         'state_sync_snapshot_skipped',
         expect.any(Object)
       );
+    });
+
+    test('スキップされた snapshot では recovered playback を消費しない', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+
+      mockConfig.shouldSkipForceSyncSnapshot.mockReturnValue(true);
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        snapshot: { stateVersion: 5 },
+        playbackEvents: [{ type: 'move', targets: [{ x: 1, y: 2 }] }]
+      }));
+
+      await controller.syncLatestState();
+
+      expect(mockConfig.resolveStateSyncRecoveredPlaybackEvents).not.toHaveBeenCalled();
+      expect(mockConfig.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
     });
   });
 

@@ -191,6 +191,22 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('cpuLevelGroup').hidden).toBe(false);
   });
 
+  test('ネット対戦モードへ切り替えると stale な HvH debug flag を落とす', async () => {
+    window.DEBUG_HUMAN_VS_HUMAN = true;
+    window.__uiImpl_turn_manager = { DEBUG_HUMAN_VS_HUMAN: true };
+    window.__uiImpl_move_executor = { DEBUG_HUMAN_VS_HUMAN: true };
+    window.__uiImpl = { DEBUG_HUMAN_VS_HUMAN: true };
+
+    document.getElementById('modeNetworkBtn').click();
+    await Promise.resolve();
+
+    expect(window.MatchMode.getCurrentMode()).toBe('network');
+    expect(window.DEBUG_HUMAN_VS_HUMAN).toBe(false);
+    expect(window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN).toBe(false);
+    expect(window.__uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN).toBe(false);
+    expect(window.__uiImpl.DEBUG_HUMAN_VS_HUMAN).toBe(false);
+  });
+
   test('ネット対戦モーダルの盤面サイズ変更は pending 表示と部屋作成 payload に反映される', async () => {
     let localBoardConfig = { rows: 8, cols: 8, standard8x8: true };
     const setLocalBoardConfig = jest.fn((nextBoardConfig) => {
@@ -244,6 +260,66 @@ describe('match-mode network button behavior', () => {
         standard8x8: false
       })
     }));
+  });
+
+  test('無効なカスタム deckCode は標準デッキへフォールバックして部屋作成する', async () => {
+    window.UIBootstrap = {
+      getRegisteredUIGlobals: jest.fn(() => ({
+        DeckBuilderController: {
+          getLocalBoardConfig: jest.fn(() => ({ rows: 8, cols: 8, standard8x8: true })),
+          getActiveLocalChoice: jest.fn(() => ({
+            mode: 'custom',
+            deckCode: 'BROKEN_DECK',
+            deckSize: 30
+          }))
+        }
+      }))
+    };
+
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const createBtn = document.getElementById('networkCreateBtn');
+
+    playerInput.value = 'くろ';
+    createBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRoom).toHaveBeenCalledWith(expect.objectContaining({
+      playerName: 'くろ',
+      deckCode: ''
+    }));
+    expect(document.getElementById('networkStatusText').textContent).toContain('標準デッキで続行します');
+  });
+
+  test('無効なカスタム deckCode は標準デッキへフォールバックして部屋参加する', async () => {
+    window.UIBootstrap = {
+      getRegisteredUIGlobals: jest.fn(() => ({
+        DeckBuilderController: {
+          getLocalBoardConfig: jest.fn(() => ({ rows: 8, cols: 8, standard8x8: true })),
+          getActiveLocalChoice: jest.fn(() => ({
+            mode: 'custom',
+            deckCode: 'BROKEN_DECK',
+            deckSize: 30
+          }))
+        }
+      }))
+    };
+
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const roomInput = document.getElementById('networkRoomIdInput');
+    const joinBtn = document.getElementById('networkJoinBtn');
+
+    playerInput.value = 'しろ';
+    roomInput.value = 'a1b';
+    joinBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(joinRoom).toHaveBeenCalledWith('A1B', expect.objectContaining({
+      playerName: 'しろ',
+      deckCode: ''
+    }));
+    expect(document.getElementById('networkStatusText').textContent).toContain('標準デッキで続行します');
   });
 
   test('ネット対戦モーダルの盤面サイズ入力はホイールで 10x10 まで増減できる', async () => {

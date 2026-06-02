@@ -220,6 +220,62 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(payload.playbackEvents).toBeUndefined();
   });
 
+  test('action bridge marks local playback only when runTurn result produced playback', async () => {
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextGameState: {
+          currentPlayer: 1,
+          turnNumber: 2
+        },
+        nextCardState: {
+          ...createSnapshot(20).cardState,
+          hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        },
+        playbackEvents: [{ type: 'move', phase: 1, targets: [] }]
+      }))
+    };
+    window.TurnPipelineUIAdapter = global.TurnPipelineUIAdapter;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
+      global.cardState,
+      global.gameState,
+      'black',
+      { type: 'custom_action' },
+      {}
+    );
+    expect(result.ok).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const tracked = client.getState().publishTracker.operations[0];
+    expect(tracked.requestMeta.playbackEvents).toEqual([{ type: 'move', phase: 1, targets: [] }]);
+    expect(tracked.requestMeta.localPlaybackEmitted).toBe(true);
+  });
+
+  test('direct publish with playback events is not marked as locally emitted by default', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 },
+      playbackEvents: [{ type: 'move', phase: 1, targets: [] }]
+    });
+
+    const tracked = client.getState().publishTracker.operations[0];
+    expect(tracked.requestMeta.playbackEvents).toEqual([{ type: 'move', phase: 1, targets: [] }]);
+    expect(tracked.requestMeta.localPlaybackEmitted).toBe(false);
+  });
+
   test('nextCardState で deferred pending が生まれる use_card でも初回 command は即 publish する', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

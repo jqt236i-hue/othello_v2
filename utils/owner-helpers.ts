@@ -16,11 +16,13 @@ interface OwnerNetworkClientLike {
 
 interface OwnerHelpersRoot extends Record<string, unknown> {
     cardState?: unknown;
+    gameState?: unknown;
     NetworkMatchClient?: OwnerNetworkClientLike | null;
     LOCAL_PLAYER_KEY?: unknown;
     __LOCAL_PLAYER_KEY?: unknown;
     BOARD_VIEWER_KEY?: unknown;
     MATCH_MODE?: unknown;
+    DEBUG_HUMAN_VS_HUMAN?: unknown;
     getCurrentMatchMode?: () => unknown;
 }
 
@@ -42,6 +44,33 @@ interface OwnerCardStateRecord extends Record<string, unknown> {
     hands?: Record<string, unknown>;
     pendingEffectByPlayer?: Record<string, unknown>;
     fateWillControllerByTurnOwner?: Record<string, unknown>;
+}
+
+interface OwnerNetworkInputPermissionOptions extends Record<string, unknown> {
+    rootRef?: unknown;
+    cardState?: unknown;
+    gameState?: unknown;
+    currentPlayer?: unknown;
+    localPlayerKey?: unknown;
+    matchMode?: unknown;
+    debugHumanVsHuman?: unknown;
+}
+
+interface OwnerNetworkInputPermissions {
+    matchMode: OwnerMatchMode;
+    isNetworkMode: boolean;
+    isDebugHumanVsHuman: boolean;
+    localPlayerKey: OwnerSeatKey;
+    turnOwnerKey: OwnerSeatKey;
+    inputPlayerKey: OwnerSeatKey;
+    actionOwnerKey: OwnerSeatKey;
+    fateWillControllerKey: OwnerSeatKey | null;
+    controlledTurnOwnerKey: OwnerSeatKey | null;
+    canOperateBoard: boolean;
+    canUseOwnHand: boolean;
+    canInspectOwnHand: boolean;
+    canInspectOpponentHand: boolean;
+    canPass: boolean;
 }
 
 interface OwnerHelpersApi {
@@ -66,6 +95,7 @@ interface OwnerHelpersApi {
     isNetworkMode(rootRef?: unknown): boolean;
     isReversiMode(rootRef?: unknown): boolean;
     isOthelloMode(rootRef?: unknown): boolean;
+    resolveNetworkInputPermissions(options?: OwnerNetworkInputPermissionOptions | null): OwnerNetworkInputPermissions;
 }
 
 (function (root: OwnerHelpersRoot | undefined) {
@@ -368,6 +398,74 @@ interface OwnerHelpersApi {
         return isReversiMode(rootRef);
     }
 
+    function hasOwn(value: Record<string, unknown>, key: string): boolean {
+        return Object.prototype.hasOwnProperty.call(value, key);
+    }
+
+    function resolveNetworkInputPermissions(options?: OwnerNetworkInputPermissionOptions | null): OwnerNetworkInputPermissions {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const ctx = asRoot(opts.rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {}));
+        const explicitGameState = opts.gameState && typeof opts.gameState === 'object'
+            ? opts.gameState
+            : (ctx.gameState && typeof ctx.gameState === 'object' ? ctx.gameState : {});
+        const explicitCardState = opts.cardState && typeof opts.cardState === 'object'
+            ? opts.cardState
+            : (ctx.cardState && typeof ctx.cardState === 'object' ? ctx.cardState : {});
+        const matchMode = hasOwn(opts, 'matchMode')
+            ? normalizeMatchMode(opts.matchMode)
+            : getCurrentMatchMode(ctx);
+        const isNetwork = matchMode === 'network';
+        const rawDebugHumanVsHuman = hasOwn(opts, 'debugHumanVsHuman')
+            ? opts.debugHumanVsHuman === true
+            : ctx.DEBUG_HUMAN_VS_HUMAN === true;
+        const isDebugHumanVsHuman = isNetwork ? false : rawDebugHumanVsHuman;
+        const turnOwnerKey = normalizePlayerKey(
+            hasOwn(opts, 'currentPlayer') ? opts.currentPlayer : asRecord(explicitGameState).currentPlayer,
+            'black'
+        );
+        const localPlayerKey = isNetwork
+            ? normalizePlayerKey(opts.localPlayerKey, resolveLocalPlayerKey(ctx))
+            : (isDebugHumanVsHuman
+                ? turnOwnerKey
+                : normalizePlayerKey(opts.localPlayerKey, 'black'));
+        const fateWillControllerKey = getFateWillControllerForTurnOwner(explicitCardState, turnOwnerKey);
+        const inputPlayerKey = isNetwork
+            ? localPlayerKey
+            : (isDebugHumanVsHuman
+                ? (fateWillControllerKey || turnOwnerKey)
+                : localPlayerKey);
+        const controlledTurnOwnerKey = fateWillControllerKey === inputPlayerKey ? turnOwnerKey : null;
+        const actionOwnerKey = controlledTurnOwnerKey || inputPlayerKey;
+        let canActCurrentTurn = false;
+
+        if (fateWillControllerKey && (isNetwork || !isDebugHumanVsHuman)) {
+            canActCurrentTurn = fateWillControllerKey === inputPlayerKey;
+        } else if (isNetwork) {
+            canActCurrentTurn = turnOwnerKey === inputPlayerKey;
+        } else if (isDebugHumanVsHuman) {
+            canActCurrentTurn = true;
+        } else {
+            canActCurrentTurn = turnOwnerKey === inputPlayerKey;
+        }
+
+        return {
+            matchMode,
+            isNetworkMode: isNetwork,
+            isDebugHumanVsHuman,
+            localPlayerKey,
+            turnOwnerKey,
+            inputPlayerKey,
+            actionOwnerKey,
+            fateWillControllerKey,
+            controlledTurnOwnerKey,
+            canOperateBoard: canActCurrentTurn,
+            canUseOwnHand: canActCurrentTurn,
+            canInspectOwnHand: true,
+            canInspectOpponentHand: !isNetwork && isDebugHumanVsHuman,
+            canPass: canActCurrentTurn
+        };
+    }
+
     function isValidOwner(owner: unknown): boolean {
         return owner === 1 || owner === -1 || owner === '1' || owner === '-1' || owner === 'black' || owner === 'white';
     }
@@ -393,7 +491,8 @@ interface OwnerHelpersApi {
         normalizeMatchMode: normalizeMatchMode,
         isNetworkMode: isNetworkMode,
         isReversiMode: isReversiMode,
-        isOthelloMode: isOthelloMode
+        isOthelloMode: isOthelloMode,
+        resolveNetworkInputPermissions: resolveNetworkInputPermissions
     };
 
     if (typeof module !== 'undefined' && module.exports) {

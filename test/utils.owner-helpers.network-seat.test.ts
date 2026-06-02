@@ -171,4 +171,58 @@ describe('OwnerHelpers network seat helpers', () => {
     expect(OwnerHelpers.isOthelloMode({ MATCH_MODE: 'othello' })).toBe(true);
     expect(OwnerHelpers.isOthelloMode({ MATCH_MODE: 'cpu' })).toBe(false);
   });
+
+  test('resolveNetworkInputPermissions blocks non-seat network turns even if stale HvH is true', () => {
+    const permissions = OwnerHelpers.resolveNetworkInputPermissions({
+      rootRef: { MATCH_MODE: 'network', DEBUG_HUMAN_VS_HUMAN: true },
+      gameState: { currentPlayer: 'white' },
+      cardState: { fateWillControllerByTurnOwner: {} },
+      localPlayerKey: 'black'
+    });
+
+    expect(permissions.isNetworkMode).toBe(true);
+    expect(permissions.isDebugHumanVsHuman).toBe(false);
+    expect(permissions.inputPlayerKey).toBe('black');
+    expect(permissions.turnOwnerKey).toBe('white');
+    expect(permissions.canOperateBoard).toBe(false);
+    expect(permissions.canUseOwnHand).toBe(false);
+  });
+
+  test('resolveNetworkInputPermissions allows only the FATE_WILL controller in network mode', () => {
+    const cardState = {
+      fateWillControllerByTurnOwner: { white: 'black' }
+    };
+
+    const controllerPermissions = OwnerHelpers.resolveNetworkInputPermissions({
+      rootRef: { MATCH_MODE: 'network' },
+      gameState: { currentPlayer: 'white' },
+      cardState,
+      localPlayerKey: 'black'
+    });
+    const victimPermissions = OwnerHelpers.resolveNetworkInputPermissions({
+      rootRef: { MATCH_MODE: 'network' },
+      gameState: { currentPlayer: 'white' },
+      cardState,
+      localPlayerKey: 'white'
+    });
+
+    expect(controllerPermissions.controlledTurnOwnerKey).toBe('white');
+    expect(controllerPermissions.actionOwnerKey).toBe('white');
+    expect(controllerPermissions.canOperateBoard).toBe(true);
+    expect(victimPermissions.controlledTurnOwnerKey).toBeNull();
+    expect(victimPermissions.canOperateBoard).toBe(false);
+  });
+
+  test('resolveNetworkInputPermissions keeps local HvH behavior outside network mode', () => {
+    const permissions = OwnerHelpers.resolveNetworkInputPermissions({
+      rootRef: { MATCH_MODE: 'cpu', DEBUG_HUMAN_VS_HUMAN: true },
+      gameState: { currentPlayer: 'white' },
+      cardState: { fateWillControllerByTurnOwner: {} }
+    });
+
+    expect(permissions.isNetworkMode).toBe(false);
+    expect(permissions.isDebugHumanVsHuman).toBe(true);
+    expect(permissions.inputPlayerKey).toBe('white');
+    expect(permissions.canOperateBoard).toBe(true);
+  });
 });
