@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the three unique special cards inviolable so opponent effects cannot steal, destroy, randomly discard, or otherwise remove them from hand.
+**Goal:** Make the three unique special cards inviolable so opponent effects cannot steal, destroy, randomly discard, or otherwise remove them from hand, and generated-card offers such as `天の恵み` cannot create extra copies.
 
-**Architecture:** Add one shared special-card registry and route every opponent-hand target path through it. Do not scatter `observer_will_01`, `board_executor_01`, or `theory_incarnation_01` checks across individual card effects. Preserve normal self-use and self-initiated discard behavior unless the rulebook is changed separately.
+**Architecture:** Add one shared special-card registry and route every opponent-hand target path plus generated-card candidate path through it. Do not scatter `observer_will_01`, `board_executor_01`, or `theory_incarnation_01` checks across individual card effects. Preserve normal self-use and self-initiated discard behavior unless the rulebook is changed separately.
 
 **Tech Stack:** TypeScript, Jest, existing headless `game/logic/cards.ts` facade, `game/logic/card-resolution/hand-effects.ts`, `game/logic/cards-internal/*`, `shared/*`, generated browser module registry, worker mirror via `npm run worker:prepare`.
 
@@ -25,11 +25,13 @@ const INVIOLABLE_SPECIAL_CARD_IDS = [
 The intended rule is:
 
 - Opponent effects cannot include these cards in target offers.
+- Generated-card candidate effects such as `HEAVEN_BLESSING（天の恵み）` cannot offer these cards.
 - Random opponent-hand destruction skips these cards.
 - Direct hand destruction helpers reject these cards when the destruction is caused by an opponent effect.
 - The owner can still play the card normally.
 - The owner can still discard/sell/destroy their own card through existing self-controlled actions if those flows exist.
 - Hidden hand projection must not let clients bypass this. Worker authority must re-check after publish.
+- This prevents special cards from being duplicated outside deck rules.
 
 This plan intentionally does not add a board-level "only one special stone" limit. That becomes unnecessary if special cards cannot be stolen or destroyed by opponent effects and deck rules keep them unique.
 
@@ -45,6 +47,7 @@ This plan intentionally does not add a board-level "only one special stone" limi
 - Modify: `01-rulebook.md`
 - Test: `test/shared.special-card-registry.test.ts`
 - Test: `test/game.special-card-inviolable.test.ts`
+- Test: `test/game.cards.offer-builders-module.test.ts`
 - Test: `test/workers.match-pending-effect-id.test.ts`
 - Generated after implementation: `public/module-registry.js`, `worker-public/public/module-registry.js`
 
@@ -203,12 +206,13 @@ git commit -m "特殊カード不可侵の共通判定を追加"
 
 If the working tree contains unrelated dirty files, do not use `git add -A`.
 
-## Task 2: Filter Opponent-Hand Offers
+## Task 2: Filter Generated and Opponent-Hand Offers
 
 **Files:**
 - Modify: `game/logic/cards-internal/offer-builders.ts`
 - Modify: `game/logic/cards.ts`
 - Test: `test/game.special-card-inviolable.test.ts`
+- Test: `test/game.cards.offer-builders-module.test.ts`
 
 - [ ] **Step 1: Write failing offer tests**
 
@@ -282,7 +286,46 @@ npm run test:jest -- --runTestsByPath test/game.special-card-inviolable.test.ts
 
 Expected: FAIL because special cards still appear in offers.
 
-- [ ] **Step 3: Add inviolable filtering to offer builders**
+- [ ] **Step 3: Write failing generated-offer test**
+
+Update `test/game.cards.offer-builders-module.test.ts`:
+
+```ts
+test('buildHeavenBlessingOffers excludes inviolable special cards from generated candidates', () => {
+  const builders = createOfferBuilders({
+    cardDefs: [
+      { id: 'observer_will_01', enabled: true },
+      { id: 'board_executor_01', enabled: true },
+      { id: 'theory_incarnation_01', enabled: true },
+      { id: 'gold_stone', enabled: true },
+      { id: 'silver_stone', enabled: true },
+      { id: 'meteor_01', enabled: true }
+    ],
+    heavenBlessingOfferCount: 5,
+    isInviolableSpecialCardId: (cardId: unknown) => [
+      'observer_will_01',
+      'board_executor_01',
+      'theory_incarnation_01'
+    ].includes(String(cardId))
+  });
+
+  const offers = builders.buildHeavenBlessingOffers('heaven_01', { random: () => 0 }, 'fixed-seed');
+
+  expect(offers).toEqual(['gold_stone', 'silver_stone', 'meteor_01']);
+});
+```
+
+- [ ] **Step 4: Run generated-offer test and verify failure**
+
+Run:
+
+```powershell
+npm run test:jest -- --runTestsByPath test/game.cards.offer-builders-module.test.ts
+```
+
+Expected: FAIL because `buildHeavenBlessingOffers` does not yet consume `isInviolableSpecialCardId`.
+
+- [ ] **Step 5: Add inviolable filtering to offer builders**
 
 Modify `game/logic/cards-internal/offer-builders.ts`.
 
@@ -317,7 +360,27 @@ Replace `buildCondemnOffers` body with:
     }
 ```
 
-- [ ] **Step 4: Wire registry into cards.ts offer builder context**
+Update `buildHeavenBlessingOffers` so its candidate pool excludes inviolable special cards:
+
+```ts
+    function buildHeavenBlessingOffers(cardIdToExclude: any, prng: any, seedHint: any) {
+        const pool = cardDefs
+            .filter((c) => c && c.enabled !== false && c.id && c.id !== cardIdToExclude)
+            .map((c) => c.id)
+            .filter((cardId: any) => !isInviolableSpecialCardId(cardId));
+        const out: any[] = [];
+        const rng = prng && typeof prng.random === 'function'
+            ? prng
+            : createDeterministicRandomSource(`heaven:${String(cardIdToExclude || '')}:${String(seedHint || '')}:${pool.length}`);
+        while (pool.length > 0 && out.length < heavenBlessingOfferCount) {
+            const idx = Math.floor(rng.random() * pool.length);
+            out.push(pool.splice(Math.max(0, Math.min(pool.length - 1, idx)), 1)[0]);
+        }
+        return out;
+    }
+```
+
+- [ ] **Step 6: Wire registry into cards.ts offer builder context**
 
 Modify `game/logic/cards.ts`.
 
@@ -359,21 +422,21 @@ Update `buildObserverWillOffers` in `game/logic/cards.ts`:
     }
 ```
 
-- [ ] **Step 5: Run offer tests**
+- [ ] **Step 7: Run offer tests**
 
 Run:
 
 ```powershell
-npm run test:jest -- --runTestsByPath test/game.special-card-inviolable.test.ts
+npm run test:jest -- --runTestsByPath test/game.special-card-inviolable.test.ts test/game.cards.offer-builders-module.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit offer filtering**
+- [ ] **Step 8: Commit offer filtering**
 
 ```powershell
-git add game/logic/cards-internal/offer-builders.ts game/logic/cards.ts test/game.special-card-inviolable.test.ts
-git commit -m "特殊カードを相手手札候補から除外"
+git add game/logic/cards-internal/offer-builders.ts game/logic/cards.ts test/game.special-card-inviolable.test.ts test/game.cards.offer-builders-module.test.ts
+git commit -m "特殊カードを候補生成と相手手札候補から除外"
 ```
 
 ## Task 3: Protect Random and Direct Hand Destruction
@@ -657,6 +720,7 @@ Add a short rule near special card or hand-effect rules in `01-rulebook.md`:
 
 - `理論の化身` / `盤界の執行者` / `盤理の観測者` は特殊カードとして扱う。
 - 特殊カードは相手効果による手札奪取・手札破壊・ランダム破棄・手札交換の対象にならない。
+- `天の恵み` などのカード生成候補にも特殊カードは出現しない。
 - 特殊カードの所有者は、通常の使用条件を満たす場合にそのカードを使用できる。
 - 所有者自身の任意破棄・売却・自分効果による消費は、個別カードや画面仕様が禁止していない限り通常どおり行える。
 ```
@@ -711,7 +775,7 @@ Expected: both pass.
 Run:
 
 ```powershell
-npm run test:jest -- --runTestsByPath test/shared.special-card-registry.test.ts test/game.special-card-inviolable.test.ts test/game.observer-will-selection.test.ts test/game.observer-will-repayment.test.ts test/workers.match-pending-effect-id.test.ts test/cards.catalog.test.ts
+npm run test:jest -- --runTestsByPath test/shared.special-card-registry.test.ts test/game.special-card-inviolable.test.ts test/game.cards.offer-builders-module.test.ts test/game.observer-will-selection.test.ts test/game.observer-will-repayment.test.ts test/workers.match-pending-effect-id.test.ts test/cards.catalog.test.ts
 ```
 
 Expected: PASS.
@@ -756,7 +820,7 @@ Expected:
 If all required focused checks pass and unrelated files can be excluded safely:
 
 ```powershell
-git add shared/special-card-registry.ts shared/deck-spec.ts game/logic/cards-internal/offer-builders.ts game/logic/cards-internal/hand-manager.ts game/logic/cards-internal/hand-access.ts game/logic/card-resolution/hand-effects.ts game/logic/cards.ts 01-rulebook.md test/shared.special-card-registry.test.ts test/game.special-card-inviolable.test.ts test/workers.match-pending-effect-id.test.ts public/module-registry.js worker-public/public/module-registry.js
+git add shared/special-card-registry.ts shared/deck-spec.ts game/logic/cards-internal/offer-builders.ts game/logic/cards-internal/hand-manager.ts game/logic/cards-internal/hand-access.ts game/logic/card-resolution/hand-effects.ts game/logic/cards.ts 01-rulebook.md test/shared.special-card-registry.test.ts test/game.special-card-inviolable.test.ts test/game.cards.offer-builders-module.test.ts test/workers.match-pending-effect-id.test.ts public/module-registry.js worker-public/public/module-registry.js
 git commit -m "特殊カードを相手効果から不可侵にする"
 ```
 
@@ -764,7 +828,7 @@ Do not include unrelated generated files, audio assets, Unity docs, or existing 
 
 ## Self-Review
 
-- Spec coverage: The plan covers shared classification, deck constraint reuse, offer filtering, random destruction, direct destruction, worker authority, rulebook text, generated browser registry, and worker mirror.
+- Spec coverage: The plan covers shared classification, deck constraint reuse, generated-card offer filtering for `天の恵み`, opponent-hand offer filtering, random destruction, direct destruction, worker authority, rulebook text, generated browser registry, and worker mirror.
 - Placeholder scan: No placeholder markers remain. Optional branches are explicit and include exact code or exact skip conditions.
 - Type consistency: The shared helper is consistently named `isInviolableSpecialCardId`; the exported list helper is `getInviolableSpecialCardIds`; the protected failure reason is `inviolable_special_card`.
 - Scope check: This plan does not implement board-level special-stone count limits. That is intentionally separate because card inviolability plus deck uniqueness addresses the duplicate-card problem.
