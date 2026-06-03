@@ -352,6 +352,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         pendingForceSyncPlaybackVersion: null as any,
         pendingForceSyncPlaybackSource: '',
         pendingForceSyncPlaybackSignature: '',
+        lastStateSyncRecoveredPlaybackSignature: '',
         authoritativeMatchState: {
             gameState: null as any,
             cardState: null as any,
@@ -662,6 +663,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             getKnownProjectedSnapshotHash,
             applyPayloadSessionState,
             shouldSkipForceSyncSnapshot,
+            resolveStateSyncRecoveredPlaybackEvents,
             applySnapshotThroughCoordinator,
             rememberPendingForceSyncPlaybackRecovery,
             recordNetworkTelemetry,
@@ -1051,6 +1053,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playbackEvents: Array.isArray(requestMeta.playbackEvents)
                 ? cloneReadableNetworkStateValue(requestMeta.playbackEvents, [])
                 : [],
+            localPlaybackEmitted: requestMeta.localPlaybackEmitted === true,
             usedSnapshotFallback: requestMeta.usedSnapshotFallback === true,
             snapshotProjectedHash: (typeof requestMeta.snapshotProjectedHash === 'string' && requestMeta.snapshotProjectedHash)
                 ? requestMeta.snapshotProjectedHash
@@ -1255,6 +1258,45 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const controller = getNetworkPublishRejectionController();
         if (!controller || typeof controller.buildVersionConflictRetryPayload !== 'function') return Object.assign({}, payload);
         return controller.buildVersionConflictRetryPayload(payload);
+    }
+
+    function buildStateSyncRecoveredPlaybackSignature(payload: any, playbackEvents: any[]) {
+        const source = payload && typeof payload === 'object' ? payload : {};
+        const snapshot = source.snapshot && typeof source.snapshot === 'object' ? source.snapshot : null;
+        const snapshotVersion = snapshot ? getSnapshotStateVersion(snapshot) : null;
+        const signaturePayload = {
+            stateVersion: Number.isFinite(Number(source.stateVersion)) ? Number(source.stateVersion) : snapshotVersion,
+            operationId: source.operationId ? String(source.operationId) : '',
+            playbackEvents
+        };
+        try {
+            return JSON.stringify(cloneDataForCommandPayload(signaturePayload));
+        } catch (e: any) {
+            return JSON.stringify({
+                stateVersion: signaturePayload.stateVersion,
+                operationId: signaturePayload.operationId,
+                playbackEventCount: playbackEvents.length
+            });
+        }
+    }
+
+    function resolveStateSyncRecoveredPlaybackEvents(payload: any) {
+        const playbackEvents = payload && Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
+        if (playbackEvents.length <= 0) {
+            state.lastStateSyncRecoveredPlaybackSignature = '';
+            return [];
+        }
+        const signature = buildStateSyncRecoveredPlaybackSignature(payload, playbackEvents);
+        if (signature && state.lastStateSyncRecoveredPlaybackSignature === signature) {
+            recordNetworkTelemetry('state_sync_recovered_playback_deduped', {
+                stateVersion: Number.isFinite(Number(payload && payload.stateVersion)) ? Number(payload.stateVersion) : null,
+                operationId: payload && payload.operationId ? String(payload.operationId) : null,
+                playbackEventCount: playbackEvents.length
+            });
+            return [];
+        }
+        state.lastStateSyncRecoveredPlaybackSignature = signature;
+        return playbackEvents;
     }
 
     function resolveRejectedPublishSnapshotHandling(entry: any, payload: any, rejectedReason: any, options: any) {
@@ -1882,6 +1924,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.chatHistory = [];
             state.stateVersion = null;
             state.appliedStateVersion = null;
+            state.lastStateSyncRecoveredPlaybackSignature = '';
             state.lastStreamEventId = '';
             state.authoritativeMatchState.gameState = null;
             state.authoritativeMatchState.cardState = null;
@@ -1942,6 +1985,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playerKey: normalizedPlayerKey,
             actionType: resolvedActionType,
             playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
+            localPlaybackEmitted: opts.localPlaybackEmitted === true,
             usedSnapshotFallback: opts.usedSnapshotFallback === true,
             action
         });

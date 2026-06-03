@@ -2492,6 +2492,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
 
         const serverTime = Date.now();
+        const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
+            room.sseEventBuffer,
+            room.stateVersion,
+            viewerSeatKey
+        );
+        const recoveredMeta = asRecord(recoveredPayload);
 
         return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
@@ -2501,6 +2507,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             snapshot: toPublicSnapshot(room, viewerSeatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
+            playbackEvents: Array.isArray(recoveredMeta.playbackEvents) ? recoveredMeta.playbackEvents : [],
+            effectLogs: MatchAuthority.normalizeEffectLogMessages(recoveredMeta.effectLogs),
+            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(recoveredMeta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+            operationId: recoveredMeta.operationId ? String(recoveredMeta.operationId) : null,
+            playerKey: recoveredMeta.playerKey ? normalizePlayerKey(recoveredMeta.playerKey) : null,
+            actionType: recoveredMeta.actionType ? String(recoveredMeta.actionType) : null,
             serverTime
         }));
     }

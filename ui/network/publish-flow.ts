@@ -76,6 +76,7 @@ function createNetworkPublishFlowController(config?: any): any {
         actor: commandPayload ? (commandPayload.actor || playerKey) : playerKey,
         params: commandPayload ? (commandPayload.params || {}) : null,
         playbackEvents: queuedPlaybackEvents,
+        localPlaybackEmitted: info.localPlaybackEmitted === true,
         usedSnapshotFallback: info.usedSnapshotFallback === true,
         snapshotProjectedHash: snapshotMeta.projectedSnapshotHash
       })
