@@ -1,0 +1,727 @@
+# Cell Removal Unification Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Unify hole-creating effects under one `cell removal` contract so selected cells are removed at the cell level, only `ABSOLUTE_PROTECTED` blocks them, and stone-local survival hooks like `LIVING_WILL`, `REGEN`, and destroy evasion do not fire.
+
+**Architecture:** Keep `game/logic/board_ops.ts` as the sole authority for cell removal and treat `applyHoleAt()` as a low-level marker writer. Refactor `meteor.ts`, `shrink.ts`, and `teleport.ts` to route through a shared cell-removal helper backed by `applyCellRemovalAt()`, while preserving current playback ordering and occupied-cell salvation bookkeeping unless a test proves it must change.
+
+**Tech Stack:** TypeScript/JavaScript, Jest, classic browser module loading, Cloudflare Worker mirror sync via `npm run worker:prepare`.
+
+---
+
+## File Structure
+
+- Modify `01-rulebook.md`: describe `セル消滅` as the common rule for hole creation and remove the `生きる意志` relocation exception.
+- Modify `正本/共通ルール正本.md`: define `セル消滅` priority and the absolute-protection-only exception.
+- Modify `正本/カード仕様正本.md`: align `隕石` / `盤面縮小` / `盤面縮小神` / `マステレポート` text with the shared rule.
+- Modify `正本/演出正本.md`: keep current playback order but remove the living-will-after-hole exception text.
+- Modify `cards/card-interaction-effects.ts`: align detailed help text for `LIVING_WILL`, `METEOR_WILL`, `BOARD_SHRINK_WILL`, `BOARD_SHRINK_GOD`, and `CELL_TELEPORT_WILL`.
+- Modify `docs/board-special-effects-current-behavior.md`: document the new single contract and note that `CELL_TELEPORT_WILL` now uses the same source-cell removal path.
+- Modify `game/logic/board_ops.ts`: remove the cell-removal-only `LIVING_WILL` restore branch and keep `applyCellRemovalAt()` as the canonical path.
+- Create `game/logic/cards/cell-removal.ts`: shared helper for card modules that apply hole-style cell removal.
+- Modify `game/logic/cards/meteor.ts`: replace duplicate removal assembly with the shared helper.
+- Modify `game/logic/cards/shrink.ts`: replace duplicate removal assembly with the shared helper.
+- Modify `game/logic/cards/teleport.ts`: route source-cell hole creation through the shared helper and `applyCellRemovalAt()`.
+- Modify `game/logic/cards.ts`: inject `applyCellRemovalAt()` / `runCellRemovalBlock()` into `applyCellTeleportWill()` and keep the existing injections for `meteor` and `shrink`.
+- Create `test/game.cell-removal.contract.test.ts`: direct `BoardOps.applyCellRemovalAt()` contract coverage.
+- Modify `test/game.meteor-will.test.ts`: update the `LIVING_WILL` expectation to no revival and add destroy-evasion regression.
+- Modify `test/game.board-shrink-will.test.ts`: add a shrink-path regression that `LIVING_WILL` does not revive.
+- Modify `test/game.cell-teleport-will.test.ts`: assert the source hole now carries `cellRemovalCause: 'CELL_TELEPORT_WILL'`.
+- Modify `test/game.logic.meteor-module.test.ts` and `test/game.logic.teleport-module.test.ts`: verify card modules call the shared helper / `applyCellRemovalAt()` with the expected metadata.
+- Modify `test/game.pipeline-ui-adapter.sound-cue.test.ts`: ensure `CELL_TELEPORT_WILL` still does not emit `meteor_hole`, even though the hole now comes from the shared cell-removal metadata.
+- Modify `test/workers.match-pending-effect-id.test.ts` or the closest network playback contract test that already asserts hole metadata: include the `CELL_TELEPORT_WILL` source-hole case.
+
+## Implementation Notes
+
+- Do not hand-edit `worker-public/`; regenerate it with `npm run worker:prepare` after the root changes are complete.
+- The repository is already dirty. Stage and commit only the files created or modified for this feature.
+- Preserve existing occupied-cell `DESTROY` -> `STATUS_APPLIED` playback for `METEOR_WILL` and shrink cards unless a focused test proves a different order is required.
+- Preserve `救済神` bookkeeping for occupied cell removal in this pass. The plan intentionally changes local stone survival hooks, not every downstream destroy observer.
+- Keep `CELL_TELEPORT_WILL` source-hole behavior non-destructive from a sound/rescue perspective by moving the stone first and removing the now-empty source cell through `applyCellRemovalAt()`.
+
+---
+
+### Task 1: Lock the New Cell-Removal Contract in Specs and Direct Tests
+
+**Files:**
+- Create: `test/game.cell-removal.contract.test.ts`
+- Modify: `01-rulebook.md`
+- Modify: `正本/共通ルール正本.md`
+- Modify: `正本/カード仕様正本.md`
+- Modify: `正本/演出正本.md`
+- Modify: `cards/card-interaction-effects.ts`
+
+- [ ] **Step 1: Write the failing direct contract tests**
+
+Create `test/game.cell-removal.contract.test.ts` with:
+
+```ts
+const Core = require('../core.js');
+const CardLogic = require('../game/logic/cards.js');
+const BoardOps = require('../game/logic/board_ops.js');
+const { createPrng } = require('./helpers/prng');
+
+describe('cell removal contract', () => {
+  test('applyCellRemovalAt removes a living-will stone without reviving it', () => {
+    const rng = createPrng(0);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[2][2] = Core.BLACK;
+    cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget', cardId: 'living_will_01' };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: true });
+
+    const res = BoardOps.applyCellRemovalAt(cardState, gameState, 2, 2, 'black', 'METEOR_WILL', 'meteor_cell_destroy', {
+      removalPolicy: 'absolute_only',
+      removalKind: 'meteor_hole',
+      randomSource: rng
+    });
+
+    expect(res).toMatchObject({ applied: true, row: 2, col: 2, destroyed: true });
+    expect(gameState.board[2][2]).toBe(Core.EMPTY);
+    expect((cardState.markers || []).some((m) => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
+    expect((cardState.presentationEvents || []).some((ev) => ev && ev.cause === 'LIVING_WILL' && (ev.type === 'SPAWN' || ev.type === 'CHANGE'))).toBe(false);
+  });
+
+  test('applyCellRemovalAt ignores regen and destroy evasion but still fails on absolute protection', () => {
+    const rng = createPrng(1);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[3][3] = Core.BLACK;
+    gameState.board[4][4] = Core.BLACK;
+    gameState.board[5][5] = Core.BLACK;
+
+    expect(CardLogic.applyRegenWill(cardState, 'black', 3, 3)).toEqual({ applied: true });
+    cardState.markers.push({
+      id: 'afterimage_1',
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'AFTERIMAGE_WILL', flipEvadeRemaining: 3, destroyEvadeRemaining: 3 }
+    });
+    cardState.markers.push({
+      id: 'abs_1',
+      kind: 'specialStone',
+      row: 5,
+      col: 5,
+      owner: 'black',
+      data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+    });
+
+    expect(BoardOps.applyCellRemovalAt(cardState, gameState, 3, 3, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: true });
+    expect(BoardOps.applyCellRemovalAt(cardState, gameState, 4, 4, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: true });
+    expect(BoardOps.applyCellRemovalAt(cardState, gameState, 5, 5, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: false, reason: 'absolute_protected' });
+  });
+});
+```
+
+- [ ] **Step 2: Run the direct contract test to verify it fails**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.cell-removal.contract.test.ts
+```
+
+Expected: fail because `applyCellRemovalAt()` still revives `LIVING_WILL` cells.
+
+- [ ] **Step 3: Update the player-facing spec text before implementation**
+
+Apply these wording changes:
+
+In `01-rulebook.md`, replace the `LIVING_WILL` hole exception with:
+
+```md
+- ただし `隕石` / `盤面縮小` / `盤面縮小神` / `マステレポート` のセル消滅では復活しない
+```
+
+In `正本/共通ルール正本.md`, add a new section like:
+
+```md
+### セル消滅
+
+セル消滅とは、対象セルを石・盤面状態ごと消して穴に置き換える処理です。
+絶対保護石があるセルだけはセル消滅しません。
+生きる意志、復活の意志、破壊回避、幽体、完全保護などの石ローカル効果はセル消滅を止めません。
+```
+
+In `正本/カード仕様正本.md`, align:
+
+```md
+| 隕石 | ... | 盤面上のマス1つを選び、絶対保護石がなければそのマスをセルごと永続の穴にする。 |
+| 盤面縮小 | ... | ... 絶対保護石があるマスだけを残し、それ以外の対象マスをセルごと穴化する。 |
+| 盤面縮小神 | ... | ... 絶対保護石があるマスだけを残し、それ以外の辺マスをセルごと穴化する。 |
+| マステレポート | ... | 石を外側へ移動させ、元マスをセル消滅で穴にする。 |
+```
+
+- [ ] **Step 4: Align the card help text**
+
+Update `cards/card-interaction-effects.ts` with these detail snippets:
+
+```ts
+LIVING_WILL: '対象は自分の通常石・特殊石。\n失われる時に1回だけ、付与時点の石状態で復活する。\n後から追加された別効果は復元しない。\n元マスが使えない時は別の空きマスへ復活し、空きが無い時は復活しない。\n捕獲の意志は無効化してその場に残る。\n隕石・盤面縮小・盤面縮小神・マステレポートのセル消滅では復活しない。',
+METEOR_WILL: '盤面上のマスを1つ選び、絶対保護石がなければ石や封鎖・凍結・種などの既存状態ごと永続の穴にする。\n穴化はセル消滅として扱い、生きる意志・復活の意志・破壊回避では残らない。',
+BOARD_SHRINK_WILL: '... 選んだ3マスをセルごと穴にする。\n絶対保護石のあるマスだけは穴にならず残る。',
+BOARD_SHRINK_GOD: '... 選んだ辺1列をまとめてセルごと穴にする。\n絶対保護石のあるマスだけは穴にならず残る。',
+CELL_TELEPORT_WILL: '石があるマスを外側へ移動させ、元マスをセル消滅で穴にする。\n元マスの穴化は石破壊ではない。',
+```
+
+- [ ] **Step 5: Run the direct contract test again after only text changes**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.cell-removal.contract.test.ts
+```
+
+Expected: still fail. The test should continue to drive the implementation.
+
+- [ ] **Step 6: Implement the BoardOps contract cleanup**
+
+In `game/logic/board_ops.ts`, simplify `_removeOccupiedCellForCellRemoval()` and delete the living-will restore path. The target shape is:
+
+```ts
+function _removeOccupiedCellForCellRemoval(...) {
+  const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
+  const stoneId = getStoneIdAt(cardState, gameState, row, col);
+  const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(...));
+  destroyMeta.cellRemoval = true;
+  destroyMeta.removalPolicy = removalPolicy;
+  destroyMeta.removalKind = removalKind;
+  if (removalCause) destroyMeta.removalCause = removalCause;
+
+  const cardMarkers = getCardMarkersModule();
+  setStoneIdAt(cardState, gameState, row, col, null);
+  setCellValue(gameState, row, col, EMPTY);
+  if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+    cardMarkers.removeMarkersAt(cardState, row, col);
+  } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+    MarkersAdapter.removeMarkersAt(cardState, row, col);
+  } else if (Array.isArray(cardState.markers)) {
+    cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
+  }
+
+  emitPresentationEvent(cardState, {
+    type: 'DESTROY',
+    stoneId,
+    row,
+    col,
+    ownerBefore: ownerBeforeKey,
+    cause: cause || null,
+    reason: reason || null,
+    meta: destroyMeta
+  });
+
+  _recordCellRemovalForSalvationFallback(cardState, {
+    from: { row, col },
+    owner: ownerBeforeKey,
+    salvationFallback: { wasSpecial: wasSpecialStoneForSalvation }
+  });
+
+  const stoneSalvationGodReviveQueued = wasStoneSalvationGod
+    ? null
+    : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKey, cause, reason, destroyMeta);
+
+  return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, {
+    reason: 'cell_removed',
+    cellRemoval: true,
+    removalPolicy,
+    removalKind,
+    ...(stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? { stoneSalvationGodReviveQueued: true } : {})
+  });
+}
+```
+
+Delete the now-dead `pendingLivingWillCellRemovalRestore` branch and `_restorePendingLivingWillForCellRemoval()` helper.
+
+- [ ] **Step 7: Run the direct contract test and the existing living-will suite**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.cell-removal.contract.test.ts test/game.living-will.test.ts
+```
+
+Expected: both suites pass; `test/game.living-will.test.ts` should only fail if it relied on the removed hole-revival exception.
+
+- [ ] **Step 8: Commit Task 1**
+
+Run:
+
+```powershell
+git add -- 01-rulebook.md 正本/共通ルール正本.md 正本/カード仕様正本.md 正本/演出正本.md cards/card-interaction-effects.ts game/logic/board_ops.ts test/game.cell-removal.contract.test.ts
+git commit -m "セル消滅の共通契約を整理"
+```
+
+---
+
+### Task 2: Extract a Shared Card-Side Cell-Removal Helper and Migrate Meteor/Shrink
+
+**Files:**
+- Create: `game/logic/cards/cell-removal.ts`
+- Modify: `game/logic/cards/meteor.ts`
+- Modify: `game/logic/cards/shrink.ts`
+- Modify: `test/game.logic.meteor-module.test.ts`
+- Modify: `test/game.meteor-will.test.ts`
+- Modify: `test/game.board-shrink-will.test.ts`
+
+- [ ] **Step 1: Write the failing regression tests**
+
+Update `test/game.meteor-will.test.ts` by replacing the current revival expectation with:
+
+```ts
+test('生きる意志付きの石に隕石を使うと復活せず元マスだけが穴になる', () => {
+  const rng = createPrng(0);
+  const cardState = CardLogic.createCardState(rng);
+  const gameState = Core.createGameState();
+  cardState.debugNoDraw = true;
+
+  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+  gameState.currentPlayer = Core.BLACK;
+  gameState.board[2][2] = Core.BLACK;
+  gameState.board[5][5] = Core.EMPTY;
+
+  cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget', cardId: 'living_will_01' };
+  expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: true });
+
+  cardState.pendingEffectByPlayer.black = { type: 'METEOR_WILL', stage: 'selectTarget', cardId: 'meteor_01' };
+  const res = CardLogic.applyMeteorWill(cardState, gameState, 'black', 2, 2, rng);
+
+  expect(res).toMatchObject({ applied: true, row: 2, col: 2, destroyed: true });
+  expect(gameState.board[2][2]).toBe(Core.EMPTY);
+  expect(gameState.board[5][5]).toBe(Core.EMPTY);
+  expect((cardState.presentationEvents || []).some((ev) => ev && ev.cause === 'LIVING_WILL' && (ev.type === 'SPAWN' || ev.type === 'CHANGE'))).toBe(false);
+});
+```
+
+Add this shrink regression to `test/game.board-shrink-will.test.ts`:
+
+```ts
+test('盤面縮小でも生きる意志はセル消滅から復活しない', () => {
+  const rng = createPrng(0);
+  const cardState = CardLogic.createCardState(rng);
+  const gameState = Core.createGameState();
+  cardState.debugNoDraw = true;
+
+  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+  gameState.board[0][0] = Core.BLACK;
+  gameState.board[0][1] = Core.WHITE;
+  gameState.board[1][0] = Core.WHITE;
+
+  cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget', cardId: 'living_will_01' };
+  expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 0, 1)).toMatchObject({ applied: true });
+
+  cardState.pendingEffectByPlayer.black = { type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', cardId: 'board_shrink_01', selectedTargets: [] };
+  expect(CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 0)).toMatchObject({ applied: true, completed: false });
+  expect(CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 1)).toMatchObject({ applied: true, completed: false });
+  const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 1, 0);
+
+  expect(finalRes).toMatchObject({ applied: true, completed: true });
+  expect((cardState.presentationEvents || []).some((ev) => ev && ev.cause === 'LIVING_WILL' && (ev.type === 'SPAWN' || ev.type === 'CHANGE'))).toBe(false);
+});
+```
+
+Update `test/game.logic.meteor-module.test.ts` to assert the module uses `applyCellRemovalAt()`:
+
+```ts
+expect(deps.applyCellRemovalAt).toHaveBeenCalledWith(
+  state.cardState,
+  state.gameState,
+  4,
+  4,
+  'white',
+  'METEOR_WILL',
+  'meteor_cell_destroy',
+  expect.objectContaining({
+    removalPolicy: 'absolute_only',
+    removalKind: 'meteor_hole'
+  })
+);
+```
+
+- [ ] **Step 2: Run the meteor and shrink regressions to verify they fail**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.meteor-will.test.ts test/game.board-shrink-will.test.ts test/game.logic.meteor-module.test.ts
+```
+
+Expected: at least the old meteor living-will expectation or duplicated fallback path still disagrees.
+
+- [ ] **Step 3: Create a shared helper for card-side cell removal**
+
+Create `game/logic/cards/cell-removal.ts`:
+
+```ts
+import { CardState, GameState } from '../../../src/types';
+
+export interface CardCellRemovalDeps {
+  applyCellRemovalAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, options: any): any;
+  runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
+}
+
+export function applyHoleStyleCellRemoval(
+  cardState: CardState,
+  gameState: GameState,
+  row: number,
+  col: number,
+  playerKey: string,
+  cause: string,
+  reason: string,
+  deps: CardCellRemovalDeps,
+  options: any = {}
+) {
+  if (typeof deps.applyCellRemovalAt !== 'function') {
+    throw new Error(`[cell-removal] applyCellRemovalAt is required for ${cause}`);
+  }
+  return deps.applyCellRemovalAt(cardState, gameState, row, col, playerKey, cause, reason, {
+    removalPolicy: 'absolute_only',
+    removalKind: 'meteor_hole',
+    ...options
+  });
+}
+
+export function runHoleStyleCellRemovalBlock(
+  cardState: CardState,
+  gameState: GameState,
+  deps: CardCellRemovalDeps,
+  fn: () => any,
+  meta: any = {}
+) {
+  return typeof deps.runCellRemovalBlock === 'function'
+    ? deps.runCellRemovalBlock(cardState, gameState, fn, meta)
+    : fn();
+}
+```
+
+- [ ] **Step 4: Migrate `meteor.ts` and `shrink.ts` to the helper**
+
+In `game/logic/cards/meteor.ts`, replace the duplicated `applyCellRemovalAt` / manual fallback split with:
+
+```ts
+import { applyHoleStyleCellRemoval, runHoleStyleCellRemovalBlock } from './cell-removal';
+
+const removeCell = () => applyHoleStyleCellRemoval(
+  cardState,
+  gameState,
+  row,
+  col,
+  playerKey,
+  'METEOR_WILL',
+  'meteor_cell_destroy',
+  deps,
+  { random, randomSource: random }
+);
+
+const result = runHoleStyleCellRemovalBlock(cardState, gameState, deps, removeCell, { randomSource: random });
+```
+
+In `game/logic/cards/shrink.ts`, use the same helper inside `applyHoleAt(...)`:
+
+```ts
+const result = applyHoleStyleCellRemoval(
+  cardState,
+  gameState,
+  row,
+  col,
+  playerKey,
+  cardType,
+  destroyReason,
+  resolvedDeps,
+  {
+    random,
+    randomSource: random,
+    holeMeta: { visualVariant: BOARD_SHRINK_HOLE_VISUAL_VARIANT }
+  }
+);
+```
+
+Delete the old `destroyAt + applyHoleAt` fallback branches so the module cannot silently drift from `BoardOps`.
+
+- [ ] **Step 5: Run the migrated suites**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.meteor-will.test.ts test/game.board-shrink-will.test.ts test/game.logic.meteor-module.test.ts
+```
+
+Expected: all suites pass.
+
+- [ ] **Step 6: Commit Task 2**
+
+Run:
+
+```powershell
+git add -- game/logic/cards/cell-removal.ts game/logic/cards/meteor.ts game/logic/cards/shrink.ts test/game.logic.meteor-module.test.ts test/game.meteor-will.test.ts test/game.board-shrink-will.test.ts
+git commit -m "セル消滅のカード側経路を共通化"
+```
+
+---
+
+### Task 3: Route `CELL_TELEPORT_WILL` Source Holes Through the Same Contract
+
+**Files:**
+- Modify: `game/logic/cards/teleport.ts`
+- Modify: `game/logic/cards.ts`
+- Modify: `test/game.cell-teleport-will.test.ts`
+- Modify: `test/game.logic.teleport-module.test.ts`
+
+- [ ] **Step 1: Write the failing teleport regression**
+
+Add this assertion to `test/game.cell-teleport-will.test.ts` after the source hole checks:
+
+```ts
+const sourceHoleEvent = (cardState._presentationEventsPersist || []).find((ev) =>
+  ev &&
+  ev.type === 'STATUS_APPLIED' &&
+  ev.row === 4 &&
+  ev.col === 4 &&
+  ev.meta &&
+  ev.meta.special === 'METEOR_HOLE'
+);
+
+expect(sourceHoleEvent).toMatchObject({
+  meta: expect.objectContaining({
+    cellRemovalCause: 'CELL_TELEPORT_WILL',
+    cellRemovalReason: 'cell_teleport_source_cell_remove'
+  })
+});
+```
+
+Update `test/game.logic.teleport-module.test.ts` with:
+
+```ts
+expect(deps.applyCellRemovalAt).toHaveBeenCalledWith(
+  state.cardState,
+  state.gameState,
+  4,
+  4,
+  'black',
+  'CELL_TELEPORT_WILL',
+  'cell_teleport_source_cell_remove',
+  expect.objectContaining({
+    removalPolicy: 'absolute_only',
+    removalKind: 'meteor_hole'
+  })
+);
+```
+
+- [ ] **Step 2: Run the teleport tests to verify they fail**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.cell-teleport-will.test.ts test/game.logic.teleport-module.test.ts
+```
+
+Expected: fail because `applyCellTeleportWill()` still writes source holes through `applyHoleAt()` and does not emit `cellRemovalCause`.
+
+- [ ] **Step 3: Migrate `teleport.ts` to the shared helper**
+
+In `game/logic/cards/teleport.ts`, remove `leaveMeteorHoleAt()` and, after the move completes, replace it with:
+
+```ts
+import { applyHoleStyleCellRemoval } from './cell-removal';
+
+const holeResult = applyHoleStyleCellRemoval(
+  cardState,
+  gameState,
+  row,
+  col,
+  playerKey,
+  'CELL_TELEPORT_WILL',
+  'cell_teleport_source_cell_remove',
+  deps,
+  {}
+);
+
+if (!holeResult || !holeResult.applied) {
+  return { applied: false, reason: (holeResult && holeResult.reason) || 'hole_failed' };
+}
+```
+
+Do this after the move and marker relocation so the source cell is already empty when the helper runs.
+
+- [ ] **Step 4: Inject the canonical BoardOps dependencies from `cards.ts`**
+
+Update `game/logic/cards.ts` inside `applyCellTeleportWill(...)`:
+
+```ts
+return CardTeleportModule.applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng, {
+  getCellTeleportTargets,
+  getCellTeleportDestinations,
+  getCellValueForCard,
+  ensureExpansionCellForCard,
+  moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function' ? BoardOpsModule.moveAt : null,
+  setCellValueForCard,
+  getStoneIdAtForCard,
+  clearStoneIdAtForCard,
+  setStoneIdAtForCard,
+  removeMarkersAt,
+  addMarker,
+  applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function' ? BoardOpsModule.applyCellRemovalAt : null,
+  runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function' ? BoardOpsModule.runCellRemovalBlock : null,
+  getMarkers
+});
+```
+
+Remove the old `applyHoleAt` injection from this path.
+
+- [ ] **Step 5: Run the teleport suites**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.cell-teleport-will.test.ts test/game.logic.teleport-module.test.ts
+```
+
+Expected: both suites pass.
+
+- [ ] **Step 6: Commit Task 3**
+
+Run:
+
+```powershell
+git add -- game/logic/cards/teleport.ts game/logic/cards.ts test/game.cell-teleport-will.test.ts test/game.logic.teleport-module.test.ts
+git commit -m "マステレポートをセル消滅経路へ統一"
+```
+
+---
+
+### Task 4: Playback, Network Contracts, and Final Verification
+
+**Files:**
+- Modify: `docs/board-special-effects-current-behavior.md`
+- Modify: `test/game.pipeline-ui-adapter.sound-cue.test.ts`
+- Modify: `test/workers.match-pending-effect-id.test.ts`
+- Modify: `test/network.playback-event-assembly.contract.test.ts` if the source-hole metadata fixture lives there instead of the pending-effect test
+
+- [ ] **Step 1: Write the failing playback/network assertions**
+
+In `test/game.pipeline-ui-adapter.sound-cue.test.ts`, add a `CELL_TELEPORT_WILL` source-hole case:
+
+```ts
+test('CELL_TELEPORT_WILL source hole keeps teleport sound policy and does not emit meteor_hole', () => {
+  const out = adaptPlaybackEvents([
+    { type: 'MOVE', targets: [{ from: { r: 4, col: 4 }, to: { r: -1, col: 0 }, cause: 'CELL_TELEPORT_WILL', reason: 'teleport_move' }] },
+    { type: 'STATUS_APPLIED', targets: [{ r: 4, col: 4, meta: { special: 'METEOR_HOLE', cellRemovalCause: 'CELL_TELEPORT_WILL', cellRemovalReason: 'cell_teleport_source_cell_remove' } }] }
+  ]);
+
+  expect(out.some((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'meteor_hole')).toBe(false);
+});
+```
+
+In the network contract test that already asserts hole metadata, add:
+
+```ts
+expect(statusAppliedEvent.meta).toEqual(expect.objectContaining({
+  special: 'METEOR_HOLE',
+  cellRemovalCause: 'CELL_TELEPORT_WILL',
+  cellRemovalReason: 'cell_teleport_source_cell_remove'
+}));
+```
+
+- [ ] **Step 2: Run the focused playback/network tests to verify they fail**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.pipeline-ui-adapter.sound-cue.test.ts test/workers.match-pending-effect-id.test.ts
+```
+
+Expected: fail because the source-hole metadata is not yet propagated for `CELL_TELEPORT_WILL`.
+
+- [ ] **Step 3: Update the implementation notes doc**
+
+In `docs/board-special-effects-current-behavior.md`, replace the old split wording with:
+
+```md
+- `game/logic/cards/meteor.ts`、`game/logic/cards/shrink.ts`、`game/logic/cards/teleport.ts` は、穴化を `BoardOps.applyCellRemovalAt()` へ委譲する。
+- occupied cell removal は `DESTROY` と `STATUS_APPLIED(METEOR_HOLE)` を emit し、`LIVING_WILL` / `REGEN` / 破壊回避は発火しない。
+- `CELL_TELEPORT_WILL` は移動後の空いた元マスに対して `applyCellRemovalAt()` を呼ぶため、`STATUS_APPLIED(METEOR_HOLE)` だけを emit する。
+```
+
+- [ ] **Step 4: Make the playback/network assertions pass**
+
+Propagate the same source-hole metadata through the final `STATUS_APPLIED` event and keep the teleport sound policy unchanged. The target event shape is:
+
+```ts
+meta: {
+  special: 'METEOR_HOLE',
+  cellRemovalCause: 'CELL_TELEPORT_WILL',
+  cellRemovalReason: 'cell_teleport_source_cell_remove'
+}
+```
+
+Do not add a `meteor_hole` sound mapping for this cause; keep the current teleport-only sound policy.
+
+- [ ] **Step 5: Run the focused regression suite**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/game.cell-removal.contract.test.ts test/game.meteor-will.test.ts test/game.board-shrink-will.test.ts test/game.cell-teleport-will.test.ts test/game.logic.meteor-module.test.ts test/game.logic.teleport-module.test.ts test/game.pipeline-ui-adapter.sound-cue.test.ts test/workers.match-pending-effect-id.test.ts
+```
+
+Expected: all suites pass.
+
+- [ ] **Step 6: Run mirror and network verification**
+
+Run:
+
+```powershell
+npm run worker:prepare
+npm run test:network:parity
+```
+
+Expected: `worker-public/` regenerates without manual edits, and the network parity suite passes.
+
+- [ ] **Step 7: Commit Task 4**
+
+Run:
+
+```powershell
+git add -- docs/board-special-effects-current-behavior.md test/game.pipeline-ui-adapter.sound-cue.test.ts test/workers.match-pending-effect-id.test.ts test/network.playback-event-assembly.contract.test.ts worker-public
+git commit -m "セル消滅統一の再生契約を同期"
+```
+
+If `test/network.playback-event-assembly.contract.test.ts` is unchanged, omit it from `git add`. Stage only files changed by the implementation.
+
+---
+
+## Self-Review Checklist
+
+- Spec coverage:
+  - Shared `cell removal` rule: Task 1.
+  - Remove `LIVING_WILL` exception: Tasks 1 and 2.
+  - Unify `CELL_TELEPORT_WILL`: Task 3.
+  - Preserve playback/network parity: Task 4.
+- Placeholder scan:
+  - No unresolved placeholders remain.
+- Type consistency:
+  - Use `applyCellRemovalAt`, `runCellRemovalBlock`, `cellRemovalCause`, and `cellRemovalReason` consistently across tasks.
+
+## Verification Summary
+
+- Focused unit/regression:
+  - `test/game.cell-removal.contract.test.ts`
+  - `test/game.meteor-will.test.ts`
+  - `test/game.board-shrink-will.test.ts`
+  - `test/game.cell-teleport-will.test.ts`
+  - `test/game.logic.meteor-module.test.ts`
+  - `test/game.logic.teleport-module.test.ts`
+- Playback/network:
+  - `test/game.pipeline-ui-adapter.sound-cue.test.ts`
+  - `test/workers.match-pending-effect-id.test.ts`
+  - `npm run test:network:parity`
+- Mirror sync:
+  - `npm run worker:prepare`
