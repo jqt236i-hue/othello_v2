@@ -19,14 +19,17 @@ describe('CardTeleport module', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('applyCellTeleportWill creates a hole and moves stone ids on fallback move', () => {
+  test('applyCellTeleportWill creates a source hole through cell removal and moves stone ids on fallback move', () => {
     const cardState = {
       pendingEffectByPlayer: { black: { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget', cardId: 'cell_tp_01' } },
       markers: [{ id: 'bomb_2', kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }]
     };
     const setCalls = [];
-    const added = [];
     const stoneIds = { '4,4': 's1' };
+    const applyCellRemovalAt = jest.fn((cs, gs, removalRow, removalCol, owner, cause, reason, options) => {
+      cs.markers.push({ kind: 'specialStone', row: removalRow, col: removalCol, owner, data: { type: 'METEOR_HOLE' } });
+      return { applied: true, row: removalRow, col: removalCol, destroyed: false, options, cause, reason };
+    });
 
     const result = CardTeleport.applyCellTeleportWill(cardState, {}, 'black', 4, 4, { random: () => 0 }, {
       getCellTeleportTargets: () => [{ row: 4, col: 4 }],
@@ -43,24 +46,33 @@ describe('CardTeleport module', () => {
       removeMarkersAt: jest.fn((cs, row, col) => {
         cs.markers = cs.markers.filter((marker) => !(marker && marker.row === row && marker.col === col));
       }),
-      addMarker: jest.fn((cs, kind, row, col, owner, data) => {
-        added.push({ kind, row, col, owner, data });
-        cs.markers.push({ kind, row, col, owner, data });
-        return true;
-      }),
+      addMarker: jest.fn(),
+      applyCellRemovalAt,
       getMarkers: (state) => state.markers
     });
 
     expect(result).toEqual({ applied: true, from: { row: 4, col: 4 }, to: { row: -1, col: 0 }, createdDestination: true });
     expect(stoneIds['4,4']).toBeUndefined();
     expect(stoneIds['-1,0']).toBe('s1');
+    expect(applyCellRemovalAt).toHaveBeenCalledWith(
+      cardState,
+      {},
+      4,
+      4,
+      'black',
+      'CELL_TELEPORT_WILL',
+      'cell_teleport_source_cell_remove',
+      expect.objectContaining({
+        removalPolicy: 'absolute_only',
+        removalKind: 'meteor_hole'
+      })
+    );
     expect(cardState.markers.some((marker) => marker.row === 4 && marker.col === 4 && marker.data && marker.data.type === 'METEOR_HOLE')).toBe(true);
     expect(cardState.markers.some((marker) => marker.id === 'bomb_2' && marker.row === -1 && marker.col === 0)).toBe(true);
     expect(setCalls).toEqual(expect.arrayContaining([
       { row: 4, col: 4, value: 0 },
       { row: -1, col: 0, value: 1 }
     ]));
-    expect(added).toEqual(expect.arrayContaining([{ kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'METEOR_HOLE' } }]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 });

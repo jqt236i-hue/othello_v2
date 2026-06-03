@@ -255,6 +255,21 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
         deps.pushSoundCue(ctx, 'tempt_select', capturePhase, 'capture_selected');
     }
 
+    const meteorHolePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => (
+            ev &&
+            ev.type === 'status_applied' &&
+            ev.meta &&
+            String(ev.meta.special || '').toUpperCase() === 'METEOR_HOLE' &&
+            String(ev.meta.cellRemovalCause || '').toUpperCase() === 'METEOR_WILL'
+        ),
+        ctx.fallbackPhase
+    );
+    if (meteorHolePhase !== ctx.fallbackPhase) {
+        deps.pushSoundCue(ctx, 'meteor_hole', meteorHolePhase, 'meteor_hole');
+    }
+
     const hasBoardShrinkDestroyPlayback = ctx.base.some((ev: any) => (
         ev &&
         ev.type === 'destroy' &&

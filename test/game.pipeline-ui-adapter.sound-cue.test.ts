@@ -341,6 +341,56 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('METEOR_WILL の穴化は METEOR_HOLE の status_applied phase で meteor_hole を再生する', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 11,
+        targets: [{ r: 2, col: 2, cause: 'METEOR_WILL', reason: 'meteor_cell_destroy', meta: { destroyed: true } }]
+      },
+      {
+        type: 'status_applied',
+        phase: 12,
+        targets: [{ r: 2, col: 2, after: { special: 'METEOR_HOLE' } }],
+        meta: { special: 'METEOR_HOLE', cellRemovalCause: 'METEOR_WILL' }
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const meteorCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'meteor_hole');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+    const shrinkCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'board_shrink_selected');
+
+    expect(meteorCue).toBeTruthy();
+    expect(meteorCue.phase).toBe(12);
+    expect(stoneCue).toBeUndefined();
+    expect(shrinkCue).toBeUndefined();
+  });
+
+  test('BOARD_SHRINK_WILL の穴化は meteor_hole を再生せず board_shrink_selected のままにする', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 11,
+        targets: [{ r: 0, col: 7, cause: 'BOARD_SHRINK_WILL', reason: 'board_shrink_cell_destroy', meta: { destroyed: true } }]
+      },
+      {
+        type: 'status_applied',
+        phase: 12,
+        targets: [{ r: 0, col: 7, after: { special: 'METEOR_HOLE' } }],
+        meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME', cellRemovalCause: 'BOARD_SHRINK_WILL' }
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const meteorCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'meteor_hole');
+    const shrinkCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'board_shrink_selected');
+
+    expect(meteorCue).toBeUndefined();
+    expect(shrinkCue).toBeTruthy();
+    expect(shrinkCue.phase).toBe(11);
+  });
+
   test('BOARD_SHRINK_WILL の destroy playback は board_shrink_selected だけを再生し stone_destroy は追加しない', () => {
     const base = [{
       type: 'destroy',
@@ -728,6 +778,38 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(11);
+  });
+
+  test('CELL_TELEPORT_WILL source hole keeps teleport sound policy and does not emit meteor_hole', () => {
+    const base = [
+      {
+        type: 'move',
+        phase: 11,
+        targets: [{ from: { r: 4, col: 4 }, to: { r: -1, col: 0 }, cause: 'CELL_TELEPORT_WILL', reason: 'teleport_move' }]
+      },
+      {
+        type: 'status_applied',
+        phase: 12,
+        targets: [{ r: 4, col: 4, after: { special: 'METEOR_HOLE' } }],
+        meta: { special: 'METEOR_HOLE', cellRemovalCause: 'CELL_TELEPORT_WILL', cellRemovalReason: 'cell_teleport_source_cell_remove' }
+      }
+    ];
+    const raw = [{
+      type: 'teleport_selected',
+      applied: true,
+      cardType: 'CELL_TELEPORT_WILL',
+      from: { row: 4, col: 4 },
+      to: { row: -1, col: 0 },
+      createdDestination: true
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const meteorCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'meteor_hole');
+    const teleportCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'teleport_select');
+
+    expect(meteorCue).toBeUndefined();
+    expect(teleportCue).toBeTruthy();
+    expect(teleportCue.phase).toBe(11);
   });
 
   test('super_buoyancy_selected 成功時は super move の phase で super_buoyancy_move を再生する', () => {
@@ -2312,4 +2394,3 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(hyperactiveCues).toHaveLength(0);
   });
 });
-

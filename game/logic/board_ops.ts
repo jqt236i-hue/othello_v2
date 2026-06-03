@@ -1099,11 +1099,32 @@ function applyHoleAt(cardState: any, gameState: any, row: number, col: number, o
 
     const data: any = { type: 'METEOR_HOLE' };
     if (meta && meta.visualVariant) data.visualVariant = meta.visualVariant;
+    const statusMetaExtras: any = {};
+    if (meta && meta.cellRemovalCause) statusMetaExtras.cellRemovalCause = meta.cellRemovalCause;
+    if (meta && meta.cellRemovalReason) statusMetaExtras.cellRemovalReason = meta.cellRemovalReason;
+    if (meta && meta.removalCause) statusMetaExtras.cellRemovalCause = meta.removalCause;
+    if (meta && meta.removalReason) statusMetaExtras.cellRemovalReason = meta.removalReason;
+    if (meta && meta.removalKind) statusMetaExtras.removalKind = meta.removalKind;
+    if (meta && meta.removalPolicy) statusMetaExtras.removalPolicy = meta.removalPolicy;
+    const patchEmittedHoleStatusMeta = (events: any[]) => {
+        if (!Array.isArray(events)) return false;
+        for (let index = events.length - 1; index >= 0; index -= 1) {
+            const ev = events[index];
+            if (!ev || ev.type !== 'STATUS_APPLIED' || ev.row !== row || ev.col !== col) continue;
+            if (!ev.meta || ev.meta.special !== 'METEOR_HOLE') continue;
+            ev.meta = Object.assign({}, ev.meta, statusMetaExtras);
+            return true;
+        }
+        return false;
+    };
     const liveBefore = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
     const persistBefore = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
     const marker = _addSpecialStoneMarker(cardState, row, col, ownerKey, data);
     const liveAfter = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
-    if (marker && liveAfter === liveBefore) {
+    if (marker && liveAfter > liveBefore) {
+        patchEmittedHoleStatusMeta(cardState.presentationEvents);
+        patchEmittedHoleStatusMeta(cardState._presentationEventsPersist);
+    } else if (marker) {
         if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > persistBefore) {
             for (let index = cardState._presentationEventsPersist.length - 1; index >= persistBefore; index--) {
                 const ev = cardState._presentationEventsPersist[index];
@@ -1115,6 +1136,7 @@ function applyHoleAt(cardState: any, gameState: any, row: number, col: number, o
         }
         const statusMeta: any = { special: 'METEOR_HOLE', timer: null, owner: ownerKey };
         if (meta && meta.visualVariant) statusMeta.visualVariant = meta.visualVariant;
+        Object.assign(statusMeta, statusMetaExtras);
         emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: statusMeta });
     }
     return {
@@ -1166,19 +1188,6 @@ function _removeOccupiedCellForCellRemoval(
     destroyMeta.removalKind = removalKind;
     if (removalCause) destroyMeta.removalCause = removalCause;
 
-    const cardLivingWillModule = getCardLivingWillModule();
-    const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
-        ? cardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
-        : null;
-    const shouldRestoreLivingWillAfterHole = !!(
-        livingWillMarker &&
-        cardLivingWillModule &&
-        typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function'
-    );
-    if (shouldRestoreLivingWillAfterHole) {
-        destroyMeta.livingWillTriggered = true;
-    }
-
     setStoneIdAt(cardState, gameState, row, col, null);
     setCellValue(gameState, row, col, EMPTY);
     const cardMarkers = getCardMarkersModule();
@@ -1200,36 +1209,6 @@ function _removeOccupiedCellForCellRemoval(
         reason: reason || null,
         meta: destroyMeta
     });
-
-    if (shouldRestoreLivingWillAfterHole) {
-        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, {
-            reason: 'cell_removed',
-            cellRemoval: true,
-            removalPolicy,
-            removalKind,
-            livingWillRestorePending: true,
-            pendingLivingWillCellRemovalRestore: {
-                marker: livingWillMarker,
-                from: { row, col },
-                owner: ownerBeforeKey,
-                cause: cause || null,
-                reason: reason || null,
-                trigger: {
-                    triggerKind: 'destroy',
-                    sourceRow: row,
-                    sourceCol: col,
-                    cause: cause || null,
-                    reason: reason || null
-                },
-                random: (options && (options.random || options.randomSource)) || null,
-                salvationFallback: {
-                    wasStoneSalvationGod,
-                    wasSpecial: wasSpecialStoneForSalvation,
-                    destroyMeta
-                }
-            }
-        });
-    }
 
     _recordCellRemovalForSalvationFallback(cardState, {
         from: { row, col },
@@ -1273,70 +1252,6 @@ function _recordCellRemovalForSalvationFallback(cardState: any, pending: any): v
     });
 }
 
-function _restorePendingLivingWillForCellRemoval(cardState: any, gameState: any, destroyResult: any): any {
-    const pending = destroyResult && destroyResult.pendingLivingWillCellRemovalRestore;
-    if (!pending || !pending.marker) return destroyResult;
-    const cardLivingWillModule = getCardLivingWillModule();
-    const livingWillResult = cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function'
-        ? cardLivingWillModule.restoreFromLivingWillSnapshot(
-            cardState,
-            gameState,
-            pending.marker,
-            pending.trigger || {
-                triggerKind: 'destroy',
-                sourceRow: pending.from && pending.from.row,
-                sourceCol: pending.from && pending.from.col,
-                cause: pending.cause || null,
-                reason: pending.reason || null
-            },
-            {
-                BoardOps: {
-                    spawnAt,
-                    changeAt,
-                    getCellValue,
-                    getExpansionDescriptors,
-                    emitPresentationEvent
-                },
-                random: pending.random || null
-            }
-        )
-        : null;
-    if (livingWillResult && livingWillResult.restored) {
-        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
-            reason: 'living_will_restored',
-            cellRemoval: true,
-            removalPolicy: destroyResult && destroyResult.removalPolicy,
-            removalKind: destroyResult && destroyResult.removalKind,
-            from: pending.from,
-            to: livingWillResult.destination || pending.from,
-            owner: livingWillResult.owner || pending.owner,
-            livingWillRevived: true,
-            relocated: !!livingWillResult.relocated
-        });
-    }
-
-    _recordCellRemovalForSalvationFallback(cardState, pending);
-    const fallback = pending.salvationFallback || {};
-    const queued = fallback.wasStoneSalvationGod
-        ? null
-        : _queueDestroyedStoneForStoneSalvationGod(
-            cardState,
-            pending.from && pending.from.row,
-            pending.from && pending.from.col,
-            pending.owner,
-            pending.cause || null,
-            pending.reason || null,
-            fallback.destroyMeta || {}
-        );
-    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, Object.assign({}, destroyResult || {}, {
-        reason: 'cell_removed',
-        livingWillRestorePending: false,
-        pendingLivingWillCellRemovalRestore: null
-    }, queued && queued.queued ? {
-        stoneSalvationGodReviveQueued: true
-    } : {}));
-}
-
 function applyCellRemovalAt(
     cardState: any,
     gameState: any,
@@ -1367,6 +1282,13 @@ function applyCellRemovalAt(
     }
 
     const holeMeta = Object.assign({}, (options && options.holeMeta && typeof options.holeMeta === 'object') ? options.holeMeta : {});
+    if (cause && holeMeta.cellRemovalCause === undefined) holeMeta.cellRemovalCause = cause;
+    if (reason && holeMeta.cellRemovalReason === undefined) holeMeta.cellRemovalReason = reason;
+    if (options && options.removalCause && holeMeta.removalCause === undefined) holeMeta.removalCause = options.removalCause;
+    if (options && options.removalKind && holeMeta.removalKind === undefined) holeMeta.removalKind = options.removalKind;
+    if (options && (options.removalPolicy || options.policy) && holeMeta.removalPolicy === undefined) {
+        holeMeta.removalPolicy = options.removalPolicy || options.policy;
+    }
     const holeResult = applyHoleAt(cardState, gameState, row, col, ownerKey, holeMeta);
     if (!holeResult || !holeResult.applied) {
         return {
@@ -1377,9 +1299,6 @@ function applyCellRemovalAt(
             destroyed,
             destroyResult
         };
-    }
-    if (destroyResult && destroyResult.pendingLivingWillCellRemovalRestore) {
-        destroyResult = _restorePendingLivingWillForCellRemoval(cardState, gameState, destroyResult);
     }
     return { applied: true, row, col, destroyed, destroyResult, holeResult };
 }

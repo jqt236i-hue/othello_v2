@@ -2679,8 +2679,11 @@ const {
             setStoneIdAtForCard,
             removeMarkersAt,
             addMarker,
-            applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
-                ? BoardOpsModule.applyHoleAt
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
                 : null,
             getMarkers
         });

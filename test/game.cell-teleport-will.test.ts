@@ -105,6 +105,20 @@ describe('CELL_TELEPORT_WILL（マステレポート）', () => {
     expect(CardLogic.isBlockedCell(cardState, 4, 4, gameState)).toBe(true);
     const markersAtSource = (cardState.markers || []).filter((marker) => marker && marker.row === 4 && marker.col === 4);
     expect(markersAtSource.some((marker) => marker.data && marker.data.type === 'METEOR_HOLE')).toBe(true);
+    const sourceHoleEvent = (cardState._presentationEventsPersist || []).find((ev) =>
+      ev &&
+      ev.type === 'STATUS_APPLIED' &&
+      ev.row === 4 &&
+      ev.col === 4 &&
+      ev.meta &&
+      ev.meta.special === 'METEOR_HOLE'
+    );
+    expect(sourceHoleEvent).toMatchObject({
+      meta: expect.objectContaining({
+        cellRemovalCause: 'CELL_TELEPORT_WILL',
+        cellRemovalReason: 'cell_teleport_source_cell_remove'
+      })
+    });
 
     const addedCell = (gameState.boardExpansion && Array.isArray(gameState.boardExpansion.cells))
       ? gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0)

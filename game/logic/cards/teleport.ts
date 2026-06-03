@@ -33,6 +33,19 @@ const RandomSourceModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../cards-internal/random-source')
     : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
+const CardCellRemoval = ((typeof module === 'object' && module.exports)
+    ? safeRequire('./cell-removal')
+    : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null) || {
+    applyHoleStyleCellRemoval: (_cardState: CardState, _gameState: GameState, targetRow: number, targetCol: number, _playerKey: string, cause: string) => ({
+        applied: false,
+        reason: 'cell_removal_dependency_missing',
+        row: targetRow,
+        col: targetCol,
+        cause
+    }),
+    runHoleStyleCellRemovalBlock: (_cardState: CardState, _gameState: GameState, _blockDeps: any, fn: () => any) => fn()
+};
+
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)
     : 0;
@@ -47,7 +60,8 @@ interface TeleportDeps {
     clearStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number): void;
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
-    applyHoleAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, meta: any): any;
+    applyCellRemovalAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, options: any): any;
+    runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     getCellTeleportTargets?(cardState: CardState, gameState: GameState): Array<{row: number; col: number}>;
     getCellTeleportDestinations?(cardState: CardState, gameState: GameState): Array<{row: number; col: number; active?: boolean}>;
     ensureExpansionCellForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
@@ -98,24 +112,6 @@ function moveMarkers(cardState: CardState, fromRow: number, fromCol: number, toR
         marker.row = toRow;
         marker.col = toCol;
     }
-}
-
-function leaveMeteorHoleAt(cardState: CardState, gameState: GameState, playerKey: string, row: number, col: number, deps: TeleportDeps) {
-    if (deps && typeof deps.applyHoleAt === 'function') {
-        deps.applyHoleAt(cardState, gameState, row, col, playerKey, {});
-        return;
-    }
-    const clearStoneIdAtForCard = deps.clearStoneIdAtForCard || (() => {});
-    const setCellValueForCard = deps.setCellValueForCard || (() => false);
-    const removeMarkersAt = deps.removeMarkersAt || (() => {});
-    const addMarker = deps.addMarker || (() => false);
-
-    clearStoneIdAtForCard(cardState, gameState, row, col);
-    setCellValueForCard(gameState, row, col, EMPTY);
-    removeMarkersAt(cardState, row, col);
-    addMarker(cardState, 'specialStone', row, col, playerKey, {
-        type: 'METEOR_HOLE'
-    });
 }
 
 function applyTeleportWill(cardState: CardState, gameState: GameState, playerKey: string, row: number, col: number, prng?: { random(): number }, deps: TeleportDeps = {}): TeleportResult {
@@ -233,7 +229,20 @@ function applyCellTeleportWill(cardState: CardState, gameState: GameState, playe
     if (!markerHandled) {
         moveMarkers(cardState, row, col, to.row, to.col, deps);
     }
-    leaveMeteorHoleAt(cardState, gameState, playerKey, row, col, deps);
+    const holeResult = CardCellRemoval.applyHoleStyleCellRemoval(
+        cardState,
+        gameState,
+        row,
+        col,
+        playerKey,
+        'CELL_TELEPORT_WILL',
+        'cell_teleport_source_cell_remove',
+        deps,
+        {}
+    );
+    if (!holeResult || !holeResult.applied) {
+        return { applied: false, reason: (holeResult && holeResult.reason) || 'hole_failed' };
+    }
 
     cs.pendingEffectByPlayer[playerKey] = null;
     return {

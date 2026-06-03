@@ -2386,7 +2386,11 @@ describe('network playback event assembly contract', () => {
             targets: expect.arrayContaining([
               expect.objectContaining({ r: 3, col: 4 })
             ]),
-            meta: expect.objectContaining({ special: 'METEOR_HOLE' })
+            meta: expect.objectContaining({
+              special: 'METEOR_HOLE',
+              cellRemovalCause: 'CELL_TELEPORT_WILL',
+              cellRemovalReason: 'cell_teleport_source_cell_remove'
+            })
           })
         ]));
       }
