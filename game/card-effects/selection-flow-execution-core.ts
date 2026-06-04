@@ -177,6 +177,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
     let shouldClearPendingActionOnExit = false;
     let shouldClearPendingEffectOnExit = false;
     let pendingFailureReason = null;
+    let shouldRequestPostNetworkPublishRender = false;
 
     function markPendingActionFailure(reason: any) {
         if (!pendingAction || typeof pendingAction !== 'object') return;
@@ -307,6 +308,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
                     deps.clearPendingSelectionAction(playerKey);
                 }
+                shouldRequestPostNetworkPublishRender = true;
 
                 return {
                     ok: true,
@@ -408,6 +410,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
                 deps.clearPendingSelectionAction(playerKey);
             }
+            shouldRequestPostNetworkPublishRender = true;
 
             return {
                 ok: true,
@@ -539,6 +542,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             }
             deps.setSelectionProcessing(false);
             deps.setSelectionCardAnimating(false);
+            if (shouldRequestPostNetworkPublishRender && typeof opts.defaultSelectionHandoffRender === 'function') {
+                try { await opts.defaultSelectionHandoffRender(); } catch (e) { /* ignore */ }
+            }
         }
         releaseSelectionSettlementLock();
     }
