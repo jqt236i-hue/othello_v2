@@ -28,7 +28,7 @@ body {
     background-image: var(--app-background-image);
     background-position: center center;
     background-repeat: no-repeat;
-    background-size: auto;
+    background-size: cover;
     color: #e0d0b0;
 }
 

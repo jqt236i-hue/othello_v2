@@ -18,7 +18,7 @@ describe('background skin runtime', () => {
     };
   }
 
-  test('applies selected background at its natural size without cropping', () => {
+  test('applies selected background as a fullscreen cover image', () => {
     const bodyStyle = createStyle();
     const attrs = {};
     const rootRef = {
@@ -48,6 +48,6 @@ describe('background skin runtime', () => {
     expect(bodyStyle.values.backgroundImage).toBe('var(--selected-background-skin)');
     expect(bodyStyle.values.backgroundPosition).toBe('center center');
     expect(bodyStyle.values.backgroundRepeat).toBe('no-repeat');
-    expect(bodyStyle.values.backgroundSize).toBe('auto');
+    expect(bodyStyle.values.backgroundSize).toBe('cover');
   });
 });

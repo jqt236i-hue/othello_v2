@@ -76,13 +76,13 @@ function applyBackgroundSkin(rootRef: Window | null | undefined, skinId: string)
       body.style.backgroundImage = 'var(--selected-background-skin)';
       body.style.backgroundPosition = 'center center';
       body.style.backgroundRepeat = 'no-repeat';
-      body.style.backgroundSize = 'auto';
+      body.style.backgroundSize = 'cover';
     } else if (definition.imagePath) {
       body.style.setProperty('--selected-background-skin', 'url("' + definition.imagePath + '")');
       body.style.backgroundImage = 'var(--selected-background-skin)';
       body.style.backgroundPosition = 'center center';
       body.style.backgroundRepeat = 'no-repeat';
-      body.style.backgroundSize = 'auto';
+      body.style.backgroundSize = 'cover';
     } else {
       body.style.removeProperty('--selected-background-skin');
       body.style.removeProperty('background-image');
