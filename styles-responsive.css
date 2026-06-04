@@ -186,7 +186,8 @@ html.layout-profile-phone-portrait #log,
 html.layout-profile-phone-portrait #round-display-panel,
 html.layout-profile-phone-portrait #effect-live-panel,
 html.layout-profile-phone-portrait #cpu-character-panel,
-html.layout-profile-phone-portrait #hero-character-panel {
+html.layout-profile-phone-portrait #hero-character-panel,
+html.layout-profile-phone-portrait #cpu-speech-bubble {
     display: none;
 }
 
