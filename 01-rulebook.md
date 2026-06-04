@@ -1518,6 +1518,7 @@
   - 盤面
   - カード詳細
   - 自分手札（自分山札付き）
+- `layout-profile-phone-portrait` では、下端の見切れを避けるため、相手手札の縮小と縦余白の圧縮を優先し、自分手札の縮小は最小限に留める
 - `layout-profile-phone-portrait` では、勇者/モンスター画像と左側固定ログ（通常ログ/効果ログ）は非表示にする
 - `layout-profile-phone-portrait` では、手札の見切れ防止を優先し、手札コンテナは横スクロール可能にする
 - `layout-profile-tablet-4x3` では、優先度の低い周辺UI（ログ/効果ログ/キャラクター）は優先UIと競合しない位置へ再配置する

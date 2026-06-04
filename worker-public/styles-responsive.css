@@ -140,16 +140,16 @@ html.layout-profile-phone-portrait #game-container {
     height: 100dvh;
     min-height: 100dvh;
     justify-content: flex-start;
-    padding-top: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top));
+    padding-top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
     padding-bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(34px * var(--layout-stage-scale)));
-    gap: calc(6px * var(--layout-stage-scale));
+    gap: calc(4px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait .player-area-top,
 html.layout-profile-phone-portrait .player-area-bottom {
     width: min(calc(430px * var(--layout-stage-scale)), 96vw);
     max-width: 96vw;
-    gap: calc(6px * var(--layout-stage-scale));
+    gap: calc(4px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait .player-area-top {
@@ -161,8 +161,8 @@ html.layout-profile-phone-portrait .player-area-bottom {
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    row-gap: calc(6px * var(--layout-stage-scale));
-    column-gap: calc(6px * var(--layout-stage-scale));
+    row-gap: calc(4px * var(--layout-stage-scale));
+    column-gap: calc(4px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #board {
@@ -193,7 +193,7 @@ html.layout-profile-phone-portrait #cpu-speech-bubble {
 
 html.layout-profile-phone-portrait #stone-info-panel {
     left: 50%;
-    top: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) + min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh) + calc(96px * var(--layout-stage-scale)));
+    top: calc(max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top)) + min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh) + calc(82px * var(--layout-stage-scale)));
     width: min(calc(430px * var(--layout-stage-scale)), 94vw);
     max-height: none;
     overflow: visible;
@@ -284,26 +284,26 @@ html.layout-profile-phone-portrait #hand-black {
 }
 
 html.layout-profile-phone-portrait #hand-white {
-    min-height: calc(88px * var(--layout-stage-scale));
+    min-height: calc(80px * var(--layout-stage-scale));
     margin-bottom: 0;
 }
 
 html.layout-profile-phone-portrait #hand-white .card-item {
-    width: calc(78px * var(--layout-stage-scale));
-    height: calc(106px * var(--layout-stage-scale));
-    font-size: calc(12px * var(--layout-stage-scale));
+    width: calc(72px * var(--layout-stage-scale));
+    height: calc(98px * var(--layout-stage-scale));
+    font-size: calc(11px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #hand-black {
     order: 2;
-    min-height: calc(112px * var(--layout-stage-scale));
+    min-height: calc(108px * var(--layout-stage-scale));
     margin-top: 0;
 }
 
 html.layout-profile-phone-portrait #hand-black .card-item {
-    width: calc(94px * var(--layout-stage-scale));
-    height: calc(126px * var(--layout-stage-scale));
-    font-size: calc(14px * var(--layout-stage-scale));
+    width: calc(92px * var(--layout-stage-scale));
+    height: calc(123px * var(--layout-stage-scale));
+    font-size: calc(13.5px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #hand-black .card-item .card-cost-badge {
