@@ -320,7 +320,7 @@ function main(argv: any = process.argv.slice(2)) {
       const evalData = path.join(iterDir, `selfplay.eval.${tag}.ndjson`);
       const evalSummary = `${evalData}.summary.json`;
       runCommand(summary, "selfplay_train", node, [
-        "dist/othello-ai/training/generate-selfplay-data.js",
+        "scripts/generate-othello-selfplay-data.js",
         "--games", String(args.trainGames),
         "--jobs", String(args.jobs),
         "--seed", String(args.seed + iteration * 1000),
@@ -344,7 +344,7 @@ function main(argv: any = process.argv.slice(2)) {
 
       updateSummary(summary, summaryPath, { phase: "selfplay_eval" });
       runCommand(summary, "selfplay_eval", node, [
-        "dist/othello-ai/training/generate-selfplay-data.js",
+        "scripts/generate-othello-selfplay-data.js",
         "--games", String(args.evalGames),
         "--jobs", String(Math.max(1, Math.min(args.jobs, args.evalGames))),
         "--seed", String(args.seed + iteration * 1000 + 500000),

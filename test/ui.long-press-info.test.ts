@@ -374,8 +374,7 @@ describe('board cell long press info', () => {
       { type: 'HYPERACTIVE', name: '多動石' },
       { type: 'EXTREME_HYPERACTIVE', name: '極悪多動魔' },
       { type: 'ESCAPE_HYPERACTIVE', name: '逃亡石' },
-      { type: 'ULTIMATE_HYPERACTIVE', name: '究極多動神' },
-      { type: 'INHERITED_HYPERACTIVE', name: '継承多動石' }
+      { type: 'ULTIMATE_HYPERACTIVE', name: '究極多動神' }
     ];
 
     cases.forEach((target, index) => {
@@ -396,11 +395,7 @@ describe('board cell long press info', () => {
       expect(document.getElementById('stone-info-name').textContent).toBe(target.name);
       expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
       expect(document.getElementById('stone-info-meta').textContent).toContain('多動状態');
-      if (target.type === 'INHERITED_HYPERACTIVE') {
-        expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り10T');
-      } else {
-        expect(document.getElementById('stone-info-meta').textContent).toContain('残り10T');
-      }
+      expect(document.getElementById('stone-info-meta').textContent).toContain('残り10T');
       expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
     });
   });
@@ -515,62 +510,6 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
   });
 
-  test('long press keeps inherited-hyperactive tags when base special stone coexists', () => {
-    global.cardState.markers = [
-      {
-        kind: 'specialStone',
-        row: 3,
-        col: 3,
-        owner: 'black',
-        data: { type: 'DRAGON', remainingOwnerTurns: 4 }
-      },
-      {
-        kind: 'specialStone',
-        row: 3,
-        col: 3,
-        owner: 'black',
-        data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
-      }
-    ];
-
-    const mod = require('../ui/diff-renderer.js');
-    const shown = mod.showSpecialStoneInfoAt(3, 3);
-    expect(shown).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('究極反転龍');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('多動状態');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り1回');
-  });
-
-  test('long press on INHERITED_HYPERACTIVE shows registered inherited hyperactive info', () => {
-    global.cardState.markers.push({
-      kind: 'specialStone',
-      row: 2,
-      col: 2,
-      owner: 'black',
-      data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
-    });
-
-    const mod = require('../ui/diff-renderer.js');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 2, 2);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 90, clientY: 90 });
-    jest.advanceTimersByTime(430);
-
-    expect(document.getElementById('stone-info-name').textContent).toBe('継承多動石');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('多動状態が付与されている。');
-    expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り10T');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り1回');
-  });
-
   test('long press on GLUTTONOUS shows registered info with flip protection and special-stone badge', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
@@ -596,13 +535,13 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('交換保護');
   });
 
-  test('long press on OBSERVER shows registered observer info', () => {
+  test('long press on LIGHTNING shows registered lightning info', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 5,
       col: 1,
       owner: 'black',
-      data: { type: 'OBSERVER', remainingOwnerTurns: 5 }
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
     });
 
     const mod = require('../ui/diff-renderer.js');
@@ -613,8 +552,8 @@ describe('board cell long press info', () => {
     dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 100, clientY: 80 });
     jest.advanceTimersByTime(430);
 
-    expect(document.getElementById('stone-info-name').textContent).toBe('盤理の観測者石');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時、一定確率で布石を得る。');
+    expect(document.getElementById('stone-info-name').textContent).toBe('落雷石');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('敵石をランダムに1つ破壊する。');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り5T');
   });
@@ -711,5 +650,30 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊保護');
+  });
+
+  test('long press on OBSERVER_WILL shows absolute protection and remaining turns', () => {
+    global.cardState.markers.push({
+      kind: 'manifestStone',
+      row: 4,
+      col: 5,
+      owner: 'black',
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true }
+    });
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 4, 5);
+
+    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 92, clientY: 112 });
+    jest.advanceTimersByTime(430);
+
+    expect(document.getElementById('stone-info-name').textContent).toBe('盤理の観測者');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('5ターン絶対保護');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('顕現石');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('絶対保護');
   });
 });

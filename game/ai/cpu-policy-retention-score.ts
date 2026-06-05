@@ -68,7 +68,6 @@ type CpuPolicyRetentionFlags = {
     isChainWill: boolean;
     isGoldStone: boolean;
     isCrystalStone: boolean;
-    isTheoryIncarnation: boolean;
     isRainbowStone: boolean;
     isSilverStone: boolean;
     isPlunderWill: boolean;
@@ -82,7 +81,6 @@ type CpuPolicyRetentionFlags = {
     isBlockadeWill: boolean;
     isMeteorWill: boolean;
     isBoardShrinkCard: boolean;
-    isObserverWill: boolean;
     isDestroyDragonWill: boolean;
     isGluttonousWill: boolean;
     isTeleportWill: boolean;
@@ -158,7 +156,6 @@ export function createCpuPolicyRetentionScore() {
             isChainWill,
             isGoldStone,
             isCrystalStone,
-            isTheoryIncarnation,
             isRainbowStone,
             isSilverStone,
             isPlunderWill,
@@ -172,7 +169,6 @@ export function createCpuPolicyRetentionScore() {
             isBlockadeWill,
             isMeteorWill,
             isBoardShrinkCard,
-            isObserverWill,
             isDestroyDragonWill,
             isGluttonousWill,
             isTeleportWill,
@@ -307,12 +303,11 @@ export function createCpuPolicyRetentionScore() {
             else if (maxLegalGain <= 2) score -= 30;
             else score += Math.min(isRainbowStone ? 110 : 80, maxLegalGain * (isRainbowStone ? 12 : 10));
         }
-        if (isCrystalStone || isTheoryIncarnation) {
+        if (isCrystalStone) {
             if (maxLegalBoardBonus <= 0) score -= 150;
             else if (maxLegalBoardBonus === 1) score -= 40;
             else score += Math.min(104, maxLegalBoardBonus * 30);
             if (ctx.highBonusMoveAvailable === true) score += 20;
-            if (isTheoryIncarnation && ctx.empties >= 18) score += 45;
         }
         if (isHeavenBlessing) {
             score += 30;
@@ -402,12 +397,6 @@ export function createCpuPolicyRetentionScore() {
             if (cornerEmergency || ctx.discDiff <= -8) score += cardType === 'BOARD_SHRINK_GOD' ? 122 : (cardType === 'BOARD_SHRINK_WILL' ? 102 : 90);
             if (ctx.discDiff >= 4 && !cornerEmergency) score -= cardType === 'BOARD_SHRINK_GOD' ? 176 : (cardType === 'BOARD_SHRINK_WILL' ? 152 : 140);
             if (ctx.empties <= 12 && ctx.discDiff >= 0) score -= cardType === 'BOARD_SHRINK_GOD' ? 90 : 70;
-        }
-        if (isObserverWill) {
-            if (hasCornerMoveNow) score += 95;
-            else if (hasEdgeMoveNow) score += 42;
-            else score -= 36;
-            if (ctx.empties <= 14) score -= 85;
         }
         if (isDestroyDragonWill) {
             if (hasCornerMoveNow) score += 110;

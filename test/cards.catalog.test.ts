@@ -160,6 +160,21 @@ describe('cards catalog consistency', () => {
     expect(byId.get('support_troops_01').display_type_ja).toBe('繁栄');
   });
 
+  test('observer will special card is present with expected cost and type', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    const card = byId.get('observer_will_01');
+    expect(card).toEqual(expect.objectContaining({
+      id: 'observer_will_01',
+      name_ja: '盤理の観測者',
+      type: 'OBSERVER_WILL',
+      cost: 0,
+      display_type_ja: '観測'
+    }));
+    expect(card.desc_ja).toContain('18手以上');
+    expect(card.desc_ja).toBe('18手以上経過後に使用可能。相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。観測者を顕現させる。観測済みの相手手札は顕現終了後も表表示になる。');
+  });
+
   test('regen/perma costs are swapped as specified', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));

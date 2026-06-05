@@ -76,10 +76,7 @@ function getCellVisualPresentationMeta(cardState: any, row: number, col: number,
         special: null,
         timer: null,
         owner: null,
-        inheritedTimer: null,
-        inheritedOwner: null,
         flipEvadeRemaining: null,
-        inheritedFlipEvadeRemaining: null,
         destroyEvadeRemaining: null
     };
     const destroyValues = markersAtCell
@@ -87,14 +84,6 @@ function getCellVisualPresentationMeta(cardState: any, row: number, col: number,
         .filter((value: any) => value !== null);
     if (destroyValues.length) {
         meta.destroyEvadeRemaining = destroyValues.reduce((sum: number, value: number) => sum + value, 0);
-    }
-    const inherited = markersAtCell.find((marker: any) => (marker &&
-        marker.data &&
-        String(marker.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'));
-    if (inherited) {
-        meta.inheritedTimer = toCounterOrNull(inherited.data && inherited.data.remainingOwnerTurns);
-        meta.inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-        meta.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
     }
     const visualSpecial = markersAtCell.find((marker: any) => {
         const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();

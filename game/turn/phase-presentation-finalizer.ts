@@ -6,18 +6,15 @@ type FinalizePhasePresentationOptions = {
     prng: any;
     eventStartIndex: any;
     presentationStartIndex: any;
-    observerMarkersBeforePhase: any;
     workMarkersBeforePhase: any;
     specialStoneSpeechBeforePhase: any;
     removalReason: any;
-    emitObserverLostBubbleFromSnapshots: (CardLogic: any, cardState: any, beforeSnapshot: any, reason: any) => void;
     emitWorkRemovedPresentationFromSnapshots: (CardLogic: any, cardState: any, beforeSnapshot: any, options: any) => void;
     emitSpecialStoneBubblesFromPhase: (CardLogic: any, cardState: any, options: any) => void;
 };
 
 function finalizePhasePresentation(options: FinalizePhasePresentationOptions): void {
     const opts = (options && typeof options === 'object') ? options : ({} as FinalizePhasePresentationOptions);
-    opts.emitObserverLostBubbleFromSnapshots(opts.CardLogic, opts.cardState, opts.observerMarkersBeforePhase, opts.removalReason);
     opts.emitWorkRemovedPresentationFromSnapshots(opts.CardLogic, opts.cardState, opts.workMarkersBeforePhase, {
         presentationStartIndex: opts.presentationStartIndex
     });

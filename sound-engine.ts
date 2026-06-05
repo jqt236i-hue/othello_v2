@@ -72,6 +72,14 @@ const SoundEngine = {
     _effectAudioPools: {} as EffectAudioPools,
     effectAudioPoolSize: 3,
     _effectWarmupStarted: false,
+    specialCardUseBgmMuteMs: 3000,
+    _temporaryBgmMutedBySpecialCardUse: false,
+    _specialCardUseBgmMuteTimer: null as any,
+    _manifestBgm: null as HTMLAudioElement | null,
+    _manifestBgmKey: null as string | null,
+    _manifestBgmTrack: null as BgmTrack | null,
+    _manifestBgmPausedNormalBgm: false,
+    _manifestBgmWaitingForSpecialCardMuteEnd: false,
 
     // BGM Playlist
     playlist: [
@@ -85,6 +93,7 @@ const SoundEngine = {
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {
         card_use_button: 'カード使用ボタンを押したタイミング.mp3',
+        special_card_use: '特殊カードを使うタイミング.mp3',
         hand_card_select: '手札のカードを選択したタイミング.mp3',
         stone_place: 'assets/audio/sound-effect-skin/default.mp3',
         clone_spawn: '石が複製・増殖したタイミング.mp3',
@@ -96,6 +105,7 @@ const SoundEngine = {
         trap_misfire: '罠が不発で消えたタイミング.mp3',
         board_expansion_reveal: '盤面が拡張されたタイミング.mp3',
         board_shrink_selected: '盤面縮小するタイミング.mp3',
+        meteor_hole: '隕石で穴化するタイミング.mp3',
         strong_wind_move: '強風で石が移動したタイミング.mp3',
         position_swap_move: '入替の意志で石が入れ替わるタイミング.mp3',
         super_buoyancy_move: '浮力系で石が浮上したタイミング.mp3',
@@ -105,6 +115,7 @@ const SoundEngine = {
         teleport_select: 'テレポート対象の石を選択したタイミング.mp3',
         tempt_select: '相手特殊石を選択したタイミング.mp3',
         treasure_gain: '宝箱・天の恵みで獲得したタイミング.mp3',
+        observer_will_capture: 'observer_will_capture.mp3',
         loss_will_reset: '意志の喪失で特殊石が解除されたタイミング.mp3',
         strong_will_promoted: '強い意志の石が進化したタイミング.mp3',
         living_will_selected: '生きる意志を付与するタイミング.mp3',
@@ -130,7 +141,8 @@ const SoundEngine = {
         hand_card_select: 0.5,
         stone_place: 15 / 7,
         stone_destroy: 0.7,
-        board_shrink_selected: 0.7
+        board_shrink_selected: 0.7,
+        meteor_hole: 0.7
     } as EffectVolumeScales,
     _missingEffectWarned: {} as Record<string, boolean>,
 
@@ -207,9 +219,22 @@ const SoundEngine = {
     },
 
     _getBgmOutputVolume() {
+        if (this._temporaryBgmMutedBySpecialCardUse) return 0;
         const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
         const outputScale = this._toNonNegativeNumber(this.bgmOutputVolumeScale, 1);
         return this._clamp01(sliderVolume * outputScale * (this.isMuted ? 0 : 1));
+    },
+
+    _updateBgmOutputVolume() {
+        const volume = this._getBgmOutputVolume();
+        if (this.bgm && !this._isBufferedBgmController(this.bgm)) {
+            this.bgm.volume = volume;
+        }
+        if (this._manifestBgm) {
+            this._manifestBgm.volume = volume;
+        }
+        this._updateBufferedBgmVolume();
+        this._updateResultBgmVolume();
     },
 
     _updateResultBgmVolume() {
@@ -501,6 +526,95 @@ const SoundEngine = {
         } else {
             (window as any).updateBgmButtons();
         }
+    },
+
+    _stopManifestBgmElement(resetTime = true) {
+        const audio = this._manifestBgm;
+        if (!audio) return;
+        try { audio.pause(); } catch (e) { /* ignore */ }
+        audio.onerror = null;
+        audio.ontimeupdate = null;
+        audio.onended = null;
+        if (resetTime) {
+            try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+        }
+    },
+
+    _createManifestBgmElement(track: BgmTrack) {
+        if (typeof Audio !== 'function') return null;
+        const audio = new Audio(track.file);
+        audio.preload = 'auto';
+        audio.loop = true;
+        audio.volume = this._getBgmOutputVolume();
+        audio.onerror = () => {
+            const legacy = track.file.replace('assets/audio/bgm/', 'assets/');
+            if (audio && audio.src && audio.src.endsWith(track.file)) {
+                audio.src = legacy;
+                audio.load();
+                if (this.allowBgmPlay) this._playBgmElement(audio);
+            }
+        };
+        return audio;
+    },
+
+    setManifestBgmOverride(key: any, track: BgmTrack | null) {
+        const normalizedKey = String(key || '').trim();
+        const resolvedTrack = (track && typeof track === 'object' && String(track.file || '').trim())
+            ? Object.assign({}, track)
+            : null;
+        if (!normalizedKey || !resolvedTrack) {
+            return this.clearManifestBgmOverride();
+        }
+        if (this._manifestBgmKey === normalizedKey && this._manifestBgm) {
+            this._manifestBgmTrack = resolvedTrack;
+            this._updateBgmOutputVolume();
+            if (this.allowBgmPlay && this._manifestBgm.paused && this._temporaryBgmMutedBySpecialCardUse) {
+                this._manifestBgmWaitingForSpecialCardMuteEnd = true;
+            } else if (this.allowBgmPlay && this._manifestBgm.paused) {
+                this._playBgmElement(this._manifestBgm);
+            }
+            return true;
+        }
+
+        this._stopManifestBgmElement(true);
+        this._manifestBgm = this._createManifestBgmElement(resolvedTrack);
+        this._manifestBgmKey = normalizedKey;
+        this._manifestBgmTrack = resolvedTrack;
+        this._manifestBgmPausedNormalBgm = false;
+        if (this.bgm && !this.bgm.paused) {
+            try { this.bgm.pause(); } catch (e) { /* ignore */ }
+            this._manifestBgmPausedNormalBgm = true;
+        }
+        this._manifestBgmWaitingForSpecialCardMuteEnd = false;
+        if (this.allowBgmPlay && this._manifestBgm && this._temporaryBgmMutedBySpecialCardUse) {
+            this._manifestBgmWaitingForSpecialCardMuteEnd = true;
+        } else if (this.allowBgmPlay && this._manifestBgm) {
+            this._playBgmElement(this._manifestBgm);
+        }
+        return !!this._manifestBgm;
+    },
+
+    clearManifestBgmOverride() {
+        const hadManifestBgm = !!this._manifestBgm || !!this._manifestBgmKey;
+        const shouldResumeNormalBgm = this._manifestBgmPausedNormalBgm && this.allowBgmPlay;
+        this._stopManifestBgmElement(true);
+        this._manifestBgm = null;
+        this._manifestBgmKey = null;
+        this._manifestBgmTrack = null;
+        this._manifestBgmPausedNormalBgm = false;
+        this._manifestBgmWaitingForSpecialCardMuteEnd = false;
+        if (shouldResumeNormalBgm) {
+            this.playBgm();
+        }
+        return hadManifestBgm;
+    },
+
+    syncManifestBgmOverride(key: any, track: BgmTrack | null) {
+        const normalizedKey = String(key || '').trim();
+        if (normalizedKey && track) {
+            return this.setManifestBgmOverride(normalizedKey, track);
+        }
+        return this.clearManifestBgmOverride();
     },
 
     loadBgm(index: number | string) {
@@ -805,6 +919,24 @@ const SoundEngine = {
         return this._clamp01(this.volume * volumeScale);
     },
 
+    _muteBgmForSpecialCardUse() {
+        if (this._specialCardUseBgmMuteTimer) {
+            try { clearTimeout(this._specialCardUseBgmMuteTimer); } catch (e) { /* ignore */ }
+        }
+        this._temporaryBgmMutedBySpecialCardUse = true;
+        this._updateBgmOutputVolume();
+        const durationMs = Math.max(0, Math.trunc(Number(this.specialCardUseBgmMuteMs) || 0));
+        this._specialCardUseBgmMuteTimer = setTimeout(() => {
+            this._specialCardUseBgmMuteTimer = null;
+            this._temporaryBgmMutedBySpecialCardUse = false;
+            this._updateBgmOutputVolume();
+            if (this._manifestBgmWaitingForSpecialCardMuteEnd && this.allowBgmPlay && this._manifestBgm) {
+                this._manifestBgmWaitingForSpecialCardMuteEnd = false;
+                this._playBgmElement(this._manifestBgm);
+            }
+        }, durationMs);
+    },
+
     playEffectByKey(effectKey: string, options: any = {}) {
         const key = String(effectKey || '').trim();
         const opts = options && typeof options === 'object' ? options : {};
@@ -817,6 +949,9 @@ const SoundEngine = {
 
         const audio = this._takeEffectAudio(filePath);
         if (!audio) return false;
+        if (key === 'special_card_use') {
+            this._muteBgmForSpecialCardUse();
+        }
         audio.volume = effectVolume * (this.isMuted ? 0 : 1);
         try { audio.currentTime = 0; } catch (e) { /* ignore */ }
         audio.onerror = () => {
@@ -1034,11 +1169,7 @@ const SoundEngine = {
 
     toggleMute() {
         this.isMuted = !this.isMuted;
-        if (this.bgm) {
-            this.bgm.volume = this._getBgmOutputVolume();
-        }
-        this._updateBufferedBgmVolume();
-        this._updateResultBgmVolume();
+        this._updateBgmOutputVolume();
         return this.isMuted;
     },
 
@@ -1048,16 +1179,22 @@ const SoundEngine = {
 
     setBgmVolume(val: number | string) {
         this.bgmVolume = parseFloat(String(val));
-        if (this.bgm) {
-            this.bgm.volume = this._getBgmOutputVolume();
-        }
-        this._updateBufferedBgmVolume();
-        this._updateResultBgmVolume();
+        this._updateBgmOutputVolume();
     },
 
     playBgm() {
+        this.allowBgmPlay = true;
+        if (this._manifestBgm) {
+            if (this._temporaryBgmMutedBySpecialCardUse) {
+                this._manifestBgmWaitingForSpecialCardMuteEnd = true;
+            } else {
+                this._manifestBgmWaitingForSpecialCardMuteEnd = false;
+                this._playBgmElement(this._manifestBgm);
+            }
+            (window as any).updateBgmButtons();
+            return;
+        }
         if (this.bgm) {
-            this.allowBgmPlay = true;
             this._playBgmElement(this.bgm);
             (window as any).updateBgmButtons();
         }
@@ -1065,6 +1202,8 @@ const SoundEngine = {
 
     pauseBgm() {
         this.allowBgmPlay = false;
+        this._manifestBgmWaitingForSpecialCardMuteEnd = false;
+        if (this._manifestBgm) this._manifestBgm.pause();
         if (this.bgm) this.bgm.pause();
         (window as any).updateBgmButtons();
     },

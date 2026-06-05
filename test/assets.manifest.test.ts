@@ -65,7 +65,15 @@ describe('assets manifest', () => {
       'assets/images/hand-skin/lv3-5.png',
       'assets/images/hand-skin/lv4.png',
       'assets/images/hand-skin/lv6.png',
-      'assets/images/other/観測石.png'
+      'assets/images/other/観測石.png',
+      'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+      'assets/audio/sound-effect/observer_will_capture.mp3',
+      'assets/images/background/manifest-worlds/理論の世界.png',
+      'assets/images/background/manifest-worlds/執行の世界.png',
+      'assets/images/background/manifest-worlds/観測の世界.png',
+      'assets/images/special-cards/characters/theory_incarnation.png',
+      'assets/images/special-cards/characters/board_executor.png',
+      'assets/images/special-cards/characters/observer_will.png'
     ].forEach((assetPath) => {
       assert.ok(
         manifest.files.some((file) => file.path === assetPath),
@@ -78,6 +86,20 @@ describe('assets manifest', () => {
       assert.ok(
         manifest.files.some((file) => file.path === assetPath),
         `manifest should include gacha asset ${assetPath}`
+      );
+    });
+    [
+      'assets/images/stones/OBSERVER_WILL-black.png',
+      'assets/images/stones/OBSERVER_WILL-white.png',
+      'assets/images/stones/theory_incarnation-black.png',
+      'assets/images/stones/theory_incarnation-white.png',
+      'assets/images/stones/board_executor-black.png',
+      'assets/images/stones/board_executor-white.png'
+    ].forEach((assetPath) => {
+      assert.ok(fs.existsSync(path.resolve(repoRoot, assetPath)), `special foundation stone image ${assetPath} should stay on disk`);
+      assert.ok(
+        manifest.files.some((file) => file.path === assetPath),
+        `manifest should include special foundation stone image ${assetPath}`
       );
     });
     for (const f of manifest.files) {

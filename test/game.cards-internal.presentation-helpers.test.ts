@@ -50,22 +50,6 @@ describe('presentation-helpers', () => {
       expect(meta).toEqual({ special: 'TIME_BOMB', timer: 5, owner: 'white' });
     });
 
-    test('includes inherited hyperactive data alongside visual special', () => {
-      const cardState = {
-        markers: [{ row: 0, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1 } }]
-      };
-      const meta = PresentationHelpers.getCellVisualPresentationMeta(cardState, 0, 0, makeMockContext());
-      expect(meta).toEqual({
-        special: 'INHERITED_HYPERACTIVE',
-        timer: 4,
-        owner: 'black',
-        flipEvadeRemaining: 1,
-        inheritedTimer: 4,
-        inheritedOwner: 'black',
-        inheritedFlipEvadeRemaining: 1
-      });
-    });
-
     test('sums destroy evade values', () => {
       const cardState = {
         markers: [

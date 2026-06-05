@@ -1,14 +1,18 @@
 (function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let EvasionStatus = null;
+        let ManifestStoneRegistry = null;
         try {
             EvasionStatus = require('./evasion-status');
         } catch (e) { /* ignore */ }
-        module.exports = factory(EvasionStatus);
+        try {
+            ManifestStoneRegistry = require('./manifest-stone-registry');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(EvasionStatus, ManifestStoneRegistry);
     } else {
-        root.SpecialStoneRegistry = factory(root.EvasionStatus || null);
+        root.SpecialStoneRegistry = factory(root.EvasionStatus || null, root.ManifestStoneRegistry || null);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (EvasionStatus: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (EvasionStatus: unknown, ManifestStoneRegistry: any) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -33,19 +37,73 @@
         [key: string]: string;
     }
 
+    interface SpecialCardMarkerMetadata {
+        cardId: string;
+        markerType: string;
+        displayName: string;
+        durationOwnerTurns: number;
+        absoluteProtected: boolean;
+        visualEffectKey: string;
+        imagePathByOwner: Readonly<Record<string, string>>;
+    }
+
+    interface SpecialCardMarkerMetadataMap {
+        [key: string]: Readonly<SpecialCardMarkerMetadata>;
+    }
+
     type SpecialStoneRuleClass =
         | 'true_special_stone'
+        | 'manifest_stone'
         | 'stone_status'
         | 'bomb'
         | 'trap'
         | 'board_marker'
         | 'placement_effect';
 
+    interface StoneEffectTraits {
+        category: SpecialStoneRuleClass;
+        countsAsSpecialStone: boolean;
+        targetableAsSpecialStone: boolean;
+        revertibleByLossWill: boolean;
+        spawnableByTheoryIncarnation: boolean;
+        inviolable: boolean;
+    }
+
     const SPECIAL_STONE_TYPE_ALIASES: Readonly<TypeAliases> = Object.freeze({
         EXTREME_HYPERACTIVE_WILL: 'EXTREME_HYPERACTIVE',
         TRAP_REVEAL: 'TRAP',
         ULTIMATE_HYPERACTIVE_GOD: 'ULTIMATE_HYPERACTIVE'
     });
+
+    function getManifestStoneRegistryModule(): any {
+        if (ManifestStoneRegistry && typeof ManifestStoneRegistry === 'object') {
+            return ManifestStoneRegistry;
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).ManifestStoneRegistry) {
+            return (globalThis as Record<string, unknown>).ManifestStoneRegistry;
+        }
+        if (typeof self !== 'undefined' && (self as Record<string, unknown>).ManifestStoneRegistry) {
+            return (self as Record<string, unknown>).ManifestStoneRegistry;
+        }
+        return null;
+    }
+
+    function buildSpecialCardMarkerMetadata(): Readonly<SpecialCardMarkerMetadataMap> {
+        const registry = getManifestStoneRegistryModule();
+        const source = registry && registry.MANIFEST_STONE_METADATA && typeof registry.MANIFEST_STONE_METADATA === 'object'
+            ? registry.MANIFEST_STONE_METADATA
+            : null;
+        if (!source) return Object.freeze({});
+        const out: SpecialCardMarkerMetadataMap = {};
+        for (const key of Object.keys(source)) {
+            const metadata = source[key];
+            if (!metadata || typeof metadata !== 'object') continue;
+            out[key] = Object.freeze(Object.assign({}, metadata));
+        }
+        return Object.freeze(out);
+    }
+
+    const SPECIAL_CARD_MARKER_METADATA: Readonly<SpecialCardMarkerMetadataMap> = buildSpecialCardMarkerMetadata();
 
     function getEvasionStatusModule(): unknown {
         const candidate = EvasionStatus as { getFlipEvadeDefault?: unknown; getDestroyEvadeDefault?: unknown } | null;
@@ -179,14 +237,6 @@
             tagDestroyEvadeDefault: readDestroyDefault('ULTIMATE_HYPERACTIVE'),
             visualFlipEvadeDefault: readVisualFlipDefault('ULTIMATE_HYPERACTIVE')
         }),
-        INHERITED_HYPERACTIVE: Object.freeze({
-            name: '継承多動石',
-            desc: '多動状態が付与されている。',
-            mobility: true,
-            tagFlipEvadeDefault: readFlipDefault('INHERITED_HYPERACTIVE'),
-            tagDestroyEvadeDefault: readDestroyDefault('INHERITED_HYPERACTIVE'),
-            overlayOnlyVisual: true
-        }),
         REGEN: Object.freeze({
             name: '復活石',
             desc: '失われた時に元の色へ戻る。'
@@ -259,13 +309,17 @@
             name: '種マス',
             desc: '所有者ターン開始時だけ残り回数が減り、5回目で空いたままなら同色の通常石が1個芽生える。種マスには通常どおり配置・移動でき、石が置かれた時点で種は消える。'
         }),
-        OBSERVER: Object.freeze({
-            name: '盤理の観測者石',
-            desc: 'ターン開始時、一定確率で布石を得る。'
-        }),
         THEORY_INCARNATION: Object.freeze({
             name: '理論の化身',
-            desc: '所有者の数字マス布石獲得を2倍にする。'
+            desc: '3ターン絶対保護される顕現石。所有者のカード使用と石配置を封じる。'
+        }),
+        BOARD_EXECUTOR: Object.freeze({
+            name: '盤界の執行者',
+            desc: '4ターン絶対保護される顕現石。盤面にある間、両者のカード使用を封じる。'
+        }),
+        OBSERVER_WILL: Object.freeze({
+            name: '盤理の観測者',
+            desc: '5ターン絶対保護される顕現石。'
         }),
         GHOST: Object.freeze({
             name: '幽体石',
@@ -286,7 +340,7 @@
         }),
         METEOR_HOLE: Object.freeze({
             name: '流星穴',
-            desc: '隕石や盤面縮小で生じた永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
+            desc: '因果抹消や盤面縮小で生じた永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
         }),
         ABSOLUTE_PROTECTED: Object.freeze({
             name: '絶対保護石',
@@ -297,13 +351,7 @@
     });
 
     const STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
-        'PROTECTED',
-        'PERMA_PROTECTED',
         'GUARD',
-        'ABSOLUTE_PROTECTED',
-        'GHOST',
-        'AFTERIMAGE_WILL',
-        'REGEN',
         'LIVING_WILL'
     ]);
 
@@ -320,6 +368,17 @@
         'GOLD',
         'SILVER',
         'RAINBOW'
+    ]);
+
+    const THEORY_INCARNATION_SPAWN_EXCLUDED_TYPES: ReadonlySet<string> = new Set([
+        'TRAP',
+        'TIME_BOMB'
+    ]);
+
+    const INVIOLABLE_MANIFEST_STONE_TYPES: ReadonlySet<string> = new Set([
+        'THEORY_INCARNATION',
+        'BOARD_EXECUTOR',
+        'OBSERVER_WILL'
     ]);
 
     function normalizeSpecialStoneType(rawType: unknown): string | null {
@@ -369,6 +428,24 @@
         return '';
     }
 
+    function getSpecialCardMarkerMetadata(rawType: unknown): Readonly<SpecialCardMarkerMetadata> | null {
+        const registry = getManifestStoneRegistryModule();
+        if (registry && typeof registry.getManifestStoneMetadata === 'function') {
+            return registry.getManifestStoneMetadata(rawType);
+        }
+        const type = normalizeSpecialStoneType(rawType);
+        if (!type) return null;
+        return SPECIAL_CARD_MARKER_METADATA[type] || null;
+    }
+
+    function isAbsoluteProtectedSpecialType(rawType: unknown): boolean {
+        const type = normalizeSpecialStoneType(rawType);
+        if (!type) return false;
+        if (type === 'ABSOLUTE_PROTECTED') return true;
+        const metadata = getSpecialCardMarkerMetadata(type);
+        return !!(metadata && metadata.absoluteProtected === true);
+    }
+
     function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {
         const info = getSpecialStoneInfo(rawType);
         if (info && info.timerClass) return info.timerClass;
@@ -393,6 +470,13 @@
         if (type === 'TRAP') {
             return 'trap';
         }
+        const manifestStoneRegistry = getManifestStoneRegistryModule();
+        if (manifestStoneRegistry && typeof manifestStoneRegistry.isManifestStoneType === 'function' && manifestStoneRegistry.isManifestStoneType(type)) {
+            return 'manifest_stone';
+        }
+        if (INVIOLABLE_MANIFEST_STONE_TYPES.has(type)) {
+            return 'manifest_stone';
+        }
         if (type === 'HYPERACTIVE' && !!(data && data.instantPlacementOnly)) {
             return 'placement_effect';
         }
@@ -406,6 +490,54 @@
             return 'stone_status';
         }
         return 'true_special_stone';
+    }
+
+    function getStoneEffectTraits(rawType: unknown, markerData?: any): Readonly<StoneEffectTraits> | null {
+        const type = normalizeSpecialStoneType(rawType);
+        if (!type) return null;
+        const category = classifySpecialStoneRuleClass(type, markerData);
+        if (!category) return null;
+        const countsAsSpecialStone = category === 'true_special_stone' || category === 'trap' || category === 'bomb';
+        const inviolable = category === 'manifest_stone' || INVIOLABLE_MANIFEST_STONE_TYPES.has(type);
+        const targetableAsSpecialStone = countsAsSpecialStone && !inviolable;
+        return Object.freeze({
+            category,
+            countsAsSpecialStone,
+            targetableAsSpecialStone,
+            revertibleByLossWill: targetableAsSpecialStone && type !== 'ABSOLUTE_PROTECTED',
+            spawnableByTheoryIncarnation: category === 'true_special_stone' && !THEORY_INCARNATION_SPAWN_EXCLUDED_TYPES.has(type),
+            inviolable
+        });
+    }
+
+    function countsAsSpecialStone(rawType: unknown, markerData?: any): boolean {
+        const traits = getStoneEffectTraits(rawType, markerData);
+        return !!(traits && traits.countsAsSpecialStone);
+    }
+
+    function isTargetableSpecialStone(rawType: unknown, markerData?: any): boolean {
+        const traits = getStoneEffectTraits(rawType, markerData);
+        return !!(traits && traits.targetableAsSpecialStone);
+    }
+
+    function canLossWillRevert(rawType: unknown, markerData?: any): boolean {
+        const traits = getStoneEffectTraits(rawType, markerData);
+        return !!(traits && traits.revertibleByLossWill);
+    }
+
+    function isTheoryIncarnationSpawnCandidate(rawType: unknown, markerData?: any): boolean {
+        const traits = getStoneEffectTraits(rawType, markerData);
+        return !!(traits && traits.spawnableByTheoryIncarnation);
+    }
+
+    function isInviolableStoneEffect(rawType: unknown, markerData?: any): boolean {
+        const traits = getStoneEffectTraits(rawType, markerData);
+        return !!(traits && traits.inviolable);
+    }
+
+    function getTheoryIncarnationSpawnCandidates(): string[] {
+        return Object.keys(SPECIAL_STONE_REGISTRY)
+            .filter((type) => isTheoryIncarnationSpawnCandidate(type));
     }
 
     function classifyMarkerRuleClass(marker: any): SpecialStoneRuleClass | null {
@@ -449,6 +581,7 @@
     return {
         SPECIAL_STONE_REGISTRY,
         SPECIAL_STONE_TYPE_ALIASES,
+        SPECIAL_CARD_MARKER_METADATA,
         STONE_STATUS_TYPES,
         BOARD_MARKER_TYPES,
         PLACEMENT_EFFECT_TYPES,
@@ -456,8 +589,17 @@
         getSpecialStoneInfo,
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
+        getSpecialCardMarkerMetadata,
+        isAbsoluteProtectedSpecialType,
         getSpecialStoneTimerClass,
         isOverlayOnlySpecialStoneType,
+        getStoneEffectTraits,
+        countsAsSpecialStone,
+        isTargetableSpecialStone,
+        canLossWillRevert,
+        isTheoryIncarnationSpawnCandidate,
+        isInviolableStoneEffect,
+        getTheoryIncarnationSpawnCandidates,
         classifySpecialStoneRuleClass,
         classifyMarkerRuleClass,
         isTrueSpecialStoneRuleClass,

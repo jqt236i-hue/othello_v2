@@ -2,6 +2,23 @@
 
 import PendingSelectionRegistry = require('./pending-selection-registry');
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry');
+const SpecialCardRegistry = safeRequire('../../../shared/special-card-registry');
+
 interface CardUsageContext {
     gameState?: any;
     cardState?: any;
@@ -19,6 +36,7 @@ interface CardUsageResult {
     ok: boolean;
     heavenOffers: any[] | null;
     condemnOffers: any[] | null;
+    observerWillOffers: any[] | null;
 }
 
 function hasTargets(targets: any[], minimumCount: number): boolean {
@@ -60,14 +78,58 @@ function validateRegistrySelectionTargets(context: CardUsageContext, entry: any)
 }
 
 function buildFailureResult(): CardUsageResult {
-    return { ok: false, heavenOffers: null, condemnOffers: null };
+    return { ok: false, heavenOffers: null, condemnOffers: null, observerWillOffers: null };
+}
+
+function isInviolableSpecialCardId(cardId: any): boolean {
+    if (SpecialCardRegistry && typeof SpecialCardRegistry.isInviolableSpecialCardId === 'function') {
+        return SpecialCardRegistry.isInviolableSpecialCardId(cardId) === true;
+    }
+    return false;
+}
+
+function isManifestStoneType(rawType: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+    }
+    const type = String(rawType || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+}
+
+function isActiveManifestStoneMarker(marker: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isActiveManifestStoneMarker === 'function') {
+        return ManifestStoneRegistry.isActiveManifestStoneMarker(marker) === true;
+    }
+    const type = marker && marker.data ? String(marker.data.type || '').toUpperCase() : '';
+    if (!marker || (marker.kind !== 'manifestStone' && marker.kind !== 'specialStone')) return false;
+    if (!isManifestStoneType(type)) return false;
+    if (Object.prototype.hasOwnProperty.call(marker.data || {}, 'remainingOwnerTurns')) {
+        const remaining = Number(marker.data.remainingOwnerTurns);
+        return Number.isFinite(remaining) && remaining > 0;
+    }
+    return true;
+}
+
+function hasActiveManifestStone(cardState: any): boolean {
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    return markers.some(isActiveManifestStoneMarker);
 }
 
 function validateCardUsagePreconditions(context: CardUsageContext): CardUsageResult {
     const cardType = String(context && context.cardType || '');
-    const result: CardUsageResult = { ok: true, heavenOffers: null, condemnOffers: null };
+    const result: CardUsageResult = { ok: true, heavenOffers: null, condemnOffers: null, observerWillOffers: null };
     if (!cardType)
         return result;
+    if (isInviolableSpecialCardId(context && context.cardId) && hasActiveManifestStone(context && context.cardState)) {
+        return buildFailureResult();
+    }
+    if (cardType === 'THEORY_INCARNATION') {
+        const totals = context && context.cardState && context.cardState.numberCellCollectedTotalByPlayer;
+        const collected = Number(totals && totals[context.playerKey || ''] || 0);
+        if (!Number.isFinite(collected) || collected < 42) {
+            return buildFailureResult();
+        }
+    }
     if (cardType === 'LAST_RESORT') {
         if (!context || !context.gameState || typeof context.canUseLastResortForPlayer !== 'function') {
             return buildFailureResult();
@@ -167,6 +229,20 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
         result.condemnOffers = offers;
         return result;
     }
+    if (cardType === 'OBSERVER_WILL') {
+        const gameTurnNumber = Number(context && context.gameState && context.gameState.turnNumber);
+        const turnIndex = Number(context && context.turnIndex);
+        const elapsedTurns = Number.isFinite(gameTurnNumber) ? gameTurnNumber : turnIndex;
+        if (!Number.isFinite(elapsedTurns) || elapsedTurns < 18)
+            return buildFailureResult();
+        if (typeof context.buildObserverWillOffers !== 'function')
+            return buildFailureResult();
+        const offers = context.buildObserverWillOffers(context.cardState, context.playerKey);
+        if (!Array.isArray(offers) || offers.length <= 0)
+            return buildFailureResult();
+        result.observerWillOffers = offers;
+        return result;
+    }
     if (cardType === 'REVEAL_HAND_WILL') {
         const opponentKey = context.playerKey === 'black' ? 'white' : 'black';
         const opponentHand = (context && context.cardState && context.cardState.hands && Array.isArray(context.cardState.hands[opponentKey]))
@@ -200,8 +276,6 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getGuardTargets', 1) ? result : buildFailureResult();
         case 'LIVING_WILL':
             return validateSelectionTargets(context, 'getLivingWillTargets', 1) ? result : buildFailureResult();
-        case 'HYPERACTIVE_INHERIT_WILL':
-            return validateSelectionTargets(context, 'getHyperactiveInheritTargets', 1) ? result : buildFailureResult();
         case 'EXTEND_LIFE_WILL':
         case 'EXTEND_LIFE_GOD':
             return validateSelectionTargets(context, 'getExtendLifeTargets', 1) ? result : buildFailureResult();

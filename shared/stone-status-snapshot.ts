@@ -2,17 +2,21 @@
     if (typeof module !== 'undefined' && module.exports) {
         let SpecialStoneRegistry = null;
         let EvasionStatus = null;
+        let ManifestStoneRegistry = null;
         try {
             SpecialStoneRegistry = require('./special-stone-registry');
         } catch (e) { /* ignore */ }
         try {
             EvasionStatus = require('./evasion-status');
         } catch (e) { /* ignore */ }
-        module.exports = factory(SpecialStoneRegistry, EvasionStatus);
+        try {
+            ManifestStoneRegistry = require('./manifest-stone-registry');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(SpecialStoneRegistry, EvasionStatus, ManifestStoneRegistry);
     } else {
-        root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null, root.EvasionStatus || null);
+        root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null, root.EvasionStatus || null, root.ManifestStoneRegistry || null);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SpecialStoneRegistry: unknown, EvasionStatus: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SpecialStoneRegistry: unknown, EvasionStatus: unknown, ManifestStoneRegistry: unknown) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -40,12 +44,14 @@
         hasGuard: boolean;
         hasGhost: boolean;
         hasMobility: boolean;
+        hasAbsoluteProtection: boolean;
         hasFlipProtection: boolean;
         hasDestroyProtection: boolean;
         hasFlipEvade: boolean;
         hasDestroyEvade: boolean;
         flipEvadeRemaining: number | null;
         destroyEvadeRemaining: number | null;
+        isManifestStone: boolean;
     }
 
     interface MarkerData {
@@ -69,10 +75,7 @@
         special: string | null;
         timer: number | null;
         owner: unknown | null;
-        inheritedTimer: number | null;
-        inheritedOwner: unknown | null;
         flipEvadeRemaining: number | null;
-        inheritedFlipEvadeRemaining: number | null;
         destroyEvadeRemaining: number | null;
         livingWillAura: boolean;
     }
@@ -98,7 +101,7 @@
             return (SpecialStoneRegistry as { isOverlayOnlySpecialStoneType: (v: unknown) => boolean }).isOverlayOnlySpecialStoneType(rawType);
         }
         const type = normalizeSpecialStoneType(rawType);
-        return type === 'GUARD' || type === 'INHERITED_HYPERACTIVE' || type === 'LIVING_WILL';
+        return type === 'GUARD' || type === 'LIVING_WILL';
     }
 
     function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {
@@ -106,6 +109,13 @@
             return (SpecialStoneRegistry as { getSpecialStoneTimerClass: (v: unknown, f?: unknown) => string }).getSpecialStoneTimerClass(rawType, fallback);
         }
         return fallback !== undefined ? String(fallback) : 'special-timer';
+    }
+
+    function isAbsoluteProtectedSpecialType(rawType: unknown): boolean {
+        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { isAbsoluteProtectedSpecialType?: (v: unknown) => boolean }).isAbsoluteProtectedSpecialType === 'function') {
+            return (SpecialStoneRegistry as { isAbsoluteProtectedSpecialType: (v: unknown) => boolean }).isAbsoluteProtectedSpecialType(rawType);
+        }
+        return normalizeSpecialStoneType(rawType) === 'ABSOLUTE_PROTECTED';
     }
 
     function getEvasionStatusModule(): unknown {
@@ -155,12 +165,39 @@
         return Math.max(0, Math.trunc(n));
     }
 
-    function isInheritedHyperactiveType(type: unknown): boolean {
-        return normalizeSpecialStoneType(type) === 'INHERITED_HYPERACTIVE';
-    }
-
     function isLivingWillType(type: unknown): boolean {
         return normalizeSpecialStoneType(type) === 'LIVING_WILL';
+    }
+
+    function isManifestStoneType(rawType: unknown): boolean {
+        if (ManifestStoneRegistry && typeof (ManifestStoneRegistry as { isManifestStoneType?: (v: unknown) => boolean }).isManifestStoneType === 'function') {
+            return (ManifestStoneRegistry as { isManifestStoneType: (v: unknown) => boolean }).isManifestStoneType(rawType);
+        }
+        const type = normalizeSpecialStoneType(rawType);
+        return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    }
+
+    function isManifestStoneStatusInput(source: Record<string, unknown>, type: unknown): boolean {
+        const marker = source.marker;
+        if (
+            ManifestStoneRegistry &&
+            typeof (ManifestStoneRegistry as { isManifestStoneMarker?: (v: unknown) => boolean }).isManifestStoneMarker === 'function' &&
+            (ManifestStoneRegistry as { isManifestStoneMarker: (v: unknown) => boolean }).isManifestStoneMarker(marker)
+        ) {
+            return true;
+        }
+        const rawKind = source.kind || (marker && typeof marker === 'object' ? (marker as Record<string, unknown>).kind : null);
+        const kind = rawKind === null || rawKind === undefined ? '' : String(rawKind);
+        if (kind === 'manifestStone' && isManifestStoneType(type)) return true;
+        return isManifestStoneType(type);
+    }
+
+    function getManifestStoneDisplayName(type: unknown): string | null {
+        if (ManifestStoneRegistry && typeof (ManifestStoneRegistry as { getManifestStoneMetadata?: (v: unknown) => { displayName?: unknown } | null }).getManifestStoneMetadata === 'function') {
+            const metadata = (ManifestStoneRegistry as { getManifestStoneMetadata: (v: unknown) => { displayName?: unknown } | null }).getManifestStoneMetadata(type);
+            if (metadata && metadata.displayName) return String(metadata.displayName);
+        }
+        return null;
     }
 
     function resolveDisplayTimerValue(typeOrInput: unknown, timerValue?: unknown, regenRemainingValue?: unknown): number | null {
@@ -178,12 +215,9 @@
             if (rawRegenRemaining === undefined) rawRegenRemaining = obj.regenRemaining;
         }
 
-        const type = normalizeSpecialStoneType(rawType);
-        if (isInheritedHyperactiveType(type)) return null;
-
         const timer = toCounterOrNull(rawTimer);
         if (timer !== null) return timer;
-        if (type === 'REGEN') return toCounterOrNull(rawRegenRemaining);
+        if (normalizeSpecialStoneType(rawType) === 'REGEN') return toCounterOrNull(rawRegenRemaining);
         return null;
     }
 
@@ -193,6 +227,7 @@
         const rawType = source.type || source.special || null;
         const type = normalizeSpecialStoneType(rawType);
         const info = getSpecialStoneInfo(type);
+        const isManifestStone = isManifestStoneStatusInput(source, type);
         const displayTimer = resolveDisplayTimerValue(source);
         const ultimateExpired = type === 'ULTIMATE_HYPERACTIVE' && displayTimer !== null && displayTimer <= 0;
 
@@ -210,6 +245,7 @@
         const hasGuard = source.hasGuard === true;
         const hasGhost = !!(info && info.ghost);
         const hasMobility = !!(info && info.mobility);
+        const hasAbsoluteProtection = !hasGhost && isAbsoluteProtectedSpecialType(type);
         const hasFlipProtection = !hasGhost && (hasGuard || !!(info && info.flipProtected));
         const hasDestroyProtection = !hasGhost && (hasGuard || !!(info && info.destroyProtected));
         const hasFlipEvade = !ultimateExpired && flipEvadeRemaining !== null && flipEvadeRemaining > 0;
@@ -219,19 +255,21 @@
             rawType,
             type,
             info,
-            name: (info && info.name) || (rawType ? String(rawType) : ''),
+            name: (isManifestStone && getManifestStoneDisplayName(type)) || (info && info.name) || (rawType ? String(rawType) : ''),
             description: (info && info.desc) || '効果情報は未登録です。',
             timerClass: getSpecialStoneTimerClass(type, 'special-timer'),
             displayTimer,
             hasGuard,
             hasGhost,
             hasMobility,
+            hasAbsoluteProtection,
             hasFlipProtection,
             hasDestroyProtection,
             hasFlipEvade,
             hasDestroyEvade,
             flipEvadeRemaining,
-            destroyEvadeRemaining
+            destroyEvadeRemaining,
+            isManifestStone
         };
     }
 
@@ -240,7 +278,8 @@
         const snapshots = items
             .map((input) => createSpecialStoneStatusSnapshot(input, { mode: 'info' }))
             .filter((snapshot) => !!(snapshot && snapshot.type));
-        const nonOverlaySnapshots = snapshots.filter((snapshot) => !isOverlayOnlySpecialStoneType(snapshot && snapshot.type));
+        const manifestSnapshots = snapshots.filter((snapshot) => !!(snapshot && snapshot.isManifestStone));
+        const nonOverlaySnapshots = snapshots.filter((snapshot) => !snapshot.isManifestStone && !isOverlayOnlySpecialStoneType(snapshot && snapshot.type));
         const opts = options && typeof options === 'object' ? options as Record<string, unknown> : {};
         const primaryInput = opts.primary
             ? opts.primary
@@ -263,10 +302,8 @@
         const destroyEvadeTotal = sumCounters('destroyEvadeRemaining');
 
         if (opts && opts.hasGuard) tags.push('守る意志適用中');
-        if ((!opts || opts.includeSpecialStone !== false) && (
-            nonOverlaySnapshots.length > 0
-            || snapshots.some((snapshot) => normalizeSpecialStoneType(snapshot && snapshot.type) === 'INHERITED_HYPERACTIVE')
-        )) tags.push('特殊石');
+        if (manifestSnapshots.length > 0) tags.push('顕現石');
+        if ((!opts || opts.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
         if (displayTimer !== null && primaryType === 'REGEN') tags.push(`復活 残り${displayTimer}回`);
         else if (displayTimer !== null) tags.push(`残り${displayTimer}T`);
         if (livingWillAura) tags.push('生きる意志付与');
@@ -276,6 +313,7 @@
         else if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
         if (destroyEvadeTotal !== null) tags.push(`破壊回避 残り${destroyEvadeTotal}回`);
         else if (snapshots.some((snapshot) => snapshot.hasDestroyEvade)) tags.push('破壊回避');
+        if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasAbsoluteProtection) tags.push('絶対保護');
         if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) tags.push('反転保護');
         if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasDestroyProtection) tags.push('破壊保護');
 
@@ -288,10 +326,7 @@
             special: null,
             timer: null,
             owner: null,
-            inheritedTimer: null,
-            inheritedOwner: null,
             flipEvadeRemaining: null,
-            inheritedFlipEvadeRemaining: null,
             destroyEvadeRemaining: null,
             livingWillAura: false
         };
@@ -301,17 +336,6 @@
             .filter((value): value is number => value !== null);
         if (destroyValues.length > 0) {
             out.destroyEvadeRemaining = destroyValues.reduce((sum, value) => sum + value, 0);
-        }
-
-        const inherited = markers.find((marker) => (
-            marker &&
-            marker.data &&
-            isInheritedHyperactiveType(marker.data.type)
-        ));
-        if (inherited) {
-            out.inheritedTimer = toCounterOrNull(inherited.data && inherited.data.remainingOwnerTurns);
-            out.inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-            out.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
         }
 
         out.livingWillAura = markers.some((marker) => (
@@ -327,6 +351,8 @@
         });
         if (visualSpecial) {
             const snapshot = createSpecialStoneStatusSnapshot({
+                kind: visualSpecial.kind,
+                marker: visualSpecial,
                 type: visualSpecial.data && visualSpecial.data.type,
                 timer: visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
                 regenRemaining: visualSpecial.data && visualSpecial.data.regenRemaining,

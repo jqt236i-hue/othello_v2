@@ -3,6 +3,23 @@
  * @description Card hand management shared between Browser and Headless.
  */
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const CardMarkersModule = safeRequire('../cards/markers');
+const ManifestStoneRegistryModule = safeRequire('../../../shared/manifest-stone-registry');
+const SpecialCardRegistryModule = safeRequire('../../../shared/special-card-registry');
 
 interface Context {
     constants?: any;
@@ -24,6 +41,8 @@ interface HandResult {
     discardIndex?: number;
     destroyedCards?: string[];
     destroyedCopyIds?: number[];
+    keptCards?: string[];
+    keptCopyIds?: number[];
 }
 
 interface DestroyResult {
@@ -49,6 +68,14 @@ function getConstants(context: Context): Constants {
 
 function getHelpers(context: Context): any {
     return (context && context.helpers) || {};
+}
+
+function isManifestStoneType(rawType: any): boolean {
+    if (ManifestStoneRegistryModule && typeof ManifestStoneRegistryModule.isManifestStoneType === 'function') {
+        return ManifestStoneRegistryModule.isManifestStoneType(rawType) === true;
+    }
+    const type = String(rawType || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
 }
 
 function getModules(context: Context): any {
@@ -164,6 +191,28 @@ function normalizeRevealCopyIdList(source: any[]): number[] {
     return next;
 }
 
+function ensureCardCostOverrideLedger(cardState: any): Record<string, any> {
+    if (!cardState || typeof cardState !== 'object') return {};
+    if (!(cardState as any).cardCostOverridesByCopyId || typeof (cardState as any).cardCostOverridesByCopyId !== 'object') {
+        (cardState as any).cardCostOverridesByCopyId = {};
+    }
+    return (cardState as any).cardCostOverridesByCopyId;
+}
+
+function ensureCardCostModifierLedger(cardState: any): Record<string, any[]> {
+    if (!cardState || typeof cardState !== 'object') return {};
+    if (!(cardState as any).cardCostModifiersByCopyId || typeof (cardState as any).cardCostModifiersByCopyId !== 'object') {
+        (cardState as any).cardCostModifiersByCopyId = {};
+    }
+    return (cardState as any).cardCostModifiersByCopyId;
+}
+
+function normalizePositiveCopyId(cardCopyId: any): number | null {
+    const numeric = Number(cardCopyId);
+    if (!Number.isInteger(numeric) || numeric <= 0) return null;
+    return numeric;
+}
+
 function syncNextCardCopySeq(cardState: any, buckets: any[][]): number {
     if (!cardState || typeof cardState !== 'object') return 1;
     let maxCopyId = 0;
@@ -204,6 +253,8 @@ function ensureCardCopyState(cardState: any): any {
     const revealedHandCopyIdsByViewer = ensurePlayerCopyIdBuckets(cardState, '_revealedHandCopyIdsByViewer');
     revealedHandCopyIdsByViewer.black = normalizeRevealCopyIdList(revealedHandCopyIdsByViewer.black);
     revealedHandCopyIdsByViewer.white = normalizeRevealCopyIdList(revealedHandCopyIdsByViewer.white);
+    ensureCardCostOverrideLedger(cardState);
+    ensureCardCostModifierLedger(cardState);
 
     syncNextCardCopySeq(cardState, [
         handCopyIdsByPlayer.black,
@@ -221,6 +272,50 @@ function ensureCardCopyState(cardState: any): any {
         discardCopyIds: (cardState as any)._discardCopyIds,
         revealedHandCopyIdsByViewer
     };
+}
+
+function setCardCostOverrideForCopyId(cardState: any, cardCopyId: number, cost: number, sourceType?: string): boolean {
+    const copyId = normalizePositiveCopyId(cardCopyId);
+    const numericCost = Number(cost);
+    if (!copyId || !Number.isFinite(numericCost)) return false;
+    const overrides = ensureCardCostOverrideLedger(cardState);
+    overrides[String(copyId)] = {
+        cost: numericCost,
+        sourceType: typeof sourceType === 'string' ? sourceType : null
+    };
+    return true;
+}
+
+function addCardCostModifierForCopyId(cardState: any, cardCopyId: number, delta: number, sourceType?: string): boolean {
+    const copyId = normalizePositiveCopyId(cardCopyId);
+    const numericDelta = Number(delta);
+    if (!copyId || !Number.isFinite(numericDelta)) return false;
+    const modifiers = ensureCardCostModifierLedger(cardState);
+    const key = String(copyId);
+    if (!Array.isArray(modifiers[key])) modifiers[key] = [];
+    modifiers[key].push({
+        delta: numericDelta,
+        sourceType: typeof sourceType === 'string' ? sourceType : null
+    });
+    return true;
+}
+
+function getEffectiveCardCostForCopy(cardState: any, cardId: string, cardCopyId: number, context: Context): number {
+    const baseCost = getCardCost(cardId, context);
+    const copyId = normalizePositiveCopyId(cardCopyId);
+    if (!copyId) return baseCost;
+    const key = String(copyId);
+    const overrides = ensureCardCostOverrideLedger(cardState);
+    const override = overrides[key];
+    const overrideCost = Number(override && override.cost);
+    const startCost = Number.isFinite(overrideCost) ? overrideCost : baseCost;
+    const modifiers = ensureCardCostModifierLedger(cardState);
+    const entries = Array.isArray(modifiers[key]) ? modifiers[key] : [];
+    const totalDelta = entries.reduce((sum, entry) => {
+        const delta = Number(entry && entry.delta);
+        return Number.isFinite(delta) ? sum + delta : sum;
+    }, 0);
+    return startCost + totalDelta;
 }
 
 function getHandCopyIdAt(cardState: any, playerKey: string, handIndex: number): number | null {
@@ -342,7 +437,7 @@ function removeHandCardAt(cardState: any, playerKey: string, handIndex: number):
     return { cardId, cardCopyId, handIndex };
 }
 
-function clearHandToDiscard(cardState: any, playerKey: string): HandResult {
+function clearHandToDiscard(cardState: any, playerKey: string, context: Context, opts?: any): HandResult {
     const ownerKey = normalizestring(playerKey);
     const hands = ensureHands(cardState);
     const copyState = ensureCardCopyState(cardState);
@@ -350,12 +445,33 @@ function clearHandToDiscard(cardState: any, playerKey: string): HandResult {
     if (!hand || hand.length <= 0) {
         return { destroyedCards: [], destroyedCopyIds: [] };
     }
-    const destroyedCards = hand.splice(0, hand.length);
+    const options = opts || {};
+    const isInviolableSpecialCardId = typeof options.isInviolableSpecialCardId === 'function'
+        ? options.isInviolableSpecialCardId
+        : () => false;
+    const rawCards = hand.splice(0, hand.length);
     const rawCopyIds = copyState.handCopyIdsByPlayer[ownerKey].splice(0, copyState.handCopyIdsByPlayer[ownerKey].length);
-    const destroyedCopyIds = destroyedCards.map((_, index) => normalizeSingleCopyId(cardState, rawCopyIds[index]));
+    const keptCards: string[] = [];
+    const keptCopyIds: number[] = [];
+    const destroyedCards: string[] = [];
+    const destroyedCopyIds: number[] = [];
+
+    rawCards.forEach((cardId: string, index: number) => {
+        const copyId = normalizeSingleCopyId(cardState, rawCopyIds[index]);
+        if (isInviolableSpecialCardId(cardId)) {
+            keptCards.push(cardId);
+            keptCopyIds.push(copyId);
+            return;
+        }
+        destroyedCards.push(cardId);
+        destroyedCopyIds.push(copyId);
+    });
+
+    hand.push(...keptCards);
+    copyState.handCopyIdsByPlayer[ownerKey].push(...keptCopyIds);
     ensureDiscard(cardState).push(...destroyedCards);
     copyState.discardCopyIds.push(...destroyedCopyIds);
-    return { destroyedCards, destroyedCopyIds };
+    return { destroyedCards, destroyedCopyIds, keptCards, keptCopyIds };
 }
 
 function moveDiscardCardToHandByCardId(cardState: any, playerKey: string, cardId: string, context: Context, opts?: any): HandResult | null {
@@ -486,10 +602,56 @@ function getCardCost(cardId: string, context: Context): number {
     return def ? def.cost : 0;
 }
 
+function isCardPlayLockedForPlayer(cardState: any, playerKey: string, context: Context): boolean {
+    const helpers = getHelpers(context);
+    if (helpers && typeof helpers.isCardPlayLockedForPlayer === 'function') {
+        return helpers.isCardPlayLockedForPlayer(cardState, playerKey) === true;
+    }
+    if (CardMarkersModule && typeof CardMarkersModule.isCardPlayLockedForPlayer === 'function') {
+        return CardMarkersModule.isCardPlayLockedForPlayer(cardState, playerKey) === true;
+    }
+    return false;
+}
+
+function isInviolableSpecialCardId(cardId: any, context: Context): boolean {
+    const helpers = getHelpers(context);
+    if (helpers && typeof helpers.isInviolableSpecialCardId === 'function') {
+        return helpers.isInviolableSpecialCardId(cardId) === true;
+    }
+    if (SpecialCardRegistryModule && typeof SpecialCardRegistryModule.isInviolableSpecialCardId === 'function') {
+        return SpecialCardRegistryModule.isInviolableSpecialCardId(cardId) === true;
+    }
+    return false;
+}
+
+function isActiveManifestStoneMarker(marker: any): boolean {
+    if (ManifestStoneRegistryModule && typeof ManifestStoneRegistryModule.isActiveManifestStoneMarker === 'function') {
+        return ManifestStoneRegistryModule.isActiveManifestStoneMarker(marker) === true;
+    }
+    if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneMarker === 'function') {
+        if (CardMarkersModule.isManifestStoneMarker(marker) !== true) return false;
+    } else {
+        const type = marker && marker.data ? String(marker.data.type || '').toUpperCase() : '';
+        if (!marker || (marker.kind !== 'manifestStone' && marker.kind !== 'specialStone')) return false;
+        if (!isManifestStoneType(type)) return false;
+    }
+    if (marker && marker.data && Object.prototype.hasOwnProperty.call(marker.data, 'remainingOwnerTurns')) {
+        const remaining = Number(marker.data.remainingOwnerTurns);
+        return Number.isFinite(remaining) && remaining > 0;
+    }
+    return true;
+}
+
+function hasActiveManifestStone(cardState: any): boolean {
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    return markers.some(isActiveManifestStoneMarker);
+}
+
 function canUseCard(cardState: any, playerKey: string, cardId: string, context: Context, opts?: any): boolean {
     const { RIBO_WILL_UNLOCK_TURN_INDEX } = getConstants(context);
     const hands = cardState && cardState.hands;
     if (!hands || !Array.isArray(hands[playerKey])) return false;
+    if (isCardPlayLockedForPlayer(cardState, playerKey, context)) return false;
     const skipCostAndTurnLimit = opts && opts.skipCostAndTurnLimit;
     const hasLiveTurnUsageFlag = !skipCostAndTurnLimit
         && cardState
@@ -497,12 +659,22 @@ function canUseCard(cardState: any, playerKey: string, cardId: string, context: 
         && (cardState as any).hasUsedCardThisTurnByPlayer
         && (cardState as any).hasUsedCardThisTurnByPlayer[playerKey];
     if (hasLiveTurnUsageFlag) return false;
-    if (!hands[playerKey].includes(cardId)) return false;
+    const handIndex = hands[playerKey].indexOf(cardId);
+    if (handIndex < 0) return false;
     if (!skipCostAndTurnLimit) {
-        const cost = getCardCost(cardId, context);
+        const copyId = getHandCopyIdAt(cardState, playerKey, handIndex);
+        const cost = getEffectiveCardCostForCopy(cardState, cardId, Number(copyId || 0), context);
         if (!cardState.charge || Number(cardState.charge[playerKey] || 0) < cost) return false;
     }
     const cardType = getCardType(cardId, context);
+    if (isInviolableSpecialCardId(cardId, context) && hasActiveManifestStone(cardState)) {
+        return false;
+    }
+    if (cardType === 'THEORY_INCARNATION') {
+        const totals = (cardState as any).numberCellCollectedTotalByPlayer;
+        const collected = Number(totals && totals[playerKey] || 0);
+        if (!Number.isFinite(collected) || collected < 42) return false;
+    }
     if (cardType === 'RIBO_WILL' && Number((cardState as any).turnIndex || 0) < RIBO_WILL_UNLOCK_TURN_INDEX) {
         return false;
     }
@@ -528,11 +700,18 @@ function destroyHandCard(cardState: any, playerKey: string, cardId: string, opts
     const ownerKey = normalizestring(playerKey);
     const hand = Array.isArray(cardState.hands[ownerKey]) ? cardState.hands[ownerKey] : null;
     if (!hand) return { applied: false, reason: 'invalid_hand' };
+    const options = opts || {};
+    const isInviolableSpecialCardId = typeof options.isInviolableSpecialCardId === 'function'
+        ? options.isInviolableSpecialCardId
+        : () => false;
 
     ensureHandDestroyFlags(cardState);
 
     const index = hand.indexOf(cardId);
     if (index < 0) return { applied: false, reason: 'card_not_in_hand' };
+    if (isInviolableSpecialCardId(cardId)) {
+        return { applied: false, reason: 'inviolable_special_card' };
+    }
 
     const removed = removeHandCardAt(cardState, ownerKey, index);
     if (!removed) return { applied: false, reason: 'card_not_in_hand' };
@@ -626,7 +805,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'TEMPT_WILL' && !requireLocalTargets(context, 'getTemptWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TRAP_WILL' && !requireLocalTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'HYPERACTIVE_INHERIT_WILL' && !requireLocalTargets(context, 'getHyperactiveInheritTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'LIVING_WILL' && !requireLocalTargets(context, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireLocalTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'CORROSION_WILL' && !requireLocalTargets(context, 'getCorrosionTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TIME_BOMB' && !requireLocalTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
@@ -667,7 +846,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'POSITION_SWAP_WILL' && !requireModuleTargets(context, 'getPositionSwapTargets', [cardState, gameState, playerKey, null], 2)) continue;
             if (type === 'TRAP_WILL' && !requireModuleTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireModuleTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'HYPERACTIVE_INHERIT_WILL' && !requireModuleTargets(context, 'getHyperactiveInheritTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'LIVING_WILL' && !requireModuleTargets(context, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireModuleTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TIME_BOMB' && !requireModuleTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TELEPORT_WILL' && !requireModuleTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
@@ -707,6 +886,9 @@ export = {
     getHandCopyIds,
     isCardCopyIdRevealedToViewer,
     revealCurrentHandToViewer,
+    setCardCostOverrideForCopyId,
+    addCardCostModifierForCopyId,
+    getEffectiveCardCostForCopy,
     addCardToHand,
     addCardToDiscard,
     removeHandCardAt,

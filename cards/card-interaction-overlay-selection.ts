@@ -144,9 +144,50 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
     }
 }
 
+function executeObserverWillSelection(playerKey: any, targetIndex: any, targetCardId: any, deps: OverlaySelectionDeps) {
+    if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
+    if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    deps.setPendingSelectionBusy(true);
+    let completed = false;
+    try {
+        const targetDef = deps.resolveCardDef(targetCardId);
+        const action = createPendingSelectionAction(playerKey, 'OBSERVER_WILL', { observerWillTargetIndex: targetIndex }, deps);
+        if (deps.startNetworkOnlyPendingSelectionPublish({
+            playerKey,
+            action,
+            onSuccess: () => {
+                deps.clearHeavenSelection(playerKey);
+                deps.hideHeavenOverlay();
+            },
+            onFailure: () => {
+                if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
+                deps.addLog('盤理の観測者の選択送信に失敗しました');
+            }
+        })) {
+            completed = true;
+            return { ok: true, publishedByNetwork: true };
+        }
+        const result = deps.runPipelineAction(playerKey, action);
+        if (!result.ok) return result;
+        deps.addLog(`${playerKey === 'black' ? '黒' : '白'}が盤理の観測者で${deps.getCardDisplayLabel(targetCardId, targetDef)}を獲得`);
+        deps.clearHeavenSelection(playerKey);
+        deps.hideHeavenOverlay();
+        const shouldDelayPostActionHandVisual = deps.hasHandRemovePlaybackEvent(result);
+        deps.renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual, null);
+        if (typeof deps.emitBoardUpdate === 'function') deps.emitBoardUpdate();
+        else if (typeof deps.renderBoard === 'function') deps.renderBoard();
+        finalizePendingSelectionAfterRun(playerKey, 'OBSERVER_WILL', result, deps);
+        completed = true;
+        return { ok: true };
+    } finally {
+        if (!completed) deps.setPendingSelectionBusy(false);
+    }
+}
+
 module.exports = {
     createPendingSelectionAction,
     finalizePendingSelectionAfterRun,
     executeHeavenSelection,
-    executeCondemnSelection
+    executeCondemnSelection,
+    executeObserverWillSelection
 };

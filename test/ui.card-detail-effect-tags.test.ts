@@ -151,6 +151,28 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
   });
 
+  test('OBSERVER_WILL shows absolute protection together with duration', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'observer_will_01',
+      name: '盤理の観測者',
+      type: 'OBSERVER_WILL',
+      cost: 0,
+      desc: '相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。観測者を顕現させる。盤上にいる間相手の手札を観測できる。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    expect(getTagLabels()).toEqual(['絶対保護', '5ターン持続']);
+    expect(document.getElementById('card-detail-desc').textContent).toContain('観測者を顕現させる');
+    expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
+  });
+
   test('AFTERIMAGE_WILL shows flip and destroy evasion count tags together', () => {
     require('../cards/card-interaction.js');
 

@@ -3,6 +3,7 @@ export {};
 type OverlayRefs = {
     root: any;
     offers: any;
+    warning: any;
     detailName: any;
     detailDesc: any;
     selectBtn: any;
@@ -29,6 +30,7 @@ type OverlayViewDeps = {
     playUiEffectSound: (effectKey: any) => any;
     executeHeavenSelection: (playerKey: any, selectedCardId: any) => any;
     executeCondemnSelection: (playerKey: any, targetIndex: any, targetCardId: any) => any;
+    executeObserverWillSelection: (playerKey: any, targetIndex: any, targetCardId: any) => any;
 };
 
 function ensureHeavenOverlay(deps: OverlayViewDeps) {
@@ -48,6 +50,7 @@ function ensureHeavenOverlay(deps: OverlayViewDeps) {
             '<div class="heaven-blessing-panel">',
             '  <div class="heaven-blessing-title">天の恵み</div>',
             '  <div class="heaven-blessing-subtitle">候補から1枚を選んで獲得</div>',
+            '  <div class="heaven-blessing-warning" id="heaven-blessing-warning" hidden></div>',
             '  <div class="heaven-blessing-offers" id="heaven-blessing-offers"></div>',
             '  <div class="heaven-blessing-detail">',
             '    <div class="heaven-blessing-detail-name" id="heaven-blessing-detail-name">-</div>',
@@ -62,6 +65,7 @@ function ensureHeavenOverlay(deps: OverlayViewDeps) {
     const refs = {
         root,
         offers: root.querySelector('#heaven-blessing-offers'),
+        warning: root.querySelector('#heaven-blessing-warning'),
         detailName: root.querySelector('#heaven-blessing-detail-name'),
         detailDesc: root.querySelector('#heaven-blessing-detail-desc'),
         selectBtn: root.querySelector('#heaven-blessing-select-btn'),
@@ -116,10 +120,14 @@ function resolveOverlayOfferByKey(offers: any, offerKey: any) {
 }
 
 function getOverlayOfferOwnerKey(pendingType: any, playerKey: any) {
-    if (pendingType === 'CONDEMN_WILL') {
+    if (pendingType === 'CONDEMN_WILL' || pendingType === 'OBSERVER_WILL') {
         return playerKey === 'black' ? 'white' : 'black';
     }
     return playerKey;
+}
+
+function isHandOverlayPendingType(pendingType: any): boolean {
+    return pendingType === 'HEAVEN_BLESSING' || pendingType === 'CONDEMN_WILL' || pendingType === 'OBSERVER_WILL';
 }
 
 function createFallbackOfferCard(cardId: any, cardDef: any, deps: OverlayViewDeps) {
@@ -163,22 +171,31 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
     const cardStateValue = deps.getCardStateValue();
     const pending = cardStateValue && cardStateValue.pendingEffectByPlayer ? cardStateValue.pendingEffectByPlayer[playerKey] : null;
     const pendingType = pending && pending.type ? pending.type : null;
-    const isSelecting = !!(pending && pending.stage === 'selectTarget' && (pendingType === 'HEAVEN_BLESSING' || pendingType === 'CONDEMN_WILL'));
+    const isSelecting = !!(pending && pending.stage === 'selectTarget' && isHandOverlayPendingType(pendingType));
     if (!isSelecting) {
         hideHeavenOverlay(deps);
         return;
     }
     const titleEl = refs.root.querySelector('.heaven-blessing-title');
     const subtitleEl = refs.root.querySelector('.heaven-blessing-subtitle');
-    if (titleEl) titleEl.textContent = pendingType === 'CONDEMN_WILL' ? '断罪の意志' : '天の恵み';
-    if (subtitleEl) subtitleEl.textContent = pendingType === 'CONDEMN_WILL' ? '相手手札から1枚を選んで破壊' : '候補から1枚を選んで獲得';
+    if (titleEl) titleEl.textContent = pendingType === 'CONDEMN_WILL' ? '断罪の意志' : (pendingType === 'OBSERVER_WILL' ? '盤理の観測者' : '天の恵み');
+    if (subtitleEl) subtitleEl.textContent = pendingType === 'CONDEMN_WILL'
+        ? '相手手札から1枚を選んで破壊'
+        : (pendingType === 'OBSERVER_WILL' ? '相手手札から1枚を選んで獲得' : '候補から1枚を選んで獲得');
+    if (refs.warning) {
+        const showObserverWarning = pendingType === 'OBSERVER_WILL';
+        refs.warning.hidden = !showObserverWarning;
+        refs.warning.textContent = showObserverWarning
+            ? '観測済みの相手手札はコスト+5。選択したカードは0コストで獲得。'
+            : '';
+    }
 
     const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
     if (!offers.length) {
         refs.root.classList.add('active');
         refs.offers.innerHTML = '';
         refs.detailName.textContent = '候補なし';
-        refs.detailDesc.textContent = pendingType === 'CONDEMN_WILL' ? '対象カードがありません' : '候補カードがありません';
+        refs.detailDesc.textContent = (pendingType === 'CONDEMN_WILL' || pendingType === 'OBSERVER_WILL') ? '対象カードがありません' : '候補カードがありません';
         refs.selectBtn.disabled = true;
         refs.reason.textContent = '';
         return;
@@ -204,7 +221,7 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
         cardEl.dataset.cardId = cardId;
         if (selectedKey === offerKey) cardEl.classList.add('selected');
         cardEl.addEventListener('click', () => {
-            if (pendingType === 'HEAVEN_BLESSING') {
+            if (pendingType === 'HEAVEN_BLESSING' || pendingType === 'OBSERVER_WILL') {
                 deps.playUiEffectSound('hand_card_select');
             }
             deps.setHeavenSelection(playerKey, offerKey);
@@ -218,13 +235,18 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
     const selectedDef = deps.resolveCardDef(selectedCardId);
     refs.detailName.textContent = deps.getCardDisplayLabel(selectedCardId, selectedDef);
     refs.detailDesc.textContent = deps.getOverlayCardDescriptionText(selectedDef, selectedCardId);
-    refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : '選択';
+    refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : (pendingType === 'OBSERVER_WILL' ? '奪う' : '選択');
     refs.selectBtn.disabled = handFull || !selectedOffer;
     refs.selectBtn.onclick = () => {
         if (!selectedOffer) return;
         if (pendingType === 'CONDEMN_WILL') {
             const targetIndex = (selectedOffer && typeof selectedOffer === 'object') ? selectedOffer.handIndex : null;
             deps.executeCondemnSelection(playerKey, targetIndex, selectedCardId);
+            return;
+        }
+        if (pendingType === 'OBSERVER_WILL') {
+            const targetIndex = (selectedOffer && typeof selectedOffer === 'object') ? selectedOffer.handIndex : null;
+            deps.executeObserverWillSelection(playerKey, targetIndex, selectedCardId);
             return;
         }
         deps.executeHeavenSelection(playerKey, selectedCardId);

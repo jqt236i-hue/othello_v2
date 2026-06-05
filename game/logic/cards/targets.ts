@@ -259,8 +259,22 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
         m.data.type === 'GUARD'
     );
     const CardUtils = getCardUtils();
+    const isAbsoluteProtected = (r: number, c: number) => {
+        if (CardUtils && typeof CardUtils.isAbsoluteProtectedStoneAt === 'function') {
+            return !!CardUtils.isAbsoluteProtectedStoneAt(cardState, r, c);
+        }
+        return markers.some((m: any) =>
+            m &&
+            m.kind === 'specialStone' &&
+            m.row === r &&
+            m.col === c &&
+            m.data &&
+            m.data.type === 'ABSOLUTE_PROTECTED'
+        );
+    };
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isGuarded(r, c)) return;
+        if (isAbsoluteProtected(r, c)) return;
         if (CardUtils && typeof CardUtils.isTrueSpecialStoneAt === 'function') {
             const isTrueSpecial = !!CardUtils.isTrueSpecialStoneAt(cardState, r, c);
             const markerEntry = typeof CardUtils.getSpecialMarkerAt === 'function'

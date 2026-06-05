@@ -36,7 +36,6 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
     if (s === 'SNIPER') return '狙撃石';
     if (s === 'LIGHTNING') return '落雷石';
-    if (s === 'OBSERVER') return '盤理の観測者石';
     if (s === 'HYPERACTIVE') return '多動石';
     if (s === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
     if (s === 'ESCAPE_HYPERACTIVE') return '逃亡石';
@@ -68,7 +67,6 @@ function _hyperactiveLabel(ev: any, fallback: any) {
     const details = (ev && Array.isArray(ev.details)) ? ev.details : null;
     const first = details && details[0] ? details[0] : null;
     const markerType = String(first && (first.specialType || first.type) ? (first.specialType || first.type) : '').toUpperCase();
-    if (markerType === 'INHERITED_HYPERACTIVE') return '継承多動石';
     if (markerType === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
     if (markerType === 'ESCAPE_HYPERACTIVE') return '逃亡石';
     if (markerType === 'GLUTTONOUS') return '悪食石';
@@ -91,15 +89,6 @@ function _pushSplitDestroyedVsRevertedLog(push: any, ev: any, label: any, destro
     const destroyedCount = Math.max(0, totalCount - revertedCount);
     if (destroyedCount > 0) push(`${label}${destroyedCount}個が${destroyedWord}`);
     if (revertedCount > 0) push(`${label}${revertedCount}個が通常石に戻る`);
-}
-
-function _observerExpiredLogText(ev: any) {
-    const durationCount = _countMatchingDetails(ev, (detail: any) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'duration_end');
-    const lostCount = _countMatchingDetails(ev, (detail: any) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'anchor_lost');
-    const totalCount = _detailCount(ev);
-    if (durationCount > 0 && lostCount === 0) return `盤理の観測者: 親石${durationCount}個が通常石に戻る`;
-    if (lostCount > 0 && durationCount === 0 && lostCount === totalCount) return `盤理の観測者: 親石${lostCount}個が失われて効果終了`;
-    return `盤理の観測者: 親石${totalCount}個の効果が終了`;
 }
 
 function _formatCrystalStonePlacementLog(effects: any) {
@@ -287,123 +276,6 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             case 'will_hunter_king_expired_immediate':
                 push(`意志狩りの王: 親石${_detailCount(ev)}個が通常石に戻る`);
                 break;
-            case 'observer_triggered_start':
-            case 'observer_triggered_immediate':
-                push(`盤理の観測者: 布石+${_detailGainedSum(ev)}`);
-                break;
-            case 'observer_expired_start':
-            case 'observer_expired_immediate':
-                push(_observerExpiredLogText(ev));
-                break;
-            case 'destroy_selected':
-                if (ev.destroyed) push(`破壊の意志で${_toPosText(ev.target, deps)}を破壊`);
-                else if (ev.regenerated) push(`破壊の意志: ${_toPosText(ev.target, deps)} は復活した`);
-                else if (ev.proliferated) push(`破壊の意志: ${_toPosText(ev.target, deps)} は石を残したまま増殖`);
-                else if (ev.blockedByGhost) push(`破壊の意志: ${_toPosText(ev.target, deps)} は幽体化で無効化`);
-                else if (ev.evaded) push(`破壊の意志: ${_toPosText(ev.target, deps)} は回避した`);
-                break;
-            case 'strong_wind_selected':
-                if (ev.applied) push(`強風で${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}に移動`);
-                break;
-            case 'buoyancy_selected':
-                if (ev.applied) push(`浮力で${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}に移動`);
-                break;
-            case 'super_buoyancy_selected':
-                if (ev.applied) push(`超浮力で${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}に移動（破壊${Array.isArray(ev.destroyed) ? ev.destroyed.length : 0}）`);
-                break;
-            case 'gravity_selected':
-                if (ev.applied) push(`重力で${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}に移動`);
-                break;
-            case 'super_gravity_selected':
-                if (ev.applied) push(`超重力で${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}に移動（破壊${Array.isArray(ev.destroyed) ? ev.destroyed.length : 0}）`);
-                break;
-            case 'teleport_selected':
-                if (ev.applied) {
-                    if (ev.cardType === 'CELL_TELEPORT_WILL') {
-                        push(`マステレポートで${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}へ移動し、元マスを穴化`);
-                    } else {
-                        push(`テレポートで${_toPosText(ev.from, deps)}→${_toPosText(ev.to, deps)}に移動`);
-                    }
-                }
-                break;
-            case 'rebuild_will_resolved':
-                push(`再構築の意志: 手札${Number(ev.destroyedCount) || 0}枚を破壊し、${Number(ev.drawnCount) || 0}枚ドロー`);
-                break;
-            case 'supply_will_resolved':
-                push(`補給の意志: ${Number(ev.drawnCount) || 0}枚ドロー`);
-                break;
-            case 'corner_tribute_resolved':
-                push(`角の代償: 相手の布石を${Number(ev.stolen) || 0}奪取`);
-                break;
-            case 'ribo_will_resolved':
-                push(`リボ払いの意志: 布石+${Number(ev.gained) || 0}、以後${Number(ev.remainingOwnerTurns) || 0}ターンは開始時に${Number(ev.repaymentAmount) || 0}返済`);
-                break;
-            case 'ribo_will_repaid':
-                push(`リボ払いの意志: 布石-${Number(ev.repaid) || 0}返済（残り${Number(ev.remainingOwnerTurns) || 0}ターン）`);
-                break;
-            case 'ribo_will_shortage':
-                push(`リボ払いの意志: 布石不足で自石${Number(ev.destroyedCount) || 0}個を破壊（残り${Number(ev.remainingOwnerTurns) || 0}ターン）`);
-                break;
-            case 'gluttonous_will_hand_destroyed':
-                push(`悪食の意志: 手札${Number(ev.destroyedCount) || 0}枚を破壊`);
-                break;
-            case 'loss_will_resolved':
-                push(`意志の喪失: 特殊石${Number(ev.removedCount) || 0}個を通常石に戻す`);
-                break;
-            case 'corrosion_will_resolved':
-                push(`腐食の意志: 特殊石${Number(ev.affectedCount) || 0}個の持続ターンを半減`);
-                break;
-            case 'reinforcement_will_resolved':
-                push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                break;
-            case 'support_troops_will_resolved':
-                push(`援軍の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                break;
-            case 'salvation_will_resolved':
-                push(`救済の意志: 破壊石${Number(ev.spawnedCount) || 0}個を通常石として救済${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                break;
-            case 'execution_will_resolved':
-                push(`執行の意志: 相手手札を${Number(ev.destroyedCount) || 0}枚破壊`);
-                break;
-            case 'equality_will_resolved':
-                push(`平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                break;
-            case 'heaven_blessing_selected':
-                if (ev.applied) push('天の恵みでカード獲得');
-                break;
-            case 'condemn_selected':
-                if (ev.applied) push('断罪で相手カードを破壊');
-                break;
-            case 'tempt_selected':
-                if (ev.applied) {
-                    if (ev.blockedByGhost) push('誘惑は幽体に受け流された');
-                    else push('誘惑で特殊石を奪取');
-                }
-                break;
-            case 'swap_selected':
-                if (ev.swapped) push(`交換で${_toPosText({ row: ev.row, col: ev.col }, deps)}を変換`);
-                break;
-            case 'position_swap_first_selected':
-                if (ev.applied) push(`入替の意志: 1つ目に${_toPosText(ev.from || ev.target, deps)}を選択`);
-                break;
-            case 'position_swap_selected':
-                if (ev.applied && ev.completed) push(`入替の意志: ${_toPosText(ev.from, deps)} と ${_toPosText(ev.to, deps)} を入替`);
-                break;
-            case 'trap_selected':
-                if (ev.applied) push('罠石がどこかに潜んでいる...');
-                break;
-            case 'guard_selected':
-                if (ev.applied) push('守る意志で完全保護を付与');
-                break;
-            case 'extend_life_selected':
-                if (ev.applied) push(ev && ev.cardType === 'EXTEND_LIFE_GOD' ? '延命神で持続を4倍化' : '延命の意志で持続を延長');
-                break;
-            case 'time_bomb_selected':
-                if (ev.applied) push(`時限爆弾を${_toPosText(ev.target, deps)}に設置`);
-                break;
-            case 'time_stop_god_cost_resolved':
-                if (Number(ev.destroyedCount) > 0) push(`時間停石: 自石${Number(ev.destroyedCount) || 0}個を破壊`);
-                break;
             case 'time_stop_triggered':
                 push('時間停石: 時間停止が発動し、2連続で行動');
                 break;
@@ -448,10 +320,19 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 if (ev.applied) push(`封鎖の意志: ${_toPosText(ev.target, deps)}を3ターン封鎖`);
                 break;
             case 'meteor_selected':
-                if (ev.applied) push(`隕石: ${_toPosText(ev.target, deps)}をマスごと破壊`);
+                if (ev.applied) push(`因果抹消: ${_toPosText(ev.target, deps)}をマスごと破壊`);
                 break;
             case 'freeze_selected':
                 if (ev.applied) push(`凍結の意志: ${_toPosText(ev.target, deps)}を5ターン凍結`);
+                break;
+            case 'heaven_blessing_selected':
+                if (ev.applied) push('天の恵みでカード獲得');
+                break;
+            case 'condemn_selected':
+                if (ev.applied) push('断罪で相手カードを破壊');
+                break;
+            case 'observer_will_selected':
+                if (ev.applied) push('盤理の観測者で相手カードを獲得');
                 break;
             case 'treasure_box_gain':
                 push(`宝箱: 布石+${Number(ev.gained) || 0}`);
@@ -480,7 +361,6 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.freePlacementUsed && !e.sniperPlaced) push('自由の意志:自由な空きマスに配置');
                     if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
                     if (e.lightningPlaced) push('落雷の意志: 落雷石を設置');
-                    if (e.observerPlaced) push('盤理の観測者を設置');
                     if (e.willHunterKingPlaced) push('意志狩りの王を設置');
                     if (e.silverStoneUsed) push('銀石: 獲得布石3倍');
                     if (e.goldStoneUsed) push('金石: 獲得布石4倍');

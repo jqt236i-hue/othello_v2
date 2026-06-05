@@ -48,10 +48,12 @@ describe('CardHandManager module', () => {
     const defsById = {
       ribo_card: { id: 'ribo_card', type: 'RIBO_WILL', cost: 0, name: 'Ribo' },
       last_card: { id: 'last_card', type: 'LAST_RESORT', cost: 0, name: 'Last' },
-      destroy_card: { id: 'destroy_card', type: 'DESTROY_ONE_STONE', cost: 0, name: 'Destroy' }
+      destroy_card: { id: 'destroy_card', type: 'DESTROY_ONE_STONE', cost: 0, name: 'Destroy' },
+      living_card: { id: 'living_card', type: 'LIVING_WILL', cost: 0, name: 'Living' }
     };
     const selectorsModule = {
-      getDestroyTargets: jest.fn(() => [])
+      getDestroyTargets: jest.fn(() => []),
+      getLivingWillTargets: jest.fn(() => [])
     };
     const context = {
       constants: {
@@ -76,7 +78,7 @@ describe('CardHandManager module', () => {
       }
     };
     const cardState = {
-      hands: { black: ['ribo_card', 'last_card', 'destroy_card'], white: [] },
+      hands: { black: ['ribo_card', 'last_card', 'destroy_card', 'living_card'], white: [] },
       charge: { black: 0, white: 0 },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
       turnIndex: 18
@@ -91,6 +93,10 @@ describe('CardHandManager module', () => {
     selectorsModule.getDestroyTargets.mockReturnValue([{ row: 2, col: 3 }]);
 
     expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual(['ribo_card', 'destroy_card']);
+
+    selectorsModule.getLivingWillTargets.mockReturnValue([{ row: 4, col: 4 }]);
+
+    expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual(['ribo_card', 'destroy_card', 'living_card']);
   });
 
   test('copy ids keep reveal ledger stable across destroy, redraw, and discard restore', () => {

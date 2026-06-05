@@ -56,12 +56,6 @@
             flipCause: 'ESCAPE_HYPERACTIVE',
             flipMoveReason: 'escape_hyperactive_flip_evade_move'
         }),
-        INHERITED_HYPERACTIVE: Object.freeze({
-            flipDefault: 1,
-            destroyDefault: 1,
-            flipCause: 'HYPERACTIVE_INHERIT_WILL',
-            flipMoveReason: 'inherited_hyperactive_flip_evade_move'
-        }),
         EXTREME_HYPERACTIVE: Object.freeze({
             flipDefault: 3,
             destroyDefault: 1,

@@ -5,9 +5,18 @@ const fs = require("fs");
 const path = require("path");
 const { performance } = require("perf_hooks");
 
-const Board = require("../othello-ai/core/board");
-const Engine = require("../othello-ai/runtime/engine");
-const ValueTable = require("../othello-ai/eval/value-table");
+function requireOthelloAiModule(modulePath: string) {
+  try {
+    return require(`../othello-ai/${modulePath}`);
+  } catch (error: any) {
+    if (error && error.code !== "MODULE_NOT_FOUND") throw error;
+    return require(`../../othello-ai/${modulePath}`);
+  }
+}
+
+const Board = requireOthelloAiModule("core/board");
+const Engine = requireOthelloAiModule("runtime/engine");
+const ValueTable = requireOthelloAiModule("eval/value-table");
 const OthelloOnnxRuntime = require("../game/ai/othello-onnx-runtime");
 
 function loadFreshOthelloOnnxRuntime() {

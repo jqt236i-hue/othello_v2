@@ -58,8 +58,7 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
             'teleportTarget',
             'expansionTarget',
             'shrinkTarget',
-            'trapTarget',
-            'hyperactiveInheritTarget'
+            'trapTarget'
         ];
 
     function toFiniteStatNumber(value: any) {

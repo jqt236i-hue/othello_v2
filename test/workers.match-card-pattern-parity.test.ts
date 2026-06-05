@@ -4,6 +4,7 @@ import { spawnSync } from 'child_process';
 import * as Core from '../game/logic/core.js';
 import * as MatchAuthority from '../utils/match-authority.js';
 import * as LocalMatchRuntime from '../scripts/local-match-runtime';
+import * as DebugActions from '../game/debug/debug-actions';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 const WORKER_RESULT_MARKER = '__WORKER_CARD_PATTERN_PARITY__';
@@ -136,7 +137,7 @@ function runWorkerPublish(initialSnapshot, stateVersion, body, seed = 71) {
     "    roomId: 'WPAR', seed, stateVersion, updatedAt: Date.now(),",
     "    seats: { black: true, white: true }, seatTokens: { black: 'token_black', white: 'token_white' },",
     "    seatNames: { black: 'black', white: 'white' }, seatHandSkins: { black: '', white: '' },",
-    "    roomDeck: null, roomBoardConfig: snapshot && snapshot.gameState ? snapshot.gameState.boardConfig || null : null, networkDebugEnabled: false,",
+    "    roomDeck: null, roomBoardConfig: snapshot && snapshot.gameState ? snapshot.gameState.boardConfig || null : null, networkDebugEnabled: !!(snapshot && snapshot.cardState && snapshot.cardState.debugHandFilled),",
     "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
     "    lastAcceptedOperationBySeat: { black: null, white: null }, acceptedOperationHistoryBySeat: { black: [], white: [] },",
     "    eventSeq: 0, sseEventBuffer: [], authorityLog: [], chatMessages: [], chatSeq: 0, snapshot",
@@ -439,6 +440,120 @@ describe('worker card pattern parity', () => {
       .filter(Boolean);
     expect(workerDestroyEvents.length).toBe(localDestroyEvents.length);
     expect(workerSoundKeys).toContain('bomb_explode');
+  }, 90000);
+
+  test('network debug fill can use position swap will with debug no-consume options', () => {
+    const cardId = 'position_swap_01';
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 71, networkDebugEnabled: true });
+    const runtimeSnapshot = runtime.getSnapshot();
+    DebugActions.fillDebugHand(runtimeSnapshot.cardState, {
+      playerKey: 'black',
+      replaceExisting: true,
+      charge: 99
+    });
+    runtimeSnapshot.cardState.deck.black = [];
+    runtimeSnapshot.cardState.deck.white = [];
+    runtimeSnapshot.cardState.discard = [];
+    runtimeSnapshot.cardState.selectedCardId = cardId;
+    runtimeSnapshot.cardState.selectedCardOwnerKey = 'black';
+    runtimeSnapshot.gameState.currentPlayer = Core.BLACK;
+    runtime.getRoom().stateVersion = 0;
+    runtimeSnapshot.stateVersion = 0;
+    runtime.getRoom().networkDebugEnabled = true;
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
+
+    const initialSnapshot = clone(runtimeSnapshot);
+    const initialVersion = runtime.getRoom().stateVersion;
+    const body = buildUseCardBody(runtime, cardId, 'op_worker_pattern_debug_position_swap_use');
+    body.params.debugOptions = { ignoreCost: true, noConsume: true };
+    body.action.debugOptions = { ignoreCost: true, noConsume: true };
+
+    const workerResult = runWorkerPublish(initialSnapshot, initialVersion, body);
+
+    expect(workerResult.status).toBe(200);
+    expect(workerResult.payload.ok).toBe(true);
+    expect(workerResult.payload.snapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'POSITION_SWAP_WILL',
+      stage: 'selectTarget'
+    }));
+  }, 90000);
+
+  test('network debug fill then move still allows next player to use position swap will', () => {
+    const cardId = 'position_swap_01';
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 71, networkDebugEnabled: true });
+    const runtimeSnapshot = runtime.getSnapshot();
+    DebugActions.fillDebugHand(runtimeSnapshot.cardState, {
+      playerKey: 'white',
+      replaceExisting: true,
+      charge: 99
+    });
+    runtimeSnapshot.cardState.deck.black = [];
+    runtimeSnapshot.cardState.deck.white = [];
+    runtimeSnapshot.cardState.discard = [];
+    runtimeSnapshot.gameState.currentPlayer = Core.BLACK;
+    runtime.getRoom().stateVersion = 0;
+    runtimeSnapshot.stateVersion = 0;
+    runtime.getRoom().networkDebugEnabled = true;
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
+
+    const move = pickFirstLegalMove(runtimeSnapshot, 'black');
+    const moveTurnIndex = Number(runtimeSnapshot.cardState && runtimeSnapshot.cardState.turnIndex) || 0;
+    const moveBody = {
+      seatKey: 'black',
+      playerKey: 'black',
+      baseVersion: 0,
+      operationId: 'op_worker_pattern_debug_position_swap_move',
+      actionType: 'place',
+      actor: 'black',
+      params: {
+        row: move.row,
+        col: move.col
+      },
+      turnIndex: moveTurnIndex,
+      action: {
+        type: 'place',
+        playerKey: 'black',
+        row: move.row,
+        col: move.col,
+        turnIndex: moveTurnIndex
+      }
+    };
+    const moveResult = runWorkerPublish(clone(runtimeSnapshot), 0, moveBody);
+    expect(moveResult.status).toBe(200);
+    expect(moveResult.payload.ok).toBe(true);
+
+    const afterMoveSnapshot = clone(moveResult.payload.snapshot);
+    const useTurnIndex = Number(afterMoveSnapshot.cardState && afterMoveSnapshot.cardState.turnIndex) || 0;
+    const useBody = {
+      seatKey: 'white',
+      playerKey: 'white',
+      baseVersion: moveResult.payload.stateVersion,
+      operationId: 'op_worker_pattern_debug_position_swap_after_move_use',
+      actionType: 'use_card',
+      actor: 'white',
+      params: {
+        useCardId: cardId,
+        useCardOwnerKey: 'white',
+        debugOptions: { ignoreCost: true, noConsume: true }
+      },
+      turnIndex: useTurnIndex,
+      action: {
+        type: 'use_card',
+        playerKey: 'white',
+        useCardId: cardId,
+        useCardOwnerKey: 'white',
+        debugOptions: { ignoreCost: true, noConsume: true },
+        turnIndex: useTurnIndex
+      }
+    };
+    const useResult = runWorkerPublish(afterMoveSnapshot, moveResult.payload.stateVersion, useBody);
+
+    expect(useResult.status).toBe(200);
+    expect(useResult.payload.ok).toBe(true);
+    expect(useResult.payload.snapshot.cardState.pendingEffectByPlayer.white).toEqual(expect.objectContaining({
+      type: 'POSITION_SWAP_WILL',
+      stage: 'selectTarget'
+    }));
   }, 90000);
 });
 

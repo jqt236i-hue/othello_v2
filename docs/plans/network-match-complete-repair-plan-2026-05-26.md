@@ -344,7 +344,7 @@ npm run test:network:parity
 
 追加テスト:
 
-- 多動/継承多動/究極多動/極悪多動魔で cell 内 `.disc` が 2 個残らない
+- 多動/究極多動/極悪多動魔で cell 内 `.disc` が 2 個残らない
 - ghost は overlay 上だけに存在する
 - source cell は空のまま
 - playback 中の board render skip が維持される
@@ -371,7 +371,7 @@ npm run test:jest -- test/ui.network-snapshot.hyperactive-source-empty.test.ts t
 - 強風
 - 重力/浮力/超引力
 - テレポート/マステレポート
-- 多動系、究極多動神、継承多動、逃亡石、極悪多動魔
+- 多動系、究極多動神、逃亡石、極悪多動魔
 - 破壊龍
 - 雷
 - 狙撃

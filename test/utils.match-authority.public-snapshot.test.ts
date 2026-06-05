@@ -376,4 +376,92 @@ describe('match authority public snapshot trap visibility', () => {
     expect(projected.cardState._handCopyIdsByPlayer).toBeUndefined();
     expect(projected.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
   });
+
+  test('projectSnapshotForViewer exposes observed hand slot metadata without leaking copy ids', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.hands.black = ['reveal_hand_01'];
+    snapshot.cardState.hands.white = ['meteor_01', 'guard_01', 'trap_01'];
+    snapshot.cardState._handCopyIdsByPlayer = {
+      black: [1],
+      white: [20, 21, 22]
+    };
+    snapshot.cardState._revealedHandCopyIdsByViewer = {
+      black: [21],
+      white: []
+    };
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+    const whiteView = MatchAuthority.projectSnapshotForViewer(snapshot, 'white');
+
+    expect(blackView.cardState.observedHandSlotsByPlayer).toEqual({
+      black: [],
+      white: [1]
+    });
+    expect(whiteView.cardState.observedHandSlotsByPlayer).toEqual({
+      black: [],
+      white: [1]
+    });
+    expect(blackView.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
+    expect(whiteView.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
+  });
+
+  test('projectSnapshotForViewer reveals opponent hand to active observer will marker owner', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.hands.black = ['observer_will_01'];
+    snapshot.cardState.hands.white = ['meteor_01', 'guard_01'];
+    snapshot.cardState.markers = [{
+      id: 'obs-1',
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 3 }
+    }];
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+    const whiteView = MatchAuthority.projectSnapshotForViewer(snapshot, 'white');
+    const observerView = MatchAuthority.projectSnapshotForViewer(snapshot, null);
+
+    expect(blackView.cardState.hands.white).toEqual(['meteor_01', 'guard_01']);
+    expect(whiteView.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
+    expect(observerView.cardState.hands.white).toEqual(['__hidden_hand__:white:0', '__hidden_hand__:white:1']);
+  });
+
+  test('projectSnapshotForViewer reveals opponent hand to active observer manifestation stone owner', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.hands.black = ['observer_will_01'];
+    snapshot.cardState.hands.white = ['meteor_01', 'guard_01'];
+    snapshot.cardState.markers = [{
+      id: 'obs-manifest-1',
+      kind: 'manifestStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 3 }
+    }];
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+    const whiteView = MatchAuthority.projectSnapshotForViewer(snapshot, 'white');
+
+    expect(blackView.cardState.hands.white).toEqual(['meteor_01', 'guard_01']);
+    expect(whiteView.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
+  });
+
+  test('projectSnapshotForViewer does not reveal from non manifestation observer-like markers', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.hands.black = ['observer_will_01'];
+    snapshot.cardState.hands.white = ['meteor_01', 'guard_01'];
+    snapshot.cardState.markers = [{
+      id: 'obs-invalid-1',
+      kind: 'bomb',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 3 }
+    }];
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+
+    expect(blackView.cardState.hands.white).toEqual(['__hidden_hand__:white:0', '__hidden_hand__:white:1']);
+  });
 });

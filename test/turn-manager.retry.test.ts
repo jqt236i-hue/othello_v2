@@ -86,7 +86,6 @@ function buildTurnManagerUIBridge() {
         trap: 'handleTrapSelection',
         guard: 'handleGuardSelection',
         living_will: 'handleLivingWillSelection',
-        hyperactive_inherit: 'handleHyperactiveInheritSelection',
         extend_life: 'handleExtendLifeSelection',
         corrosion: 'handleCorrosionSelection',
         clone: 'handleCloneSelection',

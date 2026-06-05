@@ -90,7 +90,6 @@
 | `GUARD_WILL` | continue_turn | continue_turn | 不可 | guard | getGuardTargets(player) |
 | `GUARDIAN_GOD` | continue_turn | continue_turn | 不可 | guard | getGuardTargets(player) |
 | `LIVING_WILL` | continue_turn | continue_turn | 不可 | living_will | getLivingWillTargets(player) |
-| `HYPERACTIVE_INHERIT_WILL` | continue_turn | continue_turn | 不可 | hyperactive_inherit | getHyperactiveInheritTargets(player) |
 | `EXTEND_LIFE_WILL` | continue_turn | continue_turn | 不可 | extend_life | getExtendLifeTargets(player) |
 | `EXTEND_LIFE_GOD` | continue_turn | continue_turn | 不可 | extend_life | getExtendLifeTargets(player) |
 | `CORROSION_WILL` | continue_turn | continue_turn | 不可 | corrosion | getCorrosionTargets(player) |

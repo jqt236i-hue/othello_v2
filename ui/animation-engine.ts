@@ -738,7 +738,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     cause === 'AFTERIMAGE_WILL' ||
                     cause === 'ESCAPE_HYPERACTIVE' ||
                     cause === 'EXTREME_HYPERACTIVE_WILL' ||
-                    cause === 'HYPERACTIVE_INHERIT_WILL' ||
                     cause === 'ULTIMATE_REVERSE_DRAGON' ||
                     cause === 'ULTIMATE_DESTROY_GOD' ||
                     cause === 'ROBOT_VACUUM' ||
@@ -1388,6 +1387,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     return this.handleObserverBubble(ev);
                 case EVENT_TYPES.ROUND_BONUS_BANNER:
                     return this.handleRoundBonusBanner(ev);
+                case EVENT_TYPES.SPECIAL_CARD_CINEMATIC:
+                    return this.handleSpecialCardCinematic(ev);
                 case EVENT_TYPES.SOUND_EFFECT:
                     return this.handleSoundEffect(ev);
                 case EVENT_TYPES.LOG:
@@ -1530,6 +1531,16 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 throw new Error('AnimationEngine feedback events module unavailable');
             }
             return AnimationFeedbackEvents.handleRoundBonusBannerEvent(ev);
+        }
+
+        async handleSpecialCardCinematic(ev: any) {
+            if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleSpecialCardCinematicEvent === 'function')) {
+                throw new Error('AnimationEngine feedback events module unavailable');
+            }
+            return AnimationFeedbackEvents.handleSpecialCardCinematicEvent(ev, {
+                isNoAnim: _isNoAnim,
+                sleep: (ms: any) => this._sleep(ms)
+            });
         }
 
         async handleSoundEffect(ev: any) {
@@ -1767,6 +1778,14 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (state.color === 1) disc.classList.add('black');
             else if (state.color === -1) disc.classList.add('white');
             disc.classList.toggle('living-will-aura', !!state.livingWillAura);
+            disc.classList.remove('manifest-stone-aura', 'manifest-stone-aura-black', 'manifest-stone-aura-white');
+            if (state.manifestAura) {
+                const manifestOwner = state.manifestAura && state.manifestAura.owner !== undefined
+                    ? state.manifestAura.owner
+                    : state.owner;
+                const manifestOwnerClass = (manifestOwner === 'white' || manifestOwner === -1 || manifestOwner === '-1') ? 'white' : 'black';
+                disc.classList.add('manifest-stone-aura', `manifest-stone-aura-${manifestOwnerClass}`);
+            }
 
             const setDiscStoneImage = (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function')
                 ? window.setDiscStoneImage
@@ -1781,8 +1800,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 ? window.getEffectKeyForSpecialType
                 : null;
 
-            const specialTypeUpper = String(state.special || '').toUpperCase();
-            const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : state.special;
+            const visualSpecialType = state.special;
 
             if (visualSpecialType) {
                 const effectKey = getEffectKeyForSpecialType ? getEffectKeyForSpecialType(visualSpecialType) : null;
@@ -1820,13 +1838,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         syncDiscTimerOnly(disc: any, state: any) {
             if (!disc || !state) return;
 
-            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .inherited-hyperactive-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
+            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
             const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
             existingTimers.forEach((el: any) => el.remove());
 
             const specialType = String(state.special || '').toUpperCase();
             let primaryTimerValue = Number(state.timer);
-            let inheritedTimerValue = Number(state.inheritedTimer);
             const parseCounterOrNaN = (raw: any) => {
                 if (raw === null || raw === undefined || raw === '') return NaN;
                 const parsed = Number(raw);
@@ -1834,22 +1851,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 return Math.max(0, Math.trunc(parsed));
             };
             let flipEvadeRemaining = parseCounterOrNaN(state.flipEvadeRemaining);
-            let inheritedFlipEvadeRemaining = parseCounterOrNaN(state.inheritedFlipEvadeRemaining);
             const destroyEvadeRemaining = parseCounterOrNaN(state.destroyEvadeRemaining);
-
-            if (specialType === 'INHERITED_HYPERACTIVE' && Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
-                if (!(Number.isFinite(inheritedTimerValue) && inheritedTimerValue > 0)) {
-                    inheritedTimerValue = primaryTimerValue;
-                }
-                primaryTimerValue = NaN;
-            }
-
-            if (specialType === 'INHERITED_HYPERACTIVE' && Number.isFinite(flipEvadeRemaining) && flipEvadeRemaining >= 0) {
-                if (!(Number.isFinite(inheritedFlipEvadeRemaining) && inheritedFlipEvadeRemaining >= 0)) {
-                    inheritedFlipEvadeRemaining = flipEvadeRemaining;
-                }
-                flipEvadeRemaining = NaN;
-            }
 
             const appendTimer = (className: any, value: any, options: any) => {
                 const opts = options || {};
@@ -1873,10 +1875,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 appendTimer(primaryClass, primaryTimerValue, undefined);
             }
 
-            if (Number.isFinite(inheritedTimerValue) && inheritedTimerValue > 0) {
-                appendTimer('stone-timer special-timer inherited-hyperactive-timer', inheritedTimerValue, undefined);
-            }
-
             const isPrimaryFlipEvadeSpecialType = (
                 specialType === 'HYPERACTIVE' ||
                 specialType === 'AFTERIMAGE_WILL' ||
@@ -1885,19 +1883,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 specialType === 'ULTIMATE_HYPERACTIVE' ||
                 specialType === 'WILL_HUNTER_KING'
             );
-            const hasInheritedContext = (
-                specialType === 'INHERITED_HYPERACTIVE' ||
-                (state.inheritedTimer !== null && state.inheritedTimer !== undefined) ||
-                (state.inheritedOwner !== null && state.inheritedOwner !== undefined && state.inheritedOwner !== '')
-            );
 
             const hasPrimaryEvadeCounter = isPrimaryFlipEvadeSpecialType && Number.isFinite(flipEvadeRemaining) && flipEvadeRemaining >= 0;
-            const hasInheritedEvadeCounter = hasInheritedContext && Number.isFinite(inheritedFlipEvadeRemaining) && inheritedFlipEvadeRemaining >= 0;
-            const evadeCounterValue = hasPrimaryEvadeCounter
-                ? (hasInheritedEvadeCounter ? (flipEvadeRemaining + inheritedFlipEvadeRemaining) : flipEvadeRemaining)
-                : (hasInheritedEvadeCounter ? inheritedFlipEvadeRemaining : NaN);
-            if (Number.isFinite(evadeCounterValue) && evadeCounterValue >= 0) {
-                appendTimer('stone-timer flip-evade-timer', evadeCounterValue, { allowZero: true });
+            if (hasPrimaryEvadeCounter) {
+                appendTimer('stone-timer flip-evade-timer', flipEvadeRemaining, { allowZero: true });
             }
 
             const hasDestroyEvadeCounter =
@@ -1905,8 +1894,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     specialType === 'ULTIMATE_HYPERACTIVE' ||
                     specialType === 'EXTREME_HYPERACTIVE' ||
                     specialType === 'WILL_HUNTER_KING' ||
-                    specialType === 'AFTERIMAGE_WILL' ||
-                    hasInheritedContext
+                    specialType === 'AFTERIMAGE_WILL'
                 ) &&
                 Number.isFinite(destroyEvadeRemaining) &&
                 destroyEvadeRemaining >= 0;

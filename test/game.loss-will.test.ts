@@ -87,7 +87,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect((cardState.markers || []).filter((m) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb')).toHaveLength(0);
   });
 
-  test('use card: 石状態・罠・盤面マーカーは解除されない', () => {
+  test('use card: 罠・幽体・復活石は解除し、守る石・盤面マーカー・絶対保護は解除しない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
     cardState.charge.black = LOSS_WILL_COST;
@@ -96,25 +96,34 @@ describe('LOSS_WILL（意志の喪失）', () => {
     gameState.board[1][2] = 1;
     gameState.board[1][3] = -1;
     gameState.board[1][4] = 1;
+    gameState.board[1][5] = -1;
+    gameState.board[1][6] = 1;
+    gameState.board[1][7] = -1;
 
     cardState.markers = [
       { id: 11, row: 1, col: 1, kind: 'specialStone', owner: 'black', createdSeq: 11, data: { type: 'WORK', remainingOwnerTurns: 4 } },
       { id: 12, row: 1, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 12, data: { type: 'GUARD', remainingOwnerTurns: 3 } },
       { id: 13, row: 1, col: 3, kind: 'specialStone', owner: 'white', createdSeq: 13, data: { type: 'TRAP', hidden: true } },
       { id: 14, row: 1, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 14, data: { type: 'BLOCKADE', remainingOwnerTurns: 2 } },
-      { id: 15, row: 1, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 15, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
+      { id: 15, row: 1, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 15, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } },
+      { id: 16, row: 1, col: 5, kind: 'specialStone', owner: 'white', createdSeq: 16, data: { type: 'GHOST', remainingOwnerTurns: 5 } },
+      { id: 17, row: 1, col: 6, kind: 'specialStone', owner: 'black', createdSeq: 17, data: { type: 'REGEN', regenRemaining: 1 } },
+      { id: 18, row: 1, col: 7, kind: 'specialStone', owner: 'white', createdSeq: 18, data: { type: 'ABSOLUTE_PROTECTED' } }
     ];
-    cardState._nextMarkerId = 16;
-    cardState._nextCreatedSeq = 16;
+    cardState._nextMarkerId = 19;
+    cardState._nextCreatedSeq = 19;
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'use_card', useCardId: 'loss_will_01' }, { shuffle: () => {}, random: () => 0.5 });
 
-    expect(res.events.some((e) => e && e.type === 'loss_will_resolved' && e.removedCount === 2)).toBe(true);
+    expect(res.events.some((e) => e && e.type === 'loss_will_resolved' && e.removedCount === 5)).toBe(true);
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'WORK')).toBe(false);
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'TIME_BOMB')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'TRAP')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'GHOST')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'REGEN')).toBe(false);
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'GUARD')).toBe(true);
-    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'TRAP')).toBe(true);
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'BLOCKADE')).toBe(true);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'ABSOLUTE_PROTECTED')).toBe(true);
   });
 
   test('特殊石も爆弾もない場合は使用できない', () => {

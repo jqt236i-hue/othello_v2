@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement `盤理の観測者` (`observer_will_01`, `OBSERVER_WILL`) as a 0-cost special card that steals one opponent hand card immediately, reserves the next placed stone as a 5T absolute-protected observation stone, reveals the opponent hand while that stone exists, then starts nine turn-start repayments after the stone expires.
+**Goal:** Implement `盤理の観測者` (`observer_will_01`, `OBSERVER_WILL`) as a 0-cost special card that steals one opponent hand card immediately, reserves the next placed stone as a 5T absolute-protected observation stone, reveals the opponent hand while that stone exists, then starts nine turn-start repayments when the stone expires at its owner turn start.
 
 **Architecture:** Reuse the existing hand-overlay pending selection shape from `HEAVEN_BLESSING` and `CONDEMN_WILL`, but add a dedicated `observerWillTargetIndex` action so steal semantics do not share destroy semantics. Keep authority in headless card/turn logic; UI only renders pending offers and snapshots. Extend the existing hand copy-id and RIBO repayment patterns rather than adding UI-only state.
 
@@ -130,7 +130,7 @@ Add the same player-facing behavior under the card list using this wording:
 - 選択後、次に置く自石は観測石になる。
 - 観測石が盤面にある間、その所有者は相手手札を常に表表示で確認できる。
 - 観測石は5T持続し、絶対保護。持続終了時に通常石へ戻る。
-- 観測石が消滅した次の自ターン開始時から、奪ったカードの元コスト20%分の布石を最大9回失う。布石が足りない場合、その回は自石4個をランダム破壊する。
+- 観測石が持続終了で消滅した所有者ターン開始時に、奪ったカードの元コスト20%分の初回返済も同時に発生する。その後も自ターン開始時に最大9回まで布石を失う。布石が足りない場合、その回は自石4個をランダム破壊する。
 ```
 
 - [ ] **Step 6: Regenerate catalog projections**

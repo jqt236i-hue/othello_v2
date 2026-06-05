@@ -192,7 +192,7 @@ shared/deck-spec.ts
 デッキコード:
 
 ```text
-D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.blockade_01.observer_01.reinforcement_01
+D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.blockade_01.reinforcement_01
 ```
 
 このデッキコードは `scripts/selfplay-deck-options.ts` の `DEFAULT_SELFPLAY_WHITE_DECK_CODE` として参照される。

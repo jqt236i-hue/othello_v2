@@ -32,6 +32,8 @@ function _resolveCardRendererModule(requirePath: string, globalKey: string): any
 let PlaybackStateModule: any = _resolveCardRendererModule('../ui/playback-state-manager', 'PlaybackStateManager');
 let OwnerHelpersModule: any = _resolveCardRendererModule('../utils/owner-helpers', 'OwnerHelpers');
 let HandAnimationUtilsModule: any = _resolveCardRendererModule('../ui/animation-utils', 'HandAnimationUtilsModule');
+let CardLogicModule: any = _resolveCardRendererModule('../game/logic/cards', 'CardLogic');
+let SpecialCardRegistryModule: any = _resolveCardRendererModule('../shared/special-card-registry', 'SpecialCardRegistry');
 function getCardCostTier(cost: number): string {
     const safeCost = Number.isFinite(cost) ? cost : 0;
     if (safeCost === 0)
@@ -104,6 +106,31 @@ var _CARD_FACE_SPECIAL_ART_OVERRIDES: Record<string, { effectKey: string; imageP
         imagePath: 'assets/images/other/X.png'
     }
 };
+function _isSpecialCardFace(cardId: any) {
+    return !!(
+        SpecialCardRegistryModule &&
+        typeof SpecialCardRegistryModule.isInviolableSpecialCardId === 'function' &&
+        SpecialCardRegistryModule.isInviolableSpecialCardId(cardId)
+    );
+}
+function _resolveSpecialCardCharacterArt(cardId: any) {
+    if (
+        !SpecialCardRegistryModule ||
+        typeof SpecialCardRegistryModule.getSpecialCardPresentation !== 'function' ||
+        !_isSpecialCardFace(cardId)
+    ) {
+        return null;
+    }
+    const meta = SpecialCardRegistryModule.getSpecialCardPresentation(cardId);
+    const imagePath = String((meta && meta.characterImage) || '').trim();
+    if (!imagePath) {
+        return null;
+    }
+    return {
+        effectKey: 'specialCardCharacter',
+        imagePath
+    };
+}
 function _resolveCardDisplayTypeKey(cardDef: any, fallbackCardId: any) {
     const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
     return _DISPLAY_TYPE_KEY_MAP[typeLabel] || '';
@@ -173,6 +200,10 @@ function _resolveCardSpecialArt(cardDef: any, fallbackCardId: any, options: any)
     if (resolvedCardId && _CARD_FACE_SPECIAL_ART_OVERRIDES[resolvedCardId]) {
         return _CARD_FACE_SPECIAL_ART_OVERRIDES[resolvedCardId];
     }
+    const specialCardCharacterArt = _resolveSpecialCardCharacterArt(resolvedCardId);
+    if (specialCardCharacterArt) {
+        return specialCardCharacterArt;
+    }
     const cardType = String(resolvedCardDef && resolvedCardDef.type ? resolvedCardDef.type : '').trim();
     if (!cardType) {
         return null;
@@ -181,19 +212,25 @@ function _resolveCardSpecialArt(cardDef: any, fallbackCardId: any, options: any)
     if (!map) {
         return null;
     }
-    const effectKey = (typeof map.getEffectKeyForPendingType === 'function')
+    const isSpecialCard = _isSpecialCardFace(resolvedCardId);
+    const effectKey = (isSpecialCard && typeof map.getEffectKeyForSpecialType === 'function')
+        ? map.getEffectKeyForSpecialType(cardType)
+        : (typeof map.getEffectKeyForPendingType === 'function')
         ? map.getEffectKeyForPendingType(cardType)
         : (map.PENDING_TYPE_TO_EFFECT_KEY && map.PENDING_TYPE_TO_EFFECT_KEY[cardType]);
     if (!effectKey) {
         return null;
     }
     const ownerSide = _normalizeCardFaceVisualSide(options && options.ownerKey);
-    const imagePath = map.resolveCardVisualImagePath(cardType, {
+    const visualOptions = {
         owner: ownerSide,
         player: ownerSide,
         fallbackOwner: '1',
         fallbackPlayer: '1'
-    });
+    };
+    const imagePath = isSpecialCard && typeof map.resolveEffectImagePath === 'function'
+        ? map.resolveEffectImagePath(map.STONE_VISUAL_EFFECTS && map.STONE_VISUAL_EFFECTS[effectKey], visualOptions)
+        : map.resolveCardVisualImagePath(cardType, visualOptions);
     if (!imagePath) {
         return null;
     }
@@ -233,6 +270,32 @@ function applyCardSpecialArtToFace(cardEl: any, cardDef: any, options: any) {
     cardEl.dataset.cardVisualEffect = art.effectKey;
     cardEl.style.setProperty('--card-special-art-image', `url("${escapedPath}")`);
     return cardEl;
+}
+function _getEffectiveCardCostForRender(cardState: any, ownerKey: any, cardId: any, handIndex: any, fallbackCost: any): number {
+    const fallback = Number.isFinite(Number(fallbackCost)) ? Number(fallbackCost) : 0;
+    try {
+        if (!CardLogicModule || typeof CardLogicModule.getHandCopyIdAt !== 'function' || typeof CardLogicModule.getEffectiveCardCostForCopy !== 'function') {
+            return fallback;
+        }
+        const copyId = CardLogicModule.getHandCopyIdAt(cardState, ownerKey, handIndex);
+        const copyKey = String(Number(copyId || 0));
+        const hasOverride = !!(
+            copyKey !== '0'
+            && cardState
+            && cardState.cardCostOverridesByCopyId
+            && Object.prototype.hasOwnProperty.call(cardState.cardCostOverridesByCopyId, copyKey)
+        );
+        const hasModifier = !!(
+            copyKey !== '0'
+            && cardState
+            && cardState.cardCostModifiersByCopyId
+            && Object.prototype.hasOwnProperty.call(cardState.cardCostModifiersByCopyId, copyKey)
+        );
+        if (!hasOverride && !hasModifier) return fallback;
+        return CardLogicModule.getEffectiveCardCostForCopy(cardState, cardId, copyId);
+    } catch (e) {
+        return fallback;
+    }
 }
 interface CardNameFitPlan {
     baseFontPx: number;
@@ -642,6 +705,27 @@ function _syncTimeStopHandOverlayForRender(containerEl: any, active: any) {
         containerEl.appendChild(overlayEl);
     }
 }
+function _syncObservedHandTagForRender(cardEl: any, observed: any) {
+    if (!cardEl)
+        return;
+    const existingTagEl = cardEl.querySelector ? cardEl.querySelector('.observed-hand-tag') : null;
+    if (!observed) {
+        cardEl.classList.remove('observed-hand-card');
+        if (existingTagEl && existingTagEl.parentElement) {
+            existingTagEl.parentElement.removeChild(existingTagEl);
+        }
+        return;
+    }
+    cardEl.classList.add('observed-hand-card');
+    if (typeof document === 'undefined')
+        return;
+    const tagEl = existingTagEl || document.createElement('div');
+    tagEl.className = 'observed-hand-tag';
+    tagEl.textContent = '観測済み';
+    if (tagEl.parentElement !== cardEl) {
+        cardEl.appendChild(tagEl);
+    }
+}
 function _resolveCardRendererGameState() {
     try {
         if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
@@ -784,6 +868,74 @@ function _isHandCardRevealedToViewerForRender(cardState: any, viewerKey: any, ow
     const copyId = handCopyIds[normalizedHandIndex];
     return Number.isInteger(copyId) && revealedCopyIds.includes(copyId);
 }
+function _isHandCardObservedForRender(cardState: any, ownerKey: any, handIndex: any, viewerKey: any) {
+    if (!cardState || typeof cardState !== 'object')
+        return false;
+    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!owner || !Number.isInteger(Number(handIndex)))
+        return false;
+    const normalizedHandIndex = Math.max(0, Math.trunc(Number(handIndex)));
+    const observedSlotsByPlayer = (cardState.observedHandSlotsByPlayer && typeof cardState.observedHandSlotsByPlayer === 'object')
+        ? cardState.observedHandSlotsByPlayer
+        : null;
+    const observedSlots = observedSlotsByPlayer && Array.isArray(observedSlotsByPlayer[owner])
+        ? observedSlotsByPlayer[owner]
+        : null;
+    if (observedSlots && observedSlots.includes(normalizedHandIndex))
+        return true;
+    const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
+    if (viewer && viewer !== owner && _hasActiveObserverWillRevealForRender(cardState, viewer, owner))
+        return true;
+    const handCopyIdsByPlayer = (cardState._handCopyIdsByPlayer && typeof cardState._handCopyIdsByPlayer === 'object')
+        ? cardState._handCopyIdsByPlayer
+        : null;
+    const revealedHandCopyIdsByViewer = (cardState._revealedHandCopyIdsByViewer && typeof cardState._revealedHandCopyIdsByViewer === 'object')
+        ? cardState._revealedHandCopyIdsByViewer
+        : null;
+    const handCopyIds = handCopyIdsByPlayer && Array.isArray(handCopyIdsByPlayer[owner])
+        ? handCopyIdsByPlayer[owner]
+        : null;
+    if (!handCopyIds || normalizedHandIndex >= handCopyIds.length || !revealedHandCopyIdsByViewer)
+        return false;
+    const copyId = handCopyIds[normalizedHandIndex];
+    if (!Number.isInteger(copyId))
+        return false;
+    for (const observerKey of ['black', 'white']) {
+        if (observerKey === owner)
+            continue;
+        const revealedCopyIds = Array.isArray(revealedHandCopyIdsByViewer[observerKey])
+            ? revealedHandCopyIdsByViewer[observerKey]
+            : [];
+        if (revealedCopyIds.includes(copyId))
+            return true;
+    }
+    return false;
+}
+function _hasActiveObserverWillRevealForRender(cardState: any, viewerKey: any, ownerKey: any) {
+    if (!cardState || typeof cardState !== 'object')
+        return false;
+    const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
+    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!viewer || !owner || viewer === owner)
+        return false;
+    try {
+        if (typeof CardLogic !== 'undefined'
+            && CardLogic
+            && typeof CardLogic.hasActiveObserverWillReveal === 'function') {
+            return CardLogic.hasActiveObserverWillReveal(cardState, viewer, owner) === true;
+        }
+    }
+    catch (e) { /* ignore */ }
+    const markers = Array.isArray(cardState.markers) ? cardState.markers : [];
+    return markers.some((marker: any) => {
+        if (!marker || marker.owner !== viewer || !marker.data)
+            return false;
+        if (String(marker.data.type || '').toUpperCase() !== 'OBSERVER_WILL')
+            return false;
+        const remaining = Number(marker.data.remainingOwnerTurns);
+        return !Number.isFinite(remaining) || remaining > 0;
+    });
+}
 function _hasOwnerUsedCardThisActiveTurnForRender(cardState: any, ownerKey: any) {
     const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!cardState || typeof cardState !== 'object' || !normalizedOwnerKey)
@@ -883,24 +1035,38 @@ function createCardFaceElement(cardId: any, options: any) {
     const cardDef = CARD_DEFS.find((c: any) => c.id === cardId);
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item visible';
-    const cost = cardDef ? (cardDef.cost || 0) : 0;
+    const isSpecialCard = _isSpecialCardFace(cardId);
+    const optionCost = options && Number.isFinite(Number(options.effectiveCost)) ? Number(options.effectiveCost) : null;
+    const cost = optionCost !== null ? optionCost : (cardDef ? (cardDef.cost || 0) : 0);
     const costTier = getCardCostTier(cost);
     const tierClass = `cost-tier-${costTier}`;
     cardEl.classList.add(tierClass);
+    if (isSpecialCard) {
+        cardEl.classList.add('special-card-face');
+        cardEl.dataset.specialCardId = String(cardId || '');
+    }
     const typeKey = _resolveCardDisplayTypeKey(cardDef, cardId);
     if (typeKey) {
         cardEl.dataset.cardType = typeKey;
     }
     applyCardSpecialArtToFace(cardEl, cardDef, { cardId, ownerKey: options && options.ownerKey });
+    if (isSpecialCard) {
+        const sigilEl = document.createElement('div');
+        sigilEl.className = 'special-card-sigil';
+        sigilEl.setAttribute('aria-hidden', 'true');
+        cardEl.appendChild(sigilEl);
+    }
     const nameSpan = document.createElement('span');
-    nameSpan.className = 'card-name';
+    nameSpan.className = isSpecialCard ? 'card-name special-card-title' : 'card-name';
     nameSpan.textContent = cardDef ? cardDef.name : '?';
     cardEl.appendChild(nameSpan);
     _fitCardNameElement(nameSpan);
-    cardEl.appendChild(_createCardCostBadge(cost, tierClass));
-    const badgeRow = _createCardBadgeRow(cardDef, cardId);
-    if (badgeRow) {
-        cardEl.appendChild(badgeRow);
+    if (!isSpecialCard) {
+        cardEl.appendChild(_createCardCostBadge(cost, tierClass));
+        const badgeRow = _createCardBadgeRow(cardDef, cardId);
+        if (badgeRow) {
+            cardEl.appendChild(badgeRow);
+        }
     }
     cardEl.dataset.cardId = cardId;
     return cardEl;
@@ -1323,8 +1489,10 @@ function renderCardUI() {
             desiredKind: isPlaceholderOnly ? 'placeholder' : 'face',
             canInspectOwnerHand: false,
             canAfford: false,
+            cost: 0,
             usable: false,
-            isSelected: false
+            isSelected: false,
+            isObserved: false
         };
         if (isPlaceholderOnly) {
             return state;
@@ -1333,7 +1501,8 @@ function renderCardUI() {
         const isLocallyRevealedOpponentCard = !isNetworkMode
             && !revealByDefault
             && !isHiddenToken
-            && _isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, actualIndex);
+            && (_isHandCardRevealedToViewerForRender(cardState, localRevealViewerKey, ownerKey, actualIndex)
+                || _hasActiveObserverWillRevealForRender(cardState, localRevealViewerKey, ownerKey));
         const fateWillIsViewingVictim = fateWillIsActive
             && ownerKey === fateWillVictimKey
             && inputPlayerKey === fateWillControllerKey;
@@ -1352,7 +1521,10 @@ function renderCardUI() {
             return state;
         }
         const cardDef = CARD_DEFS.find((c: any) => c.id === cardId);
-        const cost = cardDef ? (cardDef.cost || 0) : 0;
+        const baseCost = cardDef ? (cardDef.cost || 0) : 0;
+        const cost = _getEffectiveCardCostForRender(cardState, ownerKey, cardId, state.actualIndex, baseCost);
+        state.cost = cost;
+        state.isObserved = _isHandCardObservedForRender(cardState, ownerKey, actualIndex, localRevealViewerKey);
         const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
         const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
         const canControlOwnerHand = isNetworkMode
@@ -1383,7 +1555,7 @@ function renderCardUI() {
             cardEl = _createHiddenHandCardElement(entryState.cardId, ownerKey);
         }
         else {
-            cardEl = createCardFaceElement(entryState.cardId, { ownerKey });
+            cardEl = createCardFaceElement(entryState.cardId, { ownerKey, effectiveCost: entryState.cost });
         }
         const currentChild = handTrackEl.children[entryState.visualIndex] || null;
         if (currentChild) {
@@ -1398,6 +1570,7 @@ function renderCardUI() {
         if (entryState.desiredKind === 'placeholder') {
             _detachHandCardClickHandler(cardEl);
             cardEl.className = 'card-item capture-reserved-slot';
+            _syncObservedHandTagForRender(cardEl, false);
             cardEl.style.opacity = '0';
             cardEl.style.pointerEvents = 'none';
             cardEl.setAttribute('aria-hidden', 'true');
@@ -1407,6 +1580,7 @@ function renderCardUI() {
             _detachHandCardClickHandler(cardEl);
             cardEl.className = 'card-item hidden';
             cardEl.textContent = 'CARD';
+            _syncObservedHandTagForRender(cardEl, false);
             cardEl.style.removeProperty('opacity');
             cardEl.style.removeProperty('pointer-events');
             cardEl.removeAttribute('aria-hidden');
@@ -1421,6 +1595,7 @@ function renderCardUI() {
             cardEl.classList.toggle('affordable', entryState.canAfford);
             cardEl.classList.toggle('usable', entryState.usable);
             cardEl.classList.toggle('selected', entryState.isSelected);
+            _syncObservedHandTagForRender(cardEl, entryState.isObserved);
             cardEl.style.removeProperty('opacity');
             cardEl.style.removeProperty('pointer-events');
             cardEl.removeAttribute('aria-hidden');

@@ -115,14 +115,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'DRAGON',
         'GHOST',
         'HYPERACTIVE',
-        'INHERITED_HYPERACTIVE',
         'LIGHTNING',
-        'OBSERVER',
         'PROLIFERATION',
         'ROBOT_VACUUM',
         'SNIPER',
         'STONE_SALVATION_GOD',
-        'THEORY_INCARNATION',
         'TIME_STOP',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_HYPERACTIVE',
@@ -442,7 +439,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             reason.indexOf('stone_salvation_god_revive_flip') === 0 ||
             reason.indexOf('hyperactive_flip') === 0 ||
             reason.indexOf('escape_hyperactive_flip') === 0 ||
-            reason.indexOf('inherited_hyperactive_flip') === 0 ||
             reason.indexOf('extreme_hyperactive_flip') === 0 ||
             reason.indexOf('ultimate_hyperactive_flip') === 0 ||
             reason.indexOf('robot_vacuum_flip') === 0 ||
@@ -473,16 +469,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return link >= 1 ? link : 1;
     }
 
-    function isInheritedHyperactiveType(type: any) {
-        return String(type || '').toUpperCase() === 'INHERITED_HYPERACTIVE';
-    }
-
     function isOverlayOnlySpecialStoneType(type: any) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
             return SpecialStoneRegistry.isOverlayOnlySpecialStoneType(type);
         }
         const typeUpper = String(type || '').toUpperCase();
-        return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+        return typeUpper === 'GUARD' || typeUpper === 'LIVING_WILL';
     }
 
     function getVisualSpecialFromMeta(meta: any) {
@@ -506,7 +498,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 regenRemaining: regenRemainingValue
             });
         }
-        if (isInheritedHyperactiveType(special)) return null;
         const timer = toCounterOrNull(timerValue);
         if (timer !== null) return timer;
         if (String(special || '').toUpperCase() === 'REGEN') {
@@ -520,20 +511,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return resolveDisplayTimerValue(special, meta && meta.timer, meta && meta.regenRemaining);
     }
 
-    function getInheritedTimerFromMeta(meta: any) {
-        const inheritedTimer = (meta && meta.inheritedTimer) || null;
-        if (inheritedTimer !== null && inheritedTimer !== undefined) return inheritedTimer;
-        const special = (meta && meta.special) || null;
-        return isInheritedHyperactiveType(special) ? ((meta && meta.timer) || null) : null;
-    }
-
-    function getInheritedOwnerFromMeta(meta: any) {
-        const inheritedOwner = (meta && meta.inheritedOwner) || null;
-        if (inheritedOwner !== null && inheritedOwner !== undefined) return inheritedOwner;
-        const special = (meta && meta.special) || null;
-        return isInheritedHyperactiveType(special) ? ((meta && meta.owner) || null) : null;
-    }
-
     function toCounterOrNull(value: any) {
         if (value === null || value === undefined || value === '') return null;
         const n = Number(value);
@@ -543,16 +520,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function getFlipEvadeRemainingFromMeta(meta: any) {
         return toCounterOrNull(meta && meta.flipEvadeRemaining);
-    }
-
-    function getInheritedFlipEvadeRemainingFromMeta(meta: any) {
-        const inherited = toCounterOrNull(meta && meta.inheritedFlipEvadeRemaining);
-        if (inherited !== null) return inherited;
-        const special = (meta && meta.special) || null;
-        if (isInheritedHyperactiveType(special)) {
-            return getFlipEvadeRemainingFromMeta(meta);
-        }
-        return null;
     }
 
     function getDestroyEvadeRemainingFromMeta(meta: any) {
@@ -606,10 +573,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             special: null,
             timer: null,
             owner: null,
-            inheritedTimer: null,
-            inheritedOwner: null,
             flipEvadeRemaining: null,
-            inheritedFlipEvadeRemaining: null,
             destroyEvadeRemaining: null,
             livingWillAura: false
         };
@@ -617,10 +581,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         let special = null;
         let timer = null;
         let owner = null;
-        let inheritedTimer = null;
-        let inheritedOwner = null;
         let flipEvadeRemaining = null;
-        let inheritedFlipEvadeRemaining = null;
         let destroyEvadeRemaining = null;
         let livingWillAura = false;
 
@@ -643,26 +604,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 special = visualState.special;
                 timer = visualState.timer;
                 owner = visualState.owner;
-                inheritedTimer = visualState.inheritedTimer;
-                inheritedOwner = visualState.inheritedOwner;
                 flipEvadeRemaining = visualState.flipEvadeRemaining;
-                inheritedFlipEvadeRemaining = visualState.inheritedFlipEvadeRemaining;
                 destroyEvadeRemaining = visualState.destroyEvadeRemaining;
                 livingWillAura = visualState.livingWillAura === true;
             } else {
-                const inherited = markersAtCell.find((m: any) => (
-                    m &&
-                    m.data &&
-                    String(m.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
-                ));
-                if (inherited) {
-                    inheritedTimer = (inherited.data && Number.isFinite(Number(inherited.data.remainingOwnerTurns)))
-                        ? Number(inherited.data.remainingOwnerTurns)
-                        : null;
-                    inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-                    inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
-                }
-
                 const visualSpecial = markersAtCell.find((m: any) => {
                     const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
                     if (!typeUpper) return false;
@@ -705,10 +650,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             special,
             timer,
             owner,
-            inheritedTimer,
-            inheritedOwner,
             flipEvadeRemaining,
-            inheritedFlipEvadeRemaining,
             destroyEvadeRemaining,
             livingWillAura
         };
@@ -864,10 +806,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getDestroyOutcomeKind: _getDestroyOutcomeKind,
             getMoveIntent: _getMoveIntent,
             getPrimaryTimerFromMeta,
-            getInheritedTimerFromMeta,
-            getInheritedOwnerFromMeta,
             getFlipEvadeRemainingFromMeta,
-            getInheritedFlipEvadeRemainingFromMeta,
             getDestroyEvadeRemainingFromMeta,
             isChainFlipPresentationEvent,
             getChainFlipLink,
@@ -882,10 +821,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getVisualSpecialFromMeta,
             shouldPreferFinalVisualStateForStatusApplied,
             getPrimaryTimerFromMeta,
-            getInheritedTimerFromMeta,
-            getInheritedOwnerFromMeta,
             getFlipEvadeRemainingFromMeta,
-            getInheritedFlipEvadeRemainingFromMeta,
             getDestroyEvadeRemainingFromMeta,
             getVisualStateAt
         };

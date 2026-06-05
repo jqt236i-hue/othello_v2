@@ -55,6 +55,11 @@ interface MatchAuthorityStateHash {
     computeStableHash?: (value: unknown) => string;
 }
 
+interface MatchAuthorityManifestStoneRegistry {
+    [key: string]: unknown;
+    isManifestStoneMarker?: (marker: unknown) => boolean;
+}
+
 interface MatchAuthorityPublishResponseOptionInput extends MatchAuthorityPublishResponseOptions {
     publishKind?: unknown;
 }
@@ -80,6 +85,7 @@ function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | n
 const SharedBoardUtils = loadOptionalCommonJsModule<MatchAuthoritySharedBoardUtils>('../shared/shared-board-utils');
 const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHandCatalogShared>('../shared/gacha-hand-catalog-shared.js');
 const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
+const ManifestStoneRegistry = loadOptionalCommonJsModule<MatchAuthorityManifestStoneRegistry>('../shared/manifest-stone-registry');
 
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
@@ -1353,6 +1359,36 @@ function canViewerInspectOwnerHand(snapshot: unknown, viewerSeatKey: unknown, ow
     return getFateWillControllerKey(snapshot, owner) === viewer;
 }
 
+function isObserverWillRevealMarker(markerValue: unknown): boolean {
+    const marker = asRecord(markerValue);
+    const data = marker.data && typeof marker.data === 'object' ? asRecord(marker.data) : {};
+    if (String(data.type || '').toUpperCase() !== 'OBSERVER_WILL') return false;
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function') {
+        if (!ManifestStoneRegistry.isManifestStoneMarker(markerValue)) return false;
+    } else {
+        const kind = String(marker.kind || '');
+        if (kind !== 'manifestStone' && kind !== 'specialStone') return false;
+    }
+    const remaining = Number(data.remainingOwnerTurns);
+    return !Number.isFinite(remaining) || remaining > 0;
+}
+
+function hasActiveObserverWillReveal(snapshot: unknown, viewerSeatKey: unknown, ownerSeatKey: unknown): boolean {
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const owner = parseSeatKeyOptional(ownerSeatKey);
+    if (!viewer || !owner || viewer === owner) return false;
+    const snapshotRecord = asRecord(snapshot);
+    const cardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
+        ? asRecord(snapshotRecord.cardState)
+        : null;
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    return markers.some((markerValue: unknown) => {
+        const marker = asRecord(markerValue);
+        if (parseSeatKeyOptional(marker.owner) !== viewer) return false;
+        return isObserverWillRevealMarker(markerValue);
+    });
+}
+
 function projectSnapshotForViewer(
     snapshotValue: unknown,
     viewerSeatKey: PlayerKey | null | undefined,
@@ -1385,6 +1421,7 @@ function projectSnapshotForViewer(
         : new Set();
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
     const projectedHands = asRecord(cardState.hands);
+    const observedHandSlotsByPlayer: Record<PlayerKey, number[]> = { black: [], white: [] };
 
     for (const ownerKey of PLAYER_KEYS as readonly PlayerKey[]) {
         const ownerHand = Array.isArray(hands[ownerKey])
@@ -1396,7 +1433,25 @@ function projectSnapshotForViewer(
             : [];
         const ownerHandCopyIds = normalizeHandCopyIdArray(handCopyIdsByPlayer[ownerKey], ownerHand.length);
         sourceHands[ownerKey] = ownerHand;
-        if (canViewerInspectOwnerHand(shot, viewer, ownerKey)) {
+        const observedSlots = new Set<number>();
+        for (const observingSeat of PLAYER_KEYS as readonly PlayerKey[]) {
+            if (observingSeat === ownerKey) continue;
+            if (hasActiveObserverWillReveal(shot, observingSeat, ownerKey)) {
+                for (let handIndex = 0; handIndex < ownerHand.length; handIndex += 1) {
+                    observedSlots.add(handIndex);
+                }
+                continue;
+            }
+            const observedCopyIds = new Set(normalizeCardCopyIdList(revealedHandCopyIdsByViewer[observingSeat]));
+            for (let handIndex = 0; handIndex < ownerHandCopyIds.length; handIndex += 1) {
+                const cardCopyId = ownerHandCopyIds[handIndex];
+                if (typeof cardCopyId === 'number' && Number.isInteger(cardCopyId) && observedCopyIds.has(cardCopyId)) {
+                    observedSlots.add(handIndex);
+                }
+            }
+        }
+        observedHandSlotsByPlayer[ownerKey] = Array.from(observedSlots).sort((a, b) => a - b);
+        if (canViewerInspectOwnerHand(shot, viewer, ownerKey) || hasActiveObserverWillReveal(shot, viewer, ownerKey)) {
             projectedHands[ownerKey] = ownerHand.slice();
             continue;
         }
@@ -1409,6 +1464,7 @@ function projectSnapshotForViewer(
             return shouldReveal ? cardId : makeHiddenHandToken(ownerKey, handIndex);
         });
     }
+    cardState.observedHandSlotsByPlayer = observedHandSlotsByPlayer;
 
     if (Array.isArray(cardState.discard)) {
         cardState.discard = cardState.discard.filter((cardId) => !isHiddenHandTokenLike(cardId));

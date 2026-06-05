@@ -16,7 +16,23 @@ function createGameState() {
 }
 
 describe('special stone visual rule', () => {
-  test('isSpecialStoneAt は通常石画像を使わない石を特殊石扱いする', () => {
+  test('顕現石は特殊石本体ではないが絶対保護として扱われる', () => {
+    const CardMarkers = require('../game/logic/cards/markers');
+    const cardState = {
+      markers: [
+        { id: 1, kind: 'manifestStone', row: 2, col: 2, owner: 'black', data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true } },
+        { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'DRAGON', remainingOwnerTurns: 5 } }
+      ]
+    };
+
+    expect(CardMarkers.isManifestStoneAt(cardState, 2, 2)).toBe(true);
+    expect(CardMarkers.isSpecialStoneAt(cardState, 2, 2)).toBe(false);
+    expect(CardMarkers.isTrueSpecialStoneAt(cardState, 2, 2)).toBe(false);
+    expect(CardMarkers.isAbsoluteProtectedCell(cardState, 2, 2)).toBe(true);
+    expect(CardMarkers.isSpecialStoneAt(cardState, 3, 3)).toBe(true);
+  });
+
+  test('isSpecialStoneAt は通常石画像を使わない石を盤面上の特殊見た目として扱う', () => {
     const cardState = createCardState();
     cardState.markers.push(
       {
@@ -25,7 +41,7 @@ describe('special stone visual rule', () => {
         row: 1,
         col: 1,
         owner: 'white',
-        data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4 }
+        data: { type: 'HYPERACTIVE', remainingOwnerTurns: 4 }
       },
       {
         id: 2,
@@ -72,7 +88,7 @@ describe('special stone visual rule', () => {
     expect(CardUtils.getSpecialOwnerAt(cardState, 2, 2)).toBe(null);
   });
 
-  test('GUARD は特殊石扱いし、BLOCKADE と METEOR_HOLE は特殊石扱いしない', () => {
+  test('GUARD は特殊見た目として扱い、BLOCKADE と METEOR_HOLE は特殊見た目として扱わない', () => {
     const cardState = createCardState();
     cardState.markers.push(
       {
@@ -144,7 +160,7 @@ describe('special stone visual rule', () => {
     expect(res).toMatchObject({ applied: false, reason: 'not_special' });
   });
 
-  test('TEMPT_WILL は爆弾・石状態・配置時効果を特殊石対象として選べない', () => {
+  test('TEMPT_WILL は爆弾・石状態・配置時効果を特殊石本体対象として選べない', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -183,6 +199,56 @@ describe('special stone visual rule', () => {
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: false, reason: 'not_special' });
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 3)).toMatchObject({ applied: false, reason: 'not_special' });
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 4)).toMatchObject({ applied: false, reason: 'not_special' });
+  });
+
+  test('TEMPT_WILL は弱い石・強い石を特殊石対象にし、絶対保護石は対象一覧から除外する', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    gameState.board[5][1] = Shared.WHITE;
+    gameState.board[5][2] = Shared.WHITE;
+    gameState.board[5][3] = Shared.WHITE;
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+    cardState.markers.push(
+      {
+        id: 20,
+        kind: 'specialStone',
+        row: 5,
+        col: 1,
+        owner: 'white',
+        data: { type: 'PROTECTED', sourceType: 'PROTECTED_NEXT_STONE', sourceCardId: 'hard_01' }
+      },
+      {
+        id: 21,
+        kind: 'specialStone',
+        row: 5,
+        col: 2,
+        owner: 'white',
+        data: { type: 'PERMA_PROTECTED', sourceType: 'PERMA_PROTECT_NEXT_STONE', sourceCardId: 'perma_01' }
+      },
+      {
+        id: 22,
+        kind: 'specialStone',
+        row: 5,
+        col: 3,
+        owner: 'white',
+        data: { type: 'ABSOLUTE_PROTECTED', sourceType: 'PERMA_PROTECT_NEXT_STONE', sourceCardId: 'perma_01' }
+      }
+    );
+
+    expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 1)).toBe(true);
+    expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 2)).toBe(true);
+    expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 3)).toBe(true);
+    expect(CardUtils.isAbsoluteProtectedStoneAt(cardState, 5, 3)).toBe(true);
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([
+      { row: 5, col: 1 },
+      { row: 5, col: 2 }
+    ]);
+
+    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 5, 3)).toMatchObject({
+      applied: false,
+      reason: 'absolute_protected'
+    });
   });
 
   test('TEMPT_WILL は幽体を対象にできるが、効果は幽体に受け流される', () => {

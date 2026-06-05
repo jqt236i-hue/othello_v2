@@ -54,7 +54,6 @@
 | cross_bomb_01 | CROSS_BOMB |  |  |  |  |  | Y | auto-covered |
 | x_bomb_01 | X_BOMB |  |  |  |  |  | Y | auto-covered |
 | hyperactive_01 | HYPERACTIVE_WILL |  |  |  |  |  | Y | auto-covered |
-| hyperactive_inherit_01 | HYPERACTIVE_INHERIT_WILL | Y | Y |  | Y | Y |  | auto-covered |
 | extreme_hyperactive_01 | EXTREME_HYPERACTIVE_WILL |  |  |  | Y |  |  | auto-covered |
 | escape_01 | ESCAPE_WILL |  |  |  |  |  | Y | auto-covered |
 | robot_vacuum_01 | ROBOT_VACUUM_WILL |  |  |  |  |  | Y | auto-covered |
@@ -80,7 +79,6 @@
 | rainbow_stone | RAINBOW_STONE |  |  | Y |  |  |  | auto-covered |
 | silver_stone | SILVER_STONE |  |  |  |  |  | Y | auto-covered |
 | crystal_stone | CRYSTAL_STONE |  |  |  |  |  | Y | auto-covered |
-| theory_incarnation | THEORY_INCARNATION |  |  |  |  |  | Y | auto-covered |
 | extend_life_01 | EXTEND_LIFE_WILL | Y | Y |  |  | Y |  | auto-covered |
 | extend_life_god_01 | EXTEND_LIFE_GOD | Y | Y |  |  |  |  | auto-covered |
 | corrosion_01 | CORROSION_WILL | Y | Y |  |  | Y |  | auto-covered |
@@ -98,7 +96,6 @@
 | blockade_01 | BLOCKADE_WILL | Y | Y |  |  | Y |  | auto-covered |
 | meteor_01 | METEOR_WILL | Y | Y |  |  | Y |  | auto-covered |
 | freeze_01 | FREEZE_WILL | Y | Y |  |  | Y |  | auto-covered |
-| observer_01 | OBSERVER_WILL |  |  |  |  |  | Y | auto-covered |
 | salvation_01 | SALVATION_WILL |  |  |  |  |  | Y | auto-covered |
 | living_will_01 | LIVING_WILL | Y | Y |  |  | Y |  | auto-covered |
 | reinforcement_01 | REINFORCEMENT_WILL |  |  |  |  |  | Y | auto-covered |

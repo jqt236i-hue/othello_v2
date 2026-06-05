@@ -87,6 +87,16 @@ describe('cpu turn handler pending selection', () => {
     expect(mock).toHaveBeenCalledWith('white');
   });
 
+  test('OBSERVER_WILL invokes cpuSelectObserverWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectObserverWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'OBSERVER_WILL', stage: 'selectTarget', offers: [{ handIndex: 0, cardId: 'gold_stone' }] };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
   test('SWAP_WITH_ENEMY invokes cpuSelectSwapWithEnemyWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectSwapWithEnemyWithPolicy = mock;

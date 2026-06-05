@@ -4,7 +4,6 @@ describe('shared evasion status profiles', () => {
   test.each([
     ['HYPERACTIVE', 1, undefined, undefined, 'HYPERACTIVE', 'hyperactive_flip_evade_move', false, false],
     ['ESCAPE_HYPERACTIVE', 1, undefined, undefined, 'ESCAPE_HYPERACTIVE', 'escape_hyperactive_flip_evade_move', false, false],
-    ['INHERITED_HYPERACTIVE', 1, 1, undefined, 'HYPERACTIVE_INHERIT_WILL', 'inherited_hyperactive_flip_evade_move', false, false],
     ['EXTREME_HYPERACTIVE', 3, 1, 3, 'EXTREME_HYPERACTIVE_WILL', 'extreme_hyperactive_flip_evade_move', false, false],
     ['ULTIMATE_HYPERACTIVE', 3, 1, 3, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip_evade_move', true, false],
     ['AFTERIMAGE_WILL', 3, 3, undefined, 'AFTERIMAGE_WILL', 'afterimage_will_flip_evade_move', false, true],
@@ -42,9 +41,6 @@ describe('shared evasion status profiles', () => {
     expect(EvasionStatus.consumeDestroyEvade(afterimage)).toBe(2);
     expect(afterimage.destroyEvadeRemaining).toBe(2);
 
-    const inherited = { type: 'INHERITED_HYPERACTIVE' };
-    expect(EvasionStatus.consumeFlipEvade(inherited)).toBe(0);
-    expect(inherited.flipEvadeRemaining).toBe(0);
   });
 
   test('only prune profiles configured to disappear after both counters are depleted', () => {

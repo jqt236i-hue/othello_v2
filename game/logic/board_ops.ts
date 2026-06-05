@@ -57,13 +57,17 @@ function getSpecialStoneRegistryModule(): any {
     return safeRequire('../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
 }
 
+function getManifestStoneRegistryModule(): any {
+    return safeRequire('../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
+}
+
 function isOverlayOnlySpecialStoneType(type: string): boolean {
     const registry = getSpecialStoneRegistryModule();
     if (registry && typeof registry.isOverlayOnlySpecialStoneType === 'function') {
         return registry.isOverlayOnlySpecialStoneType(type);
     }
     const typeUpper = String(type || '').toUpperCase();
-    return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+    return typeUpper === 'GUARD' || typeUpper === 'LIVING_WILL';
 }
 
 function getCardRegenModule(): any {
@@ -485,8 +489,50 @@ function _getSpecialMarkersAt(cardState: any, row: number, col: number): any[] {
             ? []
             : cardState.markers.filter((m: any) => (
                 m &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')
+                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+                !_isManifestStoneMarker(m)
             )));
+    return markers.filter((m: any) => (
+        m &&
+        _normalizeBoardIndex(m.row) === pos.row &&
+        _normalizeBoardIndex(m.col) === pos.col
+    ));
+}
+
+function _isManifestStoneType(type: any): boolean {
+    const registry = getManifestStoneRegistryModule();
+    if (registry && typeof registry.isManifestStoneType === 'function') {
+        return registry.isManifestStoneType(type) === true;
+    }
+    const typeUpper = String(type || '').toUpperCase();
+    return typeUpper === 'THEORY_INCARNATION' || typeUpper === 'BOARD_EXECUTOR' || typeUpper === 'OBSERVER_WILL';
+}
+
+function _isManifestStoneMarker(marker: any): boolean {
+    const cardMarkers = getCardMarkersModule();
+    if (cardMarkers && typeof cardMarkers.isManifestStoneMarker === 'function') {
+        return cardMarkers.isManifestStoneMarker(marker) === true;
+    }
+    const registry = getManifestStoneRegistryModule();
+    if (registry && typeof registry.isManifestStoneMarker === 'function') {
+        return registry.isManifestStoneMarker(marker) === true;
+    }
+    return !!(
+        marker &&
+        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+        _isManifestStoneType(marker && marker.data && marker.data.type)
+    );
+}
+
+function _getManifestMarkersAt(cardState: any, row: number, col: number): any[] {
+    const pos = _normalizeCellPosition(row, col);
+    if (!pos) return [];
+    const cardMarkers = getCardMarkersModule();
+    const markers = (cardMarkers && typeof cardMarkers.getManifestMarkers === 'function')
+        ? cardMarkers.getManifestMarkers(cardState)
+        : ((!cardState || !Array.isArray(cardState.markers))
+            ? []
+            : cardState.markers.filter(_isManifestStoneMarker));
     return markers.filter((m: any) => (
         m &&
         _normalizeBoardIndex(m.row) === pos.row &&
@@ -599,7 +645,7 @@ function _isFrozenCell(cardState: any, row: number, col: number): boolean {
     if (cardMarkers && typeof cardMarkers.isFrozenCellForCard === 'function') {
         return !!cardMarkers.isFrozenCellForCard(cardState, row, col);
     }
-    const markers = _getSpecialMarkersAt(cardState, row, col);
+    const markers = _getSpecialMarkersAt(cardState, row, col).concat(_getManifestMarkersAt(cardState, row, col));
     return markers.some((marker: any) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'FREEZE');
 }
 
@@ -608,8 +654,20 @@ function _isAbsoluteProtectedCell(cardState: any, row: number, col: number): boo
     if (cardMarkers && typeof cardMarkers.isAbsoluteProtectedCell === 'function') {
         return !!cardMarkers.isAbsoluteProtectedCell(cardState, row, col);
     }
+    const registry = getSpecialStoneRegistryModule();
     const markers = _getSpecialMarkersAt(cardState, row, col);
-    return markers.some((marker: any) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'ABSOLUTE_PROTECTED');
+    return markers.some((marker: any) => {
+        const data = marker && marker.data ? marker.data : null;
+        if (data && Object.prototype.hasOwnProperty.call(data, 'remainingOwnerTurns')) {
+            const remainingOwnerTurns = Number(data.remainingOwnerTurns);
+            if (!Number.isFinite(remainingOwnerTurns) || remainingOwnerTurns <= 0) return false;
+        }
+        const type = String(data && data.type ? data.type : '').trim().toUpperCase();
+        if (registry && typeof registry.isAbsoluteProtectedSpecialType === 'function') {
+            return registry.isAbsoluteProtectedSpecialType(type) === true;
+        }
+        return type === 'ABSOLUTE_PROTECTED' || _isManifestStoneType(type);
+    });
 }
 
 function _isBlockedDestinationCell(cardState: any, row: number, col: number): boolean {
@@ -1468,10 +1526,7 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
             });
         }
 
-        let inheritedTimer: number | null = null;
-        let inheritedOwner: string | null = null;
         let flipEvadeRemaining: number | null = null;
-        let inheritedFlipEvadeRemaining: number | null = null;
         let destroyEvadeRemaining: number | null = null;
         const destroyEvadeTotal = markersAtCell.reduce((sum: number, marker: any) => {
             const remaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
@@ -1481,19 +1536,6 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
         }, 0);
         if (destroyEvadeTotal > 0 || markersAtCell.some((marker: any) => _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining) === 0)) {
             destroyEvadeRemaining = destroyEvadeTotal;
-        }
-
-        const inherited = markersAtCell.find((m: any) => (
-            m &&
-            m.data &&
-            String(m.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
-        ));
-        if (inherited) {
-            inheritedTimer = (inherited.data && typeof inherited.data.remainingOwnerTurns === 'number')
-                ? inherited.data.remainingOwnerTurns
-                : null;
-            inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-            inheritedFlipEvadeRemaining = _normalizeCounterValue(inherited.data && inherited.data.flipEvadeRemaining);
         }
 
         const visualSpecial = markersAtCell.find((m: any) => {
@@ -1507,10 +1549,7 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
                 special: (visualSpecial.data && visualSpecial.data.type) || null,
                 timer: _resolveSpecialDisplayTimerValue(visualSpecial.data),
                 owner: (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null,
-                inheritedTimer,
-                inheritedOwner,
                 flipEvadeRemaining,
-                inheritedFlipEvadeRemaining,
                 destroyEvadeRemaining
             };
         }
@@ -1520,10 +1559,7 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
                 special: 'TIME_BOMB',
                 timer: (b.data && typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns : null,
                 owner: (b.owner !== undefined && b.owner !== null) ? b.owner : null,
-                inheritedTimer,
-                inheritedOwner,
                 flipEvadeRemaining,
-                inheritedFlipEvadeRemaining,
                 destroyEvadeRemaining
             };
         }
@@ -1533,10 +1569,7 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
         special: null,
         timer: null,
         owner: null,
-        inheritedTimer: null,
-        inheritedOwner: null,
         flipEvadeRemaining: null,
-        inheritedFlipEvadeRemaining: null,
         destroyEvadeRemaining: null
     };
 }
@@ -1571,10 +1604,7 @@ function _populateSpecialVisualMeta(cardState: any, row: number, col: number, me
     if (visual.special !== null) metaOut.special = visual.special;
     if (visual.timer !== null) metaOut.timer = visual.timer;
     if (visual.owner !== null) metaOut.owner = visual.owner;
-    if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
-    if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
     if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
-    if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
     if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
     return metaOut;
 }
@@ -1695,10 +1725,7 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
         if (visual.special !== null) metaOut.special = visual.special;
         if (visual.timer !== null) metaOut.timer = visual.timer;
         if (visual.owner !== null) metaOut.owner = visual.owner;
-        if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
-        if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
         if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
-        if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
         if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
     }
     emitPresentationEvent(cardState, {
@@ -1834,7 +1861,6 @@ function _inferMoveIntent(cause: string | null, reason: string | null): string |
         causeUpper === 'AFTERIMAGE_WILL' ||
         causeUpper === 'ESCAPE_HYPERACTIVE' ||
         causeUpper === 'EXTREME_HYPERACTIVE_WILL' ||
-        causeUpper === 'HYPERACTIVE_INHERIT_WILL' ||
         causeUpper === 'ROBOT_VACUUM' ||
         causeUpper === 'ROBOT_VACUUM_WILL' ||
         causeUpper === 'GLUTTONOUS_WILL' ||
@@ -1926,12 +1952,9 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
                 owner: afterimageWillDepleted
                     ? null
                     : (visual.owner !== null ? visual.owner : ((destroyEvadeMarker.owner !== undefined && destroyEvadeMarker.owner !== null) ? destroyEvadeMarker.owner : null)),
-                inheritedTimer: visual.inheritedTimer !== null ? visual.inheritedTimer : null,
-                inheritedOwner: visual.inheritedOwner !== null ? visual.inheritedOwner : null,
                 flipEvadeRemaining: afterimageWillDepleted
                     ? null
                     : (visual.flipEvadeRemaining !== null ? visual.flipEvadeRemaining : null),
-                inheritedFlipEvadeRemaining: visual.inheritedFlipEvadeRemaining !== null ? visual.inheritedFlipEvadeRemaining : null,
                 destroyEvadeRemaining: afterimageWillDepleted ? null : afterRemaining,
                 destroyEvadeTriggeredBy: cause || null,
                 destroyEvadeTriggerReason: reason || null,
@@ -2313,7 +2336,11 @@ function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: 
     const targetTypeUpper = String(specialType || '').toUpperCase();
     if (!targetTypeUpper) return { reverted: false, reason: 'missing_special_type' };
 
-    const matchesAtCell = _getSpecialMarkersAt(cardState, row, col).filter((marker: any) => {
+    const isManifestTarget = _isManifestStoneType(targetTypeUpper);
+    const markersAtCell = isManifestTarget
+        ? _getSpecialMarkersAt(cardState, row, col).concat(_getManifestMarkersAt(cardState, row, col))
+        : _getSpecialMarkersAt(cardState, row, col);
+    const matchesAtCell = markersAtCell.filter((marker: any) => {
         const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
         if (markerTypeUpper !== targetTypeUpper) return false;
         if (ownerKey !== undefined && ownerKey !== null && ownerKey !== '' && marker.owner !== ownerKey) return false;
@@ -2331,7 +2358,9 @@ function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: 
         cardLivingWillModule.shouldTriggerForSpecialLoss(livingWillMarker, specialType)
     );
 
-    const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    const markerKind = isManifestTarget
+        ? (MARKER_KINDS && MARKER_KINDS.MANIFEST_STONE ? MARKER_KINDS.MANIFEST_STONE : 'manifestStone')
+        : (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone');
     const cardMarkers = getCardMarkersModule();
     const removeOptions: any = {
         kind: markerKind,
@@ -2355,7 +2384,10 @@ function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: 
         });
     }
 
-    const remainingMatches = _getSpecialMarkersAt(cardState, row, col).filter((marker: any) => {
+    const remainingMarkersAtCell = isManifestTarget
+        ? _getSpecialMarkersAt(cardState, row, col).concat(_getManifestMarkersAt(cardState, row, col))
+        : _getSpecialMarkersAt(cardState, row, col);
+    const remainingMatches = remainingMarkersAtCell.filter((marker: any) => {
         const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
         if (markerTypeUpper !== targetTypeUpper) return false;
         if (removeOptions.owner && marker.owner !== removeOptions.owner) return false;
@@ -2452,10 +2484,7 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
         if (visual.special !== null) metaOut.special = visual.special;
         if (visual.timer !== null) metaOut.timer = visual.timer;
         if (visual.owner !== null) metaOut.owner = visual.owner;
-        if (visual.inheritedTimer !== null) metaOut.inheritedTimer = visual.inheritedTimer;
-        if (visual.inheritedOwner !== null) metaOut.inheritedOwner = visual.inheritedOwner;
         if (visual.flipEvadeRemaining !== null) metaOut.flipEvadeRemaining = visual.flipEvadeRemaining;
-        if (visual.inheritedFlipEvadeRemaining !== null) metaOut.inheritedFlipEvadeRemaining = visual.inheritedFlipEvadeRemaining;
         if (visual.destroyEvadeRemaining !== null) metaOut.destroyEvadeRemaining = visual.destroyEvadeRemaining;
     }
     emitPresentationEvent(cardState, {
@@ -2517,10 +2546,7 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
         if (firstVisual.special !== null) firstMeta.special = firstVisual.special;
         if (firstVisual.timer !== null) firstMeta.timer = firstVisual.timer;
         if (firstVisual.owner !== null) firstMeta.owner = firstVisual.owner;
-        if (firstVisual.inheritedTimer !== null) firstMeta.inheritedTimer = firstVisual.inheritedTimer;
-        if (firstVisual.inheritedOwner !== null) firstMeta.inheritedOwner = firstVisual.inheritedOwner;
         if (firstVisual.flipEvadeRemaining !== null) firstMeta.flipEvadeRemaining = firstVisual.flipEvadeRemaining;
-        if (firstVisual.inheritedFlipEvadeRemaining !== null) firstMeta.inheritedFlipEvadeRemaining = firstVisual.inheritedFlipEvadeRemaining;
         if (firstVisual.destroyEvadeRemaining !== null) firstMeta.destroyEvadeRemaining = firstVisual.destroyEvadeRemaining;
     }
     const secondVisual = _getSpecialVisualMeta(cardState, aRow, aCol);
@@ -2528,10 +2554,7 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
         if (secondVisual.special !== null) secondMeta.special = secondVisual.special;
         if (secondVisual.timer !== null) secondMeta.timer = secondVisual.timer;
         if (secondVisual.owner !== null) secondMeta.owner = secondVisual.owner;
-        if (secondVisual.inheritedTimer !== null) secondMeta.inheritedTimer = secondVisual.inheritedTimer;
-        if (secondVisual.inheritedOwner !== null) secondMeta.inheritedOwner = secondVisual.inheritedOwner;
         if (secondVisual.flipEvadeRemaining !== null) secondMeta.flipEvadeRemaining = secondVisual.flipEvadeRemaining;
-        if (secondVisual.inheritedFlipEvadeRemaining !== null) secondMeta.inheritedFlipEvadeRemaining = secondVisual.inheritedFlipEvadeRemaining;
         if (secondVisual.destroyEvadeRemaining !== null) secondMeta.destroyEvadeRemaining = secondVisual.destroyEvadeRemaining;
     }
 

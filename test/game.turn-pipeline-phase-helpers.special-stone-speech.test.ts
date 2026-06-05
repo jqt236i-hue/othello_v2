@@ -1,16 +1,11 @@
 import * as phaseHelpers from '../game/turn/turn_pipeline_phase_helpers.js';
 
 describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
-  test('preserves OBSERVER and WORK speech exactly', () => {
-    expect(phaseHelpers.getSpecialStoneBubbleSpeech('OBSERVER')).toEqual({
       placeLines: [
         '今日も観測しますかっと',
-        '盤理は観測するためにある',
         '観測最高！'
       ],
-      lostLine: '盤理観測してる場合じゃなかったわ',
       living_will_restored: [
-        '観測再開っと、まだ盤理は追える。',
         '消えかけたけど、観測ログは続行だよ。',
         '戻った戻った、まだ盤面を見てるからね。'
       ]
@@ -85,15 +80,11 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       'もう無理！ 派手に散ってやるんだから！',
       '捕まるくらいなら盤ごと荒らしちゃうよ！'
     ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('INHERITED_HYPERACTIVE', 'inherit_selected')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('INHERITED_HYPERACTIVE', 'inherit_applied')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PROLIFERATION', 'proliferation_triggered')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('WILL_HUNTER_KING', 'special_destroy_triggered')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ABSOLUTE_PROTECTED', 'absolute_protected_promoted')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('OBSERVER', 'living_will_restored')).toEqual([
-      '観測再開っと、まだ盤理は追える。',
       '消えかけたけど、観測ログは続行だよ。',
       '戻った戻った、まだ盤面を見てるからね。'
     ]);
@@ -103,7 +94,6 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     expect(phaseHelpers.getSpecialStoneBubbleSpeech('GOLD')).toBeNull();
     expect(phaseHelpers.getSpecialStoneBubbleSpeech('TRAP')).toBeNull();
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('GLUTTONOUS', 'duration_end')).toBeNull();
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('OBSERVER', 'duration_end')).toBeNull();
   });
 
   test('adds five basic trigger lines for newly speaking special stones', () => {
@@ -118,7 +108,6 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       'ROBOT_VACUUM',
       'ULTIMATE_HYPERACTIVE',
       'STONE_SALVATION_GOD',
-      'THEORY_INCARNATION'
     ];
 
     for (const special of speakingStones) {
@@ -128,7 +117,5 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     }
 
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('STONE_SALVATION_GOD', 'place')).toContain('迷える石たちよ、私の光のもとへ。');
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('THEORY_INCARNATION', 'place')).toContain('ここから、盤面の理を証明いたします。');
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('THEORY_INCARNATION', 'destroy')).toContain('未証明の命題が、前世からまだ私を呼んでおります。');
   });
 });

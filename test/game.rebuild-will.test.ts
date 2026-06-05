@@ -14,10 +14,10 @@ describe('REBUILD_WILL (再構築の意志)', () => {
     return { cardState, gameState };
   }
 
-  test('use card: destroys all remaining hand cards and draws 3', () => {
+  test('use card: destroys only non-special remaining hand cards and draws 3', () => {
     const { cardState, gameState } = makeState();
     cardState.debugNoDraw = true;
-    cardState.hands.black = ['rebuild_01', 'gold_stone', 'silver_stone'];
+    cardState.hands.black = ['rebuild_01', 'observer_will_01', 'gold_stone', 'silver_stone'];
     cardState.decks.black = ['deck_a', 'deck_b', 'deck_c', 'deck_d', 'deck_e'];
     cardState.charge.black = 0;
 
@@ -27,8 +27,9 @@ describe('REBUILD_WILL (再構築の意志)', () => {
     expect(res.events.some((e) => e && e.type === 'card_used' && e.cardId === 'rebuild_01')).toBe(true);
     expect(res.events.some((e) => e && e.type === 'rebuild_will_resolved' && e.destroyedCount === 2 && e.drawnCount === 3)).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(cardState.hands.black).toEqual(['deck_e', 'deck_d', 'deck_c']);
+    expect(cardState.hands.black).toEqual(['observer_will_01', 'deck_e', 'deck_d', 'deck_c']);
     expect(cardState.discard).toEqual(expect.arrayContaining(['rebuild_01', 'gold_stone', 'silver_stone']));
+    expect(cardState.discard).not.toEqual(expect.arrayContaining(['observer_will_01']));
 
     const handClearEvents = (res.presentationEvents || []).filter((e) => e && e.type === 'HAND_CLEAR');
     const drawEvents = (res.presentationEvents || []).filter((e) => e && e.type === 'DRAW_CARD');

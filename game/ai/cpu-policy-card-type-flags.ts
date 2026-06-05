@@ -55,6 +55,8 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
         const isRevealHandWill = cardType === 'REVEAL_HAND_WILL';
         const isCondemnWill = cardType === 'CONDEMN_WILL';
+        const isObserverWill = cardType === 'OBSERVER_WILL';
+        const isTheoryIncarnation = cardType === 'THEORY_INCARNATION';
         const isExecutionWill = cardType === 'EXECUTION_WILL';
         const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
         const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
@@ -63,7 +65,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isSupplyWill = cardType === 'SUPPLY_WILL';
         const isGoldStone = cardType === 'GOLD_STONE';
         const isCrystalStone = cardType === 'CRYSTAL_STONE';
-        const isTheoryIncarnation = cardType === 'THEORY_INCARNATION';
         const isRainbowStone = cardType === 'RAINBOW_STONE';
         const isSilverStone = cardType === 'SILVER_STONE';
         const isPlunderWill = cardType === 'PLUNDER_WILL';
@@ -79,6 +80,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isGuardWill = cardType === 'GUARD_WILL';
         const isGuardianGod = cardType === 'GUARDIAN_GOD';
         const isRegenWill = cardType === 'REGEN_WILL';
+        const isReverseWill = cardType === 'REVERSE_WILL';
         const isLightningWill = cardType === 'LIGHTNING_WILL';
         const isHyperactiveWill = cardType === 'HYPERACTIVE_WILL';
         const isInstantHyperactiveWill = cardType === 'INSTANT_HYPERACTIVE_WILL';
@@ -87,12 +89,10 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isXBomb = cardType === 'X_BOMB';
         const isUltimateDestroyGod = cardType === 'ULTIMATE_DESTROY_GOD';
         const isUltimateHyperactiveGod = cardType === 'ULTIMATE_HYPERACTIVE_GOD';
-        const isObserverWill = cardType === 'OBSERVER_WILL';
         const isDestroyDragonWill = cardType === 'DESTROY_DRAGON_WILL';
         const isBreedingWill = cardType === 'BREEDING_WILL';
         const isTeleportWill = cardType === 'TELEPORT_WILL';
         const isCellTeleportWill = cardType === 'CELL_TELEPORT_WILL';
-        const isHyperactiveInheritWill = cardType === 'HYPERACTIVE_INHERIT_WILL';
         const isRobotVacuumWill = cardType === 'ROBOT_VACUUM_WILL';
         const isExtremeHyperactiveWill = cardType === 'EXTREME_HYPERACTIVE_WILL';
         const isGluttonousWill = cardType === 'GLUTTONOUS_WILL';
@@ -108,14 +108,12 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isHyperactiveWill ||
             isInstantHyperactiveWill ||
             isUltimateDestroyGod ||
-            isUltimateHyperactiveGod ||
-            isTheoryIncarnation
+            isUltimateHyperactiveGod
         );
         const isChargeSwingCard = (
             cardType === 'PLUNDER_WILL' ||
             cardType === 'GOLD_STONE' ||
             cardType === 'CRYSTAL_STONE' ||
-            cardType === 'THEORY_INCARNATION' ||
             cardType === 'RAINBOW_STONE' ||
             cardType === 'SILVER_STONE'
         );
@@ -155,6 +153,8 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isHeavenBlessing,
             isRevealHandWill,
             isCondemnWill,
+            isObserverWill,
+            isTheoryIncarnation,
             isExecutionWill,
             isExtendLifeWill,
             isExtendLifeGod,
@@ -163,7 +163,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isSupplyWill,
             isGoldStone,
             isCrystalStone,
-            isTheoryIncarnation,
             isRainbowStone,
             isSilverStone,
             isPlunderWill,
@@ -179,6 +178,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isGuardWill,
             isGuardianGod,
             isRegenWill,
+            isReverseWill,
             isLightningWill,
             isHyperactiveWill,
             isInstantHyperactiveWill,
@@ -187,12 +187,10 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isXBomb,
             isUltimateDestroyGod,
             isUltimateHyperactiveGod,
-            isObserverWill,
             isDestroyDragonWill,
             isBreedingWill,
             isTeleportWill,
             isCellTeleportWill,
-            isHyperactiveInheritWill,
             isRobotVacuumWill,
             isExtremeHyperactiveWill,
             isGluttonousWill,

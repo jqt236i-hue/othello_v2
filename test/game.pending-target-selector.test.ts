@@ -155,6 +155,26 @@ describe('pending-target-selector', () => {
     expect(action).toEqual({ type: 'place', condemnTargetIndex: 3 });
   });
 
+  test('buildPendingSelectionAction for OBSERVER_WILL chooses the highest value opponent hand offer', () => {
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      playerKey: 'black',
+      pending: {
+        type: 'OBSERVER_WILL',
+        stage: 'selectTarget',
+        offers: [
+          { handIndex: 0, cardId: 'guard_01' },
+          { handIndex: 1, cardId: 'meteor_01' }
+        ]
+      },
+      cardLogic: {
+        getCardCost: (cardId) => cardId === 'meteor_01' ? 12 : 3,
+        getCardDef: (cardId) => ({ id: cardId, type: cardId === 'meteor_01' ? 'METEOR_WILL' : 'GUARD_WILL' })
+      }
+    });
+
+    expect(action).toEqual({ type: 'place', observerWillTargetIndex: 1 });
+  });
+
   test('buildPendingSelectionAction uses shrinkTarget payload for board shrink cards', () => {
     const action = PendingTargetSelector.buildPendingSelectionAction({
       pendingType: 'BOARD_SHRINK_GOD',

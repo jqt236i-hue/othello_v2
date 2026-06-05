@@ -159,4 +159,3 @@ describe('workers pending place parity smoke for previously uncovered card types
     expect(result.playbackCount).toBeGreaterThan(0);
   });
 });
-

@@ -6,7 +6,6 @@ type FinalizeTurnStartMarkerProcessingOptions = {
     events: any[];
     prng: any;
     processedTurnStartMarkers: any;
-    observerMarkersBeforeStart: any;
     workMarkersBeforeStart: any;
     specialStoneSpeechBeforeStart: any;
     eventStartIndex: any;
@@ -15,14 +14,10 @@ type FinalizeTurnStartMarkerProcessingOptions = {
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
     pushTrapEvents: (events: any[], trapRes: any) => void;
     emitTrapHandRemoveEvents: (CardLogic: any, cardState: any, trapRes: any) => void;
-    snapshotObserverMarkers: (cardState: any) => any;
-    getRemovedObserverMarkers: (beforeSnapshot: any, afterSnapshot: any) => any[];
-    emitObserverBubblePresentation: (CardLogic: any, cardState: any, payload: any) => void;
     normalizePlayerKey: (value: any) => any;
     isWorkDurationEndPresentationEvent: (event: any) => boolean;
     emitWorkRemovedPresentationFromSnapshots: (CardLogic: any, cardState: any, beforeSnapshot: any, options: any) => void;
     emitSpecialStoneBubblesFromPhase: (CardLogic: any, cardState: any, options: any) => void;
-    observerLostLine: string;
 };
 
 function createEmptyProcessedTurnStartMarkers(): any {
@@ -35,11 +30,6 @@ function createEmptyProcessedTurnStartMarkers(): any {
                 black: [],
                 white: []
             }
-        },
-        observerStartSummary: {
-            triggered: [],
-            lost: [],
-            durationEnd: []
         }
     };
 }
@@ -48,7 +38,6 @@ function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProce
     const opts = (options && typeof options === 'object') ? options : ({} as FinalizeTurnStartMarkerProcessingOptions);
     const processed = opts.processedTurnStartMarkers || createEmptyProcessedTurnStartMarkers();
     const hyperAggregated = processed.hyperAggregated || createEmptyProcessedTurnStartMarkers().hyperAggregated;
-    const observerStartSummary = processed.observerStartSummary || createEmptyProcessedTurnStartMarkers().observerStartSummary;
 
     const hyperByOwner = hyperAggregated.flippedByOwner || {};
     const regenTriggered: any[] = [];
@@ -101,44 +90,6 @@ function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProce
         opts.pushTrapEvents(opts.events, trapRes);
         opts.emitTrapHandRemoveEvents(opts.CardLogic, opts.cardState, trapRes);
     }
-
-    const durationEndSet = new Set((observerStartSummary.durationEnd || []).map((item: any) => `${item.row},${item.col}:${item.owner || ''}`));
-    const removedAtStart = opts.getRemovedObserverMarkers(
-        opts.observerMarkersBeforeStart,
-        opts.snapshotObserverMarkers(opts.cardState)
-    ).filter((item: any) => !durationEndSet.has(`${item.row},${item.col}:${item.owner || ''}`));
-    if (removedAtStart.length) {
-        observerStartSummary.lost.push(...removedAtStart.map((item: any) => ({
-            row: item.row,
-            col: item.col,
-            owner: item.owner || null,
-            reason: 'removed'
-        })));
-    }
-
-    const primaryLost = observerStartSummary.lost[0] || null;
-    const primaryTriggered = observerStartSummary.triggered[0] || null;
-    if (primaryLost) {
-        opts.emitObserverBubblePresentation(opts.CardLogic, opts.cardState, {
-            player: primaryLost.owner || opts.playerKey,
-            row: primaryLost.row,
-            col: primaryLost.col,
-            text: opts.observerLostLine,
-            reason: 'anchor_lost'
-        });
-    } else if (primaryTriggered && typeof opts.CardLogic.emitPresentationEvent === 'function') {
-        const gained = Number(primaryTriggered.gained) || 0;
-        opts.CardLogic.emitPresentationEvent(opts.cardState, {
-            type: 'OBSERVER_TRIGGERED',
-            player: opts.playerKey,
-            row: primaryTriggered.row,
-            col: primaryTriggered.col,
-            gained,
-            text: `布石+${gained} 観測が捗る`,
-            meta: { owner: opts.playerKey, reason: 'triggered' }
-        });
-    }
-
     const newPresentationEvents = Array.isArray(opts.cardState.presentationEvents)
         ? opts.cardState.presentationEvents.slice(Number(opts.presentationStartIndex) || 0)
         : [];
@@ -172,7 +123,6 @@ function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProce
 
     return {
         hyperAggregated,
-        observerStartSummary,
         newPresentationEvents
     };
 }

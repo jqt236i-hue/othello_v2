@@ -165,8 +165,10 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.effectSoundFiles.living_will_selected).toBe('生きる意志を付与するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.board_shrink_selected).toBe('盤面縮小するタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.meteor_hole).toBe('隕石で穴化するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.position_swap_move).toBe('入替の意志で石が入れ替わるタイミング.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
+    expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
   });
 
   test('startup default track points to The Observer’s Tears', () => {
@@ -245,6 +247,88 @@ describe('SoundEngine default BGM', () => {
 
     expect(bgm.currentTime).toBeCloseTo(1.655, 6);
     expect(bgm.play).toHaveBeenCalledTimes(1);
+  });
+
+  test('manifest BGM override pauses normal BGM and resumes it after clearing', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.allowBgmPlay = true;
+    soundEngine.loadBgm(0);
+    const normalBgm = instances[0];
+    expect(normalBgm.play).toHaveBeenCalledTimes(1);
+
+    const started = soundEngine.setManifestBgmOverride('observer_will_path', {
+      name: '観測の道',
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+    });
+
+    const manifestBgm = instances[1];
+    expect(started).toBe(true);
+    expect(normalBgm.pause).toHaveBeenCalledTimes(1);
+    expect(manifestBgm.src).toBe('assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3');
+    expect(manifestBgm.loop).toBe(true);
+    expect(manifestBgm.play).toHaveBeenCalledTimes(1);
+
+    soundEngine.clearManifestBgmOverride();
+
+    expect(manifestBgm.pause).toHaveBeenCalledTimes(1);
+    expect(normalBgm.play).toHaveBeenCalledTimes(2);
+  });
+
+  test('manifest BGM override waits for the special card mute window before starting', () => {
+    jest.useFakeTimers();
+    try {
+      const { MockAudio, instances } = createMockHtmlAudioClass();
+      const soundEngine = loadSoundEngine({ Audio: MockAudio, setTimeout, clearTimeout });
+      soundEngine.allowBgmPlay = true;
+      soundEngine.loadBgm(0);
+      const normalBgm = instances[0];
+      expect(normalBgm.play).toHaveBeenCalledTimes(1);
+
+      expect(soundEngine.playEffectByKey('special_card_use')).toBe(true);
+      const beforeManifestCount = instances.length;
+      const started = soundEngine.setManifestBgmOverride('observer_will_path', {
+        name: '観測の道',
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      });
+      const manifestBgm = instances[beforeManifestCount];
+
+      expect(started).toBe(true);
+      expect(normalBgm.pause).toHaveBeenCalledTimes(1);
+      expect(manifestBgm.play).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(2999);
+      expect(manifestBgm.play).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1);
+      expect(manifestBgm.play).toHaveBeenCalledTimes(1);
+      expect(normalBgm.play).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('manifest BGM override respects a paused normal BGM setting', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.allowBgmPlay = false;
+    soundEngine.loadBgm(0);
+    const normalBgm = instances[0];
+    const started = soundEngine.setManifestBgmOverride('observer_will_path', {
+      name: '観測の道',
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+    });
+    const manifestBgm = instances[1];
+
+    expect(started).toBe(true);
+    expect(normalBgm.pause).not.toHaveBeenCalled();
+    expect(manifestBgm.play).not.toHaveBeenCalled();
+
+    soundEngine.clearManifestBgmOverride();
+
+    expect(normalBgm.play).not.toHaveBeenCalled();
   });
 
   test('loopStart track uses AudioBuffer looping when Web Audio and fetch are available', async () => {
@@ -470,6 +554,88 @@ describe('SoundEngine default BGM', () => {
     expect(warmedAudio).toBeTruthy();
     expect(warmedAudio.volume).toBeCloseTo(0.525, 6);
     expect(warmedAudio.play).toHaveBeenCalledTimes(1);
+  });
+
+  test('special card use sound mutes BGM output for exactly three seconds', () => {
+    jest.useFakeTimers();
+    try {
+      const { MockAudio, instances } = createMockHtmlAudioClass();
+      const soundEngine = loadSoundEngine({ Audio: MockAudio, setTimeout, clearTimeout });
+      const originalPrimeEffectSounds = soundEngine.primeEffectSounds.bind(soundEngine);
+      soundEngine.allowBgmPlay = false;
+      soundEngine.init = jest.fn(() => {
+        originalPrimeEffectSounds();
+      });
+      soundEngine.loadBgm(0);
+
+      const bgm = instances[0];
+      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+
+      expect(soundEngine.playEffectByKey('special_card_use')).toBe(true);
+
+      expect(bgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(2999);
+      expect(bgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(1);
+      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('repeated special card use keeps BGM muted until three seconds after the latest use', () => {
+    jest.useFakeTimers();
+    try {
+      const { MockAudio, instances } = createMockHtmlAudioClass();
+      const soundEngine = loadSoundEngine({ Audio: MockAudio, setTimeout, clearTimeout });
+      const originalPrimeEffectSounds = soundEngine.primeEffectSounds.bind(soundEngine);
+      soundEngine.allowBgmPlay = false;
+      soundEngine.init = jest.fn(() => {
+        originalPrimeEffectSounds();
+      });
+      soundEngine.loadBgm(0);
+
+      const bgm = instances[0];
+      expect(soundEngine.playEffectByKey('special_card_use')).toBe(true);
+      jest.advanceTimersByTime(2000);
+      expect(soundEngine.playEffectByKey('special_card_use')).toBe(true);
+
+      jest.advanceTimersByTime(999);
+      expect(bgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(1);
+      expect(bgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(2000);
+      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('regular effect sounds do not mute BGM output', () => {
+    jest.useFakeTimers();
+    try {
+      const { MockAudio, instances } = createMockHtmlAudioClass();
+      const soundEngine = loadSoundEngine({ Audio: MockAudio, setTimeout, clearTimeout });
+      const originalPrimeEffectSounds = soundEngine.primeEffectSounds.bind(soundEngine);
+      soundEngine.allowBgmPlay = false;
+      soundEngine.init = jest.fn(() => {
+        originalPrimeEffectSounds();
+      });
+      soundEngine.loadBgm(0);
+
+      const bgm = instances[0];
+      expect(soundEngine.playEffectByKey('card_use_button')).toBe(true);
+
+      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+      jest.advanceTimersByTime(3000);
+      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('stone placement sound resolves the selected unlocked gacha sound asset path', () => {

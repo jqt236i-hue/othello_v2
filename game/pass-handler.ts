@@ -410,7 +410,7 @@ function isCpuControlledPlayer(playerKey: string) {
 function publishNetworkSnapshot(meta: any) {
     try {
         if (!passHandlerRuntime || typeof passHandlerRuntime.publishSnapshot !== 'function') return;
-        passHandlerRuntime.publishSnapshot(meta || {});
+        return passHandlerRuntime.publishSnapshot(meta || {});
     } catch (e) { /* ignore */ }
 }
 
@@ -440,7 +440,18 @@ function publishPassSnapshot(playerKey: string, actionOverride?: any) {
         action,
         playbackEvents: []
     };
-    publishNetworkSnapshot(meta);
+    return publishNetworkSnapshot(meta);
+}
+
+async function publishNetworkPassCommand(turnOwnerKey: string) {
+    const publishPlayerKey = resolvePassPublishPlayerKey(turnOwnerKey || 'black');
+    const publishAction = createPassNetworkAction(publishPlayerKey, cardState);
+    const publishResult = publishPassSnapshot(publishPlayerKey, publishAction);
+    if (publishResult && typeof publishResult.then === 'function') {
+        const awaitedResult = await publishResult;
+        return !(awaitedResult && typeof awaitedResult === 'object' && awaitedResult.ok === false);
+    }
+    return !(publishResult && typeof publishResult === 'object' && publishResult.ok === false);
 }
 
 function hasUsableCardFor(playerKey: string) {
@@ -783,6 +794,10 @@ async function processPassTurn(playerKey: string, autoMode?: boolean) {
     emitPassHandlerLog(`${selfName}: パス${autoMode ? ' (AUTO)' : ''}`);
     const passedPlayer = gameState.currentPlayer;
     const passedPlayerKey = normalizePlayerKey(passedPlayer, normalizedRequestPlayerKey);
+
+    if (isExplicitNetworkMatchMode()) {
+        return publishNetworkPassCommand(passedPlayerKey);
+    }
 
     const result = applyPassViaPipeline(passedPlayerKey);
     if (!result.ok) {

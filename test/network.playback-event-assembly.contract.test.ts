@@ -322,7 +322,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.reverseWillTarget ? { reverseWillTarget: action.reverseWillTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.expansionTarget ? { expansionTarget: action.expansionTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.observerWillTargetIndex != null ? { observerWillTargetIndex: action.observerWillTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.reverseWillTarget ? { reverseWillTarget: action.reverseWillTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.expansionTarget ? { expansionTarget: action.expansionTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -499,7 +499,7 @@ function buildTurnStartDestroyFixture(kind) {
   } else if (kind === 'WILL_HUNTER_KING') {
     setStone(snapshot, 1, 2, 'white');
     addSpecialMarker(snapshot, 1, 2, 'white', 'WILL_HUNTER_KING', { remainingOwnerTurns: 5 });
-    addSpecialMarker(snapshot, 1, 1, 'black', 'OBSERVER', { remainingOwnerTurns: 3 });
+    addSpecialMarker(snapshot, 1, 1, 'black', 'LIGHTNING', { remainingOwnerTurns: 3 });
   } else if (kind === 'ULTIMATE_DESTROY_GOD') {
     setStone(snapshot, 1, 2, 'black');
     setStone(snapshot, 2, 1, 'black');
@@ -970,11 +970,11 @@ function buildWorkIncomeFixture() {
 
 function buildObserverAnchorLostFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
-  addSpecialMarker(snapshot, 1, 1, 'black', 'OBSERVER', {
+  addSpecialMarker(snapshot, 1, 1, 'black', 'LIGHTNING', {
     remainingOwnerTurns: 3
   });
   return {
-    name: 'OBSERVER_ANCHOR_LOST',
+    name: 'LIGHTNING_ANCHOR_LOST',
     snapshot,
     action: buildCommandAction(2, {
       playerKey: 'black',
@@ -1151,6 +1151,14 @@ function buildPlaybackParityFixtures() {
       actionPayload: { condemnTargetIndex: 1 },
       expectedHandRemove: { player: 'white', cardId: 'guard_01', reason: 'condemn_will' }
     }),
+    buildHandOverlaySelectionFixture({
+      cardId: 'observer_will_01',
+      pendingType: 'OBSERVER_WILL',
+      pendingExtra: { offers: [{ handIndex: 0, cardId: 'supply_01' }, { handIndex: 1, cardId: 'silver_stone' }] },
+      whiteHand: ['supply_01', 'silver_stone'],
+      actionPayload: { observerWillTargetIndex: 0 },
+      expectedHandRemove: { player: 'white', cardId: 'supply_01', reason: 'observer_will' }
+    }),
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
     buildBoardExpansionFixture('BOARD_EXPANSION_WILL'),
@@ -1233,13 +1241,6 @@ function buildPlaybackParityFixtures() {
       actionKey: 'livingWillTarget',
       target: { row: 3, col: 4 },
       expectedStatusApplied: { row: 3, col: 4, special: 'LIVING_WILL' }
-    }),
-    buildBoardPendingStatusFixture({
-      cardId: 'hyperactive_inherit_01',
-      pendingType: 'HYPERACTIVE_INHERIT_WILL',
-      actionKey: 'hyperactiveInheritTarget',
-      target: { row: 3, col: 4 },
-      expectedStatusApplied: { row: 3, col: 4, special: 'INHERITED_HYPERACTIVE' }
     }),
     buildBoardPendingStatusFixture({
       cardId: 'extend_life_01',
@@ -1408,10 +1409,7 @@ function normalizePlaybackVisualStateForParity(state) {
     owner: state.owner || null,
     special: state.special || null,
     timer: Number.isFinite(Number(state.timer)) ? Number(state.timer) : null,
-    inheritedTimer: Number.isFinite(Number(state.inheritedTimer)) ? Number(state.inheritedTimer) : null,
-    inheritedOwner: state.inheritedOwner || null,
     flipEvadeRemaining: Number.isFinite(Number(state.flipEvadeRemaining)) ? Number(state.flipEvadeRemaining) : null,
-    inheritedFlipEvadeRemaining: Number.isFinite(Number(state.inheritedFlipEvadeRemaining)) ? Number(state.inheritedFlipEvadeRemaining) : null,
     destroyEvadeRemaining: Number.isFinite(Number(state.destroyEvadeRemaining)) ? Number(state.destroyEvadeRemaining) : null,
     livingWillAura: state.livingWillAura === true
   };
@@ -1491,6 +1489,7 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         col: fixture.action.col,
         ...(fixture.action.heavenBlessingCardId ? { heavenBlessingCardId: fixture.action.heavenBlessingCardId } : {}),
         ...(fixture.action.condemnTargetIndex != null ? { condemnTargetIndex: fixture.action.condemnTargetIndex } : {}),
+        ...(fixture.action.observerWillTargetIndex != null ? { observerWillTargetIndex: fixture.action.observerWillTargetIndex } : {}),
         ...(fixture.action.expansionTarget ? { expansionTarget: fixture.action.expansionTarget } : {}),
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
@@ -1514,7 +1513,6 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.seedTarget ? { seedTarget: fixture.action.seedTarget } : {}),
         ...(fixture.action.bombTarget ? { bombTarget: fixture.action.bombTarget } : {}),
         ...(fixture.action.livingWillTarget ? { livingWillTarget: fixture.action.livingWillTarget } : {}),
-        ...(fixture.action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: fixture.action.hyperactiveInheritTarget } : {}),
         ...(fixture.action.extendTarget ? { extendTarget: fixture.action.extendTarget } : {}),
         ...(fixture.action.corrosionTarget ? { corrosionTarget: fixture.action.corrosionTarget } : {}),
         ...(fixture.action.captureTarget ? { captureTarget: fixture.action.captureTarget } : {})
@@ -2159,13 +2157,13 @@ describe('network playback event assembly contract', () => {
           })
         ]);
       }
-      if (fixture.name === 'OBSERVER_ANCHOR_LOST') {
+      if (fixture.name === 'LIGHTNING_ANCHOR_LOST') {
         expect(expected.playbackEvents).toEqual(expect.arrayContaining([
           expect.objectContaining({
             type: 'observer_bubble',
-            rawType: 'OBSERVER_BUBBLE',
+            rawType: 'SPECIAL_STONE_BUBBLE',
             targets: expect.arrayContaining([
-              expect.objectContaining({ r: 1, col: 1, owner: 'black' })
+              expect.objectContaining({ r: 1, col: 1, owner: 'black', special: 'LIGHTNING' })
             ])
           })
         ]));

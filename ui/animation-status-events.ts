@@ -98,8 +98,7 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     return;
                 }
 
-                const specialTypeUpper = afterSpecialUpper;
-                const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : after.special;
+                const visualSpecialType = after.special;
                 const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
                 const metaOwner = (ev && ev.meta && Object.prototype.hasOwnProperty.call(ev.meta, 'owner'))
                     ? ev.meta.owner

@@ -34,6 +34,15 @@ function isBombCategoryMarker(marker: any): boolean {
     );
 }
 
+function isManifestStoneMarker(marker: any): boolean {
+    const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+    return !!(
+        marker &&
+        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+        (type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL')
+    );
+}
+
 function isFrozenCell(cardState: CardState, row: number, col: number, cardUtils?: any): boolean {
     if (cardUtils && typeof cardUtils.isFrozenCell === 'function') {
         return !!cardUtils.isFrozenCell(cardState, row, col);
@@ -107,11 +116,16 @@ function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number)
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
         m &&
-        m.kind === 'specialStone' &&
         m.row === row &&
         m.col === col &&
-        m.data &&
-        m.data.type === 'ABSOLUTE_PROTECTED'
+        (
+            isManifestStoneMarker(m) ||
+            (
+                m.kind === 'specialStone' &&
+                m.data &&
+                m.data.type === 'ABSOLUTE_PROTECTED'
+            )
+        )
     ));
 }
 
@@ -120,11 +134,16 @@ function isPositionSwapProtectedCell(cardState: CardState, row: number, col: num
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     const marker = markers.find((m: any) => (
         m &&
-        m.kind === 'specialStone' &&
         m.row === row &&
         m.col === col &&
-        m.data &&
-        m.data.type === 'GLUTTONOUS'
+        (
+            isManifestStoneMarker(m) ||
+            (
+                m.kind === 'specialStone' &&
+                m.data &&
+                (m.data.type === 'GLUTTONOUS' || m.data.type === 'ABSOLUTE_PROTECTED')
+            )
+        )
     ));
     return !!marker;
 }

@@ -2599,6 +2599,24 @@ describe('cpu-policy-core', () => {
         }));
     });
 
+    test('OBSERVER_WILL keeps explicit CPU usage and economy-cycle profile', () => {
+        expect(core.hasUsageStyleForCardType('OBSERVER_WILL')).toBe(true);
+        expect(core.hasMovePlanProfileForCardType('OBSERVER_WILL')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('OBSERVER_WILL')).toEqual(expect.objectContaining({
+            archetype: 'economyCycle',
+            placementWeight: 0
+        }));
+    });
+
+    test('THEORY_INCARNATION keeps explicit CPU usage and economy-cycle profile', () => {
+        expect(core.hasUsageStyleForCardType('THEORY_INCARNATION')).toBe(true);
+        expect(core.hasMovePlanProfileForCardType('THEORY_INCARNATION')).toBe(true);
+        expect(core.getMovePlanProfileForCardType('THEORY_INCARNATION')).toEqual(expect.objectContaining({
+            archetype: 'economyCycle',
+            placementWeight: 0
+        }));
+    });
+
     test('EQUALITY_WILL keeps an explicit explosive-comeback profile without free-placement recovery classification', () => {
         expect(core.isCornerRecoveryCardType('EQUALITY_WILL')).toBe(false);
         expect(core.hasUsageStyleForCardType('EQUALITY_WILL')).toBe(true);

@@ -32,6 +32,13 @@ body {
     color: #e0d0b0;
 }
 
+body.manifest-world-background-active {
+    background-image: var(--manifest-world-background) !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+}
+
 button,
 input,
 select,

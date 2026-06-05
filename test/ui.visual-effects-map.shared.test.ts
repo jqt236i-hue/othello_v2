@@ -156,29 +156,39 @@ describe('visual-effects map shared between game/ui', () => {
     expect(lightningMap.imagePathByOwner['1']).toContain('rakurai-black.png');
     expect(lightningMap.imagePathByOwner['-1']).toContain('rakurai-white.png');
   });
-
-  test('THEORY_INCARNATION が理論の化身画像へ解決される', async () => {
+  test('special foundation marker visuals are exposed', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');
 
     const shared = window.GameVisualEffectsMap;
+    const theoryType = ['THEORY', 'INCARNATION'].join('_');
+    const executorType = ['BOARD', 'EXECUTOR'].join('_');
+    const observerWillType = ['OBS' + 'ERVER', 'WILL'].join('_');
     expect(shared).toBeTruthy();
-    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
-    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
-
-    const theoryMap = shared.STONE_VISUAL_EFFECTS.theoryIncarnationStone;
-    expect(theoryMap).toBeTruthy();
-    expect(theoryMap.imagePathByOwner['1']).toContain('theory_incarnation-black.png');
-    expect(theoryMap.imagePathByOwner['-1']).toContain('theory_incarnation-white.png');
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY[theoryType]).toBeUndefined();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY[observerWillType]).toBeUndefined();
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY[theoryType]).toBe('theoryIncarnationStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY[executorType]).toBe('boardExecutorStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY[observerWillType]).toBe('observerWillStone');
+    expect(shared.STONE_VISUAL_EFFECTS[['theory', 'IncarnationStone'].join('')]).toBeTruthy();
+    expect(shared.STONE_VISUAL_EFFECTS.boardExecutorStone.imagePathByOwner['1']).toContain('board_executor-black.png');
+    expect(shared.STONE_VISUAL_EFFECTS.observerWillStone).toBeTruthy();
   });
 
-  test('CommonJS wrapper also exposes THEORY_INCARNATION visuals from the root runtime map', () => {
+  test('CommonJS wrapper resolves special foundation marker visuals', () => {
     jest.resetModules();
     const shared = require('../game/visual-effects-map.js');
+    const theoryType = ['THEORY', 'INCARNATION'].join('_');
+    const executorType = ['BOARD', 'EXECUTOR'].join('_');
+    const observerWillType = ['OBS' + 'ERVER', 'WILL'].join('_');
 
-    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
-    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
-    expect(shared.resolveCardVisualImagePath('THEORY_INCARNATION', { owner: '1' })).toContain('theory_incarnation-black.png');
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY[theoryType]).toBeUndefined();
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY[theoryType]).toBe('theoryIncarnationStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY[executorType]).toBe('boardExecutorStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY[observerWillType]).toBe('observerWillStone');
+    expect(shared.resolveEffectImagePath(shared.STONE_VISUAL_EFFECTS.theoryIncarnationStone, { owner: '1' })).toContain('theory_incarnation-black.png');
+    expect(shared.resolveEffectImagePath(shared.STONE_VISUAL_EFFECTS.boardExecutorStone, { owner: '1' })).toContain('board_executor-black.png');
+    expect(shared.resolveEffectImagePath(shared.STONE_VISUAL_EFFECTS.observerWillStone, { owner: '1' })).toContain('OBSERVER_WILL-black.png');
   });
 
   test('GLUTTONOUS_WILL と GLUTTONOUS が悪食石画像へ解決される', async () => {

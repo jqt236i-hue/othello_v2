@@ -171,6 +171,8 @@ const DEFENSIVE_CARD_TYPES = new Set([
     'HEAVEN_BLESSING',
     'REVEAL_HAND_WILL',
     'CONDEMN_WILL',
+    'OBSERVER_WILL',
+    'THEORY_INCARNATION',
     'EXECUTION_WILL',
     'TRAP_WILL',
     'EXTEND_LIFE_WILL',
@@ -219,7 +221,6 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'METEOR_WILL',
     'TELEPORT_WILL',
     'CELL_TELEPORT_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
     'RIBO_WILL',
     'LOSS_WILL',
     'CORROSION_WILL',
@@ -230,6 +231,7 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'SUPER_ATTRACTION_WILL',
     'CORNER_TRIBUTE',
     'WILL_HUNTER_KING',
+    'THEORY_INCARNATION',
     'SEED_WILL'
 ]);
 
@@ -312,8 +314,6 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         [
             'CORNER_TRIBUTE',
             'RIBO_WILL',
-            'OBSERVER_WILL',
-            'THEORY_INCARNATION'
         ]
     )
     : new Set([
@@ -326,8 +326,6 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'CORNER_TRIBUTE',
         'WORK_WILL',
         'RIBO_WILL',
-        'OBSERVER_WILL',
-        'THEORY_INCARNATION'
     ]);
 
 const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
@@ -348,7 +346,9 @@ const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
     'FREE_PLACEMENT',
     'LAST_RESORT',
     'HEAVEN_BLESSING',
-    'CONDEMN_WILL'
+    'CONDEMN_WILL',
+    'OBSERVER_WILL',
+    'THEORY_INCARNATION'
 ]);
 
 const STABILITY_CARD_TYPES = new Set([
@@ -364,12 +364,12 @@ const STABILITY_CARD_TYPES = new Set([
     'EXTEND_LIFE_WILL',
     'EXTEND_LIFE_GOD',
     'HEAVEN_BLESSING',
+    'OBSERVER_WILL',
+    'THEORY_INCARNATION',
     'SNIPER_WILL',
     'LIGHTNING_WILL',
     'WORK_WILL',
     'LIVING_WILL',
-    'OBSERVER_WILL',
-    'THEORY_INCARNATION',
     'DESTROY_DRAGON_WILL',
     'WILL_HUNTER_KING',
     'STONE_SALVATION_GOD'
@@ -398,11 +398,11 @@ const SWING_CARD_TYPES = new Set([
     'BOARD_SHRINK_GOD',
     'BOARD_EXPANSION_WILL',
     'BOARD_EXPANSION_GOD',
+    'REVERSE_WILL',
     'CLONE_WILL',
     ...CHAIN_WILL_CARD_TYPES,
     'TELEPORT_WILL',
     'CELL_TELEPORT_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
     'EXTREME_HYPERACTIVE_WILL',
     'LOSS_WILL',
     'CORROSION_WILL',
@@ -454,11 +454,10 @@ const LONG_HORIZON_CARD_TYPES = new Set([
     'ULTIMATE_REVERSE_DRAGON',
     'ULTIMATE_HYPERACTIVE_GOD',
     'TIME_STOP_GOD',
-    'OBSERVER_WILL',
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL',
     'DESTROY_DRAGON_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
+    'THEORY_INCARNATION',
     'EXTREME_HYPERACTIVE_WILL',
     'GLUTTONOUS_WILL',
     'WILL_HUNTER_KING'
@@ -484,7 +483,6 @@ const WHITE_LV6_FAST_ROTATE_TYPES = new Set([
     'DOUBLE_PLACE',
     'BREEDING_WILL',
     'CLONE_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
     'ESCAPE_WILL',
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL'
@@ -522,7 +520,6 @@ const WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES = new Set([
     'ESCAPE_WILL',
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
     'EXTREME_HYPERACTIVE_WILL'
 ]);
 
@@ -534,7 +531,6 @@ const IMMEDIATE_DESTROY_CARD_TYPES = new Set([
 
 const LOW_CHARGE_DESTROY_CARD_TYPES = new Set([
     'ESCAPE_WILL',
-    'HYPERACTIVE_INHERIT_WILL',
     'BOARD_EXPANSION_GOD',
     'SUPPLY_WILL',
     'REVEAL_HAND_WILL',
@@ -1432,7 +1428,6 @@ function scoreCardRetentionPriority(
         isChainWill,
         isGoldStone,
         isCrystalStone,
-        isTheoryIncarnation,
         isRainbowStone,
         isSilverStone,
         isPlunderWill,
@@ -1446,7 +1441,6 @@ function scoreCardRetentionPriority(
         isBlockadeWill,
         isMeteorWill,
         isBoardShrinkCard,
-        isObserverWill,
         isDestroyDragonWill,
         isGluttonousWill,
         isTeleportWill,
@@ -1548,7 +1542,6 @@ function scoreCardRetentionPriority(
             isBlockadeWill,
             isMeteorWill,
             isBoardShrinkCard,
-            isObserverWill,
             isDestroyDragonWill,
             isGluttonousWill,
             isTeleportWill,

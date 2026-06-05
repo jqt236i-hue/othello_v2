@@ -1,15 +1,50 @@
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 
 describe('special stone registry rule classification', () => {
+  const playerSpecialStoneTypes = [
+    'PROTECTED',
+    'PERMA_PROTECTED',
+    'ABSOLUTE_PROTECTED',
+    'REGEN',
+    'GHOST',
+    'AFTERIMAGE_WILL',
+    'HYPERACTIVE',
+    'EXTREME_HYPERACTIVE',
+    'ESCAPE_HYPERACTIVE',
+    'ULTIMATE_HYPERACTIVE',
+    'WORK',
+    'BREEDING',
+    'PROLIFERATION',
+    'SNIPER',
+    'LIGHTNING',
+    'DESTROY_DRAGON',
+    'DRAGON',
+    'ULTIMATE_DESTROY_GOD',
+    'ROBOT_VACUUM',
+    'GLUTTONOUS',
+    'STONE_SALVATION_GOD',
+    'TIME_STOP',
+    'WILL_HUNTER_KING',
+    'TRAP',
+    'TIME_BOMB'
+  ];
+
   test('classifies enduring active stones as true_special_stone', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('HYPERACTIVE')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('DESTROY_DRAGON')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('STONE_SALVATION_GOD')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PROTECTED')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PERMA_PROTECTED')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('ABSOLUTE_PROTECTED')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('GHOST')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('AFTERIMAGE_WILL')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('REGEN')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TIME_BOMB')).toBe('bomb');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TRAP')).toBe('trap');
   });
 
   test('classifies statuses, bombs, traps, board markers, and placement effects', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('GUARD')).toBe('stone_status');
-    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('AFTERIMAGE_WILL')).toBe('stone_status');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('LIVING_WILL')).toBe('stone_status');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TIME_BOMB')).toBe('bomb');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TRAP')).toBe('trap');
@@ -29,6 +64,51 @@ describe('special stone registry rule classification', () => {
       kind: 'specialStone',
       data: { type: 'HYPERACTIVE', instantPlacementOnly: true }
     })).toBe('placement_effect');
+  });
+
+  test('exposes player-facing special stone traits separately from implementation category', () => {
+    for (const type of playerSpecialStoneTypes) {
+      expect(SpecialStoneRegistry.countsAsSpecialStone(type)).toBe(true);
+      expect(SpecialStoneRegistry.isTargetableSpecialStone(type)).toBe(true);
+    }
+
+    expect(SpecialStoneRegistry.canLossWillRevert('ABSOLUTE_PROTECTED')).toBe(false);
+    expect(SpecialStoneRegistry.canLossWillRevert('PROTECTED')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('GHOST')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('TRAP')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('TIME_BOMB')).toBe(true);
+  });
+
+  test('keeps manifest stones and status attachments outside special-stone targeting', () => {
+    for (const type of ['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']) {
+      expect(SpecialStoneRegistry.classifySpecialStoneRuleClass(type)).toBe('manifest_stone');
+      expect(SpecialStoneRegistry.countsAsSpecialStone(type)).toBe(false);
+      expect(SpecialStoneRegistry.isTargetableSpecialStone(type)).toBe(false);
+      expect(SpecialStoneRegistry.isInviolableStoneEffect(type)).toBe(true);
+    }
+
+    for (const type of ['LIVING_WILL', 'GUARD']) {
+      expect(SpecialStoneRegistry.classifySpecialStoneRuleClass(type)).toBe('stone_status');
+      expect(SpecialStoneRegistry.countsAsSpecialStone(type)).toBe(false);
+      expect(SpecialStoneRegistry.isTargetableSpecialStone(type)).toBe(false);
+      expect(SpecialStoneRegistry.canLossWillRevert(type)).toBe(false);
+    }
+  });
+
+  test('prepares theory incarnation spawn candidates without including traps or bombs', () => {
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('GHOST')).toBe(true);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('AFTERIMAGE_WILL')).toBe(true);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('REGEN')).toBe(true);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('TRAP')).toBe(false);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('TIME_BOMB')).toBe(false);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('OBSERVER_WILL')).toBe(false);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('LIVING_WILL')).toBe(false);
+    expect(SpecialStoneRegistry.getTheoryIncarnationSpawnCandidates()).toEqual(
+      expect.arrayContaining(['GHOST', 'AFTERIMAGE_WILL', 'REGEN'])
+    );
+    expect(SpecialStoneRegistry.getTheoryIncarnationSpawnCandidates()).not.toEqual(
+      expect.arrayContaining(['TRAP', 'TIME_BOMB', 'OBSERVER_WILL', 'LIVING_WILL'])
+    );
   });
 
   test('late-bound global EvasionStatus still supplies evade defaults', () => {

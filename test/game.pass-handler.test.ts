@@ -304,7 +304,7 @@ describe('pass-handler flows', () => {
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
-    test('processPassTurn は次手番が人間で行動不能でも即終局しない', async () => {
+    test('network processPassTurn は次手番へローカル遷移せず pass command を送る', async () => {
         delete require.cache[modPath];
         (global as any).MATCH_MODE = 'network';
         (global as any).LOCAL_PLAYER_KEY = 'black';
@@ -324,8 +324,14 @@ describe('pass-handler flows', () => {
         const ok = await ph.processPassTurn('black', false);
         expect(ok).toBe(true);
         expect((global as any).showResult).not.toHaveBeenCalled();
-        expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
-        expect((global as any).onTurnStart).toHaveBeenCalledWith((global as any).WHITE);
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+        expect((global as any).onTurnStart).not.toHaveBeenCalled();
+        expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+            playerKey: 'black',
+            actionType: 'pass',
+            action: { type: 'pass', playerKey: 'black', turnIndex: 0 },
+            playbackEvents: []
+        }));
     });
 
     test('white CPU scheduling is skipped when state changed before delay callback', async () => {
@@ -488,7 +494,7 @@ describe('pass-handler flows', () => {
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
-    test('network pass publish は command payload を送り snapshot を含めない', async () => {
+    test('network pass publish はローカル適用せず現在 turnIndex の command を送る', async () => {
         delete require.cache[modPath];
         const publishSnapshotMock = jest.fn();
         (global as any).MATCH_MODE = 'network';
@@ -530,11 +536,18 @@ describe('pass-handler flows', () => {
         const ok = await ph.processPassTurn('black', false);
 
         expect(ok).toBe(true);
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
         expect(publishSnapshotMock).toHaveBeenCalledTimes(1);
         const payload = publishSnapshotMock.mock.calls[0][0];
         expect(payload.snapshot).toBeUndefined();
-        expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 4 });
-        expect((global as any).cardState.hands.white).toEqual(['white_draw']);
+        expect(payload).toEqual(expect.objectContaining({
+            playerKey: 'black',
+            actionType: 'pass',
+            playbackEvents: []
+        }));
+        expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 3 });
+        expect((global as any).cardState.turnIndex).toBe(3);
+        expect((global as any).cardState.hands.white).toEqual([]);
     });
 
     test('network FATE_WILL pass publish は controller seat を actor に使う', async () => {
@@ -581,17 +594,12 @@ describe('pass-handler flows', () => {
         const ok = await ph.processPassTurn('black', false);
 
         expect(ok).toBe(true);
-        expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.anything(),
-            'white',
-            expect.objectContaining({ type: 'pass', turnIndex: 3 })
-        );
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
         expect(publishSnapshotMock).toHaveBeenCalledTimes(1);
         const payload = publishSnapshotMock.mock.calls[0][0];
         expect(payload.playerKey).toBe('black');
-        expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 4 });
-        expect((global as any).cardState.hands.black).toEqual(['black_card', 'black_draw']);
+        expect(payload.action).toEqual({ type: 'pass', playerKey: 'black', turnIndex: 3 });
+        expect((global as any).cardState.hands.black).toEqual(['black_card']);
     });
 
     test('pass reject clears processing through runtime bridge', async () => {

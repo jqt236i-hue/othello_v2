@@ -321,8 +321,7 @@ const {
         'teleportTarget',
         'expansionTarget',
         'shrinkTarget',
-        'trapTarget',
-        'hyperactiveInheritTarget'
+        'trapTarget'
     ]
 });
 const {

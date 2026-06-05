@@ -92,6 +92,9 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
       completed: false
     });
     expect(cardState.charge.black).toBe(6);
+    expect(cardState.chargeDeltaEvents).toEqual([
+      { seq: 1, player: 'black', delta: -4, before: 10, after: 6, reason: 'ribo_will_repayment' }
+    ]);
     expect(cardState.riboRepaymentsByPlayer.black).toEqual([
       expect.objectContaining({
         remainingOwnerTurns: 8,

@@ -61,8 +61,6 @@ interface Constants {
     SNIPER_WILL_TURNS: any;
     DESTROY_DRAGON_TURNS: any;
     LIGHTNING_WILL_TURNS: any;
-    OBSERVER_WILL_TURNS: any;
-    THEORY_INCARNATION_TURNS: any;
     GHOST_WILL_TURNS: any;
     PROLIFERATION_WILL_TURNS: any;
     SEED_WILL_TURNS: number;
@@ -83,6 +81,12 @@ interface PlacementEffects {
 
 interface TurnStartSummary {
     ribo: {
+        entries: any[];
+        totalRepaid: number;
+        totalDestroyed: number;
+        completedCount: number;
+    };
+    observerWill: {
         entries: any[];
         totalRepaid: number;
         totalDestroyed: number;
@@ -144,8 +148,6 @@ function getConstants(context: Context): Constants {
         SNIPER_WILL_TURNS: constants.SNIPER_WILL_TURNS,
         DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
-        OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
-        THEORY_INCARNATION_TURNS: constants.THEORY_INCARNATION_TURNS,
         GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
         PROLIFERATION_WILL_TURNS: constants.PROLIFERATION_WILL_TURNS,
         SEED_WILL_TURNS: Number.isFinite(Number(constants.SEED_WILL_TURNS))
@@ -225,7 +227,6 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             ultimateDragonTurns: constants && constants.ULTIMATE_DRAGON_TURNS,
             ultimateDestroyGodTurns: constants && constants.ULTIMATE_DESTROY_GOD_TURNS,
             sniperTurns: constants && constants.SNIPER_WILL_TURNS,
-            observerTurns: constants && constants.OBSERVER_WILL_TURNS,
             ghostTurns: constants && constants.GHOST_WILL_TURNS,
             afterimageFlipEvadeLimit: getFlipEvadeDefault('AFTERIMAGE_WILL', constants && constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT),
             afterimageDestroyEvadeLimit: getDestroyEvadeDefault('AFTERIMAGE_WILL', constants && constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT),
@@ -236,7 +237,6 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             extremeHyperactiveFlipEvadeLimit: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
             extremeHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             robotVacuumTurns: constants && constants.ROBOT_VACUUM_TURNS,
-            inheritedHyperactiveTurns: 10,
             ultimateHyperactiveTurns: constants && constants.ULTIMATE_HYPERACTIVE_TURNS,
             ultimateHyperactiveFlipEvadeLimit: getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', constants && constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT),
             ultimateHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', constants && constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT),
@@ -542,6 +542,12 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
             totalRepaid: 0,
             totalDestroyed: 0,
             completedCount: 0
+        },
+        observerWill: {
+            entries: [],
+            totalRepaid: 0,
+            totalDestroyed: 0,
+            completedCount: 0
         }
     };
 
@@ -576,6 +582,9 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
 
     if (typeof helpers.processRiboWillTurnStartEffects === 'function') {
         summary.ribo = helpers.processRiboWillTurnStartEffects(cardState, gameState, playerKey, p);
+    }
+    if (typeof helpers.processObserverWillRepaymentsAtTurnStart === 'function') {
+        summary.observerWill = helpers.processObserverWillRepaymentsAtTurnStart(cardState, gameState, playerKey, p);
     }
 
     if ((cardState as any).debugNoDraw !== true && (cardState as any).turnCountByPlayer[playerKey] % constants.DRAW_INTERVAL === 0) {
@@ -653,7 +662,7 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
             }
             continue;
         }
-        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD' || dataType === 'THEORY_INCARNATION') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
                 if (dataType === 'GHOST') {
@@ -694,26 +703,6 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
                         marker.row,
                         marker.col,
                         'STONE_SALVATION_GOD',
-                        marker.owner,
-                        'SYSTEM',
-                        'duration_end',
-                        {
-                            special: data.type,
-                            owner: marker.owner,
-                            timer: 0
-                        }
-                    );
-                    if (revertRes && revertRes.reverted) {
-                        continue;
-                    }
-                }
-                if (dataType === 'THEORY_INCARNATION' && BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
-                    const revertRes = BoardOpsModule.revertSpecialStoneAt(
-                        cardState,
-                        gameState,
-                        marker.row,
-                        marker.col,
-                        'THEORY_INCARNATION',
                         marker.owner,
                         'SYSTEM',
                         'duration_end',
@@ -915,25 +904,6 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.SNIPER_WILL_TURNS
         });
         effects.sniperPlaced = true;
-    }
-
-    if (pending && pending.type === 'OBSERVER_WILL' && typeof helpers.addMarker === 'function') {
-        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
-            type: 'OBSERVER',
-            remainingOwnerTurns: constants.OBSERVER_WILL_TURNS
-        });
-        effects.observerPlaced = true;
-    }
-
-    if (pending && pending.type === 'THEORY_INCARNATION' && typeof helpers.addMarker === 'function') {
-        const remainingOwnerTurns = Number.isFinite(Number(constants.THEORY_INCARNATION_TURNS))
-            ? Math.max(1, Math.trunc(Number(constants.THEORY_INCARNATION_TURNS)))
-            : 10;
-        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
-            type: 'THEORY_INCARNATION',
-            remainingOwnerTurns
-        });
-        effects.theoryIncarnationPlaced = true;
     }
 
     if (pending && pending.type === 'GHOST_WILL' && typeof helpers.addMarker === 'function') {

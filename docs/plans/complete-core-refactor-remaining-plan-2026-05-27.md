@@ -166,7 +166,7 @@ Confirm the file is no longer an oversized mixed policy/runtime implementation a
 
 ### Self-review update
 
-2026-05-27 update: board-shape access helpers were extracted to `game/logic/cards-internal/board-shape-access.ts`, observer turn-start behavior to `game/logic/cards/observer_will.ts`, chain application orchestration to `game/logic/cards/chain.ts`, taboo-reverse choice selection to `game/cards/target-resolver.ts`, and salvation destroyed-ledger helpers to `game/logic/cards-internal/salvation-effect.ts`, each with focused coverage. The file is still above the practical threshold, but the remaining body is mostly facade/dependency wiring. R2 can now move to final justification unless another real card-specific implementation cluster is found.
+2026-05-27 update: board-shape access helpers were extracted to `game/logic/cards-internal/board-shape-access.ts`, chain application orchestration to `game/logic/cards/chain.ts`, taboo-reverse choice selection to `game/cards/target-resolver.ts`, and salvation destroyed-ledger helpers to `game/logic/cards-internal/salvation-effect.ts`, each with focused coverage. The file is still above the practical threshold, but the remaining body is mostly facade/dependency wiring. R2 can now move to final justification unless another real card-specific implementation cluster is found.
 
 ### Target
 

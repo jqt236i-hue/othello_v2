@@ -223,6 +223,34 @@ describe('selection-flow', () => {
         });
     });
 
+    test('createPendingSelectionAction maps OBSERVER_WILL payload to observerWillTargetIndex', () => {
+        const cardState = {
+            pendingEffectByPlayer: {
+                black: {
+                    type: 'OBSERVER_WILL',
+                    stage: 'selectTarget',
+                    cardId: 'observer_will_01',
+                    pendingEffectId: 'pending_observer_1'
+                },
+                white: null
+            },
+            turnIndex: 3
+        };
+
+        const action = selectionFlow.createPendingSelectionAction(
+            'black',
+            'OBSERVER_WILL',
+            { observerWillTargetIndex: 2 },
+            { cardState }
+        );
+
+        expect(action).toEqual(expect.objectContaining({
+            type: 'place',
+            playerKey: 'black',
+            observerWillTargetIndex: 2
+        }));
+    });
+
     describe('setSelectionProcessing', () => {
         test('正常系: 処理状態を設定できる', () => {
             const result = selectionFlow.setSelectionProcessing(true);

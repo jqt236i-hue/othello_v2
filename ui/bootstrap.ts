@@ -2365,7 +2365,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             trap: 'handleTrapSelection',
                             guard: 'handleGuardSelection',
                             living_will: 'handleLivingWillSelection',
-                            hyperactive_inherit: 'handleHyperactiveInheritSelection',
                             extend_life: 'handleExtendLifeSelection',
                             corrosion: 'handleCorrosionSelection',
                             clone: 'handleCloneSelection',
@@ -2486,6 +2485,27 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             const effectEl = (typeof document !== 'undefined') ? document.getElementById('effect-live-lines') : null;
                             if (effectEl) effectEl.innerHTML = '';
                         } catch (e: any) { /* ignore */ }
+                    },
+                    applyDebugTestScenarioAfterReset: (payload: any) => {
+                        try {
+                            if (!isDebugSessionEnabled()) return { applied: false, reason: 'debug_disabled' };
+                            const root = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+                            if (root && typeof root.getCurrentMatchMode === 'function' && root.getCurrentMatchMode() === 'network') {
+                                return { applied: false, reason: 'network_mode' };
+                            }
+                            const scenarios = require('./debug-test-scenarios');
+                            if (!scenarios || typeof scenarios.readDebugTestScenarioFromLocation !== 'function' || typeof scenarios.applyDebugTestScenarioAfterReset !== 'function') {
+                                return { applied: false, reason: 'scenario_module_unavailable' };
+                            }
+                            const scenarioId = scenarios.readDebugTestScenarioFromLocation(root);
+                            if (!scenarioId) return { applied: false, reason: 'no_scenario' };
+                            return scenarios.applyDebugTestScenarioAfterReset({
+                                ...(payload && typeof payload === 'object' ? payload : {}),
+                                scenarioId
+                            });
+                        } catch (e: any) {
+                            return { applied: false, reason: 'scenario_error', error: e && e.message ? e.message : String(e) };
+                        }
                     }
                 });
             }

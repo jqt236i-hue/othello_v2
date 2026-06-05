@@ -48,6 +48,30 @@
     const DEFAULT_DECK_SIZE = 30;
     const CUSTOM_DECK_SIZE = 30;
     const MAX_DUPLICATES_PER_CARD = 3;
+    const SpecialCardRegistry = (function resolveSpecialCardRegistry() {
+        if (typeof module !== 'undefined' && module.exports) {
+            try {
+                return require('./special-card-registry');
+            } catch (e) { /* ignore */ }
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).SpecialCardRegistry) {
+            return (globalThis as Record<string, unknown>).SpecialCardRegistry;
+        }
+        if (typeof self !== 'undefined' && (self as Record<string, unknown>).SpecialCardRegistry) {
+            return (self as Record<string, unknown>).SpecialCardRegistry;
+        }
+        return null;
+    }());
+    const SPECIAL_FOUNDATION_CARD_IDS = Object.freeze(
+        SpecialCardRegistry && typeof SpecialCardRegistry.getInviolableSpecialCardIds === 'function'
+            ? SpecialCardRegistry.getInviolableSpecialCardIds()
+            : [
+                'theory_incarnation_01',
+                'board_executor_01',
+                'observer_will_01'
+            ]
+    );
+    const SPECIAL_FOUNDATION_CARD_ID_SET: ReadonlySet<string> = new Set(SPECIAL_FOUNDATION_CARD_IDS);
     const CPU_LV6_WHITE_DECK_CODE = 'D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.blockade_01.reinforcement_01';
 
     function createDeckSpecError(code: string, message: string, details?: unknown): DeckSpecError {
@@ -140,6 +164,18 @@
         return DEFAULT_DECK_SIZE;
     }
 
+    function isSpecialFoundationCardId(cardId: unknown): boolean {
+        return SPECIAL_FOUNDATION_CARD_ID_SET.has(normalizeCardId(cardId));
+    }
+
+    function getSpecialFoundationCardIds(): string[] {
+        return SPECIAL_FOUNDATION_CARD_IDS.slice();
+    }
+
+    function getMaxCopiesForCardId(cardId: unknown): number {
+        return isSpecialFoundationCardId(cardId) ? 1 : MAX_DUPLICATES_PER_CARD;
+    }
+
     function getCpuLv6WhiteDeckCode(): string {
         return CPU_LV6_WHITE_DECK_CODE;
     }
@@ -168,8 +204,33 @@
             );
         }
 
+        const shufflePrng = getShuffleOnlyPrng(prng);
+        const enabledSpecialCardIds = enabledCardIds.filter(isSpecialFoundationCardId);
+        if (enabledSpecialCardIds.length > 0) {
+            const normalCardIds = enabledCardIds.filter((cardId) => !isSpecialFoundationCardId(cardId));
+            const requiredNormalCount = DEFAULT_DECK_SIZE - 1;
+            if (normalCardIds.length < requiredNormalCount) {
+                throw createDeckSpecError(
+                    'DEFAULT_DECK_NORMAL_POOL_TOO_SMALL',
+                    `デフォルトデッキを作るには通常カードが ${requiredNormalCount} 種以上必要です`,
+                    {
+                        expectedMin: requiredNormalCount,
+                        actual: normalCardIds.length
+                    }
+                );
+            }
+
+            const specialPool = enabledSpecialCardIds.slice();
+            shufflePrng.shuffle(specialPool);
+            const normalPool = normalCardIds.slice();
+            shufflePrng.shuffle(normalPool);
+            const sampled = [specialPool[0]].concat(normalPool.slice(0, requiredNormalCount));
+            shufflePrng.shuffle(sampled);
+            return sampled;
+        }
+
         const sampled = enabledCardIds.slice();
-        getShuffleOnlyPrng(prng).shuffle(sampled);
+        shufflePrng.shuffle(sampled);
         return sampled.slice(0, DEFAULT_DECK_SIZE);
     }
 
@@ -286,8 +347,9 @@
         let totalCount = 0;
 
         countsByCardId.forEach((count, cardId) => {
-            if (count > MAX_DUPLICATES_PER_CARD) {
-                throw createDeckSpecError('CARD_DUPLICATE_LIMIT', `同一カードは ${MAX_DUPLICATES_PER_CARD} 枚までです: ${cardId}`);
+            const maxCopies = getMaxCopiesForCardId(cardId);
+            if (count > maxCopies) {
+                throw createDeckSpecError('CARD_DUPLICATE_LIMIT', `同一カードは ${maxCopies} 枚までです: ${cardId}`);
             }
             totalCount += count;
             cards.push({ cardId, count });
@@ -353,6 +415,7 @@
         DEFAULT_DECK_SIZE,
         CUSTOM_DECK_SIZE,
         MAX_DUPLICATES_PER_CARD,
+        SPECIAL_FOUNDATION_CARD_IDS,
         CPU_LV6_WHITE_DECK_CODE,
         createDeckSpecError,
         getCatalogVersion,
@@ -363,6 +426,9 @@
         getStandardDeckCardIds,
         getStandardDeckSize,
         getDefaultDeckSize,
+        getSpecialFoundationCardIds,
+        isSpecialFoundationCardId,
+        getMaxCopiesForCardId,
         getCpuLv6WhiteDeckCode,
         sampleDefaultDeckCardIds,
         createDefaultDeckSpec,

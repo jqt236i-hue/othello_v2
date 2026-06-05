@@ -3946,6 +3946,48 @@ async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
     }
 }
 
+async function cpuSelectObserverWillWithPolicy(playerKey: any): Promise<any> {
+    const pending = readCpuPendingEffect(playerKey);
+    const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
+    if (!offers.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 観測者候補なし`);
+        clearCpuPendingEffect(playerKey);
+        return;
+    }
+
+    let target = offers[0];
+    let bestCost = -Infinity;
+    for (const offer of offers) {
+        if (!offer || !offer.cardId) continue;
+        const cost = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardCost === 'function')
+            ? (CardLogic.getCardCost(offer.cardId) || 0)
+            : 0;
+        if (cost > bestCost) {
+            bestCost = cost;
+            target = offer;
+        }
+    }
+    if (!target || !Number.isInteger(target.handIndex)) {
+        clearCpuPendingEffect(playerKey);
+        return;
+    }
+
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { observerWillTargetIndex: target.handIndex },
+        'OBSERVER_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyObserverWillChoice === 'function') {
+        const res = CardLogic.applyObserverWillChoice(cardState, gameState, playerKey, target.handIndex);
+        if (!res || !res.applied) {
+            clearCpuPendingEffect(playerKey);
+        }
+        emitCpuSelectionStateChange();
+    }
+}
+
 /**
  * 交換の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
@@ -4136,43 +4178,6 @@ async function cpuSelectLivingWillWithPolicy(playerKey: any): Promise<any> {
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyLivingWill === 'function') {
         const res = CardLogic.applyLivingWill(cardState, gameState, playerKey, target.row, target.col);
-        if (!res || !res.applied) {
-            clearCpuPendingEffect(playerKey);
-        }
-        emitCpuSelectionStateChange();
-        return;
-    }
-}
-
-/**
- * 多動の継承 対象選択
- * @param {string} playerKey - 'black' または 'white'
- */
-async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey: any): Promise<any> {
-    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getHyperactiveInheritTargets === 'function')
-        ? CardLogic.getHyperactiveInheritTargets(cardState, gameState, playerKey)
-        : ((typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
-            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-            : []);
-
-    if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 継承多動対象なし`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'HYPERACTIVE_INHERIT_WILL', targets, null) || targets[0];
-    cpuDebugLog(`[CPU] ${playerKey}: 継承多動ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = await runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { hyperactiveInheritTarget: { row: target.row, col: target.col } },
-        'HYPERACTIVE_INHERIT_WILL'
-    );
-    if (pipelineResult) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyHyperactiveInheritWill === 'function') {
-        const res = CardLogic.applyHyperactiveInheritWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
             clearCpuPendingEffect(playerKey);
         }
@@ -4493,7 +4498,7 @@ async function cpuSelectBlockadeWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 /**
- * 隕石 対象選択
+ * 因果抹消 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectMeteorWillWithPolicy(playerKey: any): Promise<any> {
@@ -4502,13 +4507,13 @@ async function cpuSelectMeteorWillWithPolicy(playerKey: any): Promise<any> {
         : [];
 
     if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 隕石対象なし`);
+        cpuDebugLog(`[CPU] ${playerKey}: 因果抹消対象なし`);
         clearCpuPendingEffect(playerKey);
         return;
     }
 
     const target = await choosePendingTargetWithPolicyAsync(playerKey, 'METEOR_WILL', targets, null) || targets[0];
-    cpuDebugLog(`[CPU] ${playerKey}: 隕石ターゲット (${target.row}, ${target.col})`);
+    cpuDebugLog(`[CPU] ${playerKey}: 因果抹消ターゲット (${target.row}, ${target.col})`);
 
     const pipelineResult = await runCpuPendingSelectionViaPipeline(
         playerKey,
@@ -4870,13 +4875,13 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectDestroyWithPolicy,
         cpuSelectHeavenBlessingWithPolicy,
         cpuSelectCondemnWillWithPolicy,
+        cpuSelectObserverWillWithPolicy,
         cpuSelectSwapWithEnemyWithPolicy,
         cpuSelectPositionSwapWillWithPolicy,
         cpuSelectTrapWillWithPolicy,
         cpuSelectGuardWillWithPolicy,
         cpuSelectLivingWillWithPolicy,
         cpuSelectCaptureWillWithPolicy,
-        cpuSelectHyperactiveInheritWillWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,
         cpuSelectBuoyancyWillWithPolicy,

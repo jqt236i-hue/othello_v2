@@ -27,7 +27,6 @@ type PassiveEventPlaybackDeps = {
     hasLivingWillRestorePresentationEventForSource: (presentationEvents: any[], row: any, col: any, special: any) => boolean;
     createPlaybackEvent: (playbackBase: any, type: any, phase: any, targets: any) => any;
     hasDurationEndMarker: (reason: any, cause?: any) => boolean;
-    isObserverLostBubblePresentationEvent: (ev: any) => boolean;
 };
 
 function getEventMeta(ev: any) {
@@ -247,18 +246,6 @@ function mapWorkBubble(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlayb
     }];
 }
 
-function mapObserverTriggered(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
-    deps.preparePassivePlaybackPhaseState(ctx.phaseState, { clearWillHunter: false });
-    ctx.pEvent.type = 'observer_bubble';
-    ctx.pEvent.targets = [{
-        r: ctx.ev.row,
-        col: ctx.ev.col,
-        owner: getBubbleOwner(ctx.ev),
-        gained: Number(ctx.ev.gained) || 0,
-        text: getTrimmedText(ctx.ev.text, ctx.ev.meta && ctx.ev.meta.text)
-    }];
-}
-
 function resolveSpecialStoneBubbleScenario(ev: any) {
     return getTrimmedText(ev && ev.scenario, ev && ev.meta && ev.meta.scenario);
 }
@@ -307,14 +294,6 @@ function mapSpecialStoneBubble(ctx: PassiveEventPlaybackContext, deps: PassiveEv
 
 function mapObserverBubble(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
     deps.preparePassivePlaybackPhaseState(ctx.phaseState);
-    if (
-        deps.isObserverLostBubblePresentationEvent(ctx.ev) &&
-        deps.hasLivingWillRestorePresentationEventForSource(ctx.presentationEvents, ctx.ev.row, ctx.ev.col, 'OBSERVER')
-    ) {
-        ctx.pEvent.type = null;
-        ctx.pEvent.targets = [];
-        return;
-    }
     ctx.pEvent.type = 'observer_bubble';
     ctx.pEvent.targets = [{
         r: ctx.ev.row,
@@ -384,9 +363,6 @@ function mapPassivePresentationEvent(ctx: PassiveEventPlaybackContext, deps: Pas
             return true;
         case 'WORK_BUBBLE':
             mapWorkBubble(ctx, deps);
-            return true;
-        case 'OBSERVER_TRIGGERED':
-            mapObserverTriggered(ctx, deps);
             return true;
         case 'SPECIAL_STONE_BUBBLE':
             mapSpecialStoneBubble(ctx, deps);

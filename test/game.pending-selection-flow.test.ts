@@ -1853,45 +1853,6 @@ describe('pending selection flow contracts', () => {
       }
     },
     {
-      pendingType: 'HYPERACTIVE_INHERIT_WILL',
-      row: 3,
-      col: 4,
-      actionPayload: { hyperactiveInheritTarget: { row: 3, col: 4 } },
-      buildNextCardState: (cardState) => ({
-        ...cloneJson(cardState),
-        pendingEffectByPlayer: { black: null, white: null },
-        markers: [{
-          id: 'inherit_1',
-          kind: 'specialStone',
-          row: 3,
-          col: 4,
-          owner: 'black',
-          data: {
-            type: 'INHERITED_HYPERACTIVE',
-            remainingOwnerTurns: 10,
-            flipEvadeRemaining: 1,
-            destroyEvadeRemaining: 1
-          }
-        }]
-      }),
-      buildNextGameState: (gameState) => cloneJson(gameState),
-      assertPreview: ({ cardState }) => {
-        expect(cardState.markers).toEqual([
-          expect.objectContaining({
-            row: 3,
-            col: 4,
-            owner: 'black',
-            data: expect.objectContaining({
-              type: 'INHERITED_HYPERACTIVE',
-              remainingOwnerTurns: 10,
-              flipEvadeRemaining: 1,
-              destroyEvadeRemaining: 1
-            })
-          })
-        ]);
-      }
-    },
-    {
       pendingType: 'EXTEND_LIFE_WILL',
       row: 2,
       col: 2,
@@ -2008,6 +1969,51 @@ describe('pending selection flow contracts', () => {
       assertPreview: ({ gameState }) => {
         expect(gameState.board[3][3]).toBe(0);
         expect(gameState.board[4][4]).toBe(1);
+      }
+    },
+    {
+      pendingType: 'CELL_TELEPORT_WILL',
+      row: 4,
+      col: 4,
+      actionPayload: { teleportTarget: { row: 4, col: 4 } },
+      initialBoardValue: 1,
+      buildNextCardState: (cardState) => ({
+        ...cloneJson(cardState),
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [{
+          id: 'cell_teleport_hole_1',
+          kind: 'specialStone',
+          row: 4,
+          col: 4,
+          owner: 'black',
+          data: { type: 'METEOR_HOLE' }
+        }]
+      }),
+      buildNextGameState: (gameState) => {
+        const nextGameState = cloneJson(gameState);
+        nextGameState.board[4][4] = 0;
+        nextGameState.boardExpansion = {
+          active: true,
+          usedByPlayer: { black: false, white: false },
+          cells: [{ row: -1, col: 4, side: 'top', owner: 1 }]
+        };
+        return nextGameState;
+      },
+      assertPreview: ({ cardState, gameState }) => {
+        expect(gameState.board[4][4]).toBe(0);
+        expect(gameState.boardExpansion).toEqual(expect.objectContaining({
+          cells: expect.arrayContaining([
+            expect.objectContaining({ row: -1, col: 4, owner: 1 })
+          ])
+        }));
+        expect(cardState.markers).toEqual([
+          expect.objectContaining({
+            row: 4,
+            col: 4,
+            owner: 'black',
+            data: expect.objectContaining({ type: 'METEOR_HOLE' })
+          })
+        ]);
       }
     },
     {

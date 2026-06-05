@@ -494,12 +494,16 @@ function runHandFollowupScenario(config) {
     "  board[3][3] = -1; board[3][4] = 1; board[4][3] = 1; board[4][4] = -1;",
     "  const pending = config.kind === 'heaven'",
     "    ? { type: 'HEAVEN_BLESSING', stage: 'selectTarget', cardId: 'heaven_01', sourceHandIndex: 0, offers: ['meteor_01', 'gold_stone'], pendingEffectId: 'pending_hand_1' }",
-    "    : { type: 'CONDEMN_WILL', stage: 'selectTarget', cardId: 'condemn_01', sourceHandIndex: 0, offers: [{ handIndex: 0, cardId: 'meteor_01' }, { handIndex: 1, cardId: 'guard_01' }], pendingEffectId: 'pending_hand_1' };",
+    "    : (config.kind === 'observer'",
+    "      ? { type: 'OBSERVER_WILL', stage: 'selectTarget', cardId: 'observer_will_01', sourceHandIndex: 0, offers: [{ handIndex: 0, cardId: 'supply_01', cardCopyId: 101 }, { handIndex: 1, cardId: 'silver_stone', cardCopyId: 102 }], pendingEffectId: 'pending_hand_1' }",
+    "      : { type: 'CONDEMN_WILL', stage: 'selectTarget', cardId: 'condemn_01', sourceHandIndex: 0, offers: [{ handIndex: 0, cardId: 'meteor_01' }, { handIndex: 1, cardId: 'guard_01' }], pendingEffectId: 'pending_hand_1' });",
     "  const params = config.kind === 'heaven'",
     "    ? { heavenBlessingCardId: 'gold_stone', pendingSelectionState: { type: pending.type, stage: 'selectTarget', cardId: pending.cardId, pendingEffectId: pending.pendingEffectId }, useCardId: pending.cardId, useCardOwnerKey: 'black' }",
-    "    : { condemnTargetIndex: 1, pendingSelectionState: { type: pending.type, stage: 'selectTarget', cardId: pending.cardId, pendingEffectId: pending.pendingEffectId }, useCardId: pending.cardId, useCardOwnerKey: 'black' };",
+    "    : (config.kind === 'observer'",
+    "      ? { observerWillTargetIndex: Number.isInteger(config.observerWillTargetIndex) ? config.observerWillTargetIndex : 0, pendingSelectionState: { type: pending.type, stage: 'selectTarget', cardId: pending.cardId, pendingEffectId: pending.pendingEffectId }, useCardId: pending.cardId, useCardOwnerKey: 'black' }",
+    "      : { condemnTargetIndex: 1, pendingSelectionState: { type: pending.type, stage: 'selectTarget', cardId: pending.cardId, pendingEffectId: pending.pendingEffectId }, useCardId: pending.cardId, useCardOwnerKey: 'black' });",
     "  const room = {",
-    "    roomId: config.kind === 'heaven' ? 'PENDH' : 'PENDC',",
+    "    roomId: config.kind === 'heaven' ? 'PENDH' : (config.kind === 'observer' ? 'PENDO' : 'PENDC'),",
     "    seed: 1, stateVersion: 0, updatedAt: Date.now(),",
     "    seats: { black: true, white: true },",
     "    seatNames: { black: 'くろ', white: 'しろ' },",
@@ -514,7 +518,7 @@ function runHandFollowupScenario(config) {
     "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 12, roundNumber: 1, roundCompletionByPlayer: { black: false, white: false }, pendingRoundBonus: null },",
     "      cardState: {",
     "        deck: [], decks: { black: [], white: [] }, initialDeckSize: 0, initialDeckSizeByPlayer: { black: 0, white: 0 },",
-    "        hands: config.kind === 'heaven' ? { black: ['guard_01'], white: ['meteor_01'] } : { black: [], white: ['meteor_01', 'guard_01'] },",
+    "        hands: config.kind === 'heaven' ? { black: ['guard_01'], white: ['meteor_01'] } : (config.kind === 'observer' ? { black: [], white: Array.isArray(config.whiteHand) ? config.whiteHand : ['supply_01', 'silver_stone'] } : { black: [], white: ['meteor_01', 'guard_01'] }),",
     "        charge: { black: 80, white: 0 }, chargeGainedTotal: { black: 0, white: 0 }, chargeDeltaEvents: [],",
     "        turnCountByPlayer: { black: 1, white: 0 }, lastTurnStartedFor: 'black',",
     "        pendingEffectByPlayer: { black: pending, white: null },",
@@ -523,7 +527,8 @@ function runHandFollowupScenario(config) {
     "        extraPlaceRemainingByPlayer: { black: 0, white: 0 }, infinitePlaceActiveByPlayer: { black: false, white: false }, multiPlaceSourceTypeByPlayer: { black: null, white: null },",
     "        breedingSproutByOwner: { black: [], white: [] }, _breedingSproutClearedTokenByOwner: { black: null, white: null }, riboRepaymentsByPlayer: { black: [], white: [] }, prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },",
     "        lastUsedCardByPlayer: { black: pending.cardId, white: null }, markers: [], presentationEvents: [], _presentationEventsPersist: [],",
-    "        _handCopyIdsByPlayer: { black: [], white: [] }, _deckCopyIdsByPlayer: { black: [], white: [] }, _discardCopyIds: [], _revealedHandCopyIdsByViewer: { black: [], white: [] },",
+    "        _handCopyIdsByPlayer: config.kind === 'observer' ? { black: [], white: Array.isArray(config.whiteCopyIds) ? config.whiteCopyIds : [101, 102] } : { black: [], white: [] }, _deckCopyIdsByPlayer: { black: [], white: [] }, _discardCopyIds: [], _revealedHandCopyIdsByViewer: { black: [], white: [] },",
+    "        cardCostOverridesByCopyId: {}, cardCostModifiersByCopyId: {}, nextObserverWillStoneByPlayer: { black: null, white: null }, observerWillRepaymentsByPlayer: { black: [], white: [] },",
     "        discard: [pending.cardId], turnIndex: 12",
     "      }",
     "    }",
@@ -931,54 +936,6 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
-  test('hyperactive inherit target selection applies inherited marker and status playback', () => {
-    const result = runBoardPendingResolutionScenario({
-      cardId: 'hyperactive_inherit_01',
-      pendingType: 'HYPERACTIVE_INHERIT_WILL',
-      actionKey: 'hyperactiveInheritTarget',
-      target: { row: 3, col: 4 }
-    });
-
-    expect(result.status).toBe(200);
-    expect(result.payload).toEqual(expect.objectContaining({
-      ok: true,
-      stateVersion: 1
-    }));
-    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        row: 3,
-        col: 4,
-        owner: 'black',
-        data: expect.objectContaining({
-          type: 'INHERITED_HYPERACTIVE',
-          remainingOwnerTurns: 10,
-          flipEvadeRemaining: 1,
-          destroyEvadeRemaining: 1
-        })
-      })
-    ]));
-    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: 'status_applied',
-        rawType: 'STATUS_APPLIED',
-        meta: expect.objectContaining({ special: 'INHERITED_HYPERACTIVE' })
-      }),
-      expect.objectContaining({
-        type: 'observer_bubble',
-        rawType: 'SPECIAL_STONE_BUBBLE',
-        targets: expect.arrayContaining([
-          expect.objectContaining({
-            r: 3,
-            col: 4,
-            owner: 'black',
-            special: 'INHERITED_HYPERACTIVE'
-          })
-        ])
-      })
-    ]));
-  });
-
   test('extend life target selection doubles authoritative marker duration and emits status playback', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'extend_life_01',
@@ -1168,7 +1125,13 @@ describe('worker pendingEffectId contract', () => {
       expect.objectContaining({
         type: 'status_applied',
         rawType: 'STATUS_APPLIED',
-        meta: expect.objectContaining({ special: 'METEOR_HOLE' })
+        meta: expect.objectContaining({ special: 'METEOR_HOLE', cellRemovalCause: 'METEOR_WILL' })
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ soundKey: 'meteor_hole' })
+        ])
       })
     ]));
   });
@@ -1248,6 +1211,61 @@ describe('worker pendingEffectId contract', () => {
     expect(result.internalCardState.discard).toEqual(expect.arrayContaining(['condemn_01', 'guard_01']));
     expect(result.internalCardState.discard).not.toEqual(expect.arrayContaining(['__hidden_hand__:white:1']));
     expect(result.payload.effectLogs).toEqual(expect.arrayContaining(['黒: 断罪で相手カードを破壊']));
+  });
+
+  test('observer will follow-up steals selected opponent hand card and arms observer stone in worker runtime', () => {
+    const result = runHandFollowupScenario({ kind: 'observer' });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.payload.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalCardState.hands.black).toEqual(['supply_01']);
+    expect(result.internalCardState.hands.white).toEqual(['silver_stone']);
+    expect(result.internalCardState.cardCostOverridesByCopyId['101']).toEqual(expect.objectContaining({ cost: 0 }));
+    expect(result.internalCardState.cardCostModifiersByCopyId['101']).toBeUndefined();
+    expect(result.internalCardState.cardCostModifiersByCopyId['102'][0]).toEqual(expect.objectContaining({ delta: 5 }));
+    expect(result.internalCardState.nextObserverWillStoneByPlayer.black).toEqual(expect.objectContaining({
+      sourceType: 'OBSERVER_WILL',
+      stolenCardId: 'supply_01',
+      stolenCardCopyId: 101
+    }));
+    expect(result.internalCardState.observerWillRepaymentsByPlayer.black[0]).toEqual(expect.objectContaining({
+      status: 'waiting_for_marker_expire',
+      stolenCardId: 'supply_01',
+      remainingOwnerTurns: 9
+    }));
+    expect(result.payload.effectLogs).toEqual(expect.arrayContaining(['黒: 盤理の観測者で相手カードを獲得']));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'hand_remove',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ player: 'white', cardId: 'supply_01', reason: 'observer_will' })
+        ])
+      }),
+      expect.objectContaining({
+        type: 'hand_add',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ player: 'black', cardId: 'supply_01', reason: 'observer_will' })
+        ])
+      })
+    ]));
+  });
+
+  test('observer will worker follow-up cannot steal inviolable special cards', () => {
+    const result = runHandFollowupScenario({
+      kind: 'observer',
+      whiteHand: ['observer_will_01', 'supply_01'],
+      whiteCopyIds: [101, 102],
+      observerWillTargetIndex: 0
+    });
+
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.internalCardState.hands.white).toEqual(['observer_will_01', 'supply_01']);
+    expect(result.internalCardState.hands.black).toEqual([]);
   });
 
   test.each([

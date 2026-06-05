@@ -21,7 +21,6 @@
 
 ## 区分2: 自分の布石が 50 以下の間は使わず即破壊
 
-- 多動の継承 (`HYPERACTIVE_INHERIT_WILL`)
 - 逃げる意志 (`ESCAPE_WILL`)
 - 盤面拡張神 (`BOARD_EXPANSION_GOD`)
 - 補給の意志 (`SUPPLY_WILL`)
@@ -92,7 +91,6 @@
 - 盤面拡張 (`BOARD_EXPANSION_WILL`)
 - 封鎖の意志 (`BLOCKADE_WILL`)
 - 隕石 (`METEOR_WILL`)
-- 盤理の観測者 (`OBSERVER_WILL`)
 - 再構築の意志 (`REBUILD_WILL`)
 - 捕獲の意志 (`CAPTURE_WILL`)
 - 三連鎖の意志 (`TRIPLE_CHAIN_WILL`)

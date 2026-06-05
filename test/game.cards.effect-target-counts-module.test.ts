@@ -9,6 +9,8 @@ describe('card effect target counts module', () => {
         { row: 1, col: 1, data: { type: 'GUARD' } },
         { row: 1, col: 1, data: { type: 'WORK' } },
         { row: 2, col: 2, data: { type: 'WORK' } },
+        { row: 2, col: 5, data: { type: 'PROTECTED' } },
+        { row: 2, col: 6, data: { type: 'PERMA_PROTECTED' } },
         { row: 2, col: 4, data: { type: 'GHOST', remainingOwnerTurns: 5 } },
         { row: 3, col: 3, data: { type: 'METEOR_HOLE' } },
         { row: 4, col: 4, data: { type: 'ABSOLUTE_PROTECTED' } },
@@ -24,13 +26,16 @@ describe('card effect target counts module', () => {
 
     const result = counts.collectLossWillRemovals({ markers: [] });
     expect(Array.from(result.guardedCells)).toEqual(['1,1']);
-    expect(result.removableSpecials).toHaveLength(1);
+    expect(result.removableSpecials).toHaveLength(4);
     expect(result.removableBombs).toHaveLength(1);
     expect(result.removed).toEqual([
       { row: 2, col: 2, owner: null, type: 'WORK' },
+      { row: 2, col: 5, owner: null, type: 'PROTECTED' },
+      { row: 2, col: 6, owner: null, type: 'PERMA_PROTECTED' },
+      { row: 2, col: 4, owner: null, type: 'GHOST' },
       { row: 2, col: 3, owner: null, type: 'TIME_BOMB' }
     ]);
-    expect(counts.getLossWillRemovableCount({ markers: [] })).toBe(2);
+    expect(counts.getLossWillRemovableCount({ markers: [] })).toBe(5);
   });
 
   test('getSalvationWillTargetCount and getExecutionWillTargetCount read the per-player ledger', () => {

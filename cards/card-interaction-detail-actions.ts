@@ -11,6 +11,7 @@ type CardInteractionDetailActionsDeps = {
     canInteractWithCardUi: () => boolean;
     isSelectionSettlementLocked: () => boolean;
     getCardDef: (cardId: any) => any;
+    getEffectiveCardCost?: (cardId: any, ownerKey: any) => number;
     getCardStateValue: () => any;
     isSelectedCardUsableNow: (playerKey: any, cardId: any, options?: any) => boolean;
     getLegalMovesForCurrentPlayer: () => any[];
@@ -45,8 +46,7 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     CAPTURE_WILL: '捕獲する相手特殊石を選んでください',
     GUARD_WILL: '守る石にする自分の石を選んでください',
     GUARDIAN_GOD: '守護神にする自分の石を選んでください',
-    LIVING_WILL: '破壊対象を選んでください（キャンセル可）',
-    HYPERACTIVE_INHERIT_WILL: '多動を継承する自分の石を選んでください',
+    LIVING_WILL: '生きる意志を付与する自分の石を選んでください（キャンセル可）',
     EXTEND_LIFE_WILL: '延命する自分の特殊石を選んでください',
     EXTEND_LIFE_GOD: '4倍延命する自分の特殊石を選んでください',
     CORROSION_WILL: '腐食の対象となる特殊石を選んでください',
@@ -56,10 +56,11 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     BLOCKADE_WILL: '封鎖する空きマスを選んでください',
     FREEZE_WILL: '凍結するマスを選んでください',
     SEED_WILL: '種をまく空きマスを選んでください',
-    METEOR_WILL: '隕石で破壊するマスを選んでください',
+    METEOR_WILL: '因果抹消で破壊するマスを選んでください',
     TIME_BOMB: '時限爆弾にする自分の石を選んでください',
     HEAVEN_BLESSING: '候補5枚から1枚選択してください',
-    CONDEMN_WILL: '相手手札から破壊する1枚を選択してください'
+    CONDEMN_WILL: '相手手札から破壊する1枚を選択してください',
+    OBSERVER_WILL: '奪う相手手札を選んでください'
 });
 
 function normalizePendingType(pendingType: any): string {
@@ -191,7 +192,12 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
             ? false
             : (typeof cfg.isSelectionSettlementLocked === 'function' && cfg.isSelectionSettlementLocked() === true);
         const selectedCardDef = context.hasSelection ? cfg.getCardDef(context.selectedId) : null;
-        const cost = selectedCardDef ? (selectedCardDef.cost || 0) : 0;
+        const effectiveCost = context.hasSelection && typeof cfg.getEffectiveCardCost === 'function'
+            ? cfg.getEffectiveCardCost(context.selectedId, playerKey)
+            : null;
+        const cost = Number.isFinite(Number(effectiveCost))
+            ? Number(effectiveCost)
+            : (selectedCardDef ? (selectedCardDef.cost || 0) : 0);
         const chargeByPlayer = cardStateValue && cardStateValue.charge ? cardStateValue.charge : {};
         const canAfford = isDebugUnlimited ? true : (chargeByPlayer[playerKey] || 0) >= cost;
         const canUseSelectedCardByRules = !!(context.hasSelection && cfg.isSelectedCardUsableNow(
@@ -205,7 +211,7 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         const isSelectingTarget = !!(pending && pending.stage === 'selectTarget');
         const isHeavenSelecting = !!(
             pending
-            && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL')
+            && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL' || pending.type === 'OBSERVER_WILL')
             && pending.stage === 'selectTarget'
         );
 

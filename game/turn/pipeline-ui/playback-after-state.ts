@@ -2,10 +2,7 @@ type PlaybackAfterStateDeps = {
     getVisualSpecialFromMeta: (meta: any) => any;
     shouldPreferFinalVisualStateForStatusApplied: (eventSpecialRaw: any, visualSpecial: any, livingWillAura: any) => boolean;
     getPrimaryTimerFromMeta: (meta: any) => any;
-    getInheritedTimerFromMeta: (meta: any) => any;
-    getInheritedOwnerFromMeta: (meta: any) => any;
     getFlipEvadeRemainingFromMeta: (meta: any) => any;
-    getInheritedFlipEvadeRemainingFromMeta: (meta: any) => any;
     getDestroyEvadeRemainingFromMeta: (meta: any) => any;
     getVisualStateAt: (row: any, col: any, cardState: any, gameState: any) => any;
 };
@@ -22,10 +19,7 @@ function createEmptyVisualState() {
         special: null,
         timer: null,
         owner: null,
-        inheritedTimer: null,
-        inheritedOwner: null,
         flipEvadeRemaining: null,
-        inheritedFlipEvadeRemaining: null,
         destroyEvadeRemaining: null,
         livingWillAura: false
     };
@@ -33,18 +27,17 @@ function createEmptyVisualState() {
 
 function createEventSourcedVisual(target: any, targetMeta: any, ownerHint: any, deps: PlaybackAfterStateDeps) {
     const visualOwner = (targetMeta && targetMeta.owner) || ((ownerHint === 'black' || ownerHint === 'white') ? ownerHint : null);
-    return {
+    const visual: any = {
         color: ownerToColor(ownerHint || (targetMeta && targetMeta.owner)),
         special: deps.getVisualSpecialFromMeta(targetMeta),
         timer: deps.getPrimaryTimerFromMeta(targetMeta),
         owner: visualOwner,
-        inheritedTimer: deps.getInheritedTimerFromMeta(targetMeta),
-        inheritedOwner: deps.getInheritedOwnerFromMeta(targetMeta),
         flipEvadeRemaining: deps.getFlipEvadeRemainingFromMeta(targetMeta),
-        inheritedFlipEvadeRemaining: deps.getInheritedFlipEvadeRemainingFromMeta(targetMeta),
         destroyEvadeRemaining: deps.getDestroyEvadeRemainingFromMeta(targetMeta),
         livingWillAura: targetMeta && targetMeta.livingWillAura === true
     };
+    if (targetMeta && targetMeta.manifestAura) visual.manifestAura = targetMeta.manifestAura;
+    return visual;
 }
 
 function createEventSourcedAfter(target: any, targetMeta: any, deps: PlaybackAfterStateDeps) {
@@ -79,10 +72,7 @@ function createStatusBefore(playbackType: any, presentationEvent: any, target: a
     if (playbackType === 'status_applied') {
         before.special = null;
         before.timer = null;
-        before.inheritedTimer = null;
-        before.inheritedOwner = null;
         before.flipEvadeRemaining = null;
-        before.inheritedFlipEvadeRemaining = null;
         before.destroyEvadeRemaining = null;
         before.livingWillAura = false;
     }
@@ -97,10 +87,7 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
     const specialFromEventRaw = (eventMeta && eventMeta.special) || null;
     const specialFromEvent = deps.getVisualSpecialFromMeta(eventMeta);
     const ownerFromEvent = (eventMeta && eventMeta.owner) || null;
-    const inheritedTimerFromEvent = deps.getInheritedTimerFromMeta(eventMeta);
-    const inheritedOwnerFromEvent = deps.getInheritedOwnerFromMeta(eventMeta);
     const flipEvadeRemainingFromEvent = deps.getFlipEvadeRemainingFromMeta(eventMeta);
-    const inheritedFlipEvadeRemainingFromEvent = deps.getInheritedFlipEvadeRemainingFromMeta(eventMeta);
     const destroyEvadeRemainingFromEvent = deps.getDestroyEvadeRemainingFromMeta(eventMeta);
     const isStatusRemoved = playbackType === 'status_removed';
     const preferFinalVisualStateForApply = !isStatusRemoved &&
@@ -123,39 +110,28 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
     const ownerForVisual = isStatusRemoved
         ? (visual.owner || null)
         : (preferFinalVisualStateForApply ? (visual.owner || ownerFromEvent || null) : (ownerFromEvent || visual.owner || null));
-    const inheritedTimerForVisual = isStatusRemoved
-        ? (visual.inheritedTimer || null)
-        : (preferFinalVisualStateForApply ? (visual.inheritedTimer || null) : (inheritedTimerFromEvent || visual.inheritedTimer || null));
-    const inheritedOwnerForVisual = isStatusRemoved
-        ? (visual.inheritedOwner || null)
-        : (preferFinalVisualStateForApply ? (visual.inheritedOwner || null) : (inheritedOwnerFromEvent || visual.inheritedOwner || null));
     const flipEvadeRemainingForVisual = isStatusRemoved
         ? (visual.flipEvadeRemaining ?? null)
         : (preferFinalVisualStateForApply
             ? (visual.flipEvadeRemaining ?? null)
             : ((flipEvadeRemainingFromEvent ?? visual.flipEvadeRemaining) ?? null));
-    const inheritedFlipEvadeRemainingForVisual = isStatusRemoved
-        ? (visual.inheritedFlipEvadeRemaining ?? null)
-        : (preferFinalVisualStateForApply
-            ? (visual.inheritedFlipEvadeRemaining ?? null)
-            : ((inheritedFlipEvadeRemainingFromEvent ?? visual.inheritedFlipEvadeRemaining) ?? null));
     const destroyEvadeRemainingForVisual = isStatusRemoved
         ? (visual.destroyEvadeRemaining ?? null)
         : (preferFinalVisualStateForApply
             ? (visual.destroyEvadeRemaining ?? null)
             : ((destroyEvadeRemainingFromEvent ?? visual.destroyEvadeRemaining) ?? null));
-    return {
+    const out: any = {
         color,
         special: specialForVisual,
         timer: timerForVisual,
         owner: ownerForVisual,
-        inheritedTimer: inheritedTimerForVisual,
-        inheritedOwner: inheritedOwnerForVisual,
         flipEvadeRemaining: flipEvadeRemainingForVisual,
-        inheritedFlipEvadeRemaining: inheritedFlipEvadeRemainingForVisual,
         destroyEvadeRemaining: destroyEvadeRemainingForVisual,
         livingWillAura: visual.livingWillAura === true
     };
+    const manifestAura = (eventMeta && eventMeta.manifestAura) || visual.manifestAura || null;
+    if (manifestAura) out.manifestAura = manifestAura;
+    return out;
 }
 
 function populatePlaybackEventAfterState(playbackEvent: any, presentationEvent: any, finalCardState: any, finalGameState: any, deps: PlaybackAfterStateDeps) {

@@ -146,6 +146,7 @@
 - 同一 phase に複数対象があっても `_pushCueForMatchingEventPhases()` / `_pushCueForPhases()` により 1 回。複数 phase に分かれる場合は phase ごとに 1 回。
 - ロボ掃除機吸い込みは `robot_vacuum_suck` のみで `stone_destroy` は追加しない。
 - 爆弾系は `bomb_explode` で、`stone_destroy` は追加しない。
+- 隕石の穴化は `meteor_hole` で、`stone_destroy` は追加しない。
 - 盤面縮小の破壊は `board_shrink_selected` で、`stone_destroy` は追加しない。
 - generic destroy は爆弾・特殊プロフィール・金銀虹自己破壊・持続切れなどを除外した上で `stone_destroy`。
 
@@ -197,7 +198,7 @@
 ## 石を移動する系
 
 **代表カード**
-- 多動の意志、瞬間多動、逃げる意志、極悪多動魔、多動の継承、究極多動神、究極反転龍、究極破壊神、悪食、意志狩りの王、ロボット掃除機、強風、テレポート、マステレポート、位置交換。
+- 多動の意志、瞬間多動、逃げる意志、極悪多動魔、究極多動神、究極反転龍、究極破壊神、悪食、意志狩りの王、ロボット掃除機、強風、テレポート、マステレポート、位置交換。
 
 **仕様上の説明**
 - `01-rulebook.md` では、移動系は空きマスへの移動、敵石マスへの進入前破壊、位置交換、移動元穴化など複数パターンがある。石移動は通常は布石獲得を伴わず、カードにより移動後反転するものとしないものがある。
@@ -350,6 +351,9 @@
 - `BoardOps.applyHoleAt()` はセルを `EMPTY` にし、既存 marker を削除し、`METEOR_HOLE` marker を追加して `STATUS_APPLIED` を emit する。
 - `game/logic/cards/meteor.ts` は対象セルを `BoardOps.applyCellRemovalAt(..., 'METEOR_WILL', 'meteor_cell_destroy')` へ渡し、絶対保護石がなければ石・封鎖・凍結・種など既存状態ごと穴化する。
 - `game/logic/cards/shrink.ts` も `BOARD_SHRINK_*` cause と `visualVariant: BOARD_FRAME` 付きで同じセル消滅経路を使う。
+- `game/logic/cards/teleport.ts` の `CELL_TELEPORT_WILL` は移動後の空いた元マスに対して `BoardOps.applyCellRemovalAt(..., 'CELL_TELEPORT_WILL', 'cell_teleport_source_cell_remove')` を呼び、同じ穴化 metadata を使う。
+- occupied cell removal は `DESTROY` と `STATUS_APPLIED(METEOR_HOLE)` を emit し、`LIVING_WILL` / `REGEN` / 破壊回避は発火しない。
+- `CELL_TELEPORT_WILL` は移動後の空いた元マスに対して `applyCellRemovalAt()` を呼ぶため、`STATUS_APPLIED(METEOR_HOLE)` だけを emit する。
 - `game/cards/effects/status-cells.ts`: `applyBlockadeWill()`, `applyFreezeWill()`, `applySeedWill()` は pending target を確認し、既存同 type marker を除去して `addMarker()` で `BLOCKADE` / `FREEZE` / `SEED` を付ける。
 
 **主な BoardOps API**
@@ -370,8 +374,8 @@
 
 **効果音の扱い**
 - 凍結成功は `freeze_select`。
-- 盤面縮小成功は `board_shrink_selected`。
-- 隕石単体の専用 sound key は、この調査範囲の sound planner では明確な専用 cue を確認していない。
+- 隕石成功は `meteor_hole`。石破壊を伴う場合も穴化の `STATUS_APPLIED` phase に合わせる。
+- 盤面縮小成功は `board_shrink_selected`。盤面縮小 / 盤面縮小神は `meteor_hole` を使わない。
 
 **Event Sequence 例: 隕石が石ありマスに落ちる**
 1. `DESTROY`
@@ -379,17 +383,15 @@
    - reason: `meteor_cell_destroy`
 2. `STATUS_APPLIED`
    - meta.special: `METEOR_HOLE`
-3. `STATUS_REMOVED` / `SPAWN` または `CHANGE`（生きる意志で復活する場合のみ）
-   - cause: `LIVING_WILL`
-   - reason: `living_will_consumed` / `living_will_restored`
-4. `SPAWN`（救済神がいる場合のみ）
+3. `SPAWN`（救済神がいる場合のみ）
    - cause: `STONE_SALVATION_GOD`
    - reason: `stone_salvation_god_revive`
 4. playback:
    - destroy phase
    - status_applied phase（同 block の後続）
-   - revive spawn phase
+   - rescue spawn phase
 5. sound:
+   - meteor では `meteor_hole`
    - board shrink では `board_shrink_selected`
    - 救済 revive では `breeding_spawn`
 
@@ -482,7 +484,7 @@
 
 **壊れやすい点**
 - hidden trap は `STATUS_APPLIED` を出さない例外。全 marker 追加に一律 event を出すと秘匿性が壊れる。
-- overlay-only special (`GUARD`, `INHERITED_HYPERACTIVE`, `LIVING_WILL`) は visual special の扱いが通常特殊石と異なる。
+- overlay-only special (`GUARD`, `LIVING_WILL`) は visual special の扱いが通常特殊石と異なる。
 
 ## ターン開始・持続・アンカー発動系
 

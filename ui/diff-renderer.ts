@@ -63,6 +63,58 @@ let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
+let DiffRendererManifestStoneRegistryModule: any = null;
+
+function _getManifestStoneRegistryForDiff() {
+    if (DiffRendererManifestStoneRegistryModule) return DiffRendererManifestStoneRegistryModule;
+    if (typeof require === 'function') {
+        try {
+            DiffRendererManifestStoneRegistryModule = require('../shared/manifest-stone-registry');
+            return DiffRendererManifestStoneRegistryModule;
+        } catch (e: any) { /* ignore */ }
+    }
+    try {
+        if (typeof window !== 'undefined' && (window as any).ManifestStoneRegistry) {
+            DiffRendererManifestStoneRegistryModule = (window as any).ManifestStoneRegistry;
+            return DiffRendererManifestStoneRegistryModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).ManifestStoneRegistry) {
+            DiffRendererManifestStoneRegistryModule = (globalThis as any).ManifestStoneRegistry;
+            return DiffRendererManifestStoneRegistryModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _isManifestStoneTypeForDiff(rawType: any) {
+    const registry = _getManifestStoneRegistryForDiff();
+    if (registry && typeof registry.isManifestStoneType === 'function') {
+        return registry.isManifestStoneType(rawType) === true;
+    }
+    const typeKey = String(rawType || '').trim().toUpperCase();
+    return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
+}
+
+function _isActiveManifestAuraMarkerForDiff(marker: any, manifestMarkerKind: any, specialMarkerKind: any) {
+    if (!marker || typeof marker !== 'object') return false;
+    const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+    const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+    if (!typeKey) return false;
+    const kind = String((marker && marker.kind) || '').trim();
+    const isManifestKind = kind === manifestMarkerKind || kind === 'manifestStone';
+    const isLegacyManifestType = (kind === specialMarkerKind || !kind) && _isManifestStoneTypeForDiff(typeKey);
+    if (!isManifestKind && !isLegacyManifestType) return false;
+    const remainingRaw = data.remainingOwnerTurns ?? data.remainingTurns ?? marker.remainingOwnerTurns ?? marker.remainingTurns;
+    if (remainingRaw == null) return true;
+    const remaining = Number(remainingRaw);
+    return !Number.isFinite(remaining) || remaining > 0;
+}
+
+function _getManifestAuraOwnerClassForDiff(owner: any) {
+    return (owner === 'black' || owner === BLACK || owner === 1) ? 'black' : 'white';
+}
 
 function _getBoardShapeForDiff(gameState: any) {
     const board = (gameState && Array.isArray(gameState.board)) ? gameState.board : null;
@@ -128,6 +180,10 @@ var SpecialStoneRegistryModule: any = null;
 if (typeof require === 'function') {
     try { SpecialStoneRegistryModule = require('../shared/special-stone-registry'); } catch (e: any) { /* ignore */ }
 }
+var SpecialCardRegistryModule: any = null;
+if (typeof require === 'function') {
+    try { SpecialCardRegistryModule = require('../shared/special-card-registry'); } catch (e: any) { /* ignore */ }
+}
 var StoneStatusSnapshotModule: any = null;
 if (typeof require === 'function') {
     try { StoneStatusSnapshotModule = require('../shared/stone-status-snapshot'); } catch (e: any) { /* ignore */ }
@@ -151,6 +207,12 @@ function _getSpecialStoneRegistryForDiff() {
     if (SpecialStoneRegistryModule) return SpecialStoneRegistryModule;
     const globalScope = _getGlobalScopeForDiff();
     return globalScope.SpecialStoneRegistry || null;
+}
+
+function _getSpecialCardRegistryForDiff() {
+    if (SpecialCardRegistryModule) return SpecialCardRegistryModule;
+    const globalScope = _getGlobalScopeForDiff();
+    return globalScope.SpecialCardRegistry || null;
 }
 
 function _getStoneStatusSnapshotForDiff() {
@@ -218,6 +280,190 @@ function _playBoardExpansionRevealSoundForDiff() {
             SoundEngine.init();
         }
         SoundEngine.playEffectByKey('board_expansion_reveal');
+    } catch (e: any) { /* ignore */ }
+}
+
+function _isActiveManifestStoneMarkerForDiff(marker: any) {
+    if (!marker || typeof marker !== 'object') return false;
+    const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+    const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+    if (!typeKey) return false;
+    const kind = String((marker && marker.kind) || '').trim();
+    if (kind && kind !== 'manifestStone') return false;
+    const remainingRaw = data.remainingOwnerTurns ?? data.remainingTurns ?? marker.remainingOwnerTurns ?? marker.remainingTurns;
+    if (remainingRaw == null) return true;
+    const remaining = Number(remainingRaw);
+    return !Number.isFinite(remaining) || remaining > 0;
+}
+
+function _getManifestPresentationOverrideForDiff() {
+    try {
+        const root = (typeof window !== 'undefined' && window)
+            ? window
+            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+        const pending = root && (root as any).__manifestPresentationOverride;
+        return pending && typeof pending === 'object' ? pending : null;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _setManifestPresentationOverrideForDiff(value: any) {
+    try {
+        const root = (typeof window !== 'undefined' && window)
+            ? window
+            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
+        if (root) (root as any).__manifestPresentationOverride = value || null;
+    } catch (e: any) { /* ignore */ }
+}
+
+function _markManifestPresentationOverrideResolvedForDiff(active: any) {
+    const pending = _getManifestPresentationOverrideForDiff();
+    if (!pending || pending.resolvedByMarker === true) return;
+    const pendingBackgroundKey = String(pending.manifestBackgroundKey || '').trim();
+    const pendingBgmKey = String(pending.manifestBgmKey || '').trim();
+    const activeBackgroundKey = String(active && active.key ? active.key : '').trim();
+    const activeBgmKey = String(active && active.bgmKey ? active.bgmKey : '').trim();
+    const matchesBackground = pendingBackgroundKey && activeBackgroundKey && pendingBackgroundKey === activeBackgroundKey;
+    const matchesBgm = pendingBgmKey && activeBgmKey && pendingBgmKey === activeBgmKey;
+    if (!matchesBackground && !matchesBgm) return;
+    pending.resolvedByMarker = true;
+    _setManifestPresentationOverrideForDiff(pending);
+}
+
+function _consumeResolvedManifestPresentationOverrideForDiff() {
+    const pending = _getManifestPresentationOverrideForDiff();
+    if (pending && pending.resolvedByMarker === true) {
+        _setManifestPresentationOverrideForDiff(null);
+        return true;
+    }
+    return false;
+}
+
+function _findPendingManifestBgmForDiff() {
+    const pending = _getManifestPresentationOverrideForDiff();
+    if (!pending || pending.resolvedByMarker === true) return null;
+    const key = String(pending.manifestBgmKey || '').trim();
+    const track = pending.manifestBgmTrack && typeof pending.manifestBgmTrack === 'object'
+        ? Object.assign({}, pending.manifestBgmTrack)
+        : null;
+    if (!key || !track) return null;
+    return { key, track };
+}
+
+function _findPendingManifestBackgroundForDiff() {
+    const pending = _getManifestPresentationOverrideForDiff();
+    if (!pending || pending.resolvedByMarker === true) return null;
+    const imagePath = String(pending.manifestBackgroundImage || '').trim();
+    if (!imagePath) return null;
+    return {
+        key: String(pending.manifestBackgroundKey || pending.cinematicKey || pending.cardId || 'manifest_world'),
+        imagePath,
+        source: 'special_card_use'
+    };
+}
+
+function _findActiveManifestBgmForDiff(cardStateValue: any) {
+    const markers = Array.isArray(cardStateValue && cardStateValue.markers) ? cardStateValue.markers : [];
+    if (!markers.length) return _findPendingManifestBgmForDiff();
+    const specialCardRegistry = _getSpecialCardRegistryForDiff();
+    if (!specialCardRegistry || typeof specialCardRegistry.getSpecialCardPresentation !== 'function') return _findPendingManifestBgmForDiff();
+    const specialIds = typeof specialCardRegistry.getInviolableSpecialCardIds === 'function'
+        ? specialCardRegistry.getInviolableSpecialCardIds()
+        : [];
+    for (const cardId of specialIds) {
+        const meta = specialCardRegistry.getSpecialCardPresentation(cardId);
+        if (!meta || !meta.markerType || !meta.manifestBgmTrack) continue;
+        const hasActiveMarker = markers.some((marker: any) => {
+            if (!_isActiveManifestStoneMarkerForDiff(marker)) return false;
+            const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+            const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+            return typeKey === String(meta.markerType).toUpperCase();
+        });
+        if (hasActiveMarker) {
+            const active = {
+                key: meta.manifestBgmKey || meta.cinematicKey || meta.cardId,
+                bgmKey: meta.manifestBgmKey || '',
+                track: meta.manifestBgmTrack
+            };
+            _markManifestPresentationOverrideResolvedForDiff(active);
+            return active;
+        }
+    }
+    return _findPendingManifestBgmForDiff();
+}
+
+function _findActiveManifestBackgroundForDiff(cardStateValue: any) {
+    const markers = Array.isArray(cardStateValue && cardStateValue.markers) ? cardStateValue.markers : [];
+    if (!markers.length) {
+        if (_consumeResolvedManifestPresentationOverrideForDiff()) return null;
+        return _findPendingManifestBackgroundForDiff();
+    }
+    const specialCardRegistry = _getSpecialCardRegistryForDiff();
+    if (!specialCardRegistry || typeof specialCardRegistry.getSpecialCardPresentation !== 'function') {
+        if (_consumeResolvedManifestPresentationOverrideForDiff()) return null;
+        return _findPendingManifestBackgroundForDiff();
+    }
+    const specialIds = typeof specialCardRegistry.getInviolableSpecialCardIds === 'function'
+        ? specialCardRegistry.getInviolableSpecialCardIds()
+        : [];
+    for (const cardId of specialIds) {
+        const meta = specialCardRegistry.getSpecialCardPresentation(cardId);
+        if (!meta || !meta.markerType || !meta.manifestBackgroundImage) continue;
+        const hasActiveMarker = markers.some((marker: any) => {
+            if (!_isActiveManifestStoneMarkerForDiff(marker)) return false;
+            const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+            const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+            return typeKey === String(meta.markerType).toUpperCase();
+        });
+        if (hasActiveMarker) {
+            const active = {
+                key: meta.manifestBackgroundKey || meta.cinematicKey || meta.cardId,
+                imagePath: meta.manifestBackgroundImage,
+                source: 'marker'
+            };
+            _markManifestPresentationOverrideResolvedForDiff(active);
+            return active;
+        }
+    }
+    if (_consumeResolvedManifestPresentationOverrideForDiff()) return null;
+    return _findPendingManifestBackgroundForDiff();
+}
+
+function _setManifestWorldBackgroundForDiff(active: any) {
+    if (typeof document === 'undefined' || !document || !document.body) return;
+    const body = document.body;
+    if (active && active.imagePath) {
+        const imagePath = String(active.imagePath || '').trim();
+        if (!imagePath) return;
+        body.classList.add('manifest-world-background-active');
+        body.setAttribute('data-manifest-world-background-key', String(active.key || 'manifest_world'));
+        body.setAttribute('data-manifest-world-background-source', String(active.source || 'marker'));
+        body.style.setProperty('--manifest-world-background', `url("${imagePath}")`);
+        return;
+    }
+    body.classList.remove('manifest-world-background-active');
+    body.removeAttribute('data-manifest-world-background-key');
+    body.removeAttribute('data-manifest-world-background-source');
+    body.style.removeProperty('--manifest-world-background');
+}
+
+function _syncManifestWorldBackgroundForDiff(cardStateValue: any) {
+    try {
+        _setManifestWorldBackgroundForDiff(_findActiveManifestBackgroundForDiff(cardStateValue));
+    } catch (e: any) { /* ignore */ }
+}
+
+function _syncManifestBgmForDiff(cardStateValue: any) {
+    try {
+        if (typeof SoundEngine === 'undefined' || !SoundEngine || typeof SoundEngine.syncManifestBgmOverride !== 'function') {
+            return;
+        }
+        const active = _findActiveManifestBgmForDiff(cardStateValue);
+        if (active) {
+            SoundEngine.syncManifestBgmOverride(active.key, active.track);
+        } else {
+            SoundEngine.syncManifestBgmOverride(null, null);
+        }
     } catch (e: any) { /* ignore */ }
 }
 
@@ -1152,6 +1398,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 isExtendLifeTarget: false,
                 breedingSprout: false,
                 boardBonus: null,
+                theoryNumberCell: false,
                 special: null,
                 inherited: null,
                 guard: null,
@@ -1168,7 +1415,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
     return state;
 }
 
-function _resolveFlipEvadeDisplayForDiff(special: any, inherited: any) {
+function _resolveFlipEvadeDisplayForDiff(special: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsFlipEvade = (
         specialTypeUpper === 'HYPERACTIVE' ||
@@ -1178,25 +1425,12 @@ function _resolveFlipEvadeDisplayForDiff(special: any, inherited: any) {
         specialTypeUpper === 'WILL_HUNTER_KING' ||
         specialTypeUpper === 'AFTERIMAGE_WILL'
     );
-    const specialEvade = (special && specialSupportsFlipEvade && Number.isFinite(Number(special.flipEvadeRemaining)))
+    return (special && specialSupportsFlipEvade && Number.isFinite(Number(special.flipEvadeRemaining)))
         ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
         : null;
-    const inheritedEvade = (inherited && Number.isFinite(Number(inherited.flipEvadeRemaining)))
-        ? Math.max(0, Math.trunc(Number(inherited.flipEvadeRemaining)))
-        : null;
-    if (specialEvade !== null && inheritedEvade !== null) {
-        return {
-            special: specialEvade + inheritedEvade,
-            inherited: null
-        };
-    }
-    return {
-        special: specialEvade,
-        inherited: inheritedEvade
-    };
 }
 
-function _resolveDestroyEvadeDisplayForDiff(special: any, inherited: any) {
+function _resolveDestroyEvadeDisplayForDiff(special: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsDestroyEvade = (
         specialTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
@@ -1204,22 +1438,9 @@ function _resolveDestroyEvadeDisplayForDiff(special: any, inherited: any) {
         specialTypeUpper === 'WILL_HUNTER_KING' ||
         specialTypeUpper === 'AFTERIMAGE_WILL'
     );
-    const specialEvade = (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
+    return (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
         ? Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)))
         : null;
-    const inheritedEvade = (inherited && Number.isFinite(Number(inherited.destroyEvadeRemaining)))
-        ? Math.max(0, Math.trunc(Number(inherited.destroyEvadeRemaining)))
-        : null;
-    if (specialEvade !== null && inheritedEvade !== null) {
-        return {
-            special: specialEvade + inheritedEvade,
-            inherited: null
-        };
-    }
-    return {
-        special: specialEvade,
-        inherited: inheritedEvade
-    };
 }
 
 const LONG_PRESS_MS = 420;
@@ -1231,8 +1452,10 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '復活': '失われた時に元の色や状態へ戻る。',
     '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石。',
+    '顕現石': '特殊カードによって盤面に現れる、特殊石とは別分類の不可侵石。',
     '繁殖生成石': '繁殖の意志でそのターンに新規生成された通常石。次の同一所有者ターン開始まで小さめの双葉表示になる。',
     '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外。誘惑・捕獲は受け流し、入替や他の効果は通常どおり受ける。',
+    '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
     '破壊保護': '破壊効果を受けない。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
@@ -1595,7 +1818,7 @@ function _renderStoneInfoMetaBadges(metaEl: any, badges: any) {
 function _getMarkerKinds() {
     return (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
         ? MarkersAdapter.MARKER_KINDS
-        : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
+        : { SPECIAL_STONE: 'specialStone', MANIFEST_STONE: 'manifestStone', BOMB: 'bomb' };
 }
 
 function _getMarkerEntriesAt(row: any, col: any) {
@@ -1608,6 +1831,12 @@ function _getMarkerEntriesAt(row: any, col: any) {
         if (!_isSameBoardCoord(marker.row, marker.col, row, col)) continue;
         if (_isBoardHiddenTrap(marker)) continue;
         entries.push({ kind: kinds.SPECIAL_STONE, marker });
+    }
+
+    for (const marker of markers) {
+        if (!marker || marker.kind !== kinds.MANIFEST_STONE) continue;
+        if (!_isSameBoardCoord(marker.row, marker.col, row, col)) continue;
+        entries.push({ kind: kinds.MANIFEST_STONE, marker });
     }
 
     for (const marker of markers) {
@@ -1658,8 +1887,7 @@ function _hasHyperactiveLikeStateForDiff(state: any) {
         destroyEvadeRemaining: state.special && state.special.destroyEvadeRemaining,
         hasGuard: !!state.guard
     }, { mode: 'raw' });
-    if (specialSnapshot && specialSnapshot.hasMobility) return true;
-    return !!state.inherited;
+    return !!(specialSnapshot && specialSnapshot.hasMobility);
 }
 
 function _createEntryStatusInputForDiff(entry: any, hasGuard: any) {
@@ -1669,6 +1897,8 @@ function _createEntryStatusInputForDiff(entry: any, hasGuard: any) {
     const data = entry.marker.data || {};
     const isBomb = entry.kind === _getMarkerKinds().BOMB;
     return {
+        kind: entry.kind,
+        marker: entry.marker,
         type,
         timer: isBomb ? data.remainingTurns : data.remainingOwnerTurns,
         regenRemaining: data.regenRemaining,
@@ -2100,7 +2330,9 @@ function buildCurrentCellState() {
     // Build unified special/bomb maps from markers (primary)
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
         ? MarkersAdapter.MARKER_KINDS
-        : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
+        : { SPECIAL_STONE: 'specialStone', MANIFEST_STONE: 'manifestStone', BOMB: 'bomb' };
+    const specialMarkerKind = markerKinds.SPECIAL_STONE || 'specialStone';
+    const manifestMarkerKind = markerKinds.MANIFEST_STONE || 'manifestStone';
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const suppressBoardBonus = _isReversiModeForDiffRenderer();
     const boardBonusByCell = (!suppressBoardBonus && cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
@@ -2109,10 +2341,13 @@ function buildCurrentCellState() {
     const boardBonusConsumedByCell = (!suppressBoardBonus && cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
         ? cardState.boardBonusConsumedByCell
         : {};
+    const theoryNumberCellByCell = (!suppressBoardBonus && cardState && cardState.theoryNumberCellByCell && typeof cardState.theoryNumberCellByCell === 'object')
+        ? cardState.theoryNumberCellByCell
+        : {};
     const specialMap = new Map();
     const guardMap = new Map();
     const livingWillMap = new Map();
-    const inheritedMap = new Map();
+    const manifestAuraMap = new Map();
     const bombMap = new Map();
     const blockadeMap = new Map();
     const freezeMap = new Map();
@@ -2128,22 +2363,14 @@ function buildCurrentCellState() {
             });
             continue;
         }
-        if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
+        if ((m.kind === specialMarkerKind || m.kind === manifestMarkerKind) && m.data && m.data.type) {
             if (_isBoardHiddenTrap(m)) continue;
-            if (m.data.type === 'INHERITED_HYPERACTIVE') {
-                inheritedMap.set(`${m.row},${m.col}`, {
+            if (_isActiveManifestAuraMarkerForDiff(m, manifestMarkerKind, specialMarkerKind)) {
+                manifestAuraMap.set(`${m.row},${m.col}`, {
                     row: m.row,
                     col: m.col,
-                    owner: m.owner,
-                    remainingOwnerTurns: m.data.remainingOwnerTurns,
-                    flipEvadeRemaining: Number.isFinite(Number(m.data.flipEvadeRemaining))
-                        ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                        : null,
-                    destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
-                        ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                        : null
+                    owner: m.owner
                 });
-                continue;
             }
             if (m.data.type === 'LIVING_WILL') {
                 livingWillMap.set(`${m.row},${m.col}`, {
@@ -2308,15 +2535,16 @@ function buildCurrentCellState() {
                 ? Number(boardBonusByCell[key] || 0)
                 : 0;
             const boardBonus = Number.isFinite(bonusValueRaw) && bonusValueRaw > 0 ? bonusValueRaw : null;
+            const theoryNumberCell = boardBonus !== null && !!theoryNumberCellByCell[key];
 
             // Get special stone at this position
             const special = val !== EMPTY ? specialMap.get(key) : null;
-            const inherited = val !== EMPTY ? inheritedMap.get(key) : null;
             const guard = val !== EMPTY ? guardMap.get(key) : null;
             const livingWill = val !== EMPTY ? livingWillMap.get(key) : null;
+            const manifestAura = val !== EMPTY ? manifestAuraMap.get(key) : null;
             const bomb = val !== EMPTY ? bombMap.get(key) : null;
-            const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special, inherited);
-            const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special, inherited);
+            const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special);
+            const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special);
             const specialSupportsFlipEvade = !!(
                 special &&
                 (
@@ -2348,20 +2576,18 @@ function buildCurrentCellState() {
                 isExtendLifeTarget,
                 breedingSprout: (val !== EMPTY) && sproutMap.has(key),
                 boardBonus,
+                theoryNumberCell,
                 // Unified special stone field
                 special: special ? {
                     type: special.type,
                     owner: getOwnerVal(special.owner),
                     remainingOwnerTurns: special.remainingOwnerTurns,
-                    flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0,
-                    destroyEvadeRemaining: destroyEvadeDisplay.special
+                    flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
+                    destroyEvadeRemaining: destroyEvadeDisplay
                 } : null,
                 livingWillAura: !!livingWill,
-                inherited: inherited ? {
-                    owner: getOwnerVal(inherited.owner),
-                    remainingOwnerTurns: inherited.remainingOwnerTurns,
-                    flipEvadeRemaining: flipEvadeDisplay.inherited,
-                    destroyEvadeRemaining: destroyEvadeDisplay.inherited
+                manifestAura: manifestAura ? {
+                    owner: getOwnerVal(manifestAura.owner)
                 } : null,
                 guard: guard ? {
                     owner: getOwnerVal(guard.owner),
@@ -2383,7 +2609,7 @@ function buildCurrentCellState() {
                     owner: getOwnerVal(seed.owner),
                     remainingOwnerTurns: seed.remainingOwnerTurns
                 } : null,
-                destroyEvadeRemaining: destroyEvadeDisplay.special !== null ? destroyEvadeDisplay.special : destroyEvadeDisplay.inherited
+                destroyEvadeRemaining: destroyEvadeDisplay
             };
         }
     }
@@ -2407,12 +2633,12 @@ function buildCurrentCellState() {
         const frozen = freezeMap.get(expKey) || null;
         const seed = seedMap.get(expKey) || null;
         const special = expVal !== EMPTY ? specialMap.get(expKey) : null;
-        const inherited = expVal !== EMPTY ? inheritedMap.get(expKey) : null;
         const guard = expVal !== EMPTY ? guardMap.get(expKey) : null;
         const livingWill = expVal !== EMPTY ? livingWillMap.get(expKey) : null;
+        const manifestAura = expVal !== EMPTY ? manifestAuraMap.get(expKey) : null;
         const bomb = expVal !== EMPTY ? bombMap.get(expKey) : null;
-        const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special, inherited);
-        const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special, inherited);
+        const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special);
+        const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special);
         const specialSupportsFlipEvade = !!(
             special &&
             (
@@ -2446,6 +2672,7 @@ function buildCurrentCellState() {
             isExtendLifeTarget,
             breedingSprout: false,
             boardBonus: null,
+            theoryNumberCell: false,
             frozen: frozen ? {
                 owner: getOwnerVal(frozen.owner),
                 remainingOwnerTurns: frozen.remainingOwnerTurns
@@ -2458,15 +2685,12 @@ function buildCurrentCellState() {
                 type: special.type,
                 owner: getOwnerVal(special.owner),
                 remainingOwnerTurns: special.remainingOwnerTurns,
-                flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay.special : 0,
-                destroyEvadeRemaining: destroyEvadeDisplay.special
+                flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
+                destroyEvadeRemaining: destroyEvadeDisplay
             } : null,
             livingWillAura: !!livingWill,
-            inherited: inherited ? {
-                owner: getOwnerVal(inherited.owner),
-                remainingOwnerTurns: inherited.remainingOwnerTurns,
-                flipEvadeRemaining: flipEvadeDisplay.inherited,
-                destroyEvadeRemaining: destroyEvadeDisplay.inherited
+            manifestAura: manifestAura ? {
+                owner: getOwnerVal(manifestAura.owner)
             } : null,
             guard: guard ? {
                 owner: getOwnerVal(guard.owner),
@@ -2480,7 +2704,7 @@ function buildCurrentCellState() {
                 visualVariant: blockade.visualVariant,
                 innerBoundaryMask: getBoardShrinkInnerBoundaryMask(expansion.row, expansion.col, blockade.visualVariant)
             } : null,
-            destroyEvadeRemaining: destroyEvadeDisplay.special !== null ? destroyEvadeDisplay.special : destroyEvadeDisplay.inherited
+            destroyEvadeRemaining: destroyEvadeDisplay
         });
     }
     state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
@@ -2508,7 +2732,10 @@ function cellStatesEqual(a: any, b: any) {
     if (!!a.isExtendLifeTarget !== !!b.isExtendLifeTarget) return false;
     if (!!a.breedingSprout !== !!b.breedingSprout) return false;
     if (a.boardBonus !== b.boardBonus) return false;
+    if (!!a.theoryNumberCell !== !!b.theoryNumberCell) return false;
     if (!!a.livingWillAura !== !!b.livingWillAura) return false;
+    if ((a.manifestAura === null) !== (b.manifestAura === null)) return false;
+    if (a.manifestAura && b.manifestAura && a.manifestAura.owner !== b.manifestAura.owner) return false;
 
     // Compare unified special stone
     if ((a.special === null) !== (b.special === null)) return false;
@@ -2734,6 +2961,9 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
 
     if (state.value === EMPTY && Number.isFinite(state.boardBonus) && state.boardBonus > 0) {
         cell.classList.add('has-board-bonus');
+        if (state.theoryNumberCell) {
+            cell.classList.add('has-theory-number-cell');
+        }
         const bonusLabel = document.createElement('div');
         bonusLabel.className = 'board-bonus-number';
         bonusLabel.textContent = String(state.boardBonus);
@@ -2840,6 +3070,10 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             disc.classList.add('living-will-aura');
         }
 
+        if (state.manifestAura) {
+            disc.classList.add('manifest-stone-aura', `manifest-stone-aura-${_getManifestAuraOwnerClassForDiff(state.manifestAura.owner)}`);
+        }
+
         // Add bomb UI (independent of special effects)
         if (state.bomb) {
             const bombOwnerClass = state.bomb.owner === BLACK ? 'bomb-black' : 'bomb-white';
@@ -2862,40 +3096,6 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             guardTimer.textContent = String(guardRemaining);
             _applyDoubleDigitTimerClassForDiff(guardTimer, guardRemaining);
             discHud.appendChild(guardTimer);
-        }
-
-        if (state.inherited && typeof state.inherited.remainingOwnerTurns === 'number') {
-            const inheritedTimer = document.createElement('div');
-            inheritedTimer.className = 'stone-timer special-timer inherited-hyperactive-timer';
-            const inheritedRemaining = Math.max(0, Math.trunc(state.inherited.remainingOwnerTurns));
-            inheritedTimer.textContent = String(inheritedRemaining);
-            _applyDoubleDigitTimerClassForDiff(inheritedTimer, inheritedRemaining);
-            discHud.appendChild(inheritedTimer);
-        }
-
-        if (
-            state.inherited &&
-            Number.isFinite(state.inherited.flipEvadeRemaining) &&
-            !canShowSpecialFlipEvade
-        ) {
-            const evadeTimer = document.createElement('div');
-            evadeTimer.className = 'stone-timer flip-evade-timer';
-            const inheritedEvadeRemaining = Math.max(0, Math.trunc(state.inherited.flipEvadeRemaining));
-            evadeTimer.textContent = String(inheritedEvadeRemaining);
-            _applyDoubleDigitTimerClassForDiff(evadeTimer, inheritedEvadeRemaining);
-            discHud.appendChild(evadeTimer);
-        }
-        if (
-            state.inherited &&
-            Number.isFinite(state.inherited.destroyEvadeRemaining) &&
-            !canShowDestroyEvade
-        ) {
-            const destroyEvadeTimer = document.createElement('div');
-            destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
-            const inheritedDestroyEvadeRemaining = Math.max(0, Math.trunc(state.inherited.destroyEvadeRemaining));
-            destroyEvadeTimer.textContent = String(inheritedDestroyEvadeRemaining);
-            _applyDoubleDigitTimerClassForDiff(destroyEvadeTimer, inheritedDestroyEvadeRemaining);
-            discHud.appendChild(destroyEvadeTimer);
         }
 
         if (state.breedingSprout) {
@@ -3044,6 +3244,8 @@ function _syncSelectionModeForDiff(boardEl: any) {
  * @returns {number} 更新されたセル数
  */
 function renderBoardDiff(boardEl: any) {
+    _syncManifestBgmForDiff((typeof cardState !== 'undefined' && cardState) ? cardState : null);
+    _syncManifestWorldBackgroundForDiff((typeof cardState !== 'undefined' && cardState) ? cardState : null);
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
         previousBoardState = null;
         cellCache = [];

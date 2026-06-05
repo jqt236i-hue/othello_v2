@@ -28,8 +28,15 @@ body {
     background-image: var(--app-background-image);
     background-position: center center;
     background-repeat: no-repeat;
-    background-size: auto;
+    background-size: cover;
     color: #e0d0b0;
+}
+
+body.manifest-world-background-active {
+    background-image: var(--manifest-world-background) !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
 }
 
 button,

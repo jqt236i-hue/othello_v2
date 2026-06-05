@@ -804,7 +804,10 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
                 .sort(compareCardDefsForDeckBuilder)
                 .map((cardDef: any) => {
                 const selectedCount = DeckBuilderStateModule.getSelectedCount(state.editor.draft, cardDef.id);
-                const willResetToZero = selectedCount >= DeckSpecHelpers.MAX_DUPLICATES_PER_CARD;
+                const maxCopies = typeof DeckBuilderStateModule.getMaxCopiesForCardId === 'function'
+                    ? DeckBuilderStateModule.getMaxCopiesForCardId(cardDef.id)
+                    : DeckSpecHelpers.MAX_DUPLICATES_PER_CARD;
+                const willResetToZero = selectedCount >= maxCopies;
                 const disabledAdd = !willResetToZero && !DeckBuilderStateModule.canAddCardToDraft(state.editor.draft, cardDef.id);
                 return {
                     cardId: cardDef.id,

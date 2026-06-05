@@ -205,17 +205,6 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseLivingWillTarget', field: 'livingWillTarget' },
         cpuHandlerNames: ['cpuSelectLivingWillWithPolicy']
     },
-    HYPERACTIVE_INHERIT_WILL: {
-        kind: 'continue_turn',
-        turnOutcome: 'continue_turn',
-        deferNetworkPublish: true,
-        waitForPlaybackIdle: true,
-        needsTargetSelection: true,
-        dispatchKey: 'hyperactive_inherit',
-        target: { method: 'getHyperactiveInheritTargets', argsKey: 'player' },
-        action: { policyMethod: 'chooseHyperactiveInheritTarget', field: 'hyperactiveInheritTarget' },
-        cpuHandlerNames: ['cpuSelectHyperactiveInheritWillWithPolicy']
-    },
     EXTEND_LIFE_WILL: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',
@@ -407,6 +396,15 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         needsTargetSelection: true,
         dispatchKey: 'condemn',
         cpuHandlerNames: ['cpuSelectCondemnWillWithPolicy']
+    },
+    OBSERVER_WILL: {
+        kind: 'hand_overlay',
+        turnOutcome: 'continue_turn',
+        deferNetworkPublish: true,
+        waitForPlaybackIdle: true,
+        needsTargetSelection: true,
+        dispatchKey: 'observer_will',
+        cpuHandlerNames: ['cpuSelectObserverWillWithPolicy']
     }
 });
 

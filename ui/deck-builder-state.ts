@@ -31,6 +31,13 @@ function getEnabledOrder(): any[] {
   return ensureDeckSpecHelpers().getEnabledCardDefs();
 }
 
+function getMaxCopiesForCardId(cardId: string): number {
+  const helpers = ensureDeckSpecHelpers();
+  return typeof helpers.getMaxCopiesForCardId === 'function'
+    ? helpers.getMaxCopiesForCardId(cardId)
+    : helpers.MAX_DUPLICATES_PER_CARD;
+}
+
 function normalizeDraft(draft?: any): Draft {
   const source = (draft && typeof draft === 'object') ? draft : {};
   const countsById: Record<string, number> = {};
@@ -40,7 +47,7 @@ function normalizeDraft(draft?: any): Draft {
 
   Object.keys(rawCounts).forEach((cardId: string) => {
     if (!enabledIds.has(cardId)) return;
-    const count = Math.max(0, Math.min(ensureDeckSpecHelpers().MAX_DUPLICATES_PER_CARD, Math.trunc(Number(rawCounts[cardId]) || 0)));
+    const count = Math.max(0, Math.min(getMaxCopiesForCardId(cardId), Math.trunc(Number(rawCounts[cardId]) || 0)));
     if (!count) return;
     countsById[cardId] = count;
     totalCount += count;
@@ -82,7 +89,7 @@ function canAddCardToDraft(draft: any, cardId: string): boolean {
   const nextCardId = String(cardId || '').trim();
   if (!nextCardId) return false;
   if (normalized.totalCount >= ensureDeckSpecHelpers().CUSTOM_DECK_SIZE) return false;
-  return getSelectedCount(normalized, nextCardId) < ensureDeckSpecHelpers().MAX_DUPLICATES_PER_CARD;
+  return getSelectedCount(normalized, nextCardId) < getMaxCopiesForCardId(nextCardId);
 }
 
 function addCardToDraft(draft: any, cardId: string): Draft {
@@ -124,7 +131,7 @@ function advanceCardSelection(draft: any, cardId: string): Draft {
   const normalized = normalizeDraft(draft);
   const nextCardId = String(cardId || '').trim();
   const current = getSelectedCount(normalized, nextCardId);
-  if (current >= ensureDeckSpecHelpers().MAX_DUPLICATES_PER_CARD) {
+  if (current >= getMaxCopiesForCardId(nextCardId)) {
     return clearCardFromDraft(normalized, nextCardId);
   }
   return addCardToDraft(normalized, nextCardId);
@@ -172,6 +179,7 @@ function listSelectedCards(draft: any): any[] {
 const DeckBuilderState = {
   createEmptyDraft,
   cloneDraft,
+  getMaxCopiesForCardId,
   createDraftFromDeckSpec,
   getSelectedCount,
   canAddCardToDraft,

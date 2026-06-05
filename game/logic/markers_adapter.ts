@@ -50,6 +50,7 @@ interface CardState {
 
 interface MarkerKinds {
     SPECIAL_STONE: string;
+    MANIFEST_STONE: string;
 }
 
 interface MarkerCategories {
@@ -57,7 +58,8 @@ interface MarkerCategories {
 }
 
 const MARKER_KINDS: MarkerKinds = {
-    SPECIAL_STONE: 'specialStone'
+    SPECIAL_STONE: 'specialStone',
+    MANIFEST_STONE: 'manifestStone'
 };
 
 const MARKER_CATEGORIES: MarkerCategories = {
@@ -66,6 +68,17 @@ const MARKER_CATEGORIES: MarkerCategories = {
 
 const DEFAULT_BOMB_TYPE = 'TIME_BOMB';
 const LEGACY_BOMB_KIND = 'bomb';
+const ManifestStoneRegistry = (() => {
+    try { return require('../../shared/manifest-stone-registry'); } catch (e) { return null; }
+})();
+
+function isManifestStoneType(rawType: unknown): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+    }
+    const type = String(rawType || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+}
 
 function getMarkerData(marker: Marker): Record<string, any> | null {
     return (marker && marker.data && typeof marker.data === 'object') ? marker.data : null;
@@ -88,11 +101,24 @@ function isBombCategoryMarker(marker: Marker): boolean {
     return getMarkerCategory(marker) === MARKER_CATEGORIES.BOMB;
 }
 
+function isManifestStoneMarker(marker: Marker): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function') {
+        return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
+    }
+    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+    return !!(
+        marker &&
+        (marker.kind === MARKER_KINDS.MANIFEST_STONE || marker.kind === MARKER_KINDS.SPECIAL_STONE) &&
+        isManifestStoneType(type)
+    );
+}
+
 function isSpecialStoneMarker(marker: Marker): boolean {
     return !!(
         marker &&
         marker.kind === MARKER_KINDS.SPECIAL_STONE &&
-        !isBombCategoryMarker(marker)
+        !isBombCategoryMarker(marker) &&
+        !isManifestStoneMarker(marker)
     );
 }
 
@@ -274,6 +300,10 @@ function getSpecialMarkers(cardState: any): Marker[] {
     return getMarkers(cardState).filter(isSpecialStoneMarker);
 }
 
+function getManifestMarkers(cardState: any): Marker[] {
+    return getMarkers(cardState).filter(isManifestStoneMarker);
+}
+
 function getBombMarkers(cardState: any): Marker[] {
     return getMarkers(cardState).filter(isBombCategoryMarker);
 }
@@ -310,7 +340,14 @@ function removeMarkersAt(cardState: any, row: number, col: number, options?: Rem
         if (m.row !== row || m.col !== col) return false;
         if (opts.kind === LEGACY_BOMB_KIND && !isBombCategoryMarker(m)) return false;
         if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(m)) return false;
-        if (opts.kind && opts.kind !== LEGACY_BOMB_KIND && opts.kind !== MARKER_KINDS.SPECIAL_STONE && m.kind !== opts.kind) return false;
+        if (opts.kind === MARKER_KINDS.MANIFEST_STONE && !isManifestStoneMarker(m)) return false;
+        if (
+            opts.kind &&
+            opts.kind !== LEGACY_BOMB_KIND &&
+            opts.kind !== MARKER_KINDS.SPECIAL_STONE &&
+            opts.kind !== MARKER_KINDS.MANIFEST_STONE &&
+            m.kind !== opts.kind
+        ) return false;
         if (opts.category && getMarkerCategory(m) !== opts.category) return false;
         if (opts.type && (!m.data || m.data.type !== opts.type)) return false;
         if (opts.owner && m.owner !== opts.owner) return false;
@@ -335,9 +372,11 @@ export = {
     getMarkerCategory,
     getBombMarkerType,
     isBombCategoryMarker,
+    isManifestStoneMarker,
     isSpecialStoneMarker,
     normalizeMarkerInput,
     getSpecialMarkers,
+    getManifestMarkers,
     getBombMarkers,
     findSpecialMarkerAt,
     findBombMarkerAt,

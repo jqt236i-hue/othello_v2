@@ -55,7 +55,6 @@ function getMoveSemantics(target: any, deps: AnimationMoveEventDeps) {
         cause === 'AFTERIMAGE_WILL' ||
         cause === 'ESCAPE_HYPERACTIVE' ||
         cause === 'EXTREME_HYPERACTIVE_WILL' ||
-        cause === 'HYPERACTIVE_INHERIT_WILL' ||
         cause === 'ULTIMATE_REVERSE_DRAGON' ||
         cause === 'ULTIMATE_DESTROY_GOD' ||
         cause === 'ROBOT_VACUUM' ||

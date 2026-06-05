@@ -62,7 +62,6 @@
 | 十字爆弾 | `CROSS_BOMB` | 18 | enabled | 殲滅 |  | crossBombStone | 通常候補 | 未着手 |
 | クロス爆弾 | `X_BOMB` | 18 | enabled | 殲滅 |  | xBombStone | 通常候補 | 未着手 |
 | 多動の意志 | `HYPERACTIVE_WILL` | 8 | enabled | 戦闘 |  | hyperactiveStone | 通常候補 | 未着手 |
-| 多動の継承 | `HYPERACTIVE_INHERIT_WILL` | 11 | enabled | 特殊 | yes | hyperactiveStone | 通常候補 | 未着手 |
 | 極悪多動魔 | `EXTREME_HYPERACTIVE_WILL` | 35 | enabled | 戦闘 |  | extremeHyperactiveStone | 通常候補 | 未着手 |
 | 逃げる意志 | `ESCAPE_WILL` | 7 | enabled | 殲滅 |  | escapeHyperactiveStone | 通常候補 | 未着手 |
 | ロボット掃除機 | `ROBOT_VACUUM_WILL` | 17 | enabled | 戦闘 |  | robotVacuumStone | 通常候補 | 未着手 |
@@ -88,7 +87,6 @@
 | 虹の意志 | `RAINBOW_STONE` | 10 | enabled | 採掘 |  | rainbowStone | 通常候補 | 未着手 |
 | 銀の意志 | `SILVER_STONE` | 3 | enabled | 採掘 |  | silverStone | 通常候補 | 未着手 |
 | 演算の意志 | `CRYSTAL_STONE` | 6 | enabled | 採掘 |  |  | 通常候補 | 未着手 |
-| 理論の化身 | `THEORY_INCARNATION` | 25 | enabled | 特殊石 |  | theoryIncarnationStone | 通常候補 | 未着手 |
 | 延命の意志 | `EXTEND_LIFE_WILL` | 4 | enabled | 守護 | yes |  | 通常候補 | 未着手 |
 | 延命神 | `EXTEND_LIFE_GOD` | 10 | enabled | 守護 | yes |  | 通常候補 | 未着手 |
 | 腐食の意志 | `CORROSION_WILL` | 2 | enabled | 執行 | yes |  | 通常候補 | 未着手 |
@@ -106,7 +104,6 @@
 | 封鎖の意志 | `BLOCKADE_WILL` | 1 | enabled | 特殊 | yes |  | 通常候補 | 未着手 |
 | 隕石 | `METEOR_WILL` | 21 | enabled | 執行 | yes |  | 通常候補 | 未着手 |
 | 凍結の意志 | `FREEZE_WILL` | 5 | enabled | 特殊 | yes |  | 通常候補 | 未着手 |
-| 盤理の観測者 | `OBSERVER_WILL` | 1 | enabled | 採掘 |  | observerStone | 通常候補 | 未着手 |
 | 救済の意志 | `SALVATION_WILL` | 17 | enabled | 繁栄 |  |  | 通常候補 | 未着手 |
 | 生きる意志 | `LIVING_WILL` | 20 | enabled | 繁栄 | yes |  | 通常候補 | 未着手 |
 | 増援の意志 | `REINFORCEMENT_WILL` | 6 | enabled | 繁栄 |  |  | 通常候補 | 未着手 |

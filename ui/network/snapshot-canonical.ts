@@ -24,6 +24,25 @@ function normalizeSeatKey(value: any): string | null {
   return null;
 }
 
+const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
+
+function isHiddenOwnHandToken(value: any, ownerKey: string): boolean {
+  const match = String(value || '').match(HIDDEN_HAND_TOKEN_RE);
+  return !!(match && match[1] === ownerKey);
+}
+
+function hasHiddenOwnHand(snapshot: any, ownerKey: string | null): boolean {
+  if (!ownerKey || !snapshot || typeof snapshot !== 'object') return false;
+  const cardState = snapshot.cardState && typeof snapshot.cardState === 'object'
+    ? snapshot.cardState
+    : null;
+  const hands = cardState && cardState.hands && typeof cardState.hands === 'object'
+    ? cardState.hands
+    : null;
+  const ownHand = hands && Array.isArray(hands[ownerKey]) ? hands[ownerKey] : [];
+  return ownHand.some((cardId: any) => isHiddenOwnHandToken(cardId, ownerKey));
+}
+
 interface SnapshotMeta {
   authority: string;
   version: number | null;
@@ -96,6 +115,20 @@ function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
       telemetryDetails: {
         projectedForSeat: meta.projectedForSeat,
         localSeatKey
+      },
+      meta,
+      version: getSnapshotVersion(snapshot)
+    };
+  }
+
+  if (localSeatKey && hasHiddenOwnHand(snapshot, localSeatKey)) {
+    return {
+      ok: false,
+      rejectionType: 'own_hand_hidden',
+      telemetryType: 'snapshot_own_hand_hidden_rejected',
+      telemetryDetails: {
+        localSeatKey,
+        projectedForSeat: meta.projectedForSeat || null
       },
       meta,
       version: getSnapshotVersion(snapshot)

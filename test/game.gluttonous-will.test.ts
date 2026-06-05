@@ -23,10 +23,10 @@ function createState(randomValue = 0) {
 }
 
 describe('GLUTTONOUS_WILL（悪食の意志）', () => {
-  test('カード使用時に残り手札を全破壊し、pendingは保持される', () => {
+  test('カード使用時に特殊カード以外の残り手札を破壊し、pendingは保持される', () => {
     const { cardState, gameState } = createState(0.25);
     cardState.debugNoDraw = true;
-    cardState.hands.black = ['gluttonous_will_01', 'gold_stone', 'silver_stone'];
+    cardState.hands.black = ['gluttonous_will_01', 'observer_will_01', 'gold_stone', 'silver_stone'];
     cardState.charge.black = 99;
 
     const action = { type: 'use_card', useCardId: 'gluttonous_will_01' };
@@ -36,8 +36,9 @@ describe('GLUTTONOUS_WILL（悪食の意志）', () => {
     expect(res.events.some((e) => e && e.type === 'gluttonous_will_hand_destroyed' && e.destroyedCount === 2)).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toBeTruthy();
     expect(cardState.pendingEffectByPlayer.black.type).toBe('GLUTTONOUS_WILL');
-    expect(cardState.hands.black).toEqual([]);
+    expect(cardState.hands.black).toEqual(['observer_will_01']);
     expect(cardState.discard).toEqual(expect.arrayContaining(['gluttonous_will_01', 'gold_stone', 'silver_stone']));
+    expect(cardState.discard).not.toEqual(expect.arrayContaining(['observer_will_01']));
 
     const handClearEvents = (res.presentationEvents || []).filter((e) => e && e.type === 'HAND_CLEAR');
     expect(handClearEvents).toHaveLength(1);

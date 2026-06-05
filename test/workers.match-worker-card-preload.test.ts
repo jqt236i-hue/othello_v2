@@ -13,6 +13,7 @@ describe('match worker card module preload', () => {
     const destroyOneStoneIndex = source.indexOf("installRuntimeModule('DestroyOneStoneEffects'");
     const swapWithEnemyIndex = source.indexOf("installRuntimeModule('SwapWithEnemyEffects'");
     const statusCellsIndex = source.indexOf("installRuntimeModule('CardStatusCellsEffects'");
+    const observerWillResolutionIndex = source.indexOf("installRuntimeModule('CardObserverWillResolution'");
     const stateManagerIndex = source.indexOf("installRuntimeModule('CardStateManager'");
     const effectResolverIndex = source.indexOf("installRuntimeModule('CardEffectResolver'");
     const timingProcessorIndex = source.indexOf("installRuntimeModule('CardTimingProcessor'");
@@ -27,6 +28,7 @@ describe('match worker card module preload', () => {
     expect(destroyOneStoneIndex).toBeGreaterThanOrEqual(0);
     expect(swapWithEnemyIndex).toBeGreaterThanOrEqual(0);
     expect(statusCellsIndex).toBeGreaterThanOrEqual(0);
+    expect(observerWillResolutionIndex).toBeGreaterThanOrEqual(0);
     expect(stateManagerIndex).toBeGreaterThanOrEqual(0);
     expect(effectResolverIndex).toBeGreaterThanOrEqual(0);
     expect(timingProcessorIndex).toBeGreaterThanOrEqual(0);
@@ -36,6 +38,7 @@ describe('match worker card module preload', () => {
     expect(hyperactiveBoardShapeIndex).toBeLessThan(hyperactiveIndex);
     expect(source).toContain("require('../cards/catalog.js')");
     expect(source).toContain("require('../game/logic/card-resolution/status-cells.js')");
+    expect(source).toContain("require('../game/logic/card-resolution/observer-will.js')");
   });
 
   test('worker global importer unwraps nested module exports and prefers usable runtime modules', () => {
@@ -56,9 +59,11 @@ describe('match worker card module preload', () => {
     expect(source).toContain("'../game/logic/effects/destroy_one_stone.js': () => require('../game/logic/effects/destroy_one_stone.js')");
     expect(source).toContain("'../game/logic/effects/swap_with_enemy.js': () => require('../game/logic/effects/swap_with_enemy.js')");
     expect(source).toContain("'../game/logic/card-resolution/status-cells': () => require('../game/logic/card-resolution/status-cells')");
+    expect(source).toContain("'../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will')");
     expect(source).toContain("['../game/logic/board_ops.js', 'BoardOps']");
     expect(source).toContain("['../game/cards/effect-resolver.js', 'CardEffectResolver']");
     expect(source).toContain("['../game/logic/card-resolution/status-cells', 'CardStatusCellsEffects']");
+    expect(source).toContain("['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution']");
     expect(source).toContain('requiredGlobals.reduce(');
   });
 });

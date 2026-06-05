@@ -23,11 +23,6 @@ const GENERIC_LIVING_WILL_RESTORED_LINES = Object.freeze([
 ]);
 
 const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string[] | string | Record<number, string>>> = Object.freeze({
-    OBSERVER: Object.freeze({
-        placeLines: Object.freeze(['今日も観測しますかっと', '盤理は観測するためにある', '観測最高！']),
-        lostLine: '盤理観測してる場合じゃなかったわ',
-        living_will_restored: Object.freeze(['観測再開っと、まだ盤理は追える。', '消えかけたけど、観測ログは続行だよ。', '戻った戻った、まだ盤面を見てるからね。'])
-    }),
     WORK: Object.freeze({
         placeLines: Object.freeze(['ここで稼いで一発逆転や！', '布石いっぱい掘るでー！', 'ワイには夢があるんや！', '一攫千金や！']),
         lostLine: 'あああああああああああああ',
@@ -53,12 +48,6 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
         place: Object.freeze(['近寄らないで！ 私、逃げるから！', '生き残るためなら何だってするよ！', '追われる前に走るのが一番だよ！', 'ここから先は逃走劇だよ！', '捕まるわけにはいかないの！']),
         destroy: Object.freeze(['逃げ損ねるなんて、やっぱり悔しいよ…！', '囲まれると、さすがに怖いよ…！', '足場を奪われた時点で負けだったよ！', '追手が多すぎるってば！', '今回の逃走はここまでみたい…！']),
         escape_exploded: Object.freeze(['行き場がないなら、もう吹き飛ぶしかないよ！', '逃げ道なしなら、景気よく爆ぜるね！', '追い詰めたつもりでも、巻き添えだからね！', 'もう無理！ 派手に散ってやるんだから！', '捕まるくらいなら盤ごと荒らしちゃうよ！'])
-    }),
-    INHERITED_HYPERACTIVE: Object.freeze({
-        inherit_selected: Object.freeze(['よし、お前に落ち着きの無さを継がせる。', 'その石だ、走る役目を渡す。', '決めた、お前が次の多動だ。', 'じっとしてるには向かない顔だな。', 'その一石、せわしなさで染める。']),
-        inherit_applied: Object.freeze(['継承完了、さあ落ち着かなくなれ。', '走る癖、ちゃんと移ったぞ。', '今日からお前も多動石だ。', '足の速さじゃない、心の忙しさを渡した。', '継いだな、その石はもう止まらない。']),
-        duration_end: Object.freeze(['走り切った、ここで普通の石に戻る。', '忙しさはここまでだ、少し落ち着くよ。', '継いだ衝動が抜けた、盤面に静けさが戻る。', 'もう十分動いた、あとは通常石として残る。', '多動の役目は終わり、次の一手へ渡す。']),
-        living_will_restored: GENERIC_LIVING_WILL_RESTORED_LINES
     }),
     BREEDING: Object.freeze({
         place: Object.freeze(['ここを巣にする、増やしていくよ。', 'ひとつ置けば、すぐ賑やかになる。', '産むよ、広げるよ、止まらないよ。', '小さな群れが今ここから始まる。', '空きマスがあるなら全部ほしい。']),
@@ -113,11 +102,6 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
         destroy: Object.freeze(['救えなかった魂の名が、前世から今も響いています。', '差し伸べた手が届かなかった痛みを、私はまだ忘れません。', 'もう少しだけ、あの子たちを抱き留めたかった。', '救済の光が消えても、祈りだけは残します。', '置き去りにした命たちよ、どうか私を許して。']),
         duration_end: Object.freeze(['祈りの時は満ちました、あとはあなたたちの歩みです。', '私の光はここまで、どうか盤に幸いを。', '救いの務めを終え、静かに石へ戻りましょう。', '残された者たちに、祝福が続きますように。', 'この手を離しても、祈りは盤に残ります。'])
     }),
-    THEORY_INCARNATION: Object.freeze({
-        place: Object.freeze(['ここから、盤面の理を証明いたします。', '数字は静かに真実を示します。', 'どうぞご覧ください、これが理論の配置です。', '直感ではなく、検証可能な一手で参りましょう。', 'この盤の価値を、計算で引き上げてみせます。']),
-        destroy: Object.freeze(['未証明の命題が、前世からまだ私を呼んでおります。', '証明の途中で消える痛みは、何度目でも慣れませんね。', '結論に届く前に退場とは、少々悔いが残ります。', '私の式は崩れても、未練だけは整理できません。', 'あの日解けなかった問いが、また盤上に残りました。']),
-        duration_end: Object.freeze(['証明時間は終了いたしました。', '倍化の役目を終え、通常石へ戻ります。', 'ここまでの計算結果を、盤面に委ねましょう。', '定理は示しました。あとは実戦でご確認ください。', '私の理論はここまでです。静かに退きます。'])
-    }),
     REGEN: Object.freeze({
         regen_triggered: Object.freeze(['倒れても芽は残る、もう一度盤に戻るよ。', '再生完了、まだこのマスは渡さない。', '砕けた分だけ根を張った、ここから復帰だ。', '消えたと思った？ 芽吹きはここからだよ。', '再生の意志が残っていた、もう一度立つ。'])
     }),
@@ -136,25 +120,9 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
     })
 });
 
-const OBSERVER_PLACE_LINES = SPECIAL_STONE_BUBBLE_SPEECH.OBSERVER.placeLines;
-const OBSERVER_LOST_LINE = SPECIAL_STONE_BUBBLE_SPEECH.OBSERVER.lostLine;
 const WORK_PLACE_LINES = SPECIAL_STONE_BUBBLE_SPEECH.WORK.placeLines;
 const WORK_LOST_LINE = SPECIAL_STONE_BUBBLE_SPEECH.WORK.lostLine;
 const WORK_INCOME_LINES_BY_STEP = SPECIAL_STONE_BUBBLE_SPEECH.WORK.incomeLinesByStep;
-
-const OBSERVER_CARD_ONE_LINERS = Object.freeze({
-    TREASURE_BOX: '宝箱は即布石化',
-    FREE_PLACEMENT: '挟めず置ける',
-    LAST_RESORT: '石数劣勢かつパス時に3連続自由配置',
-    SNIPER_WILL: '狙撃は毎開幕判定',
-    BREEDING_WILL: '周囲へ石を増殖',
-    CLONE_WILL: '隣接空きへ複製',
-    TELEPORT_WILL: '石を空きへ転送',
-    BLOCKADE_WILL: '空き1マス封鎖',
-    METEOR_WILL: 'マスごと1セル破壊',
-    FREEZE_WILL: '1マス凍結',
-    SALVATION_WILL: '前ターン破壊の通常石を復活'
-});
 
 function pickRandomLine(lines: readonly string[] | null | undefined, prng?: { random?: () => number }): string | null {
     if (!Array.isArray(lines) || lines.length === 0) return null;
@@ -207,12 +175,9 @@ function pickSpecialStoneBubbleSpeechLine(type: string, scenario: string, prng?:
 export {
     SPECIAL_STONE_BUBBLE_SCENARIO_KEYS,
     SPECIAL_STONE_BUBBLE_SPEECH,
-    OBSERVER_PLACE_LINES,
-    OBSERVER_LOST_LINE,
     WORK_PLACE_LINES,
     WORK_LOST_LINE,
     WORK_INCOME_LINES_BY_STEP,
-    OBSERVER_CARD_ONE_LINERS,
     getSpecialStoneBubbleSpeech,
     getSpecialStoneBubbleSpeechLines,
     pickSpecialStoneBubbleSpeechLine,
@@ -224,12 +189,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SPECIAL_STONE_BUBBLE_SCENARIO_KEYS,
         SPECIAL_STONE_BUBBLE_SPEECH,
-        OBSERVER_PLACE_LINES,
-        OBSERVER_LOST_LINE,
         WORK_PLACE_LINES,
         WORK_LOST_LINE,
         WORK_INCOME_LINES_BY_STEP,
-        OBSERVER_CARD_ONE_LINERS,
         getSpecialStoneBubbleSpeech,
         getSpecialStoneBubbleSpeechLines,
         pickSpecialStoneBubbleSpeechLine,

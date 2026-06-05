@@ -1151,36 +1151,6 @@ describe('selfplay runner', () => {
         expect(decision.action.superGravityTarget).toBeTruthy();
     });
 
-    test('decideAction resolves HYPERACTIVE_INHERIT_WILL pending target instead of canceling', () => {
-        const gameState = Core.createGameState();
-        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
-        gameState.board[3][3] = 1;
-        gameState.board[4][4] = -1;
-        gameState.currentPlayer = 1;
-
-        const cardState = {
-            pendingEffectByPlayer: {
-                black: { type: 'HYPERACTIVE_INHERIT_WILL', stage: 'selectTarget' },
-                white: null
-            },
-            markers: [],
-            charge: { black: 0, white: 0 },
-            hands: { black: [], white: [] },
-            hasUsedCardThisTurnByPlayer: { black: true, white: false }
-        };
-
-        const decision = decideAction(
-            gameState,
-            cardState,
-            'black',
-            { random: () => 0.4 },
-            { allowCardUsage: true, cardUsageRate: 0.25 },
-            { gameState, cardState }
-        );
-        expect(decision.action.type).toBe('place');
-        expect(decision.action.hyperactiveInheritTarget).toBeTruthy();
-    });
-
     test('decideAction resolves CORROSION_WILL pending target instead of canceling', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -1344,25 +1314,6 @@ describe('selfplay runner', () => {
 
         expect(decision.action.type).toBe('place');
         expect(decision.action.superGravityTarget).toEqual({ row: 3, col: 8 });
-    });
-
-    test('decideAction resolves HYPERACTIVE_INHERIT_WILL on right expansion targets without crashing', () => {
-        const gameState = createGameStateWithRightExpansion([
-            { row: 2, owner: 1 }
-        ]);
-        const cardState = createPendingCardState('HYPERACTIVE_INHERIT_WILL');
-
-        const decision = decideAction(
-            gameState,
-            cardState,
-            'black',
-            { random: () => 0.4 },
-            { allowCardUsage: true, cardUsageRate: 0.25 },
-            { gameState, cardState }
-        );
-
-        expect(decision.action.type).toBe('place');
-        expect(decision.action.hyperactiveInheritTarget).toEqual({ row: 2, col: 8 });
     });
 
     test('decideAction resolves TELEPORT_WILL on right expansion targets without crashing', () => {

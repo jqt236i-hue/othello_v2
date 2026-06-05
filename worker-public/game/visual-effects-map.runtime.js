@@ -92,6 +92,33 @@ const GAME_STONE_VISUAL_EFFECTS = {
             'background-color': 'transparent'
         }
     },
+    theoryIncarnationStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/theory_incarnation-black.png',
+            '-1': 'assets/images/stones/theory_incarnation-white.png'
+        },
+        dataAttributes: {}
+    },
+    boardExecutorStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/board_executor-black.png',
+            '-1': 'assets/images/stones/board_executor-white.png'
+        },
+        dataAttributes: {}
+    },
+    observerWillStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/OBSERVER_WILL-black.png',
+            '-1': 'assets/images/stones/OBSERVER_WILL-white.png'
+        },
+        dataAttributes: {}
+    },
     // 短期保護（弱い意志）
     protectedStoneTemporary: {
         cssClass: 'protected-gray',
@@ -164,24 +191,6 @@ const GAME_STONE_VISUAL_EFFECTS = {
         imagePathByOwner: {
             '1': 'assets/images/stones/rakurai-black.png',
             '-1': 'assets/images/stones/rakurai-white.png'
-        },
-        dataAttributes: {}
-    },
-    observerStone: {
-        cssClass: 'observer-stone',
-        cssMethod: 'pseudoElement',
-        imagePathByOwner: {
-            '1': 'assets/images/stones/OBSERVER_WILL-black.png',
-            '-1': 'assets/images/stones/OBSERVER_WILL-white.png'
-        },
-        dataAttributes: {}
-    },
-    theoryIncarnationStone: {
-        cssClass: 'theory-incarnation-stone',
-        cssMethod: 'pseudoElement',
-        imagePathByOwner: {
-            '1': 'assets/images/stones/theory_incarnation-black.png',
-            '-1': 'assets/images/stones/theory_incarnation-white.png'
         },
         dataAttributes: {}
     },
@@ -350,15 +359,12 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
-    'OBSERVER_WILL': 'observerStone',
-    'THEORY_INCARNATION': 'theoryIncarnationStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON_WILL': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE_GOD': 'ultimateHyperactiveGod',
     'HYPERACTIVE_WILL': 'hyperactiveStone',
-    'HYPERACTIVE_INHERIT_WILL': 'hyperactiveStone',
     'EXTREME_HYPERACTIVE_WILL': 'extremeHyperactiveStone',
     'ESCAPE_WILL': 'escapeHyperactiveStone',
     'ROBOT_VACUUM_WILL': 'robotVacuumStone',
@@ -504,15 +510,12 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
-    'OBSERVER': 'observerStone',
-    'THEORY_INCARNATION': 'theoryIncarnationStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE': 'ultimateHyperactiveGod',
     'HYPERACTIVE': 'hyperactiveStone',
-    'INHERITED_HYPERACTIVE': 'hyperactiveStone',
     'EXTREME_HYPERACTIVE': 'extremeHyperactiveStone',
     'ESCAPE_HYPERACTIVE': 'escapeHyperactiveStone',
     'ROBOT_VACUUM': 'robotVacuumStone',
@@ -529,6 +532,9 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'X_BOMB': 'xBombStone',
     'TRAP': 'trapStone',
     'TRAP_REVEAL': 'trapStone',
+    'THEORY_INCARNATION': 'theoryIncarnationStone',
+    'BOARD_EXECUTOR': 'boardExecutorStone',
+    'OBSERVER_WILL': 'observerWillStone',
     'ABSOLUTE_PROTECTED': 'absoluteProtectedStone'
 };
 

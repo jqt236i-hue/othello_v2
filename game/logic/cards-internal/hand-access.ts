@@ -87,6 +87,35 @@ export function createCardHandAccess(deps?: HandAccessDeps) {
         );
     }
 
+    function setCardCostOverrideForCopyId(cardState: any, cardCopyId: any, cost: any, sourceType?: any) {
+        return requireHandManagerMethod(cardHandManagerModule, 'setCardCostOverrideForCopyId')(
+            cardState,
+            cardCopyId,
+            cost,
+            sourceType,
+            getCardHandManagerContext()
+        );
+    }
+
+    function addCardCostModifierForCopyId(cardState: any, cardCopyId: any, delta: any, sourceType?: any) {
+        return requireHandManagerMethod(cardHandManagerModule, 'addCardCostModifierForCopyId')(
+            cardState,
+            cardCopyId,
+            delta,
+            sourceType,
+            getCardHandManagerContext()
+        );
+    }
+
+    function getEffectiveCardCostForCopy(cardState: any, cardId: any, cardCopyId: any) {
+        return requireHandManagerMethod(cardHandManagerModule, 'getEffectiveCardCostForCopy')(
+            cardState,
+            cardId,
+            cardCopyId,
+            getCardHandManagerContext()
+        );
+    }
+
     function addCardToHand(cardState: any, playerKey: any, cardId: any, opts?: any) {
         return requireStateManagerMethod(cardStateManager, 'addToHand')(
             cardState,
@@ -113,11 +142,12 @@ export function createCardHandAccess(deps?: HandAccessDeps) {
         );
     }
 
-    function clearHandToDiscard(cardState: any, playerKey: any) {
+    function clearHandToDiscard(cardState: any, playerKey: any, opts?: any) {
         return requireHandManagerMethod(cardHandManagerModule, 'clearHandToDiscard')(
             cardState,
             playerKey,
-            getCardHandManagerContext()
+            getCardHandManagerContext(),
+            opts
         );
     }
 
@@ -220,6 +250,9 @@ export function createCardHandAccess(deps?: HandAccessDeps) {
         getHandCopyIds,
         isCardCopyIdRevealedToViewer,
         revealCurrentHandToViewer,
+        setCardCostOverrideForCopyId,
+        addCardCostModifierForCopyId,
+        getEffectiveCardCostForCopy,
         addCardToHand,
         addCardToDiscard,
         removeHandCardAt,

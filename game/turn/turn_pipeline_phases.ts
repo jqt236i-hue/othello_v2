@@ -362,10 +362,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const TurnStartPostProcessingModule = requireOptionalModule('./turn-start/post-processing');
     const TurnStartTimerPhaseModule = requireOptionalModule('./turn-start/timer-phase');
 
-    const FALLBACK_OBSERVER_BUBBLE_SPEECH = Object.freeze({
-        placeLines: Object.freeze(['観測最高！']),
-        lostLine: '観測失敗'
-    });
     const FALLBACK_WORK_BUBBLE_SPEECH = Object.freeze({
         placeLines: Object.freeze(['ここで稼ぐ！']),
         lostLine: 'あああああああああああああ'
@@ -373,19 +369,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function getLegacySpecialStoneBubbleSpeech(type: any) {
         const key = String(type || '').trim().toUpperCase();
-        if (key === 'OBSERVER') {
-            return {
-                placeLines: (
-                    PhaseHelpersModule &&
-                    Array.isArray(PhaseHelpersModule.OBSERVER_PLACE_LINES) &&
-                    PhaseHelpersModule.OBSERVER_PLACE_LINES.length > 0
-                ) ? PhaseHelpersModule.OBSERVER_PLACE_LINES : FALLBACK_OBSERVER_BUBBLE_SPEECH.placeLines,
-                lostLine: (
-                    PhaseHelpersModule &&
-                    typeof PhaseHelpersModule.OBSERVER_LOST_LINE === 'string'
-                ) ? PhaseHelpersModule.OBSERVER_LOST_LINE : FALLBACK_OBSERVER_BUBBLE_SPEECH.lostLine
-            };
-        }
         if (key === 'WORK') {
             return {
                 placeLines: (
@@ -406,17 +389,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         PhaseHelpersModule &&
         typeof PhaseHelpersModule.getSpecialStoneBubbleSpeech === 'function'
     ) ? PhaseHelpersModule.getSpecialStoneBubbleSpeech : getLegacySpecialStoneBubbleSpeech;
-    const observerBubbleSpeech = getSpecialStoneBubbleSpeech('OBSERVER') || getLegacySpecialStoneBubbleSpeech('OBSERVER');
     const workBubbleSpeech = getSpecialStoneBubbleSpeech('WORK') || getLegacySpecialStoneBubbleSpeech('WORK');
-    const OBSERVER_PLACE_LINES = (
-        observerBubbleSpeech &&
-        Array.isArray(observerBubbleSpeech.placeLines) &&
-        observerBubbleSpeech.placeLines.length > 0
-    ) ? observerBubbleSpeech.placeLines : FALLBACK_OBSERVER_BUBBLE_SPEECH.placeLines;
-    const OBSERVER_LOST_LINE = (
-        observerBubbleSpeech &&
-        typeof observerBubbleSpeech.lostLine === 'string'
-    ) ? observerBubbleSpeech.lostLine : FALLBACK_OBSERVER_BUBBLE_SPEECH.lostLine;
     const WORK_PLACE_LINES = (
         workBubbleSpeech &&
         Array.isArray(workBubbleSpeech.placeLines) &&
@@ -426,12 +399,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         workBubbleSpeech &&
         typeof workBubbleSpeech.lostLine === 'string'
     ) ? workBubbleSpeech.lostLine : FALLBACK_WORK_BUBBLE_SPEECH.lostLine;
-    const OBSERVER_CARD_ONE_LINERS = (
-        PhaseHelpersModule &&
-        PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS &&
-        typeof PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS === 'object'
-    ) ? PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS : Object.freeze({});
-
     function resolveStrongWillDisplayTimer(markerData: any) {
         if (!markerData || String(markerData.type || '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
         const rawThreshold = Number(markerData.strongWillPromotionThreshold);
@@ -550,8 +517,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             MARKER_KINDS,
             getSpecialStoneBubbleSpeechLines,
             pickSpecialStoneBubbleSpeechLine,
-            resolveWorkIncomeLine,
-            observerLostLine: OBSERVER_LOST_LINE
+            resolveWorkIncomeLine
         };
     }
 
@@ -666,21 +632,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getTurnPresentationHelperDeps()
         );
     }
-
-    function snapshotObserverMarkers(cardState: any) {
-        if (!(TurnPresentationHelpersModule && typeof TurnPresentationHelpersModule.snapshotObserverMarkers === 'function')) {
-            throw new Error('TurnPipeline presentation helper module unavailable');
-        }
-        return TurnPresentationHelpersModule.snapshotObserverMarkers(cardState, getTurnPresentationHelperDeps());
-    }
-
-    function getRemovedObserverMarkers(beforeSnapshot: any, afterSnapshot: any) {
-        if (!(TurnPresentationHelpersModule && typeof TurnPresentationHelpersModule.getRemovedObserverMarkers === 'function')) {
-            throw new Error('TurnPipeline presentation helper module unavailable');
-        }
-        return TurnPresentationHelpersModule.getRemovedObserverMarkers(beforeSnapshot, afterSnapshot);
-    }
-
     function emitObserverBubblePresentation(CardLogic: any, cardState: any, payload: any) {
         if (!(TurnPresentationHelpersModule && typeof TurnPresentationHelpersModule.emitObserverBubblePresentation === 'function')) {
             throw new Error('TurnPipeline presentation helper module unavailable');
@@ -699,20 +650,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getTurnPresentationHelperDeps()
         );
     }
-
-    function emitObserverLostBubbleFromSnapshots(CardLogic: any, cardState: any, beforeSnapshot: any, reason: any) {
-        if (!(TurnPresentationHelpersModule && typeof TurnPresentationHelpersModule.emitObserverLostBubbleFromSnapshots === 'function')) {
-            throw new Error('TurnPipeline presentation helper module unavailable');
-        }
-        return TurnPresentationHelpersModule.emitObserverLostBubbleFromSnapshots(
-            CardLogic,
-            cardState,
-            beforeSnapshot,
-            reason,
-            getTurnPresentationHelperDeps()
-        );
-    }
-
     function snapshotSpecialStoneSpeechMarkers(cardState: any) {
         if (!(TurnPresentationHelpersModule && typeof TurnPresentationHelpersModule.snapshotSpecialStoneSpeechMarkers === 'function')) {
             throw new Error('TurnPipeline presentation helper module unavailable');
@@ -751,6 +688,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             throw new Error('TurnPipeline presentation helper module unavailable');
         }
         return TurnPresentationHelpersModule.emitHandRemovePresentation(
+            CardLogic,
+            cardState,
+            payload,
+            getTurnPresentationHelperDeps()
+        );
+    }
+
+    function emitHandAddPresentation(CardLogic: any, cardState: any, payload: any) {
+        if (!(TurnPresentationHelpersModule && typeof TurnPresentationHelpersModule.emitHandAddPresentation === 'function')) {
+            throw new Error('TurnPipeline presentation helper module unavailable');
+        }
+        return TurnPresentationHelpersModule.emitHandAddPresentation(
             CardLogic,
             cardState,
             payload,
@@ -865,6 +814,29 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     }
                 }
             }
+            if (turnStartSummary && turnStartSummary.observerWill && Array.isArray(turnStartSummary.observerWill.entries)) {
+                for (const entry of turnStartSummary.observerWill.entries) {
+                    if (!entry) continue;
+                    if (entry.shortage) {
+                        events.push({
+                            type: 'observer_will_shortage',
+                            player: playerKey,
+                            destroyed: Array.isArray(entry.destroyed) ? entry.destroyed.slice() : [],
+                            destroyedCount: Number(entry.destroyedCount) || 0,
+                            remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
+                            completed: entry.completed === true
+                        });
+                    } else {
+                        events.push({
+                            type: 'observer_will_repaid',
+                            player: playerKey,
+                            repaid: Number(entry.repaid) || 0,
+                            remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
+                            completed: entry.completed === true
+                        });
+                    }
+                }
+            }
             if (turnStartSummary && Array.isArray(turnStartSummary.generatedSpawnFlipResults) && turnStartSummary.generatedSpawnFlipResults.length) {
                 applyGeneratedSpawnFlipResultsTurnStart(
                     CardLogic,
@@ -888,8 +860,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     isBombCategoryMarker
                 })
                 : [];
-
-            const observerMarkersBeforeStart = snapshotObserverMarkers(cardState);
             const processedTurnStartMarkers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.processTurnStartMarkers === 'function')
                 ? TurnStartMarkerPhaseModule.processTurnStartMarkers({
                     CardLogic,
@@ -904,11 +874,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     debugLog: logTurnPipelinePhasesDebug
                 })
                 : {
-                    hyperAggregated: { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } },
-                    observerStartSummary: { triggered: [], lost: [], durationEnd: [] }
+                    hyperAggregated: { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } }
                 };
             const hyperAggregated = processedTurnStartMarkers.hyperAggregated;
-            const observerStartSummary = processedTurnStartMarkers.observerStartSummary;
             if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
                 applyGeneratedSpawnFlipResultsTurnStart(
                     CardLogic,
@@ -927,8 +895,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     playerKey,
                     events,
                     prng: p,
-                    processedTurnStartMarkers: { hyperAggregated, observerStartSummary },
-                    observerMarkersBeforeStart,
+                    processedTurnStartMarkers: { hyperAggregated },
                     workMarkersBeforeStart,
                     specialStoneSpeechBeforeStart,
                     eventStartIndex,
@@ -937,14 +904,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     awardBoardChargeGain,
                     pushTrapEvents,
                     emitTrapHandRemoveEvents,
-                    snapshotObserverMarkers,
-                    getRemovedObserverMarkers,
-                    emitObserverBubblePresentation,
                     normalizePlayerKey,
                     isWorkDurationEndPresentationEvent,
                     emitWorkRemovedPresentationFromSnapshots,
-                    emitSpecialStoneBubblesFromPhase,
-                    observerLostLine: OBSERVER_LOST_LINE
+                    emitSpecialStoneBubblesFromPhase
                 })
             }
 
@@ -964,12 +927,44 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
             delete cardState._frozenCellsActiveAtTurnStart;
 
+            if (
+                CardLogic &&
+                typeof CardLogic.consumeTheoryIncarnationAutoTurnEnd === 'function' &&
+                CardLogic.consumeTheoryIncarnationAutoTurnEnd(cardState, playerKey) === true
+            ) {
+                events.push({ type: 'theory_incarnation_auto_turn_end', player: playerKey });
+                if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function')) {
+                    throw new Error('TurnPipeline handoff module unavailable');
+                }
+                ActionPhaseTurnHandoffModule.handOffCompletedTurn({
+                    Core,
+                    CardLogic,
+                    cardState,
+                    gameState,
+                    playerKey,
+                    turnNumberAfterCompletion: Number(gameState && gameState.turnNumber || 0) + 1,
+                    advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
+                        if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
+                            throw new Error('TurnPipeline round state module unavailable');
+                        }
+                        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+                            Core: nextCore,
+                            gameState: nextGameState,
+                            playerKey: nextPlayerKey,
+                            options,
+                            normalizePlayerKey
+                        });
+                    }
+                });
+                cardState.lastTurnStartedFor = null;
+                return { ok: true, events, stopAction: true };
+            }
+
         }
     }
 
     function applyCardUsagePhase(CardLogic: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any) {
         const p = prng || undefined;
-        const observerMarkersBeforeUsage = snapshotObserverMarkers(cardState);
         const workMarkersBeforeUsage = snapshotWorkMarkers(cardState);
         const specialStoneSpeechBeforeUsage = snapshotSpecialStoneSpeechMarkers(cardState);
         const eventStartIndex = Array.isArray(events)
@@ -1045,11 +1040,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     prng: p,
                     eventStartIndex,
                     presentationStartIndex,
-                    observerMarkersBeforePhase: observerMarkersBeforeUsage,
                     workMarkersBeforePhase: workMarkersBeforeUsage,
                     specialStoneSpeechBeforePhase: specialStoneSpeechBeforeUsage,
                     removalReason: 'removed_during_card_usage',
-                    emitObserverLostBubbleFromSnapshots,
                     emitWorkRemovedPresentationFromSnapshots,
                     emitSpecialStoneBubblesFromPhase
                 });
@@ -1158,8 +1151,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
         const p = prng || undefined;
-
-        const observerMarkersBeforeAction = snapshotObserverMarkers(cardState);
         const workMarkersBeforeAction = snapshotWorkMarkers(cardState);
         const specialStoneSpeechBeforeAction = snapshotSpecialStoneSpeechMarkers(cardState);
         const eventStartIndex = Array.isArray(events)
@@ -1266,7 +1257,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     emitDurationSelectionStatusTick: (target: any, reason: any, highlightTone: any) => (
                         emitDurationSelectionStatusTick(CardLogic, cardState, target, reason, highlightTone, presentationStartIndex)
                     ),
-                    emitHandRemovePresentation: (payload: any) => emitHandRemovePresentation(CardLogic, cardState, payload)
+                    emitHandRemovePresentation: (payload: any) => emitHandRemovePresentation(CardLogic, cardState, payload),
+                    emitHandAddPresentation: (payload: any) => emitHandAddPresentation(CardLogic, cardState, payload)
                 });
                 if (handledPrePlacementSelection) {
                     const immediateSelectionResult = handledPrePlacementSelection && typeof handledPrePlacementSelection === 'object'
@@ -1387,10 +1379,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     buildPlacementChargeBubblePayload,
                     emitBoardChargeBubblePresentation,
                     emitSpecialStonePlacementBubbleFromEffects,
-                    emitObserverBubblePresentation,
                     emitWorkBubblePresentation,
                     pickRandomLine,
-                    observerPlaceLines: OBSERVER_PLACE_LINES,
                     workPlaceLines: WORK_PLACE_LINES,
                     pushTrapEvents,
                     emitTrapHandRemoveEvents,
@@ -1469,11 +1459,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     prng: p,
                     eventStartIndex,
                     presentationStartIndex,
-                    observerMarkersBeforePhase: observerMarkersBeforeAction,
                     workMarkersBeforePhase: workMarkersBeforeAction,
                     specialStoneSpeechBeforePhase: specialStoneSpeechBeforeAction,
                     removalReason: 'removed_during_action',
-                    emitObserverLostBubbleFromSnapshots,
                     emitWorkRemovedPresentationFromSnapshots,
                     emitSpecialStoneBubblesFromPhase
                 });

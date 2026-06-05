@@ -42,13 +42,23 @@ const CardUtilsModule = resolveCardMarkersModuleOrGlobal('./utils', 'CardUtils')
 const CardExpansionModule = resolveCardMarkersModuleOrGlobal('./expansion', 'CardExpansion');
 const PresentationModule = resolveCardMarkersModuleOrGlobal('../presentation', 'PresentationHelper');
 const SpecialStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
+const ManifestStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
+
+function isManifestStoneType(rawType: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+    }
+    const type = String(rawType || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+}
 
 const { BOARD_SIZE } = SharedConstants || {};
 const MarkersAdapter = MarkersAdapterModule || null;
 const MARKER_KINDS = (MarkersAdapter && MarkersAdapter.MARKER_KINDS)
     ? MarkersAdapter.MARKER_KINDS
     : {
-        SPECIAL_STONE: 'specialStone'
+        SPECIAL_STONE: 'specialStone',
+        MANIFEST_STONE: 'manifestStone'
     };
 const MARKER_CATEGORIES = (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
     ? MarkersAdapter.MARKER_CATEGORIES
@@ -192,7 +202,23 @@ function isSpecialStoneMarker(marker: any): boolean {
     return !!(
         marker &&
         marker.kind === MARKER_KINDS.SPECIAL_STONE &&
-        !isBombCategoryMarker(marker)
+        !isBombCategoryMarker(marker) &&
+        !isManifestStoneMarker(marker)
+    );
+}
+
+function isManifestStoneMarker(marker: any): boolean {
+    if (MarkersAdapter && typeof MarkersAdapter.isManifestStoneMarker === 'function') {
+        return MarkersAdapter.isManifestStoneMarker(marker);
+    }
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function') {
+        return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
+    }
+    const type = getNormalizedMarkerType(marker);
+    return !!(
+        marker &&
+        (marker.kind === MARKER_KINDS.MANIFEST_STONE || marker.kind === MARKER_KINDS.SPECIAL_STONE) &&
+        isManifestStoneType(type)
     );
 }
 
@@ -207,18 +233,110 @@ function getMarkerRuleClass(marker: any): string | null {
     if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED') return 'board_marker';
     if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
     if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
-    if (type === 'PROTECTED' || type === 'PERMA_PROTECTED' || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED' || type === 'GHOST' || type === 'AFTERIMAGE_WILL' || type === 'REGEN' || type === 'LIVING_WILL') return 'stone_status';
+    if (type === 'GUARD' || type === 'LIVING_WILL') return 'stone_status';
     if (!type) return null;
     return 'true_special_stone';
 }
 
 function isTrueSpecialStoneMarker(marker: any): boolean {
+    if (isManifestStoneMarker(marker)) return false;
     return getMarkerRuleClass(marker) === 'true_special_stone';
 }
 
+function canLossWillRevertMarker(marker: any): boolean {
+    if (!marker || typeof marker !== 'object') return false;
+    if (isManifestStoneMarker(marker)) return false;
+    const type = getNormalizedMarkerType(marker);
+    if (!type || type === 'ABSOLUTE_PROTECTED') return false;
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.canLossWillRevert === 'function') {
+        return SpecialStoneRegistry.canLossWillRevert(type, marker.data || null) === true;
+    }
+    const ruleClass = getMarkerRuleClass(marker);
+    return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb';
+}
+
 function isDurationAffectableMarker(marker: any): boolean {
+    if (isManifestStoneMarker(marker)) return false;
     const ruleClass = getMarkerRuleClass(marker);
     return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
+}
+
+function normalizeMarkerOwnerKey(value: any): string {
+    return value === 'white' ? 'white' : 'black';
+}
+
+function getNormalizedMarkerType(marker: any): string {
+    const rawType = marker && marker.data ? marker.data.type : null;
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.normalizeSpecialStoneType === 'function') {
+        return SpecialStoneRegistry.normalizeSpecialStoneType(rawType) || '';
+    }
+    return String(rawType || '').trim().toUpperCase();
+}
+
+function isActiveSpecialMarker(marker: any): boolean {
+    if (!marker || marker.kind !== MARKER_KINDS.SPECIAL_STONE || !marker.data) return false;
+    if (isManifestStoneMarker(marker)) return false;
+    if (Object.prototype.hasOwnProperty.call(marker.data, 'remainingOwnerTurns')) {
+        const remainingOwnerTurns = Number(marker.data.remainingOwnerTurns);
+        if (!Number.isFinite(remainingOwnerTurns) || remainingOwnerTurns <= 0) return false;
+    }
+    return true;
+}
+
+function isActiveManifestMarker(marker: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isActiveManifestStoneMarker === 'function') {
+        return ManifestStoneRegistry.isActiveManifestStoneMarker(marker) === true;
+    }
+    if (!isManifestStoneMarker(marker) || !marker.data) return false;
+    if (Object.prototype.hasOwnProperty.call(marker.data, 'remainingOwnerTurns')) {
+        const remainingOwnerTurns = Number(marker.data.remainingOwnerTurns);
+        if (!Number.isFinite(remainingOwnerTurns) || remainingOwnerTurns <= 0) return false;
+    }
+    return true;
+}
+
+function isAbsoluteProtectedMarker(marker: any): boolean {
+    if (isActiveManifestMarker(marker)) {
+        const type = getNormalizedMarkerType(marker);
+        if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isAbsoluteProtectedManifestStoneType === 'function') {
+            return ManifestStoneRegistry.isAbsoluteProtectedManifestStoneType(type) === true;
+        }
+        return isManifestStoneType(type);
+    }
+    if (!isActiveSpecialMarker(marker)) return false;
+    const type = getNormalizedMarkerType(marker);
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isAbsoluteProtectedSpecialType === 'function') {
+        return SpecialStoneRegistry.isAbsoluteProtectedSpecialType(type) === true;
+    }
+    return type === 'ABSOLUTE_PROTECTED' || isManifestStoneType(type);
+}
+
+function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    return getMarkers(cardState).some((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        isAbsoluteProtectedMarker(marker)
+    ));
+}
+
+function isCardPlayLockedForPlayer(cardState: CardState, playerKey: PlayerKey): boolean {
+    const ownerKey = normalizeMarkerOwnerKey(playerKey);
+    return getMarkers(cardState).some((marker: any) => {
+        if (!isActiveManifestMarker(marker)) return false;
+        const type = getNormalizedMarkerType(marker);
+        if (type === 'BOARD_EXECUTOR') return true;
+        return type === 'THEORY_INCARNATION' && normalizeMarkerOwnerKey(marker.owner) === ownerKey;
+    });
+}
+
+function isPlacementLockedForPlayer(cardState: CardState, playerKey: PlayerKey): boolean {
+    const ownerKey = normalizeMarkerOwnerKey(playerKey);
+    return getMarkers(cardState).some((marker: any) => (
+        isActiveManifestMarker(marker) &&
+        getNormalizedMarkerType(marker) === 'THEORY_INCARNATION' &&
+        normalizeMarkerOwnerKey(marker.owner) === ownerKey
+    ));
 }
 
 function getBombMarkerType(marker: any): string | null {
@@ -251,6 +369,13 @@ function getSpecialMarkers(cardState: CardState): any[] {
         return MarkersAdapter.getSpecialMarkers(cardState);
     }
     return getMarkers(cardState).filter(isSpecialStoneMarker);
+}
+
+function getManifestMarkers(cardState: CardState): any[] {
+    if (MarkersAdapter && typeof MarkersAdapter.getManifestMarkers === 'function') {
+        return MarkersAdapter.getManifestMarkers(cardState);
+    }
+    return getMarkers(cardState).filter(isManifestStoneMarker);
 }
 
 function getBombMarkers(cardState: CardState): any[] {
@@ -343,7 +468,14 @@ function removeMarkersAt(cardState: CardState, row: number, col: number, options
         if (!marker || marker.row !== row || marker.col !== col) return true;
         if (opts.kind === MARKER_CATEGORIES.BOMB && !isBombCategoryMarker(marker)) return true;
         if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(marker)) return true;
-        if (opts.kind && opts.kind !== MARKER_CATEGORIES.BOMB && opts.kind !== MARKER_KINDS.SPECIAL_STONE && marker.kind !== opts.kind) return true;
+        if (opts.kind === MARKER_KINDS.MANIFEST_STONE && !isManifestStoneMarker(marker)) return true;
+        if (
+            opts.kind &&
+            opts.kind !== MARKER_CATEGORIES.BOMB &&
+            opts.kind !== MARKER_KINDS.SPECIAL_STONE &&
+            opts.kind !== MARKER_KINDS.MANIFEST_STONE &&
+            marker.kind !== opts.kind
+        ) return true;
         if (opts.category && getMarkerCategory(marker) !== opts.category) return true;
         if (opts.type && (!marker.data || marker.data.type !== opts.type)) return true;
         if (opts.owner && marker.owner !== opts.owner) return true;
@@ -364,6 +496,16 @@ function getSpecialMarkerAt(cardState: CardState, row: number, col: number): { k
     return null;
 }
 
+function findManifestMarkerAt(cardState: CardState, row: number, col: number, type?: string, owner?: PlayerKey): any {
+    return getManifestMarkers(cardState).find((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        (type ? getNormalizedMarkerType(marker) === String(type).toUpperCase() : true) &&
+        (owner ? marker.owner === owner : true)
+    )) || null;
+}
+
 function getTrueSpecialStoneMarkerAt(cardState: CardState, row: number, col: number): { kind: string; category: string | null; marker: any } | null {
     const special = getSpecialMarkers(cardState).find((marker: any) => (
         marker &&
@@ -377,6 +519,10 @@ function getTrueSpecialStoneMarkerAt(cardState: CardState, row: number, col: num
 
 function isSpecialStoneAt(cardState: CardState, row: number, col: number): boolean {
     return !!getSpecialMarkerAt(cardState, row, col);
+}
+
+function isManifestStoneAt(cardState: CardState, row: number, col: number): boolean {
+    return !!findManifestMarkerAt(cardState, row, col);
 }
 
 function isTrueSpecialStoneAt(cardState: CardState, row: number, col: number): boolean {
@@ -533,11 +679,13 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
         let timer: any = null;
         let flipEvadeRemaining: any = null;
         let destroyEvadeRemaining: any = null;
+        const isManifestMarker = isManifestStoneMarker(marker);
+        const isVisualStoneMarker = isSpecialStoneMarker(marker) || isManifestMarker;
 
         if (isBombCategoryMarker(marker)) {
             special = getBombMarkerType(marker);
             timer = (marker.data && typeof marker.data.remainingTurns === 'number') ? marker.data.remainingTurns : null;
-        } else if (isSpecialStoneMarker(marker)) {
+        } else if (isVisualStoneMarker) {
             special = marker.data && marker.data.type ? marker.data.type : null;
             timer = (marker.data && typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null;
             flipEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.flipEvadeRemaining))
@@ -556,6 +704,8 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
         const markerMeta: any = { special, timer, owner };
         if (flipEvadeRemaining !== null) markerMeta.flipEvadeRemaining = flipEvadeRemaining;
         if (destroyEvadeRemaining !== null) markerMeta.destroyEvadeRemaining = destroyEvadeRemaining;
+        if (marker.data && marker.data.visualEffectKey) markerMeta.visualEffectKey = marker.data.visualEffectKey;
+        if (isManifestMarker) markerMeta.manifestAura = { owner };
 
         if (special && presentationHelper && !isHiddenTrap) {
             presentationHelper.emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: markerMeta });
@@ -734,11 +884,20 @@ export = {
     getMarkerCategory,
     getBombMarkerType,
     isBombCategoryMarker,
+    isManifestStoneMarker,
     isSpecialStoneMarker,
     getMarkerRuleClass,
     isTrueSpecialStoneMarker,
+    canLossWillRevertMarker,
     isDurationAffectableMarker,
+    isActiveSpecialMarker,
+    isActiveManifestMarker,
+    isAbsoluteProtectedMarker,
+    isAbsoluteProtectedCell,
+    isCardPlayLockedForPlayer,
+    isPlacementLockedForPlayer,
     getSpecialMarkers,
+    getManifestMarkers,
     getBombMarkers,
     getBlockadeMarkers,
     getBlockingMarkers,
@@ -746,11 +905,13 @@ export = {
     isMeteorHoleCell,
     isGuardProtectedCell,
     findSpecialMarkerAt,
+    findManifestMarkerAt,
     findBombMarkerAt,
     removeMarkersAt,
     getSpecialMarkerAt,
     getTrueSpecialStoneMarkerAt,
     isSpecialStoneAt,
+    isManifestStoneAt,
     isTrueSpecialStoneAt,
     getSpecialOwnerAt,
     getTrueSpecialStoneOwnerAt,

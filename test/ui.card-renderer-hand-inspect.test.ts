@@ -297,36 +297,37 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
-  test('createCardFaceElement composites theory incarnation special art', () => {
+  test('special cards render as sealed stone cards without cost or type badges', () => {
     const dom = createRendererContext();
     const { window } = dom;
     window.GameVisualEffectsMap = require('../game/visual-effects-map');
 
     window.CARD_DEFS = [
       {
-        id: 'theory_incarnation',
-        name: '理論の化身',
+        id: 'observer_will_01',
+        name: '盤理の観測者',
         desc: 'd',
-        cost: 21,
-        type: 'THEORY_INCARNATION',
-        display_type_ja: '採掘'
+        cost: 0,
+        type: 'OBSERVER_WILL',
+        display_type_ja: '観測'
       }
     ];
 
-    const blackCardEl = window.createCardFaceElement('theory_incarnation', { ownerKey: 'black' });
-    const whiteCardEl = window.createCardFaceElement('theory_incarnation', { ownerKey: 'white' });
+    const cardEl = window.createCardFaceElement('observer_will_01', { ownerKey: 'black' });
 
-    expect(blackCardEl.classList.contains('has-special-art')).toBe(true);
-    expect(whiteCardEl.classList.contains('has-special-art')).toBe(true);
-    expect(blackCardEl.style.getPropertyValue('--card-special-art-image')).toContain('theory_incarnation-black.png');
-    expect(whiteCardEl.style.getPropertyValue('--card-special-art-image')).toContain('theory_incarnation-white.png');
-    expect(blackCardEl.dataset.cardVisualEffect).toBe('theoryIncarnationStone');
-    expect(blackCardEl.dataset.cardType).toBe('mining');
-    expect(blackCardEl.querySelector('.card-type-badge').textContent).toBe('\u26CF\uFE0E 採掘');
+    expect(cardEl.classList.contains('special-card-face')).toBe(true);
+    expect(cardEl.classList.contains('has-special-art')).toBe(true);
+    expect(cardEl.dataset.specialCardId).toBe('observer_will_01');
+    expect(cardEl.dataset.cardVisualEffect).toBe('specialCardCharacter');
+    expect(cardEl.querySelector('.card-special-art')).toBeTruthy();
+    expect(cardEl.style.getPropertyValue('--card-special-art-image')).toContain('assets/images/special-cards/characters/observer_will.png');
+    expect(cardEl.querySelector('.card-cost-badge')).toBeNull();
+    expect(cardEl.querySelector('.card-badge-row')).toBeNull();
+    expect(cardEl.querySelector('.special-card-sigil')).toBeTruthy();
+    expect(cardEl.querySelector('.special-card-title').textContent).toBe('盤理の観測者');
 
     dom.window.close();
   });
-
   test('createCardFaceElement uses blockade image override for blockade will cards', () => {
     const dom = createRendererContext();
     const { window } = dom;
@@ -444,6 +445,34 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('hand card cost badge uses copy-specific effective cost', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['silver_stone'], white: [] }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS.push({ id: 'silver_stone', name: 'Silver', desc: 'd', cost: 3 });
+    window.cardState._handCopyIdsByPlayer = {
+      black: [301],
+      white: []
+    };
+    window.cardState.cardCostOverridesByCopyId = {
+      301: { cost: 0, sourceType: 'OBSERVER_WILL' }
+    };
+    window.cardState.cardCostModifiersByCopyId = {};
+
+    window.renderCardUI();
+
+    const costValue = window.document.querySelector('#hand-black .card-cost-badge .cost-value');
+    const cardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(costValue.textContent).toBe('0');
+    expect(cardEl.classList.contains('cost-tier-white')).toBe(true);
+
+    dom.window.close();
+  });
+
   test('cpu mode shows all opponent hand cards face-up after reveal hand marks every copy', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
@@ -460,6 +489,58 @@ describe('card renderer hand inspection', () => {
       black: [201, 202, 203],
       white: []
     };
+
+    window.renderCardUI();
+
+    expect(window.document.querySelectorAll('#hand-white .card-item.visible')).toHaveLength(3);
+    expect(window.document.querySelectorAll('#hand-white .card-item.hidden')).toHaveLength(0);
+
+    dom.window.close();
+  });
+
+  test('cpu mode marks persistently revealed opponent hand cards as observed', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card', 'own_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState._handCopyIdsByPlayer = {
+      black: [1],
+      white: [201, 202]
+    };
+    window.cardState._revealedHandCopyIdsByViewer = {
+      black: [201],
+      white: []
+    };
+
+    window.renderCardUI();
+
+    const whiteCards = window.document.querySelectorAll('#hand-white .card-item');
+    expect(whiteCards[0].classList.contains('observed-hand-card')).toBe(true);
+    expect(whiteCards[0].querySelector('.observed-hand-tag').textContent).toBe('観測済み');
+    expect(whiteCards[1].classList.contains('observed-hand-card')).toBe(false);
+    expect(whiteCards[1].querySelector('.observed-hand-tag')).toBeNull();
+
+    dom.window.close();
+  });
+
+  test('cpu mode keeps opponent hand face-up while owned observer stone remains active', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card', 'own_card', 'opp_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState.markers = [{
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true }
+    }];
 
     window.renderCardUI();
 

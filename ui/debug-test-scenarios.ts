@@ -1,0 +1,174 @@
+export {};
+
+const OBSERVER_WILL_READY = 'observer_will_ready';
+const THEORY_INCARNATION_READY = 'theory_incarnation_ready';
+const OBSERVER_READY_TURN = 18;
+const OBSERVER_READY_CHARGE = 99;
+const OBSERVER_READY_BLACK_HAND = ['observer_will_01'];
+const OBSERVER_READY_WHITE_HAND = ['rebuild_01', 'gold_stone', 'silver_stone'];
+const THEORY_READY_BLACK_HAND = ['theory_incarnation_01'];
+
+function normalizeScenarioId(value: any): string | null {
+  const scenarioId = String(value || '').trim().toLowerCase().replace(/-/g, '_');
+  if (scenarioId === OBSERVER_WILL_READY) return OBSERVER_WILL_READY;
+  if (scenarioId === THEORY_INCARNATION_READY) return THEORY_INCARNATION_READY;
+  return null;
+}
+
+function resolveDebugTestScenarioFromQuery(query: any): string | null {
+  const rawQuery = String(query || '');
+  let params: URLSearchParams | null = null;
+  try {
+    params = new URLSearchParams(rawQuery.startsWith('?') ? rawQuery.slice(1) : rawQuery);
+  } catch (e) {
+    return null;
+  }
+  const debugValue = String(params.get('debug') || '').trim().toLowerCase();
+  const debugEnabled = debugValue === '1' || debugValue === 'true';
+  if (!debugEnabled) return null;
+  return normalizeScenarioId(params.get('testScenario') || params.get('test-scenario'));
+}
+
+function readDebugTestScenarioFromLocation(rootRef?: any): string | null {
+  const root = rootRef && typeof rootRef === 'object'
+    ? rootRef
+    : (typeof window !== 'undefined' ? window : null);
+  const search = root && root.location && typeof root.location.search === 'string'
+    ? root.location.search
+    : (typeof location !== 'undefined' && typeof location.search === 'string' ? location.search : '');
+  return resolveDebugTestScenarioFromQuery(search);
+}
+
+function assignHandCopyIds(cardState: any, playerKey: 'black' | 'white', copyIds: number[]) {
+  if (!cardState._handCopyIdsByPlayer || typeof cardState._handCopyIdsByPlayer !== 'object') {
+    cardState._handCopyIdsByPlayer = { black: [], white: [] };
+  }
+  cardState._handCopyIdsByPlayer[playerKey] = copyIds.slice();
+}
+
+function applyObserverWillReadyScenario(gameState: any, cardState: any) {
+  if (!gameState || typeof gameState !== 'object' || !cardState || typeof cardState !== 'object') {
+    return { applied: false, reason: 'missing_state' };
+  }
+
+  gameState.currentPlayer = 1;
+  gameState.turnNumber = Math.max(OBSERVER_READY_TURN, Number(gameState.turnNumber) || 0);
+  gameState.consecutivePasses = 0;
+
+  cardState.hands = {
+    ...(cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {}),
+    black: OBSERVER_READY_BLACK_HAND.slice(),
+    white: OBSERVER_READY_WHITE_HAND.slice()
+  };
+  cardState.decks = {
+    ...(cardState.decks && typeof cardState.decks === 'object' ? cardState.decks : {}),
+    black: [],
+    white: []
+  };
+  cardState.charge = {
+    ...(cardState.charge && typeof cardState.charge === 'object' ? cardState.charge : {}),
+    black: OBSERVER_READY_CHARGE,
+    white: OBSERVER_READY_CHARGE
+  };
+  cardState.turnIndex = Math.max(OBSERVER_READY_TURN, Number(cardState.turnIndex) || 0);
+  cardState.pendingEffectByPlayer = { black: null, white: null };
+  cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };
+  cardState.lastUsedCardByPlayer = { black: null, white: null };
+  cardState.markers = [];
+  cardState.selectedCardId = 'observer_will_01';
+  cardState.selectedCardOwnerKey = 'black';
+  cardState._deckCopyIdsByPlayer = { black: [], white: [] };
+  cardState._discardCopyIds = [];
+  cardState._revealedHandCopyIdsByViewer = { black: [], white: [] };
+  assignHandCopyIds(cardState, 'black', [101]);
+  assignHandCopyIds(cardState, 'white', [201, 202, 203]);
+  cardState._nextCardCopySeq = 204;
+  if (!cardState.cardCostOverridesByCopyId || typeof cardState.cardCostOverridesByCopyId !== 'object') {
+    cardState.cardCostOverridesByCopyId = {};
+  }
+  if (!cardState.cardCostModifiersByCopyId || typeof cardState.cardCostModifiersByCopyId !== 'object') {
+    cardState.cardCostModifiersByCopyId = {};
+  }
+  cardState.nextObserverWillStoneByPlayer = { black: null, white: null };
+  cardState.observerWillRepaymentsByPlayer = { black: [], white: [] };
+
+  return {
+    applied: true,
+    scenarioId: OBSERVER_WILL_READY,
+    message: 'デバッグシナリオ: 盤理の観測者を使用可能な18手後状態へ移行'
+  };
+}
+
+function applyTheoryIncarnationReadyScenario(gameState: any, cardState: any) {
+  if (!gameState || typeof gameState !== 'object' || !cardState || typeof cardState !== 'object') {
+    return { applied: false, reason: 'missing_state' };
+  }
+
+  gameState.currentPlayer = 1;
+  gameState.consecutivePasses = 0;
+
+  cardState.hands = {
+    ...(cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {}),
+    black: THEORY_READY_BLACK_HAND.slice(),
+    white: []
+  };
+  cardState.decks = {
+    ...(cardState.decks && typeof cardState.decks === 'object' ? cardState.decks : {}),
+    black: [],
+    white: []
+  };
+  cardState.charge = {
+    ...(cardState.charge && typeof cardState.charge === 'object' ? cardState.charge : {}),
+    black: OBSERVER_READY_CHARGE,
+    white: OBSERVER_READY_CHARGE
+  };
+  cardState.pendingEffectByPlayer = { black: null, white: null };
+  cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };
+  cardState.lastUsedCardByPlayer = { black: null, white: null };
+  cardState.markers = [];
+  cardState.selectedCardId = 'theory_incarnation_01';
+  cardState.selectedCardOwnerKey = 'black';
+  cardState.numberCellCollectedTotalByPlayer = {
+    ...(cardState.numberCellCollectedTotalByPlayer && typeof cardState.numberCellCollectedTotalByPlayer === 'object'
+      ? cardState.numberCellCollectedTotalByPlayer
+      : {}),
+    black: 42,
+    white: Number(cardState.numberCellCollectedTotalByPlayer && cardState.numberCellCollectedTotalByPlayer.white || 0)
+  };
+  cardState.theoryIncarnationStateByPlayer = { black: null, white: null };
+  cardState.nextTheoryIncarnationStoneByPlayer = { black: null, white: null };
+  cardState.theoryNumberCellsBySession = {};
+  cardState.theoryNumberCellByCell = {};
+  cardState._deckCopyIdsByPlayer = { black: [], white: [] };
+  cardState._discardCopyIds = [];
+  cardState._revealedHandCopyIdsByViewer = { black: [], white: [] };
+  assignHandCopyIds(cardState, 'black', [101]);
+  assignHandCopyIds(cardState, 'white', []);
+  cardState._nextCardCopySeq = 102;
+
+  return {
+    applied: true,
+    scenarioId: THEORY_INCARNATION_READY,
+    message: 'デバッグシナリオ: 理論の化身を使用可能な数字マス合計42状態へ移行'
+  };
+}
+
+function applyDebugTestScenarioAfterReset(options: any) {
+  const opts = options && typeof options === 'object' ? options : {};
+  const scenarioId = normalizeScenarioId(opts.scenarioId);
+  if (scenarioId === OBSERVER_WILL_READY) {
+    return applyObserverWillReadyScenario(opts.gameState, opts.cardState);
+  }
+  if (scenarioId === THEORY_INCARNATION_READY) {
+    return applyTheoryIncarnationReadyScenario(opts.gameState, opts.cardState);
+  }
+  return { applied: false, reason: 'unknown_scenario' };
+}
+
+export = {
+  OBSERVER_WILL_READY,
+  THEORY_INCARNATION_READY,
+  resolveDebugTestScenarioFromQuery,
+  readDebugTestScenarioFromLocation,
+  applyDebugTestScenarioAfterReset
+};

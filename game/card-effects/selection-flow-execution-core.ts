@@ -391,6 +391,28 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 };
             }
 
+            const rollbackCardState = deps.cloneData(stateRefs.cardState);
+            const rollbackGameState = deps.cloneData(stateRefs.gameState);
+            executionResult = preview.result;
+            appliedSelection = preview.appliedSelection;
+            const appliedState = deps.applySelectionStateResult(executionResult, stateRefs);
+            const liveContext = Object.assign({}, baseContext, {
+                action: pendingAction,
+                result: executionResult,
+                appliedSelection,
+                cardState: appliedState.cardState,
+                gameState: appliedState.gameState,
+                playbackEvents: []
+            });
+
+            if (opts.emitStateChanges !== false) {
+                deps.emitSelectionStateChangeSignals([]);
+            }
+
+            if (typeof opts.afterStateChange === 'function') {
+                await opts.afterStateChange(liveContext);
+            }
+
             const publishResult = await Promise.resolve(deps.publishPendingSelectionSnapshot({
                 playerKey,
                 actionType,
@@ -398,7 +420,18 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 playbackEvents: []
             }));
             if (!publishResult || publishResult.ok !== true) {
+                deps.applySelectionStateResult({
+                    nextCardState: rollbackCardState,
+                    nextGameState: rollbackGameState
+                }, stateRefs);
+                if (opts.emitStateChanges !== false) {
+                    deps.emitSelectionStateChangeSignals([]);
+                }
                 markPendingActionFailure('network_publish_failed');
+                const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
+                if (typeof ensureFn === 'function') {
+                    ensureFn({ useBlackDelay: true });
+                }
                 return {
                     ok: false,
                     reason: 'network_publish_failed',
@@ -416,9 +449,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 ok: true,
                 pendingType: resolvedPendingType,
                 action: pendingAction,
-                result: preview.result,
+                result: executionResult,
                 publishResult,
-                appliedSelection: preview.appliedSelection,
+                appliedSelection,
                 playbackEvents: [],
                 publishedByNetwork: true
             };

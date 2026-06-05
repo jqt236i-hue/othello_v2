@@ -90,7 +90,7 @@ function refreshHyperactiveRuntimeModules(): void {
 
 refreshHyperactiveRuntimeModules();
 
-const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'INHERITED_HYPERACTIVE', 'LIVING_WILL']);
+const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'LIVING_WILL']);
 
 function logHyperactiveDebug(...args: any[]): void {
     try {
@@ -247,14 +247,12 @@ interface HyperactiveDeps {
     currentTurnPlayerKey?: PlayerKey;
     randomSource?: any;
     decrementRemainingOwnerTurns?: boolean;
-    inheritedHyperactiveTurns?: number;
     ultimateHyperactiveTurns?: number;
     ultimateHyperactiveMaxDistance?: number;
     clearUltimateAtPositions?: (cardState: CardState, positions: Position[]) => void;
     robotVacuumTurns?: number;
     readCardPendingEffect?: (cardState: CardState, playerKey: PlayerKey) => any;
     clearCardPendingEffect?: (cardState: CardState, playerKey: PlayerKey) => void;
-    getHyperactiveInheritTargets?: (cardState: CardState, gameState: GameState, playerKey: PlayerKey) => Position[];
     removeMarkersAt?: (cardState: CardState, row: number, col: number, filter: any) => void;
     addMarker?: (cardState: CardState, kind: string, row: number, col: number, playerKey: PlayerKey, data: any) => any;
     emitPresentationEvent?: (cardState: CardState, event: any) => void;
@@ -317,11 +315,6 @@ function buildMovingStonePresentationMeta(cardState: CardState, row: number, col
     const destroyValues = markersAtCell
         .map((marker: any) => toCounterOrNull(marker && marker.data && marker.data.destroyEvadeRemaining))
         .filter((value: any) => value !== null);
-    const inherited = markersAtCell.find((marker: any) => (
-        marker &&
-        marker.data &&
-        String(marker.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
-    ));
     const visualSpecial = markersAtCell.find((marker: any) => {
         const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
         return !!typeUpper && !OVERLAY_ONLY_SPECIAL_TYPES.has(typeUpper);
@@ -331,20 +324,11 @@ function buildMovingStonePresentationMeta(cardState: CardState, row: number, col
         special: null,
         timer: null,
         owner: null,
-        inheritedTimer: null,
-        inheritedOwner: null,
         flipEvadeRemaining: null,
-        inheritedFlipEvadeRemaining: null,
         destroyEvadeRemaining: destroyValues.length
             ? destroyValues.reduce((sum: number, value: number) => sum + value, 0)
             : null
     };
-
-    if (inherited) {
-        meta.inheritedTimer = toCounterOrNull(inherited.data && inherited.data.remainingOwnerTurns);
-        meta.inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-        meta.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
-    }
 
     if (visualSpecial) {
         const specialType = (visualSpecial.data && visualSpecial.data.type) || null;
@@ -1208,7 +1192,7 @@ function moveHyperactiveOnce(
         (cs as any).markers = (cs as any).markers.filter((m: any) => !(
             m.kind === 'specialStone' &&
             m.data &&
-            (m.data.type === 'HYPERACTIVE' || m.data.type === 'ESCAPE_HYPERACTIVE' || m.data.type === 'INHERITED_HYPERACTIVE' || m.data.type === 'EXTREME_HYPERACTIVE' || m.data.type === 'ROBOT_VACUUM') &&
+            (m.data.type === 'HYPERACTIVE' || m.data.type === 'ESCAPE_HYPERACTIVE' || m.data.type === 'EXTREME_HYPERACTIVE' || m.data.type === 'ROBOT_VACUUM') &&
             positions.some((p: Position) => p.row === m.row && p.col === m.col)
         ));
     });
@@ -1226,28 +1210,19 @@ function moveHyperactiveOnce(
     const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
     const markerType = (entry && entry.data && entry.data.type) ? String(entry.data.type).toUpperCase() : 'HYPERACTIVE';
     const isEscapeHyperactive = markerType === 'ESCAPE_HYPERACTIVE';
-    const isInheritedHyperactive = markerType === 'INHERITED_HYPERACTIVE';
     const isExtremeHyperactive = markerType === 'EXTREME_HYPERACTIVE';
     const moveCause = isEscapeHyperactive
         ? 'ESCAPE_HYPERACTIVE'
-        : (isInheritedHyperactive
-            ? 'HYPERACTIVE_INHERIT_WILL'
-            : (isExtremeHyperactive ? 'EXTREME_HYPERACTIVE_WILL' : 'HYPERACTIVE'));
+        : (isExtremeHyperactive ? 'EXTREME_HYPERACTIVE_WILL' : 'HYPERACTIVE');
     const moveReason = isEscapeHyperactive
         ? 'escape_hyperactive_move'
-        : (isInheritedHyperactive
-            ? 'inherited_hyperactive_move'
-            : (isExtremeHyperactive ? 'extreme_hyperactive_move' : 'hyperactive_move'));
+        : (isExtremeHyperactive ? 'extreme_hyperactive_move' : 'hyperactive_move');
     const flipReason = isEscapeHyperactive
         ? 'escape_hyperactive_flip'
-        : (isInheritedHyperactive
-            ? 'inherited_hyperactive_flip'
-            : (isExtremeHyperactive ? 'extreme_hyperactive_flip' : 'hyperactive_flip'));
+        : (isExtremeHyperactive ? 'extreme_hyperactive_flip' : 'hyperactive_flip');
     const noCandidateReason = isEscapeHyperactive
         ? 'escape_no_candidates_explosion'
-        : (isInheritedHyperactive
-            ? 'inherited_no_candidates'
-            : (isExtremeHyperactive ? 'extreme_no_candidates' : 'no_candidates'));
+        : (isExtremeHyperactive ? 'extreme_no_candidates' : 'no_candidates');
 
     // Anchor must still be owner's stone
     if (getBoardCell(gameState, entry.row, entry.col) !== ownerVal) {
@@ -1493,51 +1468,6 @@ function moveHyperactiveOnce(
     return { moved, destroyed, flipped, repelled, ownerKey };
 }
 
-function applyInheritedHyperactiveCountdown(
-    cardState: CardState,
-    gameState: GameState,
-    entry: MarkerEntry,
-    deps: HyperactiveDeps = {}
-): { destroyed: DestroyResult[] } {
-    if (!entry || !entry.data || String(entry.data.type).toUpperCase() !== 'INHERITED_HYPERACTIVE') {
-        return { destroyed: [] };
-    }
-
-    const ownerKey = entry.owner as PlayerKey;
-    const currentTurnPlayerKey = (typeof deps.currentTurnPlayerKey === 'string' && deps.currentTurnPlayerKey)
-        ? deps.currentTurnPlayerKey
-        : ownerKey;
-    if (currentTurnPlayerKey !== ownerKey || deps.decrementRemainingOwnerTurns === false) {
-        return { destroyed: [] };
-    }
-
-    const defaultRemainingTurns = Number.isInteger(deps.inheritedHyperactiveTurns)
-        ? deps.inheritedHyperactiveTurns
-        : 10;
-    const before = Number.isFinite(Number(entry.data.remainingOwnerTurns))
-        ? Number(entry.data.remainingOwnerTurns)
-        : defaultRemainingTurns as number;
-    const afterDec = Math.max(0, before - 1);
-    entry.data.remainingOwnerTurns = afterDec;
-
-    if (afterDec > 0) return { destroyed: [] };
-
-    const reverted = revertTimedSpecialAt(
-        cardState,
-        gameState,
-        entry.row,
-        entry.col,
-        ownerKey,
-        'INHERITED_HYPERACTIVE',
-        deps,
-        'HYPERACTIVE_INHERIT_WILL',
-        'duration_end'
-    );
-    return reverted
-        ? { destroyed: [{ row: entry.row, col: entry.col, specialType: 'INHERITED_HYPERACTIVE', reason: 'duration_end', reverted: true }] }
-        : { destroyed: [] };
-}
-
 function processHyperactiveMoves(
     cardState: CardState,
     gameState: GameState,
@@ -1553,7 +1483,7 @@ function processHyperactiveMoves(
         .filter((s: any) => (
             s.kind === 'specialStone' &&
             s.data &&
-            (s.data.type === 'HYPERACTIVE' || s.data.type === 'ESCAPE_HYPERACTIVE' || s.data.type === 'INHERITED_HYPERACTIVE' || s.data.type === 'EXTREME_HYPERACTIVE')
+            (s.data.type === 'HYPERACTIVE' || s.data.type === 'ESCAPE_HYPERACTIVE' || s.data.type === 'EXTREME_HYPERACTIVE')
         ))
         .slice()
         .sort((a: MarkerEntry, b: MarkerEntry) => (a.createdSeq || 0) - (b.createdSeq || 0));
@@ -1567,13 +1497,6 @@ function processHyperactiveMoves(
         destroyed.push(...res.destroyed);
         flipped.push(...res.flipped);
         if (res.repelled && res.repelled.length) repelled.push(...res.repelled);
-        const markerStillExists = Array.isArray((cardState as any).markers) && (cardState as any).markers.includes(entry);
-        if (markerStillExists) {
-            const tickRes = applyInheritedHyperactiveCountdown(cardState, gameState, entry, deps);
-            if (tickRes && Array.isArray(tickRes.destroyed) && tickRes.destroyed.length) {
-                destroyed.push(...tickRes.destroyed);
-            }
-        }
         if (res.flipped.length > 0 && res.ownerKey && flippedByOwner[res.ownerKey]) {
             flippedByOwner[res.ownerKey].push(...res.flipped);
         }
@@ -1597,7 +1520,7 @@ function processHyperactiveMoveAtAnchor(
         s.data &&
         (expectedSpecialType
             ? (String(s.data.type || '').toUpperCase() === expectedSpecialType)
-            : (s.data.type === 'HYPERACTIVE' || s.data.type === 'ESCAPE_HYPERACTIVE' || s.data.type === 'INHERITED_HYPERACTIVE' || s.data.type === 'EXTREME_HYPERACTIVE')) &&
+            : (s.data.type === 'HYPERACTIVE' || s.data.type === 'ESCAPE_HYPERACTIVE' || s.data.type === 'EXTREME_HYPERACTIVE')) &&
         s.owner === playerKey &&
         s.row === row &&
         s.col === col
@@ -1605,13 +1528,6 @@ function processHyperactiveMoveAtAnchor(
     if (!entry) return { moved: [], destroyed: [], flipped: [], repelled: [] };
     const res = moveHyperactiveOnce(cardState, gameState, entry, prng, deps);
     const destroyed = Array.isArray(res.destroyed) ? res.destroyed.slice() : [];
-    const markerStillExists = Array.isArray((cardState as any).markers) && (cardState as any).markers.includes(entry);
-    if (markerStillExists) {
-        const tickRes = applyInheritedHyperactiveCountdown(cardState, gameState, entry, deps);
-        if (tickRes && Array.isArray(tickRes.destroyed) && tickRes.destroyed.length) {
-            destroyed.push(...tickRes.destroyed);
-        }
-    }
     return {
         moved: Array.isArray(res.moved) ? res.moved : [],
         destroyed,
@@ -1856,7 +1772,7 @@ function moveRobotVacuumOnce(
         (cs as any).markers = (cs as any).markers.filter((m: any) => !(
             m.kind === 'specialStone' &&
             m.data &&
-            (m.data.type === 'HYPERACTIVE' || m.data.type === 'ESCAPE_HYPERACTIVE' || m.data.type === 'INHERITED_HYPERACTIVE' || m.data.type === 'EXTREME_HYPERACTIVE' || m.data.type === 'ROBOT_VACUUM') &&
+            (m.data.type === 'HYPERACTIVE' || m.data.type === 'ESCAPE_HYPERACTIVE' || m.data.type === 'EXTREME_HYPERACTIVE' || m.data.type === 'ROBOT_VACUUM') &&
             positions.some((p: Position) => p.row === m.row && p.col === m.col)
         ));
     });
@@ -2004,7 +1920,6 @@ function processGluttonousMoveAtAnchor(
             m.data &&
             (m.data.type === 'HYPERACTIVE' ||
                 m.data.type === 'ESCAPE_HYPERACTIVE' ||
-                m.data.type === 'INHERITED_HYPERACTIVE' ||
                 m.data.type === 'EXTREME_HYPERACTIVE' ||
                 m.data.type === 'ROBOT_VACUUM' ||
                 m.data.type === 'GLUTTONOUS') &&
@@ -2378,99 +2293,8 @@ function processRobotVacuumMoveAtAnchor(
     return resolveAnchor();
 }
 
-function applyHyperactiveInheritWill(
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    row: number,
-    col: number,
-    deps: HyperactiveDeps = {}
-): { applied: boolean; reason?: string; row?: number; col?: number; remainingOwnerTurns?: number } {
-    const readCardPendingEffect = typeof deps.readCardPendingEffect === 'function'
-        ? deps.readCardPendingEffect
-        : null;
-    const clearCardPendingEffect = typeof deps.clearCardPendingEffect === 'function'
-        ? deps.clearCardPendingEffect
-        : null;
-    const getHyperactiveInheritTargets = typeof deps.getHyperactiveInheritTargets === 'function'
-        ? deps.getHyperactiveInheritTargets
-        : null;
-    const removeMarkersAt = typeof deps.removeMarkersAt === 'function'
-        ? deps.removeMarkersAt
-        : null;
-    const addMarker = typeof deps.addMarker === 'function'
-        ? deps.addMarker
-        : null;
-    const markerKinds = (deps.MARKER_KINDS && typeof deps.MARKER_KINDS === 'object')
-        ? deps.MARKER_KINDS
-        : null;
-    const inheritedTurns = Number.isFinite(Number(deps.inheritedHyperactiveTurns))
-        ? Math.max(1, Math.trunc(Number(deps.inheritedHyperactiveTurns)))
-        : 10;
-
-    if (
-        !readCardPendingEffect
-        || !clearCardPendingEffect
-        || !getHyperactiveInheritTargets
-        || !removeMarkersAt
-        || !addMarker
-    ) {
-        return { applied: false, reason: 'dependencies_unavailable' };
-    }
-
-    const pending = readCardPendingEffect(cardState, playerKey);
-    if (!pending || pending.type !== 'HYPERACTIVE_INHERIT_WILL' || pending.stage !== 'selectTarget') {
-        return { applied: false, reason: 'not_pending' };
-    }
-
-    const targets = getHyperactiveInheritTargets(cardState, gameState, playerKey);
-    const allowed = Array.isArray(targets) && targets.some((target) => (
-        target &&
-        target.row === row &&
-        target.col === col
-    ));
-    if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-    removeMarkersAt(cardState, row, col, {
-        kind: markerKinds ? markerKinds.SPECIAL_STONE : 'specialStone',
-        type: 'INHERITED_HYPERACTIVE',
-        owner: playerKey
-    });
-
-    (cardState as any).hyperactiveSeqCounter = ((cardState as any).hyperactiveSeqCounter || 0) + 1;
-    const evasionStatus = getEvasionStatusModule();
-    addMarker(cardState, 'specialStone', row, col, playerKey, {
-        type: 'INHERITED_HYPERACTIVE',
-        remainingOwnerTurns: inheritedTurns,
-        flipEvadeRemaining: evasionStatus && typeof evasionStatus.getFlipEvadeDefault === 'function'
-            ? (evasionStatus.getFlipEvadeDefault('INHERITED_HYPERACTIVE') || 1)
-            : 1,
-        destroyEvadeRemaining: evasionStatus && typeof evasionStatus.getDestroyEvadeDefault === 'function'
-            ? (evasionStatus.getDestroyEvadeDefault('INHERITED_HYPERACTIVE') || 1)
-            : 1,
-        hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
-    });
-    if (typeof deps.emitPresentationEvent === 'function') {
-        deps.emitPresentationEvent(cardState, {
-            type: 'STATUS_APPLIED',
-            row,
-            col,
-            meta: {
-                special: 'INHERITED_HYPERACTIVE',
-                owner: playerKey,
-                timer: inheritedTurns,
-                reason: 'hyperactive_inherit_selected'
-            }
-        });
-    }
-
-    clearCardPendingEffect(cardState, playerKey);
-    return { applied: true, row, col, remainingOwnerTurns: inheritedTurns };
-}
-
 const _exports: any = {
     setHyperactiveRuntime,
-    applyHyperactiveInheritWill,
     moveHyperactiveOnce,
     resolveHyperactiveFlipEvasion,
     processHyperactiveMoves,

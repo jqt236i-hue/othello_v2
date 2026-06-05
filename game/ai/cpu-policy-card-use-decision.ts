@@ -74,7 +74,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isSupplyWill,
             isGoldStone,
             isCrystalStone,
-            isTheoryIncarnation,
             isRainbowStone,
             isSilverStone,
             isPlunderWill,
@@ -98,7 +97,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isXBomb,
             isUltimateDestroyGod,
             isUltimateHyperactiveGod,
-            isObserverWill,
             isDestroyDragonWill,
             isBreedingWill,
             isTeleportWill,
@@ -180,7 +178,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isRecoveryCard ||
             isChargeRampCard ||
             isWorkWill ||
-            isObserverWill ||
             isDestroyDragonWill ||
             isAnchorPlacementCard
         );
@@ -222,7 +219,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             ((isGoldStone || isRainbowStone || isSilverStone) &&
                 maxLegalFlips >= 3 &&
                 maxLegalGain >= 3) ||
-            ((isCrystalStone || isTheoryIncarnation) && maxLegalBoardBonus >= 2) ||
+            (isCrystalStone && maxLegalBoardBonus >= 2) ||
             (isPlunderWill &&
                 maxLegalFlips >= 3 &&
                 maxLegalGain >= 3 &&
@@ -306,18 +303,17 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
                     isCellTeleportWill ||
                     isDestroyDragonWill ||
                     isSuperCrushWill ||
-                    isObserverWill ||
                     isWorkWill
                 )
             ) score += 138;
             if ((isThrowChainCard || isChainWill) && !cornerEmergency) score -= 180;
-            if (cardCyclePressure > 0 && (isStabilityCard || isChargeRampCard || isChargeSwingCard || isEdgeContestCard || isWorkWill || isObserverWill || isDestroyDragonWill || isRebuildWill)) {
+            if (cardCyclePressure > 0 && (isStabilityCard || isChargeRampCard || isChargeSwingCard || isEdgeContestCard || isWorkWill || isDestroyDragonWill || isRebuildWill)) {
                 score += cardCyclePressure * 8;
             }
             if (cardCyclePressure >= 3 && cardCost <= 10 && !isHighVarianceCard) {
                 score += 18;
             }
-            if (mobilityPressureLevel >= 2 && (isRecoveryCard || isHoldCard || isEdgeContestCard || isChargeSwingCard || isChargeRampCard || isWorkWill || isObserverWill)) {
+            if (mobilityPressureLevel >= 2 && (isRecoveryCard || isHoldCard || isEdgeContestCard || isChargeSwingCard || isChargeRampCard || isWorkWill)) {
                 score += 16;
             }
             if (ctx.handSize >= 4 && ctx.ownCharge >= 20 && !isHighVarianceCard) {
@@ -329,7 +325,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (
                 mobilityPressureLevel >= 2 &&
                 ((maxLegalFlips >= 4 && (isGoldStone || isRainbowStone || isSilverStone)) ||
-                    (maxLegalBoardBonus >= 2 && (isCrystalStone || isTheoryIncarnation)) ||
+                    (maxLegalBoardBonus >= 2 && isCrystalStone) ||
                     isGluttonousWill)
             ) {
                 score += 84;
@@ -497,11 +493,11 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (criticalLowDiscEmergency && maxLegalFlips >= 3) score += 48;
         }
 
-        if (isCrystalStone || isTheoryIncarnation) {
+        if (isCrystalStone) {
             const multiplier = 2;
             const gross = maxLegalBoardBonus * multiplier;
             const net = gross - cardCost;
-            score -= isTheoryIncarnation ? 8 : 18;
+            score -= 18;
             score += net * 7;
             if (maxLegalBoardBonus <= 0 && !ctx.forceUseCard) {
                 score -= 360;
@@ -524,7 +520,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (cornerEmergency && maxLegalBoardBonus <= 1) score -= 55;
             if (endgamePhase && maxLegalBoardBonus <= 1) score -= 45;
             if (criticalLowDiscEmergency && maxLegalBoardBonus >= 2) score += 42;
-            if (isTheoryIncarnation && !endgamePhase) score += 80;
         }
 
         if (isPlunderWill) {
@@ -860,19 +855,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (ctx.ownCharge <= (cardCost + 10) && !ctx.forceUseCard) score -= 46;
         }
 
-        if (isObserverWill) {
-            score -= 8;
-            if (openingPhase) score += 44;
-            if (midLatePhase) score += 18;
-            if (endgamePhase) score -= 64;
-            if (hasCornerMoveNow) score += 28;
-            else if (hasEdgeMoveNow) score += 18;
-            else score -= 18;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 42;
-            if (leadStable && (hasCornerMoveNow || hasEdgeMoveNow)) score += 16;
-            if (ctx.handSize >= 4 && cardCyclePressure >= 1) score += 8;
-        }
-
         if (isDestroyDragonWill) {
             score -= 10;
             if (hasCornerMoveNow) score += 110;
@@ -1014,18 +996,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (openingPhase && ctx.legalMovesCount >= 4 && !cornerEmergency) score -= 18;
             if (endgamePhase) score += 18;
             if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 20;
-        }
-
-        if (isObserverWill) {
-            score -= 24;
-            if (hasCornerMoveNow) score += 150;
-            else if (hasEdgeMoveNow) score += 48;
-            else score -= 170;
-            if (!hasCornerMoveNow && !hasEdgeMoveNow && !ctx.forceUseCard) score -= 90;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 52;
-            if (leadStable && !ctx.forceUseCard) score += 16;
-            if (endgamePhase) score -= 82;
-            if (criticalLowDiscEmergency && (hasCornerMoveNow || hasEdgeMoveNow)) score += 54;
         }
 
         if (isMeteorWill || isBoardShrinkCard) {

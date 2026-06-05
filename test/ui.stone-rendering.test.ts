@@ -168,10 +168,8 @@ describe('UI stone rendering', () => {
       { id: 4, kind: 'specialStone', row: 0, col: 3, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 12 } },
       { id: 5, kind: 'specialStone', row: 0, col: 4, owner: 'black', data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 6 } },
       { id: 6, kind: 'specialStone', row: 0, col: 5, owner: 'black', data: { type: 'HYPERACTIVE', remainingOwnerTurns: 5, flipEvadeRemaining: 1 } },
-      { id: 7, kind: 'specialStone', row: 0, col: 6, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 0, destroyEvadeRemaining: 1 } },
       { id: 8, kind: 'specialStone', row: 0, col: 7, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 9, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
-      { id: 10, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 4, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 } },
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
       { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } },
       { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } },
@@ -191,11 +189,6 @@ describe('UI stone rendering', () => {
     const hyperDisc = boardEl.querySelector('.cell[data-row="0"][data-col="5"] .disc');
     assert.strictEqual(hyperDisc.querySelector('.flip-evade-timer').textContent, '1');
 
-    const inheritedDisc = boardEl.querySelector('.cell[data-row="0"][data-col="6"] .disc');
-    assert.strictEqual(inheritedDisc.querySelector('.inherited-hyperactive-timer').textContent, '4');
-    assert.strictEqual(inheritedDisc.querySelector('.flip-evade-timer').textContent, '0');
-    assert.strictEqual(inheritedDisc.querySelector('.destroy-evade-timer').textContent, '1');
-
     const ultimateDisc = boardEl.querySelector('.cell[data-row="0"][data-col="7"] .disc');
     assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '3');
     assert.strictEqual(ultimateDisc.querySelector('.destroy-evade-timer').textContent, '1');
@@ -203,9 +196,8 @@ describe('UI stone rendering', () => {
     const coexistDisc = boardEl.querySelector('.cell[data-row="1"][data-col="0"] .disc');
     const coexistEvadeTimers = coexistDisc.querySelectorAll('.flip-evade-timer');
     assert.strictEqual(coexistEvadeTimers.length, 1);
-    assert.strictEqual(coexistEvadeTimers[0].textContent, '4');
-    assert.strictEqual(coexistDisc.querySelector('.inherited-hyperactive-timer').textContent, '4');
-    assert.strictEqual(coexistDisc.querySelector('.destroy-evade-timer').textContent, '2');
+    assert.strictEqual(coexistEvadeTimers[0].textContent, '3');
+    assert.strictEqual(coexistDisc.querySelector('.destroy-evade-timer').textContent, '1');
 
     const protectedDisc = boardEl.querySelector('.cell[data-row="1"][data-col="1"] .disc');
     assert.strictEqual(protectedDisc.querySelector('.flip-evade-timer'), null);
@@ -335,6 +327,96 @@ describe('UI stone rendering', () => {
     const disc = boardEl.querySelector('.cell[data-row="3"][data-col="3"] .disc');
     assert.ok(disc.classList.contains('living-will-aura'));
     assert.strictEqual(disc.querySelector('.work-timer').textContent, '4');
+  });
+
+  test('diff-renderer adds owner-colored aura to manifestation stones', () => {
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[2][4] = WHITE;
+    gameState.board[2][5] = BLACK;
+    cardState.markers = [
+      {
+        id: 41,
+        kind: 'manifestStone',
+        row: 2,
+        col: 4,
+        owner: 'white',
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4 }
+      },
+      {
+        id: 42,
+        kind: 'manifestStone',
+        row: 2,
+        col: 5,
+        owner: 'black',
+        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 3 }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const whiteDisc = boardEl.querySelector('.cell[data-row="2"][data-col="4"] .disc');
+    assert.ok(whiteDisc.classList.contains('manifest-stone-aura'));
+    assert.ok(whiteDisc.classList.contains('manifest-stone-aura-white'));
+    assert.ok(!whiteDisc.classList.contains('manifest-stone-aura-black'));
+
+    const blackDisc = boardEl.querySelector('.cell[data-row="2"][data-col="5"] .disc');
+    assert.ok(blackDisc.classList.contains('manifest-stone-aura'));
+    assert.ok(blackDisc.classList.contains('manifest-stone-aura-black'));
+    assert.ok(!blackDisc.classList.contains('manifest-stone-aura-white'));
+  });
+
+  test('board-renderer adds owner-colored aura to manifestation stones', () => {
+    const boardRenderer = require('../ui/board-renderer.js');
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[4][2] = BLACK;
+    gameState.board[4][3] = WHITE;
+    cardState.markers = [
+      {
+        id: 51,
+        kind: 'manifestStone',
+        row: 4,
+        col: 2,
+        owner: 'black',
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 52,
+        kind: 'manifestStone',
+        row: 4,
+        col: 3,
+        owner: 'white',
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 5 }
+      }
+    ];
+
+    boardRenderer.renderBoardFull();
+
+    const blackDisc = boardEl.querySelector('.cell[data-row="4"][data-col="2"] .disc');
+    assert.ok(blackDisc.classList.contains('manifest-stone-aura'));
+    assert.ok(blackDisc.classList.contains('manifest-stone-aura-black'));
+    assert.ok(!blackDisc.classList.contains('manifest-stone-aura-white'));
+
+    const whiteDisc = boardEl.querySelector('.cell[data-row="4"][data-col="3"] .disc');
+    assert.ok(whiteDisc.classList.contains('manifest-stone-aura'));
+    assert.ok(whiteDisc.classList.contains('manifest-stone-aura-white'));
+    assert.ok(!whiteDisc.classList.contains('manifest-stone-aura-black'));
+  });
+
+  test('manifestation stone aura CSS defines owner-specific glow selectors', () => {
+    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+
+    assert.ok(/\.disc\.manifest-stone-aura\s*\{/.test(boardCss), 'common manifestation aura selector should exist');
+    assert.ok(/\.disc\.manifest-stone-aura\.manifest-stone-aura-black\s*\{/.test(boardCss), 'black manifestation aura selector should exist');
+    assert.ok(/\.disc\.manifest-stone-aura\.manifest-stone-aura-white\s*\{/.test(boardCss), 'white manifestation aura selector should exist');
   });
 
   test('diff-renderer renders seed overlay and countdown on empty cells', () => {

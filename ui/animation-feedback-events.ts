@@ -5,6 +5,8 @@ type AnimationFeedbackEventDeps = {
     consumeLocalPlaybackSoundSkip?: (soundKey: any) => boolean;
     soundEngine?: any;
     isNoAnim?: () => boolean;
+    sleep?: (ms: any) => Promise<void>;
+    typewriterSleep?: (ms: any) => Promise<void>;
     observerBubbleMs?: any;
     observerBubbleFadeMs?: any;
     getCellEl?: (row: any, col: any) => any;
@@ -28,6 +30,214 @@ function toPositiveInt(value: any, fallback: any) {
     if (!Number.isFinite(n)) return fallback;
     const v = Math.trunc(n);
     return v > 0 ? v : fallback;
+}
+
+function getSpecialCardCinematicTarget(ev: any) {
+    const target = getPrimaryTarget(ev);
+    return target && typeof target === 'object' ? target : {};
+}
+
+function resolveSpecialCardCinematicText(target: any) {
+    const quote = (typeof (target && target.quote) === 'string') ? target.quote.trim() : '';
+    const displayName = (typeof (target && target.displayName) === 'string') ? target.displayName.trim() : '';
+    const quoteLines = Array.isArray(target && target.quoteLines)
+        ? target.quoteLines.map((line: any) => String(line || '').trim()).filter(Boolean)
+        : [];
+    return {
+        quote,
+        quoteLines,
+        displayName
+    };
+}
+
+function escapeCssUrlPath(value: any): string {
+    return String(value || '').replace(/"/g, '\\"');
+}
+
+function waitForCinematic(ms: number, deps: AnimationFeedbackEventDeps) {
+    if (deps.sleep && typeof deps.sleep === 'function') {
+        return deps.sleep(ms);
+    }
+    return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function waitForTypewriter(ms: number, deps: AnimationFeedbackEventDeps) {
+    if (deps.typewriterSleep && typeof deps.typewriterSleep === 'function') {
+        return deps.typewriterSleep(ms);
+    }
+    return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function resolveTypewriterDelayForChar(char: string): number {
+    if (char === '。') return 90;
+    if (char === '、') return 250;
+    return 20;
+}
+
+function splitSpecialCardQuoteIntoLines(quote: string): string[] {
+    const chars = Array.from(String(quote || '').trim());
+    if (chars.length === 0) return [];
+    const maxCharsPerLine = 12;
+    const lines = [];
+    for (let i = 0; i < chars.length; i += maxCharsPerLine) {
+        lines.push(chars.slice(i, i + maxCharsPerLine).join(''));
+    }
+    return lines;
+}
+
+function resolveSpecialCardQuoteLines(quote: string, explicitLines: string[] = []): string[] {
+    const normalizedLines = Array.isArray(explicitLines)
+        ? explicitLines.map((line) => String(line || '').trim()).filter(Boolean)
+        : [];
+    if (normalizedLines.length > 0) return normalizedLines;
+    return splitSpecialCardQuoteIntoLines(quote);
+}
+
+async function revealSpecialCardQuoteTypewriter(quoteEl: any, quote: string, deps: AnimationFeedbackEventDeps, explicitLines: string[] = []) {
+    if (!quoteEl || !quote) return;
+    quoteEl.dataset.fullText = quote;
+    quoteEl.textContent = '';
+    const documentRef = quoteEl.ownerDocument || getDocumentRef();
+    const lines = resolveSpecialCardQuoteLines(quote, explicitLines);
+    const lineEls = lines.map((line) => {
+        const lineEl = documentRef.createElement('span');
+        lineEl.className = 'special-card-cinematic-quote-line';
+        lineEl.dataset.fullText = line;
+        lineEl.textContent = '';
+        quoteEl.appendChild(lineEl);
+        return lineEl;
+    });
+    await waitForTypewriter(120, deps);
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const lineEl = lineEls[lineIndex];
+        const chars = Array.from(lines[lineIndex]);
+        let nextText = '';
+        for (const char of chars) {
+            if (!quoteEl.isConnected) return;
+            nextText += char;
+            lineEl.textContent = nextText;
+            await waitForTypewriter(resolveTypewriterDelayForChar(char), deps);
+        }
+    }
+}
+
+function buildManifestPresentationOverride(target: any) {
+    const manifestBackgroundImage = String((target && target.manifestBackgroundImage) || '').trim();
+    const manifestBackgroundKey = String((target && target.manifestBackgroundKey) || '').trim();
+    const manifestBgmKey = String((target && target.manifestBgmKey) || '').trim();
+    const manifestBgmTrack = (target && target.manifestBgmTrack && typeof target.manifestBgmTrack === 'object')
+        ? Object.assign({}, target.manifestBgmTrack)
+        : null;
+    if (!manifestBackgroundImage && (!manifestBgmKey || !manifestBgmTrack)) return null;
+    return {
+        source: 'special_card_use',
+        cardId: String((target && target.cardId) || '').trim(),
+        cardType: String((target && target.cardType) || '').trim(),
+        cinematicKey: String((target && target.cinematicKey) || '').trim(),
+        manifestBackgroundKey,
+        manifestBackgroundImage,
+        manifestBgmKey,
+        manifestBgmTrack,
+        resolvedByMarker: false
+    };
+}
+
+function applyManifestPresentationForCinematic(target: any, deps: AnimationFeedbackEventDeps) {
+    const documentRef = getDocumentRef();
+    const root = getWindowRef();
+    const presentation = buildManifestPresentationOverride(target);
+    if (!presentation) return;
+
+    if (root) {
+        try {
+            root.__manifestPresentationOverride = presentation;
+        } catch (e: any) { /* ignore */ }
+    }
+
+    if (documentRef && documentRef.body && presentation.manifestBackgroundImage) {
+        try {
+            documentRef.body.classList.add('manifest-world-background-active');
+            documentRef.body.setAttribute('data-manifest-world-background-key', presentation.manifestBackgroundKey || presentation.cinematicKey || presentation.cardId || 'manifest_world');
+            documentRef.body.setAttribute('data-manifest-world-background-source', 'special_card_use');
+            documentRef.body.style.setProperty('--manifest-world-background', `url("${presentation.manifestBackgroundImage}")`);
+        } catch (e: any) { /* ignore */ }
+    }
+
+    const soundEngine = deps.soundEngine || (root && root.SoundEngine);
+    if (
+        soundEngine &&
+        typeof soundEngine.syncManifestBgmOverride === 'function' &&
+        presentation.manifestBgmKey &&
+        presentation.manifestBgmTrack
+    ) {
+        try {
+            soundEngine.syncManifestBgmOverride(presentation.manifestBgmKey, presentation.manifestBgmTrack);
+        } catch (e: any) { /* ignore */ }
+    }
+}
+
+async function handleSpecialCardCinematicEvent(ev: any, deps: AnimationFeedbackEventDeps = {}) {
+    const target = getSpecialCardCinematicTarget(ev);
+    const durationMs = toPositiveInt(
+        (target && target.durationMs) || (ev && ev.durationMs),
+        3000
+    );
+    applyManifestPresentationForCinematic(target, deps);
+    if (deps.isNoAnim && deps.isNoAnim()) {
+        return Promise.resolve();
+    }
+    const documentRef = getDocumentRef();
+    if (!documentRef || !documentRef.body) {
+        await waitForCinematic(durationMs, deps);
+        return;
+    }
+
+    const { quote, quoteLines, displayName } = resolveSpecialCardCinematicText(target);
+    const cinematicKey = String((target && target.cinematicKey) || (ev && ev.cinematicKey) || '').trim();
+    const owner = String((target && target.owner) || (target && target.player) || '').trim().toLowerCase();
+    const overlay = documentRef.createElement('div');
+    overlay.className = 'special-card-cinematic-overlay';
+    overlay.dataset.cinematicKey = cinematicKey;
+    overlay.dataset.owner = owner;
+    overlay.setAttribute('aria-hidden', 'true');
+
+    const characterImage = String((target && target.characterImage) || '').trim();
+    if (characterImage) {
+        const characterEl = documentRef.createElement('div');
+        characterEl.className = 'special-card-cinematic-character';
+        characterEl.setAttribute('aria-hidden', 'true');
+        characterEl.style.setProperty('--special-card-character-image', `url("${escapeCssUrlPath(characterImage)}")`);
+        overlay.appendChild(characterEl);
+    }
+
+    const frame = documentRef.createElement('div');
+    frame.className = 'special-card-cinematic-frame';
+    const titleEl = documentRef.createElement('div');
+    titleEl.className = 'special-card-cinematic-title';
+    titleEl.textContent = displayName;
+    const quoteEl = documentRef.createElement('div');
+    quoteEl.className = 'special-card-cinematic-quote';
+    void revealSpecialCardQuoteTypewriter(quoteEl, quote, deps, quoteLines);
+    frame.appendChild(titleEl);
+    frame.appendChild(quoteEl);
+    overlay.appendChild(frame);
+
+    documentRef.body.appendChild(overlay);
+    try {
+        void overlay.offsetWidth;
+        overlay.classList.add('special-card-cinematic-visible');
+    } catch (e: any) {
+        overlay.classList.add('special-card-cinematic-visible');
+    }
+    await waitForCinematic(durationMs, deps);
+    try {
+        overlay.classList.remove('special-card-cinematic-visible');
+        overlay.classList.add('special-card-cinematic-leaving');
+    } catch (e: any) { /* ignore */ }
+    await waitForCinematic(260, deps);
+    try {
+        if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
+    } catch (e: any) { /* ignore */ }
 }
 
 function getSoundKeys(ev: any) {
@@ -286,5 +496,6 @@ function handleObserverBubbleEvent(ev: any, deps: AnimationFeedbackEventDeps = {
 module.exports = {
     handleObserverBubbleEvent,
     handleRoundBonusBannerEvent,
+    handleSpecialCardCinematicEvent,
     handleSoundEffectEvent
 };

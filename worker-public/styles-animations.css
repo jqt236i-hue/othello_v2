@@ -1,5 +1,178 @@
 /* Card Animations */
 
+/* Special card use cinematic */
+.special-card-cinematic-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 24000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: min(7vw, 64px);
+    background:
+        radial-gradient(circle at 50% 48%, rgba(42, 233, 213, 0.12), rgba(0, 0, 0, 0) 42%),
+        rgba(0, 0, 0, 0.72);
+    color: #f4fff8;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 320ms ease;
+    isolation: isolate;
+    overflow: hidden;
+}
+
+.special-card-cinematic-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 24%, rgba(255, 255, 255, 0) 76%, rgba(255, 255, 255, 0.06)),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, rgba(0, 0, 0, 0) 1px 6px);
+    opacity: 0.22;
+    mix-blend-mode: screen;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.special-card-cinematic-visible {
+    opacity: 1;
+}
+
+.special-card-cinematic-leaving {
+    opacity: 0;
+}
+
+.special-card-cinematic-character {
+    position: absolute;
+    right: clamp(-96px, 2vw, 52px);
+    bottom: clamp(-48px, -3vh, -12px);
+    width: min(58vw, 780px);
+    height: min(88vh, 840px);
+    background-image: var(--special-card-character-image, none);
+    background-repeat: no-repeat;
+    background-position: center bottom;
+    background-size: contain;
+    opacity: 0;
+    transform: translateX(36px) scale(0.98);
+    transform-origin: center bottom;
+    filter:
+        drop-shadow(0 0 34px rgba(139, 255, 239, 0.24))
+        drop-shadow(0 22px 42px rgba(0, 0, 0, 0.7));
+    transition:
+        opacity 480ms ease,
+        transform 680ms cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.special-card-cinematic-visible .special-card-cinematic-character {
+    opacity: 0.9;
+    transform: translateX(0) scale(1);
+}
+
+.special-card-cinematic-frame {
+    position: relative;
+    width: min(86vw, 920px);
+    min-height: 190px;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 22px;
+    text-align: center;
+    transform: translateY(14px) scale(0.985);
+    opacity: 0;
+    transition:
+        opacity 420ms ease,
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 3;
+}
+
+.special-card-cinematic-visible .special-card-cinematic-frame {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.special-card-cinematic-frame::before,
+.special-card-cinematic-frame::after {
+    content: "";
+    width: min(74vw, 740px);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(224, 194, 122, 0.92), rgba(139, 255, 239, 0.78), transparent);
+    box-shadow: 0 0 18px rgba(122, 255, 238, 0.34);
+}
+
+.special-card-cinematic-title {
+    font-size: clamp(17px, 2.1vw, 28px);
+    font-weight: 800;
+    color: #f4d68a;
+    text-shadow: 0 0 16px rgba(244, 214, 138, 0.34);
+}
+
+.special-card-cinematic-title:empty {
+    display: none;
+}
+
+.special-card-cinematic-quote {
+    display: grid;
+    justify-items: center;
+    gap: 0.06em;
+    max-width: min(82vw, 840px);
+    min-height: 2.9em;
+    font-size: clamp(18px, 2.8vw, 36px);
+    font-weight: 800;
+    line-height: 1.45;
+    letter-spacing: 0;
+    color: #f7fffb;
+    text-shadow:
+        0 0 10px rgba(139, 255, 239, 0.32),
+        0 3px 20px rgba(0, 0, 0, 0.92);
+}
+
+.special-card-cinematic-quote-line {
+    display: block;
+    min-height: 1.45em;
+    white-space: nowrap;
+}
+
+.special-card-cinematic-quote:empty {
+    display: none;
+}
+
+.special-card-cinematic-quote[data-full-text]:empty {
+    display: grid;
+}
+
+@media (max-width: 42.5em) {
+    .special-card-cinematic-overlay {
+        padding: 24px;
+    }
+
+    .special-card-cinematic-frame {
+        gap: 16px;
+        min-height: 160px;
+    }
+
+    .special-card-cinematic-character {
+        right: 50%;
+        bottom: -5vh;
+        width: min(112vw, 520px);
+        height: min(72vh, 620px);
+        opacity: 0;
+        transform: translateX(50%) translateY(18px) scale(0.94);
+        filter:
+            drop-shadow(0 0 28px rgba(139, 255, 239, 0.22))
+            drop-shadow(0 20px 36px rgba(0, 0, 0, 0.72));
+    }
+
+    .special-card-cinematic-visible .special-card-cinematic-character {
+        opacity: 0.42;
+        transform: translateX(50%) translateY(0) scale(1);
+    }
+
+    .special-card-cinematic-quote {
+        font-size: clamp(18px, 5.6vw, 28px);
+    }
+}
+
 @keyframes card-fade-in {
     from {
         opacity: 0;

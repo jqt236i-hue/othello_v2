@@ -490,6 +490,15 @@ function getTurnManagerCardStateRef(): any {
     return null;
 }
 
+function getTurnManagerGameStateRef(): any {
+    const runtimeGameState = readTurnManagerRuntimeValue('gameState');
+    if (runtimeGameState && typeof runtimeGameState === 'object') return runtimeGameState;
+    try {
+        if (gameState && typeof gameState === 'object') return gameState;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 let cpuSmartness = { black: 1, white: 1 }; // @compat - read by some modules through UI runtime, keep until Wave F
 var resetGameGeneration = 0;
 
@@ -1056,6 +1065,29 @@ function clearPendingSelectionActionCacheForTurnManager() {
     return false;
 }
 
+function applyDebugTestScenarioAfterResetForTurnManager(options?: any) {
+    const impl = __uiImpl_turn_manager || {};
+    if (!impl || typeof impl.applyDebugTestScenarioAfterReset !== 'function') return false;
+    try {
+        const result = impl.applyDebugTestScenarioAfterReset({
+            ...(options && typeof options === 'object' ? options : {}),
+            gameState: getTurnManagerGameStateRef(),
+            cardState: getTurnManagerCardStateRef()
+        });
+        if (!result || result.applied !== true) return false;
+        if (result.message) {
+            emitLogAddedForTurnManager(String(result.message), 'normal');
+        }
+        try { emitBoardUpdate(); } catch (e) { /* ignore */ }
+        try { emitGameStateChange(); } catch (e) { /* ignore */ }
+        try { emitCardStateChange(); } catch (e) { /* ignore */ }
+        return true;
+    } catch (e) {
+        console.warn('[resetGame] debug test scenario failed:', e && (e as any).message ? (e as any).message : e);
+        return false;
+    }
+}
+
 function resetGame(options?: any) {
     // Auto mode removed: nothing to stop or reset
 
@@ -1241,6 +1273,9 @@ function resetGame(options?: any) {
             })
             .finally(() => {
                 if (!isCurrentResetGeneration()) return;
+                if (turnStartSucceeded) {
+                    applyDebugTestScenarioAfterResetForTurnManager({ resetOptions: options });
+                }
                 if (turnStartSucceeded && shouldPublishNetworkResetSnapshot) {
                     publishNetworkResetSnapshot();
                 }
@@ -1321,6 +1356,7 @@ async function onTurnStart(player: number) {
     // so that the *pipeline* (not UI) is the single writer of rule state.
     const _startEvents: any[] = [];
     let turnStartPlaybackEvents = [];
+    let turnStartResult: any = null;
     const othelloMode = isOthelloModeForTurnManager();
     if (othelloMode) {
         _startEvents.push({ type: 'turn_start', player: playerKey });
@@ -1331,7 +1367,7 @@ async function onTurnStart(player: number) {
         // Provide runtime PRNG to pipeline so start-of-turn effects that need randomness can run in browser
         const runtimePrng = getTurnManagerPrng();
         logTurnManagerDebug('[onTurnStart] runtimePrng available:', 'debug', { available: !!runtimePrng });
-        TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
+        turnStartResult = TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
         // Convert any presentation events emitted during turn-start into PlaybackEvents
         const adapter = getTurnPipelineUIAdapter();
         if (adapter && typeof adapter.mapToPlaybackEvents === 'function'
@@ -1411,7 +1447,7 @@ async function onTurnStart(player: number) {
         // Ensure UI consumes the playback events
         requestUIRender();
     }
-    if (!othelloMode) {
+    if (!othelloMode && !(turnStartResult && turnStartResult.stopAction === true)) {
         await playTurnStartSpecialEffectsViaUI(player, _startEvents);
     }
 
@@ -1430,7 +1466,8 @@ async function onTurnStart(player: number) {
         showTurnManagerResultIfAvailable();
         setTurnManagerBusyState({ processing: false });
         return {
-            playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : []
+            playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : [],
+            stopAction: !!(turnStartResult && turnStartResult.stopAction === true)
         };
     }
 
@@ -1456,7 +1493,8 @@ async function onTurnStart(player: number) {
     }
 
     return {
-        playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : []
+        playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : [],
+        stopAction: !!(turnStartResult && turnStartResult.stopAction === true)
     };
 }
 

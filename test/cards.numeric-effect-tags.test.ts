@@ -15,10 +15,6 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避3回', '破壊回避3回']);
   });
 
-  test('HYPERACTIVE_INHERIT_WILL returns mixed evasion and duration tags', () => {
-    expect(getEffectTagLabels('HYPERACTIVE_INHERIT_WILL')).toEqual(['反転回避1回', '破壊回避1回', '10ターン持続']);
-  });
-
   test('ROBOT_VACUUM_WILL returns only its base duration tag', () => {
     expect(getEffectTagLabels('ROBOT_VACUUM_WILL')).toEqual(['5ターン持続']);
   });

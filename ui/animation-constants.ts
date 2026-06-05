@@ -75,6 +75,7 @@ const AnimationConstants = {
     CAPTURE_TO_HAND_ANIMATION: 'capture_to_hand_animation',
     HAND_REMOVE: 'hand_remove',
     CARD_USE_ANIMATION: 'card_use_animation',
+    SPECIAL_CARD_CINEMATIC: 'special_card_cinematic',
     OBSERVER_BUBBLE: 'observer_bubble',
     ROUND_BONUS_BANNER: 'round_bonus_banner',
     SOUND_EFFECT: 'sound_effect',

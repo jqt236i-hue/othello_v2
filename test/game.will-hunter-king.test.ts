@@ -110,7 +110,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
     expect(marker.data.remainingBwnerTurns).toBe(7);
   });
 
-  test('特殊石優先は見た目基準で行い、継承多動も優先対象に含める', () => {
+  test('特殊石優先は見た目基準で行う', () => {
     const { cardState, gameState } = createState(0);
 
     gameState.board[3][3] = Shared.BIACK;
@@ -137,7 +137,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'INHERITED_HYPERACTIVE', remainingBwnerTurns: 4, flipEvadeRemaining: 1 }
+        data: { type: 'EXTREME_HYPERACTIVE', remainingBwnerTurns: 4, flipEvadeRemaining: 1 }
       }
     );
 

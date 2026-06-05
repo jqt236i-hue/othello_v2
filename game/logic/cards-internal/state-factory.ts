@@ -62,6 +62,133 @@ function clonePresentationEvents(events: any[]): any[] {
     });
 }
 
+function cloneCardCostOverridesByCopyId(source: any): Record<string, any> {
+    if (!source || typeof source !== 'object') return {};
+    const next: Record<string, any> = {};
+    for (const [copyId, entry] of Object.entries(source)) {
+        const numericCopyId = Number(copyId);
+        if (!Number.isInteger(numericCopyId) || numericCopyId <= 0 || !entry || typeof entry !== 'object') continue;
+        const rawEntry: any = entry;
+        const cost = Number(rawEntry.cost);
+        if (!Number.isFinite(cost)) continue;
+        next[String(numericCopyId)] = {
+            cost,
+            sourceType: typeof rawEntry.sourceType === 'string' ? rawEntry.sourceType : null
+        };
+    }
+    return next;
+}
+
+function cloneCardCostModifiersByCopyId(source: any): Record<string, any[]> {
+    if (!source || typeof source !== 'object') return {};
+    const next: Record<string, any[]> = {};
+    for (const [copyId, entries] of Object.entries(source)) {
+        const numericCopyId = Number(copyId);
+        if (!Number.isInteger(numericCopyId) || numericCopyId <= 0 || !Array.isArray(entries)) continue;
+        const normalizedEntries = entries
+            .map((entry: any) => {
+                const delta = Number(entry && entry.delta);
+                if (!Number.isFinite(delta)) return null;
+                return {
+                    delta,
+                    sourceType: typeof entry.sourceType === 'string' ? entry.sourceType : null
+                };
+            })
+            .filter(Boolean);
+        if (normalizedEntries.length > 0) {
+            next[String(numericCopyId)] = normalizedEntries;
+        }
+    }
+    return next;
+}
+
+function cloneObserverWillRepaymentsByPlayer(source: any): Record<string, any[]> {
+    const sourceObject = (source && typeof source === 'object') ? source : {};
+    const cloneEntries = (entries: any) => Array.isArray(entries)
+        ? entries.map((entry: any) => ({
+            ...(entry && typeof entry === 'object' ? entry : {}),
+            remainingOwnerTurns: Number.isFinite(Number(entry && entry.remainingOwnerTurns))
+                ? Math.max(0, Math.floor(Number(entry.remainingOwnerTurns)))
+                : 9,
+            repaymentAmount: Number.isFinite(Number(entry && entry.repaymentAmount))
+                ? Math.max(0, Math.floor(Number(entry.repaymentAmount)))
+                : 0,
+            shortageDestroyCount: Number.isFinite(Number(entry && entry.shortageDestroyCount))
+                ? Math.max(0, Math.floor(Number(entry.shortageDestroyCount)))
+                : 4
+        }))
+        : [];
+    return {
+        black: cloneEntries(sourceObject.black),
+        white: cloneEntries(sourceObject.white)
+    };
+}
+
+function cloneObserverWillNextStoneByPlayer(source: any): Record<string, any> {
+    const sourceObject = (source && typeof source === 'object') ? source : {};
+    return {
+        black: sourceObject.black && typeof sourceObject.black === 'object' ? { ...sourceObject.black } : null,
+        white: sourceObject.white && typeof sourceObject.white === 'object' ? { ...sourceObject.white } : null
+    };
+}
+
+function cloneNullablePlayerRecord(source: any): Record<string, any> {
+    const sourceObject = (source && typeof source === 'object') ? source : {};
+    return {
+        black: sourceObject.black && typeof sourceObject.black === 'object' ? { ...sourceObject.black } : null,
+        white: sourceObject.white && typeof sourceObject.white === 'object' ? { ...sourceObject.white } : null
+    };
+}
+
+function cloneNumberCellCollectedTotalByPlayer(source: any): Record<string, number> {
+    const sourceObject = (source && typeof source === 'object') ? source : {};
+    return {
+        black: Number.isFinite(Number(sourceObject.black)) ? Math.max(0, Math.floor(Number(sourceObject.black))) : 0,
+        white: Number.isFinite(Number(sourceObject.white)) ? Math.max(0, Math.floor(Number(sourceObject.white))) : 0
+    };
+}
+
+function cloneTheoryNumberCellsBySession(source: any): Record<string, any> {
+    if (!source || typeof source !== 'object') return {};
+    const next: Record<string, any> = {};
+    for (const [sessionId, rawSession] of Object.entries(source)) {
+        if (!sessionId || !rawSession || typeof rawSession !== 'object') continue;
+        const session: any = rawSession;
+        const cells: Record<string, any> = {};
+        if (session.cells && typeof session.cells === 'object') {
+            for (const [cellKey, rawCell] of Object.entries(session.cells)) {
+                if (!rawCell || typeof rawCell !== 'object') continue;
+                cells[String(cellKey)] = { ...(rawCell as any) };
+            }
+        }
+        next[String(sessionId)] = {
+            ...session,
+            cells
+        };
+    }
+    return next;
+}
+
+function deriveNextObserverWillRepaymentSeq(cardState: any): number {
+    let maxSeq = 0;
+    const visit = (value: any) => {
+        if (!value || typeof value !== 'object') return;
+        const repaymentId = typeof value.repaymentId === 'string' ? value.repaymentId : '';
+        const match = /^observer_will_repay_(?:black|white)_(\d+)$/.exec(repaymentId);
+        if (!match) return;
+        maxSeq = Math.max(maxSeq, Number(match[1]) || 0);
+    };
+    const byPlayer = cardState && cardState.observerWillRepaymentsByPlayer;
+    for (const playerKey of ['black', 'white']) {
+        const entries = byPlayer && Array.isArray(byPlayer[playerKey]) ? byPlayer[playerKey] : [];
+        entries.forEach(visit);
+    }
+    const reservations = cardState && cardState.nextObserverWillStoneByPlayer;
+    visit(reservations && reservations.black);
+    visit(reservations && reservations.white);
+    return maxSeq + 1;
+}
+
 function createCardState(prng: PRNG | null, options: any, context: Context): any {
     const p = prng || getDefaultPrng(context);
     const resolveCardBoardConfig = requireContextFunction(context, 'resolveCardBoardConfig');
@@ -118,6 +245,17 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         _deckCopyIdsByPlayer: { black: [], white: [] },
         _discardCopyIds: [],
         _revealedHandCopyIdsByViewer: { black: [], white: [] },
+        cardCostOverridesByCopyId: {},
+        cardCostModifiersByCopyId: {},
+        nextObserverWillStoneByPlayer: { black: null, white: null },
+        observerWillRepaymentsByPlayer: { black: [], white: [] },
+        _nextObserverWillRepaymentSeq: 1,
+        theoryIncarnationStateByPlayer: { black: null, white: null },
+        nextTheoryIncarnationStoneByPlayer: { black: null, white: null },
+        theoryNumberCellsBySession: {},
+        theoryNumberCellByCell: {},
+        numberCellCollectedTotalByPlayer: { black: 0, white: 0 },
+        _nextTheoryIncarnationSeq: 1,
         selectedCardId: null,
         hasUsedCardThisTurnByPlayer: { black: false, white: false },
         hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
@@ -271,6 +409,26 @@ function copyCardState(cs: any, context: Context): any {
                 ? cardState._revealedHandCopyIdsByViewer.white.slice()
                 : []
         },
+        cardCostOverridesByCopyId: cloneCardCostOverridesByCopyId(cardState.cardCostOverridesByCopyId),
+        cardCostModifiersByCopyId: cloneCardCostModifiersByCopyId(cardState.cardCostModifiersByCopyId),
+        nextObserverWillStoneByPlayer: cloneObserverWillNextStoneByPlayer(cardState.nextObserverWillStoneByPlayer),
+        observerWillRepaymentsByPlayer: cloneObserverWillRepaymentsByPlayer(cardState.observerWillRepaymentsByPlayer),
+        _nextObserverWillRepaymentSeq: Number.isFinite(Number(cardState._nextObserverWillRepaymentSeq))
+            ? Math.max(1, Math.floor(Number(cardState._nextObserverWillRepaymentSeq)))
+            : deriveNextObserverWillRepaymentSeq(cardState),
+        theoryIncarnationStateByPlayer: cloneNullablePlayerRecord(cardState.theoryIncarnationStateByPlayer),
+        nextTheoryIncarnationStoneByPlayer: cloneNullablePlayerRecord(cardState.nextTheoryIncarnationStoneByPlayer),
+        theoryNumberCellsBySession: cloneTheoryNumberCellsBySession(cardState.theoryNumberCellsBySession),
+        theoryNumberCellByCell: (cardState.theoryNumberCellByCell && typeof cardState.theoryNumberCellByCell === 'object')
+            ? Object.fromEntries(Object.entries(cardState.theoryNumberCellByCell).map(([key, value]: [string, any]) => [
+                String(key),
+                value && typeof value === 'object' ? { ...value } : value
+            ]))
+            : {},
+        numberCellCollectedTotalByPlayer: cloneNumberCellCollectedTotalByPlayer(cardState.numberCellCollectedTotalByPlayer),
+        _nextTheoryIncarnationSeq: Number.isFinite(Number(cardState._nextTheoryIncarnationSeq))
+            ? Math.max(1, Math.floor(Number(cardState._nextTheoryIncarnationSeq)))
+            : 1,
         selectedCardId: cardState.selectedCardId || null,
         hasUsedCardThisTurnByPlayer: {
             black: !!(cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer.black),

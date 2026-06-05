@@ -45,6 +45,7 @@ const CardMarkersModule = resolveLivingWillModuleOrGlobal('./markers', 'CardMark
 const CardWorkModule = resolveLivingWillModuleOrGlobal('./work_will', 'CardWork');
 const RandomSourceModule = resolveLivingWillModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 const EvasionStatusModule = resolveLivingWillModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus');
+const ManifestStoneRegistry = resolveLivingWillModuleOrGlobal('../../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
@@ -55,7 +56,16 @@ const WHITE = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)
     : 0;
+
+function isManifestStoneType(rawType: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+    }
+    const type = String(rawType || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+}
 const MARKER_KIND_SPECIAL = 'specialStone';
+const MARKER_KIND_MANIFEST = 'manifestStone';
 
 const BLOCKING_TYPES = new Set(['BLOCKADE', 'METEOR_HOLE', 'FREEZE']);
 const OVERLAY_ONLY_TYPES = new Set(['LIVING_WILL']);
@@ -63,7 +73,6 @@ const HYPERACTIVE_TYPES = new Set([
     'HYPERACTIVE',
     'EXTREME_HYPERACTIVE',
     'ESCAPE_HYPERACTIVE',
-    'INHERITED_HYPERACTIVE',
     'ROBOT_VACUUM',
     'GLUTTONOUS'
 ]);
@@ -92,7 +101,7 @@ function isOverlayOnlySpecialStoneType(type: string): boolean {
         return registry.isOverlayOnlySpecialStoneType(type);
     }
     const typeUpper = String(type || '').toUpperCase();
-    return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+    return typeUpper === 'GUARD' || typeUpper === 'LIVING_WILL';
 }
 
 function getFlipEvadeDefault(type: string, fallback: number): number {
@@ -160,17 +169,31 @@ function isSpecialMarker(marker: any, cardMarkers: any): boolean {
     return marker.kind === MARKER_KIND_SPECIAL && !isBombMarker(marker, cardMarkers);
 }
 
+function isManifestMarker(marker: any, cardMarkers: any): boolean {
+    if (!marker) return false;
+    if (cardMarkers && typeof cardMarkers.isManifestStoneMarker === 'function') {
+        return !!cardMarkers.isManifestStoneMarker(marker);
+    }
+    const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+    return (marker.kind === MARKER_KIND_MANIFEST || marker.kind === MARKER_KIND_SPECIAL) &&
+        isManifestStoneType(type);
+}
+
 function getSpecialMarkersAt(cardState: CardState, row: number, col: number): any[] {
     const cardMarkers = getCardMarkersModule();
     if (cardMarkers && typeof cardMarkers.getSpecialMarkers === 'function') {
-        return cardMarkers.getSpecialMarkers(cardState).filter((marker: any) => (
+        const specialMarkers = cardMarkers.getSpecialMarkers(cardState);
+        const manifestMarkers = typeof cardMarkers.getManifestMarkers === 'function'
+            ? cardMarkers.getManifestMarkers(cardState)
+            : [];
+        return specialMarkers.concat(manifestMarkers).filter((marker: any) => (
             marker &&
             normalizeBoardIndex(marker.row) === row &&
             normalizeBoardIndex(marker.col) === col
         ));
     }
     return getMarkers(cardState).filter((marker: any) => (
-        isSpecialMarker(marker, cardMarkers) &&
+        (isSpecialMarker(marker, cardMarkers) || isManifestMarker(marker, cardMarkers)) &&
         normalizeBoardIndex(marker.row) === row &&
         normalizeBoardIndex(marker.col) === col
     ));
@@ -187,11 +210,12 @@ function getBlockingMarkers(cardState: CardState): any[] {
     });
 }
 
-function addMarker(cardState: CardState, row: number, col: number, owner: PlayerKey, data: any): any {
+function addMarker(cardState: CardState, row: number, col: number, owner: PlayerKey, data: any, kind?: string): any {
     const cardMarkers = getCardMarkersModule();
     ensureMarkers(cardState);
+    const markerKind = kind || MARKER_KIND_SPECIAL;
     if (cardMarkers && typeof cardMarkers.addMarker === 'function') {
-        return cardMarkers.addMarker(cardState, MARKER_KIND_SPECIAL, row, col, owner, data);
+        return cardMarkers.addMarker(cardState, markerKind, row, col, owner, data);
     }
     const cs = cardState as any;
     const id = cs._nextMarkerId++;
@@ -200,7 +224,7 @@ function addMarker(cardState: CardState, row: number, col: number, owner: Player
         id,
         row,
         col,
-        kind: MARKER_KIND_SPECIAL,
+        kind: markerKind,
         owner,
         createdSeq,
         data: cloneStructuredValue(data)
@@ -324,7 +348,6 @@ interface DurationDefaults {
     ultimateDestroyGodTurns: number;
     sniperTurns: number;
     observerTurns: number;
-    theoryIncarnationTurns: number;
     ghostTurns: number;
     afterimageFlipEvadeLimit: number;
     afterimageDestroyEvadeLimit: number;
@@ -335,7 +358,6 @@ interface DurationDefaults {
     extremeHyperactiveFlipEvadeLimit: number;
     extremeHyperactiveDestroyEvadeLimit: number;
     robotVacuumTurns: number;
-    inheritedHyperactiveTurns: number;
     ultimateHyperactiveTurns: number;
     ultimateHyperactiveFlipEvadeLimit: number;
     ultimateHyperactiveDestroyEvadeLimit: number;
@@ -354,7 +376,6 @@ function getDurationDefaults(deps: LivingWillDeps): DurationDefaults {
         ultimateDestroyGodTurns: getNumericDefault(source.ultimateDestroyGodTurns, 5),
         sniperTurns: getNumericDefault(source.sniperTurns, 5),
         observerTurns: getNumericDefault(source.observerTurns, 5),
-        theoryIncarnationTurns: getNumericDefault(source.theoryIncarnationTurns, 10),
         ghostTurns: getNumericDefault(source.ghostTurns, 5),
         afterimageFlipEvadeLimit: getNumericDefault(source.afterimageFlipEvadeLimit, getFlipEvadeDefault('AFTERIMAGE_WILL', 3)),
         afterimageDestroyEvadeLimit: getNumericDefault(source.afterimageDestroyEvadeLimit, getDestroyEvadeDefault('AFTERIMAGE_WILL', 3)),
@@ -365,7 +386,6 @@ function getDurationDefaults(deps: LivingWillDeps): DurationDefaults {
         extremeHyperactiveFlipEvadeLimit: getNumericDefault(source.extremeHyperactiveFlipEvadeLimit, getFlipEvadeDefault('EXTREME_HYPERACTIVE', 3)),
         extremeHyperactiveDestroyEvadeLimit: getNumericDefault(source.extremeHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('EXTREME_HYPERACTIVE', 1)),
         robotVacuumTurns: getNumericDefault(source.robotVacuumTurns, 5),
-        inheritedHyperactiveTurns: getNumericDefault(source.inheritedHyperactiveTurns, 10),
         ultimateHyperactiveTurns: getNumericDefault(source.ultimateHyperactiveTurns, 10),
         ultimateHyperactiveFlipEvadeLimit: getNumericDefault(source.ultimateHyperactiveFlipEvadeLimit, getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', 3)),
         ultimateHyperactiveDestroyEvadeLimit: getNumericDefault(source.ultimateHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', 1)),
@@ -406,11 +426,8 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
     case 'SNIPER':
         markerData.remainingOwnerTurns = defaults.sniperTurns;
         break;
-    case 'OBSERVER':
+    case 'OBSERVER_WILL':
         markerData.remainingOwnerTurns = defaults.observerTurns;
-        break;
-    case 'THEORY_INCARNATION':
-        markerData.remainingOwnerTurns = defaults.theoryIncarnationTurns;
         break;
     case 'GHOST':
         markerData.remainingOwnerTurns = defaults.ghostTurns;
@@ -454,11 +471,6 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         markerData.flipEvadeRemaining = defaults.ultimateHyperactiveFlipEvadeLimit;
         markerData.destroyEvadeRemaining = defaults.ultimateHyperactiveDestroyEvadeLimit;
         break;
-    case 'INHERITED_HYPERACTIVE':
-        markerData.remainingOwnerTurns = defaults.inheritedHyperactiveTurns;
-        markerData.flipEvadeRemaining = getFlipEvadeDefault('INHERITED_HYPERACTIVE', 1);
-        markerData.destroyEvadeRemaining = getDestroyEvadeDefault('INHERITED_HYPERACTIVE', 1);
-        break;
     case 'GUARD':
         markerData.remainingOwnerTurns = markerData.sourceType === 'GUARDIAN_GOD'
             ? defaults.guardianGodTurns
@@ -483,7 +495,7 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
 interface LivingWillBaseline {
     version: number;
     owner: PlayerKey;
-    markers: { owner: PlayerKey; data: any }[];
+    markers: { kind?: string; owner: PlayerKey; data: any }[];
 }
 
 function buildLivingWillBaseline(cardState: CardState, gameState: GameState, row: number, col: number, deps: LivingWillDeps): LivingWillBaseline | null {
@@ -495,6 +507,7 @@ function buildLivingWillBaseline(cardState: CardState, gameState: GameState, row
             return !OVERLAY_ONLY_TYPES.has(type) && !BLOCKING_TYPES.has(type);
         })
         .map((marker: any) => ({
+            kind: marker.kind || MARKER_KIND_SPECIAL,
             owner: marker.owner || ownerKey,
             data: normalizeRestoreMarkerData(marker, marker.owner || ownerKey, deps)
         }));
@@ -668,14 +681,14 @@ function restoreBaselineMarkers(cardState: CardState, gameState: GameState, row:
         if (type === 'WORK' && workModule && typeof workModule.placeWorkStone === 'function') {
             workModule.placeWorkStone(cardState, gameState, owner, row, col, {
                 addMarker(cs: CardState, kind: string, markerRow: number, markerCol: number, markerOwner: PlayerKey, markerData: any) {
-                    return addMarker(cs, markerRow, markerCol, markerOwner, markerData);
+                    return addMarker(cs, markerRow, markerCol, markerOwner, markerData, kind);
                 },
                 removeMarkersAt
             });
             restored.push({ type: 'WORK' });
             continue;
         }
-        const marker = addMarker(cardState, row, col, (owner || 'black') as PlayerKey, data);
+        const marker = addMarker(cardState, row, col, (owner || 'black') as PlayerKey, data, entry && entry.kind ? entry.kind : MARKER_KIND_SPECIAL);
         restored.push(marker);
         if (type === 'BREEDING' && marker && Number.isInteger(marker.id)) {
             ensureBreedingRuntime(cardState);

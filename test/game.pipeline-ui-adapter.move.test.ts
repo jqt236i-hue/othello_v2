@@ -165,10 +165,7 @@ describe('pipeline_ui_adapter move mapping', () => {
             timer: 4,
             owner: 'black',
             projectileOwner: 'black',
-            inheritedTimer: 2,
-            inheritedOwner: 'white',
             flipEvadeRemaining: 1,
-            inheritedFlipEvadeRemaining: 3,
             destroyEvadeRemaining: 2
           }
         }
@@ -197,10 +194,7 @@ describe('pipeline_ui_adapter move mapping', () => {
         special: triggerCause === 'GLUTTONOUS_WILL' ? 'GLUTTONOUS' : 'WILL_HUNTER_KING',
         timer: 4,
         owner: 'black',
-        inheritedTimer: 2,
-        inheritedOwner: 'white',
         flipEvadeRemaining: 1,
-        inheritedFlipEvadeRemaining: 3,
         destroyEvadeRemaining: 2
       }));
     }
@@ -251,10 +245,7 @@ describe('pipeline_ui_adapter move mapping', () => {
         special: triggerCause === 'GLUTTONOUS_WILL' ? 'GLUTTONOUS' : 'WILL_HUNTER_KING',
         timer: null,
         owner: 'black',
-        inheritedTimer: null,
-        inheritedOwner: null,
         flipEvadeRemaining: null,
-        inheritedFlipEvadeRemaining: null,
         destroyEvadeRemaining: null
       }));
     }

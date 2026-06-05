@@ -85,45 +85,6 @@ Append these exact cases to the existing `network continue-turn deferred selecti
       }
     },
     {
-      pendingType: 'HYPERACTIVE_INHERIT_WILL',
-      row: 3,
-      col: 4,
-      actionPayload: { hyperactiveInheritTarget: { row: 3, col: 4 } },
-      buildNextCardState: (cardState) => ({
-        ...cloneJson(cardState),
-        pendingEffectByPlayer: { black: null, white: null },
-        markers: [{
-          id: 'inherit_1',
-          kind: 'specialStone',
-          row: 3,
-          col: 4,
-          owner: 'black',
-          data: {
-            type: 'INHERITED_HYPERACTIVE',
-            remainingOwnerTurns: 10,
-            flipEvadeRemaining: 1,
-            destroyEvadeRemaining: 1
-          }
-        }]
-      }),
-      buildNextGameState: (gameState) => cloneJson(gameState),
-      assertPreview: ({ cardState }) => {
-        expect(cardState.markers).toEqual([
-          expect.objectContaining({
-            row: 3,
-            col: 4,
-            owner: 'black',
-            data: expect.objectContaining({
-              type: 'INHERITED_HYPERACTIVE',
-              remainingOwnerTurns: 10,
-              flipEvadeRemaining: 1,
-              destroyEvadeRemaining: 1
-            })
-          })
-        ]);
-      }
-    },
-    {
       pendingType: 'EXTEND_LIFE_GOD',
       row: 2,
       col: 2,

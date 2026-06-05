@@ -94,10 +94,13 @@ function generateManifest(options: GenerateManifestOptions = {}): GenerateManife
     const assetDirs = [
         'images/stones',
         'images/other',
+        'images/special-cards',
         'images/background',
         'images/background-skin',
         'images/hand-skin',
-        'images/Gacha'
+        'images/Gacha',
+        'audio/sound-effect',
+        'audio/bgm/manifest-stones'
     ];
 
     const files = assetDirs

@@ -3,6 +3,7 @@ type EffectTargetCountsDeps = {
     getSpecialMarkers?: (cardState: any) => any[];
     getBombMarkers?: (cardState: any) => any[];
     getMarkerRuleClass?: (marker: any) => string | null;
+    canLossWillRevertMarker?: (marker: any) => boolean;
     isAbsoluteProtectedCell?: (cardState: any, row: any, col: any) => boolean;
     ensureSalvationDestroyedLedger?: (cardState: any) => any;
 };
@@ -20,6 +21,15 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
     const getMarkerRuleClass = typeof deps?.getMarkerRuleClass === 'function'
         ? deps.getMarkerRuleClass
         : (() => null);
+    const canLossWillRevertMarker = typeof deps?.canLossWillRevertMarker === 'function'
+        ? deps.canLossWillRevertMarker
+        : ((marker: any) => {
+            const ruleClass = getMarkerRuleClass(marker);
+            if (ruleClass) return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb';
+            if (marker && marker.data && marker.data.type === 'METEOR_HOLE') return false;
+            if (marker && marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
+            return true;
+        });
     const isAbsoluteProtectedCell = typeof deps?.isAbsoluteProtectedCell === 'function'
         ? deps.isAbsoluteProtectedCell
         : (() => false);
@@ -43,19 +53,16 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
         );
         const removableSpecials = specials.filter((marker: any) => {
             if (!marker) return false;
-            const ruleClass = getMarkerRuleClass(marker);
-            if (ruleClass) {
-                if (ruleClass !== 'true_special_stone') return false;
-            } else {
-                if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
-                if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
-            }
+            if (Number.isInteger(marker.row) && Number.isInteger(marker.col) && isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
+            if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
+            if (!canLossWillRevertMarker(marker)) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
         const bombs = getBombMarkers(cardState);
         const removableBombs = bombs.filter((marker: any) => {
             if (!marker) return false;
+            if (removableSpecials.includes(marker)) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
             return !guardedCells.has(`${marker.row},${marker.col}`);

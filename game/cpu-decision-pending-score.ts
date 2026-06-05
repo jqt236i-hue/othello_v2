@@ -425,13 +425,6 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             if (hasRegen) score += 460;
             return score;
         }
-        case 'HYPERACTIVE_INHERIT_WILL':
-            if (!own) return -2800;
-            if (corner) score -= 420;
-            else if (edge) score += 140;
-            score += (emptyAdj * 140) + (oppAdj * 90);
-            score += markerProfile.ownSpecialScore * 0.6;
-            return score;
         case 'EXTEND_LIFE_WILL':
         case 'EXTEND_LIFE_GOD': {
             const isExtendLifeGod = String(pendingType || '') === 'EXTEND_LIFE_GOD';
@@ -577,7 +570,7 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             if (discDiff >= 10) score -= 90;
             return score;
         case 'WORK_WILL':
-        case 'OBSERVER_WILL':
+
             if (!own) return -2800;
             if (corner) score += 2600;
             else if (edge) score += 1680;

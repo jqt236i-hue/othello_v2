@@ -133,6 +133,29 @@ describe('NetworkSnapshotCanonicalModule', () => {
       expect(result.rejectionType).toBe('projection_mismatch');
     });
 
+    test('自席手札がhidden化されたsnapshotを拒否', () => {
+      const snapshot = {
+        _meta: {
+          authority: 'server',
+          version: 10,
+          projectedForSeat: 'white'
+        },
+        cardState: {
+          hands: {
+            black: ['__hidden_hand__:black:0'],
+            white: ['__hidden_hand__:white:0']
+          }
+        }
+      };
+
+      const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
+        localSeatKey: 'white'
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.rejectionType).toBe('own_hand_hidden');
+    });
+
     test('バージョンチェックをスキップ', () => {
       const snapshot = {
         _meta: { authority: 'server', version: 5 }

@@ -53,6 +53,11 @@ if (typeof require === 'function') {
     try { BoardRendererSoundEngineAccessModule = require('./sound-engine-access'); } catch (e: any) { /* ignore */ }
 }
 
+var BoardRendererManifestStoneRegistryModule: any = null;
+if (typeof require === 'function') {
+    try { BoardRendererManifestStoneRegistryModule = require('../shared/manifest-stone-registry'); } catch (e: any) { /* ignore */ }
+}
+
 function _getBoardShapeForBoardRenderer() {
     const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
         ? gameState
@@ -78,6 +83,51 @@ let timeStopBgmPausedByBoardRenderer = false;
 const STANDARD_BOARD_BASELINE_ROWS = 8;
 const STANDARD_BOARD_BASELINE_COLS = 8;
 const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
+
+function _getManifestStoneRegistryForBoardRenderer() {
+    if (BoardRendererManifestStoneRegistryModule) return BoardRendererManifestStoneRegistryModule;
+    try {
+        if (typeof window !== 'undefined' && (window as any).ManifestStoneRegistry) {
+            BoardRendererManifestStoneRegistryModule = (window as any).ManifestStoneRegistry;
+            return BoardRendererManifestStoneRegistryModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).ManifestStoneRegistry) {
+            BoardRendererManifestStoneRegistryModule = (globalThis as any).ManifestStoneRegistry;
+            return BoardRendererManifestStoneRegistryModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _isManifestStoneTypeForBoardRenderer(rawType: any) {
+    const registry = _getManifestStoneRegistryForBoardRenderer();
+    if (registry && typeof registry.isManifestStoneType === 'function') {
+        return registry.isManifestStoneType(rawType) === true;
+    }
+    const typeKey = String(rawType || '').trim().toUpperCase();
+    return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
+}
+
+function _isActiveManifestAuraMarkerForBoard(marker: any, manifestMarkerKind: any, specialMarkerKind: any) {
+    if (!marker || typeof marker !== 'object') return false;
+    const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+    const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+    if (!typeKey) return false;
+    const kind = String((marker && marker.kind) || '').trim();
+    const isManifestKind = kind === manifestMarkerKind || kind === 'manifestStone';
+    const isLegacyManifestType = (kind === specialMarkerKind || !kind) && _isManifestStoneTypeForBoardRenderer(typeKey);
+    if (!isManifestKind && !isLegacyManifestType) return false;
+    const remainingRaw = data.remainingOwnerTurns ?? data.remainingTurns ?? marker.remainingOwnerTurns ?? marker.remainingTurns;
+    if (remainingRaw == null) return true;
+    const remaining = Number(remainingRaw);
+    return !Number.isFinite(remaining) || remaining > 0;
+}
+
+function _getManifestAuraOwnerClassForBoard(owner: any) {
+    return (owner === 'black' || owner === BLACK || owner === 1) ? 'black' : 'white';
+}
 
 function _resolveSoundEngineAccessForBoardRenderer() {
     if (BoardRendererSoundEngineAccessModule) return BoardRendererSoundEngineAccessModule;
@@ -991,25 +1041,12 @@ function _isDestroyEvadeSpecialTypeForBoard(type: any) {
     return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE' || typeUpper === 'EXTREME_HYPERACTIVE' || typeUpper === 'AFTERIMAGE_WILL';
 }
 
-function _resolveDestroyEvadeDisplayForBoard(special: any, inherited: any) {
+function _resolveDestroyEvadeDisplayForBoard(special: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsDestroyEvade = _isDestroyEvadeSpecialTypeForBoard(specialTypeUpper);
-    const specialEvade = (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
+    return (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
         ? Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)))
         : null;
-    const inheritedEvade = (inherited && Number.isFinite(Number(inherited.destroyEvadeRemaining)))
-        ? Math.max(0, Math.trunc(Number(inherited.destroyEvadeRemaining)))
-        : null;
-    if (specialEvade !== null && inheritedEvade !== null) {
-        return {
-            special: specialEvade + inheritedEvade,
-            inherited: null
-        };
-    }
-    return {
-        special: specialEvade,
-        inherited: inheritedEvade
-    };
 }
 
 function _resolveStrongWillDisplayTurnsForBoard(data: any) {
@@ -1261,12 +1298,14 @@ function renderBoardFullLegacy() {
     // Build unified special/bomb maps from markers (primary)
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
         ? MarkersAdapter.MARKER_KINDS
-        : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
+        : { SPECIAL_STONE: 'specialStone', MANIFEST_STONE: 'manifestStone', BOMB: 'bomb' };
+    const specialMarkerKind = markerKinds.SPECIAL_STONE || 'specialStone';
+    const manifestMarkerKind = markerKinds.MANIFEST_STONE || 'manifestStone';
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const specialMap = new Map();
     const guardMap = new Map();
     const livingWillMap = new Map();
-    const inheritedMap = new Map();
+    const manifestAuraMap = new Map();
     const bombMap = new Map();
     const sproutMap = new Map();
     for (const m of markers) {
@@ -1279,22 +1318,14 @@ function renderBoardFullLegacy() {
             });
             continue;
         }
-        if (m.kind === markerKinds.SPECIAL_STONE && m.data && m.data.type) {
+        if ((m.kind === specialMarkerKind || m.kind === manifestMarkerKind) && m.data && m.data.type) {
             if (_isBoardHiddenTrapForBoardRenderer(m)) continue;
-            if (m.data.type === 'INHERITED_HYPERACTIVE') {
-                inheritedMap.set(`${m.row},${m.col}`, {
+            if (_isActiveManifestAuraMarkerForBoard(m, manifestMarkerKind, specialMarkerKind)) {
+                manifestAuraMap.set(`${m.row},${m.col}`, {
                     row: m.row,
                     col: m.col,
-                    owner: m.owner,
-                    remainingOwnerTurns: m.data.remainingOwnerTurns,
-                    flipEvadeRemaining: Number.isFinite(Number(m.data.flipEvadeRemaining))
-                        ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                        : null,
-                    destroyEvadeRemaining: Number.isFinite(Number(m.data.destroyEvadeRemaining))
-                        ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                        : null
+                    owner: m.owner
                 });
-                continue;
             }
             if (m.data.type === 'GUARD') {
                 guardMap.set(`${m.row},${m.col}`, {
@@ -1421,8 +1452,8 @@ function renderBoardFullLegacy() {
                 // Unified special stone visual effect
                 const special = specialMap.get(key);
                 const livingWill = livingWillMap.get(key);
-                const inheritedData = inheritedMap.get(key);
-                const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForBoard(special, inheritedData);
+                const manifestAura = manifestAuraMap.get(key);
+                const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForBoard(special);
                 const specialCanShowFlipEvade = !!(
                     special &&
                     _isFlipEvadeSpecialTypeForBoard(special.type) &&
@@ -1431,20 +1462,11 @@ function renderBoardFullLegacy() {
                 const specialCanShowDestroyEvade = !!(
                     special &&
                     _isDestroyEvadeSpecialTypeForBoard(special.type) &&
-                    Number.isFinite(Number(destroyEvadeDisplay.special))
+                    Number.isFinite(Number(destroyEvadeDisplay))
                 );
                 const specialFlipEvade = specialCanShowFlipEvade
                     ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
                     : null;
-                const inheritedFlipEvade = (inheritedData && Number.isFinite(Number(inheritedData.flipEvadeRemaining)))
-                    ? Math.max(0, Math.trunc(Number(inheritedData.flipEvadeRemaining)))
-                    : null;
-                const inheritedDestroyEvadeForDisplay = destroyEvadeDisplay.inherited;
-                const mergedFlipEvade = (specialFlipEvade !== null && inheritedFlipEvade !== null)
-                    ? (specialFlipEvade + inheritedFlipEvade)
-                    : null;
-                const specialFlipEvadeForDisplay = mergedFlipEvade !== null ? mergedFlipEvade : specialFlipEvade;
-                const inheritedFlipEvadeForDisplay = mergedFlipEvade !== null ? null : inheritedFlipEvade;
                 if (special) {
                     const effectKey = getEffectKeyForType(special.type);
                     if (effectKey) {
@@ -1475,10 +1497,10 @@ function renderBoardFullLegacy() {
                         discHud.appendChild(timer);
                     }
 
-                    if (specialCanShowFlipEvade && Number.isFinite(specialFlipEvadeForDisplay)) {
+                    if (specialCanShowFlipEvade && Number.isFinite(specialFlipEvade)) {
                         const evadeTimer = document.createElement('div');
                         evadeTimer.className = 'stone-timer flip-evade-timer';
-                        const evadeRemaining = Math.max(0, Math.trunc(Number(specialFlipEvadeForDisplay)));
+                        const evadeRemaining = Math.max(0, Math.trunc(Number(specialFlipEvade)));
                         evadeTimer.textContent = String(evadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(evadeTimer, evadeRemaining);
                         discHud.appendChild(evadeTimer);
@@ -1487,7 +1509,7 @@ function renderBoardFullLegacy() {
                     if (specialCanShowDestroyEvade) {
                         const destroyEvadeTimer = document.createElement('div');
                         destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
-                        const destroyEvadeRemaining = Math.max(0, Math.trunc(Number(destroyEvadeDisplay.special)));
+                        const destroyEvadeRemaining = Math.max(0, Math.trunc(Number(destroyEvadeDisplay)));
                         destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, destroyEvadeRemaining);
                         discHud.appendChild(destroyEvadeTimer);
@@ -1496,6 +1518,10 @@ function renderBoardFullLegacy() {
 
                 if (livingWill) {
                     disc.classList.add('living-will-aura');
+                }
+
+                if (manifestAura) {
+                    disc.classList.add('manifest-stone-aura', `manifest-stone-aura-${_getManifestAuraOwnerClassForBoard(manifestAura.owner)}`);
                 }
 
                 // 爆弾チェック
@@ -1524,30 +1550,6 @@ function renderBoardFullLegacy() {
                     discHud.appendChild(guardTimer);
                 }
 
-                if (inheritedData && typeof inheritedData.remainingOwnerTurns === 'number') {
-                    const inheritedTimer = document.createElement('div');
-                    inheritedTimer.className = 'stone-timer special-timer inherited-hyperactive-timer';
-                    const inheritedRemaining = Math.max(0, Math.trunc(inheritedData.remainingOwnerTurns));
-                    inheritedTimer.textContent = String(inheritedRemaining);
-                    _applyDoubleDigitTimerClassForBoard(inheritedTimer, inheritedRemaining);
-                    discHud.appendChild(inheritedTimer);
-                }
-                if (Number.isFinite(inheritedFlipEvadeForDisplay)) {
-                    const evadeTimer = document.createElement('div');
-                    evadeTimer.className = 'stone-timer flip-evade-timer';
-                    const inheritedEvadeRemaining = Math.max(0, Math.trunc(Number(inheritedFlipEvadeForDisplay)));
-                    evadeTimer.textContent = String(inheritedEvadeRemaining);
-                    _applyDoubleDigitTimerClassForBoard(evadeTimer, inheritedEvadeRemaining);
-                    discHud.appendChild(evadeTimer);
-                }
-                if (Number.isFinite(inheritedDestroyEvadeForDisplay) && !specialCanShowDestroyEvade) {
-                    const destroyEvadeTimer = document.createElement('div');
-                    destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
-                    const inheritedDestroyEvadeRemaining = Math.max(0, Math.trunc(Number(inheritedDestroyEvadeForDisplay)));
-                    destroyEvadeTimer.textContent = String(inheritedDestroyEvadeRemaining);
-                    _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, inheritedDestroyEvadeRemaining);
-                    discHud.appendChild(destroyEvadeTimer);
-                }
                 if (sproutMap.has(key)) {
                     disc.classList.add('breeding-sprout');
                     const sproutIcon = document.createElement('div');

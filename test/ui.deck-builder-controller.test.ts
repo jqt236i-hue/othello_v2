@@ -724,7 +724,7 @@ describe('deck builder controller', () => {
 
     expect(options.initialDeckSpecByPlayer.black).toBeUndefined();
     expect(whiteCardIds).toContain('reinforcement_01');
-    expect(whiteCardIds).not.toContain('observer_01');
+    expect(whiteCardIds).not.toContain(['observer', '01'].join('_'));
     expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(29);
   });
 

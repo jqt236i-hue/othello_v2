@@ -408,6 +408,22 @@ function listFilesRecursive(baseDir: string, relativePrefix: string): string[] {
     return out;
 }
 
+function isAssetManifestMetadataOnlyDrift(relativePath: string, srcBuf: Buffer, dstBuf: Buffer): boolean {
+    if (normalizeRelativePath(relativePath) !== 'assets/asset-manifest.json') return false;
+    try {
+        const srcJson = JSON.parse(srcBuf.toString('utf8'));
+        const dstJson = JSON.parse(dstBuf.toString('utf8'));
+        if (srcJson && typeof srcJson === 'object') delete srcJson.generatedAt;
+        if (dstJson && typeof dstJson === 'object') delete dstJson.generatedAt;
+        if (srcJson && typeof srcJson === 'object') delete srcJson.version;
+        if (dstJson && typeof dstJson === 'object') delete dstJson.version;
+        return JSON.stringify(srcJson) === JSON.stringify(dstJson);
+    } catch (_error) {
+        void _error;
+        return false;
+    }
+}
+
 function verifyMirroredFile(relativePath: string, issues: string[], config: any) {
     const settings = createPrepareConfig(config);
     const src = path.join(settings.rootDir, relativePath);
@@ -424,29 +440,16 @@ function verifyMirroredFile(relativePath: string, issues: string[], config: any)
 
     const srcStat = fs.statSync(src);
     const dstStat = fs.statSync(dst);
+    const srcBuf = fs.readFileSync(src);
+    const dstBuf = fs.readFileSync(dst);
     if (srcStat.size !== dstStat.size) {
+        if (isAssetManifestMetadataOnlyDrift(relativePath, srcBuf, dstBuf)) return;
         issues.push(`size mismatch: ${relativePath}`);
         return;
     }
 
-    const srcBuf = fs.readFileSync(src);
-    const dstBuf = fs.readFileSync(dst);
     if (!srcBuf.equals(dstBuf)) {
-        if (relativePath === path.join('assets', 'asset-manifest.json')) {
-            try {
-                const srcJson = JSON.parse(srcBuf.toString('utf8'));
-                const dstJson = JSON.parse(dstBuf.toString('utf8'));
-                if (srcJson && typeof srcJson === 'object') delete srcJson.generatedAt;
-                if (dstJson && typeof dstJson === 'object') delete dstJson.generatedAt;
-                if (srcJson && typeof srcJson === 'object') delete srcJson.version;
-                if (dstJson && typeof dstJson === 'object') delete dstJson.version;
-                if (JSON.stringify(srcJson) === JSON.stringify(dstJson)) {
-                    return;
-                }
-            } catch (_error) {
-                void _error;
-            }
-        }
+        if (isAssetManifestMetadataOnlyDrift(relativePath, srcBuf, dstBuf)) return;
         issues.push(`content mismatch: ${relativePath}`);
     }
 }
@@ -512,6 +515,7 @@ function prepareWorkerAssets(options?: PrepareWorkerAssetsOptions) {
 
     copyableOptionalFiles.forEach((relativePath: any) => copyFileByRelative(relativePath, settings));
     writeGeneratedOptionalAssets(generatedOptionalAssets, settings);
+    copyFileByRelative(path.join('assets', 'asset-manifest.json'), settings);
 
     verifyMirrors(copyableOptionalFiles, generatedOptionalAssets, settings);
 

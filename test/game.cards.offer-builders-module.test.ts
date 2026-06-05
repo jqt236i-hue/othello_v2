@@ -36,6 +36,29 @@ describe('card offer builders module', () => {
     expect(new Set(first).size).toBe(first.length);
   });
 
+  test('buildHeavenBlessingOffers excludes inviolable special cards from generated candidates', () => {
+    const builders = createOfferBuilders({
+      cardDefs: [
+        { id: 'observer_will_01', enabled: true },
+        { id: 'board_executor_01', enabled: true },
+        { id: 'theory_incarnation_01', enabled: true },
+        { id: 'gold_stone', enabled: true },
+        { id: 'silver_stone', enabled: true },
+        { id: 'meteor_01', enabled: true }
+      ],
+      heavenBlessingOfferCount: 5,
+      isInviolableSpecialCardId: (cardId: unknown) => [
+        'observer_will_01',
+        'board_executor_01',
+        'theory_incarnation_01'
+      ].includes(String(cardId))
+    });
+
+    const offers = builders.buildHeavenBlessingOffers('heaven_01', { random: () => 0 }, 'fixed-seed');
+
+    expect(offers).toEqual(['gold_stone', 'silver_stone', 'meteor_01']);
+  });
+
   test('buildCondemnOffers maps opponent hand to stable handIndex/cardId tuples', () => {
     const builders = createOfferBuilders();
     expect(builders.buildCondemnOffers({

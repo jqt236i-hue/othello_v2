@@ -35,18 +35,15 @@
 | `ULTIMATE_REVERSE_DRAGON` / `DRAGON` | ultimateDragon | `ultimate_reverse_dragon-*.png` | 移植時に割当 | 龍 |
 | `BREEDING_WILL` / `BREEDING` | breedingStone | `BREEDING_WILL-*.png` | 移植時に割当 | spawn 系 |
 | `PROLIFERATION_WILL` / `PROLIFERATION` | proliferationStone | `PROLIFERATION_WILL-*.png` | 移植時に割当 | 増殖 |
-| `THEORY_INCARNATION` | theoryIncarnationStone | `theory_incarnation-*.png` | 移植時に割当 | 数字マス倍率を持つ特殊石 |
 | `ULTIMATE_DESTROY_GOD` | ultimateDestroyGod | `ULTIMATE_DESTROY_GOD-*.png` | 移植時に割当 | 雷破壊 profile |
 | `STONE_SALVATION_GOD` | stoneSalvationGod | `STONE_SALVATION_GOD-*.png` | 移植時に割当 | 救済神 |
 | `SNIPER_WILL` / `SNIPER` | sniperStone | `sna-*.png` | 移植時に割当 | 狙撃弾演出 |
 | `LIGHTNING_WILL` / `LIGHTNING` | lightningStone | `rakurai-*.png` | 移植時に割当 | 落雷演出 |
-| `OBSERVER_WILL` / `OBSERVER` | observerStone | `OBSERVER_WILL-*.png` | 移植時に割当 | 吹き出し |
 | `GHOST_WILL` / `GHOST` | ghostStone | `GHOST_WILL-*.png` | 移植時に割当 | 幽霊 |
 | `AFTERIMAGE_WILL` | afterimageStone | `ZAN-*.png` | 移植時に割当 | 残像 |
 | `WILL_HUNTER_KING` | willHunterKingStone | `WILL_HUNTER_KING-*.png` | 移植時に割当 | 斬撃 profile |
 | `DESTROY_DRAGON_WILL` / `DESTROY_DRAGON` | destroyDragonStone | `DESTROY_DRAGON-*.png` | 移植時に割当 | ブレス profile |
 | `HYPERACTIVE_WILL` / `HYPERACTIVE` | hyperactiveStone | `HYPERACTIVE_WILL-*.png` | 移植時に割当 | 多動 |
-| `HYPERACTIVE_INHERIT_WILL` / `INHERITED_HYPERACTIVE` | hyperactiveStone | `HYPERACTIVE_WILL-*.png` | 移植時に割当 | 継承多動 |
 | `INSTANT_HYPERACTIVE_WILL` | hyperactiveStone | `HYPERACTIVE_WILL-*.png` | 移植時に割当 | 瞬間多動 |
 | `ESCAPE_WILL` / `ESCAPE_HYPERACTIVE` | escapeHyperactiveStone | `ESCAPE_WILL-*.png` | 移植時に割当 | 爆発 batch destroy |
 | `EXTREME_HYPERACTIVE_WILL` | extremeHyperactiveStone | `EXTREME_HYPERACTIVE_WILL-*.png` | 移植時に割当 | 極悪多動魔 |
@@ -114,7 +111,6 @@
 
 | 用途 | JS path | Unity AudioClip | 備考 |
 | --- | --- | --- | --- |
-| 既定 BGM | `assets/audio/bgm/The Observer’s Tears.mp3` | 移植時に割当 | 115 BPM、112拍ぶん loop |
 | BGM 候補 | `assets/audio/bgm/c-reversi.mp3` | 移植時に割当 | 選択一覧 |
 | BGM 候補 | `assets/audio/bgm/c-reversi-2.mp3` | 移植時に割当 | 選択一覧 |
 | BGM 候補 | `assets/audio/bgm/盤喰いの小鬼戦.mp3` | 移植時に割当 | `loopStart = 1.655` |

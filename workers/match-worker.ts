@@ -110,7 +110,9 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../shared/deck-codec.js': () => require('../shared/deck-codec.js'),
     '../shared/player-encoding.js': () => require('../shared/player-encoding.js'),
     '../shared/destroy-outcome-contract.js': () => require('../shared/destroy-outcome-contract.js'),
+    '../shared/manifest-stone-registry.js': () => require('../shared/manifest-stone-registry.js'),
     '../shared/stone-status-snapshot.js': () => require('../shared/stone-status-snapshot.js'),
+    '../shared/special-card-registry.js': () => require('../shared/special-card-registry.js'),
     '../shared/special-stone-registry.js': () => require('../shared/special-stone-registry.js'),
     '../shared/presentation-effect-profiles.js': () => require('../shared/presentation-effect-profiles.js'),
     '../shared/network-action-schema.js': () => require('../shared/network-action-schema.js'),
@@ -165,7 +167,6 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../game/logic/cards/destroy_dragon.js': () => require('../game/logic/cards/destroy_dragon.js'),
     '../game/logic/cards/selectors.js': () => require('../game/logic/cards/selectors.js'),
     '../game/logic/cards/work_will.js': () => require('../game/logic/cards/work_will.js'),
-    '../game/logic/cards/observer_will.js': () => require('../game/logic/cards/observer_will.js'),
     '../game/logic/cards/markers.js': () => require('../game/logic/cards/markers.js'),
     '../game/logic/board_ops.js': () => require('../game/logic/board_ops.js'),
     '../game/logic/effects/destroy_one_stone.js': () => require('../game/logic/effects/destroy_one_stone.js'),
@@ -180,6 +181,9 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../game/logic/card-resolution/board-expansion-apply': () => require('../game/logic/card-resolution/board-expansion-apply'),
     '../game/logic/card-resolution/status-cells': () => require('../game/logic/card-resolution/status-cells'),
     '../game/logic/card-resolution/hand-effects': () => require('../game/logic/card-resolution/hand-effects'),
+    '../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will'),
+    '../game/logic/card-resolution/theory-incarnation': () => require('../game/logic/card-resolution/theory-incarnation'),
+    '../game/logic/card-resolution/special-stone-marker-factory': () => require('../game/logic/card-resolution/special-stone-marker-factory'),
     '../game/logic/card-resolution/position-swap': () => require('../game/logic/card-resolution/position-swap'),
     '../game/logic/markers_adapter.js': () => require('../game/logic/markers_adapter.js'),
     '../game/logic/context': () => require('../game/logic/context'),
@@ -476,7 +480,9 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
         const requiredGlobals: Array<[string, string]> = [
             ['../shared/player-encoding.js', 'PlayerEncoding'],
             ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
+            ['../shared/manifest-stone-registry.js', 'ManifestStoneRegistry'],
             ['../shared/stone-status-snapshot.js', 'StoneStatusSnapshot'],
+            ['../shared/special-card-registry.js', 'SpecialCardRegistry'],
             ['../shared/special-stone-registry.js', 'SpecialStoneRegistry'],
             ['../game/logic/cards-internal/random-source.js', 'CardRandomSource'],
             ['../game/logic/cards-internal/state-factory.js', 'CardStateFactory'],
@@ -528,7 +534,6 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards/destroy_dragon.js', 'CardDestroyDragon'],
             ['../game/logic/cards/selectors.js', 'CardSelectors'],
             ['../game/logic/cards/work_will.js', 'CardWork'],
-            ['../game/logic/cards/observer_will.js', 'CardObserverWill'],
             ['../game/logic/cards/markers.js', 'CardMarkers'],
             ['../game/logic/board_ops.js', 'BoardOps'],
             ['../game/logic/effects/destroy_one_stone.js', 'DestroyOneStoneEffects'],
@@ -543,6 +548,9 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/card-resolution/board-expansion-apply', 'CardBoardExpansionApply'],
             ['../game/logic/card-resolution/status-cells', 'CardStatusCellsEffects'],
             ['../game/logic/card-resolution/hand-effects', 'CardHandEffects'],
+            ['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution'],
+            ['../game/logic/card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution'],
+            ['../game/logic/card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory'],
             ['../game/logic/card-resolution/position-swap', 'CardPositionSwapEffects']
         ];
         const optionalGlobals: Array<[string, string]> = [
@@ -663,7 +671,19 @@ function createWorkerTurnPipelineModule(
                 if (typeof applyTurnStartPhase !== 'function') {
                     throw new Error('TurnPipelinePhases.applyTurnStartPhase is required');
                 }
-                applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, prngValue);
+                const turnStartResult = applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, prngValue) as unknown;
+                if (turnStartResult && asRecord(turnStartResult).stopAction === true) {
+                    const queuedPresentationEvents = (cardState && Array.isArray(cardStateRecord.presentationEvents))
+                        ? cardStateRecord.presentationEvents.slice()
+                        : [];
+                    const flushedPresentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
+                        ? CardLogic.flushPresentationEvents(cardState)
+                        : queuedPresentationEvents;
+                    const presentationEvents = Array.isArray(flushedPresentationEvents)
+                        ? flushedPresentationEvents
+                        : queuedPresentationEvents;
+                    return { gameState, cardState, events, presentationEvents };
+                }
             }
             const applyCardUsagePhase = TurnPipelinePhases.applyCardUsagePhase;
             if (typeof applyCardUsagePhase !== 'function') {
@@ -1126,6 +1146,46 @@ function appendTurnStartDrawPlaybackEvents(
     });
 }
 
+function isHiddenHandTokenForSeat(value: unknown, seatKey: MatchAuthoritySeatKey): boolean {
+    const parsed = MatchAuthority.parseHiddenHandToken(value);
+    return !!(parsed && parsed.ownerKey === seatKey);
+}
+
+async function repairNetworkDebugProjectedHandForCardUse(
+    room: MatchWorkerRoomState | null | undefined,
+    cardStateValue: Record<string, unknown>,
+    playerKey: MatchAuthoritySeatKey,
+    actionValue: unknown
+): Promise<boolean> {
+    if (!toPublicNetworkDebugEnabled(room)) return false;
+    const action = asRecord(actionValue);
+    if (String(action.type || '').toLowerCase() !== 'use_card') return false;
+    const debugOptions = asRecord(action.debugOptions);
+    if (debugOptions.noConsume !== true || debugOptions.ignoreCost !== true) return false;
+
+    const cardId = typeof action.useCardId === 'string' ? String(action.useCardId).trim() : '';
+    if (!cardId) return false;
+    const ownerKey = normalizePlayerKey(action.useCardOwnerKey || playerKey);
+    if (ownerKey !== playerKey) return false;
+
+    const hands = asRecord(cardStateValue.hands);
+    const hand = Array.isArray(hands[ownerKey]) ? hands[ownerKey] as unknown[] : [];
+    if (hand.includes(cardId)) return false;
+    if (!hand.some((entry) => isHiddenHandTokenForSeat(entry, ownerKey))) return false;
+
+    const DebugActions = await loadDebugActionsModule();
+    if (!DebugActions || typeof DebugActions.fillDebugHand !== 'function') return false;
+    const chargeByPlayer = asRecord(cardStateValue.charge);
+    const charge = Number.isFinite(Number(chargeByPlayer[ownerKey]))
+        ? Math.trunc(Number(chargeByPlayer[ownerKey]))
+        : undefined;
+    return DebugActions.fillDebugHand(cardStateValue, {
+        playerKey: ownerKey,
+        replaceExisting: true,
+        charge
+    }) === true;
+}
+
 async function reconcileTurnStartAndCollectPlayback(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, playbackAdapter?: unknown): Promise<MatchWorkerPlaybackAssembly> {
     const handState = captureTurnStartHandState(snapshot);
     MatchAuthority.stripTransientPresentationState(snapshot);
@@ -1222,6 +1282,7 @@ async function applyCommandPublishToSnapshot(
         return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
     }
     const resolvedAction = MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action);
+    await repairNetworkDebugProjectedHandForCardUse(room, currentCardState, playerKey, resolvedAction);
 
     const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic } = await loadTurnPipelineModules();
     if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
@@ -1235,6 +1296,15 @@ async function applyCommandPublishToSnapshot(
         typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
         SubPlacementContinuation.isSubPlacementTurnActive(currentCardState, playerKey)
     );
+    const resolvedActionRecord = asRecord(resolvedAction);
+    const pendingByPlayer = asRecord(currentCardState.pendingEffectByPlayer);
+    const expectedPendingForPlayer = asRecord(pendingByPlayer[playerKey]);
+    const expectedPendingType = String(expectedPendingForPlayer.type || '').toUpperCase();
+    const skipTurnStartForTeleportSelection = !!(
+        resolvedActionRecord.pendingSelectionState &&
+        typeof resolvedActionRecord.pendingSelectionState === 'object' &&
+        (expectedPendingType === 'TELEPORT_WILL' || expectedPendingType === 'CELL_TELEPORT_WILL')
+    );
     const result = TurnPipeline.applyTurnSafe(
         currentCardState,
         currentSnapshot.gameState,
@@ -1244,7 +1314,7 @@ async function applyCommandPublishToSnapshot(
         {
             currentStateVersion: currentTurnIndex,
             prngState: currentCardState.prngState,
-            skipTurnStart: skipTurnStartForSubPlacement
+            skipTurnStart: skipTurnStartForSubPlacement || skipTurnStartForTeleportSelection
         }
     );
 

@@ -36,6 +36,32 @@ type SoundCuePlannerDeps = {
     isGenericDestroyPlaybackEvent: (event: any) => boolean;
 };
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
+function readRuntimeModuleGlobal(globalKey: string): any {
+    try {
+        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+            return (self as any)[globalKey];
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+            return (globalThis as any)[globalKey];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+const SpecialCardRegistry = (() => {
+    try {
+        return _require('../../../shared/special-card-registry');
+    } catch (e) {
+        return readRuntimeModuleGlobal('SpecialCardRegistry');
+    }
+})();
+
 function createSoundCuePlanningContext(playbackEvents: any, rawEvents: any, presentationEvents: any, deps: SoundCuePlannerDeps) {
     const base = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
     return {
@@ -46,6 +72,85 @@ function createSoundCuePlanningContext(playbackEvents: any, rawEvents: any, pres
         added: [],
         seenSingleKeys: new Set()
     };
+}
+
+function readCardId(value: any): string {
+    if (!value || typeof value !== 'object') return '';
+    return String(
+        value.cardId ||
+        value.id ||
+        (value.meta && value.meta.cardId) ||
+        ''
+    ).trim();
+}
+
+function findCardUseCardId(ctx: any): string {
+    const presEvent = ctx.pres.find((ev: any) => ev && ev.type === 'CARD_USED' && readCardId(ev));
+    if (presEvent) return readCardId(presEvent);
+
+    const rawEvent = ctx.raw.find((ev: any) => ev && ev.type === 'card_used' && readCardId(ev));
+    if (rawEvent) return readCardId(rawEvent);
+
+    const animationEvent = ctx.base.find((ev: any) => ev && ev.type === 'card_use_animation');
+    const targets = animationEvent && Array.isArray(animationEvent.targets) ? animationEvent.targets : [];
+    return targets.length > 0 ? readCardId(targets[0]) : '';
+}
+
+function isSpecialCardUseCardId(cardId: any): boolean {
+    if (
+        SpecialCardRegistry &&
+        typeof SpecialCardRegistry.isInviolableSpecialCardId === 'function'
+    ) {
+        return SpecialCardRegistry.isInviolableSpecialCardId(cardId);
+    }
+    return false;
+}
+
+function getSpecialCardPresentation(cardId: any): any {
+    if (
+        SpecialCardRegistry &&
+        typeof SpecialCardRegistry.getSpecialCardPresentation === 'function'
+    ) {
+        return SpecialCardRegistry.getSpecialCardPresentation(cardId);
+    }
+    return null;
+}
+
+function findCardUseTarget(ctx: any): any {
+    const animationEvent = ctx.base.find((ev: any) => ev && ev.type === 'card_use_animation');
+    const targets = animationEvent && Array.isArray(animationEvent.targets) ? animationEvent.targets : [];
+    return targets.length > 0 && targets[0] && typeof targets[0] === 'object' ? targets[0] : {};
+}
+
+function pushSpecialCardCinematicCue(ctx: any, cardId: any, phase: any, deps: SoundCuePlannerDeps) {
+    const meta = getSpecialCardPresentation(cardId);
+    if (!meta) return;
+    const cardUseTarget = findCardUseTarget(ctx);
+    const owner = cardUseTarget.owner || cardUseTarget.player || (ctx.pres.find((ev: any) => ev && ev.type === 'CARD_USED') || {}).player || null;
+    ctx.added.push({
+        type: 'special_card_cinematic',
+        phase: deps.phaseNum(phase),
+        targets: [{
+            cardId: meta.cardId || cardId,
+            cardType: meta.markerType || cardUseTarget.cardType || null,
+            owner,
+            displayName: meta.displayName || cardUseTarget.name || '',
+            quote: meta.quote || '',
+            quoteLines: Array.isArray(meta.quoteLines) ? meta.quoteLines.slice() : [],
+            cinematicKey: meta.cinematicKey || '',
+            characterImage: meta.characterImage || '',
+            manifestBackgroundKey: meta.manifestBackgroundKey || '',
+            manifestBackgroundImage: meta.manifestBackgroundImage || '',
+            manifestBgmKey: meta.manifestBgmKey || '',
+            manifestBgmTrack: meta.manifestBgmTrack || null,
+            durationMs: 3000
+        }],
+        meta: {
+            sourceType: 'special_card_use',
+            cardId: meta.cardId || cardId,
+            cinematicKey: meta.cinematicKey || ''
+        }
+    });
 }
 
 function pushSoundCue(ctx: any, soundKey: any, phase: any, sourceType: any, deps: SoundCuePlannerDeps, options: any = {}) {
@@ -391,15 +496,6 @@ function planSelectionSoundCues(ctx: any, deps: SoundCuePlannerDeps) {
         pushSoundCue(ctx, 'living_will_selected', livingWillPhase, 'living_will_selected', deps);
     }
 
-    const hyperactiveInheritSelectPhase = deps.findPhase(
-        ctx.base,
-        (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
-        ctx.fallbackPhase
-    );
-    if (deps.hasRawEvent(ctx.raw, 'hyperactive_inherit_selected', (ev: any) => !!(ev && ev.applied))) {
-        pushSoundCue(ctx, 'guard_select', hyperactiveInheritSelectPhase, 'hyperactive_inherit_selected', deps);
-    }
-
     const blockadeSelectPhase = deps.findPhase(
         ctx.base,
         (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'BLOCKADE',
@@ -655,7 +751,15 @@ function planCardAndEconomySoundCues(ctx: any, deps: SoundCuePlannerDeps) {
     );
     const hasTreasureGain = deps.hasRawEvent(ctx.raw, 'treasure_box_gain', (ev: any) => Number(ev && ev.gained) > 0);
     if (hasCardUse && cardUseAnimationPhase > 0) {
-        pushSoundCue(ctx, 'card_use_button', cardUseAnimationPhase, 'card_used', deps);
+        const cardId = findCardUseCardId(ctx);
+        const isSpecialCardUse = isSpecialCardUseCardId(cardId);
+        const soundKey = isSpecialCardUse
+            ? 'special_card_use'
+            : 'card_use_button';
+        pushSoundCue(ctx, soundKey, cardUseAnimationPhase, 'card_used', deps);
+        if (isSpecialCardUse) {
+            pushSpecialCardCinematicCue(ctx, cardId, cardUseAnimationPhase, deps);
+        }
     }
     if (hasTreasureGain) {
         pushSoundCue(ctx, 'treasure_gain', postCardUsePhase, 'treasure_box_gain', deps);
@@ -716,6 +820,22 @@ function planCardAndEconomySoundCues(ctx: any, deps: SoundCuePlannerDeps) {
     );
     if (deps.hasRawEvent(ctx.raw, 'condemn_selected', (ev: any) => !!(ev && ev.applied && ev.destroyedCardId))) {
         pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected', deps);
+    }
+
+    const observerWillCapturePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => ev &&
+            ev.type === 'hand_remove' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target: any) => String(target && target.reason ? target.reason : '').toLowerCase() === 'observer_will'),
+        deps.findPhase(
+            ctx.base,
+            (ev: any) => ev && ev.type === 'card_use_animation',
+            ctx.fallbackPhase
+        )
+    );
+    if (deps.hasRawEvent(ctx.raw, 'observer_will_selected', (ev: any) => !!(ev && ev.applied && ev.stolenCardId))) {
+        pushSoundCue(ctx, 'observer_will_capture', observerWillCapturePhase, 'observer_will_selected', deps);
     }
 
     const executionPhase = deps.findPhase(

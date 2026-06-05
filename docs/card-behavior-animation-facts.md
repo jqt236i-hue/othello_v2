@@ -85,7 +85,6 @@
 | `GUARD_WILL` | continue_turn | continue_turn | 不可/未指定 | guard | getGuardTargets(player) |
 | `GUARDIAN_GOD` | continue_turn | continue_turn | 不可/未指定 | guard | getGuardTargets(player) |
 | `LIVING_WILL` | continue_turn | continue_turn | 不可/未指定 | living_will | getLivingWillTargets(player) |
-| `HYPERACTIVE_INHERIT_WILL` | continue_turn | continue_turn | 不可/未指定 | hyperactive_inherit | getHyperactiveInheritTargets(player) |
 | `EXTEND_LIFE_WILL` | continue_turn | continue_turn | 不可/未指定 | extend_life | getExtendLifeTargets(player) |
 | `EXTEND_LIFE_GOD` | continue_turn | continue_turn | 不可/未指定 | extend_life | getExtendLifeTargets(player) |
 | `CORROSION_WILL` | continue_turn | continue_turn | 不可/未指定 | corrosion | getCorrosionTargets(player) |
@@ -122,7 +121,6 @@
 | `ULTIMATE_DESTROY_GOD` | 配置石に `ULTIMATE_DESTROY_GOD` marker を付与。 |
 | `STONE_SALVATION_GOD` | 配置石に `STONE_SALVATION_GOD` marker を付与。 |
 | `SNIPER_WILL` | 配置石に `SNIPER` marker を付与。 |
-| `OBSERVER_WILL` | 配置石に `OBSERVER` marker を付与。 |
 | `GHOST_WILL` | 配置石に `GHOST` marker を付与。 |
 | `AFTERIMAGE_WILL` | 配置石に `AFTERIMAGE_WILL` marker を付与し、反転/破壊回避カウンタを持つ。 |
 | `TIME_STOP_GOD` | 配置石に `TIME_STOP` marker を付与。 |
@@ -159,7 +157,6 @@
 | `BUOYANCY_WILL` / `SUPER_BUOYANCY_WILL` / `GRAVITY_WILL` / `SUPER_GRAVITY_WILL` / `SUPER_ATTRACTION_WILL` | pipeline adapter の移動系 cause set に含まれる。通常の浮力/重力は縦方向 slide、超浮力/超重力/超引力は movement 実装側で経路上または到達先の石を破壊する。 |
 | `TABOO_REVERSE_WILL` / 龍 / 連鎖 / 復活 / 繁殖 / 多動 / 交換 / 誘惑などのカード効果反転 | `card_effect_flip` 音の対象。 |
 | `CARD_USED` | 原則として `card_use_button` 音を push。宝箱は rulebook 上の例外で使用ボタン音を再生しない。 |
-| `OBSERVER_WILL` / `WORK_WILL` | 吹き出しは `OBSERVER_BUBBLE` / `CHARGE_BUBBLE` 系で再生。観測者は約3秒+フェード、charge bubble は2秒+短いフェード。 |
 | `HAND_CLEAR` / `HAND_REMOVE` | `hand_remove` playback event になり、手札破壊フェードを使う。 |
 
 ## 全カード一覧
@@ -204,7 +201,6 @@
 | 十字爆弾 | `CROSS_BOMB` | 18 | 有効 | 次に置く石を十字爆弾化。通常反転後に即起爆し、その石を起点に縦横2マス（中心含む十字）の石を爆破する。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`crossBombStone` / 通常反転後に即起爆し、爆破対象は destroy フェーズで再生。 |
 | クロス爆弾 | `X_BOMB` | 18 | 有効 | 次に置く石をクロス爆弾化。通常反転後に即起爆し、その石を起点に斜め2マス（中心含むX字）の石を爆破する。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`xBombStone` / 通常反転後に即起爆し、爆破対象は destroy フェーズで再生。 |
 | 多動の意志 | `HYPERACTIVE_WILL` | 8 | 有効 | 次に置く石を多動化。両者ターン開始時に1マス移動、反転回避を1回持つ。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`hyperactiveStone` / カード共通の使用/手札/盤面イベント再生のみ確認。 |
-| 多動の継承 | `HYPERACTIVE_INHERIT_WILL` | 11 | 有効 | 自分の石1つに多動を継承。10ターンの間、両者ターン開始時に1マス移動し、反転・破壊を各1回回避する。 | 対象選択あり | 特殊石見た目=`hyperactiveStone` / カード共通の使用/手札/盤面イベント再生のみ確認。 |
 | 極悪多動魔 | `EXTREME_HYPERACTIVE_WILL` | 35 | 有効 | 次に置く石を極悪多動魔化。両者ターン開始時に周囲へ移動し、近くの石を押しのける。反転3回・破壊1回を回避し、ターン制限なし。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`extremeHyperactiveStone` / カード共通の使用/手札/盤面イベント再生のみ確認。 |
 | 逃げる意志 | `ESCAPE_WILL` | 7 | 有効 | 次に置く石を逃亡石化。毎ターン1マス逃げるように移動し、移動できるマスがなくなると爆発。反転回避を1回持つ。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`escapeHyperactiveStone` / 移動先がない爆発は時限爆弾系と同様に同一 destroy フェーズで一括再生。 |
 | ロボット掃除機 | `ROBOT_VACUUM_WILL` | 17 | 有効 | 次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`robotVacuumStone` / 吸い込み破壊だけ専用の吸い込み演出を使う。 |
@@ -247,7 +243,6 @@
 | 封鎖の意志 | `BLOCKADE_WILL` | 1 | 有効 | 盤面の空きマス1つを封鎖し、3ターンの間は両者とも配置・移動で入れない。 | 対象選択あり | 専用の特殊石画像マップなし / 既存の赤バツ表示を使い、追加の一時マスハイライトは出さない。 |
 | 隕石 | `METEOR_WILL` | 21 | 有効 | 盤面上のマスを1つ選び、絶対保護石がなければ石や封鎖・凍結・種など既存状態ごと永続穴にする。穴は配置・移動不可で反転経路も遮断する。 | 対象選択あり | 専用の特殊石画像マップなし / 石がある対象は破壊演出後に永続穴マス画像へ変わる。 |
 | 凍結の意志 | `FREEZE_WILL` | 5 | 有効 | 盤面上のマスを1つ選び、5ターン凍結する。凍結マスとその石は反転・破壊されず、凍結中は特殊石の持続ターンが減らない。 | 対象選択あり | 専用の特殊石画像マップなし / 対象マスに `assets/images/other/ICE.png` を半透明で重ね、終了時は氷オーバーレイをフェードアウト。 |
-| 盤理の観測者 | `OBSERVER_WILL` | 1 | 有効 | 次に置く石を観測者石化。所有者ターン開始時に30%で発動し、布石を1〜5獲得。5ターン持続。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`observerStone` / 観測石の登場/終了/観測成功吹き出しを約3秒表示し終端でフェードアウト。 |
 | 救済の意志 | `SALVATION_WILL` | 17 | 有効 | 直前の相手ターンで破壊された全ての石を救済し、自分の通常石として空きマスにランダム配置。 | 対象選択なし/配置時または即時処理 | 専用の特殊石画像マップなし / 救済配置は spawn 系のポジティブ強調対象。 |
 | 生きる意志 | `LIVING_WILL` | 20 | 有効 | 自分の石1つに生きる意志を付与。失われる時に1回だけ、付与時点の石状態で復活する。元マスが使えない時は別の空きマスへ復活。 | 対象選択あり | 専用の特殊石画像マップなし / 復活時は対応する復活イベントとして再生される。 |
 | 増援の意志 | `REINFORCEMENT_WILL` | 6 | 有効 | 石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能) | 対象選択なし/配置時または即時処理 | 専用の特殊石画像マップなし / 増援配置は spawn 系のポジティブ強調対象。 |

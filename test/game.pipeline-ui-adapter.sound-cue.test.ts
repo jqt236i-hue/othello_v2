@@ -105,75 +105,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('hyperactive_inherit_selected 成功時は INHERITED_HYPERACTIVE の status_applied phase で guard_select を再生する', () => {
-    const base = [{
-      type: 'status_applied',
-      phase: 12,
-      targets: [{
-        r: 4,
-        col: 4,
-        after: {
-          color: 1,
-          special: null,
-          timer: null,
-          owner: 'black',
-          inheritedTimer: 10,
-          inheritedOwner: 'black',
-          inheritedFlipEvadeRemaining: 1,
-          destroyEvadeRemaining: 1
-        }
-      }],
-      meta: {
-        special: 'INHERITED_HYPERACTIVE',
-        timer: 10,
-        owner: 'black',
-        flipEvadeRemaining: 1,
-        destroyEvadeRemaining: 1
-      }
-    }];
-    const raw = [{ type: 'hyperactive_inherit_selected', applied: true, target: { row: 4, col: 4 } }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'guard_select');
-
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(12);
-  });
-
-  test('hyperactive_inherit_selected が不成立なら guard_select を再生しない', () => {
-    const base = [{
-      type: 'status_applied',
-      phase: 7,
-      targets: [{
-        r: 1,
-        col: 5,
-        after: {
-          color: 1,
-          special: null,
-          timer: null,
-          owner: 'black',
-          inheritedTimer: 10,
-          inheritedOwner: 'black',
-          inheritedFlipEvadeRemaining: 1,
-          destroyEvadeRemaining: 1
-        }
-      }],
-      meta: {
-        special: 'INHERITED_HYPERACTIVE',
-        timer: 10,
-        owner: 'black',
-        flipEvadeRemaining: 1,
-        destroyEvadeRemaining: 1
-      }
-    }];
-    const raw = [{ type: 'hyperactive_inherit_selected', applied: false, target: { row: 1, col: 5 } }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'guard_select');
-
-    expect(cue).toBeUndefined();
-  });
-
   test('freeze_selected 成功時は FREEZE の status_applied phase で freeze_select を再生する', () => {
     const base = [{
       type: 'status_applied',
@@ -1282,6 +1213,126 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(4);
+  });
+
+  test('特殊カードの CARD_USED は card_use_animation の phase で special_card_use を再生する', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'observer_will_01', owner: 'black', cardType: 'OBSERVER_WILL' }]
+    }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'observer_will_01',
+      meta: { owner: 'black', cost: 0, name: '盤理の観測者', cardType: 'OBSERVER_WILL' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const specialCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_card_use');
+    const normalCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
+
+    expect(specialCue).toBeTruthy();
+    expect(specialCue.phase).toBe(4);
+    expect(normalCue).toBeUndefined();
+  });
+
+  test('盤理の観測者の CARD_USED は同じ phase で特殊カード暗転演出を出す', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'observer_will_01', owner: 'black', cardType: 'OBSERVER_WILL' }]
+    }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'observer_will_01',
+      meta: { owner: 'black', cost: 0, name: '盤理の観測者', cardType: 'OBSERVER_WILL' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cinematic = out.find((ev) => ev && ev.type === 'special_card_cinematic');
+
+    expect(cinematic).toBeTruthy();
+    expect(cinematic.phase).toBe(4);
+    expect(cinematic.targets[0]).toMatchObject({
+      cardId: 'observer_will_01',
+      cardType: 'OBSERVER_WILL',
+      owner: 'black',
+      displayName: '盤理の観測者',
+      cinematicKey: 'observer_will',
+      characterImage: 'assets/images/special-cards/characters/observer_will.png',
+      manifestBackgroundKey: 'observer_will_world',
+      manifestBackgroundImage: 'assets/images/background/manifest-worlds/観測の世界.png',
+      manifestBgmKey: 'observer_will_path',
+      manifestBgmTrack: expect.objectContaining({
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      }),
+      durationMs: 3000
+    });
+    expect(cinematic.targets[0].quote).toBe('我が観測をもって、悲しき輪廻に新たな一手を示そう');
+    expect(cinematic.targets[0].quoteLines).toEqual([
+      '我が観測をもって、悲しき',
+      '輪廻に新たな一手を示そう'
+    ]);
+  });
+
+  test('通常カードの CARD_USED は特殊カード暗転演出を出さない', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'WORK_WILL_001', owner: 'black', cardType: 'WORK_WILL' }]
+    }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'WORK_WILL_001',
+      meta: { owner: 'black', cost: 5, name: '労働', cardType: 'WORK_WILL' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+
+    expect(out.find((ev) => ev && ev.type === 'special_card_cinematic')).toBeUndefined();
+  });
+
+  test('特殊カードの raw card_used だけが残る経路でも special_card_use を再生する', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'board_executor_01', owner: 'black', cardType: 'BOARD_EXECUTOR' }]
+    }];
+    const raw = [
+      { type: 'card_used', player: 'black', cardId: 'board_executor_01' }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
+    const specialCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_card_use');
+    const normalCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
+
+    expect(specialCue).toBeTruthy();
+    expect(specialCue.phase).toBe(4);
+    expect(normalCue).toBeUndefined();
+  });
+
+  test('observer_will_selected 成功時は手札奪取の phase で専用音を再生する', () => {
+    const base = [{
+      type: 'hand_remove',
+      phase: 9,
+      targets: [{ player: 'white', cardId: 'rebuild_01', reason: 'observer_will' }]
+    }];
+    const raw = [{
+      type: 'observer_will_selected',
+      player: 'black',
+      applied: true,
+      stolenCardId: 'rebuild_01'
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'observer_will_capture');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(9);
+    expect(cue.meta).toEqual({ sourceType: 'observer_will_selected' });
   });
 
   test('宝箱の CARD_USED も card_use_button を再生する', () => {

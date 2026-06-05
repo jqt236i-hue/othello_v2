@@ -42,7 +42,7 @@
         'RAINBOW_STONE',
         'SILVER_STONE',
         'CRYSTAL_STONE',
-        'THEORY_INCARNATION',
+
         'PLUNDER_WILL',
         'WORK_WILL'
     ]);

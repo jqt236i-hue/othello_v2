@@ -6,11 +6,9 @@ type TurnPresentationHelperDeps = {
     getSpecialStoneBubbleSpeechLines: (type: any, scenario: any) => any;
     pickSpecialStoneBubbleSpeechLine: (type: any, scenario: any, prng: any) => any;
     resolveWorkIncomeLine?: (gained: any, incomeStep: any) => any;
-    observerLostLine?: string;
 };
 
 const LEGACY_SPECIAL_STONE_BUBBLE_TYPES: Record<string, boolean | undefined> = Object.freeze({
-    OBSERVER: true,
     WORK: true
 });
 
@@ -24,7 +22,6 @@ const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'ultimateDestroyGodPlaced', special: 'ULTIMATE_DESTROY_GOD' }),
     Object.freeze({ flag: 'stoneSalvationGodPlaced', special: 'STONE_SALVATION_GOD' }),
     Object.freeze({ flag: 'sniperPlaced', special: 'SNIPER' }),
-    Object.freeze({ flag: 'theoryIncarnationPlaced', special: 'THEORY_INCARNATION' }),
     Object.freeze({ flag: 'ghostPlaced', special: 'GHOST' }),
     Object.freeze({ flag: 'afterimagePlaced', special: 'AFTERIMAGE_WILL' }),
     Object.freeze({ flag: 'timeStopPlaced', special: 'TIME_STOP' }),
@@ -369,55 +366,6 @@ function emitWorkRemovedPresentationFromSnapshots(CardLogic: any, cardState: any
     }
 }
 
-function snapshotObserverMarkers(cardState: any, deps: TurnPresentationHelperDeps) {
-    const markers = (deps && deps.MarkersAdapter && typeof deps.MarkersAdapter.getMarkers === 'function')
-        ? deps.MarkersAdapter.getMarkers(cardState)
-        : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
-    const out = [];
-    for (const m of markers) {
-        if (!m) continue;
-        if (m.kind !== (deps && deps.MARKER_KINDS ? deps.MARKER_KINDS.SPECIAL_STONE : 'specialStone')) continue;
-        const markerType = String(m.data && m.data.type ? m.data.type : '').toUpperCase();
-        if (markerType !== 'OBSERVER') continue;
-        if (!Number.isInteger(m.row) || !Number.isInteger(m.col)) continue;
-        const markerId = (m.id !== undefined && m.id !== null)
-            ? String(m.id)
-            : `${m.row},${m.col}:${m.owner || ''}:${m.createdSeq || 0}`;
-        out.push({
-            key: markerId,
-            row: m.row,
-            col: m.col,
-            owner: (typeof m.owner === 'string' && m.owner) ? m.owner : null
-        });
-    }
-    return out;
-}
-
-function getRemovedObserverMarkers(beforeSnapshot: any, afterSnapshot: any) {
-    const before = Array.isArray(beforeSnapshot) ? beforeSnapshot : [];
-    const after = Array.isArray(afterSnapshot) ? afterSnapshot : [];
-    const afterSet = new Set(after.map((item: any) => item && item.key).filter((key: any) => !!key));
-    return before.filter((item: any) => {
-        if (!item || !item.key) return false;
-        if (!Number.isInteger(item.row) || !Number.isInteger(item.col)) return false;
-        return !afterSet.has(item.key);
-    });
-}
-
-function emitObserverLostBubbleFromSnapshots(CardLogic: any, cardState: any, beforeSnapshot: any, reason: any, deps: TurnPresentationHelperDeps) {
-    const afterSnapshot = snapshotObserverMarkers(cardState, deps);
-    const removed = getRemovedObserverMarkers(beforeSnapshot, afterSnapshot);
-    const first = removed[0] || null;
-    if (!first) return;
-    emitObserverBubblePresentation(CardLogic, cardState, {
-        player: first.owner || null,
-        row: first.row,
-        col: first.col,
-        text: deps && typeof deps.observerLostLine === 'string' ? deps.observerLostLine : null,
-        reason: reason || 'removed'
-    });
-}
-
 function isGenericSpecialStoneBubbleType(type: any) {
     const key = normalizeSpecialStoneBubbleType(type);
     return !!key && !isLegacySpecialStoneBubbleType(key);
@@ -672,23 +620,6 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
             });
         } else if (ev.type === 'time_stop_triggered') {
             deferredPhaseEvents.push(ev);
-        } else if (ev.type === 'hyperactive_inherit_selected' && ev.applied && ev.target) {
-            emitBubble({
-                special: 'INHERITED_HYPERACTIVE',
-                scenario: 'inherit_selected',
-                player: ev.player || opts.fallbackPlayer || null,
-                row: ev.target.row,
-                col: ev.target.col,
-                reason: ev.type
-            });
-            emitBubble({
-                special: 'INHERITED_HYPERACTIVE',
-                scenario: 'inherit_applied',
-                player: ev.player || opts.fallbackPlayer || null,
-                row: ev.target.row,
-                col: ev.target.col,
-                reason: 'inherit_applied'
-            });
         } else if ((ev.type === 'will_hunter_king_destroyed_start' || ev.type === 'will_hunter_king_destroyed_immediate') && Array.isArray(ev.details)) {
             for (const detail of ev.details) {
                 const row = Number(detail && detail.row);
@@ -754,18 +685,6 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
                     row,
                     col,
                     reason: reason || 'strong_will_promoted',
-                    cause
-                });
-                continue;
-            }
-            if (special === 'INHERITED_HYPERACTIVE') {
-                emitBubble({
-                    special,
-                    scenario: 'inherit_applied',
-                    player,
-                    row,
-                    col,
-                    reason: reason || 'inherit_applied',
                     cause
                 });
                 continue;
@@ -918,6 +837,28 @@ function emitHandRemovePresentation(CardLogic: any, cardState: any, payload: any
     CardLogic.emitPresentationEvent(cardState, ev);
 }
 
+function emitHandAddPresentation(CardLogic: any, cardState: any, payload: any, deps: TurnPresentationHelperDeps) {
+    if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
+    const data = payload || {};
+    const playerKey = normalizePlayerKey(data.player, deps);
+    const count = Math.max(1, Math.trunc(Number(data.count) || 1));
+    if (!playerKey) return;
+
+    const ev: Record<string, any> = {
+        type: 'HAND_ADD',
+        player: playerKey,
+        count,
+        reason: data.reason || null
+    };
+    if (data.cardId) ev.cardId = data.cardId;
+    if (data.meta && typeof data.meta === 'object') {
+        ev.meta = { ...data.meta };
+        if (data.reason && !ev.meta.reason) ev.meta.reason = data.reason;
+    }
+
+    CardLogic.emitPresentationEvent(cardState, ev);
+}
+
 function emitTrapHandRemoveEvents(CardLogic: any, cardState: any, trapRes: any, deps: TurnPresentationHelperDeps) {
     const triggered = (trapRes && Array.isArray(trapRes.triggered)) ? trapRes.triggered : [];
     if (!triggered.length) return;
@@ -942,13 +883,11 @@ const TurnPresentationHelpersModule = {
     emitWorkRemovedPresentationFromSnapshots,
     snapshotWorkMarkers,
     isWorkDurationEndPresentationEvent,
-    snapshotObserverMarkers,
-    getRemovedObserverMarkers,
-    emitObserverLostBubbleFromSnapshots,
     snapshotSpecialStoneSpeechMarkers,
     emitSpecialStoneBubblesFromPhase,
     isFrozenCell,
     emitHandRemovePresentation,
+    emitHandAddPresentation,
     emitTrapHandRemoveEvents,
     normalizePlayerKey
 };

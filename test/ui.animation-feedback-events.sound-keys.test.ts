@@ -1,4 +1,7 @@
 import SoundEngineModule = require('../sound-engine.ts');
+import * as fs from 'fs';
+import * as path from 'path';
+import { JSDOM } from 'jsdom';
 
 const AnimationFeedbackEvents = require('../ui/animation-feedback-events.js');
 
@@ -14,6 +17,18 @@ function getRegisteredSoundKeys(): string[] {
 }
 
 describe('animation feedback sound key coverage', () => {
+  let dom: JSDOM | null = null;
+
+  afterEach(() => {
+    if (dom) {
+      dom.window.close();
+      dom = null;
+    }
+    delete (global as any).document;
+    delete (global as any).window;
+    delete (global as any).HTMLElement;
+  });
+
   test('registered effect sound keys are forwarded to SoundEngine.playEffectByKey', async () => {
     const keys = getRegisteredSoundKeys();
     expect(keys.length).toBeGreaterThan(0);
@@ -43,6 +58,12 @@ describe('animation feedback sound key coverage', () => {
     expect(new Set(played)).toEqual(new Set(keys));
   });
 
+  test('special card cinematic quote does not render a caret cursor', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-animations.css'), 'utf8');
+    expect(css).not.toContain('.special-card-cinematic-quote[data-full-text]::after');
+    expect(css).not.toContain('special-card-cinematic-caret');
+  });
+
   test('duplicate sound keys in one playback event are deduplicated before playback', async () => {
     const playEffectByKey = jest.fn();
     await AnimationFeedbackEvents.handleSoundEffectEvent(
@@ -69,5 +90,187 @@ describe('animation feedback sound key coverage', () => {
       'stone_destroy',
       'card_use_button'
     ]);
+  });
+
+  test('special card cinematic reveals quote with a typewriter delay until its playback waits complete', async () => {
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    const resolvers: Array<() => void> = [];
+    const typewriterResolvers: Array<() => void> = [];
+    const sleep = jest.fn(() => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    }));
+    const typewriterSleep = jest.fn(() => new Promise<void>((resolve) => {
+      typewriterResolvers.push(resolve);
+    }));
+
+    const promise = AnimationFeedbackEvents.handleSpecialCardCinematicEvent(
+      {
+        type: 'special_card_cinematic',
+        phase: 4,
+        targets: [{
+          cardId: 'observer_will_01',
+          owner: 'black',
+          displayName: '盤理の観測者',
+          quote: '我が観測をもって、悲しき輪廻に新たな一手を示そう',
+          cinematicKey: 'observer_will',
+          characterImage: 'assets/images/special-cards/characters/observer_will.png',
+          durationMs: 3000
+        }]
+      },
+      { sleep, typewriterSleep, isNoAnim: () => false }
+    );
+
+    await Promise.resolve();
+    const overlay = document.querySelector('.special-card-cinematic-overlay') as HTMLElement;
+    expect(overlay).toBeTruthy();
+    expect(overlay.dataset.cinematicKey).toBe('observer_will');
+    const character = document.querySelector('.special-card-cinematic-character') as HTMLElement;
+    expect(character).toBeTruthy();
+    expect(character.style.getPropertyValue('--special-card-character-image')).toContain('assets/images/special-cards/characters/observer_will.png');
+    expect(document.querySelector('.special-card-cinematic-title')?.textContent).toBe('盤理の観測者');
+    const quoteEl = document.querySelector('.special-card-cinematic-quote') as HTMLElement;
+    expect(quoteEl).toBeTruthy();
+    expect(quoteEl.dataset.fullText).toBe('我が観測をもって、悲しき輪廻に新たな一手を示そう');
+    expect(quoteEl.textContent).toBe('');
+    expect(typewriterSleep).toHaveBeenCalledWith(120);
+    expect(sleep).toHaveBeenCalledWith(3000);
+
+    typewriterResolvers.shift()?.();
+    await Promise.resolve();
+    expect(quoteEl.textContent).toBe('我');
+    expect(typewriterSleep).toHaveBeenCalledWith(20);
+
+    typewriterResolvers.shift()?.();
+    await Promise.resolve();
+    expect(quoteEl.textContent).toBe('我が');
+
+    for (let i = 0; i < 7; i++) {
+      typewriterResolvers.shift()?.();
+      await Promise.resolve();
+    }
+    expect(quoteEl.textContent).toBe('我が観測をもって、');
+    expect(typewriterSleep).toHaveBeenCalledWith(250);
+
+    resolvers.shift()?.();
+    await Promise.resolve();
+    expect(sleep).toHaveBeenCalledWith(260);
+    resolvers.shift()?.();
+    await promise;
+    expect(document.querySelector('.special-card-cinematic-overlay')).toBeNull();
+  });
+
+  test('special card cinematic fixes quote line boxes before typewriter reveal starts', async () => {
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    const resolvers: Array<() => void> = [];
+    const typewriterResolvers: Array<() => void> = [];
+    const sleep = jest.fn(() => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    }));
+    const typewriterSleep = jest.fn(() => new Promise<void>((resolve) => {
+      typewriterResolvers.push(resolve);
+    }));
+
+    const promise = AnimationFeedbackEvents.handleSpecialCardCinematicEvent(
+      {
+        type: 'special_card_cinematic',
+        targets: [{
+          displayName: '盤理の観測者',
+          quote: '我が観測をもって、悲しき輪廻に新たな一手を示そう',
+          cinematicKey: 'observer_will',
+          durationMs: 3000
+        }]
+      },
+      { sleep, typewriterSleep, isNoAnim: () => false }
+    );
+
+    await Promise.resolve();
+    const quoteEl = document.querySelector('.special-card-cinematic-quote') as HTMLElement;
+    const lines = Array.from(document.querySelectorAll('.special-card-cinematic-quote-line')) as HTMLElement[];
+
+    expect(quoteEl.dataset.fullText).toBe('我が観測をもって、悲しき輪廻に新たな一手を示そう');
+    expect(lines.map((line) => line.dataset.fullText)).toEqual([
+      '我が観測をもって、悲しき',
+      '輪廻に新たな一手を示そう'
+    ]);
+    expect(lines.map((line) => line.textContent)).toEqual(['', '']);
+
+    typewriterResolvers.shift()?.();
+    await Promise.resolve();
+    expect(lines.map((line) => line.textContent)).toEqual(['我', '']);
+
+    resolvers.shift()?.();
+    await Promise.resolve();
+    resolvers.shift()?.();
+    await promise;
+  });
+
+  test('special card cinematic immediately applies manifestation background and queues dedicated BGM', async () => {
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    const resolvers: Array<() => void> = [];
+    const sleep = jest.fn(() => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    }));
+    const syncManifestBgmOverride = jest.fn();
+
+    const promise = AnimationFeedbackEvents.handleSpecialCardCinematicEvent(
+      {
+        type: 'special_card_cinematic',
+        phase: 4,
+        targets: [{
+          cardId: 'observer_will_01',
+          owner: 'black',
+          displayName: '盤理の観測者',
+          quote: '我が観測をもって、悲しき輪廻に新たな一手を示そう',
+          cinematicKey: 'observer_will',
+          characterImage: 'assets/images/special-cards/characters/observer_will.png',
+          manifestBackgroundKey: 'observer_will_world',
+          manifestBackgroundImage: 'assets/images/background/manifest-worlds/観測の世界.png',
+          manifestBgmKey: 'observer_will_path',
+          manifestBgmTrack: {
+            name: '観測の道',
+            file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+            loopStart: 0
+          },
+          durationMs: 3000
+        }]
+      },
+      {
+        sleep,
+        isNoAnim: () => false,
+        soundEngine: { syncManifestBgmOverride }
+      }
+    );
+
+    await Promise.resolve();
+    expect(document.body.classList.contains('manifest-world-background-active')).toBe(true);
+    expect(document.body.getAttribute('data-manifest-world-background-key')).toBe('observer_will_world');
+    expect(document.body.getAttribute('data-manifest-world-background-source')).toBe('special_card_use');
+    expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
+    expect(syncManifestBgmOverride).toHaveBeenCalledWith(
+      'observer_will_path',
+      expect.objectContaining({
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      })
+    );
+    expect((window as any).__manifestPresentationOverride).toMatchObject({
+      source: 'special_card_use',
+      manifestBackgroundKey: 'observer_will_world',
+      manifestBgmKey: 'observer_will_path',
+      resolvedByMarker: false
+    });
+
+    resolvers.shift()?.();
+    await Promise.resolve();
+    resolvers.shift()?.();
+    await promise;
   });
 });

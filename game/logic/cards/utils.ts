@@ -25,9 +25,18 @@ function getRuntimeGlobalValue(key: string): any {
 
 const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
 const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
+const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
 
 let OwnerHelpersModule: any = null;
 OwnerHelpersModule = safeRequire('../../../utils/owner-helpers') || getRuntimeGlobalValue('OwnerHelpers');
+
+function isManifestStoneTypeForUtils(rawType: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+    }
+    const type = String(rawType || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+}
 
 function normalizePlayerKey(playerKey: any): string | null {
     try {
@@ -172,7 +181,19 @@ function getMarkers(cardState: any): any[] {
 }
 
 function isSpecialStoneMarker(marker: any): boolean {
-    return !!(marker && marker.kind === 'specialStone');
+    return !!(marker && marker.kind === 'specialStone' && !isManifestStoneMarker(marker));
+}
+
+function isManifestStoneMarker(marker: any): boolean {
+    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function') {
+        return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
+    }
+    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+    return !!(
+        marker &&
+        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+        isManifestStoneTypeForUtils(type)
+    );
 }
 
 function isBombCategoryMarker(marker: any): boolean {
@@ -201,19 +222,34 @@ function getMarkerRuleClass(marker: any): string | null {
     const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
     if ((marker && marker.data && marker.data.category === 'bomb') || type === 'TIME_BOMB') return 'bomb';
     if (type === 'TRAP') return 'trap';
+    if (isManifestStoneMarker(marker)) return 'manifest_stone';
     if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED') return 'board_marker';
     if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
     if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
-    if (type === 'PROTECTED' || type === 'PERMA_PROTECTED' || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED' || type === 'GHOST' || type === 'AFTERIMAGE_WILL' || type === 'REGEN' || type === 'LIVING_WILL') return 'stone_status';
+    if (type === 'GUARD' || type === 'LIVING_WILL') return 'stone_status';
     if (!type) return null;
     return 'true_special_stone';
 }
 
 function isTrueSpecialStoneMarker(marker: any): boolean {
+    if (isManifestStoneMarker(marker)) return false;
     return getMarkerRuleClass(marker) === 'true_special_stone';
 }
 
+function canLossWillRevertMarker(marker: any): boolean {
+    if (!marker || typeof marker !== 'object') return false;
+    if (isManifestStoneMarker(marker)) return false;
+    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+    if (!type || type === 'ABSOLUTE_PROTECTED') return false;
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.canLossWillRevert === 'function') {
+        return SpecialStoneRegistry.canLossWillRevert(type, marker.data || null) === true;
+    }
+    const ruleClass = getMarkerRuleClass(marker);
+    return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb';
+}
+
 function isDurationAffectableMarker(marker: any): boolean {
+    if (isManifestStoneMarker(marker)) return false;
     const ruleClass = getMarkerRuleClass(marker);
     return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
 }
@@ -244,12 +280,37 @@ function isSpecialStoneAt(cardState: any, row: any, col: any): boolean {
     return !!getSpecialMarkerAt(cardState, row, col);
 }
 
+function getManifestStoneMarkerAt(cardState: any, row: any, col: any): any | null {
+    const marker = getMarkers(cardState).find((candidate: any) => (
+        candidate &&
+        candidate.row === row &&
+        candidate.col === col &&
+        isManifestStoneMarker(candidate)
+    ));
+    return marker || null;
+}
+
+function isManifestStoneAt(cardState: any, row: any, col: any): boolean {
+    return !!getManifestStoneMarkerAt(cardState, row, col);
+}
+
 function isTrueSpecialStoneAt(cardState: any, row: any, col: any): boolean {
     return !!getTrueSpecialStoneMarkerAt(cardState, row, col);
 }
 
+function isAbsoluteProtectedStoneAt(cardState: any, row: any, col: any): boolean {
+    return getMarkers(cardState).some((marker: any) => (
+        marker &&
+        (marker.kind === 'specialStone' || marker.kind === 'manifestStone') &&
+        marker.row === row &&
+        marker.col === col &&
+        marker.data &&
+        (marker.data.type === 'ABSOLUTE_PROTECTED' || isManifestStoneMarker(marker))
+    ));
+}
+
 function isNonNormalStoneVisualAt(cardState: any, row: any, col: any): boolean {
-    return isSpecialStoneAt(cardState, row, col);
+    return isSpecialStoneAt(cardState, row, col) || isManifestStoneAt(cardState, row, col);
 }
 
 function getSpecialOwnerAt(cardState: any, row: any, col: any): string | null {
@@ -278,12 +339,17 @@ const utils = {
     addChargeWithDelta,
     addCharge,
     getMarkerRuleClass,
+    isManifestStoneMarker,
     isTrueSpecialStoneMarker,
+    canLossWillRevertMarker,
     isDurationAffectableMarker,
+    getManifestStoneMarkerAt,
     getSpecialMarkerAt,
     getTrueSpecialStoneMarkerAt,
     isSpecialStoneAt,
+    isManifestStoneAt,
     isTrueSpecialStoneAt,
+    isAbsoluteProtectedStoneAt,
     isNonNormalStoneVisualAt,
     getSpecialOwnerAt,
     getTrueSpecialStoneOwnerAt,

@@ -311,10 +311,7 @@
             owner: null,
             special: null,
             timer: null,
-            inheritedTimer: null,
-            inheritedOwner: null,
             flipEvadeRemaining: null,
-            inheritedFlipEvadeRemaining: null,
             destroyEvadeRemaining: null,
             livingWillAura: false
         };
@@ -339,10 +336,7 @@
             owner,
             special: markerData.type ? String(markerData.type) : null,
             timer: readNumberOrNull(markerData.remainingOwnerTurns ?? markerData.timer),
-            inheritedTimer: readNumberOrNull(markerData.inheritedTimer),
-            inheritedOwner: parseSeatKeyOptional(markerData.inheritedOwner),
             flipEvadeRemaining: readNumberOrNull(markerData.flipEvadeRemaining),
-            inheritedFlipEvadeRemaining: readNumberOrNull(markerData.inheritedFlipEvadeRemaining),
             destroyEvadeRemaining: readNumberOrNull(markerData.destroyEvadeRemaining),
             livingWillAura: markerData.livingWillAura === true || String(markerData.type || '').toUpperCase() === 'LIVING_WILL'
         };

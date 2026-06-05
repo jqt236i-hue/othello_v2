@@ -1205,7 +1205,6 @@ describe('animation-engine guard timer rendering', () => {
 
   test.each([
     ['HYPERACTIVE', 'hyperactive_move'],
-    ['HYPERACTIVE_INHERIT_WILL', 'inherited_hyperactive_move'],
     ['ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_step_move'],
     ['ULTIMATE_REVERSE_DRAGON', 'ultimate_reverse_dragon_move'],
     ['ULTIMATE_DESTROY_GOD', 'ultimate_destroy_god_move']

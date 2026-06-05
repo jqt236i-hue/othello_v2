@@ -269,6 +269,70 @@ describe('animation-engine _sleep', () => {
     delete global.document;
   });
 
+  test('observer will spawn playback renders manifest visual and aura', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="4" data-col="5"></div>
+          </div>
+        </body>
+      </html>
+    `);
+    const setDiscStoneImage = jest.fn();
+    const clearStoneVisualEffectState = jest.fn();
+    const applyStoneVisualEffect = jest.fn();
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+    global.window.getEffectKeyForSpecialType = jest.fn((type) => String(type || '').toUpperCase() === 'OBSERVER_WILL' ? 'observerWillStone' : null);
+    global.window.setDiscStoneImage = setDiscStoneImage;
+    global.window.clearStoneVisualEffectState = clearStoneVisualEffectState;
+    global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    global.emitBoardUpdate = jest.fn();
+
+    const engine = require('../ui/animation-engine.js');
+    global.window.getEffectKeyForSpecialType = jest.fn((type) => String(type || '').toUpperCase() === 'OBSERVER_WILL' ? 'observerWillStone' : null);
+    global.window.setDiscStoneImage = setDiscStoneImage;
+    global.window.clearStoneVisualEffectState = clearStoneVisualEffectState;
+    global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    await engine.play([
+      {
+        type: 'spawn',
+        phase: 0,
+        targets: [{
+          r: 4,
+          col: 5,
+          ownerAfter: 'black',
+          after: {
+            color: 1,
+            special: 'OBSERVER_WILL',
+            timer: 5,
+            owner: 'black',
+            manifestAura: { owner: 'black' }
+          }
+        }]
+      }
+    ]);
+
+    const disc = dom.window.document.querySelector('.cell[data-row="4"][data-col="5"] .disc');
+    expect(disc).toBeTruthy();
+    expect(applyStoneVisualEffect).toHaveBeenCalledWith(expect.any(dom.window.Element), 'observerWillStone', { owner: 'black' });
+    expect(disc.classList.contains('manifest-stone-aura')).toBe(true);
+    expect(disc.classList.contains('manifest-stone-aura-black')).toBe(true);
+    expect(disc.classList.contains('manifest-stone-aura-white')).toBe(false);
+
+    dom.window.close();
+    delete global.emitBoardUpdate;
+    delete global.requestAnimationFrame;
+    delete global.window;
+    delete global.document;
+  });
+
   test('宝箱 card_use_animation では direct sound を鳴らさない', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };

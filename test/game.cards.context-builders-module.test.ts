@@ -39,7 +39,6 @@ describe('CardContextBuilders module', () => {
         MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
         FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS: {},
-        INHERITED_HYPERACTIVE_TURNS: 3,
         ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: 5,
         ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT: 5,
         GUARD_WILL_TURNS: 3,
@@ -167,4 +166,3 @@ describe('CardContextBuilders module', () => {
     expect(() => builders.getCardEffectTimingContext()).toThrow('[cards.js] CardEffectResolver.getCardEffectTimingContext not available');
   });
 });
-

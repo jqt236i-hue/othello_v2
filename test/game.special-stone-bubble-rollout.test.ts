@@ -140,47 +140,6 @@ describe('special stone speech rollout', () => {
     ]));
   });
 
-  test('hyperactive inherit selection emits selection and applied speech bubbles', () => {
-    const prng = createPrng(0);
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = createEmptyGameState();
-    const events = [];
-
-    gameState.board[4][4] = Core.BLACK;
-    cardState.pendingEffectByPlayer.black = {
-      type: 'HYPERACTIVE_INHERIT_WILL',
-      stage: 'selectTarget',
-      cardId: 'hyperactive_inherit_01'
-    };
-
-    TurnPipelinePhases.applyActionPhase(
-      CardLogic,
-      CORE_API,
-      cardState,
-      gameState,
-      'black',
-      { type: 'place', row: 0, col: 0, hyperactiveInheritTarget: { row: 4, col: 4 } },
-      events,
-      prng,
-      BoardOps
-    );
-
-    expect(getSpecialStoneBubbles(CardLogic.flushPresentationEvents(cardState))).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        special: 'INHERITED_HYPERACTIVE',
-        scenario: 'inherit_selected',
-        row: 4,
-        col: 4
-      }),
-      expect.objectContaining({
-        special: 'INHERITED_HYPERACTIVE',
-        scenario: 'inherit_applied',
-        row: 4,
-        col: 4
-      })
-    ]));
-  });
-
   test('regen revival emits regen_triggered without an extra destroy bubble', () => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
@@ -224,72 +183,6 @@ describe('special stone speech rollout', () => {
       })
     ]));
     expect(regenBubbles.some((event) => event.scenario === 'destroy' || event.scenario === 'duration_end')).toBe(false);
-  });
-
-  test('turn-start expiry emits a duration_end speech bubble', () => {
-    const prng = createPrng(0);
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = createEmptyGameState();
-    const events = [];
-
-    gameState.board[4][4] = Core.BLACK;
-    cardState.markers.push({
-      id: 2002,
-      kind: 'specialStone',
-      row: 4,
-      col: 4,
-      owner: 'black',
-      data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 1, hyperactiveSeq: 1 },
-      createdSeq: 1
-    });
-
-    TurnPipelinePhases.applyTurnStartPhase(CardLogic, CORE_API, cardState, gameState, 'black', events, prng);
-
-    expect(getSpecialStoneBubbles(CardLogic.flushPresentationEvents(cardState))).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        special: 'INHERITED_HYPERACTIVE',
-        scenario: 'duration_end'
-      })
-    ]));
-  });
-
-  test('living will revival emits a dedicated revival speech bubble instead of the exit line', () => {
-    const prng = createPrng(0);
-    const cardState = CardLogic.createCardState(prng);
-    const gameState = createEmptyGameState();
-    const events = [];
-
-    gameState.board[4][4] = Core.BLACK;
-    cardState.markers.push({
-      id: 3010,
-      kind: 'specialStone',
-      row: 4,
-      col: 4,
-      owner: 'black',
-      data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 1, hyperactiveSeq: 1 },
-      createdSeq: 1
-    });
-    cardState.pendingEffectByPlayer.black = {
-      type: 'LIVING_WILL',
-      stage: 'selectTarget',
-      cardId: 'living_will_01'
-    };
-    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 4, 4)).toMatchObject({ applied: true });
-
-    TurnPipelinePhases.applyTurnStartPhase(CardLogic, CORE_API, cardState, gameState, 'black', events, prng);
-
-    const bubbles = getSpecialStoneBubbles(CardLogic.flushPresentationEvents(cardState)).filter((event) => (
-      event &&
-      event.special === 'INHERITED_HYPERACTIVE'
-    ));
-
-    expect(bubbles).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        special: 'INHERITED_HYPERACTIVE',
-        scenario: 'living_will_restored'
-      })
-    ]));
-    expect(bubbles.some((event) => event.scenario === 'duration_end' || event.scenario === 'destroy')).toBe(false);
   });
 
   test.each([

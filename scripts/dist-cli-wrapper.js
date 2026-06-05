@@ -3,12 +3,8 @@
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-function resolveDistScript(scriptName) {
-  return path.join(__dirname, "..", "dist", "scripts", scriptName);
-}
-
 function wrapDistCli(wrapperModule, scriptName) {
-  const distScript = resolveDistScript(scriptName);
+  const distScript = path.join(__dirname, "..", "dist", "scripts", scriptName);
   if (require.main === wrapperModule) {
     const result = spawnSync(process.execPath, [distScript].concat(process.argv.slice(2)), {
       cwd: process.cwd(),

@@ -149,23 +149,6 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
       '黒: ロボット掃除機石を設置'
     ]);
   });
-
-  test('logs observer trigger/expire/placement wording', () => {
-    const rawEvents = [
-      { type: 'observer_triggered_start', details: [{ row: 3, col: 3, owner: 'black', gained: 2 }, { row: 5, col: 5, owner: 'black', gained: 4 }] },
-      { type: 'observer_expired_start', details: [{ row: 3, col: 3, reason: 'duration_end' }] },
-      { type: 'placement_effects', effects: { observerPlaced: true } }
-    ];
-
-    const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
-
-    expect(out).toEqual([
-      '黒: 盤理の観測者: 布石+6',
-      '黒: 盤理の観測者: 親石1個が通常石に戻る',
-      '黒: 盤理の観測者を設置'
-    ]);
-  });
-
   test('logs lightning destroy/expire/placement wording', () => {
     const rawEvents = [
       { type: 'lightning_destroyed_start', details: [{ row: 3, col: 3 }] },

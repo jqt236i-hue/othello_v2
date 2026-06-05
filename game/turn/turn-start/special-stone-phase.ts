@@ -5,15 +5,8 @@ type TurnStartHyperAggregated = {
     flippedByOwner: Record<string, any[]>;
 };
 
-type TurnStartObserverSummary = {
-    triggered: any[];
-    lost: any[];
-    durationEnd: any[];
-};
-
 type TurnStartSpecialStoneProcessingState = {
     hyperAggregated: TurnStartHyperAggregated;
-    observerStartSummary: TurnStartObserverSummary;
 };
 
 type ProcessTurnStartSpecialStoneOptions = {
@@ -54,33 +47,9 @@ function createTurnStartSpecialStoneProcessingState(): TurnStartSpecialStoneProc
                 black: [],
                 white: []
             }
-        },
-        observerStartSummary: {
-            triggered: [],
-            lost: [],
-            durationEnd: []
         }
     };
 }
-
-function pushObserverTurnStartEvents(events: any[], playerKey: any, row: any, col: any, res: any, observerStartSummary: TurnStartObserverSummary): void {
-    if (res && res.triggered && Number(res.gained) > 0) {
-        const gained = Number(res.gained) || 0;
-        events.push({
-            type: 'observer_triggered_start',
-            details: [{ row, col, owner: playerKey, gained }]
-        });
-        observerStartSummary.triggered.push({ row, col, owner: playerKey, gained });
-    }
-    if (res && res.expired && res.expired.length) {
-        events.push({ type: 'observer_expired_start', details: res.expired });
-        const lost = res.expired.filter((item: any) => item && item.reason === 'anchor_lost');
-        if (lost.length) observerStartSummary.lost.push(...lost);
-        const durationEnd = res.expired.filter((item: any) => item && item.reason === 'duration_end');
-        if (durationEnd.length) observerStartSummary.durationEnd.push(...durationEnd);
-    }
-}
-
 function pushTimeStopTurnStartEvents(events: any[], playerKey: any, row: any, col: any, res: any): void {
     if (res && Array.isArray(res.triggered) && res.triggered.length) {
         for (let index = 0; index < res.triggered.length; index += 1) {
@@ -216,6 +185,28 @@ function pushUltimateHyperactiveTurnStartEvents(options: ProcessTurnStartSpecial
     pushTurnStartDetailsEvent(options.events, 'ultimate_hyperactive_destroyed_start', res && res.destroyed);
 }
 
+function pushObserverWillRepaymentTurnStartEvent(events: any[], playerKey: any, repayment: any): void {
+    if (!Array.isArray(events) || !repayment) return;
+    if (repayment.shortage) {
+        events.push({
+            type: 'observer_will_shortage',
+            player: playerKey,
+            destroyed: Array.isArray(repayment.destroyed) ? repayment.destroyed.slice() : [],
+            destroyedCount: Number(repayment.destroyedCount) || 0,
+            remainingOwnerTurns: Number(repayment.remainingOwnerTurnsAfter) || 0,
+            completed: repayment.completed === true
+        });
+        return;
+    }
+    events.push({
+        type: 'observer_will_repaid',
+        player: playerKey,
+        repaid: Number(repayment.repaid) || 0,
+        remainingOwnerTurns: Number(repayment.remainingOwnerTurnsAfter) || 0,
+        completed: repayment.completed === true
+    });
+}
+
 function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptions): TurnStartSpecialStoneProcessingState {
     const opts = (options && typeof options === 'object') ? options : ({} as ProcessTurnStartSpecialStoneOptions);
     const processingState = opts.processingState || createTurnStartSpecialStoneProcessingState();
@@ -277,14 +268,7 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
         ]);
         return processingState;
     }
-
-    if (typeKey === 'OBSERVER' && owner === opts.playerKey) {
-        const res = opts.CardLogic.processObserverWillEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
-        pushObserverTurnStartEvents(opts.events, opts.playerKey, row, col, res, processingState.observerStartSummary);
-        return processingState;
-    }
-
-    if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
+if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
         const res = opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col);
         pushTimeStopTurnStartEvents(opts.events, opts.playerKey, row, col, res);
         return processingState;
@@ -302,7 +286,29 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
         return processingState;
     }
 
-    if (typeKey === 'HYPERACTIVE' || typeKey === 'ESCAPE_HYPERACTIVE' || typeKey === 'INHERITED_HYPERACTIVE' || typeKey === 'EXTREME_HYPERACTIVE') {
+    if (typeKey === 'OBSERVER_WILL' && owner === opts.playerKey && typeof opts.CardLogic.processObserverWillMarkerAtTurnStart === 'function') {
+        const res = opts.CardLogic.processObserverWillMarkerAtTurnStart(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        if (res && Array.isArray(res.expired) && res.expired.length) {
+            opts.events.push({ type: 'observer_will_marker_expired', details: res.expired });
+        }
+        if (res && res.repayment) {
+            pushObserverWillRepaymentTurnStartEvent(opts.events, opts.playerKey, res.repayment);
+        }
+        return processingState;
+    }
+
+    if (typeKey === 'THEORY_INCARNATION' && owner === opts.playerKey && typeof opts.CardLogic.processTheoryIncarnationMarkerAtTurnStart === 'function') {
+        const res = opts.CardLogic.processTheoryIncarnationMarkerAtTurnStart(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        if (res && res.spawned) {
+            opts.events.push({ type: 'theory_incarnation_spawned', player: opts.playerKey, detail: res.spawned });
+        }
+        if (res && res.expired) {
+            opts.events.push({ type: 'theory_incarnation_marker_expired', detail: res.expired });
+        }
+        return processingState;
+    }
+
+    if (typeKey === 'HYPERACTIVE' || typeKey === 'ESCAPE_HYPERACTIVE' || typeKey === 'EXTREME_HYPERACTIVE') {
         if (typeof opts.debugLog === 'function') {
             opts.debugLog('[TurnPipeline] processing HYPERACTIVE anchor', { row, col, owner, type: typeKey, createdSeq: markerAnchor.createdSeq });
         }

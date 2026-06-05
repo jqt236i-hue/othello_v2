@@ -13,6 +13,7 @@ type ResolvePrePlacementSelectionActionOptions = {
     handOffTurnAfterSelection: () => void;
     emitDurationSelectionStatusTick: (target: any, reason: any, highlightTone: any) => void;
     emitHandRemovePresentation: (payload: any) => void;
+    emitHandAddPresentation?: (payload: any) => void;
 };
 
 function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectionActionOptions): any {
@@ -303,6 +304,9 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             applied: !!(res && res.applied),
             destroyedCardId: (res && res.destroyedCardId) ? res.destroyedCardId : null
         });
+        if (!res || !res.applied) {
+            throw new Error(`CONDEMN_WILL selection failed: ${(res && res.reason) || 'invalid_target'}`);
+        }
         if (res && res.applied) {
             const opponentKey = opts.playerKey === 'black' ? 'white' : 'black';
             opts.emitHandRemovePresentation({
@@ -316,6 +320,52 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
         return true;
     } else if (pending && pending.type === 'CONDEMN_WILL' && action.condemnTargetIndex == null) {
         throw new Error('CONDEMN_WILL requires condemnTargetIndex before placement');
+    }
+
+    if (pending && pending.type === 'OBSERVER_WILL' && action.observerWillTargetIndex != null) {
+        const res = opts.CardLogic.applyObserverWillChoice(
+            opts.cardState,
+            opts.gameState,
+            opts.playerKey,
+            action.observerWillTargetIndex
+        );
+        opts.events.push({
+            type: 'observer_will_selected',
+            player: opts.playerKey,
+            observerWillTargetIndex: action.observerWillTargetIndex,
+            applied: !!(res && res.applied),
+            stolenCardId: (res && res.stolenCardId) ? res.stolenCardId : null,
+            stolenCardCopyId: (res && Number.isInteger(res.stolenCardCopyId)) ? res.stolenCardCopyId : null,
+            repaymentAmount: (res && Number.isFinite(res.repaymentAmount)) ? Number(res.repaymentAmount) : null
+        });
+        if (!res || !res.applied) {
+            throw new Error(`OBSERVER_WILL selection failed: ${(res && res.reason) || 'invalid_target'}`);
+        }
+        if (res && res.applied) {
+            const opponentKey = opts.playerKey === 'black' ? 'white' : 'black';
+            opts.emitHandRemovePresentation({
+                player: opponentKey,
+                count: 1,
+                reason: 'observer_will',
+                cardId: (res && res.stolenCardId) ? res.stolenCardId : null,
+                cardIds: (res && res.stolenCardId) ? [res.stolenCardId] : []
+            });
+            if (typeof opts.emitHandAddPresentation === 'function') {
+                opts.emitHandAddPresentation({
+                    player: opts.playerKey,
+                    count: 1,
+                    reason: 'observer_will',
+                    cardId: res.stolenCardId || null,
+                    meta: {
+                        sourceType: 'OBSERVER_WILL',
+                        sourceCardId: pending.cardId || null
+                    }
+                });
+            }
+        }
+        return true;
+    } else if (pending && pending.type === 'OBSERVER_WILL' && action.observerWillTargetIndex == null) {
+        throw new Error('OBSERVER_WILL requires observerWillTargetIndex before placement');
     }
 
     if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget) {
@@ -454,20 +504,6 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
         return true;
     } else if (pending && pending.type === 'LIVING_WILL' && action.livingWillTarget == null) {
         throw new Error('LIVING_WILL requires livingWillTarget before placement');
-    }
-
-    if (pending && pending.type === 'HYPERACTIVE_INHERIT_WILL' && action.hyperactiveInheritTarget) {
-        const res = opts.CardLogic.applyHyperactiveInheritWill(
-            opts.cardState,
-            opts.gameState,
-            opts.playerKey,
-            action.hyperactiveInheritTarget.row,
-            action.hyperactiveInheritTarget.col
-        );
-        opts.events.push({ type: 'hyperactive_inherit_selected', player: opts.playerKey, target: action.hyperactiveInheritTarget, applied: !!(res && res.applied) });
-        return true;
-    } else if (pending && pending.type === 'HYPERACTIVE_INHERIT_WILL' && action.hyperactiveInheritTarget == null) {
-        throw new Error('HYPERACTIVE_INHERIT_WILL requires hyperactiveInheritTarget before placement');
     }
 
     if (pending && (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') && action.extendTarget) {

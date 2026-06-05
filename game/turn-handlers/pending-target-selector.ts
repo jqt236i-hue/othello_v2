@@ -169,6 +169,27 @@ function buildCondemnAction(context: PendingTargetSelectorContext): Record<strin
     return { type: 'place', condemnTargetIndex: best.handIndex };
 }
 
+function buildObserverWillAction(context: PendingTargetSelectorContext): Record<string, unknown> {
+    const pending = readPendingEffectFromContext(context);
+    const offers = pending && Array.isArray(pending.offers) ? pending.offers : [];
+    if (!offers.length || !context.cardLogic) return createCancelCardAction();
+
+    let best: { handIndex: number; score: number } | null = null;
+    for (const offer of offers) {
+        const candidate = offer as { handIndex?: number; cardId?: string } | null;
+        if (!candidate || !Number.isInteger(candidate.handIndex) || typeof candidate.cardId !== 'string') continue;
+        const cost = Number((context.cardLogic.getCardCost && context.cardLogic.getCardCost(candidate.cardId)) || 0);
+        const def = context.cardLogic.getCardDef ? context.cardLogic.getCardDef(candidate.cardId) as any : null;
+        const typeBonus = def && typeof def.type === 'string' && def.type.indexOf('WILL') >= 0 ? 2 : 0;
+        const score = cost + typeBonus;
+        if (!best || score > best.score || (score === best.score && Number(candidate.handIndex) < best.handIndex)) {
+            best = { handIndex: Number(candidate.handIndex), score };
+        }
+    }
+    if (!best) return createCancelCardAction();
+    return { type: 'place', observerWillTargetIndex: best.handIndex };
+}
+
 function buildPendingSelectionAction(context: PendingTargetSelectorContext): Record<string, unknown> {
     const pending = readPendingEffectFromContext(context);
     const pendingType = String((context && context.pendingType) || (pending && pending.type) || '');
@@ -182,6 +203,7 @@ function buildPendingSelectionAction(context: PendingTargetSelectorContext): Rec
     switch (pendingType) {
     case 'HEAVEN_BLESSING': return buildHeavenBlessingAction(context);
     case 'CONDEMN_WILL': return buildCondemnAction(context);
+    case 'OBSERVER_WILL': return buildObserverWillAction(context);
     default: return createCancelCardAction();
     }
 }

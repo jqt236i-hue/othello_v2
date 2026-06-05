@@ -62,6 +62,8 @@ function loadRuntimeModule(id: string, globalKey: string): any {
 
 const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
 
+const DeckSpecHelpers = loadRuntimeModule('../../shared/deck-spec', 'DeckSpecHelpers');
+
 const PlayerEncoding = loadRuntimeModule('../../shared/player-encoding', 'PlayerEncoding');
 
 const CardHandManager = loadRuntimeModule('../logic/cards-internal/hand-manager', 'CardHandManager');
@@ -168,6 +170,9 @@ function getDeck(cardState: CardState, playerKey: string): string[] {
 }
 
 function createDefaultDeck(prng?: any): string[] {
+    if (DeckSpecHelpers && typeof DeckSpecHelpers.sampleDefaultDeckCardIds === 'function') {
+        return DeckSpecHelpers.sampleDefaultDeckCardIds(prng);
+    }
     const seen = new Set<string>();
     const deck: string[] = [];
     (CARD_DEFS || []).forEach((cardDef: any) => {

@@ -27,6 +27,18 @@ type CardInteractionNullableRecord = Record<string, any> | null;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
+const SpecialCardRegistry = (() => {
+    try {
+        return _require('../shared/special-card-registry');
+    } catch (e) {
+        try {
+            return (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).SpecialCardRegistry)
+                ? (globalThis as CardInteractionRuntimeRoot).SpecialCardRegistry
+                : null;
+        } catch (e2) { /* ignore */ }
+    }
+    return null;
+})();
 
 // ===== Card UI State & Interaction (Refactored to use CardLogic) =====
 
@@ -103,6 +115,14 @@ function _resolveEmitBoardUpdateFn() {
 function _resolveRenderBoardFn() {
     if (typeof renderBoard === 'function') return renderBoard;
     return _readCardInteractionRuntimeFunction('renderBoard');
+}
+
+function _isSpecialCardIdForInteraction(cardId: any): boolean {
+    if (!cardId) return false;
+    if (SpecialCardRegistry && typeof SpecialCardRegistry.isInviolableSpecialCardId === 'function') {
+        return SpecialCardRegistry.isInviolableSpecialCardId(cardId) === true;
+    }
+    return false;
 }
 
 function _renderBoardImmediately() {
@@ -275,6 +295,7 @@ const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換の意志は対象外。誘惑・捕獲は受け流し、それ以外の効果は通常どおり受ける。',
     '反転保護': '反転されない。挟める列ごと無効できる。',
     '完全保護': '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。',
+    '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
     'マス破壊': 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。',
     '破壊／爆発': '石を消滅させる。完全保護以外の保護を貫通できる。',
     '連鎖反転': '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。',
@@ -653,7 +674,8 @@ function _getCardInteractionOverlayViewDeps() {
         getOverlayCardDescriptionText: _getOverlayCardDescriptionText,
         playUiEffectSound,
         executeHeavenSelection: _executeHeavenSelection,
-        executeCondemnSelection: _executeCondemnSelection
+        executeCondemnSelection: _executeCondemnSelection,
+        executeObserverWillSelection: _executeObserverWillSelection
     };
 }
 
@@ -684,6 +706,7 @@ const _cardInteractionDetailActions = (_cardInteractionDetailActionsModule && ty
         getCardDef: (cardId: any) => ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
             ? CardLogic.getCardDef(cardId)
             : null),
+        getEffectiveCardCost: (cardId: any, ownerKey: any) => _getEffectiveCardCostForHandCard(cardId, ownerKey),
         getCardStateValue: () => cardState,
         isSelectedCardUsableNow: _isSelectedCardUsableNow,
         getLegalMovesForCurrentPlayer: _getLegalMovesForCurrentPlayer,
@@ -1106,6 +1129,13 @@ function _executeHeavenSelection(playerKey: any, selectedCardId: any) {
 function _executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId: any) {
     if (_cardInteractionOverlaySelectionModule && typeof _cardInteractionOverlaySelectionModule.executeCondemnSelection === 'function') {
         return _cardInteractionOverlaySelectionModule.executeCondemnSelection(playerKey, targetIndex, targetCardId, _getCardInteractionOverlaySelectionDeps());
+    }
+    return { ok: false, reason: 'overlay_selection_unavailable' };
+}
+
+function _executeObserverWillSelection(playerKey: any, targetIndex: any, targetCardId: any) {
+    if (_cardInteractionOverlaySelectionModule && typeof _cardInteractionOverlaySelectionModule.executeObserverWillSelection === 'function') {
+        return _cardInteractionOverlaySelectionModule.executeObserverWillSelection(playerKey, targetIndex, targetCardId, _getCardInteractionOverlaySelectionDeps());
     }
     return { ok: false, reason: 'overlay_selection_unavailable' };
 }
@@ -1865,6 +1895,25 @@ function _resolveSelectedHandCardActionContext(options: any) {
     };
 }
 
+function _getEffectiveCardCostForHandCard(cardId: any, ownerKey: any) {
+    const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+        ? CardLogic.getCardDef(cardId)
+        : null;
+    const baseCost = cardDef ? (cardDef.cost || 0) : 0;
+    try {
+        if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[ownerKey])) return baseCost;
+        if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getHandCopyIdAt !== 'function' || typeof CardLogic.getEffectiveCardCostForCopy !== 'function') {
+            return baseCost;
+        }
+        const handIndex = cardState.hands[ownerKey].indexOf(cardId);
+        if (handIndex < 0) return baseCost;
+        const copyId = CardLogic.getHandCopyIdAt(cardState, ownerKey, handIndex);
+        return CardLogic.getEffectiveCardCostForCopy(cardState, cardId, copyId);
+    } catch (e) {
+        return baseCost;
+    }
+}
+
 function _runCardPipelineActionOrLogFailure(playerKey: any, action: any, failureMessage: any) {
     const result = _runPipelineAction(playerKey, action);
     if (result.ok) return result;
@@ -2321,7 +2370,7 @@ function onCardClick(cardId: any, ownerKey: any) {
         _requestImmediateVisualBoardRefresh();
         return;
     }
-    if (pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL') && pending.stage === 'selectTarget') {
+    if (pending && (pending.type === 'HEAVEN_BLESSING' || pending.type === 'CONDEMN_WILL' || pending.type === 'OBSERVER_WILL') && pending.stage === 'selectTarget') {
         return;
     }
 
@@ -2381,7 +2430,7 @@ function useSelectedCard() {
     const cardDef = CardLogic.getCardDef(cardId);
 
     // Charge Check (in debug mode, skip)
-    const cost = cardDef ? cardDef.cost : 0;
+    const cost = _getEffectiveCardCostForHandCard(cardId, actionPlayerKey);
     if (!isDebugUnlimited && (cardState.charge[actionPlayerKey] || 0) < cost) {
         addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[actionPlayerKey] || 0})`);
         return;
@@ -2453,6 +2502,7 @@ function useSelectedCard() {
     }
 
     const shouldDelayPostUseHandVisual = !!(cardDef && (cardDef.type === 'TREASURE_BOX' || cardDef.type === 'REBUILD_WILL' || cardDef.type === 'SUPPLY_WILL'))
+        || _isSpecialCardIdForInteraction(cardId)
         || _hasHandRemovePlaybackEvent(result);
     _ensureBoardPendingSelectionAfterCardUse(result, actionPlayerKey, cardId, cardDef);
     const entersBoardTargetSelection = _doesRunResultEnterBoardTargetSelectionForOwner(result, actionPlayerKey);

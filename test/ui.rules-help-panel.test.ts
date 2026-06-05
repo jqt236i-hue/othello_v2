@@ -357,7 +357,6 @@ describe('rules help panel', () => {
     expect(html).toMatch(/完全保護の残りターン/);
     expect(html).toMatch(/特殊石本体の持続ターン/);
     expect(html).toMatch(/カウントダウン専用の残り回数/);
-    expect(html).toMatch(/継承多動の残りターン/);
     expect(html).toMatch(/破壊回避の残り回数/);
   });
 

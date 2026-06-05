@@ -1,6 +1,7 @@
 type OfferBuildersDeps = {
     cardDefs?: any[];
     heavenBlessingOfferCount?: number;
+    isInviolableSpecialCardId?: (cardId: unknown) => boolean;
 };
 
 function createDeterministicRandomSource(seedText: any) {
@@ -23,6 +24,9 @@ export function createOfferBuilders(deps?: OfferBuildersDeps) {
     const heavenBlessingOfferCount = Number.isFinite(Number(deps?.heavenBlessingOfferCount))
         ? Math.max(1, Math.trunc(Number(deps?.heavenBlessingOfferCount)))
         : 5;
+    const isInviolableSpecialCardId = typeof deps?.isInviolableSpecialCardId === 'function'
+        ? deps.isInviolableSpecialCardId
+        : () => false;
 
     function buildHeavenBlessingSeedHint(cardState: any, playerKey: any) {
         const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
@@ -32,7 +36,8 @@ export function createOfferBuilders(deps?: OfferBuildersDeps) {
     function buildHeavenBlessingOffers(cardIdToExclude: any, prng: any, seedHint: any) {
         const pool = cardDefs
             .filter((c: any) => c && c.enabled !== false && c.id && c.id !== cardIdToExclude)
-            .map((c: any) => c.id);
+            .map((c: any) => c.id)
+            .filter((cardId: any) => !isInviolableSpecialCardId(cardId));
         if (pool.length === 0) return [];
 
         const randomSource = (prng && typeof prng.random === 'function')
@@ -51,7 +56,9 @@ export function createOfferBuilders(deps?: OfferBuildersDeps) {
         if (!cardState || !cardState.hands) return [];
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const hand = Array.isArray(cardState.hands[opponentKey]) ? cardState.hands[opponentKey] : [];
-        return hand.map((cardId: any, handIndex: any) => ({ handIndex, cardId }));
+        return hand
+            .map((cardId: any, handIndex: any) => ({ handIndex, cardId }))
+            .filter((offer: any) => !isInviolableSpecialCardId(offer.cardId));
     }
 
     return {

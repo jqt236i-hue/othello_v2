@@ -10,10 +10,7 @@ type BoardEventPlaybackDeps = {
     getDestroyOutcomeKind: (meta: any) => any;
     getMoveIntent: (target: any) => any;
     getPrimaryTimerFromMeta: (meta: any) => any;
-    getInheritedTimerFromMeta: (meta: any) => any;
-    getInheritedOwnerFromMeta: (meta: any) => any;
     getFlipEvadeRemainingFromMeta: (meta: any) => any;
-    getInheritedFlipEvadeRemainingFromMeta: (meta: any) => any;
     getDestroyEvadeRemainingFromMeta: (meta: any) => any;
     isChainFlipPresentationEvent: (ev: any) => boolean;
     getChainFlipLink: (ev: any) => any;
@@ -274,10 +271,7 @@ function createOverlapReturnAfterState(meta: any, overlapOwner: any, overlapSpec
         special: overlapSpecial,
         timer: includeMetaVisual ? deps.getPrimaryTimerFromMeta(meta) : null,
         owner: overlapOwner || null,
-        inheritedTimer: includeMetaVisual ? deps.getInheritedTimerFromMeta(meta) : null,
-        inheritedOwner: includeMetaVisual ? deps.getInheritedOwnerFromMeta(meta) : null,
         flipEvadeRemaining: includeMetaVisual ? deps.getFlipEvadeRemainingFromMeta(meta) : null,
-        inheritedFlipEvadeRemaining: includeMetaVisual ? deps.getInheritedFlipEvadeRemainingFromMeta(meta) : null,
         destroyEvadeRemaining: includeMetaVisual ? deps.getDestroyEvadeRemainingFromMeta(meta) : null
     };
 }

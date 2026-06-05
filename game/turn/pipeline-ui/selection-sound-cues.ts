@@ -44,15 +44,6 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
         deps.pushSoundCue(ctx, 'living_will_selected', livingWillPhase, 'living_will_selected');
     }
 
-    const hyperactiveInheritSelectPhase = deps.findPhase(
-        ctx.base,
-        (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
-        ctx.fallbackPhase
-    );
-    if (deps.hasRawEvent(ctx.raw, 'hyperactive_inherit_selected', (ev: any) => !!(ev && ev.applied))) {
-        deps.pushSoundCue(ctx, 'guard_select', hyperactiveInheritSelectPhase, 'hyperactive_inherit_selected');
-    }
-
     const blockadeSelectPhase = deps.findPhase(
         ctx.base,
         (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'BLOCKADE',

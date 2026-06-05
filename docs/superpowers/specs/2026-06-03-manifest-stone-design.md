@@ -80,7 +80,7 @@ marker.kind === 'specialStone' && isManifestStoneType(marker.data?.type)
 
 ## Behavior Boundaries
 
-- 顕現石は誘惑、捕獲、意志の喪失、悪食、再構築、破棄、天の恵み、カード奪取の対象外にする。
+- 顕現石は通常反転、破壊、移動、位置入替、テレポート、穴化、状態付与、誘惑、捕獲、意志の喪失、延命、腐食、悪食、再構築、破棄、天の恵み、カード奪取の対象外にする。
 - 顕現石は絶対保護判定に通す。
 - `THEORY_INCARNATION` は owner のカード使用と石配置をロックする。
 - `BOARD_EXECUTOR` は両者のカード使用をロックする。

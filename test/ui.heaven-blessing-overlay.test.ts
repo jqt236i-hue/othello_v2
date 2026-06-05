@@ -186,6 +186,38 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('treasure_gain');
   });
 
+  test('OBSERVER_WILL overlay shows cost warning only during observer selection', () => {
+    global.cardState.hands.white = ['offer_1', 'offer_2'];
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'OBSERVER_WILL',
+      stage: 'selectTarget',
+      offers: [
+        { handIndex: 0, cardId: 'offer_1' },
+        { handIndex: 1, cardId: 'offer_2' }
+      ]
+    };
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const warning = document.getElementById('heaven-blessing-warning');
+    expect(warning).toBeTruthy();
+    expect(warning.hidden).toBe(false);
+    expect(warning.textContent).toContain('選択したカードは0コストで獲得');
+    expect(warning.textContent).toContain('観測済みの相手手札はコスト+5');
+
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [{ handIndex: 0, cardId: 'offer_1' }]
+    };
+
+    window.updateCardDetailPanel();
+
+    expect(warning.hidden).toBe(true);
+    expect(warning.textContent).toBe('');
+  });
+
   test('hand full disables selection with reason text', () => {
     global.cardState.hands.black = ['a', 'b', 'c', 'd', 'e'];
     require('../cards/card-interaction.js');

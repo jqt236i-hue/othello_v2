@@ -105,6 +105,9 @@ function runScenario(config: Record<string, unknown>) {
     "    moveDestinationValue,",
     "    sourceMarkers,",
     "    storedPending: storedRoom.snapshot.cardState.pendingEffectByPlayer.black,",
+    "    hasUsedCardThisTurn: storedRoom.snapshot.cardState.hasUsedCardThisTurnByPlayer.black,",
+    "    turnIndex: storedRoom.snapshot.cardState.turnIndex,",
+    "    turnCountBlack: storedRoom.snapshot.cardState.turnCountByPlayer.black,",
     "    moveEvent",
     "  }));",
     "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
@@ -199,7 +202,9 @@ describe('worker movement pending selection publish', () => {
       source: { row: 4, col: 4 },
       destination: null,
       moveIntent: 'teleport_move',
-      createsMeteorHole: true
+      createsMeteorHole: true,
+      expectSameTurnCardUseState: true,
+      expectTeleportSound: true
     }
   ])('$pendingType mutates authoritative board and emits move playback', (config) => {
     const result = runScenario(config);
@@ -213,6 +218,21 @@ describe('worker movement pending selection publish', () => {
     if (config.blocker) expect(result.blockerValue).toBe(config.blockerShouldRemain ? -1 : 0);
     expect(result.destinationValue).toBe(1);
     expect(result.storedPending).toBeNull();
+    if (config.expectSameTurnCardUseState) {
+      expect(result.hasUsedCardThisTurn).toBe(true);
+      expect(result.turnIndex).toBe(1);
+      expect(result.turnCountBlack).toBe(1);
+    }
+    if (config.expectTeleportSound) {
+      expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'sound_effect',
+          targets: expect.arrayContaining([
+            expect.objectContaining({ soundKey: 'teleport_select' })
+          ])
+        })
+      ]));
+    }
     expect(result.moveEvent).toEqual(expect.objectContaining({
       type: 'move',
       meta: expect.objectContaining({

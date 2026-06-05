@@ -68,6 +68,8 @@ const CardStateManagerModule = loadRuntimeModule('./state-manager', 'CardStateMa
 const CardPendingStateManagerModule = loadRuntimeModule('../logic/cards-internal/pending-state-manager', 'CardPendingStateManager');
 const CardUsagePrechecksModule = loadRuntimeModule('../logic/cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
 const PendingSelectionRegistryModule = loadRuntimeModule('../logic/cards-internal/pending-selection-registry', 'PendingSelectionRegistry', {});
+const CardMarkersModule = loadRuntimeModule('../logic/cards/markers', 'CardMarkers', null);
+const ManifestStoneRegistry = loadRuntimeModule('../../shared/manifest-stone-registry', 'ManifestStoneRegistry', null);
 
 const {
   CARD_DEFS,
@@ -77,6 +79,14 @@ const {
   EMPTY,
   CHARGE_MAX
 } = SharedConstants || {};
+
+function isManifestStoneType(rawType: any): boolean {
+  if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+    return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+  }
+  const type = String(rawType || '').trim().toUpperCase();
+  return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+}
 
 const MAX_HAND_SIZE = 5;
 const RIBO_WILL_UNLOCK_TURN_INDEX = 19;
@@ -221,6 +231,7 @@ function getCardEffectTimingContext(deps: any) {
     defaultPrng,
     _ensureHandDestroyFlags,
     processRiboWillTurnStartEffects,
+    processObserverWillRepaymentsAtTurnStart,
     commitDraw,
     getSpecialMarkers,
     getCardContext,
@@ -256,8 +267,6 @@ function getCardEffectTimingContext(deps: any) {
     SNIPER_WILL_TURNS,
     DESTROY_DRAGON_TURNS,
     LIGHTNING_WILL_TURNS,
-    OBSERVER_WILL_TURNS,
-    THEORY_INCARNATION_TURNS,
     GHOST_WILL_TURNS,
     SEED_WILL_TURNS,
     WILL_HUNTER_KING_TURNS,
@@ -291,8 +300,6 @@ function getCardEffectTimingContext(deps: any) {
       SNIPER_WILL_TURNS,
       DESTROY_DRAGON_TURNS,
       LIGHTNING_WILL_TURNS,
-      OBSERVER_WILL_TURNS,
-      THEORY_INCARNATION_TURNS,
       GHOST_WILL_TURNS,
       SEED_WILL_TURNS,
       WILL_HUNTER_KING_TURNS,
@@ -305,6 +312,7 @@ function getCardEffectTimingContext(deps: any) {
     helpers: {
       ensureHandDestroyFlags: _ensureHandDestroyFlags,
       processRiboWillTurnStartEffects,
+      processObserverWillRepaymentsAtTurnStart,
       commitDraw,
       getSpecialMarkers,
       getCardContext,
@@ -372,11 +380,19 @@ function getCardEffectTimingContext(deps: any) {
 }
 
 function getCardContext(cardState: any, deps: any) {
-  const { getSpecialMarkers, getBombMarkers, getBlockingMarkers, isFrozenCellForCard } = deps || {};
+  const { getSpecialMarkers, getManifestMarkers, getBombMarkers, getBlockingMarkers, isFrozenCellForCard } = deps || {};
 
   const specials = typeof getSpecialMarkers === 'function'
     ? getSpecialMarkers(cardState)
     : (cardState && Array.isArray(cardState.markers) ? cardState.markers.filter((m: any) => m && m.kind === 'specialStone') : []);
+  const manifests = typeof getManifestMarkers === 'function'
+    ? getManifestMarkers(cardState)
+    : (cardState && Array.isArray(cardState.markers) ? cardState.markers.filter((m: any) => (
+      m &&
+      (m.kind === 'manifestStone' || m.kind === 'specialStone') &&
+      m.data &&
+      isManifestStoneType(m.data.type)
+    )) : []);
 
   const protectedStones = specials
     .filter((s: any) => s.data && s.data.type === 'PROTECTED')
@@ -384,6 +400,7 @@ function getCardContext(cardState: any, deps: any) {
 
   const absoluteProtectedStones = specials
     .filter((s: any) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
+    .concat(manifests)
     .map((s: any) => ({
       row: s.row,
       col: s.col,
@@ -411,6 +428,7 @@ function getCardContext(cardState: any, deps: any) {
       if (typeof isFrozenCellForCard === 'function' && isFrozenCellForCard(cardState, s.row, s.col)) return true;
       return false;
     })
+    .concat(manifests)
     .map((s: any) => ({
       row: s.row,
       col: s.col,
@@ -456,10 +474,14 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     handOwnerKey,
     opts,
     getCardCost: getCardCostFn,
+    getHandCopyIdAt,
+    getEffectiveCardCostForCopy,
     getCardType: getCardTypeFn,
     buildHeavenBlessingSeedHint,
     buildHeavenBlessingOffers,
     buildCondemnOffers,
+    buildObserverWillOffers,
+    applyTheoryIncarnationUsage,
     hasStandardLegalMoveForPlayer,
     canUseLastResortForPlayer,
     canUseEqualityWillForPlayer,
@@ -515,6 +537,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     addGeneratedChainWillCard,
     getCardDef: getCardDefFn,
     getCardDisplayName: getCardDisplayNameFn,
+    isCardPlayLockedForPlayer,
     CardPendingStateManagerModule: CardPendingStateManagerModuleLocal,
     CardUsagePrechecksModule: CardUsagePrechecksModuleLocal,
     TIME_STOP_GOD_SELF_DESTROY_COUNT: timeStopSelfDestroyCount,
@@ -527,12 +550,21 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
   const handKey = (typeof handOwnerKey === 'string' && handOwnerKey) ? handOwnerKey : playerKey;
 
   if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[handKey])) return false;
+  const cardPlayLocked = typeof isCardPlayLockedForPlayer === 'function'
+    ? isCardPlayLockedForPlayer(cardState, chargeOwnerKey) === true
+    : !!(CardMarkersModule && typeof CardMarkersModule.isCardPlayLockedForPlayer === 'function' && CardMarkersModule.isCardPlayLockedForPlayer(cardState, chargeOwnerKey));
+  if (cardPlayLocked) return false;
 
   const idx = cardState.hands[handKey].indexOf(cardId);
   if (idx === -1) return false;
 
   const costFn = typeof getCardCostFn === 'function' ? getCardCostFn : getCardCost;
-  const cost = costFn(cardId);
+  const cardCopyIdForCost = typeof getHandCopyIdAt === 'function'
+    ? getHandCopyIdAt(cardState, handKey, idx)
+    : null;
+  const cost = typeof getEffectiveCardCostForCopy === 'function'
+    ? getEffectiveCardCostForCopy(cardState, cardId, cardCopyIdForCost)
+    : costFn(cardId);
 
   if (!(_opts.ignoreCost === true)) {
     if (!cardState.charge || cardState.charge[chargeOwnerKey] < cost) return false;
@@ -572,6 +604,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       getReverseWillTargets,
       buildHeavenBlessingOffers,
       buildCondemnOffers,
+      buildObserverWillOffers,
       getTemptWillTargets,
       getCaptureWillTargets,
       getStrongWindTargets,
@@ -613,6 +646,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
   if (!usagePrecheck || usagePrecheck.ok !== true) return false;
   const heavenOffers = Array.isArray(usagePrecheck.heavenOffers) ? usagePrecheck.heavenOffers : null;
   const condemnOffers = Array.isArray(usagePrecheck.condemnOffers) ? usagePrecheck.condemnOffers : null;
+  const observerWillOffers = Array.isArray(usagePrecheck.observerWillOffers) ? usagePrecheck.observerWillOffers : null;
 
   let removedCard = null;
   if (!(_opts.noConsume === true)) {
@@ -631,7 +665,13 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
   }
   cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
 
-  const pendingOffers = heavenOffers || condemnOffers || undefined;
+  if (cardType === 'THEORY_INCARNATION') {
+    if (typeof applyTheoryIncarnationUsage !== 'function') return false;
+    const theoryRes = applyTheoryIncarnationUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
+    if (!theoryRes || theoryRes.applied !== true) return false;
+  }
+
+  const pendingOffers = heavenOffers || condemnOffers || observerWillOffers || undefined;
   const needsSelection = !!(
     CardPendingStateManagerModule
     && typeof CardPendingStateManagerModule.requiresTargetSelection === 'function'

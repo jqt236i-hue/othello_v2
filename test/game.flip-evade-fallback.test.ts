@@ -85,16 +85,6 @@ const FLIP_EVADE_CASES = Object.freeze([
     markerData: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5, flipEvadeRemaining: 1 }
   },
   {
-    type: 'INHERITED_HYPERACTIVE',
-    markerData: {
-      type: 'INHERITED_HYPERACTIVE',
-      remainingOwnerTurns: 10,
-      flipEvadeRemaining: 1,
-      destroyEvadeRemaining: 1,
-      hyperactiveSeq: 1
-    }
-  },
-  {
     type: 'EXTREME_HYPERACTIVE',
     markerData: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 }
   },

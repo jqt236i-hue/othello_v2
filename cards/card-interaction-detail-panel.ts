@@ -114,6 +114,13 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
 
     function getCardDetailLiveStateText(cardDef: any, ownerKey: any) {
         if (!cardDef || !ownerKey) return '';
+        if (cardDef.type === 'THEORY_INCARNATION') {
+            const cardStateValue = cfg.getCardStateValue();
+            const totals = cardStateValue && cardStateValue.numberCellCollectedTotalByPlayer;
+            const collected = Number(totals && totals[ownerKey] || 0);
+            const safeCollected = Number.isFinite(collected) ? Math.max(0, Math.floor(collected)) : 0;
+            return `数字合計 ${safeCollected}/42`;
+        }
         if (cardDef.type === 'SALVATION_WILL') {
             return getSalvationWillLiveStateText(ownerKey);
         }

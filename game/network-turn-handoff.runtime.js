@@ -18,7 +18,6 @@
         'DRAGON',
         'HYPERACTIVE',
         'ESCAPE_HYPERACTIVE',
-        'INHERITED_HYPERACTIVE',
         'EXTREME_HYPERACTIVE',
         'ROBOT_VACUUM',
         'GLUTTONOUS',

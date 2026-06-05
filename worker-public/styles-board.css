@@ -114,6 +114,21 @@
     z-index: 6;
 }
 
+.cell.has-theory-number-cell {
+    box-shadow:
+        inset 0 0 0 1px rgba(238, 210, 121, 0.35),
+        inset 0 0 18px rgba(92, 55, 175, 0.34),
+        0 0 14px rgba(236, 193, 92, 0.18);
+}
+
+.cell.has-theory-number-cell .board-bonus-number {
+    color: rgba(255, 235, 169, 0.82);
+    text-shadow:
+        0 0 7px rgba(255, 235, 169, 0.86),
+        0 0 18px rgba(124, 82, 255, 0.58),
+        0 1px 3px rgba(0, 0, 0, 0.62);
+}
+
 .cell.has-disc::before {
     content: "";
     position: absolute;
@@ -549,6 +564,47 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
     }
 }
 
+.disc.manifest-stone-aura {
+    --manifest-stone-aura-ring: rgba(190, 220, 255, 0.64);
+    --manifest-stone-aura-core: rgba(255, 255, 255, 0.52);
+    filter:
+        drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) var(--manifest-stone-aura-core))
+        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--manifest-stone-aura-ring));
+}
+
+.disc.manifest-stone-aura .disc__face {
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) var(--manifest-stone-aura-core),
+        0 0 calc(12px * var(--layout-stage-scale)) var(--manifest-stone-aura-ring),
+        inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.16);
+}
+
+.disc.manifest-stone-aura.manifest-stone-aura-black {
+    --manifest-stone-aura-ring: rgba(18, 22, 30, 0.94);
+    --manifest-stone-aura-core: rgba(0, 0, 0, 0.74);
+}
+
+.disc.manifest-stone-aura.manifest-stone-aura-black .disc__face {
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(20, 24, 32, 0.95),
+        0 0 calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.92),
+        0 0 calc(22px * var(--layout-stage-scale)) rgba(42, 48, 60, 0.48),
+        inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.08);
+}
+
+.disc.manifest-stone-aura.manifest-stone-aura-white {
+    --manifest-stone-aura-ring: rgba(230, 245, 255, 0.86);
+    --manifest-stone-aura-core: rgba(255, 255, 255, 0.88);
+}
+
+.disc.manifest-stone-aura.manifest-stone-aura-white .disc__face {
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.95),
+        0 0 calc(12px * var(--layout-stage-scale)) rgba(230, 245, 255, 0.92),
+        0 0 calc(22px * var(--layout-stage-scale)) rgba(180, 210, 255, 0.46),
+        inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.18);
+}
+
 /* Board stones: enlarge all discs by +10% while keeping them centered in each cell. */
 #board .disc {
     width: var(--board-disc-size);
@@ -686,7 +742,6 @@ html.stone-images-loaded .disc.white {
 .disc.silver-stone,
 .disc.hyperactive-stone,
 .disc.sniper-stone,
-.disc.observer-stone,
 .disc.trap-stone {
     background: none !important;
     border: none !important;
@@ -836,30 +891,6 @@ html.stone-images-loaded .disc.white {
         rgba(40, 86, 60, 0.64);
     border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
     box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
-}
-
-.special-timer.inherited-hyperactive-timer,
-.inherited-hyperactive-timer {
-    left: calc(6px * var(--layout-stage-scale));
-    right: auto;
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-50%);
-    line-height: 1;
-    width: calc(18px * var(--layout-stage-scale));
-    height: calc(16px * var(--layout-stage-scale));
-    min-width: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: calc(1px * var(--layout-stage-scale)) 0 calc(3px * var(--layout-stage-scale));
-    border-radius: 0;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 44%),
-        rgba(171, 88, 46, 0.66);
-    border: var(--layout-size-border-thin) solid rgba(255, 213, 186, 0.70);
-    box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
-    clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
 }
 
 .stone-timer.flip-evade-timer,
@@ -1221,19 +1252,6 @@ body.othello-mode-active :is(
 .disc.sniper-stone.ud-white,
 .disc.sniper-stone[data-ud="white"] {
     --special-stone-image: url('assets/images/stones/sna-white.png');
-}
-
-.disc.observer-stone {
-}
-
-.disc.observer-stone.ud-black,
-.disc.observer-stone[data-ud="black"] {
-    --special-stone-image: url('assets/images/stones/OBSERVER_WILL-black.png');
-}
-
-.disc.observer-stone.ud-white,
-.disc.observer-stone[data-ud="white"] {
-    --special-stone-image: url('assets/images/stones/OBSERVER_WILL-white.png');
 }
 
 .disc.trap-stone {

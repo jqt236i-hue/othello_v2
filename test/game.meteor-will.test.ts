@@ -11,7 +11,7 @@ function createPrng(randomValue = 0.5) {
   };
 }
 
-describe('METEOR_WILL（隕石）', () => {
+describe('METEOR_WILL（因果抹消）', () => {
   test('守護中の石を貫通破壊し、穴を永続生成して再ターゲット不可にする', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'METEOR_WILL');
     expect(def).toBeTruthy();
@@ -92,7 +92,7 @@ describe('METEOR_WILL（隕石）', () => {
     expect(meteorTargets.some((t) => t.row === 5 && t.col === -1)).toBe(false);
   });
 
-  test('絶対保護マスは隕石の候補に出ず、直接指定してもpendingは残る', () => {
+  test('絶対保護マスは因果抹消の候補に出ず、直接指定してもpendingは残る', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -123,7 +123,7 @@ describe('METEOR_WILL（隕石）', () => {
     expect((cardState.markers || []).some((m) => m && m.row === 3 && m.col === 3 && m.data && m.data.type === 'METEOR_HOLE')).toBe(false);
   });
 
-  test('封鎖済みセルにも隕石を落とせる（封鎖を消去して穴化）', () => {
+  test('封鎖済みセルにも因果抹消を使える（封鎖を消去して穴化）', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -154,7 +154,7 @@ describe('METEOR_WILL（隕石）', () => {
     expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
   });
 
-  test('凍結マスや種マスにも隕石を落とせ、既存マス状態を消去して穴化する', () => {
+  test('凍結マスや種マスにも因果抹消を使え、既存マス状態を消去して穴化する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -210,7 +210,7 @@ describe('METEOR_WILL（隕石）', () => {
     expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
   });
 
-  test('復活の意志付きの石に隕石を使うと復活せず元マスは穴になる', () => {
+  test('復活の意志付きの石に因果抹消を使うと復活せず元マスは穴になる', () => {
     const rng = createPrng(0);
     const cardState = CardLogic.createCardState(rng);
     const gameState = Core.createGameState();
@@ -238,7 +238,7 @@ describe('METEOR_WILL（隕石）', () => {
     expect(CardLogic.isBlockedCell(cardState, 2, 2, gameState)).toBe(true);
   });
 
-  test('生きる意志付きの石に隕石を使うと復活せず元マスだけが穴になる', () => {
+  test('生きる意志付きの石に因果抹消を使うと復活せず元マスだけが穴になる', () => {
     const rng = createPrng(0);
     const cardState = CardLogic.createCardState(rng);
     const gameState = Core.createGameState();
@@ -279,7 +279,7 @@ describe('METEOR_WILL（隕石）', () => {
     ))).toBe(false);
   });
 
-  test('ターン進行経由でも生きる意志付きの石へ隕石を使える', () => {
+  test('ターン進行経由でも生きる意志付きの石へ因果抹消を使える', () => {
     const rng = createPrng(0);
     const cardState = CardLogic.createCardState(rng);
     const gameState = Core.createGameState();

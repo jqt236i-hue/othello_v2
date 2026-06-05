@@ -30,6 +30,33 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     expect(status && status.meta && status.meta.special).toBe('HYPERACTIVE');
   });
 
+  test('manifest stone marker backfills prior SPAWN meta through the same placement visual path', () => {
+    const prng = { shuffle: (arr) => arr };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+
+    cardState._currentActionMeta = { actionId: 'observer-1', turnIndex: 18, plyIndex: 18 };
+
+    BoardOps.spawnAt(cardState, gameState, 4, 5, 'black', 'SYSTEM', 'standard_place');
+    CardLogic.addMarker(cardState, 'manifestStone', 4, 5, 'black', {
+      type: 'OBSERVER_WILL',
+      remainingOwnerTurns: 5,
+      absoluteProtected: true,
+      visualEffectKey: 'observerWillStone'
+    });
+
+    const spawn = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'SPAWN' && e.row === 4 && e.col === 5);
+    expect(spawn && spawn.meta && spawn.meta.special).toBe('OBSERVER_WILL');
+    expect(spawn && spawn.meta && spawn.meta.timer).toBe(5);
+    expect(spawn && spawn.meta && spawn.meta.owner).toBe('black');
+    expect(spawn && spawn.meta && spawn.meta.visualEffectKey).toBe('observerWillStone');
+    expect(spawn && spawn.meta && spawn.meta.manifestAura).toEqual({ owner: 'black' });
+
+    const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 4 && e.col === 5);
+    expect(status && status.meta && status.meta.special).toBe('OBSERVER_WILL');
+    expect(status && status.meta && status.meta.manifestAura).toEqual({ owner: 'black' });
+  });
+
   test('ultimate hyperactive marker also backfills SPAWN meta', () => {
     const prng = { shuffle: (arr) => arr };
     const cardState = CardLogic.createCardState(prng);

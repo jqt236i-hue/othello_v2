@@ -104,10 +104,24 @@ try {
   console.warn("[boot] skip " + "dist/shared/destroy-outcome-contract: " + e.message);
 }
 
+// dist/shared/manifest-stone-registry
+try {
+  var _modManifestStoneRegistry = require("./dist/shared/manifest-stone-registry");
+  if (_modManifestStoneRegistry) {
+    Object.assign(window, _modManifestStoneRegistry);
+    window.ManifestStoneRegistry = _modManifestStoneRegistry;
+  }
+} catch (e) {
+  console.warn("[boot] skip " + "dist/shared/manifest-stone-registry: " + e.message);
+}
+
 // dist/shared/special-stone-registry
 try {
   var _mod12 = require("./dist/shared/special-stone-registry");
-  if (_mod12) Object.assign(window, _mod12);
+  if (_mod12) {
+    Object.assign(window, _mod12);
+    window.SpecialStoneRegistry = _mod12;
+  }
 } catch (e) {
   console.warn("[boot] skip " + "dist/shared/special-stone-registry: " + e.message);
 }
@@ -115,7 +129,10 @@ try {
 // dist/shared/stone-status-snapshot
 try {
   var _mod13 = require("./dist/shared/stone-status-snapshot");
-  if (_mod13) Object.assign(window, _mod13);
+  if (_mod13) {
+    Object.assign(window, _mod13);
+    window.StoneStatusSnapshot = _mod13;
+  }
 } catch (e) {
   console.warn("[boot] skip " + "dist/shared/stone-status-snapshot: " + e.message);
 }

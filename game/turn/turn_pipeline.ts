@@ -52,7 +52,13 @@ function applyTurn(cardState: any, gameState: any, playerKey: string, action: an
       SubPlacementContinuation.isSubPlacementTurnActive(cardState, normalizedPlayerKey)
     );
     if (opts.skipTurnStart !== true && skipTurnStartForSubPlacement !== true) {
-      TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+      const turnStartResult = TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+      if (turnStartResult && turnStartResult.stopAction === true) {
+        const presentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
+          ? CardLogic.flushPresentationEvents(cardState)
+          : (cardState.presentationEvents || []).slice();
+        return { gameState, cardState, events, presentationEvents };
+      }
     }
 
     // 2) Card usage (optional)

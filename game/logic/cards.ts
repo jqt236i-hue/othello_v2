@@ -47,6 +47,7 @@ function resolveCardLogicGlobalOrModule(globalKey: string, id: string): any {
 // Import dependencies
 const SharedConstants = resolveCardLogicModuleOrGlobal('../../shared-constants', 'SharedConstants');
 const DeckSpecHelpers = resolveCardLogicModuleOrGlobal('../../shared/deck-spec', 'DeckSpecHelpers');
+const SpecialCardRegistry = resolveCardLogicModuleOrGlobal('../../shared/special-card-registry', 'SpecialCardRegistry');
 const SharedBoardUtils = resolveCardLogicModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils');
 const CardRandomSource = resolveCardLogicModuleOrGlobal('./cards-internal/random-source', 'CardRandomSource');
 const CardStateFactory = resolveCardLogicModuleOrGlobal('./cards-internal/state-factory', 'CardStateFactory');
@@ -134,12 +135,20 @@ const {
     const StoneStatusSnapshot = resolveCardLogicModuleOrGlobal('../../shared/stone-status-snapshot', 'StoneStatusSnapshot');
     const SpecialStoneRegistry = resolveCardLogicModuleOrGlobal('../../shared/special-stone-registry', 'SpecialStoneRegistry');
 
+    function isInviolableSpecialCardId(cardId: unknown): boolean {
+        return !!(
+            SpecialCardRegistry &&
+            typeof SpecialCardRegistry.isInviolableSpecialCardId === 'function' &&
+            SpecialCardRegistry.isInviolableSpecialCardId(cardId)
+        );
+    }
+
     function isOverlayOnlySpecialStoneType(type: any) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
             return SpecialStoneRegistry.isOverlayOnlySpecialStoneType(type);
         }
         const typeUpper = String(type || '').toUpperCase();
-        return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
+        return typeUpper === 'GUARD' || typeUpper === 'LIVING_WILL';
     }
 
     function resolveCardBoardConfig(boardOrConfig?: any) {
@@ -258,12 +267,10 @@ const {
     const SNIPER_WILL_TURNS = 5;
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 5;
-    const OBSERVER_WILL_TURNS = 5;
-    const THEORY_INCARNATION_TURNS = 10;
     const GHOST_WILL_TURNS = 5;
+    const PROLIFERATION_WILL_TURNS = 10;
     const WILL_HUNTER_KING_TURNS = 8;
     const ROBOT_VACUUM_TURNS = 5;
-    const INHERITED_HYPERACTIVE_TURNS = 10;
     const BLOCKADE_TURNS = 3;
     const FREEZE_TURNS = 5;
     const SEED_WILL_TURNS = 5;
@@ -380,7 +387,7 @@ const {
             sampleRandomPositions,
             destroyCellWithPresentation,
             revertSpecialStoneWithPresentation,
-            addChargeValue,
+            addChargeValue: addChargeValueWithDelta,
             addChargeWithTotal,
             destroyAt,
             runBoardOpsDestroyBlock,
@@ -669,6 +676,9 @@ const {
     const CardBoardExpansionApplyModule = resolveRequiredCardModule('./card-resolution/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveRequiredCardModule('./card-resolution/status-cells', 'CardStatusCellsEffects');
     const CardHandEffectsModule = resolveRequiredCardModule('./card-resolution/hand-effects', 'CardHandEffects');
+    const CardObserverWillResolutionModule = resolveRequiredCardModule('./card-resolution/observer-will', 'CardObserverWillResolution');
+    const CardTheoryIncarnationResolutionModule = resolveRequiredCardModule('./card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution');
+    const SpecialStoneMarkerFactoryModule = resolveRequiredCardModule('./card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory');
     const CardPositionSwapModule = resolveRequiredCardModule('./card-resolution/position-swap', 'CardPositionSwapEffects');
 
     function addChargeValue(cardState: any, playerKey: any, amount: any, reason: any, meta?: any) {
@@ -676,6 +686,13 @@ const {
             throw new Error('[cards.js] CardStateManager.addCharge not available');
         }
         return CardStateManager.addCharge(cardState, playerKey, amount, reason, meta);
+    }
+
+    function addChargeValueWithDelta(cardState: any, playerKey: any, amount: any, reason: any, meta?: any) {
+        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
+            return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, meta);
+        }
+        return addChargeValue(cardState, playerKey, amount, reason, meta);
     }
 
     function isGuardProtectedCell(cardState: any, row: any, col: any) {
@@ -870,7 +887,6 @@ const {
     const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
     const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
     const CardWorkModule = resolveRequiredCardModule('./cards/work_will', 'CardWork');
-    const CardObserverWillModule = resolveRequiredCardModule('./cards/observer_will', 'CardObserverWill');
     let CardEffectTimingModules: any = null;
 
     function createCardEffectTimingModules() {
@@ -953,8 +969,6 @@ const {
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
-        OBSERVER_WILL_TURNS,
-        THEORY_INCARNATION_TURNS,
         GHOST_WILL_TURNS,
                 SEED_WILL_TURNS,
                 WILL_HUNTER_KING_TURNS,
@@ -965,7 +979,6 @@ const {
                 MARKER_KINDS,
                 FLIP_CHARGE_MULTIPLIER_EFFECTS,
                 NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
-                INHERITED_HYPERACTIVE_TURNS,
                 ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
                 ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
                 GUARD_WILL_TURNS,
@@ -1001,7 +1014,6 @@ const {
                 getTrapTargets,
                 getGuardTargets,
                 getLivingWillTargets,
-                getHyperactiveInheritTargets,
                 getExtendLifeTargets,
                 getCorrosionTargets,
                 getTimeBombTargets,
@@ -1030,6 +1042,7 @@ const {
                 ensureCardCopyState,
                 ensureHandDestroyFlags: _ensureHandDestroyFlags,
                 processRiboWillTurnStartEffects,
+                processObserverWillRepaymentsAtTurnStart,
                 commitDraw,
                 getSpecialMarkers,
                 getCardContext,
@@ -1144,7 +1157,8 @@ const {
         }
         CardOfferBuildersCache = CardOfferBuildersModule.createOfferBuilders({
             cardDefs: CARD_DEFS,
-            heavenBlessingOfferCount: HEAVEN_BLESSING_OFFER_COUNT
+            heavenBlessingOfferCount: HEAVEN_BLESSING_OFFER_COUNT,
+            isInviolableSpecialCardId
         });
         return CardOfferBuildersCache;
     }
@@ -1167,6 +1181,7 @@ const {
             getSpecialMarkers,
             getBombMarkers,
             getMarkerRuleClass,
+            canLossWillRevertMarker: requireCardMarkersMethod('canLossWillRevertMarker'),
             isAbsoluteProtectedCell,
             ensureSalvationDestroyedLedger
         });
@@ -1342,6 +1357,10 @@ const {
         return requireCardMarkersMethod('getSpecialMarkers')(cardState);
     }
 
+    function getManifestMarkers(cardState: any) {
+        return requireCardMarkersMethod('getManifestMarkers')(cardState);
+    }
+
     function getBombMarkers(cardState: any) {
         return requireCardMarkersMethod('getBombMarkers')(cardState);
     }
@@ -1493,6 +1512,10 @@ const {
         return requireCardMarkersMethod('findSpecialMarkerAt')(cardState, row, col, type, owner);
     }
 
+    function findManifestMarkerAt(cardState: any, row: any, col: any, type?: any, owner?: any) {
+        return requireCardMarkersMethod('findManifestMarkerAt')(cardState, row, col, type, owner);
+    }
+
     function findBombMarkerAt(cardState: any, row: any, col: any) {
         return requireCardMarkersMethod('findBombMarkerAt')(cardState, row, col);
     }
@@ -1509,7 +1532,27 @@ const {
     }
 
     function isAbsoluteProtectedCell(cardState: any, row: any, col: any) {
+        const fn = CardMarkersModule && CardMarkersModule.isAbsoluteProtectedCell;
+        if (typeof fn === 'function') {
+            return !!fn(cardState, row, col);
+        }
         return !!findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
+    }
+
+    function isManifestStoneMarker(marker: any) {
+        return requireCardMarkersMethod('isManifestStoneMarker')(marker);
+    }
+
+    function isManifestStoneAt(cardState: any, row: any, col: any) {
+        return requireCardMarkersMethod('isManifestStoneAt')(cardState, row, col);
+    }
+
+    function isCardPlayLockedForPlayer(cardState: any, playerKey: any) {
+        return requireCardMarkersMethod('isCardPlayLockedForPlayer')(cardState, playerKey);
+    }
+
+    function isPlacementLockedForPlayer(cardState: any, playerKey: any) {
+        return requireCardMarkersMethod('isPlacementLockedForPlayer')(cardState, playerKey);
     }
 
     function hasSeedMarkerAt(cardState: any, row: any, col: any) {
@@ -1665,6 +1708,170 @@ const {
         return CardStateManager.removeMarker(cardState, markerId);
     }
 
+    function getObserverWillResolutionDeps() {
+        return {
+            MARKER_KINDS,
+            BLACK,
+            WHITE,
+            addMarker,
+            getMarkers,
+            getManifestMarkers,
+            isManifestStoneMarker,
+            removeMarkerById,
+            getCellValueForCard,
+            isAbsoluteProtectedCell,
+            sampleRandomPositions,
+            destroyCellWithPresentation,
+            isMainBoardCellForCard,
+            revertSpecialStoneWithPresentation,
+            revealCurrentHandToViewer,
+            addCardCostModifierForCopyId,
+            isInviolableSpecialCardId,
+            addChargeValue: addChargeValueWithDelta
+        };
+    }
+
+    function applyObserverWillStoneReservation(cardState: any, playerKey: any, row: any, col: any) {
+        return CardObserverWillResolutionModule.applyObserverWillStoneReservation(
+            cardState,
+            playerKey,
+            row,
+            col,
+            getObserverWillResolutionDeps()
+        );
+    }
+
+    function hasActiveObserverWillReveal(cardState: any, viewerKey: any, ownerKey: any) {
+        return CardObserverWillResolutionModule.hasActiveObserverWillReveal(
+            cardState,
+            viewerKey,
+            ownerKey,
+            getObserverWillResolutionDeps()
+        );
+    }
+
+    function processObserverWillMarkerAtTurnStart(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng?: any) {
+        return CardObserverWillResolutionModule.processObserverWillMarkerAtTurnStart(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            prng,
+            getObserverWillResolutionDeps()
+        );
+    }
+
+    function processObserverWillRepaymentsAtTurnStart(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardObserverWillResolutionModule.processObserverWillRepaymentsAtTurnStart(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getObserverWillResolutionDeps()
+        );
+    }
+
+    function observeActiveObserverWillHandForOwner(cardState: any, ownerKey: any) {
+        return CardObserverWillResolutionModule.observeActiveObserverWillHandForOwner(
+            cardState,
+            ownerKey,
+            getObserverWillResolutionDeps()
+        );
+    }
+
+    function applyObserverWillObservedCostTax(cardState: any, ownerKey: any, observedCopyIds: any, exemptCopyId?: any) {
+        return CardObserverWillResolutionModule.applyObserverWillObservedCostTax(
+            cardState,
+            ownerKey,
+            observedCopyIds,
+            getObserverWillResolutionDeps(),
+            exemptCopyId
+        );
+    }
+
+    function clearObserverWillObservationCost(cardState: any, cardCopyId: any) {
+        return CardObserverWillResolutionModule.clearObserverWillObservationCost(cardState, cardCopyId);
+    }
+
+    function getTheoryIncarnationResolutionDeps() {
+        return {
+            MARKER_KINDS,
+            BLACK,
+            WHITE,
+            EMPTY,
+            CARD_DEFS,
+            constants: {
+                GHOST_WILL_TURNS,
+                AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
+                AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
+                PROLIFERATION_WILL_TURNS,
+                ULTIMATE_DRAGON_TURNS,
+                SNIPER_WILL_TURNS,
+                DESTROY_DRAGON_TURNS,
+                LIGHTNING_WILL_TURNS,
+                WILL_HUNTER_KING_TURNS,
+                ROBOT_VACUUM_TURNS
+            },
+            SpecialStoneRegistry,
+            SpecialStoneMarkerFactory: SpecialStoneMarkerFactoryModule,
+            addMarker,
+            getMarkers,
+            removeMarkerById,
+            getCellValueForCard,
+            setCellValueForCard,
+            sampleRandomPositions,
+            revertSpecialStoneWithPresentation,
+            spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
+                ? BoardOpsModule.spawnAt
+                : null
+        };
+    }
+
+    function addNumberCellCollectedTotal(cardState: any, playerKey: any, amount: any) {
+        return CardTheoryIncarnationResolutionModule.addNumberCellCollectedTotal(cardState, playerKey, amount);
+    }
+
+    function canUseTheoryIncarnation(cardState: any, playerKey: any) {
+        return CardTheoryIncarnationResolutionModule.canUseTheoryIncarnation(cardState, playerKey);
+    }
+
+    function applyTheoryIncarnationUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardTheoryIncarnationResolutionModule.applyTheoryIncarnationUsage(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
+    function applyTheoryIncarnationStoneReservation(cardState: any, playerKey: any, row: any, col: any) {
+        return CardTheoryIncarnationResolutionModule.applyTheoryIncarnationStoneReservation(
+            cardState,
+            playerKey,
+            row,
+            col,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
+    function processTheoryIncarnationMarkerAtTurnStart(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng?: any) {
+        return CardTheoryIncarnationResolutionModule.processTheoryIncarnationMarkerAtTurnStart(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            prng,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
+    function consumeTheoryIncarnationAutoTurnEnd(cardState: any, playerKey: any) {
+        return CardTheoryIncarnationResolutionModule.consumeTheoryIncarnationAutoTurnEnd(cardState, playerKey);
+    }
+
     /**
      * Draw a card
      * @param {Object} cardState 
@@ -1673,7 +1880,11 @@ const {
      * @returns {string|null} Drawn card ID
      */
     function commitDraw(cardState: any, playerKey: any, prng: any) {
-        return requireCardHandAccess().commitDraw(cardState, playerKey, prng);
+        const drawn = requireCardHandAccess().commitDraw(cardState, playerKey, prng);
+        if (drawn) {
+            observeActiveObserverWillHandForOwner(cardState, playerKey);
+        }
+        return drawn;
     }
 
     function ensureCardCopyState(cardState: any) {
@@ -1696,6 +1907,18 @@ const {
         return requireCardHandAccess().revealCurrentHandToViewer(cardState, viewerKey, ownerKey);
     }
 
+    function setCardCostOverrideForCopyId(cardState: any, cardCopyId: any, cost: any, sourceType?: any) {
+        return requireCardHandAccess().setCardCostOverrideForCopyId(cardState, cardCopyId, cost, sourceType);
+    }
+
+    function addCardCostModifierForCopyId(cardState: any, cardCopyId: any, delta: any, sourceType?: any) {
+        return requireCardHandAccess().addCardCostModifierForCopyId(cardState, cardCopyId, delta, sourceType);
+    }
+
+    function getEffectiveCardCostForCopy(cardState: any, cardId: any, cardCopyId: any) {
+        return requireCardHandAccess().getEffectiveCardCostForCopy(cardState, cardId, cardCopyId);
+    }
+
     function addCardToHand(cardState: any, playerKey: any, cardId: any, opts?: any) {
         return requireCardHandAccess().addCardToHand(cardState, playerKey, cardId, opts);
     }
@@ -1708,8 +1931,11 @@ const {
         return requireCardHandAccess().removeHandCardAt(cardState, playerKey, handIndex);
     }
 
-    function clearHandToDiscard(cardState: any, playerKey: any) {
-        return requireCardHandAccess().clearHandToDiscard(cardState, playerKey);
+    function clearHandToDiscard(cardState: any, playerKey: any, opts?: any) {
+        return requireCardHandAccess().clearHandToDiscard(cardState, playerKey, {
+            ...(opts || {}),
+            isInviolableSpecialCardId
+        });
     }
 
     function moveDiscardCardToHandByCardId(cardState: any, playerKey: any, cardId: any, opts: any) {
@@ -1886,7 +2112,10 @@ const {
     }
 
     function destroyHandCard(cardState: any, playerKey: any, cardId: any, opts: any) {
-        return requireCardHandAccess().destroyHandCard(cardState, playerKey, cardId, opts);
+        return requireCardHandAccess().destroyHandCard(cardState, playerKey, cardId, {
+            ...(opts || {}),
+            isInviolableSpecialCardId
+        });
     }
 
     /**
@@ -1923,6 +2152,20 @@ const {
         return requireCardOfferBuilders().buildCondemnOffers(cardState, playerKey);
     }
 
+    function buildObserverWillOffers(cardState: any, playerKey: any) {
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        const opponentHand = cardState && cardState.hands && Array.isArray(cardState.hands[opponentKey])
+            ? cardState.hands[opponentKey]
+            : [];
+        return opponentHand
+            .map((cardId: any, handIndex: number) => ({
+                handIndex,
+                cardId,
+                cardCopyId: getHandCopyIdAt(cardState, opponentKey, handIndex)
+            }))
+            .filter((offer: any) => !isInviolableSpecialCardId(offer.cardId));
+    }
+
     /**
      * Apply card usage (Remove from hand, consume charge, set pending effect)
      * @param {Object} cardState
@@ -1954,10 +2197,14 @@ const {
             handOwnerKey,
             opts,
             getCardCost,
+            getHandCopyIdAt,
+            getEffectiveCardCostForCopy,
             getCardType,
             buildHeavenBlessingSeedHint,
             buildHeavenBlessingOffers,
             buildCondemnOffers,
+            buildObserverWillOffers,
+            applyTheoryIncarnationUsage,
             hasStandardLegalMoveForPlayer,
             canUseLastResortForPlayer,
             canUseEqualityWillForPlayer,
@@ -1978,7 +2225,6 @@ const {
             getTrapTargets,
             getGuardTargets,
             getLivingWillTargets,
-            getHyperactiveInheritTargets,
             getExtendLifeTargets,
             getCorrosionTargets,
             getTimeBombTargets,
@@ -2020,6 +2266,7 @@ const {
             addGeneratedChainWillCard,
             getCardDef,
             getCardDisplayName,
+            isCardPlayLockedForPlayer,
             CardPendingStateManagerModule,
             CardUsagePrechecksModule,
             TIME_STOP_GOD_SELF_DESTROY_COUNT,
@@ -2154,10 +2401,6 @@ const {
 
     function getLivingWillTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getLivingWillTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
-    }
-
-    function getHyperactiveInheritTargets(cardState: any, gameState: any, playerKey: any) {
-        return CardTargetAccessModule.getHyperactiveInheritTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
     // Return targets: own true special stones / stone statuses with remainingOwnerTurns > 0
@@ -2354,19 +2597,6 @@ const {
             col,
             getLivingWillModuleContext()
         );
-    }
-
-    function applyHyperactiveInheritWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardHyperactiveModule.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
-            readCardPendingEffect,
-            clearCardPendingEffect,
-            getHyperactiveInheritTargets,
-            removeMarkersAt,
-            addMarker,
-            emitPresentationEvent,
-            inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
-            MARKER_KINDS
-        });
     }
 
     // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on chosen cell's own special markers (numeric remainingOwnerTurns only)
@@ -3128,7 +3358,23 @@ const {
             readCardPendingEffect,
             clearCardPendingEffect,
             removeHandCardAt,
-            addCardToDiscard
+            addCardToDiscard,
+            isInviolableSpecialCardId
+        });
+    }
+
+    function applyObserverWillChoice(cardState: any, gameState: any, playerKey: any, targetIndex: any) {
+        return CardHandEffectsModule.applyObserverWillChoice(cardState, gameState, playerKey, targetIndex, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            removeHandCardAt,
+            addCardToHand,
+            setCardCostOverrideForCopyId,
+            applyObserverWillObservedCostTax,
+            clearObserverWillObservationCost,
+            getCardCost,
+            revealCurrentHandToViewer,
+            isInviolableSpecialCardId
         });
     }
 
@@ -3146,7 +3392,8 @@ const {
             clearCardPendingEffect,
             removeHandCardAt,
             addCardToDiscard,
-            resolveDeterministicRandomIndex
+            resolveDeterministicRandomIndex,
+            isInviolableSpecialCardId
         });
     }
 
@@ -3429,28 +3676,6 @@ const {
         );
     }
 
-    function processObserverWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        return CardObserverWillModule.processObserverWillEffectsAtTurnStartAnchor(
-            cardState,
-            gameState,
-            playerKey,
-            row,
-            col,
-            prngOrOpts,
-            {
-                defaultPrng,
-                blackValue: BLACK,
-                whiteValue: WHITE,
-                markerKinds: MARKER_KINDS,
-                resolveDeterministicRandomSource,
-                getSpecialMarkers,
-                removeMarkersAt,
-                addChargeWithTotal,
-                revertSpecialStoneWithPresentation
-            }
-        );
-    }
-
     function processDestroyDragonEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
         return CardDestroyDragonModule.processDestroyDragonEffects(cardState, gameState, playerKey, {
             destroyAt,
@@ -3501,7 +3726,7 @@ const {
         if (!cardState || !Array.isArray(cardState.markers)) return;
         cardState.markers = cardState.markers.filter((m: any) => {
             if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
-            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER' && m.data.type !== 'THEORY_INCARNATION' && m.data.type !== 'AFTERIMAGE_WILL' && m.data.type !== 'WILL_HUNTER_KING')) return true;
+            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'AFTERIMAGE_WILL' && m.data.type !== 'WILL_HUNTER_KING')) return true;
             if (findSpecialMarkerAt(cardState, m.row, m.col, 'GHOST')) return true;
             return !removeSet.has(`${m.row},${m.col}`);
         });
@@ -3552,7 +3777,6 @@ const {
             swapOccupiedCellsWithPresentation,
             destroyAt,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
-            inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
             expectedSpecialType: options.expectedSpecialType || null
         });
     }
@@ -3736,6 +3960,7 @@ const {
         }
         return CardEffectResolverModule.getCardContext(cardState, {
             getSpecialMarkers,
+            getManifestMarkers,
             getBombMarkers,
             getBlockingMarkers,
             isFrozenCellForCard
@@ -3828,8 +4053,6 @@ const cardsApi: any = {
         SNIPER_WILL_TURNS,
         DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
-        OBSERVER_WILL_TURNS,
-        THEORY_INCARNATION_TURNS,
         GHOST_WILL_TURNS,
         SEED_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,
@@ -3844,6 +4067,18 @@ const cardsApi: any = {
         initGame,
         addMarker,
         removeMarkerById,
+        getManifestMarkers,
+        isManifestStoneMarker,
+        isManifestStoneAt,
+        applyObserverWillStoneReservation,
+        applyTheoryIncarnationStoneReservation,
+        processTheoryIncarnationMarkerAtTurnStart,
+        consumeTheoryIncarnationAutoTurnEnd,
+        addNumberCellCollectedTotal,
+        canUseTheoryIncarnation,
+        processObserverWillMarkerAtTurnStart,
+        processObserverWillRepaymentsAtTurnStart,
+        hasActiveObserverWillReveal,
 
         // Core operations
         commitDraw,
@@ -3864,6 +4099,9 @@ const cardsApi: any = {
         getHandCopyIds,
         isCardCopyIdRevealedToViewer,
         revealCurrentHandToViewer,
+        setCardCostOverrideForCopyId,
+        addCardCostModifierForCopyId,
+        getEffectiveCardCostForCopy,
         addCardToHand,
         addCardToDiscard,
         removeHandCardAt,
@@ -3900,6 +4138,7 @@ const cardsApi: any = {
         applyHeavenBlessingChoice,
         applyRevealHandWill,
         applyCondemnWill,
+        applyObserverWillChoice,
         applyTemptWill,
         applyCaptureWill,
         applyExtendLifeWill,
@@ -3907,7 +4146,6 @@ const cardsApi: any = {
         applyCorrosionWill,
         applyGuardWill,
         applyLivingWill,
-        applyHyperactiveInheritWill,
         applyTimeBombWill,
         applyTeleportWill,
         applyCellTeleportWill,
@@ -3961,7 +4199,6 @@ const cardsApi: any = {
         processLightningWillEffectsAtTurnStartAnchor,
         processLightningWillEffectsAtAnchor,
         processWillHunterKingEffectsAtTurnStartAnchor,
-        processObserverWillEffectsAtTurnStartAnchor,
         processDestroyDragonEffectsAtAnchor,
         processDestroyDragonEffectsAtTurnStartAnchor,
 
@@ -3995,7 +4232,6 @@ const cardsApi: any = {
         getExtendLifeTargets,
         getCorrosionTargets,
         getGuardTargets,
-        getHyperactiveInheritTargets,
         getTimeBombTargets,
         getTeleportTargets,
         getCellTeleportTargets,
@@ -4020,7 +4256,10 @@ const cardsApi: any = {
         getCurrentCornerCellsForCard,
         countOccupiedCornersForPlayer,
         isBlockedCell,
+        findManifestMarkerAt,
         isAbsoluteProtectedCell,
+        isCardPlayLockedForPlayer,
+        isPlacementLockedForPlayer,
         isFrozenCell,
         getTrapTargets,
         applyTrapWill,
