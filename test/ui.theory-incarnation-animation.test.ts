@@ -11,7 +11,7 @@ describe('theory incarnation spawn roulette animation', () => {
         <body>
           <div id="board">
             <div class="cell" data-row="0" data-col="0"></div>
-            <div class="cell" data-row="0" data-col="1"></div>
+            <div class="cell has-disc" data-row="0" data-col="1"><div class="disc stale-spawn"></div></div>
           </div>
         </body>
       </html>
@@ -77,6 +77,8 @@ describe('theory incarnation spawn roulette animation', () => {
     expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
     expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
     expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
+    expect(selectedCell.querySelector('.stale-spawn')).toBe(null);
+    expect(selectedCell.classList.contains('has-disc')).toBe(false);
 
     const firstDelay = timers[0].ms;
     let lastDelay = firstDelay;

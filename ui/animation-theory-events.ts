@@ -79,6 +79,22 @@ function findEntryForCell(entries: any[], selected: any) {
     )) || null;
 }
 
+function hidePreRenderedSpawnStone(selectedEntry: any) {
+    const element = selectedEntry && selectedEntry.element;
+    if (!element || typeof element.querySelectorAll !== 'function') return;
+    try {
+        const discs = Array.from(element.querySelectorAll('.disc'));
+        for (const disc of discs) {
+            try {
+                if ((disc as any).parentElement) (disc as any).parentElement.removeChild(disc);
+            } catch (e) { /* ignore */ }
+        }
+        if (element.classList && typeof element.classList.remove === 'function') {
+            element.classList.remove('has-disc');
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function positiveModulo(value: number, size: number): number {
     if (!Number.isFinite(value) || !Number.isFinite(size) || size <= 0) return 0;
     return ((value % size) + size) % size;
@@ -180,6 +196,7 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
         const entries = collectCandidateCells(target, deps);
         const selected = normalizeCell(target && (target.selectedCell || { row: target.row ?? target.r, col: target.col }));
         const selectedEntry = findEntryForCell(entries, selected);
+        hidePreRenderedSpawnStone(selectedEntry);
 
         await playRouletteSequence(entries, selectedEntry, durationMs, deps);
         clearRouletteClasses(entries);
