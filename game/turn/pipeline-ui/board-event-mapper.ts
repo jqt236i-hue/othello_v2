@@ -49,6 +49,12 @@ function mapSpawn(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps) {
     ctx.pEvent.type = spawnPlan.type;
     ctx.pEvent.phase = spawnPlan.phase;
     ctx.pEvent.targets = spawnPlan.targets;
+    if (Number.isFinite(Number(spawnPlan.durationMs))) {
+        ctx.pEvent.durationMs = Number(spawnPlan.durationMs);
+    }
+    if (Number.isFinite(Number(spawnPlan.materializeMs))) {
+        ctx.pEvent.materializeMs = Number(spawnPlan.materializeMs);
+    }
 }
 
 function mapDestroy(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps) {

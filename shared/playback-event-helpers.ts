@@ -252,7 +252,11 @@
 
     function isBoardVisualPlaybackEvent(event: unknown): boolean {
         const type = String(event && typeof event === 'object' ? (event as Record<string, unknown>).type || '' : '').trim().toLowerCase();
-        return type === 'spawn' || type === 'flip' || type === 'destroy' || type === 'move';
+        return type === 'spawn'
+            || type === 'theory_incarnation_spawn_roulette'
+            || type === 'flip'
+            || type === 'destroy'
+            || type === 'move';
     }
 
     function normalizeRawPosition(value: unknown): { row: number; col: number } | null {

@@ -31,7 +31,9 @@ const {
         OVERLAY_CROSSFADE_MS,
         MOVE_MS,
         OBSERVER_BUBBLE_MS,
-        OBSERVER_BUBBLE_FADE_MS
+        OBSERVER_BUBBLE_FADE_MS,
+        THEORY_SPAWN_ROULETTE_MS,
+        THEORY_SPAWN_MATERIALIZE_MS
     } = Constants;
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -136,6 +138,7 @@ var AnimationMoveEvents = requireRuntimeModuleOrWindowGlobal('./animation-move-e
 var AnimationPlacementEvents = requireRuntimeModuleOrWindowGlobal('./animation-placement-events', 'AnimationPlacementEvents');
 var AnimationStatusEvents = requireRuntimeModuleOrWindowGlobal('./animation-status-events', 'AnimationStatusEvents');
 var AnimationDestroySourceEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-source-events', 'AnimationDestroySourceEvents');
+var AnimationTheoryEvents = requireRuntimeModuleOrWindowGlobal('./animation-theory-events', 'AnimationTheoryEvents');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -1389,6 +1392,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SPECIAL_CARD_CINEMATIC:
                     return this.handleSpecialCardCinematic(ev);
+                case EVENT_TYPES.THEORY_INCARNATION_SPAWN_ROULETTE:
+                    return this.handleTheoryIncarnationSpawnRoulette(ev);
                 case EVENT_TYPES.SOUND_EFFECT:
                     return this.handleSoundEffect(ev);
                 case EVENT_TYPES.LOG:
@@ -1540,6 +1545,22 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return AnimationFeedbackEvents.handleSpecialCardCinematicEvent(ev, {
                 isNoAnim: _isNoAnim,
                 sleep: (ms: any) => this._sleep(ms)
+            });
+        }
+
+        async handleTheoryIncarnationSpawnRoulette(ev: any) {
+            if (!(AnimationTheoryEvents && typeof AnimationTheoryEvents.handleTheoryIncarnationSpawnRouletteEvent === 'function')) {
+                throw new Error('AnimationEngine theory events module unavailable');
+            }
+            return AnimationTheoryEvents.handleTheoryIncarnationSpawnRouletteEvent(ev, {
+                isNoAnim: _isNoAnim,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                createDisc: (state: any) => this.createDisc(state),
+                waitForOpacityTransition: (disc: any, durationMs: any, bufferMs: any, starter: any, cleanup: any) => this._waitForOpacityTransition(disc, durationMs, bufferMs, starter, cleanup),
+                timer: _Timer,
+                playbackScope: this.playbackScope,
+                defaultDurationMs: THEORY_SPAWN_ROULETTE_MS,
+                defaultMaterializeMs: THEORY_SPAWN_MATERIALIZE_MS
             });
         }
 

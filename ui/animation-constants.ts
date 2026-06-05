@@ -57,6 +57,8 @@ const AnimationConstants = {
   MOVE_MS: 400,
   OBSERVER_BUBBLE_MS: 3000,
   OBSERVER_BUBBLE_FADE_MS: 700,
+  THEORY_SPAWN_ROULETTE_MS: getTiming('THEORY_SPAWN_ROULETTE_MS', 2000),
+  THEORY_SPAWN_MATERIALIZE_MS: getTiming('THEORY_SPAWN_MATERIALIZE_MS', 700),
 
   // Geometry
   OVERLAY_SIZE_PERCENT: 82, // Percentage of the base disc size
@@ -76,6 +78,7 @@ const AnimationConstants = {
     HAND_REMOVE: 'hand_remove',
     CARD_USE_ANIMATION: 'card_use_animation',
     SPECIAL_CARD_CINEMATIC: 'special_card_cinematic',
+    THEORY_INCARNATION_SPAWN_ROULETTE: 'theory_incarnation_spawn_roulette',
     OBSERVER_BUBBLE: 'observer_bubble',
     ROUND_BONUS_BANNER: 'round_bonus_banner',
     SOUND_EFFECT: 'sound_effect',

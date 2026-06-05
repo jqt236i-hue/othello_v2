@@ -35,6 +35,60 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     });
   });
 
+  test('maps theory incarnation SPAWN roulette metadata to dedicated playback event', () => {
+    const out = mapPlaybackEvents([{
+      type: 'SPAWN',
+      row: 4,
+      col: 6,
+      stoneId: 'theory-spawn-1',
+      ownerAfter: 'black',
+      cause: 'THEORY_INCARNATION',
+      reason: 'theory_incarnation_spawn',
+      meta: {
+        special: 'SNIPER',
+        owner: 'black',
+        sourceCardId: 'sniper_01',
+        sourceCardType: 'SNIPER_WILL',
+        theorySpawnRoulette: {
+          durationMs: 2000,
+          materializeMs: 700,
+          candidateCells: [{ row: 4, col: 4 }, { row: 4, col: 6 }],
+          selectedCell: { row: 4, col: 6 },
+          spawnedMarkerType: 'SNIPER',
+          sourceCardId: 'sniper_01',
+          sourceCardType: 'SNIPER_WILL'
+        }
+      }
+    }]);
+
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      type: 'theory_incarnation_spawn_roulette',
+      phase: 1,
+      rawType: 'SPAWN',
+      targets: [{
+        r: 4,
+        row: 4,
+        col: 6,
+        owner: 'black',
+        player: 'black',
+        ownerAfter: 'black',
+        spawnedMarkerType: 'SNIPER',
+        sourceCardId: 'sniper_01',
+        sourceCardType: 'SNIPER_WILL',
+        candidateCells: [{ row: 4, col: 4 }, { row: 4, col: 6 }],
+        selectedCell: { row: 4, col: 6 },
+        after: expect.objectContaining({
+          color: 1,
+          special: 'SNIPER',
+          owner: 'black'
+        })
+      }]
+    });
+    expect(out[0].durationMs).toBe(2000);
+    expect(out[0].materializeMs).toBe(700);
+  });
+
   test('gives Equality Will spawns sequential phases so each stone appears one by one', () => {
     const out = mapPlaybackEvents([
       {

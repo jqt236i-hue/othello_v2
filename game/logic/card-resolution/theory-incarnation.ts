@@ -7,6 +7,8 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
 const THEORY_DURATION_OWNER_TURNS = 3;
+const THEORY_SPAWN_ROULETTE_MS = 2000;
+const THEORY_SPAWN_MATERIALIZE_MS = 700;
 
 function ownerKeyOf(playerKey: any): PlayerKey {
     return playerKey === 'white' ? 'white' : 'black';
@@ -224,6 +226,28 @@ function prepareSpawnMarkerData(cardState: any, markerData: any, ownerKey: Playe
     return data;
 }
 
+function createTheorySpawnRoulettePayload(available: Array<{ key: string; cell: any }>, picked: { key: string; cell: any }, markerData: any): any {
+    const candidateCells = available
+        .map(({ cell }) => ({
+            row: Number(cell && cell.row),
+            col: Number(cell && cell.col)
+        }))
+        .filter((cell) => Number.isInteger(cell.row) && Number.isInteger(cell.col));
+    const selectedCell = {
+        row: Number(picked && picked.cell && picked.cell.row),
+        col: Number(picked && picked.cell && picked.cell.col)
+    };
+    return {
+        durationMs: THEORY_SPAWN_ROULETTE_MS,
+        materializeMs: THEORY_SPAWN_MATERIALIZE_MS,
+        candidateCells,
+        selectedCell,
+        spawnedMarkerType: markerData && markerData.type ? markerData.type : null,
+        sourceCardId: picked && picked.cell ? (picked.cell.sourceCardId || null) : null,
+        sourceCardType: picked && picked.cell ? (picked.cell.sourceCardType || null) : null
+    };
+}
+
 function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: any, prng: any, deps: any): any | null {
     const sessionId = state && state.sessionId;
     const session = sessionId && cardState.theoryNumberCellsBySession ? cardState.theoryNumberCellsBySession[sessionId] : null;
@@ -245,6 +269,7 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         };
     const ownerKey = ownerKeyOf(state.ownerKey);
     const markerData = prepareSpawnMarkerData(cardState, markerDataBase, ownerKey);
+    const roulette = createTheorySpawnRoulettePayload(available, picked, markerData);
     const spawnRes = deps.spawnAt(
         cardState,
         gameState,
@@ -257,7 +282,8 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
             special: markerData.type,
             owner: ownerKey,
             sourceCardId: picked.cell.sourceCardId || null,
-            sourceCardType: picked.cell.sourceCardType || null
+            sourceCardType: picked.cell.sourceCardType || null,
+            theorySpawnRoulette: roulette
         }
     );
     if (!spawnRes || !spawnRes.spawned) return null;
@@ -277,7 +303,8 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         type: markerData.type,
         sourceCardId: picked.cell.sourceCardId || null,
         sourceCardType: picked.cell.sourceCardType || null,
-        markerId: marker && marker.id ? marker.id : null
+        markerId: marker && marker.id ? marker.id : null,
+        roulette
     };
 }
 

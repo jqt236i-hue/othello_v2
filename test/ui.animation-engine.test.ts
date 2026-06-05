@@ -333,6 +333,66 @@ describe('animation-engine _sleep', () => {
     delete global.document;
   });
 
+  test('theory incarnation roulette playback materializes selected special stone', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="0" data-col="0"></div>
+            <div class="cell" data-row="0" data-col="1"></div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+    const applyStoneVisualEffect = jest.fn();
+    global.window.getEffectKeyForSpecialType = jest.fn((type) => String(type || '').toUpperCase() === 'GHOST' ? 'ghostStone' : null);
+    global.window.setDiscStoneImage = jest.fn();
+    global.window.clearStoneVisualEffectState = jest.fn();
+    global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    global.emitBoardUpdate = jest.fn();
+
+    const engine = require('../ui/animation-engine.js');
+    global.window.getEffectKeyForSpecialType = jest.fn((type) => String(type || '').toUpperCase() === 'GHOST' ? 'ghostStone' : null);
+    global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    await engine.executePhase([{
+      type: 'theory_incarnation_spawn_roulette',
+      phase: 2,
+      durationMs: 0,
+      materializeMs: 0,
+      targets: [{
+        r: 0,
+        row: 0,
+        col: 1,
+        owner: 'black',
+        ownerAfter: 'black',
+        spawnedMarkerType: 'GHOST',
+        candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+        selectedCell: { row: 0, col: 1 },
+        after: { color: 1, special: 'GHOST', timer: 5, owner: 'black' }
+      }]
+    }]);
+
+    const selectedCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="1"]');
+    const disc = selectedCell.querySelector('.disc');
+
+    expect(disc).toBeTruthy();
+    expect(applyStoneVisualEffect).toHaveBeenCalledWith(expect.any(dom.window.Element), 'ghostStone', { owner: 'black' });
+    expect(selectedCell.classList.contains('theory-spawn-materialize')).toBe(false);
+
+    dom.window.close();
+    delete global.emitBoardUpdate;
+    delete global.requestAnimationFrame;
+    delete global.window;
+    delete global.document;
+  });
+
   test('宝箱 card_use_animation では direct sound を鳴らさない', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };

@@ -125,6 +125,49 @@ function getCardEffectSpawnProfile(ev: any, deps: BoardEventPlaybackDeps) {
     return null;
 }
 
+function normalizeTheoryRouletteCell(value: any) {
+    const row = Number(value && value.row);
+    const col = Number(value && value.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    return { row, col };
+}
+
+function createTheorySpawnRoulettePlaybackPlan(phase: any, ev: any, spawnMeta: any, playbackBase: any) {
+    const roulette = spawnMeta && spawnMeta.theorySpawnRoulette && typeof spawnMeta.theorySpawnRoulette === 'object'
+        ? spawnMeta.theorySpawnRoulette
+        : null;
+    if (!roulette) return null;
+    const selectedCell = normalizeTheoryRouletteCell(roulette.selectedCell) || { row: ev.row, col: ev.col };
+    const candidateCells = Array.isArray(roulette.candidateCells)
+        ? roulette.candidateCells.map(normalizeTheoryRouletteCell).filter((cell: any) => !!cell)
+        : [];
+    const owner = String((spawnMeta && spawnMeta.owner) || ev.ownerAfter || '').trim() || null;
+    return {
+        phase,
+        type: 'theory_incarnation_spawn_roulette',
+        targets: [{
+            r: selectedCell.row,
+            row: selectedCell.row,
+            col: selectedCell.col,
+            stoneId: ev.stoneId,
+            owner,
+            player: owner,
+            ownerAfter: ev.ownerAfter || owner,
+            cause: ev.cause || null,
+            reason: ev.reason || null,
+            meta: (playbackBase && playbackBase.meta) || spawnMeta || null,
+            spawnedMarkerType: roulette.spawnedMarkerType || spawnMeta.special || null,
+            sourceCardId: roulette.sourceCardId || spawnMeta.sourceCardId || null,
+            sourceCardType: roulette.sourceCardType || spawnMeta.sourceCardType || null,
+            candidateCells,
+            selectedCell
+        }],
+        durationMs: Number.isFinite(Number(roulette.durationMs)) ? Number(roulette.durationMs) : 2000,
+        materializeMs: Number.isFinite(Number(roulette.materializeMs)) ? Number(roulette.materializeMs) : 700,
+        leadingPlaybackEvents: []
+    };
+}
+
 function isCloneLikeSpawnPresentationEvent(ev: any, spawnMeta: any) {
     const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
     return (
@@ -438,6 +481,11 @@ function planSpawnPlayback(phaseState: any, ev: any, playbackBase: any, followsP
     if (deps.isLivingWillRestorePresentationEvent(ev)) {
         phaseState.currentPhase++;
         phase = phaseState.currentPhase;
+    }
+
+    const theoryRoulettePlan = createTheorySpawnRoulettePlaybackPlan(phase, ev, spawnMeta, playbackBase);
+    if (theoryRoulettePlan) {
+        return theoryRoulettePlan;
     }
 
     let type = 'spawn';

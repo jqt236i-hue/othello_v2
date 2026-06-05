@@ -166,6 +166,57 @@ describe('PlaybackEventHelpers', () => {
     ]);
   });
 
+  test('assembles theory incarnation roulette playback from raw spawn events', () => {
+    const out = helpers.assemblePlaybackEvents({
+      rawEvents: [{
+        type: 'SPAWN',
+        row: 2,
+        col: 3,
+        ownerAfter: 'black',
+        stoneId: 'theory-spawn-1',
+        meta: {
+          special: 'GHOST',
+          owner: 'black',
+          theorySpawnRoulette: {
+            durationMs: 2000,
+            materializeMs: 700,
+            candidateCells: [{ row: 2, col: 3 }, { row: 4, col: 5 }],
+            selectedCell: { row: 2, col: 3 },
+            spawnedMarkerType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST'
+          }
+        }
+      }],
+      presentationEvents: [],
+      snapshot: {
+        cardState: { markers: [], turnIndex: 8 },
+        gameState: { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+      },
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey: (value) => String(value || '')
+    });
+
+    expect(out.playbackEvents).toEqual([
+      expect.objectContaining({
+        type: 'theory_incarnation_spawn_roulette',
+        durationMs: 2000,
+        materializeMs: 700,
+        targets: [
+          expect.objectContaining({
+            r: 2,
+            col: 3,
+            spawnedMarkerType: 'GHOST',
+            candidateCells: [{ row: 2, col: 3 }, { row: 4, col: 5 }],
+            selectedCell: { row: 2, col: 3 }
+          })
+        ]
+      })
+    ]);
+    expect(out.diagnostics.warnings).toEqual([]);
+  });
+
   test('recovers teleport move playback from raw selection event when presentation move is missing', () => {
     const out = helpers.collectActionPlaybackEvents({
       result: {

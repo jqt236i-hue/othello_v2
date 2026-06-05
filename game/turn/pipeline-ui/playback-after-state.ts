@@ -144,7 +144,7 @@ function populatePlaybackEventAfterState(playbackEvent: any, presentationEvent: 
     const targets = Array.isArray(playbackEvent.targets) ? playbackEvent.targets : [];
     for (const target of targets) {
         const targetMeta = (target && target.meta && typeof target.meta === 'object') ? target.meta : eventMeta;
-        if (playbackEvent.type === 'spawn') {
+        if (playbackEvent.type === 'spawn' || playbackEvent.type === 'theory_incarnation_spawn_roulette') {
             target.before = target.before || createEmptyVisualState();
             target.after = target.after || createEventSourcedAfter(target, targetMeta, deps);
         } else if (playbackEvent.type === 'move') {

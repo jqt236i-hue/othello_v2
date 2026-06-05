@@ -232,7 +232,20 @@ describe('理論の化身', () => {
 
     const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
 
-    expect(result.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_spawned' }));
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'theory_incarnation_spawned',
+      detail: expect.objectContaining({
+        roulette: expect.objectContaining({
+          durationMs: 2000,
+          materializeMs: 700,
+          selectedCell: { row: 0, col: 0 },
+          candidateCells: [{ row: 0, col: 0 }],
+          spawnedMarkerType: 'HYPERACTIVE',
+          sourceCardId: 'hyperactive_01',
+          sourceCardType: 'HYPERACTIVE_WILL'
+        })
+      })
+    }));
     expect(result.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_auto_turn_end', player: 'black' }));
     expect(gameState.board[0][0]).toBe(Shared.BLACK);
     expect(cardState.markers).toEqual(expect.arrayContaining([
@@ -249,6 +262,75 @@ describe('理論の化身', () => {
     ]));
     expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
     expect(gameState.currentPlayer).toBe(Shared.WHITE);
+  });
+
+  test('理論生成のSPAWN presentation eventにroulette metadataを載せる', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5 };
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,1': { sessionId: 'theory_black_1', ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': {
+            row: 0,
+            col: 0,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5
+          },
+          '0,1': {
+            row: 0,
+            col: 1,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5
+          }
+        }
+      }
+    };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      white: null
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 3,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION'
+    });
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
+    const spawnEvent = result.presentationEvents.find((event: any) => event && event.type === 'SPAWN' && event.reason === 'theory_incarnation_spawn');
+
+    expect(spawnEvent).toEqual(expect.objectContaining({
+      row: 0,
+      col: 0,
+      cause: 'THEORY_INCARNATION',
+      meta: expect.objectContaining({
+        theorySpawnRoulette: expect.objectContaining({
+          durationMs: 2000,
+          materializeMs: 700,
+          selectedCell: { row: 0, col: 0 },
+          candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+          spawnedMarkerType: 'GHOST'
+        })
+      })
+    }));
   });
 
   test('理論石顕現中は複数回の自ターン開始で連続して自動終了する', () => {
