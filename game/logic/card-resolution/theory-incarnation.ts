@@ -8,7 +8,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
 const THEORY_DURATION_OWNER_TURNS = 3;
 const THEORY_SPAWN_ROULETTE_MS = 2000;
-const THEORY_SPAWN_MATERIALIZE_MS = 1200;
+const THEORY_SPAWN_MATERIALIZE_MS = 2000;
 
 function ownerKeyOf(playerKey: any): PlayerKey {
     return playerKey === 'white' ? 'white' : 'black';

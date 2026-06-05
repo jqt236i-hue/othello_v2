@@ -237,7 +237,7 @@ describe('理論の化身', () => {
       detail: expect.objectContaining({
         roulette: expect.objectContaining({
           durationMs: 2000,
-          materializeMs: 1200,
+          materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
           candidateCells: [{ row: 0, col: 0 }],
           spawnedMarkerType: 'HYPERACTIVE',
@@ -324,7 +324,7 @@ describe('理論の化身', () => {
       meta: expect.objectContaining({
         theorySpawnRoulette: expect.objectContaining({
           durationMs: 2000,
-          materializeMs: 1200,
+          materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
           candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
           spawnedMarkerType: 'GHOST'

@@ -38,7 +38,7 @@ describe('theory incarnation spawn roulette animation', () => {
     const animationPromise = handler.handleTheoryIncarnationSpawnRouletteEvent({
       type: 'theory_incarnation_spawn_roulette',
       durationMs: 2000,
-      materializeMs: 1200,
+      materializeMs: 2000,
       targets: [{
         r: 0,
         row: 0,
@@ -91,7 +91,7 @@ describe('theory incarnation spawn roulette animation', () => {
     expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
     expect(waitForOpacityTransition).toHaveBeenCalledWith(
       disc,
-      1200,
+      2000,
       expect.any(Number),
       expect.any(Function),
       expect.any(Function)
