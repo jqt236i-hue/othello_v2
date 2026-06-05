@@ -132,12 +132,17 @@ async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, 
 
     const after = (target && target.after && typeof target.after === 'object') ? target.after : {};
     const disc = deps.createDisc(after);
+    const shouldAnimate = !(deps.isNoAnim() || !Number.isFinite(materializeMs) || materializeMs <= 0);
+    if (shouldAnimate) {
+        disc.style.opacity = '0';
+        disc.style.setProperty('--theory-spawn-materialize-ms', `${materializeMs}ms`);
+    }
     cell.innerHTML = '';
     cell.classList.add(ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
     disc.classList.add(MATERIALIZED_DISC_CLASS);
     cell.appendChild(disc);
 
-    if (deps.isNoAnim() || !Number.isFinite(materializeMs) || materializeMs <= 0) {
+    if (!shouldAnimate) {
         cell.classList.remove(ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
         disc.classList.remove(MATERIALIZED_DISC_CLASS);
         return;
@@ -158,6 +163,7 @@ async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, 
         () => {
             disc.style.opacity = '';
             disc.style.transition = prevTransition;
+            disc.style.removeProperty('--theory-spawn-materialize-ms');
             disc.classList.remove(MATERIALIZED_DISC_CLASS);
             cell.classList.remove(ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
         }

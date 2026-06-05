@@ -19,7 +19,10 @@ describe('theory incarnation spawn roulette animation', () => {
 
     global.window = dom.window;
     global.document = dom.window.document;
-    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.requestAnimationFrame = (cb) => {
+      cb();
+      return 0;
+    };
     global.window.requestAnimationFrame = global.requestAnimationFrame;
 
     const timers: Array<{ fn: () => void; ms: number }> = [];
@@ -31,7 +34,10 @@ describe('theory incarnation spawn roulette animation', () => {
       return disc;
     });
     const waitForOpacityTransition = jest.fn(async (disc, durationMs, bufferMs, starter, cleanup) => {
+      expect(disc.style.opacity).toBe('0');
+      expect(disc.style.getPropertyValue('--theory-spawn-materialize-ms')).toBe('2000ms');
       starter();
+      expect(disc.style.opacity).toBe('1');
       cleanup();
     });
 

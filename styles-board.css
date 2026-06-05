@@ -151,6 +151,8 @@
     filter:
         drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(236, 193, 92, 0.72))
         drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) rgba(80, 46, 210, 0.58));
+    animation: theorySpawnDiscMaterialize var(--theory-spawn-materialize-ms, 2000ms) cubic-bezier(0.16, 0.82, 0.22, 1) both;
+    will-change: opacity, transform, filter;
 }
 
 .disc.black.theory-spawn-materialized-disc {
@@ -160,11 +162,82 @@
         drop-shadow(0 0 calc(34px * var(--layout-stage-scale)) rgba(74, 46, 160, 0.45));
 }
 
+.disc.theory-spawn-materialized-disc::after {
+    content: "";
+    position: absolute;
+    inset: -24%;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle,
+            rgba(21, 13, 36, 0.72) 0%,
+            rgba(55, 31, 114, 0.46) 38%,
+            rgba(12, 8, 24, 0.26) 58%,
+            transparent 74%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+    animation: theorySpawnDarkAuraMaterialize var(--theory-spawn-materialize-ms, 2000ms) cubic-bezier(0.16, 0.82, 0.22, 1) both;
+}
+
+.disc.black.theory-spawn-materialized-disc::after {
+    background:
+        radial-gradient(circle,
+            rgba(0, 0, 0, 0.86) 0%,
+            rgba(22, 12, 38, 0.58) 38%,
+            rgba(74, 46, 160, 0.28) 62%,
+            transparent 78%);
+}
+
 .disc.white.theory-spawn-materialized-disc {
     filter:
         drop-shadow(0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.72))
         drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) rgba(209, 224, 255, 0.52))
         drop-shadow(0 0 calc(34px * var(--layout-stage-scale)) rgba(74, 46, 160, 0.42));
+}
+
+.disc.white.theory-spawn-materialized-disc::after {
+    background:
+        radial-gradient(circle,
+            rgba(255, 255, 255, 0.58) 0%,
+            rgba(209, 224, 255, 0.36) 40%,
+            rgba(74, 46, 160, 0.22) 62%,
+            transparent 78%);
+}
+
+@keyframes theorySpawnDiscMaterialize {
+    0% {
+        opacity: 0;
+        transform: scale(0.78);
+        filter:
+            drop-shadow(0 0 0 rgba(0, 0, 0, 0))
+            drop-shadow(0 0 0 rgba(74, 46, 160, 0));
+    }
+    55% {
+        opacity: 0.62;
+        transform: scale(1.04);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes theorySpawnDarkAuraMaterialize {
+    0% {
+        opacity: 0;
+        transform: scale(0.46);
+        filter: blur(calc(2px * var(--layout-stage-scale)));
+    }
+    58% {
+        opacity: 0.82;
+        transform: scale(1.08);
+        filter: blur(calc(4px * var(--layout-stage-scale)));
+    }
+    100% {
+        opacity: 0.92;
+        transform: scale(1);
+        filter: blur(calc(3px * var(--layout-stage-scale)));
+    }
 }
 
 @keyframes theorySpawnRoulettePulse {
