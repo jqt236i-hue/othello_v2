@@ -51,7 +51,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         sourceCardType: 'SNIPER_WILL',
         theorySpawnRoulette: {
           durationMs: 2000,
-          materializeMs: 700,
+          materializeMs: 1200,
           candidateCells: [{ row: 4, col: 4 }, { row: 4, col: 6 }],
           selectedCell: { row: 4, col: 6 },
           spawnedMarkerType: 'SNIPER',
@@ -86,7 +86,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
       }]
     });
     expect(out[0].durationMs).toBe(2000);
-    expect(out[0].materializeMs).toBe(700);
+    expect(out[0].materializeMs).toBe(1200);
   });
 
   test('gives Equality Will spawns sequential phases so each stone appears one by one', () => {

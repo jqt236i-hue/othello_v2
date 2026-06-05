@@ -55,6 +55,16 @@ function clearRouletteClasses(entries: any[]) {
     }
 }
 
+function findEntryForCell(entries: any[], selected: any) {
+    if (!selected) return null;
+    return entries.find((entry: any) => (
+        entry &&
+        entry.cell &&
+        entry.cell.row === selected.row &&
+        entry.cell.col === selected.col
+    )) || null;
+}
+
 async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, materializeMs: number) {
     const row = Number(target && (target.row ?? target.r));
     const col = Number(target && target.col);
@@ -64,12 +74,12 @@ async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, 
     const after = (target && target.after && typeof target.after === 'object') ? target.after : {};
     const disc = deps.createDisc(after);
     cell.innerHTML = '';
-    cell.classList.add(MATERIALIZE_CLASS);
+    cell.classList.add(ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
     disc.classList.add(MATERIALIZED_DISC_CLASS);
     cell.appendChild(disc);
 
     if (deps.isNoAnim() || !Number.isFinite(materializeMs) || materializeMs <= 0) {
-        cell.classList.remove(MATERIALIZE_CLASS);
+        cell.classList.remove(ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
         disc.classList.remove(MATERIALIZED_DISC_CLASS);
         return;
     }
@@ -90,7 +100,7 @@ async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, 
             disc.style.opacity = '';
             disc.style.transition = prevTransition;
             disc.classList.remove(MATERIALIZED_DISC_CLASS);
-            cell.classList.remove(MATERIALIZE_CLASS);
+            cell.classList.remove(ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
         }
     );
 }
@@ -109,14 +119,15 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
             try {
                 entry.element.classList.add(ROULETTE_CLASS);
                 entry.element.style.setProperty('--theory-roulette-index', String(entry.index));
-                if (selected && entry.cell.row === selected.row && entry.cell.col === selected.col) {
-                    entry.element.classList.add(ROULETTE_SELECTED_CLASS);
-                }
             } catch (e) { /* ignore */ }
         }
 
         await sleep(durationMs, deps);
         clearRouletteClasses(entries);
+        const selectedEntry = findEntryForCell(entries, selected);
+        if (selectedEntry && selectedEntry.element) {
+            try { selectedEntry.element.classList.add(ROULETTE_SELECTED_CLASS); } catch (e) { /* ignore */ }
+        }
         await materializeSelectedStone(target, deps, materializeMs);
     }
 }

@@ -154,6 +154,20 @@
         drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) rgba(80, 46, 210, 0.58));
 }
 
+.disc.black.theory-spawn-materialized-disc {
+    filter:
+        drop-shadow(0 0 calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.92))
+        drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) rgba(18, 10, 32, 0.86))
+        drop-shadow(0 0 calc(34px * var(--layout-stage-scale)) rgba(74, 46, 160, 0.45));
+}
+
+.disc.white.theory-spawn-materialized-disc {
+    filter:
+        drop-shadow(0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.72))
+        drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) rgba(209, 224, 255, 0.52))
+        drop-shadow(0 0 calc(34px * var(--layout-stage-scale)) rgba(74, 46, 160, 0.42));
+}
+
 @keyframes theorySpawnRoulettePulse {
     from {
         background-color: rgba(24, 8, 46, 0.32);

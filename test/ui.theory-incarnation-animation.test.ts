@@ -35,10 +35,10 @@ describe('theory incarnation spawn roulette animation', () => {
       cleanup();
     });
 
-    await handler.handleTheoryIncarnationSpawnRouletteEvent({
+    const animationPromise = handler.handleTheoryIncarnationSpawnRouletteEvent({
       type: 'theory_incarnation_spawn_roulette',
       durationMs: 2000,
-      materializeMs: 700,
+      materializeMs: 1200,
       targets: [{
         r: 0,
         row: 0,
@@ -57,7 +57,6 @@ describe('theory incarnation spawn roulette animation', () => {
       timer: () => ({
         setTimeout: (fn, ms) => {
           timers.push({ fn, ms });
-          fn();
           return timers.length;
         }
       }),
@@ -66,16 +65,26 @@ describe('theory incarnation spawn roulette animation', () => {
 
     const selectedCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="1"]');
     const otherCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="0"]');
-    const disc = selectedCell.querySelector('.disc');
+    await Promise.resolve();
 
     expect(timers.some((entry) => entry.ms === 2000)).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
+    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+
+    const rouletteTimer = timers.find((entry) => entry.ms === 2000);
+    rouletteTimer.fn();
+    await animationPromise;
+
+    const disc = selectedCell.querySelector('.disc');
+
     expect(disc).toBeTruthy();
     expect(disc.dataset.special).toBe('GHOST');
     expect(selectedCell.classList.contains('theory-spawn-materialize')).toBe(false);
     expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
     expect(waitForOpacityTransition).toHaveBeenCalledWith(
       disc,
-      700,
+      1200,
       expect.any(Number),
       expect.any(Function),
       expect.any(Function)
