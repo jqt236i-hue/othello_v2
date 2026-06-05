@@ -116,11 +116,23 @@ othello_v2/
 - Never use destructive cleanup commands such as `git reset --hard`, `git checkout --`, or deleting untracked files unless the user explicitly asks for that exact operation.
 - If unrelated dirty files remain after committing the current task, report them clearly in the final response.
 
+## PARALLEL CODEX WORK
+
+- Codex cannot reliably know whether another Codex session is actively working in this repository.
+- Treat unrelated dirty working-tree changes as possibly belonging to another active task.
+- Do not start implementation work in a checkout with unrelated dirty changes unless the task is clearly isolated or the user explicitly approves.
+- For new implementation tasks, prefer a separate git worktree when the root checkout is dirty.
+- Do not run multiple Codex implementation tasks in the same physical checkout unless the user explicitly asks to do so.
+- Use the root checkout for inspection, explanation, planning, and small clearly isolated edits.
+- If a worktree cannot be created safely, report the dirty files and ask before editing.
+
 ## COMMIT POLICY
 
 - When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, create a commit without waiting for an explicit user prompt.
 - Treat the task as incomplete until the intended changes are either committed or a concrete blocker is reported.
 - Commit automatically for small and medium scoped changes when the diff can be cleanly separated from unrelated work.
+- Do not commit automatically when unrelated dirty files exist and the current task's diff cannot be clearly separated.
+- Do not commit automatically for investigation, review, explanation, or planning-only tasks.
 - Before committing, inspect `git status` and the relevant diff, and stage only files changed for the current task.
 - Do not include unrelated user changes, generated artifacts, mirror files, deleted assets, or work-in-progress changes unless they are required for the current task and were intentionally produced as part of it.
 - Keep commit messages short and concrete, in Japanese or English, so the completed work unit is clear from `git log`.
