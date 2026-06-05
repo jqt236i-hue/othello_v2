@@ -10,6 +10,7 @@ type TheoryAnimationDeps = {
 };
 
 const ROULETTE_CLASS = 'theory-spawn-roulette-active';
+const ROULETTE_TRAIL_CLASS = 'theory-spawn-roulette-trail';
 const ROULETTE_SELECTED_CLASS = 'theory-spawn-roulette-selected';
 const MATERIALIZE_CLASS = 'theory-spawn-materialize';
 const MATERIALIZED_DISC_CLASS = 'theory-spawn-materialized-disc';
@@ -49,21 +50,34 @@ function collectCandidateCells(target: any, deps: TheoryAnimationDeps) {
 function clearRouletteClasses(entries: any[]) {
     for (const entry of entries) {
         try {
-            entry.element.classList.remove(ROULETTE_CLASS, ROULETTE_SELECTED_CLASS);
+            entry.element.classList.remove(ROULETTE_CLASS, ROULETTE_TRAIL_CLASS, ROULETTE_SELECTED_CLASS);
             entry.element.style.removeProperty('--theory-roulette-index');
         } catch (e) { /* ignore */ }
     }
 }
 
+function restartRouletteTrail(element: any) {
+    try {
+        element.classList.remove(ROULETTE_TRAIL_CLASS);
+        if (typeof element.offsetWidth === 'number') {
+            void element.offsetWidth;
+        }
+        element.classList.add(ROULETTE_TRAIL_CLASS);
+    } catch (e) { /* ignore */ }
+}
+
 function setActiveRouletteEntry(entries: any[], activeEntry: any) {
     for (const entry of entries) {
         try {
+            const wasActive = entry.element.classList.contains(ROULETTE_CLASS);
             if (entry === activeEntry) {
+                entry.element.classList.remove(ROULETTE_TRAIL_CLASS);
                 entry.element.classList.add(ROULETTE_CLASS);
                 entry.element.style.setProperty('--theory-roulette-index', String(entry.index));
             } else {
                 entry.element.classList.remove(ROULETTE_CLASS);
                 entry.element.style.removeProperty('--theory-roulette-index');
+                if (wasActive) restartRouletteTrail(entry.element);
             }
         } catch (e) { /* ignore */ }
     }

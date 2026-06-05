@@ -81,6 +81,15 @@ describe('theory incarnation spawn roulette animation', () => {
     expect(selectedCell.classList.contains('has-disc')).toBe(false);
 
     const firstDelay = timers[0].ms;
+    const firstTimer = timers.shift();
+    firstTimer.fn();
+    await Promise.resolve();
+
+    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
+    expect(otherCell.classList.contains('theory-spawn-roulette-trail')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-trail')).toBe(false);
+
     let lastDelay = firstDelay;
     while (timers.length > 0) {
       const next = timers.shift();
