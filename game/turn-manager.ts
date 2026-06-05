@@ -1081,6 +1081,14 @@ function applyDebugTestScenarioAfterResetForTurnManager(options?: any) {
         try { emitBoardUpdate(); } catch (e) { /* ignore */ }
         try { emitGameStateChange(); } catch (e) { /* ignore */ }
         try { emitCardStateChange(); } catch (e) { /* ignore */ }
+        const runTurnStartPlayer = result.runTurnStartPlayer === 'white' ? WHITE : (result.runTurnStartPlayer === 'black' ? BLACK : null);
+        if (runTurnStartPlayer !== null) {
+            Promise.resolve()
+                .then(() => onTurnStart(runTurnStartPlayer))
+                .catch((error) => {
+                    console.warn('[resetGame] debug scenario turn start failed:', error && (error as any).message ? (error as any).message : error);
+                });
+        }
         return true;
     } catch (e) {
         console.warn('[resetGame] debug test scenario failed:', e && (e as any).message ? (e as any).message : e);

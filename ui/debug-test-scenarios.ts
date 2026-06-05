@@ -2,16 +2,19 @@ export {};
 
 const OBSERVER_WILL_READY = 'observer_will_ready';
 const THEORY_INCARNATION_READY = 'theory_incarnation_ready';
+const THEORY_INCARNATION_SPAWN_READY = 'theory_incarnation_spawn_ready';
 const OBSERVER_READY_TURN = 18;
 const OBSERVER_READY_CHARGE = 99;
 const OBSERVER_READY_BLACK_HAND = ['observer_will_01'];
 const OBSERVER_READY_WHITE_HAND = ['rebuild_01', 'gold_stone', 'silver_stone'];
 const THEORY_READY_BLACK_HAND = ['theory_incarnation_01'];
+const THEORY_SPAWN_SESSION_ID = 'debug_theory_spawn_black';
 
 function normalizeScenarioId(value: any): string | null {
   const scenarioId = String(value || '').trim().toLowerCase().replace(/-/g, '_');
   if (scenarioId === OBSERVER_WILL_READY) return OBSERVER_WILL_READY;
   if (scenarioId === THEORY_INCARNATION_READY) return THEORY_INCARNATION_READY;
+  if (scenarioId === THEORY_INCARNATION_SPAWN_READY) return THEORY_INCARNATION_SPAWN_READY;
   return null;
 }
 
@@ -153,6 +156,114 @@ function applyTheoryIncarnationReadyScenario(gameState: any, cardState: any) {
   };
 }
 
+function setBoardCell(gameState: any, row: number, col: number, value: number) {
+  if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return;
+  gameState.board[row][col] = value;
+}
+
+function buildTheorySpawnDebugCell(row: number, col: number, value: number, spawnType: string, sourceCardId: string, sourceCardType: string) {
+  return {
+    row,
+    col,
+    value,
+    originalValue: 0,
+    originalConsumed: false,
+    spawnType,
+    sourceCardId,
+    sourceCardType,
+    sourceCardCost: value
+  };
+}
+
+function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any) {
+  if (!gameState || typeof gameState !== 'object' || !cardState || typeof cardState !== 'object') {
+    return { applied: false, reason: 'missing_state' };
+  }
+
+  gameState.currentPlayer = 1;
+  gameState.consecutivePasses = 0;
+  setBoardCell(gameState, 2, 3, 1);
+
+  const cells: Record<string, any> = {
+    '0,0': buildTheorySpawnDebugCell(0, 0, 5, 'GHOST', 'ghost_01', 'GHOST_WILL'),
+    '0,1': buildTheorySpawnDebugCell(0, 1, 7, 'BREEDING', 'breeding_01', 'BREEDING_WILL'),
+    '0,2': buildTheorySpawnDebugCell(0, 2, 8, 'SNIPER', 'sniper_01', 'SNIPER_WILL'),
+    '1,0': buildTheorySpawnDebugCell(1, 0, 11, 'HYPERACTIVE', 'hyperactive_01', 'HYPERACTIVE_WILL'),
+    '1,1': buildTheorySpawnDebugCell(1, 1, 12, 'GLUTTONOUS', 'gluttonous_01', 'GLUTTONOUS_WILL')
+  };
+
+  cardState.hands = {
+    ...(cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {}),
+    black: [],
+    white: []
+  };
+  cardState.decks = {
+    ...(cardState.decks && typeof cardState.decks === 'object' ? cardState.decks : {}),
+    black: [],
+    white: []
+  };
+  cardState.charge = {
+    ...(cardState.charge && typeof cardState.charge === 'object' ? cardState.charge : {}),
+    black: OBSERVER_READY_CHARGE,
+    white: OBSERVER_READY_CHARGE
+  };
+  cardState.pendingEffectByPlayer = { black: null, white: null };
+  cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };
+  cardState.lastUsedCardByPlayer = { black: null, white: null };
+  cardState.lastTurnStartedFor = null;
+  cardState.markers = [{
+    id: 'debug_theory_manifest_black',
+    kind: 'specialStone',
+    row: 2,
+    col: 3,
+    owner: 'black',
+    data: {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 3,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION',
+      visualEffectKey: 'theoryIncarnationStone'
+    }
+  }];
+  cardState.selectedCardId = null;
+  cardState.selectedCardOwnerKey = null;
+  cardState.numberCellCollectedTotalByPlayer = {
+    ...(cardState.numberCellCollectedTotalByPlayer && typeof cardState.numberCellCollectedTotalByPlayer === 'object'
+      ? cardState.numberCellCollectedTotalByPlayer
+      : {}),
+    black: 42,
+    white: Number(cardState.numberCellCollectedTotalByPlayer && cardState.numberCellCollectedTotalByPlayer.white || 0)
+  };
+  cardState.theoryIncarnationStateByPlayer = {
+    black: { sessionId: THEORY_SPAWN_SESSION_ID, ownerKey: 'black', remainingSpawnCount: 3 },
+    white: null
+  };
+  cardState.nextTheoryIncarnationStoneByPlayer = { black: null, white: null };
+  cardState.theoryNumberCellsBySession = {
+    [THEORY_SPAWN_SESSION_ID]: {
+      ownerKey: 'black',
+      cells
+    }
+  };
+  cardState.theoryNumberCellByCell = Object.fromEntries(Object.keys(cells).map((key) => [
+    key,
+    { sessionId: THEORY_SPAWN_SESSION_ID, ownerKey: 'black' }
+  ]));
+  cardState._deckCopyIdsByPlayer = { black: [], white: [] };
+  cardState._discardCopyIds = [];
+  cardState._revealedHandCopyIdsByViewer = { black: [], white: [] };
+  assignHandCopyIds(cardState, 'black', []);
+  assignHandCopyIds(cardState, 'white', []);
+  cardState._nextCardCopySeq = 101;
+
+  return {
+    applied: true,
+    scenarioId: THEORY_INCARNATION_SPAWN_READY,
+    runTurnStartPlayer: 'black',
+    message: 'デバッグシナリオ: 理論の化身の特殊石出現演出を即確認'
+  };
+}
+
 function applyDebugTestScenarioAfterReset(options: any) {
   const opts = options && typeof options === 'object' ? options : {};
   const scenarioId = normalizeScenarioId(opts.scenarioId);
@@ -162,12 +273,16 @@ function applyDebugTestScenarioAfterReset(options: any) {
   if (scenarioId === THEORY_INCARNATION_READY) {
     return applyTheoryIncarnationReadyScenario(opts.gameState, opts.cardState);
   }
+  if (scenarioId === THEORY_INCARNATION_SPAWN_READY) {
+    return applyTheoryIncarnationSpawnReadyScenario(opts.gameState, opts.cardState);
+  }
   return { applied: false, reason: 'unknown_scenario' };
 }
 
 export = {
   OBSERVER_WILL_READY,
   THEORY_INCARNATION_READY,
+  THEORY_INCARNATION_SPAWN_READY,
   resolveDebugTestScenarioFromQuery,
   readDebugTestScenarioFromLocation,
   applyDebugTestScenarioAfterReset
