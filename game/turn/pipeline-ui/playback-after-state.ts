@@ -44,6 +44,28 @@ function createEventSourcedAfter(target: any, targetMeta: any, deps: PlaybackAft
     return createEventSourcedVisual(target, targetMeta, target && target.ownerAfter, deps);
 }
 
+function isManifestStoneVisualType(rawType: any) {
+    const typeKey = String(rawType || '').trim().toUpperCase();
+    return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
+}
+
+function createSpawnAfter(target: any, targetMeta: any, finalCardState: any, finalGameState: any, deps: PlaybackAfterStateDeps) {
+    const eventSourced = createEventSourcedAfter(target, targetMeta, deps);
+    if (eventSourced.special) return eventSourced;
+    const visual = deps.getVisualStateAt(target.r, target.col, finalCardState, finalGameState);
+    if (!visual || !isManifestStoneVisualType(visual.special)) return eventSourced;
+    return {
+        ...eventSourced,
+        special: visual.special,
+        timer: visual.timer,
+        owner: visual.owner || eventSourced.owner,
+        flipEvadeRemaining: visual.flipEvadeRemaining,
+        destroyEvadeRemaining: visual.destroyEvadeRemaining,
+        livingWillAura: visual.livingWillAura === true,
+        ...(visual.manifestAura ? { manifestAura: visual.manifestAura } : {})
+    };
+}
+
 function createEventSourcedBefore(target: any, targetMeta: any, deps: PlaybackAfterStateDeps) {
     return createEventSourcedVisual(target, targetMeta, target && target.ownerBefore, deps);
 }
@@ -146,7 +168,7 @@ function populatePlaybackEventAfterState(playbackEvent: any, presentationEvent: 
         const targetMeta = (target && target.meta && typeof target.meta === 'object') ? target.meta : eventMeta;
         if (playbackEvent.type === 'spawn' || playbackEvent.type === 'theory_incarnation_spawn_roulette') {
             target.before = target.before || createEmptyVisualState();
-            target.after = target.after || createEventSourcedAfter(target, targetMeta, deps);
+            target.after = target.after || createSpawnAfter(target, targetMeta, finalCardState, finalGameState, deps);
         } else if (playbackEvent.type === 'move') {
             target.before = target.before || createMoveBefore(target, targetMeta, deps);
             target.after = target.after || createMoveAfter(target, targetMeta, deps);

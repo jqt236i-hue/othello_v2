@@ -1345,7 +1345,9 @@ function renderBoardFullLegacy() {
                 continue;
             }
             const markerTypeUpper = String(m.data.type || '').toUpperCase();
-            if (_isManifestStoneTypeForBoardRenderer(markerTypeUpper)) {
+            const isManifestType = _isManifestStoneTypeForBoardRenderer(markerTypeUpper);
+            const isManifestKind = m.kind === manifestMarkerKind || m.kind === 'manifestStone';
+            if (isManifestType && !isManifestKind) {
                 continue;
             }
             specialMap.set(`${m.row},${m.col}`, {
@@ -1353,15 +1355,17 @@ function renderBoardFullLegacy() {
                 col: m.col,
                 type: m.data.type,
                 owner: m.owner,
-                remainingOwnerTurns: _resolveSpecialDisplayTurnsForBoard(m.data),
-                destroyEvadeRemaining: _isDestroyEvadeSpecialTypeForBoard(markerTypeUpper)
+                remainingOwnerTurns: isManifestType
+                    ? m.data.remainingOwnerTurns
+                    : _resolveSpecialDisplayTurnsForBoard(m.data),
+                destroyEvadeRemaining: (!isManifestType && _isDestroyEvadeSpecialTypeForBoard(markerTypeUpper))
                     ? (
                         Number.isFinite(Number(m.data.destroyEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
                             : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 1 : null)
                     )
                     : null,
-                flipEvadeRemaining: _isFlipEvadeSpecialTypeForBoard(markerTypeUpper)
+                flipEvadeRemaining: (!isManifestType && _isFlipEvadeSpecialTypeForBoard(markerTypeUpper))
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))

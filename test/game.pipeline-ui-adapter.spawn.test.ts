@@ -9,6 +9,50 @@ function mapPlaybackEvents(pres) {
 }
 
 describe('pipeline_ui_adapter spawn mapping', () => {
+  test('uses manifestStone markers for placement after-state visuals', () => {
+    const out = adapter.mapToPlaybackEvents(
+      [{
+        type: 'SPAWN',
+        row: 2,
+        col: 3,
+        stoneId: 'theory-manifest-1',
+        ownerAfter: 'black',
+        cause: 'SYSTEM',
+        reason: 'standard_place',
+        meta: {}
+      }],
+      {
+        markers: [{
+          id: 9001,
+          kind: 'manifestStone',
+          row: 2,
+          col: 3,
+          owner: 'black',
+          data: {
+            type: 'THEORY_INCARNATION',
+            remainingOwnerTurns: 3,
+            visualEffectKey: 'theoryIncarnationStone'
+          }
+        }]
+      },
+      {
+        board: Array.from({ length: 8 }, (_, row) =>
+          Array.from({ length: 8 }, (_, col) => (row === 2 && col === 3 ? 1 : 0))
+        )
+      }
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('spawn');
+    expect(out[0].targets[0].after).toEqual(expect.objectContaining({
+      color: 1,
+      special: 'THEORY_INCARNATION',
+      timer: 3,
+      owner: 'black',
+      manifestAura: { owner: 'black' }
+    }));
+  });
+
   test('maps SPAWN cause/reason to playback target for animation branching', () => {
     const pres = [{
       type: 'SPAWN',

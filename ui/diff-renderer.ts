@@ -2419,7 +2419,9 @@ function buildCurrentCellState() {
                 continue;
             }
             const markerTypeUpper = String(m.data.type || '').toUpperCase();
-            if (_isManifestStoneTypeForDiff(markerTypeUpper)) {
+            const isManifestType = _isManifestStoneTypeForDiff(markerTypeUpper);
+            const isManifestKind = m.kind === manifestMarkerKind || m.kind === 'manifestStone';
+            if (isManifestType && !isManifestKind) {
                 continue;
             }
             const markerSupportsFlipEvade = (
@@ -2435,13 +2437,15 @@ function buildCurrentCellState() {
                 col: m.col,
                 type: m.data.type,
                 owner: m.owner,
-                remainingOwnerTurns: _resolveSpecialDisplayTurnsForDiff(m.data),
-                destroyEvadeRemaining: (
+                remainingOwnerTurns: isManifestType
+                    ? m.data.remainingOwnerTurns
+                    : _resolveSpecialDisplayTurnsForDiff(m.data),
+                destroyEvadeRemaining: (!isManifestType && (
                     markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
                     markerTypeUpper === 'EXTREME_HYPERACTIVE' ||
                     markerTypeUpper === 'WILL_HUNTER_KING' ||
                     markerTypeUpper === 'AFTERIMAGE_WILL'
-                )
+                ))
                     ? (
                         Number.isFinite(Number(m.data.destroyEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))

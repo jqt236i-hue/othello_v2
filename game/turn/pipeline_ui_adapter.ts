@@ -578,23 +578,55 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             livingWillAura: false
         };
         const color = getCellColorAt(gameState, r, c);
+        const markerKinds = MarkersAdapter && MarkersAdapter.MARKER_KINDS
+            ? MarkersAdapter.MARKER_KINDS
+            : { SPECIAL_STONE: 'specialStone', MANIFEST_STONE: 'manifestStone', BOMB: 'bomb' };
+        const specialMarkerKind = markerKinds.SPECIAL_STONE || 'specialStone';
+        const manifestMarkerKind = markerKinds.MANIFEST_STONE || 'manifestStone';
         let special = null;
         let timer = null;
         let owner = null;
         let flipEvadeRemaining = null;
         let destroyEvadeRemaining = null;
         let livingWillAura = false;
+        let manifestAura = null;
+
+        const isManifestType = (rawType: any) => {
+            const typeKey = String(rawType || '').trim().toUpperCase();
+            return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
+        };
+        const isActiveManifestMarker = (marker: any) => {
+            if (!marker || typeof marker !== 'object') return false;
+            const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+            const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+            if (!isManifestType(typeKey)) return false;
+            const kind = String((marker && marker.kind) || '').trim();
+            const isManifestKind = kind === manifestMarkerKind || kind === 'manifestStone';
+            const isLegacyManifestType = (kind === specialMarkerKind || !kind) && isManifestType(typeKey);
+            if (!isManifestKind && !isLegacyManifestType) return false;
+            const remainingRaw = data.remainingOwnerTurns ?? data.remainingTurns ?? marker.remainingOwnerTurns ?? marker.remainingTurns;
+            if (remainingRaw == null) return true;
+            const remaining = Number(remainingRaw);
+            return !Number.isFinite(remaining) || remaining > 0;
+        };
 
         if (cardState && cardState.markers) {
             const markersAtCell = cardState.markers.filter((m: any) => (
                 m &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
+                (m.kind === specialMarkerKind || m.kind === manifestMarkerKind) &&
                 m.row === r &&
                 m.col === c
             ));
             const bombMarker = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
                 ? MarkersAdapter.findBombMarkerAt(cardState, r, c)
-                : cardState.markers.find((m: any) => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === r && m.col === c);
+                : cardState.markers.find((m: any) => m.kind === specialMarkerKind && m.data && m.data.category === 'bomb' && m.row === r && m.col === c);
+
+            const manifestMarker = markersAtCell.find(isActiveManifestMarker);
+            if (manifestMarker) {
+                manifestAura = {
+                    owner: (manifestMarker.owner !== undefined && manifestMarker.owner !== null) ? manifestMarker.owner : null
+                };
+            }
 
             if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
                 const visualState = StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
@@ -652,7 +684,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             owner,
             flipEvadeRemaining,
             destroyEvadeRemaining,
-            livingWillAura
+            livingWillAura,
+            ...(manifestAura ? { manifestAura } : {})
         };
     }
 
