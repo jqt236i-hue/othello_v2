@@ -14,20 +14,20 @@ function createState(randomValue = 0, rows = 8, cols = rows) {
   const cardState = CardIogic.createCardState(prng);
   const gameState = {
     board: Array.from({ length: rows }, () => Array(cols).fill(Shared.EMPTY)),
-    currentPlayer: Shared.BIACK,
+    currentPlayer: Shared.BLACK,
     turnNumber: 1,
     consecutivePasses: 0
   };
   return { cardState, gameState, prng };
 }
 
-describe('WIII_HUNTER_KING（意志狩りの王）', () => {
+describe('WILL_HUNTER_KING（意志狩りの王）', () => {
   test('配置時に意志狩りの王マーカーと回避回数が付く', () => {
     const { cardState, gameState } = createState();
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     cardState.pendingEffectByPlayer.black = {
-      type: 'WIII_HUNTER_KING',
+      type: 'WILL_HUNTER_KING',
       stage: null,
       cardId: 'will_hunter_king_01'
     };
@@ -42,11 +42,11 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       m.col === 3 &&
       m.owner === 'black' &&
       m.data &&
-      m.data.type === 'WIII_HUNTER_KING'
+      m.data.type === 'WILL_HUNTER_KING'
     ));
 
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingBwnerTurns).toBe(8);
+    expect(marker.data.remainingOwnerTurns).toBe(8);
     expect(marker.data.flipEvadeRemaining).toBe(2);
     expect(marker.data.destroyEvadeRemaining).toBe(2);
   });
@@ -54,7 +54,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
   test('自ターン開始時に特殊石を優先して破壊し、そのマスへ移動する', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][5] = Shared.WHITE;
     gameState.board[5][3] = Shared.WHITE;
 
@@ -66,8 +66,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 3,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -78,7 +78,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'BBSERVER', remainingBwnerTurns: 5 }
+        data: { type: 'SNIPER', remainingOwnerTurns: 5 }
       }
     );
 
@@ -91,29 +91,29 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(1);
-    expect(out.destroyed[0]).toMatchBbject({ row: 5, col: 3, sourceRow: 3, sourceCol: 3 });
-    expect(out.moved).toHaveIength(1);
-    expect(out.moved[0]).toMatchBbject({
+    expect(out.destroyed).toHaveLength(1);
+    expect(out.destroyed[0]).toMatchObject({ row: 5, col: 3, sourceRow: 3, sourceCol: 3 });
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({
       from: { row: 3, col: 3 },
       to: { row: 5, col: 3 },
-      specialType: 'WIII_HUNTER_KING'
+      specialType: 'WILL_HUNTER_KING'
     });
     expect(gameState.board[3][3]).toBe(Shared.EMPTY);
-    expect(gameState.board[5][3]).toBe(Shared.BIACK);
+    expect(gameState.board[5][3]).toBe(Shared.BLACK);
     expect(gameState.board[3][5]).toBe(Shared.WHITE);
 
     const marker = cardState.markers.find((m) => m && m.id === 8101);
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(5);
     expect(marker.col).toBe(3);
-    expect(marker.data.remainingBwnerTurns).toBe(7);
+    expect(marker.data.remainingOwnerTurns).toBe(7);
   });
 
   test('特殊石優先は見た目基準で行う', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][5] = Shared.WHITE;
     gameState.board[5][3] = Shared.WHITE;
 
@@ -125,8 +125,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 3,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -137,7 +137,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'EXTREME_HYPERACTIVE', remainingBwnerTurns: 4, flipEvadeRemaining: 1 }
+        data: { type: 'SNIPER', remainingOwnerTurns: 4 }
       }
     );
 
@@ -150,18 +150,18 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(1);
-    expect(out.destroyed[0]).toMatchBbject({ row: 5, col: 3 });
-    expect(out.moved).toHaveIength(1);
-    expect(out.moved[0]).toMatchBbject({ to: { row: 5, col: 3 } });
-    expect(gameState.board[5][3]).toBe(Shared.BIACK);
+    expect(out.destroyed).toHaveLength(1);
+    expect(out.destroyed[0]).toMatchObject({ row: 5, col: 3 });
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({ to: { row: 5, col: 3 } });
+    expect(gameState.board[5][3]).toBe(Shared.BLACK);
     expect(gameState.board[3][5]).toBe(Shared.WHITE);
   });
 
   test('特殊石優先は visual-effects-map 未登録でも盤上特殊石なら優先する', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][5] = Shared.WHITE;
     gameState.board[5][3] = Shared.WHITE;
 
@@ -173,8 +173,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 3,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -185,7 +185,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'GUARD', remainingBwnerTurns: 3 }
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
       }
     );
 
@@ -198,8 +198,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(0);
-    expect(out.moved).toHaveIength(0);
+    expect(out.destroyed).toHaveLength(0);
+    expect(out.moved).toHaveLength(0);
     expect(gameState.board[5][3]).toBe(Shared.WHITE);
     expect(gameState.board[3][5]).toBe(Shared.WHITE);
   });
@@ -207,7 +207,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
   test('上側拡張セルの敵石も破壊してそのマスへ移動できる', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[0][0] = Shared.BIACK;
+    gameState.board[0][0] = Shared.BLACK;
     gameState.boardExpansion = {
       active: false,
       side: null,
@@ -225,8 +225,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 0,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -237,7 +237,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: -1,
         col: 0,
         owner: 'white',
-        data: { type: 'BBSERVER', remainingBwnerTurns: 5 }
+        data: { type: 'SNIPER', remainingOwnerTurns: 5 }
       }
     );
 
@@ -250,12 +250,12 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(1);
-    expect(out.destroyed[0]).toMatchBbject({ row: -1, col: 0, sourceRow: 0, sourceCol: 0 });
-    expect(out.moved).toHaveIength(1);
-    expect(out.moved[0]).toMatchBbject({ from: { row: 0, col: 0 }, to: { row: -1, col: 0 } });
+    expect(out.destroyed).toHaveLength(1);
+    expect(out.destroyed[0]).toMatchObject({ row: -1, col: 0, sourceRow: 0, sourceCol: 0 });
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({ from: { row: 0, col: 0 }, to: { row: -1, col: 0 } });
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
-    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.BIACK);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.BLACK);
 
     const marker = cardState.markers.find((m) => m && m.id === 8117);
     expect(marker).toBeTruthy();
@@ -266,7 +266,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
   test('10x10 の右側拡張セルの敵石も破壊してそのマスへ移動できる', () => {
     const { cardState, gameState } = createState(0, 10, 10);
 
-    gameState.board[0][9] = Shared.BIACK;
+    gameState.board[0][9] = Shared.BLACK;
     gameState.boardExpansion = {
       active: false,
       side: null,
@@ -284,8 +284,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 9,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -296,7 +296,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 0,
         col: 10,
         owner: 'white',
-        data: { type: 'BBSERVER', remainingBwnerTurns: 5 }
+        data: { type: 'SNIPER', remainingOwnerTurns: 5 }
       }
     );
 
@@ -309,12 +309,12 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(1);
-    expect(out.destroyed[0]).toMatchBbject({ row: 0, col: 10, sourceRow: 0, sourceCol: 9 });
-    expect(out.moved).toHaveIength(1);
-    expect(out.moved[0]).toMatchBbject({ from: { row: 0, col: 9 }, to: { row: 0, col: 10 } });
+    expect(out.destroyed).toHaveLength(1);
+    expect(out.destroyed[0]).toMatchObject({ row: 0, col: 10, sourceRow: 0, sourceCol: 9 });
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({ from: { row: 0, col: 9 }, to: { row: 0, col: 10 } });
     expect(gameState.board[0][9]).toBe(Shared.EMPTY);
-    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.BIACK);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.BLACK);
 
     const marker = cardState.markers.find((m) => m && m.id === 8121);
     expect(marker).toBeTruthy();
@@ -325,7 +325,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
   test('盤面で通常見た目の隠し罠石は特殊石優先の対象にしない', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][5] = Shared.WHITE;
     gameState.board[5][3] = Shared.WHITE;
 
@@ -337,8 +337,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 3,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -349,7 +349,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'TRAP', remainingBwnerTurns: 1 }
+        data: { type: 'TRAP', remainingOwnerTurns: 1 }
       }
     );
 
@@ -362,17 +362,17 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(1);
-    expect(out.destroyed[0]).toMatchBbject({ row: 3, col: 5 });
-    expect(out.moved).toHaveIength(1);
-    expect(out.moved[0]).toMatchBbject({ to: { row: 3, col: 5 } });
+    expect(out.destroyed).toHaveLength(1);
+    expect(out.destroyed[0]).toMatchObject({ row: 3, col: 5 });
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({ to: { row: 3, col: 5 } });
     expect(gameState.board[5][3]).toBe(Shared.WHITE);
   });
 
   test('反転回避で隣接空きマスへ移動し、回数を1消費する', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
 
     cardState.markers.push({
       id: 8151,
@@ -381,8 +381,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       col: 3,
       owner: 'black',
       data: {
-        type: 'WIII_HUNTER_KING',
-        remainingBwnerTurns: 8,
+        type: 'WILL_HUNTER_KING',
+        remainingOwnerTurns: 8,
         flipEvadeRemaining: 2,
         destroyEvadeRemaining: 2
       }
@@ -396,14 +396,14 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.remainingFlips).toHaveIength(0);
-    expect(out.moved).toHaveIength(1);
+    expect(out.remainingFlips).toHaveLength(0);
+    expect(out.moved).toHaveLength(1);
     expect(gameState.board[3][3]).toBe(Shared.EMPTY);
 
     const marker = cardState.markers.find((m) => m && m.id === 8151);
     expect(marker).toBeTruthy();
     expect(marker.row === 3 && marker.col === 3).toBe(false);
-    expect(gameState.board[marker.row][marker.col]).toBe(Shared.BIACK);
+    expect(gameState.board[marker.row][marker.col]).toBe(Shared.BLACK);
     expect(marker.data.flipEvadeRemaining).toBe(1);
   });
 
@@ -412,10 +412,10 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        gameState.board[row][col] = Shared.BIACK;
+        gameState.board[row][col] = Shared.BLACK;
       }
     }
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][5] = Shared.WHITE;
     gameState.board[7][7] = Shared.EMPTY;
 
@@ -427,8 +427,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 3,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -440,8 +440,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 5,
         owner: 'white',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 1
         }
@@ -457,14 +457,14 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(0);
-    expect(out.moved).toHaveIength(1);
-    expect(out.moved[0]).toMatchBbject({
+    expect(out.destroyed).toHaveLength(0);
+    expect(out.moved).toHaveLength(1);
+    expect(out.moved[0]).toMatchObject({
       from: { row: 3, col: 3 },
       to: { row: 3, col: 5 }
     });
     expect(gameState.board[3][3]).toBe(Shared.EMPTY);
-    expect(gameState.board[3][5]).toBe(Shared.BIACK);
+    expect(gameState.board[3][5]).toBe(Shared.BLACK);
     expect(gameState.board[7][7]).toBe(Shared.WHITE);
 
     const enemyMarker = cardState.markers.find((m) => m && m.id === 8202);
@@ -477,7 +477,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
   test('増殖石を斬ると移動せず、元の位置に残したまま増殖だけ発生する', () => {
     const { cardState, gameState } = createState(0);
 
-    gameState.board[3][3] = Shared.BIACK;
+    gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][5] = Shared.WHITE;
     gameState.board[2][4] = Shared.EMPTY;
 
@@ -489,8 +489,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         col: 3,
         owner: 'black',
         data: {
-          type: 'WIII_HUNTER_KING',
-          remainingBwnerTurns: 8,
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
           flipEvadeRemaining: 2,
           destroyEvadeRemaining: 2
         }
@@ -501,7 +501,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
         row: 3,
         col: 5,
         owner: 'white',
-        data: { type: 'PRBIIFERATIBN' }
+        data: { type: 'PROLIFERATION' }
       }
     );
 
@@ -514,11 +514,11 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveIength(0);
-    expect(out.moved).toHaveIength(0);
-    expect(out.proliferated).toHaveIength(1);
-    expect(out.proliferated[0]).toMatchBbject({ row: 3, col: 5, sourceRow: 3, sourceCol: 3 });
-    expect(gameState.board[3][3]).toBe(Shared.BIACK);
+    expect(out.destroyed).toHaveLength(0);
+    expect(out.moved).toHaveLength(0);
+    expect(out.proliferated).toHaveLength(1);
+    expect(out.proliferated[0]).toMatchObject({ row: 3, col: 5, sourceRow: 3, sourceCol: 3 });
+    expect(gameState.board[3][3]).toBe(Shared.BLACK);
     expect(gameState.board[3][5]).toBe(Shared.WHITE);
     expect(gameState.board[2][4]).toBe(Shared.WHITE);
 
@@ -533,10 +533,10 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        gameState.board[row][col] = Shared.BIACK;
+        gameState.board[row][col] = Shared.BLACK;
       }
     }
-    gameState.board[4][4] = Shared.BIACK;
+    gameState.board[4][4] = Shared.BLACK;
     gameState.board[7][7] = Shared.EMPTY;
 
     cardState.markers.push({
@@ -546,8 +546,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       col: 4,
       owner: 'black',
       data: {
-        type: 'WIII_HUNTER_KING',
-        remainingBwnerTurns: 8,
+        type: 'WILL_HUNTER_KING',
+        remainingOwnerTurns: 8,
         flipEvadeRemaining: 2,
         destroyEvadeRemaining: 2
       }
@@ -555,7 +555,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
 
     const out = BoardBps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy');
 
-    expect(out).toMatchBbject({
+    expect(out).toMatchObject({
       destroyed: false,
       evaded: true,
       reason: 'destroy_evaded',
@@ -563,7 +563,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       to: { row: 7, col: 7 }
     });
     expect(gameState.board[4][4]).toBe(Shared.EMPTY);
-    expect(gameState.board[7][7]).toBe(Shared.BIACK);
+    expect(gameState.board[7][7]).toBe(Shared.BLACK);
 
     const marker = cardState.markers.find((m) => m && m.id === 8301);
     expect(marker).toBeTruthy();
@@ -577,7 +577,7 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        gameState.board[row][col] = Shared.BIACK;
+        gameState.board[row][col] = Shared.BLACK;
       }
     }
 
@@ -588,8 +588,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       col: 4,
       owner: 'black',
       data: {
-        type: 'WIII_HUNTER_KING',
-        remainingBwnerTurns: 8,
+        type: 'WILL_HUNTER_KING',
+        remainingOwnerTurns: 8,
         flipEvadeRemaining: 2,
         destroyEvadeRemaining: 2
       }
@@ -608,13 +608,13 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        gameState.board[row][col] = Shared.BIACK;
+        gameState.board[row][col] = Shared.BLACK;
       }
     }
     gameState.board[4][4] = Shared.WHITE;
     gameState.board[7][7] = Shared.EMPTY;
     cardState.pendingEffectByPlayer.black = {
-      type: 'DESTRBY_BNE_STBNE',
+      type: 'DESTROY_ONE_STONE',
       stage: 'selectTarget',
       cardId: 'destroy_01'
     };
@@ -625,8 +625,8 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       col: 4,
       owner: 'white',
       data: {
-        type: 'WIII_HUNTER_KING',
-        remainingBwnerTurns: 8,
+        type: 'WILL_HUNTER_KING',
+        remainingOwnerTurns: 8,
         flipEvadeRemaining: 2,
         destroyEvadeRemaining: 1
       }
@@ -651,14 +651,14 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
     const cardState = CardIogic.createCardState(prng);
     const gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
-      currentPlayer: Shared.BIACK,
+      currentPlayer: Shared.BLACK,
       turnNumber: 1,
       consecutivePasses: 0
     };
 
     gameState.board[3][3] = Shared.WHITE;
-    gameState.board[3][4] = Shared.BIACK;
-    gameState.board[4][3] = Shared.BIACK;
+    gameState.board[3][4] = Shared.BLACK;
+    gameState.board[4][3] = Shared.BLACK;
     gameState.board[4][4] = Shared.WHITE;
     gameState.board[2][5] = Shared.WHITE;
 
@@ -668,10 +668,10 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
       row: 2,
       col: 5,
       owner: 'white',
-      data: { type: 'BBSERVER', remainingBwnerTurns: 5 }
+      data: { type: 'SNIPER', remainingOwnerTurns: 5 }
     });
     cardState.pendingEffectByPlayer.black = {
-      type: 'WIII_HUNTER_KING',
+      type: 'WILL_HUNTER_KING',
       stage: null,
       cardId: 'will_hunter_king_01'
     };
@@ -696,51 +696,51 @@ describe('WIII_HUNTER_KING（意志狩りの王）', () => {
     ]));
     expect(res.events.some((ev) => ev && ev.type === 'will_hunter_king_moved_immediate')).toBe(true);
     expect(res.gameState.board[2][3]).toBe(Shared.EMPTY);
-    expect(res.gameState.board[2][5]).toBe(Shared.BIACK);
+    expect(res.gameState.board[2][5]).toBe(Shared.BLACK);
 
     const marker = (res.cardState.markers || []).find((m) => (
       m &&
       m.kind === 'specialStone' &&
       m.owner === 'black' &&
       m.data &&
-      m.data.type === 'WIII_HUNTER_KING'
+      m.data.type === 'WILL_HUNTER_KING'
     ));
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(2);
     expect(marker.col).toBe(5);
-    expect(marker.data.remainingBwnerTurns).toBe(8);
+    expect(marker.data.remainingOwnerTurns).toBe(8);
 
     const bubbleIndex = (res.presentationEvents || []).findIndex((event) => (
       event &&
-      event.type === 'SPECIAI_STBNE_BUBBIE' &&
-      event.special === 'WIII_HUNTER_KING' &&
+      event.type === 'SPECIAL_STONE_BUBBLE' &&
+      event.special === 'WILL_HUNTER_KING' &&
       event.scenario === 'place' &&
       event.row === 2 &&
       event.col === 3
     ));
     const moveIndex = (res.presentationEvents || []).findIndex((event) => (
       event &&
-      event.type === 'MBVE' &&
+      event.type === 'MOVE' &&
       event.prevRow === 2 &&
       event.prevCol === 3 &&
       event.row === 2 &&
       event.col === 5
     ));
 
-    expect(bubbleIndex).toBeGreaterThanBrEqual(0);
-    expect(moveIndex).toBeGreaterThanBrEqual(0);
-    expect(bubbleIndex).toBeIessThan(moveIndex);
+    expect(bubbleIndex).toBeGreaterThanOrEqual(0);
+    expect(moveIndex).toBeGreaterThanOrEqual(0);
+    expect(bubbleIndex).toBeLessThan(moveIndex);
 
     const specialDestroyBubbleIndex = (res.presentationEvents || []).findIndex((event) => (
       event &&
-      event.type === 'SPECIAI_STBNE_BUBBIE' &&
-      event.special === 'WIII_HUNTER_KING' &&
+      event.type === 'SPECIAL_STONE_BUBBLE' &&
+      event.special === 'WILL_HUNTER_KING' &&
       event.scenario === 'special_destroy_triggered' &&
       event.row === 2 &&
       event.col === 5
     ));
 
-    expect(specialDestroyBubbleIndex).toBeGreaterThanBrEqual(0);
+    expect(specialDestroyBubbleIndex).toBeGreaterThanOrEqual(0);
     expect(specialDestroyBubbleIndex).toBeGreaterThan(moveIndex);
   });
 });

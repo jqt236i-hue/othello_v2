@@ -98,6 +98,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     CELL_TELEPORT_WILL: makePlanPressureProfile(3, 4, 3, 2),
     TEMPT_WILL: makePlanPressureProfile(2, 3, 2, 2),
     CAPTURE_WILL: makePlanPressureProfile(2, 3, 2, 2),
+    THEORY_INCARNATION: makePlanPressureProfile(2, 3, 2, 3),
     TIME_BOMB: makePlanPressureProfile(3, 4, 3, 2),
     TIME_STOP_GOD: makePlanPressureProfile(3, 4, 3, 2),
     TRAP_WILL: makePlanPressureProfile(1, 2, 1, 2),

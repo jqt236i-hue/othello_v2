@@ -77,6 +77,11 @@ const DIST_EXCLUDED_BROWSER_MODULES = new Set([
 ]);
 
 const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: string[] }> = [
+    { source: 'othello-ai/core/board.js', key: 'othello-ai/core/board', aliases: ['othello-ai/core/board.js'] },
+    { source: 'othello-ai/eval/value-table.js', key: 'othello-ai/eval/value-table', aliases: ['othello-ai/eval/value-table.js'] },
+    { source: 'othello-ai/runtime/browser-cpu.js', key: 'othello-ai/runtime/browser-cpu', aliases: ['othello-ai/runtime/browser-cpu.js'] },
+    { source: 'othello-ai/runtime/engine.js', key: 'othello-ai/runtime/engine', aliases: ['othello-ai/runtime/engine.js'] },
+    { source: 'othello-ai/search/teacher.js', key: 'othello-ai/search/teacher', aliases: ['othello-ai/search/teacher.js'] },
     { source: 'utils/owner-helpers.js', key: 'legacy/utils/owner-helpers' },
     { source: 'game/logic/cards/breeding.js', key: 'legacy/game/logic/cards/breeding' },
     { source: 'game/logic/cards/sniper.js', key: 'legacy/game/logic/cards/sniper' },
