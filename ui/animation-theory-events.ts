@@ -55,6 +55,20 @@ function clearRouletteClasses(entries: any[]) {
     }
 }
 
+function setActiveRouletteEntry(entries: any[], activeEntry: any) {
+    for (const entry of entries) {
+        try {
+            if (entry === activeEntry) {
+                entry.element.classList.add(ROULETTE_CLASS);
+                entry.element.style.setProperty('--theory-roulette-index', String(entry.index));
+            } else {
+                entry.element.classList.remove(ROULETTE_CLASS);
+                entry.element.style.removeProperty('--theory-roulette-index');
+            }
+        } catch (e) { /* ignore */ }
+    }
+}
+
 function findEntryForCell(entries: any[], selected: any) {
     if (!selected) return null;
     return entries.find((entry: any) => (
@@ -63,6 +77,51 @@ function findEntryForCell(entries: any[], selected: any) {
         entry.cell.row === selected.row &&
         entry.cell.col === selected.col
     )) || null;
+}
+
+function positiveModulo(value: number, size: number): number {
+    if (!Number.isFinite(value) || !Number.isFinite(size) || size <= 0) return 0;
+    return ((value % size) + size) % size;
+}
+
+function buildRouletteDelays(durationMs: number, stepCount: number): number[] {
+    const count = Math.max(1, Math.trunc(stepCount));
+    const total = Math.max(0, Math.trunc(durationMs));
+    if (count <= 1) return [total];
+    const weights = [];
+    let weightTotal = 0;
+    for (let i = 0; i < count; i += 1) {
+        const t = count <= 1 ? 1 : i / (count - 1);
+        const weight = 0.42 + (1.85 * t * t);
+        weights.push(weight);
+        weightTotal += weight;
+    }
+    let used = 0;
+    return weights.map((weight, index) => {
+        if (index === weights.length - 1) return Math.max(0, total - used);
+        const delay = Math.max(1, Math.round((total * weight) / weightTotal));
+        used += delay;
+        return delay;
+    });
+}
+
+async function playRouletteSequence(entries: any[], selectedEntry: any, durationMs: number, deps: TheoryAnimationDeps) {
+    if (!entries.length) {
+        await sleep(durationMs, deps);
+        return;
+    }
+    const selectedIndex = Math.max(0, entries.indexOf(selectedEntry));
+    const minimumSteps = Math.max(entries.length * 3, 8);
+    const timedSteps = Math.max(minimumSteps, Math.round(Math.max(0, durationMs) / 90));
+    const stepCount = Math.min(32, timedSteps);
+    const delays = buildRouletteDelays(durationMs, stepCount);
+
+    for (let step = 0; step < stepCount; step += 1) {
+        const remaining = stepCount - 1 - step;
+        const entry = entries[positiveModulo(selectedIndex - remaining, entries.length)];
+        setActiveRouletteEntry(entries, entry);
+        await sleep(delays[step] || 0, deps);
+    }
 }
 
 async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, materializeMs: number) {
@@ -114,17 +173,10 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
         const materializeMs = Number.isFinite(Number(ev.materializeMs)) ? Math.max(0, Math.trunc(Number(ev.materializeMs))) : 700;
         const entries = collectCandidateCells(target, deps);
         const selected = normalizeCell(target && (target.selectedCell || { row: target.row ?? target.r, col: target.col }));
-
-        for (const entry of entries) {
-            try {
-                entry.element.classList.add(ROULETTE_CLASS);
-                entry.element.style.setProperty('--theory-roulette-index', String(entry.index));
-            } catch (e) { /* ignore */ }
-        }
-
-        await sleep(durationMs, deps);
-        clearRouletteClasses(entries);
         const selectedEntry = findEntryForCell(entries, selected);
+
+        await playRouletteSequence(entries, selectedEntry, durationMs, deps);
+        clearRouletteClasses(entries);
         if (selectedEntry && selectedEntry.element) {
             try { selectedEntry.element.classList.add(ROULETTE_SELECTED_CLASS); } catch (e) { /* ignore */ }
         }

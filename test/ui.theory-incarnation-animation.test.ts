@@ -67,17 +67,24 @@ describe('theory incarnation spawn roulette animation', () => {
     const otherCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="0"]');
     await Promise.resolve();
 
-    expect(timers.some((entry) => entry.ms === 2000)).toBe(true);
-    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
-    expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
+    expect(timers.length).toBe(1);
     expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
 
-    const rouletteTimer = timers.find((entry) => entry.ms === 2000);
-    rouletteTimer.fn();
+    const firstDelay = timers[0].ms;
+    let lastDelay = firstDelay;
+    while (timers.length > 0) {
+      const next = timers.shift();
+      lastDelay = next.ms;
+      next.fn();
+      await Promise.resolve();
+    }
     await animationPromise;
 
     const disc = selectedCell.querySelector('.disc');
 
+    expect(lastDelay).toBeGreaterThan(firstDelay);
     expect(disc).toBeTruthy();
     expect(disc.dataset.special).toBe('GHOST');
     expect(selectedCell.classList.contains('theory-spawn-materialize')).toBe(false);

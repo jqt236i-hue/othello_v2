@@ -131,7 +131,6 @@
 
 .cell.theory-spawn-roulette-active {
     animation: theorySpawnRoulettePulse 420ms ease-in-out infinite alternate;
-    animation-delay: calc(var(--theory-roulette-index, 0) * 54ms);
     outline: calc(2px * var(--layout-stage-scale)) solid rgba(122, 72, 210, 0.72);
     outline-offset: calc(-2px * var(--layout-stage-scale));
 }
