@@ -411,6 +411,55 @@ describe('UI stone rendering', () => {
     assert.ok(!whiteDisc.classList.contains('manifest-stone-aura-black'));
   });
 
+  test('board-renderer does not render manifestation stones as ordinary special stones', () => {
+    const boardRenderer = require('../ui/board-renderer.js');
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+    global.getEffectKeyForSpecialType = (type) => {
+      const normalized = String(type || '').toUpperCase();
+      if (normalized === 'THEORY_INCARNATION') return 'theoryIncarnationStone';
+      if (normalized === 'HYPERACTIVE') return 'hyperactiveStone';
+      return null;
+    };
+    global.applyStoneVisualEffect = jest.fn((disc, effectKey) => {
+      disc.classList.add('special-stone', `${effectKey}-applied`);
+      return true;
+    });
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[0][0] = BLACK;
+    gameState.board[2][3] = BLACK;
+    cardState.markers = [
+      {
+        id: 61,
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'HYPERACTIVE', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 62,
+        kind: 'specialStone',
+        row: 2,
+        col: 3,
+        owner: 'black',
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 2 }
+      }
+    ];
+
+    boardRenderer.renderBoardFull();
+
+    const spawnedDisc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc');
+    const manifestDisc = boardEl.querySelector('.cell[data-row="2"][data-col="3"] .disc');
+    assert.ok(spawnedDisc.classList.contains('special-stone'));
+    assert.ok(spawnedDisc.classList.contains('hyperactiveStone-applied'));
+    assert.ok(manifestDisc.classList.contains('manifest-stone-aura'));
+    assert.ok(!manifestDisc.classList.contains('special-stone'));
+    assert.ok(!manifestDisc.classList.contains('theoryIncarnationStone-applied'));
+  });
+
   test('manifestation stone aura CSS defines owner-specific glow selectors', () => {
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
 

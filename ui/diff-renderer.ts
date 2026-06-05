@@ -2419,6 +2419,9 @@ function buildCurrentCellState() {
                 continue;
             }
             const markerTypeUpper = String(m.data.type || '').toUpperCase();
+            if (_isManifestStoneTypeForDiff(markerTypeUpper)) {
+                continue;
+            }
             const markerSupportsFlipEvade = (
                 markerTypeUpper === 'HYPERACTIVE' ||
                 markerTypeUpper === 'EXTREME_HYPERACTIVE' ||

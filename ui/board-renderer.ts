@@ -1345,6 +1345,9 @@ function renderBoardFullLegacy() {
                 continue;
             }
             const markerTypeUpper = String(m.data.type || '').toUpperCase();
+            if (_isManifestStoneTypeForBoardRenderer(markerTypeUpper)) {
+                continue;
+            }
             specialMap.set(`${m.row},${m.col}`, {
                 row: m.row,
                 col: m.col,
