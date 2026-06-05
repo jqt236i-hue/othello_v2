@@ -130,7 +130,12 @@ othello_v2/
 
 - When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, create a commit without waiting for an explicit user prompt.
 - Treat the task as incomplete until the intended changes are either committed or a concrete blocker is reported.
+- Prefer small, coherent commits over leaving completed changes uncommitted in the working tree.
+- After each focused implementation or documentation unit, commit the isolated diff once verification appropriate to that unit has run.
+- If a larger task naturally splits into independent steps, commit each verified step separately.
+- Do not keep completed work in the working tree merely to reduce commit count.
 - Commit automatically for small and medium scoped changes when the diff can be cleanly separated from unrelated work.
+- Do not commit broken intermediate states unless the user explicitly asks for checkpoint commits.
 - Do not commit automatically when unrelated dirty files exist and the current task's diff cannot be clearly separated.
 - Do not commit automatically for investigation, review, explanation, or planning-only tasks.
 - Before committing, inspect `git status` and the relevant diff, and stage only files changed for the current task.
