@@ -553,6 +553,29 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
   });
 
+  test('理論の化身の特殊石出現ルーレットには専用の sound_effect を同じ phase に追加する', () => {
+    const base = [{
+      type: 'theory_incarnation_spawn_roulette',
+      phase: 7,
+      targets: [{ row: 2, col: 3, cause: 'THEORY_INCARNATION', reason: 'theory_incarnation_spawn' }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'theory_incarnation_spawn'
+    ));
+
+    expect(cue).toEqual(expect.objectContaining({
+      type: 'sound_effect',
+      phase: 7,
+      targets: [expect.objectContaining({ soundKey: 'theory_incarnation_spawn' })]
+    }));
+  });
+
   test('gluttonous proliferation overlap keeps stone_destroy on overlap phase and clone_spawn on next phase', () => {
     const base = [
       {

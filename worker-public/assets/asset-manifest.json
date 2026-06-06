@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-04",
-  "generatedAt": "2026-06-04T11:56:44.333Z",
+  "version": "2026-06-06",
+  "generatedAt": "2026-06-06T11:23:31.587Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -561,6 +561,10 @@
     {
       "path": "assets/audio/sound-effect/特殊石の持続ターンが減少したタイミング.mp3",
       "sha256": "d7e7cee8253ec8d50d6a2e48dff326a52e3d480473cb5b657a46ebf78a1c2545"
+    },
+    {
+      "path": "assets/audio/sound-effect/理論の化身で特殊石が出現するタイミング.mp3",
+      "sha256": "3aee86dc77daad52633fab60de14e32c1550358861fc58d94139848ae94befb7"
     },
     {
       "path": "assets/audio/sound-effect/生きる意志で復活するタイミング.mp3",

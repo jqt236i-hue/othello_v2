@@ -52,6 +52,14 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         'breeding_spawn'
     );
 
+    const theoryIncarnationSpawnPhases = deps.collectUniquePhases(
+        ctx.base,
+        (ev: any) => ev && ev.type === 'theory_incarnation_spawn_roulette'
+    );
+    if (theoryIncarnationSpawnPhases.length > 0) {
+        deps.pushCueForPhases(ctx, theoryIncarnationSpawnPhases, 'theory_incarnation_spawn', 'theory_incarnation_spawn');
+    }
+
     const seedSproutEvents = ctx.base.filter((ev: any) => (
         ev &&
         ev.type === 'spawn' &&
