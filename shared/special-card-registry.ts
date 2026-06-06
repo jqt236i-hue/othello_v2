@@ -31,7 +31,8 @@
             manifestBgmTrack: Object.freeze({
                 name: '理論の道',
                 file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3',
-                loopStart: 0
+                loopStart: 0,
+                loopEnd: 28.444444
             })
         }),
         board_executor_01: Object.freeze({

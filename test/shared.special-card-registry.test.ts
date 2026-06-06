@@ -21,7 +21,9 @@ describe('SpecialCardRegistry', () => {
       manifestBgmKey: 'theory_incarnation_path',
       manifestBgmTrack: expect.objectContaining({
         name: '理論の道',
-        file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3'
+        file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3',
+        loopStart: 0,
+        loopEnd: 28.444444
       })
     }));
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('GHOST')).toBeNull();
