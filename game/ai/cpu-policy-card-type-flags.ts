@@ -56,7 +56,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isRevealHandWill = cardType === 'REVEAL_HAND_WILL';
         const isCondemnWill = cardType === 'CONDEMN_WILL';
         const isObserverWill = cardType === 'OBSERVER_WILL';
-        const isTheoryIncarnation = cardType === 'THEORY_INCARNATION';
+        const isTheoryManifest = cardType === 'THEORY_INCARNATION';
         const isExecutionWill = cardType === 'EXECUTION_WILL';
         const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
         const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
@@ -154,7 +154,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isRevealHandWill,
             isCondemnWill,
             isObserverWill,
-            isTheoryIncarnation,
+            isTheoryManifest,
             isExecutionWill,
             isExtendLifeWill,
             isExtendLifeGod,

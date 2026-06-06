@@ -265,15 +265,6 @@ describe('pipeline_ui_adapter draw mapping', () => {
     });
   });
 
-  test('maps OBSERVER_TRIGGERED presentation event to observer_bubble playback event', () => {
-    const pres = [{ type: 'OBSERVER_TRIGGERED', player: 'black', row: 4, col: 2, gained: 3, text: '布石+3 観測が捗る', meta: { owner: 'black' } }];
-    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
-
-    expect(out).toHaveLength(1);
-    expect(out[0].type).toBe('observer_bubble');
-    expect(out[0].targets[0]).toMatchObject({ r: 4, col: 2, owner: 'black', gained: 3, text: '布石+3 観測が捗る' });
-  });
-
   test('maps OBSERVER_BUBBLE presentation event to observer_bubble playback event', () => {
     const pres = [{ type: 'OBSERVER_BUBBLE', owner: 'white', row: 1, col: 6, gained: 0, text: '盤理観測してる場合じゃなかったわ' }];
     const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });

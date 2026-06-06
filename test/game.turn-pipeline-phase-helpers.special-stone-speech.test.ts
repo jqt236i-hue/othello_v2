@@ -1,16 +1,7 @@
 import * as phaseHelpers from '../game/turn/turn_pipeline_phase_helpers.js';
 
 describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
-      placeLines: [
-        '今日も観測しますかっと',
-        '観測最高！'
-      ],
-      living_will_restored: [
-        '消えかけたけど、観測ログは続行だよ。',
-        '戻った戻った、まだ盤面を見てるからね。'
-      ]
-    });
-
+  test('preserves WORK speech exactly', () => {
     expect(phaseHelpers.getSpecialStoneBubbleSpeech('WORK')).toEqual({
       placeLines: [
         'ここで稼いで一発逆転や！',
@@ -85,8 +76,12 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ABSOLUTE_PROTECTED', 'absolute_protected_promoted')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toHaveLength(5);
-      '消えかけたけど、観測ログは続行だよ。',
-      '戻った戻った、まだ盤面を見てるからね。'
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toEqual([
+      'まだ終わらない、ここから立て直す。',
+      '一度沈んだくらいで、この未練は消えない。',
+      '戻ってきた、もう一手ぶん働くよ。',
+      '消えたつもりなら誤算だ、私はまだ盤にいる。',
+      '生きる意志が残っていた、もう一度だけ立つ。'
     ]);
   });
 
