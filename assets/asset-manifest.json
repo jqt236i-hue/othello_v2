@@ -1,6 +1,6 @@
 {
   "version": "2026-06-06",
-  "generatedAt": "2026-06-06T14:17:17.194Z",
+  "generatedAt": "2026-06-06T14:41:07.507Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -564,7 +564,7 @@
     },
     {
       "path": "assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3",
-      "sha256": "12a8c11a932de60fa9f39ffbd283313c1324a1327ef7fe80132101fedba46d61"
+      "sha256": "c9abb765f7cf8b367f527f8b17ec941953d981cae4e56b1409844dc316fd5ca4"
     },
     {
       "path": "assets/audio/sound-effect/生きる意志で復活するタイミング.mp3",
