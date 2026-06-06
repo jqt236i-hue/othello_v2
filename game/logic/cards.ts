@@ -1362,6 +1362,10 @@ const {
         return requireCardMarkersMethod('getManifestMarkers')(cardState);
     }
 
+    function getActiveManifestMarkers(cardState: any) {
+        return requireCardMarkersMethod('getActiveManifestMarkers')(cardState);
+    }
+
     function getBombMarkers(cardState: any) {
         return requireCardMarkersMethod('getBombMarkers')(cardState);
     }
@@ -1717,6 +1721,7 @@ const {
             addMarker,
             getMarkers,
             getManifestMarkers,
+            getActiveManifestMarkers,
             isManifestStoneMarker,
             removeMarkerById,
             getCellValueForCard,
@@ -4081,6 +4086,7 @@ const cardsApi: any = {
         addMarker,
         removeMarkerById,
         getManifestMarkers,
+        getActiveManifestMarkers,
         isManifestStoneMarker,
         isManifestStoneAt,
         applyObserverWillStoneReservation,

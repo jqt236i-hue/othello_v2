@@ -643,6 +643,9 @@ function isActiveManifestStoneMarker(marker: any): boolean {
 }
 
 function hasActiveManifestStone(cardState: any): boolean {
+    if (CardMarkersModule && typeof CardMarkersModule.getActiveManifestMarkers === 'function') {
+        return CardMarkersModule.getActiveManifestMarkers(cardState).length > 0;
+    }
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
     return markers.some(isActiveManifestStoneMarker);
 }

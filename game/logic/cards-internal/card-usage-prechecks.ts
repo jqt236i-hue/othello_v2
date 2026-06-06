@@ -18,6 +18,7 @@ function safeRequire(id: string): any {
 
 const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry');
 const SpecialCardRegistry = safeRequire('../../../shared/special-card-registry');
+const CardMarkersModule = safeRequire('../cards/markers');
 
 interface CardUsageContext {
     gameState?: any;
@@ -111,6 +112,9 @@ function isActiveManifestStoneMarker(marker: any): boolean {
 }
 
 function hasActiveManifestStone(cardState: any): boolean {
+    if (CardMarkersModule && typeof CardMarkersModule.getActiveManifestMarkers === 'function') {
+        return CardMarkersModule.getActiveManifestMarkers(cardState).length > 0;
+    }
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
     return markers.some(isActiveManifestStoneMarker);
 }

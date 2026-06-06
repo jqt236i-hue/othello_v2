@@ -309,6 +309,16 @@ function getManifestMarkers(cardState: any): Marker[] {
     return getMarkers(cardState).filter(isManifestStoneMarker);
 }
 
+function getActiveManifestMarkers(cardState: any): Marker[] {
+    return getManifestMarkers(cardState).filter((marker: any) => {
+        if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isActiveManifestStoneMarker === 'function') {
+            return ManifestStoneRegistry.isActiveManifestStoneMarker(marker) === true;
+        }
+        const remaining = Number(marker && marker.data && marker.data.remainingOwnerTurns);
+        return !Number.isFinite(remaining) || remaining > 0;
+    });
+}
+
 function getBombMarkers(cardState: any): Marker[] {
     return getMarkers(cardState).filter(isBombCategoryMarker);
 }
@@ -382,6 +392,7 @@ export = {
     normalizeMarkerInput,
     getSpecialMarkers,
     getManifestMarkers,
+    getActiveManifestMarkers,
     getBombMarkers,
     findSpecialMarkerAt,
     findBombMarkerAt,

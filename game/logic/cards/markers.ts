@@ -378,6 +378,13 @@ function getManifestMarkers(cardState: CardState): any[] {
     return getMarkers(cardState).filter(isManifestStoneMarker);
 }
 
+function getActiveManifestMarkers(cardState: CardState): any[] {
+    if (MarkersAdapter && typeof MarkersAdapter.getActiveManifestMarkers === 'function') {
+        return MarkersAdapter.getActiveManifestMarkers(cardState);
+    }
+    return getManifestMarkers(cardState).filter(isActiveManifestMarker);
+}
+
 function getBombMarkers(cardState: CardState): any[] {
     if (MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function') {
         return MarkersAdapter.getBombMarkers(cardState);
@@ -898,6 +905,7 @@ export = {
     isPlacementLockedForPlayer,
     getSpecialMarkers,
     getManifestMarkers,
+    getActiveManifestMarkers,
     getBombMarkers,
     getBlockadeMarkers,
     getBlockingMarkers,

@@ -166,15 +166,20 @@ function hasActiveObserverWillReveal(cardState: CardState, viewerKey: PlayerKey,
     const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!viewer || !owner || viewer === owner) return false;
     const getMarkers = deps && deps.getMarkers;
+    const getActiveManifestMarkers = deps && deps.getActiveManifestMarkers;
     const isManifestStoneMarker = deps && deps.isManifestStoneMarker;
-    return getMarkers(cardState).some((entry: any) => {
+    const markers = typeof getActiveManifestMarkers === 'function'
+        ? getActiveManifestMarkers(cardState)
+        : getMarkers(cardState);
+    return markers.some((entry: any) => {
         if (!entry || entry.owner !== viewer || !entry.data) return false;
-        if (typeof isManifestStoneMarker === 'function') {
+        if (typeof getActiveManifestMarkers !== 'function' && typeof isManifestStoneMarker === 'function') {
             if (!isManifestStoneMarker(entry)) return false;
-        } else if (entry.kind !== 'manifestStone' && entry.kind !== 'specialStone') {
+        } else if (typeof getActiveManifestMarkers !== 'function' && entry.kind !== 'manifestStone' && entry.kind !== 'specialStone') {
             return false;
         }
         if (String(entry.data.type || '').toUpperCase() !== 'OBSERVER_WILL') return false;
+        if (typeof getActiveManifestMarkers === 'function') return true;
         const remaining = Number(entry.data.remainingOwnerTurns);
         return !Number.isFinite(remaining) || remaining > 0;
     });
