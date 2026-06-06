@@ -313,6 +313,30 @@ describe('card use source element selection', () => {
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
   });
 
+  test('network mode blocks use when projected hand slot cost exceeds charge', () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.gameState.currentPlayer = global.BLACK;
+    global.cardState.selectedCardId = 'support_troops_01';
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.cardState.charge.black = 14;
+    global.cardState.hands.black = ['support_troops_01'];
+    global.cardState.handCostAdjustmentsByPlayer = {
+      black: [{ delta: 5 }],
+      white: []
+    };
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 14 }),
+      getUsableCardIds: () => ['support_troops_01']
+    };
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.addLog).toHaveBeenCalledWith('布石不足: 援軍の意志 (必要: 19, 所持: 14)');
+  });
+
   test('network server-authored card use does not advance local action history', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';

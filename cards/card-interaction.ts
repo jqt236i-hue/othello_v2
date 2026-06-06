@@ -1902,16 +1902,55 @@ function _getEffectiveCardCostForHandCard(cardId: any, ownerKey: any) {
     const baseCost = cardDef ? (cardDef.cost || 0) : 0;
     try {
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[ownerKey])) return baseCost;
-        if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getHandCopyIdAt !== 'function' || typeof CardLogic.getEffectiveCardCostForCopy !== 'function') {
-            return baseCost;
-        }
         const handIndex = cardState.hands[ownerKey].indexOf(cardId);
         if (handIndex < 0) return baseCost;
-        const copyId = CardLogic.getHandCopyIdAt(cardState, ownerKey, handIndex);
-        return CardLogic.getEffectiveCardCostForCopy(cardState, cardId, copyId);
+        if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getHandCopyIdAt === 'function' && typeof CardLogic.getEffectiveCardCostForCopy === 'function') {
+            const copyId = CardLogic.getHandCopyIdAt(cardState, ownerKey, handIndex);
+            const copyKey = String(Number(copyId || 0));
+            const hasOverride = !!(
+                copyKey !== '0'
+                && cardState.cardCostOverridesByCopyId
+                && Object.prototype.hasOwnProperty.call(cardState.cardCostOverridesByCopyId, copyKey)
+            );
+            const hasModifier = !!(
+                copyKey !== '0'
+                && cardState.cardCostModifiersByCopyId
+                && Object.prototype.hasOwnProperty.call(cardState.cardCostModifiersByCopyId, copyKey)
+            );
+            if (hasOverride || hasModifier) {
+                return CardLogic.getEffectiveCardCostForCopy(cardState, cardId, copyId);
+            }
+        }
+        const projectedCost = _getProjectedHandCost(cardState, ownerKey, handIndex, baseCost);
+        if (projectedCost !== null && Number.isFinite(Number(projectedCost))) {
+            return Number(projectedCost);
+        }
+        return baseCost;
     } catch (e) {
         return baseCost;
     }
+}
+
+function _getProjectedHandCost(state: any, ownerKey: any, handIndex: any, fallbackCost: any): number | null {
+    const fallback = Number.isFinite(Number(fallbackCost)) ? Number(fallbackCost) : 0;
+    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!state || typeof state !== 'object' || !owner || !Number.isInteger(Number(handIndex))) return null;
+    const adjustmentsByPlayer = (state.handCostAdjustmentsByPlayer && typeof state.handCostAdjustmentsByPlayer === 'object')
+        ? state.handCostAdjustmentsByPlayer
+        : null;
+    const adjustments = adjustmentsByPlayer && Array.isArray(adjustmentsByPlayer[owner])
+        ? adjustmentsByPlayer[owner]
+        : null;
+    if (!adjustments) return null;
+    const adjustment = adjustments[Math.max(0, Math.trunc(Number(handIndex)))];
+    if (!adjustment || typeof adjustment !== 'object') return null;
+    const overrideCost = Number(adjustment.overrideCost);
+    let cost = Number.isFinite(overrideCost) ? overrideCost : fallback;
+    const delta = Number(adjustment.delta);
+    if (Number.isFinite(delta)) {
+        cost += delta;
+    }
+    return Number.isFinite(cost) ? cost : fallback;
 }
 
 function _runCardPipelineActionOrLogFailure(playerKey: any, action: any, failureMessage: any) {
