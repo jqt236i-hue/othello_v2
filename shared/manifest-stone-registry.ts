@@ -92,6 +92,20 @@
         return !!(metadata && metadata.absoluteProtected === true);
     }
 
+    function createManifestStoneMarkerData(rawType: unknown, extra?: any): any {
+        const metadata = getManifestStoneMetadata(rawType);
+        if (!metadata) return null;
+        const type = metadata.markerType;
+        const data = {
+            type,
+            remainingOwnerTurns: metadata.durationOwnerTurns,
+            absoluteProtected: metadata.absoluteProtected === true,
+            sourceType: type,
+            visualEffectKey: metadata.visualEffectKey
+        };
+        return Object.assign(data, (extra && typeof extra === 'object') ? extra : {});
+    }
+
     return Object.freeze({
         MANIFEST_STONE_KIND,
         LEGACY_SPECIAL_STONE_KIND,
@@ -102,7 +116,8 @@
         getManifestStoneMetadata,
         isManifestStoneMarker,
         isActiveManifestStoneMarker,
-        isAbsoluteProtectedManifestStoneType
+        isAbsoluteProtectedManifestStoneType,
+        createManifestStoneMarkerData
     });
 }));
 
