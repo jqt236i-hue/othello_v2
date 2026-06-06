@@ -200,6 +200,17 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
                 col: action.col,
                 markerId: theoryStoneRes.marker && theoryStoneRes.marker.id ? theoryStoneRes.marker.id : null
             });
+            if (typeof opts.CardLogic.processTheoryIncarnationMarkerAtPlacement === 'function') {
+                const placementSpawnRes = opts.CardLogic.processTheoryIncarnationMarkerAtPlacement(opts.cardState, opts.gameState, opts.playerKey, p);
+                if (placementSpawnRes && placementSpawnRes.spawned) {
+                    opts.events.push({
+                        type: 'theory_incarnation_spawned',
+                        player: opts.playerKey,
+                        timing: 'on_manifest_placement',
+                        detail: placementSpawnRes.spawned
+                    });
+                }
+            }
         }
     }
     if (tabooReverseApplied) {

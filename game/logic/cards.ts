@@ -1864,6 +1864,16 @@ const {
         );
     }
 
+    function processTheoryIncarnationMarkerAtPlacement(cardState: any, gameState: any, playerKey: any, prng?: any) {
+        return CardTheoryIncarnationResolutionModule.processTheoryIncarnationMarkerAtPlacement(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
     function processTheoryIncarnationMarkerAtTurnStart(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng?: any) {
         return CardTheoryIncarnationResolutionModule.processTheoryIncarnationMarkerAtTurnStart(
             cardState,
@@ -4091,6 +4101,7 @@ const cardsApi: any = {
         isManifestStoneAt,
         applyObserverWillStoneReservation,
         applyTheoryIncarnationStoneReservation,
+        processTheoryIncarnationMarkerAtPlacement,
         processTheoryIncarnationMarkerAtTurnStart,
         finalizeTheoryIncarnationAutoTurnEndExpiration,
         consumeTheoryIncarnationAutoTurnEnd,

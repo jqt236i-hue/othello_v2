@@ -185,6 +185,51 @@ describe('理論の化身', () => {
     expect(CardLogic.isCardPlayLockedForPlayer(cardState, 'black')).toBe(true);
   });
 
+  test('理論石を配置した直後にも理論数字マスから特殊石を出現させ、残り3回を消費しない', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    cardState.hands.black = ['theory_incarnation_01'];
+    cardState.charge.black = 0;
+    cardState.numberCellCollectedTotalByPlayer.black = 42;
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', 'theory_incarnation_01', null, { prng });
+    expect(used).toBe(true);
+
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+    gameState.currentPlayer = Shared.BLACK;
+    const placed = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng, { skipTurnStart: true });
+
+    expect(placed.events).toContainEqual(expect.objectContaining({
+      type: 'theory_incarnation_spawned',
+      player: 'black',
+      timing: 'on_manifest_placement',
+      detail: expect.objectContaining({
+        roulette: expect.objectContaining({
+          durationMs: 2500,
+          materializeMs: 2000,
+          selectedCell: { row: 0, col: 0 },
+          candidateCells: expect.arrayContaining([{ row: 0, col: 0 }])
+        })
+      })
+    }));
+    const spawnEvent = placed.presentationEvents.find((event: any) => (
+      event && event.type === 'SPAWN' && event.reason === 'theory_incarnation_spawn'
+    ));
+    expect(spawnEvent).toEqual(expect.objectContaining({
+      cause: 'THEORY_INCARNATION',
+      row: 0,
+      col: 0,
+      meta: expect.objectContaining({
+        theorySpawnRoulette: expect.objectContaining({
+          selectedCell: { row: 0, col: 0 }
+        })
+      })
+    }));
+    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(3);
+    expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
+  });
+
   test('理論石顕現中の自ターン開始で理論数字マスから特殊石を1体出し、ターンを自動終了する', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });

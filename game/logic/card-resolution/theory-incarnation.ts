@@ -397,6 +397,20 @@ function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameSta
     };
 }
 
+function processTheoryIncarnationMarkerAtPlacement(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> {
+    const ownerKey = ownerKeyOf(playerKey);
+    ensureTheoryState(cardState as any);
+    const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey];
+    if (!state || typeof state !== 'object') {
+        return { applied: false, spawned: null };
+    }
+    const spawned = spawnTheorySpecialStone(cardState as any, gameState, state, prng, deps);
+    return {
+        applied: !!spawned,
+        spawned
+    };
+}
+
 function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> | null {
     const ownerKey = ownerKeyOf(playerKey);
     ensureTheoryState(cardState as any);
@@ -473,6 +487,7 @@ export = {
     canUseTheoryIncarnation,
     applyTheoryIncarnationUsage,
     applyTheoryIncarnationStoneReservation,
+    processTheoryIncarnationMarkerAtPlacement,
     processTheoryIncarnationMarkerAtTurnStart,
     finalizeTheoryIncarnationAutoTurnEndExpiration,
     consumeTheoryIncarnationAutoTurnEnd
