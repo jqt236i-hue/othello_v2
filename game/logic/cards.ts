@@ -48,6 +48,7 @@ function resolveCardLogicGlobalOrModule(globalKey: string, id: string): any {
 const SharedConstants = resolveCardLogicModuleOrGlobal('../../shared-constants', 'SharedConstants');
 const DeckSpecHelpers = resolveCardLogicModuleOrGlobal('../../shared/deck-spec', 'DeckSpecHelpers');
 const SpecialCardRegistry = resolveCardLogicModuleOrGlobal('../../shared/special-card-registry', 'SpecialCardRegistry');
+const ManifestStoneRegistry = resolveCardLogicModuleOrGlobal('../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
 const SharedBoardUtils = resolveCardLogicModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils');
 const CardRandomSource = resolveCardLogicModuleOrGlobal('./cards-internal/random-source', 'CardRandomSource');
 const CardStateFactory = resolveCardLogicModuleOrGlobal('./cards-internal/state-factory', 'CardStateFactory');
@@ -1727,6 +1728,7 @@ const {
             revealCurrentHandToViewer,
             addCardCostModifierForCopyId,
             isInviolableSpecialCardId,
+            ManifestStoneRegistry,
             addChargeValue: addChargeValueWithDelta
         };
     }
@@ -1814,6 +1816,7 @@ const {
                 ROBOT_VACUUM_TURNS
             },
             SpecialStoneRegistry,
+            ManifestStoneRegistry,
             SpecialStoneMarkerFactory: SpecialStoneMarkerFactoryModule,
             addMarker,
             getMarkers,

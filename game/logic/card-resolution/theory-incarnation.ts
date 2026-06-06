@@ -161,14 +161,20 @@ function applyTheoryIncarnationStoneReservation(cardState: CardState, playerKey:
     }
     const markerKinds = deps && deps.MARKER_KINDS;
     const manifestKind = markerKinds && markerKinds.MANIFEST_STONE ? markerKinds.MANIFEST_STONE : 'manifestStone';
-    const marker = deps.addMarker(cardState, manifestKind, row, col, ownerKey, {
-        type: THEORY_MARKER_TYPE,
-        remainingOwnerTurns: THEORY_DURATION_OWNER_TURNS,
-        absoluteProtected: true,
-        sourceType: THEORY_MARKER_TYPE,
-        sessionId: reservation.sessionId || null,
-        visualEffectKey: 'theoryIncarnationStone'
-    });
+    const registry = deps && deps.ManifestStoneRegistry;
+    const markerData = registry && typeof registry.createManifestStoneMarkerData === 'function'
+        ? registry.createManifestStoneMarkerData(THEORY_MARKER_TYPE, {
+            sessionId: reservation.sessionId || null
+        })
+        : {
+            type: THEORY_MARKER_TYPE,
+            remainingOwnerTurns: THEORY_DURATION_OWNER_TURNS,
+            absoluteProtected: true,
+            sourceType: THEORY_MARKER_TYPE,
+            sessionId: reservation.sessionId || null,
+            visualEffectKey: 'theoryIncarnationStone'
+        };
+    const marker = deps.addMarker(cardState, manifestKind, row, col, ownerKey, markerData);
     const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey];
     if (state && typeof state === 'object') {
         state.markerId = marker && marker.id ? marker.id : null;

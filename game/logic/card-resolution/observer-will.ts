@@ -132,17 +132,26 @@ function applyObserverWillStoneReservation(cardState: CardState, playerKey: Play
     const markerKinds = deps && deps.MARKER_KINDS;
     const addMarker = deps && deps.addMarker;
     const manifestKind = markerKinds && markerKinds.MANIFEST_STONE ? markerKinds.MANIFEST_STONE : 'manifestStone';
-    const marker = addMarker(cardState, manifestKind, row, col, ownerKey, {
-        type: 'OBSERVER_WILL',
-        remainingOwnerTurns: 5,
-        absoluteProtected: true,
-        sourceType: 'OBSERVER_WILL',
-        repaymentId: typeof reservation.repaymentId === 'string' ? reservation.repaymentId : null,
-        stolenCardId: reservation.stolenCardId || null,
-        stolenCardCopyId: Number.isInteger(reservation.stolenCardCopyId) ? reservation.stolenCardCopyId : null,
-        repaymentIndex: Number.isInteger(reservation.repaymentIndex) ? reservation.repaymentIndex : null,
-        visualEffectKey: 'observerWillStone'
-    });
+    const registry = deps && deps.ManifestStoneRegistry;
+    const markerData = registry && typeof registry.createManifestStoneMarkerData === 'function'
+        ? registry.createManifestStoneMarkerData('OBSERVER_WILL', {
+            repaymentId: typeof reservation.repaymentId === 'string' ? reservation.repaymentId : null,
+            stolenCardId: reservation.stolenCardId || null,
+            stolenCardCopyId: Number.isInteger(reservation.stolenCardCopyId) ? reservation.stolenCardCopyId : null,
+            repaymentIndex: Number.isInteger(reservation.repaymentIndex) ? reservation.repaymentIndex : null
+        })
+        : {
+            type: 'OBSERVER_WILL',
+            remainingOwnerTurns: 5,
+            absoluteProtected: true,
+            sourceType: 'OBSERVER_WILL',
+            repaymentId: typeof reservation.repaymentId === 'string' ? reservation.repaymentId : null,
+            stolenCardId: reservation.stolenCardId || null,
+            stolenCardCopyId: Number.isInteger(reservation.stolenCardCopyId) ? reservation.stolenCardCopyId : null,
+            repaymentIndex: Number.isInteger(reservation.repaymentIndex) ? reservation.repaymentIndex : null,
+            visualEffectKey: 'observerWillStone'
+        };
+    const marker = addMarker(cardState, manifestKind, row, col, ownerKey, markerData);
     const repayments = (cardState as any).observerWillRepaymentsByPlayer && (cardState as any).observerWillRepaymentsByPlayer[ownerKey];
     const repaymentRef = findObserverWillRepaymentEntry(repayments, reservation);
     if (repaymentRef.entry) {
