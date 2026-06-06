@@ -169,12 +169,18 @@
         return normalizeSpecialStoneType(type) === 'LIVING_WILL';
     }
 
+    const FALLBACK_MANIFEST_STONE_TYPES = Object.freeze([
+        'THEORY_INCARNATION',
+        'BOARD_EXECUTOR',
+        'OBSERVER_WILL'
+    ]);
+
     function isManifestStoneType(rawType: unknown): boolean {
         if (ManifestStoneRegistry && typeof (ManifestStoneRegistry as { isManifestStoneType?: (v: unknown) => boolean }).isManifestStoneType === 'function') {
             return (ManifestStoneRegistry as { isManifestStoneType: (v: unknown) => boolean }).isManifestStoneType(rawType);
         }
         const type = normalizeSpecialStoneType(rawType);
-        return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+        return FALLBACK_MANIFEST_STONE_TYPES.includes(type);
     }
 
     function isManifestStoneStatusInput(source: Record<string, unknown>, type: unknown): boolean {

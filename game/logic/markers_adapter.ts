@@ -68,6 +68,11 @@ const MARKER_CATEGORIES: MarkerCategories = {
 
 const DEFAULT_BOMB_TYPE = 'TIME_BOMB';
 const LEGACY_BOMB_KIND = 'bomb';
+const FALLBACK_MANIFEST_STONE_TYPES = Object.freeze([
+    'THEORY_INCARNATION',
+    'BOARD_EXECUTOR',
+    'OBSERVER_WILL'
+]);
 const ManifestStoneRegistry = (() => {
     try { return require('../../shared/manifest-stone-registry'); } catch (e) { return null; }
 })();
@@ -77,7 +82,7 @@ function isManifestStoneType(rawType: unknown): boolean {
         return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
     }
     const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    return FALLBACK_MANIFEST_STONE_TYPES.includes(type);
 }
 
 function getMarkerData(marker: Marker): Record<string, any> | null {
