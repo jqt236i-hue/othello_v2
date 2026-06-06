@@ -134,6 +134,22 @@ function buildRouletteDelays(durationMs: number): number[] {
     });
 }
 
+function pickRouletteEntry(entries: any[], selectedIndex: number, step: number, stepCount: number, previousEntry: any) {
+    if (!entries.length) return null;
+    if (entries.length === 1) return entries[0];
+    const selected = entries[positiveModulo(selectedIndex, entries.length)];
+    if (step >= stepCount - 1) return selected;
+    const remaining = stepCount - 1 - step;
+    let index = positiveModulo(selectedIndex - remaining, entries.length);
+    if (step === 0 && index === selectedIndex) {
+        index = positiveModulo(index - 1, entries.length);
+    }
+    if (entries[index] === previousEntry) {
+        index = positiveModulo(index + 1, entries.length);
+    }
+    return entries[index];
+}
+
 async function playRouletteSequence(entries: any[], selectedEntry: any, durationMs: number, deps: TheoryAnimationDeps) {
     if (!entries.length) {
         await sleep(durationMs, deps);
@@ -142,11 +158,12 @@ async function playRouletteSequence(entries: any[], selectedEntry: any, duration
     const selectedIndex = Math.max(0, entries.indexOf(selectedEntry));
     const delays = buildRouletteDelays(durationMs);
     const stepCount = delays.length;
+    let previousEntry: any = null;
 
     for (let step = 0; step < stepCount; step += 1) {
-        const remaining = stepCount - 1 - step;
-        const entry = entries[positiveModulo(selectedIndex - remaining, entries.length)];
+        const entry = pickRouletteEntry(entries, selectedIndex, step, stepCount, previousEntry);
         setActiveRouletteEntry(entries, entry);
+        previousEntry = entry;
         await sleep(delays[step] || 0, deps);
     }
 }

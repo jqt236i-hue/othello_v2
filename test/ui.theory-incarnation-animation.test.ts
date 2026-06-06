@@ -74,8 +74,8 @@ describe('theory incarnation spawn roulette animation', () => {
     await Promise.resolve();
 
     expect(timers.length).toBe(1);
-    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
-    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
     expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
     expect(selectedCell.querySelector('.stale-spawn')).toBe(null);
     expect(selectedCell.classList.contains('has-disc')).toBe(false);
@@ -85,10 +85,10 @@ describe('theory incarnation spawn roulette animation', () => {
     firstTimer.fn();
     await Promise.resolve();
 
-    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
-    expect(otherCell.classList.contains('theory-spawn-roulette-trail')).toBe(false);
-    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
-    expect(selectedCell.classList.contains('theory-spawn-roulette-trail')).toBe(true);
+    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
+    expect(otherCell.classList.contains('theory-spawn-roulette-trail')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-trail')).toBe(false);
 
     let lastDelay = firstDelay;
     while (timers.length > 0) {
@@ -202,6 +202,87 @@ describe('theory incarnation spawn roulette animation', () => {
       expect.any(Function),
       expect.any(Function)
     );
+
+    dom.window.close();
+    delete global.requestAnimationFrame;
+    delete global.window;
+    delete global.document;
+  });
+
+  test('does not reveal the selected cell as the first roulette highlight when multiple candidates exist', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="0" data-col="0"></div>
+            <div class="cell" data-row="0" data-col="1"></div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => {
+      cb();
+      return 0;
+    };
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+
+    const timers: Array<{ fn: () => void; ms: number }> = [];
+    const handler = require('../ui/animation-theory-events.js');
+    const createDisc = jest.fn((state) => {
+      const disc = dom.window.document.createElement('div');
+      disc.className = 'disc';
+      disc.dataset.special = state.special || '';
+      return disc;
+    });
+    const waitForOpacityTransition = jest.fn(async (disc, durationMs, bufferMs, starter, cleanup) => {
+      starter();
+      cleanup();
+    });
+
+    const animationPromise = handler.handleTheoryIncarnationSpawnRouletteEvent({
+      type: 'theory_incarnation_spawn_roulette',
+      durationMs: 2500,
+      materializeMs: 2000,
+      targets: [{
+        row: 0,
+        col: 1,
+        ownerAfter: 'black',
+        spawnedMarkerType: 'GHOST',
+        candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+        after: { color: 1, special: 'GHOST', owner: 'black' }
+      }]
+    }, {
+      isNoAnim: () => false,
+      getCellEl: (row, col) => dom.window.document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`),
+      createDisc,
+      waitForOpacityTransition,
+      timer: () => ({
+        setTimeout: (fn, ms) => {
+          timers.push({ fn, ms });
+          return timers.length;
+        }
+      }),
+      playbackScope: null
+    });
+
+    await Promise.resolve();
+
+    const selectedCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="1"]');
+    const otherCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(selectedCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
+    expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(true);
+
+    while (timers.length > 0) {
+      const next = timers.shift();
+      next.fn();
+      await Promise.resolve();
+    }
+    await animationPromise;
 
     dom.window.close();
     delete global.requestAnimationFrame;
