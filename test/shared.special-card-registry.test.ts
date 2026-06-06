@@ -10,7 +10,12 @@ describe('SpecialCardRegistry', () => {
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('THEORY_INCARNATION')).toEqual(expect.objectContaining({
       cardId: 'theory_incarnation_01',
       markerType: 'THEORY_INCARNATION',
-      displayName: '理論の化身'
+      displayName: '理論の化身',
+      manifestBgmKey: 'theory_incarnation_path',
+      manifestBgmTrack: expect.objectContaining({
+        name: '理論の道',
+        file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3'
+      })
     }));
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('GHOST')).toBeNull();
   });

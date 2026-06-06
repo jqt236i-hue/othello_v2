@@ -27,10 +27,10 @@
             manifestBackgroundKey: 'theory_incarnation_world',
             manifestBackgroundImage: 'assets/images/background/manifest-worlds/理論の世界.png',
             characterImage: 'assets/images/special-cards/characters/theory_incarnation.png',
-            manifestBgmKey: 'observer_will_path',
+            manifestBgmKey: 'theory_incarnation_path',
             manifestBgmTrack: Object.freeze({
-                name: '観測の道',
-                file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+                name: '理論の道',
+                file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3',
                 loopStart: 0
             })
         }),
