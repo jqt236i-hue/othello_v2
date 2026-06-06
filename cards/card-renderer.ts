@@ -436,6 +436,46 @@ function _createCardCostBadge(cost: any, tierClass: any) {
     costBadge.appendChild(labelSpan);
     return costBadge;
 }
+function _removeCardCostTierClasses(el: any) {
+    if (!el || !el.classList)
+        return;
+    Array.from(el.classList).forEach((className) => {
+        if (typeof className === 'string' && className.indexOf('cost-tier-') === 0) {
+            el.classList.remove(className);
+        }
+    });
+}
+function _findRootCardCostBadge(cardEl: any) {
+    if (!cardEl || typeof cardEl.querySelectorAll !== 'function')
+        return null;
+    const badges = Array.from(cardEl.querySelectorAll('.card-cost-badge'));
+    return badges.find((badge: any) => badge && badge.parentElement === cardEl) || null;
+}
+function _syncCardCostBadgeForRender(cardEl: any, cost: any) {
+    if (!cardEl || !cardEl.classList || cardEl.classList.contains('special-card-face'))
+        return;
+    const safeCost = Number.isFinite(Number(cost)) ? Number(cost) : 0;
+    const tierClass = `cost-tier-${getCardCostTier(safeCost)}`;
+    _removeCardCostTierClasses(cardEl);
+    cardEl.classList.add(tierClass);
+    let costBadge: any = _findRootCardCostBadge(cardEl);
+    if (!costBadge) {
+        costBadge = _createCardCostBadge(safeCost, tierClass);
+        const badgeRow = cardEl.querySelector ? cardEl.querySelector('.card-badge-row') : null;
+        cardEl.insertBefore(costBadge, badgeRow || null);
+    }
+    _removeCardCostTierClasses(costBadge);
+    costBadge.classList.add(tierClass);
+    const valueSpan = costBadge.querySelector ? costBadge.querySelector('.cost-value') : null;
+    if (valueSpan) {
+        valueSpan.textContent = String(safeCost);
+    }
+    const labelSpan = costBadge.querySelector ? costBadge.querySelector('.cost-label') : null;
+    if (labelSpan) {
+        labelSpan.textContent = 'cost';
+    }
+    cardEl.dataset.effectiveCost = String(safeCost);
+}
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
 function _normalizeChargeValueForRender(value: any) {
     return Number.isFinite(Number(value))
@@ -1590,6 +1630,7 @@ function renderCardUI() {
         }
         else {
             const canClick = entryState.canInspectOwnerHand && canInteract;
+            _syncCardCostBadgeForRender(cardEl, entryState.cost);
             _setHandCardClickHandler(cardEl, canClick, entryState.cardId, ownerKey);
             cardEl.classList.toggle('clickable', canClick);
             cardEl.classList.toggle('affordable', entryState.canAfford);

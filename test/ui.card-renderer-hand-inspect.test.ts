@@ -473,6 +473,40 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('observed opponent hand cost badge updates when observer cost modifier is applied after first render', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    window.cardState._handCopyIdsByPlayer = {
+      black: [1],
+      white: [201]
+    };
+    window.cardState._revealedHandCopyIdsByViewer = {
+      black: [201],
+      white: []
+    };
+    window.cardState.cardCostModifiersByCopyId = {};
+
+    window.renderCardUI();
+    const initialCostValue = window.document.querySelector('#hand-white .card-cost-badge .cost-value');
+    const initialCost = Number(initialCostValue.textContent);
+    expect(Number.isFinite(initialCost)).toBe(true);
+
+    window.cardState.cardCostModifiersByCopyId = {
+      201: [{ delta: 5, sourceType: 'OBSERVER_WILL' }]
+    };
+    window.renderCardUI();
+
+    const costValue = window.document.querySelector('#hand-white .card-cost-badge .cost-value');
+    expect(Number(costValue.textContent)).toBe(initialCost + 5);
+
+    dom.window.close();
+  });
+
   test('cpu mode shows all opponent hand cards face-up after reveal hand marks every copy', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
