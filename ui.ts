@@ -283,7 +283,6 @@ export function isCardEffectOnlyLogLine(text?: string) {
         '十字爆弾',
         '反転保護',
         '永続反転保護',
-        '略奪',
         '吸収',
         '出稼ぎ'
     ];
