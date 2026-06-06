@@ -64,6 +64,11 @@ let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
 let DiffRendererManifestStoneRegistryModule: any = null;
+const FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF = Object.freeze([
+    'THEORY_INCARNATION',
+    'BOARD_EXECUTOR',
+    'OBSERVER_WILL'
+]);
 
 function _getManifestStoneRegistryForDiff() {
     if (DiffRendererManifestStoneRegistryModule) return DiffRendererManifestStoneRegistryModule;
@@ -94,7 +99,7 @@ function _isManifestStoneTypeForDiff(rawType: any) {
         return registry.isManifestStoneType(rawType) === true;
     }
     const typeKey = String(rawType || '').trim().toUpperCase();
-    return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
+    return FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF.includes(typeKey);
 }
 
 function _isActiveManifestAuraMarkerForDiff(marker: any, manifestMarkerKind: any, specialMarkerKind: any) {

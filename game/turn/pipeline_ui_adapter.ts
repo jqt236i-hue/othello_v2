@@ -41,6 +41,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         './pipeline-ui/sound-cue-assembler': 'PipelineUISoundCueAssembler',
         '../../shared/destroy-outcome-contract': 'DestroyOutcomeContract',
         '../../shared/special-stone-registry': 'SpecialStoneRegistry',
+        '../../shared/manifest-stone-registry': 'ManifestStoneRegistry',
         '../../shared/stone-status-snapshot': 'StoneStatusSnapshot',
         '../controller-events': 'ControllerEvents',
         '../../shared/presentation-effect-profiles': 'PresentationEffectProfiles'
@@ -74,9 +75,23 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const PipelineUISoundCueAssemblerModule = requireOptionalModule('./pipeline-ui/sound-cue-assembler');
     const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
     const SpecialStoneRegistry = requireOptionalModule('../../shared/special-stone-registry');
+    const ManifestStoneRegistry = requireOptionalModule('../../shared/manifest-stone-registry');
     const StoneStatusSnapshot = requireOptionalModule('../../shared/stone-status-snapshot');
     const ControllerEvents = requireOptionalModule('../controller-events');
     const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || unwrapModule(readRuntimeGlobal('PresentationEffectProfiles'));
+    const FALLBACK_MANIFEST_STONE_TYPES_FOR_PIPELINE_UI = Object.freeze([
+        'THEORY_INCARNATION',
+        'BOARD_EXECUTOR',
+        'OBSERVER_WILL'
+    ]);
+
+    function isManifestStoneTypeForPipelineUI(rawType: any): boolean {
+        if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
+            return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
+        }
+        const typeKey = String(rawType || '').trim().toUpperCase();
+        return FALLBACK_MANIFEST_STONE_TYPES_FOR_PIPELINE_UI.includes(typeKey);
+    }
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -591,18 +606,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         let livingWillAura = false;
         let manifestAura = null;
 
-        const isManifestType = (rawType: any) => {
-            const typeKey = String(rawType || '').trim().toUpperCase();
-            return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
-        };
         const isActiveManifestMarker = (marker: any) => {
             if (!marker || typeof marker !== 'object') return false;
             const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
             const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
-            if (!isManifestType(typeKey)) return false;
+            if (!isManifestStoneTypeForPipelineUI(typeKey)) return false;
             const kind = String((marker && marker.kind) || '').trim();
             const isManifestKind = kind === manifestMarkerKind || kind === 'manifestStone';
-            const isLegacyManifestType = (kind === specialMarkerKind || !kind) && isManifestType(typeKey);
+            const isLegacyManifestType = (kind === specialMarkerKind || !kind) && isManifestStoneTypeForPipelineUI(typeKey);
             if (!isManifestKind && !isLegacyManifestType) return false;
             const remainingRaw = data.remainingOwnerTurns ?? data.remainingTurns ?? marker.remainingOwnerTurns ?? marker.remainingTurns;
             if (remainingRaw == null) return true;
@@ -856,7 +867,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getPrimaryTimerFromMeta,
             getFlipEvadeRemainingFromMeta,
             getDestroyEvadeRemainingFromMeta,
-            getVisualStateAt
+            getVisualStateAt,
+            isManifestStoneType: isManifestStoneTypeForPipelineUI
         };
     }
 

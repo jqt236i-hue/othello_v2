@@ -5,6 +5,7 @@ type PlaybackAfterStateDeps = {
     getFlipEvadeRemainingFromMeta: (meta: any) => any;
     getDestroyEvadeRemainingFromMeta: (meta: any) => any;
     getVisualStateAt: (row: any, col: any, cardState: any, gameState: any) => any;
+    isManifestStoneType?: (rawType: any) => boolean;
 };
 
 function ownerToColor(owner: any) {
@@ -44,16 +45,25 @@ function createEventSourcedAfter(target: any, targetMeta: any, deps: PlaybackAft
     return createEventSourcedVisual(target, targetMeta, target && target.ownerAfter, deps);
 }
 
-function isManifestStoneVisualType(rawType: any) {
+const FALLBACK_MANIFEST_STONE_TYPES_FOR_PLAYBACK_AFTER = Object.freeze([
+    'THEORY_INCARNATION',
+    'BOARD_EXECUTOR',
+    'OBSERVER_WILL'
+]);
+
+function isManifestStoneVisualType(rawType: any, deps: PlaybackAfterStateDeps) {
+    if (deps && typeof deps.isManifestStoneType === 'function') {
+        return deps.isManifestStoneType(rawType) === true;
+    }
     const typeKey = String(rawType || '').trim().toUpperCase();
-    return typeKey === 'THEORY_INCARNATION' || typeKey === 'BOARD_EXECUTOR' || typeKey === 'OBSERVER_WILL';
+    return FALLBACK_MANIFEST_STONE_TYPES_FOR_PLAYBACK_AFTER.includes(typeKey);
 }
 
 function createSpawnAfter(target: any, targetMeta: any, finalCardState: any, finalGameState: any, deps: PlaybackAfterStateDeps) {
     const eventSourced = createEventSourcedAfter(target, targetMeta, deps);
     if (eventSourced.special) return eventSourced;
     const visual = deps.getVisualStateAt(target.r, target.col, finalCardState, finalGameState);
-    if (!visual || !isManifestStoneVisualType(visual.special)) return eventSourced;
+    if (!visual || !isManifestStoneVisualType(visual.special, deps)) return eventSourced;
     return {
         ...eventSourced,
         special: visual.special,
