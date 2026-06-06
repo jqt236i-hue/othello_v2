@@ -14,6 +14,13 @@ const ROULETTE_TRAIL_CLASS = 'theory-spawn-roulette-trail';
 const ROULETTE_SELECTED_CLASS = 'theory-spawn-roulette-selected';
 const MATERIALIZE_CLASS = 'theory-spawn-materialize';
 const MATERIALIZED_DISC_CLASS = 'theory-spawn-materialized-disc';
+const THEORY_ROULETTE_BASE_DURATION_MS = 2500;
+const THEORY_MATERIALIZE_BASE_DURATION_MS = 2000;
+const THEORY_ROULETTE_DELAYS_MS = [
+    62.5, 62.5, 62.5, 62.5, 62.5, 62.5, 62.5, 62.5,
+    125, 125, 125, 125, 125, 125, 125,
+    250, 250, 375, 250
+];
 
 function normalizeCell(value: any) {
     const row = Number(value && value.row);
@@ -114,22 +121,14 @@ function positiveModulo(value: number, size: number): number {
     return ((value % size) + size) % size;
 }
 
-function buildRouletteDelays(durationMs: number, stepCount: number): number[] {
-    const count = Math.max(1, Math.trunc(stepCount));
+function buildRouletteDelays(durationMs: number): number[] {
     const total = Math.max(0, Math.trunc(durationMs));
-    if (count <= 1) return [total];
-    const weights = [];
-    let weightTotal = 0;
-    for (let i = 0; i < count; i += 1) {
-        const t = count <= 1 ? 1 : i / (count - 1);
-        const weight = 0.42 + (1.85 * t * t);
-        weights.push(weight);
-        weightTotal += weight;
-    }
+    if (total === THEORY_ROULETTE_BASE_DURATION_MS) return THEORY_ROULETTE_DELAYS_MS.slice();
+    const scale = THEORY_ROULETTE_BASE_DURATION_MS > 0 ? total / THEORY_ROULETTE_BASE_DURATION_MS : 0;
     let used = 0;
-    return weights.map((weight, index) => {
-        if (index === weights.length - 1) return Math.max(0, total - used);
-        const delay = Math.max(1, Math.round((total * weight) / weightTotal));
+    return THEORY_ROULETTE_DELAYS_MS.map((delayMs, index) => {
+        if (index === THEORY_ROULETTE_DELAYS_MS.length - 1) return Math.max(0, total - used);
+        const delay = Math.max(1, Math.round(delayMs * scale));
         used += delay;
         return delay;
     });
@@ -141,10 +140,8 @@ async function playRouletteSequence(entries: any[], selectedEntry: any, duration
         return;
     }
     const selectedIndex = Math.max(0, entries.indexOf(selectedEntry));
-    const minimumSteps = Math.max(entries.length * 3, 8);
-    const timedSteps = Math.max(minimumSteps, Math.round(Math.max(0, durationMs) / 90));
-    const stepCount = Math.min(32, timedSteps);
-    const delays = buildRouletteDelays(durationMs, stepCount);
+    const delays = buildRouletteDelays(durationMs);
+    const stepCount = delays.length;
 
     for (let step = 0; step < stepCount; step += 1) {
         const remaining = stepCount - 1 - step;
@@ -205,8 +202,8 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
     if (!targets.length) return Promise.resolve();
 
     for (const target of targets) {
-        const durationMs = Number.isFinite(Number(ev.durationMs)) ? Math.max(0, Math.trunc(Number(ev.durationMs))) : 2000;
-        const materializeMs = Number.isFinite(Number(ev.materializeMs)) ? Math.max(0, Math.trunc(Number(ev.materializeMs))) : 700;
+        const durationMs = Number.isFinite(Number(ev.durationMs)) ? Math.max(0, Math.trunc(Number(ev.durationMs))) : THEORY_ROULETTE_BASE_DURATION_MS;
+        const materializeMs = Number.isFinite(Number(ev.materializeMs)) ? Math.max(0, Math.trunc(Number(ev.materializeMs))) : THEORY_MATERIALIZE_BASE_DURATION_MS;
         const entries = collectCandidateCells(target, deps);
         const selected = normalizeCell(target && (target.selectedCell || { row: target.row ?? target.r, col: target.col }));
         const selectedEntry = findEntryForCell(entries, selected);

@@ -490,14 +490,14 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
-  test('theory incarnation spawn sound key resolves to the provided filename', () => {
+  test('theory incarnation spawn sound key resolves to the roulette-start filename', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.effectSoundFiles.theory_incarnation_spawn).toBe(
-      '理論の化身で特殊石が出現するタイミング.mp3'
+      '理論の化身のルーレットの開始タイミング.mp3'
     );
     expect(soundEngine.getEffectFilePath('theory_incarnation_spawn')).toBe(
-      'assets/audio/sound-effect/理論の化身で特殊石が出現するタイミング.mp3'
+      'assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3'
     );
   });
 

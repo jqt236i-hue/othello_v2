@@ -19,8 +19,8 @@ const ANIMATION_TIMINGS: Record<string, number> = {
     FLIP_ANIMATION_DURATION: 462,     // Time for disc to flip (~0.46s, 30% faster than 0.6s)
     BREEDING_SPAWN_FADE_MS: 500,      // Fade-in when BREEDING spawns a new stone
     REGEN_CONSUME_FADE_MS: 500,       // Fade when REGEN visual is consumed and returns to normal
-    THEORY_SPAWN_ROULETTE_MS: 2000,   // Roulette duration before Theory Incarnation spawns a special stone
-    THEORY_SPAWN_MATERIALIZE_MS: 700, // Fade-in duration for the selected Theory Incarnation spawn
+    THEORY_SPAWN_ROULETTE_MS: 2500,   // Roulette duration before Theory Incarnation spawns a special stone
+    THEORY_SPAWN_MATERIALIZE_MS: 2000, // Fade-in duration for the selected Theory Incarnation spawn
     
     // General delays
     ANIMATION_FRAME_DELAY: 100,       // Delay between animation frames

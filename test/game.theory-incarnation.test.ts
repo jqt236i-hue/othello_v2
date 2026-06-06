@@ -236,7 +236,7 @@ describe('理論の化身', () => {
       type: 'theory_incarnation_spawned',
       detail: expect.objectContaining({
         roulette: expect.objectContaining({
-          durationMs: 2000,
+          durationMs: 2500,
           materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
           candidateCells: [{ row: 0, col: 0 }],
@@ -323,7 +323,7 @@ describe('理論の化身', () => {
       cause: 'THEORY_INCARNATION',
       meta: expect.objectContaining({
         theorySpawnRoulette: expect.objectContaining({
-          durationMs: 2000,
+          durationMs: 2500,
           materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
           candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],

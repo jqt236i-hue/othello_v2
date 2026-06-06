@@ -94,7 +94,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         sourceCardId: 'sniper_01',
         sourceCardType: 'SNIPER_WILL',
         theorySpawnRoulette: {
-          durationMs: 2000,
+          durationMs: 2500,
           materializeMs: 2000,
           candidateCells: [{ row: 4, col: 4 }, { row: 4, col: 6 }],
           selectedCell: { row: 4, col: 6 },
@@ -129,7 +129,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         })
       }]
     });
-    expect(out[0].durationMs).toBe(2000);
+    expect(out[0].durationMs).toBe(2500);
     expect(out[0].materializeMs).toBe(2000);
   });
 

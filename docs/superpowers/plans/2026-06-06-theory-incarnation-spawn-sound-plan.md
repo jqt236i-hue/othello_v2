@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Play a dedicated sound effect when `理論の化身` spawns a special stone from a theory number cell.
+**Goal:** Play a dedicated roulette-start sound effect when `理論の化身` spawns a special stone from a theory number cell.
 
-**Architecture:** Keep the canonical theory spawn result headless. The existing playback mapper already converts theory spawn metadata into `theory_incarnation_spawn_roulette`; the sound cue planner should attach a `sound_effect` cue with key `theory_incarnation_spawn` to that playback phase. `SoundEngine` maps that key to the copied mp3 under `assets/audio/sound-effect/`.
+**Architecture:** Keep the canonical theory spawn result headless. The existing playback mapper already converts theory spawn metadata into `theory_incarnation_spawn_roulette`; the sound cue planner should attach a `sound_effect` cue with key `theory_incarnation_spawn` to that playback phase. `SoundEngine` maps that key to the copied mp3 under `assets/audio/sound-effect/`. The roulette animation uses a MIDI-aligned 2.5 second / 19 step fixed timeline.
 
 **Tech Stack:** TypeScript, Jest, existing pipeline UI adapter sound cue system, existing SoundEngine effect sound registry.
 
@@ -43,8 +43,8 @@ expect.objectContaining({
 In `test/sound-engine.default-bgm.test.ts`, assert:
 
 ```ts
-expect(soundEngine.effectSoundFiles.theory_incarnation_spawn).toBe('理論の化身で特殊石が出現するタイミング.mp3');
-expect(soundEngine.getEffectFilePath('theory_incarnation_spawn')).toBe('assets/audio/sound-effect/理論の化身で特殊石が出現するタイミング.mp3');
+expect(soundEngine.effectSoundFiles.theory_incarnation_spawn).toBe('理論の化身のルーレットの開始タイミング.mp3');
+expect(soundEngine.getEffectFilePath('theory_incarnation_spawn')).toBe('assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3');
 ```
 
 - [ ] **Step 3: Run RED tests**
@@ -60,7 +60,7 @@ Expected before implementation: FAIL because `theory_incarnation_spawn` is not r
 ### Task 2: Implementation
 
 **Files:**
-- Create/copy: `assets/audio/sound-effect/理論の化身で特殊石が出現するタイミング.mp3`
+- Create/copy: `assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3`
 - Modify: `sound-engine.ts`
 - Modify: `game/turn/pipeline-ui/core-sound-cues.ts`
 - Modify: `01-rulebook.md`
@@ -71,7 +71,7 @@ Expected before implementation: FAIL because `theory_incarnation_spawn` is not r
 Copy:
 
 ```powershell
-Copy-Item -LiteralPath 'C:\Users\quarr\Documents\Studio One\Songs\2026-06-06 qt qt\Mixdown\理論の化身で特殊石が出現するタイミング.mp3' -Destination 'assets\audio\sound-effect\理論の化身で特殊石が出現するタイミング.mp3'
+Copy-Item -LiteralPath 'C:\Users\quarr\Documents\Studio One\Songs\2026-06-06 qt qt\Mixdown\理論の化身のルーレットの開始タイミング.mp3' -Destination 'assets\audio\sound-effect\理論の化身のルーレットの開始タイミング.mp3'
 ```
 
 - [ ] **Step 2: Register SoundEngine key**
@@ -79,7 +79,7 @@ Copy-Item -LiteralPath 'C:\Users\quarr\Documents\Studio One\Songs\2026-06-06 qt 
 In `sound-engine.ts`, add:
 
 ```ts
-theory_incarnation_spawn: '理論の化身で特殊石が出現するタイミング.mp3',
+theory_incarnation_spawn: '理論の化身のルーレットの開始タイミング.mp3',
 ```
 
 to `effectSoundFiles`.

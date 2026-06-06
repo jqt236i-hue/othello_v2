@@ -162,7 +162,7 @@ function createTheorySpawnRoulettePlaybackPlan(phase: any, ev: any, spawnMeta: a
             candidateCells,
             selectedCell
         }],
-        durationMs: Number.isFinite(Number(roulette.durationMs)) ? Number(roulette.durationMs) : 2000,
+        durationMs: Number.isFinite(Number(roulette.durationMs)) ? Number(roulette.durationMs) : 2500,
         materializeMs: Number.isFinite(Number(roulette.materializeMs)) ? Number(roulette.materializeMs) : 700,
         leadingPlaybackEvents: []
     };

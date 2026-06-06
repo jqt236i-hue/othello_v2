@@ -6,22 +6,22 @@ This document records the approved design for adding a dedicated sound effect wh
 
 ## Target
 
-Use the provided audio file as the sound effect for the moment a special stone appears from a theory number cell:
+Use the provided audio file as the sound effect that starts with the theory roulette and contains the final special-stone appearance chord:
 
-`C:\Users\quarr\Documents\Studio One\Songs\2026-06-06 qt qt\Mixdown\理論の化身で特殊石が出現するタイミング.mp3`
+`C:\Users\quarr\Documents\Studio One\Songs\2026-06-06 qt qt\Mixdown\理論の化身のルーレットの開始タイミング.mp3`
 
 ## Decision
 
-Copy the file into `assets/audio/sound-effect/理論の化身で特殊石が出現するタイミング.mp3` and register a new sound key:
+Copy the file into `assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3` and register a sound key:
 
 `theory_incarnation_spawn`
 
-When playback contains a `theory_incarnation_spawn_roulette` event, add one `sound_effect` playback event with that key at the same phase. This keeps sound playback in the existing UI/pipeline playback path and avoids adding audio dependencies to headless game logic.
+When playback contains a `theory_incarnation_spawn_roulette` event, add one `sound_effect` playback event with that key at the same phase. The roulette visual timeline is 2.5 seconds and 19 fixed steps so the sound's final chord aligns with special-stone materialization.
 
 ## Non-Goals
 
 - Do not replace normal card-effect spawn sounds.
-- Do not change the theory spawn roulette timing or materialize timing.
+- Do not change the materialize duration beyond starting it after the 2.5 second roulette.
 - Do not play this sound for the initial `理論の化身` manifest stone placement.
 - Do not add DOM, audio, or timer dependencies to `game/logic` or turn-start authority code.
 
