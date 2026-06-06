@@ -507,6 +507,33 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('network observed opponent hand cost badge uses projected slot cost adjustment', () => {
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'black',
+      networkClientIsActive: true,
+      currentPlayer: 1,
+      hands: { black: ['own_card'], white: ['opp_card'] }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      { id: 'own_card', name: 'Own Card', desc: 'd', cost: 1 },
+      { id: 'opp_card', name: 'Opp Card', desc: 'd', cost: 1 }
+    ];
+    window.cardState.handCostAdjustmentsByPlayer = {
+      black: [],
+      white: [{ delta: 5 }]
+    };
+
+    window.renderCardUI();
+
+    const costValue = window.document.querySelector('#hand-white .card-cost-badge .cost-value');
+    expect(costValue.textContent).toBe('6');
+
+    dom.window.close();
+  });
+
   test('cpu mode shows all opponent hand cards face-up after reveal hand marks every copy', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',

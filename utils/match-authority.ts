@@ -1163,6 +1163,57 @@ function normalizeHandCopyIdArray(values: unknown, targetLength: unknown): Array
     return next;
 }
 
+function buildVisibleHandCostAdjustments(
+    cardState: Record<string, unknown>,
+    ownerHandCopyIds: Array<number | null>,
+    projectedOwnerHand: unknown[]
+): Array<Record<string, number> | null> {
+    const length = Array.isArray(projectedOwnerHand) ? projectedOwnerHand.length : 0;
+    const adjustments: Array<Record<string, number> | null> = Array(length).fill(null);
+    const overridesByCopyId = (cardState.cardCostOverridesByCopyId && typeof cardState.cardCostOverridesByCopyId === 'object')
+        ? asRecord(cardState.cardCostOverridesByCopyId)
+        : {};
+    const modifiersByCopyId = (cardState.cardCostModifiersByCopyId && typeof cardState.cardCostModifiersByCopyId === 'object')
+        ? asRecord(cardState.cardCostModifiersByCopyId)
+        : {};
+
+    for (let handIndex = 0; handIndex < length; handIndex += 1) {
+        if (isHiddenHandTokenLike(projectedOwnerHand[handIndex])) continue;
+        const copyId = ownerHandCopyIds[handIndex];
+        if (!Number.isInteger(copyId) || Number(copyId) <= 0) continue;
+        const copyKey = String(copyId);
+        const adjustment: Record<string, number> = {};
+
+        const overrideRecord = asRecord(overridesByCopyId[copyKey]);
+        const overrideCost = Number(overrideRecord.cost);
+        if (Number.isFinite(overrideCost)) {
+            adjustment.overrideCost = overrideCost;
+        }
+
+        const modifierValue = modifiersByCopyId[copyKey];
+        const modifierEntries = Array.isArray(modifierValue)
+            ? modifierValue
+            : (modifierValue && typeof modifierValue === 'object' ? [modifierValue] : []);
+        let delta = 0;
+        for (const modifierEntry of modifierEntries) {
+            const modifierRecord = asRecord(modifierEntry);
+            const modifierDelta = Number(modifierRecord.delta);
+            if (Number.isFinite(modifierDelta)) {
+                delta += modifierDelta;
+            }
+        }
+        if (delta !== 0) {
+            adjustment.delta = delta;
+        }
+
+        if (Object.keys(adjustment).length > 0) {
+            adjustments[handIndex] = adjustment;
+        }
+    }
+
+    return adjustments;
+}
+
 function resolveAuthenticatedSeatKey(
     room: MatchAuthorityRoomState | null | undefined,
     seatKeyValue: unknown,
@@ -1422,6 +1473,7 @@ function projectSnapshotForViewer(
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
     const projectedHands = asRecord(cardState.hands);
     const observedHandSlotsByPlayer: Record<PlayerKey, number[]> = { black: [], white: [] };
+    const handCostAdjustmentsByPlayer: Record<PlayerKey, Array<Record<string, number> | null>> = { black: [], white: [] };
 
     for (const ownerKey of PLAYER_KEYS as readonly PlayerKey[]) {
         const ownerHand = Array.isArray(hands[ownerKey])
@@ -1451,20 +1503,28 @@ function projectSnapshotForViewer(
             }
         }
         observedHandSlotsByPlayer[ownerKey] = Array.from(observedSlots).sort((a, b) => a - b);
+        let projectedOwnerHand: unknown[];
         if (canViewerInspectOwnerHand(shot, viewer, ownerKey) || hasActiveObserverWillReveal(shot, viewer, ownerKey)) {
-            projectedHands[ownerKey] = ownerHand.slice();
-            continue;
+            projectedOwnerHand = ownerHand.slice();
+        } else {
+            projectedOwnerHand = ownerHand.map((cardId: unknown, handIndex: number) => {
+                const cardCopyId = ownerHandCopyIds[handIndex];
+                const shouldReveal = viewer
+                    && Number.isInteger(cardCopyId)
+                    && revealedCopyIdsForViewer.has(cardCopyId)
+                    && !isHiddenHandTokenLike(cardId);
+                return shouldReveal ? cardId : makeHiddenHandToken(ownerKey, handIndex);
+            });
         }
-        projectedHands[ownerKey] = ownerHand.map((cardId: unknown, handIndex: number) => {
-            const cardCopyId = ownerHandCopyIds[handIndex];
-            const shouldReveal = viewer
-                && Number.isInteger(cardCopyId)
-                && revealedCopyIdsForViewer.has(cardCopyId)
-                && !isHiddenHandTokenLike(cardId);
-            return shouldReveal ? cardId : makeHiddenHandToken(ownerKey, handIndex);
-        });
+        projectedHands[ownerKey] = projectedOwnerHand;
+        handCostAdjustmentsByPlayer[ownerKey] = buildVisibleHandCostAdjustments(
+            cardState,
+            ownerHandCopyIds,
+            projectedOwnerHand
+        );
     }
     cardState.observedHandSlotsByPlayer = observedHandSlotsByPlayer;
+    cardState.handCostAdjustmentsByPlayer = handCostAdjustmentsByPlayer;
 
     if (Array.isArray(cardState.discard)) {
         cardState.discard = cardState.discard.filter((cardId) => !isHiddenHandTokenLike(cardId));
@@ -1522,6 +1582,8 @@ function projectSnapshotForViewer(
     delete cardState._deckCopyIdsByPlayer;
     delete cardState._discardCopyIds;
     delete cardState._revealedHandCopyIdsByViewer;
+    delete cardState.cardCostOverridesByCopyId;
+    delete cardState.cardCostModifiersByCopyId;
 
     const projectedForSeat = parseSeatKeyOptional(
         Object.prototype.hasOwnProperty.call(meta, 'projectedForSeat')

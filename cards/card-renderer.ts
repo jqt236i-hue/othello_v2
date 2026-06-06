@@ -271,31 +271,59 @@ function applyCardSpecialArtToFace(cardEl: any, cardDef: any, options: any) {
     cardEl.style.setProperty('--card-special-art-image', `url("${escapedPath}")`);
     return cardEl;
 }
+function _getProjectedHandCostForRender(cardState: any, ownerKey: any, handIndex: any, fallbackCost: any): number | null {
+    const fallback = Number.isFinite(Number(fallbackCost)) ? Number(fallbackCost) : 0;
+    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!cardState || typeof cardState !== 'object' || !owner || !Number.isInteger(Number(handIndex))) {
+        return null;
+    }
+    const adjustmentsByPlayer = (cardState.handCostAdjustmentsByPlayer && typeof cardState.handCostAdjustmentsByPlayer === 'object')
+        ? cardState.handCostAdjustmentsByPlayer
+        : null;
+    const adjustments = adjustmentsByPlayer && Array.isArray(adjustmentsByPlayer[owner])
+        ? adjustmentsByPlayer[owner]
+        : null;
+    if (!adjustments)
+        return null;
+    const adjustment = adjustments[Math.max(0, Math.trunc(Number(handIndex)))];
+    if (!adjustment || typeof adjustment !== 'object')
+        return null;
+    const overrideCost = Number(adjustment.overrideCost);
+    let cost = Number.isFinite(overrideCost) ? overrideCost : fallback;
+    const delta = Number(adjustment.delta);
+    if (Number.isFinite(delta)) {
+        cost += delta;
+    }
+    return Number.isFinite(cost) ? cost : fallback;
+}
 function _getEffectiveCardCostForRender(cardState: any, ownerKey: any, cardId: any, handIndex: any, fallbackCost: any): number {
     const fallback = Number.isFinite(Number(fallbackCost)) ? Number(fallbackCost) : 0;
     try {
-        if (!CardLogicModule || typeof CardLogicModule.getHandCopyIdAt !== 'function' || typeof CardLogicModule.getEffectiveCardCostForCopy !== 'function') {
-            return fallback;
+        if (CardLogicModule && typeof CardLogicModule.getHandCopyIdAt === 'function' && typeof CardLogicModule.getEffectiveCardCostForCopy === 'function') {
+            const copyId = CardLogicModule.getHandCopyIdAt(cardState, ownerKey, handIndex);
+            const copyKey = String(Number(copyId || 0));
+            const hasOverride = !!(
+                copyKey !== '0'
+                && cardState
+                && cardState.cardCostOverridesByCopyId
+                && Object.prototype.hasOwnProperty.call(cardState.cardCostOverridesByCopyId, copyKey)
+            );
+            const hasModifier = !!(
+                copyKey !== '0'
+                && cardState
+                && cardState.cardCostModifiersByCopyId
+                && Object.prototype.hasOwnProperty.call(cardState.cardCostModifiersByCopyId, copyKey)
+            );
+            if (hasOverride || hasModifier) {
+                return CardLogicModule.getEffectiveCardCostForCopy(cardState, cardId, copyId);
+            }
         }
-        const copyId = CardLogicModule.getHandCopyIdAt(cardState, ownerKey, handIndex);
-        const copyKey = String(Number(copyId || 0));
-        const hasOverride = !!(
-            copyKey !== '0'
-            && cardState
-            && cardState.cardCostOverridesByCopyId
-            && Object.prototype.hasOwnProperty.call(cardState.cardCostOverridesByCopyId, copyKey)
-        );
-        const hasModifier = !!(
-            copyKey !== '0'
-            && cardState
-            && cardState.cardCostModifiersByCopyId
-            && Object.prototype.hasOwnProperty.call(cardState.cardCostModifiersByCopyId, copyKey)
-        );
-        if (!hasOverride && !hasModifier) return fallback;
-        return CardLogicModule.getEffectiveCardCostForCopy(cardState, cardId, copyId);
-    } catch (e) {
-        return fallback;
+    } catch (e) { /* ignore */ }
+    const projectedCost = _getProjectedHandCostForRender(cardState, ownerKey, handIndex, fallback);
+    if (projectedCost !== null && Number.isFinite(Number(projectedCost))) {
+        return Number(projectedCost);
     }
+    return fallback;
 }
 interface CardNameFitPlan {
     baseFontPx: number;

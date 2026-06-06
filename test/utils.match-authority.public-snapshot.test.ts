@@ -405,6 +405,44 @@ describe('match authority public snapshot trap visibility', () => {
     expect(whiteView.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
   });
 
+  test('projectSnapshotForViewer projects visible hand cost adjustments without leaking copy ids', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.hands.black = ['observer_will_01'];
+    snapshot.cardState.hands.white = ['meteor_01', 'guard_01', 'trap_01'];
+    snapshot.cardState._handCopyIdsByPlayer = {
+      black: [1],
+      white: [20, 21, 22]
+    };
+    snapshot.cardState._revealedHandCopyIdsByViewer = {
+      black: [20],
+      white: []
+    };
+    snapshot.cardState.cardCostModifiersByCopyId = {
+      20: [{ delta: 5, sourceType: 'OBSERVER_WILL' }],
+      22: [{ delta: 9, sourceType: 'DEBUG_HIDDEN' }]
+    };
+    snapshot.cardState.cardCostOverridesByCopyId = {
+      21: { cost: 0, sourceType: 'OBSERVER_WILL' }
+    };
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+
+    expect(blackView.cardState.hands.white).toEqual([
+      'meteor_01',
+      '__hidden_hand__:white:1',
+      '__hidden_hand__:white:2'
+    ]);
+    expect(blackView.cardState.handCostAdjustmentsByPlayer.white).toEqual([
+      { delta: 5 },
+      null,
+      null
+    ]);
+    expect(blackView.cardState._handCopyIdsByPlayer).toBeUndefined();
+    expect(blackView.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
+    expect(blackView.cardState.cardCostModifiersByCopyId).toBeUndefined();
+    expect(blackView.cardState.cardCostOverridesByCopyId).toBeUndefined();
+  });
+
   test('projectSnapshotForViewer reveals opponent hand to active observer will marker owner', () => {
     const snapshot = createSnapshot();
     snapshot.cardState.hands.black = ['observer_will_01'];
