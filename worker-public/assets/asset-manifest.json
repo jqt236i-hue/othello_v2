@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-05",
-  "generatedAt": "2026-06-05T04:30:02.284Z",
+  "version": "2026-06-04",
+  "generatedAt": "2026-06-04T11:56:44.333Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -291,6 +291,18 @@
       "sha256": "2ecd16bbbbe9664cf3190619a89492c2a2c085889ca0475c157dc865c5af6b29"
     },
     {
+      "path": "assets/images/special-cards/characters/board_executor.png",
+      "sha256": "96678e11ac06aa5649f8c1ea783c1e8a2ec9601dd1abe20d309a8e51981f4b14"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will.png",
+      "sha256": "c9a0dccc58462aad180f2ffe7ff7830a014e16fc2c77d9d612d98a26fa7db739"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation.png",
+      "sha256": "cb1a46607d8a2e11eb65830c29362f9fc13b918ce6c0e31bc364f40e1e58fd4e"
+    },
+    {
       "path": "assets/images/background/default.png",
       "sha256": "2fb2f1e18045a943a56c9a406fadb460b5ba8739e8fd7de7b04d379066f2eb99"
     },
@@ -425,6 +437,214 @@
     {
       "path": "assets/images/Gacha/UR/ラグドールの手.png",
       "sha256": "a9effb3169ed2aef27612ded7581f3ee17df4a22b2d46c971e7a8bcde8508e6d"
+    },
+    {
+      "path": "assets/audio/sound-effect/archive/web-audio-stone/default-legacy-stone-place.mp3",
+      "sha256": "290041299343b4301276d54e7b2842a64b404af0a4adcba29f0a6596d70a5d01"
+    },
+    {
+      "path": "assets/audio/sound-effect/archive/web-audio-stone/type-1-standard.mp3",
+      "sha256": "5dd9973e2f21247108593a2c04b98a1eaa4babed68498db31b23b393401484ed"
+    },
+    {
+      "path": "assets/audio/sound-effect/archive/web-audio-stone/type-2-sharp.mp3",
+      "sha256": "290041299343b4301276d54e7b2842a64b404af0a4adcba29f0a6596d70a5d01"
+    },
+    {
+      "path": "assets/audio/sound-effect/archive/web-audio-stone/type-3-heavy.mp3",
+      "sha256": "c6a88269ee2eb795dcfb3cb82dc1f299ed1b5c4dacf800860ca8926d188c6415"
+    },
+    {
+      "path": "assets/audio/sound-effect/archive/web-audio-stone/type-4-resonant.mp3",
+      "sha256": "b0976cb1c53451fc64ebeb1981876a465b82c0b1f33d90f9dc0208891971482d"
+    },
+    {
+      "path": "assets/audio/sound-effect/archive/web-audio-stone/type-5-soft.mp3",
+      "sha256": "8fa8f3743f441ae425a852d6f2c8cd4c2468da869b42d313e079ce9697446063"
+    },
+    {
+      "path": "assets/audio/sound-effect/observer_will_capture.mp3",
+      "sha256": "2b4945ea42299d3a1c92c9d60a913bb52418da0cece3c434c2e1d779143e4d35"
+    },
+    {
+      "path": "assets/audio/sound-effect/カード使用ボタンを押したタイミング.mp3",
+      "sha256": "b93f07f28b05e924d28e58f019c0e345ddcd8aee7f7e1495dd92733e6fad46ae"
+    },
+    {
+      "path": "assets/audio/sound-effect/カード効果で石が反転したタイミング.mp3",
+      "sha256": "58c48bc6a2c211bdbd0ad21a501ff22948613058a467ee9fc2f27b7b4ffbb844"
+    },
+    {
+      "path": "assets/audio/sound-effect/カード効果で石が生成されたタイミング.mp3",
+      "sha256": "3047f18e6153b2c74c299f95098ffc94ca5b832ce0c3d0bc451aca4b5dcac74a"
+    },
+    {
+      "path": "assets/audio/sound-effect/テレポート対象の石を選択したタイミング.mp3",
+      "sha256": "34d9c421148e98713ce1609aba2378edd0e9938b019a4b28be9cfeed34668c90"
+    },
+    {
+      "path": "assets/audio/sound-effect/ラウンドボーナスで布石を獲得したタイミング.mp3",
+      "sha256": "a74fe1cbec41dc0f8d4f237edc745f49e36adb721c8cca7a54e7c8f1ccc845cc"
+    },
+    {
+      "path": "assets/audio/sound-effect/ロボット掃除機で敵石を吸い込んだタイミング.mp3",
+      "sha256": "2cabb0f58bfdd9f27788969bd9ca4e42c6037e4cf98ca1d23ef039eeb80ef19b"
+    },
+    {
+      "path": "assets/audio/sound-effect/入替の意志で石が入れ替わるタイミング.mp3",
+      "sha256": "c515a3ce26b560ab9e099401250da2218fcdb9f08cb99f4e2f4f8fdda5f8b0b3"
+    },
+    {
+      "path": "assets/audio/sound-effect/凍結するマスを選択したタイミング.mp3",
+      "sha256": "c5277ced7aae621e6dce69136b1ce3bf214301dd95d6f769b8d1c915e8e87b53"
+    },
+    {
+      "path": "assets/audio/sound-effect/出稼ぎで16布石を獲得したタイミング.mp3",
+      "sha256": "8a42bfbea70477d3f3def87a32110d6ca3c297f4efbf87e1b35a1ab85e27df8a"
+    },
+    {
+      "path": "assets/audio/sound-effect/出稼ぎの意志が除去されたタイミング.mp3",
+      "sha256": "2473cd4923bcd814c30f8da58c9827631ce99dcc728ce8fd539c0df1cf89c499"
+    },
+    {
+      "path": "assets/audio/sound-effect/売却・出稼ぎ・自壊で布石を獲得したタイミング.mp3",
+      "sha256": "c2dfcc038c96c33658a0b846149ccec589df6786945dafffc6a5ba1359f4e56f"
+    },
+    {
+      "path": "assets/audio/sound-effect/多動系の石が移動したタイミング.mp3",
+      "sha256": "bd6d96202c4a1d7ca9b8f9c5654884c1145d3496119a17ab87d819a25b46a2f9"
+    },
+    {
+      "path": "assets/audio/sound-effect/宝箱・天の恵みで獲得したタイミング.mp3",
+      "sha256": "1061c37dc608cb9bf3de9db40c6f23e83bcd5e1e5c03c6fc1bececfc97488560"
+    },
+    {
+      "path": "assets/audio/sound-effect/封鎖の意志を置くタイミング.mp3",
+      "sha256": "25c96fdddf0a33df687f2449c8e8b48ab94e079e5379e2658c37ada6bb134a0d"
+    },
+    {
+      "path": "assets/audio/sound-effect/強い意志の石が進化したタイミング.mp3",
+      "sha256": "052b7313890f7d568e9bfcdc203b2994268358ebe5cba0e8287a6d69acccaf70"
+    },
+    {
+      "path": "assets/audio/sound-effect/強風で石が移動したタイミング.mp3",
+      "sha256": "03653e08266e12729c18731b8c018150a14aa0d339d135cf8197baf8bc8b7c40"
+    },
+    {
+      "path": "assets/audio/sound-effect/意志の喪失で特殊石が解除されたタイミング.mp3",
+      "sha256": "88728690f803257d6bf146ee1ad9483c5f75289e2cf5e4c70a28e967372657a5"
+    },
+    {
+      "path": "assets/audio/sound-effect/手札のカードを選択したタイミング.mp3",
+      "sha256": "e236fcdfe5f36040fc54f97d12769d9541c1ca1a1634f19cda5dbb96517f8559"
+    },
+    {
+      "path": "assets/audio/sound-effect/浮力系で石が浮上したタイミング.mp3",
+      "sha256": "3763fedf598e0a5a9e2611a93e00880fccb3c0875020a73cbdbfb788fad21b8c"
+    },
+    {
+      "path": "assets/audio/sound-effect/爆弾系の石が起爆したタイミング.mp3",
+      "sha256": "1f589265cedcdc480202968af9e74fc6dd6e02c451099bd61aa9f63b2230d552"
+    },
+    {
+      "path": "assets/audio/sound-effect/特殊カードを使うタイミング.mp3",
+      "sha256": "a5667636a8917b73664159e85deba2ae688d3071472215ba8f8f18f5b33a14fb"
+    },
+    {
+      "path": "assets/audio/sound-effect/特殊石が通常石に戻ったタイミング.mp3",
+      "sha256": "0fa9000ad1968f003424ab4d08d28e89c4cd52e71df103be897fc0ac22a63845"
+    },
+    {
+      "path": "assets/audio/sound-effect/特殊石の持続ターンが延長されたタイミング.mp3",
+      "sha256": "3fcb01e18b1af75fb34d264d56d3713ad6a979a2fbd5f3fa3ec35963dfa4a5a0"
+    },
+    {
+      "path": "assets/audio/sound-effect/特殊石の持続ターンが減少したタイミング.mp3",
+      "sha256": "d7e7cee8253ec8d50d6a2e48dff326a52e3d480473cb5b657a46ebf78a1c2545"
+    },
+    {
+      "path": "assets/audio/sound-effect/生きる意志で復活するタイミング.mp3",
+      "sha256": "0e47f222b3ff3fd7a65bc7a3c9daee40c1c13237fce46d68037e4ab7be3a22f6"
+    },
+    {
+      "path": "assets/audio/sound-effect/生きる意志を付与するタイミング.mp3",
+      "sha256": "5b5f83af8b1575b2b5624180be4143bd6f130b47f712693a1f0ed2ceb3814069"
+    },
+    {
+      "path": "assets/audio/sound-effect/盤面が拡張されたタイミング.mp3",
+      "sha256": "884bf9aa1f7f68640fab3944e9c95327e4f62dde3c0cf3695c1aee563a7a7946"
+    },
+    {
+      "path": "assets/audio/sound-effect/盤面縮小するタイミング.mp3",
+      "sha256": "e57746072e4a8cecc437eb57eeb43c013c29e55dfc0eb778058b22db08331554"
+    },
+    {
+      "path": "assets/audio/sound-effect/相手特殊石を選択したタイミング.mp3",
+      "sha256": "3eab0be19350345f799855bd4b3ed33d7e23d6fba2169de6138d7f382fc82a56"
+    },
+    {
+      "path": "assets/audio/sound-effect/石が複製・増殖したタイミング.mp3",
+      "sha256": "575e3484df6386b09d620a65967b3b5d406c17473b15faf8d3bfde4d0100f134"
+    },
+    {
+      "path": "assets/audio/sound-effect/石・カードが破壊されたタイミング.mp3",
+      "sha256": "0527f6f1db35955edbe0ff670b8eb51c1eb91ecc41554b03ec97204019b0a2b3"
+    },
+    {
+      "path": "assets/audio/sound-effect/種まきの意志で種をまいたタイミング.mp3",
+      "sha256": "bd79252cec5578ce86742e422844f87907c1833d51e48829d20c3e40d0f2918c"
+    },
+    {
+      "path": "assets/audio/sound-effect/種まきの意志で芽生えるタイミング.mp3",
+      "sha256": "05282c5ae53ab8e6a8b4dce12b6dd6e5e3935317e5b3e29ca1a9a6b263f57ce9"
+    },
+    {
+      "path": "assets/audio/sound-effect/究極反転龍・究極破壊神・意志狩りの王が移動したタイミング.mp3",
+      "sha256": "8ee4b4a7bb9c9034c8b457c2975759bd2e2e679ad1a99a3d9ae64a83aa7c57a9"
+    },
+    {
+      "path": "assets/audio/sound-effect/罠が不発で消えたタイミング.mp3",
+      "sha256": "9c6bab144c2f88464c4374429a54717cb8a06fc1c186719fec1065152dbdb864"
+    },
+    {
+      "path": "assets/audio/sound-effect/罠が発動したタイミング.mp3",
+      "sha256": "607a0b988461235842c2584abe5fb96a4d4ec4525570f67f98298960b8ddfbbc"
+    },
+    {
+      "path": "assets/audio/sound-effect/罠・時限爆弾の石を選択したタイミング.mp3",
+      "sha256": "fd0dfd60551e387db46034c26390f90dce31df05debd13393102915ffc9bb190"
+    },
+    {
+      "path": "assets/audio/sound-effect/自分の石を選択したタイミング.mp3",
+      "sha256": "cec980be22565e596c6d5c2f8c9de7e7a5723104e1779ff5f2ee0c311e9f4905"
+    },
+    {
+      "path": "assets/audio/sound-effect/超引力で石が引き寄せられたタイミング.mp3",
+      "sha256": "ff2303c2cc95c322cac5876ba70681f24fe0aabc52205fd3081e0cb017838b75"
+    },
+    {
+      "path": "assets/audio/sound-effect/重力系で石が落下したタイミング.mp3",
+      "sha256": "0f0ee857cc2fb16d36b15604aff2d5e67f1ef6ff34c824cf44be60a55236f3ca"
+    },
+    {
+      "path": "assets/audio/sound-effect/隕石で穴化するタイミング.mp3",
+      "sha256": "2d34ebba2dc5e96d0a3651acc95dd7d4431570f3469a09232fd883358b7cbb42"
+    },
+    {
+      "path": "assets/audio/bgm/manifest-stones/A.mp3",
+      "sha256": "37c05284c551a2890df3001d65c1c5bd5952ea5ba1c8ab077b6220920871075f"
+    },
+    {
+      "path": "assets/audio/bgm/manifest-stones/s.mp3",
+      "sha256": "7133553cdc7f9356357dc59596562b137ff5be571370c5f57aed494f9250990e"
+    },
+    {
+      "path": "assets/audio/bgm/manifest-stones/ss.mp3",
+      "sha256": "19c5a8d3e4e7613bb6eb1f202d9cdd330efc18eea9b5a772849e66a1dcf5eac1"
+    },
+    {
+      "path": "assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3",
+      "sha256": "1a6b9ebb608ea4aab6c090e44f25c8f5c95f0cfb628113f805e5ec2d784102e9"
     }
   ]
 }

@@ -1868,6 +1868,16 @@ const {
         );
     }
 
+    function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: any, gameState: any, playerKey: any, prng?: any) {
+        return CardTheoryIncarnationResolutionModule.finalizeTheoryIncarnationAutoTurnEndExpiration(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
     function consumeTheoryIncarnationAutoTurnEnd(cardState: any, playerKey: any) {
         return CardTheoryIncarnationResolutionModule.consumeTheoryIncarnationAutoTurnEnd(cardState, playerKey);
     }
@@ -4073,6 +4083,7 @@ const cardsApi: any = {
         applyObserverWillStoneReservation,
         applyTheoryIncarnationStoneReservation,
         processTheoryIncarnationMarkerAtTurnStart,
+        finalizeTheoryIncarnationAutoTurnEndExpiration,
         consumeTheoryIncarnationAutoTurnEnd,
         addNumberCellCollectedTotal,
         canUseTheoryIncarnation,

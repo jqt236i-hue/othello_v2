@@ -933,6 +933,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 CardLogic.consumeTheoryIncarnationAutoTurnEnd(cardState, playerKey) === true
             ) {
                 events.push({ type: 'theory_incarnation_auto_turn_end', player: playerKey });
+                if (typeof CardLogic.finalizeTheoryIncarnationAutoTurnEndExpiration === 'function') {
+                    const expired = CardLogic.finalizeTheoryIncarnationAutoTurnEndExpiration(cardState, gameState, playerKey, p);
+                    if (expired) {
+                        events.push({ type: 'theory_incarnation_marker_expired', detail: expired });
+                    }
+                }
                 if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function')) {
                     throw new Error('TurnPipeline handoff module unavailable');
                 }

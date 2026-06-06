@@ -334,14 +334,15 @@ describe('理論の化身', () => {
   });
 
   test('理論石顕現中は複数回の自ターン開始で連続して自動終了する', () => {
-    const prng = createPrng([0, 0]);
+    const prng = createPrng([0, 0, 0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();
     gameState.currentPlayer = Shared.BLACK;
-    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5 };
+    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5, '0,2': 5 };
     cardState.theoryNumberCellByCell = {
       '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' },
-      '0,1': { sessionId: 'theory_black_1', ownerKey: 'black' }
+      '0,1': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,2': { sessionId: 'theory_black_1', ownerKey: 'black' }
     };
     cardState.theoryNumberCellsBySession = {
       theory_black_1: {
@@ -361,6 +362,17 @@ describe('理論の化身', () => {
           '0,1': {
             row: 0,
             col: 1,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5
+          },
+          '0,2': {
+            row: 0,
+            col: 2,
             value: 5,
             originalValue: 0,
             originalConsumed: false,
@@ -392,6 +404,26 @@ describe('理論の化身', () => {
     expect(second.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_auto_turn_end', player: 'black' }));
     expect(gameState.currentPlayer).toBe(Shared.WHITE);
     expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(1);
+    expect(cardState.markers.filter((entry: any) => entry && entry.data && entry.data.sourceType === 'THEORY_INCARNATION')).toHaveLength(3);
+
+    gameState.currentPlayer = Shared.BLACK;
+    const third = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 2 }, prng);
+    const eventTypes = third.events.map((event: any) => event && event.type);
+    const spawnIndex = eventTypes.indexOf('theory_incarnation_spawned');
+    const autoEndIndex = eventTypes.indexOf('theory_incarnation_auto_turn_end');
+    const expiredIndex = eventTypes.indexOf('theory_incarnation_marker_expired');
+
+    expect(spawnIndex).toBeGreaterThanOrEqual(0);
+    expect(autoEndIndex).toBeGreaterThan(spawnIndex);
+    expect(expiredIndex).toBeGreaterThan(autoEndIndex);
+    expect(gameState.currentPlayer).toBe(Shared.WHITE);
+    expect(cardState.theoryIncarnationStateByPlayer.black).toBeNull();
+    expect(cardState.markers.some((entry: any) => (
+      entry &&
+      entry.kind === 'manifestStone' &&
+      entry.data &&
+      entry.data.type === 'THEORY_INCARNATION'
+    ))).toBe(false);
     expect(cardState.markers.filter((entry: any) => entry && entry.data && entry.data.sourceType === 'THEORY_INCARNATION')).toHaveLength(3);
   });
 });

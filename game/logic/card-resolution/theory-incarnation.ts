@@ -34,6 +34,9 @@ function ensureTheoryState(cardState: any): void {
     if (!cardState.numberCellCollectedTotalByPlayer || typeof cardState.numberCellCollectedTotalByPlayer !== 'object') {
         cardState.numberCellCollectedTotalByPlayer = { black: 0, white: 0 };
     }
+    if (!cardState._theoryIncarnationPendingAutoExpireByPlayer || typeof cardState._theoryIncarnationPendingAutoExpireByPlayer !== 'object') {
+        cardState._theoryIncarnationPendingAutoExpireByPlayer = { black: null, white: null };
+    }
     if (!Number.isFinite(Number(cardState._nextTheoryIncarnationSeq))) {
         cardState._nextTheoryIncarnationSeq = 1;
     }
@@ -369,43 +372,85 @@ function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameSta
     }
     (cardState as any)._theoryIncarnationAutoTurnEndByPlayer[ownerKey] = true;
 
-    let expired = null;
     if (after <= 0) {
-        const sessionId = state.sessionId || marker.data.sessionId || null;
-        const restoredCount = sessionId ? restoreTheoryNumberCells(cardState as any, sessionId) : 0;
-        let reverted = false;
-        if (typeof deps.revertSpecialStoneWithPresentation === 'function') {
-            const revertRes = deps.revertSpecialStoneWithPresentation(
-                cardState,
-                gameState,
-                row,
-                col,
-                THEORY_MARKER_TYPE,
-                ownerKey,
-                'SYSTEM',
-                'duration_end',
-                {
-                    special: THEORY_MARKER_TYPE,
-                    owner: ownerKey,
-                    timer: 0,
-                    random: prng || null
-                }
-            );
-            reverted = !!(revertRes && revertRes.reverted);
-        }
-        if (!reverted && typeof deps.removeMarkerById === 'function') {
-            deps.removeMarkerById(cardState, marker.id);
-        }
-        (cardState as any).theoryIncarnationStateByPlayer[ownerKey] = null;
-        expired = { row, col, owner: ownerKey, markerId: marker.id || null, restoredCount };
+        (cardState as any)._theoryIncarnationPendingAutoExpireByPlayer[ownerKey] = {
+            row,
+            col,
+            owner: ownerKey,
+            markerId: marker.id || null,
+            sessionId: state.sessionId || marker.data.sessionId || null
+        };
     }
 
     return {
         applied: true,
         spawned,
-        expired,
+        expired: null,
         remainingOwnerTurns: after,
         remainingSpawnCount: state.remainingSpawnCount
+    };
+}
+
+function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> | null {
+    const ownerKey = ownerKeyOf(playerKey);
+    ensureTheoryState(cardState as any);
+    const pendingByPlayer = (cardState as any)._theoryIncarnationPendingAutoExpireByPlayer;
+    const pending = pendingByPlayer && pendingByPlayer[ownerKey];
+    if (!pending) return null;
+    pendingByPlayer[ownerKey] = null;
+
+    const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey] || null;
+    const sessionId = pending.sessionId || (state && state.sessionId) || null;
+    const restoredCount = sessionId ? restoreTheoryNumberCells(cardState as any, sessionId) : 0;
+
+    let row = Number(pending.row);
+    let col = Number(pending.col);
+    let markerId = pending.markerId || null;
+    const getMarkers = deps && deps.getMarkers;
+    const markers = typeof getMarkers === 'function' ? getMarkers(cardState) : ((cardState as any).markers || []);
+    let marker = markerId
+        ? markers.find((entry: any) => entry && entry.id === markerId)
+        : null;
+    if (!marker && Number.isFinite(row) && Number.isFinite(col)) {
+        marker = findTheoryMarker(cardState, row, col, ownerKey, deps);
+    }
+    if (marker) {
+        row = Number(marker.row);
+        col = Number(marker.col);
+        markerId = marker.id || markerId;
+    }
+
+    let reverted = false;
+    if (Number.isFinite(row) && Number.isFinite(col) && deps && typeof deps.revertSpecialStoneWithPresentation === 'function') {
+        const revertRes = deps.revertSpecialStoneWithPresentation(
+            cardState,
+            gameState,
+            row,
+            col,
+            THEORY_MARKER_TYPE,
+            ownerKey,
+            'SYSTEM',
+            'duration_end',
+            {
+                special: THEORY_MARKER_TYPE,
+                owner: ownerKey,
+                timer: 0,
+                random: prng || null
+            }
+        );
+        reverted = !!(revertRes && revertRes.reverted);
+    }
+    if (!reverted && markerId && deps && typeof deps.removeMarkerById === 'function') {
+        deps.removeMarkerById(cardState, markerId);
+    }
+    (cardState as any).theoryIncarnationStateByPlayer[ownerKey] = null;
+
+    return {
+        row: Number.isFinite(row) ? row : null,
+        col: Number.isFinite(col) ? col : null,
+        owner: ownerKey,
+        markerId: markerId || null,
+        restoredCount
     };
 }
 
@@ -423,5 +468,6 @@ export = {
     applyTheoryIncarnationUsage,
     applyTheoryIncarnationStoneReservation,
     processTheoryIncarnationMarkerAtTurnStart,
+    finalizeTheoryIncarnationAutoTurnEndExpiration,
     consumeTheoryIncarnationAutoTurnEnd
 };
