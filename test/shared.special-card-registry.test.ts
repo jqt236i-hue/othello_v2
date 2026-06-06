@@ -5,7 +5,14 @@ describe('SpecialCardRegistry', () => {
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('OBSERVER_WILL')).toEqual(expect.objectContaining({
       cardId: 'observer_will_01',
       markerType: 'OBSERVER_WILL',
-      displayName: '盤理の観測者'
+      displayName: '盤理の観測者',
+      manifestBgmKey: 'observer_will_path',
+      manifestBgmTrack: expect.objectContaining({
+        name: '観測の道',
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+        loopStart: 0,
+        loopEnd: 48
+      })
     }));
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('THEORY_INCARNATION')).toEqual(expect.objectContaining({
       cardId: 'theory_incarnation_01',

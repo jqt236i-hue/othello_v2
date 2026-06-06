@@ -61,7 +61,8 @@
             manifestBgmTrack: Object.freeze({
                 name: '観測の道',
                 file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
-                loopStart: 0
+                loopStart: 0,
+                loopEnd: 48
             })
         })
     });

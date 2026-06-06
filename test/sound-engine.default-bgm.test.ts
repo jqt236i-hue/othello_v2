@@ -331,6 +331,68 @@ describe('SoundEngine default BGM', () => {
     expect(normalBgm.play).not.toHaveBeenCalled();
   });
 
+  test('manifest BGM with loopEnd uses AudioBuffer looping when Web Audio and fetch are available', async () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const { context, sources } = createMockAudioContext();
+    context.decodeAudioData = jest.fn(async () => ({ duration: 49.2 }));
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16)
+    }));
+    const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: fetchMock });
+    soundEngine.ctx = context;
+    soundEngine.allowBgmPlay = true;
+
+    soundEngine.loadBgm(0);
+    const normalBgm = instances[0];
+    expect(normalBgm.play).toHaveBeenCalledTimes(1);
+
+    const started = soundEngine.setManifestBgmOverride('observer_will_path', {
+      name: '観測の道',
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+      loopStart: 0,
+      loopEnd: 48
+    });
+    await flushAsyncWork();
+
+    expect(started).toBe(true);
+    expect(normalBgm.pause).toHaveBeenCalledTimes(1);
+    expect(soundEngine._manifestBgm.__bufferedLoop).toBe(true);
+    expect(soundEngine._manifestBgm.paused).toBe(false);
+    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3');
+    expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].loop).toBe(true);
+    expect(sources[0].loopStart).toBeCloseTo(0, 6);
+    expect(sources[0].loopEnd).toBeCloseTo(48, 6);
+    expect(sources[0].start).toHaveBeenCalledWith(0, 0);
+  });
+
+  test('manifest BGM loopEnd falls back to HTML range looping without Web Audio', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.allowBgmPlay = false;
+    const started = soundEngine.setManifestBgmOverride('observer_will_path', {
+      name: '観測の道',
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+      loopStart: 0,
+      loopEnd: 48
+    });
+
+    const manifestBgm = instances[0];
+    expect(started).toBe(true);
+    expect(manifestBgm.loop).toBe(false);
+    expect(typeof manifestBgm.ontimeupdate).toBe('function');
+    expect(typeof manifestBgm.onended).toBe('function');
+
+    manifestBgm.duration = 49.2;
+    manifestBgm.currentTime = 47.9;
+    manifestBgm.ontimeupdate();
+
+    expect(manifestBgm.currentTime).toBeCloseTo(0, 6);
+  });
+
   test('loopStart track uses AudioBuffer looping when Web Audio and fetch are available', async () => {
     const { context, sources } = createMockAudioContext();
     const fetchMock = jest.fn(async () => ({

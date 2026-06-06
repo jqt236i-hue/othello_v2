@@ -76,6 +76,7 @@ const SoundEngine = {
     _temporaryBgmMutedBySpecialCardUse: false,
     _specialCardUseBgmMuteTimer: null as any,
     _manifestBgm: null as HTMLAudioElement | null,
+    _manifestBgmBufferedState: null as BgmBufferedState | null,
     _manifestBgmKey: null as string | null,
     _manifestBgmTrack: null as BgmTrack | null,
     _manifestBgmPausedNormalBgm: false,
@@ -235,6 +236,7 @@ const SoundEngine = {
             this._manifestBgm.volume = volume;
         }
         this._updateBufferedBgmVolume();
+        this._updateBufferedBgmVolume(this._manifestBgmBufferedState);
         this._updateResultBgmVolume();
     },
 
@@ -367,7 +369,7 @@ const SoundEngine = {
 
     async _playBufferedBgmState(state?: BgmBufferedState | null) {
         if (typeof state === 'undefined') state = this._bgmBufferedState;
-        if (!state || this._bgmBufferedState !== state) return false;
+        if (!state || (this._bgmBufferedState !== state && this._manifestBgmBufferedState !== state)) return false;
         this.allowBgmPlay = true;
         try {
             this._ensureAudioContext(true);
@@ -386,6 +388,13 @@ const SoundEngine = {
                     console.warn(`Buffered BGM loop unavailable for ${state.track && state.track.file ? state.track.file : 'unknown'}: ${e && (e as any).message ? (e as any).message : e}`);
                     this._teardownBufferedBgmState(true);
                     this._loadHtmlBgmTrack(state.track);
+                } else if (this._manifestBgmBufferedState === state) {
+                    console.warn(`Buffered manifest BGM loop unavailable for ${state.track && state.track.file ? state.track.file : 'unknown'}: ${e && (e as any).message ? (e as any).message : e}`);
+                    this._teardownManifestBgmBufferedState(true);
+                    this._manifestBgm = this._createHtmlManifestBgmElement(state.track);
+                    if (this.allowBgmPlay && this._manifestBgm) {
+                        this._playBgmElement(this._manifestBgm);
+                    }
                 }
                 return false;
             }
@@ -432,7 +441,7 @@ const SoundEngine = {
 
     _pauseBufferedBgmState(state?: BgmBufferedState | null) {
         if (typeof state === 'undefined') state = this._bgmBufferedState;
-        if (!state || this._bgmBufferedState !== state) return;
+        if (!state || (this._bgmBufferedState !== state && this._manifestBgmBufferedState !== state)) return;
         state.pauseOffset = this._getBufferedBgmOffsetNow(state);
         if (state.controller) {
             state.controller.currentTime = state.pauseOffset;
@@ -532,6 +541,10 @@ const SoundEngine = {
     _stopManifestBgmElement(resetTime = true) {
         const audio = this._manifestBgm;
         if (!audio) return;
+        if (this._manifestBgmBufferedState && audio === this._manifestBgmBufferedState.controller) {
+            this._teardownManifestBgmBufferedState(resetTime);
+            return;
+        }
         try { audio.pause(); } catch (e) { /* ignore */ }
         audio.onerror = null;
         audio.ontimeupdate = null;
@@ -541,11 +554,76 @@ const SoundEngine = {
         }
     },
 
-    _createManifestBgmElement(track: BgmTrack) {
+    _teardownManifestBgmBufferedState(resetController = true) {
+        const state = this._manifestBgmBufferedState;
+        if (!state) return;
+        if (state.source) {
+            const source = state.source;
+            state.source = null;
+            source.onended = null;
+            try { source.stop(); } catch (e) { /* ignore */ }
+            if (typeof source.disconnect === 'function') {
+                try { source.disconnect(); } catch (e) { /* ignore */ }
+            }
+        }
+        if (resetController && state.gainNode && typeof state.gainNode.disconnect === 'function') {
+            try { state.gainNode.disconnect(); } catch (e) { /* ignore */ }
+            state.gainNode = null;
+        }
+        if (state.controller) {
+            state.controller.paused = true;
+            if (resetController) {
+                state.controller.currentTime = 0;
+            }
+        }
+        if (resetController) {
+            state.pauseOffset = 0;
+            this._manifestBgmBufferedState = null;
+        }
+    },
+
+    _restartManifestBgmFromLoopStart(audio: HTMLAudioElement | any, loopStart: number) {
+        if (!audio || audio !== this._manifestBgm) return;
+        if (!this.allowBgmPlay) return;
+        try {
+            audio.currentTime = loopStart;
+        } catch (e) { /* ignore */ }
+        this._playBgmElement(audio);
+    },
+
+    _configureManifestBgmLoop(audio: HTMLAudioElement | any, track: BgmTrack | null) {
+        if (!audio) return;
+        const loopStart = this._resolveBgmLoopStart(track);
+        const hasExplicitLoopWindow = this._hasExplicitBgmLoopWindow(track);
+        audio.ontimeupdate = null;
+        audio.onended = null;
+        if (!hasExplicitLoopWindow) {
+            audio.loop = true;
+            return;
+        }
+
+        audio.loop = false;
+        audio.ontimeupdate = () => {
+            if (audio !== this._manifestBgm) return;
+            const duration = Number(audio.duration);
+            const loopEnd = this._resolveBgmLoopEnd(track, duration, loopStart);
+            if (!Number.isFinite(loopEnd) || loopEnd <= loopStart) return;
+            if (Number(audio.currentTime) >= loopEnd - 0.15) {
+                try {
+                    audio.currentTime = loopStart;
+                } catch (e) { /* ignore */ }
+            }
+        };
+        audio.onended = () => {
+            this._restartManifestBgmFromLoopStart(audio, loopStart);
+        };
+    },
+
+    _createHtmlManifestBgmElement(track: BgmTrack) {
         if (typeof Audio !== 'function') return null;
         const audio = new Audio(track.file);
         audio.preload = 'auto';
-        audio.loop = true;
+        this._configureManifestBgmLoop(audio, track);
         audio.volume = this._getBgmOutputVolume();
         audio.onerror = () => {
             const legacy = track.file.replace('assets/audio/bgm/', 'assets/');
@@ -556,6 +634,30 @@ const SoundEngine = {
             }
         };
         return audio;
+    },
+
+    _createManifestBgmElement(track: BgmTrack) {
+        this._teardownManifestBgmBufferedState(true);
+        if (this._canUseBufferedBgmLoop(track)) {
+            const state: BgmBufferedState = {
+                track,
+                loopStart: this._resolveBgmLoopStart(track),
+                loopEnd: 0,
+                duration: 0,
+                pauseOffset: 0,
+                startedAt: 0,
+                startedOffset: 0,
+                loadingPromise: null,
+                buffer: null,
+                gainNode: null,
+                source: null,
+                controller: null
+            };
+            state.controller = this._createBufferedBgmController(state);
+            this._manifestBgmBufferedState = state;
+            return state.controller;
+        }
+        return this._createHtmlManifestBgmElement(track);
     },
 
     setManifestBgmOverride(key: any, track: BgmTrack | null) {
