@@ -128,7 +128,7 @@ describe('理論の化身', () => {
     ]));
   });
 
-  test('数字マス合計42で使用可能になり、布石倍率後でも進捗は元数字だけ増える', () => {
+  test('数字マス合計42で使用可能になり、演算の意志の2倍後の数字マス布石が進捗になる', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -141,14 +141,14 @@ describe('理論の化身', () => {
 
     TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng, { skipTurnStart: true });
 
-    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(21);
-    expect(CardLogic.canUseCard(cardState, gameState, 'black', 'theory_incarnation_01')).toBe(false);
+    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
+    expect(CardLogic.canUseTheoryIncarnation(cardState, 'black')).toBe(true);
 
     cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
     gameState.currentPlayer = Shared.BLACK;
     TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 4 }, prng, { skipTurnStart: true });
 
-    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
+    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(63);
     expect(CardLogic.canUseTheoryIncarnation(cardState, 'black')).toBe(true);
   });
 

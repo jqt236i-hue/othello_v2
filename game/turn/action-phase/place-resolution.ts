@@ -235,12 +235,12 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     const bonusValue = bonusMap ? Number(bonusMap[bonusKey] || 0) : 0;
     if (!othelloMode && bonusValue > 0 && consumedMap[bonusKey] !== true) {
         consumedMap[bonusKey] = true;
-        if (opts.CardLogic && typeof opts.CardLogic.addNumberCellCollectedTotal === 'function') {
-            opts.CardLogic.addNumberCellCollectedTotal(opts.cardState, opts.playerKey, bonusValue);
-        }
         const appliedBonus = numberCellMultiplierConfig
             ? bonusValue * Number(numberCellMultiplierConfig.multiplier || 1)
             : bonusValue;
+        if (opts.CardLogic && typeof opts.CardLogic.addNumberCellCollectedTotal === 'function') {
+            opts.CardLogic.addNumberCellCollectedTotal(opts.cardState, opts.playerKey, appliedBonus);
+        }
         const gained = opts.applyPlacementBoardBonusGain(
             opts.CardLogic,
             opts.cardState,
