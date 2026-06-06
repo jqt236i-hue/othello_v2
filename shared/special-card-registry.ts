@@ -65,6 +65,12 @@
             })
         })
     });
+    const SPECIAL_CARD_ID_BY_MARKER_TYPE: Readonly<Record<string, string>> = Object.freeze(
+        Object.fromEntries(Object.entries(SPECIAL_CARD_PRESENTATION_BY_ID).map(([cardId, meta]: [string, any]) => [
+            String(meta.markerType || '').toUpperCase(),
+            cardId
+        ]))
+    );
 
     function normalizeCardId(cardId: unknown): string {
         return typeof cardId === 'string' ? cardId.trim() : '';
@@ -94,9 +100,17 @@
         return clonePresentationMetadata(SPECIAL_CARD_PRESENTATION_BY_ID[normalized]);
     }
 
+    function getSpecialCardPresentationByMarkerType(markerType: unknown): any {
+        const type = typeof markerType === 'string' ? markerType.trim().toUpperCase() : '';
+        if (!type) return null;
+        const cardId = SPECIAL_CARD_ID_BY_MARKER_TYPE[type];
+        return cardId ? clonePresentationMetadata(SPECIAL_CARD_PRESENTATION_BY_ID[cardId]) : null;
+    }
+
     return Object.freeze({
         getInviolableSpecialCardIds,
         getSpecialCardPresentation,
+        getSpecialCardPresentationByMarkerType,
         isInviolableSpecialCardId
     });
 }));

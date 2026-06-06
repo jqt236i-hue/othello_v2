@@ -220,6 +220,29 @@ function _getSpecialCardRegistryForDiff() {
     return globalScope.SpecialCardRegistry || null;
 }
 
+function _getSpecialCardPresentationByMarkerTypeForDiff(specialCardRegistry: any, markerType: any) {
+    const typeKey = String(markerType || '').trim().toUpperCase();
+    if (!specialCardRegistry || !typeKey) return null;
+    if (typeof specialCardRegistry.getSpecialCardPresentationByMarkerType === 'function') {
+        return specialCardRegistry.getSpecialCardPresentationByMarkerType(typeKey);
+    }
+    if (
+        typeof specialCardRegistry.getSpecialCardPresentation !== 'function' ||
+        typeof specialCardRegistry.getInviolableSpecialCardIds !== 'function'
+    ) {
+        return null;
+    }
+    const specialIds = specialCardRegistry.getInviolableSpecialCardIds();
+    if (!Array.isArray(specialIds)) return null;
+    for (const cardId of specialIds) {
+        const meta = specialCardRegistry.getSpecialCardPresentation(cardId);
+        if (meta && String(meta.markerType || '').trim().toUpperCase() === typeKey) {
+            return meta;
+        }
+    }
+    return null;
+}
+
 function _getStoneStatusSnapshotForDiff() {
     if (StoneStatusSnapshotModule) return StoneStatusSnapshotModule;
     const globalScope = _getGlobalScopeForDiff();
@@ -371,28 +394,20 @@ function _findActiveManifestBgmForDiff(cardStateValue: any) {
     const markers = Array.isArray(cardStateValue && cardStateValue.markers) ? cardStateValue.markers : [];
     if (!markers.length) return _findPendingManifestBgmForDiff();
     const specialCardRegistry = _getSpecialCardRegistryForDiff();
-    if (!specialCardRegistry || typeof specialCardRegistry.getSpecialCardPresentation !== 'function') return _findPendingManifestBgmForDiff();
-    const specialIds = typeof specialCardRegistry.getInviolableSpecialCardIds === 'function'
-        ? specialCardRegistry.getInviolableSpecialCardIds()
-        : [];
-    for (const cardId of specialIds) {
-        const meta = specialCardRegistry.getSpecialCardPresentation(cardId);
+    if (!specialCardRegistry) return _findPendingManifestBgmForDiff();
+    for (const marker of markers) {
+        if (!_isActiveManifestStoneMarkerForDiff(marker)) continue;
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+        const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+        const meta = _getSpecialCardPresentationByMarkerTypeForDiff(specialCardRegistry, typeKey);
         if (!meta || !meta.markerType || !meta.manifestBgmTrack) continue;
-        const hasActiveMarker = markers.some((marker: any) => {
-            if (!_isActiveManifestStoneMarkerForDiff(marker)) return false;
-            const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
-            const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
-            return typeKey === String(meta.markerType).toUpperCase();
-        });
-        if (hasActiveMarker) {
-            const active = {
-                key: meta.manifestBgmKey || meta.cinematicKey || meta.cardId,
-                bgmKey: meta.manifestBgmKey || '',
-                track: meta.manifestBgmTrack
-            };
-            _markManifestPresentationOverrideResolvedForDiff(active);
-            return active;
-        }
+        const active = {
+            key: meta.manifestBgmKey || meta.cinematicKey || meta.cardId,
+            bgmKey: meta.manifestBgmKey || '',
+            track: meta.manifestBgmTrack
+        };
+        _markManifestPresentationOverrideResolvedForDiff(active);
+        return active;
     }
     return _findPendingManifestBgmForDiff();
 }
@@ -404,31 +419,23 @@ function _findActiveManifestBackgroundForDiff(cardStateValue: any) {
         return _findPendingManifestBackgroundForDiff();
     }
     const specialCardRegistry = _getSpecialCardRegistryForDiff();
-    if (!specialCardRegistry || typeof specialCardRegistry.getSpecialCardPresentation !== 'function') {
+    if (!specialCardRegistry) {
         if (_consumeResolvedManifestPresentationOverrideForDiff()) return null;
         return _findPendingManifestBackgroundForDiff();
     }
-    const specialIds = typeof specialCardRegistry.getInviolableSpecialCardIds === 'function'
-        ? specialCardRegistry.getInviolableSpecialCardIds()
-        : [];
-    for (const cardId of specialIds) {
-        const meta = specialCardRegistry.getSpecialCardPresentation(cardId);
+    for (const marker of markers) {
+        if (!_isActiveManifestStoneMarkerForDiff(marker)) continue;
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+        const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+        const meta = _getSpecialCardPresentationByMarkerTypeForDiff(specialCardRegistry, typeKey);
         if (!meta || !meta.markerType || !meta.manifestBackgroundImage) continue;
-        const hasActiveMarker = markers.some((marker: any) => {
-            if (!_isActiveManifestStoneMarkerForDiff(marker)) return false;
-            const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
-            const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
-            return typeKey === String(meta.markerType).toUpperCase();
-        });
-        if (hasActiveMarker) {
-            const active = {
-                key: meta.manifestBackgroundKey || meta.cinematicKey || meta.cardId,
-                imagePath: meta.manifestBackgroundImage,
-                source: 'marker'
-            };
-            _markManifestPresentationOverrideResolvedForDiff(active);
-            return active;
-        }
+        const active = {
+            key: meta.manifestBackgroundKey || meta.cinematicKey || meta.cardId,
+            imagePath: meta.manifestBackgroundImage,
+            source: 'marker'
+        };
+        _markManifestPresentationOverrideResolvedForDiff(active);
+        return active;
     }
     if (_consumeResolvedManifestPresentationOverrideForDiff()) return null;
     return _findPendingManifestBackgroundForDiff();
