@@ -19,6 +19,8 @@ type ResolvePlacementActionOptions = {
     isOthelloMode: () => boolean;
 };
 
+const TheorySpawnImmediateEffectsModule = require('../theory-spawn-immediate-effects');
+
 type ResolvePlacementActionResult = {
     boardBonusGained?: number;
     completedSelectionOnly: boolean;
@@ -209,6 +211,18 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
                         timing: 'on_manifest_placement',
                         detail: placementSpawnRes.spawned
                     });
+                    if (TheorySpawnImmediateEffectsModule && typeof TheorySpawnImmediateEffectsModule.resolveTheorySpawnImmediateEffects === 'function') {
+                        TheorySpawnImmediateEffectsModule.resolveTheorySpawnImmediateEffects({
+                            CardLogic: opts.CardLogic,
+                            cardState: opts.cardState,
+                            gameState: opts.gameState,
+                            playerKey: opts.playerKey,
+                            events: opts.events,
+                            spawned: placementSpawnRes.spawned,
+                            prng: p,
+                            awardBoardChargeGain: opts.applyPlacementBoardBonusGain
+                        });
+                    }
                 }
             }
         }

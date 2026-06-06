@@ -309,6 +309,186 @@ describe('理論の化身', () => {
     expect(gameState.currentPlayer).toBe(Shared.WHITE);
   });
 
+  test('理論召喚で出た配置直後効果持ち特殊石は即時効果を発動する', () => {
+    const prng = createPrng([0, 0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.board[0][0] = Shared.EMPTY;
+    gameState.board[0][1] = Shared.WHITE;
+    cardState.boardBonusByCell = { '0,0': 16 };
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': {
+            row: 0,
+            col: 0,
+            value: 16,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'WILL_HUNTER_KING',
+            sourceCardId: 'will_hunter_king_01',
+            sourceCardType: 'WILL_HUNTER_KING',
+            sourceCardCost: 16,
+            markerData: {
+              type: 'WILL_HUNTER_KING',
+              remainingOwnerTurns: 4,
+              flipEvadeRemaining: 2,
+              destroyEvadeRemaining: 2,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'will_hunter_king_01',
+              sourceCardType: 'WILL_HUNTER_KING'
+            }
+          }
+        }
+      }
+    };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      white: null
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 3,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION'
+    });
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
+
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'theory_incarnation_spawned',
+      detail: expect.objectContaining({
+        type: 'WILL_HUNTER_KING',
+        sourceCardType: 'WILL_HUNTER_KING'
+      })
+    }));
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'will_hunter_king_destroyed_immediate',
+      details: expect.arrayContaining([
+        expect.objectContaining({ row: 0, col: 1, sourceRow: 0, sourceCol: 0 })
+      ])
+    }));
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'will_hunter_king_moved_immediate',
+      details: expect.arrayContaining([
+        expect.objectContaining({
+          from: { row: 0, col: 0 },
+          to: { row: 0, col: 1 },
+          specialType: 'WILL_HUNTER_KING'
+        })
+      ])
+    }));
+    expect(gameState.board[0][0]).toBe(Shared.EMPTY);
+    expect(gameState.board[0][1]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 1,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'WILL_HUNTER_KING',
+          sourceType: 'THEORY_INCARNATION'
+        })
+      })
+    ]));
+  });
+
+  test('理論石配置直後の理論召喚でも配置直後効果を発動する', () => {
+    const prng = createPrng([0, 0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.board[0][0] = Shared.EMPTY;
+    gameState.board[0][1] = Shared.WHITE;
+    cardState.hands.black = ['theory_incarnation_01'];
+    cardState.charge.black = 0;
+    cardState.numberCellCollectedTotalByPlayer.black = 42;
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', 'theory_incarnation_01', null, { prng });
+    expect(used).toBe(true);
+    const sessionId = cardState.theoryIncarnationStateByPlayer.black.sessionId;
+    cardState.boardBonusByCell = { '0,0': 16 };
+    cardState.boardBonusConsumedByCell = {};
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId, ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      [sessionId]: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': {
+            row: 0,
+            col: 0,
+            value: 16,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'WILL_HUNTER_KING',
+            sourceCardId: 'will_hunter_king_01',
+            sourceCardType: 'WILL_HUNTER_KING',
+            sourceCardCost: 16,
+            markerData: {
+              type: 'WILL_HUNTER_KING',
+              remainingOwnerTurns: 4,
+              flipEvadeRemaining: 2,
+              destroyEvadeRemaining: 2,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'will_hunter_king_01',
+              sourceCardType: 'WILL_HUNTER_KING'
+            }
+          }
+        }
+      }
+    };
+    cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng, { skipTurnStart: true });
+
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'theory_incarnation_spawned',
+      player: 'black',
+      timing: 'on_manifest_placement',
+      detail: expect.objectContaining({
+        type: 'WILL_HUNTER_KING',
+        sourceCardType: 'WILL_HUNTER_KING'
+      })
+    }));
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'will_hunter_king_destroyed_immediate',
+      details: expect.arrayContaining([
+        expect.objectContaining({ row: 0, col: 1, sourceRow: 0, sourceCol: 0 })
+      ])
+    }));
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'will_hunter_king_moved_immediate',
+      details: expect.arrayContaining([
+        expect.objectContaining({
+          from: { row: 0, col: 0 },
+          to: { row: 0, col: 1 },
+          specialType: 'WILL_HUNTER_KING'
+        })
+      ])
+    }));
+    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(3);
+    expect(gameState.board[0][0]).toBe(Shared.EMPTY);
+    expect(gameState.board[0][1]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 1,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'WILL_HUNTER_KING',
+          sourceType: 'THEORY_INCARNATION'
+        })
+      })
+    ]));
+  });
+
   test('理論生成のSPAWN presentation eventにroulette metadataを載せる', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });

@@ -9,6 +9,8 @@ type TurnStartSpecialStoneProcessingState = {
     hyperAggregated: TurnStartHyperAggregated;
 };
 
+const TheorySpawnImmediateEffectsModule = require('../theory-spawn-immediate-effects');
+
 type ProcessTurnStartSpecialStoneOptions = {
     CardLogic: any;
     cardState: any;
@@ -301,6 +303,18 @@ if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic
         const res = opts.CardLogic.processTheoryIncarnationMarkerAtTurnStart(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
         if (res && res.spawned) {
             opts.events.push({ type: 'theory_incarnation_spawned', player: opts.playerKey, detail: res.spawned });
+            if (TheorySpawnImmediateEffectsModule && typeof TheorySpawnImmediateEffectsModule.resolveTheorySpawnImmediateEffects === 'function') {
+                TheorySpawnImmediateEffectsModule.resolveTheorySpawnImmediateEffects({
+                    CardLogic: opts.CardLogic,
+                    cardState: opts.cardState,
+                    gameState: opts.gameState,
+                    playerKey: opts.playerKey,
+                    events: opts.events,
+                    spawned: res.spawned,
+                    prng: p,
+                    awardBoardChargeGain: opts.awardBoardChargeGain
+                });
+            }
         }
         if (res && res.expired) {
             opts.events.push({ type: 'theory_incarnation_marker_expired', detail: res.expired });
