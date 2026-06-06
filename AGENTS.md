@@ -125,6 +125,9 @@ othello_v2/
 - Do not run multiple Codex implementation tasks in the same physical checkout unless the user explicitly asks to do so.
 - Use the root checkout for inspection, explanation, planning, and small clearly isolated edits.
 - If a worktree cannot be created safely, report the dirty files and ask before editing.
+- `01-rulebook.md` and `正本/*.md` are shared source-of-truth documents. During parallel feature work, update them in the main checkout first, commit the spec-only change, then bring that main update into feature worktrees before implementation continues.
+- Do not let multiple worktrees independently edit `01-rulebook.md` or `正本/*.md` for the same feature. If a feature worktree discovers that a spec update is needed, pause implementation, make the documentation change on `main`, then resume from the updated spec.
+- When integrating a feature worktree, prefer carrying back implementation and test changes only. Do not merge stale `01-rulebook.md` or `正本/` edits from a worktree unless they were intentionally made after syncing from the latest `main`.
 
 ## COMMIT POLICY
 
