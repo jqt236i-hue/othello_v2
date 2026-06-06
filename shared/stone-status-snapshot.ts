@@ -180,7 +180,7 @@
             return (ManifestStoneRegistry as { isManifestStoneType: (v: unknown) => boolean }).isManifestStoneType(rawType);
         }
         const type = normalizeSpecialStoneType(rawType);
-        return FALLBACK_MANIFEST_STONE_TYPES.includes(type);
+        return !!type && FALLBACK_MANIFEST_STONE_TYPES.includes(type);
     }
 
     function isManifestStoneStatusInput(source: Record<string, unknown>, type: unknown): boolean {
