@@ -108,6 +108,11 @@ describe('card interaction detail panel module', () => {
       '反転保護',
       '5ターン持続'
     ]);
+    const tagButtons = Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag-button') || []);
+    expect(tagButtons).toHaveLength(2);
+    expect(tagButtons[0].tagName).toBe('BUTTON');
+    expect(tagButtons[0].getAttribute('data-card-tag-label')).toBe('反転保護');
+    expect(tagButtons[0].getAttribute('aria-label')).toBe('反転保護の説明を表示');
   });
 
   test('overlay description respects hidden hand tokens and detail text fallback', () => {

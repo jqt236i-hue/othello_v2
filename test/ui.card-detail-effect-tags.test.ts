@@ -481,6 +481,35 @@ describe('card detail effect tags', () => {
     expect(detailMoreEl.style.display).toBe('none');
   });
 
+  test('effect tag buttons toggle tag explanation panel for status and numeric tags', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const tagButtons = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'));
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['反転保護', '5ターン持続']);
+
+    const flipProtectionButton = tagButtons[0];
+    flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const panelEl = document.getElementById('card-detail-tab-panel');
+    const titleEl = document.getElementById('card-detail-tab-title');
+    const bodyEl = document.getElementById('card-detail-tab-body');
+    expect(panelEl).not.toBeNull();
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+    expect(titleEl.textContent).toBe('反転保護');
+    expect(bodyEl.textContent).toContain('反転されない');
+
+    flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(panelEl.classList.contains('is-open')).toBe(false);
+
+    const durationButton = tagButtons[1];
+    durationButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+    expect(titleEl.textContent).toBe('5ターン持続');
+    expect(bodyEl.textContent).toContain('ターン数');
+  });
+
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {
     global.CardInteractionEffects = {
       resolveCardDescriptionTexts: () => ({

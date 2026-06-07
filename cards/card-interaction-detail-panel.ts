@@ -185,12 +185,15 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         }
 
         for (const tag of normalizedTags) {
-            const chip = documentRef.createElement('span');
-            chip.className = 'card-detail-effect-tag';
+            const chip = documentRef.createElement('button');
+            chip.type = 'button';
+            chip.className = 'card-detail-effect-tag card-detail-effect-tag-button';
             const kindClass = getCardEffectTagKindClass(tag.kind);
             if (kindClass) chip.classList.add(kindClass);
             chip.textContent = tag.label;
             chip.setAttribute('data-card-tag-kind', tag.kind || '');
+            chip.setAttribute('data-card-tag-label', tag.label);
+            chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
             tagsEl.appendChild(chip);
         }
         tagsEl.style.display = 'flex';

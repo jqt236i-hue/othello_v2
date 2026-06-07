@@ -297,6 +297,8 @@ const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '完全保護': '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。',
     '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
     '不可侵': '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。',
+    '持続ターン': 'このカードや石状態が盤面で効果を持ち続けるターン数。',
+    '遅延発動': '指定ターン後に効果が発動する。',
     'マス破壊': 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。',
     '破壊／爆発': '石を消滅させる。完全保護以外の保護を貫通できる。',
     '連鎖反転': '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。',
@@ -918,6 +920,51 @@ function _bindCardDetailTagAutoDismiss() {
     if (_cardInteractionDetailTab && typeof _cardInteractionDetailTab.bindCardDetailTagAutoDismiss === 'function') {
         _cardInteractionDetailTab.bindCardDetailTagAutoDismiss();
     }
+}
+
+function _resolveCardDetailTagMeaningKey(tag: any) {
+    const key = String(tag || '').trim();
+    if (!key) return '';
+    if (key.indexOf('反転回避') === 0) return '反転回避';
+    if (key.indexOf('破壊回避') === 0) return '破壊回避';
+    if (/^\d+ターン持続$/.test(key)) return '持続ターン';
+    if (/^\d+ターン後に発動$/.test(key)) return '遅延発動';
+    return key;
+}
+
+function _toggleCardDetailTagExplanation(tag: any) {
+    const key = String(tag || '').trim();
+    if (!key) return false;
+    const meaningKey = _resolveCardDetailTagMeaningKey(key);
+    const meaning = CARD_DETAIL_TAG_MEANINGS[meaningKey as keyof typeof CARD_DETAIL_TAG_MEANINGS] || `${key}の説明は未登録です。`;
+    const selectedId = cardState ? cardState.selectedCardId : null;
+    return _toggleCardDetailTabPanel({
+        mode: 'tag',
+        key,
+        cardId: selectedId ? String(selectedId) : null,
+        title: key,
+        body: meaning
+    });
+}
+
+function _bindCardDetailTagClickEvents(tagsEl: any) {
+    if (!tagsEl || tagsEl.dataset.boundCardDetailTagClick === '1') return;
+    tagsEl.addEventListener('click', (event: any) => {
+        const rawTarget = event ? event.target : null;
+        const targetEl = rawTarget && rawTarget.nodeType === 1
+            ? rawTarget
+            : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        const chip = targetEl && typeof targetEl.closest === 'function'
+            ? targetEl.closest('.card-detail-effect-tag-button')
+            : null;
+        if (!chip || !tagsEl.contains(chip)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        const label = String(chip.getAttribute('data-card-tag-label') || chip.textContent || '').trim();
+        _toggleCardDetailTagExplanation(label);
+    });
+    tagsEl.dataset.boundCardDetailTagClick = '1';
 }
 
 function _setPendingSelectionBusy(active: any) {
@@ -2247,6 +2294,7 @@ function updateCardDetailPanel() {
     const cancelBtn = document.getElementById('cancel-card-btn');
 
     if (!nameEl || !descEl || !useBtn || !reasonEl) return;
+    _bindCardDetailTagClickEvents(detailTagsEl);
 
     // FATE_WILL: controller uses victim's hand/charge/pending for all interaction checks.
     const playerKey = _getCardUiActionOwnerKey(_resolveInputPlayerKey());
