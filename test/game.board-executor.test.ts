@@ -2,6 +2,7 @@ import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as BoardCharge from '../game/turn/board-charge.js';
+import * as PipelineUiAdapter from '../game/turn/pipeline_ui_adapter.js';
 
 function createPrng(): any {
   return {
@@ -94,6 +95,47 @@ describe('盤界の執行者', () => {
     expect(hasMarker(cardState, 'TRAP')).toBe(false);
     expect(hasMarker(cardState, 'TIME_BOMB')).toBe(false);
     expect((cardState.markers || []).filter((marker: any) => marker && marker.data && marker.data.type === 'METEOR_HOLE')).toHaveLength(4);
+  });
+
+  test('使用演出の後に特殊石穴化の再生イベントを出す', () => {
+    const prng = createPrng();
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    cardState.hands.black = ['board_executor_01'];
+    cardState.charge.black = 99;
+    addStone(cardState, gameState, 1, 1, 'black', 'PROTECTED');
+    addStone(cardState, gameState, 2, 2, 'white', 'TRAP', 'specialStone', { hidden: true });
+
+    const result = PipelineUiAdapter.runTurnWithAdapter(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: 'board_executor_01', useCardOwnerKey: 'black' },
+      TurnPipeline
+    );
+
+    expect(result.ok).toBe(true);
+    const cardUse = result.playbackEvents.find((event: any) => event && event.type === 'card_use_animation');
+    const cinematic = result.playbackEvents.find((event: any) => event && event.type === 'special_card_cinematic');
+    const holeEvents = result.playbackEvents.filter((event: any) => (
+      event &&
+      (event.type === 'destroy' || event.type === 'status_applied') &&
+      (
+        String(event.meta && event.meta.cellRemovalCause || '').toUpperCase() === 'BOARD_EXECUTOR' ||
+        (Array.isArray(event.targets) && event.targets.some((target: any) => (
+          target &&
+          (
+            String(target.cause || '').toUpperCase() === 'BOARD_EXECUTOR' ||
+            String(target.meta && target.meta.cellRemovalCause || '').toUpperCase() === 'BOARD_EXECUTOR'
+          )
+        )))
+      )
+    ));
+
+    expect(cardUse).toBeTruthy();
+    expect(cinematic).toBeTruthy();
+    expect(holeEvents.length).toBeGreaterThan(0);
+    expect(holeEvents.every((event: any) => Number(event.phase) > Number(cinematic.phase))).toBe(true);
   });
 
   test('使用後の次配置で4ターン不可侵の顕現石になり、両者の手札カード使用を封じる', () => {

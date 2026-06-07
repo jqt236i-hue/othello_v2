@@ -88,6 +88,48 @@ function isManifestStoneType(rawType: any): boolean {
   return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
 }
 
+function isBoardExecutorHolePresentationEvent(event: any): boolean {
+  if (!event || typeof event !== 'object') return false;
+  const eventType = String(event.type || '').trim().toUpperCase();
+  const cause = String(event.cause || '').trim().toUpperCase();
+  const reason = String(event.reason || '').trim().toLowerCase();
+  const meta = event.meta && typeof event.meta === 'object' ? event.meta : {};
+  const metaCause = String((meta as any).cellRemovalCause || (meta as any).removalCause || '').trim().toUpperCase();
+  const metaReason = String((meta as any).cellRemovalReason || (meta as any).removalReason || '').trim().toLowerCase();
+  const removalPolicy = String((meta as any).removalPolicy || '').trim().toLowerCase();
+  const removalKind = String((meta as any).removalKind || '').trim().toLowerCase();
+  if (eventType !== 'DESTROY' && eventType !== 'STATUS_APPLIED') return false;
+  return cause === 'BOARD_EXECUTOR'
+    || metaCause === 'BOARD_EXECUTOR'
+    || reason === 'board_executor_special_stone_hole'
+    || metaReason === 'board_executor_special_stone_hole'
+    || removalPolicy === 'board_executor'
+    || removalKind === 'board_executor_hole';
+}
+
+function moveLastCardUsedBeforeBoardExecutorHoleEvents(events: any): void {
+  if (!Array.isArray(events) || events.length <= 1) return;
+  const firstHoleIndex = events.findIndex(isBoardExecutorHolePresentationEvent);
+  if (firstHoleIndex < 0) return;
+  let cardUsedIndex = -1;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index] && events[index].type === 'CARD_USED') {
+      cardUsedIndex = index;
+      break;
+    }
+  }
+  if (cardUsedIndex < 0 || cardUsedIndex < firstHoleIndex) return;
+  const [cardUsedEvent] = events.splice(cardUsedIndex, 1);
+  events.splice(firstHoleIndex, 0, cardUsedEvent);
+}
+
+function insertCardUsedPresentationBeforeBoardExecutorHoleEvents(cardState: any, emitCardUsed: () => void): void {
+  if (typeof emitCardUsed !== 'function') return;
+  emitCardUsed();
+  moveLastCardUsedBeforeBoardExecutorHoleEvents(cardState && cardState.presentationEvents);
+  moveLastCardUsedBeforeBoardExecutorHoleEvents(cardState && cardState._presentationEventsPersist);
+}
+
 const MAX_HAND_SIZE = 5;
 const RIBO_WILL_UNLOCK_TURN_INDEX = 19;
 const TIME_STOP_GOD_SELF_DESTROY_COUNT = 3;
@@ -756,8 +798,10 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
 
   const defFn = typeof getCardDefFn === 'function' ? getCardDefFn : getCardDef;
   const usedCardDef = defFn(cardId);
-
-  if (typeof emitPresentationEvent === 'function') {
+  let didEmitCardUsedPresentation = false;
+  const emitCardUsedPresentationOnce = () => {
+    if (didEmitCardUsedPresentation || typeof emitPresentationEvent !== 'function') return;
+    didEmitCardUsedPresentation = true;
     try {
       emitPresentationEvent(cardState, {
         type: 'CARD_USED',
@@ -771,6 +815,15 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
         }
       });
     } catch (e) { /* ignore presentation emission failures */ }
+  };
+
+  if (cardType === 'BOARD_EXECUTOR') {
+    insertCardUsedPresentationBeforeBoardExecutorHoleEvents(
+      cardState,
+      emitCardUsedPresentationOnce
+    );
+  } else {
+    emitCardUsedPresentationOnce();
   }
 
   if (typeof addGeneratedThrowChainCard === 'function') {
