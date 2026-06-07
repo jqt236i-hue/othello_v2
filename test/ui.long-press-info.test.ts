@@ -652,7 +652,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊保護');
   });
 
-  test('long press on OBSERVER_WILL shows absolute protection and remaining turns', () => {
+  test('long press on OBSERVER_WILL shows inviolable and remaining turns', () => {
     global.cardState.markers.push({
       kind: 'manifestStone',
       row: 4,
@@ -670,10 +670,11 @@ describe('board cell long press info', () => {
     jest.advanceTimersByTime(430);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('盤理の観測者');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('5ターン絶対保護');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('5ターン不可侵');
     expect(document.getElementById('stone-info-meta').textContent).toContain('顕現石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('不可侵');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('絶対保護');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('絶対保護');
   });
 });

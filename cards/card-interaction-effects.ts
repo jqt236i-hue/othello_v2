@@ -29,6 +29,7 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   FLIP_PROTECTION: 'flip-protection',
   FULL_PROTECTION: 'full-protection',
   ABSOLUTE_PROTECTION: 'absolute-protection',
+  INVIOLABLE: 'inviolable',
   FLIP_EVASION: 'flip-evasion',
   DESTROY_EVASION: 'destroy-evasion',
   DURATION_TURNS: 'duration-turns',
@@ -59,6 +60,9 @@ function buildCardEffectTag(kind: string, value?: number) {
   }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.ABSOLUTE_PROTECTION) {
     return Object.freeze({ kind: normalizedKind, label: '絶対保護' });
+  }
+  if (normalizedKind === CARD_EFFECT_TAG_KIND.INVIOLABLE) {
+    return Object.freeze({ kind: normalizedKind, label: '不可侵' });
   }
 
   const normalizedValue = Math.floor(Number(value));
@@ -92,6 +96,7 @@ function buildCardNumericTag(kind: string, value?: number) {
 const flipProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_PROTECTION);
 const fullProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FULL_PROTECTION);
 const absoluteProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_PROTECTION);
+const inviolableTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.INVIOLABLE);
 const flipEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_EVASION, value);
 const destroyEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DESTROY_EVASION, value);
 const durationTurnsTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DURATION_TURNS, value);
@@ -266,8 +271,8 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   INFINITE_PLACE: '合法手がなくなった時点でそのまま終了する。',
   HEAVEN_BLESSING: '選ばなかった候補は消える。',
   REVEAL_HAND_WILL: '使用時点の相手手札をすべて公開する。\n使用後に相手が引いたカードは公開しない。\n一度公開した同じカードは、手札を離れて後で戻っても表のまま。',
-  THEORY_INCARNATION: '数字マスから実際に得た布石合計が42以上で使用可能。\n演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を3T絶対保護で顕現させ、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカード使用も石配置もできない。\n自分ターン開始時、理論数字マスから対応コストの特殊石がランダムで1体現れ、そのまま自分ターンを終了する。\n配置直後の出現は3Tぶんの出現回数を消費しないため、最大4回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
-  OBSERVER_WILL: '18手以上経過後に使用可能。\n盤面に顕現石が存在する間は使用できない。\n使用時に相手手札を公開して1枚選ぶ。選んだカードは自分の手札に加わり0コストになる。\n観測済みになった相手手札はカードcopyごとに1回だけコスト+5になる。奪ったカードは0コストになり、観測者による+5は残らない。特殊カードは観測で表表示にはなるが、コスト+5は受けない。\n選択後、次に置く自石として観測者を5T絶対保護で顕現させる。観測者が盤上にいる間、相手手札は常に表表示。\n一度観測した相手手札は観測済みとなり、観測者が消滅した後も表表示のまま残る。観測者が盤上にいる間に相手が新たに引いた手札も観測済みになる。観測済みカードには双方の画面でタグを表示する。\n観測者が消滅した後、奪ったカードの元コスト20%を自ターン開始時に最大9回返済する。布石不足時は自石4個をランダム破壊する。',
+  THEORY_INCARNATION: '数字マスから実際に得た布石合計が42以上で使用可能。\n演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を3T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカード使用も石配置もできない。\n自分ターン開始時、理論数字マスから対応コストの特殊石がランダムで1体現れ、そのまま自分ターンを終了する。\n配置直後の出現は3Tぶんの出現回数を消費しないため、最大4回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
+  OBSERVER_WILL: '18手以上経過後に使用可能。\n盤面に顕現石が存在する間は使用できない。\n使用時に相手手札を公開して1枚選ぶ。選んだカードは自分の手札に加わり0コストになる。\n観測済みになった相手手札はカードcopyごとに1回だけコスト+5になる。奪ったカードは0コストになり、観測者による+5は残らない。特殊カードは観測で表表示にはなるが、コスト+5は受けない。\n選択後、次に置く自石として観測者を5T不可侵の顕現石として出す。観測者が盤上にいる間、相手手札は常に表表示。\n一度観測した相手手札は観測済みとなり、観測者が消滅した後も表表示のまま残る。観測者が盤上にいる間に相手が新たに引いた手札も観測済みになる。観測済みカードには双方の画面でタグを表示する。\n観測者が消滅した後、奪ったカードの元コスト20%を自ターン開始時に最大9回返済する。布石不足時は自石4個をランダム破壊する。',
   CONDEMN_WILL: '公開された手札から1枚を選んで破壊する。',
   EXECUTION_WILL: '使用条件は、直前に終了した相手ターン中に自分の石が1つ以上破壊されていること。\n使用時、相手の現在の手札からランダムに最大3枚を破壊する。\n相手手札が3枚未満なら、存在する枚数ぶんだけ破壊する。',
   GOLD_STONE: '次に置く石へ1回だけ反転布石4倍の配置時効果を付ける。\n効果解決後、その石は消滅する。',
@@ -318,8 +323,8 @@ const cardEffectTagsByType = Object.freeze({
   WORK_WILL: freezeCardEffectTags([durationTurnsTag(5)]),
   GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
-  THEORY_INCARNATION: freezeCardEffectTags([absoluteProtectionTag(), durationTurnsTag(3)]),
-  OBSERVER_WILL: freezeCardEffectTags([absoluteProtectionTag(), durationTurnsTag(5)]),
+  THEORY_INCARNATION: freezeCardEffectTags([inviolableTag(), durationTurnsTag(3)]),
+  OBSERVER_WILL: freezeCardEffectTags([inviolableTag(), durationTurnsTag(5)]),
   ULTIMATE_DESTROY_GOD: freezeCardEffectTags([flipProtectionTag(), durationTurnsTag(5)]),
   DESTROY_DRAGON_WILL: freezeCardEffectTags([flipProtectionTag(), durationTurnsTag(3)]),
   LIGHTNING_WILL: freezeCardEffectTags([flipProtectionTag(), durationTurnsTag(5)]),

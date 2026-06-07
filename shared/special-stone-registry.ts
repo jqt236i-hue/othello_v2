@@ -311,15 +311,15 @@
         }),
         THEORY_INCARNATION: Object.freeze({
             name: '理論の化身',
-            desc: '3ターン絶対保護される顕現石。所有者のカード使用と石配置を封じる。'
+            desc: '3ターン不可侵の顕現石。所有者のカード使用と石配置を封じる。'
         }),
         BOARD_EXECUTOR: Object.freeze({
             name: '盤界の執行者',
-            desc: '4ターン絶対保護される顕現石。盤面にある間、両者のカード使用を封じる。'
+            desc: '4ターン不可侵の顕現石。盤面にある間、両者のカード使用を封じる。'
         }),
         OBSERVER_WILL: Object.freeze({
             name: '盤理の観測者',
-            desc: '5ターン絶対保護される顕現石。'
+            desc: '5ターン不可侵の顕現石。'
         }),
         GHOST: Object.freeze({
             name: '幽体石',

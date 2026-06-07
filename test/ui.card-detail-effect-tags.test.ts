@@ -151,7 +151,7 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
   });
 
-  test('OBSERVER_WILL shows absolute protection together with duration', () => {
+  test('OBSERVER_WILL shows inviolable together with duration', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -168,7 +168,8 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['絶対保護', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
+    expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('観測者を顕現させる');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
   });
