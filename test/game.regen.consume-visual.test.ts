@@ -140,6 +140,50 @@ describe('regen consume visual event', () => {
     expect(cardState.presentationEvents.some(ev => ev && ev.type === 'STATUS_REMOVED')).toBe(false);
   });
 
+  test('white regen recovery writes white ownership back to the board', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[4][4] = Core.BLACK;
+
+    const cardState = {
+      markers: [
+        { kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'REGEN', regenRemaining: 2 } }
+      ],
+      presentationEvents: []
+    };
+    const gameState = { board };
+
+    const removeMarkersAt = (cs, r, c, criteria) => {
+      cs.markers = (cs.markers || []).filter(m => !(
+        m &&
+        m.kind === criteria.kind &&
+        m.row === r &&
+        m.col === c &&
+        m.data &&
+        m.data.type === criteria.type
+      ));
+    };
+
+    const res = CardRegen.applyRegenAfterFlips(
+      cardState,
+      gameState,
+      [{ row: 4, col: 4 }],
+      'black',
+      false,
+      { BoardOps, removeMarkersAt, getCardContext: () => ({ protectedStones: [], permaProtectedStones: [], blockedCells: [] }), clearBombAt: () => {} }
+    );
+
+    expect(res.regened).toEqual([{ row: 4, col: 4 }]);
+    expect(gameState.board[4][4]).toBe(Core.WHITE);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 4,
+        col: 4,
+        owner: 'white',
+        data: expect.objectContaining({ type: 'REGEN', regenRemaining: 1 })
+      })
+    ]));
+  });
+
   test('regen on expansion cell can capture back across the board edge', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][0] = -1;
