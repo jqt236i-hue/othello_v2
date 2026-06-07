@@ -175,6 +175,21 @@ describe('cards catalog consistency', () => {
     expect(card.desc_ja).toBe('18手以上経過後に使用可能。相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。観測者を顕現させる。観測済みの相手手札は顕現終了後も表表示になる。');
   });
 
+  test('board executor special card is present with expected cost and type', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    const card = byId.get('board_executor_01');
+    expect(card).toEqual(expect.objectContaining({
+      id: 'board_executor_01',
+      name_ja: '盤界の執行者',
+      type: 'BOARD_EXECUTOR',
+      cost: 0,
+      display_type_ja: '特殊'
+    }));
+    expect(card.desc_ja).toContain('盤面に自分の特殊石');
+    expect(card.desc_ja).toContain('反転で得る布石を2倍');
+  });
+
   test('regen/perma costs are swapped as specified', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));

@@ -227,6 +227,18 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
             }
         }
     }
+    if (opts.CardLogic && typeof opts.CardLogic.applyBoardExecutorStoneReservation === 'function') {
+        const boardExecutorStoneRes = opts.CardLogic.applyBoardExecutorStoneReservation(opts.cardState, opts.playerKey, action.row, action.col);
+        if (boardExecutorStoneRes && boardExecutorStoneRes.applied) {
+            opts.events.push({
+                type: 'board_executor_marker_applied',
+                player: opts.playerKey,
+                row: action.row,
+                col: action.col,
+                markerId: boardExecutorStoneRes.marker && boardExecutorStoneRes.marker.id ? boardExecutorStoneRes.marker.id : null
+            });
+        }
+    }
     if (tabooReverseApplied) {
         opts.events.push({
             type: 'taboo_reverse_flipped',

@@ -483,6 +483,14 @@ window.CardCatalog = {
       "display_type_ja": "特殊"
     },
     {
+      "id": "board_executor_01",
+      "name_ja": "盤界の執行者",
+      "type": "BOARD_EXECUTOR",
+      "cost": 0,
+      "desc_ja": "盤面に自分の特殊石がある場合のみ使用可能。盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を4ターン持続の顕現石として次に置く。顕現中は両者の手札カード使用を封じ、自分が反転で得る布石を2倍にする。両者のターン開始時、その手番プレイヤーは手札枚数に応じて布石を失う。",
+      "display_type_ja": "特殊"
+    },
+    {
       "id": "observer_will_01",
       "name_ja": "盤理の観測者",
       "type": "OBSERVER_WILL",

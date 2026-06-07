@@ -19,6 +19,7 @@ function safeRequire(id: string): any {
 const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry');
 const SpecialCardRegistry = safeRequire('../../../shared/special-card-registry');
 const CardMarkersModule = safeRequire('../cards/markers');
+const BoardExecutorResolution = safeRequire('../card-resolution/board-executor');
 
 interface CardUsageContext {
     gameState?: any;
@@ -133,6 +134,14 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
         if (!Number.isFinite(collected) || collected < 42) {
             return buildFailureResult();
         }
+    }
+    if (cardType === 'BOARD_EXECUTOR') {
+        if (!BoardExecutorResolution || typeof BoardExecutorResolution.canUseBoardExecutor !== 'function') {
+            return buildFailureResult();
+        }
+        return BoardExecutorResolution.canUseBoardExecutor(context.cardState, context.playerKey)
+            ? result
+            : buildFailureResult();
     }
     if (cardType === 'LAST_RESORT') {
         if (!context || !context.gameState || typeof context.canUseLastResortForPlayer !== 'function') {

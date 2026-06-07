@@ -18,6 +18,11 @@ describe('cpu-policy card profiles module', () => {
       lowMobilityBias: 18,
       endgameBias: -12
     }));
+    expect(profiles.CARD_TYPE_BASE_SCORE_BONUS.BOARD_EXECUTOR).toBe(3);
+    expect(profiles.CARD_TYPE_USAGE_STYLE.BOARD_EXECUTOR).toEqual(expect.objectContaining({
+      trailingBias: 5,
+      cornerNowBias: -3
+    }));
   });
 
   test('builds move-plan profiles by layering archetype defaults and per-card overrides', () => {
@@ -35,6 +40,11 @@ describe('cpu-policy card profiles module', () => {
       placementWeight: 0,
       mobilityBias: 3,
       xPenalty: 1
+    }));
+    expect(profiles.CARD_TYPE_MOVE_PLAN_PROFILE.BOARD_EXECUTOR).toEqual(expect.objectContaining({
+      archetype: 'controlBoard',
+      placementWeight: 0,
+      flipBias: 4
     }));
   });
 });

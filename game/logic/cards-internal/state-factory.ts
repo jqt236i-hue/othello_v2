@@ -250,6 +250,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         nextObserverWillStoneByPlayer: { black: null, white: null },
         observerWillRepaymentsByPlayer: { black: [], white: [] },
         _nextObserverWillRepaymentSeq: 1,
+        nextBoardExecutorStoneByPlayer: { black: null, white: null },
         theoryIncarnationStateByPlayer: { black: null, white: null },
         nextTheoryIncarnationStoneByPlayer: { black: null, white: null },
         theoryNumberCellsBySession: {},
@@ -416,6 +417,7 @@ function copyCardState(cs: any, context: Context): any {
         _nextObserverWillRepaymentSeq: Number.isFinite(Number(cardState._nextObserverWillRepaymentSeq))
             ? Math.max(1, Math.floor(Number(cardState._nextObserverWillRepaymentSeq)))
             : deriveNextObserverWillRepaymentSeq(cardState),
+        nextBoardExecutorStoneByPlayer: cloneNullablePlayerRecord(cardState.nextBoardExecutorStoneByPlayer),
         theoryIncarnationStateByPlayer: cloneNullablePlayerRecord(cardState.theoryIncarnationStateByPlayer),
         nextTheoryIncarnationStoneByPlayer: cloneNullablePlayerRecord(cardState.nextTheoryIncarnationStoneByPlayer),
         theoryNumberCellsBySession: cloneTheoryNumberCellsBySession(cardState.theoryNumberCellsBySession),

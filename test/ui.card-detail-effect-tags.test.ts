@@ -174,6 +174,30 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
   });
 
+  test('BOARD_EXECUTOR shows inviolable together with duration', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'board_executor_01',
+      name: '盤界の執行者',
+      type: 'BOARD_EXECUTOR',
+      cost: 0,
+      desc: '盤面に自分の特殊石がある場合のみ使用可能。盤面上のすべての特殊石を穴にし、盤界の執行者を顕現させる。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    expect(getTagLabels()).toEqual(['不可侵', '4ターン持続']);
+    expect(getTagLabels()).not.toContain('絶対保護');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('盤界の執行者を顕現させる');
+    expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
+    expect(document.getElementById('card-detail-more').textContent).toContain('絶対保護も貫通');
+  });
+
   test('AFTERIMAGE_WILL shows flip and destroy evasion count tags together', () => {
     require('../cards/card-interaction.js');
 

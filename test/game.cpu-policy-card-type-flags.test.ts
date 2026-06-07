@@ -35,5 +35,8 @@ describe('cpu-policy card type flags module', () => {
     expect(lastResort.isLastResort).toBe(true);
     expect(lastResort.isFreePlacement).toBe(true);
     expect(lastResort.isFastRotate).toBe(true);
+
+    const executor = helpers.getCpuPolicyCardTypeFlags('BOARD_EXECUTOR');
+    expect(executor.isBoardExecutor).toBe(true);
   });
 });

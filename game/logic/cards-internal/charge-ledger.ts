@@ -20,6 +20,22 @@ interface ChargeContext {
     };
 }
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const BoardExecutorResolution = safeRequire('../card-resolution/board-executor');
+
 function getHelpers(context: ChargeContext | null | undefined) {
     return (context && context.helpers) || {};
 }
@@ -101,7 +117,10 @@ function addChargeWithTotal(cardState: any, playerKey: string, amount: number, c
         return 0;
     ensureChargeState(cardState);
     ensureChargeGainedTotal(cardState);
-    const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain', context, meta);
+    const resolvedAmount = BoardExecutorResolution && typeof BoardExecutorResolution.resolveBoardExecutorChargeGainAmount === 'function'
+        ? BoardExecutorResolution.resolveBoardExecutorChargeGainAmount(cardState, playerKey, amount, meta)
+        : amount;
+    const deltaRes = addChargeValue(cardState, playerKey, resolvedAmount, 'placement_or_effect_gain', context, meta);
     const added = Number(deltaRes.delta) || 0;
     if (added > 0) {
         cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;

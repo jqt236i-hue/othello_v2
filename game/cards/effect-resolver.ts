@@ -232,6 +232,7 @@ function getCardEffectTimingContext(deps: any) {
     _ensureHandDestroyFlags,
     processRiboWillTurnStartEffects,
     processObserverWillRepaymentsAtTurnStart,
+    processBoardExecutorHandTaxAtTurnStart,
     commitDraw,
     getSpecialMarkers,
     getCardContext,
@@ -256,6 +257,7 @@ function getCardEffectTimingContext(deps: any) {
     CardWorkModule,
     CardLivingWillModule,
     CardSpawnAndFlipModule,
+    CardBoardExecutorResolutionModule,
     BoardOpsModule,
     ULTIMATE_DRAGON_TURNS,
     ULTIMATE_DESTROY_GOD_TURNS,
@@ -313,6 +315,7 @@ function getCardEffectTimingContext(deps: any) {
       ensureHandDestroyFlags: _ensureHandDestroyFlags,
       processRiboWillTurnStartEffects,
       processObserverWillRepaymentsAtTurnStart,
+      processBoardExecutorHandTaxAtTurnStart,
       commitDraw,
       getSpecialMarkers,
       getCardContext,
@@ -339,6 +342,7 @@ function getCardEffectTimingContext(deps: any) {
       CardWorkModule,
       CardLivingWillModule,
       CardSpawnAndFlipModule,
+      CardBoardExecutorResolutionModule,
       PlunderWillModule: {
         applyPlunderWill(cardState: any, playerKey: string, flipCount: any) {
           const opponentKey = playerKey === 'black' ? 'white' : 'black';
@@ -482,6 +486,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     buildCondemnOffers,
     buildObserverWillOffers,
     applyTheoryIncarnationUsage,
+    applyBoardExecutorUsage,
     hasStandardLegalMoveForPlayer,
     canUseLastResortForPlayer,
     canUseEqualityWillForPlayer,
@@ -669,6 +674,12 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     if (typeof applyTheoryIncarnationUsage !== 'function') return false;
     const theoryRes = applyTheoryIncarnationUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
     if (!theoryRes || theoryRes.applied !== true) return false;
+  }
+
+  if (cardType === 'BOARD_EXECUTOR') {
+    if (typeof applyBoardExecutorUsage !== 'function') return false;
+    const executorRes = applyBoardExecutorUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
+    if (!executorRes || executorRes.applied !== true) return false;
   }
 
   const pendingOffers = heavenOffers || condemnOffers || observerWillOffers || undefined;

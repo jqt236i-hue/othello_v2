@@ -837,6 +837,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     }
                 }
             }
+            if (turnStartSummary && turnStartSummary.boardExecutor && turnStartSummary.boardExecutor.applied) {
+                events.push({
+                    type: 'board_executor_hand_tax',
+                    player: playerKey,
+                    lost: Number(turnStartSummary.boardExecutor.lost) || 0,
+                    handCount: Number(turnStartSummary.boardExecutor.handCount) || 0
+                });
+            }
             if (turnStartSummary && Array.isArray(turnStartSummary.generatedSpawnFlipResults) && turnStartSummary.generatedSpawnFlipResults.length) {
                 applyGeneratedSpawnFlipResultsTurnStart(
                     CardLogic,

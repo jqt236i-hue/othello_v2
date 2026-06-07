@@ -76,6 +76,7 @@ describe('state-factory', () => {
       original.breedingSproutByOwner = { black: [{ row: 1, col: 1 }], white: [] };
       original.prevOpponentTurnDestroyedStonesByPlayer = { black: ['s1'], white: [] };
       original.fateWillControllerByTurnOwner = { black: 'ctrl1', white: null };
+      original.nextBoardExecutorStoneByPlayer = { black: { sourceType: 'BOARD_EXECUTOR' }, white: null };
 
       const copy = StateFactory.copyCardState(original, context);
 
@@ -105,6 +106,8 @@ describe('state-factory', () => {
       expect(copy.breedingSproutByOwner.black).toEqual([{ row: 1, col: 1 }]);
       expect(copy.prevOpponentTurnDestroyedStonesByPlayer).toEqual({ black: ['s1'], white: [] });
       expect(copy.fateWillControllerByTurnOwner).toEqual({ black: 'ctrl1', white: null });
+      expect(copy.nextBoardExecutorStoneByPlayer.black).toEqual({ sourceType: 'BOARD_EXECUTOR' });
+      expect(copy.nextBoardExecutorStoneByPlayer.black).not.toBe(original.nextBoardExecutorStoneByPlayer.black);
     });
 
     test('handles legacy deck field during copy', () => {

@@ -1337,6 +1337,42 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(normalCue).toBeUndefined();
   });
 
+  test('盤界の執行者の CARD_USED は執行者立ち絵と暫定の観測者BGMを渡す', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'board_executor_01', owner: 'black', cardType: 'BOARD_EXECUTOR' }]
+    }];
+    const pres = [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'board_executor_01',
+      meta: { owner: 'black', cost: 0, name: '盤界の執行者', cardType: 'BOARD_EXECUTOR' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cinematic = out.find((ev) => ev && ev.type === 'special_card_cinematic');
+
+    expect(cinematic).toBeTruthy();
+    expect(cinematic.phase).toBe(4);
+    expect(cinematic.targets[0]).toMatchObject({
+      cardId: 'board_executor_01',
+      cardType: 'BOARD_EXECUTOR',
+      owner: 'black',
+      displayName: '盤界の執行者',
+      cinematicKey: 'board_executor',
+      characterImage: 'assets/images/special-cards/characters/board_executor.png',
+      manifestBackgroundKey: 'board_executor_world',
+      manifestBackgroundImage: 'assets/images/background/manifest-worlds/執行の世界.png',
+      manifestBgmKey: 'observer_will_path',
+      manifestBgmTrack: expect.objectContaining({
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      }),
+      durationMs: 3000
+    });
+    expect(cinematic.targets[0].quote).toBe('');
+  });
+
   test('observer_will_selected 成功時は手札奪取の phase で専用音を再生する', () => {
     const base = [{
       type: 'hand_remove',

@@ -92,6 +92,12 @@ interface TurnStartSummary {
         totalDestroyed: number;
         completedCount: number;
     };
+    boardExecutor?: {
+        applied: boolean;
+        player?: string;
+        lost: number;
+        handCount: number;
+    };
     generatedSpawnFlipResults?: any[];
 }
 
@@ -585,6 +591,9 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
     }
     if (typeof helpers.processObserverWillRepaymentsAtTurnStart === 'function') {
         summary.observerWill = helpers.processObserverWillRepaymentsAtTurnStart(cardState, gameState, playerKey, p);
+    }
+    if (typeof helpers.processBoardExecutorHandTaxAtTurnStart === 'function') {
+        summary.boardExecutor = helpers.processBoardExecutorHandTaxAtTurnStart(cardState, gameState, playerKey, p);
     }
 
     if ((cardState as any).debugNoDraw !== true && (cardState as any).turnCountByPlayer[playerKey] % constants.DRAW_INTERVAL === 0) {

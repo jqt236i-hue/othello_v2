@@ -1328,7 +1328,7 @@ function applyCellRemovalAt(
 
     const prev = getCellValue(gameState, row, col);
     if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
-    if (_isAbsoluteProtectedCell(cardState, row, col)) {
+    if (!(options && options.ignoreAbsoluteProtection === true) && _isAbsoluteProtectedCell(cardState, row, col)) {
         return { applied: false, reason: 'absolute_protected', row, col, destroyed: false };
     }
 

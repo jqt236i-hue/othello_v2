@@ -679,6 +679,7 @@ const {
     const CardHandEffectsModule = resolveRequiredCardModule('./card-resolution/hand-effects', 'CardHandEffects');
     const CardObserverWillResolutionModule = resolveRequiredCardModule('./card-resolution/observer-will', 'CardObserverWillResolution');
     const CardTheoryIncarnationResolutionModule = resolveRequiredCardModule('./card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution');
+    const CardBoardExecutorResolutionModule = resolveRequiredCardModule('./card-resolution/board-executor', 'CardBoardExecutorResolution');
     const SpecialStoneMarkerFactoryModule = resolveRequiredCardModule('./card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory');
     const CardPositionSwapModule = resolveRequiredCardModule('./card-resolution/position-swap', 'CardPositionSwapEffects');
 
@@ -925,7 +926,8 @@ const {
                     return applyStrongWill(cardState, playerKey, row, col);
                 }
             }),
-            BoardOpsModule
+            BoardOpsModule,
+            CardBoardExecutorResolutionModule
         });
     }
 
@@ -992,6 +994,7 @@ const {
                 CardWorkModule,
                 CardLivingWillModule,
                 CardSpawnAndFlipModule,
+                CardBoardExecutorResolutionModule,
                 BoardOpsModule,
                 StoneStatusSnapshot
             },
@@ -1044,6 +1047,7 @@ const {
                 ensureHandDestroyFlags: _ensureHandDestroyFlags,
                 processRiboWillTurnStartEffects,
                 processObserverWillRepaymentsAtTurnStart,
+                processBoardExecutorHandTaxAtTurnStart,
                 commitDraw,
                 getSpecialMarkers,
                 getCardContext,
@@ -1836,8 +1840,75 @@ const {
         };
     }
 
+    function getBoardExecutorResolutionDeps() {
+        return {
+            MARKER_KINDS,
+            BLACK,
+            WHITE,
+            EMPTY,
+            ManifestStoneRegistry,
+            addMarker,
+            getMarkers,
+            removeMarkerById,
+            getCellValueForCard,
+            isMainBoardCellForCard,
+            revertSpecialStoneWithPresentation,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
+                : null,
+            addChargeValue: addChargeValueWithDelta
+        };
+    }
+
     function addNumberCellCollectedTotal(cardState: any, playerKey: any, amount: any) {
         return CardTheoryIncarnationResolutionModule.addNumberCellCollectedTotal(cardState, playerKey, amount);
+    }
+
+    function canUseBoardExecutor(cardState: any, playerKey: any) {
+        return CardBoardExecutorResolutionModule.canUseBoardExecutor(cardState, playerKey, getBoardExecutorResolutionDeps());
+    }
+
+    function applyBoardExecutorUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardBoardExecutorResolutionModule.applyBoardExecutorUsage(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getBoardExecutorResolutionDeps()
+        );
+    }
+
+    function applyBoardExecutorStoneReservation(cardState: any, playerKey: any, row: any, col: any) {
+        return CardBoardExecutorResolutionModule.applyBoardExecutorStoneReservation(
+            cardState,
+            playerKey,
+            row,
+            col,
+            getBoardExecutorResolutionDeps()
+        );
+    }
+
+    function processBoardExecutorHandTaxAtTurnStart(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardBoardExecutorResolutionModule.processBoardExecutorHandTaxAtTurnStart(
+            cardState,
+            playerKey,
+            getBoardExecutorResolutionDeps()
+        );
+    }
+
+    function processBoardExecutorMarkerAtTurnStart(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng?: any) {
+        return CardBoardExecutorResolutionModule.processBoardExecutorMarkerAtTurnStart(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            prng,
+            getBoardExecutorResolutionDeps()
+        );
     }
 
     function canUseTheoryIncarnation(cardState: any, playerKey: any) {
@@ -2233,6 +2304,7 @@ const {
             buildCondemnOffers,
             buildObserverWillOffers,
             applyTheoryIncarnationUsage,
+            applyBoardExecutorUsage,
             hasStandardLegalMoveForPlayer,
             canUseLastResortForPlayer,
             canUseEqualityWillForPlayer,
@@ -4101,12 +4173,16 @@ const cardsApi: any = {
         isManifestStoneAt,
         applyObserverWillStoneReservation,
         applyTheoryIncarnationStoneReservation,
+        applyBoardExecutorStoneReservation,
         processTheoryIncarnationMarkerAtPlacement,
         processTheoryIncarnationMarkerAtTurnStart,
         finalizeTheoryIncarnationAutoTurnEndExpiration,
         consumeTheoryIncarnationAutoTurnEnd,
         addNumberCellCollectedTotal,
         canUseTheoryIncarnation,
+        canUseBoardExecutor,
+        processBoardExecutorMarkerAtTurnStart,
+        processBoardExecutorHandTaxAtTurnStart,
         processObserverWillMarkerAtTurnStart,
         processObserverWillRepaymentsAtTurnStart,
         hasActiveObserverWillReveal,

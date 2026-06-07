@@ -26,6 +26,16 @@ describe('SpecialCardRegistry', () => {
         loopEnd: 28.444444
       })
     }));
+    expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('BOARD_EXECUTOR')).toEqual(expect.objectContaining({
+      cardId: 'board_executor_01',
+      markerType: 'BOARD_EXECUTOR',
+      displayName: '盤界の執行者',
+      characterImage: 'assets/images/special-cards/characters/board_executor.png',
+      manifestBgmKey: 'observer_will_path',
+      manifestBgmTrack: expect.objectContaining({
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      })
+    }));
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('GHOST')).toBeNull();
   });
 });

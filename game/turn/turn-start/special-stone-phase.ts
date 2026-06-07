@@ -322,6 +322,14 @@ if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic
         return processingState;
     }
 
+    if (typeKey === 'BOARD_EXECUTOR' && owner === opts.playerKey && typeof opts.CardLogic.processBoardExecutorMarkerAtTurnStart === 'function') {
+        const res = opts.CardLogic.processBoardExecutorMarkerAtTurnStart(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        if (res && res.expired) {
+            opts.events.push({ type: 'board_executor_marker_expired', detail: res.expired });
+        }
+        return processingState;
+    }
+
     if (typeKey === 'HYPERACTIVE' || typeKey === 'ESCAPE_HYPERACTIVE' || typeKey === 'EXTREME_HYPERACTIVE') {
         if (typeof opts.debugLog === 'function') {
             opts.debugLog('[TurnPipeline] processing HYPERACTIVE anchor', { row, col, owner, type: typeKey, createdSeq: markerAnchor.createdSeq });
