@@ -238,7 +238,8 @@ describe('animation feedback sound key coverage', () => {
           manifestBgmTrack: {
             name: '観測の道',
             file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
-            loopStart: 0
+            loopStart: 9.6,
+            loopEnd: 62.4
           },
           durationMs: 3000
         }]

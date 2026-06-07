@@ -334,7 +334,7 @@ describe('SoundEngine default BGM', () => {
   test('manifest BGM with loopEnd uses AudioBuffer looping when Web Audio and fetch are available', async () => {
     const { MockAudio, instances } = createMockHtmlAudioClass();
     const { context, sources } = createMockAudioContext();
-    context.decodeAudioData = jest.fn(async () => ({ duration: 49.2 }));
+    context.decodeAudioData = jest.fn(async () => ({ duration: 62.4 }));
     const fetchMock = jest.fn(async () => ({
       ok: true,
       arrayBuffer: async () => new ArrayBuffer(16)
@@ -350,8 +350,8 @@ describe('SoundEngine default BGM', () => {
     const started = soundEngine.setManifestBgmOverride('observer_will_path', {
       name: '観測の道',
       file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
-      loopStart: 0,
-      loopEnd: 48
+      loopStart: 9.6,
+      loopEnd: 62.4
     });
     await flushAsyncWork();
 
@@ -363,8 +363,8 @@ describe('SoundEngine default BGM', () => {
     expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
     expect(sources).toHaveLength(1);
     expect(sources[0].loop).toBe(true);
-    expect(sources[0].loopStart).toBeCloseTo(0, 6);
-    expect(sources[0].loopEnd).toBeCloseTo(48, 6);
+    expect(sources[0].loopStart).toBeCloseTo(9.6, 6);
+    expect(sources[0].loopEnd).toBeCloseTo(62.4, 6);
     expect(sources[0].start).toHaveBeenCalledWith(0, 0);
   });
 
@@ -376,8 +376,8 @@ describe('SoundEngine default BGM', () => {
     const started = soundEngine.setManifestBgmOverride('observer_will_path', {
       name: '観測の道',
       file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
-      loopStart: 0,
-      loopEnd: 48
+      loopStart: 9.6,
+      loopEnd: 62.4
     });
 
     const manifestBgm = instances[0];
@@ -386,11 +386,11 @@ describe('SoundEngine default BGM', () => {
     expect(typeof manifestBgm.ontimeupdate).toBe('function');
     expect(typeof manifestBgm.onended).toBe('function');
 
-    manifestBgm.duration = 49.2;
-    manifestBgm.currentTime = 47.9;
+    manifestBgm.duration = 62.4;
+    manifestBgm.currentTime = 62.3;
     manifestBgm.ontimeupdate();
 
-    expect(manifestBgm.currentTime).toBeCloseTo(0, 6);
+    expect(manifestBgm.currentTime).toBeCloseTo(9.6, 6);
   });
 
   test('loopStart track uses AudioBuffer looping when Web Audio and fetch are available', async () => {
