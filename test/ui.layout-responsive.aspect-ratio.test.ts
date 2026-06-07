@@ -71,6 +71,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/sim-aspect-4-3/);
     expect(html).toMatch(/sim-aspect-5-4/);
     expect(html).toMatch(/id="round-display-panel"/);
+    expect(html).toMatch(/id="manifest-effect-panel"/);
     expect(html).toMatch(/id="gachaBalanceSummary"[\s\S]*observation-stone-icon/);
   });
 
@@ -244,6 +245,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*left:\s*var\(--profile-stone-info-left\)/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*\(var\(--layout-anchor-effect-top\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*transform:\s*translateY\(calc\(-100%\s*-\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*#manifest-effect-panel\.is-visible/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*var\(--layout-anchor-effect-top\)\s*\+\s*var\(--layout-anchor-effect-height\)[\s\S]*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#manifest-effect-panel/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*--layout-anchor-effect-height/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*transform:\s*translateX\(-50%\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*left:\s*var\(--profile-stone-info-left\)/);
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);

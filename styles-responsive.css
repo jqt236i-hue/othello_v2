@@ -185,6 +185,7 @@ html.layout-profile-phone-portrait #info-panel #status {
 html.layout-profile-phone-portrait #log,
 html.layout-profile-phone-portrait #round-display-panel,
 html.layout-profile-phone-portrait #effect-live-panel,
+html.layout-profile-phone-portrait #manifest-effect-panel,
 html.layout-profile-phone-portrait #cpu-character-panel,
 html.layout-profile-phone-portrait #hero-character-panel,
 html.layout-profile-phone-portrait #cpu-speech-bubble {
@@ -380,6 +381,17 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         width: clamp(calc(120px * var(--layout-stage-scale)), 29vw, calc(170px * var(--layout-stage-scale)));
         min-height: calc(84px * var(--layout-stage-scale));
         max-height: min(20dvh, calc(110px * var(--layout-stage-scale)));
+        padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+        overflow: hidden;
+    }
+
+    #manifest-effect-panel {
+        left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        top: calc(max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top)) + calc(88px * var(--layout-stage-scale)) + calc(8px * var(--layout-stage-scale)) + calc(84px * var(--layout-stage-scale)) + calc(8px * var(--layout-stage-scale)));
+        transform: none;
+        width: clamp(calc(120px * var(--layout-stage-scale)), 29vw, calc(170px * var(--layout-stage-scale)));
+        min-height: calc(82px * var(--layout-stage-scale));
+        max-height: min(24dvh, calc(126px * var(--layout-stage-scale)));
         padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
         overflow: hidden;
     }
@@ -960,6 +972,13 @@ html.sim-aspect-5-4 #effect-live-panel {
     padding: var(--profile-effect-padding);
 }
 
+#manifest-effect-panel {
+    left: var(--profile-effect-left);
+    top: calc(var(--profile-effect-top) + var(--profile-effect-min-height) + calc(10px * var(--layout-stage-scale)));
+    transform: none;
+    width: var(--profile-effect-width);
+}
+
 #stone-info-panel {
     left: var(--profile-stone-info-left);
     top: var(--profile-effect-top);
@@ -1191,6 +1210,13 @@ html.sim-aspect-5-4 #effect-live-panel {
         transform: none;
         width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
         min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #manifest-effect-panel {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + ((var(--layout-anchor-effect-top) + var(--layout-anchor-effect-height)) * var(--layout-stage-scale)) + calc(10px * var(--layout-stage-scale)));
+        transform: none;
+        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {

@@ -191,6 +191,66 @@
     transform: none;
 }
 
+#manifest-effect-panel {
+    position: fixed;
+    left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+    top: calc(
+        var(--layout-stage-offset-y) +
+        ((var(--layout-anchor-effect-top) + var(--layout-anchor-effect-height)) * var(--layout-stage-scale)) +
+        calc(10px * var(--layout-stage-scale))
+    );
+    z-index: 11989;
+    display: none;
+    width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+    min-height: calc(92px * var(--layout-stage-scale));
+    max-height: calc(164px * var(--layout-stage-scale));
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(44, 30, 18, 0.92), rgba(13, 16, 13, 0.92)),
+        var(--bg-glass);
+    border: var(--layout-size-border-thin) solid rgba(220, 184, 78, 0.42);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    box-shadow: var(--board-shadow-outer);
+    padding: calc(9px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    pointer-events: none;
+    transform: none;
+}
+
+#manifest-effect-panel.is-visible {
+    display: block;
+}
+
+#manifest-effect-title {
+    color: #ffe27a;
+    font-size: calc(13px * var(--layout-stage-scale));
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: calc(6px * var(--layout-stage-scale));
+    text-shadow: 0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 210, 72, 0.28);
+    white-space: nowrap;
+}
+
+#manifest-effect-lines {
+    display: flex;
+    flex-direction: column;
+    gap: calc(4px * var(--layout-stage-scale));
+}
+
+.manifest-effect-line {
+    color: var(--color-text-bright);
+    font-size: calc(12px * var(--layout-stage-scale));
+    line-height: 1.24;
+    min-height: 1.2em;
+    overflow: hidden;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+
+.manifest-effect-line--dynamic {
+    color: #ffefad;
+    font-weight: 700;
+}
+
 #round-display-panel {
     position: fixed;
     z-index: 11991;

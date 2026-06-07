@@ -441,6 +441,136 @@ function _findActiveManifestBackgroundForDiff(cardStateValue: any) {
     return _findPendingManifestBackgroundForDiff();
 }
 
+function _findActiveManifestMarkerForEffectPanel(cardStateValue: any) {
+    const markers = Array.isArray(cardStateValue && cardStateValue.markers) ? cardStateValue.markers : [];
+    for (const marker of markers) {
+        if (!_isActiveManifestStoneMarkerForDiff(marker)) continue;
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : marker;
+        const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
+        if (!typeKey) continue;
+        if (!FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF.includes(typeKey)) continue;
+        return { marker, data, typeKey };
+    }
+    return null;
+}
+
+function _ensureManifestEffectPanelForDiff() {
+    if (typeof document === 'undefined' || !document || !document.body) return null;
+    let panel = document.getElementById('manifest-effect-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'manifest-effect-panel';
+        panel.setAttribute('aria-live', 'polite');
+        panel.setAttribute('aria-atomic', 'true');
+        panel.setAttribute('aria-hidden', 'true');
+        panel.innerHTML = [
+            '<div id="manifest-effect-title"></div>',
+            '<div id="manifest-effect-lines"></div>'
+        ].join('');
+        const effectPanel = document.getElementById('effect-live-panel');
+        if (effectPanel && effectPanel.parentNode) {
+            effectPanel.parentNode.insertBefore(panel, effectPanel.nextSibling);
+        } else {
+            document.body.appendChild(panel);
+        }
+    }
+    const title = panel.querySelector('#manifest-effect-title');
+    const lines = panel.querySelector('#manifest-effect-lines');
+    if (!title || !lines) return null;
+    return { panel, title, lines };
+}
+
+function _hideManifestEffectPanelForDiff() {
+    const refs = _ensureManifestEffectPanelForDiff();
+    if (!refs) return;
+    refs.panel.classList.remove('is-visible');
+    refs.panel.setAttribute('aria-hidden', 'true');
+    refs.title.textContent = '';
+    refs.lines.textContent = '';
+    refs.panel.removeAttribute('data-manifest-effect-type');
+}
+
+function _getManifestEffectHandCount(cardStateValue: any, ownerKey: string) {
+    const hands = cardStateValue && cardStateValue.hands && typeof cardStateValue.hands === 'object'
+        ? cardStateValue.hands
+        : null;
+    const hand = hands && Array.isArray(hands[ownerKey]) ? hands[ownerKey] : [];
+    return hand.length;
+}
+
+function _getBoardExecutorHandTaxAmount(handCount: number) {
+    const taxableHandCount = Math.max(0, Math.trunc(Number(handCount) || 0) - 1);
+    return taxableHandCount * taxableHandCount;
+}
+
+function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
+    const typeKey = String(active && active.typeKey || '').trim().toUpperCase();
+    if (typeKey === 'BOARD_EXECUTOR') {
+        const blackHandCount = _getManifestEffectHandCount(cardStateValue, 'black');
+        const whiteHandCount = _getManifestEffectHandCount(cardStateValue, 'white');
+        return {
+            title: '執行領域',
+            lines: [
+                '所有者: 反転布石 x2',
+                '両者: カード使用不可',
+                '両者: 手札が多いほど布石を失う',
+                `黒: 手札${blackHandCount}枚 → 次開始 -${_getBoardExecutorHandTaxAmount(blackHandCount)}`,
+                `白: 手札${whiteHandCount}枚 → 次開始 -${_getBoardExecutorHandTaxAmount(whiteHandCount)}`
+            ],
+            dynamicStartIndex: 3
+        };
+    }
+    if (typeKey === 'OBSERVER_WILL') {
+        return {
+            title: '観測領域',
+            lines: [
+                '所有者: 相手手札を常時観測',
+                '観測済みカード: コスト +5'
+            ],
+            dynamicStartIndex: -1
+        };
+    }
+    if (typeKey === 'THEORY_INCARNATION') {
+        return {
+            title: '理論領域',
+            lines: [
+                '所有者: 石配置・カード使用不可',
+                '空きマスを理論数字マス化',
+                'ランダムで選ばれた理論数字マスと同コストの特殊石が出現'
+            ],
+            dynamicStartIndex: -1
+        };
+    }
+    return null;
+}
+
+function _syncManifestEffectPanelForDiff(cardStateValue: any) {
+    const refs = _ensureManifestEffectPanelForDiff();
+    if (!refs) return;
+    const active = _findActiveManifestMarkerForEffectPanel(cardStateValue);
+    const content = _buildManifestEffectPanelContent(cardStateValue, active);
+    if (!content) {
+        _hideManifestEffectPanelForDiff();
+        return;
+    }
+
+    refs.title.textContent = content.title;
+    refs.lines.textContent = '';
+    const dynamicStartIndex = Number(content.dynamicStartIndex);
+    content.lines.forEach((line: string, index: number) => {
+        const el = document.createElement('div');
+        el.className = 'manifest-effect-line';
+        if (Number.isFinite(dynamicStartIndex) && dynamicStartIndex >= 0 && index >= dynamicStartIndex) {
+            el.classList.add('manifest-effect-line--dynamic');
+        }
+        el.textContent = line;
+        refs.lines.appendChild(el);
+    });
+    refs.panel.classList.add('is-visible');
+    refs.panel.setAttribute('aria-hidden', 'false');
+    refs.panel.setAttribute('data-manifest-effect-type', String(active && active.typeKey || ''));
+}
+
 function _setManifestWorldBackgroundForDiff(active: any) {
     if (typeof document === 'undefined' || !document || !document.body) return;
     const body = document.body;
@@ -3264,8 +3394,10 @@ function _syncSelectionModeForDiff(boardEl: any) {
  * @returns {number} 更新されたセル数
  */
 function renderBoardDiff(boardEl: any) {
-    _syncManifestBgmForDiff((typeof cardState !== 'undefined' && cardState) ? cardState : null);
-    _syncManifestWorldBackgroundForDiff((typeof cardState !== 'undefined' && cardState) ? cardState : null);
+    const cardStateForManifestSync = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+    _syncManifestBgmForDiff(cardStateForManifestSync);
+    _syncManifestWorldBackgroundForDiff(cardStateForManifestSync);
+    _syncManifestEffectPanelForDiff(cardStateForManifestSync);
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
         previousBoardState = null;
         cellCache = [];
