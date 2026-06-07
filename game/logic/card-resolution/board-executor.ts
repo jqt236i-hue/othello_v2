@@ -245,7 +245,8 @@ function processBoardExecutorHandTaxAtTurnStart(cardState: CardState, playerKey:
         ? (cardState as any).hands[ownerKey]
         : [];
     const handCount = hand.length;
-    const lost = Math.max(0, (handCount - 1) * 3);
+    const taxableHandCount = Math.max(0, handCount - 1);
+    const lost = taxableHandCount * taxableHandCount;
     if (lost > 0 && deps && typeof deps.addChargeValue === 'function') {
         deps.addChargeValue(cardState, ownerKey, -lost, 'board_executor_hand_tax', {
             sourceType: BOARD_EXECUTOR_MARKER_TYPE,

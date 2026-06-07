@@ -164,12 +164,48 @@ describe('盤界の執行者', () => {
     });
 
     CardLogic.onTurnStart(cardState, 'white', gameState, prng);
-    expect(cardState.charge.white).toBe(27);
+    expect(cardState.charge.white).toBe(29);
     expect(cardState.hands.white).toHaveLength(3);
 
     CardLogic.onTurnStart(cardState, 'black', gameState, prng);
-    expect(cardState.charge.black).toBe(24);
+    expect(cardState.charge.black).toBe(26);
     expect(cardState.hands.black).toHaveLength(4);
+  });
+
+  test('ターン開始時の手札税はmax(0, N-1)^2で増える', () => {
+    const prng = createPrng();
+    const gameState = createGameState();
+    const cases = [
+      { handCount: 0, expectedLost: 0 },
+      { handCount: 1, expectedLost: 0 },
+      { handCount: 2, expectedLost: 1 },
+      { handCount: 3, expectedLost: 4 },
+      { handCount: 4, expectedLost: 9 },
+      { handCount: 5, expectedLost: 16 }
+    ];
+
+    for (const { handCount, expectedLost } of cases) {
+      const cardState: any = CardLogic.createCardState(prng);
+      cardState.charge.black = 30;
+      cardState.hands.black = Array.from({ length: handCount }, (_, index) => `c${index}`);
+      cardState.markers.push({
+        id: `executor_${handCount}`,
+        kind: 'manifestStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true }
+      });
+
+      const res = CardLogic.processBoardExecutorHandTaxAtTurnStart(cardState, gameState, 'black', prng);
+
+      expect(res).toEqual(expect.objectContaining({
+        applied: true,
+        handCount,
+        lost: expectedLost
+      }));
+      expect(cardState.charge.black).toBe(30 - expectedLost);
+    }
   });
 
   test('所有者が反転で得る布石だけを2倍にし、数字マス布石は倍化しない', () => {
