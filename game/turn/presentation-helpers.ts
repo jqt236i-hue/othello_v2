@@ -595,6 +595,42 @@ function createSpecialStoneBubbleEmitter(CardLogic: any, cardState: any, prng: a
     };
 }
 
+function emitTheoryIncarnationSpawnPlacementBubble(CardLogic: any, cardState: any, ev: any, options: any, emitBubble: any, deps: TurnPresentationHelperDeps) {
+    const detail = ev && ev.detail && typeof ev.detail === 'object'
+        ? ev.detail
+        : (ev && ev.spawned && typeof ev.spawned === 'object' ? ev.spawned : null);
+    if (!detail) return false;
+    const special = String(detail.type || detail.special || '').trim().toUpperCase();
+    const row = Number(detail.row);
+    const col = Number(detail.col);
+    if (!special || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+    const opts = (options && typeof options === 'object') ? options : {};
+    const player = normalizePlayerKey(ev.player || detail.owner || opts.fallbackPlayer, deps);
+
+    if (special === 'WORK') {
+        const text = deps.pickSpecialStoneBubbleSpeechLine('WORK', 'place', opts.prng);
+        if (!text) return false;
+        emitWorkBubblePresentation(CardLogic, cardState, {
+            player,
+            row,
+            col,
+            text,
+            reason: 'theory_incarnation_spawned'
+        }, deps);
+        return true;
+    }
+
+    return emitBubble({
+        special,
+        scenario: 'place',
+        player,
+        row,
+        col,
+        reason: 'theory_incarnation_spawned',
+        cause: 'THEORY_INCARNATION'
+    });
+}
+
 function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, options: any, deps: TurnPresentationHelperDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const presentationEvents = Array.isArray(opts.presentationEvents) ? opts.presentationEvents : [];
@@ -618,6 +654,8 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
                 col: ev.col,
                 reason: 'placed'
             });
+        } else if (ev.type === 'theory_incarnation_spawned') {
+            emitTheoryIncarnationSpawnPlacementBubble(CardLogic, cardState, ev, opts, emitBubble, deps);
         } else if (ev.type === 'time_stop_triggered') {
             deferredPhaseEvents.push(ev);
         } else if ((ev.type === 'will_hunter_king_destroyed_start' || ev.type === 'will_hunter_king_destroyed_immediate') && Array.isArray(ev.details)) {

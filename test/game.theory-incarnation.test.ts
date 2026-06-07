@@ -383,6 +383,14 @@ describe('理論の化身', () => {
         })
       ])
     }));
+    expect(result.presentationEvents).toContainEqual(expect.objectContaining({
+      type: 'SPECIAL_STONE_BUBBLE',
+      special: 'WILL_HUNTER_KING',
+      scenario: 'place',
+      player: 'black',
+      row: 0,
+      col: 0
+    }));
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
     expect(gameState.board[0][1]).toBe(Shared.BLACK);
     expect(cardState.markers).toEqual(expect.arrayContaining([
@@ -472,6 +480,14 @@ describe('理論の化身', () => {
           specialType: 'WILL_HUNTER_KING'
         })
       ])
+    }));
+    expect(result.presentationEvents).toContainEqual(expect.objectContaining({
+      type: 'SPECIAL_STONE_BUBBLE',
+      special: 'WILL_HUNTER_KING',
+      scenario: 'place',
+      player: 'black',
+      row: 0,
+      col: 0
     }));
     expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(3);
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
