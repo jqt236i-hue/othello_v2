@@ -40,7 +40,11 @@
             markerType: 'BOARD_EXECUTOR',
             displayName: '盤界の執行者',
             cinematicKey: 'board_executor',
-            quote: '',
+            quote: '盤界の名において執行する。彷徨える魂よ、今ここに収束せよ',
+            quoteLines: Object.freeze([
+                '盤界の名において執行する。',
+                '彷徨える魂よ、今ここに収束せよ'
+            ]),
             manifestBackgroundKey: 'board_executor_world',
             manifestBackgroundImage: 'assets/images/background/manifest-worlds/執行の世界.png',
             characterImage: 'assets/images/special-cards/characters/board_executor.png',

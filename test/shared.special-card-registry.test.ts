@@ -30,6 +30,11 @@ describe('SpecialCardRegistry', () => {
       cardId: 'board_executor_01',
       markerType: 'BOARD_EXECUTOR',
       displayName: '盤界の執行者',
+      quote: '盤界の名において執行する。彷徨える魂よ、今ここに収束せよ',
+      quoteLines: [
+        '盤界の名において執行する。',
+        '彷徨える魂よ、今ここに収束せよ'
+      ],
       characterImage: 'assets/images/special-cards/characters/board_executor.png',
       manifestBgmKey: 'observer_will_path',
       manifestBgmTrack: expect.objectContaining({

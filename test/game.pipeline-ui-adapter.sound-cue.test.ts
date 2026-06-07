@@ -1370,7 +1370,11 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       }),
       durationMs: 3000
     });
-    expect(cinematic.targets[0].quote).toBe('');
+    expect(cinematic.targets[0].quote).toBe('盤界の名において執行する。彷徨える魂よ、今ここに収束せよ');
+    expect(cinematic.targets[0].quoteLines).toEqual([
+      '盤界の名において執行する。',
+      '彷徨える魂よ、今ここに収束せよ'
+    ]);
   });
 
   test('observer_will_selected 成功時は手札奪取の phase で専用音を再生する', () => {
