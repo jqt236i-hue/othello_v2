@@ -184,6 +184,26 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('board executor hand card is not visually usable without an own special stone', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['board_executor_01'], white: [] }
+    });
+    const { window } = dom;
+
+    window.cardState.charge.black = 10;
+    window.renderCardUI();
+
+    const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(ownCardEl).not.toBeNull();
+    expect(ownCardEl.classList.contains('clickable')).toBe(true);
+    expect(ownCardEl.classList.contains('affordable')).toBe(true);
+    expect(ownCardEl.classList.contains('usable')).toBe(false);
+
+    dom.window.close();
+  });
+
   test('stale visual playback lock does not remove hand clickability', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',

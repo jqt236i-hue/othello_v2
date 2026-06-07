@@ -716,7 +716,11 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     };
 
   if (typeof writeCardPendingEffect === 'function') {
-    writeCardPendingEffect(cardState, chargeOwnerKey, pendingEffectState);
+    if (cardType === 'BOARD_EXECUTOR') {
+      writeCardPendingEffect(cardState, chargeOwnerKey, null);
+    } else {
+      writeCardPendingEffect(cardState, chargeOwnerKey, pendingEffectState);
+    }
   }
 
   if (cardType === 'BOARD_EXPANSION_GOD' && typeof readCardPendingEffect === 'function') {

@@ -1535,6 +1535,55 @@ function renderCardUI() {
     const selectedOwnerKey = (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')
         ? cardState.selectedCardOwnerKey
         : inputPlayerKey;
+    const ruleUsableCardIdSetByOwner: Record<string, Set<string> | null | undefined> = {};
+    function _isCatalogCardKnownToRuleLogicForRender(cardId: any) {
+        if (!CardLogicModule || typeof CardLogicModule.getCardType !== 'function') {
+            return false;
+        }
+        try {
+            return !!CardLogicModule.getCardType(cardId);
+        }
+        catch (e) { /* ignore */ }
+        return false;
+    }
+    function _getRuleUsableCardIdSetForRender(ownerKey: any) {
+        const owner = ownerKey === 'white' ? 'white' : 'black';
+        if (Object.prototype.hasOwnProperty.call(ruleUsableCardIdSetByOwner, owner)) {
+            return ruleUsableCardIdSetByOwner[owner] || null;
+        }
+        if (!CardLogicModule || typeof CardLogicModule.getUsableCardIds !== 'function') {
+            ruleUsableCardIdSetByOwner[owner] = null;
+            return null;
+        }
+        try {
+            const opts = isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined;
+            const usableIds = CardLogicModule.getUsableCardIds(cardState, gameState, owner, opts);
+            ruleUsableCardIdSetByOwner[owner] = new Set(Array.isArray(usableIds) ? usableIds : []);
+            return ruleUsableCardIdSetByOwner[owner] || null;
+        }
+        catch (e) { /* ignore */ }
+        ruleUsableCardIdSetByOwner[owner] = null;
+        return null;
+    }
+    function _isHandCardRuleUsableForRender(ownerKey: any, cardId: any) {
+        if (!cardId) {
+            return false;
+        }
+        if (!_isCatalogCardKnownToRuleLogicForRender(cardId)) {
+            return true;
+        }
+        const usableIdSet = _getRuleUsableCardIdSetForRender(ownerKey);
+        if (usableIdSet) {
+            return usableIdSet.has(cardId);
+        }
+        try {
+            if (CardLogicModule && typeof CardLogicModule.canUseCard === 'function') {
+                return !!CardLogicModule.canUseCard(cardState, ownerKey, cardId);
+            }
+        }
+        catch (e) { /* ignore */ }
+        return true;
+    }
     function _resolveHandEntryViewState(entry: any, ownerKey: any, revealByDefault: any) {
         const visualIndex = entry && Number.isInteger(entry.visualIndex)
             ? entry.visualIndex
@@ -1604,7 +1653,11 @@ function renderCardUI() {
         state.canInspectOwnerHand = isNetworkMode
             ? canShowFace
             : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
-        state.usable = canControlOwnerHand && canInteract && hasNotUsedThisTurn && state.canAfford;
+        state.usable = canControlOwnerHand
+            && canInteract
+            && hasNotUsedThisTurn
+            && state.canAfford
+            && _isHandCardRuleUsableForRender(ownerKey, cardId);
         state.isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
         return state;
     }

@@ -19,6 +19,13 @@ function createGameState(): any {
   };
 }
 
+function setupOpeningBoard(gameState: any): void {
+  gameState.board[3][3] = Shared.WHITE;
+  gameState.board[3][4] = Shared.BLACK;
+  gameState.board[4][3] = Shared.BLACK;
+  gameState.board[4][4] = Shared.WHITE;
+}
+
 function addStone(cardState: any, gameState: any, row: number, col: number, owner: 'black' | 'white', type: string, kind = 'specialStone', data: any = {}): void {
   gameState.board[row][col] = owner === 'black' ? Shared.BLACK : Shared.WHITE;
   cardState.markers.push({
@@ -112,6 +119,26 @@ describe('盤界の執行者', () => {
     expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 4, absoluteProtected: true }));
     expect(CardLogic.canUseCard(cardState, 'black', 'guard_01')).toBe(false);
     expect(CardLogic.canUseCard(cardState, 'white', 'guard_01')).toBe(false);
+  });
+
+  test('使用直後の通常配置で顕現石を置ける', () => {
+    const prng = createPrng();
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    setupOpeningBoard(gameState);
+    cardState.hands.black = ['board_executor_01'];
+    cardState.charge.black = 0;
+    addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+
+    gameState.currentPlayer = Shared.BLACK;
+    const placed = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng, { skipTurnStart: true });
+
+    expect(placed.events).toContainEqual(expect.objectContaining({ type: 'board_executor_marker_applied' }));
+    const marker = cardState.markers.find((entry: any) => entry && entry.data && entry.data.type === 'BOARD_EXECUTOR');
+    expect(marker).toEqual(expect.objectContaining({ kind: 'manifestStone', row: 2, col: 3, owner: 'black' }));
   });
 
   test('両者のターン開始時にドロー前の手札枚数を基準に布石を失う', () => {
