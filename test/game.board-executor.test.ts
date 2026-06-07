@@ -36,6 +36,20 @@ function hasMarker(cardState: any, type: string): boolean {
 }
 
 describe('盤界の執行者', () => {
+  test('手札上の使用可否にも自分の特殊石条件を反映する', () => {
+    const prng = createPrng();
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    cardState.hands.black = ['board_executor_01'];
+    cardState.charge.black = 0;
+
+    expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(false);
+
+    addStone(cardState, gameState, 2, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
+
+    expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(true);
+  });
+
   test('自分の特殊石がない場合は使用できず、自分の罠石があれば使用できる', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);

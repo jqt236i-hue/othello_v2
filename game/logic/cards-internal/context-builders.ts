@@ -64,7 +64,8 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 getSeedTargets: helpers.getSeedTargets,
                 CardDefsModule: modules.CardDefsModule,
                 CardCostsModule: modules.CardCostsModule,
-                CardSelectorsModule: modules.CardSelectorsModule
+                CardSelectorsModule: modules.CardSelectorsModule,
+                CardBoardExecutorResolutionModule: modules.CardBoardExecutorResolutionModule
             });
         },
 

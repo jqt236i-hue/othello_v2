@@ -163,7 +163,8 @@ function getCardHandManagerContext(deps: any) {
     getSeedTargets,
     CardDefsModule,
     CardCostsModule,
-    CardSelectorsModule
+    CardSelectorsModule,
+    CardBoardExecutorResolutionModule
   } = deps || {};
   const pendingSelectionTargetContext = PendingSelectionRegistryModule && typeof PendingSelectionRegistryModule.buildPendingSelectionTargetContext === 'function'
     ? PendingSelectionRegistryModule.buildPendingSelectionTargetContext(deps)
@@ -221,7 +222,8 @@ function getCardHandManagerContext(deps: any) {
     modules: {
       CardDefsModule,
       CardCostsModule,
-      CardSelectorsModule
+      CardSelectorsModule,
+      CardBoardExecutorResolutionModule
     }
   };
 }
@@ -545,6 +547,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     isCardPlayLockedForPlayer,
     CardPendingStateManagerModule: CardPendingStateManagerModuleLocal,
     CardUsagePrechecksModule: CardUsagePrechecksModuleLocal,
+    CardBoardExecutorResolutionModule,
     TIME_STOP_GOD_SELF_DESTROY_COUNT: timeStopSelfDestroyCount,
     RIBO_WILL_UNLOCK_TURN_INDEX: riboUnlockTurnIndex
   } = deps || {};
@@ -644,7 +647,8 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       getLossWillRemovableCount,
       getSalvationWillTargetCount,
       getExecutionWillTargetCount,
-      getReinforcementWillTargetCount
+      getReinforcementWillTargetCount,
+      CardBoardExecutorResolutionModule
     })
     : null;
 

@@ -83,6 +83,12 @@ function buildFailureResult(): CardUsageResult {
     return { ok: false, heavenOffers: null, condemnOffers: null, observerWillOffers: null };
 }
 
+function getBoardExecutorResolution(context: CardUsageContext): any {
+    return (context && (context.CardBoardExecutorResolutionModule || context.BoardExecutorResolutionModule))
+        || BoardExecutorResolution
+        || null;
+}
+
 function isInviolableSpecialCardId(cardId: any): boolean {
     if (SpecialCardRegistry && typeof SpecialCardRegistry.isInviolableSpecialCardId === 'function') {
         return SpecialCardRegistry.isInviolableSpecialCardId(cardId) === true;
@@ -136,10 +142,11 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
         }
     }
     if (cardType === 'BOARD_EXECUTOR') {
-        if (!BoardExecutorResolution || typeof BoardExecutorResolution.canUseBoardExecutor !== 'function') {
+        const moduleRef = getBoardExecutorResolution(context);
+        if (!moduleRef || typeof moduleRef.canUseBoardExecutor !== 'function') {
             return buildFailureResult();
         }
-        return BoardExecutorResolution.canUseBoardExecutor(context.cardState, context.playerKey)
+        return moduleRef.canUseBoardExecutor(context.cardState, context.playerKey)
             ? result
             : buildFailureResult();
     }

@@ -2369,6 +2369,7 @@ const {
             isCardPlayLockedForPlayer,
             CardPendingStateManagerModule,
             CardUsagePrechecksModule,
+            CardBoardExecutorResolutionModule,
             TIME_STOP_GOD_SELF_DESTROY_COUNT,
             RIBO_WILL_UNLOCK_TURN_INDEX
         });

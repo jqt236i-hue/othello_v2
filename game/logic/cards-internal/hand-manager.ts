@@ -20,6 +20,7 @@ function safeRequire(id: string): any {
 const CardMarkersModule = safeRequire('../cards/markers');
 const ManifestStoneRegistryModule = safeRequire('../../../shared/manifest-stone-registry');
 const SpecialCardRegistryModule = safeRequire('../../../shared/special-card-registry');
+const BoardExecutorResolutionModule = safeRequire('../card-resolution/board-executor');
 
 interface Context {
     constants?: any;
@@ -90,6 +91,14 @@ function getCardDefsModule(context: Context): any {
 function getCardCostsModule(context: Context): any {
     const modules = getModules(context);
     return modules.CardCostsModule || modules.cardCostsModule || null;
+}
+
+function getBoardExecutorResolutionModule(context: Context): any {
+    const modules = getModules(context);
+    return modules.CardBoardExecutorResolutionModule
+        || modules.BoardExecutorResolutionModule
+        || BoardExecutorResolutionModule
+        || null;
 }
 
 function getCardSelectorsModule(context: Context): any {
@@ -624,6 +633,18 @@ function isInviolableSpecialCardId(cardId: any, context: Context): boolean {
     return false;
 }
 
+function canUseBoardExecutor(cardState: any, playerKey: string, context: Context): boolean {
+    const helpers = getHelpers(context);
+    if (helpers && typeof helpers.canUseBoardExecutor === 'function') {
+        return helpers.canUseBoardExecutor(cardState, playerKey) === true;
+    }
+    const moduleRef = getBoardExecutorResolutionModule(context);
+    if (moduleRef && typeof moduleRef.canUseBoardExecutor === 'function') {
+        return moduleRef.canUseBoardExecutor(cardState, playerKey) === true;
+    }
+    return false;
+}
+
 function isActiveManifestStoneMarker(marker: any): boolean {
     if (ManifestStoneRegistryModule && typeof ManifestStoneRegistryModule.isActiveManifestStoneMarker === 'function') {
         return ManifestStoneRegistryModule.isActiveManifestStoneMarker(marker) === true;
@@ -677,6 +698,9 @@ function canUseCard(cardState: any, playerKey: string, cardId: string, context: 
         const totals = (cardState as any).numberCellCollectedTotalByPlayer;
         const collected = Number(totals && totals[playerKey] || 0);
         if (!Number.isFinite(collected) || collected < 42) return false;
+    }
+    if (cardType === 'BOARD_EXECUTOR' && !canUseBoardExecutor(cardState, playerKey, context)) {
+        return false;
     }
     if (cardType === 'RIBO_WILL' && Number((cardState as any).turnIndex || 0) < RIBO_WILL_UNLOCK_TURN_INDEX) {
         return false;
