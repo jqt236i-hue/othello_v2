@@ -565,10 +565,6 @@ function applyPass(state: any): any {
 function isGameOver(state: any): boolean {
     if (state.consecutivePasses >= 2) return true;
 
-    const discs = countDiscs(state);
-    const totalDiscs = (discs.black || 0) + (discs.white || 0);
-    if (totalDiscs > 0 && (discs.black === 0 || discs.white === 0)) return true;
-
     let emptyCount = 0;
     forEachMainBoardCell(state, (row, col, value) => {
         if (value === EMPTY) emptyCount += 1;
