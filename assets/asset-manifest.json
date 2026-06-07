@@ -1,6 +1,6 @@
 {
   "version": "2026-06-06",
-  "generatedAt": "2026-06-06T14:41:07.507Z",
+  "generatedAt": "2026-06-06T15:29:57.506Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -12,11 +12,11 @@
     },
     {
       "path": "assets/images/stones/board_executor-black.png",
-      "sha256": "58ce51cd441e6ab4dd54d116f0ed139ccc835d4d68fa8359dac612ddda534cfa"
+      "sha256": "e5e98eb837ac9ac55ea65d89333f889d627d8408220810ac165526608a2080e9"
     },
     {
       "path": "assets/images/stones/board_executor-white.png",
-      "sha256": "0d8d30cc06d6a973957b3c4351afac2f13716d9bfd75c11f66d6e46f2003e9ea"
+      "sha256": "22cfb901b37a5d0295e3f1203c7fe9c1deca2b583ad63f1121350cb7aef27954"
     },
     {
       "path": "assets/images/stones/BREEDING_WILL-black.png",
