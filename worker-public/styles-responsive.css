@@ -1196,7 +1196,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
         left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-log-top) * var(--layout-stage-scale)));
+        top: calc(var(--profile-left-info-stack-top) - (var(--layout-anchor-log-height) * var(--layout-stage-scale)) - calc(8px * var(--layout-stage-scale)));
         transform: none;
         width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
         height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
@@ -1204,26 +1204,46 @@ html.sim-aspect-5-4 #effect-live-panel {
         max-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
     }
 
-    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #effect-live-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack {
+        position: fixed;
+        left: var(--profile-stone-info-left);
+        top: var(--profile-left-info-stack-top);
+        z-index: 11988;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: calc(8px * var(--layout-stage-scale));
+        width: var(--profile-left-info-stack-width);
+        pointer-events: none;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack > #stone-info-panel,
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack > #effect-live-panel,
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack > #manifest-effect-panel {
+        position: static;
+        left: auto;
+        top: auto;
+        right: auto;
+        bottom: auto;
         transform: none;
-        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #effect-live-panel {
         min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
+        max-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
+        overflow: hidden;
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #manifest-effect-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + ((var(--layout-anchor-effect-top) + var(--layout-anchor-effect-height)) * var(--layout-stage-scale)) + calc(10px * var(--layout-stage-scale)));
-        transform: none;
-        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+        max-height: calc(164px * var(--layout-stage-scale));
+        overflow: hidden;
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {
-        left: var(--profile-stone-info-left);
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
-        transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
-        width: var(--profile-stone-info-width);
+        max-height: none;
+        overflow: visible;
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-panel {

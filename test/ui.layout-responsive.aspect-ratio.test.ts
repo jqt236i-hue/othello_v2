@@ -138,6 +138,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     const boardCss = fs.readFileSync(boardPath, 'utf8');
     const cardsPath = path.join(__dirname, '..', 'styles-cards.css');
     const cardsCss = fs.readFileSync(cardsPath, 'utf8');
+    const htmlPath = path.join(__dirname, '..', 'index.html');
+    const html = fs.readFileSync(htmlPath, 'utf8');
 
     expect(stageJs).toMatch(/layout-stage-enabled/);
     expect(stageJs).toMatch(/layout-profile-16x9/);
@@ -242,15 +244,15 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*animation:\s*round-bonus-banner-slide-down/);
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active\.is-round-bonus-fading[\s\S]*animation:\s*round-bonus-banner-fade-out/);
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*min-height:\s*calc\(52px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*left:\s*var\(--profile-stone-info-left\)/);
-    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*\(var\(--layout-anchor-effect-top\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
-    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*transform:\s*translateY\(calc\(-100%\s*-\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+    expect(html).toMatch(/id="left-info-stack"/);
+    expect(layoutCss).toMatch(/#left-info-stack[\s\S]*display:\s*contents/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*#manifest-effect-panel\.is-visible/);
-    expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*var\(--layout-anchor-effect-top\)\s*\+\s*var\(--layout-anchor-effect-height\)[\s\S]*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#manifest-effect-panel/);
-    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*--layout-anchor-effect-height/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#left-info-stack[\s\S]*display:\s*flex/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#left-info-stack\s*>\s*#stone-info-panel,[\s\S]*#left-info-stack\s*>\s*#effect-live-panel,[\s\S]*#left-info-stack\s*>\s*#manifest-effect-panel[\s\S]*position:\s*static/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*max-height:\s*calc\(164px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*transform:\s*translateX\(-50%\)/);
-    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*left:\s*var\(--profile-stone-info-left\)/);
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
     expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*linear-gradient\(135deg,\s*#3d2e20 0%,\s*#24160d 52%,\s*#1a0f08 100%\)/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);

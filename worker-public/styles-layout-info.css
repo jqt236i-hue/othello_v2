@@ -29,6 +29,10 @@
     text-align: center;
 }
 
+#left-info-stack {
+    display: contents;
+}
+
 #log {
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
