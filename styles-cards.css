@@ -1095,14 +1095,14 @@
 }
 
 #hand-white .card-item {
-    width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.9);
-    height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.9);
-    font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.9);
+    width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * var(--layout-opponent-hand-scale));
+    height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * var(--layout-opponent-hand-scale));
+    font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * var(--layout-opponent-hand-scale));
 }
 
 #deck-white.deck-stack {
-    width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale) * 0.9);
-    height: calc(var(--layout-size-deck-height) * var(--layout-priority-deck-scale) * 0.9);
+    width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale) * var(--layout-opponent-deck-scale));
+    height: calc(var(--layout-size-deck-height) * var(--layout-priority-deck-scale) * var(--layout-opponent-deck-scale));
 }
 
 #hand-black .card-item .card-cost-badge {

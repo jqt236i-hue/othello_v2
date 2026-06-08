@@ -1332,13 +1332,8 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white {
+        --layout-opponent-hand-scale: 0.82;
         min-height: calc(var(--layout-size-hand-min-height-top) * 0.88);
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white .card-item {
-        width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.82);
-        height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.82);
-        font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.82);
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black {
