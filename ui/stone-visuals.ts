@@ -432,6 +432,12 @@ function _isMirroredChargeDeltaSlot(key: string): boolean {
   return key === 'white';
 }
 
+function _applyChargeDeltaSideClass(el: HTMLElement, showOnLeft: boolean): void {
+  if (!el || !el.classList) return;
+  el.classList.remove('is-side-left', 'is-side-right');
+  el.classList.add(showOnLeft ? 'is-side-left' : 'is-side-right');
+}
+
 function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void {
   if (typeof document === 'undefined' || !el) return;
   const chargeId = (key === 'black') ? 'charge-black' : 'charge-white';
@@ -454,6 +460,7 @@ function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void 
   const gap = _resolveChargeDeltaSideGapPx(el);
   const isPositive = Number(delta) > 0;
   const showOnLeft = _isMirroredChargeDeltaSlot(key) ? !isPositive : isPositive;
+  _applyChargeDeltaSideClass(el, showOnLeft);
 
   const anchorLeft = showOnLeft
     ? (chargeRect.left - deltaWidth - gap)

@@ -118,13 +118,17 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
 
     expect(blackIncreaseEl.style.left).toBe('136px');
     expect(blackIncreaseEl.style.top).toBe('581px');
+    expect(blackIncreaseEl.classList.contains('is-side-left')).toBe(true);
     expect(blackDecreaseEl.style.left).toBe('370px');
     expect(blackDecreaseEl.style.top).toBe('581px');
+    expect(blackDecreaseEl.classList.contains('is-side-right')).toBe(true);
 
     expect(whiteIncreaseEl.style.left).toBe('370px');
     expect(whiteIncreaseEl.style.top).toBe('33px');
+    expect(whiteIncreaseEl.classList.contains('is-side-right')).toBe(true);
     expect(whiteDecreaseEl.style.left).toBe('136px');
     expect(whiteDecreaseEl.style.top).toBe('33px');
+    expect(whiteDecreaseEl.classList.contains('is-side-left')).toBe(true);
   });
 
   test('shows positive and negative popups simultaneously on the same slot', () => {
@@ -141,5 +145,7 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     expect(decreaseEl.classList.contains('is-visible')).toBe(true);
     expect(increaseEl.style.left).toBe('136px');
     expect(decreaseEl.style.left).toBe('370px');
+    expect(increaseEl.classList.contains('is-side-left')).toBe(true);
+    expect(decreaseEl.classList.contains('is-side-right')).toBe(true);
   });
 });
