@@ -394,6 +394,12 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         if ((!appendedToDom || isDebugSessionEnabled()) && typeof console !== 'undefined' && console.log) {
             console.log('[log]', resolvedText);
         }
+        try {
+            const recorder = (typeof window !== 'undefined' && window)
+                ? (window as any).recordBattleStatusEvent
+                : null;
+            if (typeof recorder === 'function') recorder(resolvedText);
+        } catch (e: any) { /* ignore battle status update errors */ }
     }
 
     function updateBgmButtons() {
@@ -2476,14 +2482,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             if (el) el.innerHTML = '';
                         } catch (e: any) { /* ignore */ }
                         try {
+                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).clearBattleStatusPanel === 'function') {
+                                (globalThis as any).clearBattleStatusPanel();
+                                return;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try {
                             if (typeof globalThis !== 'undefined' && typeof (globalThis as any).clearEffectLivePanel === 'function') {
                                 (globalThis as any).clearEffectLivePanel();
                                 return;
                             }
                         } catch (e: any) { /* ignore */ }
                         try {
-                            const effectEl = (typeof document !== 'undefined') ? document.getElementById('effect-live-lines') : null;
-                            if (effectEl) effectEl.innerHTML = '';
+                            const effectEl = (typeof document !== 'undefined') ? document.getElementById('effect-live-panel') : null;
+                            if (effectEl && effectEl.getAttribute('data-battle-status-panel') === '1') {
+                                const latestEl = effectEl.querySelector('.battle-status-latest');
+                                if (latestEl) latestEl.textContent = '直近 -';
+                            }
                         } catch (e: any) { /* ignore */ }
                     },
                     applyDebugTestScenarioAfterReset: (payload: any) => {
