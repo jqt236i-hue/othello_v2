@@ -120,6 +120,7 @@ Design intent:
 - Gold or blue-green accent for active/notification state.
 - Utility nav is for secondary features, not per-turn game decisions.
 - It replaces the currently scattered left-side utility buttons.
+- Match entry and mode switching should also be surfaced through the left-side tab/navigation structure rather than hidden inside settings.
 
 ## Existing Settings Panel
 
@@ -141,11 +142,11 @@ Move to settings drawer:
 
 Acceptable two-step controls:
 
-- Local single-player mode selection
 - Board size
 
-- `ネット対戦` should not be hidden behind a two-step mode control.
-- It should be visible at a glance as a left utility nav entry.
+- Match mode selection should not be hidden behind a two-step settings control.
+- `ネット対戦` should be visible at a glance as a left utility nav entry.
+- Local modes such as CPU play and local reversi variants should also move to left-side tabs or an equivalent always-visible navigation group.
 
 ## CPU Level
 
