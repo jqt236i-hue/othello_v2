@@ -5,7 +5,7 @@ describe('card surface layout contract', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
-    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*linear-gradient\(135deg,\s*#3d2e20 0%,\s*#24160d 52%,\s*#1a0f08 100%\)/);
+    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*conic-gradient[\s\S]*--card-back-emblem/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);
     expect(cardsCss).toMatch(/\.card-badge-row[\s\S]*left:\s*0[\s\S]*right:\s*0[\s\S]*bottom:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)[\s\S]*left:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
@@ -42,5 +42,26 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-badge-row\s*\{[\s\S]*display:\s*none\s*!important/);
     expect(cardsCss).toMatch(/\.card-type-badge\s*\{[\s\S]*display:\s*none\s*!important/);
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+  });
+
+  test('card faces use premium frame, type texture variables, and bottom name plate', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-type-field/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-face-rune-pattern/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*clip-path:\s*polygon\(50% 0/);
+    expect(cardsCss).toMatch(/\.card-item\.visible::before[\s\S]*inset:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(cardsCss).toMatch(/\.card-item\.visible::after[\s\S]*background:[\s\S]*--card-face-rune-pattern/);
+    expect(cardsCss).toMatch(/\.card-name\s*\{[\s\S]*top:\s*auto[\s\S]*bottom:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
+  });
+
+  test('card backs and deck stacks use shared emblem treatment without readable CARD text', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expect(cardsCss).toMatch(/\.card-item\.hidden\s*\{[\s\S]*font-size:\s*0/);
+    expect(cardsCss).toMatch(/\.card-item\.hidden::before[\s\S]*--card-back-emblem/);
+    expect(cardsCss).toMatch(/\.card-item\.hidden::after[\s\S]*conic-gradient/);
+    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*--card-back-emblem/);
+    expect(cardsCss).toMatch(/\.deck-stack \.deck-count[\s\S]*backdrop-filter:\s*blur/);
   });
 });
