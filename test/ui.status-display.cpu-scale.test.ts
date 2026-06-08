@@ -29,7 +29,7 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*0/);
     expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*0/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
-    expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
+    expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/#hero-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
     expect(responsiveCss).toMatch(/#hero-label[\s\S]*transform:\s*translateY\(calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
