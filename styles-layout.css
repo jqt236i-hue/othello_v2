@@ -276,7 +276,7 @@
 
 /* Charge Delta Display */
 .charge-delta {
-    position: fixed;
+    position: absolute;
     background: linear-gradient(180deg, rgba(28, 31, 40, 0.95), rgba(12, 14, 20, 0.92));
     border: var(--layout-size-charge-delta-border) solid rgba(218, 185, 110, 0.34);
     padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);

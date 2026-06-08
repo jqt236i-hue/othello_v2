@@ -10,12 +10,14 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
       <!doctype html>
       <html>
         <body>
-          <div id="charge-black" class="charge-display">布石: 30 / 99</div>
-          <div id="charge-white" class="charge-display">布石: 12 / 99</div>
-          <div id="charge-delta-black-increase" class="charge-delta"></div>
-          <div id="charge-delta-black-decrease" class="charge-delta"></div>
-          <div id="charge-delta-white-increase" class="charge-delta"></div>
-          <div id="charge-delta-white-decrease" class="charge-delta"></div>
+          <div id="board-frame">
+            <div id="charge-black" class="charge-display">布石: 30 / 99</div>
+            <div id="charge-white" class="charge-display">布石: 12 / 99</div>
+            <div id="charge-delta-black-increase" class="charge-delta"></div>
+            <div id="charge-delta-black-decrease" class="charge-delta"></div>
+            <div id="charge-delta-white-increase" class="charge-delta"></div>
+            <div id="charge-delta-white-decrease" class="charge-delta"></div>
+          </div>
         </body>
       </html>
     `);
@@ -24,6 +26,17 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
     global.BLACK = 1;
     global.WHITE = -1;
+    document.getElementById('board-frame').getBoundingClientRect = () => ({
+      left: 240,
+      top: 40,
+      width: 520,
+      height: 660,
+      right: 760,
+      bottom: 700,
+      x: 240,
+      y: 40,
+      toJSON() { return {}; }
+    });
     document.getElementById('charge-black').getBoundingClientRect = () => ({
       left: 480,
       top: 620,
@@ -103,15 +116,15 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     stoneVisuals.showChargeDelta('white', 9);
     stoneVisuals.showChargeDelta('white', -4);
 
-    expect(blackIncreaseEl.style.left).toBe('376px');
-    expect(blackIncreaseEl.style.top).toBe('621px');
-    expect(blackDecreaseEl.style.left).toBe('610px');
-    expect(blackDecreaseEl.style.top).toBe('621px');
+    expect(blackIncreaseEl.style.left).toBe('136px');
+    expect(blackIncreaseEl.style.top).toBe('581px');
+    expect(blackDecreaseEl.style.left).toBe('370px');
+    expect(blackDecreaseEl.style.top).toBe('581px');
 
-    expect(whiteIncreaseEl.style.left).toBe('610px');
-    expect(whiteIncreaseEl.style.top).toBe('73px');
-    expect(whiteDecreaseEl.style.left).toBe('376px');
-    expect(whiteDecreaseEl.style.top).toBe('73px');
+    expect(whiteIncreaseEl.style.left).toBe('370px');
+    expect(whiteIncreaseEl.style.top).toBe('33px');
+    expect(whiteDecreaseEl.style.left).toBe('136px');
+    expect(whiteDecreaseEl.style.top).toBe('33px');
   });
 
   test('shows positive and negative popups simultaneously on the same slot', () => {
@@ -126,7 +139,7 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     expect(decreaseEl.textContent).toBe('-2');
     expect(increaseEl.classList.contains('is-visible')).toBe(true);
     expect(decreaseEl.classList.contains('is-visible')).toBe(true);
-    expect(increaseEl.style.left).toBe('376px');
-    expect(decreaseEl.style.left).toBe('610px');
+    expect(increaseEl.style.left).toBe('136px');
+    expect(decreaseEl.style.left).toBe('370px');
   });
 });
