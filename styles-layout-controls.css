@@ -1987,7 +1987,7 @@ body.time-stop-active {
 
 #quick-controls-bar {
     position: fixed;
-    top: calc(var(--layout-stage-offset-y) + max(calc(22px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(6px * var(--layout-stage-scale))));
+    bottom: calc(var(--layout-stage-offset-y) + max(calc(28px * var(--layout-stage-scale)), env(safe-area-inset-bottom) + calc(12px * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift));
     right: calc(var(--layout-stage-offset-x) + max(calc(18px * var(--layout-stage-scale)), env(safe-area-inset-right)));
     z-index: var(--z-floating-control);
     display: flex;
