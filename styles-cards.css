@@ -1095,9 +1095,14 @@
 }
 
 #hand-white .card-item {
-    width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale));
-    height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale));
-    font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale));
+    width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.9);
+    height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.9);
+    font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.9);
+}
+
+#deck-white.deck-stack {
+    width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale) * 0.9);
+    height: calc(var(--layout-size-deck-height) * var(--layout-priority-deck-scale) * 0.9);
 }
 
 #hand-black .card-item .card-cost-badge {
