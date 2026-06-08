@@ -29,6 +29,16 @@ function createPlayerSlotElementResolver(deps?: PlayerSlotElementResolverDeps) {
     : null);
   const normalize = (value: any): PlayerSlotOwnerKey => normalizeOwnerKey(value, getOwnerHelpers());
 
+  function getPlayerSlotElements() {
+    const documentRef = getDocumentRef();
+    return {
+      deckBlackEl: getElementById(documentRef, 'deck-black'),
+      deckWhiteEl: getElementById(documentRef, 'deck-white'),
+      handBlackEl: getElementById(documentRef, 'hand-black'),
+      handWhiteEl: getElementById(documentRef, 'hand-white'),
+    };
+  }
+
   function getHandElementsByOwner(playerKey: any): HTMLElement[] {
     const documentRef = getDocumentRef();
     if (!documentRef) return [];
@@ -102,6 +112,7 @@ function createPlayerSlotElementResolver(deps?: PlayerSlotElementResolverDeps) {
 
   return {
     getHandElementsByOwner,
+    getPlayerSlotElements,
     isOwnerOnBottomSlot,
     normalizeOwnerKey: normalize,
     resolveDeckElementByOwner,
