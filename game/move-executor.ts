@@ -293,6 +293,27 @@ function emitMoveExecutorCardStateChange() {
     return false;
 }
 
+function syncMoveExecutorVisibleChargeDisplaysNow() {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.syncVisibleChargeDisplaysNow === 'function') {
+            return __uiImpl_move_executor.syncVisibleChargeDisplaysNow() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function readMoveExecutorChargeValue(state: any, ownerKey: 'black' | 'white') {
+    const chargeValue = state && state.charge && typeof state.charge === 'object'
+        ? Number(state.charge[ownerKey])
+        : NaN;
+    return Number.isFinite(chargeValue) ? chargeValue : 0;
+}
+
+function didMoveExecutorVisibleChargeValuesChange(prevCardState: any, nextCardState: any) {
+    return readMoveExecutorChargeValue(prevCardState, 'black') !== readMoveExecutorChargeValue(nextCardState, 'black')
+        || readMoveExecutorChargeValue(prevCardState, 'white') !== readMoveExecutorChargeValue(nextCardState, 'white');
+}
+
 function isHumanVsHumanModeEnabled() {
     const debugHvH = readMoveExecutorHumanVsHumanFlag();
     const matchMode = String(readMoveExecutorMatchMode() || '').trim().toLowerCase();
@@ -465,6 +486,11 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     const hasHandRemovePlayback = Array.isArray(res.playbackEvents)
         ? res.playbackEvents.some((ev: any) => ev && ev.type === 'hand_remove')
         : false;
+    const shouldSyncVisibleChargeDisplaysNow = !!(
+        res.nextCardState
+        && hasPlaybackEvents
+        && didMoveExecutorVisibleChargeValuesChange(cardState, res.nextCardState)
+    );
     if (res.nextCardState) {
         try {
             const applied = applyMoveExecutorCardStateSnapshot(res.nextCardState);
@@ -473,6 +499,9 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
             }
         } catch (e) {
             assignMoveExecutorCardState(res.nextCardState);
+        }
+        if (shouldSyncVisibleChargeDisplaysNow) {
+            syncMoveExecutorVisibleChargeDisplaysNow();
         }
         if (!hasPlaybackEvents) {
             let cardStateNotified = false;

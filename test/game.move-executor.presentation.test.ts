@@ -367,6 +367,47 @@ describe('move-executor presentation emission', () => {
         expect(global.renderCardUI).not.toHaveBeenCalled();
     });
 
+    test('再生イベントありの通常着手でも布石表示だけは即時同期する', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            turnIndex: 0,
+            charge: { black: 2, white: 0 }
+        };
+        global.gameState = {
+            currentPlayer: -1,
+            board: Array(8).fill().map(() => Array(8).fill(0))
+        };
+        global.onTurnStart = jest.fn(async () => ({ playbackEvents: [] }));
+
+        const syncVisibleChargeDisplaysNow = jest.fn(() => true);
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            syncVisibleChargeDisplaysNow
+        });
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: {
+                pendingEffectByPlayer: { black: null, white: null },
+                turnIndex: 1,
+                charge: { black: 5, white: 0 }
+            },
+            playbackEvents: [{ type: 'place', phase: 1, targets: [{ r: 2, col: 3 }] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(syncVisibleChargeDisplaysNow).toHaveBeenCalledTimes(1);
+        expect(global.onTurnStart).toHaveBeenCalledTimes(1);
+    });
+
     test('skipped local execution without publishPromise clears processing through setProcessing bridge', async () => {
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
