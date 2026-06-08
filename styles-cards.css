@@ -1904,6 +1904,218 @@
     z-index: 1;
 }
 
+/* Premium card detail surface */
+#card-detail-panel {
+    --card-detail-accent: #f2c95f;
+    --card-detail-accent-soft: rgba(242, 201, 95, 0.24);
+    --card-detail-panel-bg:
+        radial-gradient(120% 80% at 16% 0%, rgba(242, 201, 95, 0.16), transparent 40%),
+        radial-gradient(110% 92% at 88% 100%, rgba(71, 171, 153, 0.13), transparent 52%),
+        linear-gradient(135deg, rgba(15, 18, 18, 0.94) 0%, rgba(36, 27, 16, 0.92) 52%, rgba(8, 10, 11, 0.96) 100%);
+    padding: calc(16px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)) calc(18px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    background: var(--card-detail-panel-bg);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.46);
+    border-image: none;
+    border-radius: calc(8px * var(--layout-stage-scale));
+    clip-path: polygon(
+        calc(14px * var(--layout-stage-scale)) 0,
+        100% 0,
+        100% calc(100% - calc(14px * var(--layout-stage-scale))),
+        calc(100% - calc(14px * var(--layout-stage-scale))) 100%,
+        0 100%,
+        0 calc(14px * var(--layout-stage-scale))
+    );
+    box-shadow:
+        0 calc(18px * var(--layout-stage-scale)) calc(38px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56),
+        0 0 calc(18px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.10),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 244, 201, 0.07);
+    text-align: left;
+    backdrop-filter: blur(calc(7px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(7px * var(--layout-stage-scale)));
+}
+
+#card-detail-panel::before {
+    top: calc(7px * var(--layout-stage-scale));
+    left: calc(7px * var(--layout-stage-scale));
+    right: calc(7px * var(--layout-stage-scale));
+    bottom: calc(7px * var(--layout-stage-scale));
+    border-color: rgba(255, 238, 174, 0.13);
+    border-radius: calc(5px * var(--layout-stage-scale));
+    clip-path: polygon(
+        calc(10px * var(--layout-stage-scale)) 0,
+        100% 0,
+        100% calc(100% - calc(10px * var(--layout-stage-scale))),
+        calc(100% - calc(10px * var(--layout-stage-scale))) 100%,
+        0 100%,
+        0 calc(10px * var(--layout-stage-scale))
+    );
+}
+
+#card-detail-panel::after {
+    top: calc(6px * var(--layout-stage-scale));
+    left: calc(12px * var(--layout-stage-scale));
+    right: calc(12px * var(--layout-stage-scale));
+    bottom: auto;
+    height: calc(1px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, transparent, rgba(242, 201, 95, 0.82), rgba(126, 215, 255, 0.42), transparent);
+    box-shadow: 0 0 calc(10px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.22);
+}
+
+#card-detail-name {
+    display: flex;
+    align-items: center;
+    min-height: calc(24px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    margin: 0 0 calc(10px * var(--layout-stage-scale));
+    color: #fff0af;
+    font-size: calc(15px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    font-weight: 900;
+    letter-spacing: 0;
+    text-align: left;
+    text-shadow:
+        0 0 calc(9px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.24),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.82);
+}
+
+#card-detail-name::after {
+    width: auto;
+    height: calc(1px * var(--layout-stage-scale));
+    flex: 1 1 auto;
+    margin: 0 0 0 calc(10px * var(--layout-stage-scale));
+    background: linear-gradient(90deg, rgba(242, 201, 95, 0.64), transparent);
+}
+
+#card-detail-desc {
+    min-height: calc(70px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    margin-bottom: calc(10px * var(--layout-stage-scale));
+    padding: calc(11px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)) calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 239, 190, 0.11);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+        rgba(0, 0, 0, 0.22);
+    color: #e8dcc5;
+    font-size: calc(14px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    font-weight: 700;
+    line-height: 1.62;
+    text-align: left;
+    box-shadow:
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.12),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.05);
+}
+
+#card-detail-actions {
+    margin-top: calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    justify-content: flex-end;
+    gap: calc(7px * var(--layout-stage-scale));
+}
+
+#card-detail-actions::before {
+    top: calc(-7px * var(--layout-stage-scale));
+    left: 0;
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(242, 201, 95, 0.22), transparent);
+}
+
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn),
+#card-detail-panel > #pass-btn,
+#card-detail-panel > #cancel-card-btn {
+    --card-detail-action-accent: #c9b27a;
+    --card-detail-action-accent-rgb: 201, 178, 122;
+    min-width: calc(64px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    min-height: calc(34px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    padding: calc(8px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)) calc(14px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(201, 178, 122, 0.58);
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(201, 178, 122, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
+    color: #f8f2e4;
+    font-size: calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    font-weight: 900;
+    letter-spacing: 0;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78);
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(201, 178, 122, 0.42);
+    transition:
+        transform 0.14s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease,
+        filter 0.18s ease;
+}
+
+#card-detail-actions > #toggle-card-detail-btn:not(:disabled) {
+    --card-detail-action-accent: #95a8ff;
+    --card-detail-action-accent-rgb: 149, 168, 255;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(149, 168, 255, 0.58);
+    background:
+        linear-gradient(180deg, rgba(149, 168, 255, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(149, 168, 255, 0.42);
+}
+
+#card-detail-actions > #use-card-btn:not(:disabled) {
+    --card-detail-action-accent: #70e09a;
+    --card-detail-action-accent-rgb: 112, 224, 154;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(112, 224, 154, 0.58);
+    background:
+        linear-gradient(180deg, rgba(112, 224, 154, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(112, 224, 154, 0.42);
+}
+
+#card-detail-actions > #destroy-card-btn:not(:disabled) {
+    --card-detail-action-accent: #ff8a7a;
+    --card-detail-action-accent-rgb: 255, 138, 122;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 138, 122, 0.58);
+    background:
+        linear-gradient(180deg, rgba(255, 138, 122, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 138, 122, 0.42);
+}
+
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn):hover:not(:disabled),
+#card-detail-panel > #pass-btn:hover:not(:disabled),
+#card-detail-panel > #cancel-card-btn:hover {
+    transform: translateY(calc(-1px * var(--layout-stage-scale)));
+    filter: brightness(1.06);
+    box-shadow:
+        0 calc(7px * var(--layout-stage-scale)) calc(15px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
+        0 0 calc(13px * var(--layout-stage-scale)) rgba(var(--card-detail-action-accent-rgb), 0.28),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.12),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(var(--card-detail-action-accent-rgb), 0.54);
+}
+
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn):disabled,
+#use-card-btn.pseudo-disabled,
+#card-detail-panel > #pass-btn:disabled {
+    --card-detail-action-accent: #5f5f5f;
+    opacity: 0.62;
+    color: rgba(232, 222, 204, 0.52);
+    cursor: not-allowed;
+    filter: grayscale(0.35);
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.04),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 255, 255, 0.08);
+}
+
+#use-card-reason {
+    color: rgba(232, 220, 190, 0.66);
+    text-align: right;
+}
+
 
 #discard-display {
     margin-top: calc(8px - clamp(64px, 11vh, 132px));

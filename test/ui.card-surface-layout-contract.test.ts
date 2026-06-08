@@ -36,6 +36,18 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.heaven-blessing-offers \.heaven-offer-card[\s\S]*width:\s*var\(--layout-size-card-width\)/);
   });
 
+  test('card detail panel uses premium cut glass frame and unified action buttons', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*clip-path:\s*polygon\(/);
+    expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*backdrop-filter:\s*blur/);
+    expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*--card-detail-accent/);
+    expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*background:[\s\S]*rgba\(0,\s*0,\s*0,\s*0\.22\)/);
+    expect(cardsCss).toMatch(/#card-detail-actions\s*>\s*:is\(#toggle-card-detail-btn,\s*#use-card-btn,\s*#destroy-card-btn\)/);
+    expect(cardsCss).toMatch(/#use-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#70e09a/);
+    expect(cardsCss).toMatch(/#destroy-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#ff8a7a/);
+  });
+
   test('card surfaces suppress type badges while keeping other card layout tokens intact', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
