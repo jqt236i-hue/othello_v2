@@ -8,14 +8,29 @@ describe('left action rail layout contract', () => {
     const layoutCss = readLayoutCssSurface();
 
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*position:\s*fixed/);
-    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*max\(calc\(148px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-top\)\s*\+\s*calc\(20px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
-    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*padding:\s*calc\(42px\s*\*\s*var\(--layout-stage-scale\)\)\s*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)\s*calc\(14px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*gap:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*--left-rail-accent:\s*#7ed7ff/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*max\(calc\(176px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-top\)\s*\+\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*padding:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*clip-path:\s*polygon\(/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*flex-direction:\s*column/);
-    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*background:\s*linear-gradient/);
-    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(88px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*grid-template-rows/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*transition:/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-icon[\s\S]*mask-image/);
+  });
+
+  test('left action popups use the premium game panel skin', () => {
+    const layoutCss = readLayoutCssSurface();
+
+    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*clip-path:\s*polygon\(/);
+    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95/);
+    expect(layoutCss).toMatch(/:is\(#networkCloseBtn,\s*#leaderboardCloseBtn,\s*#gachaCloseBtn,\s*#deckBuilderCloseBtn,\s*#handSkinCloseBtn,\s*#rules-help-close-btn\)[\s\S]*border-radius:\s*50%/);
+    expect(layoutCss).toMatch(/:is\(#networkModalHeader,\s*#leaderboardModalHeader,\s*#gachaModalHeader,\s*#deckBuilderModalHeader,\s*#handSkinPanelHeader,\s*#rules-help-title-row\)[\s\S]*background:/);
+    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#fontSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
+    expect(layoutCss).toMatch(/#handSkinPanel[\s\S]*position:\s*fixed/);
+    expect(layoutCss).toMatch(/#rules-help-panel[\s\S]*position:\s*fixed/);
+    expect(layoutCss).not.toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)\s*\{[^}]*position:\s*relative/);
   });
 
   test('left action rail exposes mode and utility buttons in index markup', () => {
