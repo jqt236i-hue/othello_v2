@@ -166,7 +166,7 @@
     --layout-size-deck-height: calc(78px * var(--layout-stage-scale));
     --layout-size-deck-radius: calc(4px * var(--layout-stage-scale));
     --layout-size-deck-count-font: calc(13px * var(--layout-stage-scale));
-    --layout-size-deck-count-offset: calc(-24px * var(--layout-stage-scale));
+    --layout-size-deck-count-offset: calc(5px * var(--layout-stage-scale));
 
     --layout-size-card-width: calc(91px * var(--layout-stage-scale));
     --layout-size-card-height: calc(124px * var(--layout-stage-scale));
