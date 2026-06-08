@@ -182,7 +182,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(varsCss).toMatch(/--layout-anchor-board-size/);
     expect(varsCss).toMatch(/--layout-anchor-card-detail-width:\s*320px/);
     expect(varsCss).toMatch(/--layout-anchor-card-detail-gap:\s*28px/);
-    expect(varsCss).toMatch(/--layout-anchor-card-detail-bottom:\s*230px/);
+    expect(varsCss).toMatch(/--layout-anchor-card-detail-bottom:\s*292px/);
     expect(varsCss).toMatch(/--layout-anchor-chat-left:\s*132px/);
     expect(varsCss).toMatch(/--layout-anchor-hero-bottom:\s*92px/);
     expect(varsCss).toMatch(/--layout-anchor-character-offset-y:\s*48px/);
@@ -194,7 +194,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3\s*\{/);
     expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-anchor-board-size:\s*540px/);
     expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-anchor-card-detail-gap:\s*0px/);
-    expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-anchor-card-detail-bottom:\s*196px/);
+    expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-anchor-card-detail-bottom:\s*252px/);
     expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-anchor-hero-bottom:\s*28px/);
     expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-character-image-scale:\s*0\.72/);
     expect(varsCss).toMatch(/html\.layout-profile-tablet-4x3[\s\S]*--layout-cpu-image-scale:\s*0\.98/);
