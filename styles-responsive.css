@@ -142,7 +142,7 @@
 
 #cpu-level-label {
     margin-top: calc(1px * var(--layout-stage-scale)) !important;
-    transform: translateY(calc(24px * var(--layout-stage-scale))) !important;
+    transform: translateY(calc(12px * var(--layout-stage-scale))) !important;
     line-height: 1 !important;
 }
 

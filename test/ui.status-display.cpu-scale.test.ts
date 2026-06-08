@@ -27,9 +27,10 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#cpu-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#hero-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*0/);
+    expect(css).toMatch(/#cpu-level-label[\s\S]*background:\s*linear-gradient\(180deg,\s*rgba\(18,\s*22,\s*30,\s*0\.76\),\s*rgba\(10,\s*13,\s*18,\s*0\.72\)\)/);
     expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*0/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
-    expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
+    expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/#hero-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
     expect(responsiveCss).toMatch(/#hero-label[\s\S]*transform:\s*translateY\(calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);

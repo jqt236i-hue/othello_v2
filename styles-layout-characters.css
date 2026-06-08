@@ -60,7 +60,7 @@
     appearance: none;
     -webkit-appearance: none;
     border: var(--layout-size-border-thin) solid rgba(212, 175, 55, 0.38);
-    background: linear-gradient(180deg, rgba(18, 22, 30, 0.92), rgba(10, 13, 18, 0.9));
+    background: linear-gradient(180deg, rgba(18, 22, 30, 0.76), rgba(10, 13, 18, 0.72));
     font-size: clamp(13px, calc(var(--layout-anchor-cpu-label-font) * var(--layout-stage-scale)), var(--layout-anchor-cpu-label-font));
     color: #d4af37;
     font-weight: normal;
@@ -98,7 +98,7 @@
 
 #cpu-level-label.is-noninteractive {
     border-color: rgba(212, 175, 55, 0.18);
-    background: linear-gradient(180deg, rgba(18, 22, 30, 0.78), rgba(10, 13, 18, 0.78));
+    background: linear-gradient(180deg, rgba(18, 22, 30, 0.66), rgba(10, 13, 18, 0.62));
 }
 
 #cpu-level-menu {
