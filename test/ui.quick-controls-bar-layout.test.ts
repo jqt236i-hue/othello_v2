@@ -7,5 +7,7 @@ describe('quick controls bar layout', () => {
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/#quick-controls-bar[\s\S]*bottom:\s*calc\(var\(--layout-stage-offset-y\)/);
+    expect(css).toMatch(/#quick-controls-bar[\s\S]*position:\s*fixed/);
+    expect(css).toMatch(/#quick-controls-bar[\s\S]*display:\s*flex/);
   });
 });
