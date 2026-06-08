@@ -1488,7 +1488,11 @@ body.othello-mode-active :is(
 .stone-info-panel {
     position: fixed;
     left: var(--profile-stone-info-left);
-    top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
+    top: calc(
+        var(--layout-stage-offset-y) +
+        ((var(--layout-anchor-effect-top) + var(--layout-anchor-effect-height)) * var(--layout-stage-scale)) +
+        calc(8px * var(--layout-stage-scale))
+    );
     z-index: 11992;
     display: none;
     width: var(--profile-stone-info-width);
@@ -1501,7 +1505,7 @@ body.othello-mode-active :is(
     color: #f1fff6;
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
     pointer-events: auto;
-    transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
+    transform: none;
 }
 
 /* Breeding propagation: freshly generated stones are shown as "sprouts" for one turn. */
