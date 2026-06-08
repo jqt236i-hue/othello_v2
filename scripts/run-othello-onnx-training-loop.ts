@@ -283,6 +283,43 @@ function iterationTag(sessionTag: any, iteration: any) {
   return `${sessionTag}.it${String(iteration).padStart(3, "0")}`;
 }
 
+function isSafeIntermediatePath(filePath: any, allowedRoot: any) {
+  const full = path.resolve(String(filePath || ""));
+  const root = path.resolve(String(allowedRoot || ""));
+  const ext = path.extname(full).toLowerCase();
+  return (
+    (ext === ".ndjson" || ext === ".jsonl") &&
+    full.startsWith(root + path.sep)
+  );
+}
+
+function removeIntermediateFile(filePath: any, allowedRoot: any) {
+  const full = path.resolve(String(filePath || ""));
+  if (!isSafeIntermediatePath(full, allowedRoot) || !fs.existsSync(full)) return 0;
+  const size = fs.statSync(full).size;
+  fs.rmSync(full, { force: true });
+  return size;
+}
+
+function pruneIntermediateArtifacts(summary: any, keepPaths: any[], allowedRoot: any) {
+  const keep = new Set(keepPaths.map((one) => path.resolve(String(one || ""))));
+  let removedFiles = 0;
+  let removedBytes = 0;
+  for (const item of summary.history || []) {
+    const candidates = [item.trainData, item.evalData, item.dataset, item.hardcaseReplayPath];
+    for (const candidate of candidates) {
+      const full = path.resolve(String(candidate || ""));
+      if (!full || keep.has(full)) continue;
+      const size = removeIntermediateFile(full, allowedRoot);
+      if (size > 0) {
+        removedFiles += 1;
+        removedBytes += size;
+      }
+    }
+  }
+  return { removedFiles, removedBytes };
+}
+
 function main(argv: any = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help) {
@@ -301,6 +338,7 @@ function main(argv: any = process.argv.slice(2)) {
   const node = process.execPath;
   const replaySelfplay: any[] = [];
   const hardcaseReplay: any[] = [];
+  const runsRoot = path.resolve(process.cwd(), "othello-ai", "data", "runs");
   const openingSeedBankArgs = args.openingSeedBankPath
     ? [
         "--opening-seed-bank", args.openingSeedBankPath,
@@ -538,6 +576,10 @@ function main(argv: any = process.argv.slice(2)) {
         lastPromoted: shouldPromote
       });
       appendLog(summary.launcherLog, `[${args.sessionTag}] iteration ${iteration}/${args.iterations} done promoted=${shouldPromote} gatePassed=${gateResult.promoted} championGatePassed=${championGateResult.promoted} whitePointRate=${gateResult.whitePointRate.toFixed(4)} whiteDiff=${gateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)} championPointRate=${championGateResult.onnxPointRate.toFixed(4)} championWhitePointRate=${championGateResult.whitePointRate.toFixed(4)} championWhiteDiff=${championGateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)}`);
+      const pruned = pruneIntermediateArtifacts(summary, replaySelfplay.concat(hardcaseReplay), runsRoot);
+      if (pruned.removedFiles > 0) {
+        appendLog(summary.launcherLog, `[${args.sessionTag}] pruned_intermediates files=${pruned.removedFiles} bytes=${pruned.removedBytes}`);
+      }
     }
 
     updateSummary(summary, summaryPath, { status: "completed", phase: "done" });
