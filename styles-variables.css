@@ -35,7 +35,7 @@
     --layout-anchor-card-detail-width: 320px;
     --layout-anchor-card-detail-min-height: 112px;
     --layout-anchor-card-detail-gap: 28px;
-    --layout-anchor-card-detail-bottom: 170px;
+    --layout-anchor-card-detail-bottom: 210px;
     --layout-anchor-rules-left: 14px;
     --layout-anchor-rules-bottom: 58px;
     --layout-anchor-chat-left: 132px;
@@ -298,7 +298,7 @@ html.layout-profile-tablet-4x3 {
     --layout-anchor-side-width: 244px;
     --layout-anchor-card-detail-width: 286px;
     --layout-anchor-card-detail-gap: 0px;
-    --layout-anchor-card-detail-bottom: 136px;
+    --layout-anchor-card-detail-bottom: 176px;
     --layout-anchor-chat-left: 118px;
     --layout-anchor-chat-bottom: 78px;
     --layout-anchor-chat-width: 250px;
@@ -342,7 +342,7 @@ html.layout-profile-tablet-4x3 {
         --layout-anchor-side-width: 244px;
         --layout-anchor-card-detail-width: 286px;
         --layout-anchor-card-detail-gap: 0px;
-        --layout-anchor-card-detail-bottom: 136px;
+        --layout-anchor-card-detail-bottom: 176px;
         --layout-anchor-cpu-right: 46px;
         --layout-anchor-cpu-top: 32px;
         --layout-anchor-cpu-size: 286px;
