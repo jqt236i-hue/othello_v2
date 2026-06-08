@@ -153,6 +153,21 @@ describe('SoundEngine default BGM', () => {
     expect(instances[0].volume).toBeCloseTo(0.364, 6);
   });
 
+  test('master volume scales both BGM output and effect output without overwriting per-channel sliders', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.allowBgmPlay = false;
+    soundEngine.loadBgm(0);
+    soundEngine.setMasterVolume(0.5);
+
+    expect(soundEngine.masterVolume).toBe(0.5);
+    expect(soundEngine.volume).toBe(0.56);
+    expect(soundEngine.bgmVolume).toBe(0.665);
+    expect(instances[0].volume).toBeCloseTo(0.665 * 0.364 * 0.5, 6);
+    expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
+  });
+
   test('duration-end revert sound uses the renamed asset mapping', () => {
     const soundEngine = loadSoundEngine();
 

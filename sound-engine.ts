@@ -51,6 +51,7 @@ interface BgmBufferedState {
 const SoundEngine = {
     ctx: null as AudioContext | null,
     isMuted: false,
+    masterVolume: 1,
     volume: 0.56,
     bgm: null as any,
     bgmVolume: 0.665,
@@ -224,7 +225,8 @@ const SoundEngine = {
         if (this._temporaryBgmMutedBySpecialCardUse) return 0;
         const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
         const outputScale = this._toNonNegativeNumber(this.bgmOutputVolumeScale, 1);
-        return this._clamp01(sliderVolume * outputScale * (this.isMuted ? 0 : 1));
+        const masterVolume = this._clamp01(this._toNonNegativeNumber(this.masterVolume, 1));
+        return this._clamp01(sliderVolume * outputScale * masterVolume * (this.isMuted ? 0 : 1));
     },
 
     _updateBgmOutputVolume() {
@@ -1019,7 +1021,8 @@ const SoundEngine = {
 
     resolveEffectVolume(effectKey: string, options: any = {}) {
         const volumeScale = this.resolveEffectVolumeScale(effectKey, options);
-        return this._clamp01(this.volume * volumeScale);
+        const masterVolume = this._clamp01(this._toNonNegativeNumber(this.masterVolume, 1));
+        return this._clamp01(this.volume * volumeScale * masterVolume);
     },
 
     _muteBgmForSpecialCardUse() {
@@ -1278,6 +1281,11 @@ const SoundEngine = {
 
     setVolume(val: number | string) {
         this.volume = parseFloat(String(val));
+    },
+
+    setMasterVolume(val: number | string) {
+        this.masterVolume = this._clamp01(this._toNonNegativeNumber(val, 1));
+        this._updateBgmOutputVolume();
     },
 
     setBgmVolume(val: number | string) {

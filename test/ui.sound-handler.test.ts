@@ -135,6 +135,44 @@ describe('sound handler', () => {
     dom.window.close();
   });
 
+  test('quick volume slider updates master volume instead of only sound effects volume', () => {
+    const dom = new JSDOM(`<!DOCTYPE html><body>
+      <button id="muteBtn">🔊 ON</button>
+      <select id="seTypeSelect"></select>
+      <input id="seVolSlider" type="range" value="0.56">
+    </body>`);
+    const document = dom.window.document;
+    global.window = dom.window;
+    global.SoundEngine = {
+      volume: 0.56,
+      masterVolume: 1,
+      init: jest.fn(),
+      toggleMute: jest.fn(() => false),
+      setVolume: jest.fn(),
+      setMasterVolume: jest.fn(),
+      playEffectByKey: jest.fn(() => true),
+      listSelectablePlacementSounds: jest.fn(() => []),
+      getSelectedPlacementSoundId: jest.fn(() => 'default'),
+      setSelectedPlacementSoundId: jest.fn(() => 'default')
+    };
+
+    SoundHandlerModule.setupSoundControls(
+      document.getElementById('muteBtn'),
+      document.getElementById('seTypeSelect'),
+      document.getElementById('seVolSlider')
+    );
+
+    const slider = document.getElementById('seVolSlider') as HTMLInputElement;
+    slider.value = '0.25';
+    slider.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+
+    expect(global.SoundEngine.setMasterVolume).toHaveBeenCalledWith('0.25');
+    expect(global.SoundEngine.setVolume).not.toHaveBeenCalled();
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+
+    dom.window.close();
+  });
+
   test('real sound engine reads unlocked placement sounds from the browser global storage export', () => {
     jest.resetModules();
     const dom = new JSDOM(`<!DOCTYPE html><body>

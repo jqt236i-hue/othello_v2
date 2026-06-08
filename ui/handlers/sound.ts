@@ -170,9 +170,15 @@ function setupSoundControls(muteBtn: HTMLElement | null, seTypeSelect: HTMLSelec
   }
 
   if (seVolSlider) {
-    seVolSlider.value = engine.volume;
+    const initialMasterVolume = Number.isFinite(Number(engine.masterVolume)) ? Number(engine.masterVolume) : 1;
+    seVolSlider.value = String(initialMasterVolume);
     seVolSlider.addEventListener('input', (e: Event) => {
-      engine.setVolume((e.target as HTMLInputElement).value);
+      const nextValue = (e.target as HTMLInputElement).value;
+      if (typeof engine.setMasterVolume === 'function') {
+        engine.setMasterVolume(nextValue);
+      } else {
+        engine.setVolume(nextValue);
+      }
       engine.init();
     });
   }
