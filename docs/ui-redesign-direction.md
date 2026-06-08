@@ -54,8 +54,8 @@ left utility nav | opponent hand / opponent status / opponent character
 - Player hand is shown along the bottom area.
 - Card descriptions can be long, so card detail must not be treated as a tiny tooltip.
 - Use layered detail:
-  - Hand card: name, cost, type, and short one-line effect.
-  - Selected-card inspector: play-relevant summary, target/result/limits/notes, and actions.
+  - Hand card: name, cost, type, and visual identity only; do not put card description text on the card face.
+  - Selected-card inspector: short explanation, play-relevant summary, target/result/limits/notes, and actions.
   - Long detail text: scrollable area inside the inspector or a detail expansion.
 - Keep action buttons near the selected-card inspector:
   - `使用`
@@ -69,9 +69,11 @@ left utility nav | opponent hand / opponent status / opponent character
   - card name
   - cost
   - type
-  - short description
+  - short description, when shown in the selected-card inspector
   - long detail text
   - button labels and state labels
+- Card description text should not be displayed on the card face.
+- Keep the card face readable and compact; put explanations in the selected-card inspector instead.
 - Card backs may use generated image assets.
 - Card front frames or broad decorative templates may use generated image assets only when they remain text-free and reusable.
 - Normal card front backgrounds should stay comparatively simple so text remains readable.
