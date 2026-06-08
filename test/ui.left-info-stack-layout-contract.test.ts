@@ -32,4 +32,20 @@ describe('left info stack layout contract', () => {
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*max-height:\s*calc\(164px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*transform:\s*translateX\(-50%\)/);
   });
+
+  test('left information HUD uses game-like readable panel treatments', () => {
+    const layoutCss = readLayoutCssSurface();
+    const boardCss = readRepoTextFile('styles-board.css');
+
+    expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*--left-hud-accent/);
+    expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*clip-path:\s*polygon/);
+    expect(layoutCss).toMatch(/\.battle-status-score[\s\S]*grid-template-columns:\s*1fr auto 1fr/);
+    expect(layoutCss).toMatch(/\.battle-status-turn::before[\s\S]*content:\s*''/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*--left-hud-accent/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*clip-path:\s*polygon/);
+    expect(layoutCss).toMatch(/\.manifest-effect-line::before[\s\S]*content:\s*''/);
+    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-accent/);
+    expect(boardCss).toMatch(/\.stone-info-panel::before[\s\S]*content:\s*''/);
+    expect(boardCss).toMatch(/\.stone-info-name[\s\S]*color:\s*#f5fff8/);
+  });
 });

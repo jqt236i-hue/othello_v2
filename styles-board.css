@@ -1585,6 +1585,8 @@ body.othello-mode-active :is(
 }
 
 .stone-info-panel {
+    --left-hud-accent: #71f0b3;
+    --left-hud-accent-warm: #f2c95f;
     position: fixed;
     left: var(--profile-stone-info-left);
     top: calc(
@@ -1597,14 +1599,47 @@ body.othello-mode-active :is(
     width: var(--profile-stone-info-width);
     max-height: none;
     overflow: visible;
-    padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
+    padding: calc(12px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) calc(15px * var(--layout-stage-scale));
     border-radius: calc(8px * var(--layout-stage-scale));
-    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.34);
-    background: rgba(10, 24, 18, 0.96);
+    border: var(--layout-size-border-thin) solid rgba(113, 240, 179, 0.42);
+    background:
+        linear-gradient(90deg, rgba(113, 240, 179, 0.18), transparent 18%),
+        radial-gradient(circle at 15% 0%, rgba(242, 201, 95, 0.12), transparent 34%),
+        linear-gradient(145deg, rgba(8, 28, 21, 0.96), rgba(4, 9, 10, 0.94) 58%, rgba(9, 18, 16, 0.96));
     color: #f1fff6;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+    box-shadow:
+        0 calc(16px * var(--layout-stage-scale)) calc(36px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56),
+        0 0 calc(16px * var(--layout-stage-scale)) rgba(113, 240, 179, 0.08),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.07),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(113, 240, 179, 0.34);
     pointer-events: auto;
     transform: none;
+    backdrop-filter: blur(calc(6px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(6px * var(--layout-stage-scale)));
+    isolation: isolate;
+}
+
+.stone-info-panel::before {
+    content: '';
+    position: absolute;
+    left: calc(6px * var(--layout-stage-scale));
+    top: calc(7px * var(--layout-stage-scale));
+    bottom: calc(7px * var(--layout-stage-scale));
+    width: calc(2px * var(--layout-stage-scale));
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, transparent, var(--left-hud-accent), transparent);
+    box-shadow: 0 0 calc(10px * var(--layout-stage-scale)) rgba(113, 240, 179, 0.38);
+    pointer-events: none;
+}
+
+.stone-info-panel::after {
+    content: '';
+    position: absolute;
+    inset: calc(5px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(198, 255, 226, 0.12);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    pointer-events: none;
+    z-index: -1;
 }
 
 /* Breeding propagation: freshly generated stones are shown as "sprouts" for one turn. */
@@ -1644,17 +1679,39 @@ body.othello-mode-active :is(
 }
 
 .stone-info-name {
+    display: flex;
+    align-items: center;
+    gap: calc(7px * var(--layout-stage-scale));
+    color: #f5fff8;
     font-size: calc(17px * var(--layout-stage-scale));
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    margin-bottom: calc(5px * var(--layout-stage-scale));
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.15;
+    margin-bottom: calc(6px * var(--layout-stage-scale));
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(113, 240, 179, 0.16);
+}
+
+.stone-info-name::before {
+    content: '';
+    width: calc(9px * var(--layout-stage-scale));
+    height: calc(9px * var(--layout-stage-scale));
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d8fff0 34%, #71f0b3 62%, #245a45 100%);
+    box-shadow:
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(113, 240, 179, 0.46),
+        inset 0 0 calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34);
 }
 
 .stone-info-desc {
     font-size: calc(14px * var(--layout-stage-scale));
-    line-height: 1.45;
-    color: #e6f5ec;
-    margin-bottom: calc(6px * var(--layout-stage-scale));
+    font-weight: 650;
+    line-height: 1.5;
+    color: rgba(232, 255, 241, 0.93);
+    margin-bottom: calc(8px * var(--layout-stage-scale));
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58);
 }
 
 .stone-info-meta {
@@ -1679,14 +1736,21 @@ body.othello-mode-active :is(
     min-height: clamp(16px, calc(18px * var(--layout-stage-scale)), 18px);
     padding: clamp(2px, calc(2px * var(--layout-stage-scale)), 3px) clamp(5px, calc(6px * var(--layout-stage-scale)), 6px);
     font-size: clamp(9px, calc(11px * var(--layout-stage-scale)), 11px);
-    font-weight: 600;
+    font-weight: 800;
     line-height: 1.2;
     text-align: left;
-    color: #d0e4d8;
-    border: var(--layout-size-border-thin) solid rgba(208, 228, 216, 0.55);
+    color: #dfffee;
+    border: var(--layout-size-border-thin) solid rgba(113, 240, 179, 0.46);
     border-radius: calc(999px * var(--layout-stage-scale));
-    background: rgba(255, 255, 255, 0.08);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        rgba(14, 45, 34, 0.76);
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.12),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(113, 240, 179, 0.08);
     white-space: normal;
+    backdrop-filter: blur(calc(3px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(3px * var(--layout-stage-scale)));
 }
 
 .stone-info-effect-tag-button {
@@ -1696,9 +1760,11 @@ body.othello-mode-active :is(
 }
 
 .stone-info-effect-tag-button:hover {
-    color: #f1fff6;
-    border-color: rgba(241, 255, 246, 0.78);
-    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    border-color: rgba(242, 201, 95, 0.72);
+    background:
+        linear-gradient(180deg, rgba(242, 201, 95, 0.18), rgba(113, 240, 179, 0.08)),
+        rgba(14, 45, 34, 0.82);
 }
 
 .stone-info-effect-tag-button:focus-visible {
