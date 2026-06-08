@@ -122,6 +122,7 @@ function createRendererContext(options = {}) {
   installGlobalRendererContext(window);
   const rendererModule = require(path.resolve(__dirname, '../cards/card-renderer.js'));
   window.drainVisibleChargeDeltaPopups = rendererModule.drainVisibleChargeDeltaPopups;
+  window.renderVisibleChargeDisplays = rendererModule.renderVisibleChargeDisplays;
   window.renderCardUI = rendererModule.renderCardUI;
 
   return dom;
@@ -156,6 +157,20 @@ describe('network charge seat layout', () => {
 
     expect(window.document.querySelector('#charge-black .charge-current')?.textContent).toBe('11');
     expect(window.document.querySelector('#charge-black .charge-max')?.textContent).toBe('99');
+
+    dom.window.close();
+  });
+
+  test('can refresh visible charge displays without waiting for full card UI render', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.charge.black = 4;
+    window.cardState.charge.white = 11;
+    window.renderVisibleChargeDisplays();
+
+    expect(window.document.getElementById('charge-black').textContent).toBe('布石: 11 / 99');
+    expect(window.document.getElementById('charge-white').textContent).toBe('布石: 4 / 99');
 
     dom.window.close();
   });

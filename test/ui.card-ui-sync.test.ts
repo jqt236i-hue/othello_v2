@@ -50,6 +50,7 @@ describe('ui card sync scheduler', () => {
     };
     windowRef.cancelAnimationFrame = jest.fn();
     windowRef.renderCardUI = jest.fn();
+    windowRef.renderVisibleChargeDisplays = jest.fn();
     windowRef.countDiscs = jest.fn(() => ({ black: 0, white: 0 }));
     windowRef.addLog = jest.fn();
     windowRef.updateStatus = jest.fn();
@@ -135,6 +136,18 @@ describe('ui card sync scheduler', () => {
     await flushMicrotasks();
 
     expect(windowRef.renderCardUI).toHaveBeenCalledTimes(1);
+  });
+
+  test('updates visible charge display immediately even while playback is active', async () => {
+    windowRef.VisualPlaybackActive = true;
+
+    gameEvents.emit(windowRef.GameEvents.EVENT_TYPES.CARD_STATE_CHANGED);
+
+    expect(windowRef.renderVisibleChargeDisplays).toHaveBeenCalledTimes(1);
+
+    await flushMicrotasks();
+
+    expect(windowRef.renderCardUI).not.toHaveBeenCalled();
   });
 
   test('replays deferred board refresh work after playback ends', async () => {

@@ -1341,6 +1341,27 @@ function _resolveVisibleChargeOwners(matchMode: any) {
         topOwnerKey: bottomOwnerKey === 'black' ? 'white' : 'black'
     };
 }
+
+function renderVisibleChargeDisplays(cardStateOverride?: any, options?: any) {
+    const state = _normalizeCardStateForRender(cardStateOverride || _resolveCardRendererCardState());
+    if (!state) return false;
+
+    const opts = (options && typeof options === 'object') ? options : {};
+    const matchMode = opts.matchMode || _getCurrentMatchMode();
+    const visibleOwners = _resolveVisibleChargeOwners(matchMode);
+    const chargeBlackEl = document.getElementById('charge-black');
+    const chargeWhiteEl = document.getElementById('charge-white');
+    const chargeMax = _resolveChargeMaxForRender();
+
+    if (chargeBlackEl) {
+        _renderChargeDisplay(chargeBlackEl, state.charge[visibleOwners.bottomOwnerKey] || 0, chargeMax);
+    }
+    if (chargeWhiteEl) {
+        _renderChargeDisplay(chargeWhiteEl, state.charge[visibleOwners.topOwnerKey] || 0, chargeMax);
+    }
+    return true;
+}
+
 function _drainChargeDeltaPopups(cardState: any, options: any) {
     const state = _normalizeCardStateForRender(cardState);
     if (!state) {
@@ -1401,16 +1422,9 @@ function renderCardUI() {
         deckBlackEl.dataset.ownerKey = bottomOwnerKey;
     if (deckWhiteEl)
         deckWhiteEl.dataset.ownerKey = topOwnerKey;
-    // Update charge display
     const chargeBlackEl = document.getElementById('charge-black');
     const chargeWhiteEl = document.getElementById('charge-white');
-    const chargeMax = _resolveChargeMaxForRender();
-    if (chargeBlackEl) {
-        _renderChargeDisplay(chargeBlackEl, cardState.charge[bottomOwnerKey] || 0, chargeMax);
-    }
-    if (chargeWhiteEl) {
-        _renderChargeDisplay(chargeWhiteEl, cardState.charge[topOwnerKey] || 0, chargeMax);
-    }
+    renderVisibleChargeDisplays(cardState, { matchMode });
     _drainChargeDeltaPopups(cardState, { matchMode });
     const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
     const deckCountBlack = (decks && Array.isArray(decks.black))
@@ -1800,6 +1814,7 @@ function renderCardUI() {
 try {
     if (typeof window !== 'undefined') {
         window.drainVisibleChargeDeltaPopups = drainVisibleChargeDeltaPopups;
+        window.renderVisibleChargeDisplays = renderVisibleChargeDisplays;
     }
 }
 catch (e) { /* ignore */ }
@@ -1812,5 +1827,6 @@ export = {
     consumeTransientNetworkChargeDeltaEvents,
     consumeChargeDeltaSourcesForRender,
     drainVisibleChargeDeltaPopups,
+    renderVisibleChargeDisplays,
     renderCardUI
 };
