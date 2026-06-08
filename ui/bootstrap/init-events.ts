@@ -198,16 +198,14 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
     const applySidePanelCollapsedState = (collapsed: boolean) => {
       const isCollapsed = collapsed === true;
       refs.sidePanel!.classList.toggle('side-panel-collapsed', isCollapsed);
-      refs.sidePanelToggleBtn!.textContent = isCollapsed ? '＋' : '−';
       refs.sidePanelToggleBtn!.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-      const label = isCollapsed ? '操作パネルを開く' : '操作パネルを閉じる';
+      refs.sidePanelToggleBtn!.textContent = '設定';
+      refs.sidePanelToggleBtn!.classList.toggle('is-active', !isCollapsed);
+      const label = isCollapsed ? '設定を開く' : '設定を閉じる';
       refs.sidePanelToggleBtn!.setAttribute('aria-label', label);
       refs.sidePanelToggleBtn!.title = label;
     };
-    const docRoot = document.documentElement;
-    const rootProfile = docRoot ? String(docRoot.getAttribute('data-layout-profile') || '').trim() : '';
-    const isPhonePortraitProfile = !!(docRoot && docRoot.classList.contains('layout-profile-phone-portrait')) || rootProfile === 'layout-profile-phone-portrait';
-    applySidePanelCollapsedState(isPhonePortraitProfile);
+    applySidePanelCollapsedState(true);
     if (refs.sidePanelToggleBtn.dataset.sidePanelToggleBound !== '1') {
       refs.sidePanelToggleBtn.addEventListener('click', () => {
         applySidePanelCollapsedState(!refs.sidePanel!.classList.contains('side-panel-collapsed'));

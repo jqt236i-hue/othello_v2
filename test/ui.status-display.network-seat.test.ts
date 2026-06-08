@@ -20,7 +20,7 @@ describe('status-display network seat labels', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<img id="cpu-character-img" />' +
-      '<div id="cpu-level-label"></div>' +
+      '<button id="cpu-level-label" type="button"></button>' +
       '<div id="hero-label"></div>' +
       '</body></html>',
       { runScripts: 'outside-only', url: 'http://localhost/' }
@@ -64,6 +64,7 @@ describe('status-display network seat labels', () => {
 
     expect(window.document.getElementById('hero-label').textContent).toBe('白:Beta');
     expect(window.document.getElementById('cpu-level-label').textContent).toBe('黒:Alpha');
+    expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('true');
     expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/hero/hero.png');
     expect(window.document.getElementById('cpu-character-img').alt).toBe('対戦相手の勇者');
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(true);
@@ -81,7 +82,7 @@ describe('status-display network seat labels', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<img id="cpu-character-img" />' +
-      '<div id="cpu-level-label"></div>' +
+      '<button id="cpu-level-label" type="button"></button>' +
       '<div id="hero-label"></div>' +
       '</body></html>',
       { runScripts: 'outside-only', url: 'http://localhost/' }
@@ -119,6 +120,8 @@ describe('status-display network seat labels', () => {
     loadStatusDisplayIntoWindow(window);
     window.updateCpuCharacter();
 
+    expect(window.document.getElementById('cpu-level-label').textContent).toBe('Lv2 CPU Lv2');
+    expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('false');
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(false);
 
     delete global.window;

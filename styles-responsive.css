@@ -3,7 +3,8 @@
 @media (max-width: 56.25em) {
     #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+        top: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
         gap: calc(6px * var(--layout-stage-scale));
     }
 
@@ -104,6 +105,14 @@
         left: calc(12px * var(--layout-stage-scale));
         bottom: calc(12px * var(--layout-stage-scale));
         width: clamp(calc(170px * var(--layout-stage-scale)), 58vw, calc(230px * var(--layout-stage-scale)));
+    }
+
+    #quick-controls-bar {
+        left: auto;
+        right: calc(12px * var(--layout-stage-scale));
+        top: calc(12px * var(--layout-stage-scale));
+        max-width: min(calc(420px * var(--layout-stage-scale)), calc(100vw - calc(140px * var(--layout-stage-scale))));
+        flex-wrap: wrap;
     }
 
     #networkChatBody {
@@ -442,7 +451,8 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
     #leftActionButtons {
         left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+        top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
         gap: calc(5px * var(--layout-stage-scale));
     }
 
@@ -1372,7 +1382,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled #leftActionButtons {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-        bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
+        top: calc(var(--layout-stage-offset-y) + max(calc(64px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))));
+        bottom: auto;
     }
 
     html.layout-stage-enabled #handSkinPanel {

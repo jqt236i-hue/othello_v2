@@ -353,6 +353,10 @@ function _syncCardDetailLandscapeAnchorReserve() {
         _clearCardDetailLandscapeAnchorReserve();
         return;
     }
+    if (rect.top < window.innerHeight * 0.5) {
+        _clearCardDetailLandscapeAnchorReserve();
+        return;
+    }
     const panelEl = document.getElementById('card-detail-panel');
     const cpuLabelEl = document.getElementById('cpu-level-label');
     const panelRect = panelEl && typeof panelEl.getBoundingClientRect === 'function'

@@ -113,6 +113,22 @@ function applySpecialCpuPanelState(specialPresentation: any, charImg: any, level
     }
 }
 
+function applyCpuLevelLabelInteractivity(levelLabel: any, interactive: boolean, label: string): void {
+    if (!levelLabel) return;
+    levelLabel.textContent = label;
+    if (levelLabel.classList) {
+        levelLabel.classList.toggle('is-noninteractive', !interactive);
+    }
+    if (typeof levelLabel.setAttribute === 'function') {
+        levelLabel.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+        levelLabel.setAttribute('aria-label', interactive ? 'CPUレベル変更' : '対戦相手表示');
+        levelLabel.title = interactive ? 'クリックでCPUレベル変更' : '対戦相手表示';
+    }
+    if ('disabled' in levelLabel) {
+        (levelLabel as HTMLButtonElement).disabled = !interactive;
+    }
+}
+
 function applyNetworkSeatLabels(levelLabel: any): boolean {
     const heroLabel = document.getElementById('hero-label');
     if (!isNetworkModeForLabels()) {
@@ -131,7 +147,7 @@ function applyNetworkSeatLabels(levelLabel: any): boolean {
         heroLabel.textContent = `${toSeatLabel(ownSeatKey)}:${ownName}`;
     }
     if (levelLabel) {
-        levelLabel.textContent = `${toSeatLabel(opponentSeatKey)}:${opponentName}`;
+        applyCpuLevelLabelInteractivity(levelLabel, false, `${toSeatLabel(opponentSeatKey)}:${opponentName}`);
     }
     return true;
 }
@@ -690,12 +706,15 @@ function updateCpuCharacter(): void {
         };
         img.src = primaryPath;
 
-        levelLabel.textContent = specialPresentation
-            ? specialPresentation.label
-            : ((CPU_LEVEL_NAMES as any)[level] || 'レベル ' + level);
+        const defaultName = (CPU_LEVEL_NAMES as any)[level] || ('レベル ' + level);
         if (specialPresentation) {
+            applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
             if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
-        } else {
+        }
+        else if (!applyNetworkSeatLabels(levelLabel)) {
+            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level} ${defaultName}`);
+        }
+        else {
             applyNetworkSeatLabels(levelLabel);
         }
     }

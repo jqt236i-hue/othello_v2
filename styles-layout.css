@@ -8,10 +8,9 @@
     justify-content: center;
     width: 100vw;
     height: 100vh;
-    gap: calc(10px * var(--layout-stage-scale));
+    gap: calc(12px * var(--layout-stage-scale));
     z-index: 10;
-    padding: 0;
-    padding-bottom: calc(108px * var(--layout-stage-scale));
+    padding: calc(28px * var(--layout-stage-scale)) 0 calc(96px * var(--layout-stage-scale));
 }
 
 #game-container.board-oversize-active {
@@ -54,6 +53,7 @@
     -ms-user-select: none;
     caret-color: transparent;
     -webkit-tap-highlight-color: transparent;
+    transform: translateY(calc(-18px * var(--layout-stage-scale)));
 }
 
 /* Frame bevel details */
@@ -276,15 +276,18 @@
     align-items: center;
     justify-content: center;
     gap: var(--layout-size-ui-gap);
-    width: 100%;
-    max-width: var(--layout-size-ui-max-width);
+    width: min(
+        calc(var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2))) + calc(180px * var(--layout-stage-scale))),
+        calc(100vw - calc(420px * var(--layout-stage-scale)))
+    );
+    max-width: none;
     position: relative;
 }
 
 /* Opponent UI micro-offset: move only top deck/hand slightly closer to board. */
 .player-area-top {
-    top: calc(12px * var(--layout-stage-scale));
-    margin-bottom: calc(-2px * var(--layout-stage-scale));
+    top: calc(8px * var(--layout-stage-scale));
+    margin-bottom: calc(-8px * var(--layout-stage-scale));
 }
 
 #hand-white {
@@ -292,7 +295,7 @@
 }
 
 #hand-black {
-    margin-top: calc(10px * var(--layout-stage-scale));
+    margin-top: calc(4px * var(--layout-stage-scale));
     margin-right: 0;
 }
 

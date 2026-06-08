@@ -1,7 +1,7 @@
 /* Side Panel (Fixed Right Bottom) */
 #side-panel {
     position: fixed;
-    bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-side-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    top: calc(var(--layout-stage-offset-y) + max(calc(124px * var(--layout-stage-scale)), env(safe-area-inset-top)));
     right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
     width: calc(var(--layout-anchor-side-width) * var(--layout-stage-scale));
     display: flex;
@@ -9,15 +9,6 @@
     gap: calc(10px * var(--layout-stage-scale));
     pointer-events: auto;
     z-index: 1000;
-}
-
-#sidePanelToggleBtn.side-panel-toggle {
-    align-self: flex-end;
-    width: calc(22px * var(--layout-stage-scale));
-    min-width: calc(22px * var(--layout-stage-scale));
-    padding: calc(3px * var(--layout-stage-scale)) 0;
-    line-height: 1;
-    font-weight: 700;
 }
 
 #side-panel.side-panel-collapsed {
@@ -1850,7 +1841,8 @@ body.time-stop-active {
 #leftActionButtons {
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-    bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
+    top: calc(var(--layout-stage-offset-y) + max(calc(84px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(20px * var(--layout-stage-scale))));
+    bottom: auto;
     z-index: var(--z-floating-rules);
     display: flex;
     flex-direction: column;
@@ -1886,7 +1878,8 @@ body.time-stop-active {
 }
 
 #leftActionButtons .left-action-btn:hover,
-#leftActionButtons .left-action-btn[aria-expanded="true"] {
+#leftActionButtons .left-action-btn[aria-expanded="true"],
+#leftActionButtons .left-action-btn.is-active {
     border-color: #d7b47a;
     background: linear-gradient(to bottom, #845841, #563828);
 }
@@ -1899,6 +1892,47 @@ body.time-stop-active {
 #leftActionButtons .left-action-btn:disabled {
     opacity: 0.58;
     cursor: default;
+}
+
+#quick-controls-bar {
+    position: fixed;
+    top: calc(var(--layout-stage-offset-y) + max(calc(22px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(6px * var(--layout-stage-scale))));
+    right: calc(var(--layout-stage-offset-x) + max(calc(18px * var(--layout-stage-scale)), env(safe-area-inset-right)));
+    z-index: var(--z-floating-control);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: calc(8px * var(--layout-stage-scale));
+    padding: calc(10px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
+    background: rgba(16, 12, 10, 0.82);
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.14);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(calc(4px * var(--layout-stage-scale)));
+}
+
+.quick-control-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.quick-volume-control {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(6px * var(--layout-stage-scale));
+    min-width: calc(150px * var(--layout-stage-scale));
+    color: #d7ccc8;
+    font-size: var(--layout-size-control-font);
+}
+
+.quick-volume-label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.quick-volume-slider {
+    flex: 1 1 auto;
+    min-width: calc(88px * var(--layout-stage-scale));
 }
 .btn-active {
     background: rgba(212, 175, 55, 0.3);

@@ -93,6 +93,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(ts).toMatch(/ResizeObserver/);
     expect(ts).toMatch(/--card-detail-landscape-bottom-reserve/);
     expect(ts).toMatch(/width\s*>=\s*901/);
+    expect(ts).toMatch(/rect\.top\s*<\s*window\.innerHeight\s*\*\s*0\.5/);
+    expect(ts).toMatch(/_clearCardDetailLandscapeAnchorReserve\(\);\s*return;/);
   });
 
   test('core UI styles avoid direct fixed px declarations', () => {
@@ -215,9 +217,11 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/--layout-stage-offset-y/);
     expect(layoutCss).toMatch(/#side-panel[\s\S]*--layout-stage-bottom-safe-shift/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*position:\s*fixed/);
-    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*--layout-stage-bottom-safe-shift/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*top:/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*gap:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#quick-controls-bar[\s\S]*position:\s*fixed/);
+    expect(layoutCss).toMatch(/#quick-controls-bar[\s\S]*display:\s*flex/);
     expect(layoutCss).toMatch(/\.observation-stone-icon[\s\S]*観測石\.png/);
     expect(layoutCss).toMatch(/\.result-observation-stone-text/);
     expect(layoutCss).toMatch(/\.gacha-result-rarity[\s\S]*font-size:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
@@ -245,6 +249,9 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active\.is-round-bonus-fading[\s\S]*animation:\s*round-bonus-banner-fade-out/);
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*min-height:\s*calc\(52px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(html).toMatch(/id="left-info-stack"/);
+    expect(html).toMatch(/id="quick-controls-bar"/);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeReversiBtn"[\s\S]*id="modeNetworkBtn"/);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定</);
     expect(layoutCss).toMatch(/#left-info-stack[\s\S]*display:\s*contents/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*#manifest-effect-panel\.is-visible/);
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top/);
@@ -269,7 +276,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(responsiveCss).not.toMatch(/#hand-black\s+\.card-item\s+\.card-badge-row\s+\.card-cost-badge/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black\s+\.card-item\s+\.card-cost-badge[\s\S]*top:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*left:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#hand-black\s+\.card-item\s+\.card-cost-badge[\s\S]*top:\s*var\(--layout-size-card-badge-large-offset\)[\s\S]*left:\s*var\(--layout-size-card-badge-large-offset\)/);
-    expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#leftActionButtons[\s\S]*bottom:/);
+    expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#leftActionButtons[\s\S]*top:/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#leftActionButtons[\s\S]*bottom:/);
     expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#gachaRevealSkipBtn/);
     expect(cardsCss).not.toMatch(/#card-detail-panel\s*>\s*#card-detail-header[\s\S]*scale\(0\.8333333,\s*0\.9803922\)/);

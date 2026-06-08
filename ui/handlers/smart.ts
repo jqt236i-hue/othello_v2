@@ -22,11 +22,38 @@ interface SmartOption {
 }
 
 const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
+const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
 
 function clampCpuLevel(value: unknown): number {
   const n = Number(value);
   if (!Number.isFinite(n)) return 1;
   return Math.max(1, Math.min(6, Math.floor(n)));
+}
+
+function getCpuLevelShortcutButton(): HTMLButtonElement | null {
+  if (typeof document === 'undefined') return null;
+  const el = document.getElementById(CPU_LEVEL_SHORTCUT_ID);
+  const buttonCtor = (typeof window !== 'undefined' && window.HTMLButtonElement)
+    ? window.HTMLButtonElement
+    : null;
+  return buttonCtor && el instanceof buttonCtor ? el : null;
+}
+
+function dispatchSelectChange(selectEl: HTMLSelectElement): void {
+  const evt = new Event('change', { bubbles: true });
+  selectEl.dispatchEvent(evt);
+}
+
+function bindCpuLevelShortcut(smartWhite: HTMLSelectElement | null): void {
+  const shortcut = getCpuLevelShortcutButton();
+  if (!shortcut || !smartWhite || shortcut.dataset.cpuLevelShortcutBound === '1') return;
+  shortcut.addEventListener('click', () => {
+    if (shortcut.disabled) return;
+    const nextLevel = clampCpuLevel(Number(smartWhite.value || localCpuLevels.white) + 1);
+    smartWhite.value = String(nextLevel > 6 ? 1 : nextLevel);
+    dispatchSelectChange(smartWhite);
+  });
+  shortcut.dataset.cpuLevelShortcutBound = '1';
 }
 
 function syncRuntimeCpuLevel(playerKey: 'black' | 'white', level: number): void {
@@ -93,6 +120,7 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
     localCpuLevels.white = clampCpuLevel(localCpuLevels.white || 1);
     syncRuntimeCpuLevel('white', localCpuLevels.white);
     smartWhite.value = String(localCpuLevels.white);
+    bindCpuLevelShortcut(smartWhite);
     smartWhite.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const newLevel = clampCpuLevel(target.value);

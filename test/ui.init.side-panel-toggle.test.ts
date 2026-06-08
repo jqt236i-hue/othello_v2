@@ -50,21 +50,24 @@ describe('initializeUI side panel toggle', () => {
     const sidePanel = document.getElementById('side-panel');
     const toggleBtn = document.getElementById('sidePanelToggleBtn');
 
+    expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
+    expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('設定を開く');
+    expect(toggleBtn.textContent).toBe('設定');
+
+    toggleBtn.click();
+
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
-    expect(toggleBtn.textContent).toBe('−');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('設定を閉じる');
+    expect(toggleBtn.textContent).toBe('設定');
 
     toggleBtn.click();
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
-    expect(toggleBtn.textContent).toBe('＋');
-
-    toggleBtn.click();
-
-    expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
-    expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
-    expect(toggleBtn.textContent).toBe('−');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('設定を開く');
+    expect(toggleBtn.textContent).toBe('設定');
     expect(sawResetGameThrowLog()).toBe(false);
   });
 
@@ -80,13 +83,15 @@ describe('initializeUI side panel toggle', () => {
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
-    expect(toggleBtn.textContent).toBe('＋');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('設定を開く');
+    expect(toggleBtn.textContent).toBe('設定');
 
     toggleBtn.click();
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
-    expect(toggleBtn.textContent).toBe('−');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('設定を閉じる');
+    expect(toggleBtn.textContent).toBe('設定');
     expect(sawResetGameThrowLog()).toBe(false);
   });
 });
