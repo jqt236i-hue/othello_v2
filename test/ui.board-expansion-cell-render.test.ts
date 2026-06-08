@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { readRepoTextFile } from './helpers/css-test-helpers';
 
 describe('DiffRenderer board expansion cell rendering', () => {
   beforeEach(() => {
@@ -262,5 +263,25 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
     expect(manager.getBoardUpdateContext()).toBeNull();
     expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
+  });
+
+  test('board expansion CSS clears the seam frame where outer cells connect to the main board', () => {
+    const boardCss = readRepoTextFile('styles-board.css');
+
+    expect(boardCss).toMatch(/#board\.board-expanded-left\s*\{[\s\S]*border-left-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-left::after\s*\{[\s\S]*border-left-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\s+\.cell-expanded-left\s*\{[\s\S]*border-right-color:\s*transparent/);
+
+    expect(boardCss).toMatch(/#board\.board-expanded-right\s*\{[\s\S]*border-right-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-right::after\s*\{[\s\S]*border-right-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\s+\.cell-expanded-right\s*\{[\s\S]*border-left-color:\s*transparent/);
+
+    expect(boardCss).toMatch(/#board\.board-expanded-top\s*\{[\s\S]*border-top-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-top::after\s*\{[\s\S]*border-top-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\s+\.cell-expanded-top\s*\{[\s\S]*border-bottom-color:\s*transparent/);
+
+    expect(boardCss).toMatch(/#board\.board-expanded-bottom\s*\{[\s\S]*border-bottom-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-bottom::after\s*\{[\s\S]*border-bottom-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\s+\.cell-expanded-bottom\s*\{[\s\S]*border-top-color:\s*transparent/);
   });
 });

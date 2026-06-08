@@ -126,18 +126,54 @@
 
 #board .cell-expanded-left {
     left: calc(-1 * var(--board-cell-width-percent));
+    border-right-color: transparent;
 }
 
 #board .cell-expanded-right {
     left: 100%;
+    border-left-color: transparent;
 }
 
 #board .cell-expanded-top {
     top: calc(-1 * var(--board-cell-height-percent));
+    border-bottom-color: transparent;
 }
 
 #board .cell-expanded-bottom {
     top: 100%;
+    border-top-color: transparent;
+}
+
+#board.board-expanded-left {
+    border-left-color: transparent;
+}
+
+#board.board-expanded-right {
+    border-right-color: transparent;
+}
+
+#board.board-expanded-top {
+    border-top-color: transparent;
+}
+
+#board.board-expanded-bottom {
+    border-bottom-color: transparent;
+}
+
+#board.board-expanded-left::after {
+    border-left-color: transparent;
+}
+
+#board.board-expanded-right::after {
+    border-right-color: transparent;
+}
+
+#board.board-expanded-top::after {
+    border-top-color: transparent;
+}
+
+#board.board-expanded-bottom::after {
+    border-bottom-color: transparent;
 }
 
 @keyframes boardExpansionCellReveal {
