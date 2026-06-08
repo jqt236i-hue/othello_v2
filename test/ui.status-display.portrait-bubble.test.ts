@@ -93,12 +93,32 @@ function teardownPortraitBubbleDom(dom) {
 }
 
 describe('status-display portrait commentary bubbles', () => {
+  test('cpu speech bubble uses premium portrait-callout styling', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-layout-characters.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    expect(css).toMatch(/#cpu-speech-bubble[\s\S]*clip-path:\s*polygon\(/);
+    expect(css).toMatch(/#cpu-speech-bubble[\s\S]*backdrop-filter:\s*blur/);
+    expect(css).toMatch(/#cpu-speech-bubble[\s\S]*--portrait-speech-accent/);
+    expect(css).toMatch(/#cpu-speech-bubble::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95/);
+    expect(css).toMatch(/#cpu-speech-bubble::after[\s\S]*border-top-color:\s*rgba\(26,\s*21,\s*16,\s*0\.94\)/);
+    expect(css).toMatch(/#cpu-speech-bubble\.is-visible[\s\S]*animation:\s*portrait-speech-enter/);
+  });
+
   test('showPortraitSpeechBubble only resets the same speaker role', () => {
     const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
     const js = fs.readFileSync(jsPath, 'utf8');
 
     expect(js).toMatch(/function\s+showPortraitSpeechBubble[\s\S]*hidePortraitSpeechBubble\(config\.role\);/);
     expect(js).not.toMatch(/function\s+showPortraitSpeechBubble[\s\S]*hidePortraitSpeechBubble\(\);/);
+  });
+
+  test('caps desktop cpu portrait bubble width for tighter character callouts', () => {
+    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
+    const js = fs.readFileSync(jsPath, 'utf8');
+
+    expect(js).toMatch(/return\s+Math\.min\(Math\.floor\(viewportWidth\s*\*\s*0\.38\),\s*360\);/);
+    expect(js).not.toMatch(/return\s+Math\.min\(Math\.floor\(viewportWidth\s*\*\s*0\.46\),\s*420\);/);
   });
 
   test('keeps cpu portrait bubble outside the board on tablet widths', () => {

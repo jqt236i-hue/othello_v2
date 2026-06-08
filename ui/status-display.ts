@@ -210,7 +210,7 @@ function getPortraitSpeechBubbleBaseMaxWidth(viewportWidth: number): number {
     if (viewportWidth <= 900) {
         return Math.min(Math.floor(viewportWidth * 0.72), 320);
     }
-    return Math.min(Math.floor(viewportWidth * 0.46), 420);
+    return Math.min(Math.floor(viewportWidth * 0.38), 360);
 }
 
 function clampPortraitSpeechBubbleToViewport(bubble: any, fallbackLeft: number, viewportWidth: number): void {
