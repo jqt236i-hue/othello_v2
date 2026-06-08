@@ -46,7 +46,7 @@
     --layout-anchor-cpu-size: 405px;
     --layout-anchor-cpu-label-font: 22px;
     --layout-anchor-hero-left: 192px;
-    --layout-anchor-hero-bottom: 116px;
+    --layout-anchor-hero-bottom: 92px;
     --layout-anchor-hero-size: 301.5px;
     --layout-anchor-hero-label-font: 22px;
     --layout-anchor-character-offset-y: 48px;
@@ -307,7 +307,7 @@ html.layout-profile-tablet-4x3 {
     --layout-anchor-cpu-size: 286px;
     --layout-anchor-cpu-label-font: 17px;
     --layout-anchor-hero-left: 116px;
-    --layout-anchor-hero-bottom: 44px;
+    --layout-anchor-hero-bottom: 28px;
     --layout-anchor-hero-size: 276px;
     --layout-anchor-hero-label-font: 17px;
     --layout-anchor-character-offset-y: 20px;
@@ -348,7 +348,7 @@ html.layout-profile-tablet-4x3 {
         --layout-anchor-cpu-size: 286px;
         --layout-anchor-cpu-label-font: 17px;
         --layout-anchor-hero-left: 116px;
-        --layout-anchor-hero-bottom: 44px;
+        --layout-anchor-hero-bottom: 28px;
         --layout-anchor-hero-size: 276px;
         --layout-anchor-hero-label-font: 17px;
         --layout-anchor-character-offset-y: 20px;
