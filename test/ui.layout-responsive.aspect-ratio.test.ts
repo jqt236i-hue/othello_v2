@@ -219,7 +219,11 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*top:/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*gap:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*flex-direction:\s*column/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*background:\s*linear-gradient/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*grid-template-rows/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-icon[\s\S]*mask-image/);
     expect(layoutCss).toMatch(/#quick-controls-bar[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/#quick-controls-bar[\s\S]*display:\s*flex/);
     expect(layoutCss).toMatch(/\.observation-stone-icon[\s\S]*観測石\.png/);
@@ -252,6 +256,9 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/id="quick-controls-bar"/);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeReversiBtn"[\s\S]*id="modeNetworkBtn"/);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定</);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-gacha"/);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-deck"/);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
     expect(layoutCss).toMatch(/#left-info-stack[\s\S]*display:\s*contents/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*#manifest-effect-panel\.is-visible/);
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top/);

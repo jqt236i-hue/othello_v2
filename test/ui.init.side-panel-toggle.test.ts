@@ -9,7 +9,10 @@ describe('initializeUI side panel toggle', () => {
 
     const dom = new JSDOM(`<!doctype html><html><body>
       <div id="side-panel">
-        <button id="sidePanelToggleBtn" type="button" aria-controls="control-panel" aria-expanded="true">−</button>
+        <button id="sidePanelToggleBtn" type="button" aria-controls="control-panel" aria-expanded="true">
+          <span class="left-action-icon left-action-icon-settings" aria-hidden="true"></span>
+          <span class="left-action-label">設定</span>
+        </button>
         <div id="control-panel"></div>
         <div id="log"></div>
         <div id="discard-display"></div>
@@ -53,21 +56,27 @@ describe('initializeUI side panel toggle', () => {
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
     expect(toggleBtn.getAttribute('aria-label')).toBe('設定を開く');
-    expect(toggleBtn.textContent).toBe('設定');
+    expect(toggleBtn.textContent?.trim()).toBe('設定');
+    expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
+    expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
 
     toggleBtn.click();
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     expect(toggleBtn.getAttribute('aria-label')).toBe('設定を閉じる');
-    expect(toggleBtn.textContent).toBe('設定');
+    expect(toggleBtn.textContent?.trim()).toBe('設定');
+    expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
+    expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
 
     toggleBtn.click();
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
     expect(toggleBtn.getAttribute('aria-label')).toBe('設定を開く');
-    expect(toggleBtn.textContent).toBe('設定');
+    expect(toggleBtn.textContent?.trim()).toBe('設定');
+    expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
+    expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
     expect(sawResetGameThrowLog()).toBe(false);
   });
 
@@ -84,14 +93,18 @@ describe('initializeUI side panel toggle', () => {
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
     expect(toggleBtn.getAttribute('aria-label')).toBe('設定を開く');
-    expect(toggleBtn.textContent).toBe('設定');
+    expect(toggleBtn.textContent?.trim()).toBe('設定');
+    expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
+    expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
 
     toggleBtn.click();
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(false);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
     expect(toggleBtn.getAttribute('aria-label')).toBe('設定を閉じる');
-    expect(toggleBtn.textContent).toBe('設定');
+    expect(toggleBtn.textContent?.trim()).toBe('設定');
+    expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
+    expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
     expect(sawResetGameThrowLog()).toBe(false);
   });
 });

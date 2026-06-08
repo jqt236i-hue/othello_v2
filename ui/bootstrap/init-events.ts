@@ -195,11 +195,13 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
     setupHandSkinControls({ button: refs.handSkinBtn, panel: refs.handSkinPanel, closeBtn: refs.handSkinCloseBtn, optionsEl: refs.handSkinOptions, handImage: refs.handImage, root });
   }
   if (refs.sidePanel && refs.sidePanelToggleBtn) {
+    const sidePanelToggleLabel = refs.sidePanelToggleBtn.querySelector('.left-action-label') as HTMLElement | null;
     const applySidePanelCollapsedState = (collapsed: boolean) => {
       const isCollapsed = collapsed === true;
       refs.sidePanel!.classList.toggle('side-panel-collapsed', isCollapsed);
       refs.sidePanelToggleBtn!.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-      refs.sidePanelToggleBtn!.textContent = '設定';
+      if (sidePanelToggleLabel) sidePanelToggleLabel.textContent = '設定';
+      else refs.sidePanelToggleBtn!.textContent = '設定';
       refs.sidePanelToggleBtn!.classList.toggle('is-active', !isCollapsed);
       const label = isCollapsed ? '設定を開く' : '設定を閉じる';
       refs.sidePanelToggleBtn!.setAttribute('aria-label', label);
