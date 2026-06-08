@@ -1378,10 +1378,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         // races where a SCHEDULE_CPU_TURN event would otherwise go unhandled.
         try {
             const cpu = require('../game/cpu-turn-handler');
+            let cpuDecision: any = null;
+            try { cpuDecision = require('../game/cpu-decision'); } catch (e: any) { /* ignore */ }
             if (cpu) {
                 const cpuGlobals: any = {};
                 if (typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
                 if (typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
+                if (cpuDecision && typeof cpuDecision.selectMoveFromOnnxPolicyAsync === 'function') {
+                    cpuGlobals.selectMoveFromOnnxPolicyAsync = cpuDecision.selectMoveFromOnnxPolicyAsync;
+                }
                 if (typeof cpu.setCpuTurnTimerService === 'function') {
                     cpu.setCpuTurnTimerService(timerService || null);
                 }
@@ -1415,7 +1420,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         },
                         resolveRuntimeFunction: (name: string) => {
                             try {
-                                if (typeof name !== 'string' || typeof globalThis === 'undefined') return null;
+                                if (typeof name !== 'string') return null;
+                                const registered = getRegisteredUIGlobals();
+                                const registeredCandidate = registered && (registered as any)[name];
+                                if (typeof registeredCandidate === 'function') return registeredCandidate;
+                                if (typeof globalThis === 'undefined') return null;
                                 const candidate = (globalThis as any)[name];
                                 return typeof candidate === 'function' ? candidate : null;
                             } catch (e: any) {
@@ -1612,7 +1621,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             },
                             resolveRuntimeFunction: (name: string) => {
                                 try {
-                                    if (typeof name !== 'string' || typeof globalThis === 'undefined') return null;
+                                    if (typeof name !== 'string') return null;
+                                    const registered = getRegisteredUIGlobals();
+                                    const registeredCandidate = registered && (registered as any)[name];
+                                    if (typeof registeredCandidate === 'function') return registeredCandidate;
+                                    if (typeof globalThis === 'undefined') return null;
                                     const candidate = (globalThis as any)[name];
                                     return typeof candidate === 'function' ? candidate : null;
                                 } catch (e: any) {

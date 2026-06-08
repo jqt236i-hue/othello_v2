@@ -23,6 +23,7 @@ describe('UI bootstrap early CPU registration', () => {
     const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuUIImpl: jest.fn() };
     const setPassHandlerRuntime = jest.fn();
     const setCpuDecisionRuntime = jest.fn();
+    const selectMoveFromOnnxPolicyAsync = jest.fn();
     const setTurnPipelinePhasesRuntime = jest.fn();
     jest.doMock('../game/cpu-turn-handler', () => mockCpu);
     jest.doMock('../game/pass-handler', () => ({
@@ -31,7 +32,8 @@ describe('UI bootstrap early CPU registration', () => {
       setNetworkMatchClient: jest.fn()
     }));
     jest.doMock('../game/cpu-decision', () => ({
-      setCpuDecisionRuntime
+      setCpuDecisionRuntime,
+      selectMoveFromOnnxPolicyAsync
     }));
     jest.doMock('../game/turn/turn_pipeline_phases', () => ({
       setTurnPipelinePhasesRuntime
@@ -44,6 +46,7 @@ describe('UI bootstrap early CPU registration', () => {
     const globals = uiBoot.getRegisteredUIGlobals();
     expect(typeof globals.processCpuTurn).toBe('function');
     expect(typeof globals.processAutoBlackTurn).toBe('function');
+    expect(globals.selectMoveFromOnnxPolicyAsync).toBe(selectMoveFromOnnxPolicyAsync);
     expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
@@ -55,6 +58,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction).toBe('function');
+    expect(setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')).toBe(selectMoveFromOnnxPolicyAsync);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].showResult).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].setProcessing).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].publishSnapshot).toBe('function');
