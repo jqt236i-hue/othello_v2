@@ -65,13 +65,12 @@
 
         <div id="effect-live-panel" class="battle-status-panel" data-battle-status-panel="1" role="status" aria-label="戦況" aria-live="polite" aria-atomic="false">
             <div class="battle-status-topline">
-                <div class="battle-status-round">ROUND 01</div>
-                <div class="battle-status-kicker">戦況</div>
+                <div class="battle-status-round">第01局</div>
             </div>
             <div class="battle-status-score" aria-label="石数">
-                <span class="battle-status-count battle-status-count--black">黒 2</span>
+                <span class="battle-status-count battle-status-count--black" aria-label="黒石 2"><span class="battle-status-stone battle-status-stone--black" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
                 <span class="battle-status-score-separator">/</span>
-                <span class="battle-status-count battle-status-count--white">白 2</span>
+                <span class="battle-status-count battle-status-count--white" aria-label="白石 2"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
             </div>
             <div class="battle-status-turn">あなたのターン</div>
             <div class="battle-status-latest">直近 -</div>
@@ -701,7 +700,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=179998104971556"></script>
+    <script src="public/module-registry.js?v=198216811321613"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=268202268641668"></script>

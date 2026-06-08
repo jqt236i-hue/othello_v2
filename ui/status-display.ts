@@ -454,7 +454,6 @@ function ensureBattleStatusPanel(): any {
     panel.innerHTML = [
         '<div class="battle-status-topline">',
         '  <div class="battle-status-round"></div>',
-        '  <div class="battle-status-kicker">戦況</div>',
         '</div>',
         '<div class="battle-status-score" aria-label="石数">',
         '  <span class="battle-status-count battle-status-count--black"></span>',
@@ -467,6 +466,16 @@ function ensureBattleStatusPanel(): any {
     return panel;
 }
 
+function renderBattleStatusStoneCount(el: any, color: 'black' | 'white', count: number): void {
+    if (!el) return;
+    const label = color === 'white' ? '白石' : '黒石';
+    el.setAttribute('aria-label', `${label} ${count}`);
+    el.innerHTML = [
+        `<span class="battle-status-stone battle-status-stone--${color}" aria-hidden="true"></span>`,
+        `<span class="battle-status-count-value">${count}</span>`
+    ].join('');
+}
+
 function updateBattleStatusPanel(): void {
     const panel = ensureBattleStatusPanel();
     if (!panel) return;
@@ -476,9 +485,9 @@ function updateBattleStatusPanel(): void {
     const turnEl = panel.querySelector('.battle-status-turn');
     const latestEl = panel.querySelector('.battle-status-latest');
     const counts = countBoardStonesForBattleStatus();
-    if (roundEl) roundEl.textContent = `ROUND ${formatBattleStatusRoundNumber(resolveRoundNumberForStatusDisplay())}`;
-    if (blackEl) blackEl.textContent = `黒 ${counts.black}`;
-    if (whiteEl) whiteEl.textContent = `白 ${counts.white}`;
+    if (roundEl) roundEl.textContent = `第${formatBattleStatusRoundNumber(resolveRoundNumberForStatusDisplay())}局`;
+    renderBattleStatusStoneCount(blackEl, 'black', counts.black);
+    renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
     if (latestEl) latestEl.textContent = `直近 ${resolveBattleStatusLatestText()}`;
 }

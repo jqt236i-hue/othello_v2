@@ -117,9 +117,14 @@ describe('battle status panel', () => {
 
     window.updateStatus();
 
-    expect(effectPanel.querySelector('.battle-status-round')?.textContent).toBe('ROUND 04');
-    expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('黒 4');
-    expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('白 4');
+    expect(effectPanel.querySelector('.battle-status-round')?.textContent).toBe('第04局');
+    expect(effectPanel.querySelector('.battle-status-kicker')).toBeNull();
+    expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('4');
+    expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('4');
+    expect(effectPanel.querySelector('.battle-status-count--black')?.getAttribute('aria-label')).toBe('黒石 4');
+    expect(effectPanel.querySelector('.battle-status-count--white')?.getAttribute('aria-label')).toBe('白石 4');
+    expect(effectPanel.querySelector('.battle-status-count--black .battle-status-stone--black')).not.toBeNull();
+    expect(effectPanel.querySelector('.battle-status-count--white .battle-status-stone--white')).not.toBeNull();
     expect(effectPanel.querySelector('.battle-status-turn')?.textContent).toBe('あなたのターン');
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
 
