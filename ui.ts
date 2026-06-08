@@ -169,6 +169,37 @@ export function _resolveRenderCardUiForSync() {
     return null;
 }
 
+export function _resolveRenderVisibleChargeDisplaysForSync() {
+    try {
+        if (typeof (window as any).renderVisibleChargeDisplays === 'function') return (window as any).renderVisibleChargeDisplays;
+    } catch (e) { /* ignore */ }
+    try {
+        const globals = _getUIGlobals();
+        if (globals && typeof globals.renderVisibleChargeDisplays === 'function') return globals.renderVisibleChargeDisplays;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).renderVisibleChargeDisplays === 'function') return (globalThis as any).renderVisibleChargeDisplays;
+    } catch (e) { /* ignore */ }
+    try {
+        const cardRenderer = require('./cards/card-renderer');
+        if (cardRenderer && typeof cardRenderer.renderVisibleChargeDisplays === 'function') {
+            return cardRenderer.renderVisibleChargeDisplays;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+export function _syncVisibleChargeDisplaysNow() {
+    const renderVisibleChargeDisplaysFn = _resolveRenderVisibleChargeDisplaysForSync();
+    if (typeof renderVisibleChargeDisplaysFn !== 'function') return false;
+    try {
+        renderVisibleChargeDisplaysFn();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 export function _flushCardUiSyncQueue(options?: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     if (!_cardUiSyncQueued) return false;
@@ -354,6 +385,7 @@ if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEve
         });
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.CARD_STATE_CHANGED, () => {
+        _syncVisibleChargeDisplaysNow();
         requestCardUiSync('event:card-state-changed');
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.STATUS_UPDATED, () => {
@@ -700,9 +732,11 @@ export function initWorkVisualDiagnosticsAuto() {
 (window as any).initWorkVisualDiagnosticsAuto = initWorkVisualDiagnosticsAuto;
 (window as any).clearEffectLivePanel = clearEffectLivePanel;
 (window as any).requestCardUiSync = requestCardUiSync;
+(window as any).syncVisibleChargeDisplaysNow = _syncVisibleChargeDisplaysNow;
 try {
     if (typeof globalThis !== 'undefined') {
         (globalThis as any).requestCardUiSync = requestCardUiSync;
+        (globalThis as any).syncVisibleChargeDisplaysNow = _syncVisibleChargeDisplaysNow;
     }
 } catch (e) { /* ignore */ }
 
