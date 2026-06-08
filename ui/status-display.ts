@@ -13,6 +13,7 @@ let roundDisplayResizeObserver: any = null;
 let roundDisplayBonusTimer: any = null;
 let roundDisplayBonusFadeTimer: any = null;
 let roundDisplayBonusState: any = null;
+let latestBattleStatusEventText = '';
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/hero.png';
@@ -364,6 +365,133 @@ function resolveRoundNumberForStatusDisplay(): number {
     return Math.floor(completedTurns / 2) + 1;
 }
 
+function formatBattleStatusRoundNumber(roundNumber: number): string {
+    const safeRound = Number.isFinite(roundNumber) && roundNumber >= 0
+        ? Math.trunc(roundNumber)
+        : 1;
+    return String(safeRound).padStart(2, '0');
+}
+
+function normalizePlayerKeyForStatusDisplay(value: any): PlayerKey {
+    try {
+        if (StatusDisplayOwnerHelpersModule && typeof StatusDisplayOwnerHelpersModule.normalizePlayerKey === 'function') {
+            return StatusDisplayOwnerHelpersModule.normalizePlayerKey(value, 'black');
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const whiteValue = (typeof (WHITE as any) !== 'undefined') ? (WHITE as any) : -1;
+        if (value === whiteValue || value === -1 || value === 'white') return 'white';
+    } catch (e) { /* ignore */ }
+    return 'black';
+}
+
+function getLocalPlayerKeyForBattleStatus(): PlayerKey {
+    if (isNetworkModeForLabels()) {
+        return normalizePlayerKeyForStatusDisplay(getOwnSeatKeyForLabels());
+    }
+    return 'black';
+}
+
+function resolveBattleStatusTurnLabel(): string {
+    const state = getGameStateForStatusDisplay();
+    const currentPlayer = normalizePlayerKeyForStatusDisplay(state && state.currentPlayer);
+    const localPlayer = getLocalPlayerKeyForBattleStatus();
+    return currentPlayer === localPlayer ? 'あなたのターン' : '相手のターン';
+}
+
+function countBoardStonesForBattleStatus(): { black: number; white: number } {
+    const state = getGameStateForStatusDisplay();
+    const board = state && Array.isArray(state.board) ? state.board : [];
+    const counts = { black: 0, white: 0 };
+    for (const row of board) {
+        if (!Array.isArray(row)) continue;
+        for (const cell of row) {
+            if (cell === 0 || cell === null || cell === undefined || cell === '') continue;
+            if (cell === -1 || cell === 'white' || cell === 'WHITE') {
+                counts.white += 1;
+                continue;
+            }
+            if (cell === 1 || cell === 'black' || cell === 'BLACK') {
+                counts.black += 1;
+                continue;
+            }
+            const key = normalizePlayerKeyForStatusDisplay(cell);
+            if (key === 'white') counts.white += 1;
+            if (key === 'black') counts.black += 1;
+        }
+    }
+    return counts;
+}
+
+function resolveBattleStatusLatestText(): string {
+    return latestBattleStatusEventText || '-';
+}
+
+function ensureBattleStatusPanel(): any {
+    const panel = getEffectLivePanelElement();
+    if (!panel) return null;
+    if (panel.getAttribute('data-battle-status-panel') === '1') return panel;
+    panel.classList.add('battle-status-panel');
+    panel.setAttribute('data-battle-status-panel', '1');
+    panel.setAttribute('role', 'status');
+    panel.setAttribute('aria-label', '戦況');
+    panel.innerHTML = [
+        '<div class="battle-status-topline">',
+        '  <div class="battle-status-round"></div>',
+        '  <div class="battle-status-kicker">戦況</div>',
+        '</div>',
+        '<div class="battle-status-score" aria-label="石数">',
+        '  <span class="battle-status-count battle-status-count--black"></span>',
+        '  <span class="battle-status-score-separator">/</span>',
+        '  <span class="battle-status-count battle-status-count--white"></span>',
+        '</div>',
+        '<div class="battle-status-turn"></div>',
+        '<div class="battle-status-latest"></div>'
+    ].join('');
+    return panel;
+}
+
+function updateBattleStatusPanel(): void {
+    const panel = ensureBattleStatusPanel();
+    if (!panel) return;
+    const roundEl = panel.querySelector('.battle-status-round');
+    const blackEl = panel.querySelector('.battle-status-count--black');
+    const whiteEl = panel.querySelector('.battle-status-count--white');
+    const turnEl = panel.querySelector('.battle-status-turn');
+    const latestEl = panel.querySelector('.battle-status-latest');
+    const counts = countBoardStonesForBattleStatus();
+    if (roundEl) roundEl.textContent = `ROUND ${formatBattleStatusRoundNumber(resolveRoundNumberForStatusDisplay())}`;
+    if (blackEl) blackEl.textContent = `黒 ${counts.black}`;
+    if (whiteEl) whiteEl.textContent = `白 ${counts.white}`;
+    if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
+    if (latestEl) latestEl.textContent = `直近 ${resolveBattleStatusLatestText()}`;
+}
+
+function normalizeBattleStatusEventText(message: any): string {
+    const raw = String(message && typeof message === 'object' && typeof message.text === 'string' ? message.text : message || '').trim();
+    if (!raw) return '';
+    const cardUseMatch = raw.match(/^(黒|白)がカードを使用:\s*([^()]+?)(?:\s*\(|$)/);
+    if (cardUseMatch) return `${cardUseMatch[1]}: ${cardUseMatch[2].trim()}`;
+    if (/布石\s*[+-]|布石[＋+]|数字マス.*布石/.test(raw)) return '';
+    return raw.replace(/\s+/g, ' ');
+}
+
+function recordBattleStatusEvent(message: any): boolean {
+    const text = normalizeBattleStatusEventText(message);
+    if (!text) {
+        updateBattleStatusPanel();
+        return false;
+    }
+    latestBattleStatusEventText = text;
+    updateBattleStatusPanel();
+    return true;
+}
+
+function clearBattleStatusPanel(): void {
+    latestBattleStatusEventText = '';
+    updateBattleStatusPanel();
+}
+
 function setRoundDisplayVisibility(roundEl: any, visible: boolean): void {
     if (!roundEl) return;
     roundEl.style.display = visible ? 'inline-flex' : 'none';
@@ -584,6 +712,7 @@ function updateFateWillBanner(): void {
 }
 
 function updateStatus(): void {
+    updateBattleStatusPanel();
     updateRoundDisplay();
     updateCpuCharacter();
     try { updateFateWillBanner(); } catch (e) { /* ignore */ }
@@ -709,7 +838,10 @@ if (typeof window !== 'undefined') {
     try { (window as any).clearRoundDisplayBonus = clearRoundDisplayBonus; } catch (e) { /* ignore */ }
     try { (window as any).updateCpuCharacter = updateCpuCharacter; } catch (e) { /* ignore */ }
     try { (window as any).updateStatus = updateStatus; } catch (e) { /* ignore */ }
+    try { (window as any).recordBattleStatusEvent = recordBattleStatusEvent; } catch (e) { /* ignore */ }
+    try { (window as any).clearBattleStatusPanel = clearBattleStatusPanel; } catch (e) { /* ignore */ }
     try { (window as any).updateFateWillBanner = updateFateWillBanner; } catch (e) { /* ignore */ }
+    try { updateBattleStatusPanel(); } catch (e) { /* ignore */ }
     try { updateRoundDisplay(); } catch (e) { /* ignore */ }
 }
 
@@ -764,6 +896,9 @@ const StatusDisplayModule = {
     clearRoundDisplayBonus,
     updateCpuCharacter,
     updateStatus,
+    updateBattleStatusPanel,
+    recordBattleStatusEvent,
+    clearBattleStatusPanel,
     updateFateWillBanner,
     updateRoundDisplay,
     showResult,

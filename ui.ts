@@ -39,15 +39,16 @@ export const cpuLevelLabel = document.getElementById('cpu-level-label');
 export const handLayer = document.getElementById('handLayer');
 export const handWrapper = document.getElementById('handWrapper');
 export const heldStone = document.getElementById('heldStone');
-export const effectLiveLinesEl = document.getElementById('effect-live-lines');
-export const _effectLiveEntries: string[] = [];
-export const _EFFECT_LIVE_MAX = 6;
 
 export function clearEffectLivePanel() {
-    _effectLiveEntries.length = 0;
-    if (effectLiveLinesEl) {
-        effectLiveLinesEl.innerHTML = '';
-    }
+    try {
+        const clearBattleStatusPanel = (typeof window !== 'undefined' && window)
+            ? (window as any).clearBattleStatusPanel
+            : null;
+        if (typeof clearBattleStatusPanel === 'function') {
+            clearBattleStatusPanel();
+        }
+    } catch (e) { /* ignore */ }
 }
 
 // Register DOM elements via UIBootstrap so other modules can access them from the canonical source
@@ -233,23 +234,14 @@ export function requestCardUiSync(reason?: string, options?: any) {
 }
 
 export function updateEffectLivePanel(text?: string) {
-    if (!effectLiveLinesEl) return;
     const msg = String(text || '').trim();
     if (!msg) return;
-    _effectLiveEntries.push(msg);
-    if (_effectLiveEntries.length > _EFFECT_LIVE_MAX) {
-        _effectLiveEntries.splice(0, _effectLiveEntries.length - _EFFECT_LIVE_MAX);
-    }
-    effectLiveLinesEl.innerHTML = '';
-    for (let i = _effectLiveEntries.length - 1; i >= 0; i--) {
-        const line = document.createElement('div');
-        line.className = 'effectLiveLine';
-        if (i !== _effectLiveEntries.length - 1) {
-            line.classList.add('effectLiveLine--dim');
-        }
-        line.textContent = _effectLiveEntries[i];
-        effectLiveLinesEl.appendChild(line);
-    }
+    try {
+        const recorder = (typeof window !== 'undefined' && window)
+            ? (window as any).recordBattleStatusEvent
+            : null;
+        if (typeof recorder === 'function') recorder(msg);
+    } catch (e) { /* ignore */ }
 }
 
 export function isCardEffectOnlyLogLine(text?: string) {
