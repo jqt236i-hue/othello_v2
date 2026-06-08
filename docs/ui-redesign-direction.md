@@ -84,6 +84,19 @@ left utility nav | opponent hand / opponent status / opponent character
   - reusable frame/background asset
   - optional special-stone image layer for applicable cards
   - HTML/CSS text and state overlays
+- Preserve the existing two-axis card visual logic:
+  - cost tier controls the broad card color/intensity via `cost-tier-*`
+  - display type controls accent color and ornament via `data-card-type`
+- Current cost tier mapping:
+  - cost `0`: `cost-tier-white`
+  - cost `1..5`: `cost-tier-gray`
+  - cost `6..10`: `cost-tier-red` in class name, currently rendered as green-toned
+  - cost `11..15`: `cost-tier-blue`
+  - cost `16..20`: `cost-tier-purple`
+  - cost `21..30`: `cost-tier-gold`
+  - cost `31+`: `cost-tier-special`
+- Do not replace this with a new cost color scale without an explicit design decision.
+- Type accents should continue to be a secondary layer over the cost-tier base rather than replacing the cost-tier color.
 
 ## Left Utility Nav
 
