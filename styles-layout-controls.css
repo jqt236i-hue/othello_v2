@@ -1841,7 +1841,7 @@ body.time-stop-active {
 #leftActionButtons {
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-    top: calc(var(--layout-stage-offset-y) + max(calc(84px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(20px * var(--layout-stage-scale))));
+    top: calc(var(--layout-stage-offset-y) + max(calc(132px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(20px * var(--layout-stage-scale))));
     bottom: auto;
     z-index: var(--z-floating-rules);
     display: flex;
