@@ -105,6 +105,7 @@ Adopt a fixed left vertical utility navigation bar, based on the generated conce
 Contents:
 
 - Menu
+- `ネット対戦`
 - `ガチャ`
 - `デッキ`
 - `ランキング`
@@ -140,8 +141,11 @@ Move to settings drawer:
 
 Acceptable two-step controls:
 
-- Mode selection
+- Local single-player mode selection
 - Board size
+
+- `ネット対戦` should not be hidden behind a two-step mode control.
+- It should be visible at a glance as a left utility nav entry.
 
 ## CPU Level
 
