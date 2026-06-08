@@ -6,7 +6,7 @@
         top: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-top));
         bottom: auto;
         width: calc(96px * var(--layout-stage-scale));
-        padding: calc(10px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+        padding: calc(36px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
         gap: calc(5px * var(--layout-stage-scale));
     }
 
@@ -1403,7 +1403,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled #leftActionButtons {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-        top: calc(var(--layout-stage-offset-y) + max(calc(96px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))));
+        top: max(calc(170px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))) !important;
         bottom: auto;
     }
 

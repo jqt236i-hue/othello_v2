@@ -1849,7 +1849,7 @@ body.time-stop-active {
     align-items: stretch;
     gap: calc(8px * var(--layout-stage-scale));
     width: calc(112px * var(--layout-stage-scale));
-    padding: calc(14px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    padding: calc(42px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
     background: linear-gradient(180deg, rgba(5, 27, 44, 0.96), rgba(2, 18, 31, 0.98));
     border: var(--layout-size-border-thin) solid rgba(88, 176, 201, 0.3);
     border-radius: calc(8px * var(--layout-stage-scale));
