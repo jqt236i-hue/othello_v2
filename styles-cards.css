@@ -247,6 +247,14 @@
     box-sizing: border-box;
 }
 
+.card-badge-row {
+    display: none !important;
+}
+
+.card-type-badge {
+    display: none !important;
+}
+
 .observed-hand-tag {
     position: absolute;
     top: calc(28px * var(--layout-stage-scale));

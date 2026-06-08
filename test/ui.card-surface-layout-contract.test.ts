@@ -35,4 +35,12 @@ describe('card surface layout contract', () => {
     expect(cardsCss).not.toMatch(/#card-detail-panel\s*>\s*#card-detail-header[\s\S]*scale\(0\.8333333,\s*0\.9803922\)/);
     expect(cardsCss).toMatch(/\.heaven-blessing-offers \.heaven-offer-card[\s\S]*width:\s*var\(--layout-size-card-width\)/);
   });
+
+  test('card surfaces suppress type badges while keeping other card layout tokens intact', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expect(cardsCss).toMatch(/\.card-badge-row\s*\{[\s\S]*display:\s*none\s*!important/);
+    expect(cardsCss).toMatch(/\.card-type-badge\s*\{[\s\S]*display:\s*none\s*!important/);
+    expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+  });
 });
