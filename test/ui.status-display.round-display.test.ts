@@ -111,52 +111,58 @@ function teardownStatusDisplayDom(dom) {
   dom.window.close();
 }
 
-describe('status-display round badge', () => {
+describe('status-display round bonus surface', () => {
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  test('prefers explicit roundNumber and aligns the badge with the top edge of the board', () => {
+  test('keeps the legacy round pill hidden during normal status updates', () => {
     const { dom, window, roundPanel } = setupStatusDisplayDom({ turnNumber: 999, roundNumber: 1 });
 
-    expect(roundPanel.textContent).toBe('ROUND 1');
-    expect(roundPanel.style.left).toBe('418px');
-    expect(roundPanel.style.top).toBe('212px');
+    expect(roundPanel.textContent).toBe('');
+    expect(roundPanel.style.display).toBe('none');
+    expect(roundPanel.style.visibility).toBe('hidden');
 
     window.gameState.turnNumber = 1;
     window.gameState.roundNumber = 1;
     window.updateStatus();
-    expect(roundPanel.textContent).toBe('ROUND 1');
+    expect(roundPanel.textContent).toBe('');
+    expect(roundPanel.style.display).toBe('none');
 
     window.gameState.turnNumber = 2;
     window.gameState.roundNumber = 2;
     window.updateStatus();
-    expect(roundPanel.textContent).toBe('ROUND 2');
+    expect(roundPanel.textContent).toBe('');
 
     window.gameState.turnNumber = 100;
     window.gameState.roundNumber = 10;
     window.updateStatus();
-    expect(roundPanel.textContent).toBe('ROUND 10');
+    expect(roundPanel.textContent).toBe('');
 
     teardownStatusDisplayDom(dom);
   });
 
-  test('temporarily overrides the round pill with the bonus banner and then restores ROUND n', () => {
+  test('shows round bonus as a board-centered toast and then hides it', () => {
     jest.useFakeTimers();
     const { dom, window, roundPanel } = setupStatusDisplayDom({ turnNumber: 18, roundNumber: 10 });
 
     window.showRoundBonusDisplay({ amount: 5, durationMs: 200, fadeOutMs: 50 });
-    expect(roundPanel.textContent).toBe('BONUS ROUND +5');
+    expect(roundPanel.textContent).toContain('ROUND BONUS');
+    expect(roundPanel.textContent).toContain('+5');
+    expect(roundPanel.textContent).toContain('布石');
+    expect(roundPanel.style.left).toBe('980px');
+    expect(roundPanel.style.top).toBe('188px');
     expect(roundPanel.classList.contains('is-round-bonus-active')).toBe(true);
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(false);
 
     jest.advanceTimersByTime(200);
-    expect(roundPanel.textContent).toBe('BONUS ROUND +5');
+    expect(roundPanel.textContent).toContain('+5');
     expect(roundPanel.classList.contains('is-round-bonus-active')).toBe(true);
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(true);
 
     jest.advanceTimersByTime(50);
-    expect(roundPanel.textContent).toBe('ROUND 10');
+    expect(roundPanel.textContent).toBe('');
+    expect(roundPanel.style.display).toBe('none');
     expect(roundPanel.classList.contains('is-round-bonus-active')).toBe(false);
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(false);
 
@@ -171,21 +177,22 @@ describe('status-display round badge', () => {
     jest.advanceTimersByTime(150);
 
     window.showRoundBonusDisplay({ amount: 6, durationMs: 200, fadeOutMs: 50 });
-    expect(roundPanel.textContent).toBe('BONUS ROUND +6');
+    expect(roundPanel.textContent).toContain('+6');
     expect(roundPanel.classList.contains('is-round-bonus-active')).toBe(true);
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(false);
 
     jest.advanceTimersByTime(80);
-    expect(roundPanel.textContent).toBe('BONUS ROUND +6');
+    expect(roundPanel.textContent).toContain('+6');
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(false);
 
     jest.advanceTimersByTime(120);
-    expect(roundPanel.textContent).toBe('BONUS ROUND +6');
+    expect(roundPanel.textContent).toContain('+6');
     expect(roundPanel.classList.contains('is-round-bonus-active')).toBe(true);
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(true);
 
     jest.advanceTimersByTime(50);
-    expect(roundPanel.textContent).toBe('ROUND 10');
+    expect(roundPanel.textContent).toBe('');
+    expect(roundPanel.style.display).toBe('none');
     expect(roundPanel.classList.contains('is-round-bonus-active')).toBe(false);
     expect(roundPanel.classList.contains('is-round-bonus-fading')).toBe(false);
 

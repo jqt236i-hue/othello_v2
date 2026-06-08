@@ -117,7 +117,7 @@ describe('battle status panel', () => {
 
     window.updateStatus();
 
-    expect(effectPanel.querySelector('.battle-status-round')?.textContent).toBe('第04局');
+    expect(effectPanel.querySelector('.battle-status-round')?.textContent).toBe('ROUND 4');
     expect(effectPanel.querySelector('.battle-status-kicker')).toBeNull();
     expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('4');
     expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('4');

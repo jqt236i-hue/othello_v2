@@ -583,81 +583,110 @@
 #round-display-panel {
     position: fixed;
     z-index: 11991;
-    display: inline-flex;
+    display: none;
     align-items: center;
     justify-content: center;
-    min-width: calc(118px * var(--layout-stage-scale));
-    min-height: calc(34px * var(--layout-stage-scale));
-    padding: calc(7px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
-    border: var(--layout-size-border-thin) solid var(--border-status);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, rgba(52, 38, 28, 0.96), rgba(25, 18, 12, 0.96));
-    box-shadow: var(--board-shadow-outer);
-    color: var(--color-text-gold);
-    font-size: calc(14px * var(--layout-stage-scale));
-    font-weight: 700;
-    letter-spacing: 0.12em;
+    min-width: calc(220px * var(--layout-stage-scale));
+    min-height: calc(58px * var(--layout-stage-scale));
+    padding: calc(9px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 132, 0.68);
+    border-radius: calc(7px * var(--layout-stage-scale));
+    background:
+        radial-gradient(circle at 22% 0%, rgba(255, 229, 140, 0.22), transparent 34%),
+        linear-gradient(100deg, rgba(12, 16, 17, 0.94), rgba(39, 30, 13, 0.94) 52%, rgba(9, 13, 13, 0.94));
+    box-shadow:
+        0 calc(14px * var(--layout-stage-scale)) calc(28px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52),
+        0 0 calc(18px * var(--layout-stage-scale)) rgba(255, 199, 80, 0.20),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 202, 0.08),
+        inset calc(5px * var(--layout-stage-scale)) 0 0 rgba(255, 218, 105, 0.34);
+    color: #fff3bf;
+    font-size: calc(17px * var(--layout-stage-scale));
+    font-weight: 900;
+    letter-spacing: 0;
     line-height: 1;
-    text-transform: uppercase;
     white-space: nowrap;
     pointer-events: none;
     visibility: hidden;
-    transform: translate3d(0, 0, 0) scale(1);
-    transform-origin: left top;
-    transition:
-        transform 0.26s cubic-bezier(0.22, 1, 0.36, 1),
-        box-shadow 0.22s ease,
-        background 0.22s ease,
-        border-color 0.22s ease,
-        color 0.22s ease;
-    will-change: transform, opacity, box-shadow;
+    opacity: 0;
+    transform: translate3d(-50%, calc(-8px * var(--layout-stage-scale)), 0) scale(0.96);
+    transform-origin: center top;
+    clip-path: polygon(
+        calc(13px * var(--layout-stage-scale)) 0,
+        100% 0,
+        100% calc(100% - calc(13px * var(--layout-stage-scale))),
+        calc(100% - calc(13px * var(--layout-stage-scale))) 100%,
+        0 100%,
+        0 calc(13px * var(--layout-stage-scale))
+    );
+    will-change: transform, opacity;
+    backdrop-filter: blur(calc(6px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(6px * var(--layout-stage-scale)));
+    text-shadow:
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 219, 105, 0.24),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.80);
 }
 
-@keyframes round-bonus-banner-slide-down {
+#round-display-panel::before,
+#round-display-panel::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+}
+
+#round-display-panel::before {
+    inset: calc(5px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 233, 154, 0.16);
+    border-radius: calc(4px * var(--layout-stage-scale));
+}
+
+#round-display-panel::after {
+    left: calc(15px * var(--layout-stage-scale));
+    right: calc(15px * var(--layout-stage-scale));
+    bottom: calc(8px * var(--layout-stage-scale));
+    height: calc(1px * var(--layout-stage-scale));
+    background: linear-gradient(90deg, transparent, rgba(255, 226, 124, 0.64), transparent);
+    box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 209, 83, 0.26);
+}
+
+@keyframes round-bonus-toast-enter {
     0% {
-        transform: translate3d(0, 0, 0) scale(0.94);
-        opacity: 0.32;
+        transform: translate3d(-50%, calc(-12px * var(--layout-stage-scale)), 0) scale(0.94);
+        opacity: 0;
     }
-    48% {
-        transform: translate3d(0, calc(18px * var(--layout-stage-scale)), 0) scale(1.06);
+    58% {
+        transform: translate3d(-50%, calc(2px * var(--layout-stage-scale)), 0) scale(1.025);
         opacity: 1;
     }
     100% {
-        transform: translate3d(0, calc(34px * var(--layout-stage-scale)), 0) scale(1.08);
+        transform: translate3d(-50%, 0, 0) scale(1);
         opacity: 1;
     }
 }
 
-@keyframes round-bonus-banner-fade-out {
+@keyframes round-bonus-toast-fade-out {
     from {
+        transform: translate3d(-50%, 0, 0) scale(1);
         opacity: 1;
     }
     to {
+        transform: translate3d(-50%, calc(-8px * var(--layout-stage-scale)), 0) scale(0.98);
         opacity: 0;
     }
 }
 
 #round-display-panel.is-round-bonus-active {
-    min-width: calc(176px * var(--layout-stage-scale));
-    min-height: calc(52px * var(--layout-stage-scale));
-    padding: calc(11px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale));
-    border-color: rgba(255, 222, 122, 0.96);
-    background: linear-gradient(180deg, rgba(120, 86, 18, 0.98), rgba(54, 37, 6, 0.98));
+    display: inline-flex;
+    visibility: visible;
+    min-width: calc(220px * var(--layout-stage-scale));
+    min-height: calc(58px * var(--layout-stage-scale));
     color: #fff7d6;
-    font-size: calc(18px * var(--layout-stage-scale));
-    font-weight: 800;
-    letter-spacing: 0.14em;
+    border-color: rgba(255, 224, 132, 0.82);
     opacity: 1;
-    transform: translate3d(0, calc(34px * var(--layout-stage-scale)), 0) scale(1.08);
-    animation: round-bonus-banner-slide-down 420ms cubic-bezier(0.2, 0.95, 0.24, 1) both;
-    box-shadow:
-        0 calc(10px * var(--layout-stage-scale)) calc(26px * var(--layout-stage-scale)) rgba(42, 18, 0, 0.44),
-        0 0 calc(16px * var(--layout-stage-scale)) rgba(255, 210, 92, 0.38),
-        var(--board-shadow-outer);
+    animation: round-bonus-toast-enter 360ms cubic-bezier(0.2, 0.95, 0.24, 1) both;
 }
 
 #round-display-panel.is-round-bonus-active.is-round-bonus-fading {
-    animation: round-bonus-banner-fade-out 320ms ease forwards;
+    animation: round-bonus-toast-fade-out 320ms ease forwards;
 }
 
 #fate-will-banner {

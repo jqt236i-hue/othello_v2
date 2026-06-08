@@ -381,13 +381,6 @@ function resolveRoundNumberForStatusDisplay(): number {
     return Math.floor(completedTurns / 2) + 1;
 }
 
-function formatBattleStatusRoundNumber(roundNumber: number): string {
-    const safeRound = Number.isFinite(roundNumber) && roundNumber >= 0
-        ? Math.trunc(roundNumber)
-        : 1;
-    return String(safeRound).padStart(2, '0');
-}
-
 function normalizePlayerKeyForStatusDisplay(value: any): PlayerKey {
     try {
         if (StatusDisplayOwnerHelpersModule && typeof StatusDisplayOwnerHelpersModule.normalizePlayerKey === 'function') {
@@ -485,7 +478,7 @@ function updateBattleStatusPanel(): void {
     const turnEl = panel.querySelector('.battle-status-turn');
     const latestEl = panel.querySelector('.battle-status-latest');
     const counts = countBoardStonesForBattleStatus();
-    if (roundEl) roundEl.textContent = `第${formatBattleStatusRoundNumber(resolveRoundNumberForStatusDisplay())}局`;
+    if (roundEl) roundEl.textContent = `ROUND ${resolveRoundNumberForStatusDisplay()}`;
     renderBattleStatusStoneCount(blackEl, 'black', counts.black);
     renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
@@ -521,6 +514,7 @@ function setRoundDisplayVisibility(roundEl: any, visible: boolean): void {
     if (!roundEl) return;
     roundEl.style.display = visible ? 'inline-flex' : 'none';
     roundEl.style.visibility = visible ? 'visible' : 'hidden';
+    if (!visible) roundEl.style.opacity = '0';
 }
 
 function hasActiveRoundDisplayBonus(): boolean {
@@ -578,6 +572,7 @@ function clearRoundDisplayBonus(updateAfterClear = true): void {
     const roundEl = getRoundDisplayElement();
     setRoundDisplayBonusFadeClass(roundEl, false);
     setRoundDisplayBonusClass(roundEl, false);
+    if (roundEl) roundEl.textContent = '';
     if (updateAfterClear) updateRoundDisplay();
 }
 
@@ -585,7 +580,11 @@ function resolveRoundDisplayText(): string {
     if (hasActiveRoundDisplayBonus()) {
         return roundDisplayBonusState.text.trim();
     }
-    return `ROUND ${resolveRoundNumberForStatusDisplay()}`;
+    return '';
+}
+
+function formatRoundBonusDisplayText(amount: number): string {
+    return `ROUND BONUS +${amount} 布石`;
 }
 
 function showRoundBonusDisplay(payload: any): void {
@@ -600,9 +599,7 @@ function showRoundBonusDisplay(payload: any): void {
     const fadeOutMs = Number.isFinite(Number(data.fadeOutMs))
         ? Math.max(0, Math.trunc(Number(data.fadeOutMs)))
         : ROUND_DISPLAY_BONUS_FADE_OUT_MS;
-    const text = (typeof data.text === 'string' && data.text.trim())
-        ? data.text.trim()
-        : `BONUS ROUND +${amount}`;
+    const text = formatRoundBonusDisplayText(amount);
     roundDisplayBonusState = { text };
     const roundEl = getRoundDisplayElement();
     if (roundEl) {
@@ -620,32 +617,24 @@ function showRoundBonusDisplay(payload: any): void {
 function positionRoundDisplay(): void {
     if (typeof window === 'undefined') return;
     const roundEl = getRoundDisplayElement();
-    const effectPanel = getEffectLivePanelElement();
     const boardAnchor = getRoundDisplayBoardAnchorElement();
-    if (!roundEl || !effectPanel) return;
-
-    const effectStyle = typeof window.getComputedStyle === 'function'
-        ? window.getComputedStyle(effectPanel)
-        : null;
-    if (!effectStyle || effectStyle.display === 'none' || effectStyle.visibility === 'hidden') {
+    if (!roundEl) return;
+    if (!hasActiveRoundDisplayBonus()) {
+        setRoundDisplayVisibility(roundEl, false);
+        return;
+    }
+    if (!boardAnchor || typeof boardAnchor.getBoundingClientRect !== 'function') {
         setRoundDisplayVisibility(roundEl, false);
         return;
     }
 
+    const boardRect = boardAnchor.getBoundingClientRect();
+    if (!Number.isFinite(boardRect.left) || !Number.isFinite(boardRect.top) || !Number.isFinite(boardRect.width)) return;
+
+    const scale = getLayoutStageScaleForStatusDisplay();
     setRoundDisplayVisibility(roundEl, true);
-    const effectRect = effectPanel.getBoundingClientRect();
-    if (!Number.isFinite(effectRect.left)) return;
-
-    let targetTop = effectRect.top;
-    if (boardAnchor && typeof boardAnchor.getBoundingClientRect === 'function') {
-        const boardRect = boardAnchor.getBoundingClientRect();
-        if (Number.isFinite(boardRect.top)) {
-            targetTop = boardRect.top;
-        }
-    }
-
-    roundEl.style.left = `${Math.round(effectRect.left)}px`;
-    roundEl.style.top = `${Math.round(Math.max(8, targetTop))}px`;
+    roundEl.style.left = `${Math.round(boardRect.left + (boardRect.width / 2))}px`;
+    roundEl.style.top = `${Math.round(Math.max(8, boardRect.top - (24 * scale)))}px`;
 }
 
 function bindRoundDisplayViewportHandlers(): void {
@@ -661,10 +650,10 @@ function bindRoundDisplayViewportHandlers(): void {
 
     if (typeof ResizeObserver === 'function') {
         try {
-            const effectPanel = getEffectLivePanelElement();
-            if (effectPanel) {
+            const boardAnchor = getRoundDisplayBoardAnchorElement();
+            if (boardAnchor) {
                 roundDisplayResizeObserver = new ResizeObserver(reposition);
-                roundDisplayResizeObserver.observe(effectPanel);
+                roundDisplayResizeObserver.observe(boardAnchor);
             }
         } catch (e) { /* ignore */ }
     }

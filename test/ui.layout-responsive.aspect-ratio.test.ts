@@ -226,10 +226,11 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#networkChatPanel[\s\S]*--layout-anchor-chat-left/);
     expect(layoutCss).toMatch(/#hero-character-img[\s\S]*--layout-anchor-character-offset-y/);
     expect(layoutCss).toMatch(/#cpu-character-img[\s\S]*--layout-cpu-image-scale/);
-    expect(layoutCss).toMatch(/@keyframes\s+round-bonus-banner-slide-down/);
-    expect(layoutCss).toMatch(/@keyframes\s+round-bonus-banner-fade-out/);
-    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*animation:\s*round-bonus-banner-slide-down/);
-    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active\.is-round-bonus-fading[\s\S]*animation:\s*round-bonus-banner-fade-out/);
-    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*min-height:\s*calc\(52px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/@keyframes\s+round-bonus-toast-enter/);
+    expect(layoutCss).toMatch(/@keyframes\s+round-bonus-toast-fade-out/);
+    expect(layoutCss).toMatch(/#round-display-panel[\s\S]*display:\s*none/);
+    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*animation:\s*round-bonus-toast-enter/);
+    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active\.is-round-bonus-fading[\s\S]*animation:\s*round-bonus-toast-fade-out/);
+    expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*min-height:\s*calc\(58px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
 });
