@@ -130,6 +130,12 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.volume).toBe(0.56);
   });
 
+  test('startup default quick master volume is centered at 0.5', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.masterVolume).toBe(0.5);
+  });
+
   test('startup default BGM volume is 0.665', () => {
     const soundEngine = loadSoundEngine();
 

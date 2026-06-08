@@ -170,7 +170,7 @@ function setupSoundControls(muteBtn: HTMLElement | null, seTypeSelect: HTMLSelec
   }
 
   if (seVolSlider) {
-    const initialMasterVolume = Number.isFinite(Number(engine.masterVolume)) ? Number(engine.masterVolume) : 1;
+    const initialMasterVolume = Number.isFinite(Number(engine.masterVolume)) ? Number(engine.masterVolume) : 0.5;
     seVolSlider.value = String(initialMasterVolume);
     seVolSlider.addEventListener('input', (e: Event) => {
       const nextValue = (e.target as HTMLInputElement).value;

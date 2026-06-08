@@ -51,7 +51,7 @@ interface BgmBufferedState {
 const SoundEngine = {
     ctx: null as AudioContext | null,
     isMuted: false,
-    masterVolume: 1,
+    masterVolume: 0.5,
     volume: 0.56,
     bgm: null as any,
     bgmVolume: 0.665,
