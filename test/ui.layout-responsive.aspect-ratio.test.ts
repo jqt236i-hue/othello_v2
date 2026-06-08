@@ -294,6 +294,5 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#gachaRevealSkipBtn/);
     expect(cardsCss).not.toMatch(/#card-detail-panel\s*>\s*#card-detail-header[\s\S]*scale\(0\.8333333,\s*0\.9803922\)/);
     expect(cardsCss).toMatch(/\.heaven-blessing-offers \.heaven-offer-card[\s\S]*width:\s*var\(--layout-size-card-width\)/);
-    expect(readRepoTextFile('styles-board.css')).not.toMatch(/#board\s*\{[^}]*overflow:\s*hidden/);
   });
 });

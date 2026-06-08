@@ -9,6 +9,21 @@
     --board-disc-inset: var(--board-disc-inset-px, 5.05%);
     --board-cell-width-percent: calc(100% / var(--board-cols));
     --board-cell-height-percent: calc(100% / var(--board-rows));
+    --board-layer-decoration: 0;
+    --board-layer-cell: 1;
+    --board-layer-expanded-cell: 8;
+    --board-surface-base-color: #1f4738;
+    --board-surface-base-image:
+        radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.04), transparent 24%),
+        radial-gradient(circle at 78% 72%, rgba(255, 235, 188, 0.02), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.11)),
+        linear-gradient(135deg, #173b2d 0%, #285f4a 46%, #194131 100%);
+    --board-surface-base-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    --board-surface-overlay:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 14%, transparent 72%, rgba(0, 0, 0, 0.22) 100%),
+        radial-gradient(circle at 50% 50%, rgba(224, 190, 110, 0.04), transparent 38%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px calc(14px * var(--layout-stage-scale))),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px calc(14px * var(--layout-stage-scale)));
     display: grid;
     grid-template-columns: repeat(var(--board-cols), minmax(0, 1fr));
     grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr));
@@ -16,13 +31,9 @@
     height: calc(var(--board-max-size) * (var(--board-rows) / var(--board-max-grid)));
     max-width: none;
     max-height: none;
-    --board-cell-base-color: #1f4738;
-    --board-cell-base-image:
-        radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.04), transparent 24%),
-        radial-gradient(circle at 78% 72%, rgba(255, 235, 188, 0.02), transparent 28%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.11)),
-        linear-gradient(135deg, #173b2d 0%, #285f4a 46%, #194131 100%);
-    --board-cell-base-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    --board-cell-base-color: var(--board-surface-base-color);
+    --board-cell-base-image: var(--board-surface-base-image);
+    --board-cell-base-size: var(--board-surface-base-size);
     background-color: var(--board-cell-base-color);
     border: calc(3px * var(--layout-stage-scale)) solid #09110d;
     box-shadow:
@@ -33,6 +44,7 @@
     position: relative;
     background-image: var(--board-cell-base-image);
     background-size: var(--board-cell-base-size);
+    isolation: isolate;
     overflow: visible;
 }
 
@@ -40,13 +52,9 @@
     content: "";
     position: absolute;
     inset: 0;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 14%, transparent 72%, rgba(0, 0, 0, 0.22) 100%),
-        radial-gradient(circle at 50% 50%, rgba(224, 190, 110, 0.04), transparent 38%),
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px calc(14px * var(--layout-stage-scale))),
-        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px calc(14px * var(--layout-stage-scale)));
+    background: var(--board-surface-overlay);
     pointer-events: none;
-    z-index: 0;
+    z-index: var(--board-layer-decoration);
 }
 
 #board::after {
@@ -58,7 +66,7 @@
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.03),
         inset 0 0 calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.12);
     pointer-events: none;
-    z-index: 0;
+    z-index: var(--board-layer-decoration);
 }
 
 /* Disable interactions during active playback */
@@ -86,6 +94,7 @@
     justify-content: center;
     cursor: pointer;
     position: relative;
+    z-index: var(--board-layer-cell);
     box-shadow:
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.02),
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.12);
@@ -105,7 +114,7 @@
     border-left: var(--layout-size-border-thin) solid rgba(8, 22, 16, 0.36);
     border-right: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.06);
     border-bottom: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.045);
-    z-index: 8;
+    z-index: var(--board-layer-expanded-cell);
     box-shadow:
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.02),
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.12);
