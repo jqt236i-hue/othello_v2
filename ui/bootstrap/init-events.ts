@@ -196,6 +196,29 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   }
   if (refs.sidePanel && refs.sidePanelToggleBtn) {
     const sidePanelToggleLabel = refs.sidePanelToggleBtn.querySelector('.left-action-label') as HTMLElement | null;
+    const syncSidePanelAnchorPosition = () => {
+      if (typeof window === 'undefined') return;
+      const panelEl = refs.sidePanel!;
+      const toggleEl = refs.sidePanelToggleBtn!;
+      if (typeof panelEl.getBoundingClientRect !== 'function' || typeof toggleEl.getBoundingClientRect !== 'function') return;
+      const toggleRect = toggleEl.getBoundingClientRect();
+      const panelRect = panelEl.getBoundingClientRect();
+      if (!Number.isFinite(toggleRect.right) || !Number.isFinite(toggleRect.top)) return;
+      const gapPx = 12;
+      const viewportMargin = 12;
+      const panelWidth = Number.isFinite(panelRect.width) && panelRect.width > 0 ? panelRect.width : 240;
+      const panelHeight = Number.isFinite(panelRect.height) && panelRect.height > 0 ? panelRect.height : 280;
+      const desiredLeft = toggleRect.right + gapPx;
+      const desiredTop = toggleRect.top + (toggleRect.height * 0.5) - (panelHeight * 0.5);
+      const maxLeft = Math.max(viewportMargin, window.innerWidth - panelWidth - viewportMargin);
+      const maxTop = Math.max(viewportMargin, window.innerHeight - panelHeight - viewportMargin);
+      const anchoredLeft = Math.min(Math.max(viewportMargin, desiredLeft), maxLeft);
+      const anchoredTop = Math.min(Math.max(viewportMargin, desiredTop), maxTop);
+      panelEl.style.left = `${Math.round(anchoredLeft)}px`;
+      panelEl.style.top = `${Math.round(anchoredTop)}px`;
+      panelEl.style.right = 'auto';
+      panelEl.style.bottom = 'auto';
+    };
     const applySidePanelCollapsedState = (collapsed: boolean) => {
       const isCollapsed = collapsed === true;
       refs.sidePanel!.classList.toggle('side-panel-collapsed', isCollapsed);
@@ -206,12 +229,17 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       const label = isCollapsed ? '設定を開く' : '設定を閉じる';
       refs.sidePanelToggleBtn!.setAttribute('aria-label', label);
       refs.sidePanelToggleBtn!.title = label;
+      syncSidePanelAnchorPosition();
     };
     applySidePanelCollapsedState(true);
     if (refs.sidePanelToggleBtn.dataset.sidePanelToggleBound !== '1') {
       refs.sidePanelToggleBtn.addEventListener('click', () => {
         applySidePanelCollapsedState(!refs.sidePanel!.classList.contains('side-panel-collapsed'));
       });
+      if (typeof window !== 'undefined' && refs.sidePanelToggleBtn.dataset.sidePanelViewportBound !== '1') {
+        window.addEventListener('resize', syncSidePanelAnchorPosition);
+        refs.sidePanelToggleBtn.dataset.sidePanelViewportBound = '1';
+      }
       refs.sidePanelToggleBtn.dataset.sidePanelToggleBound = '1';
     }
   }

@@ -23,6 +23,23 @@ describe('initializeUI side panel toggle', () => {
     global.document = dom.window.document;
     global.resetGame = jest.fn();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    Object.defineProperty(dom.window, 'innerWidth', { value: 1280, configurable: true });
+    Object.defineProperty(dom.window, 'innerHeight', { value: 900, configurable: true });
+
+    const sidePanel = dom.window.document.getElementById('side-panel');
+    const toggleBtn = dom.window.document.getElementById('sidePanelToggleBtn');
+    if (sidePanel) {
+      sidePanel.getBoundingClientRect = () => ({
+        x: 0, y: 0, left: 0, top: 0, right: 240, bottom: 280, width: 240, height: 280,
+        toJSON() { return {}; }
+      });
+    }
+    if (toggleBtn) {
+      toggleBtn.getBoundingClientRect = () => ({
+        x: 20, y: 300, left: 20, top: 300, right: 120, bottom: 360, width: 100, height: 60,
+        toJSON() { return {}; }
+      });
+    }
 
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
     jest.doMock(bootstrapPath, () => ({
@@ -68,6 +85,10 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
+    expect(sidePanel.style.left).toBe('132px');
+    expect(sidePanel.style.top).toBe('190px');
+    expect(sidePanel.style.right).toBe('');
+    expect(sidePanel.style.bottom).toBe('');
 
     toggleBtn.click();
 
@@ -105,6 +126,10 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
+    expect(sidePanel.style.left).toBe('132px');
+    expect(sidePanel.style.top).toBe('190px');
+    expect(sidePanel.style.right).toBe('');
+    expect(sidePanel.style.bottom).toBe('');
     expect(sawResetGameThrowLog()).toBe(false);
   });
 });
