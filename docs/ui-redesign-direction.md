@@ -63,6 +63,26 @@ left utility nav | opponent hand / opponent status / opponent character
   - `パス`
 - Action buttons do not belong in the left utility nav.
 
+## Card Surface Assets
+
+- Frequently changing text must be HTML/CSS, not baked into images:
+  - card name
+  - cost
+  - type
+  - short description
+  - long detail text
+  - button labels and state labels
+- Card backs may use generated image assets.
+- Card front frames or broad decorative templates may use generated image assets only when they remain text-free and reusable.
+- Normal card front backgrounds should stay comparatively simple so text remains readable.
+- Do not assume every card has a central projected stone image.
+- Special stone image projection applies only to cards that already reference stone images, such as assets under `assets/images/stones/`.
+- For those special-stone cards, preserve the referenced stone image behavior and keep the surrounding card background simple.
+- The preferred layer model is:
+  - reusable frame/background asset
+  - optional special-stone image layer for applicable cards
+  - HTML/CSS text and state overlays
+
 ## Left Utility Nav
 
 Adopt a fixed left vertical utility navigation bar, based on the generated concept the user selected.
