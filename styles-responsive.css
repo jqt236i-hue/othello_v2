@@ -1403,7 +1403,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled #leftActionButtons {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-        top: max(calc(220px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))) !important;
+        top: max(calc(240px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))) !important;
         bottom: auto;
     }
 
