@@ -121,8 +121,8 @@ function applyCpuLevelLabelInteractivity(levelLabel: any, interactive: boolean, 
     }
     if (typeof levelLabel.setAttribute === 'function') {
         levelLabel.setAttribute('aria-disabled', interactive ? 'false' : 'true');
-        levelLabel.setAttribute('aria-label', interactive ? 'CPUレベル変更' : '対戦相手表示');
-        levelLabel.title = interactive ? 'クリックでCPUレベル変更' : '対戦相手表示';
+        levelLabel.setAttribute('aria-label', interactive ? 'CPUレベル一覧を開く' : '対戦相手表示');
+        levelLabel.title = interactive ? 'クリックでCPUレベル一覧を表示' : '対戦相手表示';
     }
     if ('disabled' in levelLabel) {
         (levelLabel as HTMLButtonElement).disabled = !interactive;
