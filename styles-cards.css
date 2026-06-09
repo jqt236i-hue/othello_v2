@@ -2020,7 +2020,7 @@
 
 #card-detail-actions {
     margin-top: calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: calc(7px * var(--layout-stage-scale));
 }
 
