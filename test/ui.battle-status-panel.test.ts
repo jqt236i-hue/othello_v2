@@ -127,6 +127,8 @@ describe('battle status panel', () => {
     expect(effectPanel.querySelector('.battle-status-count--white .battle-status-stone--white')).not.toBeNull();
     expect(effectPanel.querySelector('.battle-status-turn')?.textContent).toBe('あなたのターン');
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
+    expect(effectPanel.querySelector('.battle-status-latest-label')?.textContent).toBe('直近');
+    expect(effectPanel.querySelector('.battle-status-latest-value')?.textContent).toBe('-');
 
     teardownBattleStatusDom(dom);
   });
@@ -139,6 +141,7 @@ describe('battle status panel', () => {
 
     window.recordBattleStatusEvent('黒がカードを使用: 宝石 (布石 -2)');
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 黒: 宝石');
+    expect(effectPanel.querySelector('.battle-status-latest-value')?.textContent).toBe('黒: 宝石');
 
     window.recordBattleStatusEvent('白: 罠石が発動');
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 白: 罠石が発動');

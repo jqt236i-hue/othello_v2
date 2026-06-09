@@ -578,6 +578,47 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
     return null;
 }
 
+function _appendManifestEffectValueText(parent: HTMLElement, text: string): void {
+    const source = String(text || '');
+    const strongPattern = /(x\d+|[+-]\d+|手札\d+枚|コスト\s*[+＋]\d+)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = strongPattern.exec(source)) !== null) {
+        if (match.index > lastIndex) {
+            parent.appendChild(document.createTextNode(source.slice(lastIndex, match.index)));
+        }
+        const strong = document.createElement('span');
+        strong.className = 'manifest-effect-value-strong';
+        strong.textContent = match[0];
+        parent.appendChild(strong);
+        lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < source.length) {
+        parent.appendChild(document.createTextNode(source.slice(lastIndex)));
+    }
+}
+
+function _renderManifestEffectLineText(el: HTMLElement, line: string): void {
+    const source = String(line || '');
+    const match = source.match(/^([^:：]+[:：])\s*(.*)$/);
+    if (!match) {
+        const valueOnly = document.createElement('span');
+        valueOnly.className = 'manifest-effect-value';
+        _appendManifestEffectValueText(valueOnly, source);
+        el.appendChild(valueOnly);
+        return;
+    }
+    const label = document.createElement('span');
+    label.className = 'manifest-effect-label';
+    label.textContent = match[1];
+    const value = document.createElement('span');
+    value.className = 'manifest-effect-value';
+    _appendManifestEffectValueText(value, match[2] || '');
+    el.appendChild(label);
+    el.appendChild(document.createTextNode(' '));
+    el.appendChild(value);
+}
+
 function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     const refs = _ensureManifestEffectPanelForDiff();
     if (!refs) return;
@@ -597,7 +638,7 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
         if (Number.isFinite(dynamicStartIndex) && dynamicStartIndex >= 0 && index >= dynamicStartIndex) {
             el.classList.add('manifest-effect-line--dynamic');
         }
-        el.textContent = line;
+        _renderManifestEffectLineText(el, line);
         refs.lines.appendChild(el);
     });
     refs.panel.classList.add('is-visible');

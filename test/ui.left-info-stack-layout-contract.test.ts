@@ -40,9 +40,14 @@ describe('left info stack layout contract', () => {
   test('left information HUD uses game-like readable panel treatments', () => {
     const layoutCss = readLayoutCssSurface();
     const boardCss = readRepoTextFile('styles-board.css');
-    const manifestPanelBlock = layoutCss.match(/#manifest-effect-panel\s*\{[\s\S]*?\n\}/)?.[0] || '';
+    const manifestPanelBlock = Array.from(layoutCss.matchAll(/#manifest-effect-panel\s*\{[\s\S]*?\n\}/g))
+      .map((match) => match[0])
+      .find((block) => block.includes('--left-hud-accent')) || '';
 
     expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*--left-hud-accent/);
+    expect(layoutCss).toMatch(/#effect-live-panel,\s*#manifest-effect-panel[\s\S]*--left-hud-text-title/);
+    expect(layoutCss).toMatch(/#effect-live-panel,\s*#manifest-effect-panel[\s\S]*--left-hud-text-label/);
+    expect(layoutCss).toMatch(/#effect-live-panel,\s*#manifest-effect-panel[\s\S]*--left-hud-text-value/);
     expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*clip-path:\s*polygon/);
     expect(layoutCss).toMatch(/\.battle-status-score[\s\S]*grid-template-columns:\s*1fr auto 1fr/);
     expect(layoutCss).toMatch(/\.battle-status-turn::before[\s\S]*content:\s*''/);
@@ -54,8 +59,15 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*font-weight:\s*800/);
     expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*text-shadow:/);
     expect(layoutCss).toMatch(/\.manifest-effect-line::before[\s\S]*content:\s*''/);
+    expect(layoutCss).toMatch(/\.manifest-effect-label[\s\S]*color:\s*var\(--left-hud-text-label\)/);
+    expect(layoutCss).toMatch(/\.manifest-effect-value-strong[\s\S]*color:\s*var\(--left-hud-text-value\)/);
+    expect(layoutCss).toMatch(/\.battle-status-latest-label[\s\S]*color:\s*var\(--left-hud-text-label\)/);
+    expect(layoutCss).toMatch(/\.battle-status-count-value[\s\S]*color:\s*var\(--left-hud-text-value\)/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-accent/);
+    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-text-title/);
+    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-text-body/);
+    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-text-label/);
     expect(boardCss).toMatch(/\.stone-info-panel::before[\s\S]*content:\s*''/);
-    expect(boardCss).toMatch(/\.stone-info-name[\s\S]*color:\s*#f5fff8/);
+    expect(boardCss).toMatch(/\.stone-info-name[\s\S]*color:\s*var\(--left-hud-text-title\)/);
   });
 });

@@ -78,6 +78,10 @@ describe('manifest effect panel', () => {
     expect(panel?.textContent).toContain('両者: 手札が多いほど布石を失う');
     expect(panel?.textContent).toContain('黒: 手札3枚 → 次開始 -4');
     expect(panel?.textContent).toContain('白: 手札5枚 → 次開始 -16');
+    expect(panel?.querySelector('.manifest-effect-label')?.textContent).toBe('所有者:');
+    expect(panel?.querySelector('.manifest-effect-value')?.textContent).toContain('反転布石 x2');
+    expect(panel?.querySelector('.manifest-effect-value-strong')?.textContent).toBe('x2');
+    expect(panel?.querySelectorAll('.manifest-effect-line--dynamic .manifest-effect-value-strong')).toHaveLength(4);
 
     (global as any).cardState.hands.white = ['w1', 'w2'];
     renderOnce();

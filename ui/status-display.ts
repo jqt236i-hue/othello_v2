@@ -482,7 +482,21 @@ function updateBattleStatusPanel(): void {
     renderBattleStatusStoneCount(blackEl, 'black', counts.black);
     renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
-    if (latestEl) latestEl.textContent = `直近 ${resolveBattleStatusLatestText()}`;
+    renderBattleStatusLatestText(latestEl, resolveBattleStatusLatestText());
+}
+
+function renderBattleStatusLatestText(el: any, text: string): void {
+    if (!el) return;
+    el.textContent = '';
+    const label = document.createElement('span');
+    label.className = 'battle-status-latest-label';
+    label.textContent = '直近';
+    const value = document.createElement('span');
+    value.className = 'battle-status-latest-value';
+    value.textContent = text || '-';
+    el.appendChild(label);
+    el.appendChild(document.createTextNode(' '));
+    el.appendChild(value);
 }
 
 function normalizeBattleStatusEventText(message: any): string {
