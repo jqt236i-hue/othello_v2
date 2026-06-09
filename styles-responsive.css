@@ -159,7 +159,7 @@ html.layout-profile-phone-portrait #game-container {
     min-height: 100dvh;
     justify-content: flex-start;
     padding-top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
-    padding-bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(34px * var(--layout-stage-scale)));
+    padding-bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(118px * var(--layout-stage-scale)));
     gap: calc(4px * var(--layout-stage-scale));
 }
 
@@ -183,8 +183,14 @@ html.layout-profile-phone-portrait .player-area-bottom {
     column-gap: calc(4px * var(--layout-stage-scale));
 }
 
+html.layout-profile-phone-portrait #board-frame {
+    --board-frame-inner-size: min(84vw, calc(360px * var(--layout-stage-scale)), 38dvh);
+    --board-frame-padding: calc(12px * var(--layout-stage-scale));
+    transform: translateY(calc(-8px * var(--layout-stage-scale)));
+}
+
 html.layout-profile-phone-portrait #board {
-    --board-max-size: min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh);
+    --board-max-size: var(--board-frame-inner-size) !important;
     max-width: none;
     max-height: none;
 }
@@ -210,27 +216,11 @@ html.layout-profile-phone-portrait #cpu-speech-bubble {
 }
 
 html.layout-profile-phone-portrait #log {
-    display: block;
-    left: 50%;
-    top: auto;
-    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
-    transform: translateX(-50%);
-    width: min(calc(430px * var(--layout-stage-scale)), 94vw);
-    height: calc(82px * var(--layout-stage-scale));
-    min-height: calc(82px * var(--layout-stage-scale));
-    max-height: calc(82px * var(--layout-stage-scale));
-    font-size: clamp(10px, calc(12px * var(--layout-stage-scale)), 12px);
-    padding: calc(7px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-    z-index: 42;
+    display: none;
 }
 
 html.layout-profile-phone-portrait #stone-info-panel {
-    left: 50%;
-    top: calc(max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top)) + min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh) + calc(82px * var(--layout-stage-scale)));
-    width: min(calc(430px * var(--layout-stage-scale)), 94vw);
-    max-height: none;
-    overflow: visible;
-    transform: translateX(-50%);
+    display: none;
 }
 
 html.layout-profile-phone-portrait #side-panel {
@@ -280,15 +270,40 @@ html.layout-profile-phone-portrait #networkChatPanel.is-open {
     transform: translateX(-50%);
 }
 
+html.layout-profile-phone-portrait #quick-controls-bar {
+    display: none;
+}
+
 html.layout-profile-phone-portrait #leftActionButtons {
     left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
+    right: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right));
+    top: auto !important;
     bottom: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+    width: auto;
+    max-width: calc(100vw - max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left)) - max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right)));
+    max-height: calc(44px * var(--layout-stage-scale));
+    flex-direction: row;
+    align-items: center;
+    padding: calc(4px * var(--layout-stage-scale));
     gap: calc(6px * var(--layout-stage-scale));
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 html.layout-profile-phone-portrait #leftActionButtons .left-action-btn {
-    min-width: calc(76px * var(--layout-stage-scale));
-    min-height: calc(38px * var(--layout-stage-scale));
+    min-width: calc(54px * var(--layout-stage-scale));
+    min-height: calc(34px * var(--layout-stage-scale));
+    padding: calc(3px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #leftActionButtons .left-action-label {
+    font-size: calc(9px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #leftActionButtons .left-action-icon {
+    width: calc(17px * var(--layout-stage-scale));
+    height: calc(17px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #deck-white,
@@ -1417,7 +1432,7 @@ html.sim-aspect-5-4 #effect-live-panel {
         font-size: clamp(11px, calc(var(--layout-anchor-hero-label-font) * var(--layout-stage-scale)), 22px);
     }
 
-    html.layout-stage-enabled #leftActionButtons {
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
         top: max(calc(240px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))) !important;
         bottom: auto;
