@@ -21,6 +21,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*37\.5em\)\s*and\s*\(max-width:\s*56\.25em\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*56\.3125em\)\s*and\s*\(max-width:\s*87\.5em\)\s*and\s*\(max-height:\s*56\.25em\)[\s\S]*#leftActionButtons[\s\S]*flex-direction:\s*row/);
+    expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#effect-live-panel[\s\S]*min-height:\s*calc\(156px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*56\.3125em\)\s*and\s*\(max-width:\s*87\.5em\)\s*and\s*\(max-height:\s*56\.25em\)[\s\S]*#log[\s\S]*right:\s*max/);
     expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*:is\([\s\S]*#quick-controls-bar,[\s\S]*#stone-info-panel,[\s\S]*#manifest-effect-panel,[\s\S]*#hero-character-panel[\s\S]*\)[\s\S]*display:\s*none/);
     expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*#effect-live-panel[\s\S]*width:\s*min\(calc\(250px\s*\*\s*var\(--layout-stage-scale\)\),\s*30vw\)/);

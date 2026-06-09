@@ -1470,6 +1470,11 @@ html.sim-aspect-5-4 #effect-live-panel {
         margin-bottom: calc(6px * var(--layout-stage-scale));
     }
 
+    html.layout-profile-tablet-4x3.layout-stage-enabled #effect-live-panel {
+        min-height: calc(156px * var(--layout-stage-scale));
+        max-height: calc(156px * var(--layout-stage-scale));
+    }
+
 }
 
 @media (orientation: landscape) and (pointer: coarse) and (min-width: 56.3125em) and (max-width: 87.5em) and (max-height: 56.25em) {
@@ -1486,6 +1491,11 @@ html.sim-aspect-5-4 #effect-live-panel {
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #effect-live-panel {
+        min-height: calc(156px * var(--layout-stage-scale));
+        max-height: calc(156px * var(--layout-stage-scale));
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
