@@ -24,6 +24,7 @@ describe('UI elevation shadow contract', () => {
     expect(layoutCss).toMatch(/#side-panel[\s\S]*filter:[\s\S]*drop-shadow\(var\(--ui-drop-shadow-panel\)\)/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*box-shadow:[\s\S]*var\(--ui-elevation-panel\)/);
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*box-shadow:[\s\S]*var\(--ui-elevation-strong\)/);
+    expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*filter:[\s\S]*drop-shadow\(var\(--ui-drop-shadow-strong\)\)/);
   });
 
   test('floating game pieces and lightweight overlays also cast shared shadows', () => {
