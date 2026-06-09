@@ -1019,7 +1019,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
         try {
             const infoPanel = doc.getElementById('stone-info-panel');
-            if (infoPanel) infoPanel.classList.remove('visible');
+            if (infoPanel) infoPanel.setAttribute('aria-hidden', 'false');
         } catch (e: any) { /* ignore */ }
         try {
             const infoTagPanel = doc.getElementById('stone-info-tag-panel');

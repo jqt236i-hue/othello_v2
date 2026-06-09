@@ -1792,12 +1792,33 @@ function _getStoneInfoPanelRefs() {
     return _stoneInfoPanelRefs;
 }
 
+const STONE_INFO_IDLE_STATE = {
+    name: '石情報',
+    desc: '石をタップまたはホバーして表示'
+};
+
+function _showIdleStoneInfoPanel() {
+    const refs = _getStoneInfoPanelRefs();
+    if (!refs) return;
+    refs.name.textContent = STONE_INFO_IDLE_STATE.name;
+    refs.desc.textContent = STONE_INFO_IDLE_STATE.desc;
+    _renderStoneInfoMetaBadges(refs.meta, []);
+    refs.panel.classList.add('visible');
+    refs.panel.setAttribute('aria-hidden', 'false');
+    refs.panel.setAttribute('data-stone-info-state', 'idle');
+    refs.panel.style.removeProperty('left');
+    refs.panel.style.removeProperty('top');
+}
+
 function _hideStoneInfoPanel() {
+    _closeStoneInfoTagPanel();
     const panel = _ensureStoneInfoPanel();
     if (!panel) return;
-    panel.classList.remove('visible');
-    panel.setAttribute('aria-hidden', 'true');
-    _closeStoneInfoTagPanel();
+    if (panel.getAttribute('data-stone-info-state') === 'content' && panel.classList.contains('visible')) {
+        panel.setAttribute('aria-hidden', 'false');
+        return;
+    }
+    _showIdleStoneInfoPanel();
 }
 
 function _isStoneInfoPanelVisible() {
@@ -2195,6 +2216,7 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
 
     refs.panel.classList.add('visible');
     refs.panel.setAttribute('aria-hidden', 'false');
+    refs.panel.setAttribute('data-stone-info-state', 'content');
     refs.panel.style.removeProperty('left');
     refs.panel.style.removeProperty('top');
 
@@ -2219,6 +2241,7 @@ function _ensureOutsideCloseHandler() {
 
 function attachBoardCellInteraction(cell: any, row: any, col: any) {
     if (!cell) return;
+    _showIdleStoneInfoPanel();
 
     let pressTimer: any = null;
     let pressActive = false;

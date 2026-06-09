@@ -382,7 +382,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(global.window.TimerRegistry.clearAll).toHaveBeenCalledTimes(2);
     expect(document.getElementById('board').classList.contains('playback-locked')).toBe(false);
     expect(document.getElementById('result-overlay')).toBeNull();
-    expect(document.getElementById('stone-info-panel').classList.contains('visible')).toBe(false);
+    expect(document.getElementById('stone-info-panel').classList.contains('visible')).toBe(true);
     expect(document.getElementById('stone-info-tag-panel').classList.contains('is-open')).toBe(false);
     expect(document.querySelector('.observer-speech-bubble')).toBeNull();
     expect(document.getElementById('handLayer').style.display).toBe('none');
