@@ -33,7 +33,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-gap/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*right:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*max\(var\(--layout-anchor-side-right\),\s*env\(safe-area-inset-right\)\)\s*\+\s*\(\(var\(--layout-anchor-side-width\)\s*\+\s*var\(--layout-anchor-card-detail-gap\)\s*\+\s*var\(--layout-anchor-card-detail-width\)\s*\+\s*var\(--layout-anchor-log-detail-gap\)\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*var\(--card-detail-landscape-top-anchor/);
-    expect(layoutCss).toMatch(/#side-panel\.side-panel-collapsed\s+#log[\s\S]*display:\s*block/);
+    expect(layoutCss).not.toMatch(/#side-panel\.side-panel-collapsed\s+#log/);
     expect(css).toMatch(/@media\s*\(min-width:\s*(?:901px|56\.3125em)\)\s*\{[\s\S]*html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#game-container[\s\S]*padding-bottom:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#hero-label[\s\S]*font-size:\s*clamp\(11px/);
     expect(css).toMatch(/html\.sim-aspect-16-10\s+#board/);
@@ -77,6 +77,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/id="round-display-panel"/);
     expect(html).toMatch(/id="manifest-effect-panel"/);
     expect(html).toMatch(/id="gachaBalanceSummary"[\s\S]*observation-stone-icon/);
+    expect(html).toMatch(/<div id="log"><\/div>[\s\S]*<!-- Side UI Panel -->/);
+    expect(html).not.toMatch(/<div id="side-panel">[\s\S]*<div id="log"><\/div>[\s\S]*<\/div>\s*<\/div>\s*<!-- Discard Display -->/);
   });
 
   test('worker-public layout mirrors stay in sync with root sources', () => {

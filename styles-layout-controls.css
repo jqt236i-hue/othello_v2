@@ -22,10 +22,6 @@
     display: none;
 }
 
-#side-panel.side-panel-collapsed #log {
-    display: block;
-}
-
 /* Compact Control Panel */
 #control-panel {
     padding: var(--layout-size-control-padding-y) var(--layout-size-control-padding-x);
