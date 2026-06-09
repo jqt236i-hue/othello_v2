@@ -13,10 +13,14 @@ describe('board HUD layout contract', () => {
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*display:\s*flex/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*min-height:\s*var\(--layout-size-charge-delta-height\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*padding:\s*var\(--layout-size-charge-delta-pad-y\)\s*var\(--layout-size-charge-delta-pad-x\)/);
-    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*clip-path:\s*polygon\(/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*overflow:\s*visible/);
+    expect(layoutCss).toMatch(/\.charge-delta::before[\s\S]*radial-gradient/);
+    expect(layoutCss).toMatch(/\.charge-delta::after[\s\S]*blur/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*transform:\s*translate3d\(var\(--charge-delta-drift-x,\s*0px\),\s*var\(--layout-size-charge-delta-shift-y-start\),\s*0\)/);
-    expect(layoutCss).toMatch(/\.charge-delta\.is-increase[\s\S]*rgba\(27,\s*58,\s*97,\s*0\.98\)/);
-    expect(layoutCss).toMatch(/\.charge-delta\.is-decrease[\s\S]*rgba\(102,\s*34,\s*42,\s*0\.98\)/);
+    expect(layoutCss).toMatch(/\.charge-delta\.is-visible[\s\S]*scale\(1\)/);
+    expect(layoutCss).toMatch(/\.charge-delta\.is-fadeout[\s\S]*filter:\s*blur/);
+    expect(layoutCss).toMatch(/\.charge-delta\.is-increase[\s\S]*--charge-delta-core:\s*rgba\(160,\s*222,\s*255,\s*0\.95\)/);
+    expect(layoutCss).toMatch(/\.charge-delta\.is-decrease[\s\S]*--charge-delta-core:\s*rgba\(255,\s*155,\s*155,\s*0\.88\)/);
   });
 
   test('time stop hand overlay spacing remains stage-scaled', () => {
