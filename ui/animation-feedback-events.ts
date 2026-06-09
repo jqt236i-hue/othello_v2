@@ -277,7 +277,7 @@ function showManifestSummaryPopup(target: any, deps: AnimationFeedbackEventDeps 
     }
 
     if (deps.isNoAnim && deps.isNoAnim()) return;
-    fadeTimer = setTimeout(dismiss, 2500);
+    fadeTimer = setTimeout(dismiss, 3000);
 }
 
 function applyManifestPresentationForCinematic(target: any, deps: AnimationFeedbackEventDeps) {

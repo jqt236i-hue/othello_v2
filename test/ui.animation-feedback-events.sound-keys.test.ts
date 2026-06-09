@@ -64,6 +64,11 @@ describe('animation feedback sound key coverage', () => {
     expect(css).not.toContain('special-card-cinematic-caret');
   });
 
+  test('manifest summary popup uses a more transparent board-readable background', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-animations.css'), 'utf8');
+    expect(css).toContain('rgba(7, 12, 18, 0.62)');
+  });
+
   test('duplicate sound keys in one playback event are deduplicated before playback', async () => {
     const playEffectByKey = jest.fn();
     await AnimationFeedbackEvents.handleSoundEffectEvent(
@@ -277,6 +282,7 @@ describe('animation feedback sound key coverage', () => {
 
   test('special card cinematic shows a dismissible manifest summary after the cinematic leaves', async () => {
     jest.useFakeTimers();
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
     dom = new JSDOM('<!doctype html><html><body></body></html>');
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
@@ -317,11 +323,13 @@ describe('animation feedback sound key coverage', () => {
     expect(popup.textContent).not.toContain('執行領域');
     expect(popup.textContent).toContain('両者: カード使用封印');
     expect(popup.textContent).toContain('手札が多いほど布石を失う');
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 3000);
 
     popup.click();
     await Promise.resolve();
     expect(popup.classList.contains('is-leaving')).toBe(true);
     jest.runAllTimers();
+    setTimeoutSpy.mockRestore();
     jest.useRealTimers();
   });
 
