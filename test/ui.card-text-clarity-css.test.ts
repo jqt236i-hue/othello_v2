@@ -35,4 +35,14 @@ describe('card text clarity css', () => {
     expect(css).toMatch(/\.card-item\.visible\.cost-tier-special \.card-name,[\s\S]*?\.card-item\.visible\[data-card-id="rainbow_stone"\] \.card-name\s*\{[\s\S]*?left:\s*50%/);
     expect(css).not.toMatch(/\.card-item\.visible\.cost-tier-special \.card-name,[\s\S]*?\.card-item\.visible\[data-card-id="rainbow_stone"\] \.card-name\s*\{[\s\S]*?left:\s*49%/);
   });
+
+  test('special card title plate uses the premium readable treatment', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-cards.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    const block = readCardNameBlock(css, '.card-item.visible.special-card-face .card-name');
+
+    expect(block).toContain('backdrop-filter: blur(');
+    expect(block).toContain('letter-spacing: 0.04em;');
+    expect(block).toContain('font-weight: 800;');
+  });
 });

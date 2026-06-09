@@ -810,19 +810,31 @@
     left: 50%;
     top: auto;
     bottom: calc(8px * var(--layout-stage-scale));
-    width: calc(100% - (8px * var(--layout-stage-scale)));
-    max-width: calc(100% - (8px * var(--layout-stage-scale)));
-    min-height: calc(22px * var(--layout-stage-scale));
-    padding: calc(4px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
-    font-size: 0.78em;
-    color: #fff4ce;
+    width: calc(100% - (10px * var(--layout-stage-scale)));
+    max-width: calc(100% - (10px * var(--layout-stage-scale)));
+    min-height: calc(24px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    font-size: 0.76em;
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: 0.04em;
+    color: #fff6d8;
     background:
-        linear-gradient(180deg, rgba(57, 59, 68, 0.96), rgba(14, 18, 27, 0.98));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 127, 0.86);
-    clip-path: polygon(0 32%, 9% 0, 91% 0, 100% 32%, 96% 100%, 4% 100%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 42%),
+        linear-gradient(135deg, rgba(86, 120, 150, 0.24) 0%, rgba(20, 28, 42, 0) 34%),
+        linear-gradient(180deg, rgba(34, 42, 54, 0.92) 0%, rgba(10, 14, 22, 0.96) 100%);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 227, 148, 0.84);
+    clip-path: polygon(0 34%, 8% 0, 92% 0, 100% 34%, 97% 100%, 3% 100%);
     text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.95),
-        0 0 calc(6px * var(--layout-stage-scale)) rgba(104, 222, 255, 0.35);
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.96),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(132, 220, 255, 0.22);
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(12, 16, 24, 0.42),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.14),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.3),
+        0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(108, 212, 255, 0.12);
+    backdrop-filter: blur(calc(4px * var(--layout-stage-scale))) saturate(1.1);
     z-index: 4;
 }
 
