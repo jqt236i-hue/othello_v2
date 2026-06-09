@@ -57,7 +57,7 @@ describe('card detail effect tags', () => {
         name: '究極反転龍',
         type: 'ULTIMATE_REVERSE_DRAGON',
         cost: 30,
-        desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。5ターン持続。反転保護を持つ特殊石。'
+        desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。8ターン持続。反転保護を持つ特殊石。'
       }),
       getSalvationWillTargetCount: () => 0,
       getEqualityWillBoardCounts: () => ({ black: 0, white: 0 })
@@ -80,7 +80,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['反転保護', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['反転保護', '8ターン持続']);
     expect(tagsEl.style.display).toBe('flex');
 
     const desc = document.getElementById('card-detail-desc').textContent;
@@ -511,7 +511,7 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     const tagButtons = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'));
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['反転保護', '5ターン持続']);
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['反転保護', '8ターン持続']);
 
     const flipProtectionButton = tagButtons[0];
     flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -530,7 +530,7 @@ describe('card detail effect tags', () => {
     const durationButton = tagButtons[1];
     durationButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(panelEl.classList.contains('is-open')).toBe(true);
-    expect(titleEl.textContent).toBe('5ターン持続');
+    expect(titleEl.textContent).toBe('8ターン持続');
     expect(bodyEl.textContent).toContain('ターン数');
   });
 

@@ -293,7 +293,7 @@ describe('board cell long press info', () => {
       row: '2',
       col: '4',
       owner: 'white',
-      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     const mod = require('../ui/diff-renderer.js');
@@ -316,7 +316,7 @@ describe('board cell long press info', () => {
       row: 3,
       col: 5,
       owner: 'white',
-      data: { type: 'ULTIMATE_HYPERACTIVE_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE_GOD', remainingOwnerTurns: 12 }
     });
 
     const mod = require('../ui/diff-renderer.js');
@@ -329,7 +329,7 @@ describe('board cell long press info', () => {
 
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に大きく移動し、移動後に反転する。');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り10T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り12T');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り3回');
@@ -342,7 +342,7 @@ describe('board cell long press info', () => {
       row: 2,
       col: 6,
       owner: 'black',
-      data: { type: 'GHOST', remainingOwnerTurns: 5 }
+      data: { type: 'GHOST', remainingOwnerTurns: 8 }
     }];
     global.gameState.board[2][6] = global.BLACK;
 
@@ -352,7 +352,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('幽体石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('反転や破壊の対象になるが、その効果を受けない。');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り8T');
     expect(document.getElementById('stone-info-meta').textContent).toContain('幽体');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('破壊保護');
@@ -572,7 +572,7 @@ describe('board cell long press info', () => {
       row: 5,
       col: 1,
       owner: 'black',
-      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
     });
 
     const mod = require('../ui/diff-renderer.js');
@@ -586,7 +586,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('落雷石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('敵石をランダムに1つ破壊する。');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り6T');
   });
 
   test('long press on METEOR_HOLE shows registered meteor hole info', () => {

@@ -241,8 +241,8 @@ const DebugActions = /**
         addMarker(cardState, specialStoneKind, 2, 1, 'white', { type: 'PERMA_PROTECTED' });
         gameState.board[3][0] = black;
         gameState.board[3][1] = white;
-        addMarker(cardState, specialStoneKind, 3, 0, 'black', { type: 'DRAGON', remainingOwnerTurns: 5 });
-        addMarker(cardState, specialStoneKind, 3, 1, 'white', { type: 'DRAGON', remainingOwnerTurns: 5 });
+        addMarker(cardState, specialStoneKind, 3, 0, 'black', { type: 'DRAGON', remainingOwnerTurns: 8 });
+        addMarker(cardState, specialStoneKind, 3, 1, 'white', { type: 'DRAGON', remainingOwnerTurns: 8 });
         gameState.board[4][0] = black;
         gameState.board[4][1] = white;
         gameState.board[4][2] = black;
@@ -263,8 +263,8 @@ const DebugActions = /**
         addMarker(cardState, specialStoneKind, 6, 1, 'white', { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 8 });
         gameState.board[7][0] = black;
         gameState.board[7][1] = white;
-        addMarker(cardState, specialStoneKind, 7, 0, 'black', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 });
-        addMarker(cardState, specialStoneKind, 7, 1, 'white', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 });
+        addMarker(cardState, specialStoneKind, 7, 0, 'black', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 });
+        addMarker(cardState, specialStoneKind, 7, 1, 'white', { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 });
 
         return true;
     }

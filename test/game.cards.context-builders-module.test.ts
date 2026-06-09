@@ -19,17 +19,18 @@ describe('CardContextBuilders module', () => {
         RIBO_WILL_OWNER_TURNS: 3,
         RIBO_WILL_REPAYMENT_AMOUNT: 10,
         RIBO_WILL_SHORTAGE_DESTROY_COUNT: 2,
-        ULTIMATE_DRAGON_TURNS: 5,
-        ULTIMATE_DESTROY_GOD_TURNS: 5,
-        ULTIMATE_HYPERACTIVE_TURNS: 10,
+        ULTIMATE_DRAGON_TURNS: 8,
+        ULTIMATE_DESTROY_GOD_TURNS: 6,
+        ULTIMATE_HYPERACTIVE_TURNS: 12,
+        STONE_SALVATION_GOD_TURNS: 12,
         EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT: 3,
         EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT: 1,
         AFTERIMAGE_WILL_FLIP_EVADE_LIMIT: 3,
         AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT: 3,
-        SNIPER_WILL_TURNS: 5,
+        SNIPER_WILL_TURNS: 6,
         DESTROY_DRAGON_TURNS: 3,
-        LIGHTNING_WILL_TURNS: 5,
-        GHOST_WILL_TURNS: 5,
+        LIGHTNING_WILL_TURNS: 6,
+        GHOST_WILL_TURNS: 8,
         SEED_WILL_TURNS: 5,
         WILL_HUNTER_KING_TURNS: 5,
         ROBOT_VACUUM_TURNS: 5,
@@ -156,7 +157,8 @@ describe('CardContextBuilders module', () => {
     }));
     expect(timingResolver).toHaveBeenCalledWith(expect.objectContaining({
       CardWorkModule: deps.modules.CardWorkModule,
-      TIME_STOP_GOD_TURNS: 5
+      TIME_STOP_GOD_TURNS: 5,
+      STONE_SALVATION_GOD_TURNS: 12
     }));
   });
 

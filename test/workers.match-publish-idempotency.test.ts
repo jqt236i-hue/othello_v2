@@ -467,7 +467,7 @@ function runTurnStartLightningScenario() {
     "  gameState.board[3][3] = Core.WHITE;",
     "  gameState.board[2][4] = Core.WHITE;",
     "  gameState.board[5][6] = Core.WHITE;",
-    "  cardState.markers.push({ id: 'lightning_1', kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'LIGHTNING', remainingOwnerTurns: 5 } });",
+    "  cardState.markers.push({ id: 'lightning_1', kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'LIGHTNING', remainingOwnerTurns: 6 } });",
     "",
     "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
     "    roomId: 'LTN1',",
@@ -652,7 +652,7 @@ function runTurnStartSniperScenario() {
     "  gameState.turnNumber = 1;",
     "  gameState.board[6][6] = Core.BLACK;",
     "  gameState.board[6][7] = Core.WHITE;",
-    "  cardState.markers.push({ id: 'sniper_1', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 5 } });",
+    "  cardState.markers.push({ id: 'sniper_1', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 6 } });",
     "",
     "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
     "    roomId: 'SNP1',",
@@ -781,7 +781,7 @@ function runTurnStartUltimateHyperactiveScenario() {
     "  gameState.board[6][0] = Core.BLACK;",
     "  gameState.board[6][2] = Core.WHITE;",
     "  gameState.board[6][3] = Core.EMPTY;",
-    "  cardState.markers.push({ id: 'ultimate_hyperactive_1', kind: 'specialStone', row: 6, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } });",
+    "  cardState.markers.push({ id: 'ultimate_hyperactive_1', kind: 'specialStone', row: 6, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } });",
     "",
     "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
     "    roomId: 'UHA1',",
@@ -1213,7 +1213,7 @@ describe('match worker publish idempotency', () => {
       owner: 'black',
       data: expect.objectContaining({
         type: 'LIGHTNING',
-        remainingOwnerTurns: 4
+        remainingOwnerTurns: 5
       })
     }));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
@@ -1327,7 +1327,7 @@ describe('match worker publish idempotency', () => {
       owner: 'black',
       data: expect.objectContaining({
         type: 'SNIPER',
-        remainingOwnerTurns: 4
+        remainingOwnerTurns: 5
       })
     }));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
@@ -1397,7 +1397,7 @@ describe('match worker publish idempotency', () => {
       owner: 'black',
       data: expect.objectContaining({
         type: 'ULTIMATE_HYPERACTIVE',
-        remainingOwnerTurns: 9,
+        remainingOwnerTurns: 11,
         flipEvadeRemaining: 3,
         destroyEvadeRemaining: 1
       })

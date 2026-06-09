@@ -28,7 +28,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
     const def = (Shared.CARD_DEFS || []).find((card) => card && card.type === 'LIGHTNING_WILL');
     expect(def).toBeTruthy();
     expect(Number(def.cost)).toBe(26);
-    expect(CardLogic.LIGHTNING_WILL_TURNS).toBe(5);
+    expect(CardLogic.LIGHTNING_WILL_TURNS).toBe(6);
   });
 
   test('配置時に合法手へ置けて、落雷石マーカーが付く', () => {
@@ -62,7 +62,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
       m.data.type === 'LIGHTNING'
     ));
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(5);
+    expect(marker.data.remainingOwnerTurns).toBe(6);
   });
 
   test('反転できない空きマスには配置できない', () => {
@@ -128,7 +128,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
       m.data.type === 'LIGHTNING'
     ));
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(5);
+    expect(marker.data.remainingOwnerTurns).toBe(6);
   });
 
   test('自ターン開始時に敵石を1つ破壊して残りターンを減らす', () => {
@@ -144,7 +144,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
     });
 
     const out = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, createPrng(0.75));
@@ -154,7 +154,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
 
     const marker = cardState.markers.find((m) => m && m.id === 9101);
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(4);
+    expect(marker.data.remainingOwnerTurns).toBe(5);
   });
 
   test('自ターン開始時に下側拡張セルの敵石も破壊対象に含める', () => {
@@ -176,7 +176,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
       row: 7,
       col: 7,
       owner: 'black',
-      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
     });
 
     const out = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 7, 7, createPrng(0.0));
@@ -185,7 +185,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 8 && cell.col === 7).owner).toBe(Shared.EMPTY);
   });
 
-  test('5回目の所有者ターン開始で落雷石アンカーは通常石に戻る', () => {
+  test('6回目の所有者ターン開始で落雷石アンカーは通常石に戻る', () => {
     const { cardState, gameState } = createStates(0.3);
 
     gameState.board[4][4] = Shared.BLACK;
@@ -195,15 +195,15 @@ describe('LIGHTNING_WILL（落雷）', () => {
       row: 4,
       col: 4,
       owner: 'black',
-      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
     });
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const out = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, createPrng(0.3));
       expect((out.expired || [])).toHaveLength(0);
       const marker = cardState.markers.find((m) => m && m.id === 9102);
       expect(marker).toBeTruthy();
-      expect(marker.data.remainingOwnerTurns).toBe(4 - i);
+      expect(marker.data.remainingOwnerTurns).toBe(5 - i);
       expect(gameState.board[4][4]).toBe(Shared.BLACK);
     }
 
@@ -255,7 +255,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
       row: 1,
       col: 1,
       owner: 'black',
-      data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+      data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
     });
 
     const context = CardLogic.getCardContext(cardState);
@@ -275,7 +275,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
         row: 3,
         col: 3,
         owner: 'black',
-        data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+        data: { type: 'DRAGON', remainingOwnerTurns: 8 }
       },
       {
         id: 9106,
@@ -283,7 +283,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
         row: 3,
         col: 4,
         owner: 'white',
-        data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+        data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
       }
     );
 
@@ -306,7 +306,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
         row: 4,
         col: 4,
         owner: 'black',
-        data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+        data: { type: 'DRAGON', remainingOwnerTurns: 8 }
       },
       {
         id: 9108,
@@ -314,7 +314,7 @@ describe('LIGHTNING_WILL（落雷）', () => {
         row: 4,
         col: 5,
         owner: 'white',
-        data: { type: 'LIGHTNING', remainingOwnerTurns: 5 }
+        data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
       }
     );
 

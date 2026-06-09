@@ -35,14 +35,14 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('PROTECTED_NEXT_STONE')).toEqual(['反転保護']);
     expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['反転保護', '10ターン後に発動']);
     expect(getEffectTagLabels('ANCHOR_WILL')).toEqual(['反転保護']);
-    expect(getEffectTagLabels('ULTIMATE_REVERSE_DRAGON')).toEqual(['反転保護', '5ターン持続']);
+    expect(getEffectTagLabels('ULTIMATE_REVERSE_DRAGON')).toEqual(['反転保護', '8ターン持続']);
     expect(getEffectTagLabels('BREEDING_WILL')).toEqual(['反転保護', '5ターン持続']);
     expect(getEffectTagLabels('GLUTTONOUS_WILL')).toEqual(['反転保護']);
     expect(getEffectTagLabels('GUARD_WILL')).toEqual(['完全保護', '3ターン持続']);
     expect(getEffectTagLabels('GUARDIAN_GOD')).toEqual(['完全保護', '10ターン持続']);
-    expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['反転保護', '5ターン持続']);
+    expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['反転保護', '6ターン持続']);
     expect(getEffectTagLabels('DESTROY_DRAGON_WILL')).toEqual(['反転保護', '3ターン持続']);
-    expect(getEffectTagLabels('LIGHTNING_WILL')).toEqual(['反転保護', '5ターン持続']);
+    expect(getEffectTagLabels('LIGHTNING_WILL')).toEqual(['反転保護', '6ターン持続']);
   });
 
   test('numeric tag resolver stays numeric-only even after protection tags are added', () => {

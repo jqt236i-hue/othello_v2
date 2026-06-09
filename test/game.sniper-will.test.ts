@@ -51,7 +51,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
       m.data.type === 'SNIPER'
     );
     expect(sniper).toBeTruthy();
-    expect(sniper.data.remainingOwnerTurns).toBe(5);
+    expect(sniper.data.remainingOwnerTurns).toBe(6);
   });
 
   test('配置ターンに最寄り敵石を1つ即時破壊し、残りターンを減らさない', () => {
@@ -102,7 +102,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
       m.data.type === 'SNIPER'
     );
     expect(sniper).toBeTruthy();
-    expect(sniper.data.remainingOwnerTurns).toBe(5);
+    expect(sniper.data.remainingOwnerTurns).toBe(6);
   });
 
   test('自ターン開始時に最寄り敵石を1つ破壊して残りターンを減らす', () => {
@@ -118,7 +118,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+      data: { type: 'SNIPER', remainingOwnerTurns: 6 }
     });
 
     const out = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, createPrng(0.2));
@@ -129,7 +129,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
 
     const marker = cardState.markers.find((m) => m && m.id === 7001);
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(4);
+    expect(marker.data.remainingOwnerTurns).toBe(5);
   });
 
   test('自ターン開始時に上側拡張セルの敵石も破壊対象に含める', () => {
@@ -151,7 +151,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+      data: { type: 'SNIPER', remainingOwnerTurns: 6 }
     });
 
     const out = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, createPrng(0.2));
@@ -173,7 +173,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+      data: { type: 'SNIPER', remainingOwnerTurns: 6 }
     });
 
     const out = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, createPrng(0.75));
@@ -199,7 +199,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
         row: 1,
         col: 1,
         owner: 'black',
-        data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+        data: { type: 'SNIPER', remainingOwnerTurns: 6 }
       },
       {
         id: 7102,
@@ -207,7 +207,7 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
         row: 6,
         col: 6,
         owner: 'black',
-        data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+        data: { type: 'SNIPER', remainingOwnerTurns: 6 }
       }
     );
 
@@ -219,11 +219,11 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
 
     const s1 = cardState.markers.find((m) => m && m.id === 7101);
     const s2 = cardState.markers.find((m) => m && m.id === 7102);
-    expect(s1 && s1.data && s1.data.remainingOwnerTurns).toBe(4);
-    expect(s2 && s2.data && s2.data.remainingOwnerTurns).toBe(4);
+    expect(s1 && s1.data && s1.data.remainingOwnerTurns).toBe(5);
+    expect(s2 && s2.data && s2.data.remainingOwnerTurns).toBe(5);
   });
 
-  test('5回目の所有者ターン開始で狙撃石アンカーは通常石に戻る', () => {
+  test('6回目の所有者ターン開始で狙撃石アンカーは通常石に戻る', () => {
     const { cardState, gameState } = createStates(0.3);
 
     gameState.board[4][4] = Shared.BLACK;
@@ -233,15 +233,15 @@ describe('SNIPER_WILL（狙撃の意志）', () => {
       row: 4,
       col: 4,
       owner: 'black',
-      data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+      data: { type: 'SNIPER', remainingOwnerTurns: 6 }
     });
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const out = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, createPrng(0.3));
       expect((out.expired || [])).toHaveLength(0);
       const marker = cardState.markers.find((m) => m && m.id === 7201);
       expect(marker).toBeTruthy();
-      expect(marker.data.remainingOwnerTurns).toBe(4 - i);
+      expect(marker.data.remainingOwnerTurns).toBe(5 - i);
       expect(gameState.board[4][4]).toBe(Shared.BLACK);
     }
 

@@ -72,7 +72,7 @@ describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     const eventsWhite = [];
@@ -88,7 +88,7 @@ describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
 
     let marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(10);
+    expect(marker.data.remainingOwnerTurns).toBe(12);
 
     const eventsBlack = [];
     TurnPipelinePhases.applyTurnStartPhase(
@@ -103,6 +103,6 @@ describe('ULTIMATE_HYPERACTIVE turn-start integration', () => {
 
     marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(9);
+    expect(marker.data.remainingOwnerTurns).toBe(11);
   });
 });

@@ -503,7 +503,7 @@ function runCommandPublishSniperTurnStartScenario() {
     "    row: 0,",
     "    col: 0,",
     "    owner: 'black',",
-    "    data: { type: 'SNIPER', remainingOwnerTurns: 5 }",
+    "    data: { type: 'SNIPER', remainingOwnerTurns: 6 }",
     "  }];",
     "  const room = {",
     "    roomId: 'ROOMS',",
@@ -1266,7 +1266,7 @@ describe('match worker publish sanitize', () => {
     expect(result.internalGameState.board[3][2]).toBe(-1);
     expect(result.internalGameState.board[0][2]).toBe(0);
     expect(sniperMarker).toBeTruthy();
-    expect(sniperMarker.data).toMatchObject({ type: 'SNIPER', remainingOwnerTurns: 4 });
+    expect(sniperMarker.data).toMatchObject({ type: 'SNIPER', remainingOwnerTurns: 5 });
     expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
     expect(result.broadcastMeta.playbackEvents).toEqual(expect.arrayContaining([
       expect.objectContaining({

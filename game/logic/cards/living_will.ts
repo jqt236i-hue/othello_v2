@@ -346,6 +346,7 @@ interface DurationDefaults {
     proliferationTurns: number;
     ultimateDragonTurns: number;
     ultimateDestroyGodTurns: number;
+    stoneSalvationGodTurns: number;
     sniperTurns: number;
     observerTurns: number;
     ghostTurns: number;
@@ -372,21 +373,22 @@ function getDurationDefaults(deps: LivingWillDeps): DurationDefaults {
         regenReviveLimit: getNumericDefault(source.regenReviveLimit, 3),
         breedingTurns: getNumericDefault(source.breedingTurns, 5),
         proliferationTurns: getNumericDefault(source.proliferationTurns, 10),
-        ultimateDragonTurns: getNumericDefault(source.ultimateDragonTurns, 5),
-        ultimateDestroyGodTurns: getNumericDefault(source.ultimateDestroyGodTurns, 5),
-        sniperTurns: getNumericDefault(source.sniperTurns, 5),
+        ultimateDragonTurns: getNumericDefault(source.ultimateDragonTurns, 8),
+        ultimateDestroyGodTurns: getNumericDefault(source.ultimateDestroyGodTurns, 6),
+        stoneSalvationGodTurns: getNumericDefault(source.stoneSalvationGodTurns, 12),
+        sniperTurns: getNumericDefault(source.sniperTurns, 6),
         observerTurns: getNumericDefault(source.observerTurns, 5),
-        ghostTurns: getNumericDefault(source.ghostTurns, 5),
+        ghostTurns: getNumericDefault(source.ghostTurns, 8),
         afterimageFlipEvadeLimit: getNumericDefault(source.afterimageFlipEvadeLimit, getFlipEvadeDefault('AFTERIMAGE_WILL', 3)),
         afterimageDestroyEvadeLimit: getNumericDefault(source.afterimageDestroyEvadeLimit, getDestroyEvadeDefault('AFTERIMAGE_WILL', 3)),
         timeStopTurns: getNumericDefault(source.timeStopTurns, 3),
         willHunterKingTurns: getNumericDefault(source.willHunterKingTurns, 8),
         destroyDragonTurns: getNumericDefault(source.destroyDragonTurns, 3),
-        lightningTurns: getNumericDefault(source.lightningTurns, 5),
+        lightningTurns: getNumericDefault(source.lightningTurns, 6),
         extremeHyperactiveFlipEvadeLimit: getNumericDefault(source.extremeHyperactiveFlipEvadeLimit, getFlipEvadeDefault('EXTREME_HYPERACTIVE', 3)),
         extremeHyperactiveDestroyEvadeLimit: getNumericDefault(source.extremeHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('EXTREME_HYPERACTIVE', 1)),
         robotVacuumTurns: getNumericDefault(source.robotVacuumTurns, 5),
-        ultimateHyperactiveTurns: getNumericDefault(source.ultimateHyperactiveTurns, 10),
+        ultimateHyperactiveTurns: getNumericDefault(source.ultimateHyperactiveTurns, 12),
         ultimateHyperactiveFlipEvadeLimit: getNumericDefault(source.ultimateHyperactiveFlipEvadeLimit, getFlipEvadeDefault('ULTIMATE_HYPERACTIVE', 3)),
         ultimateHyperactiveDestroyEvadeLimit: getNumericDefault(source.ultimateHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('ULTIMATE_HYPERACTIVE', 1)),
         guardTurns: getNumericDefault(source.guardTurns, 3),
@@ -422,6 +424,9 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         break;
     case 'ULTIMATE_DESTROY_GOD':
         markerData.remainingOwnerTurns = defaults.ultimateDestroyGodTurns;
+        break;
+    case 'STONE_SALVATION_GOD':
+        markerData.remainingOwnerTurns = defaults.stoneSalvationGodTurns;
         break;
     case 'SNIPER':
         markerData.remainingOwnerTurns = defaults.sniperTurns;

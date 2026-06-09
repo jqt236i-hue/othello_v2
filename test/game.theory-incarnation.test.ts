@@ -53,8 +53,9 @@ describe('理論の化身', () => {
       ownerKey: 'black',
       constants: {
         STRONG_WILL_PROMOTION_OWNER_TURNS: 10,
-        ULTIMATE_DESTROY_GOD_TURNS: 5,
-        ULTIMATE_HYPERACTIVE_TURNS: 10,
+        ULTIMATE_DESTROY_GOD_TURNS: 6,
+        ULTIMATE_HYPERACTIVE_TURNS: 12,
+        STONE_SALVATION_GOD_TURNS: 12,
         ROBOT_VACUUM_TURNS: 5
       }
     });
@@ -103,17 +104,17 @@ describe('理論の化身', () => {
       expect.objectContaining({
         cardType: 'ULTIMATE_DESTROY_GOD',
         cardCost: 25,
-        markerData: expect.objectContaining({ type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 })
+        markerData: expect.objectContaining({ type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 })
       }),
       expect.objectContaining({
         cardType: 'ULTIMATE_HYPERACTIVE_GOD',
         cardCost: 28,
-        markerData: expect.objectContaining({ type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 })
+        markerData: expect.objectContaining({ type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 })
       }),
       expect.objectContaining({
         cardType: 'STONE_SALVATION_GOD',
         cardCost: 20,
-        markerData: expect.objectContaining({ type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 })
+        markerData: expect.objectContaining({ type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 })
       }),
       expect.objectContaining({
         cardType: 'WORK_WILL',

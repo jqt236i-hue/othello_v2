@@ -36,12 +36,12 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       m.data.type === 'ULTIMATE_HYPERACTIVE'
     );
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(10);
+    expect(marker.data.remainingOwnerTurns).toBe(12);
     expect(marker.data.flipEvadeRemaining).toBe(3);
     expect(marker.data.destroyEvadeRemaining).toBe(1);
   });
 
-  test('owner turn only decrements duration, and on 10th owner turn it reverts to a normal stone', () => {
+  test('owner turn only decrements duration, and on 12th owner turn it reverts to a normal stone', () => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = 1;
     cardState.markers.push({
@@ -50,7 +50,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     // Non-owner turn: moves may occur, but duration should not decrement.
@@ -60,10 +60,10 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     });
     marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(10);
+    expect(marker.data.remainingOwnerTurns).toBe(12);
 
-    // Owner turns: decrement each time, expire on the 10th owner turn.
-    for (let i = 0; i < 9; i++) {
+    // Owner turns: decrement each time, expire on the 12th owner turn.
+    for (let i = 0; i < 11; i++) {
       marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(marker).toBeTruthy();
       CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', marker.row, marker.col, { random: () => 0.1 }, {
@@ -71,7 +71,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       });
       const after = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(after).toBeTruthy();
-      expect(after.data.remainingOwnerTurns).toBe(9 - i);
+      expect(after.data.remainingOwnerTurns).toBe(11 - i);
     }
 
     marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
@@ -220,7 +220,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       row: 2,
       col: 2,
       owner: 'black',
-      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     const context = CardLogic.getCardContext(cardState);
@@ -251,7 +251,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       row: 3,
       col: 3,
       owner: 'white',
-      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     const events1 = [];
@@ -314,7 +314,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       row: 4,
       col: 4,
       owner: 'white',
-      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     for (let i = 0; i < 3; i++) {
@@ -382,7 +382,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       owner: 'black',
       data: {
         type: 'ULTIMATE_HYPERACTIVE',
-        remainingOwnerTurns: 10,
+        remainingOwnerTurns: 12,
         flipEvadeRemaining: 3,
         destroyEvadeRemaining: 1
       }
@@ -443,7 +443,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
         row: 3,
         col: 5,
         owner: 'white',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3 }
       }
     );
     cardState.pendingEffectByPlayer.black = {
@@ -525,7 +525,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
         row: 3,
         col: 3,
         owner: 'black',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3 }
       },
       {
         id: 601,
@@ -533,7 +533,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
         row: 3,
         col: 5,
         owner: 'white',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3 }
       }
     );
 
@@ -581,7 +581,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     ));
 
     expect(blackUltimate).toBeTruthy();
-    expect(blackUltimate.data.remainingOwnerTurns).toBe(9);
+    expect(blackUltimate.data.remainingOwnerTurns).toBe(11);
     expect(whiteUltimate).toBeTruthy();
     expect(whiteUltimate.data.flipEvadeRemaining).toBe(2);
     expect(gameState.board[3][3]).toBe(Core.BLACK);

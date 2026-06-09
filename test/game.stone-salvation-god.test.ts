@@ -63,10 +63,10 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(VisualEffectsMap.SPECIAL_TYPE_TO_EFFECT_KEY.STONE_SALVATION_GOD).toBe('stoneSalvationGod');
     expect(VisualEffectsMap.STONE_VISUAL_EFFECTS.stoneSalvationGod.imagePathByOwner['1']).toContain('STONE_SALVATION_GOD-black.png');
     expect(VisualEffectsMap.STONE_VISUAL_EFFECTS.stoneSalvationGod.imagePathByOwner['-1']).toContain('STONE_SALVATION_GOD-white.png');
-    expect(CardInteractionEffects.resolveCardEffectTags({ type: 'STONE_SALVATION_GOD' }).map((tag: any) => tag.label)).toEqual(['反転保護', '10ターン持続']);
+    expect(CardInteractionEffects.resolveCardEffectTags({ type: 'STONE_SALVATION_GOD' }).map((tag: any) => tag.label)).toEqual(['反転保護', '12ターン持続']);
   });
 
-  test('next placed stone becomes a 10-turn flip-protected salvation god', () => {
+  test('next placed stone becomes a 12-turn flip-protected salvation god', () => {
     const def = getStoneSalvationGodDef();
     const { cardState, gameState, prng } = createState([0]);
     gameState.board[3][3] = Shared.WHITE;
@@ -82,7 +82,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
 
     expect(effects.stoneSalvationGodPlaced).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(marker).toMatchObject({ row: 3, col: 2, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } });
+    expect(marker).toMatchObject({ row: 3, col: 2, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } });
     expect(Core.getFlipsWithContext(gameState, 3, 1, Shared.WHITE, CardIogic.getCardContext(cardState))).toEqual([]);
   });
 
@@ -92,7 +92,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[1][1] = Shared.BLACK;
     gameState.board[2][2] = Shared.WHITE;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 3 } }
     );
 
@@ -125,7 +125,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
 
     const destroyedBpponent = BoardBps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_opponent', { randomSource: prng });
@@ -146,8 +146,8 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[7][7] = Shared.WHITE;
     gameState.board[1][1] = Shared.WHITE;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
-      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } }
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
+      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } }
     );
 
     const destroyedWhite = BoardBps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_white', { randomSource: prng });
@@ -166,8 +166,8 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[0][0] = Shared.BLACK;
     gameState.board[7][7] = Shared.WHITE;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
-      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } }
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
+      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } }
     );
 
     const destroyedGod = BoardBps.destroyAt(cardState, gameState, 0, 0, 'TEST', 'destroy_black_god', { randomSource: prng });
@@ -189,7 +189,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
 
     BoardBps.runDestroyBlock(cardState, gameState, () => {
@@ -213,7 +213,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
     const parentMeta = { actionId: 'parent-action', turnIndex: 12, plyIndex: 4, randomSource: prng };
     BoardBps.setActionContext(cardState, parentMeta);
@@ -250,7 +250,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
 
     BoardBps.runDestroyBlock(cardState, gameState, () => {
@@ -281,7 +281,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
 
     BoardBps.runEffectBlock(cardState, gameState, {
@@ -373,7 +373,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
 
     BoardBps.runEffectBlock(cardState, gameState, {
@@ -412,7 +412,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
 
     BoardBps.runCellRemovalBlock(cardState, gameState, () => {
@@ -443,7 +443,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[7][7] = Shared.WHITE;
     gameState.board[7][6] = Shared.BLACK;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'SNIPER', remainingOwnerTurns: 3 } }
     );
 
@@ -471,7 +471,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[3][4] = Shared.BLACK;
     gameState.board[4][4] = Shared.WHITE;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 } }
     );
 
@@ -497,7 +497,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[3][3] = Shared.WHITE;
     gameState.board[3][4] = Shared.BLACK;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'GLUTTONOUS', gluttonousMissStreak: 0 } }
     );
 
@@ -528,7 +528,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[3][3] = Shared.WHITE;
     gameState.board[3][4] = Shared.BLACK;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 3, col: 4, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 3 } },
       { id: 3, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'WILL_HUNTER_KING', remainingOwnerTurns: 5 } }
     );
@@ -568,7 +568,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
     cardState.pendingEffectByPlayer.black = { type: 'CROSS_BOMB', cardId: 'cross_bomb_01' };
 
@@ -601,7 +601,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
     cardState.pendingEffectByPlayer.black = { type: 'METEOR_WILL', stage: 'selectTarget', cardId: 'meteor_01' };
 
@@ -633,7 +633,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
     cardState.pendingEffectByPlayer.black = { type: 'METEOR_WILL', stage: 'selectTarget', cardId: 'meteor_01' };
 
@@ -653,7 +653,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[0][0] = Shared.BLACK;
     gameState.board[4][4] = Shared.BLACK;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 3 } }
     );
     cardState.pendingEffectByPlayer.black = { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget', cardId: 'cell_teleport_01' };
@@ -679,7 +679,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
     cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_SHRINK_WILL',
@@ -722,7 +722,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
     });
     cardState.pendingEffectByPlayer.black = { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget', cardId: 'super_gravity_01' };
 
@@ -753,7 +753,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[3][2] = Shared.BLACK;
     gameState.board[3][3] = Shared.WHITE;
     cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
       { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 } }
     );
 

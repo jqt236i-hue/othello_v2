@@ -11,11 +11,11 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
     return { cardState, gameState };
   }
 
-  test('constant is 5 turns', () => {
-    expect(CardLogic.ULTIMATE_DESTROY_GOD_TURNS).toBe(5);
+  test('constant is 6 turns', () => {
+    expect(CardLogic.ULTIMATE_DESTROY_GOD_TURNS).toBe(6);
   });
 
-  test('placement applies UDG marker with 5 remaining turns', () => {
+  test('placement applies UDG marker with 6 remaining turns', () => {
     const { cardState, gameState } = makeStates();
     gameState.board[3][3] = 1;
     cardState.pendingEffectByPlayer.black = {
@@ -37,10 +37,10 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       m.data.type === 'ULTIMATE_DESTROY_GOD'
     );
     expect(marker).toBeTruthy();
-    expect(marker.data.remainingOwnerTurns).toBe(5);
+    expect(marker.data.remainingOwnerTurns).toBe(6);
   });
 
-  test('turn-start processing expires after 5 owner turns', () => {
+  test('turn-start processing expires after 6 owner turns', () => {
     const { cardState, gameState } = makeStates();
     gameState.board[4][4] = 1;
     cardState.markers.push({
@@ -49,15 +49,15 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       row: 4,
       col: 4,
       owner: 'black',
-      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
     });
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4);
       expect(Array.isArray(res.expired) ? res.expired.length : 0).toBe(0);
       const marker = cardState.markers.find((m) => m && m.id === 9001);
       expect(marker).toBeTruthy();
-      expect(marker.data.remainingOwnerTurns).toBe(4 - i);
+      expect(marker.data.remainingOwnerTurns).toBe(5 - i);
       expect(gameState.board[4][4]).toBe(1);
     }
 
@@ -84,7 +84,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       row: 4,
       col: 4,
       owner: 'black',
-      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
     });
 
     try {
@@ -109,7 +109,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       expect(marker).toBeTruthy();
       expect(marker.row).toBe(0);
       expect(marker.col).toBe(0);
-      expect(marker.data.remainingOwnerTurns).toBe(4);
+      expect(marker.data.remainingOwnerTurns).toBe(5);
 
       const presentationEvents = CardLogic.flushPresentationEvents(cardState) || [];
       const moveEvent = presentationEvents.find((ev) => (
@@ -146,7 +146,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       row: 3,
       col: 0,
       owner: 'black',
-      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
     });
 
     const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 3, 0, {
@@ -175,7 +175,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
     });
 
     const res = CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 0, 0, {
@@ -196,7 +196,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
       row: 4,
       col: 4,
       owner: 'black',
-      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
     });
 
     CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4, {
@@ -239,7 +239,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
         row: 4,
         col: 4,
         owner: 'black',
-        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
       },
       {
         id: 9302,
@@ -288,7 +288,7 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
         row: 4,
         col: 4,
         owner: 'black',
-        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+        data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 }
       },
       {
         id: 9402,

@@ -52,6 +52,7 @@ interface Constants {
     ULTIMATE_DRAGON_TURNS: any;
     ULTIMATE_DESTROY_GOD_TURNS: any;
     ULTIMATE_HYPERACTIVE_TURNS: any;
+    STONE_SALVATION_GOD_TURNS: any;
     EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT: number;
     EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT: number;
     ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: number;
@@ -133,6 +134,7 @@ function getConstants(context: Context): Constants {
         ULTIMATE_DRAGON_TURNS: constants.ULTIMATE_DRAGON_TURNS,
         ULTIMATE_DESTROY_GOD_TURNS: constants.ULTIMATE_DESTROY_GOD_TURNS,
         ULTIMATE_HYPERACTIVE_TURNS: constants.ULTIMATE_HYPERACTIVE_TURNS,
+        STONE_SALVATION_GOD_TURNS: constants.STONE_SALVATION_GOD_TURNS,
         EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT))
             ? Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT)
             : 3,
@@ -902,7 +904,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     if (pending && pending.type === 'STONE_SALVATION_GOD' && typeof helpers.addMarker === 'function') {
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'STONE_SALVATION_GOD',
-            remainingOwnerTurns: 10
+            remainingOwnerTurns: constants.STONE_SALVATION_GOD_TURNS
         });
         effects.stoneSalvationGodPlaced = true;
     }

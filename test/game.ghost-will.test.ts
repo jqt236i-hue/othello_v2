@@ -36,7 +36,7 @@ function findGhostMarker(cardState, row, col) {
 }
 
 describe('GHOST_WILL（幽霊の意志）', () => {
-  test('use card -> place creates GHOST marker with 5 owner turns', () => {
+  test('use card -> place creates GHOST marker with 8 owner turns', () => {
     const def = getGhostWillDef();
     expect(def).toBeTruthy();
 
@@ -86,6 +86,7 @@ describe('GHOST_WILL（幽霊の意志）', () => {
     const marker = findGhostMarker(cardState, 2, 3);
     expect(marker).toBeTruthy();
     expect(marker.owner).toBe('black');
+    expect(CardLogic.GHOST_WILL_TURNS).toBe(8);
     expect(marker.data.remainingOwnerTurns).toBe(CardLogic.GHOST_WILL_TURNS);
   });
 

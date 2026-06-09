@@ -475,7 +475,7 @@ function addSpecialMarker(snapshot, row, col, owner, type, data = {}) {
 
 function addSalvationGod(snapshot, row = 7, col = 0, owner = 'black') {
   setStone(snapshot, row, col, owner);
-  addSpecialMarker(snapshot, row, col, owner, 'STONE_SALVATION_GOD', { remainingOwnerTurns: 10 });
+  addSpecialMarker(snapshot, row, col, owner, 'STONE_SALVATION_GOD', { remainingOwnerTurns: 12 });
 }
 
 function buildTurnStartDestroyFixture(kind) {
@@ -506,8 +506,8 @@ function buildTurnStartDestroyFixture(kind) {
     setStone(snapshot, 6, 6, 'white');
     setStone(snapshot, 5, 6, 'black');
     setStone(snapshot, 6, 5, 'black');
-    addSpecialMarker(snapshot, 2, 2, 'white', 'ULTIMATE_DESTROY_GOD', { remainingOwnerTurns: 5 });
-    addSpecialMarker(snapshot, 6, 6, 'white', 'ULTIMATE_DESTROY_GOD', { remainingOwnerTurns: 5 });
+    addSpecialMarker(snapshot, 2, 2, 'white', 'ULTIMATE_DESTROY_GOD', { remainingOwnerTurns: 6 });
+    addSpecialMarker(snapshot, 6, 6, 'white', 'ULTIMATE_DESTROY_GOD', { remainingOwnerTurns: 6 });
   }
 
   return {
