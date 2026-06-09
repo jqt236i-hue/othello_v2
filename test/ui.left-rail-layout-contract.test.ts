@@ -18,9 +18,15 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/#leftActionButtons::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(155,\s*106,\s*60/);
     expect(layoutCss).toMatch(/#leftActionButtons::after[\s\S]*rgba\(106,\s*160,\s*143,\s*0\.36\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(88px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*--left-action-tone:/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*linear-gradient\(90deg,\s*var\(--left-action-tone\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*grid-template-rows/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*transition:/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-icon[\s\S]*mask-image/);
+    expect(layoutCss).toMatch(/#modeCpuBtn[\s\S]*--left-action-tone:\s*rgba\(106,\s*255,\s*172,\s*0\.24\)/);
+    expect(layoutCss).toMatch(/#modeNetworkBtn[\s\S]*--left-action-tone:\s*rgba\(88,\s*154,\s*255,\s*0\.22\)/);
+    expect(layoutCss).toMatch(/#gachaOpenBtn[\s\S]*--left-action-tone:\s*rgba\(229,\s*101,\s*72,\s*0\.24\)/);
+    expect(layoutCss).toMatch(/#handSkinBtn[\s\S]*--left-action-tone:\s*rgba\(210,\s*130,\s*255,\s*0\.2\)/);
   });
 
   test('left action popups use the premium game panel skin', () => {

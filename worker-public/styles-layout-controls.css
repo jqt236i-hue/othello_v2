@@ -2049,17 +2049,25 @@ body.time-stop-active {
 }
 
 #leftActionButtons .left-action-btn {
+    --left-action-tone: rgba(106, 160, 143, 0.24);
+    --left-action-tone-strong: rgba(106, 160, 143, 0.58);
+    --left-action-tone-soft: rgba(106, 160, 143, 0.1);
+    --left-action-border: rgba(106, 160, 143, 0.28);
+    --left-action-icon-top: #fff1cf;
+    --left-action-icon-bottom: #cdb88e;
     min-width: calc(88px * var(--layout-stage-scale));
     min-height: calc(58px * var(--layout-stage-scale));
     padding: calc(8px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(155, 106, 60, 0.18);
+    border: calc(1px * var(--layout-stage-scale)) solid var(--left-action-border);
     border-radius: calc(6px * var(--layout-stage-scale));
     background:
-        linear-gradient(180deg, rgba(255, 236, 184, 0.05), rgba(255, 255, 255, 0) 48%),
+        radial-gradient(120% 90% at 18% 0%, var(--left-action-tone-soft), transparent 56%),
+        linear-gradient(90deg, var(--left-action-tone) 0, rgba(255, 255, 255, 0) calc(4px * var(--layout-stage-scale))),
+        linear-gradient(180deg, rgba(255, 236, 184, 0.055), rgba(255, 255, 255, 0) 48%),
         linear-gradient(180deg, rgba(25, 21, 16, 0.72), rgba(8, 14, 15, 0.62));
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 237, 190, 0.035),
-        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(106, 160, 143, 0);
+        inset calc(2px * var(--layout-stage-scale)) 0 0 var(--left-action-tone-strong);
     transition:
         transform 0.14s ease,
         border-color 0.16s ease,
@@ -2070,10 +2078,93 @@ body.time-stop-active {
 
 #leftActionButtons .left-action-btn-rail-toggle {
     margin-top: calc(4px * var(--layout-stage-scale));
-    border-color: rgba(242, 201, 95, 0.32);
-    background:
-        radial-gradient(120% 90% at 50% 0%, rgba(242, 201, 95, 0.16), transparent 52%),
-        linear-gradient(180deg, rgba(43, 31, 17, 0.76), rgba(10, 18, 17, 0.66));
+    --left-action-tone: rgba(242, 201, 95, 0.34);
+    --left-action-tone-strong: rgba(242, 201, 95, 0.7);
+    --left-action-tone-soft: rgba(242, 201, 95, 0.18);
+    --left-action-border: rgba(242, 201, 95, 0.42);
+    --left-action-icon-top: #fff9df;
+    --left-action-icon-bottom: #f2c95f;
+}
+
+#leftActionButtons #modeCpuBtn {
+    --left-action-tone: rgba(106, 255, 172, 0.24);
+    --left-action-tone-strong: rgba(106, 255, 172, 0.68);
+    --left-action-tone-soft: rgba(106, 255, 172, 0.18);
+    --left-action-border: rgba(106, 255, 172, 0.5);
+    --left-action-icon-top: #f7ffe8;
+    --left-action-icon-bottom: #b8f2a6;
+}
+
+#leftActionButtons #modeReversiBtn {
+    --left-action-tone: rgba(238, 232, 213, 0.18);
+    --left-action-tone-strong: rgba(238, 232, 213, 0.42);
+    --left-action-tone-soft: rgba(255, 255, 255, 0.12);
+    --left-action-border: rgba(238, 232, 213, 0.26);
+    --left-action-icon-top: #fff8e8;
+    --left-action-icon-bottom: #d6d0bf;
+}
+
+#leftActionButtons #modeNetworkBtn {
+    --left-action-tone: rgba(88, 154, 255, 0.22);
+    --left-action-tone-strong: rgba(88, 154, 255, 0.56);
+    --left-action-tone-soft: rgba(88, 154, 255, 0.14);
+    --left-action-border: rgba(88, 154, 255, 0.34);
+    --left-action-icon-top: #eef5ff;
+    --left-action-icon-bottom: #9fc2ff;
+}
+
+#leftActionButtons #gachaOpenBtn {
+    --left-action-tone: rgba(229, 101, 72, 0.24);
+    --left-action-tone-strong: rgba(229, 101, 72, 0.58);
+    --left-action-tone-soft: rgba(229, 101, 72, 0.15);
+    --left-action-border: rgba(229, 101, 72, 0.34);
+    --left-action-icon-top: #fff0d4;
+    --left-action-icon-bottom: #f0a063;
+}
+
+#leftActionButtons #deckBuilderOpenBtn {
+    --left-action-tone: rgba(185, 138, 92, 0.28);
+    --left-action-tone-strong: rgba(185, 138, 92, 0.6);
+    --left-action-tone-soft: rgba(185, 138, 92, 0.16);
+    --left-action-border: rgba(185, 138, 92, 0.36);
+    --left-action-icon-top: #fff3d8;
+    --left-action-icon-bottom: #d4aa72;
+}
+
+#leftActionButtons #leaderboardOpenBtn {
+    --left-action-tone: rgba(242, 201, 95, 0.3);
+    --left-action-tone-strong: rgba(242, 201, 95, 0.68);
+    --left-action-tone-soft: rgba(242, 201, 95, 0.17);
+    --left-action-border: rgba(242, 201, 95, 0.42);
+    --left-action-icon-top: #fff9da;
+    --left-action-icon-bottom: #f2c95f;
+}
+
+#leftActionButtons #handSkinBtn {
+    --left-action-tone: rgba(210, 130, 255, 0.2);
+    --left-action-tone-strong: rgba(210, 130, 255, 0.48);
+    --left-action-tone-soft: rgba(210, 130, 255, 0.13);
+    --left-action-border: rgba(210, 130, 255, 0.3);
+    --left-action-icon-top: #fceaff;
+    --left-action-icon-bottom: #d6a2f2;
+}
+
+#leftActionButtons #sidePanelToggleBtn {
+    --left-action-tone: rgba(120, 186, 171, 0.23);
+    --left-action-tone-strong: rgba(120, 186, 171, 0.58);
+    --left-action-tone-soft: rgba(120, 186, 171, 0.14);
+    --left-action-border: rgba(120, 186, 171, 0.34);
+    --left-action-icon-top: #effff9;
+    --left-action-icon-bottom: #9bd7c9;
+}
+
+#leftActionButtons #rulesHelpBtn {
+    --left-action-tone: rgba(156, 188, 255, 0.2);
+    --left-action-tone-strong: rgba(156, 188, 255, 0.48);
+    --left-action-tone-soft: rgba(156, 188, 255, 0.12);
+    --left-action-border: rgba(156, 188, 255, 0.3);
+    --left-action-icon-top: #f4f7ff;
+    --left-action-icon-bottom: #b9caff;
 }
 
 #leftActionButtons.left-rail-collapsed {
@@ -2109,31 +2200,32 @@ body.time-stop-active {
 #leftActionButtons .left-action-icon {
     width: calc(23px * var(--layout-stage-scale));
     height: calc(23px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, #fff1cf, #cdb88e);
+    background: linear-gradient(180deg, var(--left-action-icon-top), var(--left-action-icon-bottom));
     filter:
         drop-shadow(0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.62))
-        drop-shadow(0 0 calc(7px * var(--layout-stage-scale)) rgba(155, 106, 60, 0.18));
+        drop-shadow(0 0 calc(7px * var(--layout-stage-scale)) var(--left-action-tone-soft));
 }
 
 #leftActionButtons .left-action-btn:hover,
 #leftActionButtons .left-action-btn[aria-expanded="true"],
 #leftActionButtons .left-action-btn.is-active {
     transform: translateX(calc(2px * var(--layout-stage-scale)));
-    border-color: rgba(242, 201, 95, 0.54);
+    border-color: var(--left-action-tone-strong);
     background:
-        radial-gradient(110% 80% at 15% 0%, rgba(242, 201, 95, 0.2), transparent 46%),
+        radial-gradient(110% 80% at 15% 0%, var(--left-action-tone-soft), transparent 46%),
+        linear-gradient(90deg, var(--left-action-tone-strong) 0, rgba(255, 255, 255, 0) calc(5px * var(--layout-stage-scale))),
         linear-gradient(180deg, rgba(60, 41, 21, 0.74), rgba(13, 27, 24, 0.64));
     box-shadow:
         0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32),
-        0 0 calc(14px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.18),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(106, 160, 143, 0.58),
+        0 0 calc(14px * var(--layout-stage-scale)) var(--left-action-tone-soft),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 var(--left-action-tone-strong),
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 220, 0.08);
 }
 
 #leftActionButtons .left-action-btn:hover .left-action-icon,
 #leftActionButtons .left-action-btn[aria-expanded="true"] .left-action-icon,
 #leftActionButtons .left-action-btn.is-active .left-action-icon {
-    background: linear-gradient(180deg, #fff9e8, #f2c95f);
+    background: linear-gradient(180deg, #fff9e8, var(--left-action-icon-bottom));
     filter:
         drop-shadow(0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.62))
         drop-shadow(0 0 calc(10px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.34));
