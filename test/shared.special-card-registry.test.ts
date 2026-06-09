@@ -39,7 +39,9 @@ describe('SpecialCardRegistry', () => {
       manifestBgmKey: 'board_executor_path',
       manifestBgmTrack: expect.objectContaining({
         name: '執行の道',
-        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3'
+        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3',
+        loopStart: 0,
+        loopEnd: 51.2
       })
     }));
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('GHOST')).toBeNull();
