@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-08",
-  "generatedAt": "2026-06-08T00:31:50.866Z",
+  "version": "2026-06-09",
+  "generatedAt": "2026-06-09T05:39:42.265Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -651,7 +651,7 @@
       "sha256": "149730fdd8b7622756d8029ee5656fb2542db5f40c6147618e0c224fd8d5d45b"
     },
     {
-      "path": "assets/audio/bgm/manifest-stones/観測の道-bpm150--.mp3",
+      "path": "assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3",
       "sha256": "d84081bf05515f4afee4b753cd0a7138493dcc6a3385c93723c3fbaed4a70b38"
     }
   ]
