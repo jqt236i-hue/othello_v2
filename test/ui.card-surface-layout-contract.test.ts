@@ -35,6 +35,7 @@ describe('card surface layout contract', () => {
     expect(variablesCss).toMatch(/--layout-anchor-card-detail-width:\s*336px/);
     expect(variablesCss).toMatch(/--layout-anchor-card-detail-min-height:\s*148px/);
     expect(variablesCss).toMatch(/--layout-anchor-card-detail-gap:\s*18px/);
+    expect(variablesCss).toMatch(/--layout-anchor-card-detail-bottom:\s*304px/);
     expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*min-height:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#card-detail-panel[\s\S]*right:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*max\(var\(--layout-anchor-side-right\),\s*env\(safe-area-inset-right\)\)\)/);
     expect(cardsCss).not.toMatch(/#card-detail-panel\s*>\s*#card-detail-header[\s\S]*scale\(0\.8333333,\s*0\.9803922\)/);
