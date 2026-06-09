@@ -248,6 +248,15 @@ describe('UI stone rendering', () => {
     assert.strictEqual(disc.querySelector('.special-timer'), null);
   });
 
+  test('countdown timer css uses a red triangle marker', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+    const countdownRule = css.match(/\.bomb-timer,\s*\.countdown-timer\s*\{[\s\S]*?\n\}/);
+
+    assert.ok(countdownRule, 'expected countdown timer CSS rule');
+    assert.match(countdownRule[0], /clip-path:\s*polygon\(50% 0%, 100% 100%, 0% 100%\)/);
+    assert.match(countdownRule[0], /rgba\(172,\s*28,\s*28,\s*0\.88\)/);
+  });
+
   test('diff-renderer keeps living will aura as an overlay on normal and special stones', () => {
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';

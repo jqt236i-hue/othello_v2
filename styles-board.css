@@ -1074,8 +1074,8 @@ html.stone-images-loaded .disc.white {
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    min-width: calc(18px * var(--layout-stage-scale));
-    height: calc(18px * var(--layout-stage-scale));
+    min-width: calc(20px * var(--layout-stage-scale));
+    height: calc(20px * var(--layout-stage-scale));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1083,12 +1083,12 @@ html.stone-images-loaded .disc.white {
     font-weight: bold;
     color: #ffffff;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 44%),
-        rgba(109, 86, 30, 0.76);
-    padding: 0 calc(4px * var(--layout-stage-scale));
-    border: var(--layout-size-border-thin) solid rgba(255, 227, 176, 0.72);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 42%),
+        rgba(172, 28, 28, 0.88);
+    padding: calc(4px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) 0;
+    border: var(--layout-size-border-thin) solid rgba(255, 184, 184, 0.72);
     box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
     text-align: center;
     z-index: 70;
     pointer-events: none;

@@ -356,7 +356,9 @@ describe('rules help panel', () => {
     expect(html).toMatch(/盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。/);
     expect(html).toMatch(/完全保護の残りターン/);
     expect(html).toMatch(/特殊石本体の持続ターン/);
+    expect(html).toMatch(/下中央の赤い三角形数字/);
     expect(html).toMatch(/カウントダウン専用の残り回数/);
+    expect(html).not.toMatch(/下中央のひし形数字/);
     expect(html).toMatch(/破壊回避の残り回数/);
   });
 
