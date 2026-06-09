@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  CORE_UI_STYLE_FILES,
   LAYOUT_STYLE_FILES,
   readRepoTextFile,
   readLayoutCssSurface,
@@ -12,6 +11,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   test('styles-responsive.css defines 16:10 to 5:4 safeguards', () => {
     const cssPath = path.join(__dirname, '..', 'styles-responsive.css');
     const css = fs.readFileSync(cssPath, 'utf8');
+    const layoutCss = readLayoutCssSurface();
 
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*16\/10\)/);
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*3\/2\)/);
@@ -31,6 +31,9 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#cpu-level-label/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-width/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-gap/);
+    expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*right:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*max\(var\(--layout-anchor-side-right\),\s*env\(safe-area-inset-right\)\)\s*\+\s*\(\(var\(--layout-anchor-side-width\)\s*\+\s*var\(--layout-anchor-card-detail-gap\)\s*\+\s*var\(--layout-anchor-card-detail-width\)\s*\+\s*var\(--layout-anchor-log-detail-gap\)\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*var\(--card-detail-landscape-top-anchor/);
+    expect(layoutCss).toMatch(/#side-panel\.side-panel-collapsed\s+#log[\s\S]*display:\s*block/);
     expect(css).toMatch(/@media\s*\(min-width:\s*(?:901px|56\.3125em)\)\s*\{[\s\S]*html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#game-container[\s\S]*padding-bottom:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#hero-label[\s\S]*font-size:\s*clamp\(11px/);
     expect(css).toMatch(/html\.sim-aspect-16-10\s+#board/);
@@ -42,6 +45,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#side-panel\.side-panel-collapsed/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*position:\s*relative/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*order:\s*1/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#log[\s\S]*display:\s*block/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black[\s\S]*order:\s*2/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-white,\s*[\s\S]*#hand-black[\s\S]*overflow-x:\s*auto/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*gap:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
@@ -98,7 +102,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   });
 
   test('core UI styles avoid direct fixed px declarations', () => {
-    const targets = requireExistingStyleFiles(CORE_UI_STYLE_FILES);
+    const targets = requireExistingStyleFiles(LAYOUT_STYLE_FILES.concat('styles-responsive.css'));
 
     targets.forEach((fileName) => {
       const cssPath = path.join(__dirname, '..', fileName);
@@ -180,9 +184,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(varsCss).toMatch(/--layout-base-height:\s*1080/);
     expect(varsCss).toMatch(/--layout-stage-bottom-safe-shift:\s*0px/);
     expect(varsCss).toMatch(/--layout-anchor-board-size/);
-    expect(varsCss).toMatch(/--layout-anchor-card-detail-width:\s*320px/);
-    expect(varsCss).toMatch(/--layout-anchor-card-detail-gap:\s*28px/);
-    expect(varsCss).toMatch(/--layout-anchor-card-detail-bottom:\s*292px/);
+    expect(varsCss).toMatch(/--layout-anchor-card-detail-width:\s*336px/);
+    expect(varsCss).toMatch(/--layout-anchor-card-detail-gap:\s*18px/);
+    expect(varsCss).toMatch(/--layout-anchor-card-detail-bottom:\s*304px/);
+    expect(varsCss).toMatch(/--layout-anchor-log-detail-gap:\s*12px/);
     expect(varsCss).toMatch(/--layout-anchor-chat-left:\s*132px/);
     expect(varsCss).toMatch(/--layout-anchor-hero-bottom:\s*92px/);
     expect(varsCss).toMatch(/--layout-anchor-character-offset-y:\s*48px/);

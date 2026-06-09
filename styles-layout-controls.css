@@ -18,9 +18,12 @@
 }
 
 #side-panel.side-panel-collapsed #control-panel,
-#side-panel.side-panel-collapsed #log,
 #side-panel.side-panel-collapsed #discard-display {
     display: none;
+}
+
+#side-panel.side-panel-collapsed #log {
+    display: block;
 }
 
 /* Compact Control Panel */

@@ -200,7 +200,6 @@ html.layout-profile-phone-portrait #info-panel #status {
     transform: scale(1);
 }
 
-html.layout-profile-phone-portrait #log,
 html.layout-profile-phone-portrait #round-display-panel,
 html.layout-profile-phone-portrait #effect-live-panel,
 html.layout-profile-phone-portrait #manifest-effect-panel,
@@ -208,6 +207,21 @@ html.layout-profile-phone-portrait #cpu-character-panel,
 html.layout-profile-phone-portrait #hero-character-panel,
 html.layout-profile-phone-portrait #cpu-speech-bubble {
     display: none;
+}
+
+html.layout-profile-phone-portrait #log {
+    display: block;
+    left: 50%;
+    top: auto;
+    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
+    transform: translateX(-50%);
+    width: min(calc(430px * var(--layout-stage-scale)), 94vw);
+    height: calc(82px * var(--layout-stage-scale));
+    min-height: calc(82px * var(--layout-stage-scale));
+    max-height: calc(82px * var(--layout-stage-scale));
+    font-size: clamp(10px, calc(12px * var(--layout-stage-scale)), 12px);
+    padding: calc(7px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    z-index: 42;
 }
 
 html.layout-profile-phone-portrait #stone-info-panel {
@@ -1226,13 +1240,15 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
-        top: calc(var(--profile-left-info-stack-top) - (var(--layout-anchor-log-height) * var(--layout-stage-scale)) - calc(8px * var(--layout-stage-scale)));
+        --card-detail-landscape-top-anchor: calc(100dvh - var(--layout-stage-offset-y) - var(--layout-stage-bottom-safe-shift) - var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) - (var(--layout-anchor-card-detail-min-height) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)));
+        left: auto;
+        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)) + ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap) + var(--layout-anchor-card-detail-width) + var(--layout-anchor-log-detail-gap)) * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-top-anchor));
         transform: none;
         width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
-        height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-        min-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-        max-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
+        height: calc(var(--layout-anchor-card-detail-min-height) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+        min-height: calc(var(--layout-anchor-card-detail-min-height) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+        max-height: calc(var(--layout-anchor-card-detail-min-height) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack {
