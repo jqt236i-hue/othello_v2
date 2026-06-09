@@ -1958,6 +1958,14 @@ body.time-stop-active {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='black' stroke-width='2'/%3E%3Cpath d='M9.5 9.4a2.7 2.7 0 1 1 4.4 2.1c-.9.7-1.6 1.2-1.6 2.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='17.4' r='1.2' fill='black'/%3E%3C/svg%3E");
 }
 
+#leftActionButtons .left-action-icon-rail-toggle {
+    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='12' r='2.8' fill='black'/%3E%3C/svg%3E");
+}
+
+#leftActionButtons.left-rail-collapsed .left-action-icon-rail-toggle {
+    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M5 5l14 14' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
 #leftActionButtons .left-action-btn:hover,
 #leftActionButtons .left-action-btn[aria-expanded="true"],
 #leftActionButtons .left-action-btn.is-active {
@@ -2055,6 +2063,36 @@ body.time-stop-active {
         background 0.16s ease,
         box-shadow 0.16s ease,
         filter 0.16s ease;
+}
+
+#leftActionButtons .left-action-btn-rail-toggle {
+    margin-top: calc(4px * var(--layout-stage-scale));
+    border-color: rgba(242, 201, 95, 0.22);
+    background:
+        linear-gradient(180deg, rgba(242, 201, 95, 0.12), rgba(10, 36, 50, 0.48)),
+        rgba(8, 30, 46, 0.42);
+}
+
+#leftActionButtons.left-rail-collapsed {
+    width: calc(58px * var(--layout-stage-scale));
+    padding: calc(8px * var(--layout-stage-scale));
+    gap: 0;
+}
+
+#leftActionButtons.left-rail-collapsed .left-action-btn:not(.left-action-btn-rail-toggle) {
+    display: none;
+}
+
+#leftActionButtons.left-rail-collapsed .left-action-btn-rail-toggle {
+    min-width: calc(42px * var(--layout-stage-scale));
+    min-height: calc(42px * var(--layout-stage-scale));
+    margin-top: 0;
+    padding: calc(6px * var(--layout-stage-scale));
+    grid-template-rows: 1fr;
+}
+
+#leftActionButtons.left-rail-collapsed .left-action-btn-rail-toggle .left-action-label {
+    display: none;
 }
 
 #leftActionButtons .left-action-label {
@@ -2177,8 +2215,17 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 /* Bottom quick command console */
 #quick-controls-bar {
     --quick-control-accent: #f2c95f;
-    gap: calc(9px * var(--layout-stage-scale));
-    padding: calc(11px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+    display: grid;
+    grid-template-columns: auto auto minmax(calc(132px * var(--layout-stage-scale)), calc(170px * var(--layout-stage-scale)));
+    grid-template-areas:
+        "reset reset reset"
+        "auto mute volume";
+    align-items: center;
+    justify-content: end;
+    gap: calc(7px * var(--layout-stage-scale));
+    width: max-content;
+    max-width: min(calc(430px * var(--layout-stage-scale)), calc(100vw - calc(28px * var(--layout-stage-scale))));
+    padding: calc(9px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.28);
     border-radius: calc(8px * var(--layout-stage-scale));
     clip-path: polygon(
@@ -2241,7 +2288,11 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 #resetBtn.quick-control-btn {
     --quick-control-accent: #ff8a7a;
     --quick-control-accent-rgb: 255, 138, 122;
-    min-width: calc(116px * var(--layout-stage-scale));
+    grid-area: reset;
+    justify-self: start;
+    min-width: calc(92px * var(--layout-stage-scale));
+    min-height: calc(30px * var(--layout-stage-scale));
+    padding: calc(7px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
     border-color: rgba(255, 138, 122, 0.58);
     background:
         linear-gradient(180deg, rgba(255, 138, 122, 0.22), rgba(255, 255, 255, 0) 48%),
@@ -2255,6 +2306,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 #autoToggleBtn.quick-control-btn {
     --quick-control-accent: #f2c95f;
     --quick-control-accent-rgb: 242, 201, 95;
+    grid-area: auto;
     border-color: rgba(242, 201, 95, 0.56);
     background:
         linear-gradient(180deg, rgba(242, 201, 95, 0.20), rgba(255, 255, 255, 0) 48%),
@@ -2268,6 +2320,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 #muteBtn.quick-control-btn {
     --quick-control-accent: #7ed7ff;
     --quick-control-accent-rgb: 126, 215, 255;
+    grid-area: mute;
     border-color: rgba(126, 215, 255, 0.54);
     background:
         linear-gradient(180deg, rgba(126, 215, 255, 0.20), rgba(255, 255, 255, 0) 48%),
@@ -2298,6 +2351,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 }
 
 .quick-volume-control {
+    grid-area: volume;
     min-width: calc(174px * var(--layout-stage-scale));
     padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 132, 0.16);

@@ -38,9 +38,21 @@ describe('left action rail layout contract', () => {
 
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeReversiBtn"[\s\S]*id="modeNetworkBtn"/);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定</);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leftRailVisibilityBtn"[\s\S]*>非表示</);
     expect(html).toMatch(/class="left-action-icon left-action-icon-gacha"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-deck"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
+  });
+
+  test('left action rail can collapse to its visibility toggle', () => {
+    const layoutCss = readLayoutCssSurface();
+    const html = readRepoTextFile('index.html');
+
+    expect(layoutCss).toMatch(/#leftActionButtons\.left-rail-collapsed[\s\S]*width:\s*calc\(58px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons\.left-rail-collapsed\s+\.left-action-btn:not\(\.left-action-btn-rail-toggle\)[\s\S]*display:\s*none/);
+    expect(layoutCss).toMatch(/#leftActionButtons\.left-rail-collapsed\s+\.left-action-btn-rail-toggle[\s\S]*grid-template-rows:\s*1fr/);
+    expect(layoutCss).toMatch(/left-action-icon-rail-toggle/);
+    expect(html).toMatch(/leftRailVisibilityBtn[\s\S]*aria-expanded="true"[\s\S]*left-rail-collapsed/);
   });
 
   test('responsive rail overrides remain explicit', () => {

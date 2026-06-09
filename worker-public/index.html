@@ -408,7 +408,28 @@
             <span class="left-action-icon left-action-icon-help" aria-hidden="true"></span>
             <span class="left-action-label">ヘルプ</span>
         </button>
+        <button id="leftRailVisibilityBtn" class="btn-small left-action-btn left-action-btn-rail-toggle" type="button" aria-controls="leftActionButtons" aria-expanded="true" aria-label="左メニューを非表示" title="左メニューを非表示">
+            <span class="left-action-icon left-action-icon-rail-toggle" aria-hidden="true"></span>
+            <span class="left-action-label">非表示</span>
+        </button>
     </div>
+    <script>
+        (() => {
+            const rail = document.getElementById('leftActionButtons');
+            const btn = document.getElementById('leftRailVisibilityBtn');
+            if (!rail || !btn) return;
+            const label = btn.querySelector('.left-action-label');
+            const sync = (visible) => {
+                rail.classList.toggle('left-rail-collapsed', !visible);
+                btn.setAttribute('aria-expanded', visible ? 'true' : 'false');
+                btn.setAttribute('aria-label', visible ? '左メニューを非表示' : '左メニューを表示');
+                btn.setAttribute('title', visible ? '左メニューを非表示' : '左メニューを表示');
+                if (label) label.textContent = visible ? '非表示' : '表示';
+            };
+            sync(true);
+            btn.addEventListener('click', () => sync(rail.classList.contains('left-rail-collapsed')));
+        })();
+    </script>
 
     <div id="quick-controls-bar" aria-label="クイック操作">
         <button id="resetBtn" class="btn-small quick-control-btn" type="button">リセット</button>

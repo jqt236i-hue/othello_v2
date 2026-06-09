@@ -8,7 +8,8 @@ describe('quick controls bar layout', () => {
 
     expect(css).toMatch(/#quick-controls-bar[\s\S]*bottom:\s*calc\(var\(--layout-stage-offset-y\)/);
     expect(css).toMatch(/#quick-controls-bar[\s\S]*position:\s*fixed/);
-    expect(css).toMatch(/#quick-controls-bar[\s\S]*display:\s*flex/);
+    expect(css).toMatch(/#quick-controls-bar[\s\S]*display:\s*grid/);
+    expect(css).toMatch(/#quick-controls-bar[\s\S]*grid-template-areas:[\s\S]*"reset reset reset"[\s\S]*"auto mute volume"/);
   });
 
   test('quick controls use console styling with stateful buttons and readable volume slider', () => {
@@ -19,8 +20,13 @@ describe('quick controls bar layout', () => {
     expect(css).toMatch(/#quick-controls-bar[\s\S]*backdrop-filter:\s*blur/);
     expect(css).toMatch(/#quick-controls-bar::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(255,\s*224,\s*132/);
     expect(css).toMatch(/#resetBtn\.quick-control-btn[\s\S]*--quick-control-accent:\s*#ff8a7a/);
+    expect(css).toMatch(/#resetBtn\.quick-control-btn[\s\S]*grid-area:\s*reset/);
+    expect(css).toMatch(/#resetBtn\.quick-control-btn[\s\S]*min-width:\s*calc\(92px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#autoToggleBtn\.quick-control-btn[\s\S]*--quick-control-accent:\s*#f2c95f/);
+    expect(css).toMatch(/#autoToggleBtn\.quick-control-btn[\s\S]*grid-area:\s*auto/);
     expect(css).toMatch(/#muteBtn\.quick-control-btn[\s\S]*--quick-control-accent:\s*#7ed7ff/);
+    expect(css).toMatch(/#muteBtn\.quick-control-btn[\s\S]*grid-area:\s*mute/);
+    expect(css).toMatch(/\.quick-volume-control[\s\S]*grid-area:\s*volume/);
     expect(css).toMatch(/input\[type=range\]\.compact-slider\.quick-volume-slider[\s\S]*background:[\s\S]*linear-gradient\(90deg,\s*rgba\(242,\s*201,\s*95/);
     expect(css).toMatch(/input\[type=range\]\.compact-slider\.quick-volume-slider::-webkit-slider-thumb[\s\S]*box-shadow:/);
   });
