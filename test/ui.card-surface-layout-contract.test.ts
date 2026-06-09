@@ -33,10 +33,10 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*width:\s*calc\(var\(--layout-anchor-card-detail-width\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*--layout-anchor-card-detail-bottom/);
     expect(variablesCss).toMatch(/--layout-anchor-card-detail-width:\s*336px/);
-    expect(variablesCss).toMatch(/--layout-anchor-card-detail-min-height:\s*148px/);
+    expect(variablesCss).toMatch(/--layout-anchor-card-detail-min-height:\s*184px/);
     expect(variablesCss).toMatch(/--layout-anchor-card-detail-gap:\s*18px/);
     expect(variablesCss).toMatch(/--layout-anchor-card-detail-bottom:\s*304px/);
-    expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*min-height:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
+    expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*min-height:\s*calc\(112px\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#card-detail-panel[\s\S]*right:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*max\(var\(--layout-anchor-side-right\),\s*env\(safe-area-inset-right\)\)\)/);
     expect(cardsCss).not.toMatch(/#card-detail-panel\s*>\s*#card-detail-header[\s\S]*scale\(0\.8333333,\s*0\.9803922\)/);
     expect(cardsCss).toMatch(/\.heaven-blessing-offers \.heaven-offer-card[\s\S]*width:\s*var\(--layout-size-card-width\)/);
@@ -49,11 +49,15 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*backdrop-filter:\s*blur/);
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*--card-detail-accent/);
     expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*background:[\s\S]*var\(--card-detail-desc-panel\)/);
+    expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*min-height:\s*calc\(112px\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
     expect(cardsCss).toMatch(/#card-detail-actions\s*>\s*:is\(#toggle-card-detail-btn,\s*#use-card-btn,\s*#destroy-card-btn\)/);
     expect(cardsCss).toMatch(/#card-detail-actions\s*\{[\s\S]*justify-content:\s*flex-start/);
     expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*--card-detail-desc-panel/);
     expect(cardsCss).toMatch(/#card-detail-actions[\s\S]*--card-detail-action-bar/);
     expect(cardsCss).toMatch(/#use-card-reason[\s\S]*--card-detail-warning-chip/);
+    expect(cardsCss).toMatch(/\.card-detail-effect-tag[\s\S]*--card-detail-tag-surface/);
+    expect(cardsCss).toMatch(/\.card-detail-effect-tag-button[\s\S]*min-height:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(cardsCss).toMatch(/\.card-detail-effect-tag-button::before[\s\S]*background:\s*var\(--card-detail-tag-accent/);
     expect(cardsCss).toMatch(/#use-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#70e09a/);
     expect(cardsCss).toMatch(/#destroy-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#ff8a7a/);
   });

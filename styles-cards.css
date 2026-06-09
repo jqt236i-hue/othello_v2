@@ -1478,69 +1478,107 @@
 }
 
 .card-detail-effect-tag {
+    --card-detail-tag-accent: rgba(242, 201, 95, 0.72);
+    --card-detail-tag-surface:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(41, 32, 18, 0.92), rgba(10, 13, 13, 0.88));
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: calc(2.4px * var(--layout-stage-scale)) calc(7.2px * var(--layout-stage-scale));
+    gap: calc(5px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 900;
     line-height: 1;
-    color: var(--color-text-secondary);
-    border: var(--layout-size-border-thin) solid var(--color-text-muted);
-    border-radius: var(--layout-size-card-badge-radius);
-    background: transparent;
+    color: #fff1c2;
+    border: var(--layout-size-border-thin) solid rgba(242, 201, 95, 0.42);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: var(--card-detail-tag-surface);
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.12),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 var(--card-detail-tag-accent),
+        0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.26);
     white-space: nowrap;
 }
 
 .card-detail-effect-tag.is-flip-evasion,
 .rules-help-card-tag.is-flip-evasion {
+    --card-detail-tag-accent: rgba(126, 215, 255, 0.72);
     color: #7ed7ff;
-    border-color: rgba(126, 215, 255, 0.5);
-    background: rgba(36, 87, 118, 0.18);
+    border-color: rgba(126, 215, 255, 0.56);
+    background:
+        linear-gradient(180deg, rgba(126, 215, 255, 0.16), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(20, 50, 68, 0.92), rgba(8, 13, 16, 0.88));
 }
 
 .card-detail-effect-tag.is-flip-protection,
 .rules-help-card-tag.is-flip-protection {
+    --card-detail-tag-accent: rgba(159, 232, 255, 0.78);
     color: #9fe8ff;
-    border-color: rgba(159, 232, 255, 0.58);
-    background: rgba(28, 95, 120, 0.28);
+    border-color: rgba(159, 232, 255, 0.62);
+    background:
+        linear-gradient(180deg, rgba(159, 232, 255, 0.18), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(18, 68, 88, 0.94), rgba(8, 14, 16, 0.90));
 }
 
 .card-detail-effect-tag.is-full-protection,
 .rules-help-card-tag.is-full-protection {
+    --card-detail-tag-accent: rgba(255, 225, 170, 0.82);
     color: #ffe1aa;
-    border-color: rgba(255, 225, 170, 0.58);
-    background: rgba(114, 79, 24, 0.26);
+    border-color: rgba(255, 225, 170, 0.64);
+    background:
+        linear-gradient(180deg, rgba(255, 225, 170, 0.18), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(82, 58, 20, 0.94), rgba(14, 13, 9, 0.90));
 }
 
 .card-detail-effect-tag.is-destroy-evasion,
 .rules-help-card-tag.is-destroy-evasion {
+    --card-detail-tag-accent: rgba(255, 177, 138, 0.76);
     color: #ffb18a;
-    border-color: rgba(255, 177, 138, 0.5);
-    background: rgba(112, 62, 40, 0.18);
+    border-color: rgba(255, 177, 138, 0.58);
+    background:
+        linear-gradient(180deg, rgba(255, 177, 138, 0.16), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(75, 38, 24, 0.94), rgba(14, 10, 9, 0.90));
 }
 
 .card-detail-effect-tag.is-duration-turns,
 .rules-help-card-tag.is-duration-turns {
+    --card-detail-tag-accent: rgba(229, 207, 138, 0.78);
     color: #e5cf8a;
-    border-color: rgba(229, 207, 138, 0.5);
-    background: rgba(120, 94, 36, 0.18);
+    border-color: rgba(229, 207, 138, 0.58);
+    background:
+        linear-gradient(180deg, rgba(229, 207, 138, 0.16), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(70, 55, 22, 0.94), rgba(13, 13, 10, 0.90));
 }
 
 .card-detail-effect-tag.is-delayed-activation-turns,
 .rules-help-card-tag.is-delayed-activation-turns {
+    --card-detail-tag-accent: rgba(185, 223, 122, 0.76);
     color: #b9df7a;
-    border-color: rgba(185, 223, 122, 0.5);
-    background: rgba(70, 102, 36, 0.18);
+    border-color: rgba(185, 223, 122, 0.58);
+    background:
+        linear-gradient(180deg, rgba(185, 223, 122, 0.16), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(46, 68, 24, 0.94), rgba(10, 14, 9, 0.90));
 }
 
 .card-detail-effect-tag-button {
     font: inherit;
     font-weight: inherit;
-    font-size: calc(9px * var(--layout-stage-scale));
-    padding: calc(1px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
-    min-height: calc(14px * var(--layout-stage-scale));
+    font-size: calc(11px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    min-height: calc(22px * var(--layout-stage-scale));
     cursor: pointer;
     user-select: none;
+}
+
+.card-detail-effect-tag-button::before {
+    content: '';
+    width: calc(5px * var(--layout-stage-scale));
+    height: calc(5px * var(--layout-stage-scale));
+    border-radius: 50%;
+    background: var(--card-detail-tag-accent);
+    box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) var(--card-detail-tag-accent);
+    flex: 0 0 auto;
 }
 
 .card-detail-effect-tag-button:hover {
@@ -2003,7 +2041,7 @@
 }
 
 #card-detail-desc {
-    min-height: calc(96px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    min-height: calc(112px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
     margin-bottom: calc(9px * var(--layout-stage-scale));
     padding: calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)) calc(13px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 239, 190, 0.16);
