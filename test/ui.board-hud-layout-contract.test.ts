@@ -11,11 +11,12 @@ describe('board HUD layout contract', () => {
     expect(layoutCss).toMatch(/#charge-white \.time-stop-status-badge[\s\S]*bottom:\s*calc\(100%\s*\+\s*\(6px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*position:\s*absolute/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*display:\s*flex/);
-    expect(layoutCss).toMatch(/\.charge-delta::before[\s\S]*content:\s*""/);
-    expect(layoutCss).toMatch(/\.charge-delta\.is-side-left::before[\s\S]*right:/);
-    expect(layoutCss).toMatch(/\.charge-delta\.is-side-right::before[\s\S]*left:/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*min-height:\s*var\(--layout-size-charge-delta-height\)/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*padding:\s*var\(--layout-size-charge-delta-pad-y\)\s*var\(--layout-size-charge-delta-pad-x\)/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*clip-path:\s*polygon\(/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*transform:\s*translate3d\(var\(--charge-delta-drift-x,\s*0px\),\s*var\(--layout-size-charge-delta-shift-y-start\),\s*0\)/);
-    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*-webkit-text-stroke/);
+    expect(layoutCss).toMatch(/\.charge-delta\.is-increase[\s\S]*rgba\(27,\s*58,\s*97,\s*0\.98\)/);
+    expect(layoutCss).toMatch(/\.charge-delta\.is-decrease[\s\S]*rgba\(102,\s*34,\s*42,\s*0\.98\)/);
   });
 
   test('time stop hand overlay spacing remains stage-scaled', () => {

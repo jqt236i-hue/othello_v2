@@ -153,17 +153,16 @@
     --layout-size-charge-border: max(1px, calc(2px * var(--layout-stage-scale)));
     --layout-size-charge-offset: calc((-29px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
 
-    --layout-size-charge-delta-font: calc(15px * var(--layout-stage-scale));
-    --layout-size-charge-delta-pad-y: calc(4px * var(--layout-stage-scale));
-    --layout-size-charge-delta-pad-x: calc(10px * var(--layout-stage-scale));
-    --layout-size-charge-delta-radius: calc(14px * var(--layout-stage-scale));
-    --layout-size-charge-delta-border: max(1px, calc(2px * var(--layout-stage-scale)));
+    --layout-size-charge-delta-font: calc(14px * var(--layout-stage-scale));
+    --layout-size-charge-delta-pad-y: calc(3px * var(--layout-stage-scale));
+    --layout-size-charge-delta-pad-x: calc(11px * var(--layout-stage-scale));
+    --layout-size-charge-delta-height: calc(24px * var(--layout-stage-scale));
+    --layout-size-charge-delta-radius: calc(9px * var(--layout-stage-scale));
+    --layout-size-charge-delta-border: max(1px, calc(1.5px * var(--layout-stage-scale)));
     --layout-size-charge-delta-anchor-gap: calc(8px * var(--layout-stage-scale));
     --layout-size-charge-delta-side-gap: calc(4px * var(--layout-stage-scale));
-    --layout-size-charge-delta-min-width: calc(56px * var(--layout-stage-scale));
-    --layout-size-charge-delta-wing-width: calc(16px * var(--layout-stage-scale));
-    --layout-size-charge-delta-wing-height: calc(18px * var(--layout-stage-scale));
-    --layout-size-charge-delta-wing-overlap: calc(14px * var(--layout-stage-scale));
+    --layout-size-charge-delta-min-width: calc(54px * var(--layout-stage-scale));
+    --layout-size-charge-delta-chamfer: calc(10px * var(--layout-stage-scale));
     --layout-size-charge-delta-drift: calc(10px * var(--layout-stage-scale));
     --layout-size-charge-delta-shift-x: calc(90px * var(--layout-stage-scale));
     --layout-size-charge-delta-shift-y-start: calc(clamp(12px, 2vmin, 18px) * var(--layout-stage-scale));

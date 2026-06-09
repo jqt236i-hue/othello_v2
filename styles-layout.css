@@ -281,19 +281,19 @@
     align-items: center;
     justify-content: center;
     min-width: var(--layout-size-charge-delta-min-width);
-    min-height: calc(28px * var(--layout-stage-scale));
-    padding: calc(4px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
-    border: var(--layout-size-charge-delta-border) solid rgba(214, 178, 96, 0.52);
-    border-radius: calc(999px * var(--layout-stage-scale));
+    min-height: var(--layout-size-charge-delta-height);
+    padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
+    border: var(--layout-size-charge-delta-border) solid rgba(213, 181, 106, 0.58);
+    border-radius: var(--layout-size-charge-delta-radius);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 44%),
-        linear-gradient(180deg, rgba(34, 38, 48, 0.98), rgba(12, 14, 20, 0.98));
-    color: #f3f7ff;
+        linear-gradient(180deg, rgba(255, 245, 217, 0.12), rgba(255, 245, 217, 0) 40%),
+        linear-gradient(180deg, rgba(28, 31, 38, 0.98), rgba(9, 11, 16, 0.99));
+    color: #f5f0de;
     font-family: var(--selected-app-font-readable-family);
     font-size: var(--layout-size-charge-delta-font);
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1;
-    letter-spacing: 0;
+    letter-spacing: calc(0.35px * var(--layout-stage-scale));
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
     text-rendering: optimizeLegibility;
@@ -302,50 +302,41 @@
     pointer-events: none;
     z-index: 1009;
     box-shadow:
-        0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 215, 0.2),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.4),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 224, 138, 0.08);
-    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52);
+        0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 241, 204, 0.12),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 230, 162, 0.06);
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44);
     opacity: 0;
     transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0);
     transition: opacity 0s linear, transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 180ms ease;
     white-space: nowrap;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
-    -webkit-text-stroke: calc(0.2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
-    paint-order: stroke fill;
+    clip-path: polygon(
+        var(--layout-size-charge-delta-chamfer) 0,
+        calc(100% - var(--layout-size-charge-delta-chamfer)) 0,
+        100% 50%,
+        calc(100% - var(--layout-size-charge-delta-chamfer)) 100%,
+        var(--layout-size-charge-delta-chamfer) 100%,
+        0 50%
+    );
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    overflow: visible;
+    overflow: hidden;
     isolation: isolate;
-}
-
-.charge-delta::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: var(--layout-size-charge-delta-wing-width);
-    height: var(--layout-size-charge-delta-wing-height);
-    transform: translateY(-50%);
-    border: inherit;
-    background: inherit;
-    box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 215, 0.14),
-        0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.24);
-    pointer-events: none;
-    z-index: -1;
 }
 
 .charge-delta::after {
     content: "";
     position: absolute;
-    left: calc(8px * var(--layout-stage-scale));
-    right: calc(8px * var(--layout-stage-scale));
-    top: calc(2px * var(--layout-stage-scale));
-    height: 38%;
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, rgba(255, 248, 229, 0.16), rgba(255, 248, 229, 0) 100%);
+    inset: calc(1px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 230, 168, 0.1);
+    border-radius: calc(var(--layout-size-charge-delta-radius) - (1px * var(--layout-stage-scale)));
+    clip-path: inherit;
+    background:
+        linear-gradient(180deg, rgba(255, 248, 227, 0.1), rgba(255, 248, 227, 0) 44%),
+        linear-gradient(90deg, rgba(255, 224, 150, 0), rgba(255, 224, 150, 0.08) 50%, rgba(255, 224, 150, 0) 100%);
     pointer-events: none;
 }
 
@@ -354,21 +345,9 @@
     transform-origin: right center;
 }
 
-.charge-delta.is-side-left::before {
-    right: calc(var(--layout-size-charge-delta-wing-overlap) * -1);
-    border-left: none;
-    border-radius: 0 calc(999px * var(--layout-stage-scale)) calc(999px * var(--layout-stage-scale)) 0;
-}
-
 .charge-delta.is-side-right {
     --charge-delta-drift-x: calc(var(--layout-size-charge-delta-drift) * -1);
     transform-origin: left center;
-}
-
-.charge-delta.is-side-right::before {
-    left: calc(var(--layout-size-charge-delta-wing-overlap) * -1);
-    border-right: none;
-    border-radius: calc(999px * var(--layout-stage-scale)) 0 0 calc(999px * var(--layout-stage-scale));
 }
 
 .charge-delta.is-restart {
@@ -390,30 +369,28 @@
 
 .charge-delta.is-increase {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 44%),
-        linear-gradient(180deg, rgba(32, 82, 136, 0.97), rgba(12, 28, 60, 0.97));
-    border-color: rgba(222, 191, 112, 0.62);
-    color: #eef7ff;
+        linear-gradient(180deg, rgba(205, 228, 255, 0.16), rgba(205, 228, 255, 0) 40%),
+        linear-gradient(180deg, rgba(27, 58, 97, 0.98), rgba(8, 18, 39, 0.99));
+    border-color: rgba(216, 184, 105, 0.68);
+    color: #eef6ff;
     box-shadow:
-        0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
-        0 0 calc(12px * var(--layout-stage-scale)) rgba(86, 160, 255, 0.16),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(225, 241, 255, 0.22),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.42),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 224, 138, 0.08);
+        0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(88, 149, 255, 0.14),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(225, 239, 255, 0.14),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34);
 }
 
 .charge-delta.is-decrease {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 44%),
-        linear-gradient(180deg, rgba(122, 46, 52, 0.97), rgba(46, 14, 18, 0.97));
-    border-color: rgba(222, 191, 112, 0.58);
+        linear-gradient(180deg, rgba(255, 219, 219, 0.14), rgba(255, 219, 219, 0) 40%),
+        linear-gradient(180deg, rgba(102, 34, 42, 0.98), rgba(40, 11, 16, 0.99));
+    border-color: rgba(210, 176, 102, 0.64);
     color: #fff0ef;
     box-shadow:
-        0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
-        0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 104, 104, 0.14),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 229, 229, 0.18),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.42),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 224, 138, 0.08);
+        0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(210, 72, 72, 0.12),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 228, 228, 0.12),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34);
 }
 /* Player Area Containers */
 .player-area-top,
