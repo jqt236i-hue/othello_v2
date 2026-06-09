@@ -1477,8 +1477,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        top: max(calc(104px * var(--layout-stage-scale)), env(safe-area-inset-top));
-        bottom: auto;
+        top: auto;
+        bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
         display: grid;
         grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
         grid-auto-rows: calc(44px * var(--layout-stage-scale));
@@ -1489,6 +1489,19 @@ html.sim-aspect-5-4 #effect-live-panel {
         gap: calc(5px * var(--layout-stage-scale));
         overflow-x: hidden;
         overflow-y: hidden;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #left-info-stack {
+        top: calc(var(--layout-stage-offset-y) + calc(150px * var(--layout-stage-scale)));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #hero-character-panel {
+        bottom: calc(var(--layout-stage-offset-y) + calc(120px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #hero-character-img {
+        width: calc(248px * var(--layout-stage-scale) * var(--layout-character-image-scale));
+        height: calc(248px * var(--layout-stage-scale) * var(--layout-character-image-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons.left-rail-collapsed {
@@ -1526,8 +1539,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 @media (orientation: landscape) and (pointer: coarse) and (min-width: 56.3125em) and (max-width: 87.5em) and (max-height: 56.25em) {
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        top: max(calc(104px * var(--layout-stage-scale)), env(safe-area-inset-top));
-        bottom: auto;
+        top: auto;
+        bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
         display: grid;
         grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
         grid-auto-rows: calc(44px * var(--layout-stage-scale));
@@ -1538,6 +1551,19 @@ html.sim-aspect-5-4 #effect-live-panel {
         gap: calc(5px * var(--layout-stage-scale));
         overflow-x: hidden;
         overflow-y: hidden;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack {
+        top: calc(var(--layout-stage-offset-y) + calc(150px * var(--layout-stage-scale)));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-character-panel {
+        bottom: calc(var(--layout-stage-offset-y) + calc(120px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-character-img {
+        width: calc(248px * var(--layout-stage-scale) * var(--layout-character-image-scale));
+        height: calc(248px * var(--layout-stage-scale) * var(--layout-character-image-scale));
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons.left-rail-collapsed {

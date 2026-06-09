@@ -63,6 +63,10 @@ describe('left action rail layout contract', () => {
 
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*top:\s*max\(calc\(240px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-top\)\s*\+\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#leftActionButtons[\s\S]*top:/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#leftActionButtons[\s\S]*top:\s*auto/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#leftActionButtons[\s\S]*bottom:\s*max\(calc\(10px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-bottom\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#hero-character-panel[\s\S]*bottom:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*calc\(120px\s*\*\s*var\(--layout-stage-scale\)\)\s*\+\s*var\(--layout-stage-bottom-safe-shift\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#left-info-stack[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*calc\(150px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#leftActionButtons[\s\S]*bottom:/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#leftActionButtons[\s\S]*flex-direction:\s*row/);
   });
