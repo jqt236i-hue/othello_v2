@@ -28,9 +28,9 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#hero-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*0/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*background:[\s\S]*linear-gradient\(180deg,\s*rgba\(255,\s*248,\s*225,\s*0\.14\),\s*rgba\(255,\s*248,\s*225,\s*0\)\s*38%\)/);
-    expect(css).toMatch(/#cpu-level-label[\s\S]*font-weight:\s*800/);
+    expect(css).toMatch(/#cpu-level-label[\s\S]*font-weight:\s*500/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*backdrop-filter:\s*blur/);
-    expect(css).toMatch(/#cpu-level-label[\s\S]*letter-spacing:\s*calc\(0\.7px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/#cpu-level-label[\s\S]*letter-spacing:\s*calc\(1\.4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-menu[\s\S]*backdrop-filter:\s*blur/);
     expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*0/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);

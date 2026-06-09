@@ -65,12 +65,12 @@
         linear-gradient(135deg, rgba(126, 215, 255, 0.14) 0%, rgba(126, 215, 255, 0) 34%),
         linear-gradient(180deg, rgba(18, 22, 30, 0.84), rgba(10, 13, 18, 0.8));
     font-size: clamp(13px, calc(var(--layout-anchor-cpu-label-font) * var(--layout-stage-scale)), var(--layout-anchor-cpu-label-font));
-    color: #f5de97;
-    font-weight: 800;
+    color: #e7eef8;
+    font-weight: 500;
     text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88),
-        0 0 calc(9px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.18);
-    letter-spacing: calc(0.7px * var(--layout-stage-scale));
+        0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.82),
+        0 0 calc(6px * var(--layout-stage-scale)) rgba(167, 219, 255, 0.14);
+    letter-spacing: calc(1.4px * var(--layout-stage-scale));
     margin-top: 0;
     margin-bottom: 0;
     line-height: 1.08;
@@ -96,7 +96,7 @@
 #cpu-level-label:hover:not([disabled]),
 #cpu-level-label:focus-visible:not([disabled]) {
     border-color: rgba(255, 229, 150, 0.84);
-    color: #fff3ca;
+    color: #f5faff;
     box-shadow:
         0 calc(10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
         0 0 calc(16px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.14),
