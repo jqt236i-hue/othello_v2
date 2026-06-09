@@ -31,14 +31,16 @@ describe('left info stack layout contract', () => {
     expect(responsiveCss).not.toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*position:\s*fixed/);
     expect(responsiveCss).not.toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*top:\s*calc\(var\(--profile-effect-top\)\s*\+\s*var\(--profile-effect-min-height\)\s*\+\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*transform:\s*none/);
-    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*min-height:\s*calc\(280px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*max-height:\s*calc\(280px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*min-height:\s*calc\(var\(--layout-anchor-manifest-effect-height\)\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*max-height:\s*calc\(var\(--layout-anchor-manifest-effect-height\)\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).not.toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*280px/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*transform:\s*translateX\(-50%\)/);
   });
 
   test('left information HUD uses game-like readable panel treatments', () => {
     const layoutCss = readLayoutCssSurface();
     const boardCss = readRepoTextFile('styles-board.css');
+    const manifestPanelBlock = layoutCss.match(/#manifest-effect-panel\s*\{[\s\S]*?\n\}/)?.[0] || '';
 
     expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*--left-hud-accent/);
     expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*clip-path:\s*polygon/);
@@ -46,6 +48,11 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/\.battle-status-turn::before[\s\S]*content:\s*''/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*--left-hud-accent/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*clip-path:\s*polygon/);
+    expect(manifestPanelBlock).toMatch(/box-shadow:[\s\S]*calc\(-10px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(manifestPanelBlock).not.toMatch(/var\(--ui-elevation-panel\)/);
+    expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*font-size:\s*max\(calc\(13px\s*\*\s*var\(--layout-stage-scale\)\),\s*13px\)/);
+    expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*font-weight:\s*800/);
+    expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*text-shadow:/);
     expect(layoutCss).toMatch(/\.manifest-effect-line::before[\s\S]*content:\s*''/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-accent/);
     expect(boardCss).toMatch(/\.stone-info-panel::before[\s\S]*content:\s*''/);

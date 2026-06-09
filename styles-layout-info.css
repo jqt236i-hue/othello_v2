@@ -475,8 +475,8 @@
     z-index: 11989;
     display: none;
     width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
-    min-height: calc(280px * var(--layout-stage-scale));
-    max-height: calc(280px * var(--layout-stage-scale));
+    min-height: calc(var(--layout-anchor-manifest-effect-height) * var(--layout-stage-scale));
+    max-height: calc(var(--layout-anchor-manifest-effect-height) * var(--layout-stage-scale));
     overflow: hidden;
     background:
         radial-gradient(circle at 12% 0%, rgba(242, 201, 95, 0.16), transparent 36%),
@@ -493,8 +493,8 @@
         0 calc(9px * var(--layout-stage-scale))
     );
     box-shadow:
-        var(--ui-elevation-panel),
-        0 calc(14px * var(--layout-stage-scale)) calc(30px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48),
+        0 calc(20px * var(--layout-stage-scale)) calc(30px * var(--layout-stage-scale)) calc(-10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.68),
+        0 calc(8px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) calc(-8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54),
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.24),
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 241, 190, 0.08);
     padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
@@ -554,13 +554,18 @@
 .manifest-effect-line {
     position: relative;
     z-index: 1;
-    padding: calc(4px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
-    color: var(--color-text-bright);
-    font-size: calc(12px * var(--layout-stage-scale));
-    line-height: 1.32;
+    padding: calc(5px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) calc(17px * var(--layout-stage-scale));
+    color: #fff4d2;
+    font-size: max(calc(13px * var(--layout-stage-scale)), 13px);
+    font-weight: 800;
+    line-height: 1.36;
     min-height: 1.2em;
     border-radius: calc(4px * var(--layout-stage-scale));
-    background: rgba(0, 0, 0, 0.16);
+    background:
+        linear-gradient(90deg, rgba(242, 201, 95, 0.10), rgba(0, 0, 0, 0.30) 26%, rgba(0, 0, 0, 0.22));
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.92),
+        0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 226, 122, 0.12);
     overflow: hidden;
     word-break: keep-all;
     overflow-wrap: anywhere;
@@ -580,10 +585,10 @@
 
 .manifest-effect-line--dynamic {
     color: #fff0b8;
-    font-weight: 800;
+    font-weight: 900;
     background:
-        linear-gradient(90deg, rgba(242, 201, 95, 0.16), rgba(0, 0, 0, 0.16));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.18);
+        linear-gradient(90deg, rgba(242, 201, 95, 0.26), rgba(0, 0, 0, 0.30));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.34);
 }
 
 #round-display-panel {
