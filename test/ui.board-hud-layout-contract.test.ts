@@ -5,7 +5,9 @@ describe('board HUD layout contract', () => {
     const layoutCss = readLayoutCssSurface();
 
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*font-size:\s*var\(--layout-size-charge-font\)/);
+    expect(layoutCss).toMatch(/\.charge-display[\s\S]*padding:\s*var\(--layout-size-charge-pad-y\)\s*var\(--layout-size-charge-pad-x\)/);
     expect(layoutCss).toMatch(/#charge-black[\s\S]*bottom:\s*var\(--layout-size-charge-offset\)/);
+    expect(layoutCss).toMatch(/#charge-white[\s\S]*top:\s*var\(--layout-size-charge-offset\)/);
     expect(layoutCss).toMatch(/#charge-white \.time-stop-status-badge[\s\S]*bottom:\s*calc\(100%\s*\+\s*\(6px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*position:\s*absolute/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*display:\s*flex/);

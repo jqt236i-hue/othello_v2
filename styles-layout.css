@@ -167,7 +167,7 @@
     align-items: baseline;
     justify-content: center;
     gap: calc(3px * var(--layout-stage-scale));
-    padding: calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
+    padding: var(--layout-size-charge-pad-y) var(--layout-size-charge-pad-x);
     background:
         linear-gradient(180deg, rgba(62, 48, 29, 0.96), rgba(18, 14, 10, 0.96)),
         linear-gradient(135deg, rgba(255, 244, 214, 0.05), transparent 46%, rgba(255, 206, 103, 0.05) 100%);
@@ -269,7 +269,7 @@
 
 #charge-white {
     left: 50%;
-    top: calc(var(--layout-size-charge-offset) + (6px * var(--layout-stage-scale)));
+    top: var(--layout-size-charge-offset);
     transform: translateX(-50%);
 }
 

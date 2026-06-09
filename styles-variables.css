@@ -146,12 +146,12 @@
     --layout-size-status-pad-x: calc(24px * var(--layout-stage-scale));
     --layout-size-status-radius: calc(50px * var(--layout-stage-scale));
 
-    --layout-size-charge-font: calc(14px * var(--layout-stage-scale));
-    --layout-size-charge-pad-y: calc(4px * var(--layout-stage-scale));
+    --layout-size-charge-font: calc(13px * var(--layout-stage-scale));
+    --layout-size-charge-pad-y: calc(2px * var(--layout-stage-scale));
     --layout-size-charge-pad-x: calc(10px * var(--layout-stage-scale));
     --layout-size-charge-radius: calc(14px * var(--layout-stage-scale));
     --layout-size-charge-border: max(1px, calc(2px * var(--layout-stage-scale)));
-    --layout-size-charge-offset: calc((-25px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
+    --layout-size-charge-offset: calc((-29px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
 
     --layout-size-charge-delta-font: calc(15px * var(--layout-stage-scale));
     --layout-size-charge-delta-pad-y: calc(4px * var(--layout-stage-scale));
