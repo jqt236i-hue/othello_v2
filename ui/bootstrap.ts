@@ -324,7 +324,12 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         if (seed.DEBUG_MODE_ALLOWED === true) return true;
         if (seed.DEBUG_MODE_ALLOWED === false) return false;
         const query = readDebugQueryString();
-        return /[?&]debug=1(?:&|$)/.test(query) || /[?&]debug=true(?:&|$)/i.test(query);
+        return /[?&]debug=1(?:&|$)/.test(query)
+            || /[?&]debug=true(?:&|$)/i.test(query)
+            || /[?&]specialDebug=1(?:&|$)/.test(query)
+            || /[?&]specialDebug=true(?:&|$)/i.test(query)
+            || /[?&]special-debug=1(?:&|$)/.test(query)
+            || /[?&]special-debug=true(?:&|$)/i.test(query);
     }
 
     function setDebugLogTarget(target: any, enabled: any) {

@@ -193,7 +193,12 @@ function _isDebugAllowed() {
         if (window.DEBUG_MODE_ALLOWED === true) return true;
         if (window.DEBUG_MODE_ALLOWED === false) return false;
         const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
-        return /[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs);
+        return /[?&]debug=1/.test(qs)
+            || /[?&]debug=true/i.test(qs)
+            || /[?&]specialDebug=1/.test(qs)
+            || /[?&]specialDebug=true/i.test(qs)
+            || /[?&]special-debug=1/.test(qs)
+            || /[?&]special-debug=true/i.test(qs);
     } catch (e) {
         return false;
     }

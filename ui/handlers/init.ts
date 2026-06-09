@@ -206,7 +206,11 @@ async function initializeUI(): Promise<void> {
   const refs = (typeof getInitDomElements === 'function') ? getInitDomElements() : {} as InitDomElements;
   const debugAllowed = (typeof window !== 'undefined' && (window as Window & { DEBUG_MODE_ALLOWED?: boolean }).DEBUG_MODE_ALLOWED === true)
     || /[?&]debug=1/.test((typeof location !== 'undefined' && location.search) ? location.search : '')
-    || /[?&]debug=true/.test((typeof location !== 'undefined' && location.search) ? location.search : '');
+    || /[?&]debug=true/i.test((typeof location !== 'undefined' && location.search) ? location.search : '')
+    || /[?&]specialDebug=1/.test((typeof location !== 'undefined' && location.search) ? location.search : '')
+    || /[?&]specialDebug=true/i.test((typeof location !== 'undefined' && location.search) ? location.search : '')
+    || /[?&]special-debug=1/.test((typeof location !== 'undefined' && location.search) ? location.search : '')
+    || /[?&]special-debug=true/i.test((typeof location !== 'undefined' && location.search) ? location.search : '');
 
   try {
     if (typeof SoundEngine !== 'undefined' && typeof SoundEngine.primeEffectSounds === 'function') {

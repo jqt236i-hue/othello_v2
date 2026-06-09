@@ -25,7 +25,12 @@ function isPresentationDebugEnabled(): boolean {
       : ((typeof globalThis !== 'undefined' && (globalThis as any).location && typeof (globalThis as any).location.search === 'string')
         ? (globalThis as any).location.search
         : '');
-    return /[?&]debug=1(?:&|$)/.test(search) || /[?&]debug=true(?:&|$)/i.test(search);
+    return /[?&]debug=1(?:&|$)/.test(search)
+      || /[?&]debug=true(?:&|$)/i.test(search)
+      || /[?&]specialDebug=1(?:&|$)/.test(search)
+      || /[?&]specialDebug=true(?:&|$)/i.test(search)
+      || /[?&]special-debug=1(?:&|$)/.test(search)
+      || /[?&]special-debug=true(?:&|$)/i.test(search);
   } catch (e) { /* ignore */ }
   return false;
 }

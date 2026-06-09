@@ -11,6 +11,8 @@ function _isDebugEnabled(): boolean {
   try {
     const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
     if (/[?&]debug=1\b/.test(qs) || /[?&]debug=true\b/.test(qs)) return true;
+    if (/[?&]specialDebug=1\b/.test(qs) || /[?&]specialDebug=true\b/i.test(qs)) return true;
+    if (/[?&]special-debug=1\b/.test(qs) || /[?&]special-debug=true\b/i.test(qs)) return true;
   } catch (e) { /* ignore */ }
   try {
     if (typeof window !== 'undefined' && (window as any).DEBUG_UNLIMITED_USAGE === true) return true;

@@ -37,7 +37,24 @@ function _isDebugAllowed(): boolean {
         if (seed.DEBUG_MODE_ALLOWED === true) return true;
         if (seed.DEBUG_MODE_ALLOWED === false) return false;
         const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
-        return (/[?&]debug=1/.test(qs) || /[?&]debug=true/.test(qs));
+        return (/[?&]debug=1/.test(qs)
+            || /[?&]debug=true/.test(qs)
+            || /[?&]specialDebug=1/.test(qs)
+            || /[?&]specialDebug=true/i.test(qs)
+            || /[?&]special-debug=1/.test(qs)
+            || /[?&]special-debug=true/i.test(qs));
+    } catch (e) {
+        return false;
+    }
+}
+
+function _isSpecialDebugQueryEnabled(): boolean {
+    try {
+        const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+        return /[?&]specialDebug=1(?:&|$)/.test(qs)
+            || /[?&]specialDebug=true(?:&|$)/i.test(qs)
+            || /[?&]special-debug=1(?:&|$)/.test(qs)
+            || /[?&]special-debug=true(?:&|$)/i.test(qs);
     } catch (e) {
         return false;
     }
@@ -713,15 +730,21 @@ function setupDebugControls(debugModeBtn: any, humanVsHumanBtn: any, visualTestB
     }
     _ensureDebugHandScrollBindings();
     const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
-    _applyDebugLayoutState(seed.DEBUG_UNLIMITED_USAGE === true);
-    _syncDebugFlags(seed.DEBUG_UNLIMITED_USAGE === true, seed.DEBUG_HUMAN_VS_HUMAN === true);
-    if (seed.DEBUG_UNLIMITED_USAGE === true && typeof seed.ensureDebugActionsLoaded === 'function') {
-        seed.ensureDebugActionsLoaded(() => {});
+    const specialDebugEnabled = _isSpecialDebugQueryEnabled() && !_isNetworkModeForDebug();
+    if (specialDebugEnabled && seed.DEBUG_UNLIMITED_USAGE !== true) {
+        _setDebugModeAllowed(true);
+        _syncDebugFlags(true, seed.DEBUG_HUMAN_VS_HUMAN === true);
+    }
+    const activeSeed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
+    _applyDebugLayoutState(activeSeed.DEBUG_UNLIMITED_USAGE === true);
+    _syncDebugFlags(activeSeed.DEBUG_UNLIMITED_USAGE === true, activeSeed.DEBUG_HUMAN_VS_HUMAN === true);
+    if (activeSeed.DEBUG_UNLIMITED_USAGE === true && typeof activeSeed.ensureDebugActionsLoaded === 'function') {
+        activeSeed.ensureDebugActionsLoaded(() => {});
     }
 
     if (debugModeBtn) {
         debugModeBtn.style.display = 'block';
-        const isDebug = seed.DEBUG_UNLIMITED_USAGE === true;
+        const isDebug = activeSeed.DEBUG_UNLIMITED_USAGE === true;
         _applyDebugButtonState(debugModeBtn, isDebug);
         _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, isDebug);
         debugModeBtn.addEventListener('click', () => {
