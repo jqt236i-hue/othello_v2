@@ -19,6 +19,7 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/#left-info-stack[\s\S]*display:\s*contents/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*#manifest-effect-panel\.is-visible/);
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top/);
+    expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top:\s*188px/);
   });
 
   test('responsive left info stack overrides stay explicit', () => {
