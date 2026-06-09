@@ -1470,6 +1470,47 @@ html.sim-aspect-5-4 #effect-live-panel {
         margin-bottom: calc(6px * var(--layout-stage-scale));
     }
 
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
+        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        top: max(calc(104px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
+        grid-auto-rows: calc(44px * var(--layout-stage-scale));
+        align-items: stretch;
+        width: min(calc(350px * var(--layout-stage-scale)), 26vw);
+        max-height: calc(104px * var(--layout-stage-scale));
+        padding: calc(5px * var(--layout-stage-scale));
+        gap: calc(5px * var(--layout-stage-scale));
+        overflow-x: hidden;
+        overflow-y: hidden;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons.left-rail-collapsed {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: calc(58px * var(--layout-stage-scale));
+        max-height: calc(58px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-btn {
+        min-width: 0;
+        min-height: calc(44px * var(--layout-stage-scale));
+        padding: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+        grid-template-rows: calc(16px * var(--layout-stage-scale)) auto;
+        gap: calc(3px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-icon {
+        width: calc(16px * var(--layout-stage-scale));
+        height: calc(16px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-label {
+        font-size: calc(9px * var(--layout-stage-scale));
+        line-height: 1.15;
+    }
+
     html.layout-profile-tablet-4x3.layout-stage-enabled #effect-live-panel {
         min-height: calc(156px * var(--layout-stage-scale));
         max-height: calc(156px * var(--layout-stage-scale));
@@ -1482,15 +1523,41 @@ html.sim-aspect-5-4 #effect-live-panel {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
         top: max(calc(104px * var(--layout-stage-scale)), env(safe-area-inset-top));
         bottom: auto;
-        width: min(calc(376px * var(--layout-stage-scale)), 26vw);
-        max-height: calc(58px * var(--layout-stage-scale));
-        flex-direction: row;
-        align-items: center;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
+        grid-auto-rows: calc(44px * var(--layout-stage-scale));
+        align-items: stretch;
+        width: min(calc(350px * var(--layout-stage-scale)), 26vw);
+        max-height: calc(104px * var(--layout-stage-scale));
         padding: calc(5px * var(--layout-stage-scale));
         gap: calc(5px * var(--layout-stage-scale));
-        overflow-x: auto;
+        overflow-x: hidden;
         overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons.left-rail-collapsed {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: calc(58px * var(--layout-stage-scale));
+        max-height: calc(58px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-btn {
+        min-width: 0;
+        min-height: calc(44px * var(--layout-stage-scale));
+        padding: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+        grid-template-rows: calc(16px * var(--layout-stage-scale)) auto;
+        gap: calc(3px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-icon {
+        width: calc(16px * var(--layout-stage-scale));
+        height: calc(16px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-label {
+        font-size: calc(9px * var(--layout-stage-scale));
+        line-height: 1.15;
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #effect-live-panel {
