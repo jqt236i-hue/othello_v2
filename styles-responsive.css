@@ -1241,8 +1241,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
         --card-detail-landscape-top-anchor: calc(100dvh - var(--layout-stage-offset-y) - var(--layout-stage-bottom-safe-shift) - var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) - (var(--layout-anchor-card-detail-min-height) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)));
-        left: auto;
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)) + ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap) + var(--layout-anchor-card-detail-width) + var(--layout-anchor-log-detail-gap)) * var(--layout-stage-scale)));
+        left: calc(100dvw - var(--layout-stage-offset-x) - max(var(--layout-anchor-side-right), env(safe-area-inset-right)) - ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap)) * var(--layout-stage-scale)) + (var(--layout-anchor-log-detail-gap) * var(--layout-stage-scale)));
+        right: auto;
         top: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-top-anchor));
         transform: none;
         width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
