@@ -80,6 +80,12 @@
     --surface-modal-gacha: linear-gradient(180deg, rgba(37, 26, 20, 0.98), rgba(18, 13, 10, 0.98));
     --shadow-modal: 0 8px 28px rgba(0, 0, 0, 0.6);
     --shadow-modal-strong: 0 10px 34px rgba(0, 0, 0, 0.62);
+    --ui-drop-shadow-panel: 0 calc(18px * var(--layout-stage-scale)) calc(40px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.64);
+    --ui-drop-shadow-strong: 0 calc(26px * var(--layout-stage-scale)) calc(58px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.70);
+    --ui-drop-shadow-board: 0 calc(34px * var(--layout-stage-scale)) calc(82px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78);
+    --ui-elevation-panel: var(--ui-drop-shadow-panel);
+    --ui-elevation-strong: var(--ui-drop-shadow-strong);
+    --ui-elevation-board: var(--ui-drop-shadow-board);
     --motion-fast: 120ms ease;
     --motion-panel: 160ms ease;
     --motion-standard: 0.3s ease;

@@ -1608,6 +1608,7 @@ body.othello-mode-active :is(
         linear-gradient(145deg, rgba(8, 28, 21, 0.96), rgba(4, 9, 10, 0.94) 58%, rgba(9, 18, 16, 0.96));
     color: #f1fff6;
     box-shadow:
+        var(--ui-elevation-panel),
         0 calc(16px * var(--layout-stage-scale)) calc(36px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56),
         0 0 calc(16px * var(--layout-stage-scale)) rgba(113, 240, 179, 0.08),
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.07),

@@ -1938,6 +1938,7 @@
         0 calc(14px * var(--layout-stage-scale))
     );
     box-shadow:
+        var(--ui-elevation-strong),
         0 calc(18px * var(--layout-stage-scale)) calc(38px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56),
         0 0 calc(18px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.10),
         inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28),
