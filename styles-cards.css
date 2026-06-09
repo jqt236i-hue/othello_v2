@@ -1999,7 +1999,7 @@
 }
 
 #card-detail-desc {
-    min-height: calc(88px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+    min-height: calc(96px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
     margin-bottom: calc(10px * var(--layout-stage-scale));
     padding: calc(11px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale)) calc(12px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 239, 190, 0.11);
