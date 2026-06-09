@@ -32,6 +32,7 @@ function _resolveCardRendererModule(requirePath: string, globalKey: string): any
 let PlaybackStateModule: any = _resolveCardRendererModule('../ui/playback-state-manager', 'PlaybackStateManager');
 let OwnerHelpersModule: any = _resolveCardRendererModule('../utils/owner-helpers', 'OwnerHelpers');
 let HandAnimationUtilsModule: any = _resolveCardRendererModule('../ui/animation-utils', 'HandAnimationUtilsModule');
+let PlayerSlotElementsModule: any = _resolveCardRendererModule('../ui/player-slot-elements', 'PlayerSlotElements');
 let CardLogicModule: any = _resolveCardRendererModule('../game/logic/cards', 'CardLogic');
 let SpecialCardRegistryModule: any = _resolveCardRendererModule('../shared/special-card-registry', 'SpecialCardRegistry');
 function getCardCostTier(cost: number): string {
@@ -1400,17 +1401,37 @@ function _drainChargeDeltaPopups(cardState: any, options: any) {
 function drainVisibleChargeDeltaPopups(options: any) {
     return _drainChargeDeltaPopups(_resolveCardRendererCardState(), options);
 }
+let _playerSlotElementResolverForRender: any = null;
+function _getPlayerSlotElementResolverForRender() {
+    if (_playerSlotElementResolverForRender) return _playerSlotElementResolverForRender;
+    if (PlayerSlotElementsModule && typeof PlayerSlotElementsModule.createPlayerSlotElementResolver === 'function') {
+        _playerSlotElementResolverForRender = PlayerSlotElementsModule.createPlayerSlotElementResolver({
+            getDocumentRef: () => (typeof document !== 'undefined' ? document : null),
+            getOwnerHelpersModule: () => OwnerHelpersModule
+        });
+        return _playerSlotElementResolverForRender;
+    }
+    return null;
+}
+function _getPlayerSlotElementsForRender() {
+    const resolver = _getPlayerSlotElementResolverForRender();
+    if (resolver && typeof resolver.getPlayerSlotElements === 'function') {
+        return resolver.getPlayerSlotElements();
+    }
+    return {
+        deckBlackEl: document.getElementById('deck-black'),
+        deckWhiteEl: document.getElementById('deck-white'),
+        handBlackEl: document.getElementById('hand-black'),
+        handWhiteEl: document.getElementById('hand-white')
+    };
+}
 function renderCardUI() {
     const gameState = _resolveCardRendererGameState();
     const cardState = _normalizeCardStateForRender(_resolveCardRendererCardState());
     if (!gameState || !Array.isArray(gameState.board) || gameState.board.length <= 0 || !cardState) {
         return;
     }
-    // Get elements
-    const deckBlackEl = document.getElementById('deck-black');
-    const deckWhiteEl = document.getElementById('deck-white');
-    const handBlackEl = document.getElementById('hand-black');
-    const handWhiteEl = document.getElementById('hand-white');
+    const { deckBlackEl, deckWhiteEl, handBlackEl, handWhiteEl } = _getPlayerSlotElementsForRender();
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const matchMode = _getCurrentMatchMode();
     const visibleOwners = _resolveVisibleChargeOwners(matchMode);

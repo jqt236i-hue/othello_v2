@@ -20,6 +20,24 @@ describe('move-executor presentation emission', () => {
             }
         });
     }
+    function installImmediateNetworkHandoff(moveExecutor: any, handler?: (opts: any) => any) {
+        const finalizeNetworkTurnHandoff = jest.fn(async (opts: any) => {
+            if (typeof handler === 'function') return handler(opts);
+            if (typeof opts.publishSnapshot === 'function') {
+                opts.publishSnapshot({
+                    playerKey: opts.playerKey,
+                    actionType: opts.actionType,
+                    action: opts.action,
+                    playbackEvents: opts.playbackEvents
+                });
+            }
+            return { ok: true, scheduledCpu: false };
+        });
+        moveExecutor.setUIImpl({
+            networkTurnHandoff: { finalizeNetworkTurnHandoff }
+        });
+        return finalizeNetworkTurnHandoff;
+    }
 
     test('executeMoveViaPipeline emits PLAYBACK_EVENTS via injected PresentationHelper runtime when playbackEvents present', async () => {
         // arrange
@@ -139,6 +157,7 @@ describe('move-executor presentation emission', () => {
             publishSnapshot,
             isNetworkPublishActive: () => true
         });
+        installImmediateNetworkHandoff(moveExecutor);
 
         const fakeRes = {
             ok: true,
@@ -172,6 +191,20 @@ describe('move-executor presentation emission', () => {
         };
 
         const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            publishSnapshot: (meta: any) => global.NetworkMatchClient.publishSnapshot(meta),
+            isNetworkPublishActive: () => true
+        });
+        installImmediateNetworkHandoff(moveExecutor, async (opts: any) => {
+            global.showResult();
+            opts.publishSnapshot({
+                playerKey: opts.playerKey,
+                actionType: opts.actionType,
+                action: opts.action,
+                playbackEvents: opts.playbackEvents
+            });
+            return { ok: true, gameOver: true, scheduledCpu: false };
+        });
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
@@ -214,6 +247,21 @@ describe('move-executor presentation emission', () => {
         };
 
         const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            publishSnapshot: (meta: any) => global.NetworkMatchClient.publishSnapshot(meta),
+            isNetworkPublishActive: () => true
+        });
+        installImmediateNetworkHandoff(moveExecutor, async (opts: any) => {
+            const turnStartResult = await opts.onTurnStart(global.gameState.currentPlayer);
+            const combinedPlaybackEvents = opts.playbackEvents.concat(turnStartResult.playbackEvents || []);
+            opts.publishSnapshot({
+                playerKey: opts.playerKey,
+                actionType: opts.actionType,
+                action: opts.action,
+                playbackEvents: combinedPlaybackEvents
+            });
+            return { ok: true, scheduledCpu: false };
+        });
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
@@ -271,6 +319,21 @@ describe('move-executor presentation emission', () => {
         };
 
         const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            publishSnapshot: (meta: any) => global.NetworkMatchClient.publishSnapshot(meta),
+            isNetworkPublishActive: () => true
+        });
+        installImmediateNetworkHandoff(moveExecutor, async (opts: any) => {
+            const turnStartResult = await opts.onTurnStart(global.gameState.currentPlayer);
+            const combinedPlaybackEvents = opts.playbackEvents.concat(turnStartResult.playbackEvents || []);
+            opts.publishSnapshot({
+                playerKey: opts.playerKey,
+                actionType: opts.actionType,
+                action: opts.action,
+                playbackEvents: combinedPlaybackEvents
+            });
+            return { ok: true, scheduledCpu: false };
+        });
         const nextCardState = {
             pendingEffectByPlayer: { black: null, white: null },
             turnIndex: 1,
@@ -405,6 +468,45 @@ describe('move-executor presentation emission', () => {
         await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
 
         expect(syncVisibleChargeDisplaysNow).toHaveBeenCalledTimes(1);
+        expect(global.onTurnStart).toHaveBeenCalledTimes(1);
+    });
+
+    test('UIブリッジがなくても global renderVisibleChargeDisplays で布石表示を即時同期する', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            turnIndex: 0,
+            charge: { black: 2, white: 0 }
+        };
+        global.gameState = {
+            currentPlayer: -1,
+            board: Array(8).fill().map(() => Array(8).fill(0))
+        };
+        global.onTurnStart = jest.fn(async () => ({ playbackEvents: [] }));
+        global.renderVisibleChargeDisplays = jest.fn(() => true);
+
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({});
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: {
+                pendingEffectByPlayer: { black: null, white: null },
+                turnIndex: 1,
+                charge: { black: 5, white: 0 }
+            },
+            playbackEvents: [{ type: 'place', phase: 1, targets: [{ r: 2, col: 3 }] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(global.renderVisibleChargeDisplays).toHaveBeenCalledTimes(1);
         expect(global.onTurnStart).toHaveBeenCalledTimes(1);
     });
 

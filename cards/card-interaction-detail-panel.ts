@@ -13,6 +13,142 @@ type CardInteractionDetailPanelDeps = {
     getRiboWillUnlockTurnIndex: () => number;
 };
 
+type CardDetailLandscapeAnchorSyncDeps = {
+    getWindowRef?: () => any;
+    getDocumentRef?: () => any;
+};
+
+function isLandscapeCardDetailAnchorTarget(windowRef: any) {
+    if (!windowRef) return false;
+    const width = Number(windowRef.innerWidth || 0);
+    const height = Number(windowRef.innerHeight || 0);
+    return width > height && width >= 901;
+}
+
+function createCardDetailLandscapeAnchorSync(deps?: CardDetailLandscapeAnchorSyncDeps) {
+    const cfg = (deps && typeof deps === 'object') ? deps : {};
+    let initialized = false;
+    let resizeObserver: any = null;
+    let rafId: any = null;
+
+    const getWindowRef = () => (typeof cfg.getWindowRef === 'function'
+        ? cfg.getWindowRef()
+        : (typeof window !== 'undefined' ? window : null));
+    const getDocumentRef = () => (typeof cfg.getDocumentRef === 'function'
+        ? cfg.getDocumentRef()
+        : (typeof document !== 'undefined' ? document : null));
+
+    function clearReserve() {
+        const documentRef = getDocumentRef();
+        if (!documentRef) return;
+        const root = documentRef.documentElement;
+        if (!root || !root.style) return;
+        root.style.removeProperty('--card-detail-landscape-bottom-reserve');
+    }
+
+    function sync() {
+        const windowRef = getWindowRef();
+        const documentRef = getDocumentRef();
+        if (!windowRef || !documentRef) return;
+        const root = documentRef.documentElement;
+        if (!root || !root.style) return;
+        if (!isLandscapeCardDetailAnchorTarget(windowRef)) {
+            clearReserve();
+            return;
+        }
+        const sidePanel = documentRef.getElementById('side-panel');
+        if (!sidePanel || typeof sidePanel.getBoundingClientRect !== 'function') {
+            clearReserve();
+            return;
+        }
+        const rect = sidePanel.getBoundingClientRect();
+        if (!Number.isFinite(rect.top)) {
+            clearReserve();
+            return;
+        }
+        if (rect.top < windowRef.innerHeight * 0.5) {
+            clearReserve();
+            return;
+        }
+        const panelEl = documentRef.getElementById('card-detail-panel');
+        const cpuLabelEl = documentRef.getElementById('cpu-level-label');
+        const panelRect = panelEl && typeof panelEl.getBoundingClientRect === 'function'
+            ? panelEl.getBoundingClientRect()
+            : null;
+        const cpuLabelRect = cpuLabelEl && typeof cpuLabelEl.getBoundingClientRect === 'function'
+            ? cpuLabelEl.getBoundingClientRect()
+            : null;
+
+        const reserveMin = 170;
+        const reserveFromSidePanel = Math.round((windowRef.innerHeight - rect.top) + 20);
+        const reserveSafeFloor = Math.max(120, reserveFromSidePanel);
+        let reserve = Math.max(reserveMin, reserveFromSidePanel);
+
+        if (cpuLabelRect && Number.isFinite(cpuLabelRect.bottom)) {
+            const panelHeight = (panelRect && Number.isFinite(panelRect.height) && panelRect.height > 0)
+                ? panelRect.height
+                : 220;
+            const desiredTop = Math.round(cpuLabelRect.bottom + 12);
+            const reserveMaxForCpuLabel = Math.max(120, Math.floor(windowRef.innerHeight - desiredTop - panelHeight));
+            reserve = Math.max(reserveSafeFloor, Math.min(reserve, reserveMaxForCpuLabel));
+        }
+
+        root.style.setProperty('--card-detail-landscape-bottom-reserve', `${reserve}px`);
+    }
+
+    function schedule() {
+        const windowRef = getWindowRef();
+        if (!windowRef) return;
+        if (rafId !== null && typeof windowRef.cancelAnimationFrame === 'function') {
+            windowRef.cancelAnimationFrame(rafId);
+        }
+        if (typeof windowRef.requestAnimationFrame === 'function') {
+            rafId = windowRef.requestAnimationFrame(() => {
+                rafId = null;
+                sync();
+            });
+            return;
+        }
+        rafId = null;
+        sync();
+    }
+
+    function init() {
+        if (initialized) return;
+        const windowRef = getWindowRef();
+        const documentRef = getDocumentRef();
+        if (!windowRef || !documentRef) return;
+        initialized = true;
+
+        const sidePanel = documentRef.getElementById('side-panel');
+        const resizeObserverCtor = typeof ResizeObserver === 'function' ? ResizeObserver : null;
+        if (resizeObserverCtor && sidePanel) {
+            resizeObserver = new resizeObserverCtor(() => {
+                schedule();
+            });
+            try {
+                resizeObserver.observe(sidePanel);
+            } catch (e) { /* ignore */ }
+        }
+
+        windowRef.addEventListener('resize', schedule, { passive: true });
+        windowRef.addEventListener('orientationchange', schedule, { passive: true });
+
+        if (documentRef.readyState === 'loading') {
+            documentRef.addEventListener('DOMContentLoaded', schedule, { once: true });
+        }
+        schedule();
+    }
+
+    return {
+        clearReserve,
+        init,
+        schedule,
+        sync,
+        getResizeObserver: () => resizeObserver
+    };
+}
+
 export function createCardInteractionDetailPanel(deps: CardInteractionDetailPanelDeps) {
     const cfg = (deps && typeof deps === 'object') ? deps : {} as CardInteractionDetailPanelDeps;
 
@@ -308,5 +444,6 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
 }
 
 module.exports = {
+    createCardDetailLandscapeAnchorSync,
     createCardInteractionDetailPanel
 };

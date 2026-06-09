@@ -180,6 +180,12 @@ export function _resolveRenderVisibleChargeDisplaysForSync() {
     try {
         if (typeof globalThis !== 'undefined' && typeof (globalThis as any).renderVisibleChargeDisplays === 'function') return (globalThis as any).renderVisibleChargeDisplays;
     } catch (e) { /* ignore */ }
+    try {
+        const cardRenderer = require('./cards/card-renderer');
+        if (cardRenderer && typeof cardRenderer.renderVisibleChargeDisplays === 'function') {
+            return cardRenderer.renderVisibleChargeDisplays;
+        }
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -726,9 +732,11 @@ export function initWorkVisualDiagnosticsAuto() {
 (window as any).initWorkVisualDiagnosticsAuto = initWorkVisualDiagnosticsAuto;
 (window as any).clearEffectLivePanel = clearEffectLivePanel;
 (window as any).requestCardUiSync = requestCardUiSync;
+(window as any).syncVisibleChargeDisplaysNow = _syncVisibleChargeDisplaysNow;
 try {
     if (typeof globalThis !== 'undefined') {
         (globalThis as any).requestCardUiSync = requestCardUiSync;
+        (globalThis as any).syncVisibleChargeDisplaysNow = _syncVisibleChargeDisplaysNow;
     }
 } catch (e) { /* ignore */ }
 

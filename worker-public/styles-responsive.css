@@ -3,16 +3,26 @@
 @media (max-width: 56.25em) {
     #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-        gap: calc(6px * var(--layout-stage-scale));
+        top: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
+        width: calc(96px * var(--layout-stage-scale));
+        padding: calc(36px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        gap: calc(5px * var(--layout-stage-scale));
     }
 
     #leftActionButtons .left-action-btn {
-        min-width: calc(80px * var(--layout-stage-scale));
-        min-height: calc(40px * var(--layout-stage-scale));
-        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
-        letter-spacing: 0.06em;
+        min-width: calc(76px * var(--layout-stage-scale));
+        min-height: calc(54px * var(--layout-stage-scale));
+        padding: calc(7px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
+    }
+
+    #leftActionButtons .left-action-label {
+        font-size: calc(10px * var(--layout-stage-scale));
+    }
+
+    #leftActionButtons .left-action-icon {
+        width: calc(20px * var(--layout-stage-scale));
+        height: calc(20px * var(--layout-stage-scale));
     }
 
     #handSkinPanel {
@@ -106,6 +116,14 @@
         width: clamp(calc(170px * var(--layout-stage-scale)), 58vw, calc(230px * var(--layout-stage-scale)));
     }
 
+    #quick-controls-bar {
+        left: auto;
+        right: calc(12px * var(--layout-stage-scale));
+        top: calc(12px * var(--layout-stage-scale));
+        max-width: min(calc(420px * var(--layout-stage-scale)), calc(100vw - calc(140px * var(--layout-stage-scale))));
+        flex-wrap: wrap;
+    }
+
     #networkChatBody {
         max-height: calc(142px * var(--layout-stage-scale));
     }
@@ -124,7 +142,7 @@
 
 #cpu-level-label {
     margin-top: calc(1px * var(--layout-stage-scale)) !important;
-    transform: translateY(calc(48px * var(--layout-stage-scale))) !important;
+    transform: translateY(calc(12px * var(--layout-stage-scale))) !important;
     line-height: 1 !important;
 }
 
@@ -442,13 +460,26 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
     #leftActionButtons {
         left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+        top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
+        width: calc(82px * var(--layout-stage-scale));
+        padding: calc(8px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
         gap: calc(5px * var(--layout-stage-scale));
     }
 
     #leftActionButtons .left-action-btn {
         min-width: calc(52px * var(--layout-stage-scale));
-        padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+        min-height: calc(48px * var(--layout-stage-scale));
+        padding: calc(6px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    }
+
+    #leftActionButtons .left-action-label {
+        font-size: calc(9px * var(--layout-stage-scale));
+    }
+
+    #leftActionButtons .left-action-icon {
+        width: calc(18px * var(--layout-stage-scale));
+        height: calc(18px * var(--layout-stage-scale));
     }
 
     #rules-help-panel {
@@ -981,8 +1012,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 
 #stone-info-panel {
     left: var(--profile-stone-info-left);
-    top: var(--profile-effect-top);
-    transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
+    top: calc(var(--profile-effect-top) + var(--profile-effect-min-height) + calc(8px * var(--layout-stage-scale)));
+    transform: none;
     width: var(--profile-stone-info-width);
 }
 
@@ -1217,7 +1248,6 @@ html.sim-aspect-5-4 #effect-live-panel {
         pointer-events: none;
     }
 
-    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack > #stone-info-panel,
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack > #effect-live-panel,
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack > #manifest-effect-panel {
         position: static;
@@ -1227,6 +1257,17 @@ html.sim-aspect-5-4 #effect-live-panel {
         bottom: auto;
         transform: none;
         width: 100%;
+        box-sizing: border-box;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {
+        position: fixed;
+        left: var(--profile-stone-info-left);
+        top: calc(var(--profile-effect-top) + var(--profile-effect-min-height) + calc(8px * var(--layout-stage-scale)));
+        right: auto;
+        bottom: auto;
+        transform: none;
+        width: var(--profile-stone-info-width);
         box-sizing: border-box;
     }
 
@@ -1301,13 +1342,8 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white {
+        --layout-opponent-hand-scale: 0.82;
         min-height: calc(var(--layout-size-hand-min-height-top) * 0.88);
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white .card-item {
-        width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.82);
-        height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.82);
-        font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.82);
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black {
@@ -1372,7 +1408,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled #leftActionButtons {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-        bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
+        top: max(calc(240px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(12px * var(--layout-stage-scale))) !important;
+        bottom: auto;
     }
 
     html.layout-stage-enabled #handSkinPanel {

@@ -419,8 +419,23 @@ function _resolveChargeDeltaViewportWidth(): number {
   return 1920;
 }
 
+function _resolveChargeDeltaAnchorRoot(el: HTMLElement | null): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const boardFrameEl = document.getElementById('board-frame');
+  if (boardFrameEl) return boardFrameEl as HTMLElement;
+  const offsetParent = el ? ((el as any).offsetParent || null) : null;
+  if (offsetParent && typeof offsetParent.getBoundingClientRect === 'function') return offsetParent as HTMLElement;
+  return null;
+}
+
 function _isMirroredChargeDeltaSlot(key: string): boolean {
   return key === 'white';
+}
+
+function _applyChargeDeltaSideClass(el: HTMLElement, showOnLeft: boolean): void {
+  if (!el || !el.classList) return;
+  el.classList.remove('is-side-left', 'is-side-right');
+  el.classList.add(showOnLeft ? 'is-side-left' : 'is-side-right');
 }
 
 function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void {
@@ -443,22 +458,46 @@ function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void 
   const chargeHeight = Number.isFinite(chargeRect.height) ? chargeRect.height : 0;
   const chargeRight = Number.isFinite(chargeRect.right) ? chargeRect.right : (chargeRect.left + chargeWidth);
   const gap = _resolveChargeDeltaSideGapPx(el);
-  const viewportWidth = _resolveChargeDeltaViewportWidth();
-  const viewportHeight = _resolveChargeDeltaViewportHeight();
   const isPositive = Number(delta) > 0;
   const showOnLeft = _isMirroredChargeDeltaSlot(key) ? !isPositive : isPositive;
+  _applyChargeDeltaSideClass(el, showOnLeft);
 
   const anchorLeft = showOnLeft
     ? (chargeRect.left - deltaWidth - gap)
     : (chargeRight + gap);
   const anchorTop = chargeRect.top + ((chargeHeight - deltaHeight) / 2);
-  const maxLeft = Math.max(8, viewportWidth - deltaWidth - 8);
-  const maxTop = Math.max(8, viewportHeight - deltaHeight - 8);
-  const clampedLeft = Math.min(maxLeft, Math.max(8, anchorLeft));
-  const clampedTop = Math.min(maxTop, Math.max(8, anchorTop));
+  const anchorRoot = _resolveChargeDeltaAnchorRoot(el);
+  const anchorRootRect = (anchorRoot && typeof anchorRoot.getBoundingClientRect === 'function')
+    ? anchorRoot.getBoundingClientRect()
+    : null;
+  const hasAnchorRootRect = !!anchorRootRect
+    && Number.isFinite(anchorRootRect.left)
+    && Number.isFinite(anchorRootRect.top);
 
-  el.style.left = `${Math.round(clampedLeft)}px`;
-  el.style.top = `${Math.round(clampedTop)}px`;
+  let resolvedLeft = anchorLeft;
+  let resolvedTop = anchorTop;
+
+  if (hasAnchorRootRect) {
+    resolvedLeft -= anchorRootRect.left;
+    resolvedTop -= anchorRootRect.top;
+
+    const rootWidth = Number.isFinite(anchorRootRect.width) ? anchorRootRect.width : 0;
+    const rootHeight = Number.isFinite(anchorRootRect.height) ? anchorRootRect.height : 0;
+    const maxLeft = Math.max(8, rootWidth - deltaWidth - 8);
+    const maxTop = Math.max(8, rootHeight - deltaHeight - 8);
+    resolvedLeft = Math.min(maxLeft, Math.max(8, resolvedLeft));
+    resolvedTop = Math.min(maxTop, Math.max(8, resolvedTop));
+  } else {
+    const viewportWidth = _resolveChargeDeltaViewportWidth();
+    const viewportHeight = _resolveChargeDeltaViewportHeight();
+    const maxLeft = Math.max(8, viewportWidth - deltaWidth - 8);
+    const maxTop = Math.max(8, viewportHeight - deltaHeight - 8);
+    resolvedLeft = Math.min(maxLeft, Math.max(8, resolvedLeft));
+    resolvedTop = Math.min(maxTop, Math.max(8, resolvedTop));
+  }
+
+  el.style.left = `${Math.round(resolvedLeft)}px`;
+  el.style.top = `${Math.round(resolvedTop)}px`;
   el.style.right = 'auto';
   el.style.bottom = 'auto';
 }

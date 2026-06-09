@@ -3,6 +3,8 @@
  * @description イベントリスナー登録
  */
 
+import { setupSidePanelAnchor } from './side-panel-anchor';
+
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -194,27 +196,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (typeof setupHandSkinControls === 'function') {
     setupHandSkinControls({ button: refs.handSkinBtn, panel: refs.handSkinPanel, closeBtn: refs.handSkinCloseBtn, optionsEl: refs.handSkinOptions, handImage: refs.handImage, root });
   }
-  if (refs.sidePanel && refs.sidePanelToggleBtn) {
-    const applySidePanelCollapsedState = (collapsed: boolean) => {
-      const isCollapsed = collapsed === true;
-      refs.sidePanel!.classList.toggle('side-panel-collapsed', isCollapsed);
-      refs.sidePanelToggleBtn!.textContent = isCollapsed ? '＋' : '−';
-      refs.sidePanelToggleBtn!.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-      const label = isCollapsed ? '操作パネルを開く' : '操作パネルを閉じる';
-      refs.sidePanelToggleBtn!.setAttribute('aria-label', label);
-      refs.sidePanelToggleBtn!.title = label;
-    };
-    const docRoot = document.documentElement;
-    const rootProfile = docRoot ? String(docRoot.getAttribute('data-layout-profile') || '').trim() : '';
-    const isPhonePortraitProfile = !!(docRoot && docRoot.classList.contains('layout-profile-phone-portrait')) || rootProfile === 'layout-profile-phone-portrait';
-    applySidePanelCollapsedState(isPhonePortraitProfile);
-    if (refs.sidePanelToggleBtn.dataset.sidePanelToggleBound !== '1') {
-      refs.sidePanelToggleBtn.addEventListener('click', () => {
-        applySidePanelCollapsedState(!refs.sidePanel!.classList.contains('side-panel-collapsed'));
-      });
-      refs.sidePanelToggleBtn.dataset.sidePanelToggleBound = '1';
-    }
-  }
+  setupSidePanelAnchor({ sidePanel: refs.sidePanel, sidePanelToggleBtn: refs.sidePanelToggleBtn, root });
 
   if (refs.destroyBtn && typeof destroySelectedHandCard === 'function') {
     refs.destroyBtn.addEventListener('click', () => destroySelectedHandCard());

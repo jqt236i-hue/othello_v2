@@ -181,7 +181,7 @@ describe('deck builder controller', () => {
     expect(renderedIds).toEqual(expectedIds);
   });
 
-  test('候補カードのコストはカード直下、タイプは右下バッジ行に入る', () => {
+  test('候補カードのコストはカード直下、タイプはメタデータだけに残す', () => {
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
@@ -203,12 +203,9 @@ describe('deck builder controller', () => {
     expect(firstCard).toBeTruthy();
 
     const costBadge = firstCard.querySelector('.card-cost-badge');
-    const badgeRow = firstCard.querySelector('.card-badge-row');
     expect(costBadge).toBeTruthy();
     expect(costBadge.parentElement).toBe(firstCard);
-    expect(badgeRow).toBeTruthy();
-    expect(badgeRow.querySelector('.card-type-badge')).toBeTruthy();
-    expect(badgeRow.querySelector('.card-cost-badge')).toBeNull();
+    expect(firstCard.dataset.cardType).toBeTruthy();
   });
 
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {

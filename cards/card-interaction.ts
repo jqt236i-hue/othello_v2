@@ -279,9 +279,6 @@ let _cardDetailTabState = {
     key: null as any,
     cardId: null as any
 };
-let _cardDetailLandscapeAnchorSyncInitialized = false;
-let _cardDetailLandscapeAnchorResizeObserver = null;
-let _cardDetailLandscapeAnchorRafId: any = null;
 let _cardDetailTagAutoDismissBound = false;
 const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
 const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
@@ -319,104 +316,6 @@ function _resolveChargeMaxText() {
         }
     } catch (e) { /* ignore */ }
     return '99';
-}
-
-function _isLandscapeCardDetailAnchorTarget() {
-    if (typeof window === 'undefined') return false;
-    const width = Number(window.innerWidth || 0);
-    const height = Number(window.innerHeight || 0);
-    return width > height && width >= 901;
-}
-
-function _clearCardDetailLandscapeAnchorReserve() {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    if (!root || !root.style) return;
-    root.style.removeProperty('--card-detail-landscape-bottom-reserve');
-}
-
-function _syncCardDetailLandscapeAnchorReserve() {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-    const root = document.documentElement;
-    if (!root || !root.style) return;
-    if (!_isLandscapeCardDetailAnchorTarget()) {
-        _clearCardDetailLandscapeAnchorReserve();
-        return;
-    }
-    const sidePanel = document.getElementById('side-panel');
-    if (!sidePanel || typeof sidePanel.getBoundingClientRect !== 'function') {
-        _clearCardDetailLandscapeAnchorReserve();
-        return;
-    }
-    const rect = sidePanel.getBoundingClientRect();
-    if (!Number.isFinite(rect.top)) {
-        _clearCardDetailLandscapeAnchorReserve();
-        return;
-    }
-    const panelEl = document.getElementById('card-detail-panel');
-    const cpuLabelEl = document.getElementById('cpu-level-label');
-    const panelRect = panelEl && typeof panelEl.getBoundingClientRect === 'function'
-        ? panelEl.getBoundingClientRect()
-        : null;
-    const cpuLabelRect = cpuLabelEl && typeof cpuLabelEl.getBoundingClientRect === 'function'
-        ? cpuLabelEl.getBoundingClientRect()
-        : null;
-
-    const reserveMin = 170;
-    const reserveFromSidePanel = Math.round((window.innerHeight - rect.top) + 20);
-    const reserveSafeFloor = Math.max(120, reserveFromSidePanel);
-    let reserve = Math.max(reserveMin, reserveFromSidePanel);
-
-    if (cpuLabelRect && Number.isFinite(cpuLabelRect.bottom)) {
-        const panelHeight = (panelRect && Number.isFinite(panelRect.height) && panelRect.height > 0)
-            ? panelRect.height
-            : 220;
-        const desiredTop = Math.round(cpuLabelRect.bottom + 12);
-        const reserveMaxForCpuLabel = Math.max(120, Math.floor(window.innerHeight - desiredTop - panelHeight));
-        reserve = Math.max(reserveSafeFloor, Math.min(reserve, reserveMaxForCpuLabel));
-    }
-
-    root.style.setProperty('--card-detail-landscape-bottom-reserve', `${reserve}px`);
-}
-
-function _scheduleCardDetailLandscapeAnchorSync() {
-    if (typeof window === 'undefined') return;
-    if (_cardDetailLandscapeAnchorRafId !== null && typeof window.cancelAnimationFrame === 'function') {
-        window.cancelAnimationFrame(_cardDetailLandscapeAnchorRafId);
-    }
-    if (typeof window.requestAnimationFrame === 'function') {
-        _cardDetailLandscapeAnchorRafId = window.requestAnimationFrame(() => {
-            _cardDetailLandscapeAnchorRafId = null;
-            _syncCardDetailLandscapeAnchorReserve();
-        });
-        return;
-    }
-    _cardDetailLandscapeAnchorRafId = null;
-    _syncCardDetailLandscapeAnchorReserve();
-}
-
-function _initCardDetailLandscapeAnchorSync() {
-    if (_cardDetailLandscapeAnchorSyncInitialized) return;
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-    _cardDetailLandscapeAnchorSyncInitialized = true;
-
-    const sidePanel = document.getElementById('side-panel');
-    if (typeof ResizeObserver === 'function' && sidePanel) {
-        _cardDetailLandscapeAnchorResizeObserver = new ResizeObserver(() => {
-            _scheduleCardDetailLandscapeAnchorSync();
-        });
-        try {
-            _cardDetailLandscapeAnchorResizeObserver.observe(sidePanel);
-        } catch (e) { /* ignore */ }
-    }
-
-    window.addEventListener('resize', _scheduleCardDetailLandscapeAnchorSync, { passive: true });
-    window.addEventListener('orientationchange', _scheduleCardDetailLandscapeAnchorSync, { passive: true });
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', _scheduleCardDetailLandscapeAnchorSync, { once: true });
-    }
-    _scheduleCardDetailLandscapeAnchorSync();
 }
 
 function _normalizeOwnerKey(ownerKey: any) {
@@ -694,6 +593,13 @@ const _cardInteractionDetailPanel = (_cardInteractionDetailPanelModule && typeof
         getGameStateValue: () => gameState,
         getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
         getRiboWillUnlockTurnIndex: () => RIBO_WILL_UNLOCK_TURN_INDEX
+    })
+    : null;
+
+const _cardDetailLandscapeAnchorSync = (_cardInteractionDetailPanelModule && typeof _cardInteractionDetailPanelModule.createCardDetailLandscapeAnchorSync === 'function')
+    ? _cardInteractionDetailPanelModule.createCardDetailLandscapeAnchorSync({
+        getWindowRef: () => (typeof window !== 'undefined' ? window : null),
+        getDocumentRef: () => (typeof document !== 'undefined' ? document : null)
     })
     : null;
 
@@ -2278,7 +2184,9 @@ function _getPendingSelectionPrompt(pending: any) {
 }
 
 function updateCardDetailPanel() {
-    _scheduleCardDetailLandscapeAnchorSync();
+    if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.schedule === 'function') {
+        _cardDetailLandscapeAnchorSync.schedule();
+    }
 
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
@@ -2684,7 +2592,9 @@ window.passCurrentTurn = passCurrentTurn;
 window.cancelPendingDestroy = cancelPendingDestroy;
 window.cancelPendingSelection = cancelPendingSelection;
 
-_initCardDetailLandscapeAnchorSync();
+if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.init === 'function') {
+    _cardDetailLandscapeAnchorSync.init();
+}
 _bindCardDetailTagAutoDismiss();
 
 export = {

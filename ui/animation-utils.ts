@@ -54,6 +54,8 @@ let __playback_state_utils: any = null;
 try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? (globalThis as any).PlaybackStateManager : null); } catch (e: any) { __playback_state_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).PlaybackStateManager : null); }
 let __owner_helpers_utils: any = null;
 try { __owner_helpers_utils = (typeof require === 'function') ? require('../utils/owner-helpers') : (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null); } catch (e: any) { __owner_helpers_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null); }
+let __player_slot_elements_utils: any = null;
+try { __player_slot_elements_utils = (typeof require === 'function') ? require('./player-slot-elements') : null; } catch (e: any) { __player_slot_elements_utils = null; }
 let __hand_skin_utils: any = null;
 function _getOwnerHelpers() {
     if (__owner_helpers_utils) return __owner_helpers_utils;
@@ -100,7 +102,22 @@ function _requestCardUiSyncForAnimationUtils(reason: any) {
     return false;
 }
 
+let __playerSlotElementResolver: any = null;
+function _getPlayerSlotElementResolver() {
+    if (__playerSlotElementResolver) return __playerSlotElementResolver;
+    if (__player_slot_elements_utils && typeof __player_slot_elements_utils.createPlayerSlotElementResolver === 'function') {
+        __playerSlotElementResolver = __player_slot_elements_utils.createPlayerSlotElementResolver({
+            getDocumentRef: () => (typeof document !== 'undefined' ? document : null),
+            getOwnerHelpersModule: _getOwnerHelpers
+        });
+        return __playerSlotElementResolver;
+    }
+    return null;
+}
+
 function _normalizeHandOwnerKey(value: any) {
+    const resolver = _getPlayerSlotElementResolver();
+    if (resolver && typeof resolver.normalizeOwnerKey === 'function') return resolver.normalizeOwnerKey(value);
     const ownerHelpers = _getOwnerHelpers();
     if (ownerHelpers && typeof ownerHelpers.normalizePlayerKey === 'function') {
         return ownerHelpers.normalizePlayerKey(value, 'black');
@@ -110,6 +127,8 @@ function _normalizeHandOwnerKey(value: any) {
 }
 
 function _getHandElementsByOwner(playerKey: any) {
+    const resolver = _getPlayerSlotElementResolver();
+    if (resolver && typeof resolver.getHandElementsByOwner === 'function') return resolver.getHandElementsByOwner(playerKey);
     if (typeof document === 'undefined') return [];
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const handBlackEl = document.getElementById('hand-black');
@@ -125,11 +144,15 @@ function _getHandElementsByOwner(playerKey: any) {
 }
 
 function _resolveHandElementByOwner(playerKey: any) {
+    const resolver = _getPlayerSlotElementResolver();
+    if (resolver && typeof resolver.resolveHandElementByOwner === 'function') return resolver.resolveHandElementByOwner(playerKey);
     const handElements = _getHandElementsByOwner(playerKey);
     return handElements.length > 0 ? handElements[0] : null;
 }
 
 function _resolveDeckElementByOwner(playerKey: any) {
+    const resolver = _getPlayerSlotElementResolver();
+    if (resolver && typeof resolver.resolveDeckElementByOwner === 'function') return resolver.resolveDeckElementByOwner(playerKey);
     if (typeof document === 'undefined') return null;
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const deckBlackEl = document.getElementById('deck-black');
@@ -153,6 +176,8 @@ function _resolveDeckElementByOwner(playerKey: any) {
 }
 
 function _isOwnerOnBottomSlot(playerKey: any) {
+    const resolver = _getPlayerSlotElementResolver();
+    if (resolver && typeof resolver.isOwnerOnBottomSlot === 'function') return resolver.isOwnerOnBottomSlot(playerKey);
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     if (typeof document === 'undefined') return ownerKey === 'black';
 

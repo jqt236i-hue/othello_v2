@@ -229,7 +229,7 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
-  test('visible hand cards keep cost at the card root and type in the badge row', () => {
+  test('visible hand cards keep cost at the card root while type stays only in card metadata', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
       currentPlayer: 1,
@@ -248,18 +248,15 @@ describe('card renderer hand inspection', () => {
 
     const rootChildren = Array.from(ownCardEl.children);
     const costBadge = rootChildren.find((el) => el.classList.contains('card-cost-badge'));
-    const badgeRow = rootChildren.find((el) => el.classList.contains('card-badge-row'));
 
     expect(costBadge).toBeTruthy();
     expect(costBadge.textContent).toBe('11cost');
-    expect(badgeRow).toBeTruthy();
-    expect(badgeRow.querySelector('.card-type-badge').textContent).toBe('\u26CF\uFE0E 採掘');
-    expect(badgeRow.querySelector('.card-cost-badge')).toBeNull();
+    expect(ownCardEl.dataset.cardType).toBe('mining');
 
     dom.window.close();
   });
 
-  test('living will hand cards use the guard display type label', () => {
+  test('living will hand cards keep the guard type in metadata without rendering a visible type badge', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
       currentPlayer: 1,
@@ -283,7 +280,6 @@ describe('card renderer hand inspection', () => {
     const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
     expect(ownCardEl).not.toBeNull();
     expect(ownCardEl.dataset.cardType).toBe('guard');
-    expect(ownCardEl.querySelector('.card-type-badge').textContent).toBe('\u26E8\uFE0E 守護');
 
     dom.window.close();
   });

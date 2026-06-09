@@ -114,6 +114,22 @@ function applySpecialCpuPanelState(specialPresentation: any, charImg: any, level
     }
 }
 
+function applyCpuLevelLabelInteractivity(levelLabel: any, interactive: boolean, label: string): void {
+    if (!levelLabel) return;
+    levelLabel.textContent = label;
+    if (levelLabel.classList) {
+        levelLabel.classList.toggle('is-noninteractive', !interactive);
+    }
+    if (typeof levelLabel.setAttribute === 'function') {
+        levelLabel.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+        levelLabel.setAttribute('aria-label', interactive ? 'CPUレベル一覧を開く' : '対戦相手表示');
+        levelLabel.title = interactive ? 'クリックでCPUレベル一覧を表示' : '対戦相手表示';
+    }
+    if ('disabled' in levelLabel) {
+        (levelLabel as HTMLButtonElement).disabled = !interactive;
+    }
+}
+
 function applyNetworkSeatLabels(levelLabel: any): boolean {
     const heroLabel = document.getElementById('hero-label');
     if (!isNetworkModeForLabels()) {
@@ -132,7 +148,7 @@ function applyNetworkSeatLabels(levelLabel: any): boolean {
         heroLabel.textContent = `${toSeatLabel(ownSeatKey)}:${ownName}`;
     }
     if (levelLabel) {
-        levelLabel.textContent = `${toSeatLabel(opponentSeatKey)}:${opponentName}`;
+        applyCpuLevelLabelInteractivity(levelLabel, false, `${toSeatLabel(opponentSeatKey)}:${opponentName}`);
     }
     return true;
 }
@@ -194,7 +210,7 @@ function getPortraitSpeechBubbleBaseMaxWidth(viewportWidth: number): number {
     if (viewportWidth <= 900) {
         return Math.min(Math.floor(viewportWidth * 0.72), 320);
     }
-    return Math.min(Math.floor(viewportWidth * 0.46), 420);
+    return Math.min(Math.floor(viewportWidth * 0.38), 360);
 }
 
 function clampPortraitSpeechBubbleToViewport(bubble: any, fallbackLeft: number, viewportWidth: number): void {
@@ -365,13 +381,6 @@ function resolveRoundNumberForStatusDisplay(): number {
     return Math.floor(completedTurns / 2) + 1;
 }
 
-function formatBattleStatusRoundNumber(roundNumber: number): string {
-    const safeRound = Number.isFinite(roundNumber) && roundNumber >= 0
-        ? Math.trunc(roundNumber)
-        : 1;
-    return String(safeRound).padStart(2, '0');
-}
-
 function normalizePlayerKeyForStatusDisplay(value: any): PlayerKey {
     try {
         if (StatusDisplayOwnerHelpersModule && typeof StatusDisplayOwnerHelpersModule.normalizePlayerKey === 'function') {
@@ -438,7 +447,6 @@ function ensureBattleStatusPanel(): any {
     panel.innerHTML = [
         '<div class="battle-status-topline">',
         '  <div class="battle-status-round"></div>',
-        '  <div class="battle-status-kicker">戦況</div>',
         '</div>',
         '<div class="battle-status-score" aria-label="石数">',
         '  <span class="battle-status-count battle-status-count--black"></span>',
@@ -451,6 +459,16 @@ function ensureBattleStatusPanel(): any {
     return panel;
 }
 
+function renderBattleStatusStoneCount(el: any, color: 'black' | 'white', count: number): void {
+    if (!el) return;
+    const label = color === 'white' ? '白石' : '黒石';
+    el.setAttribute('aria-label', `${label} ${count}`);
+    el.innerHTML = [
+        `<span class="battle-status-stone battle-status-stone--${color}" aria-hidden="true"></span>`,
+        `<span class="battle-status-count-value">${count}</span>`
+    ].join('');
+}
+
 function updateBattleStatusPanel(): void {
     const panel = ensureBattleStatusPanel();
     if (!panel) return;
@@ -460,9 +478,9 @@ function updateBattleStatusPanel(): void {
     const turnEl = panel.querySelector('.battle-status-turn');
     const latestEl = panel.querySelector('.battle-status-latest');
     const counts = countBoardStonesForBattleStatus();
-    if (roundEl) roundEl.textContent = `ROUND ${formatBattleStatusRoundNumber(resolveRoundNumberForStatusDisplay())}`;
-    if (blackEl) blackEl.textContent = `黒 ${counts.black}`;
-    if (whiteEl) whiteEl.textContent = `白 ${counts.white}`;
+    if (roundEl) roundEl.textContent = `ROUND ${resolveRoundNumberForStatusDisplay()}`;
+    renderBattleStatusStoneCount(blackEl, 'black', counts.black);
+    renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
     if (latestEl) latestEl.textContent = `直近 ${resolveBattleStatusLatestText()}`;
 }
@@ -496,6 +514,7 @@ function setRoundDisplayVisibility(roundEl: any, visible: boolean): void {
     if (!roundEl) return;
     roundEl.style.display = visible ? 'inline-flex' : 'none';
     roundEl.style.visibility = visible ? 'visible' : 'hidden';
+    if (!visible) roundEl.style.opacity = '0';
 }
 
 function hasActiveRoundDisplayBonus(): boolean {
@@ -553,6 +572,7 @@ function clearRoundDisplayBonus(updateAfterClear = true): void {
     const roundEl = getRoundDisplayElement();
     setRoundDisplayBonusFadeClass(roundEl, false);
     setRoundDisplayBonusClass(roundEl, false);
+    if (roundEl) roundEl.textContent = '';
     if (updateAfterClear) updateRoundDisplay();
 }
 
@@ -560,7 +580,11 @@ function resolveRoundDisplayText(): string {
     if (hasActiveRoundDisplayBonus()) {
         return roundDisplayBonusState.text.trim();
     }
-    return `ROUND ${resolveRoundNumberForStatusDisplay()}`;
+    return '';
+}
+
+function formatRoundBonusDisplayText(amount: number): string {
+    return `ROUND BONUS +${amount} 布石`;
 }
 
 function showRoundBonusDisplay(payload: any): void {
@@ -575,9 +599,7 @@ function showRoundBonusDisplay(payload: any): void {
     const fadeOutMs = Number.isFinite(Number(data.fadeOutMs))
         ? Math.max(0, Math.trunc(Number(data.fadeOutMs)))
         : ROUND_DISPLAY_BONUS_FADE_OUT_MS;
-    const text = (typeof data.text === 'string' && data.text.trim())
-        ? data.text.trim()
-        : `BONUS ROUND +${amount}`;
+    const text = formatRoundBonusDisplayText(amount);
     roundDisplayBonusState = { text };
     const roundEl = getRoundDisplayElement();
     if (roundEl) {
@@ -595,32 +617,24 @@ function showRoundBonusDisplay(payload: any): void {
 function positionRoundDisplay(): void {
     if (typeof window === 'undefined') return;
     const roundEl = getRoundDisplayElement();
-    const effectPanel = getEffectLivePanelElement();
     const boardAnchor = getRoundDisplayBoardAnchorElement();
-    if (!roundEl || !effectPanel) return;
-
-    const effectStyle = typeof window.getComputedStyle === 'function'
-        ? window.getComputedStyle(effectPanel)
-        : null;
-    if (!effectStyle || effectStyle.display === 'none' || effectStyle.visibility === 'hidden') {
+    if (!roundEl) return;
+    if (!hasActiveRoundDisplayBonus()) {
+        setRoundDisplayVisibility(roundEl, false);
+        return;
+    }
+    if (!boardAnchor || typeof boardAnchor.getBoundingClientRect !== 'function') {
         setRoundDisplayVisibility(roundEl, false);
         return;
     }
 
+    const boardRect = boardAnchor.getBoundingClientRect();
+    if (!Number.isFinite(boardRect.left) || !Number.isFinite(boardRect.top) || !Number.isFinite(boardRect.width)) return;
+
+    const scale = getLayoutStageScaleForStatusDisplay();
     setRoundDisplayVisibility(roundEl, true);
-    const effectRect = effectPanel.getBoundingClientRect();
-    if (!Number.isFinite(effectRect.left)) return;
-
-    let targetTop = effectRect.top;
-    if (boardAnchor && typeof boardAnchor.getBoundingClientRect === 'function') {
-        const boardRect = boardAnchor.getBoundingClientRect();
-        if (Number.isFinite(boardRect.top)) {
-            targetTop = boardRect.top;
-        }
-    }
-
-    roundEl.style.left = `${Math.round(effectRect.left)}px`;
-    roundEl.style.top = `${Math.round(Math.max(8, targetTop))}px`;
+    roundEl.style.left = `${Math.round(boardRect.left + (boardRect.width / 2))}px`;
+    roundEl.style.top = `${Math.round(Math.max(8, boardRect.top - (24 * scale)))}px`;
 }
 
 function bindRoundDisplayViewportHandlers(): void {
@@ -636,10 +650,10 @@ function bindRoundDisplayViewportHandlers(): void {
 
     if (typeof ResizeObserver === 'function') {
         try {
-            const effectPanel = getEffectLivePanelElement();
-            if (effectPanel) {
+            const boardAnchor = getRoundDisplayBoardAnchorElement();
+            if (boardAnchor) {
                 roundDisplayResizeObserver = new ResizeObserver(reposition);
-                roundDisplayResizeObserver.observe(effectPanel);
+                roundDisplayResizeObserver.observe(boardAnchor);
             }
         } catch (e) { /* ignore */ }
     }
@@ -819,12 +833,15 @@ function updateCpuCharacter(): void {
         };
         img.src = primaryPath;
 
-        levelLabel.textContent = specialPresentation
-            ? specialPresentation.label
-            : ((CPU_LEVEL_NAMES as any)[level] || 'レベル ' + level);
+        const defaultName = (CPU_LEVEL_NAMES as any)[level] || ('レベル ' + level);
         if (specialPresentation) {
+            applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
             if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
-        } else {
+        }
+        else if (!applyNetworkSeatLabels(levelLabel)) {
+            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level} ${defaultName}`);
+        }
+        else {
             applyNetworkSeatLabels(levelLabel);
         }
     }

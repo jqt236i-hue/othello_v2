@@ -150,6 +150,14 @@ describe('ui card sync scheduler', () => {
     expect(windowRef.renderCardUI).not.toHaveBeenCalled();
   });
 
+  test('exposes syncVisibleChargeDisplaysNow for non-module callers', () => {
+    expect(typeof windowRef.syncVisibleChargeDisplaysNow).toBe('function');
+
+    windowRef.syncVisibleChargeDisplaysNow();
+
+    expect(windowRef.renderVisibleChargeDisplays).toHaveBeenCalledTimes(1);
+  });
+
   test('replays deferred board refresh work after playback ends', async () => {
     windowRef.VisualPlaybackActive = true;
     windowRef.gameState = {
