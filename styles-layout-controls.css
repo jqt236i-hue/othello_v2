@@ -1996,13 +1996,15 @@ body.time-stop-active {
 
 /* Premium left command rail */
 #leftActionButtons {
-    --left-rail-accent: #7ed7ff;
+    --left-rail-accent: #6aa08f;
+    --left-rail-bronze: #9b6a3c;
     --left-rail-gold: #f2c95f;
+    --left-rail-iron: #0c1212;
     top: calc(var(--layout-stage-offset-y) + max(calc(176px * var(--layout-stage-scale)), env(safe-area-inset-top) + calc(24px * var(--layout-stage-scale))));
     width: calc(108px * var(--layout-stage-scale));
     gap: calc(7px * var(--layout-stage-scale));
     padding: calc(12px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(126, 215, 255, 0.34);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(155, 106, 60, 0.48);
     border-radius: calc(8px * var(--layout-stage-scale));
     clip-path: polygon(
         calc(10px * var(--layout-stage-scale)) 0,
@@ -2013,14 +2015,15 @@ body.time-stop-active {
         0 calc(10px * var(--layout-stage-scale))
     );
     background:
-        radial-gradient(110% 80% at 50% 0%, rgba(126, 215, 255, 0.16), transparent 42%),
-        linear-gradient(180deg, rgba(5, 29, 44, 0.94), rgba(3, 17, 28, 0.96) 54%, rgba(2, 10, 18, 0.98));
+        radial-gradient(110% 82% at 50% 0%, rgba(242, 201, 95, 0.13), transparent 42%),
+        radial-gradient(130% 90% at 0% 100%, rgba(106, 160, 143, 0.16), transparent 54%),
+        linear-gradient(180deg, rgba(25, 22, 17, 0.96), rgba(12, 18, 18, 0.97) 54%, rgba(5, 9, 10, 0.98));
     box-shadow:
         var(--ui-elevation-panel),
         0 calc(18px * var(--layout-stage-scale)) calc(42px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54),
-        0 0 calc(22px * var(--layout-stage-scale)) rgba(41, 176, 219, 0.12),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.16),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 220, 0.05);
+        0 0 calc(22px * var(--layout-stage-scale)) rgba(155, 106, 60, 0.12),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(155, 106, 60, 0.26),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 235, 178, 0.06);
     backdrop-filter: blur(calc(8px * var(--layout-stage-scale)));
     -webkit-backdrop-filter: blur(calc(8px * var(--layout-stage-scale)));
 }
@@ -2032,8 +2035,8 @@ body.time-stop-active {
     right: calc(10px * var(--layout-stage-scale));
     top: calc(7px * var(--layout-stage-scale));
     height: calc(1px * var(--layout-stage-scale));
-    background: linear-gradient(90deg, transparent, rgba(242, 201, 95, 0.70), rgba(126, 215, 255, 0.46), transparent);
-    box-shadow: 0 0 calc(9px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.18);
+    background: linear-gradient(90deg, transparent, rgba(155, 106, 60, 0.78), rgba(242, 201, 95, 0.62), transparent);
+    box-shadow: 0 0 calc(9px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.13);
     pointer-events: none;
 }
 
@@ -2042,21 +2045,21 @@ body.time-stop-active {
     bottom: calc(12px * var(--layout-stage-scale));
     right: calc(4px * var(--layout-stage-scale));
     width: calc(1px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, transparent, rgba(126, 215, 255, 0.74), rgba(242, 201, 95, 0.28), transparent);
+    background: linear-gradient(180deg, transparent, rgba(155, 106, 60, 0.74), rgba(106, 160, 143, 0.36), transparent);
 }
 
 #leftActionButtons .left-action-btn {
     min-width: calc(88px * var(--layout-stage-scale));
     min-height: calc(58px * var(--layout-stage-scale));
     padding: calc(8px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(126, 215, 255, 0.08);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(155, 106, 60, 0.18);
     border-radius: calc(6px * var(--layout-stage-scale));
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 48%),
-        rgba(8, 30, 46, 0.42);
+        linear-gradient(180deg, rgba(255, 236, 184, 0.05), rgba(255, 255, 255, 0) 48%),
+        linear-gradient(180deg, rgba(25, 21, 16, 0.72), rgba(8, 14, 15, 0.62));
     box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.025),
-        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0);
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 237, 190, 0.035),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(106, 160, 143, 0);
     transition:
         transform 0.14s ease,
         border-color 0.16s ease,
@@ -2067,10 +2070,10 @@ body.time-stop-active {
 
 #leftActionButtons .left-action-btn-rail-toggle {
     margin-top: calc(4px * var(--layout-stage-scale));
-    border-color: rgba(242, 201, 95, 0.22);
+    border-color: rgba(242, 201, 95, 0.32);
     background:
-        linear-gradient(180deg, rgba(242, 201, 95, 0.12), rgba(10, 36, 50, 0.48)),
-        rgba(8, 30, 46, 0.42);
+        radial-gradient(120% 90% at 50% 0%, rgba(242, 201, 95, 0.16), transparent 52%),
+        linear-gradient(180deg, rgba(43, 31, 17, 0.76), rgba(10, 18, 17, 0.66));
 }
 
 #leftActionButtons.left-rail-collapsed {
@@ -2096,35 +2099,35 @@ body.time-stop-active {
 }
 
 #leftActionButtons .left-action-label {
-    color: #f4ead8;
+    color: #f6ead2;
     font-weight: 900;
     text-shadow:
         0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78),
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.10);
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.10);
 }
 
 #leftActionButtons .left-action-icon {
     width: calc(23px * var(--layout-stage-scale));
     height: calc(23px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, #fff3dc, #d8c8ae);
+    background: linear-gradient(180deg, #fff1cf, #cdb88e);
     filter:
         drop-shadow(0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.62))
-        drop-shadow(0 0 calc(7px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.13));
+        drop-shadow(0 0 calc(7px * var(--layout-stage-scale)) rgba(155, 106, 60, 0.18));
 }
 
 #leftActionButtons .left-action-btn:hover,
 #leftActionButtons .left-action-btn[aria-expanded="true"],
 #leftActionButtons .left-action-btn.is-active {
     transform: translateX(calc(2px * var(--layout-stage-scale)));
-    border-color: rgba(126, 215, 255, 0.54);
+    border-color: rgba(242, 201, 95, 0.54);
     background:
-        radial-gradient(110% 80% at 15% 0%, rgba(242, 201, 95, 0.18), transparent 46%),
-        linear-gradient(180deg, rgba(31, 83, 104, 0.64), rgba(9, 38, 58, 0.54));
+        radial-gradient(110% 80% at 15% 0%, rgba(242, 201, 95, 0.2), transparent 46%),
+        linear-gradient(180deg, rgba(60, 41, 21, 0.74), rgba(13, 27, 24, 0.64));
     box-shadow:
         0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32),
-        0 0 calc(14px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.16),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.54),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 220, 0.07);
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.18),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(106, 160, 143, 0.58),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 220, 0.08);
 }
 
 #leftActionButtons .left-action-btn:hover .left-action-icon,

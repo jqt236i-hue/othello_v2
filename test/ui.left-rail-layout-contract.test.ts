@@ -8,12 +8,15 @@ describe('left action rail layout contract', () => {
     const layoutCss = readLayoutCssSurface();
 
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*position:\s*fixed/);
-    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*--left-rail-accent:\s*#7ed7ff/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*--left-rail-accent:\s*#6aa08f/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*--left-rail-bronze:\s*#9b6a3c/);
+    expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*--left-rail-iron:\s*#0c1212/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*max\(calc\(176px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-top\)\s*\+\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*padding:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*clip-path:\s*polygon\(/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*flex-direction:\s*column/);
-    expect(layoutCss).toMatch(/#leftActionButtons::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95/);
+    expect(layoutCss).toMatch(/#leftActionButtons::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(155,\s*106,\s*60/);
+    expect(layoutCss).toMatch(/#leftActionButtons::after[\s\S]*rgba\(106,\s*160,\s*143,\s*0\.36\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(88px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*grid-template-rows/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*transition:/);
