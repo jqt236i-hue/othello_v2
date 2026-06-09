@@ -93,7 +93,7 @@
 - `test/game.proliferation-will.test.ts`
 - `test/game.seed-will.test.ts`
 
-**未確認点**
+**確認範囲外**
 - 各 spawn 系のカードごとのランダム選択分布は本メモでは網羅していない。
 
 **壊れやすい点**
@@ -188,7 +188,7 @@
 - `test/game.pipeline-ui-adapter.sound-cue.test.ts`
 - `test/ui.animation-engine.guard-timer.test.ts`
 
-**未確認点**
+**確認範囲外**
 - 時限爆弾/CROSS/X の対象集合生成順は個別 module 側に依存する。本メモでは `BoardOps` 以降の共通破壊順を中心に確認した。
 
 **壊れやすい点**
@@ -268,7 +268,7 @@
 - `test/game.udg-duration.test.ts`
 - `test/ui.animation-engine.guard-timer.test.ts`
 
-**未確認点**
+**確認範囲外**
 - すべての移動カードの候補選択優先順位は本メモでは列挙していない。
 
 **壊れやすい点**
@@ -333,7 +333,7 @@
 - `test/game.taboo-reverse-will.test.ts`
 - `test/game.regen.consume-visual.test.ts`
 
-**未確認点**
+**確認範囲外**
 - 通常配置時の core flip 詳細は本メモでは BoardOps 由来の presentation event 変換に限定して確認した。
 
 **壊れやすい点**
@@ -413,7 +413,7 @@
 - `test/game.stone-salvation-god.test.ts`
 - `test/ui.animation-engine.guard-timer.test.ts`
 
-**未確認点**
+**確認範囲外**
 - `handleStatusChange()` 本体の全分岐は長大なため、ここでは検索結果と既存テストで確認できる挙動を中心に記録した。
 
 **壊れやすい点**
@@ -479,7 +479,7 @@
 - `test/game.pipeline-ui-adapter.special-revert-phase.test.ts`
 - `test/ui.animation-engine.guard-timer.test.ts`
 
-**未確認点**
+**確認範囲外**
 - 全特殊石の bubble 文言は本メモでは対象外。
 
 **壊れやすい点**
@@ -542,7 +542,7 @@
 - `test/game.destroy-dragon-will.test.ts`
 - `test/game.lightning-will.test.ts`
 
-**未確認点**
+**確認範囲外**
 - `CardLogic.onTurnStart()` 内のすべての state-only 処理は本メモでは個別展開していない。
 
 **壊れやすい点**
@@ -705,18 +705,18 @@
 - `test/game.pipeline-ui-adapter.sound-cue.test.ts`: revive sound cue。
 - `test/ui.animation-engine.guard-timer.test.ts`: purple highlight。
 
-**未確認点**
+**確認範囲外**
 - 複数の救済神 marker が同 owner に存在する場合、実装は `_findStoneSalvationGodMarker()` の最初の 1 つを source とする。複数体時の仕様文言は今回確認範囲では詳細未記載。
 
 **壊れやすい点**
 - `_stoneSalvationGodDestroyBlockDepth` と `_effectBlockDepth` の関係が救済 timing を決めているため、block nesting の変更は revive 順序に直撃する。
 - `_clonePresentationMeta()` は PRNG を meta から除外する。meta に random source を混ぜたまま永続化すると replay payload が壊れる。
 
-## 追加の未確認点
+## 追加の確認範囲外
 
 - `worker-public/` mirror は調査対象として読んでいない。root 実装が正本であり、本メモは root 実装に基づく。
 - 実ブラウザで全カードを手動再生して確認したわけではない。演出事実は `ui/animation-engine.ts` と既存 UI/Jest テストから確認した範囲。
-- `01-rulebook.md` のカード節には重複/古い断片らしき行もあるが、本メモでは実装・テストと照合できる箇所だけを採用した。
+- `01-rulebook.md` のカード節は仕様正本として扱い、本メモでは実装・テストと照合できる盤面特殊効果の範囲だけを採用した。
 
 ## Known Fragile Areas
 
