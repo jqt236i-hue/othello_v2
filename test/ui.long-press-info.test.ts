@@ -65,6 +65,20 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toBe('');
   });
 
+  test('browser runtime dist module starts visible with idle guidance before any interaction', () => {
+    const mod = require('../dist/ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 2, 3);
+
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('石情報');
+    expect(document.getElementById('stone-info-desc').textContent).toBe('石をタップまたはホバーして表示');
+    expect(document.getElementById('stone-info-meta').textContent).toBe('');
+  });
+
   test('mouse hover shows stone info without clicking', () => {
     global.gameState.board[4][2] = global.BLACK;
 
