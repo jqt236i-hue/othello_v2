@@ -48,12 +48,10 @@
             manifestBackgroundKey: 'board_executor_world',
             manifestBackgroundImage: 'assets/images/background/manifest-worlds/執行の世界.png',
             characterImage: 'assets/images/special-cards/characters/board_executor.png',
-            manifestBgmKey: 'observer_will_path',
+            manifestBgmKey: 'board_executor_path',
             manifestBgmTrack: Object.freeze({
-                name: '観測の道',
-                file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
-                loopStart: 9.6,
-                loopEnd: 62.4
+                name: '執行の道',
+                file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3'
             })
         }),
         observer_will_01: Object.freeze({

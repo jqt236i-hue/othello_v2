@@ -1337,7 +1337,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(normalCue).toBeUndefined();
   });
 
-  test('盤界の執行者の CARD_USED は執行者立ち絵と暫定の観測者BGMを渡す', () => {
+  test('盤界の執行者の CARD_USED は執行者立ち絵と専用BGMを渡す', () => {
     const base = [{
       type: 'card_use_animation',
       phase: 4,
@@ -1364,9 +1364,10 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       characterImage: 'assets/images/special-cards/characters/board_executor.png',
       manifestBackgroundKey: 'board_executor_world',
       manifestBackgroundImage: 'assets/images/background/manifest-worlds/執行の世界.png',
-      manifestBgmKey: 'observer_will_path',
+      manifestBgmKey: 'board_executor_path',
       manifestBgmTrack: expect.objectContaining({
-        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+        name: '執行の道',
+        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3'
       }),
       durationMs: 3000
     });

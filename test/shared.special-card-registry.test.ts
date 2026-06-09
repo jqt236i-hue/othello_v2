@@ -36,9 +36,10 @@ describe('SpecialCardRegistry', () => {
         '彷徨える魂よ、今ここに収束せよ'
       ],
       characterImage: 'assets/images/special-cards/characters/board_executor.png',
-      manifestBgmKey: 'observer_will_path',
+      manifestBgmKey: 'board_executor_path',
       manifestBgmTrack: expect.objectContaining({
-        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+        name: '執行の道',
+        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3'
       })
     }));
     expect(SpecialCardRegistry.getSpecialCardPresentationByMarkerType('GHOST')).toBeNull();
