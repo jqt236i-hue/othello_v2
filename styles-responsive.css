@@ -371,6 +371,62 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
 }
 
+/* iPad portrait: keep the board and card detail readable by collapsing secondary fixed chrome. */
+@media (orientation: portrait) and (pointer: coarse) and (min-width: 37.5em) and (max-width: 56.25em) {
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) :is(
+        #log,
+        #quick-controls-bar,
+        #stone-info-panel,
+        #manifest-effect-panel,
+        #hero-character-panel
+    ) {
+        display: none;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #effect-live-panel {
+        left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        top: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) + calc(268px * var(--layout-stage-scale)));
+        width: min(calc(250px * var(--layout-stage-scale)), 30vw);
+        min-height: calc(112px * var(--layout-stage-scale));
+        max-height: calc(112px * var(--layout-stage-scale));
+        padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+        overflow: hidden;
+        transform: none;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {
+        left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
+        width: calc(76px * var(--layout-stage-scale));
+        max-height: calc(270px * var(--layout-stage-scale));
+        padding: calc(6px * var(--layout-stage-scale));
+        gap: calc(4px * var(--layout-stage-scale));
+        overflow: hidden;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-btn {
+        min-width: calc(58px * var(--layout-stage-scale));
+        min-height: calc(24px * var(--layout-stage-scale));
+        padding: calc(3px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-label {
+        font-size: calc(8px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-icon {
+        width: calc(13px * var(--layout-stage-scale));
+        height: calc(13px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #card-detail-panel {
+        left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        right: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right));
+        width: auto;
+    }
+}
+
 /* iPhone landscape stabilization: compress fixed panels and character art below 900px width. */
 @media (orientation: landscape) and (max-width: 56.25em) {
     #game-container {
@@ -1414,6 +1470,35 @@ html.sim-aspect-5-4 #effect-live-panel {
         margin-bottom: calc(6px * var(--layout-stage-scale));
     }
 
+}
+
+@media (orientation: landscape) and (pointer: coarse) and (min-width: 56.3125em) and (max-width: 87.5em) and (max-height: 56.25em) {
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {
+        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
+        top: max(calc(104px * var(--layout-stage-scale)), env(safe-area-inset-top));
+        bottom: auto;
+        width: min(calc(376px * var(--layout-stage-scale)), 26vw);
+        max-height: calc(58px * var(--layout-stage-scale));
+        flex-direction: row;
+        align-items: center;
+        padding: calc(5px * var(--layout-stage-scale));
+        gap: calc(5px * var(--layout-stage-scale));
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
+        left: auto;
+        right: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right));
+        top: auto;
+        bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(142px * var(--layout-stage-scale)));
+        width: clamp(calc(190px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
+        height: calc(82px * var(--layout-stage-scale));
+        min-height: calc(82px * var(--layout-stage-scale));
+        max-height: calc(82px * var(--layout-stage-scale));
+        transform: none;
+    }
 }
 
 /* Stage-first mobile landscape layout: keep 1920x1080-relative composition on <=900px screens. */
