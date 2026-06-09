@@ -86,6 +86,52 @@ describe('manifest effect panel', () => {
     expect(panel?.textContent).not.toContain('白: 手札5枚 → 次開始 -16');
   });
 
+  test('renders board executor territory immediately while next manifestation placement is reserved', () => {
+    (global as any).cardState = {
+      hands: {
+        black: ['b1', 'b2', 'b3'],
+        white: ['w1', 'w2', 'w3', 'w4']
+      },
+      markers: [],
+      nextBoardExecutorStoneByPlayer: {
+        black: { sourceType: 'BOARD_EXECUTOR' },
+        white: null
+      }
+    };
+
+    const panel = renderOnce();
+
+    expect(panel?.classList.contains('is-visible')).toBe(true);
+    expect(panel?.getAttribute('data-manifest-effect-type')).toBe('BOARD_EXECUTOR');
+    expect(panel?.getAttribute('data-manifest-effect-source')).toBe('pending-placement');
+    expect(panel?.textContent).toContain('執行領域');
+    expect(panel?.textContent).toContain('黒: 手札3枚 → 次開始 -4');
+    expect(panel?.textContent).toContain('白: 手札4枚 → 次開始 -9');
+  });
+
+  test('prefers an active manifestation marker over a pending placement reservation', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      markers: [{
+        kind: 'manifestStone',
+        owner: 'white',
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 3 }
+      }],
+      nextBoardExecutorStoneByPlayer: {
+        black: { sourceType: 'BOARD_EXECUTOR' },
+        white: null
+      }
+    };
+
+    const panel = renderOnce();
+
+    expect(panel?.classList.contains('is-visible')).toBe(true);
+    expect(panel?.getAttribute('data-manifest-effect-type')).toBe('OBSERVER_WILL');
+    expect(panel?.getAttribute('data-manifest-effect-source')).toBe('marker');
+    expect(panel?.textContent).toContain('観測領域');
+    expect(panel?.textContent).not.toContain('執行領域');
+  });
+
   test('renders observer territory text while observer manifestation is active', () => {
     (global as any).cardState = {
       hands: { black: [], white: [] },

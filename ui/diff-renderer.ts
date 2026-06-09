@@ -449,9 +449,42 @@ function _findActiveManifestMarkerForEffectPanel(cardStateValue: any) {
         const typeKey = String((data && data.type) || (marker && marker.type) || '').trim().toUpperCase();
         if (!typeKey) continue;
         if (!FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF.includes(typeKey)) continue;
-        return { marker, data, typeKey };
+        return { marker, data, typeKey, source: 'marker' };
     }
     return null;
+}
+
+function _findPendingManifestReservationForEffectPanel(cardStateValue: any) {
+    if (!cardStateValue || typeof cardStateValue !== 'object') return null;
+    const sources = [
+        { key: 'nextBoardExecutorStoneByPlayer', typeKey: 'BOARD_EXECUTOR' },
+        { key: 'nextObserverWillStoneByPlayer', typeKey: 'OBSERVER_WILL' },
+        { key: 'nextTheoryIncarnationStoneByPlayer', typeKey: 'THEORY_INCARNATION' }
+    ];
+    for (const source of sources) {
+        const reservations = cardStateValue[source.key];
+        if (!reservations || typeof reservations !== 'object') continue;
+        for (const ownerKey of ['black', 'white']) {
+            const reservation = reservations[ownerKey];
+            if (!reservation || typeof reservation !== 'object') continue;
+            const typeKey = String(reservation.sourceType || source.typeKey || '').trim().toUpperCase();
+            if (typeKey !== source.typeKey) continue;
+            if (!FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF.includes(typeKey)) continue;
+            return {
+                marker: null,
+                data: reservation,
+                typeKey,
+                ownerKey,
+                source: 'pending-placement'
+            };
+        }
+    }
+    return null;
+}
+
+function _findManifestEffectPanelEntry(cardStateValue: any) {
+    return _findActiveManifestMarkerForEffectPanel(cardStateValue)
+        || _findPendingManifestReservationForEffectPanel(cardStateValue);
 }
 
 function _ensureManifestEffectPanelForDiff() {
@@ -488,6 +521,7 @@ function _hideManifestEffectPanelForDiff() {
     refs.title.textContent = '';
     refs.lines.textContent = '';
     refs.panel.removeAttribute('data-manifest-effect-type');
+    refs.panel.removeAttribute('data-manifest-effect-source');
 }
 
 function _getManifestEffectHandCount(cardStateValue: any, ownerKey: string) {
@@ -547,7 +581,7 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
 function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     const refs = _ensureManifestEffectPanelForDiff();
     if (!refs) return;
-    const active = _findActiveManifestMarkerForEffectPanel(cardStateValue);
+    const active = _findManifestEffectPanelEntry(cardStateValue);
     const content = _buildManifestEffectPanelContent(cardStateValue, active);
     if (!content) {
         _hideManifestEffectPanelForDiff();
@@ -569,6 +603,7 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     refs.panel.classList.add('is-visible');
     refs.panel.setAttribute('aria-hidden', 'false');
     refs.panel.setAttribute('data-manifest-effect-type', String(active && active.typeKey || ''));
+    refs.panel.setAttribute('data-manifest-effect-source', String(active && active.source || 'marker'));
 }
 
 function _setManifestWorldBackgroundForDiff(active: any) {
