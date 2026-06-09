@@ -70,4 +70,15 @@ describe('left info stack layout contract', () => {
     expect(boardCss).toMatch(/\.stone-info-panel::before[\s\S]*content:\s*''/);
     expect(boardCss).toMatch(/\.stone-info-name[\s\S]*color:\s*var\(--left-hud-text-title\)/);
   });
+
+  test('persistent game log uses themed readable panel treatment', () => {
+    const layoutCss = readLayoutCssSurface();
+
+    expect(layoutCss).toMatch(/#log[\s\S]*font-family:\s*var\(--selected-app-font-readable-family\)/);
+    expect(layoutCss).toMatch(/#log[\s\S]*radial-gradient\(circle at 14% 0%,\s*rgba\(242,\s*201,\s*95,\s*0\.2\)/);
+    expect(layoutCss).toMatch(/#log[\s\S]*clip-path:\s*polygon/);
+    expect(layoutCss).toMatch(/#log::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95,\s*0\.78\),\s*transparent\)/);
+    expect(layoutCss).toMatch(/\.logEntry[\s\S]*font-weight:\s*800/);
+    expect(layoutCss).toMatch(/#log \.logEntry::before[\s\S]*linear-gradient\(135deg,\s*#ffe7a0,\s*#c98743\)/);
+  });
 });

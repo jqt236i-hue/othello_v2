@@ -1322,6 +1322,11 @@ html.sim-aspect-5-4 #effect-live-panel {
         max-height: calc(var(--layout-anchor-card-detail-min-height) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
     }
 
+    html.layout-profile-16x9.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
+        top: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-top-anchor) + calc(40px * var(--layout-stage-scale)));
+        width: calc(292px * var(--layout-stage-scale));
+    }
+
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack {
         position: fixed;
         left: var(--profile-stone-info-left);
