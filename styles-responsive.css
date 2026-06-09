@@ -1272,7 +1272,8 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #manifest-effect-panel {
-        max-height: calc(164px * var(--layout-stage-scale));
+        min-height: calc(280px * var(--layout-stage-scale));
+        max-height: calc(280px * var(--layout-stage-scale));
         overflow: hidden;
     }
 

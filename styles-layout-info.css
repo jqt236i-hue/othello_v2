@@ -475,8 +475,8 @@
     z-index: 11989;
     display: none;
     width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
-    min-height: calc(92px * var(--layout-stage-scale));
-    max-height: calc(164px * var(--layout-stage-scale));
+    min-height: calc(280px * var(--layout-stage-scale));
+    max-height: calc(280px * var(--layout-stage-scale));
     overflow: hidden;
     background:
         radial-gradient(circle at 12% 0%, rgba(242, 201, 95, 0.16), transparent 36%),
