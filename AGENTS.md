@@ -107,6 +107,7 @@ othello_v2/
 ## GIT HYGIENE
 
 - Start every session or task by running `git status --short` before editing.
+- Do not create git branches, tags, or worktrees unless the user explicitly asks for them in the current task.
 - If pre-existing changes are present, classify them before editing as related to the requested task, unrelated user/work-in-progress changes, generated or mirror output, or unknown changes that need explanation.
 - Do not stage, commit, revert, delete, or overwrite pre-existing unrelated changes.
 - If pre-existing changes are related to the task, inspect the relevant diff and continue from it instead of duplicating or undoing it.
@@ -121,11 +122,11 @@ othello_v2/
 - Codex cannot reliably know whether another Codex session is actively working in this repository.
 - Treat unrelated dirty working-tree changes as possibly belonging to another active task.
 - Do not start implementation work in a checkout with unrelated dirty changes unless the task is clearly isolated or the user explicitly approves.
-- For new implementation tasks, prefer a separate git worktree when the root checkout is dirty.
+- Do not create a separate git worktree for new implementation tasks unless the user explicitly asks for it.
 - Do not run multiple Codex implementation tasks in the same physical checkout unless the user explicitly asks to do so.
 - Use the root checkout for inspection, explanation, planning, and small clearly isolated edits.
-- If a worktree cannot be created safely, report the dirty files and ask before editing.
-- `01-rulebook.md` and `正本/*.md` are shared source-of-truth documents. During parallel feature work, update them in the main checkout first, commit the spec-only change, then bring that main update into feature worktrees before implementation continues.
+- If the current checkout has unrelated dirty changes and a worktree would normally be useful, report the dirty files and ask how to proceed instead of creating one.
+- `01-rulebook.md` and `正本/*.md` are shared source-of-truth documents. When the user explicitly approves parallel feature work with worktrees, update them in the main checkout first, commit the spec-only change, then bring that main update into feature worktrees before implementation continues.
 - Do not let multiple worktrees independently edit `01-rulebook.md` or `正本/*.md` for the same feature. If a feature worktree discovers that a spec update is needed, pause implementation, make the documentation change on `main`, then resume from the updated spec.
 - When integrating a feature worktree, prefer carrying back implementation and test changes only. Do not merge stale `01-rulebook.md` or `正本/` edits from a worktree unless they were intentionally made after syncing from the latest `main`.
 
