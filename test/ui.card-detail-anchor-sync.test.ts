@@ -45,4 +45,16 @@ describe('card detail landscape anchor sync', () => {
 
     expect(dom.window.document.documentElement.style.getPropertyValue('--card-detail-landscape-bottom-reserve')).toBe('');
   });
+
+  test('keeps bottom reserve cleared on wide desktop landscape even if side panel grows downward', () => {
+    const dom = setupDom(1366, 768);
+    const sidePanel = dom.window.document.getElementById('side-panel') as HTMLElement;
+    sidePanel.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 420, right: 240, bottom: 740, width: 240, height: 320, toJSON: () => ({}) });
+
+    const detailPanelModule = require('../cards/card-interaction-detail-panel.ts');
+    const sync = detailPanelModule.createCardDetailLandscapeAnchorSync();
+    sync.sync();
+
+    expect(dom.window.document.documentElement.style.getPropertyValue('--card-detail-landscape-bottom-reserve')).toBe('');
+  });
 });

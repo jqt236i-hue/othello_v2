@@ -25,6 +25,14 @@ function isLandscapeCardDetailAnchorTarget(windowRef: any) {
     return width > height && width >= 901;
 }
 
+function isWideStableCardDetailViewport(windowRef: any) {
+    if (!windowRef) return false;
+    const width = Number(windowRef.innerWidth || 0);
+    const height = Number(windowRef.innerHeight || 0);
+    if (!(width > height) || height <= 0) return false;
+    return width >= 1200 && (width / height) >= 1.6;
+}
+
 function createCardDetailLandscapeAnchorSync(deps?: CardDetailLandscapeAnchorSyncDeps) {
     const cfg = (deps && typeof deps === 'object') ? deps : {};
     let initialized = false;
@@ -56,6 +64,10 @@ function createCardDetailLandscapeAnchorSync(deps?: CardDetailLandscapeAnchorSyn
             clearReserve();
             return;
         }
+        if (isWideStableCardDetailViewport(windowRef)) {
+            clearReserve();
+            return;
+        }
         const sidePanel = documentRef.getElementById('side-panel');
         if (!sidePanel || typeof sidePanel.getBoundingClientRect !== 'function') {
             clearReserve();
@@ -70,28 +82,9 @@ function createCardDetailLandscapeAnchorSync(deps?: CardDetailLandscapeAnchorSyn
             clearReserve();
             return;
         }
-        const panelEl = documentRef.getElementById('card-detail-panel');
-        const cpuLabelEl = documentRef.getElementById('cpu-level-label');
-        const panelRect = panelEl && typeof panelEl.getBoundingClientRect === 'function'
-            ? panelEl.getBoundingClientRect()
-            : null;
-        const cpuLabelRect = cpuLabelEl && typeof cpuLabelEl.getBoundingClientRect === 'function'
-            ? cpuLabelEl.getBoundingClientRect()
-            : null;
-
         const reserveMin = 170;
         const reserveFromSidePanel = Math.round((windowRef.innerHeight - rect.top) + 20);
-        const reserveSafeFloor = Math.max(120, reserveFromSidePanel);
-        let reserve = Math.max(reserveMin, reserveFromSidePanel);
-
-        if (cpuLabelRect && Number.isFinite(cpuLabelRect.bottom)) {
-            const panelHeight = (panelRect && Number.isFinite(panelRect.height) && panelRect.height > 0)
-                ? panelRect.height
-                : 220;
-            const desiredTop = Math.round(cpuLabelRect.bottom + 12);
-            const reserveMaxForCpuLabel = Math.max(120, Math.floor(windowRef.innerHeight - desiredTop - panelHeight));
-            reserve = Math.max(reserveSafeFloor, Math.min(reserve, reserveMaxForCpuLabel));
-        }
+        const reserve = Math.max(reserveMin, reserveFromSidePanel);
 
         root.style.setProperty('--card-detail-landscape-bottom-reserve', `${reserve}px`);
     }

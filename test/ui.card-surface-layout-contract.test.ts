@@ -28,9 +28,12 @@ describe('card surface layout contract', () => {
   test('card detail panel layout remains anchored and avoids legacy header scaling', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
     const responsiveCss = readRepoTextFile('styles-responsive.css');
+    const variablesCss = readRepoTextFile('styles-variables.css');
 
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*width:\s*calc\(var\(--layout-anchor-card-detail-width\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*--layout-anchor-card-detail-bottom/);
+    expect(variablesCss).toMatch(/--layout-anchor-card-detail-min-height:\s*136px/);
+    expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*min-height:\s*calc\(88px\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#card-detail-panel[\s\S]*right:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*max\(var\(--layout-anchor-side-right\),\s*env\(safe-area-inset-right\)\)\)/);
     expect(cardsCss).not.toMatch(/#card-detail-panel\s*>\s*#card-detail-header[\s\S]*scale\(0\.8333333,\s*0\.9803922\)/);
     expect(cardsCss).toMatch(/\.heaven-blessing-offers \.heaven-offer-card[\s\S]*width:\s*var\(--layout-size-card-width\)/);
