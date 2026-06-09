@@ -314,7 +314,7 @@ describe('animation feedback sound key coverage', () => {
     const popup = document.querySelector('.manifest-summary-popup') as HTMLElement;
     expect(popup).toBeTruthy();
     expect(popup.dataset.cardType).toBe('BOARD_EXECUTOR');
-    expect(popup.textContent).toContain('執行領域');
+    expect(popup.textContent).not.toContain('執行領域');
     expect(popup.textContent).toContain('両者: カード使用封印');
     expect(popup.textContent).toContain('手札が多いほど布石を失う');
 
@@ -370,7 +370,7 @@ describe('animation feedback sound key coverage', () => {
     const popup = document.querySelector('.manifest-summary-popup') as HTMLElement;
     expect(popup).toBeTruthy();
     expect(popup.dataset.cardType).toBe('OBSERVER_WILL');
-    expect(popup.textContent).toContain('観測領域');
+    expect(popup.textContent).not.toContain('観測領域');
     expect(popup.textContent).toContain('手札1枚を0コストで奪われる');
     expect(popup.textContent).toContain('観測済みカードはコスト増加');
     jest.runAllTimers();

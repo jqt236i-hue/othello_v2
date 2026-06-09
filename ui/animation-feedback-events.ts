@@ -182,7 +182,6 @@ function resolveManifestSummary(target: any) {
     if (key === 'BOARD_EXECUTOR' || key === 'board_executor') {
         return {
             cardType: 'BOARD_EXECUTOR',
-            title: '執行領域',
             lines: [
                 '両者: カード使用封印',
                 '手札が多いほど布石を失う'
@@ -192,7 +191,6 @@ function resolveManifestSummary(target: any) {
     if (key === 'THEORY_INCARNATION' || key === 'theory_incarnation') {
         return {
             cardType: 'THEORY_INCARNATION',
-            title: '理論領域',
             lines: [
                 '空きマスを理論数字マス化',
                 'ランダムで特殊石が出現'
@@ -205,7 +203,6 @@ function resolveManifestSummary(target: any) {
         if (owner && viewer && owner === viewer) return null;
         return {
             cardType: 'OBSERVER_WILL',
-            title: '観測領域',
             lines: [
                 '手札1枚を0コストで奪われる',
                 '観測済みカードはコスト増加'
@@ -234,11 +231,6 @@ function showManifestSummaryPopup(target: any, deps: AnimationFeedbackEventDeps 
 
     const shell = documentRef.createElement('div');
     shell.className = 'manifest-summary-popup-shell';
-
-    const titleEl = documentRef.createElement('div');
-    titleEl.className = 'manifest-summary-popup-title';
-    titleEl.textContent = summary.title;
-    shell.appendChild(titleEl);
 
     const linesEl = documentRef.createElement('div');
     linesEl.className = 'manifest-summary-popup-lines';

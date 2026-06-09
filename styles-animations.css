@@ -206,20 +206,9 @@
     bottom: 10px;
 }
 
-.manifest-summary-popup-title {
-    font-size: clamp(22px, 3.2vw, 36px);
-    font-weight: 900;
-    line-height: 1.15;
-    color: #f4d68a;
-    text-shadow:
-        0 0 14px rgba(244, 214, 138, 0.42),
-        0 3px 18px rgba(0, 0, 0, 0.86);
-}
-
 .manifest-summary-popup-lines {
     display: grid;
     gap: 8px;
-    margin-top: clamp(12px, 2vw, 18px);
 }
 
 .manifest-summary-popup-line {
@@ -269,10 +258,6 @@
 
     .manifest-summary-popup-shell {
         padding: 18px 18px;
-    }
-
-    .manifest-summary-popup-title {
-        font-size: clamp(21px, 6vw, 30px);
     }
 
     .manifest-summary-popup-line {
