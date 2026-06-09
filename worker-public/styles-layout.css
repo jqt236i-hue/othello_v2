@@ -188,6 +188,7 @@
     pointer-events: none;
     z-index: 1010;
     box-shadow:
+        var(--ui-elevation-panel),
         0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 248, 224, 0.16),
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.4),

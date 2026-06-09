@@ -33,7 +33,7 @@
     width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
     height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
     object-fit: contain;
-    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.8));
+    filter: drop-shadow(var(--ui-drop-shadow-strong));
     transition: all 0.3s ease;
     opacity: 0;
     margin-bottom: 0;
@@ -53,7 +53,9 @@
 
 #cpu-character-img:hover {
     transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04)) scaleX(var(--cpu-character-face-direction, 1));
-    filter: drop-shadow(0 8px 20px rgba(255, 204, 153, 0.4));
+    filter:
+        drop-shadow(var(--ui-drop-shadow-strong))
+        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(255, 204, 153, 0.4));
 }
 
 #cpu-level-label {
@@ -85,6 +87,7 @@
     pointer-events: auto;
     border-radius: calc(10px * var(--layout-stage-scale));
     box-shadow:
+        var(--ui-elevation-panel),
         0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
         0 0 calc(12px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.08),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 248, 225, 0.12),
@@ -205,6 +208,7 @@
     line-height: 1.42;
     text-align: center;
     box-shadow:
+        var(--ui-elevation-panel),
         0 calc(12px * var(--layout-stage-scale)) calc(26px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48),
         0 0 calc(14px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.10),
         inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.20),
@@ -282,7 +286,7 @@
     width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
     height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
     object-fit: contain;
-    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.8));
+    filter: drop-shadow(var(--ui-drop-shadow-strong));
     transition: transform 0.3s ease, filter 0.3s ease, opacity 0.3s ease;
     opacity: 1;
     margin-top: 0;
@@ -294,7 +298,9 @@
 
 #hero-character-img:hover {
     transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(1.04);
-    filter: drop-shadow(0 8px 20px rgba(100, 150, 255, 0.4));
+    filter:
+        drop-shadow(var(--ui-drop-shadow-strong))
+        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(100, 150, 255, 0.4));
 }
 
 #hero-label {
@@ -314,4 +320,5 @@
     z-index: 220;
     position: relative;
     display: block;
+    filter: drop-shadow(var(--ui-drop-shadow-panel));
 }

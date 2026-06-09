@@ -54,7 +54,9 @@
     padding: calc(10px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
     border-radius: calc(8px * var(--layout-stage-scale));
     border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    box-shadow:
+        var(--ui-elevation-panel),
+        0 6px 20px rgba(0,0,0,0.6);
 }
 
 #logToggle summary {
@@ -99,7 +101,9 @@
     background: var(--bg-glass);
     border: var(--layout-size-border-thin) solid var(--border-status);
     border-radius: calc(8px * var(--layout-stage-scale));
-    box-shadow: var(--board-shadow-outer);
+    box-shadow:
+        var(--ui-elevation-panel),
+        var(--board-shadow-outer);
     z-index: var(--z-network-chat);
     overflow: hidden;
     pointer-events: auto;
@@ -729,7 +733,9 @@
     background: var(--bg-panel-dark);
     border: var(--layout-size-border-thin) solid var(--border-status);
     border-radius: calc(10px * var(--layout-stage-scale));
-    box-shadow: var(--board-shadow-outer);
+    box-shadow:
+        var(--ui-elevation-strong),
+        var(--board-shadow-outer);
     padding: calc(12px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     pointer-events: auto;
     display: none;
