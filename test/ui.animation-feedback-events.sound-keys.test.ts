@@ -274,4 +274,106 @@ describe('animation feedback sound key coverage', () => {
     resolvers.shift()?.();
     await promise;
   });
+
+  test('special card cinematic shows a dismissible manifest summary after the cinematic leaves', async () => {
+    jest.useFakeTimers();
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    const resolvers: Array<() => void> = [];
+    const sleep = jest.fn(() => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    }));
+
+    const promise = AnimationFeedbackEvents.handleSpecialCardCinematicEvent(
+      {
+        type: 'special_card_cinematic',
+        phase: 4,
+        targets: [{
+          cardId: 'board_executor_01',
+          cardType: 'BOARD_EXECUTOR',
+          owner: 'white',
+          displayName: '盤界の執行者',
+          quote: '盤界の名において執行する',
+          cinematicKey: 'board_executor',
+          durationMs: 3000
+        }]
+      },
+      { sleep, isNoAnim: () => false }
+    );
+
+    await Promise.resolve();
+    expect(document.querySelector('.manifest-summary-popup')).toBeNull();
+
+    resolvers.shift()?.();
+    await Promise.resolve();
+    resolvers.shift()?.();
+    await promise;
+
+    const popup = document.querySelector('.manifest-summary-popup') as HTMLElement;
+    expect(popup).toBeTruthy();
+    expect(popup.dataset.cardType).toBe('BOARD_EXECUTOR');
+    expect(popup.textContent).toContain('執行領域');
+    expect(popup.textContent).toContain('両者: カード使用封印');
+    expect(popup.textContent).toContain('手札が多いほど布石を失う');
+
+    popup.click();
+    await Promise.resolve();
+    expect(popup.classList.contains('is-leaving')).toBe(true);
+    jest.runAllTimers();
+    jest.useRealTimers();
+  });
+
+  test('observer will manifest summary is hidden for the using side and shown to the victim side', async () => {
+    jest.useFakeTimers();
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    (window as any).NetworkMatchClient = {
+      isActive: () => true,
+      getSeatKey: () => 'black'
+    };
+    const immediateSleep = jest.fn(() => Promise.resolve());
+
+    await AnimationFeedbackEvents.handleSpecialCardCinematicEvent(
+      {
+        type: 'special_card_cinematic',
+        targets: [{
+          cardType: 'OBSERVER_WILL',
+          owner: 'black',
+          displayName: '盤理の観測者',
+          cinematicKey: 'observer_will',
+          durationMs: 3000
+        }]
+      },
+      { sleep: immediateSleep, isNoAnim: () => false }
+    );
+
+    expect(document.querySelector('.manifest-summary-popup')).toBeNull();
+
+    await AnimationFeedbackEvents.handleSpecialCardCinematicEvent(
+      {
+        type: 'special_card_cinematic',
+        targets: [{
+          cardType: 'OBSERVER_WILL',
+          owner: 'white',
+          displayName: '盤理の観測者',
+          cinematicKey: 'observer_will',
+          durationMs: 3000
+        }]
+      },
+      { sleep: immediateSleep, isNoAnim: () => false }
+    );
+
+    const popup = document.querySelector('.manifest-summary-popup') as HTMLElement;
+    expect(popup).toBeTruthy();
+    expect(popup.dataset.cardType).toBe('OBSERVER_WILL');
+    expect(popup.textContent).toContain('観測領域');
+    expect(popup.textContent).toContain('手札1枚を0コストで奪われる');
+    expect(popup.textContent).toContain('観測済みカードはコスト増加');
+    jest.runAllTimers();
+    jest.useRealTimers();
+  });
 });

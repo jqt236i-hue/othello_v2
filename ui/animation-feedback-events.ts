@@ -61,6 +61,39 @@ function waitForCinematic(ms: number, deps: AnimationFeedbackEventDeps) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizePlayerKey(value: any): string {
+    const key = String(value || '').trim().toLowerCase();
+    if (key === 'white' || key === '-1') return 'white';
+    if (key === 'black' || key === '1') return 'black';
+    return '';
+}
+
+function resolveLocalViewerKey(): string {
+    const root = getWindowRef();
+    if (root && root.NetworkMatchClient) {
+        try {
+            const client = root.NetworkMatchClient;
+            const active = typeof client.isActive === 'function' ? client.isActive() === true : true;
+            if (active && typeof client.getSeatKey === 'function') {
+                const seatKey = normalizePlayerKey(client.getSeatKey());
+                if (seatKey) return seatKey;
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+    if (root) {
+        const globals = [
+            root.LOCAL_PLAYER_KEY,
+            root.__LOCAL_PLAYER_KEY,
+            root.BOARD_VIEWER_KEY
+        ];
+        for (const value of globals) {
+            const key = normalizePlayerKey(value);
+            if (key) return key;
+        }
+    }
+    return 'black';
+}
+
 function waitForTypewriter(ms: number, deps: AnimationFeedbackEventDeps) {
     if (deps.typewriterSleep && typeof deps.typewriterSleep === 'function') {
         return deps.typewriterSleep(ms);
@@ -140,6 +173,119 @@ function buildManifestPresentationOverride(target: any) {
         manifestBgmTrack,
         resolvedByMarker: false
     };
+}
+
+function resolveManifestSummary(target: any) {
+    const cardType = String((target && (target.cardType || target.type)) || '').trim().toUpperCase();
+    const cinematicKey = String((target && target.cinematicKey) || '').trim().toLowerCase();
+    const key = cardType || cinematicKey;
+    if (key === 'BOARD_EXECUTOR' || key === 'board_executor') {
+        return {
+            cardType: 'BOARD_EXECUTOR',
+            title: '執行領域',
+            lines: [
+                '両者: カード使用封印',
+                '手札が多いほど布石を失う'
+            ]
+        };
+    }
+    if (key === 'THEORY_INCARNATION' || key === 'theory_incarnation') {
+        return {
+            cardType: 'THEORY_INCARNATION',
+            title: '理論領域',
+            lines: [
+                '空きマスを理論数字マス化',
+                'ランダムで特殊石が出現'
+            ]
+        };
+    }
+    if (key === 'OBSERVER_WILL' || key === 'observer_will') {
+        const owner = normalizePlayerKey((target && (target.owner || target.player)) || '');
+        const viewer = resolveLocalViewerKey();
+        if (owner && viewer && owner === viewer) return null;
+        return {
+            cardType: 'OBSERVER_WILL',
+            title: '観測領域',
+            lines: [
+                '手札1枚を0コストで奪われる',
+                '観測済みカードはコスト増加'
+            ]
+        };
+    }
+    return null;
+}
+
+function showManifestSummaryPopup(target: any, deps: AnimationFeedbackEventDeps = {}) {
+    const summary = resolveManifestSummary(target);
+    if (!summary) return;
+    const documentRef = getDocumentRef();
+    if (!documentRef || !documentRef.body) return;
+
+    const existing = Array.from(documentRef.querySelectorAll('.manifest-summary-popup')) as any[];
+    for (const node of existing) {
+        try { if (node && node.parentElement) node.parentElement.removeChild(node); } catch (e: any) { /* ignore */ }
+    }
+
+    const popup = documentRef.createElement('div');
+    popup.className = 'manifest-summary-popup';
+    popup.dataset.cardType = summary.cardType;
+    popup.setAttribute('role', 'status');
+    popup.setAttribute('aria-live', 'polite');
+
+    const shell = documentRef.createElement('div');
+    shell.className = 'manifest-summary-popup-shell';
+
+    const titleEl = documentRef.createElement('div');
+    titleEl.className = 'manifest-summary-popup-title';
+    titleEl.textContent = summary.title;
+    shell.appendChild(titleEl);
+
+    const linesEl = documentRef.createElement('div');
+    linesEl.className = 'manifest-summary-popup-lines';
+    for (const line of summary.lines) {
+        const lineEl = documentRef.createElement('div');
+        lineEl.className = 'manifest-summary-popup-line';
+        lineEl.textContent = line;
+        linesEl.appendChild(lineEl);
+    }
+    shell.appendChild(linesEl);
+    popup.appendChild(shell);
+
+    let dismissed = false;
+    let fadeTimer: any = null;
+    let removeTimer: any = null;
+    const clearTimers = () => {
+        try { if (fadeTimer !== null) clearTimeout(fadeTimer); } catch (e: any) { /* ignore */ }
+        try { if (removeTimer !== null) clearTimeout(removeTimer); } catch (e: any) { /* ignore */ }
+        fadeTimer = null;
+        removeTimer = null;
+    };
+    const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        clearTimers();
+        try {
+            popup.classList.remove('is-visible');
+            popup.classList.add('is-leaving');
+        } catch (e: any) { /* ignore */ }
+        removeTimer = setTimeout(() => {
+            try { if (popup.parentElement) popup.parentElement.removeChild(popup); } catch (e: any) { /* ignore */ }
+        }, 500);
+    };
+
+    popup.addEventListener('click', dismiss);
+    popup.addEventListener('pointerdown', dismiss);
+
+    documentRef.body.appendChild(popup);
+    try {
+        void popup.offsetWidth;
+        popup.classList.add('is-visible');
+    } catch (e: any) {
+        popup.classList.add('is-visible');
+    }
+
+    if (deps.isNoAnim && deps.isNoAnim()) return;
+    fadeTimer = setTimeout(dismiss, 2500);
 }
 
 function applyManifestPresentationForCinematic(target: any, deps: AnimationFeedbackEventDeps) {
@@ -238,6 +384,7 @@ async function handleSpecialCardCinematicEvent(ev: any, deps: AnimationFeedbackE
     try {
         if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
     } catch (e: any) { /* ignore */ }
+    showManifestSummaryPopup(target, deps);
 }
 
 function getSoundKeys(ev: any) {
@@ -497,5 +644,6 @@ module.exports = {
     handleObserverBubbleEvent,
     handleRoundBonusBannerEvent,
     handleSpecialCardCinematicEvent,
+    showManifestSummaryPopup,
     handleSoundEffectEvent
 };
