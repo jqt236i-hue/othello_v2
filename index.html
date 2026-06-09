@@ -57,12 +57,6 @@
     <div id="round-display-panel" aria-live="polite" aria-atomic="true"></div>
 
     <div id="left-info-stack">
-        <div id="stone-info-panel" class="stone-info-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
-            <div id="stone-info-name" class="stone-info-name"></div>
-            <div id="stone-info-desc" class="stone-info-desc"></div>
-            <div id="stone-info-meta" class="stone-info-meta"></div>
-        </div>
-
         <div id="effect-live-panel" class="battle-status-panel" data-battle-status-panel="1" role="status" aria-label="戦況" aria-live="polite" aria-atomic="false">
             <div class="battle-status-topline">
                 <div class="battle-status-round">ROUND 1</div>
@@ -74,6 +68,12 @@
             </div>
             <div class="battle-status-turn">あなたのターン</div>
             <div class="battle-status-latest">直近 -</div>
+        </div>
+
+        <div id="stone-info-panel" class="stone-info-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
+            <div id="stone-info-name" class="stone-info-name"></div>
+            <div id="stone-info-desc" class="stone-info-desc"></div>
+            <div id="stone-info-meta" class="stone-info-meta"></div>
         </div>
 
         <div id="manifest-effect-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
@@ -700,7 +700,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=157252190533950"></script>
+    <script src="public/module-registry.js?v=119012757051630"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=268202268641668"></script>

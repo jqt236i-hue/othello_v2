@@ -1740,9 +1740,12 @@ function _ensureStoneInfoPanel() {
         '<div id="stone-info-desc" class="stone-info-desc"></div>',
         '<div id="stone-info-meta" class="stone-info-meta is-empty"></div>'
     ].join('');
+    const manifestPanel = document.getElementById('manifest-effect-panel');
     const effectPanel = document.getElementById('effect-live-panel');
-    if (effectPanel && effectPanel.parentNode) {
-        effectPanel.parentNode.insertBefore(panel, effectPanel);
+    if (manifestPanel && manifestPanel.parentNode) {
+        manifestPanel.parentNode.insertBefore(panel, manifestPanel);
+    } else if (effectPanel && effectPanel.parentNode) {
+        effectPanel.parentNode.insertBefore(panel, effectPanel.nextSibling);
     } else {
         document.body.appendChild(panel);
     }
