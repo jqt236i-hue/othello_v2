@@ -2108,42 +2108,45 @@
 }
 
 #card-detail-actions > #toggle-card-detail-btn:not(:disabled) {
-    --card-detail-action-accent: #95a8ff;
-    --card-detail-action-accent-rgb: 149, 168, 255;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(149, 168, 255, 0.58);
+    --card-detail-action-accent: #5f7cff;
+    --card-detail-action-accent-rgb: 95, 124, 255;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(95, 124, 255, 0.78);
     background:
-        linear-gradient(180deg, rgba(149, 168, 255, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(95, 124, 255, 0.38), rgba(255, 255, 255, 0) 42%),
         linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
     box-shadow:
         0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(95, 124, 255, 0.20),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(149, 168, 255, 0.42);
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(95, 124, 255, 0.68);
 }
 
 #card-detail-actions > #use-card-btn:not(:disabled) {
-    --card-detail-action-accent: #70e09a;
-    --card-detail-action-accent-rgb: 112, 224, 154;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(112, 224, 154, 0.58);
+    --card-detail-action-accent: #22d878;
+    --card-detail-action-accent-rgb: 34, 216, 120;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(34, 216, 120, 0.78);
     background:
-        linear-gradient(180deg, rgba(112, 224, 154, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(34, 216, 120, 0.38), rgba(255, 255, 255, 0) 42%),
         linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
     box-shadow:
         0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(34, 216, 120, 0.20),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(112, 224, 154, 0.42);
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(34, 216, 120, 0.68);
 }
 
 #card-detail-actions > #destroy-card-btn:not(:disabled) {
-    --card-detail-action-accent: #ff8a7a;
-    --card-detail-action-accent-rgb: 255, 138, 122;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 138, 122, 0.58);
+    --card-detail-action-accent: #ff4f45;
+    --card-detail-action-accent-rgb: 255, 79, 69;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 79, 69, 0.78);
     background:
-        linear-gradient(180deg, rgba(255, 138, 122, 0.24), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, rgba(255, 79, 69, 0.38), rgba(255, 255, 255, 0) 42%),
         linear-gradient(180deg, rgba(33, 33, 36, 0.96), rgba(13, 14, 16, 0.96));
     box-shadow:
         0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 79, 69, 0.20),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 138, 122, 0.42);
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 79, 69, 0.68);
 }
 
 #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn):hover:not(:disabled),
@@ -2153,9 +2156,9 @@
     filter: brightness(1.06);
     box-shadow:
         0 calc(7px * var(--layout-stage-scale)) calc(15px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
-        0 0 calc(13px * var(--layout-stage-scale)) rgba(var(--card-detail-action-accent-rgb), 0.28),
+        0 0 calc(15px * var(--layout-stage-scale)) rgba(var(--card-detail-action-accent-rgb), 0.42),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.12),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(var(--card-detail-action-accent-rgb), 0.54);
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(var(--card-detail-action-accent-rgb), 0.74);
 }
 
 #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn):disabled,

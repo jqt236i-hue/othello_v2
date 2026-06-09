@@ -58,8 +58,10 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-detail-effect-tag[\s\S]*--card-detail-tag-surface/);
     expect(cardsCss).toMatch(/\.card-detail-effect-tag-button[\s\S]*min-height:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-detail-effect-tag-button::before[\s\S]*background:\s*var\(--card-detail-tag-accent/);
-    expect(cardsCss).toMatch(/#use-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#70e09a/);
-    expect(cardsCss).toMatch(/#destroy-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#ff8a7a/);
+    expect(cardsCss).toMatch(/#toggle-card-detail-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#5f7cff/);
+    expect(cardsCss).toMatch(/#use-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#22d878/);
+    expect(cardsCss).toMatch(/#destroy-card-btn:not\(:disabled\)[\s\S]*--card-detail-action-accent:\s*#ff4f45/);
+    expect(cardsCss).toMatch(/#card-detail-actions > #use-card-btn:not\(:disabled\)[\s\S]*border:[\s\S]*rgba\(34,\s*216,\s*120,\s*0\.78\)/);
   });
 
   test('card surfaces suppress type badges while keeping other card layout tokens intact', () => {
