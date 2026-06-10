@@ -471,7 +471,7 @@ describe('move-executor presentation emission', () => {
         expect(global.onTurnStart).toHaveBeenCalledTimes(1);
     });
 
-    test('UIブリッジがなくても global renderVisibleChargeDisplays で布石表示を即時同期する', async () => {
+    test('UIブリッジがない場合は global renderVisibleChargeDisplays を直接探索しない', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = {
             pendingEffectByPlayer: { black: null, white: null },
@@ -506,7 +506,7 @@ describe('move-executor presentation emission', () => {
 
         await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
 
-        expect(global.renderVisibleChargeDisplays).toHaveBeenCalledTimes(1);
+        expect(global.renderVisibleChargeDisplays).not.toHaveBeenCalled();
         expect(global.onTurnStart).toHaveBeenCalledTimes(1);
     });
 

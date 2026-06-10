@@ -299,20 +299,6 @@ function syncMoveExecutorVisibleChargeDisplaysNow() {
             return __uiImpl_move_executor.syncVisibleChargeDisplaysNow() === true;
         }
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            const runtimeFn = (globalThis as any).syncVisibleChargeDisplaysNow || (globalThis as any).renderVisibleChargeDisplays;
-            if (typeof runtimeFn === 'function') {
-                return runtimeFn() === true;
-            }
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        const cardRenderer = requireMoveExecutorModuleOrNull('../cards/card-renderer');
-        if (cardRenderer && typeof cardRenderer.renderVisibleChargeDisplays === 'function') {
-            return cardRenderer.renderVisibleChargeDisplays() === true;
-        }
-    } catch (e) { /* ignore */ }
     return false;
 }
 
