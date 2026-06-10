@@ -88,6 +88,9 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*clip-path:\s*polygon\(50% 0/);
     expect(cardsCss).toMatch(/\.card-item\.visible::before[\s\S]*inset:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible::after[\s\S]*background:[\s\S]*--card-face-rune-pattern/);
+    expect(cardsCss).toMatch(/\.card-background-art[\s\S]*background-image:[\s\S]*--card-background-art-image/);
+    expect(cardsCss).toMatch(/\.card-background-art[\s\S]*z-index:\s*0/);
+    expect(cardsCss).toMatch(/\.card-special-art[\s\S]*z-index:\s*3/);
     expect(cardsCss).toMatch(/\.card-name\s*\{[\s\S]*top:\s*auto[\s\S]*bottom:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
 

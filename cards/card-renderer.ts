@@ -195,6 +195,73 @@ function _resolveCardDefForFaceVisual(cardDef: any, fallbackCardId: any) {
     catch (e) { /* ignore */ }
     return null;
 }
+function _resolveCardBackgroundArt(cardDef: any, fallbackCardId: any) {
+    const resolvedCardDef = _resolveCardDefForFaceVisual(cardDef, fallbackCardId);
+    const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
+    if (!resolvedCardId) {
+        return null;
+    }
+    let sourceCards: any[] = [];
+    try {
+        if (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS)) {
+            sourceCards = CARD_DEFS;
+        }
+    }
+    catch (e) { /* ignore */ }
+    try {
+        if (
+            typeof window !== 'undefined' &&
+            window.CardCatalog &&
+            Array.isArray(window.CardCatalog.cards) &&
+            window.CardCatalog.cards.length
+        ) {
+            sourceCards = window.CardCatalog.cards;
+        }
+    }
+    catch (e) { /* ignore */ }
+    const cardIndex = sourceCards.findIndex((entry) => entry && String(entry.id || '').trim() === resolvedCardId);
+    if (cardIndex < 0) {
+        return null;
+    }
+    const sourceDef = sourceCards[cardIndex] || resolvedCardDef || {};
+    const cardName = String(sourceDef.name_ja || sourceDef.name || resolvedCardDef?.name_ja || resolvedCardDef?.name || '').trim();
+    if (!cardName) {
+        return null;
+    }
+    const cardNumber = String(cardIndex + 1).padStart(2, '0');
+    return {
+        imagePath: `assets/images/card/${cardNumber}_${cardName}.png`
+    };
+}
+function applyCardBackgroundArtToFace(cardEl: any, cardDef: any, options: any) {
+    if (!cardEl || typeof cardEl !== 'object') {
+        return cardEl;
+    }
+    const fallbackCardId = options && options.cardId ? options.cardId : (cardDef && cardDef.id);
+    const art = _resolveCardBackgroundArt(cardDef, fallbackCardId);
+    const existingArtEl = cardEl.querySelector('.card-background-art');
+    if (!art) {
+        cardEl.classList.remove('has-card-background');
+        cardEl.style.removeProperty('--card-background-art-image');
+        delete cardEl.dataset.cardBackgroundImage;
+        if (existingArtEl && existingArtEl.parentElement) {
+            existingArtEl.parentElement.removeChild(existingArtEl);
+        }
+        return cardEl;
+    }
+    let artEl = existingArtEl;
+    if (!artEl) {
+        artEl = document.createElement('div');
+        artEl.className = 'card-background-art';
+        artEl.setAttribute('aria-hidden', 'true');
+        cardEl.insertBefore(artEl, cardEl.firstChild || null);
+    }
+    const escapedPath = String(art.imagePath).replace(/"/g, '\\"');
+    cardEl.classList.add('has-card-background');
+    cardEl.dataset.cardBackgroundImage = art.imagePath;
+    cardEl.style.setProperty('--card-background-art-image', `url("${escapedPath}")`);
+    return cardEl;
+}
 function _resolveCardSpecialArt(cardDef: any, fallbackCardId: any, options: any) {
     const resolvedCardDef = _resolveCardDefForFaceVisual(cardDef, fallbackCardId);
     const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
@@ -264,7 +331,13 @@ function applyCardSpecialArtToFace(cardEl: any, cardDef: any, options: any) {
         artEl = document.createElement('div');
         artEl.className = 'card-special-art';
         artEl.setAttribute('aria-hidden', 'true');
-        cardEl.insertBefore(artEl, cardEl.firstChild || null);
+        const backgroundArtEl = cardEl.querySelector('.card-background-art');
+        if (backgroundArtEl && backgroundArtEl.nextSibling) {
+            cardEl.insertBefore(artEl, backgroundArtEl.nextSibling);
+        }
+        else {
+            cardEl.appendChild(artEl);
+        }
     }
     const escapedPath = String(art.imagePath).replace(/"/g, '\\"');
     cardEl.classList.add('has-special-art');
@@ -1118,6 +1191,7 @@ function createCardFaceElement(cardId: any, options: any) {
     if (typeKey) {
         cardEl.dataset.cardType = typeKey;
     }
+    applyCardBackgroundArtToFace(cardEl, cardDef, { cardId });
     applyCardSpecialArtToFace(cardEl, cardDef, { cardId, ownerKey: options && options.ownerKey });
     if (isSpecialCard) {
         const sigilEl = document.createElement('div');

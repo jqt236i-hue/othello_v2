@@ -309,6 +309,42 @@ describe('card renderer hand inspection', () => {
     expect(whiteCardEl.querySelector('.card-special-art')).toBeTruthy();
     expect(blackCardEl.style.getPropertyValue('--card-special-art-image')).toContain('ultimate_reverse_dragon-black.png');
     expect(whiteCardEl.style.getPropertyValue('--card-special-art-image')).toContain('ultimate_reverse_dragon-white.png');
+    expect(blackCardEl.classList.contains('has-card-background')).toBe(true);
+    expect(blackCardEl.querySelector('.card-background-art')).toBeTruthy();
+    expect(blackCardEl.style.getPropertyValue('--card-background-art-image')).toContain('assets/images/card/01_究極反転龍.png');
+
+    dom.window.close();
+  });
+
+  test('createCardFaceElement applies catalog-order card background art to normal cards', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      {
+        id: 'chest_01',
+        name: '宝箱',
+        desc: 'd',
+        cost: 0,
+        type: 'TREASURE_BOX',
+        display_type_ja: '採掘'
+      },
+      {
+        id: 'free_01',
+        name: '自由の意志',
+        desc: 'd',
+        cost: 14,
+        type: 'FREE_PLACEMENT',
+        display_type_ja: '禁忌'
+      }
+    ];
+
+    const cardEl = window.createCardFaceElement('free_01', { ownerKey: 'black' });
+
+    expect(cardEl.classList.contains('has-card-background')).toBe(true);
+    expect(cardEl.querySelector('.card-background-art')).toBeTruthy();
+    expect(cardEl.style.getPropertyValue('--card-background-art-image')).toContain('assets/images/card/02_自由の意志.png');
+    expect(cardEl.querySelector('.card-special-art')).toBeNull();
 
     dom.window.close();
   });
