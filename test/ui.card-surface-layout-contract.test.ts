@@ -89,7 +89,11 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-item\.visible::before[\s\S]*inset:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible::after[\s\S]*background:[\s\S]*--card-face-rune-pattern/);
     expect(cardsCss).toMatch(/\.card-background-art[\s\S]*background-image:[\s\S]*--card-background-art-image/);
+    expect(cardsCss).toMatch(/\.card-background-art[\s\S]*opacity:\s*var\(--card-background-art-opacity,\s*0\.92\)/);
+    expect(cardsCss).toMatch(/\.card-background-art[\s\S]*saturate\(1\.18\)[\s\S]*contrast\(1\.08\)/);
     expect(cardsCss).toMatch(/\.card-background-art[\s\S]*z-index:\s*0/);
+    expect(cardsCss).toMatch(/\.card-name[\s\S]*backdrop-filter:\s*blur/);
+    expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*rgba\(255,\s*232,\s*162,\s*0\.16\)/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*z-index:\s*3/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*opacity:\s*var\(--card-special-art-opacity,\s*0\.64\)/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*background-position:\s*center,\s*center 50%/);
