@@ -499,13 +499,42 @@ function renderBattleStatusLatestText(el: any, text: string): void {
     el.appendChild(value);
 }
 
+function compactBattleStatusText(value: any): string {
+    return String(value && typeof value === 'object' && typeof value.text === 'string' ? value.text : value || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function stripBattleStatusActorPrefix(text: string): string {
+    return String(text || '').replace(/^(黒|白)(?:\(Lv\d+\))?\s*[：:]\s*/, '').trim();
+}
+
+function isFastBattleStatusNoise(text: string): boolean {
+    const raw = compactBattleStatusText(text);
+    if (!raw) return true;
+    const withoutActor = stripBattleStatusActorPrefix(raw);
+    if (/布石\s*[+-]|布石[＋+]|数字マス.*布石/.test(raw)) return true;
+    if (/^==\s*(黒|白)のターン/.test(raw)) return true;
+    if (/^(黒|白)(?:\(Lv\d+\))?がドローしました$/.test(raw)) return true;
+    if (/^(黒|白)(?:\(Lv\d+\))?が\d+枚反転！?$/.test(raw)) return true;
+    if (/^パス(?:\s|$|\()/.test(withoutActor)) return true;
+    if (/^(?:[A-Z]\d+|左外\d+|右外\d+)\s+に置き、\d+枚反転！?$/.test(withoutActor)) return true;
+    return false;
+}
+
 function normalizeBattleStatusEventText(message: any): string {
-    const raw = String(message && typeof message === 'object' && typeof message.text === 'string' ? message.text : message || '').trim();
+    const raw = compactBattleStatusText(message);
     if (!raw) return '';
-    const cardUseMatch = raw.match(/^(黒|白)がカードを使用:\s*([^()]+?)(?:\s*\(|$)/);
-    if (cardUseMatch) return `${cardUseMatch[1]}: ${cardUseMatch[2].trim()}`;
-    if (/布石\s*[+-]|布石[＋+]|数字マス.*布石/.test(raw)) return '';
-    return raw.replace(/\s+/g, ' ');
+    const cardUseMatch = raw.match(/^(黒|白)(?:\(Lv\d+\))?がカードを使用[：:]\s*([^()]+?)(?:\s*\(|$)/);
+    if (cardUseMatch) return `${cardUseMatch[2].trim()}を使用`;
+    if (isFastBattleStatusNoise(raw)) return '';
+    const legacyCardEffectMatch = raw.match(/^(黒|白)(?:\(Lv\d+\))?が(.+?)で\s*(.+)$/);
+    if (legacyCardEffectMatch) return `${legacyCardEffectMatch[2].trim()}: ${legacyCardEffectMatch[3].trim()}`.replace(/\s+/g, ' ');
+    const withoutActor = stripBattleStatusActorPrefix(raw);
+    if (isFastBattleStatusNoise(withoutActor)) return '';
+    const cardEffectMatch = withoutActor.match(/^(.+?)で\s*(.+)$/);
+    if (cardEffectMatch) return `${cardEffectMatch[1].trim()}: ${cardEffectMatch[2].trim()}`.replace(/\s+/g, ' ');
+    return withoutActor.replace(/\s+/g, ' ');
 }
 
 function recordBattleStatusEvent(message: any): boolean {

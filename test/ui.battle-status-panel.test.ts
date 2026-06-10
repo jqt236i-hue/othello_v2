@@ -133,18 +133,30 @@ describe('battle status panel', () => {
     teardownBattleStatusDom(dom);
   });
 
-  test('records only the latest important event and strips charge noise', () => {
+  test('records only card-related summary events and strips fast turn noise', () => {
     const { dom, window, effectPanel } = setupBattleStatusDom();
 
     window.recordBattleStatusEvent('黒: 数字マスD3: 布石+3');
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
 
+    window.recordBattleStatusEvent('黒がドローしました');
+    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
+
+    window.recordBattleStatusEvent('黒: D3 に置き、2枚反転');
+    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
+
+    window.recordBattleStatusEvent('黒: パス (置ける場所がありません)');
+    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
+
     window.recordBattleStatusEvent('黒がカードを使用: 宝石 (布石 -2)');
-    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 黒: 宝石');
-    expect(effectPanel.querySelector('.battle-status-latest-value')?.textContent).toBe('黒: 宝石');
+    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 宝石を使用');
+    expect(effectPanel.querySelector('.battle-status-latest-value')?.textContent).toBe('宝石を使用');
+
+    window.recordBattleStatusEvent('白: 交換でD3を変換');
+    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 交換: D3を変換');
 
     window.recordBattleStatusEvent('白: 罠石が発動');
-    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 白: 罠石が発動');
+    expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 罠石が発動');
 
     window.clearBattleStatusPanel();
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
