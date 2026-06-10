@@ -44,13 +44,15 @@ describe('card surface layout contract', () => {
 
   test('card detail panel uses premium cut glass frame and unified action buttons', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
+    const indexHtml = readRepoTextFile('index.html');
 
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*clip-path:\s*polygon\(/);
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*backdrop-filter:\s*blur/);
     expect(cardsCss).toMatch(/#card-detail-panel[\s\S]*--card-detail-accent/);
     expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*background:[\s\S]*var\(--card-detail-desc-panel\)/);
     expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*min-height:\s*calc\(112px\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-card-detail-scale\)\)/);
-    expect(cardsCss).toMatch(/#card-detail-actions\s*>\s*:is\(#toggle-card-detail-btn,\s*#use-card-btn,\s*#destroy-card-btn\)/);
+    expect(indexHtml).toMatch(/id="card-detail-actions"[\s\S]*id="destroy-card-btn"[\s\S]*id="pass-btn"[\s\S]*<\/div>/);
+    expect(cardsCss).toMatch(/#card-detail-actions\s*>\s*:is\(#toggle-card-detail-btn,\s*#use-card-btn,\s*#destroy-card-btn,\s*#pass-btn\)/);
     expect(cardsCss).toMatch(/#card-detail-actions\s*\{[\s\S]*justify-content:\s*flex-start/);
     expect(cardsCss).toMatch(/#card-detail-desc[\s\S]*--card-detail-desc-panel/);
     expect(cardsCss).toMatch(/#card-detail-actions[\s\S]*--card-detail-action-bar/);

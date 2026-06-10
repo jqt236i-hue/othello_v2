@@ -1724,6 +1724,7 @@
 #card-detail-panel > #destroy-card-btn,
 #card-detail-panel > #use-card-btn,
 #card-detail-panel > #toggle-card-detail-btn,
+#card-detail-actions > #pass-btn,
 #card-detail-panel > #pass-btn,
 #card-detail-panel > #cancel-card-btn,
 #card-detail-panel > #use-card-reason {
@@ -1735,6 +1736,7 @@
 #card-detail-actions > #destroy-card-btn,
 #card-detail-actions > #use-card-btn,
 #card-detail-actions > #toggle-card-detail-btn,
+#card-detail-actions > #pass-btn,
 #card-detail-panel > #pass-btn,
 #card-detail-panel > #cancel-card-btn {
     display: inline-block;
@@ -1831,6 +1833,10 @@
         0 calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.4);
     letter-spacing: calc(0.5px * var(--layout-stage-scale));
     z-index: 1;
+}
+
+#card-detail-actions > #pass-btn {
+    margin-top: 0;
 }
 
 #pass-btn:hover:not(:disabled) {
@@ -2093,7 +2099,7 @@
     display: none;
 }
 
-#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn),
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn),
 #card-detail-panel > #pass-btn,
 #card-detail-panel > #cancel-card-btn {
     --card-detail-action-accent: #c9b27a;
@@ -2164,7 +2170,7 @@
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 79, 69, 0.68);
 }
 
-#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn):hover:not(:disabled),
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn):hover:not(:disabled),
 #card-detail-panel > #pass-btn:hover:not(:disabled),
 #card-detail-panel > #cancel-card-btn:hover {
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
@@ -2176,7 +2182,7 @@
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(var(--card-detail-action-accent-rgb), 0.74);
 }
 
-#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn):disabled,
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn):disabled,
 #use-card-btn.pseudo-disabled,
 #card-detail-panel > #pass-btn:disabled {
     --card-detail-action-accent: #5f5f5f;
