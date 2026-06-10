@@ -52,12 +52,17 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/\.battle-status-score[\s\S]*grid-template-columns:\s*1fr auto 1fr/);
     expect(layoutCss).toMatch(/\.battle-status-turn::before[\s\S]*content:\s*''/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*--left-hud-accent/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*--manifest-effect-accent-secondary:\s*#7ed7ff/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel\[data-manifest-effect-type="THEORY_INCARNATION"\][\s\S]*--manifest-effect-accent-secondary:\s*#7dffdf/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*clip-path:\s*polygon/);
+    expect(layoutCss).toMatch(/#manifest-effect-panel::after[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(126,\s*215,\s*255,\s*0\.72\)/);
+    expect(layoutCss).toMatch(/#manifest-effect-title[\s\S]*border-bottom:\s*var\(--layout-size-border-thin\)\s*solid\s*rgba\(126,\s*215,\s*255,\s*0\.22\)/);
     expect(manifestPanelBlock).toMatch(/box-shadow:[\s\S]*calc\(-10px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(manifestPanelBlock).not.toMatch(/var\(--ui-elevation-panel\)/);
     expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*font-size:\s*max\(calc\(13px\s*\*\s*var\(--layout-stage-scale\)\),\s*13px\)/);
     expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*font-weight:\s*800/);
     expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*text-shadow:/);
+    expect(layoutCss).toMatch(/\.manifest-effect-line[\s\S]*border-left:\s*var\(--layout-size-border-thin\)\s*solid\s*rgba\(126,\s*215,\s*255,\s*0\.28\)/);
     expect(layoutCss).toMatch(/\.manifest-effect-line::before[\s\S]*content:\s*''/);
     expect(layoutCss).toMatch(/\.manifest-effect-label[\s\S]*color:\s*var\(--left-hud-text-label\)/);
     expect(layoutCss).toMatch(/\.manifest-effect-value-strong[\s\S]*color:\s*var\(--left-hud-text-value\)/);
