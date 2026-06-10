@@ -1471,7 +1471,7 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled .player-area-top {
-        top: calc(20px * var(--layout-stage-scale));
+        top: calc(-14px * var(--layout-stage-scale));
         margin-bottom: calc(6px * var(--layout-stage-scale));
     }
 
