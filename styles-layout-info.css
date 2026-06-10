@@ -548,7 +548,7 @@
         ((var(--layout-anchor-effect-top) + var(--layout-anchor-effect-height)) * var(--layout-stage-scale)) +
         calc(10px * var(--layout-stage-scale))
     );
-    z-index: 11989;
+    z-index: 11990;
     display: none;
     width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
     min-height: calc(var(--layout-anchor-manifest-effect-height) * var(--layout-stage-scale));

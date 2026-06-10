@@ -40,6 +40,9 @@ describe('left info stack layout contract', () => {
   test('left information HUD uses game-like readable panel treatments', () => {
     const layoutCss = readLayoutCssSurface();
     const boardCss = readRepoTextFile('styles-board.css');
+    const effectPanelBlock = Array.from(layoutCss.matchAll(/#effect-live-panel\s*\{[\s\S]*?\n\}/g))
+      .map((match) => match[0])
+      .find((block) => block.includes('--left-hud-accent')) || '';
     const manifestPanelBlock = Array.from(layoutCss.matchAll(/#manifest-effect-panel\s*\{[\s\S]*?\n\}/g))
       .map((match) => match[0])
       .find((block) => block.includes('--left-hud-accent')) || '';
@@ -55,6 +58,8 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*--manifest-effect-accent-secondary:\s*#7ed7ff/);
     expect(layoutCss).toMatch(/#manifest-effect-panel\[data-manifest-effect-type="THEORY_INCARNATION"\][\s\S]*--manifest-effect-accent-secondary:\s*#7dffdf/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*clip-path:\s*polygon/);
+    expect(effectPanelBlock).toMatch(/z-index:\s*11990/);
+    expect(manifestPanelBlock).toMatch(/z-index:\s*11990/);
     expect(manifestPanelBlock).not.toMatch(/linear-gradient\(90deg,\s*transparent 0 14%/);
     expect(manifestPanelBlock).not.toMatch(/linear-gradient\(180deg,\s*rgba\(255,\s*232,\s*150,\s*0\.055\) 0 1px/);
     expect(layoutCss).toMatch(/#manifest-effect-panel::after[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(126,\s*215,\s*255,\s*0\.72\)/);
