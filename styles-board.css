@@ -873,6 +873,42 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
         inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.18);
 }
 
+.disc.manifest-stone-ending-afterglow {
+    animation: manifestStoneEndingAfterglow 850ms ease-out both;
+}
+
+.disc.manifest-stone-ending-afterglow .disc__face {
+    animation: manifestStoneEndingFaceAfterglow 850ms ease-out both;
+}
+
+@keyframes manifestStoneEndingAfterglow {
+    0% {
+        filter:
+            drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.78))
+            drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) rgba(190, 220, 255, 0.7));
+    }
+    42% {
+        filter:
+            drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.42))
+            drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) rgba(190, 220, 255, 0.36));
+    }
+    100% {
+        filter: none;
+    }
+}
+
+@keyframes manifestStoneEndingFaceAfterglow {
+    0% {
+        box-shadow:
+            0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.75),
+            0 0 calc(16px * var(--layout-stage-scale)) rgba(190, 220, 255, 0.62),
+            inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.16);
+    }
+    100% {
+        box-shadow: none;
+    }
+}
+
 /* Board stones: enlarge all discs by +10% while keeping them centered in each cell. */
 #board .disc {
     width: var(--board-disc-size);

@@ -43,6 +43,8 @@ describe('diff renderer manifestation world background sync', () => {
     delete (global as any).getEffectKeyForSpecialType;
     delete (global as any).applyStoneVisualEffect;
     delete (global as any).CardLogic;
+    delete (global as any).SoundEngine;
+    jest.useRealTimers();
   });
 
   function renderOnce(board = [[0]]) {
@@ -66,20 +68,25 @@ describe('diff renderer manifestation world background sync', () => {
     expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
   });
 
-  test('clears manifestation world background when no active manifestation stone remains', () => {
+  test('keeps manifestation world background briefly when an active manifestation stone ends', () => {
     (global as any).cardState = {
       markers: [{
         kind: 'manifestStone',
         owner: 'black',
-        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 0 }
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4 }
       }]
     };
 
     renderOnce();
 
-    expect(document.body.classList.contains('manifest-world-background-active')).toBe(false);
-    expect(document.body.getAttribute('data-manifest-world-background-key')).toBeNull();
-    expect(document.body.style.getPropertyValue('--manifest-world-background')).toBe('');
+    (global as any).cardState = { markers: [] };
+    renderOnce();
+
+    expect(document.body.classList.contains('manifest-world-background-active')).toBe(true);
+    expect(document.body.classList.contains('manifest-world-background-ending')).toBe(true);
+    expect(document.body.getAttribute('data-manifest-world-background-key')).toBe('observer_will_world');
+    expect(document.body.getAttribute('data-manifest-world-background-source')).toBe('manifest_end');
+    expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
   });
 
   test('keeps card-use manifestation background before the manifestation stone is placed', () => {
@@ -99,7 +106,7 @@ describe('diff renderer manifestation world background sync', () => {
     expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
   });
 
-  test('clears card-use manifestation background after the resolved manifestation stone disappears', () => {
+  test('keeps resolved card-use manifestation background briefly after the stone disappears', () => {
     (global as any).window.__manifestPresentationOverride = {
       source: 'special_card_use',
       manifestBackgroundKey: 'observer_will_world',
@@ -122,9 +129,10 @@ describe('diff renderer manifestation world background sync', () => {
     renderOnce();
 
     expect((global as any).window.__manifestPresentationOverride).toBeNull();
-    expect(document.body.classList.contains('manifest-world-background-active')).toBe(false);
-    expect(document.body.getAttribute('data-manifest-world-background-key')).toBeNull();
-    expect(document.body.style.getPropertyValue('--manifest-world-background')).toBe('');
+    expect(document.body.classList.contains('manifest-world-background-active')).toBe(true);
+    expect(document.body.classList.contains('manifest-world-background-ending')).toBe(true);
+    expect(document.body.getAttribute('data-manifest-world-background-source')).toBe('manifest_end');
+    expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
   });
 
   test('applies observer manifestation stone visual to a manifestStone marker on the board', () => {
@@ -148,5 +156,58 @@ describe('diff renderer manifestation world background sync', () => {
       expect.objectContaining({ owner: 1 })
     );
     expect(disc.dataset.effect).toBe('observerWillStone');
+  });
+
+  test('adds an afterglow class when a manifestation stone renders back as a normal stone', () => {
+    (global as any).cardState = {
+      markers: [{
+        kind: 'manifestStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4 }
+      }]
+    };
+
+    renderOnce([[1]]);
+
+    (global as any).cardState = { markers: [] };
+    renderOnce([[1]]);
+
+    const disc = document.querySelector('.disc') as HTMLElement;
+    expect(disc).toBeTruthy();
+    expect(disc.classList.contains('manifest-stone-ending-afterglow')).toBe(true);
+    expect(disc.classList.contains('manifest-stone-aura')).toBe(false);
+  });
+
+  test('keeps manifestation BGM briefly before returning to normal BGM', () => {
+    jest.useFakeTimers();
+    const syncManifestBgmOverride = jest.fn();
+    (global as any).SoundEngine = { syncManifestBgmOverride };
+    (global as any).cardState = {
+      markers: [{
+        kind: 'manifestStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4 }
+      }]
+    };
+
+    renderOnce([[1]]);
+    expect(syncManifestBgmOverride).toHaveBeenLastCalledWith(
+      'observer_will_path',
+      expect.objectContaining({ file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3' })
+    );
+    syncManifestBgmOverride.mockClear();
+
+    (global as any).cardState = { markers: [] };
+    renderOnce([[1]]);
+
+    expect(syncManifestBgmOverride).not.toHaveBeenCalledWith(null, null);
+
+    jest.advanceTimersByTime(850);
+
+    expect(syncManifestBgmOverride).toHaveBeenCalledWith(null, null);
   });
 });

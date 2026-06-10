@@ -64,6 +64,10 @@ let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
 let DiffRendererManifestStoneRegistryModule: any = null;
+let lastActiveManifestWorldBackgroundForDiff: any = null;
+let manifestWorldBackgroundEndTimerForDiff: any = null;
+let lastActiveManifestBgmForDiff: any = null;
+let manifestBgmEndTimerForDiff: any = null;
 const FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF = Object.freeze([
     'THEORY_INCARNATION',
     'BOARD_EXECUTOR',
@@ -653,13 +657,55 @@ function _setManifestWorldBackgroundForDiff(active: any) {
     if (active && active.imagePath) {
         const imagePath = String(active.imagePath || '').trim();
         if (!imagePath) return;
+        if (manifestWorldBackgroundEndTimerForDiff !== null) {
+            try {
+                const timer = (AnimationShared && AnimationShared.getTimer)
+                    ? AnimationShared.getTimer()
+                    : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
+                if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestWorldBackgroundEndTimerForDiff);
+                else clearTimeout(manifestWorldBackgroundEndTimerForDiff);
+            } catch (e: any) { /* ignore */ }
+            manifestWorldBackgroundEndTimerForDiff = null;
+        }
+        body.classList.remove('manifest-world-background-ending');
         body.classList.add('manifest-world-background-active');
         body.setAttribute('data-manifest-world-background-key', String(active.key || 'manifest_world'));
         body.setAttribute('data-manifest-world-background-source', String(active.source || 'marker'));
         body.style.setProperty('--manifest-world-background', `url("${imagePath}")`);
+        if (active.source !== 'manifest_end') {
+            lastActiveManifestWorldBackgroundForDiff = {
+                key: active.key || 'manifest_world',
+                imagePath,
+                source: active.source || 'marker'
+            };
+        }
+        return;
+    }
+    if (lastActiveManifestWorldBackgroundForDiff && lastActiveManifestWorldBackgroundForDiff.imagePath) {
+        const ending = lastActiveManifestWorldBackgroundForDiff;
+        lastActiveManifestWorldBackgroundForDiff = null;
+        body.classList.add('manifest-world-background-active', 'manifest-world-background-ending');
+        body.setAttribute('data-manifest-world-background-key', String(ending.key || 'manifest_world'));
+        body.setAttribute('data-manifest-world-background-source', 'manifest_end');
+        body.style.setProperty('--manifest-world-background', `url("${String(ending.imagePath).trim()}")`);
+        const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
+            ? AnimationShared.getTimer()
+            : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
+        manifestWorldBackgroundEndTimerForDiff = timer.setTimeout(() => {
+            try {
+                if (!document || !document.body) return;
+                if (document.body.getAttribute('data-manifest-world-background-source') !== 'manifest_end') return;
+                document.body.classList.remove('manifest-world-background-active', 'manifest-world-background-ending');
+                document.body.removeAttribute('data-manifest-world-background-key');
+                document.body.removeAttribute('data-manifest-world-background-source');
+                document.body.style.removeProperty('--manifest-world-background');
+            } catch (e: any) { /* ignore */ }
+            manifestWorldBackgroundEndTimerForDiff = null;
+        }, 850);
         return;
     }
     body.classList.remove('manifest-world-background-active');
+    body.classList.remove('manifest-world-background-ending');
     body.removeAttribute('data-manifest-world-background-key');
     body.removeAttribute('data-manifest-world-background-source');
     body.style.removeProperty('--manifest-world-background');
@@ -678,9 +724,39 @@ function _syncManifestBgmForDiff(cardStateValue: any) {
         }
         const active = _findActiveManifestBgmForDiff(cardStateValue);
         if (active) {
+            if (manifestBgmEndTimerForDiff !== null) {
+                try {
+                    const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
+                        ? AnimationShared.getTimer()
+                        : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
+                    if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestBgmEndTimerForDiff);
+                    else clearTimeout(manifestBgmEndTimerForDiff);
+                } catch (e: any) { /* ignore */ }
+                manifestBgmEndTimerForDiff = null;
+            }
+            lastActiveManifestBgmForDiff = {
+                key: active.key,
+                track: active.track
+            };
             SoundEngine.syncManifestBgmOverride(active.key, active.track);
         } else {
-            SoundEngine.syncManifestBgmOverride(null, null);
+            if (manifestBgmEndTimerForDiff !== null) return;
+            if (!lastActiveManifestBgmForDiff) {
+                SoundEngine.syncManifestBgmOverride(null, null);
+                return;
+            }
+            lastActiveManifestBgmForDiff = null;
+            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
+                ? AnimationShared.getTimer()
+                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
+            manifestBgmEndTimerForDiff = timer.setTimeout(() => {
+                try {
+                    if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.syncManifestBgmOverride === 'function') {
+                        SoundEngine.syncManifestBgmOverride(null, null);
+                    }
+                } catch (e: any) { /* ignore */ }
+                manifestBgmEndTimerForDiff = null;
+            }, 850);
         }
     } catch (e: any) { /* ignore */ }
 }
@@ -3324,6 +3400,19 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
 
         if (state.manifestAura) {
             disc.classList.add('manifest-stone-aura', `manifest-stone-aura-${_getManifestAuraOwnerClassForDiff(state.manifestAura.owner)}`);
+        } else if (
+            prevState &&
+            prevState.manifestAura &&
+            state.value !== EMPTY &&
+            prevState.value !== EMPTY
+        ) {
+            disc.classList.add('manifest-stone-ending-afterglow');
+            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
+                ? AnimationShared.getTimer()
+                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
+            timer.setTimeout(() => {
+                try { disc.classList.remove('manifest-stone-ending-afterglow'); } catch (e: any) { /* ignore */ }
+            }, 850);
         }
 
         // Add bomb UI (independent of special effects)
@@ -3669,6 +3758,28 @@ function resetRenderStats() {
     boardDomElement = null;
     lastBoardExpansionRevealSoundKey = null;
     superAttractionHoverPreview = null;
+    lastActiveManifestWorldBackgroundForDiff = null;
+    lastActiveManifestBgmForDiff = null;
+    if (manifestWorldBackgroundEndTimerForDiff !== null) {
+        try {
+            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
+                ? AnimationShared.getTimer()
+                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
+            if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestWorldBackgroundEndTimerForDiff);
+            else clearTimeout(manifestWorldBackgroundEndTimerForDiff);
+        } catch (e: any) { /* ignore */ }
+        manifestWorldBackgroundEndTimerForDiff = null;
+    }
+    if (manifestBgmEndTimerForDiff !== null) {
+        try {
+            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
+                ? AnimationShared.getTimer()
+                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
+            if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestBgmEndTimerForDiff);
+            else clearTimeout(manifestBgmEndTimerForDiff);
+        } catch (e: any) { /* ignore */ }
+        manifestBgmEndTimerForDiff = null;
+    }
 }
 
 function _isReversiModeForDiffRenderer() {
