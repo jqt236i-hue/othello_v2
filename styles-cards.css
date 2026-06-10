@@ -478,7 +478,7 @@
         var(--card-special-art-image, none);
     background-repeat: no-repeat, no-repeat;
     background-size: 100% 100%, contain;
-    background-position: center, center calc(42% - (2px * var(--layout-stage-scale)));
+    background-position: center, center 50%;
     opacity: var(--card-special-art-opacity, 0.64);
     pointer-events: none;
     z-index: 3;
@@ -498,7 +498,7 @@
 .card-item.visible[data-card-id="seed_01"] .card-special-art {
     --card-special-art-opacity: 0.72;
     background-size: 100% 100%, 80% auto;
-    background-position: center, center calc(45% - (1px * var(--layout-stage-scale)));
+    background-position: center, center 50%;
     filter: saturate(1.04) brightness(1.08) drop-shadow(0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(88, 132, 36, 0.22));
     transform: scale(1.01);
 }
@@ -506,7 +506,7 @@
 .card-item.visible[data-card-id="blockade_01"] .card-special-art {
     --card-special-art-opacity: 0.66;
     background-size: 100% 100%, 88% auto;
-    background-position: center, center calc(45% - (1px * var(--layout-stage-scale)));
+    background-position: center, center 50%;
     filter: saturate(0.96) brightness(1.02) drop-shadow(0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(255, 118, 36, 0.24));
     transform: scale(1.01);
 }
@@ -568,7 +568,7 @@
         radial-gradient(circle at 50% 47%, rgba(255, 255, 255, 0.4) 0%, rgba(104, 222, 255, 0.16) 40%, transparent 68%),
         var(--card-special-art-image, none);
     background-size: 112% 100%, 122% auto;
-    background-position: center, center 46%;
+    background-position: center, center 50%;
     filter:
         saturate(1.18)
         contrast(1.06)

@@ -92,6 +92,7 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-background-art[\s\S]*z-index:\s*0/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*z-index:\s*3/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*opacity:\s*var\(--card-special-art-opacity,\s*0\.64\)/);
+    expect(cardsCss).toMatch(/\.card-special-art[\s\S]*background-position:\s*center,\s*center 50%/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-special \.card-special-art,[\s\S]*--card-special-art-opacity:\s*0\.58/);
     expect(cardsCss).toMatch(/\.card-name\s*\{[\s\S]*top:\s*auto[\s\S]*bottom:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
