@@ -55,6 +55,8 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*--manifest-effect-accent-secondary:\s*#7ed7ff/);
     expect(layoutCss).toMatch(/#manifest-effect-panel\[data-manifest-effect-type="THEORY_INCARNATION"\][\s\S]*--manifest-effect-accent-secondary:\s*#7dffdf/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*clip-path:\s*polygon/);
+    expect(manifestPanelBlock).not.toMatch(/linear-gradient\(90deg,\s*transparent 0 14%/);
+    expect(manifestPanelBlock).not.toMatch(/linear-gradient\(180deg,\s*rgba\(255,\s*232,\s*150,\s*0\.055\) 0 1px/);
     expect(layoutCss).toMatch(/#manifest-effect-panel::after[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(126,\s*215,\s*255,\s*0\.72\)/);
     expect(layoutCss).toMatch(/#manifest-effect-title[\s\S]*border-bottom:\s*var\(--layout-size-border-thin\)\s*solid\s*rgba\(126,\s*215,\s*255,\s*0\.22\)/);
     expect(manifestPanelBlock).toMatch(/box-shadow:[\s\S]*calc\(-10px\s*\*\s*var\(--layout-stage-scale\)\)/);
