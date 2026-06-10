@@ -73,6 +73,7 @@ describe('manifest effect panel', () => {
 
     expect(panel?.classList.contains('is-visible')).toBe(true);
     expect(panel?.textContent).toContain('執行領域');
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('執行領域　残り4ターン');
     expect(panel?.textContent).toContain('所有者: 反転布石 x2');
     expect(panel?.textContent).toContain('両者: カード使用不可');
     expect(panel?.textContent).toContain('両者: 手札が多いほど布石を失う');
@@ -109,6 +110,8 @@ describe('manifest effect panel', () => {
     expect(panel?.getAttribute('data-manifest-effect-type')).toBe('BOARD_EXECUTOR');
     expect(panel?.getAttribute('data-manifest-effect-source')).toBe('pending-placement');
     expect(panel?.textContent).toContain('執行領域');
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('執行領域');
+    expect(document.getElementById('manifest-effect-title')?.textContent).not.toContain('残り');
     expect(panel?.textContent).toContain('黒: 手札3枚 → 次開始 -4');
     expect(panel?.textContent).toContain('白: 手札4枚 → 次開始 -9');
   });
@@ -133,6 +136,7 @@ describe('manifest effect panel', () => {
     expect(panel?.getAttribute('data-manifest-effect-type')).toBe('OBSERVER_WILL');
     expect(panel?.getAttribute('data-manifest-effect-source')).toBe('marker');
     expect(panel?.textContent).toContain('観測領域');
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('観測領域　残り3ターン');
     expect(panel?.textContent).not.toContain('執行領域');
   });
 
@@ -150,6 +154,7 @@ describe('manifest effect panel', () => {
 
     expect(panel?.classList.contains('is-visible')).toBe(true);
     expect(panel?.textContent).toContain('観測領域');
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('観測領域　残り3ターン');
     expect(panel?.textContent).toContain('所有者: 相手手札を常時観測');
     expect(panel?.textContent).toContain('観測済みカード: コスト +5');
   });
@@ -168,6 +173,7 @@ describe('manifest effect panel', () => {
 
     expect(panel?.classList.contains('is-visible')).toBe(true);
     expect(panel?.textContent).toContain('理論領域');
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('理論領域　残り2ターン');
     expect(panel?.textContent).toContain('所有者: 石配置・カード使用不可');
     expect(panel?.textContent).toContain('空きマスを理論数字マス化');
     expect(panel?.textContent).toContain('ランダムで選ばれた理論数字マスと同コストの特殊石が出現');

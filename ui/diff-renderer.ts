@@ -541,13 +541,23 @@ function _getBoardExecutorHandTaxAmount(handCount: number) {
     return taxableHandCount * taxableHandCount;
 }
 
+function _formatManifestEffectTitleWithRemainingTurns(title: string, active: any) {
+    const data = active && active.data && typeof active.data === 'object' ? active.data : null;
+    const rawTurns = data && Object.prototype.hasOwnProperty.call(data, 'remainingOwnerTurns')
+        ? Number(data.remainingOwnerTurns)
+        : NaN;
+    if (!Number.isFinite(rawTurns)) return title;
+    const turns = Math.max(0, Math.trunc(rawTurns));
+    return `${title}　残り${turns}ターン`;
+}
+
 function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
     const typeKey = String(active && active.typeKey || '').trim().toUpperCase();
     if (typeKey === 'BOARD_EXECUTOR') {
         const blackHandCount = _getManifestEffectHandCount(cardStateValue, 'black');
         const whiteHandCount = _getManifestEffectHandCount(cardStateValue, 'white');
         return {
-            title: '執行領域',
+            title: _formatManifestEffectTitleWithRemainingTurns('執行領域', active),
             lines: [
                 '所有者: 反転布石 x2',
                 '両者: カード使用不可',
@@ -560,7 +570,7 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
     }
     if (typeKey === 'OBSERVER_WILL') {
         return {
-            title: '観測領域',
+            title: _formatManifestEffectTitleWithRemainingTurns('観測領域', active),
             lines: [
                 '所有者: 相手手札を常時観測',
                 '観測済みカード: コスト +5'
@@ -570,7 +580,7 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
     }
     if (typeKey === 'THEORY_INCARNATION') {
         return {
-            title: '理論領域',
+            title: _formatManifestEffectTitleWithRemainingTurns('理論領域', active),
             lines: [
                 '所有者: 石配置・カード使用不可',
                 '空きマスを理論数字マス化',

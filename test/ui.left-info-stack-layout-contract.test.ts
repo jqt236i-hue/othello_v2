@@ -93,7 +93,8 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/#log[\s\S]*display:\s*none/);
     expect(layoutCss).toMatch(/#log[\s\S]*font-family:\s*var\(--selected-app-font-readable-family\)/);
     expect(layoutCss).toMatch(/#log[\s\S]*radial-gradient\(circle at 14% 0%,\s*rgba\(242,\s*201,\s*95,\s*0\.08\)/);
-    expect(layoutCss).toMatch(/#log\.is-visible[\s\S]*display:\s*block/);
+    expect(layoutCss).toMatch(/#log\.is-log-open[\s\S]*display:\s*block/);
+    expect(layoutCss).not.toMatch(/#log\.is-visible[\s\S]*display:\s*block/);
     expect(layoutCss).toMatch(/#log[\s\S]*clip-path:\s*polygon/);
     expect(layoutCss).toMatch(/#log::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(196,\s*160,\s*91,\s*0\.38\),\s*transparent\)/);
     expect(layoutCss).toMatch(/\.logEntry[\s\S]*font-weight:\s*700/);
