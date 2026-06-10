@@ -218,15 +218,17 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
   cardState.lastUsedCardByPlayer = { black: null, white: null };
   cardState.lastTurnStartedFor = null;
   cardState.markers = [{
-    id: 'debug_special_ready_gold_black',
+    id: 'debug_special_ready_afterimage_black',
     kind: 'specialStone',
     row: 2,
     col: 3,
     owner: 'black',
     data: {
-      type: 'GOLD',
+      type: 'AFTERIMAGE_WILL',
+      flipEvadeRemaining: 3,
+      destroyEvadeRemaining: 3,
       sourceType: 'SPECIAL_DEBUG',
-      visualEffectKey: 'goldStone'
+      visualEffectKey: 'afterimageWill'
     }
   }];
   cardState.selectedCardId = 'theory_incarnation_01';

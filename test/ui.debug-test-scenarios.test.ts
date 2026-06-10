@@ -1,4 +1,5 @@
 const DebugTestScenarios = require('../ui/debug-test-scenarios.js');
+const CardLogic = require('../game/logic/cards.js');
 
 describe('debug test scenarios', () => {
   test('requires debug query before resolving observer will scenario', () => {
@@ -200,9 +201,15 @@ describe('debug test scenarios', () => {
         kind: 'specialStone',
         row: 2,
         col: 3,
-        owner: 'black'
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'AFTERIMAGE_WILL',
+          flipEvadeRemaining: 3,
+          destroyEvadeRemaining: 3
+        })
       })
     ]);
+    expect(CardLogic.canUseBoardExecutor(cardState, 'black')).toBe(true);
     expect(cardState.markers.some((marker: any) => marker.kind === 'manifestStone')).toBe(false);
     expect(cardState.selectedCardId).toBe('theory_incarnation_01');
     expect(cardState._handCopyIdsByPlayer.black).toHaveLength(3);
