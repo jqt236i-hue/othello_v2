@@ -553,7 +553,7 @@
     overflow: hidden;
     background:
         radial-gradient(circle at 12% 0%, rgba(242, 201, 95, 0.16), transparent 36%),
-        linear-gradient(135deg, rgba(30, 21, 11, 0.92), rgba(7, 10, 11, 0.92) 48%, rgba(12, 21, 17, 0.92)),
+        linear-gradient(135deg, rgb(30, 21, 11), rgb(7, 10, 11) 48%, rgb(12, 21, 17)),
         conic-gradient(from 45deg at 50% 50%, rgba(242, 201, 95, 0.10), transparent 18%, rgba(76, 255, 180, 0.08), transparent 58%);
     border: var(--layout-size-border-thin) solid rgba(242, 201, 95, 0.44);
     border-radius: calc(8px * var(--layout-stage-scale));
@@ -573,8 +573,6 @@
     padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
     pointer-events: none;
     transform: none;
-    backdrop-filter: blur(calc(5px * var(--layout-stage-scale)));
-    -webkit-backdrop-filter: blur(calc(5px * var(--layout-stage-scale)));
 }
 
 #manifest-effect-panel.is-visible {
