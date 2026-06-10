@@ -86,6 +86,11 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-type-field/);
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-face-rune-pattern/);
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*clip-path:\s*polygon\(50% 0/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-gray[\s\S]*--card-tier-border:\s*#9aa4b2/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-white[\s\S]*--card-tier-border:\s*#f3f7ff/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-red[\s\S]*--card-tier-border:\s*#71d28e/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-blue[\s\S]*--card-tier-border:\s*#7db7ff/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-purple[\s\S]*--card-tier-border:\s*#c6a1ff/);
     expect(cardsCss).toMatch(/\.card-item\.visible::before[\s\S]*inset:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible::after[\s\S]*background:[\s\S]*--card-face-rune-pattern/);
     expect(cardsCss).toMatch(/\.card-background-art[\s\S]*background-image:[\s\S]*--card-background-art-image/);

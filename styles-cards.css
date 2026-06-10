@@ -634,17 +634,18 @@
     --card-tier-bg-b: #59626f;
     --card-tier-bg-c: #3d4652;
     --card-tier-hi: rgba(247, 251, 255, 0.24);
-    --card-tier-border: #e0c27a;
+    --card-tier-border: #9aa4b2;
     --card-tier-text: #fdfcff;
-    --card-tier-inner-border: rgba(224, 194, 122, 0.12);
+    --card-tier-inner-border: rgba(198, 210, 226, 0.2);
     --card-tier-badge-bg-a: rgba(156, 166, 180, 0.97);
     --card-tier-badge-bg-b: rgba(110, 122, 138, 0.96);
     --card-tier-badge-hi: rgba(255, 255, 255, 0.28);
     --card-tier-badge-text: #ffffff;
-    --card-tier-badge-border: rgba(224, 194, 122, 0.85);
+    --card-tier-badge-border: rgba(190, 202, 218, 0.9);
     --card-tier-name-color: #fff8ec;
     --card-tier-texture: repeating-linear-gradient(135deg, transparent 0px, transparent 6px, rgba(255, 255, 255, 0.025) 6px, rgba(255, 255, 255, 0.025) 7px);
-    --card-tier-hover-glow: rgba(180, 195, 220, 0.15);
+    --card-edge-glow: rgba(176, 190, 210, 0.2);
+    --card-tier-hover-glow: rgba(180, 195, 220, 0.18);
 }
 
 .card-item.visible.cost-tier-white {
@@ -652,19 +653,20 @@
     --card-tier-bg-b: #dfe5ef;
     --card-tier-bg-c: #b9c4d3;
     --card-tier-hi: rgba(255, 255, 255, 0.62);
-    --card-tier-border: #e0c27a;
+    --card-tier-border: #f3f7ff;
     --card-tier-text: #1f2a3c;
-    --card-tier-inner-border: rgba(180, 160, 100, 0.18);
+    --card-tier-inner-border: rgba(246, 250, 255, 0.34);
     --card-tier-badge-bg-a: rgba(247, 250, 255, 0.98);
     --card-tier-badge-bg-b: rgba(210, 220, 236, 0.96);
     --card-tier-badge-hi: rgba(255, 255, 255, 0.56);
     --card-tier-badge-text: #1e2a40;
-    --card-tier-badge-border: rgba(224, 194, 122, 0.9);
+    --card-tier-badge-border: rgba(246, 250, 255, 0.92);
     --card-tier-name-color: #fff8ec;
     --card-tier-name-plate-bg-a: rgba(91, 107, 129, 0.96);
     --card-tier-name-plate-bg-b: rgba(49, 61, 79, 0.95);
     --card-tier-name-plate-border: rgba(233, 244, 255, 0.42);
-    --card-tier-hover-glow: rgba(180, 195, 220, 0.2);
+    --card-edge-glow: rgba(238, 246, 255, 0.36);
+    --card-tier-hover-glow: rgba(218, 232, 255, 0.24);
 }
 
 .card-item.visible.cost-tier-red {
@@ -672,19 +674,20 @@
     --card-tier-bg-b: #326849;
     --card-tier-bg-c: #214232;
     --card-tier-hi: rgba(219, 255, 232, 0.22);
-    --card-tier-border: #e0c27a;
+    --card-tier-border: #71d28e;
     --card-tier-text: #f4fff7;
-    --card-tier-inner-border: rgba(180, 230, 200, 0.15);
+    --card-tier-inner-border: rgba(160, 240, 188, 0.26);
     --card-tier-badge-bg-a: rgba(98, 166, 126, 0.96);
     --card-tier-badge-bg-b: rgba(66, 120, 92, 0.95);
     --card-tier-badge-hi: rgba(232, 255, 242, 0.26);
     --card-tier-badge-text: #f1fff2;
-    --card-tier-badge-border: rgba(224, 194, 122, 0.86);
+    --card-tier-badge-border: rgba(130, 225, 155, 0.9);
     --card-tier-name-color: #fff8ec;
     --card-tier-texture: repeating-linear-gradient(120deg, transparent 0px, transparent 8px, rgba(255, 255, 255, 0.03) 8px, rgba(255, 255, 255, 0.03) 9px);
     --card-tier-symbol: '✦';
     --card-tier-symbol-color: rgba(180, 255, 200, 0.06);
-    --card-tier-hover-glow: rgba(100, 200, 140, 0.2);
+    --card-edge-glow: rgba(112, 226, 150, 0.28);
+    --card-tier-hover-glow: rgba(100, 220, 140, 0.26);
 }
 
 .card-item.visible.cost-tier-blue {
@@ -692,21 +695,22 @@
     --card-tier-bg-b: #34547f;
     --card-tier-bg-c: #223754;
     --card-tier-hi: rgba(219, 238, 255, 0.22);
-    --card-tier-border: #e0c27a;
+    --card-tier-border: #7db7ff;
     --card-tier-text: #f5f9ff;
-    --card-tier-inner-border: rgba(180, 210, 255, 0.18);
+    --card-tier-inner-border: rgba(158, 205, 255, 0.28);
     --card-tier-badge-bg-a: rgba(100, 141, 190, 0.96);
     --card-tier-badge-bg-b: rgba(66, 104, 155, 0.95);
     --card-tier-badge-hi: rgba(227, 242, 255, 0.26);
     --card-tier-badge-text: #f3f8ff;
-    --card-tier-badge-border: rgba(224, 194, 122, 0.86);
+    --card-tier-badge-border: rgba(135, 190, 255, 0.9);
     --card-tier-name-color: #f7fbff;
     --card-tier-name-plate-bg-a: rgba(68, 88, 122, 0.96);
     --card-tier-name-plate-bg-b: rgba(34, 48, 72, 0.95);
     --card-tier-texture: repeating-linear-gradient(0deg, transparent 0px, transparent 7px, rgba(255, 255, 255, 0.03) 7px, rgba(255, 255, 255, 0.03) 8px);
     --card-tier-symbol: '◇';
     --card-tier-symbol-color: rgba(180, 220, 255, 0.06);
-    --card-tier-hover-glow: rgba(100, 160, 255, 0.2);
+    --card-edge-glow: rgba(104, 176, 255, 0.32);
+    --card-tier-hover-glow: rgba(100, 172, 255, 0.28);
 }
 
 .card-item.visible.cost-tier-purple {
@@ -714,14 +718,14 @@
     --card-tier-bg-b: #533771;
     --card-tier-bg-c: #361f4e;
     --card-tier-hi: rgba(240, 224, 255, 0.22);
-    --card-tier-border: #e0c27a;
+    --card-tier-border: #c6a1ff;
     --card-tier-text: #fbf4ff;
-    --card-tier-inner-border: rgba(210, 180, 255, 0.2);
+    --card-tier-inner-border: rgba(214, 180, 255, 0.32);
     --card-tier-badge-bg-a: rgba(140, 112, 180, 0.96);
     --card-tier-badge-bg-b: rgba(100, 76, 142, 0.95);
     --card-tier-badge-hi: rgba(248, 235, 255, 0.26);
     --card-tier-badge-text: #faf3ff;
-    --card-tier-badge-border: rgba(224, 194, 122, 0.86);
+    --card-tier-badge-border: rgba(202, 164, 255, 0.9);
     --card-tier-name-color: #fff7ff;
     --card-tier-name-plate-bg-a: rgba(100, 78, 138, 0.97);
     --card-tier-name-plate-bg-b: rgba(56, 37, 81, 0.95);
@@ -730,7 +734,8 @@
         repeating-linear-gradient(-45deg, transparent 0px, transparent 5px, rgba(255, 255, 255, 0.02) 5px, rgba(255, 255, 255, 0.02) 6px);
     --card-tier-symbol: '♛';
     --card-tier-symbol-color: rgba(220, 190, 255, 0.07);
-    --card-tier-hover-glow: rgba(160, 120, 220, 0.25);
+    --card-edge-glow: rgba(192, 146, 255, 0.38);
+    --card-tier-hover-glow: rgba(172, 122, 236, 0.32);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.28),
         inset 0 -2px 0 rgba(0, 0, 0, 0.38),
@@ -747,7 +752,7 @@
     --card-tier-hi: rgba(255, 242, 196, 0.24);
     --card-tier-border: #f1d27a;
     --card-tier-text: #fff6dc;
-    --card-tier-inner-border: rgba(255, 215, 0, 0.3);
+    --card-tier-inner-border: rgba(255, 221, 102, 0.42);
     --card-tier-badge-bg-a: rgba(178, 146, 86, 0.96);
     --card-tier-badge-bg-b: rgba(128, 102, 52, 0.95);
     --card-tier-badge-hi: rgba(255, 244, 202, 0.28);
@@ -762,7 +767,8 @@
         repeating-linear-gradient(-45deg, transparent 0px, transparent 4px, rgba(255, 215, 0, 0.03) 4px, rgba(255, 215, 0, 0.03) 5px);
     --card-tier-symbol: '✧';
     --card-tier-symbol-color: rgba(255, 215, 0, 0.08);
-    --card-tier-hover-glow: rgba(255, 215, 0, 0.3);
+    --card-edge-glow: rgba(255, 218, 90, 0.44);
+    --card-tier-hover-glow: rgba(255, 215, 0, 0.36);
     box-shadow:
         inset 0 1px 0 rgba(255, 245, 200, 0.36),
         inset 0 -2px 0 rgba(0, 0, 0, 0.38),
@@ -779,9 +785,9 @@
     --card-tier-bg-b: #0f0a0d;
     --card-tier-bg-c: #050304;
     --card-tier-hi: rgba(158, 42, 56, 0.3);
-    --card-tier-border: #6b1f2f;
+    --card-tier-border: #d34d65;
     --card-tier-text: #ffe5ea;
-    --card-tier-inner-border: rgba(200, 60, 80, 0.28);
+    --card-tier-inner-border: rgba(255, 94, 120, 0.4);
     --card-tier-badge-bg-a: rgba(121, 34, 52, 0.96);
     --card-tier-badge-bg-b: rgba(72, 18, 30, 0.95);
     --card-tier-badge-hi: rgba(255, 169, 188, 0.2);
@@ -794,7 +800,8 @@
     --card-tier-texture: repeating-linear-gradient(90deg, transparent 0px, transparent 5px, rgba(200, 60, 80, 0.04) 5px, rgba(200, 60, 80, 0.04) 6px);
     --card-tier-symbol: '☠';
     --card-tier-symbol-color: rgba(255, 100, 120, 0.08);
-    --card-tier-hover-glow: rgba(200, 60, 80, 0.25);
+    --card-edge-glow: rgba(255, 82, 112, 0.42);
+    --card-tier-hover-glow: rgba(230, 68, 96, 0.34);
     box-shadow:
         inset 0 1px 0 rgba(255, 184, 198, 0.18),
         inset 0 -2px 0 rgba(0, 0, 0, 0.55),
@@ -812,6 +819,7 @@
     --card-tier-bg-c: #5b56ff;
     --card-tier-hi: rgba(255, 255, 255, 0.34);
     --card-tier-border: #ffe7a3;
+    --card-edge-glow: rgba(255, 236, 168, 0.5);
     --card-tier-text: #fffdf6;
     --card-tier-badge-bg-a: rgba(255, 103, 145, 0.98);
     --card-tier-badge-bg-b: rgba(99, 92, 255, 0.96);
@@ -824,7 +832,7 @@
     --card-tier-name-plate-bg-b: rgba(60, 40, 91, 0.95);
     --card-tier-symbol: '✧';
     --card-tier-symbol-color: rgba(255, 255, 255, 0.06);
-    --card-tier-hover-glow: rgba(255, 200, 255, 0.3);
+    --card-tier-hover-glow: rgba(255, 200, 255, 0.38);
     background:
         radial-gradient(130% 110% at 14% 10%, rgba(255, 255, 255, 0.36) 0%, transparent 42%),
         linear-gradient(135deg, #ff5e7a 0%, #ffb84d 20%, #ffe066 38%, #54d69e 56%, #59b7ff 74%, #7d62ff 100%);
