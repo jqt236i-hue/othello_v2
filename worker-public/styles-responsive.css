@@ -1323,7 +1323,7 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-16x9.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
-        top: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-top-anchor) + calc(40px * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-top-anchor) + calc(56px * var(--layout-stage-scale)));
         width: calc(292px * var(--layout-stage-scale));
     }
 

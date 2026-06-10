@@ -382,21 +382,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         const resolvedText = (text && typeof text === 'object' && typeof text.text === 'string')
             ? String(text.text)
             : String(text);
+        const debugEnabled = isDebugSessionEnabled();
         let appendedToDom = false;
         try {
             const logEl = (typeof document !== 'undefined') ? document.getElementById('log') : null;
-            if (logEl) {
+            if (logEl && debugEnabled) {
                 const entry = document.createElement('div');
                 entry.className = 'logEntry';
                 entry.textContent = resolvedText;
                 logEl.appendChild(entry);
+                try { logEl.classList.add('is-visible'); } catch (e: any) { /* ignore classList errors */ }
+                try { logEl.setAttribute('aria-hidden', 'false'); } catch (e: any) { /* ignore aria errors */ }
                 try { logEl.scrollTop = logEl.scrollHeight; } catch (e: any) { if (logEl && logEl.parentElement) logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight; }
                 appendedToDom = true;
             }
         } catch (e: any) {
             // ignore DOM errors
         }
-        if ((!appendedToDom || isDebugSessionEnabled()) && typeof console !== 'undefined' && console.log) {
+        if (debugEnabled && typeof console !== 'undefined' && console.log) {
             console.log('[log]', resolvedText);
         }
         try {

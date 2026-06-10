@@ -74,11 +74,13 @@ describe('left info stack layout contract', () => {
   test('persistent game log uses themed readable panel treatment', () => {
     const layoutCss = readLayoutCssSurface();
 
+    expect(layoutCss).toMatch(/#log[\s\S]*display:\s*none/);
     expect(layoutCss).toMatch(/#log[\s\S]*font-family:\s*var\(--selected-app-font-readable-family\)/);
-    expect(layoutCss).toMatch(/#log[\s\S]*radial-gradient\(circle at 14% 0%,\s*rgba\(242,\s*201,\s*95,\s*0\.2\)/);
+    expect(layoutCss).toMatch(/#log[\s\S]*radial-gradient\(circle at 14% 0%,\s*rgba\(242,\s*201,\s*95,\s*0\.08\)/);
+    expect(layoutCss).toMatch(/#log\.is-visible[\s\S]*display:\s*block/);
     expect(layoutCss).toMatch(/#log[\s\S]*clip-path:\s*polygon/);
-    expect(layoutCss).toMatch(/#log::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95,\s*0\.78\),\s*transparent\)/);
-    expect(layoutCss).toMatch(/\.logEntry[\s\S]*font-weight:\s*800/);
-    expect(layoutCss).toMatch(/#log \.logEntry::before[\s\S]*linear-gradient\(135deg,\s*#ffe7a0,\s*#c98743\)/);
+    expect(layoutCss).toMatch(/#log::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(196,\s*160,\s*91,\s*0\.38\),\s*transparent\)/);
+    expect(layoutCss).toMatch(/\.logEntry[\s\S]*font-weight:\s*700/);
+    expect(layoutCss).toMatch(/#log \.logEntry::before[\s\S]*background:\s*rgba\(213,\s*177,\s*105,\s*0\.62\)/);
   });
 });
