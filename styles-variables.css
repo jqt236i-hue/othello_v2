@@ -21,7 +21,7 @@
     --layout-anchor-info-left: 80px;
     --layout-anchor-info-top: 20px;
     --layout-anchor-log-left: 52px;
-    --layout-anchor-log-top: 447px;
+    --layout-anchor-log-top: 463px;
     --layout-anchor-log-width: 320px;
     --layout-anchor-log-height: 104px;
     --layout-anchor-log-detail-gap: 12px;
@@ -314,7 +314,7 @@
 html.layout-profile-tablet-4x3 {
     --layout-anchor-board-size: 540px;
     --layout-anchor-log-left: 20px;
-    --layout-anchor-log-top: 374px;
+    --layout-anchor-log-top: 390px;
     --layout-anchor-log-width: 246px;
     --layout-anchor-log-height: 106px;
     --layout-anchor-effect-left: 20px;
@@ -358,7 +358,7 @@ html.layout-profile-tablet-4x3 {
     :root:not(.layout-profile-phone-portrait) {
         --layout-anchor-board-size: 540px;
         --layout-anchor-log-left: 20px;
-        --layout-anchor-log-top: 374px;
+        --layout-anchor-log-top: 390px;
         --layout-anchor-log-width: 246px;
         --layout-anchor-log-height: 106px;
         --layout-anchor-effect-left: 20px;
