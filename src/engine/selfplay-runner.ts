@@ -49,6 +49,7 @@ const SelfplayBootstrapHelpers = require('./selfplay-bootstrap-helpers.js');
 const SelfplayPolicySetup = require('./selfplay-policy-setup.js');
 const SelfplayBatchRunner = require('./selfplay-batch-runner.js');
 const SelfplayRetryHelpers = require('./selfplay-retry-helpers.js');
+const SelfplayPositionWeights = require('./selfplay-position-weights.js');
 
 let ContextHelper: any = null;
 try {
@@ -58,16 +59,7 @@ try {
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
 
-const POSITION_WEIGHTS = [
-    [120, -20, 20, 5, 5, 20, -20, 120],
-    [-20, -40, -5, -5, -5, -5, -40, -20],
-    [20, -5, 15, 3, 3, 15, -5, 20],
-    [5, -5, 3, 3, 3, 3, -5, 5],
-    [5, -5, 3, 3, 3, 3, -5, 5],
-    [20, -5, 15, 3, 3, 15, -5, 20],
-    [-20, -40, -5, -5, -5, -5, -40, -20],
-    [120, -20, 20, 5, 5, 20, -20, 120]
-];
+const POSITION_WEIGHTS = SelfplayPositionWeights.SELFPLAY_POSITION_WEIGHTS;
 
 const FALLBACK_CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeuristics.createExtendedTypeSet === 'function')
     ? SharedCardHeuristics.createExtendedTypeSet(
