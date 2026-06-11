@@ -1,4 +1,5 @@
 import { createCpuPolicyCardProfiles } from '../game/ai/cpu-policy-card-profiles';
+const catalog = require('../cards/catalog.json');
 
 describe('cpu-policy card profiles module', () => {
   test('exposes explicit base score bonuses and merged usage style deltas', () => {
@@ -46,5 +47,22 @@ describe('cpu-policy card profiles module', () => {
       placementWeight: 0,
       flipBias: 4
     }));
+  });
+
+  test('covers every catalog card type with CPU profile entries', () => {
+    const profiles = createCpuPolicyCardProfiles({
+      chainWillCardTypes: ['DOUBLE_CHAIN_WILL', 'TRIPLE_CHAIN_WILL', 'QUAD_CHAIN_WILL', 'INFINITE_CHAIN_WILL']
+    });
+    const catalogTypes = Array.from(new Set(
+      (catalog.cards || []).map((card) => card && card.type).filter(Boolean)
+    )).sort();
+
+    const missingBase = catalogTypes.filter((type) => !Object.prototype.hasOwnProperty.call(profiles.CARD_TYPE_BASE_SCORE_BONUS, type));
+    const missingUsage = catalogTypes.filter((type) => !Object.prototype.hasOwnProperty.call(profiles.CARD_TYPE_USAGE_STYLE, type));
+    const missingMove = catalogTypes.filter((type) => !Object.prototype.hasOwnProperty.call(profiles.CARD_TYPE_MOVE_PLAN_PROFILE, type));
+
+    expect(missingBase).toEqual([]);
+    expect(missingUsage).toEqual([]);
+    expect(missingMove).toEqual([]);
   });
 });
