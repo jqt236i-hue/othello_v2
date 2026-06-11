@@ -305,6 +305,7 @@ const CpuDecisionCardContextModule = requireCpuDecisionModuleOrNull('./cpu-decis
 const CpuDecisionCardRiskModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-risk');
 const CpuDecisionCardOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-onnx');
 const CpuDecisionCardLearnedModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-learned');
+const CpuDecisionCardChoiceModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-choice');
 const CpuDecisionPendingScoreModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-score');
 const CpuDecisionPendingOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-onnx');
 const CpuDecisionCardActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-actions');
@@ -2409,35 +2410,38 @@ function _prepareCpuTrapOnlyCard(playerKey: any): any {
     return trapId;
 }
 
-function selectCardFallback(cardState: any, gameState: any, playerKey: any, level: any, legalMoves: any): any {
-    if (typeof cardState === 'undefined' || !cardState) return null;
-    if (typeof CardLogic === 'undefined') return null;
-    const usable = getTargetAwareUsableCardIds(playerKey);
-    if (!usable.length) return null;
-    const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
-    const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usable);
-
-    if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
-        const selected = CpuPolicyCore.chooseCardWithRiskProfile(
-            usable,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            decisionContext
-        );
-        if (selected) return selected;
-    }
-    if (CpuPolicyCore && typeof CpuPolicyCore.chooseHighestCostCard === 'function') {
-        const fallback = CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
-        if (!fallback) return null;
-        return isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, fallback.cardId, decisionContext)
-            ? fallback
-            : null;
-    }
-    const choiceId = usable[0];
-    const cardDef = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(choiceId) : null;
-    if (!isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, choiceId, decisionContext)) return null;
-    return { cardId: choiceId, cardDef };
-}
+const CpuDecisionCardChoice = (CpuDecisionCardChoiceModule && typeof CpuDecisionCardChoiceModule.createCpuDecisionCardChoice === 'function')
+    ? CpuDecisionCardChoiceModule.createCpuDecisionCardChoice({
+        buildCardQuiescenceSnapshot,
+        buildCardUseDecisionContext,
+        buildCornerPlanState,
+        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
+        getActiveProtectionForPlayer: (playerValue: any) => ((typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(playerValue) : null),
+        getAISystem: () => ((typeof AISystem !== 'undefined') ? AISystem : null),
+        getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCpuPolicyCore: () => CpuPolicyCore,
+        getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getLegalMoves: (state: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? getLegalMoves(state, protection, perma) : []),
+        getTargetAwareUsableCardIds,
+        isAISystemAvailable,
+        isCardChoiceAllowedByHighConfidence,
+        isCardChoiceAllowedByPlan,
+        isCardChoiceAllowedByRisk,
+        prepareCpuTrapOnlyCard: (playerKey: any) => _prepareCpuTrapOnlyCard(playerKey),
+        resolveCpuSmartnessLevel,
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        selectCardByLevel6Consensus,
+        selectCardBySharedPolicyTableCore,
+        selectCardFromLearnedPolicy,
+        shouldHoldCardByQuiescence,
+        shouldUseSharedPolicyTableCoreCardDecision,
+        warn: (...args: any[]) => console.warn(...args)
+    })
+    : null;
 
 /**
  * カード使用判定・実行
@@ -2451,144 +2455,10 @@ function selectCardFallback(cardState: any, gameState: any, playerKey: any, leve
  * @returns {{cardId:string,cardDef:object}|null}
  */
 function selectCardToUse(playerKey: any): any {
-    // Pure decision: returns a candidate { cardId, cardDef } or null but does NOT apply it.
-    const level = resolveCpuSmartnessLevel(playerKey);
-    const player = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const protection = (typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(player) : null;
-    const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
-    const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
-    const legalMoves = (typeof getLegalMoves === 'function') ? getLegalMoves(safeGameState, protection, perma) : [];
-    const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
-    const usableNow = (typeof CardLogic !== 'undefined' && CardLogic)
-        ? getTargetAwareUsableCardIds(playerKey)
-        : [];
-    const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableNow);
-    const quiescenceSnapshot = buildCardQuiescenceSnapshot(playerKey, level, legalMoves, decisionContext);
-    const cornerPlanState = decisionContext.cornerPlanState || buildCornerPlanState(playerKey, legalMoves, usableNow);
-    const isAllowedChoice = (choice: any) => {
-        if (!choice || !choice.cardId) return false;
-        if (!isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, choice.cardId, choice.cardDef, cornerPlanState, decisionContext)) {
-            return false;
-        }
-        if (!isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, choice.cardId, decisionContext)) {
-            return false;
-        }
-        const stableLeadState = !!(decisionContext &&
-            Number(decisionContext.discDiff || 0) >= 10 &&
-            Number(decisionContext.handSize || 0) <= 2 &&
-            Number(decisionContext.ownCharge || 0) <= 18 &&
-            Number(decisionContext.legalMovesCount || legalMovesCount || 0) >= 5 &&
-            decisionContext.highBonusMoveAvailable !== true &&
-            decisionContext.lowDiscEmergency !== true);
-        const requireHighConfidence = Number.isFinite(level) && level >= 6 &&
-            decisionContext &&
-            decisionContext.forceUseCard !== true &&
-            decisionContext.cornerEmergency !== true &&
-            stableLeadState;
-        if (requireHighConfidence) {
-            if (!isCardChoiceAllowedByHighConfidence(playerKey, level, legalMovesCount, choice.cardId, decisionContext)) {
-                return false;
-            }
-        }
-        if (shouldHoldCardByQuiescence(playerKey, level, choice.cardId, choice.cardDef, decisionContext, quiescenceSnapshot)) {
-            cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 高分散カードを保留(静止探索) - ${choice.cardId}`);
-            return false;
-        }
-        return true;
-    };
-
-    // Debug-only accelerator: CPU uses Trap Will preferentially.
-    const trapId = _prepareCpuTrapOnlyCard(playerKey);
-    if (trapId) {
-        const usableTrap = getTargetAwareUsableCardIds(playerKey);
-        if (usableTrap.includes(trapId)) {
-            const trapDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-                ? CardLogic.getCardDef(trapId)
-                : null;
-            return { cardId: trapId, cardDef: trapDef };
-        }
+    if (CpuDecisionCardChoice && typeof CpuDecisionCardChoice.selectCardToUse === 'function') {
+        return CpuDecisionCardChoice.selectCardToUse(playerKey);
     }
-
-    if (typeof CardLogic !== 'undefined') {
-        const usable = usableNow;
-        if (shouldUseSharedPolicyTableCoreCardDecision(level)) {
-            const sharedCoreChoice = selectCardBySharedPolicyTableCore(
-                playerKey,
-                level,
-                legalMoves.length,
-                legalMoves,
-                usable,
-                decisionContext
-            ) || null;
-            if (isAllowedChoice(sharedCoreChoice)) {
-                return sharedCoreChoice;
-            }
-        }
-        if (usable.length) {
-            const lv6Consensus = selectCardByLevel6Consensus(
-                playerKey,
-                level,
-                legalMoves.length,
-                legalMoves,
-                usable,
-                decisionContext
-            );
-            if (isAllowedChoice(lv6Consensus)) {
-                return lv6Consensus;
-            }
-            const learnedChoice = selectCardFromLearnedPolicy(playerKey, level, legalMoves.length, usable);
-            if (isAllowedChoice(learnedChoice)) {
-                return learnedChoice;
-            }
-        }
-        if (usable.length) {
-            if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
-                const selected = CpuPolicyCore.chooseCardWithRiskProfile(
-                    usable,
-                    CardLogic.getCardCost,
-                    CardLogic.getCardDef,
-                    decisionContext
-                );
-                if (isAllowedChoice(selected)) return selected;
-            }
-            if (CpuPolicyCore && typeof CpuPolicyCore.chooseHighestCostCard === 'function') {
-                const fallback = CpuPolicyCore.chooseHighestCostCard(usable, CardLogic.getCardCost, CardLogic.getCardDef);
-                if (isAllowedChoice(fallback)) {
-                    return fallback;
-                }
-            }
-            const choiceId = usable[0];
-            const cardDef = (typeof CardLogic.getCardDef === 'function') ? CardLogic.getCardDef(choiceId) : null;
-            if (isAllowedChoice({ cardId: choiceId, cardDef })) {
-                return { cardId: choiceId, cardDef };
-            }
-        }
-    }
-
-    // Try AISystem via safe wrapper
-    let cardChoice: any = null;
-    if (isAISystemAvailable() && typeof AISystem.selectCardToUse === 'function') {
-        try {
-            const safeCardState = (typeof cardState !== 'undefined') ? cardState : null;
-            const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
-            cardChoice = AISystem.selectCardToUse(safeCardState, safeGameState, playerKey, level, legalMoves, null);
-        } catch (e) {
-            console.warn('[CPU] AISystem.selectCardToUse failed', e);
-            cardChoice = null;
-        }
-    }
-
-    if (!cardChoice) {
-        const safeCardState = (typeof cardState !== 'undefined') ? cardState : null;
-        const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
-        cardChoice = selectCardFallback(safeCardState, safeGameState, playerKey, level, legalMoves);
-    }
-    if (cardChoice && !isAllowedChoice(cardChoice)) {
-        return null;
-    }
-    return cardChoice || null;
+    return null;
 }
 
 function selectHandCardToDestroy(playerKey: any): any {

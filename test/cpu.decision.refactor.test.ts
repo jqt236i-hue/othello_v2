@@ -81,6 +81,41 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBeDefined();
   });
 
+  test('selectCardToUse returns null when no cards are currently usable', () => {
+    global.AISystem = null;
+    global.CardLogic = {
+      canUseCard: jest.fn(() => false),
+      getCardDef: jest.fn((id) => ({ name: id })),
+      getCardCost: jest.fn(() => 1)
+    };
+    global.cardState.hands.white = ['blocked_card'];
+
+    const res = cpuDecision.selectCardToUse('white');
+
+    expect(res).toBeNull();
+  });
+
+  test('selectCardToUse uses highest-cost fallback after risk profile declines', () => {
+    global.AISystem = null;
+    global.CardLogic = {
+      canUseCard: jest.fn(() => true),
+      getCardDef: jest.fn((id) => ({ name: id, type: 'TREASURE_BOX' })),
+      getCardCost: jest.fn((id) => (id === 'expensive_card' ? 9 : 1))
+    };
+    global.cardState.hands.white = ['cheap_card', 'expensive_card'];
+    jest.spyOn(cpuPolicyCore, 'chooseCardWithRiskProfile').mockReturnValue(null);
+    jest.spyOn(cpuPolicyCore, 'chooseHighestCostCard').mockReturnValue({
+      cardId: 'expensive_card',
+      cardDef: { name: 'expensive_card', type: 'TREASURE_BOX' }
+    });
+
+    const res = cpuDecision.selectCardToUse('white');
+
+    expect(res).toMatchObject({ cardId: 'expensive_card' });
+    expect(cpuPolicyCore.chooseCardWithRiskProfile).toHaveBeenCalled();
+    expect(cpuPolicyCore.chooseHighestCostCard).toHaveBeenCalled();
+  });
+
   test('selectCardToUse catches AISystem exceptions and falls back', () => {
     global.AISystem = { selectCardToUse: () => { throw new Error('boom'); } };
     global.CardLogic = { canUseCard: () => true, getCardDef: id => ({ name: id }) };
