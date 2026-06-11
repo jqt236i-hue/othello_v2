@@ -139,4 +139,16 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     expect(action.destroyTarget).toEqual({ row: 2, col: 3 });
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
+
+  test('CPU destroy selection does not fall back to protected board stones when destroy targets are empty', async () => {
+    global.CardLogic = {
+      getSelectableTargets: () => [],
+      getDestroyTargets: () => []
+    };
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
 });

@@ -3282,8 +3282,9 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
 async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
     const level = resolveCpuSmartnessLevel(playerKey);
     const board = getCurrentCpuBoard();
-    const selectorTargets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+    const cardLogicRef = (typeof CardLogic !== 'undefined') ? CardLogic : null;
+    const selectorTargets = (cardLogicRef && typeof cardLogicRef.getSelectableTargets === 'function')
+        ? cardLogicRef.getSelectableTargets(cardState, gameState, playerKey)
         : [];
     let targets = Array.isArray(selectorTargets)
         ? selectorTargets.filter((target) => {
@@ -3292,7 +3293,19 @@ async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
             return value !== null && value !== 0;
         })
         : [];
-    if (targets.length <= 0 && Array.isArray(board)) {
+    let resolvedDestroyTargets = false;
+    if (targets.length <= 0 && cardLogicRef && typeof cardLogicRef.getDestroyTargets === 'function') {
+        const destroyTargets = cardLogicRef.getDestroyTargets(cardState, gameState, playerKey);
+        resolvedDestroyTargets = true;
+        targets = Array.isArray(destroyTargets)
+            ? destroyTargets.filter((target) => {
+                if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return false;
+                const value = getBoardCellValueSafe(board, target.row, target.col);
+                return value !== null && value !== 0;
+            })
+            : [];
+    }
+    if (targets.length <= 0 && !resolvedDestroyTargets && Array.isArray(board)) {
         const boardUtils = resolveSharedBoardUtilsModule();
         if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
             targets = boardUtils.collectBoardCoordinates(board)
