@@ -85,6 +85,7 @@ const CpuTurnSchedulerModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-sch
 const CpuTurnPresentationRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-presentation-runtime');
 const CpuTurnCardPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-card-phase');
 const CpuTurnPendingPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-pending-phase');
+const CpuTurnMovePhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-move-phase');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -1353,6 +1354,49 @@ const CpuTurnPendingPhase = (CpuTurnPendingPhaseModule && typeof CpuTurnPendingP
     })
     : null;
 
+const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModule.createCpuTurnMovePhase === 'function')
+    ? CpuTurnMovePhaseModule.createCpuTurnMovePhase({
+        blackValue: CONST_BLACK,
+        countOwnedBasicCornersSafe,
+        debugCpuTrace,
+        emitCpuCommentary,
+        emitCpuDebugLog,
+        getActiveProtectionSafe,
+        getAnimationRetryDelayMs,
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCurrentPlayerKeySafe,
+        getCurrentTurnNumberSafe,
+        getFlipBlockersSafe,
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getSelectMoveFromOnnxFn: () => (
+            resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')
+            || (typeof selectMoveFromOnnxPolicyAsync === 'function' ? selectMoveFromOnnxPolicyAsync : null)
+        ),
+        getUseCardWithPolicyFn: () => (
+            resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
+            || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null)
+        ),
+        handleCpuTurnError,
+        isCpuDebugLogAvailable,
+        isUiAnimationBusy,
+        maybeUseCardFromOnnx,
+        resetPendingSelectRetryState,
+        resolveCpuCardLogic,
+        resolveExecuteMoveFn,
+        resolveGenerateMovesForPlayer,
+        resolveLv6MinThinkMs,
+        resolveProcessPassTurn,
+        scheduleRetry,
+        scheduleRunCpuTurn,
+        selectCpuMoveSafe,
+        setCpuProcessing,
+        shouldAbortCpuForHumanMode,
+        shouldUseOnnxMoveDecision,
+        tryApplyAnyUsableCard,
+        whiteValue: CONST_WHITE
+    })
+    : null;
+
 async function processCpuTurn(): Promise<void> {
     if (isHumanVsHumanModeEnabled()) {
         setCpuProcessing(false);
@@ -1525,164 +1569,16 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             resetPendingSelectRetryState(playerKey);
         }
 
-        const protection = getActiveProtectionSafe(selfColor);
-        const perma = getFlipBlockersSafe();
-        const generateMovesForPlayerFn = resolveGenerateMovesForPlayer();
-        const candidateMoves = generateMovesForPlayerFn
-            ? generateMovesForPlayerFn(selfColor, pending, protection, perma)
-            : [];
-
-        if (!candidateMoves.length) {
-            const cardLogicForRetry = resolveCpuCardLogic();
-            const stillUsableCard = (cardLogicForRetry && typeof cardLogicForRetry.hasUsableCard === 'function')
-                ? !!cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey)
-                : false;
-            if (!othelloMode && stillUsableCard) {
-                const expectedRetryTurnNumber = getCurrentTurnNumberSafe();
-                const onnxCardDecision = await maybeUseCardFromOnnx(playerKey, level, 0, []);
-                if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_retry')) {
-                    return;
-                }
-                const currentPlayerKeyAfterOnnx = getCurrentPlayerKeySafe();
-                const currentTurnNumberAfterOnnx = getCurrentTurnNumberSafe();
-                if (
-                    (currentPlayerKeyAfterOnnx && currentPlayerKeyAfterOnnx !== playerKey) ||
-                    (expectedRetryTurnNumber !== null && currentTurnNumberAfterOnnx !== expectedRetryTurnNumber)
-                ) {
-                    setCpuProcessing(false);
-                    return;
-                }
-                let retried = !!(onnxCardDecision && onnxCardDecision.applied === true);
-                const useCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
-                    || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null);
-                if (!retried && typeof useCardWithPolicyFn === 'function') {
-                    retried = !!useCardWithPolicyFn(playerKey);
-                }
-                if (!retried) {
-                    retried = tryApplyAnyUsableCard(playerKey);
-                }
-                if (retried) {
-                    setCpuProcessing(false);
-                    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                    return;
-                }
-                // Avoid illegal-pass spam: keep turn and retry later.
-                setCpuProcessing(false);
-                scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                return;
-            }
-            const passFn = resolveProcessPassTurn();
-            if (passFn) {
-                if (shouldAbortCpuForHumanMode(playerKey, 'before_pass')) {
-                    return;
-                }
-                emitCpuCommentary('pass', playerKey, {
-                    level,
-                    legalMovesCount: 0
-                });
-                passFn(playerKey, autoMode);
-            } else {
-                console.error('[AI] processPassTurn is not available');
-                setCpuProcessing(false);
-            }
-            resetPendingSelectRetryState(playerKey);
-            return;
-        }
-
-        let move = null;
-        const selectMoveFromOnnx = resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')
-            || (typeof selectMoveFromOnnxPolicyAsync === 'function' ? selectMoveFromOnnxPolicyAsync : null);
-        if (shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnx === 'function') {
-            try {
-                move = await selectMoveFromOnnx(candidateMoves, playerKey, level);
-                if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_move_decision')) {
-                    return;
-                }
-            } catch (e) {
-                debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
-                    playerKey,
-                    error: e && (e as any).message ? (e as any).message : String(e)
-                });
-            }
-        }
-        if (!move) {
-            move = selectCpuMoveSafe(candidateMoves, playerKey);
-        }
-        if (!move) {
-            const passFn = resolveProcessPassTurn();
-            if (passFn) {
-                passFn(playerKey, autoMode);
-            } else {
-                setCpuProcessing(false);
-            }
-            return;
-        }
-        if (isCpuDebugLogAvailable()) {
-            emitCpuDebugLog(`[AI] Move selected`, 'info', {
-                playerKey,
-                selectedMove: { row: move.row, col: move.col },
-                candidateCount: candidateMoves.length,
-                flips: move.flips ? move.flips.length : 0
-            });
-        }
-        const minThinkMs = resolveLv6MinThinkMs(playerKey, level, autoMode);
-        const thinkElapsedMs = Math.max(0, Date.now() - turnStartMs);
-        const extraDelayMs = Math.max(0, minThinkMs - thinkElapsedMs);
-
-        const commitSelectedMove = async () => {
-            if (shouldAbortCpuForHumanMode(playerKey, 'commit_selected_move')) {
-                return;
-            }
-            const nowCurrent = gameState ? gameState.currentPlayer : null;
-            const nowCurrentKey = (nowCurrent === CONST_BLACK || nowCurrent === 'black')
-                ? 'black'
-                : ((nowCurrent === CONST_WHITE || nowCurrent === 'white') ? 'white' : null);
-            if (nowCurrentKey && nowCurrentKey !== playerKey) {
-                debugCpuTrace('[AI] skip stale delayed move commit (turn changed)', {
-                    playerKey,
-                    nowCurrentKey
-                });
-                setCpuProcessing(false);
-                return;
-            }
-            if (isUiAnimationBusy()) {
-                scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                setCpuProcessing(false);
-                return;
-            }
-            try {
-                const cornersBeforeMove = countOwnedBasicCornersSafe(gameState, playerKey);
-                const executeMoveFn = resolveExecuteMoveFn();
-                if (typeof executeMoveFn !== 'function') {
-                    throw new Error('executeMove is not available');
-                }
-                await executeMoveFn(move);
-                const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
-                if (cornersAfterMove > cornersBeforeMove) {
-                    emitCpuCommentary('turn_start', playerKey, { level });
-                }
-            } finally {
-                setCpuProcessing(false);
-            }
-        };
-
-        if (extraDelayMs > 0) {
-            debugCpuTrace('[AI] Lv6 minimum think-time wait', {
-                playerKey,
-                level,
-                thinkElapsedMs,
-                minThinkMs,
-                extraDelayMs
-            });
-            scheduleRetry(() => {
-                commitSelectedMove().catch((error: any) => {
-                    handleCpuTurnError(playerKey, selfName, error, autoMode);
-                });
-            }, extraDelayMs);
-        } else {
-            await commitSelectedMove();
-        }
-        resetPendingSelectRetryState(playerKey);
+        await CpuTurnMovePhase.runCpuTurnMovePhase({
+            playerKey,
+            autoMode,
+            level,
+            selfColor,
+            selfName,
+            othelloMode,
+            pending,
+            turnStartMs
+        });
     } catch (error) {
         handleCpuTurnError(playerKey, selfName, error, autoMode);
     }
