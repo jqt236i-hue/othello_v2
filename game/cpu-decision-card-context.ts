@@ -4,11 +4,17 @@ type CpuDecisionCardContextConfig = {
     resolvePlayerValue: (playerKey: any) => any;
     getShapeAwareBoard: (board: any, gameState: any, cardState: any) => any;
     countBoardStatsForPlayer: (playerValue: any) => any;
+    countCornerControl: (board: any, playerValue: any) => any;
     countEdgeControl: (board: any, playerValue: any) => any;
     buildCornerPlanState: (playerKey: any, legalMoves?: any, usableCardIds?: any) => any;
     getBoardBonusValueAt: (row: any, col: any) => any;
     getBoardCellValueSafe: (board: any, row: any, col: any) => any;
     getCpuPolicyCore: () => any;
+    getDeckMetricsForPlayer: (playerKey: any) => any;
+    getHandCardIdsForPlayer: (playerKey: any) => any;
+    isCornerCell: (row: any, col: any, board?: any) => any;
+    isEdgeCell: (row: any, col: any, board?: any) => any;
+    resolvePendingType: (playerKey: any) => any;
 };
 
 export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfig): any {
@@ -130,8 +136,69 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         };
     }
 
+    function buildOnnxContext(playerKey: any, level: any, legalMovesCount: any, handCardIds: any, usableCardIds: any, candidateMoves?: any): any {
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        const moves = Array.isArray(candidateMoves)
+            ? candidateMoves.filter((one) => one && Number.isFinite(one.row) && Number.isFinite(one.col))
+            : [];
+        let hasCornerMoveNow = false;
+        let hasEdgeMoveNow = false;
+        let maxLegalMoveBonus = 0;
+        const gs = readGameState();
+        const cs = readCardState();
+        const deckMetrics = cfg.getDeckMetricsForPlayer ? cfg.getDeckMetricsForPlayer(playerKey) : {};
+        const boardRef = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
+        const playerValue = cfg.resolvePlayerValue(playerKey);
+        const cornerControl = cfg.countCornerControl ? cfg.countCornerControl(boardRef, playerValue) : null;
+        const edgeControl = cfg.countEdgeControl ? cfg.countEdgeControl(boardRef, playerValue) : null;
+        const ownCornersBefore = Number(cornerControl && cornerControl.ownCorners) || 0;
+        const oppCornersBefore = Number(cornerControl && cornerControl.oppCorners) || 0;
+        const ownEdgesBefore = Number(edgeControl && edgeControl.ownEdges) || 0;
+        const oppEdgesBefore = Number(edgeControl && edgeControl.oppEdges) || 0;
+        for (const move of moves) {
+            if (!hasCornerMoveNow && cfg.isCornerCell(move.row, move.col, boardRef)) hasCornerMoveNow = true;
+            if (!hasEdgeMoveNow && cfg.isEdgeCell(move.row, move.col, boardRef) && !cfg.isCornerCell(move.row, move.col, boardRef)) hasEdgeMoveNow = true;
+            const bonus = cfg.getBoardBonusValueAt(move.row, move.col);
+            if (bonus > maxLegalMoveBonus) maxLegalMoveBonus = bonus;
+        }
+        const cornerEmergency = (oppCornersBefore > ownCornersBefore || (hasCornerMoveNow === false && oppCornersBefore > 0));
+        const cornerHoldMode = (cornerEmergency === false && ownCornersBefore > 0 && ownCornersBefore >= oppCornersBefore && ownEdgesBefore >= oppEdgesBefore);
+        return {
+            playerKey,
+            level,
+            board: boardRef,
+            pendingType: cfg.resolvePendingType ? cfg.resolvePendingType(playerKey) : null,
+            legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
+            ownCharge: (cs && cs.charge && Number.isFinite(cs.charge[playerKey])) ? cs.charge[playerKey] : 0,
+            oppCharge: (cs && cs.charge && Number.isFinite(cs.charge[opponentKey])) ? cs.charge[opponentKey] : 0,
+            deckCount: Number.isFinite(deckMetrics.legacyDeckCount) ? deckMetrics.legacyDeckCount : 0,
+            ownDeckCount: Number.isFinite(deckMetrics.ownDeckCount) ? deckMetrics.ownDeckCount : 0,
+            initialDeckSize: Number.isFinite(deckMetrics.initialDeckSize) ? deckMetrics.initialDeckSize : 0,
+            boardBonusByCell: (cs && cs.boardBonusByCell && typeof cs.boardBonusByCell === 'object')
+                ? cs.boardBonusByCell
+                : null,
+            boardBonusConsumedByCell: (cs && cs.boardBonusConsumedByCell && typeof cs.boardBonusConsumedByCell === 'object')
+                ? cs.boardBonusConsumedByCell
+                : null,
+            handCardIds: Array.isArray(handCardIds) ? handCardIds.slice() : (cfg.getHandCardIdsForPlayer ? cfg.getHandCardIdsForPlayer(playerKey) : []),
+            usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : null,
+            candidateMoves: moves,
+            ownCornersBefore,
+            oppCornersBefore,
+            ownEdgesBefore,
+            oppEdgesBefore,
+            hasCornerMoveNow,
+            hasEdgeMoveNow,
+            cornerEmergency,
+            cornerHoldMode,
+            maxLegalMoveBonus,
+            highBonusMoveAvailable: maxLegalMoveBonus >= 3
+        };
+    }
+
     return {
-        buildCardUseDecisionContext
+        buildCardUseDecisionContext,
+        buildOnnxContext
     };
 }
 

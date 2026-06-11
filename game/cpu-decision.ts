@@ -746,47 +746,35 @@ function getDeckMetricsForPlayer(playerKey: any): any {
 }
 
 function buildOnnxContext(playerKey: any, level: any, legalMovesCount: any, handCardIds: any, usableCardIds: any, candidateMoves?: any): any {
-    const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    const moves = Array.isArray(candidateMoves)
-        ? candidateMoves.filter((one) => one && Number.isFinite(one.row) && Number.isFinite(one.col))
-        : [];
-    let hasCornerMoveNow = false;
-    let hasEdgeMoveNow = false;
-    let maxLegalMoveBonus = 0;
-    const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    const deckMetrics = getDeckMetricsForPlayer(playerKey);
-    const boardRef = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
-    for (const move of moves) {
-        if (!hasCornerMoveNow && isCornerCell(move.row, move.col, boardRef)) hasCornerMoveNow = true;
-        if (!hasEdgeMoveNow && isEdgeCell(move.row, move.col, boardRef) && !isCornerCell(move.row, move.col, boardRef)) hasEdgeMoveNow = true;
-        const bonus = getBoardBonusValueAt(move.row, move.col);
-        if (bonus > maxLegalMoveBonus) maxLegalMoveBonus = bonus;
+    if (CpuDecisionCardContext && typeof CpuDecisionCardContext.buildOnnxContext === 'function') {
+        return CpuDecisionCardContext.buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds, candidateMoves);
     }
     return {
         playerKey,
         level,
-        board: boardRef,
-        pendingType: resolvePendingType(playerKey),
+        board: null,
+        pendingType: null,
         legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
-        ownCharge: (cs && cs.charge && Number.isFinite(cs.charge[playerKey])) ? cs.charge[playerKey] : 0,
-        oppCharge: (cs && cs.charge && Number.isFinite(cs.charge[opponentKey])) ? cs.charge[opponentKey] : 0,
-        deckCount: Number.isFinite(deckMetrics.legacyDeckCount) ? deckMetrics.legacyDeckCount : 0,
-        ownDeckCount: Number.isFinite(deckMetrics.ownDeckCount) ? deckMetrics.ownDeckCount : 0,
-        initialDeckSize: Number.isFinite(deckMetrics.initialDeckSize) ? deckMetrics.initialDeckSize : 0,
-        boardBonusByCell: (cs && cs.boardBonusByCell && typeof cs.boardBonusByCell === 'object')
-            ? cs.boardBonusByCell
-            : null,
-        boardBonusConsumedByCell: (cs && cs.boardBonusConsumedByCell && typeof cs.boardBonusConsumedByCell === 'object')
-            ? cs.boardBonusConsumedByCell
-            : null,
-        handCardIds: Array.isArray(handCardIds) ? handCardIds.slice() : getHandCardIdsForPlayer(playerKey),
+        ownCharge: 0,
+        oppCharge: 0,
+        deckCount: 0,
+        ownDeckCount: 0,
+        initialDeckSize: 0,
+        boardBonusByCell: null,
+        boardBonusConsumedByCell: null,
+        handCardIds: Array.isArray(handCardIds) ? handCardIds.slice() : [],
         usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : null,
-        candidateMoves: moves,
-        hasCornerMoveNow,
-        hasEdgeMoveNow,
-        maxLegalMoveBonus,
-        highBonusMoveAvailable: maxLegalMoveBonus >= 3
+        candidateMoves: [],
+        ownCornersBefore: 0,
+        oppCornersBefore: 0,
+        ownEdgesBefore: 0,
+        oppEdgesBefore: 0,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: false,
+        cornerHoldMode: false,
+        maxLegalMoveBonus: 0,
+        highBonusMoveAvailable: false
     };
 }
 
@@ -2031,11 +2019,17 @@ const CpuDecisionCardContext = (CpuDecisionCardContextModule && typeof CpuDecisi
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
         getShapeAwareBoard,
         countBoardStatsForPlayer,
+        countCornerControl,
         countEdgeControl,
         buildCornerPlanState,
         getBoardBonusValueAt,
         getBoardCellValueSafe,
-        getCpuPolicyCore: () => CpuPolicyCore
+        getCpuPolicyCore: () => CpuPolicyCore,
+        getDeckMetricsForPlayer,
+        getHandCardIdsForPlayer,
+        isCornerCell,
+        isEdgeCell,
+        resolvePendingType
     })
     : null;
 

@@ -65,8 +65,14 @@ describe('cpu-decision ONNX context', () => {
       boardBonusConsumedByCell: global.cardState.boardBonusConsumedByCell,
       handCardIds: ['explicit-hand-card'],
       usableCardIds: ['usable-card'],
+      ownCornersBefore: 1,
+      oppCornersBefore: 2,
+      ownEdgesBefore: 0,
+      oppEdgesBefore: 0,
       hasCornerMoveNow: true,
       hasEdgeMoveNow: true,
+      cornerEmergency: true,
+      cornerHoldMode: false,
       maxLegalMoveBonus: 4,
       highBonusMoveAvailable: true
     });
