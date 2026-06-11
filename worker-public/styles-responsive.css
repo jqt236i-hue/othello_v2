@@ -156,6 +156,8 @@
 html.layout-profile-phone-portrait {
     --layout-phone-portrait-main-column-width: min(calc(430px * var(--layout-stage-scale)), 96vw);
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
+    --layout-phone-portrait-player-bottom-offset: calc(18px * var(--layout-stage-scale));
+    --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #game-container {
@@ -186,6 +188,7 @@ html.layout-profile-phone-portrait .player-area-bottom {
     justify-content: center;
     row-gap: calc(4px * var(--layout-stage-scale));
     column-gap: calc(4px * var(--layout-stage-scale));
+    margin-top: var(--layout-phone-portrait-player-bottom-offset);
 }
 
 html.layout-profile-phone-portrait #board-frame {
@@ -330,9 +333,9 @@ html.layout-profile-phone-portrait #leftActionButtons {
     bottom: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
     width: auto;
     max-width: calc(100vw - max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left)) - max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right)));
-    max-height: calc(44px * var(--layout-stage-scale));
+    max-height: none;
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     padding: calc(4px * var(--layout-stage-scale));
     gap: calc(6px * var(--layout-stage-scale));
     overflow-x: auto;
@@ -341,7 +344,9 @@ html.layout-profile-phone-portrait #leftActionButtons {
 }
 
 html.layout-profile-phone-portrait #leftActionButtons .left-action-btn {
-    min-width: calc(54px * var(--layout-stage-scale));
+    flex: 0 0 var(--layout-phone-portrait-rail-button-width);
+    width: var(--layout-phone-portrait-rail-button-width);
+    min-width: var(--layout-phone-portrait-rail-button-width);
     min-height: calc(34px * var(--layout-stage-scale));
     padding: calc(3px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
 }
