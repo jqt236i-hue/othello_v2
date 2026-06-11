@@ -81,6 +81,7 @@ function requireCpuTurnHandlerModuleOrNull(id: string): any {
 
 const PendingSelectionRegistryForCpu = requireCpuTurnHandlerModuleOrNull('./logic/cards-internal/pending-selection-registry');
 const CpuTurnControllerEvents = requireCpuTurnHandlerModuleOrNull('./controller-events');
+const CpuTurnSchedulerModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-scheduler');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -1390,113 +1391,33 @@ function isUiAnimationBusy() {
     const winPlayback = typeof runtimePlayback !== 'undefined' ? runtimePlayback === true : false;
     return localCard || winPlayback;
 }
-const _cpuRetryPendingByPlayer: Record<string, any> = { black: null, white: null };
-const _pendingSelectRetryStateByPlayer = {
-    black: { key: '', count: 0 },
-    white: { key: '', count: 0 }
-};
-const _scheduledRetryTimerIds = new Set();
-let _cpuRetryGeneration = 0;
-const MAX_STUCK_PENDING_SELECT_RETRIES = 4;
-
-function _retryStateKey(playerKey: any) {
-    return playerKey === 'white' ? 'white' : 'black';
-}
+const CpuTurnScheduler = (CpuTurnSchedulerModule && typeof CpuTurnSchedulerModule.createCpuTurnScheduler === 'function')
+    ? CpuTurnSchedulerModule.createCpuTurnScheduler({
+        debugCpuTrace,
+        getAnimationRetryDelayMs,
+        getCurrentPlayerKeySafe,
+        getCurrentTurnNumberSafe,
+        getTimerService: () => getCpuTurnTimerService(),
+        getTimers,
+        runCpuTurn: (playerKey: any, options?: any) => runCpuTurn(playerKey, options || {}),
+        shouldAbortCpuForHumanMode
+    })
+    : null;
 
 function resetPendingSelectRetryState(playerKey: any) {
-    const key = _retryStateKey(playerKey);
-    _pendingSelectRetryStateByPlayer[key].key = '';
-    _pendingSelectRetryStateByPlayer[key].count = 0;
+    return CpuTurnScheduler.resetPendingSelectRetryState(playerKey);
 }
 
 function resetCpuTurnHandlerState() {
-    _cpuRetryGeneration += 1;
-    _cpuRetryPendingByPlayer.black = null;
-    _cpuRetryPendingByPlayer.white = null;
-    resetPendingSelectRetryState('black');
-    resetPendingSelectRetryState('white');
-    const timerService = getCpuTurnTimerService();
-    for (const tid of _scheduledRetryTimerIds) {
-        try {
-            if (timerService) {
-                timerService.clearTimeout(tid);
-            }
-        } catch (e) { /* ignore */ }
-    }
-    _scheduledRetryTimerIds.clear();
-}
-
-function makePendingSelectRetryKey(pending: any) {
-    if (!pending) return '';
-    const type = String(pending.type || '');
-    const stage = String(pending.stage || '');
-    const selectedCount = Number.isFinite(pending.selectedCount) ? pending.selectedCount : 0;
-    const maxSelections = Number.isFinite(pending.maxSelections) ? pending.maxSelections : 0;
-    const offersLen = Array.isArray(pending.offers) ? pending.offers.length : 0;
-    return `${type}:${stage}:${selectedCount}:${maxSelections}:${offersLen}`;
+    return CpuTurnScheduler.resetCpuTurnHandlerState();
 }
 
 function shouldAbortStuckPendingSelection(playerKey: any, pending: any) {
-    const key = _retryStateKey(playerKey);
-    const retryKey = makePendingSelectRetryKey(pending);
-    const state = _pendingSelectRetryStateByPlayer[key];
-    if (state.key === retryKey) {
-        state.count += 1;
-    } else {
-        state.key = retryKey;
-        state.count = 1;
-    }
-    return state.count > MAX_STUCK_PENDING_SELECT_RETRIES;
+    return CpuTurnScheduler.shouldAbortStuckPendingSelection(playerKey, pending);
 }
 
 function scheduleRunCpuTurn(playerKey: any, options: any, delayMs: any) {
-    const key = playerKey === 'white' ? 'white' : 'black';
-    const expectedRetryGeneration = _cpuRetryGeneration;
-    if (_cpuRetryPendingByPlayer[key] === expectedRetryGeneration) return;
-    _cpuRetryPendingByPlayer[key] = expectedRetryGeneration;
-    const expectedPlayerKey = getCurrentPlayerKeySafe();
-    const expectedTurnNumber = getCurrentTurnNumberSafe();
-    scheduleRetry(() => {
-        if (_cpuRetryPendingByPlayer[key] === expectedRetryGeneration) {
-            _cpuRetryPendingByPlayer[key] = null;
-        }
-        if (expectedRetryGeneration !== _cpuRetryGeneration) {
-            debugCpuTrace('[AI] skip stale scheduled CPU run (generation changed)', {
-                playerKey: key,
-                expectedRetryGeneration,
-                currentRetryGeneration: _cpuRetryGeneration,
-                expectedPlayerKey,
-                expectedTurnNumber
-            });
-            return;
-        }
-        if (shouldAbortCpuForHumanMode(key, 'scheduled_retry')) {
-            return;
-        }
-        const currentPlayerKey = getCurrentPlayerKeySafe();
-        const currentTurnNumber = getCurrentTurnNumberSafe();
-        if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) {
-            debugCpuTrace('[AI] skip stale scheduled CPU run (player changed)', {
-                playerKey: key,
-                expectedPlayerKey,
-                currentPlayerKey,
-                expectedTurnNumber,
-                currentTurnNumber
-            });
-            return;
-        }
-        if (expectedTurnNumber !== null && currentTurnNumber !== expectedTurnNumber) {
-            debugCpuTrace('[AI] skip stale scheduled CPU run (turn changed)', {
-                playerKey: key,
-                expectedPlayerKey,
-                currentPlayerKey,
-                expectedTurnNumber,
-                currentTurnNumber
-            });
-            return;
-        }
-        runCpuTurn(key, options || {});
-    }, delayMs);
+    return CpuTurnScheduler.scheduleRunCpuTurn(playerKey, options, delayMs);
 }
 
 function resolveProcessPassTurn() {
@@ -1576,38 +1497,8 @@ function tryApplyAnyUsableCard(playerKey: any) {
     return false;
 }
 
-// Prefer shared scheduleRetry helper from game/timer-utils when available, fallback to a local implementation
-// Build scheduleRetry as a small wrapper that prefers injected timers with a real impl,
-// then falls back to the injected TimerService.
-function hasUsableWaitMs(t: any) {
-    if (!t || typeof t.waitMs !== 'function') return false;
-    // game/timers exposes hasTimerImpl(): false means Promise.resolve() immediate fallback
-    // which can cause tight retry loops.
-    if (typeof t.hasTimerImpl === 'function' && !t.hasTimerImpl()) return false;
-    return true;
-}
-
 function scheduleRetry(fn: any, delayMs: any = getAnimationRetryDelayMs()) {
-    // 1) Prefer legacy module-scoped injected timers when a real impl is present.
-    if (hasUsableWaitMs(timers)) {
-        try {
-            timers.waitMs(delayMs).then(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } });
-            return;
-        } catch (e) { /* fall through */ }
-    }
-
-    // 2) Prefer TimerService when available.
-    const timerService = getCpuTurnTimerService();
-    if (timerService) {
-        const tid = timerService.setTimeout(() => {
-            _scheduledRetryTimerIds.delete(tid);
-            try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
-        }, delayMs);
-        _scheduledRetryTimerIds.add(tid);
-        return;
-    }
-
-    // 3) No timer implementation is available in this runtime.
+    return CpuTurnScheduler.scheduleRetry(fn, delayMs);
 }
 
 // Return a mapping of shared pending-dispatch keys => async handler for a given playerKey.
