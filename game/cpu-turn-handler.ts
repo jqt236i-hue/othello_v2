@@ -83,6 +83,7 @@ const PendingSelectionRegistryForCpu = requireCpuTurnHandlerModuleOrNull('./logi
 const CpuTurnControllerEvents = requireCpuTurnHandlerModuleOrNull('./controller-events');
 const CpuTurnSchedulerModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-scheduler');
 const CpuTurnPresentationRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-presentation-runtime');
+const CpuTurnCardPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-card-phase');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -1266,6 +1267,34 @@ function scheduleRetry(fn: any, delayMs: any = getAnimationRetryDelayMs()) {
     return CpuTurnScheduler.scheduleRetry(fn, delayMs);
 }
 
+const CpuTurnCardPhase = (CpuTurnCardPhaseModule && typeof CpuTurnCardPhaseModule.createCpuTurnCardPhase === 'function')
+    ? CpuTurnCardPhaseModule.createCpuTurnCardPhase({
+        emitCpuCommentary,
+        getActiveProtectionSafe,
+        getAnimationRetryDelayMs,
+        getDestroyHandCardWithPolicyFn: () => (
+            resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
+            || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null)
+        ),
+        getFlipBlockersSafe,
+        getLastUsedCardIdSafe,
+        getUseCardWithPolicyFn: () => (
+            resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
+            || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null)
+        ),
+        isUiAnimationBusy,
+        maybeUseCardFromOnnx,
+        resolveGenerateMovesForPlayer,
+        runCpuTurn: (playerKey: any, options?: any) => runCpuTurn(playerKey, options || {}),
+        scheduleRetry,
+        scheduleRunCpuTurn,
+        setCpuProcessing,
+        shouldAbortCpuForHumanMode,
+        shouldOverrideOnnxHoldDecision,
+        tryDestroyHighPriorityHandCardViaAdapter
+    })
+    : null;
+
 // Return a mapping of shared pending-dispatch keys => async handler for a given playerKey.
 function getPendingDispatchHandlers(playerKey: any) {
     const resolveCpuPendingHandler = (...names: string[]) => {
@@ -1444,68 +1473,17 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             hasUsedCardThisTurn
         });
 
-        if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
-            const destroyHandCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
-                || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null);
-            let destroyedForCycle = (typeof destroyHandCardWithPolicyFn === 'function')
-                ? !!destroyHandCardWithPolicyFn(playerKey)
-                : false;
-            if (!destroyedForCycle) {
-                destroyedForCycle = tryDestroyHighPriorityHandCardViaAdapter(playerKey);
-            }
-            if (destroyedForCycle) {
-                setCpuProcessing(false);
-                scheduleRetry(() => {
-                    if (isUiAnimationBusy()) {
-                        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                        return;
-                    }
-                    runCpuTurn(playerKey, { autoMode });
-                }, getAnimationRetryDelayMs());
-                return;
-            }
-        }
-
-        if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
-            const protectionPreview = getActiveProtectionSafe(selfColor);
-            const permaPreview = getFlipBlockersSafe();
-            const generateMovesForPlayerFn = resolveGenerateMovesForPlayer();
-            const previewMoves = generateMovesForPlayerFn
-                ? generateMovesForPlayerFn(selfColor, null, protectionPreview, permaPreview)
-                : [];
-            const previewLegalMovesCount = Array.isArray(previewMoves) ? previewMoves.length : 0;
-
-            const onnxCardDecision = await maybeUseCardFromOnnx(playerKey, level, previewLegalMovesCount, previewMoves);
-            if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_card_decision')) {
-                return;
-            }
-            let applied = !!(onnxCardDecision && onnxCardDecision.applied === true);
-            const heldByOnnx = !!(onnxCardDecision && onnxCardDecision.hold === true);
-            const overrideHold = heldByOnnx && shouldOverrideOnnxHoldDecision(playerKey, level, previewLegalMovesCount);
-            if (!applied && (!heldByOnnx || overrideHold)) {
-                const useCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
-                    || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null);
-                applied = (typeof useCardWithPolicyFn === 'function') ? !!useCardWithPolicyFn(playerKey) : false;
-            }
-            if (applied) {
-                emitCpuCommentary('card_used', playerKey, {
-                    level,
-                    cardId: getLastUsedCardIdSafe(playerKey)
-                });
-                setCpuProcessing(false);
-                const resumeAfterCardAnimation = () => {
-                    if (shouldAbortCpuForHumanMode(playerKey, 'resume_after_card_animation')) {
-                        return;
-                    }
-                    if (isUiAnimationBusy()) {
-                        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                        return;
-                    }
-                    runCpuTurn(playerKey, { autoMode });
-                };
-                scheduleRetry(resumeAfterCardAnimation, getAnimationRetryDelayMs());
-                return;
-            }
+        const cardPhaseResult = await CpuTurnCardPhase.runCpuTurnCardPhase({
+            playerKey,
+            autoMode,
+            level,
+            selfColor,
+            othelloMode,
+            hasUsedCardThisTurn,
+            hasPendingSelection
+        });
+        if (cardPhaseResult && cardPhaseResult.status === 'handled') {
+            return;
         }
 
         let pending = readCpuPendingSelection(playerKey);
