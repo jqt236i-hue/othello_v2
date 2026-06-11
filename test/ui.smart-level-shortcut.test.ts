@@ -50,7 +50,7 @@ describe('smart cpu level shortcut', () => {
     expect(menu).not.toBeNull();
     expect(menu?.hidden).toBe(false);
     expect(shortcut.getAttribute('aria-expanded')).toBe('true');
-    expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(6);
+    expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(7);
     expect(menu?.querySelector('.cpu-level-menu-item.is-selected')?.getAttribute('data-cpu-level')).toBe('1');
 
     (menu?.querySelector('[data-cpu-level="4"]') as HTMLButtonElement).click();
@@ -59,6 +59,13 @@ describe('smart cpu level shortcut', () => {
     expect(global.updateCpuCharacter).toHaveBeenCalled();
     expect(menu?.hidden).toBe(true);
     expect(shortcut.getAttribute('aria-expanded')).toBe('false');
+
+    shortcut.click();
+    const reopenedMenu = document.getElementById('cpu-level-menu');
+    (reopenedMenu?.querySelector('[data-cpu-level="6-board-executor"]') as HTMLButtonElement).click();
+
+    expect(smartWhite.value).toBe('6-board-executor');
+    expect((global as any).cpuSmartness.white).toBe(6);
 
     delete global.window;
     delete global.document;

@@ -117,6 +117,8 @@
 - カスタムデッキは有効カードだけで構成し、同一カードは 3 枚まで入れられる
 - カスタムデッキの特殊カードは、特殊カードIDごとに1枚まで入れられる。catalog に存在しない特殊カードIDは構築候補に出ない
 - CPU対戦でカスタムデッキを使う場合、プレイヤー側だけがその構築済みデッキを使い、CPU側はデフォルトデッキを使う
+- CPU対戦の白 `Lv6: 盤理の観測者` は、CPU側デフォルトデッキの代わりに `D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.breeding_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.observer_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.reinforcement_01.support_troops_01` の固定デッキを使う
+- CPU対戦の白 `Lv6: 盤界の執行者` は、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使い、CPU側デフォルトデッキの代わりに `D1C1:sniper_01.hard_01.ghost_01.swap_01.strong_wind_01.super_buoyancy_01.buoyancy_01.super_gravity_01.super_attraction_01.gravity_01.trap_01.tempt_01.capture_01.destroy_01.teleport_01.will_hunter_king_01.loss_will_01.double_01.heaven_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.equality_will_01` の固定デッキを使う
 - ネット対戦では各プレイヤーが自分の deck を room に持ち込み、黒白で別内容の deck を使ってよい
 - ネット対戦で片方だけがカスタムデッキを持ち込んだ場合は、そのまま「デフォルトデッキ vs カスタムデッキ」として扱い、内容を無理に共通化しない
 - ネット対戦で両者ともデフォルトデッキの場合、room ごとに 30 種を 1 回だけ抽選して黒白で共有し、その後の山札順だけを黒白別にシャッフルする

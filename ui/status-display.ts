@@ -28,6 +28,7 @@ const PORTRAIT_SPEECH_CONFIG: any = {
         panelId: 'cpu-character-panel'
     }
 };
+const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
 let StatusDisplayOwnerHelpersModule: any = null;
 if (typeof _require === 'function') {
     try { StatusDisplayOwnerHelpersModule = _require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
@@ -485,6 +486,15 @@ function updateBattleStatusPanel(): void {
     renderBattleStatusLatestText(latestEl, resolveBattleStatusLatestText());
 }
 
+function readWhiteCpuProfileValue(): string {
+    try {
+        const select = document.getElementById('smartWhite') as HTMLSelectElement | null;
+        return String(select && select.value || '');
+    } catch (e) {
+        return '';
+    }
+}
+
 function renderBattleStatusLatestText(el: any, text: string): void {
     if (!el) return;
     el.textContent = '';
@@ -817,10 +827,11 @@ function setCpuCharacterNetworkHeroState(charImg: any, enabled: boolean): void {
 }
 
 function updateCpuCharacter(): void {
-    const selectLevel = Number((document.getElementById('smartWhite') as HTMLSelectElement | null)?.value);
-    const level = Number.isFinite(selectLevel)
-        ? Math.max(1, Math.min(6, Math.floor(selectLevel)))
-        : (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).white : 1) || 1);
+    const selectedProfileValue = readWhiteCpuProfileValue();
+    const fallbackLevel = (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).white : 1) || 1);
+    const cpuProfile = CpuOpponentProfiles.getCpuOpponentProfile(selectedProfileValue || fallbackLevel);
+    const level = cpuProfile.level;
+    const hasNamedProfileOverride = cpuProfile.id !== String(cpuProfile.level);
     const specialPresentation = resolveSpecialCpuPresentation();
     const useNetworkHeroPresentation = !specialPresentation && isNetworkModeForLabels();
     const displayLevel = level;
@@ -837,9 +848,11 @@ function updateCpuCharacter(): void {
     if (charImg && levelLabel) {
         const primaryPath = useNetworkHeroPresentation
             ? HERO_IMAGE_SRC
-            : (specialPresentation && specialPresentation.imageSrc
+            : (hasNamedProfileOverride
+                ? String(cpuProfile.portraitSrc)
+                : (specialPresentation && specialPresentation.imageSrc
                 ? String(specialPresentation.imageSrc)
-                : `assets/images/cpu/level${displayLevel}.png`);
+                : String(cpuProfile.portraitSrc || `assets/images/cpu/level${displayLevel}.png`)));
         const fallbackCandidates: string[] = [];
         const levelImagePath = `assets/images/cpu/level${displayLevel}.png`;
         const legacyFallbackPath = `assets/cpu-characters/level${displayLevel}.png`;
@@ -850,7 +863,9 @@ function updateCpuCharacter(): void {
         let fallbackIndex = 0;
         charImg.alt = useNetworkHeroPresentation
             ? '対戦相手の勇者'
-            : (specialPresentation ? String(specialPresentation.label || '敵CPU') : '敵CPU');
+            : (hasNamedProfileOverride
+                ? String(cpuProfile.name)
+                : (specialPresentation ? String(specialPresentation.label || '敵CPU') : '敵CPU'));
         setCpuCharacterNetworkHeroState(charImg, useNetworkHeroPresentation);
         
         const img = new Image();
@@ -876,7 +891,9 @@ function updateCpuCharacter(): void {
         };
         img.src = primaryPath;
 
-        const defaultName = (CPU_LEVEL_NAMES as any)[level] || ('レベル ' + level);
+        const defaultName = hasNamedProfileOverride
+            ? String(cpuProfile.name)
+            : ((CPU_LEVEL_NAMES as any)[level] || ('レベル ' + level));
         if (specialPresentation) {
             applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
             if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;

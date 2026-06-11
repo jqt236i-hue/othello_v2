@@ -721,8 +721,9 @@ describe('deck builder controller', () => {
 
     expect(options.initialDeckSpecByPlayer.black).toBeUndefined();
     expect(whiteCardIds).toContain('reinforcement_01');
-    expect(whiteCardIds).not.toContain(['observer', '01'].join('_'));
-    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(29);
+    expect(whiteCardIds).toContain('observer_will_01');
+    expect(whiteCardIds).toContain('support_troops_01');
+    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
   });
 
   test('CPU Lv6対戦ではプレイヤー黒カスタムと白CPU専用デッキを両立する', () => {
@@ -736,7 +737,27 @@ describe('deck builder controller', () => {
 
     expect(options.initialDeckSpecByPlayer.black).toEqual(localDeck.deckSpec);
     expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('reinforcement_01');
+    expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('observer_will_01');
     expect(options.initialDeckSpecByPlayer.white).not.toEqual(localDeck.deckSpec);
+  });
+
+  test('CPU Lv6盤界の執行者対戦では白CPUへ執行者専用デッキを入れる', () => {
+    window.getCurrentMatchMode = () => 'cpu';
+    const smartWhite = document.getElementById('smartWhite');
+    const option = document.createElement('option');
+    option.value = '6-board-executor';
+    option.textContent = 'Lv6: 盤界の執行者';
+    smartWhite.appendChild(option);
+    smartWhite.value = '6-board-executor';
+    const controller = createController();
+
+    const options = controller.buildCardInitOptions();
+    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
+
+    expect(whiteCardIds).toContain('board_executor_01');
+    expect(whiteCardIds).toContain('equality_will_01');
+    expect(whiteCardIds).not.toContain('observer_will_01');
+    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
   });
 
   test('無効な保存済みプリセットは activePresetId を外してデフォルトデッキへ戻す', () => {

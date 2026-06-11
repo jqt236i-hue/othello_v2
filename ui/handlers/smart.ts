@@ -21,23 +21,16 @@ interface SmartOption {
   t: string;
 }
 
+const CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles');
 const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
 const CPU_LEVEL_MENU_ID = 'cpu-level-menu';
 const CPU_LEVEL_MENU_OFFSET_PX = 8;
-const CPU_LEVEL_OPTIONS: SmartOption[] = [
-  { v: '1', t: 'Lv1: 盤喰いの小鬼' },
-  { v: '2', t: 'Lv2: 反転の影' },
-  { v: '3', t: 'Lv3: 布石を紡ぐ者' },
-  { v: '4', t: 'Lv4: 盤面支配者' },
-  { v: '5', t: 'Lv5: 終局を告げる者' },
-  { v: '6', t: 'Lv6: 盤理の観測者' }
-];
+const CPU_LEVEL_OPTIONS: SmartOption[] = CpuOpponentProfiles.getCpuOpponentMenuOptions()
+  .map((opt: any) => ({ v: String(opt.value), t: String(opt.label) }));
 
 function clampCpuLevel(value: unknown): number {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.min(6, Math.floor(n)));
+  return CpuOpponentProfiles.getCpuOpponentLevel(value);
 }
 
 function getCpuLevelShortcutButton(): HTMLButtonElement | null {
@@ -79,9 +72,11 @@ function hideCpuLevelMenu(): void {
   setCpuLevelShortcutExpanded(false);
 }
 
-function syncCpuLevelMenuSelection(menu: HTMLDivElement, level: number): void {
+function syncCpuLevelMenuSelection(menu: HTMLDivElement, selectedValue: unknown): void {
+  const selectedProfile = CpuOpponentProfiles.getCpuOpponentProfileId(selectedValue);
   menu.querySelectorAll<HTMLButtonElement>('.cpu-level-menu-item').forEach((item) => {
-    const selected = clampCpuLevel(item.dataset.cpuLevel) === level;
+    const itemValue = String(item.dataset.cpuLevel || '');
+    const selected = itemValue === selectedProfile;
     item.classList.toggle('is-selected', selected);
     item.setAttribute('aria-checked', selected ? 'true' : 'false');
   });
@@ -141,7 +136,7 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
     menu?.appendChild(item);
   });
 
-  syncCpuLevelMenuSelection(menu, clampCpuLevel(smartWhite.value || localCpuLevels.white));
+  syncCpuLevelMenuSelection(menu, smartWhite.value || localCpuLevels.white);
   return menu;
 }
 
@@ -253,10 +248,11 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
     smartBlack.value = String(localCpuLevels.black);
     smartBlack.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
-      const newLevel = clampCpuLevel(target.value);
+      const selectedValue = target.value;
+      const newLevel = clampCpuLevel(selectedValue);
       localCpuLevels.black = newLevel;
       syncRuntimeCpuLevel('black', newLevel);
-      target.value = String(newLevel);
+      target.value = selectedValue || String(newLevel);
       console.log(`[CPU Level] Black changed to level ${localCpuLevels.black}`);
       // Reload policy if MCCFR is available
       if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
@@ -285,12 +281,13 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
     bindCpuLevelShortcut(smartWhite);
     smartWhite.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
-      const newLevel = clampCpuLevel(target.value);
+      const selectedValue = target.value;
+      const newLevel = clampCpuLevel(selectedValue);
       localCpuLevels.white = newLevel;
       syncRuntimeCpuLevel('white', newLevel);
-      target.value = String(newLevel);
+      target.value = selectedValue || String(newLevel);
       const menu = getCpuLevelMenu();
-      if (menu) syncCpuLevelMenuSelection(menu, newLevel);
+      if (menu) syncCpuLevelMenuSelection(menu, target.value || newLevel);
       console.log(`[CPU Level] White changed to level ${localCpuLevels.white}`);
       if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();

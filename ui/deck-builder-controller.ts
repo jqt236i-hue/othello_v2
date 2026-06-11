@@ -18,6 +18,7 @@ const SharedBoardUtils = SharedBoardUtilsModule && SharedBoardUtilsModule.defaul
     ? SharedBoardUtilsModule.default
     : SharedBoardUtilsModule;
 const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
+const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
 
     function ensureDependencies() {
         if (!DeckSpecHelpers || !DeckCodecModule || !DeckPresetStorage || !DeckBuilderStateModule || !DeckBuilderRendererModule || !SharedBoardUtils) {
@@ -649,13 +650,18 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
             return fallbackMode || 'cpu';
         }
 
+        function clampCpuLevelValue(value: any) {
+            return CpuOpponentProfiles.getCpuOpponentLevel(value);
+        }
+
         function readCpuLevel(playerKey: string) {
             try {
                 const source = rootRef && rootRef.cpuSmartness && typeof rootRef.cpuSmartness === 'object'
                     ? rootRef.cpuSmartness
                     : null;
-                const level = Number(source && source[playerKey]);
-                if (source && Number.isFinite(level)) return Math.max(1, Math.min(6, Math.floor(level)));
+                if (source && typeof source[playerKey] !== 'undefined') {
+                    return clampCpuLevelValue(source[playerKey]);
+                }
             } catch (e: any) { /* ignore */ }
 
             try {
@@ -665,16 +671,33 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
                 const select = doc && typeof doc.getElementById === 'function'
                     ? doc.getElementById(id)
                     : null;
-                const level = Number(select && (select as HTMLSelectElement).value);
-                return Number.isFinite(level) ? Math.max(1, Math.min(6, Math.floor(level))) : 1;
+                return clampCpuLevelValue(select && (select as HTMLSelectElement).value);
             } catch (e: any) { /* ignore */ }
             return 1;
+        }
+
+        function readCpuProfileValue(playerKey: string) {
+            try {
+                const doc = (rootRef && rootRef.document)
+                    || (typeof document !== 'undefined' ? document : null);
+                const id = playerKey === 'white' ? 'smartWhite' : 'smartBlack';
+                const select = doc && typeof doc.getElementById === 'function'
+                    ? doc.getElementById(id)
+                    : null;
+                return String(select && (select as HTMLSelectElement).value || '');
+            } catch (e: any) { /* ignore */ }
+            return '';
         }
 
         function resolveCpuLv6WhiteDeckSpec() {
             if (readCurrentMatchMode() !== 'cpu') return null;
             if (readCpuLevel('white') < 6) return null;
             if (!DeckSpecHelpers || typeof DeckSpecHelpers.getCpuLv6WhiteDeckCode !== 'function') return null;
+            const whiteProfile = CpuOpponentProfiles.getCpuOpponentProfile(readCpuProfileValue('white'));
+            if (whiteProfile.deckProfile === 'lv6-board-executor'
+                && typeof DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode === 'function') {
+                return DeckCodecModule.decodeDeckCode(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
+            }
             return DeckCodecModule.decodeDeckCode(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
         }
 

@@ -9,6 +9,7 @@ function setupStatusDisplayDom(gameStateOverride) {
     '<div id="effect-live-panel"></div>' +
     '<img id="cpu-character-img" />' +
     '<div id="cpu-level-label"></div>' +
+    '<select id="smartWhite"><option value="1">1</option><option value="6-board-executor">Lv6: 盤界の執行者</option></select>' +
     '<div id="hero-label"></div>' +
     '</body></html>',
     { runScripts: 'outside-only', url: 'http://localhost/' }
@@ -138,6 +139,23 @@ describe('status-display round bonus surface', () => {
     window.gameState.roundNumber = 10;
     window.updateStatus();
     expect(roundPanel.textContent).toBe('');
+
+    teardownStatusDisplayDom(dom);
+  });
+
+  test('uses board executor portrait and label for the board executor Lv6 profile', () => {
+    const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
+    const smartWhite = window.document.getElementById('smartWhite') as HTMLSelectElement;
+    smartWhite.value = '6-board-executor';
+    window.CPU_LEVEL_NAMES[6] = '盤理の観測者';
+
+    window.updateStatus();
+
+    const img = window.document.getElementById('cpu-character-img') as HTMLImageElement;
+    const label = window.document.getElementById('cpu-level-label') as HTMLElement;
+    expect(img.src).toContain('assets/images/special-cards/characters/board_executor.png');
+    expect(img.alt).toBe('盤界の執行者');
+    expect(label.textContent).toBe('Lv6 盤界の執行者');
 
     teardownStatusDisplayDom(dom);
   });
