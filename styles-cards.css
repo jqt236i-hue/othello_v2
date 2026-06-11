@@ -1200,14 +1200,17 @@
 
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) {
     border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
+    outline: calc(2px * var(--layout-stage-scale)) solid rgba(95, 255, 150, 0.92);
+    outline-offset: calc(4px * var(--layout-stage-scale));
     box-shadow:
-        0 0 calc(16px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(78, 255, 142, 0.72),
-        0 0 calc(32px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(40, 214, 106, 0.42),
+        0 0 0 calc(5px * var(--layout-stage-scale)) rgba(58, 255, 130, 0.24),
+        0 0 calc(18px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(58, 255, 130, 0.82),
+        0 0 calc(42px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(30, 210, 96, 0.52),
         0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
     transform: translateY(-6px) scale(1.018);
     filter:
-        drop-shadow(0 0 calc(9px * var(--layout-stage-scale)) rgba(86, 255, 150, 0.86))
-        drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) rgba(40, 214, 106, 0.48));
+        drop-shadow(0 0 calc(10px * var(--layout-stage-scale)) rgba(92, 255, 156, 0.98))
+        drop-shadow(0 0 calc(24px * var(--layout-stage-scale)) rgba(32, 220, 104, 0.72));
     animation: none;
 }
 
@@ -1244,13 +1247,16 @@
 
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable).visible.clickable:hover:not(.selected) {
     transform: translateY(-8px) scale(1.028);
+    outline-color: rgba(118, 255, 170, 1);
+    outline-offset: calc(5px * var(--layout-stage-scale));
     box-shadow:
-        0 0 calc(18px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(92, 255, 158, 0.82),
-        0 0 calc(42px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(42, 220, 112, 0.54),
+        0 0 0 calc(6px * var(--layout-stage-scale)) rgba(70, 255, 140, 0.3),
+        0 0 calc(22px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(92, 255, 158, 0.92),
+        0 0 calc(52px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(42, 220, 112, 0.64),
         0 calc(14px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52);
     filter:
-        drop-shadow(0 0 calc(11px * var(--layout-stage-scale)) rgba(104, 255, 170, 0.92))
-        drop-shadow(0 0 calc(24px * var(--layout-stage-scale)) rgba(42, 220, 112, 0.62));
+        drop-shadow(0 0 calc(12px * var(--layout-stage-scale)) rgba(120, 255, 178, 1))
+        drop-shadow(0 0 calc(30px * var(--layout-stage-scale)) rgba(42, 220, 112, 0.78));
 }
 
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable) :is(.card-cost-badge, .card-type-badge) {
