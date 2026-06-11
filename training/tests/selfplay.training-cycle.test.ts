@@ -926,7 +926,7 @@ describe('selfplay training cycle script', () => {
             });
 
             expect(commandArgs).toEqual(expect.arrayContaining([
-                path.resolve('ai', 'train', 'train_policy_onnx.py'),
+                path.resolve('training', 'python', 'train_policy_onnx.py'),
                 '--input', iterationPaths.trainDataPath,
                 '--onnx-out', iterationPaths.onnxModelPath,
                 '--meta-out', iterationPaths.onnxMetaPath,
@@ -1005,7 +1005,7 @@ describe('selfplay training cycle script', () => {
                 });
 
                 expect(commandArgs).toEqual(expect.arrayContaining([
-                    path.resolve('ai', 'train', scriptName),
+                    path.resolve('training', 'python', scriptName),
                     '--input', iterationPaths.trainDataPath,
                     '--onnx-out', iterationPaths[onnxOutKey],
                     '--meta-out', iterationPaths[metaOutKey],

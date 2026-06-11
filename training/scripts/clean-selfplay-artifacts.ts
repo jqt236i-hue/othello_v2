@@ -107,10 +107,16 @@ function shouldDeleteModelFile(fileName: any, keepDeployed: any) {
     return true;
 }
 
+function isIgnorableRunArtifact(filePath: any) {
+    const baseName = path.basename(String(filePath || ''));
+    return /^preflight\.\d+\.json$/i.test(baseName);
+}
+
 function collectTargets(args: any) {
     const runsDirs = listResumeChunkDirs(args.runsDir);
     const runsDirSet = new Set(runsDirs.map((one: any) => path.resolve(one)));
     const runsFiles = listFilesRecursive(args.runsDir).filter((onePath: any) => {
+        if (isIgnorableRunArtifact(onePath)) return false;
         const resolved = path.resolve(onePath);
         for (const dirPath of runsDirSet) {
             if (resolved.startsWith(`${dirPath}${path.sep}`)) {
@@ -234,6 +240,7 @@ export = {
     parseArgs,
     collectTargets,
     shouldDeleteModelFile,
+    isIgnorableRunArtifact,
     summarizeTargets,
     formatBytes
 };

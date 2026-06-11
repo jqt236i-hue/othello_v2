@@ -3,8 +3,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 
-const REPO_ROOT = path.resolve(__dirname, '..');
-const TRAIN_SCRIPT = path.join(REPO_ROOT, 'ai', 'train', 'train_policy_table.py');
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const TRAIN_SCRIPT = path.join(REPO_ROOT, 'training', 'python', 'train_policy_table.py');
 const PYTHON = process.env.PYTHON || 'python';
 const EMPTY_BOARD_8X8 = Array.from({ length: 8 }, () => '........').join('/');
 

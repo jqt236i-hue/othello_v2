@@ -71,7 +71,7 @@ function resolveMaybePath(cwd: any, value: any) {
 function resolveNamedConfigPath(kind: any, ref: any, cwd: any) {
     const safeKind = kind === 'gate' ? 'gates' : 'profiles';
     const label = kind === 'gate' ? 'gate profile' : 'training profile';
-    const baseDir = path.resolve(cwd, 'ai', 'train', 'configs', safeKind);
+    const baseDir = path.resolve(cwd, 'training', 'python', 'configs', safeKind);
     const trainingBaseDir = path.resolve(cwd, 'training', 'python', 'configs', safeKind);
     const raw = String(ref || '').trim();
     const candidates = [];

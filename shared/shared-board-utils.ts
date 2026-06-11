@@ -968,6 +968,14 @@
         return collectBoardCoordinates(board).filter((cell) => isEdgeCell(cell.row, cell.col, board));
     }
 
+    function getEffectiveCornerCells(board: unknown): CellCoord[] {
+        return getCornerCells(board);
+    }
+
+    function getEffectiveEdgeCells(board: unknown): CellCoord[] {
+        return getPerimeterCells(board);
+    }
+
     function getCornerEdgeLineDescriptors(board: unknown): CornerEdgeLineDescriptor[] {
         if (!Array.isArray(board)) return [];
         const corners = getCornerCells(board);
@@ -1191,6 +1199,14 @@
             col === bounds.minCol ||
             col === bounds.maxCol
         );
+    }
+
+    function isEffectiveCornerCell(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
+        return isCornerCell(row, col, boardOrRows, maybeCols);
+    }
+
+    function isEffectiveEdgeCell(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
+        return isEdgeCell(row, col, boardOrRows, maybeCols);
     }
 
     function buildRiskCellSets(board: unknown): { xKeys: Set<string>; cKeys: Set<string> } {
@@ -1676,10 +1692,14 @@
         countBoardEmpties,
         getCornerCells,
         getPerimeterCells,
+        getEffectiveCornerCells,
+        getEffectiveEdgeCells,
         getCornerEdgeLineDescriptors,
         getCornerProximity,
         isCornerCell,
         isEdgeCell,
+        isEffectiveCornerCell,
+        isEffectiveEdgeCell,
         isCorner,
         isEdge,
         isXSquare,

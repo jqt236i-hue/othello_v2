@@ -28,7 +28,8 @@ function wrapperPath(name: string): string {
 }
 
 function distPath(name: string): string {
-    return path.join(process.cwd(), 'dist', 'scripts', name);
+    const { resolveDistScript } = require('../../scripts/dist-cli-wrapper');
+    return resolveDistScript(name);
 }
 
 describe('selfplay training CLI wrappers', () => {

@@ -354,7 +354,7 @@ function main() {
         'train-policy',
         args.pythonPath,
         [
-            path.resolve('ai', 'train', 'train_policy_onnx.py'),
+            path.resolve('training', 'python', 'train_policy_onnx.py'),
             '--input', trainInputPath,
             '--onnx-out', paths.onnxModelPath,
             '--meta-out', paths.onnxMetaPath,
@@ -372,7 +372,7 @@ function main() {
         steps.push(runCommand(
             'evaluate-policy',
             args.pythonPath,
-            [path.resolve('ai', 'train', 'evaluate_policy_table.py'), '--input', evalTrainInputPath, '--model', paths.candidateModelPath]
+            [path.resolve('training', 'python', 'evaluate_policy_table.py'), '--input', evalTrainInputPath, '--model', paths.candidateModelPath]
         ));
     }
 
@@ -381,7 +381,7 @@ function main() {
             'train-card-policy',
             args.pythonPath,
             [
-                path.resolve('ai', 'train', 'train_card_onnx.py'),
+                path.resolve('training', 'python', 'train_card_onnx.py'),
                 '--input', trainInputPath,
                 '--onnx-out', paths.cardOnnxModelPath,
                 '--meta-out', paths.cardOnnxMetaPath,
@@ -399,7 +399,7 @@ function main() {
             'train-target-policy',
             args.pythonPath,
             [
-                path.resolve('ai', 'train', 'train_target_onnx.py'),
+                path.resolve('training', 'python', 'train_target_onnx.py'),
                 '--input', trainInputPath,
                 '--onnx-out', paths.targetOnnxModelPath,
                 '--meta-out', paths.targetOnnxMetaPath,
@@ -413,7 +413,7 @@ function main() {
         'train-value-policy',
         args.pythonPath,
         [
-            path.resolve('ai', 'train', 'train_value_onnx.py'),
+            path.resolve('training', 'python', 'train_value_onnx.py'),
             '--input', trainInputPath,
             '--onnx-out', paths.valueOnnxModelPath,
             '--meta-out', paths.valueOnnxMetaPath,

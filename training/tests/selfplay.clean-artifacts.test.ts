@@ -41,18 +41,22 @@ describe('selfplay clean artifacts script', () => {
         fs.mkdirSync(modelsDir, { recursive: true });
 
         const runFile = path.join(runsDir, 'selfplay.train.test.ndjson');
+        const preflightReport = path.join(runsDir, 'preflight.20260611230404.json');
         const deployedTable = path.join(modelsDir, 'policy-table.json');
         const candidateTable = path.join(modelsDir, 'policy-table.candidate.test.json');
         fs.writeFileSync(runFile, 'x', 'utf8');
+        fs.writeFileSync(preflightReport, '{}', 'utf8');
         fs.writeFileSync(deployedTable, '{}', 'utf8');
         fs.writeFileSync(candidateTable, '{}', 'utf8');
 
         const withDeployed = collectTargets({ runsDir, modelsDir, keepDeployed: false });
         const keepDeployed = collectTargets({ runsDir, modelsDir, keepDeployed: true });
         expect(withDeployed).toContain(runFile);
+        expect(withDeployed).not.toContain(preflightReport);
         expect(withDeployed).toContain(deployedTable);
         expect(withDeployed).toContain(candidateTable);
         expect(keepDeployed).toContain(runFile);
+        expect(keepDeployed).not.toContain(preflightReport);
         expect(keepDeployed).not.toContain(deployedTable);
         expect(keepDeployed).toContain(candidateTable);
 

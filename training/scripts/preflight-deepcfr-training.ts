@@ -37,7 +37,7 @@ function parseArgs(argv: string[]) {
     const deepcfrDir = path.resolve(process.cwd(), 'data', 'deepcfr');
     const args = {
         pythonPath: path.resolve(process.cwd(), '.venv', 'Scripts', 'python.exe'),
-        checkScriptPath: path.resolve(process.cwd(), 'ai', 'train', 'check_deepcfr_env.py'),
+        checkScriptPath: path.resolve(process.cwd(), 'training', 'python', 'check_deepcfr_env.py'),
         runsDir,
         modelsDir: path.resolve(process.cwd(), 'data', 'models'),
         deepcfrDir,
@@ -76,7 +76,7 @@ function printHelp() {
         '',
         'Options:',
         '      --python <path>         Python executable path (default: .venv/Scripts/python.exe)',
-        '      --check-script <path>   DeepCFR environment check script (default: ai/train/check_deepcfr_env.py)',
+        '      --check-script <path>   DeepCFR environment check script (default: training/python/check_deepcfr_env.py)',
         '      --runs-dir <path>       Runs directory (default: data/runs)',
         '      --models-dir <path>     Models directory (default: data/models)',
         '      --deepcfr-dir <path>    DeepCFR work directory (default: data/deepcfr)',

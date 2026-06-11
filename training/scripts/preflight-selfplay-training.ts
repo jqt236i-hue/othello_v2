@@ -36,7 +36,7 @@ function parseArgs(argv: string[]) {
     const runsDir = path.resolve(process.cwd(), 'data', 'runs');
     const args = {
         pythonPath: path.resolve(process.cwd(), '.venv', 'Scripts', 'python.exe'),
-        checkTorchScriptPath: path.resolve(process.cwd(), 'ai', 'train', 'check_torch_env.py'),
+        checkTorchScriptPath: path.resolve(process.cwd(), 'training', 'python', 'check_torch_env.py'),
         runsDir,
         modelsDir: path.resolve(process.cwd(), 'data', 'models'),
         out: makeDefaultOutputPath(runsDir),
@@ -71,7 +71,7 @@ function printHelp() {
         '',
         'Options:',
         '      --python <path>            Python executable path (default: .venv/Scripts/python.exe)',
-        '      --check-torch-script <p>   Torch diagnostic script path (default: ai/train/check_torch_env.py)',
+        '      --check-torch-script <p>   Torch diagnostic script path (default: training/python/check_torch_env.py)',
         '      --runs-dir <path>          Runs directory (default: data/runs)',
         '      --models-dir <path>        Models directory (default: data/models)',
         '      --out <path>               Output report JSON path',

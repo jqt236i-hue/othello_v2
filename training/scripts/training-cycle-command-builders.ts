@@ -8,6 +8,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+function resolveTrainingPythonScript(scriptName: string) {
+    return path.resolve('training', 'python', scriptName);
+}
+
 function normalizeSpecialistEarlyStopMonitor(monitor: any) {
     if (monitor === 'val_place_loss') return 'val_loss';
     if (monitor === 'train_place_loss') return 'train_loss';
@@ -139,7 +143,7 @@ function buildOnnxTrainerSampleWeightArgs(args: any, options: any) {
 
 function buildPolicyTrainingCommandArgs(options: any) {
     const { args, iterationPaths, resumeCheckpointPath } = options;
-    const trainerScript = args.policyTrainerScript || path.resolve('ai', 'train', 'train_policy_onnx.py');
+    const trainerScript = args.policyTrainerScript || resolveTrainingPythonScript('train_policy_onnx.py');
     const trainerName = path.basename(trainerScript).toLowerCase();
     const cnnTrainerArgs = trainerName === 'train_policy_onnx_v2.py' || trainerName === 'train_policy_onnx_v3.py'
         ? [
@@ -170,7 +174,7 @@ function buildPolicyTrainingCommandArgs(options: any) {
 function buildCardTrainingCommandArgs(options: any) {
     const { args, iterationPaths, resumeCheckpointPath } = options;
     return appendResumeArgs([
-        path.resolve('ai', 'train', 'train_card_onnx.py'),
+        resolveTrainingPythonScript('train_card_onnx.py'),
         '--input', iterationPaths.trainDataPath,
         '--onnx-out', iterationPaths.cardOnnxModelPath,
         '--meta-out', iterationPaths.cardOnnxMetaPath,
@@ -186,7 +190,7 @@ function buildCardTrainingCommandArgs(options: any) {
 function buildTargetTrainingCommandArgs(options: any) {
     const { args, iterationPaths, resumeCheckpointPath } = options;
     return appendResumeArgs([
-        path.resolve('ai', 'train', 'train_target_onnx.py'),
+        resolveTrainingPythonScript('train_target_onnx.py'),
         '--input', iterationPaths.trainDataPath,
         '--onnx-out', iterationPaths.targetOnnxModelPath,
         '--meta-out', iterationPaths.targetOnnxMetaPath,
@@ -202,7 +206,7 @@ function buildValueTrainingCommandArgs(options: any) {
     const valueLr = Number.isFinite(args.onnxValueLr) ? args.onnxValueLr : args.onnxLr;
     const valueHiddenSize = Number.isFinite(args.onnxValueHiddenSize) ? args.onnxValueHiddenSize : args.onnxHiddenSize;
     return appendResumeArgs([
-        path.resolve('ai', 'train', 'train_value_onnx.py'),
+        resolveTrainingPythonScript('train_value_onnx.py'),
         '--input', iterationPaths.trainDataPath,
         '--onnx-out', iterationPaths.valueOnnxModelPath,
         '--meta-out', iterationPaths.valueOnnxMetaPath,

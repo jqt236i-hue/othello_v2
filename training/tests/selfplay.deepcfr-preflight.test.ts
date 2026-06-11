@@ -10,7 +10,7 @@ describe('deepcfr preflight script', () => {
     test('parseArgs supports strict and allow-artifacts', () => {
         const args = parseArgs([
             '--python', '.venv/Scripts/python.exe',
-            '--check-script', 'ai/train/check_deepcfr_env.py',
+            '--check-script', 'training/python/check_deepcfr_env.py',
             '--allow-artifacts',
             '--skip-check-window',
             '--strict',
@@ -19,7 +19,7 @@ describe('deepcfr preflight script', () => {
             '--out', 'data/runs/deepcfr.preflight.custom.json'
         ]);
         expect(args.pythonPath.endsWith(path.join('.venv', 'Scripts', 'python.exe'))).toBe(true);
-        expect(args.checkScriptPath.endsWith(path.join('ai', 'train', 'check_deepcfr_env.py'))).toBe(true);
+        expect(args.checkScriptPath.endsWith(path.join('training', 'python', 'check_deepcfr_env.py'))).toBe(true);
         expect(args.requireCleanData).toBe(false);
         expect(args.checkWindow).toBe(false);
         expect(args.strict).toBe(true);

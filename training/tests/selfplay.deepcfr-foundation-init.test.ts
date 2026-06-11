@@ -10,7 +10,7 @@ describe('deepcfr foundation init script', () => {
         const args = parseArgs([
             '--runs-dir', 'data/runs-x',
             '--deepcfr-dir', 'data/deepcfr-x',
-            '--config-template', 'ai/train/deepcfr_config.base.yaml',
+            '--config-template', 'training/python/deepcfr_config.base.yaml',
             '--config-out', 'data/deepcfr-x/deepcfr_config.active.yaml',
             '--manifest-out', 'data/runs-x/deepcfr.foundation.custom.json',
             '--no-copy-config',

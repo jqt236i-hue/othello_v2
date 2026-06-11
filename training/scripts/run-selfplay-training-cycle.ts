@@ -114,7 +114,7 @@ function printHelp() {
         '      --selfplay-heuristic-weight-min <r> Min heuristic score weight in teacher hybrid scoring (default: 1)',
         '      --selfplay-heuristic-weight-max <r> Max heuristic score weight in teacher hybrid scoring (default: 1)',
         '      --python <path>         Python executable path (default: .venv/Scripts/python.exe)',
-        '      --policy-trainer-script <path> Policy trainer script (default: ai/train/train_policy_onnx.py)',
+        '      --policy-trainer-script <path> Policy trainer script (default: training/python/train_policy_onnx.py)',
         '      --onnx-epochs <n>       train_policy_onnx --epochs (default: 9999)',
         '      --onnx-batch-size <n>   train_policy_onnx --batch-size (default: 2048)',
         '      --onnx-lr <r>           train_policy_onnx --lr (default: 0.001)',
@@ -995,7 +995,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     });
 
     runManagedStep('evaluate-policy', args.pythonPath, [
-        path.resolve('ai', 'train', 'evaluate_policy_table.py'),
+        path.resolve('training', 'python', 'evaluate_policy_table.py'),
         '--input', p.evalDataPath,
         '--model', p.candidateModelPath
     ], {

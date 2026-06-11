@@ -59,7 +59,7 @@ function parseArgs(argv: string[]): DeepCFRArgs {
     const args: DeepCFRArgs = {
         runsDir,
         deepcfrDir,
-        configTemplatePath: path.resolve(process.cwd(), 'ai', 'train', 'deepcfr_config.base.yaml'),
+        configTemplatePath: path.resolve(process.cwd(), 'training', 'python', 'deepcfr_config.base.yaml'),
         configOutPath: path.resolve(deepcfrDir, 'deepcfr_config.active.yaml'),
         manifestOut: makeDefaultManifestPath(runsDir),
         copyConfig: true,
@@ -90,7 +90,7 @@ function printHelp() {
         'Options:',
         '      --runs-dir <path>         Runs directory (default: data/runs)',
         '      --deepcfr-dir <path>      DeepCFR work directory (default: data/deepcfr)',
-        '      --config-template <path>  Base config template path (default: ai/train/deepcfr_config.base.yaml)',
+        '      --config-template <path>  Base config template path (default: training/python/deepcfr_config.base.yaml)',
         '      --config-out <path>       Active config output path (default: data/deepcfr/deepcfr_config.active.yaml)',
         '      --manifest-out <path>     Output manifest JSON path',
         '      --no-copy-config          Skip base config copy',

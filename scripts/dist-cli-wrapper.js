@@ -1,10 +1,19 @@
 "use strict";
 
 const path = require("path");
+const fs = require("fs");
 const { spawnSync } = require("child_process");
 
+function resolveDistScript(scriptName) {
+  const candidates = [
+    path.join(__dirname, "..", "dist", "scripts", scriptName),
+    path.join(__dirname, "..", "dist", "training", "scripts", scriptName)
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+}
+
 function wrapDistCli(wrapperModule, scriptName) {
-  const distScript = path.join(__dirname, "..", "dist", "scripts", scriptName);
+  const distScript = resolveDistScript(scriptName);
   if (require.main === wrapperModule) {
     const result = spawnSync(process.execPath, [distScript].concat(process.argv.slice(2)), {
       cwd: process.cwd(),
@@ -21,5 +30,6 @@ function wrapDistCli(wrapperModule, scriptName) {
 }
 
 module.exports = {
+  resolveDistScript,
   wrapDistCli
 };
