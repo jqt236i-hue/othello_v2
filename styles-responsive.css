@@ -253,9 +253,49 @@ html.layout-profile-phone-portrait #card-detail-panel {
     top: auto;
     bottom: auto;
     width: min(calc(430px * var(--layout-stage-scale)), 96vw);
+    min-height: 0;
+    max-height: calc(170px * var(--layout-stage-scale));
     margin: 0;
+    padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     transform: none;
+    overflow: hidden;
     z-index: 40;
+}
+
+html.layout-profile-phone-portrait #card-detail-name {
+    min-height: calc(18px * var(--layout-stage-scale));
+    margin-bottom: calc(5px * var(--layout-stage-scale));
+    font-size: calc(13px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #card-detail-desc {
+    min-height: calc(58px * var(--layout-stage-scale));
+    max-height: calc(74px * var(--layout-stage-scale));
+    margin-bottom: calc(4px * var(--layout-stage-scale));
+    padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+    font-size: calc(12px * var(--layout-stage-scale));
+    line-height: 1.42;
+    overflow-y: auto;
+}
+
+html.layout-profile-phone-portrait #card-detail-effect-tags {
+    min-height: 0;
+    margin-bottom: calc(4px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #card-detail-actions {
+    margin-top: calc(6px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
+    gap: calc(5px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn),
+html.layout-profile-phone-portrait #card-detail-panel > #pass-btn,
+html.layout-profile-phone-portrait #card-detail-panel > #cancel-card-btn {
+    min-width: calc(54px * var(--layout-stage-scale));
+    min-height: calc(28px * var(--layout-stage-scale));
+    padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    font-size: calc(11px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #networkChatPanel {

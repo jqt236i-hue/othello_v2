@@ -57,6 +57,9 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#quick-controls-bar[\s\S]*display:\s*none/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*position:\s*relative/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*order:\s*1/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*max-height:\s*calc\(170px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-desc[\s\S]*min-height:\s*calc\(58px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-actions[\s\S]*margin-top:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#log[\s\S]*display:\s*none/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black[\s\S]*order:\s*2/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-white,\s*[\s\S]*#hand-black[\s\S]*overflow-x:\s*auto/);
