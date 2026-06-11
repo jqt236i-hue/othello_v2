@@ -306,6 +306,7 @@ const CpuDecisionCardRiskModule = requireCpuDecisionModuleOrNull('./cpu-decision
 const CpuDecisionCardOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-onnx');
 const CpuDecisionCardLearnedModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-learned');
 const CpuDecisionCardChoiceModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-choice');
+const CpuDecisionMoveSelectionModule = requireCpuDecisionModuleOrNull('./cpu-decision-move-selection');
 const CpuDecisionPendingScoreModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-score');
 const CpuDecisionPendingOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-onnx');
 const CpuDecisionCardActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-actions');
@@ -2507,6 +2508,40 @@ function cpuMaybeUseCardWithPolicy(playerKey: any): any {
     return false;
 }
 
+const CpuDecisionMoveSelection = (CpuDecisionMoveSelectionModule && typeof CpuDecisionMoveSelectionModule.createCpuDecisionMoveSelection === 'function')
+    ? CpuDecisionMoveSelectionModule.createCpuDecisionMoveSelection({
+        buildLv6LookaheadOptions,
+        buildMovePlanContext,
+        choosePendingTargetWithPolicy,
+        createLearnedScoreFn,
+        createLookaheadMetaLogger,
+        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
+        error: (...args: any[]) => console.error(...args),
+        filterLv6OpenCornerAdjacentMoves,
+        filterMovesByLv6PlacementPriority,
+        getAISystem: () => ((typeof AISystem !== 'undefined') ? AISystem : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCpuPolicyCore: () => CpuPolicyCore,
+        getCpuRng: () => cpuRng,
+        getCurrentCpuBoard,
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        isAISystemAvailable,
+        isPlayableBoard,
+        maybeOverrideWithStrictPendingPlacement,
+        readCpuPendingEffect: (playerKey: any) => readCpuPendingEffect(playerKey),
+        resolveCpuLv6LookaheadWeights,
+        resolveCpuSmartnessLevel,
+        resolvePendingType,
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        selectMoveFromLearnedPolicy,
+        selectMoveFromOthelloPolicy,
+        shouldForceCardModeLv6Placement,
+        warn: (...args: any[]) => console.warn(...args)
+    })
+    : null;
+
 /**
  * CPU手選択
  * @param {Array} candidateMoves - 合法手リスト
@@ -2514,152 +2549,10 @@ function cpuMaybeUseCardWithPolicy(playerKey: any): any {
  * @returns {Object} 選択された手
  */
 function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
-    const cardLevel = resolveCpuSmartnessLevel(playerKey);
-
-    // 人間プレイヤーの場合はエラー（このコードは呼ばれてはいけない）
-    if (cardLevel < 0) {
-        console.error(`[CPU] selectCpuMoveWithPolicy called for human player ${playerKey}, returning random move`);
-        return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
+    if (CpuDecisionMoveSelection && typeof CpuDecisionMoveSelection.selectCpuMoveWithPolicy === 'function') {
+        return CpuDecisionMoveSelection.selectCpuMoveWithPolicy(candidateMoves, playerKey);
     }
-
-    const pendingType = resolvePendingType(playerKey);
-    const board = getCurrentCpuBoard();
-    const forceLv6Placement = shouldForceCardModeLv6Placement(playerKey, pendingType, board);
-    const placementLevel = forceLv6Placement ? 6 : cardLevel;
-
-    let prioritizedCandidateMoves = filterMovesByLv6PlacementPriority(playerKey, placementLevel, candidateMoves);
-    if (Number.isFinite(placementLevel) && placementLevel >= 6) {
-        prioritizedCandidateMoves = filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
-    }
-
-    const aiSelector = isAISystemAvailable() && typeof AISystem.selectMove === 'function'
-        ? (moves: any, lv: any) => AISystem.selectMove(gameState, cardState, moves, lv, null)
-        : null;
-    if (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') {
-        const pending = readCpuPendingEffect(playerKey);
-        const pendingPicked = choosePendingTargetWithPolicy(playerKey, pendingType, prioritizedCandidateMoves, pending);
-        if (pendingPicked) {
-            cpuDebugLog(
-                `[CPU] Lv${cardLevel} ${playerKey}: ${pendingType}選択 (${pendingPicked.row}, ${pendingPicked.col}) - 反転${Array.isArray(pendingPicked.flips) ? pendingPicked.flips.length : 0}枚`
-            );
-            return pendingPicked;
-        }
-    }
-
-    const othelloMove = (placementLevel >= 6)
-        ? selectMoveFromOthelloPolicy(prioritizedCandidateMoves, playerKey, placementLevel, { forceEnabled: forceLv6Placement })
-        : null;
-    if (othelloMove) {
-        cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: リバーシ専用AI選択 (${othelloMove.row}, ${othelloMove.col}) - 反転${Array.isArray(othelloMove.flips) ? othelloMove.flips.length : 0}枚`);
-        return othelloMove;
-    }
-
-    const learnedMove = (placementLevel >= 6) ? selectMoveFromLearnedPolicy(prioritizedCandidateMoves, playerKey, placementLevel) : null;
-    const learnedScoreFn = createLearnedScoreFn(playerKey, placementLevel, prioritizedCandidateMoves.length);
-    const movePlanContext = (placementLevel >= 4) ? buildMovePlanContext(playerKey, placementLevel, prioritizedCandidateMoves) : null;
-    const movePlanScoreFn = (
-        movePlanContext &&
-        CpuPolicyCore &&
-        typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
-    )
-        ? (move: any) => {
-            try {
-                return Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
-            } catch (e) {
-                return 0;
-            }
-        }
-        : null;
-
-    if (learnedMove && !movePlanScoreFn) {
-        cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
-        return learnedMove;
-    }
-
-    const combinedScoreFn = (move: any) => {
-        let score = 0;
-        if (movePlanScoreFn) score += movePlanScoreFn(move);
-        if (learnedScoreFn) {
-            const learnedWeight = movePlanScoreFn ? (placementLevel >= 6 ? 0.35 : 0.15) : 1.0;
-            score += (Number(learnedScoreFn(move) || 0) * learnedWeight);
-        }
-        if (learnedMove && move && move.row === learnedMove.row && move.col === learnedMove.col) {
-            score += movePlanScoreFn ? 1200 : 2500;
-        }
-        return score;
-    };
-
-    if (
-        placementLevel >= 6 &&
-        CpuPolicyCore &&
-        typeof CpuPolicyCore.chooseMoveByLookahead === 'function' &&
-        isPlayableBoard(gameState && gameState.board)
-    ) {
-        const playerValue = playerKey === 'black'
-            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-            : (typeof WHITE !== 'undefined' ? WHITE : -1);
-        const lv6Lookahead = buildLv6LookaheadOptions(placementLevel, gameState.board, prioritizedCandidateMoves.length, playerKey);
-        const onSearchMeta = createLookaheadMetaLogger(playerKey, placementLevel, 'policy-lookahead');
-        const weightConfig = resolveCpuLv6LookaheadWeights();
-        const looked = CpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves, {
-            board: gameState.board,
-            playerValue,
-            level: placementLevel,
-            depth: lv6Lookahead.depth,
-            maxBranch: lv6Lookahead.maxBranch,
-            nodeBudget: lv6Lookahead.nodeBudget,
-            scoreMove: combinedScoreFn,
-            priorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 62,
-            searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.8,
-            endgameSolveEmpties: lv6Lookahead.endgameSolveEmpties || 20,
-            endgameDepth: lv6Lookahead.endgameDepth || 16,
-            endgameNodeBudget: lv6Lookahead.endgameNodeBudget || 1_500_000,
-            maxTimeMs: lv6Lookahead.maxTimeMs || 2_200,
-            endgameMaxTimeMs: lv6Lookahead.endgameMaxTimeMs || 1_600,
-            onSearchMeta,
-            boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
-                ? cardState.boardBonusByCell
-                : null,
-            boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
-                ? cardState.boardBonusConsumedByCell
-                : null
-        });
-        if (looked) {
-            const stabilized = maybeOverrideWithStrictPendingPlacement(looked, prioritizedCandidateMoves, playerKey, movePlanScoreFn);
-            if (stabilized) {
-                cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 先読み選択 (${stabilized.row}, ${stabilized.col}) - 反転${stabilized.flips.length}枚`);
-                return stabilized;
-            }
-            cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 先読み選択 (${looked.row}, ${looked.col}) - 反転${looked.flips.length}枚`);
-            return looked;
-        }
-    }
-
-    if (CpuPolicyCore && typeof CpuPolicyCore.chooseMove === 'function') {
-        const useHeuristic = !movePlanScoreFn && placementLevel >= 3;
-        const selected = CpuPolicyCore.chooseMove(prioritizedCandidateMoves, placementLevel, cpuRng, aiSelector, {
-            enableHeuristic: useHeuristic,
-            scoreMove: (movePlanScoreFn || learnedScoreFn || learnedMove) ? combinedScoreFn : null
-        });
-        if (selected) {
-            cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
-            return selected;
-        }
-    }
-
-    if (!isAISystemAvailable() || typeof AISystem.selectMove !== 'function') {
-        // フォールバック: ランダム (injectable via setCpuRng)
-        console.warn('[CPU] AISystem not available, using random');
-        return prioritizedCandidateMoves[Math.floor(cpuRng.random() * prioritizedCandidateMoves.length)];
-    }
-    try {
-        const selectedMove = AISystem.selectMove(gameState, cardState, prioritizedCandidateMoves, placementLevel, null);
-        cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 選択 (${selectedMove.row}, ${selectedMove.col}) - 反転${selectedMove.flips.length}枚`);
-        return selectedMove;
-    } catch (e) {
-        console.warn('[CPU] AISystem.selectMove failed, falling back to random', e);
-        return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
-    }
+    return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
 }
 
 function getBoardCellValueSafe(board: any, row: any, col: any): any {
