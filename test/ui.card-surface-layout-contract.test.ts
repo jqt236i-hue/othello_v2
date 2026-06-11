@@ -101,6 +101,7 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*rgba\(255,\s*232,\s*162,\s*0\.16\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*outline-offset:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*rgba\(58,\s*255,\s*130,\s*0\.82\)/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*animation:\s*none/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\)::before[\s\S]*border-color:\s*var\(--card-tier-inner-border/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.visible:not\(\.affordable\):not\(\.usable\):not\(\.card-use-ghost\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\) \.card-name[\s\S]*color:\s*var\(--card-tier-name-color/);
