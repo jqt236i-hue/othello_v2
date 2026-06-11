@@ -2452,7 +2452,9 @@
     width: calc(180px * var(--layout-stage-scale));
     height: calc(180px * var(--layout-stage-scale));
     transform-origin: center bottom;
-    filter: drop-shadow(5px 10px 10px rgba(0, 0, 0, 0.6));
+    filter: none;
+    -webkit-filter: none;
+    contain: layout style;
     will-change: transform;
 }
 
