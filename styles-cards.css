@@ -1253,21 +1253,23 @@
 }
 
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) {
-    border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
-    outline: calc(2px * var(--layout-stage-scale)) solid var(--card-available-outline, rgba(255, 232, 150, 0.92));
-    outline-offset: calc(2px * var(--layout-stage-scale));
+    outline: none;
     box-shadow:
-        0 0 0 calc(2px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(10px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(18px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
-    transform: translateY(-5px);
+        var(--ui-elevation-card),
+        0 0 calc(14px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
+        0 0 calc(26px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
+        0 calc(10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52);
+    transform: translateY(-4px);
     filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(4px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(12px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(28px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
     -webkit-filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(4px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(12px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(28px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
     animation: none;
 }
 
@@ -1275,106 +1277,68 @@
 #hand-black .card-item.usable:not(.selected),
 #hand-white .card-item.affordable:not(.selected),
 #hand-white .card-item.usable:not(.selected) {
-    border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
-    outline: calc(2px * var(--layout-stage-scale)) solid var(--card-available-outline, rgba(255, 232, 150, 0.92));
-    outline-offset: calc(2px * var(--layout-stage-scale));
+    outline: none;
     box-shadow:
-        0 0 0 calc(2px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(10px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(18px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
-    transform: translateY(-5px);
+        var(--ui-elevation-card),
+        0 0 calc(14px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
+        0 0 calc(26px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
+        0 calc(10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52) !important;
+    transform: translateY(-4px);
     z-index: 30;
     filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(4px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(12px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(28px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
     -webkit-filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(4px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(12px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(28px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
     animation: none !important;
 }
 
-:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable)::before {
-    border-color: var(--card-tier-inner-border, rgba(255, 215, 0, 0.18));
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, transparent 18%, transparent 74%, rgba(0, 0, 0, 0.18) 100%),
-        linear-gradient(90deg, var(--card-edge-glow) 0%, transparent 20%, transparent 80%, var(--card-edge-glow) 100%);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.12),
-        inset 0 0 calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28),
-        inset 0 0 calc(8px * var(--layout-stage-scale)) var(--card-edge-glow),
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.24);
-}
-
-:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable) .card-name {
-    color: var(--card-tier-name-color, inherit);
-    background:
-        linear-gradient(90deg, transparent 0%, rgba(255, 236, 172, 0.18) 10%, transparent 20%, transparent 80%, rgba(255, 236, 172, 0.14) 90%, transparent 100%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(0, 0, 0, 0.2) 100%),
-        linear-gradient(145deg, var(--card-tier-name-plate-bg-a, rgba(54, 40, 28, 0.96)) 0%, var(--card-tier-name-plate-bg-b, rgba(22, 15, 10, 0.94)) 100%);
-    border-color: var(--card-tier-name-plate-border, rgba(228, 197, 124, 0.42));
-    box-shadow:
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(20, 12, 8, 0.42),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.22),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34),
-        inset 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 226, 150, 0.08),
-        0 calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32);
-    text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) var(--card-tier-name-shadow, rgba(0, 0, 0, 0.82)),
-        0 0 calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.92),
-        0 0 calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
-}
-
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable).visible.clickable:hover:not(.selected) {
-    transform: translateY(-7px);
-    outline-color: var(--card-available-outline, rgba(255, 232, 150, 0.92));
-    outline-offset: calc(3px * var(--layout-stage-scale));
+    outline: none;
     box-shadow:
-        0 0 0 calc(3px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(14px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(24px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(14px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52);
+        var(--ui-elevation-card),
+        0 0 calc(18px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
+        0 0 calc(32px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
+        0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54);
+    transform: translateY(-6px);
     filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(16px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(32px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
     -webkit-filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(16px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(32px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
 }
 
 #hand-black .card-item.affordable.visible.clickable:hover:not(.selected),
 #hand-black .card-item.usable.visible.clickable:hover:not(.selected),
 #hand-white .card-item.affordable.visible.clickable:hover:not(.selected),
 #hand-white .card-item.usable.visible.clickable:hover:not(.selected) {
-    transform: translateY(-8px) scale(1.028);
-    outline-color: var(--card-available-outline, rgba(255, 232, 150, 0.92));
-    outline-offset: calc(3px * var(--layout-stage-scale));
+    outline: none;
     box-shadow:
-        0 0 0 calc(3px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(14px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(24px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(14px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52) !important;
+        var(--ui-elevation-card),
+        0 0 calc(18px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
+        0 0 calc(32px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
+        0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54) !important;
+    transform: translateY(-6px);
     filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(16px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
+        drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(32px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
     -webkit-filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(16px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56))) !important;
-}
-
-:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable) :is(.card-cost-badge, .card-type-badge) {
-    color: var(--card-tier-badge-text, #fff0c8);
-    border-color: var(--card-tier-badge-border, rgba(255, 215, 0, 0.78));
-    box-shadow:
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(28, 16, 9, 0.48),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.32),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.28),
-        inset 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 229, 150, 0.08),
-        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46),
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 220, 132, 0.12);
-    text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.76),
-        0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44);
+        drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) var(--card-available-outline, rgba(255, 232, 150, 0.92)))
+        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
+        drop-shadow(0 0 calc(32px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
+        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
 }
 
 :is(#hand-black, #hand-white) .card-item.visible:not(.affordable):not(.usable):not(.card-use-ghost) {
