@@ -84,6 +84,7 @@ const CpuTurnControllerEvents = requireCpuTurnHandlerModuleOrNull('./controller-
 const CpuTurnSchedulerModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-scheduler');
 const CpuTurnPresentationRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-presentation-runtime');
 const CpuTurnCardPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-card-phase');
+const CpuTurnPendingPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-pending-phase');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -1332,6 +1333,26 @@ function getPendingTypeHandlers(playerKey: PlayerKey) {
     return handlers;
 }
 
+const CpuTurnPendingPhase = (CpuTurnPendingPhaseModule && typeof CpuTurnPendingPhaseModule.createCpuTurnPendingPhase === 'function')
+    ? CpuTurnPendingPhaseModule.createCpuTurnPendingPhase({
+        clearCpuPendingSelection,
+        emitCpuCommentary,
+        emitCpuDebugLog,
+        getAnimationRetryDelayMs,
+        getCurrentPlayerKeySafe,
+        getPendingDispatchHandlers,
+        isCpuDebugLogAvailable,
+        isUiAnimationBusy,
+        readCpuPendingSelection,
+        resetPendingSelectRetryState,
+        resolvePendingSelectionDispatchKeyForCpu,
+        scheduleRunCpuTurn,
+        setCpuProcessing,
+        shouldAbortCpuForHumanMode,
+        shouldAbortStuckPendingSelection
+    })
+    : null;
+
 async function processCpuTurn(): Promise<void> {
     if (isHumanVsHumanModeEnabled()) {
         setCpuProcessing(false);
@@ -1487,69 +1508,20 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         }
 
         let pending = readCpuPendingSelection(playerKey);
-
         if (pending && pending.stage === 'selectTarget') {
-            emitCpuCommentary('card_targeted', playerKey, {
+            const pendingPhaseResult = await CpuTurnPendingPhase.runCpuTurnPendingPhase({
+                playerKey,
+                autoMode,
                 level,
-                pendingType: pending.type || ''
+                pending
             });
-        }
-
-        // Use shared pending-dispatch keys so human/CPU paths do not duplicate type aliases.
-        if (pending && pending.stage === 'selectTarget') {
-            const pendingDispatchKey = resolvePendingSelectionDispatchKeyForCpu(pending.type);
-            const handler = pendingDispatchKey ? (getPendingDispatchHandlers(playerKey) as any)[pendingDispatchKey] : null;
-            if (handler) {
-                if (isCpuDebugLogAvailable()) {
-                    emitCpuDebugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', { playerKey, pendingEffect: pending });
-                }
-                await handler();
-                if (shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
-                    return;
-                }
-                pending = readCpuPendingSelection(playerKey);
-                if (isUiAnimationBusy()) {
-                    setCpuProcessing(false);
-                    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                    return;
-                }
-                const activePlayerAfterSelection = gameState ? gameState.currentPlayer : null;
-                const activePlayerKeyAfterSelection = (activePlayerAfterSelection === CONST_BLACK || activePlayerAfterSelection === 'black')
-                    ? 'black'
-                    : ((activePlayerAfterSelection === CONST_WHITE || activePlayerAfterSelection === 'white') ? 'white' : null);
-                if (activePlayerKeyAfterSelection && activePlayerKeyAfterSelection !== playerKey) {
-                    resetPendingSelectRetryState(playerKey);
-                    setCpuProcessing(false);
-                    return;
-                }
-                // Continue-turn selection cards may keep pending selectTarget
-                // after one application. Do not proceed to normal move generation/pass until
-                // selection flow is finished.
-                if (pending && pending.stage === 'selectTarget') {
-                    if (shouldAbortStuckPendingSelection(playerKey, pending)) {
-                        // Safety valve: avoid infinite retry loops when a selector cannot progress.
-                        clearCpuPendingSelection(playerKey);
-                        resetPendingSelectRetryState(playerKey);
-                        setCpuProcessing(false);
-                        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                        return;
-                    }
-                    setCpuProcessing(false);
-                    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
-                    return;
-                }
-            } else {
-                if (shouldAbortStuckPendingSelection(playerKey, pending)) {
-                    clearCpuPendingSelection(playerKey);
-                    resetPendingSelectRetryState(playerKey);
-                }
-                setCpuProcessing(false);
-                scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+            if (pendingPhaseResult && pendingPhaseResult.status === 'handled') {
                 return;
             }
+            pending = pendingPhaseResult ? pendingPhaseResult.pending : readCpuPendingSelection(playerKey);
+        } else {
+            resetPendingSelectRetryState(playerKey);
         }
-
-        resetPendingSelectRetryState(playerKey);
 
         const protection = getActiveProtectionSafe(selfColor);
         const perma = getFlipBlockersSafe();
