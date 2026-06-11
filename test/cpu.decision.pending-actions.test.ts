@@ -53,6 +53,20 @@ function createController(overrides?: Record<string, any>) {
 }
 
 describe('cpu decision pending actions controller', () => {
+  test('target action does not fall back after pending pipeline success', async () => {
+    const ctx = createController();
+    ctx.runCpuPendingSelectionViaPipeline.mockResolvedValueOnce({
+      ok: true,
+      res: { ok: true }
+    });
+
+    await ctx.controller.cpuSelectStrongWindWillWithPolicy('white');
+
+    expect(ctx.cardLogic.applyStrongWindWill).not.toHaveBeenCalled();
+    expect(ctx.emitCpuSelectionStateChange).not.toHaveBeenCalled();
+    expect(ctx.clearCpuPendingEffect).not.toHaveBeenCalled();
+  });
+
   test('target action falls back to direct apply when pending pipeline rejects', async () => {
     const ctx = createController();
     ctx.runCpuPendingSelectionViaPipeline.mockResolvedValueOnce({
@@ -77,5 +91,17 @@ describe('cpu decision pending actions controller', () => {
     );
     expect(ctx.emitCpuSelectionStateChange).toHaveBeenCalledTimes(1);
     expect(ctx.clearCpuPendingEffect).not.toHaveBeenCalled();
+  });
+
+  test('target action falls back to direct apply when pending pipeline returns malformed truthy result', async () => {
+    const ctx = createController();
+    ctx.runCpuPendingSelectionViaPipeline.mockResolvedValueOnce({
+      res: { ok: true }
+    });
+
+    await ctx.controller.cpuSelectStrongWindWillWithPolicy('white');
+
+    expect(ctx.cardLogic.applyStrongWindWill).toHaveBeenCalledTimes(1);
+    expect(ctx.emitCpuSelectionStateChange).toHaveBeenCalledTimes(1);
   });
 });

@@ -1872,7 +1872,7 @@ async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: 
 }
 
 function isCpuPendingPipelineHandled(result: any): boolean {
-    return !!(result && result.ok !== false);
+    return !!(result && result.ok === true);
 }
 
 function resolveAppliedCardMeta(playerKey: any, fallbackCardId: any, fallbackCardDef: any): any {

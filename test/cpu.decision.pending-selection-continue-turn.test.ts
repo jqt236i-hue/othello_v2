@@ -152,6 +152,19 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('CPU destroy selection does not fall back after pending pipeline success', async () => {
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 3 }],
+      applyDestroyEffect: jest.fn(() => true)
+    };
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(global.CardLogic.applyDestroyEffect).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('CPU destroy selection falls back to direct apply when pending pipeline rejects', async () => {
     global.CardLogic = {
       getSelectableTargets: () => [{ row: 2, col: 3 }],
@@ -177,4 +190,5 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     );
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
+
 });
