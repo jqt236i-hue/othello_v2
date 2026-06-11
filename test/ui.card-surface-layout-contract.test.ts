@@ -100,11 +100,11 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-name[\s\S]*backdrop-filter:\s*blur/);
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*rgba\(255,\s*232,\s*162,\s*0\.16\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*outline-offset:\s*calc\(2px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*rgba\(58,\s*255,\s*130,\s*0\.68\)/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*drop-shadow\(0 0 calc\(12px \* var\(--layout-stage-scale\)\) rgba\(32,\s*220,\s*104,\s*0\.42\)\) !important/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*rgba\(68,\s*255,\s*140,\s*0\.92\)/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*drop-shadow\(0 0 calc\(14px \* var\(--layout-stage-scale\)\) rgba\(28,\s*220,\s*104,\s*0\.62\)\) !important/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*-webkit-filter:/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*animation:\s*none/);
-    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable:not\(\.selected\)[\s\S]*rgba\(58,\s*255,\s*130,\s*0\.68\)/);
+    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable:not\(\.selected\)[\s\S]*rgba\(68,\s*255,\s*140,\s*0\.92\)/);
     expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable:not\(\.selected\)[\s\S]*animation:\s*none !important/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\)::before[\s\S]*border-color:\s*var\(--card-tier-inner-border/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.visible:not\(\.affordable\):not\(\.usable\):not\(\.card-use-ghost\)/);
