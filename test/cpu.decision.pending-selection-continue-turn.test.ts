@@ -151,4 +151,30 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
+
+  test('CPU destroy selection falls back to direct apply when pending pipeline rejects', async () => {
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 3 }],
+      applyDestroyEffect: jest.fn(() => {
+        global.cardState.pendingEffectByPlayer.white = null;
+        return true;
+      })
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: false,
+      reason: 'stale_turn'
+    }));
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    expect(global.CardLogic.applyDestroyEffect).toHaveBeenCalledWith(
+      global.cardState,
+      global.gameState,
+      'white',
+      2,
+      3
+    );
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
 });

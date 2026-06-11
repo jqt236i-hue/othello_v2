@@ -1871,6 +1871,10 @@ async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: 
     return null;
 }
 
+function isCpuPendingPipelineHandled(result: any): boolean {
+    return !!(result && result.ok !== false);
+}
+
 function resolveAppliedCardMeta(playerKey: any, fallbackCardId: any, fallbackCardDef: any): any {
     if (CpuDecisionCardPipeline && typeof CpuDecisionCardPipeline.resolveAppliedCardMeta === 'function') {
         return CpuDecisionCardPipeline.resolveAppliedCardMeta(playerKey, fallbackCardId, fallbackCardDef);
@@ -3337,7 +3341,7 @@ async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
         { destroyTarget: { row: target.row, col: target.col } },
         'DESTROY_ONE_STONE'
     );
-    if (pipelineResult) return;
+    if (isCpuPendingPipelineHandled(pipelineResult)) return;
 
     // CPU must bypass UI lock-based handlers and apply effect directly.
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyDestroyEffect === 'function') {
@@ -3459,7 +3463,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey: any): Promise<any> {
         { heavenBlessingCardId: targetCardId },
         'HEAVEN_BLESSING'
     );
-    if (pipelineResult) return;
+    if (isCpuPendingPipelineHandled(pipelineResult)) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyHeavenBlessingChoice === 'function') {
         const res = CardLogic.applyHeavenBlessingChoice(cardState, playerKey, targetCardId);
@@ -3562,7 +3566,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
         { condemnTargetIndex: target.handIndex },
         'CONDEMN_WILL'
     );
-    if (pipelineResult) return;
+    if (isCpuPendingPipelineHandled(pipelineResult)) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCondemnWill === 'function') {
         const res = CardLogic.applyCondemnWill(cardState, playerKey, target.handIndex);
@@ -3604,7 +3608,7 @@ async function cpuSelectObserverWillWithPolicy(playerKey: any): Promise<any> {
         { observerWillTargetIndex: target.handIndex },
         'OBSERVER_WILL'
     );
-    if (pipelineResult) return;
+    if (isCpuPendingPipelineHandled(pipelineResult)) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyObserverWillChoice === 'function') {
         const res = CardLogic.applyObserverWillChoice(cardState, gameState, playerKey, target.handIndex);
@@ -3768,7 +3772,7 @@ async function cpuSelectTimeBombWithPolicy(playerKey: any): Promise<any> {
         { bombTarget: { row: target.row, col: target.col } },
         'TIME_BOMB'
     );
-    if (pipelineResult) return;
+    if (isCpuPendingPipelineHandled(pipelineResult)) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTimeBombWill === 'function') {
         const res = CardLogic.applyTimeBombWill(cardState, gameState, playerKey, target.row, target.col);
@@ -3857,7 +3861,7 @@ async function cpuSelectCloneWillWithPolicy(playerKey: any): Promise<any> {
         { cloneTarget: { row: target.row, col: target.col } },
         'CLONE_WILL'
     );
-    if (pipelineResult) return;
+    if (isCpuPendingPipelineHandled(pipelineResult)) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCloneWill === 'function') {
         const res = CardLogic.applyCloneWill(cardState, gameState, playerKey, target.row, target.col);

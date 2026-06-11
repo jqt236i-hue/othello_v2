@@ -33,6 +33,10 @@ function isAppliedResult(result: any): boolean {
     return !!(result && result.applied);
 }
 
+function isPendingPipelineHandled(result: any): boolean {
+    return !!(result && result.ok !== false);
+}
+
 export function createCpuDecisionPendingActions(config: PendingActionsConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as PendingActionsConfig;
 
@@ -80,7 +84,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             payload,
             opts.pendingType
         );
-        if (pipelineResult) return;
+        if (isPendingPipelineHandled(pipelineResult)) return;
 
         const cardLogic = getCardLogic();
         const applyFn = cardLogic && typeof cardLogic[opts.applyMethodName] === 'function'
