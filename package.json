@@ -76,12 +76,7 @@
     "testEnvironment": "node",
     "preset": "ts-jest",
     "transform": {
-      "^.+\\.(ts|tsx)$": [
-        "ts-jest",
-        {
-          "diagnostics": false
-        }
-      ],
+      "^.+\\.(ts|tsx)$": "<rootDir>/tests/ts-jest-strip-shebang-transform.cjs",
       "^.+\\.(js|jsx)$": "babel-jest"
     },
     "setupFiles": [
@@ -96,6 +91,7 @@
     ],
     "testMatch": [
       "<rootDir>/test/**/*.test.ts",
+      "<rootDir>/training/tests/**/*.test.ts",
       "<rootDir>/game/ai/__tests__/**/*.test.ts",
       "<rootDir>/scripts/__tests__/**/*.test.ts"
     ],

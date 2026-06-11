@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const DeckSpecHelpers = require('../shared/deck-spec');
+const DeckSpecHelpers = require('../../shared/deck-spec');
 const CardCatalog = require(path.resolve(process.cwd(), 'cards', 'catalog.json'));
 
 const DEFAULT_SELFPLAY_WHITE_DECK_CODE = DeckSpecHelpers.getCpuLv6WhiteDeckCode();

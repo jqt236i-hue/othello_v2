@@ -72,6 +72,7 @@ function resolveNamedConfigPath(kind: any, ref: any, cwd: any) {
     const safeKind = kind === 'gate' ? 'gates' : 'profiles';
     const label = kind === 'gate' ? 'gate profile' : 'training profile';
     const baseDir = path.resolve(cwd, 'ai', 'train', 'configs', safeKind);
+    const trainingBaseDir = path.resolve(cwd, 'training', 'python', 'configs', safeKind);
     const raw = String(ref || '').trim();
     const candidates = [];
 
@@ -87,6 +88,10 @@ function resolveNamedConfigPath(kind: any, ref: any, cwd: any) {
         candidates.push(path.resolve(baseDir, `${raw}.yaml`));
         candidates.push(path.resolve(baseDir, `${raw}.yml`));
         candidates.push(path.resolve(baseDir, `${raw}.json`));
+        candidates.push(path.resolve(trainingBaseDir, raw));
+        candidates.push(path.resolve(trainingBaseDir, `${raw}.yaml`));
+        candidates.push(path.resolve(trainingBaseDir, `${raw}.yml`));
+        candidates.push(path.resolve(trainingBaseDir, `${raw}.json`));
     }
 
     for (const one of candidates) {

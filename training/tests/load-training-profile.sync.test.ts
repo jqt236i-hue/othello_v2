@@ -6,7 +6,7 @@ const {
     resolveTrainingProfile,
     resolveNamedConfigPath
 } = require('../scripts/load-training-profile');
-import * as cpuLv6SharedProfile from '../constants/cpu-lv6-shared-profile.js';
+import * as cpuLv6SharedProfile from '../../constants/cpu-lv6-shared-profile.js';
 
 const REPO_ROOT = process.cwd();
 const REPO_PYTHON_PATH = path.join(REPO_ROOT, '.venv', 'Scripts', 'python.exe');
@@ -212,7 +212,8 @@ describe('load-training-profile shared teacher sync', () => {
         const args = resolved.command.args;
 
         expect(resolved.gate && resolved.gate.name).toBe('browser_lv6_growth_v1');
-        expect(args).toContain('--selfplay-use-candidate-every-iteration');
+        expect(getFlagValue(args, '--selfplay-candidate-admission')).toBe('quick-pass');
+        expect(args).not.toContain('--selfplay-use-candidate-every-iteration');
         expect(args).not.toContain('--selfplay-use-promoted-model-only');
         expect(args).toContain('--carry-over-checkpoint');
         expect(args).not.toContain('--carry-over-checkpoint-promoted-only');
@@ -281,8 +282,8 @@ describe('load-training-profile shared teacher sync', () => {
         expect(getFlagValue(args, '--onnx-lr-plateau-min-lr')).toBe('0.00003');
         expect(getFlagValue(args, '--onnx-hand-pressure-sample-boost')).toBe('0.35');
         expect(getFlagValue(args, '--onnx-pending-target-sample-boost')).toBe('0.45');
-        expect(getFlagValue(args, '--min-visits')).toBe('4');
-        expect(getFlagValue(args, '--shape-immediate')).toBe('0.48');
+        expect(getFlagValue(args, '--min-visits')).toBe('8');
+        expect(getFlagValue(args, '--shape-immediate')).toBe('0.32');
         expect(args).not.toContain('--onnx-resume-optimizer');
         expect(Number(getFlagValue(args, '--onnx-corner-balance-sample-boost'))).toBeCloseTo(0.18, 6);
         expect(Number(getFlagValue(args, '--onnx-edge-balance-sample-boost'))).toBeCloseTo(0.08, 6);

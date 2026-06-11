@@ -142,13 +142,13 @@ npm run worker:prepare
 
 ### Task 0.1: Capture `game/cpu-decision.ts` public API
 
-- [ ] **Step 1: Inspect existing exports**
+- [x] **Step 1: Inspect existing exports**
 
 ```powershell
 rg -n "module\.exports|exports\.|export " game/cpu-decision.ts
 ```
 
-- [ ] **Step 2: Add public API snapshot test**
+- [x] **Step 2: Add public API snapshot test**
 
 Create `test/cpu.decision.public-api.test.ts` with an explicit sorted export list copied from the command output. The test must fail if a later extraction drops or renames a public function.
 
@@ -212,7 +212,7 @@ describe('cpu-decision public api', () => {
 });
 ```
 
-- [ ] **Step 3: Run the API test**
+- [x] **Step 3: Run the API test**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts
@@ -220,7 +220,7 @@ npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts
 
 Expected: PASS before production edits.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add test/cpu.decision.public-api.test.ts
@@ -229,19 +229,19 @@ git commit -m "test: capture cpu decision public api"
 
 ### Task 0.2: Characterize ONNX context fields before extension
 
-- [ ] **Step 1: Locate current `buildOnnxContext` callers**
+- [x] **Step 1: Locate current `buildOnnxContext` callers**
 
 ```powershell
 rg -n "buildOnnxContext|getCornerPlanFeatures|ownCornersBefore|oppCornersBefore|ownEdgesBefore|oppEdgesBefore" game test training src
 ```
 
-- [ ] **Step 2: Add context characterization**
+- [x] **Step 2: Add context characterization**
 
 Create `test/cpu.onnx-context.characterization.test.ts`. The test should call `buildOnnxContext` through the public API and assert the current core fields used by ONNX runtime, including `playerKey`, `legalMovesCount`, `candidateMoves`, `hasCornerMoveNow`, `hasEdgeMoveNow`, and charge/deck fields already present.
 
 Do not assert the new corner/edge-before fields yet. This test locks current behavior before Task 3 adds those fields intentionally.
 
-- [ ] **Step 3: Run the context test**
+- [x] **Step 3: Run the context test**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.onnx-context.characterization.test.ts
@@ -249,7 +249,7 @@ npx jest --runInBand --runTestsByPath test\cpu.onnx-context.characterization.tes
 
 Expected: PASS before production edits.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add test/cpu.onnx-context.characterization.test.ts
@@ -274,7 +274,7 @@ git commit -m "test: characterize cpu onnx context"
 
 ### Task 1.1: Add shared helper for move/card mode questions
 
-- [ ] **Step 1: Write shared resolver tests**
+- [x] **Step 1: Write shared resolver tests**
 
 Extend `test/shared.cpu-lv6-runtime-capability.test.ts` with cases for:
 
@@ -286,7 +286,7 @@ Extend `test/shared.cpu-lv6-runtime-capability.test.ts` with cases for:
 
 Each case must assert both card and move ONNX enablement through shared helper calls.
 
-- [ ] **Step 2: Run the failing or passing baseline**
+- [x] **Step 2: Run the failing or passing baseline**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\shared.cpu-lv6-runtime-capability.test.ts
@@ -294,7 +294,7 @@ npx jest --runInBand --runTestsByPath test\shared.cpu-lv6-runtime-capability.tes
 
 Expected before implementation: FAIL only because `shouldUseCpuLv6OnnxMoveDecision` and `shouldUseCpuLv6OnnxCardDecision` are not exported yet.
 
-- [ ] **Step 3: Implement helper in `shared/cpu-lv6-runtime-capability.ts`**
+- [x] **Step 3: Implement helper in `shared/cpu-lv6-runtime-capability.ts`**
 
 Add these pure helpers that wrap the existing canonical resolver. Do not duplicate mode string logic in callers.
 
@@ -304,7 +304,7 @@ Required exports:
 - `shouldUseCpuLv6OnnxCardDecision(sharedProfile, options)`: returns `resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxCardDecision`
 - keep `resolveCpuLv6BrowserRuntimeCapability` unchanged for callers that need the full payload
 
-- [ ] **Step 4: Replace caller-local string comparisons**
+- [x] **Step 4: Replace caller-local string comparisons**
 
 Update these files to call the shared helper:
 
@@ -314,7 +314,7 @@ Update these files to call the shared helper:
 
 Remove local `mode === 'onnx'` or `mode === 'hybrid'` checks from those caller paths unless the comparison remains inside `shared/cpu-lv6-runtime-capability.ts`.
 
-- [ ] **Step 5: Validate focused tests**
+- [x] **Step 5: Validate focused tests**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\shared.cpu-lv6-runtime-capability.test.ts test\ui.cpu-policy-handler.test.ts test\cpu.turn-handler.onnx-hold.test.ts test\cpu.lv6-shared-profile.test.ts
@@ -323,7 +323,7 @@ npm run check:window
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add shared/cpu-lv6-runtime-capability.ts game/cpu-turn-handler.ts game/cpu-decision.ts ui/handlers/cpu-policy.ts test/shared.cpu-lv6-runtime-capability.test.ts
@@ -346,13 +346,13 @@ git commit -m "refactor: centralize lv6 decision mode checks"
 
 ### Task 2.1: Extract pure feature vector builder
 
-- [ ] **Step 1: Locate current vector assembly**
+- [x] **Step 1: Locate current vector assembly**
 
 ```powershell
 rg -n "buildInputVector|feature_vector|obs\.data|getCornerPlanFeatures" game/ai training/python test
 ```
 
-- [ ] **Step 2: Add direct vector test before extraction**
+- [x] **Step 2: Add direct vector test before extraction**
 
 Add a test that drives the current ONNX runtime and asserts selected vector offsets for:
 
@@ -365,7 +365,7 @@ Add a test that drives the current ONNX runtime and asserts selected vector offs
 
 Use the existing mocked ONNX session style already present in repository tests. The test should observe `session.run.mock.calls[0][0].obs.data` before extraction.
 
-- [ ] **Step 3: Run the test before extraction**
+- [x] **Step 3: Run the test before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.cpu-policy-onnx-runtime.test.ts
@@ -373,7 +373,7 @@ npx jest --runInBand --runTestsByPath test\game.cpu-policy-onnx-runtime.test.ts
 
 Expected: PASS and proves the current vector layout.
 
-- [ ] **Step 4: Create `game/ai/policy-feature-vector.ts`**
+- [x] **Step 4: Create `game/ai/policy-feature-vector.ts`**
 
 Move only pure data-to-vector logic. The new module must not import browser, timer, asset loading, ONNX session, or network code.
 
@@ -382,11 +382,11 @@ Required exports:
 - `buildPolicyFeatureVector(context)`
 - `POLICY_FEATURE_VECTOR_OFFSETS`, containing stable names for offsets asserted by `test/game.cpu-policy-onnx-runtime.test.ts`
 
-- [ ] **Step 5: Delegate from `policy-onnx-runtime.ts`**
+- [x] **Step 5: Delegate from `policy-onnx-runtime.ts`**
 
 Replace the private vector construction body with a call to `buildPolicyFeatureVector(context)`. Preserve array type, length, numeric defaults, missing-field fallback behavior, and error handling.
 
-- [ ] **Step 6: Re-run vector tests**
+- [x] **Step 6: Re-run vector tests**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.cpu-policy-onnx-runtime.test.ts
@@ -395,7 +395,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add game/ai/policy-feature-vector.ts game/ai/policy-onnx-runtime.ts test/game.cpu-policy-onnx-runtime.test.ts
@@ -404,7 +404,7 @@ git commit -m "refactor: extract pure policy feature vector builder"
 
 ### Task 2.2: Add missing corner and edge context fields
 
-- [ ] **Step 1: Extend context tests first**
+- [x] **Step 1: Extend context tests first**
 
 Update `test/cpu.onnx-context.characterization.test.ts` to assert:
 
@@ -417,13 +417,13 @@ Update `test/cpu.onnx-context.characterization.test.ts` to assert:
 
 Expected before implementation: FAIL because fields are absent or undefined.
 
-- [ ] **Step 2: Move and enrich context assembly**
+- [x] **Step 2: Move and enrich context assembly**
 
 Move the data assembly body behind `buildOnnxContext` from `game/cpu-decision.ts` into `game/cpu-decision-card-context.ts`, then have `game/cpu-decision.ts` keep the public `buildOnnxContext` export as a delegate. In the extracted context builder, compute the new fields from the same canonical board/player state as the rest of the context.
 
 Do not change scoring, threshold, or final decision logic in this task.
 
-- [ ] **Step 3: Verify ONNX context and runtime**
+- [x] **Step 3: Verify ONNX context and runtime**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.onnx-context.characterization.test.ts test\game.cpu-policy-onnx-runtime.test.ts
@@ -432,7 +432,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add game/cpu-decision.ts game/cpu-decision-card-context.ts test/cpu.onnx-context.characterization.test.ts
@@ -455,7 +455,7 @@ git commit -m "refactor: enrich cpu onnx context fields"
 
 ### Task 3.1: Extract card choice orchestrator
 
-- [ ] **Step 1: Add fallback-order characterization**
+- [x] **Step 1: Add fallback-order characterization**
 
 Add or extend a `selectCardToUse` test that covers these observable branches:
 
@@ -465,7 +465,7 @@ Add or extend a `selectCardToUse` test that covers these observable branches:
 - highest-cost fallback remains after learned/policy rejection
 - AISystem fallback remains last
 
-- [ ] **Step 2: Run the test before extraction**
+- [x] **Step 2: Run the test before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\cpu.decision.card-actions.test.ts test\cpu.decision.card-pipeline.test.ts
@@ -473,7 +473,7 @@ npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\
 
 Expected: PASS before production edits.
 
-- [ ] **Step 3: Create `game/cpu-decision-card-choice.ts`**
+- [x] **Step 3: Create `game/cpu-decision-card-choice.ts`**
 
 Move the body of `selectCardToUse` and only the private helpers required by that body. Inject dependencies from `game/cpu-decision.ts` when they are runtime globals or existing local helpers.
 
@@ -486,11 +486,11 @@ Preserve:
 - fallback order
 - no-card result semantics
 
-- [ ] **Step 4: Leave facade in `game/cpu-decision.ts`**
+- [x] **Step 4: Leave facade in `game/cpu-decision.ts`**
 
 `game/cpu-decision.ts` should keep exporting `selectCardToUse` and delegate to the extracted module.
 
-- [ ] **Step 5: Validate**
+- [x] **Step 5: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\cpu.decision.card-actions.test.ts test\cpu.decision.card-pipeline.test.ts test\cpu.decision.card-risk.test.ts
@@ -499,7 +499,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add game/cpu-decision.ts game/cpu-decision-card-choice.ts test/cpu.decision.public-api.test.ts test/cpu.decision.card-actions.test.ts test/cpu.decision.card-pipeline.test.ts test/cpu.decision.card-risk.test.ts
@@ -508,7 +508,7 @@ git commit -m "refactor: extract cpu card choice orchestrator"
 
 ### Task 3.2: Extract move selection orchestrator
 
-- [ ] **Step 1: Add move fallback characterization**
+- [x] **Step 1: Add move fallback characterization**
 
 Add or extend tests for `selectCpuMoveWithPolicy` covering:
 
@@ -519,7 +519,7 @@ Add or extend tests for `selectCpuMoveWithPolicy` covering:
 - AISystem/random fallback path
 - no legal moves result
 
-- [ ] **Step 2: Run tests before extraction**
+- [x] **Step 2: Run tests before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\cpu.compute.test.ts
@@ -527,15 +527,15 @@ npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\
 
 Expected: PASS before production edits.
 
-- [ ] **Step 3: Create `game/cpu-decision-move-selection.ts`**
+- [x] **Step 3: Create `game/cpu-decision-move-selection.ts`**
 
 Move `selectCpuMoveWithPolicy` orchestration and private helpers directly required for choosing the final move. Do not move unrelated card or pending target code in this pass.
 
-- [ ] **Step 4: Leave facade in `game/cpu-decision.ts`**
+- [x] **Step 4: Leave facade in `game/cpu-decision.ts`**
 
 Keep the public export and delegate to the new module.
 
-- [ ] **Step 5: Validate**
+- [x] **Step 5: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\cpu.compute.test.ts test\cpu.decision.selection-flow.test.ts
@@ -544,7 +544,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add game/cpu-decision.ts game/cpu-decision-move-selection.ts test/cpu.compute.test.ts test/cpu.decision.public-api.test.ts
@@ -553,13 +553,13 @@ git commit -m "refactor: extract cpu move selection orchestrator"
 
 ### Task 3.3: Extract pending action builders
 
-- [ ] **Step 1: List pending selection functions**
+- [x] **Step 1: List pending selection functions**
 
 ```powershell
 rg -n "cpuSelect.*WithPolicy|choosePendingTargetWithPolicy|PendingTargetSelector|pending-selection-registry" game test
 ```
 
-- [ ] **Step 2: Add registry/dispatch characterization**
+- [x] **Step 2: Add registry/dispatch characterization**
 
 Add tests covering at least:
 
@@ -570,11 +570,11 @@ Add tests covering at least:
 - `OBSERVER_WILL`
 - no valid target fallback
 
-- [ ] **Step 3: Create `game/cpu-decision-pending-actions.ts`**
+- [x] **Step 3: Create `game/cpu-decision-pending-actions.ts`**
 
 Move per-card `cpuSelect*WithPolicy` action construction into the new file. Keep `choosePendingTargetWithPolicy` private to `game/cpu-decision.ts` as a delegating helper until all internal callers have migrated; do not add it to `module.exports`.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.decision.public-api.test.ts test\cpu.decision.pending-onnx.test.ts test\cpu.decision.pending-pipeline.test.ts test\cpu.decision.selection-flow.test.ts test\cpu.turn-handler.pending.test.ts
@@ -583,7 +583,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add game/cpu-decision.ts game/cpu-decision-pending-actions.ts test/cpu.decision.pending-onnx.test.ts test/cpu.decision.pending-pipeline.test.ts test/cpu.decision.selection-flow.test.ts test/cpu.turn-handler.pending.test.ts
@@ -607,7 +607,7 @@ git commit -m "refactor: extract cpu pending action builders"
 
 ### Task 4.1: Extract scheduler state
 
-- [ ] **Step 1: Characterize retry scheduling**
+- [x] **Step 1: Characterize retry scheduling**
 
 Run current scheduler tests:
 
@@ -617,11 +617,11 @@ npx jest --runInBand --runTestsByPath test\presentation.schedule.cpu.test.ts tes
 
 Expected: PASS before extraction.
 
-- [ ] **Step 2: Create `game/cpu-turn-scheduler.ts`**
+- [x] **Step 2: Create `game/cpu-turn-scheduler.ts`**
 
 Move retry timer IDs, generation counters, pending select retry state, and scheduling helpers. The module must receive timer functions by dependency parameter when current code already supports timer injection.
 
-- [ ] **Step 3: Validate**
+- [x] **Step 3: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\presentation.schedule.cpu.test.ts test\cpu.turn-handler.pending.test.ts test\cpu.turn-handler.network-guard.test.ts
@@ -630,7 +630,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add game/cpu-turn-handler.ts game/cpu-turn-scheduler.ts test/presentation.schedule.cpu.test.ts test/cpu.turn-handler.pending.test.ts
@@ -639,7 +639,7 @@ git commit -m "refactor: extract cpu turn scheduler"
 
 ### Task 4.2: Extract presentation runtime
 
-- [ ] **Step 1: Run presentation tests before extraction**
+- [x] **Step 1: Run presentation tests before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.cpu-turn-handler.presentation-runtime.test.ts test\presentation.board-updated.serial.test.ts
@@ -647,11 +647,11 @@ npx jest --runInBand --runTestsByPath test\game.cpu-turn-handler.presentation-ru
 
 Expected: PASS before extraction.
 
-- [ ] **Step 2: Create `game/cpu-turn-presentation-runtime.ts`**
+- [x] **Step 2: Create `game/cpu-turn-presentation-runtime.ts`**
 
 Move `createPresentationRuntime` and presentation adapter helpers. Keep the game layer headless by accepting injected functions and event arrays; do not import DOM or UI modules directly.
 
-- [ ] **Step 3: Validate**
+- [x] **Step 3: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.cpu-turn-handler.presentation-runtime.test.ts test\presentation.board-updated.serial.test.ts test\cpu.turn-handler.network-guard.test.ts
@@ -660,7 +660,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add game/cpu-turn-handler.ts game/cpu-turn-presentation-runtime.ts test/game.cpu-turn-handler.presentation-runtime.test.ts test/presentation.board-updated.serial.test.ts
@@ -669,19 +669,19 @@ git commit -m "refactor: extract cpu turn presentation runtime"
 
 ### Task 4.3: Extract card phase
 
-- [ ] **Step 1: Identify the card branch block in `runCpuTurn`**
+- [x] **Step 1: Identify the card branch block in `runCpuTurn`**
 
 ```powershell
 rg -n "maybeUseCardFromOnnx|cpuMaybeUseCardWithPolicy|onnx|card phase|runCpuTurn" game/cpu-turn-handler.ts
 ```
 
-- [ ] **Step 2: Run card phase tests before extraction**
+- [x] **Step 2: Run card phase tests before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.turn-handler.onnx-hold.test.ts test\cpu.turn-handler.network-guard.test.ts
 ```
 
-- [ ] **Step 3: Create `game/cpu-turn-card-phase.ts`**
+- [x] **Step 3: Create `game/cpu-turn-card-phase.ts`**
 
 Move only the card-use branch from `runCpuTurn`, including `maybeUseCardFromOnnx` guards if they are private to that branch. The extracted function must return an internal result object with these statuses:
 
@@ -694,7 +694,7 @@ type CpuTurnCardPhaseResult =
 
 Do not expose this type outside `game/cpu-turn-card-phase.ts` unless a test imports it from that file.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.turn-handler.onnx-hold.test.ts test\cpu.turn-handler.network-guard.test.ts test\game.cpu-turn-handler.presentation-runtime.test.ts
@@ -703,7 +703,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add game/cpu-turn-handler.ts game/cpu-turn-card-phase.ts test/cpu.turn-handler.onnx-hold.test.ts test/cpu.turn-handler.network-guard.test.ts
@@ -712,19 +712,19 @@ git commit -m "refactor: extract cpu turn card phase"
 
 ### Task 4.4: Extract pending phase
 
-- [ ] **Step 1: Identify the pending branch block in `runCpuTurn`**
+- [x] **Step 1: Identify the pending branch block in `runCpuTurn`**
 
 ```powershell
 rg -n "pending|PendingTargetSelector|pending-selection-registry|runCpuTurn" game/cpu-turn-handler.ts
 ```
 
-- [ ] **Step 2: Run pending phase tests before extraction**
+- [x] **Step 2: Run pending phase tests before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.turn-handler.pending.test.ts test\cpu.decision.pending-pipeline.test.ts
 ```
 
-- [ ] **Step 3: Create `game/cpu-turn-pending-phase.ts`**
+- [x] **Step 3: Create `game/cpu-turn-pending-phase.ts`**
 
 Move only pending-effect handling and pending dispatch lookup from `runCpuTurn`. The extracted function must return an internal result object with these statuses:
 
@@ -737,7 +737,7 @@ type CpuTurnPendingPhaseResult =
 
 Preserve current pending retry timing, pending clear behavior, and dispatch handler selection.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.turn-handler.pending.test.ts test\cpu.decision.pending-pipeline.test.ts test\cpu.turn-handler.network-guard.test.ts
@@ -746,7 +746,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add game/cpu-turn-handler.ts game/cpu-turn-pending-phase.ts test/cpu.turn-handler.pending.test.ts test/cpu.decision.pending-pipeline.test.ts
@@ -755,19 +755,19 @@ git commit -m "refactor: extract cpu turn pending phase"
 
 ### Task 4.5: Extract move phase
 
-- [ ] **Step 1: Identify the move/pass branch block in `runCpuTurn`**
+- [x] **Step 1: Identify the move/pass branch block in `runCpuTurn`**
 
 ```powershell
 rg -n "legalMoves|selectCpuMoveWithPolicy|executeMove|pass|runCpuTurn" game/cpu-turn-handler.ts
 ```
 
-- [ ] **Step 2: Run move phase tests before extraction**
+- [x] **Step 2: Run move phase tests before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.compute.test.ts test\cpu.handler.timing.test.ts test\game.move-executor.cpu-fallback.test.ts
 ```
 
-- [ ] **Step 3: Create `game/cpu-turn-move-phase.ts`**
+- [x] **Step 3: Create `game/cpu-turn-move-phase.ts`**
 
 Move only legal move resolution, pass handling, selected move execution, and min-think-time wait from `runCpuTurn`. The extracted function must return an internal result object with these statuses:
 
@@ -780,7 +780,7 @@ type CpuTurnMovePhaseResult =
 
 Preserve min think-time semantics, no-legal-move pass behavior, move execution arguments, and existing error recovery.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.compute.test.ts test\cpu.handler.timing.test.ts test\game.move-executor.cpu-fallback.test.ts test\cpu.turn-handler.network-guard.test.ts
@@ -789,7 +789,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add game/cpu-turn-handler.ts game/cpu-turn-move-phase.ts test/cpu.compute.test.ts test/cpu.handler.timing.test.ts test/game.move-executor.cpu-fallback.test.ts
@@ -811,17 +811,17 @@ git commit -m "refactor: extract cpu turn move phase"
 
 ### Task 5.1: Add taxonomy coverage tests
 
-- [ ] **Step 1: Inspect current category sets**
+- [x] **Step 1: Inspect current category sets**
 
 ```powershell
 rg -n "CARD_TYPES|CardTypes|DEFENSIVE|HIGH_VARIANCE|CORNER|DESTROY|HOLD|RAMP|STABILITY|SWING" game/ai/cpu-policy-core.ts game/ai/cpu-policy-card-profiles.ts
 ```
 
-- [ ] **Step 2: Add coverage test**
+- [x] **Step 2: Add coverage test**
 
 Extend `test/game.cpu-policy-card-profiles.test.ts` so every `cards/catalog.json` card type either has an explicit CPU profile/taxonomy entry or is listed in an intentional neutral bucket.
 
-- [ ] **Step 3: Run baseline**
+- [x] **Step 3: Run baseline**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.cpu-policy-card-profiles.test.ts test\game.cpu-policy-core.contract-types.test.ts
@@ -829,15 +829,15 @@ npx jest --runInBand --runTestsByPath test\game.cpu-policy-card-profiles.test.ts
 
 Expected: PASS before moving constants.
 
-- [ ] **Step 4: Create taxonomy module**
+- [x] **Step 4: Create taxonomy module**
 
 Move duplicated classification sets into `game/ai/cpu-policy-card-taxonomy.ts`. Export readonly sets or predicate functions. Preserve all set contents exactly.
 
-- [ ] **Step 5: Update imports**
+- [x] **Step 5: Update imports**
 
 Replace local set definitions in `cpu-policy-core.ts` and `cpu-policy-card-profiles.ts` with imports from the taxonomy module.
 
-- [ ] **Step 6: Validate**
+- [x] **Step 6: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.cpu-policy-card-profiles.test.ts test\game.cpu-policy-core.contract-types.test.ts test\game.cpu-policy-core.test.ts
@@ -846,7 +846,7 @@ npm run check:window
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add game/ai/cpu-policy-card-taxonomy.ts game/ai/cpu-policy-core.ts game/ai/cpu-policy-card-profiles.ts test/game.cpu-policy-card-profiles.test.ts
@@ -867,17 +867,17 @@ git commit -m "refactor: centralize cpu card taxonomy"
 
 ### Task 6.1: Preserve current selfplay values in a named module
 
-- [ ] **Step 1: Compare matrices**
+- [x] **Step 1: Compare matrices**
 
 ```powershell
 rg -n "POSITION_WEIGHTS" game/logic src/engine training/engine
 ```
 
-- [ ] **Step 2: Decide behavior-preserving path**
+- [x] **Step 2: Decide behavior-preserving path**
 
 If selfplay values differ from `game/logic/position-weights.ts`, do not unify values in this task. Extract the selfplay matrix unchanged into `src/engine/selfplay-position-weights.ts`.
 
-- [ ] **Step 3: Update both selfplay runners**
+- [x] **Step 3: Update both selfplay runners**
 
 Export the matrix from `src/engine/selfplay-position-weights.ts` using the repository's CommonJS-compatible module pattern:
 
@@ -905,11 +905,11 @@ Import the named selfplay matrix in:
 - `src/engine/selfplay-runner.ts`
 - `training/engine/selfplay-runner.ts` through `require('../../src/engine/selfplay-position-weights.js')`, matching the existing `training/engine` imports that already point at `../../src/engine/*`.
 
-- [ ] **Step 4: Add drift test**
+- [x] **Step 4: Add drift test**
 
 Add a test that fails when `src/engine` and `training/engine` selfplay matrices diverge.
 
-- [ ] **Step 5: Validate**
+- [x] **Step 5: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\selfplay.position-weights.test.ts test\selfplay.simple-simulation-choosers.test.ts test\selfplay.placement-decision.test.ts
@@ -918,7 +918,7 @@ npm run typecheck
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add src/engine/selfplay-position-weights.ts src/engine/selfplay-runner.ts training/engine/selfplay-runner.ts test/selfplay.position-weights.test.ts
@@ -939,7 +939,7 @@ git commit -m "refactor: name selfplay position weights"
 
 ### Task 7.1: Extract argument parsing and defaults
 
-- [ ] **Step 1: Run current training-cycle tests**
+- [x] **Step 1: Run current training-cycle tests**
 
 ```powershell
 npx jest --runInBand --runTestsByPath training\tests\selfplay.training-cycle.test.ts training\tests\selfplay.training-profile-launcher.test.ts training\tests\load-training-profile.sync.test.ts
@@ -947,7 +947,7 @@ npx jest --runInBand --runTestsByPath training\tests\selfplay.training-cycle.tes
 
 Expected: PASS before extraction.
 
-- [ ] **Step 2: Create `training/scripts/selfplay-training-cycle-args.ts`**
+- [x] **Step 2: Create `training/scripts/selfplay-training-cycle-args.ts`**
 
 Move parse/default construction only. Do not move iteration execution or filesystem side effects in this pass.
 
@@ -956,11 +956,11 @@ Required exports:
 - `parseSelfplayTrainingCycleArgs(argv)`
 - `createSelfplayTrainingCycleDefaults(env)`
 
-- [ ] **Step 3: Delegate from `run-selfplay-training-cycle.ts`**
+- [x] **Step 3: Delegate from `run-selfplay-training-cycle.ts`**
 
 Keep CLI behavior and default values identical. The original script remains the executable entrypoint.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath training\tests\selfplay.training-cycle.test.ts training\tests\selfplay.training-profile-launcher.test.ts training\tests\load-training-profile.sync.test.ts
@@ -968,7 +968,7 @@ npx jest --runInBand --runTestsByPath training\tests\selfplay.training-cycle.tes
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add training/scripts/run-selfplay-training-cycle.ts training/scripts/selfplay-training-cycle-args.ts training/tests/selfplay.training-cycle.test.ts training/tests/selfplay.training-profile-launcher.test.ts training/tests/load-training-profile.sync.test.ts
@@ -977,13 +977,13 @@ git commit -m "refactor: extract selfplay training cycle args"
 
 ### Task 7.2: Extract iteration step orchestration
 
-- [ ] **Step 1: Identify side-effect boundaries**
+- [x] **Step 1: Identify side-effect boundaries**
 
 ```powershell
 rg -n "iteration|spawn|exec|copy|manifest|warehouse|gate|benchmark|train" training/scripts/run-selfplay-training-cycle.ts
 ```
 
-- [ ] **Step 2: Create `training/scripts/selfplay-training-cycle-steps.ts`**
+- [x] **Step 2: Create `training/scripts/selfplay-training-cycle-steps.ts`**
 
 Move step planning and result aggregation only. Keep actual process execution and artifact writes injected from the entrypoint.
 
@@ -998,11 +998,11 @@ type SelfplayTrainingCycleStepResult = {
 };
 ```
 
-- [ ] **Step 3: Add step-plan tests**
+- [x] **Step 3: Add step-plan tests**
 
 Extend `training/tests/selfplay.training-cycle.test.ts` to assert the same step names and skip/pass behavior for a small dry-run configuration.
 
-- [ ] **Step 4: Validate**
+- [x] **Step 4: Validate**
 
 ```powershell
 npx jest --runInBand --runTestsByPath training\tests\selfplay.training-cycle.test.ts
@@ -1010,7 +1010,7 @@ npx jest --runInBand --runTestsByPath training\tests\selfplay.training-cycle.tes
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add training/scripts/run-selfplay-training-cycle.ts training/scripts/selfplay-training-cycle-steps.ts training/tests/selfplay.training-cycle.test.ts
