@@ -99,7 +99,7 @@ npm run worker:prepare
 ### Lv6 decision mode
 
 - Modify: `shared/cpu-lv6-runtime-capability.ts`
-  - Add narrowly named helpers if existing resolver API cannot express callers.
+  - Add `shouldUseCpuLv6OnnxMoveDecision(sharedProfile, options)` and `shouldUseCpuLv6OnnxCardDecision(sharedProfile, options)` as wrappers over `resolveCpuLv6BrowserRuntimeCapability`.
 - Modify: `game/cpu-turn-handler.ts`, `game/cpu-decision.ts`, `ui/handlers/cpu-policy.ts`
   - Remove local mode string comparisons after tests lock behavior.
 
@@ -109,7 +109,7 @@ npm run worker:prepare
   - Pure vector builder, no asset loading, no sessions, no timers.
 - Modify: `game/ai/policy-onnx-runtime.ts`
   - Delegates vector building to the new pure module.
-- Add tests under `test/` or `game/ai/__tests__/`
+- Add/extend: `test/game.cpu-policy-onnx-runtime.test.ts`
   - Verify runtime vector offsets and live/selfplay context parity.
 
 ### CPU card taxonomy
@@ -292,17 +292,17 @@ Each case must assert both card and move ONNX enablement through shared helper c
 npx jest --runInBand --runTestsByPath test\shared.cpu-lv6-runtime-capability.test.ts
 ```
 
-Expected: PASS if existing resolver already supports the exact API, otherwise FAIL only because helper names do not exist.
+Expected before implementation: FAIL only because `shouldUseCpuLv6OnnxMoveDecision` and `shouldUseCpuLv6OnnxCardDecision` are not exported yet.
 
 - [ ] **Step 3: Implement helper in `shared/cpu-lv6-runtime-capability.ts`**
 
-Add small pure helpers that wrap the existing canonical resolver. Do not duplicate mode string logic in callers.
+Add these pure helpers that wrap the existing canonical resolver. Do not duplicate mode string logic in callers.
 
-Required exported responsibilities:
+Required exports:
 
-- resolve whether Lv6 browser runtime may use ONNX for move decision
-- resolve whether Lv6 browser runtime may use ONNX for card decision
-- preserve the existing capability payload for callers that need full details
+- `shouldUseCpuLv6OnnxMoveDecision(sharedProfile, options)`: returns `resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxMoveDecision`
+- `shouldUseCpuLv6OnnxCardDecision(sharedProfile, options)`: returns `resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxCardDecision`
+- keep `resolveCpuLv6BrowserRuntimeCapability` unchanged for callers that need the full payload
 
 - [ ] **Step 4: Replace caller-local string comparisons**
 
@@ -339,7 +339,8 @@ git commit -m "refactor: centralize lv6 decision mode checks"
 **Files:**
 - Create: `game/ai/policy-feature-vector.ts`
 - Modify: `game/ai/policy-onnx-runtime.ts`
-- Modify: `game/cpu-decision-card-context.ts` or current owner of `buildOnnxContext`
+- Modify: `game/cpu-decision.ts`
+- Modify: `game/cpu-decision-card-context.ts`
 - Test: `test/cpu.onnx-context.characterization.test.ts`
 - Test: `test/game.cpu-policy-onnx-runtime.test.ts`
 
@@ -379,7 +380,7 @@ Move only pure data-to-vector logic. The new module must not import browser, tim
 Required exports:
 
 - `buildPolicyFeatureVector(context)`
-- constants for vector dimensions and stable offset names if current tests need them
+- `POLICY_FEATURE_VECTOR_OFFSETS`, containing stable names for offsets asserted by `test/game.cpu-policy-onnx-runtime.test.ts`
 
 - [ ] **Step 5: Delegate from `policy-onnx-runtime.ts`**
 
@@ -411,14 +412,14 @@ Update `test/cpu.onnx-context.characterization.test.ts` to assert:
 - `oppCornersBefore`
 - `ownEdgesBefore`
 - `oppEdgesBefore`
-- `cornerEmergency` if currently derivable from the same board snapshot
-- `cornerHoldMode` if currently derivable from the same board snapshot
+- `cornerEmergency`
+- `cornerHoldMode`
 
 Expected before implementation: FAIL because fields are absent or undefined.
 
-- [ ] **Step 2: Implement context enrichment**
+- [ ] **Step 2: Move and enrich context assembly**
 
-Modify `game/cpu-decision-card-context.ts` or the current `buildOnnxContext` owner so the fields are computed from the same canonical board/player state as the rest of the context.
+Move the data assembly body behind `buildOnnxContext` from `game/cpu-decision.ts` into `game/cpu-decision-card-context.ts`, then have `game/cpu-decision.ts` keep the public `buildOnnxContext` export as a delegate. In the extracted context builder, compute the new fields from the same canonical board/player state as the rest of the context.
 
 Do not change scoring, threshold, or final decision logic in this task.
 
@@ -434,7 +435,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add game/cpu-decision-card-context.ts test/cpu.onnx-context.characterization.test.ts
+git add game/cpu-decision.ts game/cpu-decision-card-context.ts test/cpu.onnx-context.characterization.test.ts
 git commit -m "refactor: enrich cpu onnx context fields"
 ```
 
@@ -571,7 +572,7 @@ Add tests covering at least:
 
 - [ ] **Step 3: Create `game/cpu-decision-pending-actions.ts`**
 
-Move per-card `cpuSelect*WithPolicy` action construction into the new file. Keep `choosePendingTargetWithPolicy` public facade stable unless it is already private.
+Move per-card `cpuSelect*WithPolicy` action construction into the new file. Keep `choosePendingTargetWithPolicy` private to `game/cpu-decision.ts` as a delegating helper until all internal callers have migrated; do not add it to `module.exports`.
 
 - [ ] **Step 4: Validate**
 
@@ -666,71 +667,134 @@ git add game/cpu-turn-handler.ts game/cpu-turn-presentation-runtime.ts test/game
 git commit -m "refactor: extract cpu turn presentation runtime"
 ```
 
-### Task 4.3: Extract card, pending, and move phases one at a time
+### Task 4.3: Extract card phase
 
-Repeat this sequence for each file in this order:
-
-1. `game/cpu-turn-card-phase.ts`
-2. `game/cpu-turn-pending-phase.ts`
-3. `game/cpu-turn-move-phase.ts`
-
-- [ ] **Step 1: Identify the exact branch block in `runCpuTurn`**
+- [ ] **Step 1: Identify the card branch block in `runCpuTurn`**
 
 ```powershell
-rg -n "maybeUseCardFromOnnx|pending|executeMove|pass|legalMoves|runCpuTurn" game/cpu-turn-handler.ts
+rg -n "maybeUseCardFromOnnx|cpuMaybeUseCardWithPolicy|onnx|card phase|runCpuTurn" game/cpu-turn-handler.ts
 ```
 
-- [ ] **Step 2: Add or select focused tests for that phase**
-
-Card phase:
+- [ ] **Step 2: Run card phase tests before extraction**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\cpu.turn-handler.onnx-hold.test.ts test\cpu.turn-handler.network-guard.test.ts
 ```
 
-Pending phase:
+- [ ] **Step 3: Create `game/cpu-turn-card-phase.ts`**
 
-```powershell
-npx jest --runInBand --runTestsByPath test\cpu.turn-handler.pending.test.ts test\cpu.decision.pending-pipeline.test.ts
-```
-
-Move phase:
-
-```powershell
-npx jest --runInBand --runTestsByPath test\cpu.turn-handler.test.ts test\cpu.compute.test.ts
-```
-
-- [ ] **Step 3: Extract only that phase**
-
-The extracted function must return an explicit result object, for example:
+Move only the card-use branch from `runCpuTurn`, including `maybeUseCardFromOnnx` guards if they are private to that branch. The extracted function must return an internal result object with these statuses:
 
 ```ts
-type CpuTurnPhaseResult =
+type CpuTurnCardPhaseResult =
   | { status: 'handled' }
   | { status: 'continue' }
-  | { status: 'retry'; reason: string }
-  | { status: 'pass' };
+  | { status: 'retry'; reason: string };
 ```
 
-Use the exact status names consistently within the extracted module and `runCpuTurn`. Do not expose this type as public API unless needed by tests.
+Do not expose this type outside `game/cpu-turn-card-phase.ts` unless a test imports it from that file.
 
-- [ ] **Step 4: Validate after each phase extraction**
+- [ ] **Step 4: Validate**
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\cpu.turn-handler.onnx-hold.test.ts test\cpu.turn-handler.pending.test.ts test\cpu.turn-handler.network-guard.test.ts test\game.cpu-turn-handler.presentation-runtime.test.ts
+npx jest --runInBand --runTestsByPath test\cpu.turn-handler.onnx-hold.test.ts test\cpu.turn-handler.network-guard.test.ts test\game.cpu-turn-handler.presentation-runtime.test.ts
 npm run check:window
 ```
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit after each phase**
+- [ ] **Step 5: Commit**
 
 ```powershell
-git add game/cpu-turn-handler.ts game/cpu-turn-card-phase.ts game/cpu-turn-pending-phase.ts game/cpu-turn-move-phase.ts test/cpu.turn-handler.onnx-hold.test.ts test/cpu.turn-handler.pending.test.ts test/cpu.turn-handler.network-guard.test.ts
+git add game/cpu-turn-handler.ts game/cpu-turn-card-phase.ts test/cpu.turn-handler.onnx-hold.test.ts test/cpu.turn-handler.network-guard.test.ts
 git commit -m "refactor: extract cpu turn card phase"
 ```
 
-Use commit messages matching the phase actually extracted.
+### Task 4.4: Extract pending phase
+
+- [ ] **Step 1: Identify the pending branch block in `runCpuTurn`**
+
+```powershell
+rg -n "pending|PendingTargetSelector|pending-selection-registry|runCpuTurn" game/cpu-turn-handler.ts
+```
+
+- [ ] **Step 2: Run pending phase tests before extraction**
+
+```powershell
+npx jest --runInBand --runTestsByPath test\cpu.turn-handler.pending.test.ts test\cpu.decision.pending-pipeline.test.ts
+```
+
+- [ ] **Step 3: Create `game/cpu-turn-pending-phase.ts`**
+
+Move only pending-effect handling and pending dispatch lookup from `runCpuTurn`. The extracted function must return an internal result object with these statuses:
+
+```ts
+type CpuTurnPendingPhaseResult =
+  | { status: 'handled' }
+  | { status: 'continue' }
+  | { status: 'retry'; reason: string };
+```
+
+Preserve current pending retry timing, pending clear behavior, and dispatch handler selection.
+
+- [ ] **Step 4: Validate**
+
+```powershell
+npx jest --runInBand --runTestsByPath test\cpu.turn-handler.pending.test.ts test\cpu.decision.pending-pipeline.test.ts test\cpu.turn-handler.network-guard.test.ts
+npm run check:window
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```powershell
+git add game/cpu-turn-handler.ts game/cpu-turn-pending-phase.ts test/cpu.turn-handler.pending.test.ts test/cpu.decision.pending-pipeline.test.ts
+git commit -m "refactor: extract cpu turn pending phase"
+```
+
+### Task 4.5: Extract move phase
+
+- [ ] **Step 1: Identify the move/pass branch block in `runCpuTurn`**
+
+```powershell
+rg -n "legalMoves|selectCpuMoveWithPolicy|executeMove|pass|runCpuTurn" game/cpu-turn-handler.ts
+```
+
+- [ ] **Step 2: Run move phase tests before extraction**
+
+```powershell
+npx jest --runInBand --runTestsByPath test\cpu.compute.test.ts test\cpu.handler.timing.test.ts test\game.move-executor.cpu-fallback.test.ts
+```
+
+- [ ] **Step 3: Create `game/cpu-turn-move-phase.ts`**
+
+Move only legal move resolution, pass handling, selected move execution, and min-think-time wait from `runCpuTurn`. The extracted function must return an internal result object with these statuses:
+
+```ts
+type CpuTurnMovePhaseResult =
+  | { status: 'handled' }
+  | { status: 'pass' }
+  | { status: 'retry'; reason: string };
+```
+
+Preserve min think-time semantics, no-legal-move pass behavior, move execution arguments, and existing error recovery.
+
+- [ ] **Step 4: Validate**
+
+```powershell
+npx jest --runInBand --runTestsByPath test\cpu.compute.test.ts test\cpu.handler.timing.test.ts test\game.move-executor.cpu-fallback.test.ts test\cpu.turn-handler.network-guard.test.ts
+npm run check:window
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```powershell
+git add game/cpu-turn-handler.ts game/cpu-turn-move-phase.ts test/cpu.compute.test.ts test/cpu.handler.timing.test.ts test/game.move-executor.cpu-fallback.test.ts
+git commit -m "refactor: extract cpu turn move phase"
+```
 
 ---
 
@@ -815,12 +879,31 @@ If selfplay values differ from `game/logic/position-weights.ts`, do not unify va
 
 - [ ] **Step 3: Update both selfplay runners**
 
-Import the named selfplay matrix from the new module in:
+Export the matrix from `src/engine/selfplay-position-weights.ts` using the repository's CommonJS-compatible module pattern:
+
+```ts
+'use strict';
+
+const SELFPLAY_POSITION_WEIGHTS = [
+    [120, -20, 20, 5, 5, 20, -20, 120],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [120, -20, 20, 5, 5, 20, -20, 120]
+];
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { SELFPLAY_POSITION_WEIGHTS };
+}
+```
+
+Import the named selfplay matrix in:
 
 - `src/engine/selfplay-runner.ts`
-- `training/engine/selfplay-runner.ts`
-
-If direct cross-directory import is not supported by current build config, keep one source and add a sync test that compares both exported matrices.
+- `training/engine/selfplay-runner.ts` through `require('../../src/engine/selfplay-position-weights.js')`, matching the existing `training/engine` imports that already point at `../../src/engine/*`.
 
 - [ ] **Step 4: Add drift test**
 
@@ -973,10 +1056,11 @@ Manually revert only the files touched by that phase. Do not run `git reset --ha
 For one failed phase after commit:
 
 ```powershell
-git revert 0123456789abcdef0123456789abcdef01234567
+git log --oneline -n 5
+git revert --no-edit HEAD
 ```
 
-Then re-run the focused tests for the reverted phase.
+Use `git revert --no-edit HEAD` only when the failed phase is the latest commit. If the failed phase is not the latest commit, stop and inspect `git log --oneline -n 20` before choosing a revert target; do not run an automated revert against a non-HEAD commit from this plan. Then re-run the focused tests for the reverted phase.
 
 ## Completion Criteria
 
