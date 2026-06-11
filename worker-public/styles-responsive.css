@@ -153,6 +153,11 @@
 }
 
 /* iPhone portrait profile: dedicate vertical flow to hands/board/card detail. */
+html.layout-profile-phone-portrait {
+    --layout-phone-portrait-main-column-width: min(calc(430px * var(--layout-stage-scale)), 96vw);
+    --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
+}
+
 html.layout-profile-phone-portrait #game-container {
     width: 100vw;
     height: 100dvh;
@@ -165,7 +170,7 @@ html.layout-profile-phone-portrait #game-container {
 
 html.layout-profile-phone-portrait .player-area-top,
 html.layout-profile-phone-portrait .player-area-bottom {
-    width: min(calc(430px * var(--layout-stage-scale)), 96vw);
+    width: var(--layout-phone-portrait-main-column-width);
     max-width: 96vw;
     gap: calc(4px * var(--layout-stage-scale));
 }
@@ -239,7 +244,7 @@ html.layout-profile-phone-portrait #side-panel.side-panel-collapsed {
 }
 
 html.layout-profile-phone-portrait #control-panel {
-    width: min(calc(440px * var(--layout-stage-scale)), 94vw);
+    width: var(--layout-phone-portrait-aux-panel-width);
     max-height: min(34dvh, calc(360px * var(--layout-stage-scale)));
     overflow-y: auto;
 }
@@ -252,7 +257,7 @@ html.layout-profile-phone-portrait #card-detail-panel {
     right: auto;
     top: auto;
     bottom: auto;
-    width: min(calc(430px * var(--layout-stage-scale)), 96vw);
+    width: var(--layout-phone-portrait-main-column-width);
     min-height: 0;
     max-height: calc(170px * var(--layout-stage-scale));
     margin: 0;
@@ -302,12 +307,16 @@ html.layout-profile-phone-portrait #networkChatPanel {
     left: 50%;
     right: auto;
     bottom: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-    width: min(calc(440px * var(--layout-stage-scale)), 94vw);
+    width: var(--layout-phone-portrait-aux-panel-width);
     transform: translate(-50%, calc(100% - var(--layout-size-chat-toggle-height)));
 }
 
 html.layout-profile-phone-portrait #networkChatPanel.is-open {
     transform: translateX(-50%);
+}
+
+html.layout-profile-phone-portrait #networkModal {
+    width: var(--layout-phone-portrait-aux-panel-width);
 }
 
 html.layout-profile-phone-portrait #quick-controls-bar {
