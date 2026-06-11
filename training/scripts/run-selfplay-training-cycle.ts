@@ -50,6 +50,10 @@ const {
     TRAINING_CYCLE_STEP_ORDER
 } = require('./training-cycle-steps');
 const {
+    createSelfplayTrainingCycleStepRecorder,
+    toSelfplayTrainingCycleStepResult
+} = require('./selfplay-training-cycle-steps');
+const {
     parseSelfplayTrainingCycleArgs,
     normalizeRestartFromStep,
     normalizeSelfplayCandidateAdmission,
@@ -927,54 +931,20 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     fs.mkdirSync(args.runsDir, { recursive: true });
     fs.mkdirSync(args.modelsDir, { recursive: true });
 
-    const runStep = (name, cmd, stepArgs, options) => {
-        const remainingMs = getRemainingMs(deadlineMs);
-        if (Number.isFinite(remainingMs) && remainingMs <= 0) {
-            const err = new Error(`time budget exceeded before ${name}`);
-            err.code = 'TIME_BUDGET_EXCEEDED';
-            throw err;
-        }
-        try {
-            const result = runCommand(cmd, stepArgs, Object.assign({}, options || {}, {
-                timeoutMs: Number.isFinite(remainingMs) ? remainingMs : undefined
-            }));
-            steps.push({ name, ...result });
-            return result;
-        } catch (error) {
-            throw annotateTrainingCycleError(error, {
-                iteration: iterationIndex,
-                step: name,
-                runTag: args.runTag,
-                iterationTag: p.tag,
-                summaryOut: args.summaryOut,
-                stepOutputs: options && Array.isArray(options.reuseOutputs) ? options.reuseOutputs : []
-            });
-        }
-    };
-
-    const runManagedStep = (name, cmd, stepArgs, options) => {
-        const reuseOutputs = options && Array.isArray(options.reuseOutputs)
-            ? options.reuseOutputs.filter((one) => !!one)
-            : [];
-        if (shouldReuseStepArtifacts(args, name) && reuseOutputs.length > 0 && reuseOutputs.every(fileExists)) {
-            console.log(`[training-cycle] reuse ${name}: ${reuseOutputs.map((one) => path.basename(one)).join(', ')}`);
-            const reusedResult = { status: 0, elapsedMs: 0, reused: true };
-            steps.push({ name, ...reusedResult });
-            return reusedResult;
-        }
-        return runStep(name, cmd, stepArgs, options);
-    };
-    const recordSkippedStep = (name, reason, extra) => {
-        const result = Object.assign({
-            name,
-            status: 0,
-            elapsedMs: 0,
-            skipped: true,
-            reason
-        }, extra || {});
-        steps.push(result);
-        return result;
-    };
+    const stepRecorder = createSelfplayTrainingCycleStepRecorder({
+        steps,
+        args,
+        deadlineMs,
+        iterationIndex,
+        iterationTag: p.tag,
+        runCommand,
+        getRemainingMs,
+        shouldReuseStepArtifacts,
+        fileExists,
+        annotateError: annotateTrainingCycleError,
+        logger: console
+    });
+    const { runStep, runManagedStep, recordSkippedStep } = stepRecorder;
 
     runManagedStep('generate-train', process.execPath, buildGenerateSelfplayDataArgs({
         games: args.trainGames,
@@ -1713,5 +1683,7 @@ export = {
     resolveQuickComponentDelta,
     resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,
-    annotateTrainingCycleError
+    annotateTrainingCycleError,
+    createSelfplayTrainingCycleStepRecorder,
+    toSelfplayTrainingCycleStepResult
 };
