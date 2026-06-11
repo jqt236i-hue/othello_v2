@@ -1494,17 +1494,19 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             hasUsedCardThisTurn
         });
 
-        const cardPhaseResult = await CpuTurnCardPhase.runCpuTurnCardPhase({
-            playerKey,
-            autoMode,
-            level,
-            selfColor,
-            othelloMode,
-            hasUsedCardThisTurn,
-            hasPendingSelection
-        });
-        if (cardPhaseResult && cardPhaseResult.status === 'handled') {
-            return;
+        if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
+            const cardPhaseResult = await CpuTurnCardPhase.runCpuTurnCardPhase({
+                playerKey,
+                autoMode,
+                level,
+                selfColor,
+                othelloMode,
+                hasUsedCardThisTurn,
+                hasPendingSelection
+            });
+            if (cardPhaseResult && cardPhaseResult.status === 'handled') {
+                return;
+            }
         }
 
         let pending = readCpuPendingSelection(playerKey);
