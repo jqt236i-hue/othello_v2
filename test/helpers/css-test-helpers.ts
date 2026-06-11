@@ -3,6 +3,7 @@ import * as path from 'path';
 
 export const LAYOUT_STYLE_FILES = [
   'styles-layout.css',
+  'styles-charge-hud.css',
   'styles-layout-controls.css',
   'styles-layout-info.css',
   'styles-layout-result.css',

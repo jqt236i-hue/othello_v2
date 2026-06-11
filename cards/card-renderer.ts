@@ -1132,7 +1132,79 @@ function _ensureHandTrackElement(containerEl: any) {
         const overlayEl = containerEl.querySelector('.time-stop-hand-overlay');
         containerEl.insertBefore(handTrackEl, overlayEl || null);
     }
+    _ensureHandAvailabilityGlowLayer(containerEl, handTrackEl);
     return handTrackEl;
+}
+function _ensureHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any) {
+    if (!containerEl || typeof document === 'undefined')
+        return null;
+    let glowLayerEl = containerEl.querySelector('.hand-availability-glow-layer');
+    if (!glowLayerEl) {
+        glowLayerEl = document.createElement('div');
+        glowLayerEl.className = 'hand-availability-glow-layer';
+        glowLayerEl.setAttribute('aria-hidden', 'true');
+    }
+    if (glowLayerEl.parentElement !== containerEl) {
+        containerEl.insertBefore(glowLayerEl, handTrackEl || containerEl.firstChild || null);
+    }
+    else if (handTrackEl && glowLayerEl.nextSibling !== handTrackEl) {
+        containerEl.insertBefore(glowLayerEl, handTrackEl);
+    }
+    return glowLayerEl;
+}
+function _resolveHandAvailabilityGlowTierClass(cardEl: any) {
+    if (!cardEl || !cardEl.classList)
+        return '';
+    const classes = Array.from(cardEl.classList);
+    return classes.find((className: any) => /^cost-tier-/.test(String(className))) || '';
+}
+function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, renderEntries: any, ownerKey: any) {
+    const glowLayerEl = _ensureHandAvailabilityGlowLayer(containerEl, handTrackEl);
+    if (!glowLayerEl || !handTrackEl || typeof document === 'undefined')
+        return;
+    const containerRect = typeof containerEl.getBoundingClientRect === 'function'
+        ? containerEl.getBoundingClientRect()
+        : { left: 0, top: 0 };
+    const existingGlows = Array.from(glowLayerEl.children);
+    let glowIndex = 0;
+    (Array.isArray(renderEntries) ? renderEntries : []).forEach((entryState: any) => {
+        if (!entryState || entryState.desiredKind !== 'face' || !entryState.availableGlow)
+            return;
+        const cardEl = handTrackEl.children[entryState.visualIndex] || null;
+        if (!cardEl || !cardEl.classList || !cardEl.classList.contains('visible'))
+            return;
+        let glowEl: any = existingGlows[glowIndex] || null;
+        if (!glowEl) {
+            glowEl = document.createElement('span');
+        }
+        const tierClass = _resolveHandAvailabilityGlowTierClass(cardEl);
+        glowEl.className = tierClass
+            ? `hand-availability-glow ${tierClass}`
+            : 'hand-availability-glow';
+        glowEl.setAttribute('aria-hidden', 'true');
+        glowEl.dataset.ownerKey = ownerKey;
+        glowEl.dataset.handIndex = String(entryState.visualIndex);
+        if (entryState.cardId) {
+            glowEl.dataset.cardId = entryState.cardId;
+        }
+        else {
+            delete glowEl.dataset.cardId;
+        }
+        const cardRect = typeof cardEl.getBoundingClientRect === 'function'
+            ? cardEl.getBoundingClientRect()
+            : { left: 0, top: 0, width: 0, height: 0 };
+        glowEl.style.setProperty('--hand-glow-x', `${cardRect.left - containerRect.left}px`);
+        glowEl.style.setProperty('--hand-glow-y', `${cardRect.top - containerRect.top}px`);
+        glowEl.style.setProperty('--hand-glow-width', `${cardRect.width}px`);
+        glowEl.style.setProperty('--hand-glow-height', `${cardRect.height}px`);
+        if (glowEl.parentElement !== glowLayerEl) {
+            glowLayerEl.appendChild(glowEl);
+        }
+        glowIndex += 1;
+    });
+    while (glowLayerEl.children.length > glowIndex) {
+        glowLayerEl.removeChild(glowLayerEl.lastElementChild);
+    }
 }
 function _canReuseHandCardElement(cardEl: any, desiredKind: any, cardId: any, ownerKey: any) {
     if (!cardEl || !cardEl.classList)
@@ -1717,6 +1789,7 @@ function renderCardUI() {
             canAfford: false,
             cost: 0,
             usable: false,
+            availableGlow: false,
             isSelected: false,
             isObserved: false
         };
@@ -1758,15 +1831,25 @@ function renderCardUI() {
             : (isDebugHvH
                 ? (isOwnerTurn && !fateWillVictimLockedOut)
                 : ((ownerKey === 'black' && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn)));
+        const canShowAvailabilityGlow = isNetworkMode
+            ? ((ownerKey === localPlayerKey && !fateWillVictimLockedOut) || fateWillIsViewingVictim)
+            : (isDebugHvH
+                ? (isOwnerTurn && !fateWillVictimLockedOut)
+                : ((ownerKey === 'black' && !fateWillVictimLockedOut) || fateWillIsViewingVictim));
         state.canAfford = isDebugUnlimited ? true : ((cardState.charge[ownerKey] || 0) >= cost);
         state.canInspectOwnerHand = isNetworkMode
             ? canShowFace
             : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
+        const isRuleUsable = _isHandCardRuleUsableForRender(ownerKey, cardId);
+        state.availableGlow = canShowAvailabilityGlow
+            && hasNotUsedThisTurn
+            && state.canAfford
+            && isRuleUsable;
         state.usable = canControlOwnerHand
             && canInteract
             && hasNotUsedThisTurn
             && state.canAfford
-            && _isHandCardRuleUsableForRender(ownerKey, cardId);
+            && isRuleUsable;
         state.isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
         return state;
     }
@@ -1863,18 +1946,19 @@ function renderCardUI() {
         const shouldFade = fadePlayerKey === ownerKey && fadeCount > 0;
         const renderEntries = _buildHandRenderEntries(ownerHand, _resolveInsertedReservedHandIndex(ownerKey, ownerHand.length));
         const existingChildren = Array.from(handTrackEl.children);
-        renderEntries.forEach((entry) => {
-            const entryState = _resolveHandEntryViewState(entry, ownerKey, revealByDefault);
+        const entryStates = renderEntries.map((entry: any) => _resolveHandEntryViewState(entry, ownerKey, revealByDefault));
+        entryStates.forEach((entryState: any) => {
             const cardEl = _ensureRenderedHandElement(handTrackEl, existingChildren, entryState, ownerKey);
             _applyRenderedHandElementState(cardEl, entryState, ownerKey, shouldFade, ownerHand.length);
         });
-        while (handTrackEl.children.length > renderEntries.length) {
+        while (handTrackEl.children.length > entryStates.length) {
             const extraChild = handTrackEl.lastElementChild;
             if (!extraChild)
                 break;
             _detachHandCardClickHandler(extraChild);
             handTrackEl.removeChild(extraChild);
         }
+        _syncHandAvailabilityGlowLayer(containerEl, handTrackEl, entryStates, ownerKey);
         _syncTimeStopHandOverlayForRender(containerEl, showTimeStopVictimOverlay);
     }
     renderHandSlot(handBlackEl, bottomOwnerKey, true, 'bottom');

@@ -253,7 +253,7 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
             ev.type === 'status_applied' &&
             ev.meta &&
             String(ev.meta.special || '').toUpperCase() === 'METEOR_HOLE' &&
-            String(ev.meta.cellRemovalCause || '').toUpperCase() === 'METEOR_WILL'
+            ['METEOR_WILL', 'METEOR_GOD'].includes(String(ev.meta.cellRemovalCause || '').toUpperCase())
         ),
         ctx.fallbackPhase
     );

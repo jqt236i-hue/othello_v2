@@ -14,9 +14,11 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     if (dom && dom.window) dom.window.close();
     delete global.window;
     delete global.document;
+    delete global.SoundEngine;
   });
 
   test('uses only guard-timer for GUARD status updates', () => {
@@ -861,6 +863,74 @@ describe('animation-engine guard timer rendering', () => {
     }));
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+  });
+
+  test('manifest_ending は通常石化と暗転を同時に開始し同 phase の他演出を待たせる', async () => {
+    jest.useFakeTimers();
+    global.SoundEngine = { syncManifestBgmOverride: jest.fn() };
+    global.window.PLAYBACK_WATCHDOG_MS = 30000;
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+    const cell = document.createElement('div');
+    cell.className = 'cell has-disc';
+    cell.dataset.row = '3';
+    cell.dataset.col = '4';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone manifest-stone-aura manifest-stone-aura-black';
+    disc.style.setProperty('--special-stone-image', 'url("manifest.png")');
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const logSpy = jest.spyOn(engine, 'log').mockImplementation(() => {});
+    const playPromise = engine.play([
+      {
+        type: 'manifest_ending',
+        phase: 1,
+        targets: [{
+          r: 3,
+          col: 4,
+          after: { color: 1, special: null, timer: null, owner: 'black' }
+        }]
+      },
+      {
+        type: 'log',
+        phase: 1,
+        message: 'same phase should wait'
+      }
+    ]);
+
+    await Promise.resolve();
+
+    expect(disc.classList.contains('manifest-stone-aura')).toBe(false);
+    expect(disc.classList.contains('special-stone')).toBe(false);
+    const overlay = document.querySelector('.manifest-ending-overlay') as HTMLElement;
+    expect(overlay).toBeTruthy();
+    expect(overlay.style.getPropertyValue('--manifest-ending-duration')).toBe('2000ms');
+    expect(overlay.style.getPropertyValue('--manifest-ending-opacity')).toBe('0.6');
+    expect((global.SoundEngine.syncManifestBgmOverride as jest.Mock)).toHaveBeenCalledWith(
+      null,
+      null,
+      { transitionMs: 2000 }
+    );
+    expect(board.classList.contains('playback-locked')).toBe(true);
+    expect(logSpy).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(1999);
+    await Promise.resolve();
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(document.querySelector('.manifest-ending-overlay')).toBeTruthy();
+
+    jest.advanceTimersByTime(1);
+    await playPromise;
+
+    expect(logSpy).toHaveBeenCalledWith('same phase should wait');
+    expect(document.querySelector('.manifest-ending-overlay')).toBeNull();
+    expect(board.classList.contains('playback-locked')).toBe(false);
+
+    jest.useRealTimers();
+    delete global.SoundEngine;
   });
 
   test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {

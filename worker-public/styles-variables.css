@@ -21,7 +21,7 @@
     --layout-anchor-info-left: 80px;
     --layout-anchor-info-top: 20px;
     --layout-anchor-log-left: 52px;
-    --layout-anchor-log-top: 447px;
+    --layout-anchor-log-top: 463px;
     --layout-anchor-log-width: 320px;
     --layout-anchor-log-height: 104px;
     --layout-anchor-log-detail-gap: 12px;
@@ -34,10 +34,10 @@
     --layout-anchor-side-right: 0px;
     --layout-anchor-side-bottom: 54px;
     --layout-anchor-side-width: 300px;
-    --layout-anchor-card-detail-width: 320px;
+    --layout-anchor-card-detail-width: 336px;
     --layout-anchor-card-detail-min-height: 184px;
-    --layout-anchor-card-detail-gap: 28px;
-    --layout-anchor-card-detail-bottom: 292px;
+    --layout-anchor-card-detail-gap: 18px;
+    --layout-anchor-card-detail-bottom: 304px;
     --layout-anchor-rules-left: 14px;
     --layout-anchor-rules-bottom: 58px;
     --layout-anchor-chat-left: 132px;
@@ -62,6 +62,11 @@
     --layout-opponent-deck-scale: 0.9;
 
     /* Shared z-index scale */
+    --layout-z-board-frame: 10;
+    --layout-z-player-area: 20;
+    --layout-z-charge-hud: 30;
+    --layout-z-charge-delta: 1009;
+    --layout-z-charge-display: 1010;
     --z-board-fx: 30;
     --z-card-fx: 1025;
     --z-network-chat: 13000;
@@ -163,24 +168,31 @@
     --layout-size-status-pad-x: calc(24px * var(--layout-stage-scale));
     --layout-size-status-radius: calc(50px * var(--layout-stage-scale));
 
-    --layout-size-charge-font: calc(14px * var(--layout-stage-scale));
-    --layout-size-charge-pad-y: calc(4px * var(--layout-stage-scale));
-    --layout-size-charge-pad-x: calc(10px * var(--layout-stage-scale));
+    --layout-size-charge-font: calc(12px * var(--layout-stage-scale));
+    --layout-size-charge-pad-y: calc(2px * var(--layout-stage-scale));
+    --layout-size-charge-pad-x: calc(8px * var(--layout-stage-scale));
     --layout-size-charge-radius: calc(14px * var(--layout-stage-scale));
     --layout-size-charge-border: max(1px, calc(2px * var(--layout-stage-scale)));
-    --layout-size-charge-offset: calc((-25px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
+    --layout-size-charge-offset: calc((-28px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
+    --layout-charge-board-offset-y: calc(-18px * var(--layout-stage-scale));
+    --layout-charge-own-offset: calc(11px * var(--layout-stage-scale));
+    --layout-charge-opponent-offset: calc(11px * var(--layout-stage-scale));
 
-    --layout-size-charge-delta-font: calc(15px * var(--layout-stage-scale));
-    --layout-size-charge-delta-pad-y: calc(4px * var(--layout-stage-scale));
-    --layout-size-charge-delta-pad-x: calc(10px * var(--layout-stage-scale));
-    --layout-size-charge-delta-radius: calc(14px * var(--layout-stage-scale));
-    --layout-size-charge-delta-border: max(1px, calc(2px * var(--layout-stage-scale)));
+    --layout-size-charge-delta-font: calc(14px * var(--layout-stage-scale));
+    --layout-size-charge-delta-pad-y: calc(2px * var(--layout-stage-scale));
+    --layout-size-charge-delta-pad-x: calc(8px * var(--layout-stage-scale));
+    --layout-size-charge-delta-height: calc(24px * var(--layout-stage-scale));
+    --layout-size-charge-delta-radius: calc(16px * var(--layout-stage-scale));
+    --layout-size-charge-delta-border: max(1px, calc(1px * var(--layout-stage-scale)));
     --layout-size-charge-delta-anchor-gap: calc(8px * var(--layout-stage-scale));
     --layout-size-charge-delta-side-gap: calc(4px * var(--layout-stage-scale));
-    --layout-size-charge-delta-min-width: calc(56px * var(--layout-stage-scale));
-    --layout-size-charge-delta-wing-width: calc(16px * var(--layout-stage-scale));
-    --layout-size-charge-delta-wing-height: calc(18px * var(--layout-stage-scale));
-    --layout-size-charge-delta-wing-overlap: calc(14px * var(--layout-stage-scale));
+    --layout-size-charge-delta-min-width: calc(48px * var(--layout-stage-scale));
+    --layout-size-charge-delta-aura-width: calc(84px * var(--layout-stage-scale));
+    --layout-size-charge-delta-aura-height: calc(34px * var(--layout-stage-scale));
+    --layout-size-charge-delta-aura-blur: calc(11px * var(--layout-stage-scale));
+    --layout-size-charge-delta-trail-height: calc(24px * var(--layout-stage-scale));
+    --layout-size-charge-delta-mist-blur: calc(7px * var(--layout-stage-scale));
+    --layout-size-charge-delta-fade-blur: calc(8px * var(--layout-stage-scale));
     --layout-size-charge-delta-drift: calc(10px * var(--layout-stage-scale));
     --layout-size-charge-delta-shift-x: calc(90px * var(--layout-stage-scale));
     --layout-size-charge-delta-shift-y-start: calc(clamp(12px, 2vmin, 18px) * var(--layout-stage-scale));
@@ -310,7 +322,7 @@
 html.layout-profile-tablet-4x3 {
     --layout-anchor-board-size: 540px;
     --layout-anchor-log-left: 20px;
-    --layout-anchor-log-top: 374px;
+    --layout-anchor-log-top: 390px;
     --layout-anchor-log-width: 246px;
     --layout-anchor-log-height: 106px;
     --layout-anchor-effect-left: 20px;
@@ -354,7 +366,7 @@ html.layout-profile-tablet-4x3 {
     :root:not(.layout-profile-phone-portrait) {
         --layout-anchor-board-size: 540px;
         --layout-anchor-log-left: 20px;
-        --layout-anchor-log-top: 374px;
+        --layout-anchor-log-top: 390px;
         --layout-anchor-log-width: 246px;
         --layout-anchor-log-height: 106px;
         --layout-anchor-effect-left: 20px;

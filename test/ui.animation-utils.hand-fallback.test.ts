@@ -63,6 +63,32 @@ function unlockAltGachaHandSkin(rootRef) {
   storageModule.unlockHandSkinIds(rootRef, [ALT_GACHA_HAND_SKIN_ID]);
 }
 
+function installCardBackgroundPreloadFixture(imageSrcs, pathByCardId = {}) {
+  class MockImage {
+    constructor() {
+      this.onload = null;
+      this.onerror = null;
+    }
+
+    set src(value) {
+      imageSrcs.push(value);
+      setTimeout(() => {
+        if (typeof this.onload === 'function') this.onload();
+      }, 0);
+    }
+  }
+
+  global.Image = MockImage;
+  window.Image = MockImage;
+  global.createCardFaceElement = jest.fn((cardId) => {
+    const cardEl = document.createElement('div');
+    const imagePath = pathByCardId[cardId] || `assets/images/card/${cardId}.png`;
+    cardEl.dataset.cardBackgroundImage = imagePath;
+    return cardEl;
+  });
+  window.createCardFaceElement = global.createCardFaceElement;
+}
+
 describe('animation-utils hand fallback', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -108,6 +134,8 @@ describe('animation-utils hand fallback', () => {
     delete global.boardEl;
     delete global.cardState;
     delete global.SharedConstants;
+    delete global.Image;
+    delete global.createCardFaceElement;
   });
 
   test('playHandAnimation completes even when Element.animate is unavailable', async () => {
@@ -156,6 +184,82 @@ describe('animation-utils hand fallback', () => {
     const mod = require('../ui/animation-utils.js');
     await expect(mod.playDrawCardHandAnimation({ player: 'black', count: 1 })).resolves.toBeUndefined();
     expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playDrawCardHandAnimation preloads the drawn card background before hand reveal', async () => {
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      deck_a: 'assets/images/card/01_宝箱.png'
+    });
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    const mod = require('../ui/animation-utils.js');
+
+    const promise = mod.playDrawCardHandAnimation({ player: 'black', cardId: 'deck_a', count: 1 });
+    await Promise.resolve();
+
+    expect(imageSrcs).toContain('assets/images/card/01_宝箱.png');
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  test('playCardUseHandAnimation preloads the moving card background', async () => {
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      card_1: 'assets/images/card/02_自由の意志.png'
+    });
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    const mod = require('../ui/animation-utils.js');
+
+    const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_1', cost: 5, name: 'Test' });
+    await Promise.resolve();
+
+    expect(imageSrcs).toContain('assets/images/card/02_自由の意志.png');
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  test('playCardUseHandAnimation preloads the visual descriptor card background when payload cardId is hidden', async () => {
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      real_card_1: 'assets/images/card/03_探索.png'
+    });
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    const mod = require('../ui/animation-utils.js');
+
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: '__hidden_hand__:black:0',
+      cost: 5,
+      name: 'Hidden',
+      visualDescriptor: {
+        cardId: 'real_card_1',
+        cost: 5,
+        name: 'Real'
+      }
+    });
+    await Promise.resolve();
+
+    expect(imageSrcs).toContain('assets/images/card/03_探索.png');
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  test('playCardUseHandAnimation releases loaded preload image references from the cache', async () => {
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      card_2: 'assets/images/card/04_成長.png'
+    });
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    const mod = require('../ui/animation-utils.js');
+
+    const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_2', cost: 5, name: 'Test' });
+    await expect(promise).resolves.toBeUndefined();
+
+    const cacheEntry = window.__cardFaceArtPreloadCache && window.__cardFaceArtPreloadCache['assets/images/card/04_成長.png'];
+    expect(cacheEntry).toEqual(expect.objectContaining({ promise: expect.any(Promise) }));
+    expect(cacheEntry.image).toBeNull();
   });
 
   test('playDrawCardHandAnimation can force CPU-only hand image for the acting owner', async () => {

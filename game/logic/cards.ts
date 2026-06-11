@@ -269,6 +269,7 @@ const {
     const SNIPER_WILL_TURNS = 6;
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 6;
+    const METEOR_GOD_TURNS = 6;
     const GHOST_WILL_TURNS = 8;
     const PROLIFERATION_WILL_TURNS = 10;
     const WILL_HUNTER_KING_TURNS = 8;
@@ -650,6 +651,7 @@ const {
     const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
     /** @type {any} */
     const CardMeteorModule = resolveRequiredCardModule('./cards/meteor', 'CardMeteor');
+    const CardMeteorGodModule = resolveRequiredCardModule('./cards/meteor_god', 'CardMeteorGod');
     /** @type {any} */
     const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
     /** @type {any} */
@@ -973,8 +975,9 @@ const {
                 AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
-        LIGHTNING_WILL_TURNS,
-        GHOST_WILL_TURNS,
+                LIGHTNING_WILL_TURNS,
+                METEOR_GOD_TURNS,
+                GHOST_WILL_TURNS,
                 SEED_WILL_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS,
@@ -1826,6 +1829,7 @@ const {
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
+                METEOR_GOD_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS
             },
@@ -3752,6 +3756,65 @@ const {
         return processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
     }
 
+    function processMeteorGodEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardMeteorGodModule.processMeteorGodEffects(cardState, gameState, playerKey, {
+            BoardOps: BoardOpsModule,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
+                : null,
+            random: prng || defaultPrng
+        });
+    }
+
+    function processMeteorGodEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        const hasOptionShape = hasTurnStartRandomOptionOverrides(
+            prngOrOpts,
+            ['decrementRemainingOwnerTurns', 'BoardOps', 'applyCellRemovalAt', 'runCellRemovalBlock']
+        );
+        const deps = hasOptionShape
+            ? Object.assign({
+                BoardOps: BoardOpsModule,
+                applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                    ? BoardOpsModule.applyCellRemovalAt
+                    : null,
+                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                    ? BoardOpsModule.runCellRemovalBlock
+                    : null,
+                random: defaultPrng
+            }, prngOrOpts)
+            : {
+                BoardOps: BoardOpsModule,
+                applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                    ? BoardOpsModule.applyCellRemovalAt
+                    : null,
+                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                    ? BoardOpsModule.runCellRemovalBlock
+                    : null,
+                random: prngOrOpts || defaultPrng
+            };
+        const randomCandidate = (
+            hasOptionShape &&
+            prngOrOpts &&
+            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random')
+        )
+            ? prngOrOpts.random
+            : prngOrOpts;
+        deps.random = resolveDeterministicRandomSource(
+            randomCandidate,
+            deps.random,
+            'CardLogic.processMeteorGodEffectsAtAnchor'
+        );
+
+        return CardMeteorGodModule.processMeteorGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
+    }
+
+    function processMeteorGodEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return processMeteorGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
+    }
+
     function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
         const hasOptionShape = hasTurnStartRandomOptionOverrides(
             prngOrOpts,
@@ -4160,6 +4223,7 @@ const cardsApi: any = {
         SNIPER_WILL_TURNS,
         DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
+        METEOR_GOD_TURNS,
         GHOST_WILL_TURNS,
         SEED_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,
@@ -4231,6 +4295,7 @@ const cardsApi: any = {
         processSniperWillEffects,
         processDestroyDragonEffects,
         processLightningWillEffects,
+        processMeteorGodEffects,
 
         // Game flow
         onTurnStart,
@@ -4312,6 +4377,8 @@ const cardsApi: any = {
         processSniperWillEffectsAtTurnStartAnchor,
         processLightningWillEffectsAtTurnStartAnchor,
         processLightningWillEffectsAtAnchor,
+        processMeteorGodEffectsAtTurnStartAnchor,
+        processMeteorGodEffectsAtAnchor,
         processWillHunterKingEffectsAtTurnStartAnchor,
         processDestroyDragonEffectsAtAnchor,
         processDestroyDragonEffectsAtTurnStartAnchor,

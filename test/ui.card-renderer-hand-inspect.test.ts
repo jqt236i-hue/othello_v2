@@ -200,6 +200,12 @@ describe('card renderer hand inspection', () => {
     expect(ownCardEl.classList.contains('clickable')).toBe(true);
     expect(ownCardEl.classList.contains('affordable')).toBe(true);
     expect(ownCardEl.classList.contains('usable')).toBe(false);
+    const glowLayerEl = window.document.querySelector('#hand-black .hand-availability-glow-layer');
+    const handTrackEl = window.document.querySelector('#hand-black .hand-track');
+    expect(glowLayerEl).not.toBeNull();
+    expect(glowLayerEl?.nextElementSibling).toBe(handTrackEl);
+    expect(glowLayerEl?.children).toHaveLength(0);
+    expect(ownCardEl.querySelector('.hand-availability-glow')).toBeNull();
 
     dom.window.close();
   });
@@ -345,6 +351,48 @@ describe('card renderer hand inspection', () => {
     expect(cardEl.querySelector('.card-background-art')).toBeTruthy();
     expect(cardEl.style.getPropertyValue('--card-background-art-image')).toContain('assets/images/card/02_自由の意志.png');
     expect(cardEl.querySelector('.card-special-art')).toBeNull();
+
+    dom.window.close();
+  });
+
+  test('createCardFaceElement keeps availability glow out of card content', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      {
+        id: 'free_01',
+        name: '自由の意志',
+        desc: 'd',
+        cost: 14,
+        type: 'FREE_PLACEMENT',
+        display_type_ja: '禁忌'
+      }
+    ];
+
+    const cardEl = window.createCardFaceElement('free_01', { ownerKey: 'black' });
+    const glowEl = cardEl.querySelector('.card-state-glow');
+    const nameEl = cardEl.querySelector('.card-name');
+
+    expect(glowEl).toBeNull();
+    expect(nameEl).toBeTruthy();
+
+    dom.window.close();
+  });
+
+  test('createCardFaceElement resolves meteor god to the 91 card background art', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    window.GameVisualEffectsMap = require('../game/visual-effects-map');
+
+    const catalog = require('../cards/catalog.json');
+    window.CARD_DEFS = Array.isArray(catalog) ? catalog : catalog.cards;
+
+    const cardEl = window.createCardFaceElement('meteor_god_01', { ownerKey: 'black' });
+
+    expect(cardEl.classList.contains('has-card-background')).toBe(true);
+    expect(cardEl.querySelector('.card-background-art')).toBeTruthy();
+    expect(cardEl.style.getPropertyValue('--card-background-art-image')).toContain('assets/images/card/91_因果抹消神.png');
 
     dom.window.close();
   });
@@ -672,6 +720,7 @@ describe('card renderer hand inspection', () => {
     });
     const { window } = dom;
 
+    window.cardState.charge.white = 3;
     window.renderCardUI();
 
     const ownCardEl = window.document.querySelector('#hand-black .card-item.visible');
@@ -679,6 +728,13 @@ describe('card renderer hand inspection', () => {
     expect(ownCardEl).not.toBeNull();
     expect(ownCardEl.classList.contains('clickable')).toBe(true);
     expect(ownCardEl.classList.contains('usable')).toBe(false);
+    expect(ownCardEl.classList.contains('affordable')).toBe(true);
+    const ownGlowLayerEl = window.document.querySelector('#hand-black .hand-availability-glow-layer');
+    const ownGlowEl = ownGlowLayerEl?.querySelector('.hand-availability-glow');
+    expect(ownGlowLayerEl?.children).toHaveLength(1);
+    expect(ownGlowEl?.getAttribute('data-card-id')).toBe('own_card');
+    expect(ownGlowEl?.getAttribute('data-owner-key')).toBe('white');
+    expect(ownCardEl.querySelector('.hand-availability-glow')).toBeNull();
     expect(oppCardEl).not.toBeNull();
     expect(oppCardEl.classList.contains('clickable')).toBe(false);
 
@@ -733,6 +789,13 @@ describe('card renderer hand inspection', () => {
     expect(blackCardEl.classList.contains('usable')).toBe(true);
     expect(whiteCardEl.classList.contains('clickable')).toBe(true);
     expect(whiteCardEl.classList.contains('usable')).toBe(false);
+    const blackGlowLayerEl = window.document.querySelector('#hand-black .hand-availability-glow-layer');
+    const blackGlowEl = blackGlowLayerEl?.querySelector('.hand-availability-glow');
+    expect(blackGlowLayerEl?.children).toHaveLength(1);
+    expect(blackGlowEl?.getAttribute('data-card-id')).toBe('own_card');
+    expect(blackGlowEl?.getAttribute('aria-hidden')).toBe('true');
+    expect(blackCardEl.querySelector('.hand-availability-glow')).toBeNull();
+    expect(window.document.querySelector('#hand-white .hand-availability-glow-layer')?.children).toHaveLength(0);
 
     whiteCardEl.click();
 

@@ -19,6 +19,11 @@ describe('custom board reset bridge', () => {
       <input id="boardSizeColsInput" type="number" value="8" />
       <button id="boardSizeCloseBtn" type="button"></button>
       <div id="boardSizeEditorNote"></div>
+      <select id="smartBlack"><option value="1" selected>1</option></select>
+      <select id="smartWhite">
+        <option value="1">1</option>
+        <option value="7-theory-incarnation">Lv7: 理論の化身</option>
+      </select>
     </body></html>`, { url: 'http://localhost/' });
 
     global.window = dom.window as any;
@@ -133,5 +138,53 @@ describe('custom board reset bridge', () => {
       cols: 6,
       standard8x8: false
     });
+  });
+
+  test('resetGame applies Lv7 theory incarnation initial white charge from the CPU selector', () => {
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
+    const smartWhite = document.getElementById('smartWhite') as HTMLSelectElement;
+    smartWhite.value = '7-theory-incarnation';
+
+    createDeckBuilderController({
+      root: window,
+      refs: {
+        openBtn: document.getElementById('openBtn'),
+        controlSummary: document.getElementById('summary'),
+        overlay: document.getElementById('overlay'),
+        closeBtn: document.getElementById('closeBtn'),
+        headerSummary: document.getElementById('header'),
+        body: document.getElementById('body'),
+        boardSizeOpenBtn: document.getElementById('boardSizeOpenBtn'),
+        boardSizeControlSummary: document.getElementById('boardSizeControlSummary'),
+        boardSizeEditor: document.getElementById('boardSizeEditor'),
+        boardSizeRowsInput: document.getElementById('boardSizeRowsInput'),
+        boardSizeColsInput: document.getElementById('boardSizeColsInput'),
+        boardSizeCloseBtn: document.getElementById('boardSizeCloseBtn'),
+        boardSizeEditorNote: document.getElementById('boardSizeEditorNote')
+      }
+    });
+
+    const turnManager = require('../game/turn-manager.js');
+    turnManager.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key: string) => global[key],
+      writeRuntimeValue: (key: string, value: any) => { global[key] = value; },
+      readCpuSmartness: () => ({ black: 1, white: 7 }),
+      clearLogUI: jest.fn(),
+      resetTransientUIState: jest.fn(),
+      pulseDeckUI: jest.fn(),
+      scheduleCpuTurn: (_ms: number, cb: () => void) => Promise.resolve().then(cb),
+      isDocumentHidden: () => false
+    });
+
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      turnManager.resetGame();
+    } finally {
+      consoleLog.mockRestore();
+    }
+
+    expect(global.cardState.charge.white).toBe(50);
+    expect(global.cardState.charge.black).toBe(0);
   });
 });

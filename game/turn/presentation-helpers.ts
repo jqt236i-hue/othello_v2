@@ -28,6 +28,7 @@ const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'willHunterKingPlaced', special: 'WILL_HUNTER_KING' }),
     Object.freeze({ flag: 'destroyDragonPlaced', special: 'DESTROY_DRAGON' }),
     Object.freeze({ flag: 'lightningPlaced', special: 'LIGHTNING' }),
+    Object.freeze({ flag: 'meteorGodPlaced', special: 'METEOR_GOD' }),
     Object.freeze({ flag: 'extremeHyperactivePlaced', special: 'EXTREME_HYPERACTIVE' }),
     Object.freeze({ flag: 'escapeHyperactivePlaced', special: 'ESCAPE_HYPERACTIVE' }),
     Object.freeze({ flag: 'robotVacuumPlaced', special: 'ROBOT_VACUUM' }),

@@ -22,6 +22,7 @@
         'TABOO_REVERSE_WILL',
         'TEMPT_WILL',
         'METEOR_WILL',
+        'METEOR_GOD',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_REVERSE_DRAGON'
     ]);
@@ -32,6 +33,7 @@
         'GUARD_WILL',
         'GUARDIAN_GOD',
         'STONE_SALVATION_GOD',
+        'METEOR_GOD',
         'REGEN_WILL',
         'BLOCKADE_WILL'
     ]);

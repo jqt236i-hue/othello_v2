@@ -86,6 +86,7 @@ const CpuTurnPresentationRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cp
 const CpuTurnCardPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-card-phase');
 const CpuTurnPendingPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-pending-phase');
 const CpuTurnMovePhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-move-phase');
+const CpuDecisionRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cpu-decision');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -114,6 +115,10 @@ if (typeof require === 'function') {
 let cpuLv6RuntimeCapability: any = null;
 if (typeof require === 'function') {
     try { cpuLv6RuntimeCapability = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
+}
+let CpuOpponentProfiles: any = null;
+if (typeof require === 'function') {
+    try { CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles'); } catch (e) { /* ignore */ }
 }
 
 // ===== Module-level DI (replaces globalThis reads for bootstrap flags) =====
@@ -255,12 +260,12 @@ function clampCpuLevelForTurn(value: any): number {
     return Math.max(1, Math.min(6, Math.floor(n)));
 }
 
-function resolveCpuLevelForTurn(playerKey: PlayerKey): number {
+function readRawCpuSmartnessForTurn(playerKey: PlayerKey): any {
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.readCpuSmartness === 'function') {
             const smartness = __uiImpl_cpu.readCpuSmartness();
             if (smartness && Object.prototype.hasOwnProperty.call(smartness, playerKey)) {
-                return clampCpuLevelForTurn(smartness[playerKey]);
+                return smartness[playerKey];
             }
         }
     } catch (e) { /* ignore */ }
@@ -268,9 +273,49 @@ function resolveCpuLevelForTurn(playerKey: PlayerKey): number {
     const cpuSmartnessRef = resolveRuntimeValue('cpuSmartness')
         || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
     if (cpuSmartnessRef && Object.prototype.hasOwnProperty.call(cpuSmartnessRef, playerKey)) {
-        return clampCpuLevelForTurn(cpuSmartnessRef[playerKey]);
+        return cpuSmartnessRef[playerKey];
     }
-    return 1;
+    return null;
+}
+
+function resolveCpuDecisionFunction(name: string): Function | null {
+    const runtimeFn = resolveRuntimeFunction(name);
+    if (runtimeFn) return runtimeFn;
+    try {
+        if (CpuDecisionRuntimeModule && typeof CpuDecisionRuntimeModule[name] === 'function') {
+            return CpuDecisionRuntimeModule[name];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any)[name] === 'function') {
+            return (globalThis as any)[name];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveCpuOpponentProfileForTurn(playerKey: PlayerKey): any {
+    const raw = readRawCpuSmartnessForTurn(playerKey);
+    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentProfile === 'function') {
+        return CpuOpponentProfiles.getCpuOpponentProfile(raw);
+    }
+    return null;
+}
+
+function resolveCpuLevelForTurn(playerKey: PlayerKey): number {
+    const raw = readRawCpuSmartnessForTurn(playerKey);
+    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentDecisionLevel === 'function') {
+        return CpuOpponentProfiles.getCpuOpponentDecisionLevel(raw);
+    }
+    return clampCpuLevelForTurn(raw);
+}
+
+function shouldSkipCardPhaseForProfile(playerKey: PlayerKey): boolean {
+    const profile = resolveCpuOpponentProfileForTurn(playerKey);
+    if (!profile || !Number.isFinite(Number(profile.cardUseUnlockTurnNumber))) return false;
+    const turnNumber = getCurrentTurnNumberSafe();
+    if (!Number.isFinite(Number(turnNumber))) return false;
+    return Number(turnNumber) < Math.max(0, Math.floor(Number(profile.cardUseUnlockTurnNumber)));
 }
 
 function resolveCpuCardLogic() {
@@ -1073,10 +1118,14 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
             return { attempted: true, applied: false, hold: true };
         }
         if (!choice || !choice.cardId) return { attempted: true, applied: false, hold: false };
+        const buildCardUseDecisionContextFn = resolveCpuDecisionFunction('buildCardUseDecisionContext')
+            || (typeof buildCardUseDecisionContext === 'function' ? buildCardUseDecisionContext : null);
+        const isCardChoiceAllowedByRiskFn = resolveCpuDecisionFunction('isCardChoiceAllowedByRisk')
+            || (typeof isCardChoiceAllowedByRisk === 'function' ? isCardChoiceAllowedByRisk : null);
         let decisionContext = null;
-        if (typeof buildCardUseDecisionContext === 'function') {
+        if (typeof buildCardUseDecisionContextFn === 'function') {
             try {
-                decisionContext = buildCardUseDecisionContext(playerKey, level, legalMovesCount, safeMoves, usable);
+                decisionContext = buildCardUseDecisionContextFn(playerKey, level, legalMovesCount, safeMoves, usable);
             } catch (e) { /* ignore */ }
         }
         if (typeof isCardChoiceAllowedByPlan === 'function') {
@@ -1096,8 +1145,8 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
                 if (!allowedByPlan) return { attempted: true, applied: false, hold: false };
             } catch (e) { /* ignore */ }
         }
-        if (typeof isCardChoiceAllowedByRisk === 'function') {
-            const allowed = isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, choice.cardId, decisionContext);
+        if (typeof isCardChoiceAllowedByRiskFn === 'function') {
+            const allowed = isCardChoiceAllowedByRiskFn(playerKey, level, legalMovesCount, choice.cardId, decisionContext);
             if (!allowed) return { attempted: true, applied: false, hold: false };
         }
         if (typeof isCardChoiceAllowedByHighConfidence === 'function') {
@@ -1238,7 +1287,26 @@ function getUsableCardIdsForCpuRetry(playerKey: any) {
     return [];
 }
 
-function tryApplyAnyUsableCard(playerKey: any) {
+function isCpuRetryCardChoiceAllowed(playerKey: any, level: any, legalMovesCount: any, legalMoves: any[], cardId: any, usableIds: any[]) {
+    const buildCardUseDecisionContextFn = resolveCpuDecisionFunction('buildCardUseDecisionContext')
+        || (typeof buildCardUseDecisionContext === 'function' ? buildCardUseDecisionContext : null);
+    const isCardChoiceAllowedByRiskFn = resolveCpuDecisionFunction('isCardChoiceAllowedByRisk')
+        || (typeof isCardChoiceAllowedByRisk === 'function' ? isCardChoiceAllowedByRisk : null);
+    if (typeof isCardChoiceAllowedByRiskFn !== 'function') return true;
+    let decisionContext = null;
+    if (typeof buildCardUseDecisionContextFn === 'function') {
+        try {
+            decisionContext = buildCardUseDecisionContextFn(playerKey, level, legalMovesCount, legalMoves, usableIds);
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        return isCardChoiceAllowedByRiskFn(playerKey, level, legalMovesCount, cardId, decisionContext) === true;
+    } catch (e) {
+        return true;
+    }
+}
+
+function tryApplyAnyUsableCard(playerKey: any, level?: any, legalMovesCount?: any, legalMoves?: any[]) {
     const hasUsedCardThisTurn = !!(
         cardState &&
         cardState.hasUsedCardThisTurnByPlayer &&
@@ -1253,11 +1321,17 @@ function tryApplyAnyUsableCard(playerKey: any) {
     if (typeof applyChoice !== 'function') return false;
     const usableIds = getUsableCardIdsForCpuRetry(playerKey);
     if (!usableIds.length) return false;
+    const resolvedLevel = Number.isFinite(Number(level)) ? Number(level) : resolveCpuLevelForTurn(playerKey);
+    const safeMoves = Array.isArray(legalMoves) ? legalMoves : [];
+    const safeLegalMovesCount = Number.isFinite(Number(legalMovesCount)) ? Number(legalMovesCount) : safeMoves.length;
     for (const cardId of usableIds) {
         const cardLogicForRetry = resolveCpuCardLogic();
         const cardDef = (cardLogicForRetry && typeof cardLogicForRetry.getCardDef === 'function')
             ? cardLogicForRetry.getCardDef(cardId)
             : null;
+        if (!isCpuRetryCardChoiceAllowed(playerKey, resolvedLevel, safeLegalMovesCount, safeMoves, cardId, usableIds)) {
+            continue;
+        }
         if (applyChoice(playerKey, { cardId, cardDef })) {
             return true;
         }
@@ -1293,6 +1367,7 @@ const CpuTurnCardPhase = (CpuTurnCardPhaseModule && typeof CpuTurnCardPhaseModul
         setCpuProcessing,
         shouldAbortCpuForHumanMode,
         shouldOverrideOnnxHoldDecision,
+        shouldSkipCardPhaseForProfile,
         tryDestroyHighPriorityHandCardViaAdapter
     })
     : null;

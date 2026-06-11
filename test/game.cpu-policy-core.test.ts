@@ -1496,10 +1496,10 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
-    test('scoreCardUseDecision uses CRYSTAL_STONE when high-value number cell is available', () => {
+    test('scoreCardUseDecision uses CRYSTAL_STONE when a profitable number cell is available', () => {
         const out = core.scoreCardUseDecision(
             'crystal',
-            () => 7,
+            () => 6,
             () => ({ id: 'crystal', type: 'CRYSTAL_STONE' }),
             {
                 level: 6,
@@ -1513,12 +1513,37 @@ describe('cpu-policy-core', () => {
                 hasCornerMoveNow: false,
                 highBonusMoveAvailable: true,
                 maxLegalFlips: 1,
-                maxLegalGain: 4,
-                maxLegalBoardBonus: 3,
+                maxLegalGain: 9,
+                maxLegalBoardBonus: 8,
                 avgLegalFlips: 1.5
             }
         );
         expect(out.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision suppresses CRYSTAL_STONE until the number cell beats card cost', () => {
+        const out = core.scoreCardUseDecision(
+            'crystal',
+            () => 6,
+            () => ({ id: 'crystal', type: 'CRYSTAL_STONE' }),
+            {
+                level: 6,
+                legalMovesCount: 4,
+                discDiff: -2,
+                empties: 26,
+                ownCharge: 16,
+                handSize: 3,
+                ownCorners: 1,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                highBonusMoveAvailable: true,
+                maxLegalFlips: 5,
+                maxLegalGain: 11,
+                maxLegalBoardBonus: 6,
+                avgLegalFlips: 3
+            }
+        );
+        expect(out.shouldUse).toBe(false);
     });
 
     test('scoreCardUseDecision suppresses CRYSTAL_STONE when数字マス利益がない', () => {
@@ -1710,6 +1735,118 @@ describe('cpu-policy-core', () => {
             }
         );
         expect(strong.score).toBeGreaterThan(weak.score);
+    });
+
+    test('scoreCardUseDecision penalizes LOSS_WILL for destroyable normal hand cards', () => {
+        const getCardDef = (id: string) => {
+            if (id === 'loss_will_01') return { id, type: 'LOSS_WILL' };
+            if (id === 'observer_will_01') return { id, type: 'OBSERVER_WILL' };
+            return { id, type: 'TEST_NORMAL' };
+        };
+        const commonContext = {
+            level: 6,
+            legalMovesCount: 4,
+            discDiff: -4,
+            empties: 30,
+            ownCharge: 18,
+            ownSpecialCount: 1,
+            oppSpecialCount: 5,
+            ownGuardCount: 0,
+            oppGuardCount: 1
+        };
+        const normalHeavy = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            getCardDef,
+            {
+                ...commonContext,
+                handCardIds: ['loss_will_01', 'observer_will_01', 'gold_stone', 'silver_stone']
+            }
+        );
+        const specialOnly = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            getCardDef,
+            {
+                ...commonContext,
+                handCardIds: ['loss_will_01', 'observer_will_01']
+            }
+        );
+
+        expect(normalHeavy.score).toBeLessThan(specialOnly.score);
+    });
+
+    test('scoreCardUseDecision does not add LOSS_WILL hand destruction penalty for special cards only', () => {
+        const getCardDef = (id: string) => {
+            if (id === 'loss_will_01') return { id, type: 'LOSS_WILL' };
+            if (id === 'observer_will_01') return { id, type: 'OBSERVER_WILL' };
+            return { id, type: 'TEST_NORMAL' };
+        };
+        const commonContext = {
+            level: 6,
+            legalMovesCount: 4,
+            discDiff: -4,
+            empties: 30,
+            ownCharge: 18,
+            ownSpecialCount: 1,
+            oppSpecialCount: 5,
+            ownGuardCount: 0,
+            oppGuardCount: 1
+        };
+        const noRemaining = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            getCardDef,
+            {
+                ...commonContext,
+                handCardIds: ['loss_will_01']
+            }
+        );
+        const specialOnly = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            getCardDef,
+            {
+                ...commonContext,
+                handCardIds: ['loss_will_01', 'observer_will_01']
+            }
+        );
+
+        expect(specialOnly.score).toBe(noRemaining.score);
+    });
+
+    test('scoreCardUseDecision counts duplicate LOSS_WILL cards after the used card as destroyable', () => {
+        const commonContext = {
+            level: 6,
+            legalMovesCount: 4,
+            discDiff: -4,
+            empties: 30,
+            ownCharge: 18,
+            ownSpecialCount: 1,
+            oppSpecialCount: 5,
+            ownGuardCount: 0,
+            oppGuardCount: 1
+        };
+        const singleCopy = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            (id: string) => ({ id, type: 'LOSS_WILL' }),
+            {
+                ...commonContext,
+                handCardIds: ['loss_will_01']
+            }
+        );
+        const duplicateCopy = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            (id: string) => ({ id, type: 'LOSS_WILL' }),
+            {
+                ...commonContext,
+                handCardIds: ['loss_will_01', 'loss_will_01']
+            }
+        );
+
+        expect(duplicateCopy.score).toBeLessThan(singleCopy.score);
     });
 
     test('scoreCardUseDecision suppresses LOSS_WILL when it would reset own corner special without bigger enemy anchor payoff', () => {
@@ -2812,7 +2949,7 @@ describe('cpu-policy-core', () => {
         expect(lowRainbow.shouldUse).toBe(false);
     });
 
-    test('scoreCardUseDecision allows gold silver rainbow and plunder at 3+ flips', () => {
+    test('scoreCardUseDecision allows gold silver rainbow and plunder when card-cost ROI is positive', () => {
         const defs: Record<string, TestCardDef> = {
             gold: { id: 'gold', type: 'GOLD_STONE' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
@@ -2832,14 +2969,50 @@ describe('cpu-policy-core', () => {
             maxLegalGain: 3,
             oppCharge: 12
         };
-        const gold = core.scoreCardUseDecision('gold', () => 8, (id: string) => defs[id], common);
-        const silver = core.scoreCardUseDecision('silver', () => 6, (id: string) => defs[id], common);
+        const gold = core.scoreCardUseDecision('gold', () => 6, (id: string) => defs[id], common);
+        const silver = core.scoreCardUseDecision('silver', () => 3, (id: string) => defs[id], {
+            ...common,
+            maxLegalFlips: 2,
+            maxLegalGain: 2
+        });
         const rainbow = core.scoreCardUseDecision('rainbow', () => 10, (id: string) => defs[id], common);
         const plunder = core.scoreCardUseDecision('plunder', () => 7, (id: string) => defs[id], common);
         expect(gold.shouldUse).toBe(true);
         expect(silver.shouldUse).toBe(true);
         expect(rainbow.shouldUse).toBe(true);
         expect(plunder.shouldUse).toBe(true);
+    });
+
+    test('scoreCardUseDecision suppresses gold and rainbow at card-cost break-even for Lv6+', () => {
+        const common = {
+            level: 6,
+            legalMovesCount: 4,
+            discDiff: -4,
+            empties: 28,
+            ownCharge: 24,
+            handSize: 3,
+            ownCorners: 1,
+            oppCorners: 1,
+            hasCornerMoveNow: false,
+            maxLegalFlips: 2,
+            maxLegalGain: 9,
+            maxLegalBoardBonus: 7,
+            avgLegalFlips: 2
+        };
+        const gold = core.scoreCardUseDecision(
+            'gold',
+            () => 6,
+            () => ({ id: 'gold', type: 'GOLD_STONE' }),
+            common
+        );
+        const rainbow = core.scoreCardUseDecision(
+            'rainbow',
+            () => 10,
+            () => ({ id: 'rainbow', type: 'RAINBOW_STONE' }),
+            common
+        );
+        expect(gold.shouldUse).toBe(false);
+        expect(rainbow.shouldUse).toBe(false);
     });
 
     test('scoreCardUseDecision suppresses CLONE_WILL when setup budget is tight and gain is small', () => {

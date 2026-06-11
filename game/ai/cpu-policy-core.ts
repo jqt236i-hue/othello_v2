@@ -157,6 +157,7 @@ const CpuPolicyLookaheadPreludeModule = requireOptionalModule('./cpu-policy-look
 const CpuPolicyLookaheadNegamaxModule = requireOptionalModule('./cpu-policy-lookahead-negamax');
 const CpuPolicyLookaheadControllerModule = requireOptionalModule('./cpu-policy-lookahead-controller');
 const CpuPolicyCardTaxonomyModule = requireOptionalModule('./cpu-policy-card-taxonomy');
+const SpecialCardRegistryModule = requireOptionalModule('../../shared/special-card-registry');
 const CpuPolicyCardTaxonomy = CpuPolicyCardTaxonomyModule || {};
 const THROW_CHAIN_CARD_TYPES = CpuPolicyCardTaxonomy.THROW_CHAIN_CARD_TYPES || Object.freeze(['DOUBLE_PLACE', 'TRIPLE_PLACE', 'QUAD_PLACE', 'INFINITE_PLACE']);
 const CHAIN_WILL_CARD_TYPES = CpuPolicyCardTaxonomy.CHAIN_WILL_CARD_TYPES || Object.freeze(['DOUBLE_CHAIN_WILL', 'TRIPLE_CHAIN_WILL', 'QUAD_CHAIN_WILL', 'INFINITE_CHAIN_WILL']);
@@ -625,6 +626,14 @@ function requireCpuPolicyCardUseState() {
     return helpers;
 }
 
+function isInviolableSpecialCardIdForCpuPolicy(cardId: unknown): boolean {
+    return !!(
+        SpecialCardRegistryModule &&
+        typeof SpecialCardRegistryModule.isInviolableSpecialCardId === 'function' &&
+        SpecialCardRegistryModule.isInviolableSpecialCardId(cardId)
+    );
+}
+
 function getCpuPolicyCardUseDecision() {
     if (CpuPolicyCardUseDecisionCache) return CpuPolicyCardUseDecisionCache;
     if (!CpuPolicyCardUseDecisionModule || typeof CpuPolicyCardUseDecisionModule.createCpuPolicyCardUseDecision !== 'function') {
@@ -640,7 +649,8 @@ function getCpuPolicyCardUseDecision() {
         cardTypeUsageStyle: CARD_TYPE_USAGE_STYLE,
         highVarianceCardTypes: HIGH_VARIANCE_CARD_TYPES,
         rebuildKeepPriorityCardTypes: REBUILD_KEEP_PRIORITY_CARD_TYPES,
-        whiteLv6DestroyWhenAheadTypes: WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES
+        whiteLv6DestroyWhenAheadTypes: WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES,
+        isInviolableSpecialCardId: isInviolableSpecialCardIdForCpuPolicy
     });
     return CpuPolicyCardUseDecisionCache;
 }

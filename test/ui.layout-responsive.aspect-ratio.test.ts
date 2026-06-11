@@ -94,17 +94,20 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/id="round-display-panel"/);
     expect(html).toMatch(/id="manifest-effect-panel"/);
     expect(html).toMatch(/id="gachaBalanceSummary"[\s\S]*observation-stone-icon/);
-    expect(html).toMatch(/<div id="log"><\/div>[\s\S]*<!-- Side UI Panel -->/);
-    expect(html).not.toMatch(/<div id="side-panel">[\s\S]*<div id="log"><\/div>[\s\S]*<\/div>\s*<\/div>\s*<!-- Discard Display -->/);
+    expect(html).toMatch(/<div id="log" aria-hidden="true"><\/div>[\s\S]*<!-- Side UI Panel -->/);
+    expect(html).not.toMatch(/<div id="side-panel">[\s\S]*<div id="log"[\s\S]*<\/div>[\s\S]*<\/div>\s*<\/div>\s*<!-- Discard Display -->/);
   });
 
   test('worker-public layout mirrors stay in sync with root sources', () => {
-    const rootResponsivePath = path.join(__dirname, '..', 'styles-responsive.css');
-    const workerResponsivePath = path.join(__dirname, '..', 'worker-public', 'styles-responsive.css');
+    const mirroredStyleFiles = LAYOUT_STYLE_FILES.concat('styles-responsive.css');
     const rootStagePath = path.join(__dirname, '..', 'ui', 'layout-stage.js');
     const workerStagePath = path.join(__dirname, '..', 'worker-public', 'ui', 'layout-stage.js');
 
-    expect(fs.readFileSync(workerResponsivePath, 'utf8')).toBe(fs.readFileSync(rootResponsivePath, 'utf8'));
+    mirroredStyleFiles.forEach((fileName) => {
+      const rootStylePath = path.join(__dirname, '..', fileName);
+      const workerStylePath = path.join(__dirname, '..', 'worker-public', fileName);
+      expect(fs.readFileSync(workerStylePath, 'utf8')).toBe(fs.readFileSync(rootStylePath, 'utf8'));
+    });
     expect(fs.readFileSync(workerStagePath, 'utf8')).toBe(fs.readFileSync(rootStagePath, 'utf8'));
   });
 

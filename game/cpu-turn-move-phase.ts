@@ -29,7 +29,7 @@ type CpuTurnMovePhaseConfig = {
     setCpuProcessing: (active: any) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
     shouldUseOnnxMoveDecision: (level: any) => any;
-    tryApplyAnyUsableCard: (playerKey: any) => any;
+    tryApplyAnyUsableCard: (playerKey: any, level?: any, legalMovesCount?: any, legalMoves?: any[]) => any;
     whiteValue: any;
 };
 
@@ -88,7 +88,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     retried = !!useCardWithPolicyFn(playerKey);
                 }
                 if (!retried) {
-                    retried = cfg.tryApplyAnyUsableCard(playerKey);
+                    retried = cfg.tryApplyAnyUsableCard(playerKey, level, 0, []);
                 }
                 cfg.setCpuProcessing(false);
                 cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());

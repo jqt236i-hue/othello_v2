@@ -14,6 +14,10 @@ interface BgmTrack {
     loopEnd?: number;
 }
 
+interface ManifestBgmTransitionOptions {
+    transitionMs?: number;
+}
+
 interface ResultBgmTrack extends BgmTrack {
     file: string;
     loop: boolean;
@@ -82,6 +86,9 @@ const SoundEngine = {
     _manifestBgmTrack: null as BgmTrack | null,
     _manifestBgmPausedNormalBgm: false,
     _manifestBgmWaitingForSpecialCardMuteEnd: false,
+    _manifestBgmEnding: false,
+    _manifestBgmTransitionTimer: null as any,
+    _manifestBgmTransitionToken: 0,
 
     // BGM Playlist
     playlist: [
@@ -231,6 +238,10 @@ const SoundEngine = {
 
     _updateBgmOutputVolume() {
         const volume = this._getBgmOutputVolume();
+        if (this._manifestBgmEnding) {
+            this._updateResultBgmVolume();
+            return;
+        }
         if (this.bgm && !this._isBufferedBgmController(this.bgm)) {
             this.bgm.volume = volume;
         }
@@ -270,6 +281,104 @@ const SoundEngine = {
                 state.gainNode.gain.value = volume;
             }
         }
+    },
+
+    _setBgmElementOutputVolume(audio: any, state: BgmBufferedState | null | undefined, volume: number) {
+        const normalizedVolume = this._clamp01(this._toNonNegativeNumber(volume, 0));
+        if (audio) {
+            try { audio.volume = normalizedVolume; } catch (e) { /* ignore */ }
+        }
+        if (state && state.controller) {
+            try { state.controller.volume = normalizedVolume; } catch (e) { /* ignore */ }
+        }
+        if (state && state.gainNode && state.gainNode.gain) {
+            if (typeof state.gainNode.gain.setValueAtTime === 'function' && this.ctx && Number.isFinite(Number(this.ctx.currentTime))) {
+                state.gainNode.gain.setValueAtTime(normalizedVolume, Number(this.ctx.currentTime));
+            } else if ('value' in state.gainNode.gain) {
+                state.gainNode.gain.value = normalizedVolume;
+            }
+        }
+    },
+
+    _clearManifestBgmTransitionTimer() {
+        if (this._manifestBgmTransitionTimer === null) return;
+        try { clearTimeout(this._manifestBgmTransitionTimer); } catch (e) { /* ignore */ }
+        this._manifestBgmTransitionTimer = null;
+    },
+
+    _getManifestBgmTransitionMs(options?: ManifestBgmTransitionOptions | null) {
+        const transitionMs = Number(options && options.transitionMs);
+        return Number.isFinite(transitionMs) ? Math.max(0, transitionMs) : 0;
+    },
+
+    _startManifestBgmClearTransition(transitionMs: number, shouldResumeNormalBgm: boolean) {
+        const manifestAudio = this._manifestBgm;
+        if (!manifestAudio || !(transitionMs > 0)) return false;
+
+        this._clearManifestBgmTransitionTimer();
+        const manifestState = this._manifestBgmBufferedState;
+        const normalAudio = this.bgm;
+        const normalState = this._bgmBufferedState;
+        const targetVolume = this._getBgmOutputVolume();
+        const manifestStartVolumeRaw = Number((manifestAudio as any).volume);
+        const manifestStartVolume = Number.isFinite(manifestStartVolumeRaw) ? Math.max(0, manifestStartVolumeRaw) : targetVolume;
+        const shouldFadeNormalBgm = shouldResumeNormalBgm && !!normalAudio;
+        const token = this._manifestBgmTransitionToken + 1;
+        this._manifestBgmTransitionToken = token;
+        this._manifestBgmEnding = true;
+        this._manifestBgmKey = null;
+        this._manifestBgmTrack = null;
+        this._manifestBgmPausedNormalBgm = false;
+        this._manifestBgmWaitingForSpecialCardMuteEnd = false;
+
+        if (shouldFadeNormalBgm) {
+            this._setBgmElementOutputVolume(normalAudio, normalState, 0);
+            this._playBgmElement(normalAudio);
+        }
+
+        const manifestFadeEnd = 0.35;
+        const normalFadeStart = 0.65;
+        const applyProgress = (progressValue: number) => {
+            const progress = this._clamp01(progressValue);
+            const manifestProgress = this._clamp01(progress / manifestFadeEnd);
+            const normalProgress = this._clamp01((progress - normalFadeStart) / (1 - normalFadeStart));
+            if (this._manifestBgm === manifestAudio) {
+                this._setBgmElementOutputVolume(manifestAudio, manifestState, manifestStartVolume * (1 - manifestProgress));
+            }
+            if (shouldFadeNormalBgm && this.bgm === normalAudio) {
+                this._setBgmElementOutputVolume(normalAudio, normalState, targetVolume * normalProgress);
+            }
+        };
+
+        const finishTransition = () => {
+            if (this._manifestBgmTransitionToken !== token) return;
+            this._manifestBgmTransitionTimer = null;
+            if (shouldFadeNormalBgm && this.bgm === normalAudio) {
+                this._setBgmElementOutputVolume(normalAudio, normalState, targetVolume);
+            }
+            if (this._manifestBgm === manifestAudio) {
+                this._stopManifestBgmElement(true);
+                this._manifestBgm = null;
+                this._manifestBgmBufferedState = null;
+            }
+            this._manifestBgmEnding = false;
+        };
+
+        const stepMs = Math.min(50, transitionMs);
+        const runStep = (elapsedMs: number) => {
+            if (this._manifestBgmTransitionToken !== token) return;
+            const elapsed = Math.min(transitionMs, elapsedMs);
+            applyProgress(elapsed / transitionMs);
+            if (elapsed >= transitionMs) {
+                finishTransition();
+                return;
+            }
+            this._manifestBgmTransitionTimer = setTimeout(() => runStep(elapsed + stepMs), stepMs);
+        };
+
+        applyProgress(0);
+        this._manifestBgmTransitionTimer = setTimeout(() => runStep(stepMs), stepMs);
+        return true;
     },
 
     _normalizeBufferedBgmOffset(offset: number, state: BgmBufferedState | null) {
@@ -670,6 +779,9 @@ const SoundEngine = {
         if (!normalizedKey || !resolvedTrack) {
             return this.clearManifestBgmOverride();
         }
+        this._clearManifestBgmTransitionTimer();
+        this._manifestBgmEnding = false;
+        this._updateBgmOutputVolume();
         if (this._manifestBgmKey === normalizedKey && this._manifestBgm) {
             this._manifestBgmTrack = resolvedTrack;
             this._updateBgmOutputVolume();
@@ -699,9 +811,15 @@ const SoundEngine = {
         return !!this._manifestBgm;
     },
 
-    clearManifestBgmOverride() {
+    clearManifestBgmOverride(options?: ManifestBgmTransitionOptions) {
         const hadManifestBgm = !!this._manifestBgm || !!this._manifestBgmKey;
         const shouldResumeNormalBgm = this._manifestBgmPausedNormalBgm && this.allowBgmPlay;
+        const transitionMs = this._getManifestBgmTransitionMs(options);
+        if (transitionMs > 0 && this.allowBgmPlay && this._startManifestBgmClearTransition(transitionMs, shouldResumeNormalBgm)) {
+            return hadManifestBgm;
+        }
+        this._clearManifestBgmTransitionTimer();
+        this._manifestBgmEnding = false;
         this._stopManifestBgmElement(true);
         this._manifestBgm = null;
         this._manifestBgmKey = null;
@@ -709,17 +827,18 @@ const SoundEngine = {
         this._manifestBgmPausedNormalBgm = false;
         this._manifestBgmWaitingForSpecialCardMuteEnd = false;
         if (shouldResumeNormalBgm) {
+            this._updateBgmOutputVolume();
             this.playBgm();
         }
         return hadManifestBgm;
     },
 
-    syncManifestBgmOverride(key: any, track: BgmTrack | null) {
+    syncManifestBgmOverride(key: any, track: BgmTrack | null, options?: ManifestBgmTransitionOptions) {
         const normalizedKey = String(key || '').trim();
         if (normalizedKey && track) {
             return this.setManifestBgmOverride(normalizedKey, track);
         }
-        return this.clearManifestBgmOverride();
+        return this.clearManifestBgmOverride(options);
     },
 
     loadBgm(index: number | string) {
@@ -1295,7 +1414,7 @@ const SoundEngine = {
 
     playBgm() {
         this.allowBgmPlay = true;
-        if (this._manifestBgm) {
+        if (this._manifestBgm && !this._manifestBgmEnding) {
             if (this._temporaryBgmMutedBySpecialCardUse) {
                 this._manifestBgmWaitingForSpecialCardMuteEnd = true;
             } else {
@@ -1313,6 +1432,13 @@ const SoundEngine = {
 
     pauseBgm() {
         this.allowBgmPlay = false;
+        if (this._manifestBgmEnding) {
+            this._clearManifestBgmTransitionTimer();
+            this._stopManifestBgmElement(true);
+            this._manifestBgm = null;
+            this._manifestBgmBufferedState = null;
+            this._manifestBgmEnding = false;
+        }
         this._manifestBgmWaitingForSpecialCardMuteEnd = false;
         if (this._manifestBgm) this._manifestBgm.pause();
         if (this.bgm) this.bgm.pause();

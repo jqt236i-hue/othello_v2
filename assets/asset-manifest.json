@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-09",
-  "generatedAt": "2026-06-09T05:47:01.731Z",
+  "version": "2026-06-11",
+  "generatedAt": "2026-06-11T16:32:11.156Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -89,6 +89,14 @@
     {
       "path": "assets/images/stones/HYPERACTIVE_WILL-white.png",
       "sha256": "dd15b7c8aa8d9f16905bc919b931512447a05424c4c2bf6ab3f9b454bc0181e1"
+    },
+    {
+      "path": "assets/images/stones/METEOR_GOD-black.png",
+      "sha256": "76716f8580f26f9b8d01b3abc180dbe9d38f0131e794d6e4c79e7e99284b8c8b"
+    },
+    {
+      "path": "assets/images/stones/METEOR_GOD-white.png",
+      "sha256": "689ac91d594f72d59c150b714a96bc1f4500a29e26bdf41ada67dedff7549e74"
     },
     {
       "path": "assets/images/stones/normal_stone-black.png",
@@ -303,8 +311,12 @@
       "sha256": "cb1a46607d8a2e11eb65830c29362f9fc13b918ce6c0e31bc364f40e1e58fd4e"
     },
     {
-      "path": "assets/images/background/default.png",
+      "path": "assets/images/background/1.png",
       "sha256": "2fb2f1e18045a943a56c9a406fadb460b5ba8739e8fd7de7b04d379066f2eb99"
+    },
+    {
+      "path": "assets/images/background/default.png",
+      "sha256": "efc811da5a94c82d9ba81f66d62127097daced4aee35b68c1bb2d979e285421b"
     },
     {
       "path": "assets/images/background/manifest-worlds/執行の世界.png",
@@ -317,6 +329,10 @@
     {
       "path": "assets/images/background/manifest-worlds/観測の世界.png",
       "sha256": "80e29cb6dd22aa098fa96f1f718c42d4868e49521ef7b692dd6c0999a9f46d09"
+    },
+    {
+      "path": "assets/images/background/デフォルト2.png",
+      "sha256": "5d372be012fd5b8f72d86afa3356da0e914d5fdb77503d5d704cf79a50d70d68"
     },
     {
       "path": "assets/images/background/宇宙の観測.png",
@@ -635,8 +651,16 @@
       "sha256": "2d34ebba2dc5e96d0a3651acc95dd7d4431570f3469a09232fd883358b7cbb42"
     },
     {
+      "path": "assets/audio/bgm/manifest-stones/A (2).mp3",
+      "sha256": "4324263377567532d365e5680cddcd66da24fb9448a1483b0ff7b0001a6db1e2"
+    },
+    {
       "path": "assets/audio/bgm/manifest-stones/A.mp3",
       "sha256": "37c05284c551a2890df3001d65c1c5bd5952ea5ba1c8ab077b6220920871075f"
+    },
+    {
+      "path": "assets/audio/bgm/manifest-stones/aa.mp3",
+      "sha256": "a1da11e08b662b4a6783f4ff5986f2bed38b7b38d022b26e1550a9b4c5d1b446"
     },
     {
       "path": "assets/audio/bgm/manifest-stones/s.mp3",
@@ -647,8 +671,8 @@
       "sha256": "19c5a8d3e4e7613bb6eb1f202d9cdd330efc18eea9b5a772849e66a1dcf5eac1"
     },
     {
-      "path": "assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3",
-      "sha256": "a1da11e08b662b4a6783f4ff5986f2bed38b7b38d022b26e1550a9b4c5d1b446"
+      "path": "assets/audio/bgm/manifest-stones/執行の道-bpm150.wav",
+      "sha256": "166e90cfbca039d824d549a631a49df13895ad58e0bca946baa9bde0843bdcf0"
     },
     {
       "path": "assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3",

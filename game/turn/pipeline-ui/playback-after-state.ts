@@ -121,7 +121,8 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
     const ownerFromEvent = (eventMeta && eventMeta.owner) || null;
     const flipEvadeRemainingFromEvent = deps.getFlipEvadeRemainingFromMeta(eventMeta);
     const destroyEvadeRemainingFromEvent = deps.getDestroyEvadeRemainingFromMeta(eventMeta);
-    const isStatusRemoved = playbackType === 'status_removed';
+    const isManifestEnding = playbackType === 'manifest_ending';
+    const isStatusRemoved = playbackType === 'status_removed' || isManifestEnding;
     const preferFinalVisualStateForApply = !isStatusRemoved &&
         deps.shouldPreferFinalVisualStateForStatusApplied(
             specialFromEventRaw,
@@ -139,7 +140,9 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
     const timerForVisual = isStatusRemoved
         ? (visual.timer || null)
         : (preferFinalVisualStateForApply ? (visual.timer || null) : ((eventMeta && eventMeta.timer) || visual.timer || null));
-    const ownerForVisual = isStatusRemoved
+    const ownerForVisual = isManifestEnding
+        ? (visual.owner || ownerFromEvent || null)
+        : isStatusRemoved
         ? (visual.owner || null)
         : (preferFinalVisualStateForApply ? (visual.owner || ownerFromEvent || null) : (ownerFromEvent || visual.owner || null));
     const flipEvadeRemainingForVisual = isStatusRemoved
@@ -161,7 +164,7 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
         destroyEvadeRemaining: destroyEvadeRemainingForVisual,
         livingWillAura: visual.livingWillAura === true
     };
-    const manifestAura = (eventMeta && eventMeta.manifestAura) || visual.manifestAura || null;
+    const manifestAura = isManifestEnding ? null : ((eventMeta && eventMeta.manifestAura) || visual.manifestAura || null);
     if (manifestAura) out.manifestAura = manifestAura;
     return out;
 }
@@ -185,7 +188,7 @@ function populatePlaybackEventAfterState(playbackEvent: any, presentationEvent: 
         } else if (playbackEvent.type === 'destroy') {
             target.before = target.before || createEventSourcedBefore(target, targetMeta, deps);
             target.after = target.after || createEmptyVisualState();
-        } else if (playbackEvent.type === 'status_applied' || playbackEvent.type === 'status_removed') {
+        } else if (playbackEvent.type === 'status_applied' || playbackEvent.type === 'status_removed' || playbackEvent.type === 'manifest_ending') {
             target.before = target.before || createStatusBefore(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
             target.after = target.after || createStatusAfter(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
         } else if (target.ownerAfter !== undefined) {

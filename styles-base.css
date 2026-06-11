@@ -39,22 +39,6 @@ body.manifest-world-background-active {
     background-size: cover !important;
 }
 
-body.manifest-world-background-ending {
-    animation: manifestWorldBackgroundEnding 850ms ease-out both;
-}
-
-@keyframes manifestWorldBackgroundEnding {
-    0% {
-        background-color: #050406;
-    }
-    55% {
-        background-color: #080708;
-    }
-    100% {
-        background-color: #050406;
-    }
-}
-
 button,
 input,
 select,

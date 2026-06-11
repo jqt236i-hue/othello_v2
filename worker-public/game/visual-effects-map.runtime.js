@@ -194,6 +194,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    meteorGodStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/METEOR_GOD-black.png',
+            '-1': 'assets/images/stones/METEOR_GOD-white.png'
+        },
+        dataAttributes: {}
+    },
     ghostStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -359,6 +368,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
+    'METEOR_GOD': 'meteorGodStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
@@ -510,6 +520,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
+    'METEOR_GOD': 'meteorGodStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',

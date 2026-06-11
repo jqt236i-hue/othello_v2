@@ -429,6 +429,8 @@
         sniper_destroyed_start: Object.freeze({ cause: 'SNIPER_WILL', reason: 'sniper_shot' }),
         lightning_destroyed_immediate: Object.freeze({ cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed' }),
         lightning_destroyed_start: Object.freeze({ cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed' }),
+        meteor_god_destroyed_immediate: Object.freeze({ cause: 'METEOR_GOD', reason: 'meteor_god_cell_destroy' }),
+        meteor_god_destroyed_start: Object.freeze({ cause: 'METEOR_GOD', reason: 'meteor_god_cell_destroy' }),
         udg_destroyed_immediate: Object.freeze({ cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }),
         udg_destroyed_start: Object.freeze({ cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }),
         destroy_dragon_destroyed_immediate: Object.freeze({ cause: 'DESTROY_DRAGON_WILL', reason: 'destroy_dragon_breath' }),

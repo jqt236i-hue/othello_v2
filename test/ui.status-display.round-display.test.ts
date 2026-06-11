@@ -9,7 +9,9 @@ function setupStatusDisplayDom(gameStateOverride) {
     '<div id="effect-live-panel"></div>' +
     '<img id="cpu-character-img" />' +
     '<div id="cpu-level-label"></div>' +
-    '<select id="smartWhite"><option value="1">1</option><option value="6-board-executor">Lv6: 盤界の執行者</option></select>' +
+    '<img id="hero-character-img" src="assets/images/hero/hero.png" />' +
+    '<select id="smartWhite"><option value="1">1</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option></select>' +
+    '<select id="smartBlack"><option value="1">1</option><option value="6">Lv6: 盤理の観測者</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option></select>' +
     '<div id="hero-label"></div>' +
     '</body></html>',
     { runScripts: 'outside-only', url: 'http://localhost/' }
@@ -156,6 +158,54 @@ describe('status-display round bonus surface', () => {
     expect(img.src).toContain('assets/images/special-cards/characters/board_executor.png');
     expect(img.alt).toBe('盤界の執行者');
     expect(label.textContent).toBe('Lv6 盤界の執行者');
+
+    teardownStatusDisplayDom(dom);
+  });
+
+  test('uses theory incarnation portrait and label for the theory Lv7 profile', () => {
+    const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
+    const smartWhite = window.document.getElementById('smartWhite') as HTMLSelectElement;
+    smartWhite.value = '7-theory-incarnation';
+
+    window.updateStatus();
+
+    const img = window.document.getElementById('cpu-character-img') as HTMLImageElement;
+    const label = window.document.getElementById('cpu-level-label') as HTMLElement;
+    expect(img.src).toContain('assets/images/special-cards/characters/theory_incarnation.png');
+    expect(img.alt).toBe('理論の化身');
+    expect(label.textContent).toBe('Lv7 理論の化身');
+
+    teardownStatusDisplayDom(dom);
+  });
+
+  test('uses selected black CPU profile portrait for the hero side in auto mode', () => {
+    const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
+    const smartBlack = window.document.getElementById('smartBlack') as HTMLSelectElement;
+    smartBlack.value = '6-board-executor';
+
+    window.updateStatus();
+
+    const img = window.document.getElementById('hero-character-img') as HTMLImageElement;
+    const label = window.document.getElementById('hero-label') as HTMLElement;
+    expect(img.src).toContain('assets/images/special-cards/characters/board_executor.png');
+    expect(img.alt).toBe('盤界の執行者');
+    expect(label.textContent).toBe('盤界の執行者');
+
+    teardownStatusDisplayDom(dom);
+  });
+
+  test('keeps the default hero portrait for normal black CPU levels', () => {
+    const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
+    const smartBlack = window.document.getElementById('smartBlack') as HTMLSelectElement;
+    smartBlack.value = '1';
+
+    window.updateStatus();
+
+    const img = window.document.getElementById('hero-character-img') as HTMLImageElement;
+    const label = window.document.getElementById('hero-label') as HTMLElement;
+    expect(img.src).toContain('assets/images/hero/hero.png');
+    expect(img.alt).toBe('リバーシの勇者');
+    expect(label.textContent).toBe('リバーシの勇者');
 
     teardownStatusDisplayDom(dom);
   });

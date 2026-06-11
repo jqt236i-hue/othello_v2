@@ -78,6 +78,7 @@ const AnimationConstants = {
     HAND_REMOVE: 'hand_remove',
     CARD_USE_ANIMATION: 'card_use_animation',
     SPECIAL_CARD_CINEMATIC: 'special_card_cinematic',
+    MANIFEST_ENDING: 'manifest_ending',
     THEORY_INCARNATION_SPAWN_ROULETTE: 'theory_incarnation_spawn_roulette',
     OBSERVER_BUBBLE: 'observer_bubble',
     ROUND_BONUS_BANNER: 'round_bonus_banner',

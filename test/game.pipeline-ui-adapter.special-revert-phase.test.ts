@@ -100,4 +100,35 @@ describe('pipeline_ui_adapter duration-end revert phasing', () => {
     expect(revertEv.phase).toBeGreaterThan(destroyEv.phase);
     expect(cue.phase).toBe(revertEv.phase);
   });
+
+  test('顕現石の duration_end は manifest_ending になり special_reverted を出さない', () => {
+    const board = createBoard();
+    board[1][2] = 1;
+    const pres = [
+      {
+        type: 'STATUS_REMOVED',
+        row: 1,
+        col: 2,
+        player: 'black',
+        meta: {
+          special: 'OBSERVER_WILL',
+          reason: 'duration_end',
+          owner: 'black',
+          manifestAura: { owner: 'black' }
+        }
+      }
+    ];
+
+    const base = adapter.mapToPlaybackEvents(pres, { markers: [] }, { board });
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const manifestEnding = base.find((ev) => ev && ev.type === 'manifest_ending');
+    const plainStatusRemoved = base.find((ev) => ev && ev.type === 'status_removed');
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
+
+    expect(manifestEnding).toBeTruthy();
+    expect(plainStatusRemoved).toBeFalsy();
+    expect(manifestEnding.targets[0].after).toMatchObject({ color: 1, special: null, owner: 'black' });
+    expect(manifestEnding.targets[0].after.manifestAura).toBeUndefined();
+    expect(cue).toBeFalsy();
+  });
 });

@@ -113,6 +113,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const SPECIAL_DURATION_EXPIRE_CAUSES = new Set([
         'SNIPER_WILL',
         'LIGHTNING_WILL',
+        'METEOR_GOD',
         'DESTROY_DRAGON',
         'DESTROY_DRAGON_WILL',
         'DRAGON',
@@ -131,6 +132,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'GHOST',
         'HYPERACTIVE',
         'LIGHTNING',
+        'METEOR_GOD',
         'PROLIFERATION',
         'ROBOT_VACUUM',
         'SNIPER',
@@ -899,7 +901,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             hasLivingWillRestorePresentationEventForSource,
             createPlaybackEvent: _createPlaybackEvent,
             hasDurationEndMarker: _hasDurationEndMarker,
-            isObserverLostBubblePresentationEvent
+            isObserverLostBubblePresentationEvent,
+            isManifestStoneType: isManifestStoneTypeForPipelineUI
         };
     }
 

@@ -314,6 +314,7 @@ function getCardEffectTimingContext(deps: any) {
     SNIPER_WILL_TURNS,
     DESTROY_DRAGON_TURNS,
     LIGHTNING_WILL_TURNS,
+    METEOR_GOD_TURNS,
     GHOST_WILL_TURNS,
     SEED_WILL_TURNS,
     WILL_HUNTER_KING_TURNS,
@@ -348,6 +349,7 @@ function getCardEffectTimingContext(deps: any) {
       SNIPER_WILL_TURNS,
       DESTROY_DRAGON_TURNS,
       LIGHTNING_WILL_TURNS,
+      METEOR_GOD_TURNS,
       GHOST_WILL_TURNS,
       SEED_WILL_TURNS,
       WILL_HUNTER_KING_TURNS,
@@ -467,6 +469,7 @@ function getCardContext(cardState: any, deps: any) {
         s.data.type === 'BREEDING' ||
         s.data.type === 'DESTROY_DRAGON' ||
         s.data.type === 'LIGHTNING' ||
+        s.data.type === 'METEOR_GOD' ||
         s.data.type === 'GLUTTONOUS' ||
         s.data.type === 'ULTIMATE_DESTROY_GOD' ||
         s.data.type === 'GUARD' ||

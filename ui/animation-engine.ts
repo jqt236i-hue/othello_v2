@@ -46,6 +46,8 @@ const {
     const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
     const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
+    const MANIFEST_ENDING_TRANSITION_MS = 2000;
+    const MANIFEST_ENDING_DIM_OPACITY = 0.6;
     const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS;
     const matchesCauseAndReasonPrefix = PresentationEffectProfiles.matchesCauseAndReasonPrefix;
     const matchesSpawnProfileTarget = PresentationEffectProfiles.matchesSpawnProfileTarget;
@@ -1308,6 +1310,18 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     .filter((ev) => !!ev)
                 : events;
 
+            const manifestEndingEvents = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.MANIFEST_ENDING);
+            if (manifestEndingEvents.length) {
+                const remainingEvents = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.MANIFEST_ENDING);
+                for (const ev of manifestEndingEvents) {
+                    await this.executeEvent(ev);
+                }
+                if (remainingEvents.length) {
+                    await this.executePhase(remainingEvents);
+                }
+                return;
+            }
+
             // Batch flip events within the same phase so that multiple flips animate together.
             const phaseContext = this._buildPhaseContext(effectiveEvents);
             await this._withPhaseContext(phaseContext, async () => {
@@ -1392,6 +1406,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SPECIAL_CARD_CINEMATIC:
                     return this.handleSpecialCardCinematic(ev);
+                case EVENT_TYPES.MANIFEST_ENDING:
+                    return this.handleManifestEnding(ev);
                 case EVENT_TYPES.THEORY_INCARNATION_SPAWN_ROULETTE:
                     return this.handleTheoryIncarnationSpawnRoulette(ev);
                 case EVENT_TYPES.SOUND_EFFECT:
@@ -1562,6 +1578,108 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 defaultDurationMs: THEORY_SPAWN_ROULETTE_MS,
                 defaultMaterializeMs: THEORY_SPAWN_MATERIALIZE_MS
             });
+        }
+
+        _resolveManifestEndingDurationMs(ev: any) {
+            const raw = Number(ev && (ev.durationMs ?? ev.transitionMs));
+            return Number.isFinite(raw) && raw >= 0 ? raw : MANIFEST_ENDING_TRANSITION_MS;
+        }
+
+        _resolveManifestEndingOpacity(ev: any) {
+            const raw = Number(ev && ev.dimOpacity);
+            if (!Number.isFinite(raw)) return MANIFEST_ENDING_DIM_OPACITY;
+            return Math.max(0, Math.min(1, raw));
+        }
+
+        _clearManifestEndingOverlay() {
+            if (typeof document === 'undefined' || !document) return;
+            try {
+                const overlays = Array.from(document.querySelectorAll('.manifest-ending-overlay'));
+                overlays.forEach((overlay: any) => {
+                    try {
+                        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                    } catch (e: any) { /* ignore */ }
+                });
+            } catch (e: any) { /* ignore */ }
+        }
+
+        _clearManifestWorldBackground() {
+            if (typeof document === 'undefined' || !document || !document.body) return;
+            try {
+                document.body.classList.remove('manifest-world-background-active', 'manifest-world-background-ending');
+                document.body.removeAttribute('data-manifest-world-background-key');
+                document.body.removeAttribute('data-manifest-world-background-source');
+                document.body.style.removeProperty('--manifest-world-background');
+            } catch (e: any) { /* ignore */ }
+        }
+
+        _createManifestEndingOverlay(durationMs: any, dimOpacity: any) {
+            if (typeof document === 'undefined' || !document || !document.body) return null;
+            this._clearManifestEndingOverlay();
+            const overlay = document.createElement('div');
+            overlay.className = 'manifest-ending-overlay';
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.style.setProperty('--manifest-ending-duration', `${durationMs}ms`);
+            overlay.style.setProperty('--manifest-ending-opacity', String(dimOpacity));
+            document.body.appendChild(overlay);
+            return overlay;
+        }
+
+        _getManifestEndingSoundEngine() {
+            try {
+                if (typeof SoundEngine !== 'undefined' && SoundEngine) return SoundEngine;
+            } catch (e: any) { /* ignore */ }
+            try {
+                if (typeof globalThis !== 'undefined' && (globalThis as any).SoundEngine) return (globalThis as any).SoundEngine;
+            } catch (e: any) { /* ignore */ }
+            return null;
+        }
+
+        _syncManifestEndingTarget(target: any) {
+            if (!target) return;
+            const row = Number.isInteger(target.r) ? target.r : target.row;
+            const col = Number.isInteger(target.col) ? target.col : target.c;
+            const cell = this.getCellEl(row, col);
+            if (!cell) return;
+            const disc = cell.querySelector('.disc');
+            if (!disc) return;
+            const after = (target.after && typeof target.after === 'object') ? Object.assign({}, target.after) : {};
+            delete after.manifestAura;
+            if (after.color !== 1 && after.color !== -1) {
+                after.color = disc.classList.contains('white') ? -1 : 1;
+            }
+            after.special = null;
+            after.timer = null;
+            this.syncDiscVisual(disc, after);
+        }
+
+        async handleManifestEnding(ev: any) {
+            const durationMs = this._resolveManifestEndingDurationMs(ev);
+            const transitionMs = _isNoAnim() ? 0 : durationMs;
+            const dimOpacity = this._resolveManifestEndingOpacity(ev);
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            for (const target of targets) {
+                this._syncManifestEndingTarget(target);
+            }
+            this._clearManifestWorldBackground();
+
+            const soundEngine = this._getManifestEndingSoundEngine();
+            if (soundEngine && typeof soundEngine.syncManifestBgmOverride === 'function') {
+                try {
+                    soundEngine.syncManifestBgmOverride(null, null, { transitionMs });
+                } catch (e: any) { /* ignore */ }
+            }
+
+            if (_isNoAnim()) return;
+
+            const overlay = this._createManifestEndingOverlay(durationMs, dimOpacity);
+            try {
+                await this._sleep(durationMs);
+            } finally {
+                try {
+                    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                } catch (e: any) { /* ignore */ }
+            }
         }
 
         async handleSoundEffect(ev: any) {

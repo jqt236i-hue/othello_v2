@@ -82,6 +82,7 @@ describe('card surface layout contract', () => {
 
   test('card faces use premium frame, type texture variables, and bottom name plate', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
+    const layoutCss = readRepoTextFile('styles-layout.css');
 
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-type-field/);
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-face-rune-pattern/);
@@ -107,19 +108,34 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-gold[\s\S]*--card-available-core:\s*rgba\(241,\s*210,\s*122,\s*0\.86\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-special[\s\S]*--card-available-core:\s*rgba\(155,\s*49,\s*71,\s*0\.82\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*outline:\s*none/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*transform:\s*translateY\(-4px\)/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*0 0 calc\(42px \* var\(--layout-stage-scale\)\) calc\(14px \* var\(--layout-stage-scale\)\) var\(--card-available-outer/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*drop-shadow\(0 0 calc\(40px \* var\(--layout-stage-scale\)\) var\(--card-available-drop-outer/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*-webkit-filter:/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*transform:\s*none/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.selected\s*\{[\s\S]*rgba\(255,\s*239,\s*170,\s*0\.96\)/);
+    expect(cardsCss).not.toMatch(/\.card-state-glow/);
+    expect(cardsCss).not.toMatch(/--card-hand-available-background-glow/);
+    expect(layoutCss).toMatch(/\.hand-track\s*\{[\s\S]*position:\s*relative[\s\S]*z-index:\s*1/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow-layer\s*\{[\s\S]*position:\s*absolute[\s\S]*z-index:\s*0/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*width:\s*calc\(var\(--hand-glow-width,\s*var\(--layout-size-card-width\)\)\s*\+\s*\(18px \* var\(--layout-stage-scale\)\)\)/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*height:\s*calc\(var\(--hand-glow-height,\s*var\(--layout-size-card-height\)\)\s*\+\s*\(23px \* var\(--layout-stage-scale\)\)\)/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*background:[\s\S]*radial-gradient[\s\S]*var\(--card-available-drop-core\) 0%[\s\S]*var\(--card-available-core\) 30%[\s\S]*var\(--card-available-outer\) 58%[\s\S]*transparent 88%/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*filter:\s*blur\(calc\(4\.2px \* var\(--layout-stage-scale\)\)\)/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*opacity:\s*0\.66/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*calc\(var\(--hand-glow-x,\s*0px\)\s*-\s*\(9px \* var\(--layout-stage-scale\)\)\)/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\.cost-tier-gold[\s\S]*--card-available-core:\s*rgba\(241,\s*210,\s*122,\s*0\.94\)/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.selected:is\(\.affordable,\s*\.usable\)\s*\{[\s\S]*overflow:\s*visible/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*overflow:\s*visible/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*filter:\s*none !important/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*animation:\s*none/);
-    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable:not\(\.selected\)[\s\S]*outline:\s*none/);
-    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable\.visible\.clickable:hover:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable\.visible\.clickable:hover:not\(\.selected\)[\s\S]*transform:\s*translateY\(-6px\)/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)::before[\s\S]*border-color:\s*var\(--card-tier-inner-border/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\) \.card-name[\s\S]*border-color:\s*var\(--card-tier-name-plate-border/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\) \.card-cost-badge[\s\S]*border-color:\s*var\(--card-tier-badge-border/);
+    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable\.visible\.clickable:hover:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable\.visible\.clickable:hover:not\(\.selected\)[\s\S]*transform:\s*translateY\(-3px\)/);
+    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable\.visible\.clickable:hover:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable\.visible\.clickable:hover:not\(\.selected\)[\s\S]*filter:\s*none !important/);
     expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable:not\(\.selected\)[\s\S]*animation:\s*none !important/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.visible:not\(\.affordable\):not\(\.usable\):not\(\.card-use-ghost\)/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.visible:not\(\.affordable\):not\(\.usable\):not\(\.card-use-ghost\)[\s\S]*filter:\s*none/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*z-index:\s*3/);
-    expect(cardsCss).toMatch(/\.card-special-art[\s\S]*opacity:\s*var\(--card-special-art-opacity,\s*0\.64\)/);
+    expect(cardsCss).toMatch(/\.card-special-art[\s\S]*opacity:\s*var\(--card-special-art-opacity,\s*0\.76\)/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*background-position:\s*center,\s*center 50%/);
-    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-special \.card-special-art,[\s\S]*--card-special-art-opacity:\s*0\.58/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-special \.card-special-art,[\s\S]*--card-special-art-opacity:\s*0\.70/);
     expect(cardsCss).toMatch(/\.card-name\s*\{[\s\S]*top:\s*auto[\s\S]*bottom:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
 

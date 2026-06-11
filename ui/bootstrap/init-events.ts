@@ -14,10 +14,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 interface InitDomElements {
   resetBtn: HTMLElement | null;
   muteBtn: HTMLElement | null;
+  logToggleBtn: HTMLElement | null;
+  logPanel: HTMLElement | null;
   seTypeSelect: HTMLSelectElement | null;
   seVolSlider: HTMLInputElement | null;
   bgmPlayBtn: HTMLElement | null;
   bgmPauseBtn: HTMLElement | null;
+  quickBgmTrackPicker: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
   rulesHelpBtn: HTMLElement | null;
@@ -114,7 +117,7 @@ declare const setupMatchModeControls: ((opts: Record<string, HTMLElement | null>
 declare const setupDeckBuilderControls: ((opts: Record<string, HTMLElement | null>) => unknown) | undefined;
 declare const setupSmartSelects: ((sb: HTMLSelectElement | null, sw: HTMLSelectElement | null) => void) | undefined;
 declare const setupSoundControls: ((muteBtn: HTMLElement | null, seType: HTMLSelectElement | null, seVol: HTMLInputElement | null) => void) | undefined;
-declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLElement | null, trackSel: HTMLSelectElement | null, volSlider: HTMLInputElement | null) => void) | undefined;
+declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLElement | null, trackSel: HTMLSelectElement | null, volSlider: HTMLInputElement | null, quickTrackPicker?: HTMLElement | null) => void) | undefined;
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
@@ -123,8 +126,26 @@ declare const useSelectedCard: (() => void) | undefined;
 declare const toggleCardDetailExpanded: (() => void) | undefined;
 declare const passCurrentTurn: (() => void) | undefined;
 
+function setupBattleLogToggle(logToggleBtn: HTMLElement | null, logPanel: HTMLElement | null): void {
+  const panel = logPanel || ((typeof document !== 'undefined') ? document.getElementById('log') : null);
+  if (!logToggleBtn || !panel) return;
+
+  const sync = (open: boolean) => {
+    panel.classList.toggle('is-log-open', open);
+    logToggleBtn.classList.toggle('btn-active', open);
+    logToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  };
+
+  sync(panel.classList.contains('is-log-open'));
+  logToggleBtn.addEventListener('click', () => {
+    sync(!panel.classList.contains('is-log-open'));
+  });
+}
+
 function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean): void {
   const root = (typeof window !== 'undefined') ? window : null;
+  setupBattleLogToggle(refs.logToggleBtn, refs.logPanel);
 
   if (refs.resetBtn) {
     refs.resetBtn.addEventListener('click', () => {
@@ -190,7 +211,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
 
   if (typeof setupSmartSelects === 'function') setupSmartSelects(refs.smartBlack, refs.smartWhite);
   if (typeof setupSoundControls === 'function') setupSoundControls(refs.muteBtn, refs.seTypeSelect, refs.seVolSlider);
-  if (typeof setupBgmControls === 'function') setupBgmControls(refs.bgmPlayBtn, refs.bgmPauseBtn, refs.bgmTrackSelect, refs.bgmVolSlider);
+  if (typeof setupBgmControls === 'function') setupBgmControls(refs.bgmPlayBtn, refs.bgmPauseBtn, refs.bgmTrackSelect, refs.bgmVolSlider, refs.quickBgmTrackPicker);
   if (typeof setupRulesHelp === 'function') setupRulesHelp(refs.rulesHelpBtn, refs.rulesHelpPanel);
   if (typeof setupGachaControls === 'function') setupGachaControls({ root: root as Window });
   if (typeof setupHandSkinControls === 'function') {
@@ -217,5 +238,6 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
 }
 
 export = {
-  attachInitEventListeners
+  attachInitEventListeners,
+  setupBattleLogToggle
 };

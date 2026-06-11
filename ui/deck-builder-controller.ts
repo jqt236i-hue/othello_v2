@@ -18,7 +18,8 @@ const SharedBoardUtils = SharedBoardUtilsModule && SharedBoardUtilsModule.defaul
     ? SharedBoardUtilsModule.default
     : SharedBoardUtilsModule;
 const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
-const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
+const CpuOpponentStartupOptions = _require('../shared/cpu-opponent-startup-options');
+const CpuProfileSelection = _require('./cpu-profile-selection');
 
     function ensureDependencies() {
         if (!DeckSpecHelpers || !DeckCodecModule || !DeckPresetStorage || !DeckBuilderStateModule || !DeckBuilderRendererModule || !SharedBoardUtils) {
@@ -650,65 +651,64 @@ const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
             return fallbackMode || 'cpu';
         }
 
-        function clampCpuLevelValue(value: any) {
-            return CpuOpponentProfiles.getCpuOpponentLevel(value);
-        }
-
-        function readCpuLevel(playerKey: string) {
+        function readCpuProfileValue(playerKey: string) {
+            try {
+                const doc = (rootRef && rootRef.document)
+                    || (typeof document !== 'undefined' ? document : null);
+                if (CpuProfileSelection && typeof CpuProfileSelection.readCpuProfileValueFromSelect === 'function') {
+                    const value = String(CpuProfileSelection.readCpuProfileValueFromSelect(playerKey, doc) || '');
+                    if (value) return value;
+                }
+            } catch (e: any) { /* ignore */ }
             try {
                 const source = rootRef && rootRef.cpuSmartness && typeof rootRef.cpuSmartness === 'object'
                     ? rootRef.cpuSmartness
                     : null;
                 if (source && typeof source[playerKey] !== 'undefined') {
-                    return clampCpuLevelValue(source[playerKey]);
+                    return String(source[playerKey] || '');
                 }
-            } catch (e: any) { /* ignore */ }
-
-            try {
-                const doc = (rootRef && rootRef.document)
-                    || (typeof document !== 'undefined' ? document : null);
-                const id = playerKey === 'white' ? 'smartWhite' : 'smartBlack';
-                const select = doc && typeof doc.getElementById === 'function'
-                    ? doc.getElementById(id)
-                    : null;
-                return clampCpuLevelValue(select && (select as HTMLSelectElement).value);
-            } catch (e: any) { /* ignore */ }
-            return 1;
-        }
-
-        function readCpuProfileValue(playerKey: string) {
-            try {
-                const doc = (rootRef && rootRef.document)
-                    || (typeof document !== 'undefined' ? document : null);
-                const id = playerKey === 'white' ? 'smartWhite' : 'smartBlack';
-                const select = doc && typeof doc.getElementById === 'function'
-                    ? doc.getElementById(id)
-                    : null;
-                return String(select && (select as HTMLSelectElement).value || '');
             } catch (e: any) { /* ignore */ }
             return '';
         }
 
-        function resolveCpuLv6WhiteDeckSpec() {
+        function resolveCpuStartupOptions(playerKey: string) {
             if (readCurrentMatchMode() !== 'cpu') return null;
-            if (readCpuLevel('white') < 6) return null;
-            if (!DeckSpecHelpers || typeof DeckSpecHelpers.getCpuLv6WhiteDeckCode !== 'function') return null;
-            const whiteProfile = CpuOpponentProfiles.getCpuOpponentProfile(readCpuProfileValue('white'));
-            if (whiteProfile.deckProfile === 'lv6-board-executor'
-                && typeof DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode === 'function') {
-                return DeckCodecModule.decodeDeckCode(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
-            }
-            return DeckCodecModule.decodeDeckCode(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
+            if (!CpuOpponentStartupOptions || typeof CpuOpponentStartupOptions.getCpuOpponentStartupOptions !== 'function') return null;
+            return CpuOpponentStartupOptions.getCpuOpponentStartupOptions(readCpuProfileValue(playerKey), playerKey);
+        }
+
+        function resolveCpuDeckSpec(startupOptions: any) {
+            if (!startupOptions || !startupOptions.deckCode) return null;
+            if (!DeckCodecModule || typeof DeckCodecModule.decodeDeckCode !== 'function') return null;
+            return DeckCodecModule.decodeDeckCode(startupOptions.deckCode);
+        }
+
+        function resolveCpuInitialCharge(startupOptions: any) {
+            const value = startupOptions && startupOptions.initialCharge;
+            if (Number.isFinite(Number(value)) && Number(value) > 0) return Math.floor(Number(value));
+            return null;
         }
 
         function buildCpuDeckInitOptions(blackDeckSpec: any) {
-            const whiteDeckSpec = resolveCpuLv6WhiteDeckSpec();
+            const blackStartupOptions = resolveCpuStartupOptions('black');
+            const whiteStartupOptions = resolveCpuStartupOptions('white');
+            const profileBlackDeckSpec = resolveCpuDeckSpec(blackStartupOptions);
+            const whiteDeckSpec = resolveCpuDeckSpec(whiteStartupOptions);
             const initialDeckSpecByPlayer: any = {};
-            if (blackDeckSpec) initialDeckSpecByPlayer.black = blackDeckSpec;
+            if (profileBlackDeckSpec) initialDeckSpecByPlayer.black = profileBlackDeckSpec;
+            else if (blackDeckSpec) initialDeckSpecByPlayer.black = blackDeckSpec;
             if (whiteDeckSpec) initialDeckSpecByPlayer.white = whiteDeckSpec;
-            return Object.keys(initialDeckSpecByPlayer).length > 0
-                ? { initialDeckSpecByPlayer }
-                : {};
+            const initialChargeByPlayer: any = {};
+            const blackInitialCharge = resolveCpuInitialCharge(blackStartupOptions);
+            const whiteInitialCharge = resolveCpuInitialCharge(whiteStartupOptions);
+            if (blackInitialCharge !== null) initialChargeByPlayer.black = blackInitialCharge;
+            if (whiteInitialCharge !== null) initialChargeByPlayer.white = whiteInitialCharge;
+            const options: any = {};
+            if (Object.keys(initialDeckSpecByPlayer).length > 0) options.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
+            if (initialChargeByPlayer && Object.keys(initialChargeByPlayer).length > 0) {
+                options.initialChargeByPlayer = initialChargeByPlayer;
+            }
+            return options;
         }
 
         function buildCardInitOptions() {

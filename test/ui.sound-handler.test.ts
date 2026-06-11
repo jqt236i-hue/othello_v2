@@ -90,6 +90,68 @@ describe('sound handler', () => {
     dom.window.close();
   });
 
+  test('BGM controls populate and sync the quick track selector', () => {
+    const dom = new JSDOM(`<!DOCTYPE html><body>
+      <button id="bgmPlayBtn">play</button>
+      <button id="bgmPauseBtn">pause</button>
+      <select id="bgmTrackSelect"></select>
+      <div id="quickBgmTrackPicker">
+        <button id="quickBgmTrackButton" type="button" aria-haspopup="listbox" aria-expanded="false">BGM</button>
+        <div id="quickBgmTrackMenu" role="listbox"></div>
+      </div>
+      <input id="bgmVolSlider" type="range" value="0.5">
+    </body>`);
+    const document = dom.window.document;
+    global.window = dom.window;
+    global.document = document;
+    global.SoundEngine = {
+      playlist: [
+        { name: 'c-reversi' },
+        { name: 'The Observer’s Tears' }
+      ],
+      currentTrackIndex: 1,
+      bgmVolume: 0.5,
+      init: jest.fn(),
+      playBgm: jest.fn(),
+      pauseBgm: jest.fn(),
+      setBgmVolume: jest.fn(),
+      setBgmTrack: jest.fn(function (nextIndex) {
+        this.currentTrackIndex = Number(nextIndex);
+      })
+    };
+
+    const bgmTrackSelect = document.getElementById('bgmTrackSelect') as HTMLSelectElement;
+    const quickBgmTrackPicker = document.getElementById('quickBgmTrackPicker') as HTMLElement;
+    const quickBgmTrackButton = document.getElementById('quickBgmTrackButton') as HTMLButtonElement;
+    const quickBgmTrackMenu = document.getElementById('quickBgmTrackMenu') as HTMLElement;
+
+    SoundHandlerModule.setupBgmControls(
+      document.getElementById('bgmPlayBtn'),
+      document.getElementById('bgmPauseBtn'),
+      bgmTrackSelect,
+      document.getElementById('bgmVolSlider') as HTMLInputElement,
+      quickBgmTrackPicker
+    );
+
+    const options = Array.from(quickBgmTrackMenu.querySelectorAll('.quick-bgm-track-option')) as HTMLButtonElement[];
+    expect(options.map((option) => option.textContent)).toEqual([
+      'c-reversi',
+      'The Observer’s Tears'
+    ]);
+    expect(quickBgmTrackButton.textContent).toBe('The Observer’s Tears');
+    expect(options[1].classList.contains('is-selected')).toBe(true);
+    expect(bgmTrackSelect.value).toBe('1');
+
+    options[0].click();
+
+    expect(global.SoundEngine.setBgmTrack).toHaveBeenCalledWith('0');
+    expect(quickBgmTrackButton.textContent).toBe('c-reversi');
+    expect(options[0].classList.contains('is-selected')).toBe(true);
+    expect(bgmTrackSelect.value).toBe('0');
+
+    dom.window.close();
+  });
+
   test('gacha inventory updates refresh the selectable placement sound list', () => {
     const dom = new JSDOM(`<!DOCTYPE html><body>
       <button id="muteBtn">🔊 ON</button>

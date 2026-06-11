@@ -661,12 +661,32 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     refs.panel.setAttribute('data-manifest-effect-source', String(active && active.source || 'marker'));
 }
 
+function _clearManifestEndingOverlayForDiff() {
+    try {
+        if (typeof document === 'undefined' || !document) return;
+        const overlays = Array.from(document.querySelectorAll('.manifest-ending-overlay'));
+        overlays.forEach((overlay: any) => {
+            try {
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            } catch (e: any) { /* ignore */ }
+        });
+    } catch (e: any) { /* ignore */ }
+}
+
+function _clearManifestWorldBackgroundForDiff(body: HTMLElement) {
+    body.classList.remove('manifest-world-background-active', 'manifest-world-background-ending');
+    body.removeAttribute('data-manifest-world-background-key');
+    body.removeAttribute('data-manifest-world-background-source');
+    body.style.removeProperty('--manifest-world-background');
+}
+
 function _setManifestWorldBackgroundForDiff(active: any) {
     if (typeof document === 'undefined' || !document || !document.body) return;
     const body = document.body;
     if (active && active.imagePath) {
         const imagePath = String(active.imagePath || '').trim();
         if (!imagePath) return;
+        _clearManifestEndingOverlayForDiff();
         if (manifestWorldBackgroundEndTimerForDiff !== null) {
             try {
                 const timer = (AnimationShared && AnimationShared.getTimer)
@@ -682,43 +702,19 @@ function _setManifestWorldBackgroundForDiff(active: any) {
         body.setAttribute('data-manifest-world-background-key', String(active.key || 'manifest_world'));
         body.setAttribute('data-manifest-world-background-source', String(active.source || 'marker'));
         body.style.setProperty('--manifest-world-background', `url("${imagePath}")`);
-        if (active.source !== 'manifest_end') {
-            lastActiveManifestWorldBackgroundForDiff = {
-                key: active.key || 'manifest_world',
-                imagePath,
-                source: active.source || 'marker'
-            };
-        }
+        lastActiveManifestWorldBackgroundForDiff = {
+            key: active.key || 'manifest_world',
+            imagePath,
+            source: active.source || 'marker'
+        };
         return;
     }
     if (lastActiveManifestWorldBackgroundForDiff && lastActiveManifestWorldBackgroundForDiff.imagePath) {
-        const ending = lastActiveManifestWorldBackgroundForDiff;
         lastActiveManifestWorldBackgroundForDiff = null;
-        body.classList.add('manifest-world-background-active', 'manifest-world-background-ending');
-        body.setAttribute('data-manifest-world-background-key', String(ending.key || 'manifest_world'));
-        body.setAttribute('data-manifest-world-background-source', 'manifest_end');
-        body.style.setProperty('--manifest-world-background', `url("${String(ending.imagePath).trim()}")`);
-        const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
-            ? AnimationShared.getTimer()
-            : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
-        manifestWorldBackgroundEndTimerForDiff = timer.setTimeout(() => {
-            try {
-                if (!document || !document.body) return;
-                if (document.body.getAttribute('data-manifest-world-background-source') !== 'manifest_end') return;
-                document.body.classList.remove('manifest-world-background-active', 'manifest-world-background-ending');
-                document.body.removeAttribute('data-manifest-world-background-key');
-                document.body.removeAttribute('data-manifest-world-background-source');
-                document.body.style.removeProperty('--manifest-world-background');
-            } catch (e: any) { /* ignore */ }
-            manifestWorldBackgroundEndTimerForDiff = null;
-        }, 850);
+        _clearManifestWorldBackgroundForDiff(body);
         return;
     }
-    body.classList.remove('manifest-world-background-active');
-    body.classList.remove('manifest-world-background-ending');
-    body.removeAttribute('data-manifest-world-background-key');
-    body.removeAttribute('data-manifest-world-background-source');
-    body.style.removeProperty('--manifest-world-background');
+    _clearManifestWorldBackgroundForDiff(body);
 }
 
 function _syncManifestWorldBackgroundForDiff(cardStateValue: any) {
@@ -756,17 +752,6 @@ function _syncManifestBgmForDiff(cardStateValue: any) {
                 return;
             }
             lastActiveManifestBgmForDiff = null;
-            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
-                ? AnimationShared.getTimer()
-                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
-            manifestBgmEndTimerForDiff = timer.setTimeout(() => {
-                try {
-                    if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.syncManifestBgmOverride === 'function') {
-                        SoundEngine.syncManifestBgmOverride(null, null);
-                    }
-                } catch (e: any) { /* ignore */ }
-                manifestBgmEndTimerForDiff = null;
-            }, 850);
         }
     } catch (e: any) { /* ignore */ }
 }
@@ -3410,19 +3395,6 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
 
         if (state.manifestAura) {
             disc.classList.add('manifest-stone-aura', `manifest-stone-aura-${_getManifestAuraOwnerClassForDiff(state.manifestAura.owner)}`);
-        } else if (
-            prevState &&
-            prevState.manifestAura &&
-            state.value !== EMPTY &&
-            prevState.value !== EMPTY
-        ) {
-            disc.classList.add('manifest-stone-ending-afterglow');
-            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
-                ? AnimationShared.getTimer()
-                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
-            timer.setTimeout(() => {
-                try { disc.classList.remove('manifest-stone-ending-afterglow'); } catch (e: any) { /* ignore */ }
-            }, 850);
         }
 
         // Add bomb UI (independent of special effects)
@@ -3770,6 +3742,7 @@ function resetRenderStats() {
     superAttractionHoverPreview = null;
     lastActiveManifestWorldBackgroundForDiff = null;
     lastActiveManifestBgmForDiff = null;
+    _clearManifestEndingOverlayForDiff();
     if (manifestWorldBackgroundEndTimerForDiff !== null) {
         try {
             const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')

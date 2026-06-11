@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カードリバーシ</title>
+    <title>Card Reversi</title>
     <link rel="icon" type="image/png" href="assets/images/stones/normal_stone-black.png">
     <script>
         (() => {
@@ -36,6 +36,7 @@
     <link rel="stylesheet" href="styles-variables.css">
     <link rel="stylesheet" href="styles-base.css">
     <link rel="stylesheet" href="styles-layout.css">
+    <link rel="stylesheet" href="styles-charge-hud.css">
     <link rel="stylesheet" href="styles-layout-controls.css">
     <link rel="stylesheet" href="styles-layout-info.css">
     <link rel="stylesheet" href="styles-layout-result.css">
@@ -51,7 +52,9 @@
 <body>
     <!-- Top-Left Info Panel -->
     <div id="info-panel">
-        <h1>カードリバーシ</h1>
+        <h1 class="brand-wordmark" aria-label="Card Reversi">
+            <span class="brand-wordmark-main">Card Reversi</span>
+        </h1>
     </div>
 
     <div id="round-display-panel" aria-live="polite" aria-atomic="true"></div>
@@ -433,6 +436,11 @@
 
     <div id="quick-controls-bar" aria-label="クイック操作">
         <button id="resetBtn" class="btn-small quick-control-btn" type="button">リセット</button>
+        <button id="logToggleBtn" class="btn-small quick-control-btn" type="button" aria-controls="log" aria-expanded="false" title="ログ">ログ</button>
+        <div id="quickBgmTrackPicker" class="quick-bgm-track-picker">
+            <button id="quickBgmTrackButton" class="quick-bgm-track-button" type="button" aria-haspopup="listbox" aria-expanded="false">BGM</button>
+            <div id="quickBgmTrackMenu" class="quick-bgm-track-menu" role="listbox" aria-label="BGM変更"></div>
+        </div>
         <button id="autoToggleBtn" class="btn-small quick-control-btn" type="button">AUTO: OFF</button>
         <button id="muteBtn" class="btn-small quick-control-btn" type="button">🔊 ON</button>
         <label class="quick-volume-control" for="seVolSlider">
@@ -485,19 +493,23 @@
             <div id="hand-white" class="hand-container"></div>
         </div>
 
-        <div id="board-frame">
-            <div id="board"></div>
-            <button id="reversi-pass-btn" type="button" hidden disabled>パス</button>
-            <!-- Occupancy UI (removed) -->
+        <div id="board-stack">
+            <div id="board-frame">
+                <div id="board"></div>
+                <button id="reversi-pass-btn" type="button" hidden disabled>パス</button>
+                <!-- Occupancy UI (removed) -->
+                <!-- Card Animation FX Layer -->
+                <div id="card-fx-layer"></div>
+            </div>
             <!-- Charge UI -->
-            <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
-            <div id="charge-delta-black-increase" class="charge-delta" aria-live="polite"></div>
-            <div id="charge-delta-black-decrease" class="charge-delta" aria-live="polite"></div>
-            <div id="charge-white" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
-            <div id="charge-delta-white-increase" class="charge-delta" aria-live="polite"></div>
-            <div id="charge-delta-white-decrease" class="charge-delta" aria-live="polite"></div>
-            <!-- Card Animation FX Layer -->
-            <div id="card-fx-layer"></div>
+            <div id="charge-hud-layer">
+                <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
+                <div id="charge-delta-black-increase" class="charge-delta" aria-live="polite"></div>
+                <div id="charge-delta-black-decrease" class="charge-delta" aria-live="polite"></div>
+                <div id="charge-white" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
+                <div id="charge-delta-white-increase" class="charge-delta" aria-live="polite"></div>
+                <div id="charge-delta-white-decrease" class="charge-delta" aria-live="polite"></div>
+            </div>
         </div>
 
         <!-- Player Area (Hand + Deck) -->
@@ -525,7 +537,7 @@
         </div>
     </div>
 
-    <div id="log"></div>
+    <div id="log" aria-hidden="true"></div>
 
 
     <!-- Side UI Panel -->
@@ -721,7 +733,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=187413935782704"></script>
+    <script src="public/module-registry.js?v=211808424546986"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=268202268641668"></script>

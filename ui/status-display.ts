@@ -29,6 +29,7 @@ const PORTRAIT_SPEECH_CONFIG: any = {
     }
 };
 const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
+const CpuProfileSelection = _require('./cpu-profile-selection');
 let StatusDisplayOwnerHelpersModule: any = null;
 if (typeof _require === 'function') {
     try { StatusDisplayOwnerHelpersModule = _require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
@@ -486,13 +487,59 @@ function updateBattleStatusPanel(): void {
     renderBattleStatusLatestText(latestEl, resolveBattleStatusLatestText());
 }
 
-function readWhiteCpuProfileValue(): string {
+function readCpuProfileValue(playerKey: 'black' | 'white'): string {
     try {
-        const select = document.getElementById('smartWhite') as HTMLSelectElement | null;
-        return String(select && select.value || '');
+        if (CpuProfileSelection && typeof CpuProfileSelection.readCpuProfileValueFromSelect === 'function') {
+            return String(CpuProfileSelection.readCpuProfileValueFromSelect(playerKey, typeof document !== 'undefined' ? document : null) || '');
+        }
     } catch (e) {
         return '';
     }
+    return '';
+}
+
+function readWhiteCpuProfileValue(): string {
+    return readCpuProfileValue('white');
+}
+
+function updateHeroCharacterForBlackCpuProfile(): void {
+    if (isNetworkModeForLabels()) return;
+    const heroImg = document.getElementById('hero-character-img') as HTMLImageElement | null;
+    const heroLabel = document.getElementById('hero-label');
+    if (!heroImg) {
+        if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+        return;
+    }
+
+    const selectedProfileValue = readCpuProfileValue('black');
+    const fallbackLevel = (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).black : 1) || 1);
+    const cpuProfile = CpuOpponentProfiles.getCpuOpponentProfile(selectedProfileValue || fallbackLevel);
+    const useCpuPortrait = !!(cpuProfile && Number(cpuProfile.level) >= 6);
+    const primaryPath = useCpuPortrait
+        ? String(cpuProfile.portraitSrc || HERO_IMAGE_SRC)
+        : HERO_IMAGE_SRC;
+    const label = useCpuPortrait
+        ? String(cpuProfile.name || HERO_DEFAULT_LABEL)
+        : HERO_DEFAULT_LABEL;
+
+    heroImg.alt = label;
+    if (heroLabel) heroLabel.textContent = label;
+
+    const img = new Image();
+    let triedDefault = primaryPath === HERO_IMAGE_SRC;
+    img.onload = () => {
+        heroImg.src = img.src;
+        heroImg.style.opacity = '';
+    };
+    img.onerror = () => {
+        if (!triedDefault) {
+            triedDefault = true;
+            img.src = HERO_IMAGE_SRC;
+            return;
+        }
+        heroImg.style.opacity = '0.3';
+    };
+    img.src = primaryPath;
 }
 
 function renderBattleStatusLatestText(el: any, text: string): void {
@@ -905,6 +952,7 @@ function updateCpuCharacter(): void {
             applyNetworkSeatLabels(levelLabel);
         }
     }
+    try { updateHeroCharacterForBlackCpuProfile(); } catch (e) { /* ignore */ }
 }
 
 if (typeof window !== 'undefined') {

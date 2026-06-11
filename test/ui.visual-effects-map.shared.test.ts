@@ -156,6 +156,22 @@ describe('visual-effects map shared between game/ui', () => {
     expect(lightningMap.imagePathByOwner['1']).toContain('rakurai-black.png');
     expect(lightningMap.imagePathByOwner['-1']).toContain('rakurai-white.png');
   });
+
+  test('METEOR_GOD が因果抹消神石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.METEOR_GOD).toBe('meteorGodStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.METEOR_GOD).toBe('meteorGodStone');
+
+    const meteorGodMap = shared.STONE_VISUAL_EFFECTS.meteorGodStone;
+    expect(meteorGodMap).toBeTruthy();
+    expect(meteorGodMap.imagePathByOwner['1']).toContain('METEOR_GOD-black.png');
+    expect(meteorGodMap.imagePathByOwner['-1']).toContain('METEOR_GOD-white.png');
+  });
+
   test('special foundation marker visuals are exposed', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

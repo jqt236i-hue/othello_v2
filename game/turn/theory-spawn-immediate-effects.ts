@@ -94,6 +94,16 @@ function resolveTheorySpawnImmediateEffects(options: ResolveTheorySpawnImmediate
         return;
     }
 
+    if (typeKey === 'METEOR_GOD' && typeof opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor === 'function') {
+        const meteorGodNow = opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, {
+            decrementRemainingOwnerTurns: false,
+            random: p
+        });
+        pushDetailsEvent(opts.events, 'meteor_god_destroyed_immediate', meteorGodNow && meteorGodNow.destroyed);
+        pushDetailsEvent(opts.events, 'meteor_god_expired_immediate', meteorGodNow && meteorGodNow.expired);
+        return;
+    }
+
     if (typeKey === 'WILL_HUNTER_KING' && typeof opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
         const willHunterKingNow = opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, {
             decrementRemainingOwnerTurns: false,

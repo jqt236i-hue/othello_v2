@@ -36,6 +36,10 @@ const TurnPipelineUIAdapter = _require('./turn/pipeline_ui_adapter');
 const PendingCoordinatorForTurnManager = _require('./turn/pending-coordinator');
 const ActionManagerModule = _require('./schema/action_manager');
 const { resetCpuTurnHandlerState } = _require('./cpu-turn-handler');
+let CpuOpponentProfilesForTurnManager: any = null;
+try {
+    CpuOpponentProfilesForTurnManager = _require('../shared/cpu-opponent-profiles');
+} catch (e) { /* ignore */ }
 // Note: debugLog is a legacy function set by UI bootstrap; use with typeof guard
 
 /**
@@ -1133,9 +1137,12 @@ function resetGame(options?: any) {
     } catch (e) { /* ignore */ }
 
     const clampCpuLevel = (value: any) => {
+        if (CpuOpponentProfilesForTurnManager && typeof CpuOpponentProfilesForTurnManager.getCpuOpponentLevel === 'function') {
+            return CpuOpponentProfilesForTurnManager.getCpuOpponentLevel(value);
+        }
         const n = Number(value);
         if (!Number.isFinite(n)) return 1;
-        return Math.max(1, Math.min(6, Math.floor(n)));
+        return Math.max(1, Math.min(7, Math.floor(n)));
     };
 
     // Read CPU smartness from UI helper if available (avoid direct DOM access in game/)

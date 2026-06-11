@@ -200,6 +200,12 @@
             flipProtected: true,
             timerClass: 'dragon-timer'
         }),
+        METEOR_GOD: Object.freeze({
+            name: '因果抹消神石',
+            desc: '敵石をランダムに1つ選び、そのマスを穴化する。',
+            flipProtected: true,
+            timerClass: 'dragon-timer'
+        }),
         HYPERACTIVE: Object.freeze({
             name: '多動石',
             desc: 'ターン開始時に移動し、移動後に反転する。',

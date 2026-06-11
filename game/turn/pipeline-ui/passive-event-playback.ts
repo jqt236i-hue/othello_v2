@@ -27,6 +27,7 @@ type PassiveEventPlaybackDeps = {
     hasLivingWillRestorePresentationEventForSource: (presentationEvents: any[], row: any, col: any, special: any) => boolean;
     createPlaybackEvent: (playbackBase: any, type: any, phase: any, targets: any) => any;
     hasDurationEndMarker: (reason: any, cause?: any) => boolean;
+    isManifestStoneType: (rawType: any) => boolean;
 };
 
 function getEventMeta(ev: any) {
@@ -111,21 +112,31 @@ function mapLivingWillConsumedStatus(ctx: PassiveEventPlaybackContext, deps: Pas
     }];
 }
 
+function isManifestDurationEndStatusRemoved(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
+    const meta = getEventMeta(ctx.ev);
+    const special = String((meta && meta.special) || ctx.ev.special || '').trim();
+    if (!special || !deps.isManifestStoneType(special)) return false;
+    const reason = (meta && meta.reason) || ctx.ev.reason || '';
+    const cause = ctx.ev.cause || (meta && meta.cause) || '';
+    return deps.hasDurationEndMarker(reason, cause);
+}
+
 function mapStatusRemoved(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
     if (deps.isLivingWillConsumedStatus(ctx.ev)) {
         mapLivingWillConsumedStatus(ctx, deps);
         return;
     }
+    const isManifestEnding = isManifestDurationEndStatusRemoved(ctx, deps);
     const preserveDurationEndRevert = deps.isSpecialDurationExpiredStatusRemovedEvent(ctx.ev);
     deps.preparePassivePlaybackPhaseState(ctx.phaseState, {
-        preserveDurationEndRevert
+        preserveDurationEndRevert: preserveDurationEndRevert || isManifestEnding
     });
-    ctx.pEvent.type = 'status_removed';
+    ctx.pEvent.type = isManifestEnding ? 'manifest_ending' : 'status_removed';
     ctx.pEvent.targets = [{ r: ctx.ev.row, col: ctx.ev.col }];
     if (deps.isRegenConsumedStatus(ctx.ev)) {
         ctx.phaseState.currentPhase++;
         ctx.pEvent.phase = ctx.phaseState.currentPhase;
-    } else if (preserveDurationEndRevert) {
+    } else if (preserveDurationEndRevert || isManifestEnding) {
         ctx.pEvent.phase = deps.planDurationEndRevertPlaybackPhase(ctx.phaseState, ctx.playbackEvents.length > 0);
     }
 }

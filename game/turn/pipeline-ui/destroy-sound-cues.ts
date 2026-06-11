@@ -29,7 +29,7 @@ function isGenericDestroyPlaybackEvent(ev: any, deps: DestroySoundCueDeps) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         if (deps.bombDestroyCauses.has(cause)) return false;
-        if (cause === 'METEOR_WILL') return false;
+        if (cause === 'METEOR_WILL' || cause === 'METEOR_GOD') return false;
         if (deps.isBoardShrinkDestroyTarget(target)) return false;
         if (deps.isSniperShotDestroyTarget(target)) return false;
         if (deps.isLightningDestroyTarget(target)) return false;

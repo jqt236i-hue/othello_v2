@@ -23,7 +23,8 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#cpu-character-img:hover[\s\S]*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)\s*scale\(calc\(var\(--cpu-level-scale,\s*1\)\s*\*\s*1\.04\)\)/);
     expect(css).toMatch(/#hero-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(css).toMatch(/#hero-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
-    expect(css).toMatch(/#hero-character-img:hover[\s\S]*scale\(1\.04\)/);
+    expect(css).toMatch(/#hero-character-img[\s\S]*scaleX\(var\(--hero-character-face-direction,\s*-1\)\)/);
+    expect(css).toMatch(/#hero-character-img:hover[\s\S]*scale\(1\.04\)[\s\S]*scaleX\(var\(--hero-character-face-direction,\s*-1\)\)/);
     expect(css).toMatch(/#cpu-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#hero-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*0/);
@@ -32,6 +33,12 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#cpu-level-label[\s\S]*backdrop-filter:\s*blur/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*letter-spacing:\s*calc\(1\.4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-menu[\s\S]*backdrop-filter:\s*blur/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-1[\s\S]*--cpu-tier-accent:\s*72,\s*78,\s*82/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-5[\s\S]*--cpu-tier-accent:\s*96,\s*102,\s*106/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-1,[\s\S]*\.cpu-level-menu-item\.cpu-level-tier-5[\s\S]*--cpu-tier-accent-start-alpha:\s*0\.045/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-1,[\s\S]*\.cpu-level-menu-item\.cpu-level-tier-5[\s\S]*--cpu-tier-glow-selected-alpha:\s*0\.045/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-profile-board-executor[\s\S]*--cpu-tier-accent:\s*212,\s*78,\s*255/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-7[\s\S]*--cpu-tier-accent:\s*224,\s*52,\s*64/);
     expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*0/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
@@ -40,5 +47,6 @@ describe('status-display cpu image scaling', () => {
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#hero-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#hero-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#hero-character-img[\s\S]*scaleX\(var\(--hero-character-face-direction,\s*-1\)\)/);
   });
 });

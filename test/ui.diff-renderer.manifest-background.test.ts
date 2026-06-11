@@ -68,7 +68,8 @@ describe('diff renderer manifestation world background sync', () => {
     expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
   });
 
-  test('keeps manifestation world background briefly when an active manifestation stone ends', () => {
+  test('clears manifestation background without directly starting the ending overlay', () => {
+    jest.useFakeTimers();
     (global as any).cardState = {
       markers: [{
         kind: 'manifestStone',
@@ -82,11 +83,13 @@ describe('diff renderer manifestation world background sync', () => {
     (global as any).cardState = { markers: [] };
     renderOnce();
 
-    expect(document.body.classList.contains('manifest-world-background-active')).toBe(true);
-    expect(document.body.classList.contains('manifest-world-background-ending')).toBe(true);
-    expect(document.body.getAttribute('data-manifest-world-background-key')).toBe('observer_will_world');
-    expect(document.body.getAttribute('data-manifest-world-background-source')).toBe('manifest_end');
-    expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
+    expect(document.body.classList.contains('manifest-world-background-active')).toBe(false);
+    expect(document.body.classList.contains('manifest-world-background-ending')).toBe(false);
+    expect(document.body.getAttribute('data-manifest-world-background-key')).toBeNull();
+    expect(document.body.getAttribute('data-manifest-world-background-source')).toBeNull();
+    expect(document.body.style.getPropertyValue('--manifest-world-background')).toBe('');
+
+    expect(document.querySelector('.manifest-ending-overlay')).toBeNull();
   });
 
   test('keeps card-use manifestation background before the manifestation stone is placed', () => {
@@ -106,7 +109,8 @@ describe('diff renderer manifestation world background sync', () => {
     expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
   });
 
-  test('keeps resolved card-use manifestation background briefly after the stone disappears', () => {
+  test('clears resolved card-use manifestation background without directly starting the ending overlay', () => {
+    jest.useFakeTimers();
     (global as any).window.__manifestPresentationOverride = {
       source: 'special_card_use',
       manifestBackgroundKey: 'observer_will_world',
@@ -129,10 +133,12 @@ describe('diff renderer manifestation world background sync', () => {
     renderOnce();
 
     expect((global as any).window.__manifestPresentationOverride).toBeNull();
-    expect(document.body.classList.contains('manifest-world-background-active')).toBe(true);
-    expect(document.body.classList.contains('manifest-world-background-ending')).toBe(true);
-    expect(document.body.getAttribute('data-manifest-world-background-source')).toBe('manifest_end');
-    expect(document.body.style.getPropertyValue('--manifest-world-background')).toContain('assets/images/background/manifest-worlds/観測の世界.png');
+    expect(document.body.classList.contains('manifest-world-background-active')).toBe(false);
+    expect(document.body.classList.contains('manifest-world-background-ending')).toBe(false);
+    expect(document.body.getAttribute('data-manifest-world-background-source')).toBeNull();
+    expect(document.body.style.getPropertyValue('--manifest-world-background')).toBe('');
+
+    expect(document.querySelector('.manifest-ending-overlay')).toBeNull();
   });
 
   test('applies observer manifestation stone visual to a manifestStone marker on the board', () => {
@@ -158,7 +164,7 @@ describe('diff renderer manifestation world background sync', () => {
     expect(disc.dataset.effect).toBe('observerWillStone');
   });
 
-  test('adds an afterglow class when a manifestation stone renders back as a normal stone', () => {
+  test('does not add a per-stone afterglow when a manifestation stone renders back as a normal stone', () => {
     (global as any).cardState = {
       markers: [{
         kind: 'manifestStone',
@@ -176,12 +182,11 @@ describe('diff renderer manifestation world background sync', () => {
 
     const disc = document.querySelector('.disc') as HTMLElement;
     expect(disc).toBeTruthy();
-    expect(disc.classList.contains('manifest-stone-ending-afterglow')).toBe(true);
+    expect(disc.classList.contains('manifest-stone-ending-afterglow')).toBe(false);
     expect(disc.classList.contains('manifest-stone-aura')).toBe(false);
   });
 
-  test('keeps manifestation BGM briefly before returning to normal BGM', () => {
-    jest.useFakeTimers();
+  test('does not start the manifestation BGM crossfade directly when the manifestation stone ends', () => {
     const syncManifestBgmOverride = jest.fn();
     (global as any).SoundEngine = { syncManifestBgmOverride };
     (global as any).cardState = {
@@ -204,10 +209,6 @@ describe('diff renderer manifestation world background sync', () => {
     (global as any).cardState = { markers: [] };
     renderOnce([[1]]);
 
-    expect(syncManifestBgmOverride).not.toHaveBeenCalledWith(null, null);
-
-    jest.advanceTimersByTime(850);
-
-    expect(syncManifestBgmOverride).toHaveBeenCalledWith(null, null);
+    expect(syncManifestBgmOverride).not.toHaveBeenCalled();
   });
 });

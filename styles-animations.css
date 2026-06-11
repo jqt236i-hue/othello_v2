@@ -41,6 +41,28 @@
     opacity: 0;
 }
 
+.manifest-ending-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 23950;
+    pointer-events: auto;
+    background: rgba(0, 0, 0, var(--manifest-ending-opacity, 0.6));
+    opacity: 0;
+    animation: manifestEndingDim var(--manifest-ending-duration, 2000ms) ease-in-out both;
+}
+
+@keyframes manifestEndingDim {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
 .special-card-cinematic-character {
     position: absolute;
     right: clamp(-96px, 2vw, 52px);
@@ -168,6 +190,27 @@
     opacity: 0;
     transform: translate(-50%, -50%) translateY(-8px) scale(0.99);
     pointer-events: none;
+}
+
+/* Static special-card presentation: avoid card-related motion during use scenes. */
+.special-card-cinematic-overlay,
+.special-card-cinematic-overlay::before,
+.special-card-cinematic-character,
+.special-card-cinematic-frame,
+.special-card-cinematic-frame::before,
+.special-card-cinematic-frame::after,
+.special-card-cinematic-title,
+.special-card-cinematic-quote,
+.special-card-cinematic-quote-line,
+.manifest-ending-overlay,
+.manifest-summary-popup {
+    animation: none !important;
+    transition: none !important;
+}
+
+.special-card-cinematic-character,
+.special-card-cinematic-frame {
+    transform: none;
 }
 
 .manifest-summary-popup-shell {

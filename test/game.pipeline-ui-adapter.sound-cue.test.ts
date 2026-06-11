@@ -1367,7 +1367,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       manifestBgmKey: 'board_executor_path',
       manifestBgmTrack: expect.objectContaining({
         name: '執行の道',
-        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3'
+        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.wav'
       }),
       durationMs: 3000
     });

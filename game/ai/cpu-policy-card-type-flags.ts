@@ -74,6 +74,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isCorrosionWill = cardType === 'CORROSION_WILL';
         const isBlockadeWill = cardType === 'BLOCKADE_WILL';
         const isMeteorWill = cardType === 'METEOR_WILL';
+        const isMeteorGod = cardType === 'METEOR_GOD';
         const isProtectedNextStone = cardType === 'PROTECTED_NEXT_STONE';
         const isAfterimageWill = cardType === 'AFTERIMAGE_WILL';
         const isGhostWill = cardType === 'GHOST_WILL';
@@ -106,6 +107,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isGhostWill ||
             isPermaProtectNextStone ||
             isLightningWill ||
+            isMeteorGod ||
             isHyperactiveWill ||
             isInstantHyperactiveWill ||
             isUltimateDestroyGod ||
@@ -173,6 +175,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isCorrosionWill,
             isBlockadeWill,
             isMeteorWill,
+            isMeteorGod,
             isProtectedNextStone,
             isAfterimageWill,
             isGhostWill,

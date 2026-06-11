@@ -307,8 +307,26 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         if (!res || res.applied !== true) {
             throw new Error('LOSS_WILL resolve failed');
         }
+        const clearResult = (typeof opts.CardLogic.clearHandToDiscard === 'function')
+            ? opts.CardLogic.clearHandToDiscard(opts.cardState, opts.playerKey)
+            : { destroyedCards: [] };
+        const destroyedCards = Array.isArray(clearResult && clearResult.destroyedCards)
+            ? clearResult.destroyedCards
+            : [];
+        const destroyedCount = destroyedCards.length;
+
+        if (typeof opts.CardLogic.emitPresentationEvent === 'function') {
+            opts.CardLogic.emitPresentationEvent(opts.cardState, {
+                type: 'HAND_CLEAR',
+                player: opts.playerKey,
+                count: destroyedCount,
+                reason: 'loss_will'
+            });
+        }
+
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
         opts.events.push({ type: 'loss_will_resolved', player: opts.playerKey, removedCount: Number(res.removedCount) || 0 });
+        opts.events.push({ type: 'loss_will_hand_destroyed', player: opts.playerKey, destroyedCount });
     }
 
     if (pendingType === 'SALVATION_WILL') {

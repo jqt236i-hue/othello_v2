@@ -87,6 +87,60 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect((cardState.markers || []).filter((m) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb')).toHaveLength(0);
   });
 
+  test('use card: 使用後に特殊カード以外の自分手札をすべて破壊する', () => {
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['loss_will_01', 'observer_will_01', 'gold_stone', 'silver_stone'];
+    cardState.charge.black = LOSS_WILL_COST;
+    cardState.debugNoDraw = true;
+
+    gameState.board[3][3] = -1;
+    cardState.markers = [
+      { id: 31, row: 3, col: 3, kind: 'specialStone', owner: 'white', createdSeq: 31, data: { type: 'WORK', remainingOwnerTurns: 4 } }
+    ];
+    cardState._nextMarkerId = 32;
+    cardState._nextCreatedSeq = 32;
+
+    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'use_card', useCardId: 'loss_will_01' }, { shuffle: () => {}, random: () => 0.5 });
+
+    expect(cardState.hands.black).toEqual(['observer_will_01']);
+    expect(cardState.discard).toEqual(expect.arrayContaining(['loss_will_01', 'gold_stone', 'silver_stone']));
+    expect(cardState.discard).not.toContain('observer_will_01');
+    expect(res.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'loss_will_resolved', player: 'black', removedCount: 1 }),
+      expect.objectContaining({ type: 'loss_will_hand_destroyed', player: 'black', destroyedCount: 2 })
+    ]));
+    expect(res.presentationEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'HAND_CLEAR', player: 'black', reason: 'loss_will', count: 2 })
+    ]));
+  });
+
+  test('use card: 破壊対象の通常手札がない場合でも盤面解除は成立する', () => {
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['loss_will_01', 'observer_will_01'];
+    cardState.charge.black = LOSS_WILL_COST;
+    cardState.debugNoDraw = true;
+
+    gameState.board[5][5] = -1;
+    cardState.markers = [
+      { id: 41, row: 5, col: 5, kind: 'specialStone', owner: 'white', createdSeq: 41, data: { type: 'WORK', remainingOwnerTurns: 4 } }
+    ];
+    cardState._nextMarkerId = 42;
+    cardState._nextCreatedSeq = 42;
+
+    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'use_card', useCardId: 'loss_will_01' }, { shuffle: () => {}, random: () => 0.5 });
+
+    expect(cardState.hands.black).toEqual(['observer_will_01']);
+    expect(cardState.discard).toContain('loss_will_01');
+    expect(cardState.discard).not.toContain('observer_will_01');
+    expect(res.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'loss_will_resolved', player: 'black', removedCount: 1 }),
+      expect.objectContaining({ type: 'loss_will_hand_destroyed', player: 'black', destroyedCount: 0 })
+    ]));
+    expect(res.presentationEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'HAND_CLEAR', player: 'black', reason: 'loss_will', count: 0 })
+    ]));
+  });
+
   test('use card: 罠・幽体・復活石は解除し、守る石・盤面マーカー・絶対保護は解除しない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
@@ -128,8 +182,9 @@ describe('LOSS_WILL（意志の喪失）', () => {
 
   test('特殊石も爆弾もない場合は使用できない', () => {
     const { cardState, gameState } = makeState();
-    cardState.hands.black = ['loss_will_01'];
+    cardState.hands.black = ['loss_will_01', 'gold_stone'];
     cardState.charge.black = LOSS_WILL_COST;
+    cardState.debugNoDraw = true;
     cardState.markers = [];
 
     const action = { type: 'use_card', useCardId: 'loss_will_01' };
@@ -138,7 +193,8 @@ describe('LOSS_WILL（意志の喪失）', () => {
     }).toThrow('applyCardUsage failed');
 
     // Card was not consumed
-    expect(cardState.hands.black).toContain('loss_will_01');
+    expect(cardState.hands.black).toEqual(['loss_will_01', 'gold_stone']);
+    expect(cardState.discard).not.toEqual(expect.arrayContaining(['loss_will_01', 'gold_stone']));
     expect(cardState.charge.black).toBe(LOSS_WILL_COST);
   });
 

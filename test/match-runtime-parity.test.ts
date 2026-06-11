@@ -300,7 +300,7 @@ function classifyNetworkFailurePattern(cardType) {
     'BOARD_SHRINK_GOD'
   ].includes(type)) return 'pending selection';
   if (['METEOR_WILL', 'BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD', 'TRAP_WILL'].includes(type)) return 'placement effect';
-  if (['GLUTTONOUS_WILL', 'DESTROY_DRAGON_WILL', 'LIGHTNING_WILL'].includes(type)) return 'turn-start/random effect';
+  if (['GLUTTONOUS_WILL', 'DESTROY_DRAGON_WILL', 'LIGHTNING_WILL', 'METEOR_GOD'].includes(type)) return 'turn-start/random effect';
   if (['REVEAL_HAND_WILL', 'CONDEMN_WILL'].includes(type)) return 'hidden information / projection';
   return 'catalog command parity';
 }

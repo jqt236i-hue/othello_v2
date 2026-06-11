@@ -357,6 +357,8 @@ function applyPendingSpecialstoneVisual(move: any, pendingType: string): void {
 let _chargeDeltaTimers: any = Object.create(null);
 let _chargeDeltaClearTimers: any = Object.create(null);
 let _chargeDeltaSeq: any = Object.create(null);
+const CHARGE_HUD_LAYER_ID = 'charge-hud-layer';
+const BOARD_FRAME_ID = 'board-frame';
 
 function _getChargeDeltaSignKey(deltaOrSign: any): string {
   if (deltaOrSign === 'increase' || deltaOrSign === 'decrease') return deltaOrSign;
@@ -421,7 +423,9 @@ function _resolveChargeDeltaViewportWidth(): number {
 
 function _resolveChargeDeltaAnchorRoot(el: HTMLElement | null): HTMLElement | null {
   if (typeof document === 'undefined') return null;
-  const boardFrameEl = document.getElementById('board-frame');
+  const chargeHudLayerEl = document.getElementById(CHARGE_HUD_LAYER_ID);
+  if (chargeHudLayerEl) return chargeHudLayerEl as HTMLElement;
+  const boardFrameEl = document.getElementById(BOARD_FRAME_ID);
   if (boardFrameEl) return boardFrameEl as HTMLElement;
   const offsetParent = el ? ((el as any).offsetParent || null) : null;
   if (offsetParent && typeof offsetParent.getBoundingClientRect === 'function') return offsetParent as HTMLElement;
@@ -518,7 +522,28 @@ function _restartChargeDeltaAnimation(el: HTMLElement): void {
   if (!el) return;
   el.classList.remove('is-visible', 'is-fadeout', 'is-restart');
   el.classList.add('is-restart');
-  void el.offsetWidth;
+}
+
+function _requestChargeDeltaFrame(callback: () => void, timer: any): void {
+  try {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(callback);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(callback);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (timer && typeof timer.setTimeout === 'function') {
+      timer.setTimeout(callback, 16);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  callback();
 }
 
 function _scheduleChargeDeltaLifecycle(surfaceKey: string, key: string, delta: any, el: HTMLElement, seq: number, timer: any): void {
@@ -539,7 +564,7 @@ function _scheduleChargeDeltaLifecycle(surfaceKey: string, key: string, delta: a
       }, 500);
     }, 4000);
   };
-  startShow();
+  _requestChargeDeltaFrame(startShow, timer);
 }
 
 function _showChargeDeltaNow(key: string, delta: number): void {

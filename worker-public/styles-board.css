@@ -191,13 +191,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--selected-app-font-readable-family);
-    font-weight: 800;
+    font-family: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+    font-weight: 400;
     font-size: clamp(16px, 2.5vmin, 24px);
-    color: rgba(214, 206, 184, 0.24);
+    color: rgba(214, 206, 184, 0.34);
     text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.035),
-        0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34);
+        0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.05),
+        0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
     pointer-events: none;
     user-select: none;
     z-index: 6;
@@ -1074,8 +1074,8 @@ html.stone-images-loaded .disc.white {
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    min-width: calc(18px * var(--layout-stage-scale));
-    height: calc(18px * var(--layout-stage-scale));
+    min-width: calc(20px * var(--layout-stage-scale));
+    height: calc(20px * var(--layout-stage-scale));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1083,12 +1083,12 @@ html.stone-images-loaded .disc.white {
     font-weight: bold;
     color: #ffffff;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 44%),
-        rgba(109, 86, 30, 0.76);
-    padding: 0 calc(4px * var(--layout-stage-scale));
-    border: var(--layout-size-border-thin) solid rgba(255, 227, 176, 0.72);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 42%),
+        rgba(172, 28, 28, 0.88);
+    padding: calc(4px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) 0;
+    border: var(--layout-size-border-thin) solid rgba(255, 184, 184, 0.72);
     box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
     text-align: center;
     z-index: 70;
     pointer-events: none;
@@ -1587,6 +1587,11 @@ body.othello-mode-active :is(
 .stone-info-panel {
     --left-hud-accent: #71f0b3;
     --left-hud-accent-warm: #f2c95f;
+    --left-hud-text-title: #f5fff8;
+    --left-hud-text-body: rgba(232, 255, 241, 0.94);
+    --left-hud-text-label: #f2c95f;
+    --left-hud-text-value: #dfffee;
+    --left-hud-text-muted: rgba(207, 255, 229, 0.72);
     position: fixed;
     left: var(--profile-stone-info-left);
     top: calc(
@@ -1606,7 +1611,7 @@ body.othello-mode-active :is(
         linear-gradient(90deg, rgba(113, 240, 179, 0.18), transparent 18%),
         radial-gradient(circle at 15% 0%, rgba(242, 201, 95, 0.12), transparent 34%),
         linear-gradient(145deg, rgba(8, 28, 21, 0.96), rgba(4, 9, 10, 0.94) 58%, rgba(9, 18, 16, 0.96));
-    color: #f1fff6;
+    color: var(--left-hud-text-body);
     box-shadow:
         var(--ui-elevation-panel),
         0 calc(16px * var(--layout-stage-scale)) calc(36px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56),
@@ -1683,7 +1688,7 @@ body.othello-mode-active :is(
     display: flex;
     align-items: center;
     gap: calc(7px * var(--layout-stage-scale));
-    color: #f5fff8;
+    color: var(--left-hud-text-title);
     font-size: calc(17px * var(--layout-stage-scale));
     font-weight: 900;
     letter-spacing: 0;
@@ -1710,7 +1715,7 @@ body.othello-mode-active :is(
     font-size: calc(14px * var(--layout-stage-scale));
     font-weight: 650;
     line-height: 1.5;
-    color: rgba(232, 255, 241, 0.93);
+    color: var(--left-hud-text-body);
     margin-bottom: calc(8px * var(--layout-stage-scale));
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58);
 }
@@ -1740,7 +1745,7 @@ body.othello-mode-active :is(
     font-weight: 800;
     line-height: 1.2;
     text-align: left;
-    color: #dfffee;
+    color: var(--left-hud-text-value);
     border: var(--layout-size-border-thin) solid rgba(113, 240, 179, 0.46);
     border-radius: calc(999px * var(--layout-stage-scale));
     background:

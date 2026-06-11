@@ -24,6 +24,15 @@
 }
 
 /* Board Frame Container */
+#board-stack {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: max-content;
+    height: max-content;
+}
+
 #board-frame {
     --board-frame-padding: calc(25px * var(--layout-stage-scale));
     --board-frame-inner-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
@@ -36,6 +45,7 @@
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 248, 222, 0.18),
         inset 0 calc(-2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78);
     position: relative;
+    z-index: var(--layout-z-board-frame);
     width: var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2)));
     height: var(--board-frame-outer-height, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2)));
     padding: var(--board-frame-padding);
@@ -57,7 +67,7 @@
     -ms-user-select: none;
     caret-color: transparent;
     -webkit-tap-highlight-color: transparent;
-    transform: translateY(calc(-18px * var(--layout-stage-scale)));
+    transform: translateY(var(--layout-charge-board-offset-y));
     isolation: isolate;
     overflow: visible;
 }
@@ -160,247 +170,6 @@
     box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.2);
 }
 
-/* Charge Display - Resource Counter */
-.charge-display {
-    position: absolute;
-    min-width: calc(124px * var(--layout-stage-scale));
-    display: flex;
-    align-items: baseline;
-    justify-content: center;
-    gap: calc(3px * var(--layout-stage-scale));
-    padding: var(--layout-size-charge-pad-y) var(--layout-size-charge-pad-x);
-    background:
-        linear-gradient(180deg, rgba(62, 48, 29, 0.96), rgba(18, 14, 10, 0.96)),
-        linear-gradient(135deg, rgba(255, 244, 214, 0.05), transparent 46%, rgba(255, 206, 103, 0.05) 100%);
-    border: var(--layout-size-charge-border) solid rgba(190, 146, 48, 0.74);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    color: #ffd700;
-    font-family: var(--selected-app-font-readable-family);
-    font-size: var(--layout-size-charge-font);
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0;
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum' 1;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    pointer-events: none;
-    z-index: 1010;
-    box-shadow:
-        var(--ui-elevation-panel),
-        0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 248, 224, 0.16),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.4),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 223, 139, 0.08);
-    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
-    text-size-adjust: 100%;
-    -webkit-text-size-adjust: 100%;
-}
-
-.charge-display::before {
-    content: "";
-    position: absolute;
-    left: calc(10px * var(--layout-stage-scale));
-    right: calc(10px * var(--layout-stage-scale));
-    top: calc(2px * var(--layout-stage-scale));
-    height: calc(38% * 1);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, rgba(255, 251, 237, 0.14), rgba(255, 251, 237, 0) 100%);
-    pointer-events: none;
-}
-
-.charge-display::after {
-    content: "";
-    position: absolute;
-    inset: calc(3px * var(--layout-stage-scale));
-    border-radius: calc(999px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 138, 0.08);
-    pointer-events: none;
-}
-
-.charge-display .charge-label {
-    color: rgba(255, 220, 150, 0.58);
-    font-size: calc(10px * var(--layout-stage-scale));
-    font-weight: 700;
-    letter-spacing: calc(0.8px * var(--layout-stage-scale));
-}
-
-.charge-display .charge-current {
-    color: #ffe5a0;
-    font-size: calc(22px * var(--layout-stage-scale));
-    font-weight: 800;
-}
-
-.charge-display .charge-separator,
-.charge-display .charge-max {
-    color: rgba(255, 221, 149, 0.72);
-    font-size: calc(12px * var(--layout-stage-scale));
-    font-weight: 700;
-}
-
-.charge-display .time-stop-status-badge {
-    position: absolute;
-    left: 50%;
-    top: calc(100% + (6px * var(--layout-stage-scale)));
-    transform: translateX(-50%);
-    padding: calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 255, 255, 0.75);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background: rgba(24, 28, 44, 0.92);
-    color: #f5f8ff;
-    font-family: var(--selected-app-font-readable-family);
-    font-size: calc(12px * var(--layout-stage-scale));
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: calc(0.6px * var(--layout-stage-scale));
-    white-space: nowrap;
-    box-shadow: 0 calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.4);
-}
-
-#charge-white .time-stop-status-badge {
-    top: auto;
-    bottom: calc(100% + (6px * var(--layout-stage-scale)));
-}
-
-#charge-black {
-    left: 50%;
-    bottom: var(--layout-size-charge-offset);
-    transform: translateX(-50%);
-}
-
-#charge-white {
-    left: 50%;
-    top: var(--layout-size-charge-offset);
-    transform: translateX(-50%);
-}
-
-
-/* Charge Delta Display */
-.charge-delta {
-    --charge-delta-core: rgba(160, 222, 255, 0.95);
-    --charge-delta-flare: rgba(93, 168, 255, 0.58);
-    --charge-delta-smoke: rgba(33, 86, 170, 0.22);
-    --charge-delta-veil: rgba(10, 17, 32, 0.18);
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--layout-size-charge-delta-min-width);
-    min-height: var(--layout-size-charge-delta-height);
-    padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
-    border: none;
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background:
-        radial-gradient(ellipse at 50% 115%, var(--charge-delta-veil) 0, rgba(10, 17, 32, 0.08) 42%, rgba(10, 17, 32, 0) 72%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 48%);
-    color: #f2fbff;
-    font-family: var(--selected-app-font-readable-family);
-    font-size: var(--layout-size-charge-delta-font);
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: calc(0.7px * var(--layout-stage-scale));
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum' 1;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    pointer-events: none;
-    z-index: 1009;
-    box-shadow: 0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.16);
-    text-shadow:
-        0 0 calc(4px * var(--layout-stage-scale)) var(--charge-delta-core),
-        0 0 calc(12px * var(--layout-stage-scale)) var(--charge-delta-flare),
-        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
-    opacity: 0;
-    transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) scale(0.88);
-    transition: opacity 0s linear, transform 220ms cubic-bezier(0.22, 1, 0.36, 1), filter 220ms ease;
-    white-space: nowrap;
-    text-size-adjust: 100%;
-    -webkit-text-size-adjust: 100%;
-    filter: saturate(0.9) brightness(0.92);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    overflow: visible;
-    isolation: isolate;
-}
-
-.charge-delta::before {
-    content: "";
-    position: absolute;
-    left: 50%;
-    bottom: calc(-3px * var(--layout-stage-scale));
-    width: var(--layout-size-charge-delta-aura-width);
-    height: var(--layout-size-charge-delta-aura-height);
-    transform: translateX(-50%);
-    background:
-        radial-gradient(ellipse at 50% 82%, var(--charge-delta-core) 0, var(--charge-delta-flare) 22%, rgba(255, 255, 255, 0.12) 38%, transparent 68%),
-        radial-gradient(ellipse at 50% 100%, var(--charge-delta-smoke) 0, transparent 72%);
-    filter: blur(var(--layout-size-charge-delta-aura-blur));
-    opacity: 0.94;
-    pointer-events: none;
-}
-
-.charge-delta::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    bottom: calc(1px * var(--layout-stage-scale));
-    width: calc(var(--layout-size-charge-delta-aura-width) * 0.62);
-    height: var(--layout-size-charge-delta-trail-height);
-    transform: translateX(-50%);
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06) 32%, rgba(255, 255, 255, 0) 100%),
-        radial-gradient(ellipse at 50% 100%, var(--charge-delta-flare) 0, transparent 72%);
-    filter: blur(var(--layout-size-charge-delta-mist-blur));
-    opacity: 0.74;
-    pointer-events: none;
-}
-
-.charge-delta.is-side-left {
-    --charge-delta-drift-x: var(--layout-size-charge-delta-drift);
-    transform-origin: right center;
-}
-
-.charge-delta.is-side-right {
-    --charge-delta-drift-x: calc(var(--layout-size-charge-delta-drift) * -1);
-    transform-origin: left center;
-}
-
-.charge-delta.is-restart {
-    opacity: 0 !important;
-    transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) !important;
-    transition: none !important;
-}
-
-.charge-delta.is-visible {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: saturate(1.08) brightness(1.06);
-}
-
-.charge-delta.is-fadeout {
-    opacity: 0;
-    transform: translate3d(0, var(--layout-size-charge-delta-shift-y-end), 0) scale(1.08);
-    filter: blur(var(--layout-size-charge-delta-fade-blur)) saturate(0.84) brightness(1.1);
-    transition: opacity 0.5s ease, transform 0.5s ease, filter 0.5s ease;
-}
-
-.charge-delta.is-increase {
-    --charge-delta-core: rgba(160, 222, 255, 0.95);
-    --charge-delta-flare: rgba(93, 168, 255, 0.58);
-    --charge-delta-smoke: rgba(33, 86, 170, 0.22);
-    --charge-delta-veil: rgba(10, 17, 32, 0.18);
-    color: #eefbff;
-}
-
-.charge-delta.is-decrease {
-    --charge-delta-core: rgba(255, 155, 155, 0.88);
-    --charge-delta-flare: rgba(214, 74, 92, 0.52);
-    --charge-delta-smoke: rgba(86, 12, 24, 0.3);
-    --charge-delta-veil: rgba(28, 8, 12, 0.22);
-    color: #fff1f4;
-}
 /* Player Area Containers */
 .player-area-top,
 .player-area-bottom {
@@ -414,6 +183,7 @@
     );
     max-width: none;
     position: relative;
+    z-index: var(--layout-z-player-area);
 }
 
 /* Opponent UI micro-offset: move only top deck/hand slightly closer to board. */
@@ -444,6 +214,7 @@
 }
 
 .hand-track {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -451,6 +222,7 @@
     width: max-content;
     min-width: 100%;
     transform: translate3d(0, 0, 0);
+    z-index: 1;
 }
 
 .time-stop-hand-overlay {

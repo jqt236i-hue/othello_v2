@@ -43,6 +43,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['反転保護', '6ターン持続']);
     expect(getEffectTagLabels('DESTROY_DRAGON_WILL')).toEqual(['反転保護', '3ターン持続']);
     expect(getEffectTagLabels('LIGHTNING_WILL')).toEqual(['反転保護', '6ターン持続']);
+    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['反転保護', '6ターン持続']);
   });
 
   test('numeric tag resolver stays numeric-only even after protection tags are added', () => {

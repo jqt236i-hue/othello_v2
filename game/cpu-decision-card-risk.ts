@@ -19,6 +19,7 @@ type CpuDecisionCardRiskConfig = {
 const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'TIME_BOMB',
     'METEOR_WILL',
+    'METEOR_GOD',
     'BOARD_SHRINK_WILL',
     'BOARD_SHRINK_GOD',
     'SWAP_WITH_ENEMY',

@@ -290,6 +290,7 @@ describe('worker card pattern parity', () => {
     ['turn-start/random gluttonous', 'gluttonous_will_01'],
     ['random destroy dragon', 'destroy_dragon_01'],
     ['random lightning', 'lightning_01'],
+    ['random meteor god', 'meteor_god_01'],
     ['hidden reveal hand', 'reveal_hand_01'],
     ['hidden condemn', 'condemn_01'],
     ['projection trap', 'trap_01']
@@ -360,6 +361,56 @@ describe('worker card pattern parity', () => {
         ])
       })
     ]));
+  }, 90000);
+
+  test('loss will card-use hand clear matches headless authority result', () => {
+    const cardId = 'loss_will_01';
+    const runtime = createCardUseRuntime(cardId, 83);
+    const runtimeSnapshot = runtime.getSnapshot();
+    runtimeSnapshot.gameState.board[3][3] = Core.BLACK;
+    runtimeSnapshot.gameState.board[3][4] = Core.WHITE;
+    runtimeSnapshot.cardState.hands.black = [cardId, 'observer_will_01', 'guard_01', 'meteor_01'];
+    runtimeSnapshot.cardState._handCopyIdsByPlayer.black = [];
+    runtimeSnapshot.cardState.markers = [
+      { id: 9101, kind: 'specialStone', row: 3, col: 4, owner: 'white', createdSeq: 9101, data: { type: 'WORK', remainingOwnerTurns: 4 } }
+    ];
+    runtimeSnapshot.cardState._nextMarkerId = 9102;
+    runtimeSnapshot.cardState._nextCreatedSeq = 9102;
+    runtimeSnapshot.cardState.selectedCardId = cardId;
+    runtimeSnapshot.cardState.selectedCardOwnerKey = 'black';
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
+
+    const initialSnapshot = clone(runtimeSnapshot);
+    const initialVersion = runtime.getRoom().stateVersion;
+    const body = buildUseCardBody(runtime, cardId, 'op_worker_pattern_loss_will_hand_clear');
+    const localResult = runtime.applyCommand(body);
+    const workerResult = runWorkerPublish(initialSnapshot, initialVersion, body, 83);
+
+    expect(workerResult.status).toBe(200);
+    expect(workerResult.payload.ok).toBe(true);
+    expect(localResult.ok).toBe(true);
+
+    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
+    expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
+      .toEqual(normalizePublicSnapshotForParity(localPublic));
+    expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
+      .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
+    expect(workerResult.payload.effectLogs || []).toEqual(localResult.effectLogs || []);
+
+    const workerHandRemove = collectPlaybackEventsByType(workerResult.payload.playbackEvents, 'hand_remove');
+    const localHandRemove = collectPlaybackEventsByType(localResult.playbackEvents, 'hand_remove');
+    expect(workerHandRemove).toEqual(localHandRemove);
+    expect(workerHandRemove).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'hand_remove',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ player: 'black', count: 2 })
+        ])
+      })
+    ]));
+    expect(workerResult.payload.snapshot.cardState.hands.black).toEqual(['observer_will_01']);
+    expect(workerResult.payload.snapshot.cardState.discard).toEqual(expect.arrayContaining([cardId, 'guard_01', 'meteor_01']));
+    expect(workerResult.payload.snapshot.cardState.discard).not.toContain('observer_will_01');
   }, 90000);
 
   test('supply card-use draw playback matches headless authority result', () => {

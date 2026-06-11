@@ -2,6 +2,10 @@ import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
 describe('StoneVisuals.showChargeDelta immediate update', () => {
+  function flushChargeDeltaFrame() {
+    jest.advanceTimersByTime(0);
+  }
+
   beforeEach(() => {
     jest.resetModules();
     jest.useFakeTimers();
@@ -94,10 +98,12 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
 
     stoneVisuals.showChargeDelta('black', 1);
     expect(el.textContent).toBe('+1');
+    flushChargeDeltaFrame();
     expect(el.classList.contains('is-visible')).toBe(true);
 
     stoneVisuals.showChargeDelta('black', 2);
     expect(el.textContent).toBe('+2');
+    flushChargeDeltaFrame();
     expect(el.classList.contains('is-visible')).toBe(true);
 
     jest.advanceTimersByTime(4500);
@@ -141,6 +147,7 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
 
     expect(increaseEl.textContent).toBe('+5');
     expect(decreaseEl.textContent).toBe('-2');
+    flushChargeDeltaFrame();
     expect(increaseEl.classList.contains('is-visible')).toBe(true);
     expect(decreaseEl.classList.contains('is-visible')).toBe(true);
     expect(increaseEl.style.left).toBe('136px');

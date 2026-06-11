@@ -1,0 +1,241 @@
+/* ===== Charge HUD Layer, Counters, and Delta Popups ===== */
+
+/* Charge HUD sits above hands while board frame shadows stay below them. */
+#charge-hud-layer {
+    position: absolute;
+    inset: 0;
+    z-index: var(--layout-z-charge-hud);
+    pointer-events: none;
+    overflow: visible;
+    transform: translateY(var(--layout-charge-board-offset-y));
+}
+
+.charge-display {
+    position: absolute;
+    min-width: calc(116px * var(--layout-stage-scale));
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: calc(3px * var(--layout-stage-scale));
+    padding: var(--layout-size-charge-pad-y) var(--layout-size-charge-pad-x);
+    background:
+        linear-gradient(180deg, rgba(62, 48, 29, 0.99), rgba(18, 14, 10, 0.99)),
+        linear-gradient(135deg, rgba(255, 244, 214, 0.07), transparent 46%, rgba(255, 206, 103, 0.06) 100%);
+    border: var(--layout-size-charge-border) solid rgba(190, 146, 48, 0.74);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    color: #ffd700;
+    font-family: var(--selected-app-font-readable-family);
+    font-size: var(--layout-size-charge-font);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    pointer-events: none;
+    z-index: var(--layout-z-charge-display);
+    box-shadow: none;
+    text-shadow: none;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+}
+
+.charge-display::before {
+    content: "";
+    position: absolute;
+    left: calc(10px * var(--layout-stage-scale));
+    right: calc(10px * var(--layout-stage-scale));
+    top: calc(2px * var(--layout-stage-scale));
+    height: calc(38% * 1);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, rgba(255, 251, 237, 0.14), rgba(255, 251, 237, 0) 100%);
+    pointer-events: none;
+}
+
+.charge-display::after {
+    content: "";
+    position: absolute;
+    inset: calc(3px * var(--layout-stage-scale));
+    border-radius: calc(999px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 138, 0.08);
+    pointer-events: none;
+}
+
+.charge-display .charge-label {
+    color: rgba(255, 220, 150, 0.58);
+    font-size: calc(9.5px * var(--layout-stage-scale));
+    font-weight: 700;
+    letter-spacing: calc(0.8px * var(--layout-stage-scale));
+}
+
+.charge-display .charge-current {
+    color: #ffe5a0;
+    font-size: calc(20px * var(--layout-stage-scale));
+    font-weight: 800;
+}
+
+.charge-display .charge-separator,
+.charge-display .charge-max {
+    color: rgba(255, 221, 149, 0.72);
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 700;
+}
+
+.charge-display .time-stop-status-badge {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + (6px * var(--layout-stage-scale)));
+    transform: translateX(-50%);
+    padding: calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 255, 255, 0.75);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(24, 28, 44, 0.92);
+    color: #f5f8ff;
+    font-family: var(--selected-app-font-readable-family);
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: calc(0.6px * var(--layout-stage-scale));
+    white-space: nowrap;
+    box-shadow: 0 calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.4);
+}
+
+#charge-white .time-stop-status-badge {
+    top: auto;
+    bottom: calc(100% + (6px * var(--layout-stage-scale)));
+}
+
+#charge-black {
+    left: 50%;
+    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset));
+    transform: translateX(-50%);
+}
+
+#charge-white {
+    left: 50%;
+    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset));
+    transform: translateX(-50%);
+}
+
+.charge-delta {
+    --charge-delta-core: rgba(154, 226, 255, 0.98);
+    --charge-delta-flare: rgba(80, 170, 255, 0.42);
+    --charge-delta-edge: rgba(176, 235, 255, 0.76);
+    --charge-delta-panel: rgba(12, 24, 38, 0.78);
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--layout-size-charge-delta-min-width);
+    min-height: var(--layout-size-charge-delta-height);
+    padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
+    border: var(--layout-size-charge-delta-border) solid var(--charge-delta-edge);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, transparent 0%, var(--charge-delta-flare) 48%, transparent 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(180deg, var(--charge-delta-panel), rgba(8, 14, 24, 0.88));
+    color: #f2fbff;
+    font-family: var(--selected-app-font-readable-family);
+    font-size: var(--layout-size-charge-delta-font);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    pointer-events: none;
+    z-index: var(--layout-z-charge-delta);
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.18),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34);
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.64),
+        0 0 calc(4px * var(--layout-stage-scale)) var(--charge-delta-flare);
+    opacity: 0;
+    transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) scale(0.88);
+    transition: opacity 0s linear, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    white-space: nowrap;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+    isolation: isolate;
+}
+
+.charge-delta::before {
+    content: "";
+    position: absolute;
+    left: calc(5px * var(--layout-stage-scale));
+    right: calc(5px * var(--layout-stage-scale));
+    top: calc(3px * var(--layout-stage-scale));
+    height: calc(2px * var(--layout-stage-scale));
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, transparent, var(--charge-delta-core) 48%, transparent);
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.charge-delta::after {
+    content: "";
+    position: absolute;
+    left: calc(-6px * var(--layout-stage-scale));
+    right: calc(-6px * var(--layout-stage-scale));
+    bottom: calc(-3px * var(--layout-stage-scale));
+    height: calc(5px * var(--layout-stage-scale));
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse at 50% 50%, var(--charge-delta-flare) 0%, rgba(0, 0, 0, 0) 70%);
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.charge-delta.is-side-left {
+    --charge-delta-drift-x: var(--layout-size-charge-delta-drift);
+    transform-origin: right center;
+}
+
+.charge-delta.is-side-right {
+    --charge-delta-drift-x: calc(var(--layout-size-charge-delta-drift) * -1);
+    transform-origin: left center;
+}
+
+.charge-delta.is-restart {
+    opacity: 0 !important;
+    transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) !important;
+    transition: none !important;
+}
+
+.charge-delta.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+}
+
+.charge-delta.is-fadeout {
+    opacity: 0;
+    transform: translate3d(0, var(--layout-size-charge-delta-shift-y-end), 0) scale(1.08);
+    transition: opacity 0.42s ease, transform 0.42s ease;
+}
+
+.charge-delta.is-increase {
+    --charge-delta-core: rgba(154, 226, 255, 0.98);
+    --charge-delta-flare: rgba(80, 170, 255, 0.42);
+    --charge-delta-edge: rgba(176, 235, 255, 0.76);
+    --charge-delta-panel: rgba(12, 26, 44, 0.82);
+    color: #eefbff;
+}
+
+.charge-delta.is-decrease {
+    --charge-delta-core: rgba(255, 177, 182, 0.94);
+    --charge-delta-flare: rgba(228, 82, 104, 0.38);
+    --charge-delta-edge: rgba(255, 162, 174, 0.68);
+    --charge-delta-panel: rgba(46, 12, 22, 0.82);
+    color: #fff1f4;
+}

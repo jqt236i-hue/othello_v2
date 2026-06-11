@@ -113,6 +113,16 @@ describe('CardLogic commitDraw reshuffle cycle policy', () => {
     expect(cardState.decks.white).toEqual(expandedDeckIds);
   });
 
+  test('initialChargeByPlayer initializes starting charge without counting it as gained charge', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng, {
+      initialChargeByPlayer: { white: 50 }
+    });
+
+    expect(cardState.charge).toEqual({ black: 0, white: 50 });
+    expect(cardState.chargeGainedTotal).toEqual({ black: 0, white: 0 });
+  });
+
   test('initialDeckCardIdsByPlayer accepts duplicate-heavy custom decks', () => {
     const duplicateDeckIds = Array(15).fill('perma_01').concat(Array(15).fill('work_01'));
     const prng = { shuffle: (arr) => arr, random: () => 0.5 };

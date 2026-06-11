@@ -220,6 +220,8 @@ const HAND_PLACE_RETREAT_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoos
 const HAND_DRAW_PICKUP_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(140, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_MOVE_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(360, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_RETREAT_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(220, DRAW_HAND_SPEED_BOOST)));
+const CARD_FACE_ART_REVEAL_WAIT_MS = 900;
+const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):\d+$/;
 
 function _resolveHandImageElement() {
     if (typeof document === 'undefined') return null;
@@ -440,6 +442,184 @@ function _resolveCreateCardFaceElement() {
         }
     } catch (e: any) { /* ignore */ }
     return null;
+}
+
+function _getCardFaceArtPreloadRoot() {
+    try {
+        if (typeof window !== 'undefined' && window) return window as any;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis) return globalThis as any;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _getCardFaceArtPreloadCache() {
+    const root = _getCardFaceArtPreloadRoot();
+    if (!root) return null;
+    try {
+        if (!root.__cardFaceArtPreloadCache || typeof root.__cardFaceArtPreloadCache !== 'object') {
+            root.__cardFaceArtPreloadCache = Object.create(null);
+        }
+        return root.__cardFaceArtPreloadCache;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _getCardFaceArtImageCtor() {
+    try {
+        if (typeof window !== 'undefined' && window && typeof (window as any).Image === 'function') {
+            return (window as any).Image;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).Image === 'function') {
+            return (globalThis as any).Image;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _normalizeCardFaceArtPreloadPath(pathValue: any) {
+    const raw = String(pathValue || '').trim();
+    if (!raw) return '';
+    const urlMatch = raw.match(/^url\((['"]?)(.*?)\1\)$/i);
+    const pathText = urlMatch ? String(urlMatch[2] || '').trim() : raw;
+    if (!pathText || pathText === 'none') return '';
+    return pathText;
+}
+
+function _isHiddenHandTokenId(cardId: any) {
+    return HIDDEN_HAND_TOKEN_RE.test(String(cardId || '').trim());
+}
+
+function _resolveCardFaceArtPreloadCardId(primaryCardId: any, descriptor: any = null) {
+    const normalizedPrimaryCardId = String(primaryCardId || '').trim();
+    if (normalizedPrimaryCardId && !_isHiddenHandTokenId(normalizedPrimaryCardId)) {
+        return normalizedPrimaryCardId;
+    }
+    const descriptorCardId = descriptor && typeof descriptor === 'object'
+        ? String(descriptor.cardId || '').trim()
+        : '';
+    if (descriptorCardId && !_isHiddenHandTokenId(descriptorCardId)) {
+        return descriptorCardId;
+    }
+    return normalizedPrimaryCardId || descriptorCardId || '';
+}
+
+function _readCardFaceArtPathFromElement(cardEl: any) {
+    if (!cardEl || typeof cardEl !== 'object') return '';
+    try {
+        const datasetPath = cardEl.dataset && cardEl.dataset.cardBackgroundImage;
+        const normalized = _normalizeCardFaceArtPreloadPath(datasetPath);
+        if (normalized) return normalized;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (cardEl.style && typeof cardEl.style.getPropertyValue === 'function') {
+            const stylePath = cardEl.style.getPropertyValue('--card-background-art-image');
+            const normalized = _normalizeCardFaceArtPreloadPath(stylePath);
+            if (normalized) return normalized;
+        }
+    } catch (e: any) { /* ignore */ }
+    return '';
+}
+
+function _resolveCardFaceArtPathForPreload(cardId: any, options: any = {}) {
+    const normalizedCardId = String(cardId || '').trim();
+    if (!normalizedCardId || _isHiddenHandTokenId(normalizedCardId)) return '';
+    const createCardFaceElement = _resolveCreateCardFaceElement();
+    if (typeof createCardFaceElement !== 'function') return '';
+    try {
+        const cardEl = createCardFaceElement(normalizedCardId, { ownerKey: options.ownerKey });
+        return _readCardFaceArtPathFromElement(cardEl);
+    } catch (e: any) { /* ignore */ }
+    return '';
+}
+
+function preloadCardFaceArtForAnimation(cardId: any, options: any = {}) {
+    const imagePath = _resolveCardFaceArtPathForPreload(cardId, options);
+    if (!imagePath) {
+        const skipped: any = Promise.resolve({ status: 'skipped', reason: 'no-card-art' });
+        skipped.__cardFaceArtPreloadShouldWait = false;
+        return skipped;
+    }
+
+    const cache = _getCardFaceArtPreloadCache();
+    if (cache && cache[imagePath] && cache[imagePath].promise) {
+        return cache[imagePath].promise;
+    }
+
+    const ImageCtor = _getCardFaceArtImageCtor();
+    if (typeof ImageCtor !== 'function') {
+        const skipped: any = Promise.resolve({ status: 'skipped', reason: 'image-unavailable', path: imagePath });
+        skipped.__cardFaceArtPreloadShouldWait = false;
+        return skipped;
+    }
+
+    let img: any = null;
+    const cacheEntry: any = cache ? { promise: null, image: null } : null;
+    const promise = new Promise((resolve) => {
+        let settled = false;
+        const settle = (status: string) => {
+            if (settled) return;
+            settled = true;
+            if (cacheEntry) {
+                cacheEntry.image = null;
+            }
+            resolve({ status, path: imagePath });
+        };
+        try {
+            img = new ImageCtor();
+            if (cacheEntry) {
+                cacheEntry.image = img;
+            }
+            img.onload = () => settle('loaded');
+            img.onerror = () => settle('error');
+            try { img.decoding = 'async'; } catch (e: any) { /* ignore */ }
+            try { img.loading = 'eager'; } catch (e: any) { /* ignore */ }
+            try { img.fetchPriority = options.priority || 'high'; } catch (e: any) { /* ignore */ }
+            img.src = imagePath;
+            try {
+                if (img.complete === true) settle('loaded');
+            } catch (e: any) { /* ignore */ }
+        } catch (e: any) {
+            settle('error');
+        }
+    });
+
+    if (cacheEntry) {
+        cacheEntry.promise = promise;
+        cache[imagePath] = cacheEntry;
+    }
+    (promise as any).__cardFaceArtPreloadShouldWait = true;
+    return promise;
+}
+
+function _shouldWaitForCardFaceArtPreload(preloadPromise: any) {
+    return !!(preloadPromise && preloadPromise.__cardFaceArtPreloadShouldWait === true);
+}
+
+function _waitForCardFaceArtPreload(preloadPromise: any, timeoutMs: number = CARD_FACE_ART_REVEAL_WAIT_MS) {
+    if (!preloadPromise || typeof preloadPromise.then !== 'function') return Promise.resolve(null);
+    const safeTimeoutMs = Number.isFinite(Number(timeoutMs)) ? Math.max(0, Math.floor(Number(timeoutMs))) : 0;
+    if (safeTimeoutMs <= 0) {
+        return Promise.resolve(preloadPromise).catch((error: any) => ({ status: 'error', error }));
+    }
+    return new Promise((resolve) => {
+        let settled = false;
+        let timeoutId: any = null;
+        const finish = (value: any) => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId !== null) {
+                try { clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
+                timeoutId = null;
+            }
+            resolve(value);
+        };
+        timeoutId = setTimeout(() => finish({ status: 'timeout' }), safeTimeoutMs);
+        Promise.resolve(preloadPromise).then(finish, (error: any) => finish({ status: 'error', error }));
+    });
 }
 
 function _resolveApplyCardSpecialArtToFace() {
@@ -1522,6 +1702,14 @@ function _finalizeHandAddAnimation(payload: any, options: any) {
     } catch (e: any) { /* ignore */ }
 }
 
+function _finalizeHandAddAfterCardFaceArtReady(payload: any, options: any, preloadPromise: any) {
+    return _waitForCardFaceArtPreload(preloadPromise, CARD_FACE_ART_REVEAL_WAIT_MS)
+        .catch(() => null)
+        .then(() => {
+            _finalizeHandAddAnimation(payload, options);
+        });
+}
+
 function _getCaptureReservedHandSlotState() {
     try {
         if (typeof window !== 'undefined' && window.__captureReservedHandSlotState && typeof window.__captureReservedHandSlotState === 'object') {
@@ -1728,18 +1916,20 @@ function playCaptureToHandAnimation(payload: any) {
 function playDrawCardHandAnimation(payload: any) {
     const data = payload || {};
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
+    const cardFaceArtPreload = preloadCardFaceArtForAnimation(data.cardId, {
+        ownerKey: toPlayerKey,
+        priority: 'high'
+    });
 
     try {
         if (typeof window !== 'undefined') {
             if (window.__drawHandAnimActive) {
-                _finalizeHandAddAnimation(data, { pulseDeck: true });
-                return Promise.resolve();
+                return _finalizeHandAddAfterCardFaceArtReady(data, { pulseDeck: true }, cardFaceArtPreload);
             }
             const now = Date.now();
             const last = Number(window.__lastDrawAnimAt || 0);
             if (last > 0 && now >= last && now - last < 80) {
-                _finalizeHandAddAnimation(data, { pulseDeck: true });
-                return Promise.resolve();
+                return _finalizeHandAddAfterCardFaceArtReady(data, { pulseDeck: true }, cardFaceArtPreload);
             }
             window.__lastDrawAnimAt = now;
         }
@@ -1753,9 +1943,8 @@ function playDrawCardHandAnimation(payload: any) {
                 if (typeof window !== 'undefined') window.__drawHandAnimActive = false;
             } catch (e: any) { /* ignore */ }
 
-            _finalizeHandAddAnimation(data, { pulseDeck: true });
-
-            resolve();
+            _finalizeHandAddAfterCardFaceArtReady(data, { pulseDeck: true }, cardFaceArtPreload)
+                .then(() => resolve());
         };
 
         try {
@@ -1940,7 +2129,14 @@ function playCardUseHandAnimation(payload: any) {
         }
     } catch (e: any) { /* ignore */ }
 
-    return _enqueueHandLayerAnimation(() => new Promise<void>((resolve, reject) => {
+    const cardUseCardId = _resolveCardFaceArtPreloadCardId(data.cardId, data.visualDescriptor);
+    const cardFaceArtPreload = preloadCardFaceArtForAnimation(cardUseCardId, {
+        ownerKey,
+        priority: 'high'
+    });
+
+    return _enqueueHandLayerAnimation(() => {
+        const runCardUseAnimation = () => new Promise<void>((resolve, reject) => {
         let clearResolveFallback = function () {};
         let disappearSoundPlayed = false;
         let disappearHookStarted = false;
@@ -2120,7 +2316,12 @@ function playCardUseHandAnimation(payload: any) {
         }).finally(() => {
             void cleanup();
         });
-    }));
+        });
+        if (!_shouldWaitForCardFaceArtPreload(cardFaceArtPreload)) {
+            return runCardUseAnimation();
+        }
+        return _waitForCardFaceArtPreload(cardFaceArtPreload, CARD_FACE_ART_REVEAL_WAIT_MS).then(runCardUseAnimation);
+    });
 }
 
 

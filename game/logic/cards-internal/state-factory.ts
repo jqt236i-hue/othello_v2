@@ -189,6 +189,20 @@ function deriveNextObserverWillRepaymentSeq(cardState: any): number {
     return maxSeq + 1;
 }
 
+function normalizeInitialChargeByPlayer(options: any): Record<string, number> {
+    const source = options && options.initialChargeByPlayer && typeof options.initialChargeByPlayer === 'object'
+        ? options.initialChargeByPlayer
+        : {};
+    const normalize = (value: any) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+    };
+    return {
+        black: normalize(source.black),
+        white: normalize(source.white)
+    };
+}
+
 function createCardState(prng: PRNG | null, options: any, context: Context): any {
     const p = prng || getDefaultPrng(context);
     const resolveCardBoardConfig = requireContextFunction(context, 'resolveCardBoardConfig');
@@ -214,6 +228,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
 
     const blackDeck = buildDeck('black');
     const whiteDeck = buildDeck('white');
+    const initialChargeByPlayer = normalizeInitialChargeByPlayer(options);
     const boardBonusByCell = plainReversi ? {} : buildInitialBoardBonusMap(p, boardConfig);
     const stoneIdMap = createStoneIdBoard(boardConfig);
     const openingPlacements = getOpeningPlacementsForState(boardConfig);
@@ -275,7 +290,10 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         cardUseCountByPlayer: { black: 0, white: 0 },
         totalFlipCountByPlayer: { black: 0, white: 0 },
         cornerCaptureCountByPlayer: { black: 0, white: 0 },
-        charge: { black: 0, white: 0 },
+        charge: {
+            black: initialChargeByPlayer.black,
+            white: initialChargeByPlayer.white
+        },
         chargeGainedTotal: { black: 0, white: 0 },
         chargeDeltaEvents: [],
         _nextChargeDeltaSeq: 1,

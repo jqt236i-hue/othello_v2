@@ -20,6 +20,26 @@ if (!OwnerHelpersModule) {
     } catch (e: any) { /* ignore */ }
 }
 
+let CpuProfileSelectionModule: any = null;
+try {
+    if (typeof _require === 'function') {
+        CpuProfileSelectionModule = _require('./cpu-profile-selection');
+    }
+} catch (e: any) { /* ignore */ }
+
+function readCpuSmartnessValueFromSelect(id: string): number | string {
+    try {
+        if (CpuProfileSelectionModule && typeof CpuProfileSelectionModule.readCpuSmartnessValueFromSelectId === 'function') {
+            return CpuProfileSelectionModule.readCpuSmartnessValueFromSelectId(id);
+        }
+    } catch (e: any) { /* ignore */ }
+    const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
+    const raw = String(el && el.value || '').trim();
+    if (!raw) return 1;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.max(1, Math.min(7, Math.floor(n))) : raw;
+}
+
 function createInjectedTimerService(timersImpl: any) {
     const hasUsableWaitMs = !!(timersImpl && typeof timersImpl.waitMs === 'function');
 
@@ -386,13 +406,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         let appendedToDom = false;
         try {
             const logEl = (typeof document !== 'undefined') ? document.getElementById('log') : null;
-            if (logEl && debugEnabled) {
+            if (logEl) {
                 const entry = document.createElement('div');
                 entry.className = 'logEntry';
                 entry.textContent = resolvedText;
                 logEl.appendChild(entry);
-                try { logEl.classList.add('is-visible'); } catch (e: any) { /* ignore classList errors */ }
-                try { logEl.setAttribute('aria-hidden', 'false'); } catch (e: any) { /* ignore aria errors */ }
+                const logOpen = !!(logEl.classList && logEl.classList.contains('is-log-open'));
+                try { logEl.classList.remove('is-visible'); } catch (e: any) { /* ignore classList errors */ }
+                try { logEl.setAttribute('aria-hidden', logOpen ? 'false' : 'true'); } catch (e: any) { /* ignore aria errors */ }
                 try { logEl.scrollTop = logEl.scrollHeight; } catch (e: any) { if (logEl && logEl.parentElement) logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight; }
                 appendedToDom = true;
             }
@@ -1425,12 +1446,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         isDebugLogAvailable: () => isDebugSessionEnabled(),
                         debugLog,
                         readCpuSmartness: () => {
-                            const readLevel = (id: string) => {
-                                const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
-                                const n = Number(el && el.value);
-                                return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
+                            return {
+                                black: readCpuSmartnessValueFromSelect('smartBlack'),
+                                white: readCpuSmartnessValueFromSelect('smartWhite')
                             };
-                            return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
                         },
                         resolveRuntimeFunction: (name: string) => {
                             try {
@@ -1783,12 +1802,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         return '';
                     },
                     readCpuSmartness: () => {
-                        const readLevel = (id: string) => {
-                            const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
-                            const n = Number(el && el.value);
-                            return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
+                        return {
+                            black: readCpuSmartnessValueFromSelect('smartBlack'),
+                            white: readCpuSmartnessValueFromSelect('smartWhite')
                         };
-                        return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
                     },
                     getCpuLv6SharedProfile: () => {
                         try {
@@ -2433,12 +2450,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         return false;
                     },
                     readCpuSmartness: () => {
-                        const readLevel = (id: string) => {
-                            const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
-                            const n = Number(el && el.value);
-                            return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
+                        return {
+                            black: readCpuSmartnessValueFromSelect('smartBlack'),
+                            white: readCpuSmartnessValueFromSelect('smartWhite')
                         };
-                        return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
                     },
                     readMatchMode: () => {
                         try {

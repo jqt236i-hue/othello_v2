@@ -17,6 +17,7 @@ type CpuPolicyCardUseDecisionDeps = {
     highVarianceCardTypes?: ReadonlySet<string>;
     rebuildKeepPriorityCardTypes?: ReadonlySet<string>;
     whiteLv6DestroyWhenAheadTypes?: ReadonlySet<string>;
+    isInviolableSpecialCardId?: (cardId: unknown) => boolean;
 };
 
 export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDeps) {
@@ -30,6 +31,33 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
     const buildCpuPolicyCardUseState = deps.buildCpuPolicyCardUseState;
     const buildBlockedCardUseDecision = deps.buildBlockedCardUseDecision;
     const getForcedHandDestroyReason = deps.getForcedHandDestroyReason;
+    const isInviolableSpecialCardId = typeof deps.isInviolableSpecialCardId === 'function'
+        ? deps.isInviolableSpecialCardId
+        : () => false;
+
+    function countLossWillDestroyableHandCards(handCardIds: CpuPolicyCardId[], useCardId: CpuPolicyCardId): number {
+        if (!Array.isArray(handCardIds)) return 0;
+        let count = 0;
+        let skippedUseCard = false;
+        for (const handId of handCardIds) {
+            if (!handId) continue;
+            if (!skippedUseCard && handId === useCardId) {
+                skippedUseCard = true;
+                continue;
+            }
+            if (isInviolableSpecialCardId(handId)) continue;
+            count += 1;
+        }
+        return count;
+    }
+
+    function getFlipMultiplierExtraProfit(maxLegalFlips: number, multiplier: number, cardCost: number): number {
+        return Math.max(0, Math.floor(maxLegalFlips || 0)) * Math.max(0, multiplier - 1) - Math.max(0, Number(cardCost) || 0);
+    }
+
+    function getNumberCellExtraProfit(maxLegalBoardBonus: number, cardCost: number): number {
+        return Math.max(0, Math.floor(maxLegalBoardBonus || 0)) - Math.max(0, Number(cardCost) || 0);
+    }
 
     function scoreCardUseDecision(
         cardId: CpuPolicyCardId,
@@ -215,11 +243,19 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
                 minUseScore: ctx.minUseScore
             };
         }
+        if (ctx.level >= 6 && (isGoldStone || isRainbowStone || isSilverStone || isCrystalStone)) {
+            const multiplier = isRainbowStone ? 6 : (isGoldStone ? 4 : (isSilverStone ? 3 : 2));
+            const extraProfit = isCrystalStone
+                ? getNumberCellExtraProfit(maxLegalBoardBonus, cardCost)
+                : getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost);
+            if (extraProfit <= 0) {
+                return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'cpu_lv6_unprofitable_charge_roi');
+            }
+        }
         const highYieldChargeRecovery = (
             ((isGoldStone || isRainbowStone || isSilverStone) &&
-                maxLegalFlips >= 3 &&
-                maxLegalGain >= 3) ||
-            (isCrystalStone && maxLegalBoardBonus >= 2) ||
+                getFlipMultiplierExtraProfit(maxLegalFlips, isRainbowStone ? 6 : (isGoldStone ? 4 : 3), cardCost) > 0) ||
+            (isCrystalStone && getNumberCellExtraProfit(maxLegalBoardBonus, cardCost) > 0) ||
             (isPlunderWill &&
                 maxLegalFlips >= 3 &&
                 maxLegalGain >= 3 &&
@@ -472,31 +508,29 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         // expected immediate gain from currently available legal moves.
         if (isGoldStone || isRainbowStone || isSilverStone) {
             const multiplier = isRainbowStone ? 6 : (isGoldStone ? 4 : 3);
-            const gross = maxLegalGain * multiplier;
-            const net = gross - cardCost;
+            const net = getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost);
+            const minProfitableFlips = Math.floor(cardCost / Math.max(1, multiplier - 1)) + 1;
             score -= 12;
             score += net * 6;
-            if (maxLegalFlips < 3 && !ctx.forceUseCard) {
+            if (maxLegalFlips < minProfitableFlips && !ctx.forceUseCard) {
                 score -= isRainbowStone ? 280 : 320;
                 if (whiteLv6Mode) score -= 140;
                 if (setupBudgetTight) score -= 72;
             }
-            if (maxLegalGain <= 1) score -= 180;
-            else if (maxLegalGain <= 2) {
+            if (maxLegalFlips <= 1) score -= 180;
+            else if (maxLegalFlips < minProfitableFlips) {
                 score -= 90;
                 if (whiteLv6Mode && setupBudgetTight) score -= 48;
             }
-            if (maxLegalFlips >= 3) score += isRainbowStone ? 148 : 112;
+            if (net > 0) score += isRainbowStone ? 148 : 112;
             if (hasCornerMoveNow) score += 22;
-            if (cornerEmergency && maxLegalGain <= 2) score -= 55;
-            if (endgamePhase && maxLegalGain <= 2) score -= 55;
-            if (criticalLowDiscEmergency && maxLegalFlips >= 3) score += 48;
+            if (cornerEmergency && net <= 0) score -= 55;
+            if (endgamePhase && net <= 0) score -= 55;
+            if (criticalLowDiscEmergency && net > 0) score += 48;
         }
 
         if (isCrystalStone) {
-            const multiplier = 2;
-            const gross = maxLegalBoardBonus * multiplier;
-            const net = gross - cardCost;
+            const net = getNumberCellExtraProfit(maxLegalBoardBonus, cardCost);
             score -= 18;
             score += net * 7;
             if (maxLegalBoardBonus <= 0 && !ctx.forceUseCard) {
@@ -511,15 +545,15 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
                 if (whiteLv6Mode) score -= 60;
                 if (cornerEmergency) score -= 48;
                 if (openingPhase) score -= 24;
-            } else if (maxLegalBoardBonus >= 3) {
+            } else if (net > 0) {
                 score += 132;
             } else {
                 score += 72;
             }
             if (highBonusMoveAvailable) score += 24;
-            if (cornerEmergency && maxLegalBoardBonus <= 1) score -= 55;
-            if (endgamePhase && maxLegalBoardBonus <= 1) score -= 45;
-            if (criticalLowDiscEmergency && maxLegalBoardBonus >= 2) score += 42;
+            if (cornerEmergency && net <= 0) score -= 55;
+            if (endgamePhase && net <= 0) score -= 45;
+            if (criticalLowDiscEmergency && net > 0) score += 42;
         }
 
         if (isPlunderWill) {
@@ -1036,9 +1070,16 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         if (isLossWill) {
             const specialDiff = oppSpecialCount - ownSpecialCount;
             const anchorResetDiff = oppAnchorResetWeight - ownAnchorResetWeight;
+            const destroyableHandCount = countLossWillDestroyableHandCards(handCardIds, cardId);
             score -= 38;
             score += specialDiff * 52;
             score += anchorResetDiff * 44;
+            if (!ctx.forceUseCard && destroyableHandCount > 0) {
+                score -= destroyableHandCount * 38;
+                if (destroyableHandCount >= 2) score -= 34;
+                if (destroyableHandCount >= 3) score -= 42;
+                if (destroyableHandCount >= 4) score -= 52;
+            }
             if (oppSpecialCount <= 0 && ownSpecialCount <= 0) score -= 180;
             if (oppSpecialCount <= 0) score -= 90;
             if (specialDiff >= 2) score += 70;

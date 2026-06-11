@@ -10,7 +10,7 @@ describe('ui bootstrap debug logging', () => {
     try { delete global.debugLog; } catch (e) { global.debugLog = undefined; }
   });
 
-  test('addLog writes the visible DOM log only during explicit debug sessions', () => {
+  test('addLog stores DOM log entries while keeping console mirroring debug-gated', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="log"></div></body></html>', {
       url: 'http://localhost/'
     });
@@ -21,15 +21,16 @@ describe('ui bootstrap debug logging', () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     const bootstrap = require('../ui/bootstrap.js');
     bootstrap.addLog('quiet entry');
-    expect(Array.from(document.querySelectorAll('#log .logEntry')).map((el) => el.textContent)).toEqual([]);
+    expect(Array.from(document.querySelectorAll('#log .logEntry')).map((el) => el.textContent)).toEqual(['quiet entry']);
     expect(document.getElementById('log')?.classList.contains('is-visible')).toBe(false);
+    expect(document.getElementById('log')?.getAttribute('aria-hidden')).toBe('true');
     expect(logSpy).not.toHaveBeenCalled();
 
     bootstrap.registerUIGlobals({ DEBUG_MODE_ALLOWED: true });
     bootstrap.addLog('debug entry');
-    expect(Array.from(document.querySelectorAll('#log .logEntry')).map((el) => el.textContent)).toEqual(['debug entry']);
-    expect(document.getElementById('log')?.classList.contains('is-visible')).toBe(true);
-    expect(document.getElementById('log')?.getAttribute('aria-hidden')).toBe('false');
+    expect(Array.from(document.querySelectorAll('#log .logEntry')).map((el) => el.textContent)).toEqual(['quiet entry', 'debug entry']);
+    expect(document.getElementById('log')?.classList.contains('is-visible')).toBe(false);
+    expect(document.getElementById('log')?.getAttribute('aria-hidden')).toBe('true');
     expect(logSpy).toHaveBeenCalledWith('[log]', 'debug entry');
 
     dom.window.close();

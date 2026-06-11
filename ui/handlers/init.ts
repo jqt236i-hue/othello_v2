@@ -30,7 +30,7 @@ declare const setupMatchModeControls: ((opts: Record<string, HTMLElement | null>
 declare const setupDeckBuilderControls: ((opts: Record<string, HTMLElement | null>) => unknown) | undefined;
 declare const setupSmartSelects: ((sb: HTMLSelectElement | null, sw: HTMLSelectElement | null) => void) | undefined;
 declare const setupSoundControls: ((muteBtn: HTMLElement | null, seType: HTMLSelectElement | null, seVol: HTMLInputElement | null) => void) | undefined;
-declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLElement | null, trackSel: HTMLSelectElement | null, volSlider: HTMLInputElement | null) => void) | undefined;
+declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLElement | null, trackSel: HTMLSelectElement | null, volSlider: HTMLInputElement | null, quickTrackPicker?: HTMLElement | null) => void) | undefined;
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
@@ -93,10 +93,13 @@ function setUiInitializedFlag(value: boolean): void {
 interface InitDomElements {
   resetBtn: HTMLElement | null;
   muteBtn: HTMLElement | null;
+  logToggleBtn: HTMLElement | null;
+  logPanel: HTMLElement | null;
   seTypeSelect: HTMLSelectElement | null;
   seVolSlider: HTMLInputElement | null;
   bgmPlayBtn: HTMLElement | null;
   bgmPauseBtn: HTMLElement | null;
+  quickBgmTrackPicker: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
   rulesHelpBtn: HTMLElement | null;

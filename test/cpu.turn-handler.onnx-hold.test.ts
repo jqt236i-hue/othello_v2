@@ -23,6 +23,60 @@ function makeBoard() {
     return board;
 }
 
+const lowYieldEconomyCards = [
+    {
+        id: 'silver_01',
+        name: '銀の意志',
+        type: 'SILVER_STONE',
+        cost: 3,
+        legalMoves: [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
+    },
+    {
+        id: 'gold_01',
+        name: '金の意志',
+        type: 'GOLD_STONE',
+        cost: 6,
+        legalMoves: [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
+    },
+    {
+        id: 'rainbow_01',
+        name: '虹の意志',
+        type: 'RAINBOW_STONE',
+        cost: 10,
+        legalMoves: [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }, { row: 3, col: 4 }] }]
+    },
+    {
+        id: 'crystal_01',
+        name: '演算の意志',
+        type: 'CRYSTAL_STONE',
+        cost: 6,
+        legalMoves: [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }],
+        boardBonusByCell: { '2,3': 6 }
+    }
+];
+
+function setupLowYieldEconomyCard(cardCase: any, legalMoves: any[]) {
+    global.cpuSmartness = { white: 7, black: 1 };
+    global.cardState = {
+        hands: { white: [cardCase.id], black: [] },
+        charge: { white: 50, black: 10 },
+        pendingEffectByPlayer: { white: null, black: null },
+        hasUsedCardThisTurnByPlayer: { white: false, black: false },
+        hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+        ...(cardCase.boardBonusByCell ? { boardBonusByCell: cardCase.boardBonusByCell } : {})
+    };
+    global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 8 };
+    global.CardLogic = {
+        getUsableCardIds: () => [cardCase.id],
+        hasUsableCard: () => true,
+        getCardDef: () => ({ id: cardCase.id, name: cardCase.name, type: cardCase.type }),
+        getCardCost: () => cardCase.cost
+    };
+    global.generateMovesForPlayer = jest.fn(() => legalMoves);
+    global.applyCardChoice = jest.fn(() => true);
+    global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
+}
+
 function createCapturingTimerService(callbacks: Array<() => void>) {
     return {
         setTimeout: jest.fn((callback: () => void, delay: number) => {
@@ -118,6 +172,90 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+    });
+
+    test('Lv7 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
+        const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        global.cpuSmartness = { white: 7, black: 1 };
+        global.cardState = {
+            hands: { white: ['theory_incarnation_01'], black: [] },
+            charge: { white: 50, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 7 };
+        global.generateMovesForPlayer = jest.fn(() => [move]);
+        global.selectCpuMoveWithPolicy = jest.fn(() => move);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+        expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(move);
+    });
+
+    test('black Lv7 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
+        const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        global.cpuSmartness = { white: 1, black: 7 };
+        global.cardState = {
+            hands: { white: [], black: ['theory_incarnation_01'] },
+            charge: { white: 10, black: 50 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'black', turnNumber: 7 };
+        global.generateMovesForPlayer = jest.fn(() => [move]);
+        global.selectCpuMoveWithPolicy = jest.fn(() => move);
+
+        await mod.runCpuTurn('black');
+
+        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+        expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(move);
+    });
+
+    test('Lv7 theory incarnation uses Lv6 card logic from turn 8 onward', async () => {
+        global.cpuSmartness = { white: 7, black: 1 };
+        global.cardState = {
+            hands: { white: ['theory_incarnation_01'], black: [] },
+            charge: { white: 50, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 8 };
+        global.generateMovesForPlayer = jest.fn(() => [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+        ]);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalledWith(
+            'white',
+            6,
+            1,
+            ['card_a'],
+            [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
+        );
+    });
+
+    test.each(lowYieldEconomyCards)('Lv7 theory incarnation blocks low-yield $name selected by ONNX', async (cardCase) => {
+        setupLowYieldEconomyCard(cardCase, cardCase.legalMoves);
+        global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({
+            cardId: cardCase.id,
+            cardDef: { id: cardCase.id, name: cardCase.name, type: cardCase.type }
+        }));
+
+        await mod.runCpuTurn('white');
+
+        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
+        expect(global.applyCardChoice).not.toHaveBeenCalledWith('white', expect.objectContaining({
+            cardId: cardCase.id
+        }));
     });
 
     test('reads processing through CPU bridge without inspecting PlaybackStateManager shape', async () => {
@@ -377,6 +515,17 @@ describe('cpu-turn-handler onnx hold behavior', () => {
             cardId: 'card_a',
             cardDef: { id: 'card_a' }
         });
+    });
+
+    test.each(lowYieldEconomyCards)('no-legal-moves direct retry does not bypass Lv6 low-yield $name gate', async (cardCase) => {
+        setupLowYieldEconomyCard(cardCase, []);
+        global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
+
+        await mod.runCpuTurn('white');
+
+        expect(global.applyCardChoice).not.toHaveBeenCalledWith('white', expect.objectContaining({
+            cardId: cardCase.id
+        }));
     });
 
     test('runCpuTurn destroys bucket2 FATE_WILL before card-use path in browser Lv6 flow', async () => {

@@ -123,6 +123,9 @@ async function flushAsyncWork() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+const DEFAULT_MASTER_VOLUME = 0.5;
+const DEFAULT_BGM_OUTPUT_VOLUME = 0.665 * 0.364 * DEFAULT_MASTER_VOLUME;
+
 describe('SoundEngine default BGM', () => {
   test('startup default sound effect master volume is 0.56', () => {
     const soundEngine = loadSoundEngine();
@@ -151,12 +154,12 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.bgmVolume).toBe(0.665);
     expect(soundEngine.bgmOutputVolumeScale).toBe(0.364);
-    expect(instances[0].volume).toBeCloseTo(0.665 * 0.364, 6);
+    expect(instances[0].volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
 
     soundEngine.setBgmVolume(1);
 
     expect(soundEngine.bgmVolume).toBe(1);
-    expect(instances[0].volume).toBeCloseTo(0.364, 6);
+    expect(instances[0].volume).toBeCloseTo(0.364 * DEFAULT_MASTER_VOLUME, 6);
   });
 
   test('master volume scales both BGM output and effect output without overwriting per-channel sliders', () => {
@@ -295,6 +298,56 @@ describe('SoundEngine default BGM', () => {
 
     expect(manifestBgm.pause).toHaveBeenCalledTimes(1);
     expect(normalBgm.play).toHaveBeenCalledTimes(2);
+  });
+
+  test('manifest BGM override crossfades back to normal BGM over the requested duration', () => {
+    jest.useFakeTimers();
+    try {
+      const { MockAudio, instances } = createMockHtmlAudioClass();
+      const soundEngine = loadSoundEngine({ Audio: MockAudio, setTimeout, clearTimeout });
+
+      soundEngine.allowBgmPlay = true;
+      soundEngine.loadBgm(0);
+      const normalBgm = instances[0];
+      const normalTargetVolume = normalBgm.volume;
+
+      soundEngine.setManifestBgmOverride('observer_will_path', {
+        name: '観測の道',
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      });
+      const manifestBgm = instances[1];
+      const manifestStartVolume = manifestBgm.volume;
+
+      soundEngine.clearManifestBgmOverride({ transitionMs: 2000 });
+
+      expect(manifestBgm.pause).not.toHaveBeenCalled();
+      expect(normalBgm.play).toHaveBeenCalledTimes(2);
+      expect(normalBgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(350);
+
+      expect(manifestBgm.volume).toBeGreaterThan(0);
+      expect(manifestBgm.volume).toBeLessThan(manifestStartVolume);
+      expect(normalBgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(650);
+
+      expect(manifestBgm.volume).toBeCloseTo(0, 6);
+      expect(normalBgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(500);
+
+      expect(manifestBgm.volume).toBeCloseTo(0, 6);
+      expect(normalBgm.volume).toBeGreaterThan(0);
+      expect(normalBgm.volume).toBeLessThan(normalTargetVolume);
+
+      jest.advanceTimersByTime(500);
+
+      expect(manifestBgm.pause).toHaveBeenCalledTimes(1);
+      expect(normalBgm.volume).toBeCloseTo(normalTargetVolume, 6);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('manifest BGM override waits for the special card mute window before starting', () => {
@@ -641,12 +694,12 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.effectSoundFiles.stone_place).toBe('assets/audio/sound-effect-skin/default.mp3');
     expect(effectPath).toBe('assets/audio/sound-effect-skin/default.mp3');
-    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.525, 6);
+    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.525 * DEFAULT_MASTER_VOLUME, 6);
     expect(soundEngine.playEffectByKey('stone_place')).toBe(true);
 
     const warmedAudio = instances.find((audio) => audio.src === effectPath);
     expect(warmedAudio).toBeTruthy();
-    expect(warmedAudio.volume).toBeCloseTo(0.525, 6);
+    expect(warmedAudio.volume).toBeCloseTo(0.525 * DEFAULT_MASTER_VOLUME, 6);
     expect(warmedAudio.play).toHaveBeenCalledTimes(1);
   });
 
@@ -663,7 +716,7 @@ describe('SoundEngine default BGM', () => {
       soundEngine.loadBgm(0);
 
       const bgm = instances[0];
-      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+      expect(bgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
 
       expect(soundEngine.playEffectByKey('special_card_use')).toBe(true);
 
@@ -673,7 +726,7 @@ describe('SoundEngine default BGM', () => {
       expect(bgm.volume).toBe(0);
 
       jest.advanceTimersByTime(1);
-      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+      expect(bgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
     } finally {
       jest.useRealTimers();
     }
@@ -703,7 +756,7 @@ describe('SoundEngine default BGM', () => {
       expect(bgm.volume).toBe(0);
 
       jest.advanceTimersByTime(2000);
-      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+      expect(bgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
     } finally {
       jest.useRealTimers();
     }
@@ -724,9 +777,9 @@ describe('SoundEngine default BGM', () => {
       const bgm = instances[0];
       expect(soundEngine.playEffectByKey('card_use_button')).toBe(true);
 
-      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+      expect(bgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
       jest.advanceTimersByTime(3000);
-      expect(bgm.volume).toBeCloseTo(0.665 * 0.364, 6);
+      expect(bgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
     } finally {
       jest.useRealTimers();
     }

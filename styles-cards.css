@@ -15,7 +15,7 @@
     z-index: 25;
     perspective: calc(200px * var(--layout-stage-scale));
     flex-shrink: 0;
-    filter: drop-shadow(var(--ui-drop-shadow-panel));
+    filter: none;
     isolation: isolate;
 }
 
@@ -116,6 +116,92 @@
     pointer-events: none;
     position: relative;
     overflow: hidden;
+}
+
+.hand-availability-glow-layer {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.hand-availability-glow {
+    --card-available-core: rgba(255, 218, 96, 0.9);
+    --card-available-outer: rgba(214, 158, 58, 0.64);
+    --card-available-drop-core: rgba(255, 226, 130, 0.96);
+    --card-available-drop-outer: rgba(214, 158, 58, 0.68);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--hand-glow-width, var(--layout-size-card-width)) + (18px * var(--layout-stage-scale)));
+    height: calc(var(--hand-glow-height, var(--layout-size-card-height)) + (23px * var(--layout-stage-scale)));
+    border-radius: calc(var(--layout-size-card-radius) + (11px * var(--layout-stage-scale)));
+    background:
+        radial-gradient(
+            ellipse at 50% 52%,
+            var(--card-available-drop-core) 0%,
+            var(--card-available-core) 30%,
+            var(--card-available-outer) 58%,
+            transparent 88%
+        );
+    filter: blur(calc(4.2px * var(--layout-stage-scale)));
+    mix-blend-mode: screen;
+    opacity: 0.66;
+    transform: translate3d(
+        calc(var(--hand-glow-x, 0px) - (9px * var(--layout-stage-scale))),
+        calc(var(--hand-glow-y, 0px) - (11.5px * var(--layout-stage-scale))),
+        0
+    );
+}
+
+.hand-availability-glow.cost-tier-gray {
+    --card-available-core: rgba(214, 226, 244, 0.9);
+    --card-available-outer: rgba(176, 194, 222, 0.68);
+    --card-available-drop-core: rgba(232, 240, 255, 0.96);
+    --card-available-drop-outer: rgba(176, 194, 222, 0.72);
+}
+
+.hand-availability-glow.cost-tier-white {
+    --card-available-core: rgba(246, 250, 255, 0.92);
+    --card-available-outer: rgba(226, 240, 255, 0.72);
+    --card-available-drop-core: rgba(255, 255, 255, 0.98);
+    --card-available-drop-outer: rgba(226, 240, 255, 0.76);
+}
+
+.hand-availability-glow.cost-tier-red {
+    --card-available-core: rgba(130, 225, 155, 0.88);
+    --card-available-outer: rgba(96, 210, 135, 0.68);
+    --card-available-drop-core: rgba(176, 255, 202, 0.96);
+    --card-available-drop-outer: rgba(96, 210, 135, 0.72);
+}
+
+.hand-availability-glow.cost-tier-blue {
+    --card-available-core: rgba(135, 190, 255, 0.88);
+    --card-available-outer: rgba(92, 160, 255, 0.68);
+    --card-available-drop-core: rgba(188, 222, 255, 0.96);
+    --card-available-drop-outer: rgba(92, 160, 255, 0.72);
+}
+
+.hand-availability-glow.cost-tier-purple {
+    --card-available-core: rgba(202, 164, 255, 0.9);
+    --card-available-outer: rgba(166, 112, 236, 0.7);
+    --card-available-drop-core: rgba(228, 204, 255, 0.96);
+    --card-available-drop-outer: rgba(166, 112, 236, 0.74);
+}
+
+.hand-availability-glow.cost-tier-gold {
+    --card-available-core: rgba(241, 210, 122, 0.94);
+    --card-available-outer: rgba(214, 158, 58, 0.74);
+    --card-available-drop-core: rgba(255, 236, 166, 0.98);
+    --card-available-drop-outer: rgba(214, 158, 58, 0.78);
+}
+
+.hand-availability-glow.cost-tier-special {
+    --card-available-core: rgba(180, 58, 82, 0.9);
+    --card-available-outer: rgba(132, 28, 48, 0.72);
+    --card-available-drop-core: rgba(255, 118, 142, 0.96);
+    --card-available-drop-outer: rgba(132, 28, 48, 0.76);
 }
 
 .card-name {
@@ -416,6 +502,14 @@
     --card-available-drop-core: rgba(255, 226, 130, 0.84);
     --card-available-drop-outer: rgba(214, 158, 58, 0.56);
     clip-path: polygon(50% 0, 94% 5%, 100% 13%, 100% 87%, 94% 96%, 50% 100%, 6% 96%, 0 87%, 0 13%, 6% 5%);
+    --card-visible-surface-shadow:
+        var(--ui-elevation-card),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 218, 0.34),
+        inset 0 0 0 calc(4px * var(--layout-stage-scale)) rgba(18, 10, 6, 0.44),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.34),
+        inset 0 calc(-3px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44),
+        0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
+        0 0 calc(10px * var(--layout-stage-scale)) var(--card-tier-hover-glow, rgba(255, 220, 150, 0.12));
     background:
         radial-gradient(120% 78% at 50% 35%, rgba(255, 255, 255, 0.16), transparent 54%),
         var(--card-type-field),
@@ -425,14 +519,7 @@
         linear-gradient(165deg, var(--card-tier-bg-a, #5e6773) 0%, var(--card-tier-bg-b, #3f4954) 52%, var(--card-tier-bg-c, #242c36) 100%);
     border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
     color: var(--card-tier-text, #fff6e2);
-    box-shadow:
-        var(--ui-elevation-card),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 218, 0.34),
-        inset 0 0 0 calc(4px * var(--layout-stage-scale)) rgba(18, 10, 6, 0.44),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.34),
-        inset 0 calc(-3px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44),
-        0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
-        0 0 calc(10px * var(--layout-stage-scale)) var(--card-tier-hover-glow, rgba(255, 220, 150, 0.12));
+    box-shadow: var(--card-visible-surface-shadow);
 }
 
 /* --- Phase 1: Inner frame (double border effect) --- */
@@ -506,7 +593,7 @@
     background-repeat: no-repeat, no-repeat;
     background-size: 100% 100%, contain;
     background-position: center, center 50%;
-    opacity: var(--card-special-art-opacity, 0.64);
+    opacity: var(--card-special-art-opacity, 0.76);
     pointer-events: none;
     z-index: 3;
     filter:
@@ -519,7 +606,7 @@
 
 .card-item.visible.cost-tier-special .card-special-art,
 .card-item.visible[data-card-id="rainbow_stone"] .card-special-art {
-    --card-special-art-opacity: 0.58;
+    --card-special-art-opacity: 0.70;
 }
 
 .card-item.visible[data-card-id="seed_01"] .card-special-art {
@@ -560,12 +647,13 @@
         radial-gradient(ellipse at 50% 35%, rgba(104, 222, 255, 0.32) 0%, rgba(104, 222, 255, 0.08) 34%, transparent 58%),
         linear-gradient(180deg, #f9fcff 0%, #d8e4ed 38%, #27313c 62%, #080b11 100%);
     border-color: rgba(255, 224, 127, 0.94);
-    box-shadow:
+    --card-visible-surface-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.82),
         inset 0 -2px 0 rgba(0, 0, 0, 0.58),
         inset 0 0 calc(10px * var(--layout-stage-scale)) rgba(104, 222, 255, 0.18),
         0 0 calc(12px * var(--layout-stage-scale)) rgba(244, 208, 111, 0.44),
         0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+    box-shadow: var(--card-visible-surface-shadow);
 }
 
 .card-item.visible.special-card-face::before {
@@ -772,13 +860,14 @@
     --card-available-outer: rgba(202, 164, 255, 0.54);
     --card-available-drop-core: rgba(202, 164, 255, 0.86);
     --card-available-drop-outer: rgba(202, 164, 255, 0.58);
-    box-shadow:
+    --card-visible-surface-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.28),
         inset 0 -2px 0 rgba(0, 0, 0, 0.38),
         inset 2px 2px 6px rgba(220, 190, 255, 0.08),
         inset -2px -2px 6px rgba(220, 190, 255, 0.05),
         0 3px 8px rgba(0, 0, 0, 0.4),
         0 0 6px rgba(140, 80, 200, 0.15);
+    box-shadow: var(--card-visible-surface-shadow);
 }
 
 .card-item.visible.cost-tier-gold {
@@ -811,13 +900,14 @@
     --card-available-outer: rgba(241, 210, 122, 0.58);
     --card-available-drop-core: rgba(241, 210, 122, 0.88);
     --card-available-drop-outer: rgba(241, 210, 122, 0.6);
-    box-shadow:
+    --card-visible-surface-shadow:
         inset 0 1px 0 rgba(255, 245, 200, 0.36),
         inset 0 -2px 0 rgba(0, 0, 0, 0.38),
         inset 2px 2px 6px rgba(255, 215, 0, 0.1),
         inset -2px -2px 6px rgba(255, 215, 0, 0.06),
         0 3px 10px rgba(0, 0, 0, 0.4),
         0 0 8px rgba(212, 175, 55, 0.25);
+    box-shadow: var(--card-visible-surface-shadow);
     animation: card-shimmer 3s ease-in-out infinite;
 }
 
@@ -850,13 +940,14 @@
     --card-available-outer: rgba(155, 49, 71, 0.58);
     --card-available-drop-core: rgba(155, 49, 71, 0.86);
     --card-available-drop-outer: rgba(155, 49, 71, 0.6);
-    box-shadow:
+    --card-visible-surface-shadow:
         inset 0 1px 0 rgba(255, 184, 198, 0.18),
         inset 0 -2px 0 rgba(0, 0, 0, 0.55),
         inset 2px 2px 6px rgba(255, 100, 120, 0.06),
         inset -2px -2px 6px rgba(255, 100, 120, 0.04),
         0 0 10px rgba(128, 28, 46, 0.35),
         0 2px 6px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--card-visible-surface-shadow);
     animation: card-shimmer 3s ease-in-out infinite;
 }
 
@@ -890,11 +981,12 @@
     background:
         radial-gradient(130% 110% at 14% 10%, rgba(255, 255, 255, 0.36) 0%, transparent 42%),
         linear-gradient(135deg, #ff5e7a 0%, #ffb84d 20%, #ffe066 38%, #54d69e 56%, #59b7ff 74%, #7d62ff 100%);
-    box-shadow:
+    --card-visible-surface-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.32),
         inset 0 -2px 0 rgba(62, 16, 76, 0.28),
         0 0 12px rgba(103, 156, 255, 0.3),
         0 3px 10px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--card-visible-surface-shadow);
 }
 
 .card-item.visible[data-card-id="rainbow_stone"] .card-cost-badge {
@@ -1205,6 +1297,16 @@
     background-position: 50% 50%;
 }
 
+/* Keep card faces static across all card display contexts to reduce paint cost on mobile. */
+.card-item,
+.card-item::before,
+.card-item::after,
+.card-item *,
+.card-item *::before,
+.card-item *::after {
+    animation: none !important;
+}
+
 :is(#hand-black, #hand-white) .card-item.visible.clickable {
     transition: transform var(--motion-fast), box-shadow var(--motion-fast);
 }
@@ -1252,24 +1354,56 @@
         0 14px 26px rgba(0, 0, 0, 0.48);
 }
 
+:is(#hand-black, #hand-white) .card-item.selected:is(.affordable, .usable) {
+    overflow: visible;
+}
+
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) {
     outline: none;
-    box-shadow:
-        var(--ui-elevation-card),
-        0 0 calc(22px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(32px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(42px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52);
-    transform: translateY(-4px);
-    filter:
-        drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(40px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
-    -webkit-filter:
-        drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(40px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
+    border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
+    box-shadow: var(--card-visible-surface-shadow);
+    transform: none;
+    overflow: visible;
     animation: none;
+}
+
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected)::before {
+    border: var(--layout-size-border-thin) solid var(--card-tier-inner-border, rgba(255, 215, 0, 0.18));
+    border-color: var(--card-tier-inner-border, rgba(255, 215, 0, 0.18));
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.12),
+        inset 0 0 calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28),
+        inset 0 0 calc(8px * var(--layout-stage-scale)) var(--card-edge-glow),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.24);
+}
+
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) .card-name {
+    border-color: var(--card-tier-name-plate-border, rgba(228, 197, 124, 0.42));
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(20, 12, 8, 0.42),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.22),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34),
+        inset 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 226, 150, 0.08),
+        0 calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32);
+}
+
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) .card-cost-badge {
+    border-color: var(--card-tier-badge-border, rgba(255, 215, 0, 0.78));
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(28, 16, 9, 0.48),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.32),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.28),
+        inset 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 229, 150, 0.08),
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 220, 132, 0.12);
+}
+
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) .card-type-badge {
+    border-color: var(--card-tier-seal-border, rgba(255, 225, 153, 0.32));
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(22, 13, 8, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 2px 5px rgba(0, 0, 0, 0.22);
 }
 
 #hand-black .card-item.affordable:not(.selected),
@@ -1277,42 +1411,23 @@
 #hand-white .card-item.affordable:not(.selected),
 #hand-white .card-item.usable:not(.selected) {
     outline: none;
-    box-shadow:
-        var(--ui-elevation-card),
-        0 0 calc(22px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(32px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(42px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52) !important;
-    transform: translateY(-4px);
-    z-index: 30;
-    filter:
-        drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(40px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
-    -webkit-filter:
-        drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(40px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44)) !important;
+    border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
+    box-shadow: var(--card-visible-surface-shadow) !important;
+    transform: none;
+    filter: none !important;
+    -webkit-filter: none !important;
+    overflow: visible;
     animation: none !important;
 }
 
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable).visible.clickable:hover:not(.selected) {
     outline: none;
     box-shadow:
-        var(--ui-elevation-card),
-        0 0 calc(26px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(38px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(52px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54);
-    transform: translateY(-6px);
-    filter:
-        drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(46px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
-    -webkit-filter:
-        drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(46px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
+        0 7px 14px rgba(0, 0, 0, 0.42),
+        0 0 6px var(--card-tier-hover-glow, rgba(255, 215, 0, 0.1));
+    transform: translateY(-3px);
+    filter: none !important;
+    -webkit-filter: none !important;
 }
 
 #hand-black .card-item.affordable.visible.clickable:hover:not(.selected),
@@ -1321,24 +1436,16 @@
 #hand-white .card-item.usable.visible.clickable:hover:not(.selected) {
     outline: none;
     box-shadow:
-        var(--ui-elevation-card),
-        0 0 calc(26px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) var(--card-available-ring, rgba(255, 226, 130, 0.34)),
-        0 0 calc(38px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale)) var(--card-available-core, rgba(255, 218, 96, 0.82)),
-        0 0 calc(52px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) var(--card-available-outer, rgba(214, 158, 58, 0.55)),
-        0 calc(12px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54) !important;
-    transform: translateY(-6px);
-    filter:
-        drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(46px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
-    -webkit-filter:
-        drop-shadow(0 0 calc(22px * var(--layout-stage-scale)) var(--card-available-drop-core, rgba(255, 226, 130, 0.84)))
-        drop-shadow(0 0 calc(46px * var(--layout-stage-scale)) var(--card-available-drop-outer, rgba(214, 158, 58, 0.56)))
-        drop-shadow(0 calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46)) !important;
+        0 7px 14px rgba(0, 0, 0, 0.42),
+        0 0 6px var(--card-tier-hover-glow, rgba(255, 215, 0, 0.1)) !important;
+    transform: translateY(-3px);
+    filter: none !important;
+    -webkit-filter: none !important;
 }
 
 :is(#hand-black, #hand-white) .card-item.visible:not(.affordable):not(.usable):not(.card-use-ghost) {
-    filter: drop-shadow(var(--ui-drop-shadow-panel));
+    filter: none;
+    -webkit-filter: none;
 }
 
 .card-item.card-use-ghost,

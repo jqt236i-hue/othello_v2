@@ -27,7 +27,7 @@ describe('gacha progress storage', () => {
     expect(state.observationStones).toBe(0);
     expect(state.version).toBe(3);
     expect(mod.listOwnedHandSkinIds(window).sort()).toEqual(['default']);
-    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual(['default', 'unobserved-night']);
+    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual(['default', 'default-2', 'unobserved-night']);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual(['default']);
   });
 
@@ -56,6 +56,7 @@ describe('gacha progress storage', () => {
     ]);
     expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual([
       'default',
+      'default-2',
       'gacha__n__background_skin__観測できなかった夜',
       'unobserved-night'
     ]);

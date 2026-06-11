@@ -15,6 +15,7 @@
         'DESTROY_DRAGON',
         'SNIPER',
         'LIGHTNING',
+        'METEOR_GOD',
         'DRAGON',
         'HYPERACTIVE',
         'ESCAPE_HYPERACTIVE',

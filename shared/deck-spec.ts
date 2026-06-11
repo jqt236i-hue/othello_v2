@@ -73,7 +73,8 @@
     );
     const SPECIAL_FOUNDATION_CARD_ID_SET: ReadonlySet<string> = new Set(SPECIAL_FOUNDATION_CARD_IDS);
     const CPU_LV6_WHITE_DECK_CODE = 'D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.breeding_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.observer_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.reinforcement_01.support_troops_01';
-    const CPU_LV6_BOARD_EXECUTOR_WHITE_DECK_CODE = 'D1C1:sniper_01.hard_01.ghost_01.swap_01.strong_wind_01.super_buoyancy_01.buoyancy_01.super_gravity_01.super_attraction_01.gravity_01.trap_01.tempt_01.capture_01.destroy_01.teleport_01.will_hunter_king_01.loss_will_01.double_01.heaven_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.equality_will_01';
+    const CPU_LV6_BOARD_EXECUTOR_WHITE_DECK_CODE = 'D1C1:sniper_01.ghost_01.afterimage_will_01.swap_01.strong_wind_01.super_buoyancy_01.super_gravity_01.super_attraction_01.trap_01.tempt_01.capture_01.regen_01.destroy_01.proliferation_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.double_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.equality_will_01';
+    const CPU_LV7_THEORY_INCARNATION_WHITE_DECK_CODE = 'D1C1:perma_01.trap_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.hyperactive_01.extreme_hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.silver_stone.crystal_stone*3.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.destroy_dragon_01.lightning_01.meteor_god_01.udg_01.ultimate_hyperactive_01';
 
     function createDeckSpecError(code: string, message: string, details?: unknown): DeckSpecError {
         const error = new Error(String(message || code || 'DECK_SPEC_ERROR')) as DeckSpecError;
@@ -183,6 +184,10 @@
 
     function getCpuLv6BoardExecutorWhiteDeckCode(): string {
         return CPU_LV6_BOARD_EXECUTOR_WHITE_DECK_CODE;
+    }
+
+    function getCpuLv7TheoryIncarnationWhiteDeckCode(): string {
+        return CPU_LV7_THEORY_INCARNATION_WHITE_DECK_CODE;
     }
 
     function getShuffleOnlyPrng(prng: unknown): ShufflePrng {
@@ -423,6 +428,7 @@
         SPECIAL_FOUNDATION_CARD_IDS,
         CPU_LV6_WHITE_DECK_CODE,
         CPU_LV6_BOARD_EXECUTOR_WHITE_DECK_CODE,
+        CPU_LV7_THEORY_INCARNATION_WHITE_DECK_CODE,
         createDeckSpecError,
         getCatalogVersion,
         getEnabledCardDefs,
@@ -437,6 +443,7 @@
         getMaxCopiesForCardId,
         getCpuLv6WhiteDeckCode,
         getCpuLv6BoardExecutorWhiteDeckCode,
+        getCpuLv7TheoryIncarnationWhiteDeckCode,
         sampleDefaultDeckCardIds,
         createDefaultDeckSpec,
         normalizeDeckSpec,

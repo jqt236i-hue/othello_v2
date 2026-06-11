@@ -41,6 +41,28 @@
     opacity: 0;
 }
 
+.manifest-ending-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 23950;
+    pointer-events: auto;
+    background: rgba(0, 0, 0, var(--manifest-ending-opacity, 0.6));
+    opacity: 0;
+    animation: manifestEndingDim var(--manifest-ending-duration, 2000ms) ease-in-out both;
+}
+
+@keyframes manifestEndingDim {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
 .special-card-cinematic-character {
     position: absolute;
     right: clamp(-96px, 2vw, 52px);
@@ -141,6 +163,107 @@
     display: grid;
 }
 
+.manifest-summary-popup {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 23500;
+    width: min(72vw, 540px);
+    transform: translate(-50%, -50%) translateY(14px) scale(0.97);
+    opacity: 0;
+    color: #f7fffb;
+    text-align: center;
+    pointer-events: auto;
+    cursor: pointer;
+    transition:
+        opacity 280ms ease,
+        transform 360ms cubic-bezier(0.2, 0.95, 0.24, 1);
+    isolation: isolate;
+}
+
+.manifest-summary-popup.is-visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+}
+
+.manifest-summary-popup.is-leaving {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-8px) scale(0.99);
+    pointer-events: none;
+}
+
+/* Static special-card presentation: avoid card-related motion during use scenes. */
+.special-card-cinematic-overlay,
+.special-card-cinematic-overlay::before,
+.special-card-cinematic-character,
+.special-card-cinematic-frame,
+.special-card-cinematic-frame::before,
+.special-card-cinematic-frame::after,
+.special-card-cinematic-title,
+.special-card-cinematic-quote,
+.special-card-cinematic-quote-line,
+.manifest-ending-overlay,
+.manifest-summary-popup {
+    animation: none !important;
+    transition: none !important;
+}
+
+.special-card-cinematic-character,
+.special-card-cinematic-frame {
+    transform: none;
+}
+
+.manifest-summary-popup-shell {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(18px, 3vw, 28px) clamp(20px, 4vw, 36px);
+    border: 1px solid rgba(244, 214, 138, 0.72);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(244, 214, 138, 0.12), rgba(139, 255, 239, 0.08)),
+        rgba(7, 12, 18, 0.62);
+    box-shadow:
+        0 0 0 1px rgba(139, 255, 239, 0.16) inset,
+        0 0 26px rgba(139, 255, 239, 0.18),
+        0 22px 52px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px) saturate(1.18);
+}
+
+.manifest-summary-popup-shell::before,
+.manifest-summary-popup-shell::after {
+    content: "";
+    position: absolute;
+    left: 9%;
+    right: 9%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(244, 214, 138, 0.9), rgba(139, 255, 239, 0.78), transparent);
+    box-shadow: 0 0 16px rgba(139, 255, 239, 0.38);
+    pointer-events: none;
+}
+
+.manifest-summary-popup-shell::before {
+    top: 10px;
+}
+
+.manifest-summary-popup-shell::after {
+    bottom: 10px;
+}
+
+.manifest-summary-popup-lines {
+    display: grid;
+    gap: 8px;
+}
+
+.manifest-summary-popup-line {
+    font-size: clamp(15px, 2vw, 21px);
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-shadow:
+        0 0 10px rgba(139, 255, 239, 0.24),
+        0 2px 14px rgba(0, 0, 0, 0.92);
+}
+
 @media (max-width: 42.5em) {
     .special-card-cinematic-overlay {
         padding: 24px;
@@ -170,6 +293,18 @@
 
     .special-card-cinematic-quote {
         font-size: clamp(18px, 5.6vw, 28px);
+    }
+
+    .manifest-summary-popup {
+        width: min(88vw, 420px);
+    }
+
+    .manifest-summary-popup-shell {
+        padding: 18px 18px;
+    }
+
+    .manifest-summary-popup-line {
+        font-size: clamp(14px, 4.2vw, 18px);
     }
 }
 

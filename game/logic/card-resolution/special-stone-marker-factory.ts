@@ -15,6 +15,7 @@ const FALLBACK_TURNS = Object.freeze({
     SNIPER_WILL: 6,
     DESTROY_DRAGON_WILL: 3,
     LIGHTNING_WILL: 6,
+    METEOR_GOD: 6,
     TIME_STOP_GOD: 3,
     WILL_HUNTER_KING: 4,
     ROBOT_VACUUM_WILL: 4,
@@ -105,6 +106,11 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
             return {
                 type: 'LIGHTNING',
                 remainingOwnerTurns: readPositiveInt(constants.LIGHTNING_WILL_TURNS, FALLBACK_TURNS.LIGHTNING_WILL)
+            };
+        case 'METEOR_GOD':
+            return {
+                type: 'METEOR_GOD',
+                remainingOwnerTurns: readPositiveInt(constants.METEOR_GOD_TURNS, FALLBACK_TURNS.METEOR_GOD)
             };
         case 'TIME_STOP_GOD':
             return {

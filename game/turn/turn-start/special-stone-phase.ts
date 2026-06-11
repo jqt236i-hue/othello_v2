@@ -261,6 +261,15 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
         return processingState;
     }
 
+    if (typeKey === 'METEOR_GOD' && owner === opts.playerKey) {
+        const res = opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        pushTurnStartResultDetails(opts.events, res, [
+            { field: 'destroyed', type: 'meteor_god_destroyed_start' },
+            { field: 'expired', type: 'meteor_god_expired_start' }
+        ]);
+        return processingState;
+    }
+
     if (typeKey === 'WILL_HUNTER_KING' && owner === opts.playerKey) {
         const res = opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
         pushTurnStartResultDetails(opts.events, res, [

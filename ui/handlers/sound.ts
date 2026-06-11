@@ -184,24 +184,128 @@ function setupSoundControls(muteBtn: HTMLElement | null, seTypeSelect: HTMLSelec
   }
 }
 
-function setupBgmControls(bgmPlayBtn: HTMLElement | null, bgmPauseBtn: HTMLElement | null, bgmTrackSelect: HTMLSelectElement | null, bgmVolSlider: HTMLInputElement | null): void {
+function setupBgmControls(
+  bgmPlayBtn: HTMLElement | null,
+  bgmPauseBtn: HTMLElement | null,
+  bgmTrackSelect: HTMLSelectElement | null,
+  bgmVolSlider: HTMLInputElement | null,
+  quickBgmTrackPicker: HTMLElement | null = null
+): void {
   const engine = resolveSoundEngine();
   if (!engine) return;
 
-  if (bgmTrackSelect) {
-    const doc = bgmTrackSelect.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const bgmTrackSelects = [bgmTrackSelect].filter(Boolean) as HTMLSelectElement[];
+  const syncQuickBgmPicker = () => {
+    if (!quickBgmTrackPicker) return;
+    const button = quickBgmTrackPicker.querySelector('#quickBgmTrackButton') as HTMLButtonElement | null;
+    const menu = quickBgmTrackPicker.querySelector('#quickBgmTrackMenu') as HTMLElement | null;
+    const currentIndex = String(engine.currentTrackIndex);
+    const currentTrack = engine.playlist && engine.playlist[Number(engine.currentTrackIndex)];
+    if (button) {
+      const label = String(currentTrack && currentTrack.name ? currentTrack.name : 'BGM');
+      button.textContent = label;
+      button.title = label;
+    }
+    if (menu) {
+      const options = Array.from(menu.querySelectorAll<HTMLElement>('.quick-bgm-track-option'));
+      for (const option of options) {
+        const selected = option.dataset.trackIndex === currentIndex;
+        option.classList.toggle('is-selected', selected);
+        option.setAttribute('aria-selected', selected ? 'true' : 'false');
+      }
+    }
+  };
+  const syncBgmTrackSelects = () => {
+    for (const select of bgmTrackSelects) {
+      try { select.value = String(engine.currentTrackIndex); } catch (e) { /* ignore */ }
+    }
+    syncQuickBgmPicker();
+  };
+
+  for (const select of bgmTrackSelects) {
+    const doc = select.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    if (!doc || select.dataset.bgmTrackBound === '1') continue;
+    select.textContent = '';
     engine.playlist.forEach((track: any, idx: number) => {
       const el = doc.createElement('option');
       el.value = String(idx);
       el.textContent = track.name;
-      bgmTrackSelect.appendChild(el);
+      select.appendChild(el);
     });
 
-    try { bgmTrackSelect.value = String(engine.currentTrackIndex); } catch (e) { /* ignore */ }
+    try { select.value = String(engine.currentTrackIndex); } catch (e) { /* ignore */ }
 
-    bgmTrackSelect.addEventListener('change', (e: Event) => {
+    select.addEventListener('change', (e: Event) => {
       engine.setBgmTrack((e.target as HTMLSelectElement).value);
+      syncBgmTrackSelects();
     });
+    select.dataset.bgmTrackBound = '1';
+  }
+  syncBgmTrackSelects();
+
+  if (quickBgmTrackPicker && quickBgmTrackPicker.dataset.bgmTrackBound !== '1') {
+    const doc = quickBgmTrackPicker.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const button = quickBgmTrackPicker.querySelector('#quickBgmTrackButton') as HTMLButtonElement | null;
+    const menu = quickBgmTrackPicker.querySelector('#quickBgmTrackMenu') as HTMLElement | null;
+    if (doc && button && menu) {
+      menu.textContent = '';
+      engine.playlist.forEach((track: any, idx: number) => {
+        const option = doc.createElement('button');
+        option.type = 'button';
+        option.className = 'quick-bgm-track-option';
+        option.setAttribute('role', 'option');
+        option.dataset.trackIndex = String(idx);
+        option.textContent = String(track && track.name ? track.name : `BGM ${idx + 1}`);
+        option.addEventListener('click', () => {
+          engine.setBgmTrack(String(idx));
+          quickBgmTrackPicker.classList.remove('is-open');
+          button.setAttribute('aria-expanded', 'false');
+          syncBgmTrackSelects();
+          button.focus();
+        });
+        menu.appendChild(option);
+      });
+
+      button.addEventListener('click', () => {
+        const open = !quickBgmTrackPicker.classList.contains('is-open');
+        quickBgmTrackPicker.classList.toggle('is-open', open);
+        button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      button.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        quickBgmTrackPicker.classList.add('is-open');
+        button.setAttribute('aria-expanded', 'true');
+        const selected = menu.querySelector<HTMLElement>('.quick-bgm-track-option.is-selected');
+        const first = menu.querySelector<HTMLElement>('.quick-bgm-track-option');
+        (selected || first)?.focus();
+      });
+      menu.addEventListener('keydown', (e: KeyboardEvent) => {
+        const options = Array.from(menu.querySelectorAll<HTMLElement>('.quick-bgm-track-option'));
+        const current = doc.activeElement as HTMLElement | null;
+        const index = Math.max(0, options.indexOf(current as HTMLElement));
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          quickBgmTrackPicker.classList.remove('is-open');
+          button.setAttribute('aria-expanded', 'false');
+          button.focus();
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          options[Math.min(options.length - 1, index + 1)]?.focus();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          options[Math.max(0, index - 1)]?.focus();
+        }
+      });
+      doc.addEventListener('pointerdown', (e: Event) => {
+        const target = e.target as Node | null;
+        if (target && quickBgmTrackPicker.contains(target)) return;
+        quickBgmTrackPicker.classList.remove('is-open');
+        button.setAttribute('aria-expanded', 'false');
+      });
+      quickBgmTrackPicker.dataset.bgmTrackBound = '1';
+      syncQuickBgmPicker();
+    }
   }
 
   if (bgmPlayBtn) {

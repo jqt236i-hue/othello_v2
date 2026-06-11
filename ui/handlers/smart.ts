@@ -22,7 +22,9 @@ interface SmartOption {
 }
 
 const CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles');
+const CpuOpponentStartupOptions = _require('../../shared/cpu-opponent-startup-options');
 const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
+const localCpuProfileValues: Record<string, string> = { black: '1', white: '1' };
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
 const CPU_LEVEL_MENU_ID = 'cpu-level-menu';
 const CPU_LEVEL_MENU_OFFSET_PX = 8;
@@ -88,6 +90,16 @@ function clearCpuLevelMenuChildren(menu: HTMLDivElement): void {
   }
 }
 
+function getCpuLevelMenuItemClasses(profileValue: unknown): string[] {
+  const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
+  const level = Number(profile && profile.level);
+  const classes = ['cpu-level-menu-item'];
+  if (Number.isFinite(level)) classes.push(`cpu-level-tier-${Math.max(1, Math.min(7, Math.floor(level)))}`);
+  if (profile && profile.id === '6-board-executor') classes.push('cpu-level-profile-board-executor');
+  if (profile && profile.id === '7-theory-incarnation') classes.push('cpu-level-profile-theory');
+  return classes;
+}
+
 function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement): void {
   if (typeof document === 'undefined' || typeof window === 'undefined') return;
   const rect = shortcut.getBoundingClientRect();
@@ -122,7 +134,7 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
   CPU_LEVEL_OPTIONS.forEach((opt) => {
     const item = document.createElement('button');
     item.type = 'button';
-    item.className = 'cpu-level-menu-item';
+    item.className = getCpuLevelMenuItemClasses(opt.v).join(' ');
     item.dataset.cpuLevel = opt.v;
     item.textContent = opt.t;
     item.setAttribute('role', 'menuitemradio');
@@ -235,6 +247,64 @@ function syncRuntimeCpuLevel(playerKey: 'black' | 'white', level: number): void 
   }
 }
 
+function resolveSmartRuntimeRoot(): any {
+  if (typeof window !== 'undefined') return window;
+  if (typeof globalThis !== 'undefined') return globalThis;
+  return null;
+}
+
+function readCurrentMatchModeForSmartReset(root: any): string {
+  try {
+    if (root && typeof root.getCurrentMatchMode === 'function') {
+      return String(root.getCurrentMatchMode() || '').trim();
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    return String((root && (root.MATCH_MODE || root.__MATCH_MODE)) || '').trim();
+  } catch (e) { /* ignore */ }
+  return 'cpu';
+}
+
+function readOpeningTurnNumberForSmartReset(root: any): number | null {
+  try {
+    const gameStateRef = root && root.gameState && typeof root.gameState === 'object'
+      ? root.gameState
+      : ((typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object')
+        ? (globalThis as any).gameState
+        : null);
+    const turnNumber = Number(gameStateRef && gameStateRef.turnNumber);
+    return Number.isFinite(turnNumber) ? Math.max(0, Math.floor(turnNumber)) : null;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function maybeResetOpeningCpuGameForProfileChange(playerKey: 'black' | 'white', profileValue: unknown): void {
+  const root = resolveSmartRuntimeRoot();
+  const previousProfileValue = localCpuProfileValues[playerKey];
+  localCpuProfileValues[playerKey] = String(profileValue || '');
+  if (!root) return;
+  const matchMode = readCurrentMatchModeForSmartReset(root);
+  const turnNumber = readOpeningTurnNumberForSmartReset(root);
+  if (!CpuOpponentStartupOptions
+    || typeof CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange !== 'function'
+    || !CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange({
+      matchMode,
+      turnNumber,
+      previousProfileValue,
+      nextProfileValue: profileValue
+    })) {
+    return;
+  }
+
+  const resetFn = typeof root.resetGame === 'function'
+    ? root.resetGame
+    : ((typeof globalThis !== 'undefined' && typeof (globalThis as any).resetGame === 'function')
+      ? (globalThis as any).resetGame
+      : null);
+  if (typeof resetFn !== 'function') return;
+  resetFn({ source: 'cpu_profile_change', skipNetworkPublish: true });
+}
+
 function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTMLSelectElement | null): void {
   if (smartBlack) {
     CPU_LEVEL_OPTIONS.forEach(opt => {
@@ -246,6 +316,7 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
     localCpuLevels.black = clampCpuLevel(localCpuLevels.black || 1);
     syncRuntimeCpuLevel('black', localCpuLevels.black);
     smartBlack.value = String(localCpuLevels.black);
+    localCpuProfileValues.black = smartBlack.value;
     smartBlack.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const selectedValue = target.value;
@@ -254,6 +325,10 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       syncRuntimeCpuLevel('black', newLevel);
       target.value = selectedValue || String(newLevel);
       console.log(`[CPU Level] Black changed to level ${localCpuLevels.black}`);
+      if (typeof updateCpuCharacter === 'function') {
+        updateCpuCharacter();
+      }
+      maybeResetOpeningCpuGameForProfileChange('black', selectedValue);
       // Reload policy if MCCFR is available
       if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
         try {
@@ -278,6 +353,7 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
     localCpuLevels.white = clampCpuLevel(localCpuLevels.white || 1);
     syncRuntimeCpuLevel('white', localCpuLevels.white);
     smartWhite.value = String(localCpuLevels.white);
+    localCpuProfileValues.white = smartWhite.value;
     bindCpuLevelShortcut(smartWhite);
     smartWhite.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
@@ -292,6 +368,7 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();
       }
+      maybeResetOpeningCpuGameForProfileChange('white', selectedValue);
       // Reload policy for new level
       if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
         try {

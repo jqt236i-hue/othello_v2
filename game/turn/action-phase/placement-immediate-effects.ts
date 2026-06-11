@@ -159,6 +159,19 @@ function resolvePlacementImmediateEffects(options: ResolvePlacementImmediateEffe
         }
     }
 
+    if (effects && effects.meteorGodPlaced && typeof opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor === 'function') {
+        const meteorGodNow = opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
+            decrementRemainingOwnerTurns: false,
+            random: p
+        });
+        if (meteorGodNow && meteorGodNow.destroyed && meteorGodNow.destroyed.length) {
+            opts.events.push({ type: 'meteor_god_destroyed_immediate', details: meteorGodNow.destroyed });
+        }
+        if (meteorGodNow && meteorGodNow.expired && meteorGodNow.expired.length) {
+            opts.events.push({ type: 'meteor_god_expired_immediate', details: meteorGodNow.expired });
+        }
+    }
+
     if (effects && effects.willHunterKingPlaced && typeof opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
         const willHunterKingNow = opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
             decrementRemainingOwnerTurns: false,

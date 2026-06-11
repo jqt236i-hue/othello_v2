@@ -2235,7 +2235,7 @@ body.time-stop-active {
     position: fixed;
     bottom: calc(var(--layout-stage-offset-y) + max(calc(28px * var(--layout-stage-scale)), env(safe-area-inset-bottom) + calc(12px * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift));
     right: calc(var(--layout-stage-offset-x) + max(calc(18px * var(--layout-stage-scale)), env(safe-area-inset-right)));
-    z-index: var(--z-floating-control);
+    z-index: calc(var(--z-floating-control) + 500);
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -2311,10 +2311,10 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 #quick-controls-bar {
     --quick-control-accent: #f2c95f;
     display: grid;
-    grid-template-columns: auto auto minmax(calc(132px * var(--layout-stage-scale)), calc(170px * var(--layout-stage-scale)));
+    grid-template-columns: auto auto auto minmax(calc(132px * var(--layout-stage-scale)), calc(170px * var(--layout-stage-scale)));
     grid-template-areas:
-        "reset reset reset"
-        "auto mute volume";
+        "reset log bgmtrack bgmtrack"
+        "autobtn mute volume volume";
     align-items: center;
     justify-content: end;
     gap: calc(7px * var(--layout-stage-scale));
@@ -2353,6 +2353,10 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     background: linear-gradient(90deg, transparent, rgba(255, 224, 132, 0.72), rgba(126, 215, 255, 0.36), transparent);
     pointer-events: none;
     box-shadow: 0 0 calc(9px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.18);
+}
+
+#quick-controls-bar:has(#quickBgmTrackPicker.quick-bgm-track-picker.is-open) {
+    clip-path: none;
 }
 
 .quick-control-btn {
@@ -2398,10 +2402,136 @@ input[type=range].compact-slider::-webkit-slider-thumb {
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 138, 122, 0.42);
 }
 
+#logToggleBtn.quick-control-btn {
+    grid-area: log;
+    justify-self: start;
+    min-width: calc(48px * var(--layout-stage-scale));
+    min-height: calc(30px * var(--layout-stage-scale));
+    padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    border-color: rgba(217, 192, 138, 0.26);
+    background:
+        linear-gradient(180deg, rgba(217, 192, 138, 0.09), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(180deg, rgba(25, 24, 23, 0.90), rgba(13, 14, 14, 0.94));
+    color: rgba(238, 227, 206, 0.70);
+    opacity: 0.58;
+    box-shadow:
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.26),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.06),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(217, 192, 138, 0.18);
+}
+
+#logToggleBtn.quick-control-btn:hover:not(:disabled),
+#logToggleBtn.quick-control-btn.btn-active {
+    opacity: 0.84;
+    color: #f3ead8;
+    border-color: rgba(217, 192, 138, 0.46);
+}
+
+#quickBgmTrackPicker.quick-bgm-track-picker {
+    grid-area: bgmtrack;
+    position: relative;
+    justify-self: stretch;
+    align-self: center;
+    width: 100%;
+}
+
+#quickBgmTrackButton.quick-bgm-track-button {
+    display: block;
+    width: 100%;
+    min-height: calc(26px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(217, 192, 138, 0.24);
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background:
+        linear-gradient(45deg, transparent 50%, rgba(217, 192, 138, 0.78) 50%) right calc(9px * var(--layout-stage-scale)) center / calc(5px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(135deg, rgba(217, 192, 138, 0.78) 50%, transparent 50%) right calc(5px * var(--layout-stage-scale)) center / calc(5px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(180deg, rgba(217, 192, 138, 0.08), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(180deg, rgba(25, 24, 23, 0.88), rgba(13, 14, 14, 0.94));
+    color: rgba(232, 215, 178, 0.82);
+    font-family: inherit;
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0;
+    opacity: 0.74;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    box-shadow:
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.24),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.05),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(217, 192, 138, 0.16);
+}
+
+#quickBgmTrackButton.quick-bgm-track-button:hover,
+#quickBgmTrackButton.quick-bgm-track-button:focus-visible,
+#quickBgmTrackPicker.quick-bgm-track-picker.is-open #quickBgmTrackButton.quick-bgm-track-button {
+    opacity: 0.9;
+    color: #f3ead8;
+    border-color: rgba(217, 192, 138, 0.44);
+    outline: none;
+}
+
+#quickBgmTrackMenu.quick-bgm-track-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + calc(4px * var(--layout-stage-scale)));
+    z-index: 3400;
+    display: none;
+    padding: calc(4px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(217, 192, 138, 0.34);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(40, 31, 20, 0.98), rgba(14, 12, 10, 0.98));
+    box-shadow:
+        0 calc(10px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 210, 0.08);
+}
+
+#quickBgmTrackPicker.quick-bgm-track-picker.is-open #quickBgmTrackMenu.quick-bgm-track-menu {
+    display: block;
+}
+
+.quick-bgm-track-option {
+    display: block;
+    width: 100%;
+    padding: calc(6px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
+    border: 0;
+    border-radius: calc(4px * var(--layout-stage-scale));
+    background: transparent;
+    color: rgba(232, 215, 178, 0.82);
+    font-family: inherit;
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.quick-bgm-track-option:hover,
+.quick-bgm-track-option:focus-visible {
+    color: #fff0c2;
+    background:
+        linear-gradient(90deg, rgba(217, 192, 138, 0.28), rgba(217, 192, 138, 0.08));
+    outline: none;
+}
+
+.quick-bgm-track-option.is-selected {
+    color: #ffe6a6;
+    background:
+        linear-gradient(90deg, rgba(114, 83, 34, 0.76), rgba(74, 55, 25, 0.54));
+}
+
 #autoToggleBtn.quick-control-btn {
     --quick-control-accent: #f2c95f;
     --quick-control-accent-rgb: 242, 201, 95;
-    grid-area: auto;
+    grid-area: autobtn;
     border-color: rgba(242, 201, 95, 0.56);
     background:
         linear-gradient(180deg, rgba(242, 201, 95, 0.20), rgba(255, 255, 255, 0) 48%),

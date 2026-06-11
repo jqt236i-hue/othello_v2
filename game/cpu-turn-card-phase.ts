@@ -15,6 +15,7 @@ type CpuTurnCardPhaseConfig = {
     setCpuProcessing: (active: any) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
     shouldOverrideOnnxHoldDecision: (playerKey: any, level: any, legalMovesCount: any) => any;
+    shouldSkipCardPhaseForProfile?: (playerKey: any, level: any) => any;
     tryDestroyHighPriorityHandCardViaAdapter: (playerKey: any) => any;
 };
 
@@ -30,6 +31,11 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
         const othelloMode = opts.othelloMode === true;
         const hasUsedCardThisTurn = opts.hasUsedCardThisTurn === true;
         const hasPendingSelection = opts.hasPendingSelection === true;
+
+        if (typeof cfg.shouldSkipCardPhaseForProfile === 'function'
+            && cfg.shouldSkipCardPhaseForProfile(playerKey, level)) {
+            return { status: 'continue' };
+        }
 
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const destroyHandCardWithPolicyFn = cfg.getDestroyHandCardWithPolicyFn();

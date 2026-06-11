@@ -62,6 +62,7 @@ interface Constants {
     SNIPER_WILL_TURNS: any;
     DESTROY_DRAGON_TURNS: any;
     LIGHTNING_WILL_TURNS: any;
+    METEOR_GOD_TURNS: any;
     GHOST_WILL_TURNS: any;
     PROLIFERATION_WILL_TURNS: any;
     SEED_WILL_TURNS: number;
@@ -156,6 +157,7 @@ function getConstants(context: Context): Constants {
         SNIPER_WILL_TURNS: constants.SNIPER_WILL_TURNS,
         DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
+        METEOR_GOD_TURNS: constants.METEOR_GOD_TURNS,
         GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
         PROLIFERATION_WILL_TURNS: constants.PROLIFERATION_WILL_TURNS,
         SEED_WILL_TURNS: Number.isFinite(Number(constants.SEED_WILL_TURNS))
@@ -242,6 +244,7 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             willHunterKingTurns: constants && constants.WILL_HUNTER_KING_TURNS,
             destroyDragonTurns: constants && constants.DESTROY_DRAGON_TURNS,
             lightningTurns: constants && constants.LIGHTNING_WILL_TURNS,
+            meteorGodTurns: constants && constants.METEOR_GOD_TURNS,
             extremeHyperactiveFlipEvadeLimit: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
             extremeHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
             robotVacuumTurns: constants && constants.ROBOT_VACUUM_TURNS,
@@ -969,6 +972,14 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.LIGHTNING_WILL_TURNS
         });
         effects.lightningPlaced = true;
+    }
+
+    if (pending && pending.type === 'METEOR_GOD' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'METEOR_GOD',
+            remainingOwnerTurns: constants.METEOR_GOD_TURNS
+        });
+        effects.meteorGodPlaced = true;
     }
 
     if (pending && pending.type === 'HYPERACTIVE_WILL' && typeof helpers.addMarker === 'function') {
