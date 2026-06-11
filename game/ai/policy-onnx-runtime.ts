@@ -20,7 +20,6 @@ const BASE_INPUT_DIM = 80;
 const AUX_FEATURE_DIM = 16;
 const LEGACY_BOARD_SIZE = 8;
 const LEGACY_BOARD_FEATURE_DIM = LEGACY_BOARD_SIZE * LEGACY_BOARD_SIZE;
-const MAX_HAND_SIZE = 5;
 let SharedBoardUtils: any = null;
 try {
     SharedBoardUtils = _require('../../shared/shared-board-utils');
@@ -39,19 +38,13 @@ const PADDED_BOARD_SIZE = SharedBoardUtils && Number.isFinite(Number(SharedBoard
     ? Number(SharedBoardUtils.PADDED_BOARD_SIZE)
     : ((PADDED_BOARD_MAX - PADDED_BOARD_MIN) + 1);
 const PADDED_BOARD_FEATURE_DIM = PADDED_BOARD_SIZE * PADDED_BOARD_SIZE;
-
-function resolveChargeMaxNormalizer(): number {
-    try {
-        const shared = _require('../../shared-constants');
-        if (shared && Number.isFinite(Number(shared.CHARGE_MAX))) return Number(shared.CHARGE_MAX);
-    } catch (e) { /* ignore */ }
-    return 99;
-}
-
-const CHARGE_MAX_NORMALIZER = resolveChargeMaxNormalizer();
 const NO_CARD_ACTION_ID = '__no_card__';
-const LEGACY_DECK_COUNT_NORMALIZER = 60;
-const DECK_COUNT_FEATURE_MODE = 'own_deck_ratio_v1';
+let PolicyFeatureVector: any = null;
+try {
+    PolicyFeatureVector = _require('./policy-feature-vector');
+} catch (e) {
+    // Built/test runtime may load this module before generated output exists.
+}
 
 let _session: any = null;
 let _meta: any = null;
@@ -580,26 +573,6 @@ async function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any
     }
 }
 
-function perspectiveCell(v: any, playerKey: any) {
-    if (!Number.isFinite(v)) return 0;
-    const sign = playerKey === 'black' ? 1 : -1;
-    if (v === sign) return 1;
-    if (v === -sign) return -1;
-    return 0;
-}
-
-function buildCardCounts(cardIds: any) {
-    const counts = Object.create(null);
-    if (!Array.isArray(cardIds)) return counts;
-    for (const one of cardIds) {
-        if (typeof one !== 'string') continue;
-        const cardId = one.trim();
-        if (!cardId) continue;
-        counts[cardId] = (counts[cardId] || 0) + 1;
-    }
-    return counts;
-}
-
 function toBinaryFlag(raw: any) {
     if (raw === true) return 1;
     if (raw === false || raw == null) return 0;
@@ -638,22 +611,6 @@ function getBoardCellValue(board: any, row: any, col: any) {
     return board[row][col];
 }
 
-function isCornerMoveForBoard(move: any, board: any) {
-    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
-    if (SharedBoardUtils && typeof SharedBoardUtils.isCornerCell === 'function') {
-        return SharedBoardUtils.isCornerCell(Number(move.row), Number(move.col), board);
-    }
-    return (move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7);
-}
-
-function isEdgeMoveForBoard(move: any, board: any) {
-    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
-    if (SharedBoardUtils && typeof SharedBoardUtils.isEdgeCell === 'function') {
-        return SharedBoardUtils.isEdgeCell(Number(move.row), Number(move.col), board);
-    }
-    return move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7;
-}
-
 function isPaddedActionSpace(modelMeta: any, outputDimHint: any) {
     const paddedSize = modelMeta && Number.isFinite(Number(modelMeta.paddedBoardSize))
         ? Math.floor(Number(modelMeta.paddedBoardSize))
@@ -673,16 +630,6 @@ function supportsPaddedBoardFeatures(modelMeta: any) {
         : null;
     return isPaddedActionSpace(modelMeta, modelMeta && modelMeta.outputDim) ||
         (Number.isFinite(metaBase) && (metaBase as number) >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM));
-}
-
-function resolveBoardFeatureDim(modelMeta: any, baseInputDim: any) {
-    if (supportsPaddedBoardFeatures(modelMeta)) {
-        return PADDED_BOARD_FEATURE_DIM;
-    }
-    if (Number.isFinite(baseInputDim) && baseInputDim >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM)) {
-        return PADDED_BOARD_FEATURE_DIM;
-    }
-    return LEGACY_BOARD_FEATURE_DIM;
 }
 
 function resolveActionGrid(modelMeta: any, outputDimHint: any) {
@@ -758,215 +705,13 @@ function resolveCardUseProbabilityThreshold(context: any) {
     return Math.max(0.5, Math.min(0.8, threshold));
 }
 
-function countCornerEdgeControl(board: any, playerKey: any) {
-    const out = { ownCorners: 0, oppCorners: 0, ownEdges: 0, oppEdges: 0 };
-    if (!Array.isArray(board)) return out;
-    const own = playerKey === 'black' ? 1 : -1;
-    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
-        const cornerControl = SharedBoardUtils.countCornerControl(board, own);
-        out.ownCorners = Number(cornerControl && cornerControl.ownCorners) || 0;
-        out.oppCorners = Number(cornerControl && cornerControl.oppCorners) || 0;
-    }
-    if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
-        const edgeControl = SharedBoardUtils.countEdgeControl(board, own);
-        out.ownEdges = Number(edgeControl && edgeControl.ownEdges) || 0;
-        out.oppEdges = Number(edgeControl && edgeControl.oppEdges) || 0;
-        return out;
-    }
-    const opp = -own;
-    for (const cell of getBoardCoordinates(board)) {
-        const value = getBoardCellValue(board, cell.row, cell.col);
-        const isCorner = isCornerMoveForBoard(cell, board);
-        const isEdge = !isCorner && isEdgeMoveForBoard(cell, board);
-        if (isCorner) {
-            if (value === own) out.ownCorners += 1;
-            else if (value === opp) out.oppCorners += 1;
-        } else if (isEdge) {
-            if (value === own) out.ownEdges += 1;
-            else if (value === opp) out.oppEdges += 1;
-        }
-    }
-    return out;
-}
-
-function getContextBoardBonusAtCell(ctx: any, row: any, col: any) {
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
-    const key = `${row},${col}`;
-    if (ctx.boardBonusConsumedByCell && ctx.boardBonusConsumedByCell[key] === true) return 0;
-    const raw = Number(ctx.boardBonusByCell && ctx.boardBonusByCell[key] ? ctx.boardBonusByCell[key] : 0);
-    return Number.isFinite(raw) && raw > 0 ? raw : 0;
-}
-
-function getCornerPlanFeatures(ctx: any, board: any, playerKey: any) {
-    const control = countCornerEdgeControl(board, playerKey);
-    const ownCorners = Number.isFinite(Number(ctx.ownCornersBefore)) ? Number(ctx.ownCornersBefore) : control.ownCorners;
-    const oppCorners = Number.isFinite(Number(ctx.oppCornersBefore)) ? Number(ctx.oppCornersBefore) : control.oppCorners;
-    const ownEdges = Number.isFinite(Number(ctx.ownEdgesBefore)) ? Number(ctx.ownEdgesBefore) : control.ownEdges;
-    const oppEdges = Number.isFinite(Number(ctx.oppEdgesBefore)) ? Number(ctx.oppEdgesBefore) : control.oppEdges;
-
-    const moves = Array.isArray(ctx.candidateMoves) ? ctx.candidateMoves : [];
-    const hasCornerMoveNow = Number.isFinite(Number(ctx.hasCornerMoveNow))
-        ? toBinaryFlag(ctx.hasCornerMoveNow)
-        : (moves.some((move: any) => isCornerMoveForBoard(move, board)) ? 1 : 0);
-    const hasEdgeMoveNow = Number.isFinite(Number(ctx.hasEdgeMoveNow))
-        ? toBinaryFlag(ctx.hasEdgeMoveNow)
-        : (moves.some((move: any) => isEdgeMoveForBoard(move, board) && !isCornerMoveForBoard(move, board)) ? 1 : 0);
-
-    let maxLegalMoveBonus = Number.isFinite(Number(ctx.maxLegalMoveBonus)) ? Number(ctx.maxLegalMoveBonus) : 0;
-    if (maxLegalMoveBonus <= 0 && moves.length > 0) {
-        for (const move of moves) {
-            if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) continue;
-            const b = getContextBoardBonusAtCell(ctx, move.row, move.col);
-            if (b > maxLegalMoveBonus) maxLegalMoveBonus = b;
-        }
-    }
-    const highBonusMoveAvailable = Number.isFinite(Number(ctx.highBonusMoveAvailable))
-        ? toBinaryFlag(ctx.highBonusMoveAvailable)
-        : (maxLegalMoveBonus >= 3 ? 1 : 0);
-    const cornerEmergency = Number.isFinite(Number(ctx.cornerEmergency))
-        ? toBinaryFlag(ctx.cornerEmergency)
-        : ((oppCorners > ownCorners || (hasCornerMoveNow <= 0 && oppCorners > 0)) ? 1 : 0);
-    const cornerHoldMode = Number.isFinite(Number(ctx.cornerHoldMode))
-        ? toBinaryFlag(ctx.cornerHoldMode)
-        : ((cornerEmergency <= 0 && ownCorners > 0 && ownCorners >= oppCorners && ownEdges >= oppEdges) ? 1 : 0);
-
-    return {
-        ownCorners,
-        oppCorners,
-        ownEdges,
-        oppEdges,
-        hasCornerMoveNow,
-        hasEdgeMoveNow,
-        cornerEmergency,
-        cornerHoldMode,
-        highBonusMoveAvailable,
-        maxLegalMoveBonus
-    };
-}
-
-function resolveBaseInputDim(modelMeta: any, inputDim: any, cardDim: any): number {
-    const metaBase = modelMeta && Number.isFinite(modelMeta.baseInputDim) ? Math.floor(modelMeta.baseInputDim) : null;
-    if (Number.isFinite(metaBase) && (metaBase as number) >= 64 && (metaBase as number) <= inputDim) return metaBase as number;
-    if (Number.isFinite(cardDim) && cardDim > 0) {
-        const inferred = inputDim - (cardDim * 2);
-        if (inferred >= 64 && inferred <= inputDim) return inferred;
-    }
-    return Math.min(BASE_INPUT_DIM, inputDim);
-}
-
-function resolveDeckCountScalar(ctx: any, modelMeta: any) {
-    const legacyDeckCount = Number.isFinite(ctx.deckCount) ? ctx.deckCount : 0;
-    if (modelMeta && modelMeta.deckCountFeature === DECK_COUNT_FEATURE_MODE) {
-        const ownDeckCount = Number.isFinite(ctx.ownDeckCount) ? ctx.ownDeckCount : legacyDeckCount;
-        const initialDeckSize = Number.isFinite(ctx.initialDeckSize) && ctx.initialDeckSize > 0
-            ? ctx.initialDeckSize
-            : LEGACY_DECK_COUNT_NORMALIZER;
-        return ownDeckCount / initialDeckSize;
-    }
-    return legacyDeckCount / LEGACY_DECK_COUNT_NORMALIZER;
-}
-
 function buildInputVector(context: any, metaOverride: any, actionIdsOverride: any) {
-    const ctx = context || {};
-    const board = Array.isArray(ctx.board) ? ctx.board : [];
-    const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const modelMeta = metaOverride || _meta;
     const actionIds = Array.isArray(actionIdsOverride) ? actionIdsOverride : _cardActionIds;
-    const inputDim = (modelMeta && Number.isFinite(modelMeta.inputDim) && modelMeta.inputDim > 0)
-        ? Math.floor(modelMeta.inputDim)
-        : BASE_INPUT_DIM;
-    const cardDim = actionIds.length;
-    const baseInputDim = resolveBaseInputDim(modelMeta, inputDim, cardDim);
-    const boardFeatureDim = resolveBoardFeatureDim(modelMeta, baseInputDim);
-    const out = new Float32Array(inputDim);
-
-    if (board.length > 0) {
-        if (boardFeatureDim > LEGACY_BOARD_FEATURE_DIM) {
-            let idx = 0;
-            for (let row = PADDED_BOARD_MIN; row <= PADDED_BOARD_MAX; row++) {
-                for (let col = PADDED_BOARD_MIN; col <= PADDED_BOARD_MAX; col++) {
-                    out[idx++] = perspectiveCell(getBoardCellValue(board, row, col), playerKey);
-                }
-            }
-        } else {
-            let idx = 0;
-            for (let row = 0; row < LEGACY_BOARD_SIZE; row++) {
-                for (let col = 0; col < LEGACY_BOARD_SIZE; col++) {
-                    out[idx++] = perspectiveCell(getBoardCellValue(board, row, col), playerKey);
-                }
-            }
-        }
+    if (!PolicyFeatureVector || typeof PolicyFeatureVector.buildPolicyFeatureVector !== 'function') {
+        PolicyFeatureVector = _require('./policy-feature-vector');
     }
-
-    const legalMoves = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : 0;
-    let blackCount = Number.isFinite(ctx.blackCountBefore) ? ctx.blackCountBefore : 0;
-    let whiteCount = Number.isFinite(ctx.whiteCountBefore) ? ctx.whiteCountBefore : 0;
-    if ((!Number.isFinite(ctx.blackCountBefore) || !Number.isFinite(ctx.whiteCountBefore)) && Array.isArray(board)) {
-        blackCount = 0;
-        whiteCount = 0;
-        for (const cell of getBoardCoordinates(board)) {
-            const value = getBoardCellValue(board, cell.row, cell.col);
-            if (value === 1) blackCount++;
-            else if (value === -1) whiteCount++;
-        }
-    }
-    const ownCharge = Number.isFinite(ctx.ownCharge) ? ctx.ownCharge : 0;
-    const oppCharge = Number.isFinite(ctx.oppCharge) ? ctx.oppCharge : 0;
-    const deckCountScalar = resolveDeckCountScalar(ctx, modelMeta);
-    const pendingFlag = ctx.pendingType ? 1 : 0;
-    const discDiff = playerKey === 'black' ? (blackCount - whiteCount) : (whiteCount - blackCount);
-    const planFeatures = getCornerPlanFeatures(ctx, board, playerKey);
-    const scalarOffset = boardFeatureDim;
-
-    if (baseInputDim > (scalarOffset + 0)) out[scalarOffset + 0] = legalMoves / 60;
-    if (baseInputDim > (scalarOffset + 1)) out[scalarOffset + 1] = discDiff / 64;
-    if (baseInputDim > (scalarOffset + 2)) out[scalarOffset + 2] = ownCharge / CHARGE_MAX_NORMALIZER;
-    if (baseInputDim > (scalarOffset + 3)) out[scalarOffset + 3] = oppCharge / CHARGE_MAX_NORMALIZER;
-    if (baseInputDim > (scalarOffset + 4)) out[scalarOffset + 4] = deckCountScalar;
-    if (baseInputDim > (scalarOffset + 5)) out[scalarOffset + 5] = pendingFlag;
-    if (baseInputDim > (scalarOffset + 6)) out[scalarOffset + 6] = planFeatures.ownCorners / 4;
-    if (baseInputDim > (scalarOffset + 7)) out[scalarOffset + 7] = planFeatures.oppCorners / 4;
-    if (baseInputDim > (scalarOffset + 8)) out[scalarOffset + 8] = planFeatures.ownEdges / 24;
-    if (baseInputDim > (scalarOffset + 9)) out[scalarOffset + 9] = planFeatures.oppEdges / 24;
-    if (baseInputDim > (scalarOffset + 10)) out[scalarOffset + 10] = planFeatures.hasCornerMoveNow;
-    if (baseInputDim > (scalarOffset + 11)) out[scalarOffset + 11] = planFeatures.hasEdgeMoveNow;
-    if (baseInputDim > (scalarOffset + 12)) out[scalarOffset + 12] = planFeatures.cornerEmergency;
-    if (baseInputDim > (scalarOffset + 13)) out[scalarOffset + 13] = planFeatures.cornerHoldMode;
-    if (baseInputDim > (scalarOffset + 14)) out[scalarOffset + 14] = planFeatures.highBonusMoveAvailable;
-    if (baseInputDim > (scalarOffset + 15)) out[scalarOffset + 15] = Math.max(0, Math.min(1, planFeatures.maxLegalMoveBonus / 5));
-
-    if (cardDim > 0 && inputDim >= (baseInputDim + (cardDim * 2))) {
-        const handCounts = buildCardCounts(ctx.handCardIds);
-        const usableFlags = buildCardCounts(ctx.usableCardIds);
-        const handOffset = baseInputDim;
-        const usableOffset = baseInputDim + cardDim;
-        for (let idx = 0; idx < actionIds.length; idx++) {
-            const cardId = actionIds[idx];
-            const handCount = Number(handCounts[cardId] || 0);
-            const usableCount = Number(usableFlags[cardId] || 0);
-            out[handOffset + idx] = Math.min(MAX_HAND_SIZE, handCount) / MAX_HAND_SIZE;
-            out[usableOffset + idx] = usableCount > 0 ? 1 : 0;
-        }
-    }
-
-    const pendingTypes = modelMeta && Array.isArray(modelMeta.pendingTypes)
-        ? modelMeta.pendingTypes.filter((one: any) => typeof one === 'string' && one.trim())
-        : [];
-    if (pendingTypes.length > 0) {
-        const fullCardOffset = baseInputDim + (cardDim * 2);
-        const pendingOffset = inputDim >= (fullCardOffset + pendingTypes.length)
-            ? fullCardOffset
-            : (inputDim >= (baseInputDim + pendingTypes.length) ? baseInputDim : -1);
-        if (pendingOffset >= 0) {
-            const pendingType = typeof ctx.pendingType === 'string' ? ctx.pendingType.trim() : '';
-            const pendingIndex = pendingTypes.indexOf(pendingType);
-            if (pendingIndex >= 0 && pendingOffset + pendingIndex < out.length) {
-                out[pendingOffset + pendingIndex] = 1;
-            }
-        }
-    }
-
-    return out;
+    return PolicyFeatureVector.buildPolicyFeatureVector(context || {}, modelMeta, actionIds);
 }
 
 function indexFromMove(move: any, modelMeta: any, outputDimHint: any) {

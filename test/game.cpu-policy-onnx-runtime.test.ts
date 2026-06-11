@@ -281,6 +281,84 @@ describe('policy-onnx-runtime', () => {
     expect(obs[SharedBoardUtils.toPaddedBoardIndex(0, 0)]).toBe(1);
   });
 
+  test('chooseMove encodes scalar, card, and pending features in a stable vector layout', async () => {
+    const scores = new Float32Array(64);
+    scores[0] = 1.0;
+    const session = {
+      run: jest.fn(async () => ({
+        logits: { data: scores }
+      }))
+    };
+    runtime.__setLoadedForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 124,
+      baseInputDim: 116,
+      outputDim: 64,
+      cardActionIds: ['card_a', 'card_b', 'card_c'],
+      pendingTypes: ['DESTROY_ONE_STONE', 'SWAP_WITH_ENEMY']
+    });
+
+    const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
+    board[0][0] = 1;
+    board[1][1] = -1;
+
+    const selected = await runtime.chooseMove([{ row: 0, col: 0, flips: [] }], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 3,
+      blackCountBefore: 20,
+      whiteCountBefore: 10,
+      ownCharge: 33,
+      oppCharge: 11,
+      deckCount: 30,
+      ownCornersBefore: 1,
+      oppCornersBefore: 2,
+      ownEdgesBefore: 3,
+      oppEdgesBefore: 4,
+      hasCornerMoveNow: true,
+      hasEdgeMoveNow: false,
+      cornerEmergency: true,
+      cornerHoldMode: false,
+      highBonusMoveAvailable: true,
+      maxLegalMoveBonus: 4,
+      handCardIds: ['card_a', 'card_a', 'card_b'],
+      usableCardIds: ['card_b'],
+      pendingType: 'DESTROY_ONE_STONE'
+    });
+
+    expect(selected).toEqual({ row: 0, col: 0, flips: [] });
+    const obs = session.run.mock.calls[0][0].obs.data;
+    expect(obs.length).toBe(124);
+    expect(obs[SharedBoardUtils.toPaddedBoardIndex(0, 0)]).toBe(-1);
+    expect(obs[100]).toBeCloseTo(3 / 60, 6);
+    expect(obs[101]).toBeCloseTo(-10 / 64, 6);
+    expect(obs[102]).toBeCloseTo(33 / 99, 6);
+    expect(obs[103]).toBeCloseTo(11 / 99, 6);
+    expect(obs[104]).toBeCloseTo(30 / 60, 6);
+    expect(obs[105]).toBe(1);
+    expect(obs[106]).toBeCloseTo(1 / 4, 6);
+    expect(obs[107]).toBeCloseTo(2 / 4, 6);
+    expect(obs[108]).toBeCloseTo(3 / 24, 6);
+    expect(obs[109]).toBeCloseTo(4 / 24, 6);
+    expect(obs[110]).toBe(1);
+    expect(obs[111]).toBe(0);
+    expect(obs[112]).toBe(1);
+    expect(obs[113]).toBe(0);
+    expect(obs[114]).toBe(1);
+    expect(obs[115]).toBeCloseTo(4 / 5, 6);
+    expect(obs[116]).toBeCloseTo(2 / 5, 6);
+    expect(obs[117]).toBeCloseTo(1 / 5, 6);
+    expect(obs[118]).toBe(0);
+    expect(obs[119]).toBe(0);
+    expect(obs[120]).toBe(1);
+    expect(obs[121]).toBe(0);
+    expect(obs[122]).toBe(1);
+    expect(obs[123]).toBe(0);
+  });
+
   test('chooseMove returns null on custom boards when using legacy standard-8x8 model metadata', async () => {
     const session = {
       run: jest.fn(async () => ({
