@@ -2,6 +2,57 @@ import * as cpuLv6SharedProfile from '../constants/cpu-lv6-shared-profile.js';
 import * as CpuLv6RuntimeCapability from '../shared/cpu-lv6-runtime-capability.js';
 
 describe('shared cpu lv6 runtime capability', () => {
+  function profileWithModes(moveDecisionMode?: string, cardDecisionMode?: string): any {
+    return {
+      browser: {
+        moveDecisionMode,
+        cardDecisionMode
+      }
+    };
+  }
+
+  test('shared ONNX decision helpers expose move and card mode decisions', () => {
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(
+        profileWithModes('policy-table-lookahead', 'policy-table-core')
+      )
+    ).toBe(false);
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(
+        profileWithModes('policy-table-lookahead', 'policy-table-core')
+      )
+    ).toBe(false);
+
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(
+        profileWithModes('onnx', 'onnx')
+      )
+    ).toBe(true);
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(
+        profileWithModes('onnx', 'onnx')
+      )
+    ).toBe(true);
+
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(
+        profileWithModes('hybrid', 'hybrid')
+      )
+    ).toBe(true);
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(
+        profileWithModes('hybrid', 'hybrid')
+      )
+    ).toBe(true);
+
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(profileWithModes())
+    ).toBe(true);
+    expect(
+      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(profileWithModes())
+    ).toBe(true);
+  });
+
   test('shared profile keeps policy-table as the primary browser Lv6 path', () => {
     const capability = CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability(cpuLv6SharedProfile);
 

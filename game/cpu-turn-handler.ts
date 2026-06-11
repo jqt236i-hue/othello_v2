@@ -613,10 +613,18 @@ function resolveCpuLv6BrowserRuntimeCapability() {
 
 function shouldUseOnnxCardDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
-    const explicitShared = readExplicitCpuLv6SharedProfile();
-    if (explicitShared && explicitShared.browser) {
-        const explicitMode = String(explicitShared.browser.cardDecisionMode || '').trim().toLowerCase();
-        if (explicitMode) return explicitMode !== 'policy-table-core';
+    const shared = readExplicitCpuLv6SharedProfile();
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    if (shared && capabilityModule) {
+        if (typeof capabilityModule.shouldUseCpuLv6OnnxCardDecision === 'function') {
+            return capabilityModule.shouldUseCpuLv6OnnxCardDecision(shared);
+        }
+        if (typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability === 'function') {
+            const capability = capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
+            if (capability && typeof capability.usesOnnxCardDecision === 'boolean') {
+                return capability.usesOnnxCardDecision === true;
+            }
+        }
     }
     return true;
 }
@@ -624,16 +632,20 @@ function shouldUseOnnxCardDecision(level: any) {
 function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
     if (shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler()) return true;
-    const explicitShared = readExplicitCpuLv6SharedProfile();
-    if (explicitShared && explicitShared.browser) {
-        const explicitMode = String(explicitShared.browser.moveDecisionMode || '').trim().toLowerCase();
-        if (explicitMode) return explicitMode !== 'policy-table-lookahead' && explicitMode !== 'browser-policy-lookahead' && explicitMode !== 'policy-table-core';
+    const shared = readExplicitCpuLv6SharedProfile() || resolveCpuLv6SharedProfile();
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    if (shared && capabilityModule) {
+        if (typeof capabilityModule.shouldUseCpuLv6OnnxMoveDecision === 'function') {
+            return capabilityModule.shouldUseCpuLv6OnnxMoveDecision(shared);
+        }
+        if (typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability === 'function') {
+            const capability = capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
+            if (capability && typeof capability.usesOnnxMoveDecision === 'boolean') {
+                return capability.usesOnnxMoveDecision === true;
+            }
+        }
     }
-    const capability = resolveCpuLv6BrowserRuntimeCapability();
-    if (capability) return capability.usesOnnxMoveDecision === true;
-    const shared = resolveCpuLv6SharedProfile();
-    const mode = String(shared && shared.browser && shared.browser.moveDecisionMode || '').trim().toLowerCase();
-    return mode !== 'policy-table-lookahead' && mode !== 'browser-policy-lookahead' && mode !== 'policy-table-core';
+    return true;
 }
 
 function resolveLv6MinThinkMs(playerKey: any, level: any, autoMode: any) {

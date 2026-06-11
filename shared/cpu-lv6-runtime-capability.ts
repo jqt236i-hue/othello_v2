@@ -194,6 +194,14 @@
         };
     }
 
+    function shouldUseCpuLv6OnnxMoveDecision(sharedProfile: unknown, options: unknown): boolean {
+        return resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxMoveDecision === true;
+    }
+
+    function shouldUseCpuLv6OnnxCardDecision(sharedProfile: unknown, options: unknown): boolean {
+        return resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxCardDecision === true;
+    }
+
     function resolveCpuLv6LookaheadTimeCaps(sharedProfile: unknown, options: unknown): TimeCapConfig {
         const browserProfile = resolveCpuLv6BrowserProfile(sharedProfile);
         const configuredCaps = browserProfile && browserProfile.lookaheadTimeCaps && typeof browserProfile.lookaheadTimeCaps === 'object'
@@ -272,6 +280,8 @@
         usesOnnxCardDecisionMode,
         resolveCpuLv6OnnxRuntimeGuard,
         resolveCpuLv6BrowserRuntimeCapability,
+        shouldUseCpuLv6OnnxMoveDecision,
+        shouldUseCpuLv6OnnxCardDecision,
         resolveCpuLv6LookaheadTimeCaps,
         resolveCpuLv6LookaheadWeights,
         isStandardBoardCpuPolicyCompatible

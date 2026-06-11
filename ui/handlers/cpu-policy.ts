@@ -242,18 +242,6 @@ function _resolveOthelloOnnxRuntime(): any {
   ]);
 }
 
-function _usesOnnxMoveDecision(mode: string): boolean {
-  const normalized = String(mode || '').trim().toLowerCase();
-  if (!normalized) return true;
-  return normalized !== 'policy-table-lookahead' && normalized !== 'browser-policy-lookahead' && normalized !== 'policy-table-core';
-}
-
-function _usesOnnxCardDecision(mode: string): boolean {
-  const normalized = String(mode || '').trim().toLowerCase();
-  if (!normalized) return true;
-  return normalized !== 'policy-table-core';
-}
-
 function _shouldLoadBrowserOnnxRuntime(): boolean {
   const capability = _resolveCpuLv6BrowserRuntimeCapability();
   if (capability && typeof capability.shouldLoadPrimaryOnnxRuntime === 'boolean') {
@@ -267,7 +255,16 @@ function _shouldLoadBrowserOnnxRuntime(): boolean {
     : null;
   if (!browserProfile) return true;
 
-  return _usesOnnxMoveDecision(browserProfile.moveDecisionMode) || _usesOnnxCardDecision(browserProfile.cardDecisionMode);
+  const capabilityModule = _resolveCpuLv6RuntimeCapabilityModule();
+  if (
+    capabilityModule &&
+    typeof capabilityModule.shouldUseCpuLv6OnnxMoveDecision === 'function' &&
+    typeof capabilityModule.shouldUseCpuLv6OnnxCardDecision === 'function'
+  ) {
+    return capabilityModule.shouldUseCpuLv6OnnxMoveDecision(shared, { forcePrimaryOnnx: _shouldForceOnnxLoad() }) ||
+      capabilityModule.shouldUseCpuLv6OnnxCardDecision(shared, { forcePrimaryOnnx: _shouldForceOnnxLoad() });
+  }
+  return true;
 }
 
 function _getCpuModelLoadStatusStore(): any {

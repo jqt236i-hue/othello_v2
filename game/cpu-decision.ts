@@ -1679,8 +1679,14 @@ function shouldUseSharedPolicyTableCoreCardDecisionLocal(level: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesPolicyTableCoreCardDecision === true;
-    const browserProfile = resolveCpuLv6BrowserProfile();
-    return !!(browserProfile && browserProfile.cardDecisionMode === 'policy-table-core');
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    if (capabilityModule && typeof capabilityModule.shouldUseCpuLv6OnnxCardDecision === 'function') {
+        return capabilityModule.shouldUseCpuLv6OnnxCardDecision(resolveCpuLv6SharedProfile(), {
+            guardOverrides: resolveCpuLv6OnnxRuntimeGuardOverrides(),
+            legacyPendingSelectionBudgetMs: readLegacyPendingSelectionBudgetMs()
+        }) === false;
+    }
+    return false;
 }
 
 function shouldUseSharedPolicyTableCoreCardDecision(level: any): any {
