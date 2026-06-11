@@ -1,6 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+function extractRuleBody(css: string, selector: string): string {
+    const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = css.match(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\n\\}`));
+    expect(match).not.toBeNull();
+    return match ? match[1] : '';
+}
+
 describe('stone shadow styles', () => {
     test('styles-variables.css contains shadow variables', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-variables.css'), 'utf8');
@@ -17,8 +24,12 @@ describe('stone shadow styles', () => {
 
     test('styles-stone-shadows.css enables only the canonical cell/disc shadow selectors', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-stone-shadows.css'), 'utf8');
+        const cellEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled .cell.has-disc::before');
+        const discEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled .disc::before');
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.cell\.has-disc::before/);
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.disc::before/);
+        expect(cellEnabledShadowBlock).toMatch(/opacity:\s*0\.96/);
+        expect(discEnabledShadowBlock).toMatch(/opacity:\s*1/);
         expect(css).not.toMatch(/:has\(/);
         expect(css).not.toMatch(/\.disc::after/);
         expect(css).not.toMatch(/special-stone-img/);
@@ -28,6 +39,8 @@ describe('stone shadow styles', () => {
     test('styles-board.css contains board depth shadow, contact shadow, and disc skeleton', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
         const discRootBlock = css.match(/\.disc\s*\{[^}]*\}/);
+        const cellContactShadowBlock = extractRuleBody(css, '.cell.has-disc::before');
+        const discShadowBlock = extractRuleBody(css, '.disc::before');
         expect(css).toMatch(/#board[\s\S]*box-shadow:[\s\S]*var\(--board-shadow-outer\)/);
         expect(css).toMatch(/\.cell\.has-disc::before/);
         expect(css).toMatch(/var\(--cell-contact-shadow-color\)/);
@@ -45,6 +58,21 @@ describe('stone shadow styles', () => {
         expect(discRootBlock[0]).not.toMatch(/transition:/);
         expect(css).not.toMatch(/html\.stone-shadow-enabled\s+\.disc__face/);
         expect(css).toMatch(/radial-gradient/);
-        expect(css).toMatch(/translate\(var\(--stone-shadow-offset-x\), var\(--stone-shadow-offset-y\)\)/);
+        expect(css).toMatch(/var\(--stone-shadow-offset-x\)/);
+        expect(css).toMatch(/var\(--stone-shadow-offset-y\)/);
+        expect(cellContactShadowBlock).toMatch(/radial-gradient/);
+        expect(cellContactShadowBlock).toMatch(/filter:\s*blur\(var\(--cell-contact-shadow-blur\)\)/);
+        expect(cellContactShadowBlock).toMatch(/left:\s*11%/);
+        expect(cellContactShadowBlock).toMatch(/right:\s*7%/);
+        expect(cellContactShadowBlock).toMatch(/bottom:\s*11%/);
+        expect(cellContactShadowBlock).toMatch(/height:\s*24%/);
+        expect(cellContactShadowBlock).toMatch(/ellipse at 42% 46%/);
+        expect(cellContactShadowBlock).toMatch(/translate\(var\(--cell-contact-shadow-offset-x\),\s*var\(--cell-contact-shadow-offset-y\)\)\s*scale\(1\.06,\s*0\.92\)/);
+        expect(cellContactShadowBlock).toMatch(/z-index:\s*2/);
+        expect(discShadowBlock).toMatch(/radial-gradient/);
+        expect(discShadowBlock).toMatch(/filter:\s*blur\(var\(--stone-shadow-blur\)\)/);
+        expect(discShadowBlock).toMatch(/inset:\s*38%\s+-8%\s+-18%\s+34%/);
+        expect(discShadowBlock).toMatch(/ellipse at 36% 34%/);
+        expect(discShadowBlock).toMatch(/translate\(var\(--stone-shadow-offset-x\),\s*var\(--stone-shadow-offset-y\)\)\s*scale\(1\.18,\s*0\.82\)/);
     });
 });
