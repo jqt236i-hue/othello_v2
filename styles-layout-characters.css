@@ -48,7 +48,7 @@
 }
 
 #cpu-character-img.is-network-opponent-hero {
-    --cpu-character-face-direction: -1;
+    --cpu-character-face-direction: 1;
 }
 
 #cpu-character-img:hover {
