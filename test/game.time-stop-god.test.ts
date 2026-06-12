@@ -107,6 +107,20 @@ describe('TIME_STOP_GOD（時間停石）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
+  test('時間停石コストは絶対保護・不可侵の自石を破壊候補に数えない', () => {
+    const prng = createPrng(0);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    for (let col = 0; col < Shared.TIME_STOP_GOD_SELF_DESTROY_COUNT; col += 1) {
+      gameState.board[0][col] = Core.BLACK;
+    }
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 });
+    CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3, absoluteProtected: true });
+    CardLogic.addMarker(cardState, 'manifestStone', 0, 2, 'black', { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true });
+
+    expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBe(0);
+  });
+
   test('自石が21個未満でも破壊可能自石が3個あれば使用できる', () => {
     const prng = createPrng(0.4);
     const cardState = CardLogic.createCardState(prng);

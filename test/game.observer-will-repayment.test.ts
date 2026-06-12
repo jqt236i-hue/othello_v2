@@ -75,6 +75,41 @@ describe('OBSERVER_WILL repayments', () => {
     expect(blackCount).toBe(1);
   });
 
+  test('shortage destruction excludes guarded and frozen own stones', () => {
+    const cardState = createCardState();
+    const gameState = createGameState();
+    gameState.board = [
+      [1, 1, 1, 1, 1, 1],
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0]
+    ];
+    cardState.charge.black = 0;
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'GUARD', remainingOwnerTurns: 3 });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 1, 'black', { type: 'FREEZE', remainingOwnerTurns: 2 });
+    cardState.observerWillRepaymentsByPlayer.black.push({
+      sourceType: 'OBSERVER_WILL',
+      status: 'active',
+      stolenCardId: 'meteor_01',
+      repaymentAmount: 3,
+      remainingOwnerTurns: 9,
+      shortageDestroyCount: 4
+    });
+
+    const summary = CardLogic.processObserverWillRepaymentsAtTurnStart(cardState, gameState, 'black', createPrng());
+
+    expect(summary.entries[0]).toEqual(expect.objectContaining({
+      shortage: true,
+      destroyedCount: 4,
+      destroyed: [{ row: 0, col: 2 }, { row: 0, col: 3 }, { row: 0, col: 4 }, { row: 0, col: 5 }]
+    }));
+    expect(gameState.board[0][0]).toBe(1);
+    expect(gameState.board[0][1]).toBe(1);
+    expect(gameState.board[0][2]).toBe(0);
+    expect(gameState.board[0][3]).toBe(0);
+    expect(gameState.board[0][4]).toBe(0);
+    expect(gameState.board[0][5]).toBe(0);
+  });
+
   test('marker expiry turn immediately applies the first repayment in turn pipeline', () => {
     const prng = createPrng();
     const cardState = CardLogic.createCardState(prng);

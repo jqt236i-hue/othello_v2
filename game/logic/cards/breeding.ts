@@ -89,6 +89,7 @@ interface BreedingCardContext {
 }
 
 interface BreedingSpawnResult {
+    spawned?: boolean;
     stoneId?: unknown;
 }
 
@@ -399,7 +400,7 @@ const CardBreeding = /**
     function _isBlockedByBlockade(cardState: BreedingCardState, row: number, col: number, gameState: BreedingGameState, deps: BreedingProcessDeps): boolean {
         if (deps && typeof deps.isBlockedCell === 'function') {
             try {
-                return deps.isBlockedCell(cardState, row, col, gameState) === true;
+                if (deps.isBlockedCell(cardState, row, col, gameState) === true) return true;
             } catch (e) { /* ignore and fallback */ }
         }
         const rowNum = Number(row);
@@ -408,7 +409,8 @@ const CardBreeding = /**
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         return markers.some((marker) => {
             if (!marker || marker.kind !== 'specialStone') return false;
-            if (!marker.data || marker.data.type !== 'BLOCKADE') return false;
+            const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+            if (type !== 'BLOCKADE' && type !== 'METEOR_HOLE' && type !== 'FREEZE') return false;
             return Number(marker.row) === rowNum && Number(marker.col) === colNum;
         });
     }
@@ -464,6 +466,9 @@ const CardBreeding = /**
                 spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason);
             } else {
                 _setBoardCell(gameState, target.row, target.col, player);
+            }
+            if (deps.BoardOps && (!spawnRes || spawnRes.spawned !== true)) {
+                continue;
             }
             spawned.push({
                 row: target.row,

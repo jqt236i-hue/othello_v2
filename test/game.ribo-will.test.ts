@@ -145,6 +145,36 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
     expect(destroyEvents).toHaveLength(4);
   });
 
+  test('布石不足のランダム自石破壊は絶対保護・不可侵・守護・凍結を候補にしない', () => {
+    const { prng, cardState, gameState } = makeState(0);
+    cardState.debugNoDraw = true;
+    cardState.lastTurnStartedFor = 'white';
+    cardState.charge.black = 0;
+    cardState.riboRepaymentsByPlayer.black = [{
+      remainingOwnerTurns: 9,
+      repaymentAmount: 4,
+      shortageDestroyCount: 4
+    }];
+    for (let col = 0; col < 8; col += 1) gameState.board[0][col] = SharedConstants.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 });
+    CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3, absoluteProtected: true });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 2, 'black', { type: 'GUARD', remainingOwnerTurns: 3 });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 3, 'black', { type: 'FREEZE', remainingOwnerTurns: 2 });
+
+    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' }, prng);
+    const shortageEvent = res.events.find((event) => event && event.type === 'ribo_will_shortage');
+
+    expect(shortageEvent).toMatchObject({ destroyedCount: 4, remainingOwnerTurns: 8 });
+    expect(gameState.board[0][0]).toBe(SharedConstants.BLACK);
+    expect(gameState.board[0][1]).toBe(SharedConstants.BLACK);
+    expect(gameState.board[0][2]).toBe(SharedConstants.BLACK);
+    expect(gameState.board[0][3]).toBe(SharedConstants.BLACK);
+    expect(gameState.board[0][4]).toBe(SharedConstants.EMPTY);
+    expect(gameState.board[0][5]).toBe(SharedConstants.EMPTY);
+    expect(gameState.board[0][6]).toBe(SharedConstants.EMPTY);
+    expect(gameState.board[0][7]).toBe(SharedConstants.EMPTY);
+  });
+
   test('9回の自ターン開始で効果が終了する', () => {
     const { prng, cardState, gameState } = makeState();
     cardState.debugNoDraw = true;

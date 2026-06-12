@@ -16,6 +16,7 @@ type RiboTimeStopDeps = {
     BoardOpsModule?: any;
     resolveCardBoardConfig: (gameState: any) => any;
     isGuardProtectedCell: (cardState: any, row: any, col: any) => boolean;
+    isAbsoluteProtectedCell?: (cardState: any, row: any, col: any) => boolean;
     getCellValueForCard: (gameState: any, row: any, col: any) => any;
     isFrozenCellForCard: (cardState: any, row: any, col: any) => boolean;
     findSpecialMarkerAt: (cardState: any, row: any, col: any, type?: any, owner?: any) => any;
@@ -74,6 +75,18 @@ function getRiboExpansionDescriptors(gameState: any, deps: RiboTimeStopDeps) {
     return out;
 }
 
+function isSelfStoneDestroyableForCost(cardState: any, row: number, col: number, deps: RiboTimeStopDeps, options: any = {}) {
+    if (deps.isGuardProtectedCell(cardState, row, col)) return false;
+    if (typeof deps.isAbsoluteProtectedCell === 'function' && deps.isAbsoluteProtectedCell(cardState, row, col)) return false;
+    if (options.excludeFrozen === true && deps.isFrozenCellForCard(cardState, row, col)) return false;
+    if (options.excludeDestroyEvade === true) {
+        const marker = deps.findSpecialMarkerAt(cardState, row, col);
+        const destroyEvadeRemaining = Number(marker && marker.data && marker.data.destroyEvadeRemaining);
+        if (Number.isFinite(destroyEvadeRemaining) && destroyEvadeRemaining > 0) return false;
+    }
+    return true;
+}
+
 function collectRiboDestroyableOwnStonePositions(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
     const out = [];
     const playerValue = playerKey === 'black' ? deps.BLACK : deps.WHITE;
@@ -84,7 +97,7 @@ function collectRiboDestroyableOwnStonePositions(cardState: any, gameState: any,
         const boardRow = Array.isArray(board[row]) ? board[row] : [];
         for (let col = 0; col < boardConfig.cols; col++) {
             if (boardRow[col] !== playerValue) continue;
-            if (deps.isGuardProtectedCell(cardState, row, col)) continue;
+            if (!isSelfStoneDestroyableForCost(cardState, row, col, deps, { excludeFrozen: true })) continue;
             out.push({ row, col });
         }
     }
@@ -92,7 +105,7 @@ function collectRiboDestroyableOwnStonePositions(cardState: any, gameState: any,
     const expansionCells = getRiboExpansionDescriptors(gameState, deps);
     for (const cell of expansionCells) {
         if (!cell || cell.owner !== playerValue) continue;
-        if (deps.isGuardProtectedCell(cardState, cell.row, cell.col)) continue;
+        if (!isSelfStoneDestroyableForCost(cardState, cell.row, cell.col, deps, { excludeFrozen: true })) continue;
         out.push({ row: cell.row, col: cell.col });
     }
 
@@ -102,10 +115,10 @@ function collectRiboDestroyableOwnStonePositions(cardState: any, gameState: any,
 function collectTimeStopGodDestroyableOwnStonePositions(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
     return collectRiboDestroyableOwnStonePositions(cardState, gameState, playerKey, deps).filter((pos: any) => {
         if (!pos) return false;
-        if (deps.isFrozenCellForCard(cardState, pos.row, pos.col)) return false;
-        const marker = deps.findSpecialMarkerAt(cardState, pos.row, pos.col);
-        const destroyEvadeRemaining = Number(marker && marker.data && marker.data.destroyEvadeRemaining);
-        return !(Number.isFinite(destroyEvadeRemaining) && destroyEvadeRemaining > 0);
+        return isSelfStoneDestroyableForCost(cardState, pos.row, pos.col, deps, {
+            excludeFrozen: true,
+            excludeDestroyEvade: true
+        });
     });
 }
 

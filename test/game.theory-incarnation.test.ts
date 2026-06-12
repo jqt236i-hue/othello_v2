@@ -31,6 +31,81 @@ function createGameState() {
 }
 
 describe('理論の化身', () => {
+  test('理論の化身は穴・封鎖・空凍結マスを理論数字マス化しない', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK));
+    gameState.board[0][0] = Shared.EMPTY;
+    gameState.board[0][1] = Shared.EMPTY;
+    gameState.board[0][2] = Shared.EMPTY;
+    gameState.board[0][3] = Shared.EMPTY;
+    cardState.hands.black = ['theory_incarnation_01'];
+    cardState.charge.black = 0;
+    cardState.numberCellCollectedTotalByPlayer.black = 42;
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'METEOR_HOLE' });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 1, 'black', { type: 'BLOCKADE', remainingOwnerTurns: 3 });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 2, 'black', { type: 'FREEZE', remainingOwnerTurns: 2 });
+    const beforeBonus00 = cardState.boardBonusByCell && cardState.boardBonusByCell['0,0'];
+    const beforeBonus01 = cardState.boardBonusByCell && cardState.boardBonusByCell['0,1'];
+    const beforeBonus02 = cardState.boardBonusByCell && cardState.boardBonusByCell['0,2'];
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'theory_incarnation_01', null, { prng })).toBe(true);
+    const sessionId = cardState.theoryIncarnationStateByPlayer.black.sessionId;
+    const cells = cardState.theoryNumberCellsBySession[sessionId].cells;
+
+    expect(cells['0,0']).toBeUndefined();
+    expect(cells['0,1']).toBeUndefined();
+    expect(cells['0,2']).toBeUndefined();
+    expect(cells['0,3']).toBeDefined();
+    expect(cardState.boardBonusByCell['0,0']).toBe(beforeBonus00);
+    expect(cardState.boardBonusByCell['0,1']).toBe(beforeBonus01);
+    expect(cardState.boardBonusByCell['0,2']).toBe(beforeBonus02);
+  });
+
+  test('理論の化身ルーレットは穴・封鎖・空凍結の理論数字マスを候補にしない', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK));
+    gameState.board[0][0] = Shared.EMPTY;
+    gameState.board[0][1] = Shared.EMPTY;
+    gameState.board[0][2] = Shared.EMPTY;
+    gameState.board[0][3] = Shared.EMPTY;
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      white: null
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': { row: 0, col: 0, spawnType: 'SNIPER', sourceCardId: 'sniper_01', sourceCardType: 'SNIPER_WILL', markerData: { type: 'SNIPER', sourceType: 'THEORY_INCARNATION' } },
+          '0,1': { row: 0, col: 1, spawnType: 'SNIPER', sourceCardId: 'sniper_01', sourceCardType: 'SNIPER_WILL', markerData: { type: 'SNIPER', sourceType: 'THEORY_INCARNATION' } },
+          '0,2': { row: 0, col: 2, spawnType: 'SNIPER', sourceCardId: 'sniper_01', sourceCardType: 'SNIPER_WILL', markerData: { type: 'SNIPER', sourceType: 'THEORY_INCARNATION' } },
+          '0,3': { row: 0, col: 3, spawnType: 'SNIPER', sourceCardId: 'sniper_01', sourceCardType: 'SNIPER_WILL', markerData: { type: 'SNIPER', sourceType: 'THEORY_INCARNATION' } }
+        }
+      }
+    };
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'METEOR_HOLE' });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 1, 'black', { type: 'BLOCKADE', remainingOwnerTurns: 3 });
+    CardLogic.addMarker(cardState, 'specialStone', 0, 2, 'black', { type: 'FREEZE', remainingOwnerTurns: 2 });
+    CardLogic.addMarker(cardState, 'manifestStone', 3, 3, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 3,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION',
+      sessionId: 'theory_black_1'
+    });
+
+    const result = CardLogic.processTheoryIncarnationMarkerAtTurnStart(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(result.spawned).toEqual(expect.objectContaining({ row: 0, col: 3, type: 'SNIPER' }));
+    expect(result.spawned.roulette.candidateCells).toEqual([{ row: 0, col: 3 }]);
+    expect(gameState.board[0][3]).toBe(Shared.BLACK);
+    expect(gameState.board[0][0]).toBe(Shared.EMPTY);
+  });
+
   test('生成候補はカタログ上の特殊石カード型からマーカーを構築する', () => {
     const table = SpecialStoneMarkerFactory.buildTheoryIncarnationSpawnTable([
       { id: 'hard_01', type: 'PROTECTED_NEXT_STONE', cost: 1 },

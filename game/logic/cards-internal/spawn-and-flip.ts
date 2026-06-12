@@ -268,6 +268,9 @@ function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAnd
             } else {
                 setBoardCell(gameState, target.row, target.col, player);
             }
+            if (deps.BoardOps && (!spawnRes || spawnRes.spawned !== true)) {
+                continue;
+            }
             spawned.push({
                 row: target.row,
                 col: target.col,

@@ -18,7 +18,7 @@ describe('cards spawn-and-flip module', () => {
     };
     const gameState = { board: createBoard() };
     const runSpawnBlock = jest.fn((_cardState, _gameState, fn) => fn());
-    const spawnAt = jest.fn(() => ({ spawned: false, stoneId: 'spawn-1' }));
+    const spawnAt = jest.fn(() => ({ spawned: true, stoneId: 'spawn-1' }));
     const changeAt = jest.fn(() => ({ changed: true }));
     const clearHyperactiveAtPositions = jest.fn();
 
@@ -58,6 +58,33 @@ describe('cards spawn-and-flip module', () => {
     });
     expect(clearHyperactiveAtPositions).toHaveBeenCalledWith(cardState, [{ row: 4, col: 4 }, { row: 5, col: 5 }]);
     expect(cardState.markers).toEqual([]);
+  });
+
+  test('does not report spawned or apply generated flips when BoardOps rejects spawn', () => {
+    const cardState = { markers: [] };
+    const gameState = { board: createBoard() };
+    const spawnAt = jest.fn(() => ({ spawned: false, reason: 'blocked_destination' }));
+    const changeAt = jest.fn(() => ({ changed: true }));
+
+    const result = spawnAndFlipBatch(
+      cardState,
+      gameState,
+      'black',
+      1,
+      [{ row: 2, col: 2 }],
+      'BREEDING',
+      'breeding_spawned',
+      { row: 3, col: 3 },
+      {
+        BoardOps: { spawnAt, changeAt },
+        getCardContext: () => ({ protectedStones: [] }),
+        getFlipsWithContext: () => [[2, 3]]
+      }
+    );
+
+    expect(result).toEqual({ spawned: [], flipped: [] });
+    expect(spawnAt).toHaveBeenCalledTimes(1);
+    expect(changeAt).not.toHaveBeenCalled();
   });
 
   test('falls back to direct board writes when BoardOps is absent', () => {

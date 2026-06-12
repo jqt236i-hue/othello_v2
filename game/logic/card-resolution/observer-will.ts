@@ -222,6 +222,8 @@ function collectObserverWillDestroyableOwnStones(cardState: CardState, gameState
         for (let col = 0; col < line.length; col += 1) {
             if (deps.getCellValueForCard(gameState, row, col) !== ownerValue) continue;
             if (deps.isAbsoluteProtectedCell(cardState, row, col)) continue;
+            if (typeof deps.isGuardProtectedCell === 'function' && deps.isGuardProtectedCell(cardState, row, col)) continue;
+            if (typeof deps.isFrozenCellForCard === 'function' && deps.isFrozenCellForCard(cardState, row, col)) continue;
             out.push({ row, col });
         }
     }

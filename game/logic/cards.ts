@@ -382,6 +382,7 @@ const {
             BoardOpsModule,
             resolveCardBoardConfig,
             isGuardProtectedCell,
+            isAbsoluteProtectedCell,
             getCellValueForCard,
             isFrozenCellForCard,
             findSpecialMarkerAt,
@@ -1735,6 +1736,8 @@ const {
             removeMarkerById,
             getCellValueForCard,
             isAbsoluteProtectedCell,
+            isGuardProtectedCell,
+            isFrozenCellForCard,
             sampleRandomPositions,
             destroyCellWithPresentation,
             isMainBoardCellForCard,
@@ -1841,6 +1844,7 @@ const {
             removeMarkerById,
             getCellValueForCard,
             setCellValueForCard,
+            isBlockedCell,
             sampleRandomPositions,
             revertSpecialStoneWithPresentation,
             spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
@@ -4041,6 +4045,7 @@ const {
             getFlipsWithContext: getFlipsWithContextLocal,
             clearBombAt,
             clearHyperactiveAtPositions,
+            isBlockedCell,
             BoardOps: BoardOpsModule,
             destroyAt
         });
@@ -4058,6 +4063,7 @@ const {
             getFlipsWithContext: getFlipsWithContextLocal,
             clearBombAt,
             clearHyperactiveAtPositions,
+            isBlockedCell,
             BoardOps: BoardOpsModule,
             destroyAt
         });
@@ -4070,6 +4076,7 @@ const {
             getFlipsWithContext: getFlipsWithContextLocal,
             clearBombAt,
             clearHyperactiveAtPositions,
+            isBlockedCell,
             BoardOps: BoardOpsModule,
             destroyAt
         });

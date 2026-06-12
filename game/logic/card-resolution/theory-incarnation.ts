@@ -59,7 +59,14 @@ function canUseTheoryIncarnation(cardState: CardState, playerKey: PlayerKey): bo
     return Number((cardState as any).numberCellCollectedTotalByPlayer[ownerKey] || 0) >= 42;
 }
 
-function getBoardCells(gameState: GameState, deps: any): Array<{ row: number; col: number }> {
+function isBlockedForTheory(cardState: any, gameState: GameState, row: number, col: number, deps: any): boolean {
+    if (deps && typeof deps.isBlockedCell === 'function') {
+        return deps.isBlockedCell(cardState, row, col, gameState) === true;
+    }
+    return false;
+}
+
+function getBoardCells(cardState: CardState, gameState: GameState, deps: any): Array<{ row: number; col: number }> {
     const board = gameState && Array.isArray((gameState as any).board) ? (gameState as any).board : [];
     const cells: Array<{ row: number; col: number }> = [];
     for (let row = 0; row < board.length; row += 1) {
@@ -68,9 +75,9 @@ function getBoardCells(gameState: GameState, deps: any): Array<{ row: number; co
             const value = typeof deps.getCellValueForCard === 'function'
                 ? deps.getCellValueForCard(gameState, row, col)
                 : line[col];
-            if (value === deps.EMPTY || value === 0) {
-                cells.push({ row, col });
-            }
+            if (!(value === deps.EMPTY || value === 0)) continue;
+            if (isBlockedForTheory(cardState, gameState, row, col, deps)) continue;
+            cells.push({ row, col });
         }
     }
     return cells;
@@ -116,7 +123,7 @@ function applyTheoryIncarnationUsage(cardState: CardState, gameState: GameState,
     const session: any = { ownerKey, cells: {} };
     let rewrittenCount = 0;
 
-    for (const cell of getBoardCells(gameState, deps)) {
+    for (const cell of getBoardCells(cardState, gameState, deps)) {
         const key = cellKeyOf(cell.row, cell.col);
         const entry = pickSpawnEntry(spawnTable, prng);
         if (!entry) continue;
@@ -192,6 +199,7 @@ function isCellAvailableForTheorySpawn(cardState: any, gameState: GameState, cel
         ? deps.getCellValueForCard(gameState, row, col)
         : ((gameState as any).board && (gameState as any).board[row] ? (gameState as any).board[row][col] : null);
     if (!(value === deps.EMPTY || value === 0)) return false;
+    if (isBlockedForTheory(cardState, gameState, row, col, deps)) return false;
     const key = cellKeyOf(row, col);
     if (cardState.boardBonusConsumedByCell && cardState.boardBonusConsumedByCell[key] === true) return false;
     return true;

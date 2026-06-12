@@ -131,6 +131,54 @@ describe('BREEDING_WILL frontier propagation', () => {
     expect(gameState.board[2][2]).toBe(0);
   });
 
+  test('does not spawn breeding stone onto meteor hole cell', () => {
+    const { cardState, gameState } = makeState();
+    const prng = { random: () => 0.0 };
+    placeBreedingAnchor(cardState, gameState, 3, 3);
+
+    for (const [r, c] of [[2, 3], [2, 4], [3, 2], [3, 4], [4, 2], [4, 3], [4, 4]]) {
+      gameState.board[r][c] = 1;
+    }
+    cardState.markers.push({
+      id: 902,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE' }
+    });
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(immediate.spawned).toHaveLength(0);
+    expect(gameState.board[2][2]).toBe(0);
+    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([]);
+  });
+
+  test('does not spawn breeding stone onto empty frozen cell', () => {
+    const { cardState, gameState } = makeState();
+    const prng = { random: () => 0.0 };
+    placeBreedingAnchor(cardState, gameState, 3, 3);
+
+    for (const [r, c] of [[2, 3], [2, 4], [3, 2], [3, 4], [4, 2], [4, 3], [4, 4]]) {
+      gameState.board[r][c] = 1;
+    }
+    cardState.markers.push({
+      id: 903,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'FREEZE', remainingOwnerTurns: 2 }
+    });
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(immediate.spawned).toHaveLength(0);
+    expect(gameState.board[2][2]).toBe(0);
+    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([]);
+  });
+
   test('expansion breeding anchor can spawn into adjacent main-board cell', () => {
     const { cardState, gameState } = makeState();
     const prng = { random: () => 0.0 };
