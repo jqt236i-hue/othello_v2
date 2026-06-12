@@ -147,6 +147,19 @@ describe('hand skin handler', () => {
     expect(api.getHandAnimationPreferences()).toEqual({ draw: false, place: false });
   });
 
+  test('normalizes legacy falsey hand animation preference values', () => {
+    window.localStorage.setItem('othello.handAnimation.draw', 'false');
+    window.localStorage.setItem('othello.handAnimation.place', '0');
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    expect(document.getElementById('handAnimationDrawToggle').checked).toBe(false);
+    expect(document.getElementById('handAnimationPlaceToggle').checked).toBe(false);
+    expect(window.DISABLE_DRAW_HAND_ANIMATION).toBe(true);
+    expect(window.DISABLE_PLACE_HAND_ANIMATION).toBe(true);
+    expect(api.getHandAnimationPreferences()).toEqual({ draw: false, place: false });
+  });
+
   test('font tab persists selected font without affecting the selected hand skin', () => {
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);

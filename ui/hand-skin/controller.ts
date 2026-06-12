@@ -171,7 +171,11 @@ const HAND_ANIMATION_STORAGE_KEYS = {
 function readHandAnimationPreference(rootRef: any, key: 'draw' | 'place'): boolean {
   try {
     const storage = rootRef && rootRef.localStorage;
-    return storage && storage.getItem(HAND_ANIMATION_STORAGE_KEYS[key]) === 'off' ? false : true;
+    if (!storage) return true;
+    const raw = String(storage.getItem(HAND_ANIMATION_STORAGE_KEYS[key]) || '').trim().toLowerCase();
+    if (!raw) return true;
+    if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'disabled') return false;
+    if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'enabled') return true;
   } catch (e) { /* ignore */ }
   return true;
 }
