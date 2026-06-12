@@ -123,7 +123,7 @@ async function flushAsyncWork() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const DEFAULT_MASTER_VOLUME = 0.5;
+const DEFAULT_MASTER_VOLUME = 1;
 const DEFAULT_BGM_OUTPUT_VOLUME = 0.665 * 0.364 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
@@ -133,10 +133,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.volume).toBe(0.56);
   });
 
-  test('startup default quick master volume is centered at 0.5', () => {
+  test('startup default quick master volume is neutral at 1.0', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.masterVolume).toBe(0.5);
+    expect(soundEngine.masterVolume).toBe(1);
   });
 
   test('startup default BGM volume is 0.665', () => {
@@ -175,6 +175,23 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.bgmVolume).toBe(0.665);
     expect(instances[0].volume).toBeCloseTo(0.665 * 0.364 * 0.5, 6);
     expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
+  });
+
+  test('master volume accepts 200 percent as the upper bound', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.allowBgmPlay = false;
+    soundEngine.bgmVolume = 0.5;
+    soundEngine.loadBgm(0);
+    soundEngine.setMasterVolume(2);
+
+    expect(soundEngine.masterVolume).toBe(2);
+    expect(instances[0].volume).toBeCloseTo(0.5 * 0.364 * 2, 6);
+
+    soundEngine.setMasterVolume(3);
+
+    expect(soundEngine.masterVolume).toBe(2);
   });
 
   test('master volume scales active result BGM output', () => {

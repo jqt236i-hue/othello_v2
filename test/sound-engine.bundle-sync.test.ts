@@ -28,6 +28,15 @@ function readBgmSliderMax(filePath: string): number {
   return Number(match[1]);
 }
 
+function readQuickVolumeSliderMax(filePath: string): number {
+  const source = fs.readFileSync(filePath, 'utf8');
+  const match = source.match(/id="seVolSlider"[\s\S]*?max="([0-9]+(?:\.[0-9]+)?)"/);
+  if (!match) {
+    throw new Error(`Could not find seVolSlider max in ${filePath}`);
+  }
+  return Number(match[1]);
+}
+
 function readBgmTrackSelectMaxWidthPx(filePath: string): number {
   const source = fs.readFileSync(filePath, 'utf8');
   const match = source.match(/id="bgmTrackSelect"[\s\S]*?style="[^"]*max-width:\s*([0-9]+)px/);
@@ -69,6 +78,15 @@ describe('SoundEngine bundle sync', () => {
     expect(browserMax).toBe(workerMax);
     expect(browserMax).toBe(EXPECTED_BGM_SLIDER_MAX);
     expect(browserMax).toBeGreaterThan(expected);
+  });
+
+  test('browser and worker quick volume sliders allow 200 percent output', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const browserMax = readQuickVolumeSliderMax(path.join(rootDir, 'index.html'));
+    const workerMax = readQuickVolumeSliderMax(path.join(rootDir, 'worker-public', 'index.html'));
+
+    expect(browserMax).toBe(workerMax);
+    expect(browserMax).toBe(2);
   });
 
   test('browser and worker BGM track selectors stay narrow enough to avoid clipping the slider thumb', () => {

@@ -52,10 +52,14 @@ interface BgmBufferedState {
     controller: any;
 }
 
+const MASTER_VOLUME_MIN = 0;
+const MASTER_VOLUME_DEFAULT = 1;
+const MASTER_VOLUME_MAX = 2;
+
 const SoundEngine = {
     ctx: null as AudioContext | null,
     isMuted: false,
-    masterVolume: 0.5,
+    masterVolume: MASTER_VOLUME_DEFAULT,
     volume: 0.56,
     bgm: null as any,
     bgmVolume: 0.665,
@@ -232,13 +236,13 @@ const SoundEngine = {
         if (this._temporaryBgmMutedBySpecialCardUse) return 0;
         const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
         const outputScale = this._toNonNegativeNumber(this.bgmOutputVolumeScale, 1);
-        const masterVolume = this._clamp01(this._toNonNegativeNumber(this.masterVolume, 1));
+        const masterVolume = this._clampMasterVolume(this._toNonNegativeNumber(this.masterVolume, MASTER_VOLUME_DEFAULT));
         return this._clamp01(sliderVolume * outputScale * masterVolume * (this.isMuted ? 0 : 1));
     },
 
     _getResultBgmOutputVolume() {
         const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
-        const masterVolume = this._clamp01(this._toNonNegativeNumber(this.masterVolume, 1));
+        const masterVolume = this._clampMasterVolume(this._toNonNegativeNumber(this.masterVolume, MASTER_VOLUME_DEFAULT));
         return this._clamp01(sliderVolume * masterVolume * (this.isMuted ? 0 : 1));
     },
 
@@ -1133,6 +1137,10 @@ const SoundEngine = {
         return Math.max(0, Math.min(1, Number(value) || 0));
     },
 
+    _clampMasterVolume(value: number) {
+        return Math.max(MASTER_VOLUME_MIN, Math.min(MASTER_VOLUME_MAX, Number(value) || 0));
+    },
+
     resolveEffectVolumeScale(effectKey: string, options: any = {}) {
         const key = String(effectKey || '').trim();
         const opts = options && typeof options === 'object' ? options : {};
@@ -1146,7 +1154,7 @@ const SoundEngine = {
 
     resolveEffectVolume(effectKey: string, options: any = {}) {
         const volumeScale = this.resolveEffectVolumeScale(effectKey, options);
-        const masterVolume = this._clamp01(this._toNonNegativeNumber(this.masterVolume, 1));
+        const masterVolume = this._clampMasterVolume(this._toNonNegativeNumber(this.masterVolume, MASTER_VOLUME_DEFAULT));
         return this._clamp01(this.volume * volumeScale * masterVolume);
     },
 
@@ -1409,7 +1417,7 @@ const SoundEngine = {
     },
 
     setMasterVolume(val: number | string) {
-        this.masterVolume = this._clamp01(this._toNonNegativeNumber(val, 1));
+        this.masterVolume = this._clampMasterVolume(this._toNonNegativeNumber(val, MASTER_VOLUME_DEFAULT));
         this._updateBgmOutputVolume();
     },
 

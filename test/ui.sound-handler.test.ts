@@ -225,17 +225,17 @@ describe('sound handler', () => {
     );
 
     const slider = document.getElementById('seVolSlider') as HTMLInputElement;
-    slider.value = '0.25';
+    slider.value = '2';
     slider.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 
-    expect(global.SoundEngine.setMasterVolume).toHaveBeenCalledWith('0.25');
+    expect(global.SoundEngine.setMasterVolume).toHaveBeenCalledWith('2');
     expect(global.SoundEngine.setVolume).not.toHaveBeenCalled();
     expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
 
     dom.window.close();
   });
 
-  test('quick volume slider starts at the mid default master volume', () => {
+  test('quick volume slider starts at the neutral default master volume', () => {
     const dom = new JSDOM(`<!DOCTYPE html><body>
       <button id="muteBtn">🔊 ON</button>
       <select id="seTypeSelect"></select>
@@ -245,7 +245,7 @@ describe('sound handler', () => {
     global.window = dom.window;
     global.SoundEngine = {
       volume: 0.56,
-      masterVolume: 0.5,
+      masterVolume: 1,
       init: jest.fn(),
       toggleMute: jest.fn(() => false),
       setVolume: jest.fn(),
@@ -262,7 +262,7 @@ describe('sound handler', () => {
       document.getElementById('seVolSlider')
     );
 
-    expect((document.getElementById('seVolSlider') as HTMLInputElement).value).toBe('0.5');
+    expect((document.getElementById('seVolSlider') as HTMLInputElement).value).toBe('1');
 
     dom.window.close();
   });
@@ -344,7 +344,7 @@ describe('sound handler', () => {
     expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
     expect(resultAudio.src).toBe('assets/audio/other/勝利リザルト-bpm165.mp3');
     expect(resultAudio.loop).toBe(false);
-    expect(resultAudio.volume).toBeCloseTo(0.25 * 0.5);
+    expect(resultAudio.volume).toBeCloseTo(0.25);
     expect(resultAudio.play).toHaveBeenCalledTimes(1);
 
     resultAudio.onended();
@@ -473,7 +473,7 @@ describe('sound handler', () => {
     expect(createdSources[0].loopStart).toBe(0);
     expect(createdSources[0].loopEnd).toBeCloseTo(90 * 60 / 115, 6);
     expect(createdSources[0].start).toHaveBeenCalledWith(0, 0);
-    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25 * 0.5, 0);
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25, 0);
 
     expect(engine.stopResultBgm({ resumeBgm: true })).toBe(true);
 
