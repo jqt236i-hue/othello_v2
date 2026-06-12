@@ -89,6 +89,13 @@ function installCardBackgroundPreloadFixture(imageSrcs, pathByCardId = {}) {
   window.createCardFaceElement = global.createCardFaceElement;
 }
 
+function setIphoneUserAgent() {
+  Object.defineProperty(window.navigator, 'userAgent', {
+    value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    configurable: true
+  });
+}
+
 describe('animation-utils hand fallback', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -194,6 +201,19 @@ describe('animation-utils hand fallback', () => {
 
     await expect(mod.playDrawCardHandAnimation({ player: 'black', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
 
+    expect(wrapper.animate).not.toHaveBeenCalled();
+    expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playDrawCardHandAnimation skips the hand layer by default on iPhone', async () => {
+    setIphoneUserAgent();
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = jest.fn();
+    const mod = require('../ui/animation-utils.js');
+
+    await expect(mod.playDrawCardHandAnimation({ player: 'black', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
+
+    expect(window.localStorage.getItem('othello.handAnimation.draw')).toBeNull();
     expect(wrapper.animate).not.toHaveBeenCalled();
     expect(document.getElementById('handLayer').style.display).toBe('none');
   });

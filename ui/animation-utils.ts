@@ -57,6 +57,8 @@ try { __owner_helpers_utils = (typeof require === 'function') ? require('../util
 let __player_slot_elements_utils: any = null;
 try { __player_slot_elements_utils = (typeof require === 'function') ? require('./player-slot-elements') : null; } catch (e: any) { __player_slot_elements_utils = null; }
 let __hand_skin_utils: any = null;
+let __hand_animation_preferences_utils: any = null;
+try { __hand_animation_preferences_utils = (typeof require === 'function') ? require('./hand-animation-preferences.js') : (typeof globalThis !== 'undefined' ? (globalThis as any).HandAnimationPreferencesModule : null); } catch (e: any) { __hand_animation_preferences_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).HandAnimationPreferencesModule : null); }
 function _getOwnerHelpers() {
     if (__owner_helpers_utils) return __owner_helpers_utils;
     try {
@@ -113,16 +115,10 @@ function _getHandAnimationRootRef() {
 }
 
 function _readStoredHandAnimationEnabled(kind: any) {
-    const key = kind === 'place' ? 'othello.handAnimation.place' : 'othello.handAnimation.draw';
     const rootRef = _getHandAnimationRootRef();
-    const storage = rootRef && rootRef.localStorage ? rootRef.localStorage : null;
-    if (!storage || typeof storage.getItem !== 'function') return true;
-    try {
-        const raw = String(storage.getItem(key) || '').trim().toLowerCase();
-        if (!raw) return true;
-        if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'disabled') return false;
-        if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'enabled') return true;
-    } catch (e: any) { /* ignore */ }
+    if (__hand_animation_preferences_utils && typeof __hand_animation_preferences_utils.readHandAnimationPreference === 'function') {
+        return __hand_animation_preferences_utils.readHandAnimationPreference(rootRef, kind === 'place' ? 'place' : 'draw');
+    }
     return true;
 }
 

@@ -118,6 +118,15 @@ function resolveGachaEventsModule(rootRef: any): any {
   return null;
 }
 
+function resolveHandAnimationPreferencesModule(): any {
+  if (typeof _require === 'function') {
+    try {
+      return _require('../hand-animation-preferences.js');
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 function resolveDocument(rootRef: any): Document | null {
   const runtimeModule = resolveRuntimeModule(rootRef);
   if (runtimeModule && typeof runtimeModule.resolveDocument === 'function') {
@@ -163,44 +172,26 @@ function createOptionButton(docRef: Document, skin: any): HTMLButtonElement {
   return button;
 }
 
-const HAND_ANIMATION_STORAGE_KEYS = {
-  draw: 'othello.handAnimation.draw',
-  place: 'othello.handAnimation.place'
-};
+const HandAnimationPreferencesModule = resolveHandAnimationPreferencesModule();
 
 function readHandAnimationPreference(rootRef: any, key: 'draw' | 'place'): boolean {
-  try {
-    const storage = rootRef && rootRef.localStorage;
-    if (!storage) return true;
-    const raw = String(storage.getItem(HAND_ANIMATION_STORAGE_KEYS[key]) || '').trim().toLowerCase();
-    if (!raw) return true;
-    if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'disabled') return false;
-    if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'enabled') return true;
-  } catch (e) { /* ignore */ }
+  if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.readHandAnimationPreference === 'function') {
+    return HandAnimationPreferencesModule.readHandAnimationPreference(rootRef, key);
+  }
   return true;
 }
 
 function writeHandAnimationPreference(rootRef: any, key: 'draw' | 'place', enabled: boolean): void {
-  try {
-    const storage = rootRef && rootRef.localStorage;
-    if (storage) storage.setItem(HAND_ANIMATION_STORAGE_KEYS[key], enabled ? 'on' : 'off');
-  } catch (e) { /* ignore */ }
-  if (rootRef && typeof rootRef === 'object') {
-    if (key === 'draw') rootRef.DISABLE_DRAW_HAND_ANIMATION = !enabled;
-    if (key === 'place') rootRef.DISABLE_PLACE_HAND_ANIMATION = !enabled;
+  if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.writeHandAnimationPreference === 'function') {
+    HandAnimationPreferencesModule.writeHandAnimationPreference(rootRef, key, enabled);
   }
 }
 
 function syncHandAnimationFlags(rootRef: any): { draw: boolean; place: boolean } {
-  const prefs = {
-    draw: readHandAnimationPreference(rootRef, 'draw'),
-    place: readHandAnimationPreference(rootRef, 'place')
-  };
-  if (rootRef && typeof rootRef === 'object') {
-    rootRef.DISABLE_DRAW_HAND_ANIMATION = !prefs.draw;
-    rootRef.DISABLE_PLACE_HAND_ANIMATION = !prefs.place;
+  if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.syncHandAnimationFlags === 'function') {
+    return HandAnimationPreferencesModule.syncHandAnimationFlags(rootRef);
   }
-  return prefs;
+  return { draw: true, place: true };
 }
 
 function createHandAnimationToggle(

@@ -59,6 +59,13 @@ describe('hand skin handler', () => {
     return storageModule;
   }
 
+  function setIphoneUserAgent() {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      configurable: true
+    });
+  }
+
   beforeEach(() => {
     jest.resetModules();
     setDom();
@@ -145,6 +152,34 @@ describe('hand skin handler', () => {
     expect(window.DISABLE_DRAW_HAND_ANIMATION).toBe(true);
     expect(window.DISABLE_PLACE_HAND_ANIMATION).toBe(true);
     expect(api.getHandAnimationPreferences()).toEqual({ draw: false, place: false });
+  });
+
+  test('defaults hand animation toggles off on iPhone when no preference is stored', () => {
+    setIphoneUserAgent();
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    expect(document.getElementById('handAnimationDrawToggle').checked).toBe(false);
+    expect(document.getElementById('handAnimationPlaceToggle').checked).toBe(false);
+    expect(window.localStorage.getItem('othello.handAnimation.draw')).toBeNull();
+    expect(window.localStorage.getItem('othello.handAnimation.place')).toBeNull();
+    expect(window.DISABLE_DRAW_HAND_ANIMATION).toBe(true);
+    expect(window.DISABLE_PLACE_HAND_ANIMATION).toBe(true);
+    expect(api.getHandAnimationPreferences()).toEqual({ draw: false, place: false });
+  });
+
+  test('keeps stored hand animation choices on iPhone', () => {
+    setIphoneUserAgent();
+    window.localStorage.setItem('othello.handAnimation.draw', 'on');
+    window.localStorage.setItem('othello.handAnimation.place', 'on');
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    expect(document.getElementById('handAnimationDrawToggle').checked).toBe(true);
+    expect(document.getElementById('handAnimationPlaceToggle').checked).toBe(true);
+    expect(window.DISABLE_DRAW_HAND_ANIMATION).toBe(false);
+    expect(window.DISABLE_PLACE_HAND_ANIMATION).toBe(false);
+    expect(api.getHandAnimationPreferences()).toEqual({ draw: true, place: true });
   });
 
   test('normalizes legacy falsey hand animation preference values', () => {
