@@ -86,6 +86,10 @@ function buildPlacePublishBody({ roomId, snapshot, stateVersion, seatKey, seatTo
   };
 }
 
+function createEmptyBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
 describe('local match server publish contract', () => {
   afterEach(() => {
     resetRoomsForTests();
@@ -522,6 +526,112 @@ describe('local match server publish contract', () => {
           })
         })
       ]));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('authoritative reverse will selection keeps the actor turn open for follow-up placement', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+
+      const patched = patchRoomSnapshotForTests(roomId, (room) => {
+        const snapshot = room.snapshot;
+        const board = createEmptyBoard();
+        board[2][2] = 1;
+        board[2][3] = -1;
+        board[2][4] = 1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.turnNumber = 5;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.board = board;
+        snapshot.cardState.turnIndex = 5;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState.charge.black = 0;
+        snapshot.cardState.charge.white = 0;
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState.hands.white = [];
+        snapshot.cardState.pendingEffectByPlayer = {
+          black: {
+            type: 'REVERSE_WILL',
+            stage: 'selectTarget',
+            cardId: 'reverse_will_01',
+            pendingEffectId: 'pending_5_1'
+          },
+          white: null
+        };
+        snapshot.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
+        snapshot.cardState.lastUsedCardByPlayer = { black: 'reverse_will_01', white: null };
+        snapshot.cardState.discard = ['reverse_will_01'];
+        snapshot.cardState.markers = [];
+      });
+      expect(patched).toBe(true);
+
+      const reverseSelection = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_reverse_will_select_1',
+        actionType: 'place',
+        actor: 'black',
+        params: {
+          reverseWillTarget: { row: 2, col: 2 },
+          player: 'black',
+          pendingSelectionState: {
+            type: 'REVERSE_WILL',
+            stage: 'selectTarget',
+            cardId: 'reverse_will_01',
+            pendingEffectId: 'pending_5_1'
+          }
+        },
+        turnIndex: 5
+      });
+
+      expect(reverseSelection.status).toBe(200);
+      expect(reverseSelection.data.ok).toBe(true);
+      expect(reverseSelection.data.snapshot.gameState.currentPlayer).toBe(1);
+      expect(reverseSelection.data.snapshot.gameState.board[2][3]).toBe(1);
+      expect(reverseSelection.data.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+      expect(reverseSelection.data.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'flip',
+          targets: expect.arrayContaining([
+            expect.objectContaining({
+              r: 2,
+              col: 3,
+              cause: 'REVERSE_WILL',
+              reason: 'reverse_will_flip'
+            })
+          ])
+        })
+      ]));
+
+      const followUpBody = buildPlacePublishBody({
+        roomId,
+        snapshot: reverseSelection.data.snapshot,
+        stateVersion: reverseSelection.data.stateVersion,
+        seatKey: 'black',
+        seatToken,
+        operationId: 'op_reverse_will_followup_place_1'
+      });
+      const followUp = await requestJson(port, 'POST', '/api/match/publish', followUpBody);
+
+      expect(followUp.status).toBe(200);
+      expect(followUp.data.ok).toBe(true);
+      expect(followUp.data.snapshot.gameState.currentPlayer).toBe(-1);
+      expect(followUp.data.snapshot.gameState.board[followUpBody.params.row][followUpBody.params.col]).toBe(1);
     } finally {
       await closeServer(server);
     }

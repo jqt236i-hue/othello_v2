@@ -206,6 +206,56 @@ describe('network WORK_WILL follow-up placement', () => {
     expect(global.executeMove).toHaveBeenCalledTimes(1);
   });
 
+  test('replays early board click after server-authored ESCAPE_WILL publish succeeds', async () => {
+    global.cardState.selectedCardId = 'escape_01';
+    global.cardState.hands.black = ['escape_01'];
+    global.CardLogic.getCardDef = (id) => ({ id, name: '逃げる意志', desc: 'd', cost: 7, type: 'ESCAPE_WILL' });
+    global.CardLogic.getUsableCardIds = () => ['escape_01'];
+
+    require('../cards/card-interaction.js');
+    const turnManager = require('../game/turn-manager.js');
+    const selectionFlow = require('../game/card-effects/selection-flow');
+    selectionFlow.setSignalBridge({
+      playbackStateManager: global.PlaybackStateManager
+    });
+    turnManager.setUIImpl({
+      readRuntimeValue: (key) => {
+        if (typeof global[key] !== 'undefined') return global[key];
+        return global.window ? global.window[key] : undefined;
+      },
+      writeRuntimeValue: (key, value) => {
+        global[key] = value;
+        if (global.window) global.window[key] = value;
+      },
+      runtimeRoot: global
+    });
+    global.handleCellClick = (row, col) => {
+      global.PlaybackStateManager.setBusyState({ processing: false, cardAnimating: false });
+      return turnManager.handleCellClick(row, col);
+    };
+    window.handleCellClick = global.handleCellClick;
+    window.useSelectedCard();
+    global.PlaybackStateManager.setBusyState({ processing: true, cardAnimating: true });
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.executeMove).not.toHaveBeenCalled();
+
+    turnManager.handleCellClick(2, 3);
+
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect((global.__serverAuthoredCardUseClickBuffer || window.__serverAuthoredCardUseClickBuffer).click)
+      .toEqual({ row: 2, col: 3, playerKey: 'black' });
+
+    global.__publishDeferred.resolve({ ok: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.runOnlyPendingTimers();
+    await Promise.resolve();
+
+    expect(global.findMoveForCell).toHaveBeenCalledWith(1, 2, 3, null, [], []);
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+  });
+
   test('drops early board click when server-authored WORK_WILL publish fails', async () => {
     require('../cards/card-interaction.js');
     const turnManager = require('../game/turn-manager.js');
