@@ -126,6 +126,27 @@ describe('hand skin handler', () => {
     expect(button.getAttribute('aria-expanded')).toBe('false');
   });
 
+  test('renders hand animation toggles and persists draw/place choices', () => {
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    const drawToggle = document.getElementById('handAnimationDrawToggle');
+    const placeToggle = document.getElementById('handAnimationPlaceToggle');
+    expect(drawToggle).toBeTruthy();
+    expect(placeToggle).toBeTruthy();
+    expect(drawToggle.checked).toBe(true);
+    expect(placeToggle.checked).toBe(true);
+
+    drawToggle.click();
+    placeToggle.click();
+
+    expect(window.localStorage.getItem('othello.handAnimation.draw')).toBe('off');
+    expect(window.localStorage.getItem('othello.handAnimation.place')).toBe('off');
+    expect(window.DISABLE_DRAW_HAND_ANIMATION).toBe(true);
+    expect(window.DISABLE_PLACE_HAND_ANIMATION).toBe(true);
+    expect(api.getHandAnimationPreferences()).toEqual({ draw: false, place: false });
+  });
+
   test('font tab persists selected font without affecting the selected hand skin', () => {
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);

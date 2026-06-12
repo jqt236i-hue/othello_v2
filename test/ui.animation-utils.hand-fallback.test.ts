@@ -186,6 +186,33 @@ describe('animation-utils hand fallback', () => {
     expect(document.getElementById('handLayer').style.display).toBe('none');
   });
 
+  test('playDrawCardHandAnimation skips the hand layer when draw hand animation is disabled', async () => {
+    window.localStorage.setItem('othello.handAnimation.draw', 'off');
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = jest.fn();
+    const mod = require('../ui/animation-utils.js');
+
+    await expect(mod.playDrawCardHandAnimation({ player: 'black', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
+
+    expect(wrapper.animate).not.toHaveBeenCalled();
+    expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playHandAnimation skips hand movement but keeps placement completion when place hand animation is disabled', async () => {
+    window.localStorage.setItem('othello.handAnimation.place', 'off');
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = jest.fn();
+    const mod = require('../ui/animation-utils.js');
+    const onComplete = jest.fn();
+
+    await expect(mod.playHandAnimation(global.BLACK, 0, 0, onComplete)).resolves.toBeUndefined();
+
+    expect(wrapper.animate).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
   test('playDrawCardHandAnimation preloads the drawn card background before hand reveal', async () => {
     const imageSrcs = [];
     installCardBackgroundPreloadFixture(imageSrcs, {

@@ -102,6 +102,39 @@ function _requestCardUiSyncForAnimationUtils(reason: any) {
     return false;
 }
 
+function _getHandAnimationRootRef() {
+    try {
+        if (typeof window !== 'undefined' && window) return window as any;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis) return globalThis as any;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _readStoredHandAnimationEnabled(kind: any) {
+    const key = kind === 'place' ? 'othello.handAnimation.place' : 'othello.handAnimation.draw';
+    const rootRef = _getHandAnimationRootRef();
+    const storage = rootRef && rootRef.localStorage ? rootRef.localStorage : null;
+    if (!storage || typeof storage.getItem !== 'function') return true;
+    try {
+        const raw = String(storage.getItem(key) || '').trim().toLowerCase();
+        if (!raw) return true;
+        if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'disabled') return false;
+        if (raw === 'on' || raw === 'true' || raw === '1' || raw === 'enabled') return true;
+    } catch (e: any) { /* ignore */ }
+    return true;
+}
+
+function _isHandAnimationDisabled(kind: any) {
+    const rootRef = _getHandAnimationRootRef();
+    try {
+        if (kind === 'place' && rootRef && rootRef.DISABLE_PLACE_HAND_ANIMATION === true) return true;
+        if (kind === 'draw' && rootRef && rootRef.DISABLE_DRAW_HAND_ANIMATION === true) return true;
+    } catch (e: any) { /* ignore */ }
+    return !_readStoredHandAnimationEnabled(kind);
+}
+
 let __playerSlotElementResolver: any = null;
 function _getPlayerSlotElementResolver() {
     if (__playerSlotElementResolver) return __playerSlotElementResolver;
@@ -371,6 +404,19 @@ function _playEffectByKeySafe(soundKey: any) {
         if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
             if (typeof SoundEngine.init === 'function') SoundEngine.init();
             SoundEngine.playEffectByKey(key);
+        }
+    } catch (e: any) { /* ignore */ }
+}
+
+function _playStonePlaceSoundSafe() {
+    try {
+        if (typeof SoundEngine !== 'undefined' && SoundEngine) {
+            SoundEngine.init();
+            if (typeof SoundEngine.playStoneClack === 'function') {
+                SoundEngine.playStoneClack();
+            } else if (typeof SoundEngine.playEffectByKey === 'function') {
+                SoundEngine.playEffectByKey('stone_place');
+            }
         }
     } catch (e: any) { /* ignore */ }
 }
@@ -1386,6 +1432,12 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             return;
         }
 
+        if (_isHandAnimationDisabled('place')) {
+            _playStonePlaceSoundSafe();
+            completeImmediately();
+            return;
+        }
+
         const { layerEl, wrapperEl, heldStoneEl } = _resolveHandLayerElements();
         if (!layerEl || !wrapperEl || !heldStoneEl || !boardRoot) {
             completeImmediately();
@@ -1488,16 +1540,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
 
             // Reflect placement immediately when the hand starts the place motion.
             heldStoneEl.style.display = 'none';
-            try {
-                if (typeof SoundEngine !== 'undefined' && SoundEngine) {
-                    SoundEngine.init();
-                    if (typeof SoundEngine.playStoneClack === 'function') {
-                        SoundEngine.playStoneClack();
-                    } else if (typeof SoundEngine.playEffectByKey === 'function') {
-                        SoundEngine.playEffectByKey('stone_place');
-                    }
-                }
-            } catch (e: any) { /* ignore */ }
+            _playStonePlaceSoundSafe();
             completeMove();
             await placeAnim;
 
@@ -1916,6 +1959,11 @@ function playCaptureToHandAnimation(payload: any) {
 function playDrawCardHandAnimation(payload: any) {
     const data = payload || {};
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
+    if (_isHandAnimationDisabled('draw')) {
+        return Promise.resolve().then(() => {
+            _finalizeHandAddAnimation(data, { pulseDeck: true });
+        });
+    }
     const cardFaceArtPreload = preloadCardFaceArtForAnimation(data.cardId, {
         ownerKey: toPlayerKey,
         priority: 'high'

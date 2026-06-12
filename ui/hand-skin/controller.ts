@@ -163,6 +163,79 @@ function createOptionButton(docRef: Document, skin: any): HTMLButtonElement {
   return button;
 }
 
+const HAND_ANIMATION_STORAGE_KEYS = {
+  draw: 'othello.handAnimation.draw',
+  place: 'othello.handAnimation.place'
+};
+
+function readHandAnimationPreference(rootRef: any, key: 'draw' | 'place'): boolean {
+  try {
+    const storage = rootRef && rootRef.localStorage;
+    return storage && storage.getItem(HAND_ANIMATION_STORAGE_KEYS[key]) === 'off' ? false : true;
+  } catch (e) { /* ignore */ }
+  return true;
+}
+
+function writeHandAnimationPreference(rootRef: any, key: 'draw' | 'place', enabled: boolean): void {
+  try {
+    const storage = rootRef && rootRef.localStorage;
+    if (storage) storage.setItem(HAND_ANIMATION_STORAGE_KEYS[key], enabled ? 'on' : 'off');
+  } catch (e) { /* ignore */ }
+  if (rootRef && typeof rootRef === 'object') {
+    if (key === 'draw') rootRef.DISABLE_DRAW_HAND_ANIMATION = !enabled;
+    if (key === 'place') rootRef.DISABLE_PLACE_HAND_ANIMATION = !enabled;
+  }
+}
+
+function syncHandAnimationFlags(rootRef: any): { draw: boolean; place: boolean } {
+  const prefs = {
+    draw: readHandAnimationPreference(rootRef, 'draw'),
+    place: readHandAnimationPreference(rootRef, 'place')
+  };
+  if (rootRef && typeof rootRef === 'object') {
+    rootRef.DISABLE_DRAW_HAND_ANIMATION = !prefs.draw;
+    rootRef.DISABLE_PLACE_HAND_ANIMATION = !prefs.place;
+  }
+  return prefs;
+}
+
+function createHandAnimationToggle(
+  docRef: Document,
+  rootRef: any,
+  key: 'draw' | 'place',
+  labelText: string
+): HTMLLabelElement {
+  const label = docRef.createElement('label');
+  label.className = 'hand-animation-toggle';
+
+  const input = docRef.createElement('input');
+  input.type = 'checkbox';
+  input.id = key === 'draw' ? 'handAnimationDrawToggle' : 'handAnimationPlaceToggle';
+  input.checked = readHandAnimationPreference(rootRef, key);
+  input.addEventListener('change', function () {
+    writeHandAnimationPreference(rootRef, key, input.checked);
+  });
+  label.appendChild(input);
+
+  const text = docRef.createElement('span');
+  text.textContent = labelText;
+  label.appendChild(text);
+  return label;
+}
+
+function ensureHandAnimationControls(docRef: Document, rootRef: any, handSection: any, optionsEl: any): void {
+  if (!handSection || !optionsEl || docRef.getElementById('handAnimationDrawToggle')) {
+    syncHandAnimationFlags(rootRef);
+    return;
+  }
+  const group = docRef.createElement('div');
+  group.className = 'hand-animation-controls';
+  group.appendChild(createHandAnimationToggle(docRef, rootRef, 'draw', 'ドロー演出'));
+  group.appendChild(createHandAnimationToggle(docRef, rootRef, 'place', '配置演出'));
+  handSection.insertBefore(group, optionsEl);
+  syncHandAnimationFlags(rootRef);
+}
+
 function setupHandSkinControls(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootRef = opts.root || (typeof window !== 'undefined' ? window : null);
@@ -206,6 +279,7 @@ function setupHandSkinControls(options?: any): any {
       document: docRef
     })
     : null;
+  ensureHandAnimationControls(docRef, rootRef, handSection, optionsEl);
 
   function syncButtonLabel(): void {
     const label = selectedSkin
@@ -418,6 +492,9 @@ function setupHandSkinControls(options?: any): any {
     selectAppearanceTab: function (tabKey: string): string {
       setActiveTab(tabKey);
       return activeTab;
+    },
+    getHandAnimationPreferences: function (): { draw: boolean; place: boolean } {
+      return syncHandAnimationFlags(rootRef);
     }
   };
 }
