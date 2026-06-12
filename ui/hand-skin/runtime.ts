@@ -394,6 +394,14 @@ function resolveHandAnimationContext(rootRef: any, preferredSkinId: any, options
   };
 }
 
+function setAttributeIfChanged(el: any, name: string, value: any): void {
+  if (!el || typeof el.getAttribute !== 'function' || typeof el.setAttribute !== 'function') return;
+  const nextValue = String(value);
+  if (el.getAttribute(name) !== nextValue) {
+    el.setAttribute(name, nextValue);
+  }
+}
+
 function applyHandSkin(handImageEl: any, skinId: any, rootRef: any): any {
   if (!handImageEl) return null;
   const catalogModule = resolveCatalogModule(rootRef);
@@ -401,9 +409,9 @@ function applyHandSkin(handImageEl: any, skinId: any, rootRef: any): any {
     ? catalogModule.getHandSkinDefinition(skinId, rootRef)
     : null;
   if (!definition) return null;
-  handImageEl.setAttribute('src', definition.imagePath);
-  handImageEl.setAttribute('data-hand-skin-id', definition.id);
-  handImageEl.setAttribute('data-hand-selected-skin-id', definition.id);
+  setAttributeIfChanged(handImageEl, 'src', definition.imagePath);
+  setAttributeIfChanged(handImageEl, 'data-hand-skin-id', definition.id);
+  setAttributeIfChanged(handImageEl, 'data-hand-selected-skin-id', definition.id);
   return definition;
 }
 
@@ -413,9 +421,9 @@ function syncDisplayedHandSkin(rootRef: any, preferredSkinId: any, handImageEl?:
   const imageEl = handImageEl || (docRef ? docRef.getElementById('handImage') : null);
   if (!imageEl) return null;
   const handContext = resolveHandAnimationContext(ctx, preferredSkinId, options);
-  imageEl.setAttribute('src', handContext.renderedImagePath);
-  imageEl.setAttribute('data-hand-skin-id', handContext.renderedSkinId);
-  imageEl.setAttribute('data-hand-selected-skin-id', handContext.selectedSkinId);
+  setAttributeIfChanged(imageEl, 'src', handContext.renderedImagePath);
+  setAttributeIfChanged(imageEl, 'data-hand-skin-id', handContext.renderedSkinId);
+  setAttributeIfChanged(imageEl, 'data-hand-selected-skin-id', handContext.selectedSkinId);
   return handContext.renderedDefinition;
 }
 

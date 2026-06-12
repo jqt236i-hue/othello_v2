@@ -56,6 +56,8 @@ let __owner_helpers_utils: any = null;
 try { __owner_helpers_utils = (typeof require === 'function') ? require('../utils/owner-helpers') : (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null); } catch (e: any) { __owner_helpers_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null); }
 let __player_slot_elements_utils: any = null;
 try { __player_slot_elements_utils = (typeof require === 'function') ? require('./player-slot-elements') : null; } catch (e: any) { __player_slot_elements_utils = null; }
+let __element_cache_utils: any = null;
+try { __element_cache_utils = (typeof require === 'function') ? require('./element-cache') : (typeof globalThis !== 'undefined' ? (globalThis as any).ElementCacheModule : null); } catch (e: any) { __element_cache_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).ElementCacheModule : null); }
 let __hand_skin_utils: any = null;
 let __hand_animation_preferences_utils: any = null;
 try { __hand_animation_preferences_utils = (typeof require === 'function') ? require('./hand-animation-preferences.js') : (typeof globalThis !== 'undefined' ? (globalThis as any).HandAnimationPreferencesModule : null); } catch (e: any) { __hand_animation_preferences_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).HandAnimationPreferencesModule : null); }
@@ -112,6 +114,35 @@ function _getHandAnimationRootRef() {
         if (typeof globalThis !== 'undefined' && globalThis) return globalThis as any;
     } catch (e: any) { /* ignore */ }
     return null;
+}
+
+function _getCachedAnimationElement(cacheKey: any, elementId: any) {
+    if (typeof document === 'undefined') return null;
+    const id = String(elementId || '');
+    if (!id) return null;
+    let cached: any = null;
+    try {
+        if (__element_cache_utils && typeof __element_cache_utils.getElement === 'function') {
+            cached = __element_cache_utils.getElement(cacheKey);
+            if (cached && cached.ownerDocument === document) return cached;
+        }
+    } catch (e: any) { /* ignore */ }
+    const resolved = document.getElementById(id);
+    try {
+        if (__element_cache_utils && __element_cache_utils.elementCache && cacheKey) {
+            __element_cache_utils.elementCache[cacheKey] = resolved;
+        }
+    } catch (e: any) { /* ignore */ }
+    return resolved;
+}
+
+function _setAttributeIfChanged(el: any, name: any, value: any) {
+    if (!el || typeof el.getAttribute !== 'function' || typeof el.setAttribute !== 'function') return;
+    const attrName = String(name || '');
+    const nextValue = String(value);
+    if (el.getAttribute(attrName) !== nextValue) {
+        el.setAttribute(attrName, nextValue);
+    }
 }
 
 function _readStoredHandAnimationEnabled(kind: any) {
@@ -253,8 +284,7 @@ const CARD_FACE_ART_REVEAL_WAIT_MS = 900;
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):\d+$/;
 
 function _resolveHandImageElement() {
-    if (typeof document === 'undefined') return null;
-    return document.getElementById('handImage');
+    return _getCachedAnimationElement('handImage', 'handImage');
 }
 
 function _getHandSkinUiModule() {
@@ -346,12 +376,12 @@ function _resolveHandAnimationContext(ownerKey: any, visualOptions: any) {
 function _applyResolvedHandAnimationContext(handContext: any) {
     const imageEl = _resolveHandImageElement();
     if (!imageEl || !handContext || !handContext.renderedImagePath) return handContext;
-    imageEl.setAttribute('src', handContext.renderedImagePath);
+    _setAttributeIfChanged(imageEl, 'src', handContext.renderedImagePath);
     if (handContext.renderedSkinId) {
-        imageEl.setAttribute('data-hand-skin-id', handContext.renderedSkinId);
+        _setAttributeIfChanged(imageEl, 'data-hand-skin-id', handContext.renderedSkinId);
     }
     if (handContext.selectedSkinId) {
-        imageEl.setAttribute('data-hand-selected-skin-id', handContext.selectedSkinId);
+        _setAttributeIfChanged(imageEl, 'data-hand-selected-skin-id', handContext.selectedSkinId);
     }
     return handContext;
 }
@@ -377,10 +407,10 @@ function _restoreDisplayedHandSkinAfterAnimation() {
 
 function _resolveHandLayerElements() {
     return {
-        layerEl: (typeof handLayer !== 'undefined' && handLayer) ? handLayer : document.getElementById('handLayer'),
-        wrapperEl: (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : document.getElementById('handWrapper'),
+        layerEl: (typeof handLayer !== 'undefined' && handLayer) ? handLayer : _getCachedAnimationElement('handLayer', 'handLayer'),
+        wrapperEl: (typeof handWrapper !== 'undefined' && handWrapper) ? handWrapper : _getCachedAnimationElement('handWrapper', 'handWrapper'),
         handImageEl: _resolveHandImageElement(),
-        heldStoneEl: (typeof heldStone !== 'undefined' && heldStone) ? heldStone : document.getElementById('heldStone')
+        heldStoneEl: (typeof heldStone !== 'undefined' && heldStone) ? heldStone : _getCachedAnimationElement('heldStone', 'heldStone')
     };
 }
 

@@ -96,6 +96,27 @@ describe('hand skin handler', () => {
     expect(selected.getAttribute('aria-checked')).toBe('true');
   });
 
+  test('skips unchanged hand image attributes when displayed skin is already current', () => {
+    unlockAltGachaHandSkin();
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+    const handImage = document.getElementById('handImage');
+    const originalSetAttribute = handImage.setAttribute.bind(handImage);
+    const attributeWrites = [];
+    handImage.setAttribute = function (name, value) {
+      attributeWrites.push([name, value]);
+      return originalSetAttribute(name, value);
+    };
+
+    api.syncDisplayedSkin();
+
+    expect(attributeWrites).toEqual([]);
+    expect(handImage.getAttribute('src')).toBe(ALT_GACHA_HAND_SKIN_PATH);
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+  });
+
   test('legacy renamed hand skin ids resolve to the canonical renamed skin', () => {
     const storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.unlockHandSkinIds(window, ['gacha__n__hand-swap']);
