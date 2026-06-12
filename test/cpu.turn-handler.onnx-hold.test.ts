@@ -102,6 +102,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         global.isDebugLogAvailable = () => false;
         global.emitLogAdded = jest.fn();
         global.executeMove = jest.fn();
+        global.processPassTurn = jest.fn();
         global.playHandAnimation = jest.fn((playerValue, row, col, cb) => {
             if (typeof cb === 'function') cb();
         });
@@ -129,7 +130,8 @@ describe('cpu-turn-handler onnx hold behavior', () => {
             },
             readMatchMode: () => global.MATCH_MODE || null,
             readQuerySearch: () => global.__CPU_TEST_QUERY_SEARCH || '',
-            resolveExecuteMove: () => global.executeMove
+            resolveExecuteMove: () => global.executeMove,
+            resolveProcessPassTurn: () => global.processPassTurn
         });
     });
 
@@ -147,6 +149,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         delete global.selectMoveFromOnnxPolicyAsync;
         delete global.selectCpuMoveWithPolicy;
         delete global.cpuMaybeDestroyHandCardWithPolicy;
+        delete global.processPassTurn;
         delete global.__CPU_TEST_QUERY_SEARCH;
         delete global.isGameOver;
         delete global.showResult;

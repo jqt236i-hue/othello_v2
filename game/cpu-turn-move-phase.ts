@@ -90,9 +90,11 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 if (!retried) {
                     retried = cfg.tryApplyAnyUsableCard(playerKey, level, 0, []);
                 }
-                cfg.setCpuProcessing(false);
-                cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
-                return { status: retried ? 'retry' : 'handled' };
+                if (retried) {
+                    cfg.setCpuProcessing(false);
+                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                    return { status: 'retry' };
+                }
             }
             const passFn = cfg.resolveProcessPassTurn();
             if (passFn) {
