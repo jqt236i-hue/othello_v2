@@ -113,6 +113,34 @@ describe('cards spawn-and-flip module', () => {
     expect(gameState.board[1][2]).toBe(-1);
   });
 
+  test('falls back to direct spawn writes when BoardOps has no spawnAt', () => {
+    const gameState = { board: createBoard(4, 4) };
+    const changeAt = jest.fn(() => ({ changed: true }));
+
+    const result = spawnAndFlipBatch(
+      {},
+      gameState,
+      'black',
+      1,
+      [{ row: 1, col: 1 }],
+      'BREEDING',
+      'breeding_spawned',
+      { row: 0, col: 0 },
+      {
+        BoardOps: { changeAt },
+        getCardContext: () => ({ protectedStones: [] }),
+        getFlipsWithContext: () => [[1, 2]]
+      }
+    );
+
+    expect(result).toEqual({
+      spawned: [{ row: 1, col: 1, anchorRow: 0, anchorCol: 0, stoneId: undefined }],
+      flipped: [{ row: 1, col: 2 }]
+    });
+    expect(gameState.board[1][1]).toBe(1);
+    expect(changeAt).toHaveBeenCalledWith({}, gameState, 1, 2, 'black', 'BREEDING', 'breeding_flip', undefined);
+  });
+
   test('falls back to expansion-cell writes when target lives outside the main board', () => {
     const gameState = {
       board: createBoard(4, 4),

@@ -462,12 +462,14 @@ const CardBreeding = /**
             const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
 
             let spawnRes = null;
+            let usedBoardOpsSpawn = false;
             if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
+                usedBoardOpsSpawn = true;
                 spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason);
             } else {
                 _setBoardCell(gameState, target.row, target.col, player);
             }
-            if (deps.BoardOps && (!spawnRes || spawnRes.spawned !== true)) {
+            if (usedBoardOpsSpawn && (!spawnRes || spawnRes.spawned !== true)) {
                 continue;
             }
             spawned.push({

@@ -121,6 +121,19 @@ describe('TIME_STOP_GOD（時間停石）', () => {
     expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBe(0);
   });
 
+  test('時間停石コストは同一セルの後続マーカーにある破壊回避も候補に数えない', () => {
+    const prng = createPrng(0);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    for (let col = 0; col < Shared.TIME_STOP_GOD_SELF_DESTROY_COUNT; col += 1) {
+      gameState.board[0][col] = Core.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 0, col, 'black', { type: 'PROTECTED', remainingOwnerTurns: 2 });
+      CardLogic.addMarker(cardState, 'specialStone', 0, col, 'black', { type: 'AFTERIMAGE_WILL', destroyEvadeRemaining: 1 });
+    }
+
+    expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBe(0);
+  });
+
   test('自石が21個未満でも破壊可能自石が3個あれば使用できる', () => {
     const prng = createPrng(0.4);
     const cardState = CardLogic.createCardState(prng);

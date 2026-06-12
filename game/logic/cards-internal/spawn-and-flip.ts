@@ -258,17 +258,19 @@ function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAnd
     const applyBatch = (): void => {
         for (const target of targets) {
             let spawnRes = null;
+            let usedBoardOpsSpawn = false;
             const nextSpawnMeta = buildSpawnMeta
                 ? buildSpawnMeta(target, anchorPos, playerKey, cause, reason)
                 : spawnMeta;
             if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
+                usedBoardOpsSpawn = true;
                 spawnRes = nextSpawnMeta == null
                     ? deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason)
                     : deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason, nextSpawnMeta);
             } else {
                 setBoardCell(gameState, target.row, target.col, player);
             }
-            if (deps.BoardOps && (!spawnRes || spawnRes.spawned !== true)) {
+            if (usedBoardOpsSpawn && (!spawnRes || spawnRes.spawned !== true)) {
                 continue;
             }
             spawned.push({

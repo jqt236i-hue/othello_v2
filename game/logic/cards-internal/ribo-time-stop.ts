@@ -20,6 +20,8 @@ type RiboTimeStopDeps = {
     getCellValueForCard: (gameState: any, row: any, col: any) => any;
     isFrozenCellForCard: (cardState: any, row: any, col: any) => boolean;
     findSpecialMarkerAt: (cardState: any, row: any, col: any, type?: any, owner?: any) => any;
+    getMarkers?: (cardState: any) => any[];
+    EvasionStatus?: any;
     removeMarkerById: (cardState: any, markerId: any) => any;
     removeMarkersAt: (cardState: any, row: any, col: any, filter?: any) => any;
     sampleRandomPositions: (positions: any, count: any, prng: any) => any[];
@@ -80,9 +82,17 @@ function isSelfStoneDestroyableForCost(cardState: any, row: number, col: number,
     if (typeof deps.isAbsoluteProtectedCell === 'function' && deps.isAbsoluteProtectedCell(cardState, row, col)) return false;
     if (options.excludeFrozen === true && deps.isFrozenCellForCard(cardState, row, col)) return false;
     if (options.excludeDestroyEvade === true) {
-        const marker = deps.findSpecialMarkerAt(cardState, row, col);
-        const destroyEvadeRemaining = Number(marker && marker.data && marker.data.destroyEvadeRemaining);
-        if (Number.isFinite(destroyEvadeRemaining) && destroyEvadeRemaining > 0) return false;
+        const markers = typeof deps.getMarkers === 'function'
+            ? deps.getMarkers(cardState)
+            : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
+        for (const marker of markers) {
+            if (!marker || marker.kind !== deps.specialStoneKind) continue;
+            if (Number(marker.row) !== row || Number(marker.col) !== col) continue;
+            const destroyEvadeRemaining = deps.EvasionStatus && typeof deps.EvasionStatus.readDestroyEvadeRemaining === 'function'
+                ? deps.EvasionStatus.readDestroyEvadeRemaining(marker)
+                : Number(marker && marker.data && marker.data.destroyEvadeRemaining);
+            if (Number.isFinite(destroyEvadeRemaining) && destroyEvadeRemaining > 0) return false;
+        }
     }
     return true;
 }

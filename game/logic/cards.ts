@@ -49,6 +49,7 @@ const SharedConstants = resolveCardLogicModuleOrGlobal('../../shared-constants',
 const DeckSpecHelpers = resolveCardLogicModuleOrGlobal('../../shared/deck-spec', 'DeckSpecHelpers');
 const SpecialCardRegistry = resolveCardLogicModuleOrGlobal('../../shared/special-card-registry', 'SpecialCardRegistry');
 const ManifestStoneRegistry = resolveCardLogicModuleOrGlobal('../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
+const EvasionStatus = resolveCardLogicModuleOrGlobal('../../shared/evasion-status', 'EvasionStatus');
 const SharedBoardUtils = resolveCardLogicModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils');
 const CardRandomSource = resolveCardLogicModuleOrGlobal('./cards-internal/random-source', 'CardRandomSource');
 const CardStateFactory = resolveCardLogicModuleOrGlobal('./cards-internal/state-factory', 'CardStateFactory');
@@ -386,6 +387,8 @@ const {
             getCellValueForCard,
             isFrozenCellForCard,
             findSpecialMarkerAt,
+            getMarkers,
+            EvasionStatus,
             removeMarkerById,
             removeMarkersAt,
             sampleRandomPositions,
