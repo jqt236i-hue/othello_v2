@@ -377,6 +377,7 @@ const Flips = CardFlips || {};
 
     function isPositionSwapProtectedCell(cardState: any, row: number, col: number) {
         return !!(
+            isFrozenCell(cardState, row, col) ||
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
             findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED')
         );
@@ -676,6 +677,7 @@ const Flips = CardFlips || {};
             .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col));
         if (!destinations.length) return [];
         return getOccupiedBoardShapeCells(cardState, gameState)
+            .filter((cell: any) => !isFrozenCell(cardState, cell.row, cell.col))
             .filter((cell: any) => !isAbsoluteProtectedCell(cardState, cell.row, cell.col));
     }
 
@@ -1150,6 +1152,8 @@ const Flips = CardFlips || {};
         const res: any[] = [];
         forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
+            if (isFrozenCell(cardState, r, c)) return;
+            if (isAbsoluteProtectedCell(cardState, r, c)) return;
             if (isMeteorHoleCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
         });

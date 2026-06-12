@@ -73,6 +73,65 @@ describe('CELL_TELEPORT_WILL（マステレポート）', () => {
     expect(noTargets).toEqual([]);
   });
 
+  test('凍結された石はマステレポート対象にならない', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[1][1] = Core.BLACK;
+    gameState.board[2][2] = Core.WHITE;
+    cardState.markers.push({
+      id: 'freeze_1',
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      owner: 'black',
+      data: { type: 'FREEZE', remainingOwnerTurns: 3 }
+    });
+
+    const targets = CardLogic.getCellTeleportTargets(cardState, gameState);
+
+    expect(targets).toEqual([{ row: 2, col: 2 }]);
+  });
+
+  test('凍結された石をマステレポートで移動・穴化しない', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[4][4] = Core.BLACK;
+    cardState.markers.push({
+      id: 'freeze_1',
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'FREEZE', remainingOwnerTurns: 3 }
+    });
+    cardState.stoneIdMap[4][4] = 'frozen-stone';
+    cardState.pendingEffectByPlayer.black = {
+      type: 'CELL_TELEPORT_WILL',
+      stage: 'selectTarget',
+      cardId: 'cell_teleport_01'
+    };
+
+    const res = CardLogic.applyCellTeleportWill(cardState, gameState, 'black', 4, 4, createPrng(0));
+
+    expect(res).toMatchObject({ applied: false, reason: 'invalid_target' });
+    expect(gameState.board[4][4]).toBe(Core.BLACK);
+    expect(CardLogic.isBlockedCell(cardState, 4, 4, gameState)).toBe(true);
+    expect(cardState.markers.some((marker) => marker && marker.row === 4 && marker.col === 4 && marker.data && marker.data.type === 'METEOR_HOLE')).toBe(false);
+    expect(cardState.stoneIdMap[4][4]).toBe('frozen-stone');
+    const ownedExpansion = (gameState.boardExpansion && Array.isArray(gameState.boardExpansion.cells))
+      ? gameState.boardExpansion.cells.find((cell) => cell && cell.owner !== Core.EMPTY)
+      : null;
+    expect(ownedExpansion).toBeFalsy();
+    expect(cardState.pendingEffectByPlayer.black).toMatchObject({
+      type: 'CELL_TELEPORT_WILL',
+      stage: 'selectTarget'
+    });
+  });
+
   test('選んだ石を未生成の外側マスへ移動し、元マスを穴にする', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

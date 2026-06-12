@@ -1540,6 +1540,7 @@ const {
 
     function isPositionSwapProtectedCell(cardState: any, row: any, col: any) {
         return !!(
+            isFrozenCellForCard(cardState, row, col) ||
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
             findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED')
         );

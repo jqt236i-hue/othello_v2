@@ -232,6 +232,7 @@ function isPositionSwapProtectedCell(cardState: CardState, row: number, col: num
     if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isPositionSwapProtectedCell === 'function') {
         return SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col);
     }
+    if (isFrozenCell(cardState, row, col)) return true;
     if (isAbsoluteProtectedCell(cardState, row, col)) return true;
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
@@ -864,6 +865,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
+        if (isFrozenCell(cardState, r, c)) return;
         if (isAbsoluteProtectedCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
@@ -1183,6 +1185,7 @@ function getCellTeleportTargets(cardState: CardState, gameState: GameState): Tar
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
+        if (isFrozenCell(cardState, r, c)) return;
         if (isAbsoluteProtectedCell(cardState, r, c)) return;
         if (isMeteorHoleCell(cardState, r, c)) return;
         res.push({ row: r, col: c });

@@ -32,6 +32,27 @@ describe('TELEPORT_WILL（テレポート）', () => {
     expect(noTargets).toEqual([]);
   });
 
+  test('凍結された石はテレポート対象にならない', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[1][1] = Core.BLACK;
+    gameState.board[2][2] = Core.WHITE;
+    cardState.markers.push({
+      id: 'freeze_1',
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      owner: 'black',
+      data: { type: 'FREEZE', remainingOwnerTurns: 3 }
+    });
+
+    const targets = CardLogic.getTeleportTargets(cardState, gameState);
+
+    expect(targets).toEqual([{ row: 2, col: 2 }]);
+  });
+
   test('選んだ石をランダム空きマスへ移動し、マーカーも追従する（反転なし）', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

@@ -130,6 +130,7 @@ function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number)
 }
 
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    if (isFrozenCell(cardState, row, col)) return true;
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     const marker = markers.find((m: any) => (

@@ -213,6 +213,9 @@ function applyCellTeleportWill(cardState: CardState, gameState: GameState, playe
         }
         moved = !!(result && result.moved);
         markerHandled = !!(result && result.markerHandled === true);
+        if (!moved) {
+            return { applied: false, reason: 'move_failed' };
+        }
     }
 
     if (!moved) {

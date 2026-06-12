@@ -75,4 +75,36 @@ describe('CardTeleport module', () => {
     ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
+
+  test('applyCellTeleportWill does not fall back to manual movement when BoardOps rejects the move', () => {
+    const CardTeleportSource = require('../game/logic/cards/teleport.ts');
+    const cardState = {
+      pendingEffectByPlayer: { black: { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget', cardId: 'cell_tp_01' } },
+      markers: [{ id: 'freeze_1', kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'FREEZE', remainingOwnerTurns: 2 } }]
+    };
+    const setCellValueForCard = jest.fn(() => true);
+    const applyCellRemovalAt = jest.fn(() => ({ applied: true }));
+
+    const result = CardTeleportSource.applyCellTeleportWill(cardState, {}, 'black', 4, 4, { random: () => 0 }, {
+      getCellTeleportTargets: () => [{ row: 4, col: 4 }],
+      getCellTeleportDestinations: () => [{ row: -1, col: 0, active: false }],
+      getCellValueForCard: (_state, row, col) => (row === 4 && col === 4 ? 1 : (row === -1 && col === 0 ? 0 : null)),
+      ensureExpansionCellForCard: jest.fn(() => true),
+      moveAt: jest.fn(() => ({ moved: false, reason: 'frozen_source' })),
+      setCellValueForCard,
+      getStoneIdAtForCard: jest.fn(() => 's1'),
+      clearStoneIdAtForCard: jest.fn(),
+      setStoneIdAtForCard: jest.fn(),
+      applyCellRemovalAt,
+      getMarkers: (state) => state.markers
+    });
+
+    expect(result).toEqual({ applied: false, reason: 'move_failed' });
+    expect(setCellValueForCard).not.toHaveBeenCalled();
+    expect(applyCellRemovalAt).not.toHaveBeenCalled();
+    expect(cardState.pendingEffectByPlayer.black).toMatchObject({
+      type: 'CELL_TELEPORT_WILL',
+      stage: 'selectTarget'
+    });
+  });
 });
