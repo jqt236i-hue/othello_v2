@@ -171,6 +171,13 @@ describe('PendingCoordinator', () => {
       .toThrow('inconsistent_pending_selection_target_field');
   });
 
+  test('buildPendingSelectionTargetPayload rejects pending types without target action fields', () => {
+    expect(() => PendingCoordinator.buildPendingSelectionTargetPayload(['FREEZE_WILL', 'HEAVEN_BLESSING'], 2, 3))
+      .toThrow('missing_pending_selection_target_field');
+    expect(() => PendingCoordinator.buildPendingSelectionTargetPayload('UNKNOWN_PENDING_TYPE', 2, 3))
+      .toThrow('missing_pending_selection_target_field');
+  });
+
   test('normalizes seat aliases through OwnerHelpers when reading and writing pending state', () => {
     const cardState = {
       pendingEffectByPlayer: {

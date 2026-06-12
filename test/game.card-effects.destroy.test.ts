@@ -60,6 +60,18 @@ describe('destroy', () => {
         expect(global.emitLogAdded).toHaveBeenCalledWith('黒:4,5');
     });
 
+    test('ネット権威ログに任せる場合はローカル破壊成功ログを出さない', async () => {
+        mockExecutePendingSelection.mockImplementation((options) => {
+            const result = { rawEvents: [{ type: 'destroy_selected', applied: true, destroyed: true }] };
+            options.afterStateChange({ result, suppressLocalEffectLog: true });
+            return Promise.resolve({ ok: true });
+        });
+
+        await executeDestroy(4, 5, 'black');
+
+        expect(global.emitLogAdded).not.toHaveBeenCalled();
+    });
+
     test('境界条件: selectable targetsにない場合は実行せず案内ログを出す', async () => {
         global.CardLogic = {
             getSelectableTargets: jest.fn(() => [{ row: 0, col: 0 }])

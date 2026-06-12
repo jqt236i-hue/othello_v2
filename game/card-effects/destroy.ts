@@ -163,6 +163,7 @@ async function executeDestroy(row: number, col: number, playerKey: string): Prom
         validateResult: ({ result }: any) => wasDestroySelectionApplied(result),
         buildPlaybackMeta: () => ({ row, col, cause: 'DESTROY' }),
         afterStateChange: (context: any) => {
+            if (context && context.suppressLocalEffectLog === true) return;
             emitDestroyAppliedLog(context, playerKey, row, col);
         }
     });

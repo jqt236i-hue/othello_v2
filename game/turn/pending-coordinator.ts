@@ -139,11 +139,20 @@ const pendingCoordinatorModule = (function (root: any) {
 
     function buildPendingSelectionTargetPayload(pendingTypes: any, row: any, col: any): any {
         var list = Array.isArray(pendingTypes) ? pendingTypes.slice() : [pendingTypes];
-        var fields = list
-            .map(function (pendingType: any) { return resolvePendingSelectionActionField(pendingType); })
-            .filter(function (field: any) { return typeof field === 'string' && !!field; });
+        var missingTypes: any[] = [];
+        var fields = list.map(function (pendingType: any) {
+            var field = resolvePendingSelectionActionField(pendingType);
+            if (typeof field !== 'string' || !field) {
+                missingTypes.push(normalizePendingType(pendingType));
+                return null;
+            }
+            return field;
+        });
+        if (missingTypes.length > 0) {
+            throw new Error('missing_pending_selection_target_field');
+        }
         var uniqueFields = Array.from(new Set(fields));
-        if (uniqueFields.length === 0) return null;
+        if (uniqueFields.length === 0) throw new Error('missing_pending_selection_target_field');
         if (uniqueFields.length > 1) {
             throw new Error('inconsistent_pending_selection_target_field');
         }

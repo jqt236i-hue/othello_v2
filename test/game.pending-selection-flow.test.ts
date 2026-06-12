@@ -1676,6 +1676,7 @@ describe('pending selection flow contracts', () => {
     };
     global.isProcessing = false;
     global.isCardAnimating = false;
+    const afterStateChange = jest.fn();
 
     const pendingPromise = flow.executePendingSelection({
       row: 3,
@@ -1684,7 +1685,8 @@ describe('pending selection flow contracts', () => {
       pendingType: 'GUARD_WILL',
       actionPayload: {
         guardTarget: { row: 3, col: 3 }
-      }
+      },
+      afterStateChange
     });
 
     await Promise.resolve();
@@ -1720,7 +1722,6 @@ describe('pending selection flow contracts', () => {
         turnIndex: 5
       })
     }));
-
     resolvePublish({ ok: true });
     const result = await pendingPromise;
     expect(result).toEqual(expect.objectContaining({
@@ -1728,6 +1729,9 @@ describe('pending selection flow contracts', () => {
       pendingType: 'GUARD_WILL',
       publishedByNetwork: true,
       playbackEvents: []
+    }));
+    expect(afterStateChange).toHaveBeenCalledWith(expect.objectContaining({
+      suppressLocalEffectLog: true
     }));
     const previewAction = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(previewAction.__suppressUiLogs).toBe(true);

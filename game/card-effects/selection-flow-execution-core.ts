@@ -408,7 +408,8 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 appliedSelection,
                 cardState: appliedState.cardState,
                 gameState: appliedState.gameState,
-                playbackEvents: []
+                playbackEvents: [],
+                suppressLocalEffectLog: true
             });
 
             if (opts.emitStateChanges !== false) {
