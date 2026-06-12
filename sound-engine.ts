@@ -60,7 +60,13 @@ const SoundEngine = {
     ctx: null as AudioContext | null,
     isMuted: false,
     masterVolume: MASTER_VOLUME_DEFAULT,
-    volume: 0.56,
+    effectBaseVolume: 0.56,
+    get volume() {
+        return this.effectBaseVolume;
+    },
+    set volume(val: number | string) {
+        this.effectBaseVolume = parseFloat(String(val));
+    },
     bgm: null as any,
     bgmVolume: 0.665,
     bgmOutputVolumeScale: 0.364,
@@ -1155,7 +1161,7 @@ const SoundEngine = {
     resolveEffectVolume(effectKey: string, options: any = {}) {
         const volumeScale = this.resolveEffectVolumeScale(effectKey, options);
         const masterVolume = this._clampMasterVolume(this._toNonNegativeNumber(this.masterVolume, MASTER_VOLUME_DEFAULT));
-        return this._clamp01(this.volume * volumeScale * masterVolume);
+        return this._clamp01(this.effectBaseVolume * volumeScale * masterVolume);
     },
 
     _muteBgmForSpecialCardUse() {
@@ -1413,7 +1419,7 @@ const SoundEngine = {
     },
 
     setVolume(val: number | string) {
-        this.volume = parseFloat(String(val));
+        this.effectBaseVolume = parseFloat(String(val));
     },
 
     setMasterVolume(val: number | string) {

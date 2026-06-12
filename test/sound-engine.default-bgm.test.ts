@@ -127,10 +127,21 @@ const DEFAULT_MASTER_VOLUME = 1;
 const DEFAULT_BGM_OUTPUT_VOLUME = 0.665 * 0.364 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
-  test('startup default sound effect master volume is 0.56', () => {
+  test('startup default sound effect base volume is 0.56 with legacy alias', () => {
     const soundEngine = loadSoundEngine();
 
+    expect(soundEngine.effectBaseVolume).toBe(0.56);
     expect(soundEngine.volume).toBe(0.56);
+  });
+
+  test('setVolume updates the effect base volume and legacy alias together', () => {
+    const soundEngine = loadSoundEngine();
+
+    soundEngine.setVolume('0.7');
+
+    expect(soundEngine.effectBaseVolume).toBe(0.7);
+    expect(soundEngine.volume).toBe(0.7);
+    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.525 * DEFAULT_MASTER_VOLUME, 6);
   });
 
   test('startup default quick master volume is neutral at 1.0', () => {
