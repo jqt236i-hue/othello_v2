@@ -2373,18 +2373,28 @@ describe('pending selection flow contracts', () => {
     expect(scenario.bridge.emitStateChanges).toHaveBeenCalledTimes(1);
   });
 
-  test('board shrink final selection releases settlement lock before waiting for playback idle', async () => {
+  test.each([
+    ['BOARD_SHRINK_GOD', {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01',
+      firstTarget: { row: 0, col: 0 }
+    }, { row: 0, col: 1 }],
+    ['BOARD_SHRINK_WILL', {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+      selectedCount: 2,
+      maxSelections: 3
+    }, { row: 0, col: 2 }]
+  ])('%s final selection releases settlement lock before waiting for playback idle', async (pendingType, pending, target) => {
     const playbackStateManager = attachPlaybackStateManager();
     global.MATCH_MODE = 'local';
     global.cardState = {
       turnIndex: 5,
       pendingEffectByPlayer: {
-        black: {
-          type: 'BOARD_SHRINK_GOD',
-          stage: 'selectTarget',
-          cardId: 'board_shrink_god_01',
-          firstTarget: { row: 0, col: 0 }
-        },
+        black: pending,
         white: null
       }
     };
@@ -2421,13 +2431,13 @@ describe('pending selection flow contracts', () => {
     ));
 
     const result = await Promise.race([
-      BoardShrinkEffects.handleBoardShrinkSelection(0, 1, 'black'),
+      BoardShrinkEffects.handleBoardShrinkSelection(target.row, target.col, 'black'),
       new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: 'timeout' }), 50))
     ]);
 
     expect(result).toEqual(expect.objectContaining({
       ok: true,
-      pendingType: 'BOARD_SHRINK_GOD'
+      pendingType
     }));
     expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(playbackStateManager.hasSelectionSettlementLock()).toBe(false);

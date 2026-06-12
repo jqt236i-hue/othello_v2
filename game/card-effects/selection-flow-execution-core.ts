@@ -178,6 +178,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
     let shouldClearPendingEffectOnExit = false;
     let pendingFailureReason = null;
     let shouldRequestPostNetworkPublishRender = false;
+    let shouldReleaseSelectionLockBeforeFinalize = false;
 
     function markPendingActionFailure(reason: any) {
         if (!pendingAction || typeof pendingAction !== 'object') return;
@@ -220,6 +221,11 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             actionType
         });
         const contract = deps.resolvePendingSelectionContract(resolvedPendingType);
+        shouldReleaseSelectionLockBeforeFinalize = !!(
+            contract
+            && contract.turnOutcome !== 'end_turn'
+            && contract.waitForPlaybackIdle === true
+        );
 
         if (deps.shouldUseNetworkPublishOnlyPendingSelection(resolvedPendingType)) {
             const publishResult = await Promise.resolve(deps.publishPendingSelectionSnapshot({
@@ -324,7 +330,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
 
             executionResult = preview.result;
             appliedSelection = preview.appliedSelection;
-            const appliedState = deps.applySelectionStateResult(executionResult, stateRefs);
+            const appliedState = deps.applySelectionStateResult(executionResult, stateRefs) || stateRefs;
             playbackEvents = Array.isArray(executionResult.playbackEvents)
                 ? executionResult.playbackEvents
                 : [];
@@ -395,7 +401,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             const rollbackGameState = deps.cloneData(stateRefs.gameState);
             executionResult = preview.result;
             appliedSelection = preview.appliedSelection;
-            const appliedState = deps.applySelectionStateResult(executionResult, stateRefs);
+            const appliedState = deps.applySelectionStateResult(executionResult, stateRefs) || stateRefs;
             const liveContext = Object.assign({}, baseContext, {
                 action: pendingAction,
                 result: executionResult,
@@ -496,7 +502,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             };
         }
 
-        const appliedState = deps.applySelectionStateResult(executionResult, stateRefs);
+        const appliedState = deps.applySelectionStateResult(executionResult, stateRefs) || stateRefs;
         playbackEvents = Array.isArray(executionResult.playbackEvents)
             ? executionResult.playbackEvents
             : [];
@@ -540,7 +546,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
         };
     } finally {
         if (shouldFinalize) {
-            releaseSelectionSettlementLock();
+            if (shouldReleaseSelectionLockBeforeFinalize) {
+                releaseSelectionSettlementLock();
+            }
             try {
                 const finalizeOptions = Object.assign({
                     playerKey,

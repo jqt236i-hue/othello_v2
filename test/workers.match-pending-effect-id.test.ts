@@ -420,7 +420,7 @@ function runBoardPendingResolutionScenario(config) {
     "    pendingEffectId: 'pending_board_1'",
     "  }, config.pendingExtra || {});",
     "  const actionTarget = { row: config.target.row, col: config.target.col };",
-    "  const pendingSelectionState = Object.assign({}, pending);",
+    "  const pendingSelectionState = Object.assign({}, pending, config.publishPendingSelectionExtra || {});",
     "  const params = { player: 'black', pendingSelectionState };",
     "  params[config.actionKey] = actionTarget;",
     "  const action = Object.assign({",
@@ -1087,6 +1087,52 @@ describe('worker pendingEffectId contract', () => {
         type: 'status_applied',
         rawType: 'STATUS_APPLIED',
         meta: expect.objectContaining({ special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      })
+    ]));
+  });
+
+  test('board shrink final target selection restores prior targets carried by pendingSelectionState', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_shrink_01',
+      pendingType: 'BOARD_SHRINK_WILL',
+      actionKey: 'shrinkTarget',
+      target: { row: 7, col: 7 },
+      pendingExtra: {
+        selectedCount: 0,
+        maxSelections: 3,
+        selectedTargets: []
+      },
+      publishPendingSelectionExtra: {
+        selectedCount: 2,
+        maxSelections: 3,
+        selectedTargets: [{ row: 7, col: 5 }, { row: 7, col: 6 }]
+      }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 7,
+        col: 5,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      }),
+      expect.objectContaining({
+        row: 7,
+        col: 6,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      }),
+      expect.objectContaining({
+        row: 7,
+        col: 7,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
       })
     ]));
   });
