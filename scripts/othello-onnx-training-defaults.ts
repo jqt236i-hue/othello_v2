@@ -13,7 +13,7 @@ const DEFAULT_OTHELLO_ONNX_LOOP_ARGS = {
   hardcaseMaxRecords: 20000,
   epochs: 16,
   batchSize: 1024,
-  hiddenDim: 640,
+  hiddenDim: 896,
   depth: 6,
   dropout: 0.04,
   valueLossWeight: 0.8,

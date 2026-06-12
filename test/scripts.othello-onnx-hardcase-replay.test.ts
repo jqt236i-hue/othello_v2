@@ -66,7 +66,7 @@ describe('othello ONNX training loop profiles', () => {
     expect(args.blackSampleWeight).toBe(1);
     expect(args.openingPreferredPlayer).toBe('');
     expect(args.openingPreferredPlayerRate).toBe(0);
-    expect(args.hiddenDim).toBe(640);
+    expect(args.hiddenDim).toBe(896);
     expect(args.depth).toBe(6);
     expect(args.maxOnnxBytes).toBe(25 * 1024 * 1024);
     expect(args.gateMinBlackPointRate).toBeGreaterThan(0);
