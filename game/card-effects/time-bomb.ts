@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleTimeBombSelection(row: number, col: number, playerKey: stri
         col,
         playerKey,
         pendingType: 'TIME_BOMB',
-        actionPayload: { bombTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('TIME_BOMB', row, col),
         invalidMessage: '時限爆弾にする自分の石を選んでください',
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'time_bomb_selected'),
         buildPlaybackMeta: () => ({ cause: 'TIME_BOMB', target: { row, col } })

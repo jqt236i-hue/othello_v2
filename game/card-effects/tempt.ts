@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 const LOG_MESSAGES = _require('../log-messages');
 const GameControllerSlim = _require('../game-controller-slim');
@@ -40,7 +41,7 @@ async function handleTemptSelection(row: number, col: number, playerKey: string)
         col,
         playerKey,
         pendingType: 'TEMPT_WILL',
-        actionPayload: { temptTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('TEMPT_WILL', row, col),
         invalidMessage: () => LOG_MESSAGES.temptSelectPrompt(),
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'tempt_selected'),
         buildPlaybackMeta: () => ({ cause: 'TEMPT_WILL', target: { row, col } }),

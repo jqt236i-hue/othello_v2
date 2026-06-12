@@ -148,4 +148,26 @@ describe('pending selection card contracts', () => {
       }
     }
   });
+
+  test('network target-selection handlers derive target payload fields from the registry bridge', () => {
+    const cardEffectsDir = path.join(repoRoot, 'game/card-effects');
+    const handlerFiles = fs.readdirSync(cardEffectsDir)
+      .filter((name) => name.endsWith('.ts') && !name.startsWith('selection-flow'))
+      .map((name) => `game/card-effects/${name}`);
+    const registryTargetFields = Array.from(new Set(
+      Object.values(PendingSelectionRegistry.PENDING_SELECTION_REGISTRY as any)
+        .map((entry: any) => entry && entry.action && entry.action.field)
+        .filter(Boolean)
+    ));
+
+    for (const relativePath of handlerFiles) {
+      const source = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+      for (const field of registryTargetFields) {
+        expect(source).not.toContain(`actionPayload: { ${field}:`);
+      }
+      if (source.includes('actionPayload:')) {
+        expect(source).toContain('buildPendingSelectionTargetPayload');
+      }
+    }
+  });
 });

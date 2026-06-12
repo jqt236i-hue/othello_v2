@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。';
-const EXPECTED_DETAIL_TEXT = '移動先は周囲8マスの空きから敵石に近づく候補を優先して1マス選ぶ（同優先度はランダム）。\n空きが無い場合はその場で同色の通常石に戻る。\n吸い込み後も反転は発生しない。\n吸い込み成功ごとに持続ターン+1（基本5ターン、所有者ターン開始時のみ減算）。\n守る意志の完全保護中の石は吸い込めない。';
+const EXPECTED_DETAIL_TEXT = '移動先は周囲8マスの空きから敵石に近づく候補を優先して1マス選ぶ（同優先度はランダム）。\n空きが無い場合はその場で同色の通常石に戻る。\n吸い込み後も反転は発生しない。\n吸い込み成功ごとに持続ターン+1（所有者ターン開始時のみ減算）。\n守る意志の完全保護中の石は吸い込めない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

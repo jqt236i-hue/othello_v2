@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '避ける意志',
   type: 'AFTERIMAGE_WILL',
   cost: 8,
-  desc_ja: '次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。',
+  desc_ja: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石本体。',
   display_type_ja: '守護'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '避ける意志',
-  desc: '次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。'
+  desc: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石本体。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。';
-const EXPECTED_DETAIL_TEXT = '次に置く石を残像石化する。\n残像石は反転回避3回と破壊回避3回を持つ特殊石。\n回避に成功した時だけ対応する回数を1消費する。\n片方だけ0になっても、もう片方が残る間は残像石のまま継続する。\n反転回避で移動先が無い場合は回避不成立となり通常どおり反転される。\n破壊回避で空きマスが無い場合はそのまま破壊される。\n両方0になると特殊石状態を解除して通常石へ戻る。';
+const EXPECTED_QUICK_TEXT = '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石本体。';
+const EXPECTED_DETAIL_TEXT = '次に置く石を残像石化する。\n残像石は反転回避3回と破壊回避3回を持つ特殊石本体。\n意志の喪失で通常石に戻る。\n回避に成功した時だけ対応する回数を1消費する。\n片方だけ0になっても、もう片方が残る間は残像石のまま継続する。\n反転回避で移動先が無い場合は回避不成立となり通常どおり反転される。\n破壊回避で空きマスが無い場合はそのまま破壊される。\n両方0になると通常石へ戻る。';
 
 function getCardById(catalog: any, cardId: string) {
   return ((catalog && catalog.cards) || []).find((card: any) => card && card.id === cardId) || null;

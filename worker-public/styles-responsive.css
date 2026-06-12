@@ -156,7 +156,7 @@
 html.layout-profile-phone-portrait {
     --layout-phone-portrait-main-column-width: min(calc(430px * var(--layout-stage-scale)), 96vw);
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
-    --layout-phone-portrait-player-bottom-offset: calc(10px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-bottom-offset: calc(18px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-bottom-offset: calc(44px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-width: min(92vw, calc(520px * var(--layout-stage-scale)));

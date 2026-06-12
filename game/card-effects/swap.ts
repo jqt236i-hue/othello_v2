@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 const LOG_MESSAGES = _require('../log-messages');
 const GameControllerSlim = _require('../game-controller-slim');
@@ -55,7 +56,7 @@ async function handleSwapSelection(row: number, col: number, playerKey: string) 
         col,
         playerKey,
         pendingType: 'SWAP_WITH_ENEMY',
-        actionPayload: { swapTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('SWAP_WITH_ENEMY', row, col),
         invalidMessage: getSwapSelectionPrompt,
         validateResult: ({ result }: any) => !!getSwapSelectedEvent(result),
         buildPlaybackMeta: () => ({ cause: 'SWAP_WITH_ENEMY', target: { row, col } }),

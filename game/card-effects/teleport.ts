@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function getTeleportSelectionPrompt(pendingType: string): string {
     return pendingType === 'CELL_TELEPORT_WILL'
@@ -30,7 +31,7 @@ async function handleTeleportSelection(row: number, col: number, playerKey: stri
         col,
         playerKey,
         pendingTypes: ['TELEPORT_WILL', 'CELL_TELEPORT_WILL'],
-        actionPayload: { teleportTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['TELEPORT_WILL', 'CELL_TELEPORT_WILL'], row, col),
         invalidMessage: ({ pendingType }: any) => getTeleportSelectionPrompt(pendingType),
         validateResult: ({ result }: any) => {
             const selected = getTeleportSelectedEvent(result);

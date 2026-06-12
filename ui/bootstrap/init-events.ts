@@ -217,7 +217,12 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (typeof setupHandSkinControls === 'function') {
     setupHandSkinControls({ button: refs.handSkinBtn, panel: refs.handSkinPanel, closeBtn: refs.handSkinCloseBtn, optionsEl: refs.handSkinOptions, handImage: refs.handImage, root });
   }
-  setupSidePanelAnchor({ sidePanel: refs.sidePanel, sidePanelToggleBtn: refs.sidePanelToggleBtn, root });
+  setupSidePanelAnchor({
+    sidePanel: refs.sidePanel,
+    sidePanelToggleBtn: refs.sidePanelToggleBtn,
+    initialCollapsed: debugAllowed !== true,
+    root
+  });
 
   if (refs.destroyBtn && typeof destroySelectedHandCard === 'function') {
     refs.destroyBtn.addEventListener('click', () => destroySelectedHandCard());

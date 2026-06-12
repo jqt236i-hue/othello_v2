@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleFreezeSelection(row: number, col: number, playerKey: string
         col,
         playerKey,
         pendingType: 'FREEZE_WILL',
-        actionPayload: { freezeTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('FREEZE_WILL', row, col),
         invalidMessage: '凍結するマスを選んでください',
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'freeze_selected'),
         buildPlaybackMeta: () => ({ cause: 'FREEZE_WILL', target: { row, col } })

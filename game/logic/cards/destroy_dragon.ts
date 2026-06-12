@@ -101,6 +101,10 @@ interface DestroyDragonRandomSourceModule {
   resolveRandomIndex?: (length: number, randomLike: DestroyDragonRandomLike | null | undefined, fallback: unknown, label: string) => number;
 }
 
+interface DestroyDragonCardMarkersModule {
+  isManifestStoneAt?: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
+}
+
 type DestroyDragonRandomLike = (() => number) | { random: () => number };
 type DestroyDragonDestroyAt = (cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, row: number, col: number) => boolean;
 
@@ -161,6 +165,7 @@ const SharedConstants = safeRequire<DestroyDragonSharedConstants>('../../../shar
 const BoardOpsModule = safeRequire<DestroyDragonBoardOpsModule>('../board_ops') || root?.BoardOps || null;
 const RandomSourceModule = safeRequire<DestroyDragonRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
 const ExpansionFallbackModule = safeRequire<any>('../cards-internal/expansion-fallback') || (root as any)?.CardExpansionFallback || null;
+const CardMarkersModule = safeRequire<DestroyDragonCardMarkersModule>('./markers') || null;
 
 const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
 
@@ -171,6 +176,7 @@ if (RAW_BLACK === undefined || RAW_WHITE === undefined || RAW_EMPTY === undefine
 const BLACK: DestroyDragonOwnerValue = RAW_BLACK;
 const WHITE: DestroyDragonOwnerValue = RAW_WHITE;
 const EMPTY: DestroyDragonOwnerValue = RAW_EMPTY;
+const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (!ExpansionFallbackModule) {
   throw new Error('CardExpansionFallback missing required helpers');
@@ -234,14 +240,27 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function collectAdjacentEnemyTargets(gameState: DestroyDragonGameState, sourceRow: number, sourceCol: number, enemyValue: DestroyDragonOwnerValue): DestroyDragonEffectPosition[] {
+function isManifestTarget(cardState: DestroyDragonCardState, row: number, col: number): boolean {
+  if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
+    return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
+  }
+  return (cardState.markers || []).some((marker) => (
+    marker &&
+    marker.row === row &&
+    marker.col === col &&
+    (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+    MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+  ));
+}
+
+function collectAdjacentEnemyTargets(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, sourceRow: number, sourceCol: number, enemyValue: DestroyDragonOwnerValue): DestroyDragonEffectPosition[] {
   const targets: DestroyDragonEffectPosition[] = [];
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
       if (dr === 0 && dc === 0) continue;
       const row = sourceRow + dr;
       const col = sourceCol + dc;
-      if (getCellValue(gameState, row, col) === enemyValue) targets.push({ row, col });
+      if (getCellValue(gameState, row, col) === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
     }
   }
   return targets;
@@ -320,7 +339,7 @@ function processAnchor(cardState: DestroyDragonCardState, gameState: DestroyDrag
   }
 
   const resolveAnchor = (): DestroyDragonProcessResult => {
-  const targets = collectAdjacentEnemyTargets(gameState, row, col, enemyValue);
+  const targets = collectAdjacentEnemyTargets(cardState, gameState, row, col, enemyValue);
   if (targets.length > 0) {
     const target = targets[resolveRandomIndex(targets.length, randomFn)];
     let destroyedRes = false;

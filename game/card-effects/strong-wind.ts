@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 
 function getPlayerLabel(playerKey: string): string {
@@ -31,7 +32,7 @@ async function handleMovementSelection(row: number, col: number, playerKey: stri
         col,
         playerKey,
         pendingType: opts.pendingType,
-        actionPayload: { [opts.actionField]: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(opts.pendingType, row, col),
         invalidMessage: opts.invalidMessage,
         validateResult: ({ result }: any) => {
             const selected = result && Array.isArray(result.rawEvents)
@@ -49,7 +50,6 @@ async function handleMovementSelection(row: number, col: number, playerKey: stri
 async function handleStrongWindSelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'STRONG_WIND_WILL',
-        actionField: 'strongWindTarget',
         rawEventType: 'strong_wind_selected',
         invalidMessage: '移動可能な石を選んでください',
         activationName: '強風の意志',
@@ -60,7 +60,6 @@ async function handleStrongWindSelection(row: number, col: number, playerKey: st
 async function handleSuperBuoyancySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'SUPER_BUOYANCY_WILL',
-        actionField: 'superBuoyancyTarget',
         rawEventType: 'super_buoyancy_selected',
         invalidMessage: '上へ移動させる石を選んでください',
         activationName: '超浮力',
@@ -71,7 +70,6 @@ async function handleSuperBuoyancySelection(row: number, col: number, playerKey:
 async function handleBuoyancySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'BUOYANCY_WILL',
-        actionField: 'buoyancyTarget',
         rawEventType: 'buoyancy_selected',
         invalidMessage: '上へ移動させる石を選んでください',
         activationName: '浮力',
@@ -82,7 +80,6 @@ async function handleBuoyancySelection(row: number, col: number, playerKey: stri
 async function handleSuperGravitySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'SUPER_GRAVITY_WILL',
-        actionField: 'superGravityTarget',
         rawEventType: 'super_gravity_selected',
         invalidMessage: '下へ移動させる石を選んでください',
         activationName: '超重力',
@@ -93,7 +90,6 @@ async function handleSuperGravitySelection(row: number, col: number, playerKey: 
 async function handleGravitySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'GRAVITY_WILL',
-        actionField: 'gravityTarget',
         rawEventType: 'gravity_selected',
         invalidMessage: '下へ移動させる石を選んでください',
         activationName: '重力',
@@ -117,7 +113,7 @@ async function handleSuperAttractionSelection(row: number, col: number, playerKe
         col,
         playerKey,
         pendingType: 'SUPER_ATTRACTION_WILL',
-        actionPayload: { superAttractionTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('SUPER_ATTRACTION_WILL', row, col),
         invalidMessage: '引き寄せる石または引き寄せ先のマスを選んでください',
         validateResult: ({ result }: any) => !!getSuperAttractionSelectedEvent(result),
         buildPlaybackMeta: () => ({ cause: 'SUPER_ATTRACTION_WILL', target: { row, col } }),

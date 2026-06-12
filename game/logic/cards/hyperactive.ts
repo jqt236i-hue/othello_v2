@@ -70,6 +70,7 @@ let StoneStatusSnapshot: any = null;
 let EvasionStatusModule: any = null;
 let HyperactiveCoreUtils: any = null;
 let HyperactiveBoardShape: any = null;
+let CardMarkersModule: any = null;
 let BLACK: any;
 let WHITE: any;
 let EMPTY: any;
@@ -82,6 +83,7 @@ function refreshHyperactiveRuntimeModules(): void {
     EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
     HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
     HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
+    CardMarkersModule = resolveHyperactiveModuleOrGlobal('./markers', 'CardMarkers');
     const constants = SharedConstants || {};
     BLACK = constants.BLACK;
     WHITE = constants.WHITE;
@@ -91,6 +93,7 @@ function refreshHyperactiveRuntimeModules(): void {
 refreshHyperactiveRuntimeModules();
 
 const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'LIVING_WILL']);
+const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 function logHyperactiveDebug(...args: any[]): void {
     try {
@@ -239,6 +242,7 @@ interface HyperactiveDeps {
     destroyAt?: (cardState: CardState, gameState: GameState, row: number, col: number, ...args: any[]) => boolean;
     isFrozenCell?: (cardState: CardState, row: number, col: number) => boolean;
     isAbsoluteProtectedCell?: (cardState: CardState, row: number, col: number) => boolean;
+    isManifestStoneAt?: (cardState: CardState, row: number, col: number) => boolean;
     clearHyperactiveAtPositions?: (cardState: CardState, positions: Position[]) => void;
     clearBombAt?: (cardState: CardState, row: number, col: number) => void;
     getFlipsWithContext?: (gameState: GameState, row: number, col: number, ownerVal: number, ctx: any) => any[];
@@ -677,6 +681,23 @@ function canExtremeHyperactiveSwapCell(cardState: CardState, row: number, col: n
         return false;
     }
     return true;
+}
+
+function isManifestTarget(cardState: CardState, row: number, col: number, deps: HyperactiveDeps = {}): boolean {
+    if (deps && typeof deps.isManifestStoneAt === 'function') {
+        return !!deps.isManifestStoneAt(cardState, row, col);
+    }
+    if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
+        return !!CardMarkersModule.isManifestStoneAt(cardState, row, col);
+    }
+    const markers = (cardState && Array.isArray((cardState as any).markers)) ? (cardState as any).markers : [];
+    return markers.some((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+        MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+    ));
 }
 
 function applyExtremeHyperactiveRepel(cardState: CardState, gameState: GameState, entry: MarkerEntry, deps: HyperactiveDeps = {}): MoveResult[] {
@@ -1743,7 +1764,7 @@ function processUltimateHyperactiveMoveAtAnchor(
     return { moved, destroyed, flipped, ownerKey };
 }
 
-function collectRobotVacuumTargets(gameState: GameState, ownerVal: number, originRow: number, originCol: number): Position[] {
+function collectRobotVacuumTargets(cardState: CardState, gameState: GameState, ownerVal: number, originRow: number, originCol: number, deps: HyperactiveDeps = {}): Position[] {
     const enemyVal = ownerVal === (BLACK || 1) ? (WHITE || -1) : (BLACK || 1);
     const targets: Position[] = [];
     for (let dr = -1; dr <= 1; dr++) {
@@ -1753,6 +1774,7 @@ function collectRobotVacuumTargets(gameState: GameState, ownerVal: number, origi
             const col = originCol + dc;
             if (!hasBoardShapeCell(gameState, row, col)) continue;
             if (getBoardCell(gameState, row, col) !== enemyVal) continue;
+            if (isManifestTarget(cardState, row, col, deps)) continue;
             targets.push({ row, col });
         }
     }
@@ -1945,7 +1967,7 @@ function processGluttonousMoveAtAnchor(
         return { moved, destroyed, flipped, ownerKey, ate };
     }
 
-    const adjacentEnemies = collectRobotVacuumTargets(gameState, ownerVal, entry.row, entry.col).slice();
+    const adjacentEnemies = collectRobotVacuumTargets(cardState, gameState, ownerVal, entry.row, entry.col, deps).slice();
     while (adjacentEnemies.length > 0) {
         const pickIndex = Math.floor(p.random() * adjacentEnemies.length);
         const index = Number.isInteger(pickIndex) && pickIndex >= 0 && pickIndex < adjacentEnemies.length ? pickIndex : 0;
@@ -2192,7 +2214,7 @@ function processRobotVacuumMoveAtAnchor(
     const anchorStillOwned = markerStillExists && getBoardCell(gameState, entry.row, entry.col) === ownerVal;
 
     if (anchorStillOwned) {
-        const targets = collectRobotVacuumTargets(gameState, ownerVal, entry.row, entry.col).slice();
+        const targets = collectRobotVacuumTargets(cardState, gameState, ownerVal, entry.row, entry.col, deps).slice();
         while (targets.length > 0) {
             const pickIndex = Math.floor(randomSource.random() * targets.length);
             const index = Number.isInteger(pickIndex) && pickIndex >= 0 && pickIndex < targets.length ? pickIndex : 0;

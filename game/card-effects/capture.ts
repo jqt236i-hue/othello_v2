@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 const LOG_MESSAGES = _require('../log-messages');
 const GameControllerSlim = _require('../game-controller-slim');
@@ -40,7 +41,7 @@ async function handleCaptureSelection(row: number, col: number, playerKey: strin
         col,
         playerKey,
         pendingType: 'CAPTURE_WILL',
-        actionPayload: { captureTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('CAPTURE_WILL', row, col),
         invalidMessage: () => LOG_MESSAGES.captureSelectPrompt(),
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'capture_selected'),
         buildPlaybackMeta: () => ({ cause: 'CAPTURE_WILL', target: { row, col } }),

@@ -101,6 +101,10 @@ interface LightningRandomSourceModule {
   resolveRandomIndex?: (length: number, randomLike: LightningRandomLike | null | undefined, fallback: unknown, label: string) => number;
 }
 
+interface LightningCardMarkersModule {
+  isManifestStoneAt?: (cardState: LightningCardState, row: number, col: number) => boolean;
+}
+
 type LightningRandomLike = (() => number) | { random: () => number };
 type LightningDestroyAt = (cardState: LightningCardState, gameState: LightningGameState, row: number, col: number) => boolean;
 
@@ -161,6 +165,7 @@ const SharedConstants = safeRequire<LightningSharedConstants>('../../../shared-c
 const BoardOpsModule = safeRequire<LightningBoardOpsModule>('../board_ops') || root?.BoardOps || null;
 const RandomSourceModule = safeRequire<LightningRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
 const ExpansionFallbackModule = safeRequire<any>('../cards-internal/expansion-fallback') || (root as any)?.CardExpansionFallback || null;
+const CardMarkersModule = safeRequire<LightningCardMarkersModule>('./markers') || null;
 
 const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
 
@@ -171,6 +176,7 @@ if (RAW_BLACK === undefined || RAW_WHITE === undefined || RAW_EMPTY === undefine
 const BLACK: LightningOwnerValue = RAW_BLACK;
 const WHITE: LightningOwnerValue = RAW_WHITE;
 const EMPTY: LightningOwnerValue = RAW_EMPTY;
+const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (!ExpansionFallbackModule) {
   throw new Error('CardExpansionFallback missing required helpers');
@@ -234,16 +240,29 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function collectEnemyTargets(gameState: LightningGameState, enemyValue: LightningOwnerValue): LightningEffectPosition[] {
+function isManifestTarget(cardState: LightningCardState, row: number, col: number): boolean {
+  if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
+    return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
+  }
+  return (cardState.markers || []).some((marker) => (
+    marker &&
+    marker.row === row &&
+    marker.col === col &&
+    (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+    MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+  ));
+}
+
+function collectEnemyTargets(cardState: LightningCardState, gameState: LightningGameState, enemyValue: LightningOwnerValue): LightningEffectPosition[] {
   const targets: LightningEffectPosition[] = [];
   const dims = resolveBoardDims(gameState);
   for (let row = 0; row < dims.rows; row++) {
     for (let col = 0; col < dims.cols; col++) {
-      if (gameState.board && gameState.board[row][col] === enemyValue) targets.push({ row, col });
+      if (gameState.board && gameState.board[row][col] === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
     }
   }
   for (const cell of getExpansionCells(gameState)) {
-    if (cell && cell.owner === enemyValue) targets.push({ row: cell.row, col: cell.col });
+    if (cell && cell.owner === enemyValue && !isManifestTarget(cardState, cell.row, cell.col)) targets.push({ row: cell.row, col: cell.col });
   }
   return targets;
 }
@@ -321,7 +340,7 @@ function processAnchor(cardState: LightningCardState, gameState: LightningGameSt
   }
 
   const resolveAnchor = (): LightningProcessResult => {
-  const targets = collectEnemyTargets(gameState, enemyValue);
+  const targets = collectEnemyTargets(cardState, gameState, enemyValue);
   if (targets.length > 0) {
     const target = targets[resolveRandomIndex(targets.length, randomFn)];
     let destroyedRes = false;

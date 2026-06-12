@@ -148,6 +148,29 @@ describe('PendingCoordinator', () => {
     }));
   });
 
+  test('buildPendingSelectionTargetPayload derives target fields from the pending selection registry', () => {
+    const cases = [
+      ['DESTROY_ONE_STONE', 'destroyTarget'],
+      ['REVERSE_WILL', 'reverseWillTarget'],
+      [['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD'], 'extendTarget'],
+      ['CORROSION_WILL', 'corrosionTarget'],
+      ['SEED_WILL', 'seedTarget'],
+      ['FREEZE_WILL', 'freezeTarget'],
+      [['BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD'], 'shrinkTarget']
+    ];
+
+    for (const [pendingTypes, field] of cases) {
+      expect(PendingCoordinator.buildPendingSelectionTargetPayload(pendingTypes, 2, 3)).toEqual({
+        [field as string]: { row: 2, col: 3 }
+      });
+    }
+  });
+
+  test('buildPendingSelectionTargetPayload rejects mixed pending types with different target fields', () => {
+    expect(() => PendingCoordinator.buildPendingSelectionTargetPayload(['FREEZE_WILL', 'SEED_WILL'], 2, 3))
+      .toThrow('inconsistent_pending_selection_target_field');
+  });
+
   test('normalizes seat aliases through OwnerHelpers when reading and writing pending state', () => {
     const cardState = {
       pendingEffectByPlayer: {

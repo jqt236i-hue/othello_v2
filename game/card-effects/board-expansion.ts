@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function isBoardExpansionSelectionApplied(result: any) {
     const rawEvents = result && Array.isArray(result.rawEvents) ? result.rawEvents : [];
@@ -25,7 +26,7 @@ async function handleBoardExpansionSelection(row: number, col: number, playerKey
         col,
         playerKey,
         pendingTypes: ['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'],
-        actionPayload: { expansionTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'], row, col),
         invalidMessage: ({ pendingType }: { pendingType: any }) => pendingType === 'BOARD_EXPANSION_GOD'
             ? '角マスを選んで盤面を拡張してください'
             : '左右端マスを選んで盤面を拡張してください',

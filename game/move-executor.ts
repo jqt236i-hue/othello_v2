@@ -393,6 +393,17 @@ function assignMoveExecutorCardState(snapshot: any) {
     } catch (e) { /* ignore */ }
 }
 
+function assignMoveExecutorGameState(snapshot: any) {
+    if (!snapshot) return;
+    gameState = snapshot;
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.setGameState === 'function') {
+            __uiImpl_move_executor.setGameState(gameState);
+        }
+    } catch (e) { /* ignore */ }
+    writeMoveExecutorRuntimeValue('gameState', gameState);
+}
+
 async function executeMove(move: any) {
     try {
         const hadSelection = cardState.selectedCardId !== null;
@@ -481,7 +492,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
 
     // Update canonical states. Preserve existing object references where possible so
     // modules that keep a reference to the old cardState object see updates immediately.
-    gameState = res.nextGameState;
+    assignMoveExecutorGameState(res.nextGameState);
     const hasPlaybackEvents = Array.isArray(res.playbackEvents) && res.playbackEvents.length > 0;
     const hasHandRemovePlayback = Array.isArray(res.playbackEvents)
         ? res.playbackEvents.some((ev: any) => ev && ev.type === 'hand_remove')

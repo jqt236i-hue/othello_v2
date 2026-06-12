@@ -248,14 +248,15 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             const extraProfit = isCrystalStone
                 ? getNumberCellExtraProfit(maxLegalBoardBonus, cardCost)
                 : getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost);
-            if (extraProfit <= 0) {
+            const crystalHasRelevantNumberCell = isCrystalStone && maxLegalBoardBonus >= 2;
+            if (extraProfit <= 0 && !crystalHasRelevantNumberCell) {
                 return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'cpu_lv6_unprofitable_charge_roi');
             }
         }
         const highYieldChargeRecovery = (
             ((isGoldStone || isRainbowStone || isSilverStone) &&
                 getFlipMultiplierExtraProfit(maxLegalFlips, isRainbowStone ? 6 : (isGoldStone ? 4 : 3), cardCost) > 0) ||
-            (isCrystalStone && getNumberCellExtraProfit(maxLegalBoardBonus, cardCost) > 0) ||
+            (isCrystalStone && maxLegalBoardBonus >= 2) ||
             (isPlunderWill &&
                 maxLegalFlips >= 3 &&
                 maxLegalGain >= 3 &&

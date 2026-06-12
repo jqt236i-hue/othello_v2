@@ -212,6 +212,12 @@ describe('PlaybackEventHelpers', () => {
             selectedCell: { row: 2, col: 3 }
           })
         ]
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        phase: 1,
+        targets: [expect.objectContaining({ soundKey: 'theory_incarnation_spawn' })],
+        meta: expect.objectContaining({ sourceType: 'theory_incarnation_spawn' })
       })
     ]);
     expect(out.diagnostics.warnings).toEqual([]);

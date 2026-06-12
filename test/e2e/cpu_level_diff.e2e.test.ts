@@ -91,6 +91,7 @@ describe('CPU level difference E2E', () => {
     page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${serverPort}/`);
 
+    await page.click('#sidePanelToggleBtn');
     await page.waitForSelector('#smartBlack');
     await page.waitForSelector('#smartWhite');
     await page.waitForSelector('#autoToggleBtn');

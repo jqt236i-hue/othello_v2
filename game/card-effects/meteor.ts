@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleMeteorSelection(row: number, col: number, playerKey: string
         col,
         playerKey,
         pendingType: 'METEOR_WILL',
-        actionPayload: { meteorTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('METEOR_WILL', row, col),
         invalidMessage: '破壊するマスを選んでください',
         validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'meteor_selected'),
         buildPlaybackMeta: () => ({ cause: 'METEOR_WILL', target: { row, col } })

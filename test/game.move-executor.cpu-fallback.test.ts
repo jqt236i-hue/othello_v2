@@ -9,6 +9,11 @@ describe('move-executor CPU scheduling DI', () => {
         delete global.BoardOps;
         delete global.PresentationHelper;
         delete global.processCpuTurn;
+        delete global.isGameOver;
+        delete global.showResult;
+        delete global.waitForPlaybackIdle;
+        delete global.MATCH_MODE;
+        delete global.DEBUG_HUMAN_VS_HUMAN;
         global.WHITE = -1;
     });
     function installProcessingMirror(moveExecutor: any) {

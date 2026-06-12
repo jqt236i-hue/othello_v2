@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasSelectionApplied(result: any, rawEventType: string) {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleBlockadeSelection(row: number, col: number, playerKey: stri
         col,
         playerKey,
         pendingType: 'BLOCKADE_WILL',
-        actionPayload: { blockadeTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('BLOCKADE_WILL', row, col),
         invalidMessage: '封鎖する空きマスを選んでください',
         validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'blockade_selected'),
         buildPlaybackMeta: () => ({ cause: 'BLOCKADE_WILL', target: { row, col } })

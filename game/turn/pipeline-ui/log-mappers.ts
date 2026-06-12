@@ -343,6 +343,25 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             case 'observer_will_selected':
                 if (ev.applied) push('盤理の観測者で相手カードを獲得');
                 break;
+            case 'destroy_selected':
+                if (ev.regenerated) {
+                    push(`破壊の意志: ${_toPosText(ev.target, deps)} は復活した`);
+                } else if (ev.destroyed) {
+                    push(`破壊の意志で${_toPosText(ev.target, deps)}を破壊`);
+                }
+                break;
+            case 'salvation_will_resolved':
+                push(`救済の意志: 破壊石${Number(ev.spawnedCount) || 0}個を通常石として救済、${Number(ev.flippedCount) || 0}枚を反転`);
+                break;
+            case 'equality_will_resolved':
+                push(`平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成、${Number(ev.flippedCount) || 0}枚を反転`);
+                break;
+            case 'reinforcement_will_resolved':
+                push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置、${Number(ev.flippedCount) || 0}枚を反転`);
+                break;
+            case 'support_troops_will_resolved':
+                push(`援軍の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置、${Number(ev.flippedCount) || 0}枚を反転`);
+                break;
             case 'treasure_box_gain':
                 push(`宝箱: 布石+${Number(ev.gained) || 0}`);
                 break;

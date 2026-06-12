@@ -1,6 +1,7 @@
 interface SidePanelAnchorOptions {
   sidePanel: HTMLElement | null;
   sidePanelToggleBtn: HTMLElement | null;
+  initialCollapsed?: boolean;
   root?: Window | null;
 }
 
@@ -53,7 +54,7 @@ function setupSidePanelAnchor(options: SidePanelAnchorOptions): void {
   const root = options.root || (typeof window !== 'undefined' ? window : null);
   const sync = (): void => syncSidePanelAnchorPosition(panelEl, toggleEl, root);
 
-  applySidePanelCollapsedState(panelEl, toggleEl, true, root);
+  applySidePanelCollapsedState(panelEl, toggleEl, options.initialCollapsed !== false, root);
   if (toggleEl.dataset.sidePanelToggleBound === '1') return;
 
   toggleEl.addEventListener('click', () => {

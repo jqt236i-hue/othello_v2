@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function getExtendLifeSelectedEvent(result: any): any {
     return result && Array.isArray(result.rawEvents)
@@ -30,7 +31,7 @@ async function handleExtendLifeSelection(row: number, col: number, playerKey: st
         col,
         playerKey,
         pendingTypes: ['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD'],
-        actionPayload: { extendTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD'], row, col),
         invalidMessage: ({ pendingType }: any) => pendingType === 'EXTEND_LIFE_GOD'
             ? '延命神の対象となる自分の特殊石を選んでください'
             : '延命の対象となる自分の特殊石を選んでください',
@@ -49,7 +50,7 @@ async function handleCorrosionSelection(row: number, col: number, playerKey: str
         col,
         playerKey,
         pendingType: 'CORROSION_WILL',
-        actionPayload: { corrosionTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('CORROSION_WILL', row, col),
         invalidMessage: '腐食の対象となる特殊石を選んでください',
         validateResult: ({ result }: any) => {
             const resolved = getCorrosionResolvedEvent(result);

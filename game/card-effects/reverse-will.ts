@@ -5,6 +5,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   : require;
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 
 function emitReverseWillLog(message: string): void {
@@ -27,7 +28,7 @@ async function handleReverseWillSelection(row: number, col: number, playerKey: s
         col,
         playerKey,
         pendingType: 'REVERSE_WILL',
-        actionPayload: { reverseWillTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('REVERSE_WILL', row, col),
         invalidMessage: '反転できる石を選んでください',
         validateResult: ({ result }: any) => {
             const selected = getReverseWillSelectedEvent(result);

@@ -8,6 +8,7 @@ const pendingCoordinatorModule = (function (root: any) {
     'use strict';
 
     var cachedPendingStateManager: any = null;
+    var cachedPendingSelectionRegistry: any = null;
     var cachedOwnerHelpers: any = null;
     var cachedCardLogic: any = null;
     var pendingSelectionActionByPlayer: Record<string, any> = {
@@ -36,6 +37,15 @@ const pendingCoordinatorModule = (function (root: any) {
             'CardPendingStateManager'
         );
         return cachedPendingStateManager;
+    }
+
+    function getPendingSelectionRegistry() {
+        cachedPendingSelectionRegistry = resolveCachedModule(
+            cachedPendingSelectionRegistry,
+            '../logic/cards-internal/pending-selection-registry',
+            'PendingSelectionRegistry'
+        );
+        return cachedPendingSelectionRegistry;
     }
 
     function getOwnerHelpers() {
@@ -114,6 +124,37 @@ const pendingCoordinatorModule = (function (root: any) {
 
     function resolvePendingSelectionDispatchKey(cardType: any): any {
         return callPendingStateManager('resolvePendingSelectionDispatchKey', [cardType], null);
+    }
+
+    function resolvePendingSelectionActionField(cardType: any): string | null {
+        var pendingSelectionRegistry = getPendingSelectionRegistry();
+        if (!pendingSelectionRegistry || typeof pendingSelectionRegistry.getPendingSelectionActionConfig !== 'function') {
+            return null;
+        }
+        var config = pendingSelectionRegistry.getPendingSelectionActionConfig(cardType);
+        return config && typeof config.field === 'string' && config.field
+            ? config.field
+            : null;
+    }
+
+    function buildPendingSelectionTargetPayload(pendingTypes: any, row: any, col: any): any {
+        var list = Array.isArray(pendingTypes) ? pendingTypes.slice() : [pendingTypes];
+        var fields = list
+            .map(function (pendingType: any) { return resolvePendingSelectionActionField(pendingType); })
+            .filter(function (field: any) { return typeof field === 'string' && !!field; });
+        var uniqueFields = Array.from(new Set(fields));
+        if (uniqueFields.length === 0) return null;
+        if (uniqueFields.length > 1) {
+            throw new Error('inconsistent_pending_selection_target_field');
+        }
+        if (!Number.isFinite(Number(row)) || !Number.isFinite(Number(col))) return null;
+        var fieldName = String(uniqueFields[0]);
+        var payload: any = {};
+        payload[fieldName] = {
+            row: Math.trunc(Number(row)),
+            col: Math.trunc(Number(col))
+        };
+        return payload;
     }
 
     function isSelectionOnlyEndTurnPendingType(cardType: any): any {
@@ -469,6 +510,8 @@ const pendingCoordinatorModule = (function (root: any) {
         shouldDeferNetworkPublishForPendingType: shouldDeferNetworkPublishForPendingType,
         shouldWaitForPlaybackIdleForPendingType: shouldWaitForPlaybackIdleForPendingType,
         resolvePendingSelectionDispatchKey: resolvePendingSelectionDispatchKey,
+        resolvePendingSelectionActionField: resolvePendingSelectionActionField,
+        buildPendingSelectionTargetPayload: buildPendingSelectionTargetPayload,
         applyPendingSelectionCardContext: applyPendingSelectionCardContext,
         storePendingSelectionAction: storePendingSelectionAction,
         readPendingSelectionAction: readPendingSelectionAction,

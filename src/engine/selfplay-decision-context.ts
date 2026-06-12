@@ -84,7 +84,7 @@ export function createSelfplayDecisionContext(config?: SelfplayDecisionContextCo
         playerKey: any,
         legalMovesCount: any,
         legalMoves: any,
-        usableCardIds: any = []
+        usableCardIds: any = null
     ) {
         const ownKey = playerKey === 'black' ? 'black' : 'white';
         const oppKey = ownKey === 'black' ? 'white' : 'black';

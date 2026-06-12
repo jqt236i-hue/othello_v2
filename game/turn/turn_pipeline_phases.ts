@@ -1286,6 +1286,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                             flipped: immediateSelectionResult.flipped
                         }]);
                     }
+                    const generatedSpawnFlipResults = handledPrePlacementSelection && typeof handledPrePlacementSelection === 'object'
+                        ? handledPrePlacementSelection.generatedSpawnFlipResults
+                        : null;
+                    if (Array.isArray(generatedSpawnFlipResults) && generatedSpawnFlipResults.length) {
+                        applyGeneratedSpawnFlipResultsImmediate(
+                            CardLogic,
+                            cardState,
+                            gameState,
+                            events,
+                            generatedSpawnFlipResults
+                        );
+                    }
                     if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
                         applyGeneratedSpawnFlipResultsImmediate(
                             CardLogic,

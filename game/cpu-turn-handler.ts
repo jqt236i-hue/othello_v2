@@ -1122,6 +1122,8 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
             || (typeof buildCardUseDecisionContext === 'function' ? buildCardUseDecisionContext : null);
         const isCardChoiceAllowedByRiskFn = resolveCpuDecisionFunction('isCardChoiceAllowedByRisk')
             || (typeof isCardChoiceAllowedByRisk === 'function' ? isCardChoiceAllowedByRisk : null);
+        const isCardChoiceAllowedByHighConfidenceFn = resolveCpuDecisionFunction('isCardChoiceAllowedByHighConfidence')
+            || (typeof isCardChoiceAllowedByHighConfidence === 'function' ? isCardChoiceAllowedByHighConfidence : null);
         let decisionContext = null;
         if (typeof buildCardUseDecisionContextFn === 'function') {
             try {
@@ -1149,8 +1151,8 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
             const allowed = isCardChoiceAllowedByRiskFn(playerKey, level, legalMovesCount, choice.cardId, decisionContext);
             if (!allowed) return { attempted: true, applied: false, hold: false };
         }
-        if (typeof isCardChoiceAllowedByHighConfidence === 'function') {
-            const confident = isCardChoiceAllowedByHighConfidence(
+        if (typeof isCardChoiceAllowedByHighConfidenceFn === 'function') {
+            const confident = isCardChoiceAllowedByHighConfidenceFn(
                 playerKey,
                 level,
                 legalMovesCount,
@@ -1500,7 +1502,7 @@ async function processCpuTurn(): Promise<void> {
         debugCpuTrace('[DEBUG][processCpuTurn] defer: busy');
         return;
     }
-    runCpuTurn(cpuTurnOwnerKey, { autoMode: false });
+    await runCpuTurn(cpuTurnOwnerKey, { autoMode: false });
     debugCpuTrace('[DEBUG][processCpuTurn] exit');
 }
 

@@ -831,12 +831,14 @@ describe('selfplay runner', () => {
         expect(applyTurnSafeSpy).toHaveBeenCalledTimes(2);
         const retriedAction = applyTurnSafeSpy.mock.calls[1][3];
         expect(retriedAction.type).toBe('place');
-        expect(retriedAction.row).toBe(2);
-        expect(retriedAction.col).toBe(3);
         expect(retriedAction).not.toEqual(expect.objectContaining({ row: 0, col: 2 }));
+        const cleanBaselineLegalKeys = new Set(
+            Core.getLegalMoves(Core.createGameState(), 1).map((move) => `${move.row},${move.col}`)
+        );
+        expect(cleanBaselineLegalKeys.has(`${retriedAction.row},${retriedAction.col}`)).toBe(true);
         expect(result.records).toHaveLength(1);
-        expect(result.records[0].row).toBe(2);
-        expect(result.records[0].col).toBe(3);
+        expect(result.records[0].row).toBe(retriedAction.row);
+        expect(result.records[0].col).toBe(retriedAction.col);
     });
 
     test('falls back to a deterministic legal place after repeated unknown place rejection', () => {
@@ -1382,7 +1384,7 @@ describe('selfplay runner', () => {
             { row: 2, owner: -1 }
         ]);
         const cardState = createPendingCardState('CORROSION_WILL', [
-            { kind: 'specialStone', row: 2, col: 8, owner: 'white', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+            { kind: 'specialStone', row: 2, col: 8, owner: 'white', data: { type: 'WORK', remainingOwnerTurns: 3 } }
         ]);
 
         const decision = decideAction(

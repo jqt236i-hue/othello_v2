@@ -123,15 +123,15 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.hand-availability-glow\.cost-tier-gold[\s\S]*--card-available-core:\s*rgba\(241,\s*210,\s*122,\s*0\.94\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.selected:is\(\.affordable,\s*\.usable\)\s*\{[\s\S]*overflow:\s*visible/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*overflow:\s*visible/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*filter:\s*none !important/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*filter:\s*drop-shadow\(var\(--ui-drop-shadow-panel\)\) !important/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*animation:\s*none/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)::before[\s\S]*border-color:\s*var\(--card-tier-inner-border/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\) \.card-name[\s\S]*border-color:\s*var\(--card-tier-name-plate-border/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\) \.card-cost-badge[\s\S]*border-color:\s*var\(--card-tier-badge-border/);
     expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable\.visible\.clickable:hover:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable\.visible\.clickable:hover:not\(\.selected\)[\s\S]*transform:\s*translateY\(-3px\)/);
-    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable\.visible\.clickable:hover:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable\.visible\.clickable:hover:not\(\.selected\)[\s\S]*filter:\s*none !important/);
+    expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable\.visible\.clickable:hover:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable\.visible\.clickable:hover:not\(\.selected\)[\s\S]*filter:\s*drop-shadow\(var\(--ui-drop-shadow-panel\)\) !important/);
     expect(cardsCss).toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),[\s\S]*#hand-white \.card-item\.usable:not\(\.selected\)[\s\S]*animation:\s*none !important/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.visible:not\(\.affordable\):not\(\.usable\):not\(\.card-use-ghost\)[\s\S]*filter:\s*none/);
+    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.visible:not\(\.card-use-ghost\)[\s\S]*filter:\s*drop-shadow\(var\(--ui-drop-shadow-panel\)\)/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*z-index:\s*3/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*opacity:\s*var\(--card-special-art-opacity,\s*0\.76\)/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*background-position:\s*center,\s*center 50%/);

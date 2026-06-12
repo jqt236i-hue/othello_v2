@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 
 function emitCloneLog(message: string): void {
@@ -29,7 +30,6 @@ async function handleCloneLikeSelection(row: number, col: number, playerKey: str
 
     const cfg = config || {};
     const pendingType = String(cfg.pendingType || 'CLONE_WILL');
-    const actionTargetKey = String(cfg.actionTargetKey || 'cloneTarget');
     const selectedEventType = String(cfg.selectedEventType || 'clone_selected');
     const selectionFailLog = String(cfg.selectionFailLog || '周囲に空きがある自分の石を選んでください');
     const playbackCause = String(cfg.playbackCause || pendingType);
@@ -42,9 +42,7 @@ async function handleCloneLikeSelection(row: number, col: number, playerKey: str
         col,
         playerKey,
         pendingType,
-        actionPayload: {
-            [actionTargetKey]: { row, col }
-        },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(pendingType, row, col),
         invalidMessage: selectionFailLog,
         validateResult: ({ result }: any) => {
             const selected = getCloneSelectedEvent(result, selectedEventType);
@@ -63,7 +61,6 @@ async function handleCloneLikeSelection(row: number, col: number, playerKey: str
 async function handleCloneSelection(row: number, col: number, playerKey: string): Promise<any> {
     return handleCloneLikeSelection(row, col, playerKey, {
         pendingType: 'CLONE_WILL',
-        actionTargetKey: 'cloneTarget',
         selectedEventType: 'clone_selected',
         selectionFailLog: '周囲に空きがある自分の石を選んでください',
         playbackCause: 'CLONE_WILL',

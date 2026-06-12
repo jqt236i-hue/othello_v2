@@ -1,6 +1,8 @@
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
+import * as PendingSelectionRegistry from '../game/logic/cards-internal/pending-selection-registry.js';
+
 const PRESENTATION_PATH = path.resolve(__dirname, '..', 'game', 'logic', 'presentation.js');
 
 const CASES = [
@@ -585,7 +587,7 @@ function createSnapshot(stateVersion, pendingType, cardId, options = {}) {
       hands: { black: [], white: [] },
       charge: { black: 10, white: 10 },
       pendingEffectByPlayer: {
-        black: { type: pendingType, stage: 'selectTarget', cardId },
+        black: { type: pendingType, stage: 'selectTarget', cardId, pendingEffectId: options.pendingEffectId || 'pending_4_1' },
         white: null
       },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
@@ -812,7 +814,11 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
       && key !== 'deferNetworkPublish'
       && key !== 'pendingSelectionState'
     ));
+    const registryActionConfig = PendingSelectionRegistry.getPendingSelectionActionConfig(pendingType);
 
+    expect(registryActionConfig).toEqual(expect.objectContaining({
+      field: actionParamKey
+    }));
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
@@ -822,7 +828,8 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
       pendingSelectionState: {
         type: pendingType,
         stage: 'selectTarget',
-        cardId
+        cardId,
+        pendingEffectId: 'pending_4_1'
       }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();

@@ -1521,7 +1521,7 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
-    test('scoreCardUseDecision suppresses CRYSTAL_STONE until the number cell beats card cost', () => {
+    test('scoreCardUseDecision allows CRYSTAL_STONE on a high-value number cell before strict cost profit', () => {
         const out = core.scoreCardUseDecision(
             'crystal',
             () => 6,
@@ -1543,7 +1543,7 @@ describe('cpu-policy-core', () => {
                 avgLegalFlips: 3
             }
         );
-        expect(out.shouldUse).toBe(false);
+        expect(out.shouldUse).toBe(true);
     });
 
     test('scoreCardUseDecision suppresses CRYSTAL_STONE when数字マス利益がない', () => {

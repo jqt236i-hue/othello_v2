@@ -42,7 +42,7 @@ describe('card text clarity css', () => {
     const block = readCardNameBlock(css, '.card-item.visible.special-card-face .card-name');
 
     expect(block).toContain('backdrop-filter: blur(');
-    expect(block).toContain('letter-spacing: 0.04em;');
+    expect(block).toContain('letter-spacing: 0;');
     expect(block).toContain('font-weight: 800;');
   });
 });

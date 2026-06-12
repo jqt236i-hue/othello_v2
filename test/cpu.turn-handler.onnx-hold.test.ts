@@ -50,8 +50,7 @@ const lowYieldEconomyCards = [
         name: '演算の意志',
         type: 'CRYSTAL_STONE',
         cost: 6,
-        legalMoves: [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }],
-        boardBonusByCell: { '2,3': 6 }
+        legalMoves: [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
     }
 ];
 

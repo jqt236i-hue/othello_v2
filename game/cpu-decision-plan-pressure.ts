@@ -20,6 +20,7 @@ const GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE = Object.freeze({
 
 const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     BLOCKADE_WILL: makePlanPressureProfile(1, 2, 1, 1),
+    BOARD_EXECUTOR: makePlanPressureProfile(2, 3, 2, 3),
     BOARD_EXPANSION_GOD: makePlanPressureProfile(3, 4, 3, 4),
     BOARD_EXPANSION_WILL: makePlanPressureProfile(2, 3, 2, 3),
     BOARD_SHRINK_WILL: makePlanPressureProfile(3, 4, 3, 2),
@@ -71,6 +72,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     LIGHTNING_WILL: makePlanPressureProfile(1, 1, 1, 2),
     LIVING_WILL: makePlanPressureProfile(1, 2, 1, 3),
     LOSS_WILL: makePlanPressureProfile(1, 2, 1, 2),
+    METEOR_GOD: makePlanPressureProfile(3, 4, 3, 2),
     METEOR_WILL: makePlanPressureProfile(3, 4, 3, 2),
     PERMA_PROTECT_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
     PLUNDER_WILL: makePlanPressureProfile(1, 2, 0, 2),

@@ -23,6 +23,7 @@ type TargetActionOptions = {
     payloadKey: string;
     applyMethodName: string;
     deferNetworkPublish?: boolean;
+    fallbackOnPipelineReject?: boolean;
     extraApplyArgs?: (target: any) => any[];
     onApplied?: () => any;
     onMissingApply?: 'clear-and-emit' | 'noop';
@@ -85,6 +86,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             opts.pendingType
         );
         if (isPendingPipelineHandled(pipelineResult)) return;
+        if (pipelineResult && pipelineResult.ok === false && opts.fallbackOnPipelineReject === false) return;
 
         const cardLogic = getCardLogic();
         const applyFn = cardLogic && typeof cardLogic[opts.applyMethodName] === 'function'
@@ -207,6 +209,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             targetLabel: '交換ターゲット',
             payloadKey: 'swapTarget',
             applyMethodName: 'applySwapEffect',
+            fallbackOnPipelineReject: false,
             onApplied: () => {
                 cfg.handOffSelectionTurnInGameState(playerKey);
                 cfg.maybeContinueCpuSelectionTurnHandoff(playerKey, 'SWAP_WITH_ENEMY', []);

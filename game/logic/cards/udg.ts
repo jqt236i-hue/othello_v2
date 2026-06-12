@@ -44,11 +44,13 @@ const SharedConstants = resolveUdgModuleOrGlobal('../../../shared-constants', 'S
 const BoardOpsModule = resolveUdgModuleOrGlobal('../board_ops', 'BoardOps');
 const RandomSourceModule = resolveUdgModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 const ExpansionFallbackModule = resolveUdgModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
+const CardMarkersModule = resolveUdgModuleOrGlobal('./markers', 'CardMarkers');
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;
 const P_WHITE = (WHITE === undefined || WHITE === null) ? -1 : WHITE;
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
+const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (!ExpansionFallbackModule) {
     throw new Error('CardExpansionFallback missing required helpers');
@@ -99,7 +101,25 @@ interface UDGDeps {
     moveCoexistingSpecialMarkers?: (cardState: CardState, anchorEntry: any, fromRow: number, fromCol: number, toRow: number, toCol: number) => void;
     destroyAt?: (cardState: CardState, gameState: GameState, row: number, col: number) => boolean;
     BoardOps?: any;
+    isManifestStoneAt?: (cardState: CardState, row: number, col: number) => boolean;
     decrementRemainingOwnerTurns?: boolean;
+}
+
+function isManifestTarget(cardState: CardState, row: number, col: number, deps: UDGDeps = {}): boolean {
+    if (deps && typeof deps.isManifestStoneAt === 'function') {
+        return !!deps.isManifestStoneAt(cardState, row, col);
+    }
+    if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
+        return !!CardMarkersModule.isManifestStoneAt(cardState, row, col);
+    }
+    const markers = (cardState && Array.isArray((cardState as any).markers)) ? (cardState as any).markers : [];
+    return markers.some((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+        MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+    ));
 }
 
 function getRandomTurnStartMoveDestination(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, deps: UDGDeps = {}): { row: number; col: number } | null {
@@ -199,7 +219,7 @@ function collectDestroyedNeighbors(cardState: CardState, gameState: GameState, p
     });
 
     const neighborCells = getNeighborCellsSnapshot(gameState, sourceRow, sourceCol);
-    const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
+    const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isManifestTarget(cardState, cell.row, cell.col, deps));
     const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
     const destroyTargets = () => {
         for (const target of targets) {
@@ -405,7 +425,7 @@ function processUltimateDestroyGodEffectsAtAnchor(cardState: CardState, gameStat
     if (getCellValue(gameState, row, col) !== player) return { destroyed };
 
     const neighborCells = getNeighborCellsSnapshot(gameState, row, col);
-    const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
+    const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isManifestTarget(cardState, cell.row, cell.col, deps));
     const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
     const destroyTargets = () => {
         for (const target of targets) {

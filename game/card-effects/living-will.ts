@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasLivingWillSelectionApplied(result: any): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleLivingWillSelection(row: number, col: number, playerKey: st
         col,
         playerKey,
         pendingType: 'LIVING_WILL',
-        actionPayload: { livingWillTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('LIVING_WILL', row, col),
         invalidMessage: '生きる意志を付与する自分の石を選んでください',
         validateResult: ({ result }: { result: any }) => wasLivingWillSelectionApplied(result),
         buildPlaybackMeta: () => ({ cause: 'LIVING_WILL', target: { row, col } })

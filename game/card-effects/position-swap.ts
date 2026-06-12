@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 const ControllerEvents = _require('../controller-events');
 const GameControllerSlim = _require('../game-controller-slim');
 
@@ -44,7 +45,7 @@ async function handlePositionSwapSelection(row: number, col: number, playerKey: 
         col,
         playerKey,
         pendingType: 'POSITION_SWAP_WILL',
-        actionPayload: { positionSwapTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('POSITION_SWAP_WILL', row, col),
         invalidMessage: '入替対象の石を選んでください',
         validateResult: ({ result }: { result: any }) => !!(getPositionSwapFirstSelectedEvent(result) || getPositionSwapCompletedEvent(result)),
         buildPlaybackMeta: () => ({ cause: 'POSITION_SWAP_WILL', target: { row, col } }),

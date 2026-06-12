@@ -57,6 +57,14 @@ describe('Card effects E2E', () => {
       try { window.DEBUG_UNLIMITED_USAGE = true; window.DEBUG_HUMAN_VS_HUMAN = true; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
       try { if (window.__uiImpl_turn_manager) { window.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true; window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true; } } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
       try { window.DebugActions.fillDebugHand(window.cardState, { fillWhite: false }); } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
+      try {
+        window.cardState.hands = window.cardState.hands || { black: [], white: [] };
+        window.cardState.hands.black = ['chest_01'];
+        window.cardState.selectedCardId = null;
+        window.cardState.selectedCardOwnerKey = null;
+        window.cardState.lastUsedCardByPlayer = window.cardState.lastUsedCardByPlayer || {};
+        window.cardState.lastUsedCardByPlayer.black = null;
+      } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
       // ensure sufficient charge and reset usage flags
       try { window.cardState.charge = window.cardState.charge || {}; window.cardState.charge.black = 100; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
       try { window.cardState.hasUsedCardThisTurnByPlayer = window.cardState.hasUsedCardThisTurnByPlayer || {}; window.cardState.hasUsedCardThisTurnByPlayer.black = false; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
@@ -78,7 +86,7 @@ describe('Card effects E2E', () => {
       const hand = (window.cardState && window.cardState.hands && Array.isArray(window.cardState.hands.black))
         ? window.cardState.hands.black
         : [];
-      const selectedCardId = immediateUsableIds[0] || usableIds[0] || hand[0] || null;
+      const selectedCardId = immediateUsableIds.includes('chest_01') ? 'chest_01' : (immediateUsableIds[0] || usableIds[0] || hand[0] || null);
       const selectedCardDef = selectedCardId && window.CardLogic && typeof window.CardLogic.getCardDef === 'function'
         ? window.CardLogic.getCardDef(selectedCardId)
         : null;
@@ -157,6 +165,26 @@ describe('Card effects E2E', () => {
 
     await page.click('#debugModeBtn');
     await page.waitForTimeout(600);
+    await page.evaluate(() => {
+      window.DEBUG_UNLIMITED_USAGE = true;
+      window.DEBUG_HUMAN_VS_HUMAN = true;
+      if (window.__uiImpl_turn_manager) {
+        window.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true;
+        window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true;
+      }
+      window.cardState.hands = window.cardState.hands || { black: [], white: [] };
+      window.cardState.hands.black = ['chest_01'];
+      window.cardState.charge = window.cardState.charge || {};
+      window.cardState.charge.black = 100;
+      window.cardState.selectedCardId = null;
+      window.cardState.selectedCardOwnerKey = null;
+      window.cardState.hasUsedCardThisTurnByPlayer = window.cardState.hasUsedCardThisTurnByPlayer || {};
+      window.cardState.hasUsedCardThisTurnByPlayer.black = false;
+      window.cardState.lastUsedCardByPlayer = window.cardState.lastUsedCardByPlayer || {};
+      window.cardState.lastUsedCardByPlayer.black = null;
+      if (typeof window.renderCardUI === 'function') window.renderCardUI();
+    });
+    await page.waitForSelector('#hand-black .card-item.clickable[data-card-id="chest_01"]', { timeout: 10000 });
 
     const beforeClick = await page.evaluate(() => {
       const clickables = Array.from(document.querySelectorAll('#hand-black .card-item.clickable')) as HTMLElement[];
@@ -174,7 +202,8 @@ describe('Card effects E2E', () => {
         }
         return window.PendingCoordinator.requiresPendingTarget(type) !== true;
       });
-      const target = (clickables.find((el: any) => immediateUsableIds.includes(el.dataset.cardId)) as HTMLElement | undefined)
+      const target = (clickables.find((el: any) => el.dataset.cardId === 'chest_01') as HTMLElement | undefined)
+        || (clickables.find((el: any) => immediateUsableIds.includes(el.dataset.cardId)) as HTMLElement | undefined)
         || (clickables.find((el: any) => usableIds.includes(el.dataset.cardId)) as HTMLElement | undefined)
         || clickables[0]
         || null;
@@ -210,7 +239,11 @@ describe('Card effects E2E', () => {
     expect(afterSelect.useDisabled).toBe(false);
 
     await page.click('#use-card-btn');
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => {
+      const lastUsedBlack = window.cardState && window.cardState.lastUsedCardByPlayer && window.cardState.lastUsedCardByPlayer.black;
+      const recentLogs = Array.from(document.querySelectorAll('#log .logEntry')).slice(-8).map((el: any) => el.textContent || '');
+      return !!lastUsedBlack && recentLogs.some((entry: string) => entry.indexOf('黒がカードを使用') !== -1);
+    }, { timeout: 10000 });
 
     const afterUse = await page.evaluate(() => ({
       lastUsedBlack: window.cardState && window.cardState.lastUsedCardByPlayer && window.cardState.lastUsedCardByPlayer.black,

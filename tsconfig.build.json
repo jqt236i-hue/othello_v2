@@ -15,6 +15,7 @@
     "cpu/**/*.ts",
     "src/**/*.ts",
     "utils/**/*.ts",
+    "othello-ai/**/*.ts",
     "shared-constants.ts",
     "game-events.ts",
     "sound-engine.ts",

@@ -175,11 +175,12 @@ function processDragonEffects(cardState: CardState, gameState: GameState, player
 }
 
 function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
-    const { destroyAt, BoardOpsModule, selectRandomEmptyBoardShapeDestination, moveCoexistingSpecialMarkers } = deps || {};
+    const { destroyAt, BoardOpsModule, isManifestStoneAt, selectRandomEmptyBoardShapeDestination, moveCoexistingSpecialMarkers } = deps || {};
     const CardUdgModule = getCardUdgModule();
     const udgDeps = {
         destroyAt,
         BoardOps: BoardOpsModule,
+        isManifestStoneAt,
         selectRandomEmptyBoardShapeDestination,
         moveCoexistingSpecialMarkers
     };

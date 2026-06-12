@@ -74,6 +74,7 @@ function walk(dir: string, root = dir): string[] {
       if (SKIP_DIRS.has(file) || SKIP_DIRS.has(firstSegment)) continue;
       results.push(...walk(filePath, root));
     } else if (file.endsWith('.js')) {
+      if (file.startsWith('tmp-')) continue;
       results.push(filePath);
     }
   }

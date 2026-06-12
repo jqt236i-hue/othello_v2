@@ -3647,6 +3647,7 @@ const {
         return CardTimingProcessorModule.processUltimateDestroyGodEffects(cardState, gameState, playerKey, {
             destroyAt,
             BoardOpsModule,
+            isManifestStoneAt,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         });
@@ -3662,6 +3663,7 @@ const {
         const deps = Object.assign({
             destroyAt,
             BoardOps: BoardOpsModule,
+            isManifestStoneAt,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
@@ -3675,6 +3677,7 @@ const {
         const deps = Object.assign({
             destroyAt,
             BoardOps: BoardOpsModule,
+            isManifestStoneAt,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
@@ -3968,6 +3971,7 @@ const {
             getCardContext,
             BoardOps: BoardOpsModule,
             destroyAt,
+            isManifestStoneAt,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
             robotVacuumTurns: ROBOT_VACUUM_TURNS
         };
@@ -3987,6 +3991,7 @@ const {
             getCardContext,
             BoardOps: BoardOpsModule,
             destroyAt,
+            isManifestStoneAt,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey
         };
         return CardHyperactiveModule.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);

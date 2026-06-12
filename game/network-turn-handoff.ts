@@ -1,4 +1,10 @@
 
-import runtime = require('./network-turn-handoff.runtime');
+function loadRuntime(): any {
+    try {
+        return require('./network-turn-handoff.runtime');
+    } catch (e) {
+        return require('../../game/network-turn-handoff.runtime');
+    }
+}
 
-export = runtime;
+export = loadRuntime();

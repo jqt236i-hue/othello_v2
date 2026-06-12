@@ -61,7 +61,12 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
         if (applied) {
             opts.handOffTurnAfterSelection();
         }
-        return true;
+        return {
+            handled: true,
+            generatedSpawnFlipResults: Array.isArray(normalizedDestroyResult && normalizedDestroyResult.generatedSpawnFlipResults)
+                ? normalizedDestroyResult.generatedSpawnFlipResults
+                : []
+        };
     } else if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget == null) {
         throw new Error('DESTROY_ONE_STONE requires destroyTarget before placement');
     }

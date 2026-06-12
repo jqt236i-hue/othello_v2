@@ -76,6 +76,12 @@ describe('CardEffectTiming module', () => {
         totalRepaid: 1,
         totalDestroyed: 0,
         completedCount: 1
+      },
+      observerWill: {
+        entries: [],
+        totalRepaid: 0,
+        totalDestroyed: 0,
+        completedCount: 0
       }
     });
     expect(cardState.turnCountByPlayer.black).toBe(1);

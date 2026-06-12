@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '繁殖の意志',
   type: 'BREEDING_WILL',
   cost: 16,
-  desc_ja: '次に置く石を繁殖化。配置時+自ターン開始時周囲に石を1個生成。(5ターン)',
+  desc_ja: '次に置く石を繁殖化。配置時+自ターン開始時に周囲へ1個生成し、各生成後に通常反転判定。',
   display_type_ja: '守護'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '繁殖の意志',
-  desc: '次に置く石を繁殖化。配置時+自ターン開始時周囲に石を1個生成。(5ターン)'
+  desc: '次に置く石を繁殖化。配置時+自ターン開始時に周囲へ1個生成し、各生成後に通常反転判定。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を繁殖化。配置時+自ターン開始時周囲に石を1個生成。(5ターン)';
-const EXPECTED_DETAIL_TEXT = '生成先は周囲8マスの空きからランダム1個。\n前回生成石の周囲へ拡散し、5ターン継続。';
+const EXPECTED_QUICK_TEXT = '次に置く石を繁殖化。配置時+自ターン開始時に周囲へ1個生成し、各生成後に通常反転判定。';
+const EXPECTED_DETAIL_TEXT = '生成先は周囲8マスの空きからランダム1個。\n持続中は前回生成石の周囲へ拡散する。\n各生成石は、そのマスを起点に通常の挟み反転を行う。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

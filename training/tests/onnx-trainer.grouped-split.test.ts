@@ -1,8 +1,8 @@
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 
-const REPO_ROOT = path.resolve(__dirname, '..');
-const PYTHON = process.env.PYTHON || path.join(REPO_ROOT, '.venv', 'Scripts', 'python.exe');
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const PYTHON = process.env.PYTHON || 'python';
 
 function buildGroupedGameKey({ dataLane = 'train-main', seedFamily = 'train', seed, gameIndex }) {
   return JSON.stringify({
@@ -16,9 +16,30 @@ function buildGroupedGameKey({ dataLane = 'train-main', seedFamily = 'train', se
 function runPythonSplit(payload) {
   const script = [
     'import json, pathlib, sys',
+    'import types',
     'repo_root = pathlib.Path(sys.argv[1])',
     'payload = json.loads(sys.argv[2])',
-    'sys.path.insert(0, str(repo_root / "ai" / "train"))',
+    'class _FakeTensor:',
+    '    def __init__(self, values): self._values = list(values); self.shape = (len(self._values),)',
+    '    def cpu(self): return self',
+    '    def tolist(self): return list(self._values)',
+    'def _tensor(values, dtype=None, device=None): return _FakeTensor(values)',
+    'def _empty(shape, dtype=None, device=None):',
+    '    size = shape[0] if isinstance(shape, (list, tuple)) and shape else int(shape or 0)',
+    '    return _FakeTensor([0] * size)',
+    'def _randperm(n, device=None): return _FakeTensor(range(int(n)))',
+    'torch_stub = types.SimpleNamespace(',
+    '    Tensor=_FakeTensor,',
+    '    tensor=_tensor,',
+    '    empty=_empty,',
+    '    randperm=_randperm,',
+    '    long="long",',
+    '    nn=types.SimpleNamespace(Module=object),',
+    '    optim=types.SimpleNamespace(Optimizer=object),',
+    ')',
+    'sys.modules["torch"] = torch_stub',
+    'sys.modules["torch.nn"] = torch_stub.nn',
+    'sys.path.insert(0, str(repo_root / "training" / "python"))',
     'import onnx_trainer_common as trainer_common',
     'train_idx, val_idx, summary = trainer_common.resolve_train_val_split(',
     '    int(payload["n"]),',

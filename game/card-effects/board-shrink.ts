@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasBoardShrinkSelectionApplied(result: any) {
     const rawEvents = result && Array.isArray(result.rawEvents) ? result.rawEvents : [];
@@ -23,7 +24,7 @@ async function handleBoardShrinkSelection(row: number, col: number, playerKey: s
         col,
         playerKey,
         pendingTypes: ['BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD'],
-        actionPayload: { shrinkTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD'], row, col),
         invalidMessage: ({ pendingType, pending }: { pendingType: any; pending: any }) => {
             if (pendingType === 'BOARD_SHRINK_GOD') {
                 return pending && pending.firstTarget

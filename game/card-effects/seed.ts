@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasSelectionApplied(result: any, rawEventType: string) {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleSeedSelection(row: number, col: number, playerKey: string) 
         col,
         playerKey,
         pendingType: 'SEED_WILL',
-        actionPayload: { seedTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('SEED_WILL', row, col),
         invalidMessage: '種をまくマスを選んでください',
         validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'seed_selected'),
         buildPlaybackMeta: () => ({ cause: 'SEED_WILL', target: { row, col } })

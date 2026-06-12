@@ -95,6 +95,10 @@ interface MeteorGodRandomLike {
   random?: () => number;
 }
 
+interface MeteorGodCardMarkersModule {
+  isManifestStoneAt?: (cardState: MeteorGodCardState, row: number, col: number) => boolean;
+}
+
 interface MeteorGodProcessDeps {
   BoardOps?: MeteorGodBoardOpsModule;
   random?: MeteorGodRandomLike | (() => number) | null;
@@ -175,6 +179,7 @@ const SharedConstants: MeteorGodSharedConstants = safeRequire('../../../shared-c
 const BoardOpsModule: MeteorGodBoardOpsModule | null = safeRequire('../board_ops');
 const ExpansionFallbackModule = safeRequire('./expansion');
 const RandomSourceModule = safeRequire('./random-source');
+const CardMarkersModule: MeteorGodCardMarkersModule | null = safeRequire('./markers');
 const CardCellRemoval = safeRequire('./cell-removal') || {
   applyHoleStyleCellRemoval: (_cardState: MeteorGodCardState, _gameState: MeteorGodGameState, targetRow: number, targetCol: number, _playerKey: string, cause: string) => ({
     applied: false,
@@ -189,6 +194,7 @@ const CardCellRemoval = safeRequire('./cell-removal') || {
 const BLACK = SharedConstants.BLACK || 1;
 const WHITE = SharedConstants.WHITE || -1;
 const EMPTY = SharedConstants.EMPTY || 0;
+const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 function resolveBoardDims(gameState: MeteorGodGameState): MeteorGodBoardDims {
   const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
@@ -260,16 +266,29 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function collectEnemyTargets(gameState: MeteorGodGameState, enemyValue: MeteorGodOwnerValue): MeteorGodEffectPosition[] {
+function isManifestTarget(cardState: MeteorGodCardState, row: number, col: number): boolean {
+  if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
+    return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
+  }
+  return (cardState.markers || []).some((marker) => (
+    marker &&
+    marker.row === row &&
+    marker.col === col &&
+    (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+    MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+  ));
+}
+
+function collectEnemyTargets(cardState: MeteorGodCardState, gameState: MeteorGodGameState, enemyValue: MeteorGodOwnerValue): MeteorGodEffectPosition[] {
   const targets: MeteorGodEffectPosition[] = [];
   const dims = resolveBoardDims(gameState);
   for (let row = 0; row < dims.rows; row += 1) {
     for (let col = 0; col < dims.cols; col += 1) {
-      if (gameState.board && gameState.board[row][col] === enemyValue) targets.push({ row, col });
+      if (gameState.board && gameState.board[row][col] === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
     }
   }
   for (const cell of getExpansionCells(gameState)) {
-    if (cell && cell.owner === enemyValue) targets.push({ row: cell.row, col: cell.col });
+    if (cell && cell.owner === enemyValue && !isManifestTarget(cardState, cell.row, cell.col)) targets.push({ row: cell.row, col: cell.col });
   }
   return targets;
 }
@@ -332,7 +351,7 @@ function processAnchor(cardState: MeteorGodCardState, gameState: MeteorGodGameSt
   }
 
   const resolveAnchor = (): MeteorGodProcessResult => {
-    const targets = collectEnemyTargets(gameState, enemyValue);
+    const targets = collectEnemyTargets(cardState, gameState, enemyValue);
     if (targets.length > 0) {
       const target = targets[resolveRandomIndex(targets.length, randomFn)];
       const cellRemovalDeps = {

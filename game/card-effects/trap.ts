@@ -16,6 +16,7 @@ function setUIImpl(obj: any): void {
 }
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function getTrapSelectedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
@@ -30,7 +31,7 @@ async function handleTrapSelection(row: number, col: number, playerKey: string) 
         col,
         playerKey,
         pendingType: 'TRAP_WILL',
-        actionPayload: { trapTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('TRAP_WILL', row, col),
         invalidMessage: '罠石にする自分の石を選んでください',
         validateResult: ({ result }: any) => !!getTrapSelectedEvent(result),
         buildPlaybackMeta: () => ({ cause: 'TRAP_WILL', target: { row, col } })

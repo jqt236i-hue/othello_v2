@@ -39,6 +39,7 @@ const RandomSourceModule = ((typeof module === 'object' && module.exports)
     : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
     throw new Error('SharedConstants missing required values');
@@ -136,6 +137,20 @@ function hasVisibleNonNormalStoneAt(cardState: any, row: number, col: number): b
     return false;
 }
 
+function isManifestTarget(cardState: any, row: number, col: number): boolean {
+    if (CardUtilsModule && typeof CardUtilsModule.isManifestStoneAt === 'function') {
+        return CardUtilsModule.isManifestStoneAt(cardState, row, col) === true;
+    }
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.some((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+        MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+    ));
+}
+
 function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: number) {
     const specialTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
     const normalTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
@@ -143,6 +158,8 @@ function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: n
     for (let row = 0; row < dims.rows; row++) {
         for (let col = 0; col < dims.cols; col++) {
             if (gameState.board[row][col] !== enemyValue)
+                continue;
+            if (isManifestTarget(cardState, row, col))
                 continue;
             const isSpecial = hasVisibleNonNormalStoneAt(cardState, row, col);
             const target = { row, col, isSpecial };
@@ -155,6 +172,8 @@ function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: n
     const expansionCells = getExpansionCells(gameState);
     for (const cell of expansionCells) {
         if (!cell || cell.owner !== enemyValue)
+            continue;
+        if (isManifestTarget(cardState, cell.row, cell.col))
             continue;
         const isSpecial = hasVisibleNonNormalStoneAt(cardState, cell.row, cell.col);
         const target = { row: cell.row, col: cell.col, isSpecial };

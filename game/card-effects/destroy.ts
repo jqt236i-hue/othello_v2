@@ -14,6 +14,7 @@ function requireDestroyModuleOrNull(id: string): any {
 }
 
 const PendingSelectionFlow = requireDestroyModuleOrNull('./selection-flow');
+const PendingCoordinator = requireDestroyModuleOrNull('../turn/pending-coordinator');
 const DestroyOutcomeContract = requireDestroyModuleOrNull('../../shared/destroy-outcome-contract');
 const ControllerEvents = _require('../controller-events');
 function getEmitLogAdded(): ((message: string) => void) | null {
@@ -157,7 +158,7 @@ async function executeDestroy(row: number, col: number, playerKey: string): Prom
         col,
         playerKey,
         pendingType: 'DESTROY_ONE_STONE',
-        actionPayload: { destroyTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('DESTROY_ONE_STONE', row, col),
         invalidMessage: getDestroyRejectedMessage,
         validateResult: ({ result }: any) => wasDestroySelectionApplied(result),
         buildPlaybackMeta: () => ({ row, col, cause: 'DESTROY' }),

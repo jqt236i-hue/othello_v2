@@ -1,6 +1,7 @@
 import * as Core from '../game/logic/core.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
+import * as SpecialCardRegistry from '../shared/special-card-registry.js';
 
 describe('TurnPipeline destroy_hand_card', () => {
   function findHandRemoveEvent(presentationEvents, reason) {
@@ -8,12 +9,22 @@ describe('TurnPipeline destroy_hand_card', () => {
     return events.find((e) => e && e.type === 'HAND_REMOVE' && (!reason || e.reason === reason));
   }
 
+  function takeDestroyableDeckCards(cardState, playerKey, count) {
+    const picked = [];
+    while (cardState.decks[playerKey].length && picked.length < count) {
+      const cardId = cardState.decks[playerKey].shift();
+      if (SpecialCardRegistry.isInviolableSpecialCardId(cardId)) continue;
+      picked.push(cardId);
+    }
+    expect(picked).toHaveLength(count);
+    return picked;
+  }
+
   test('手札破壊アクションで手札から1枚消える', () => {
     const gameState = Core.createGameState();
     const cardState = CardLogic.createCardState();
 
-    const first = cardState.decks.black.shift();
-    const second = cardState.decks.black.shift();
+    const [first, second] = takeDestroyableDeckCards(cardState, 'black', 2);
     cardState.hands.black.push(first, second);
 
     const res = TurnPipeline.applyTurn(cardState, gameState, 'black', {
@@ -36,9 +47,7 @@ describe('TurnPipeline destroy_hand_card', () => {
     const gameState = Core.createGameState();
     const cardState = CardLogic.createCardState();
 
-    const first = cardState.decks.black.shift();
-    const second = cardState.decks.black.shift();
-    const third = cardState.decks.black.shift();
+    const [first, second, third] = takeDestroyableDeckCards(cardState, 'black', 3);
     cardState.hands.black.push(first, second, third);
 
     const firstDestroy = TurnPipeline.applyTurn(cardState, gameState, 'black', {

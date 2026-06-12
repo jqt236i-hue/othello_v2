@@ -236,6 +236,11 @@ const SoundEngine = {
         return this._clamp01(sliderVolume * outputScale * masterVolume * (this.isMuted ? 0 : 1));
     },
 
+    _getResultBgmOutputVolume() {
+        const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
+        return this._clamp01(sliderVolume * (this.isMuted ? 0 : 1));
+    },
+
     _updateBgmOutputVolume() {
         const volume = this._getBgmOutputVolume();
         if (this._manifestBgmEnding) {
@@ -254,7 +259,7 @@ const SoundEngine = {
     },
 
     _updateResultBgmVolume() {
-        const volume = this._getBgmOutputVolume();
+        const volume = this._getResultBgmOutputVolume();
         if (this._resultBgm) {
             this._resultBgm.volume = volume;
         }
@@ -1213,7 +1218,7 @@ const SoundEngine = {
         }
         audio.preload = 'auto';
         audio.loop = track.loop === true;
-        audio.volume = this._getBgmOutputVolume();
+        audio.volume = this._getResultBgmOutputVolume();
         if (typeof audio.load === 'function') {
             try { audio.load(); } catch (e) { /* ignore */ }
         }

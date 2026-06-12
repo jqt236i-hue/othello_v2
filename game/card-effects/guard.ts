@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const PendingCoordinator = _require('../turn/pending-coordinator');
 
 function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -25,7 +26,7 @@ async function handleGuardSelection(row: number, col: number, playerKey: string)
         col,
         playerKey,
         pendingTypes: ['GUARD_WILL', 'GUARDIAN_GOD'],
-        actionPayload: { guardTarget: { row, col } },
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['GUARD_WILL', 'GUARDIAN_GOD'], row, col),
         invalidMessage: '守る石にする自分の石を選んでください',
         validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'guard_selected'),
         buildPlaybackMeta: ({ pendingType }: { pendingType: string }) => ({ cause: pendingType, target: { row, col } })

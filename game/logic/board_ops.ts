@@ -1741,6 +1741,19 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
     return { spawned: true, stoneId };
 }
 
+function _resolveGeneratedSpawnFlip(cardState: any, gameState: any, entry: any): any[] {
+    const resolver = cardState && typeof cardState._generatedSpawnFlipResolver === 'function'
+        ? cardState._generatedSpawnFlipResolver
+        : null;
+    if (!resolver || !entry || typeof entry !== 'object') return [];
+    try {
+        const results = resolver(cardState, gameState, [entry]);
+        return Array.isArray(results) ? results : [];
+    } catch (e) {
+        return [];
+    }
+}
+
 function _inferSpawnIntent(cause: string | null, reason: string | null): string | null {
     if (PresentationEffectProfiles && typeof PresentationEffectProfiles.inferSpawnIntent === 'function') {
         return PresentationEffectProfiles.inferSpawnIntent(cause, reason);
@@ -2037,10 +2050,21 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
                     type: 'PROLIFERATION',
                     remainingOwnerTurns: proliferationOwnerTurns
                 });
+                const generatedFlipResults = _resolveGeneratedSpawnFlip(cardState, gameState, {
+                    row: destination.row,
+                    col: destination.col,
+                    ownerKey: ownerBeforeKey,
+                    cause: 'PROLIFERATION_WILL',
+                    reason: 'proliferation_spawn',
+                    changeCause: 'PROLIFERATION_WILL',
+                    changeReason: 'proliferation_spawn_flip',
+                    changeMeta: spawnMeta
+                });
                 return createDestroyOutcome(DESTROY_OUTCOME_KINDS.PROLIFERATED, {
                     reason: 'proliferation_triggered',
                     from: { row, col },
-                    to: { row: destination.row, col: destination.col }
+                    to: { row: destination.row, col: destination.col },
+                    generatedSpawnFlipResults: generatedFlipResults
                 });
             }
         }

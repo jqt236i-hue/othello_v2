@@ -4,7 +4,7 @@ describe('mobile quick controls layout contract', () => {
   test('phone portrait exposes the quick controls bar as a compact horizontal tray', () => {
     const responsiveCss = readRepoTextFile('styles-responsive.css');
 
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s*\{[\s\S]*--layout-phone-portrait-player-bottom-offset:\s*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s*\{[\s\S]*--layout-phone-portrait-player-bottom-offset:\s*calc\(18px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s*\{[\s\S]*--layout-phone-portrait-quick-controls-bottom-offset:\s*calc\(44px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s*\{[\s\S]*--layout-phone-portrait-quick-controls-width:\s*min\(92vw,\s*calc\(520px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*padding-bottom:\s*calc\(max\(calc\(8px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-bottom\)\)\s*\+\s*calc\(102px\s*\*\s*var\(--layout-stage-scale\)\)\)/);

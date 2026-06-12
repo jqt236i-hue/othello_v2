@@ -199,6 +199,8 @@ describe('turn-manager scheduling', () => {
     delete global.__uiImpl_turn_manager;
     delete global.NetworkMatchClient;
     delete global.MATCH_MODE;
+    delete global.DEBUG_HUMAN_VS_HUMAN;
+    delete global.DEBUG_UNLIMITED_USAGE;
     delete global.LOCAL_PLAYER_KEY;
     delete global.__LOCAL_PLAYER_KEY;
     delete global.BOARD_VIEWER_KEY;

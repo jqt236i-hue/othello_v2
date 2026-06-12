@@ -176,10 +176,19 @@ const CardSniper = /**
         }
         return null;
     })();
+    const CardMarkersModule = (() => {
+        try {
+            if (typeof require === 'function') {
+                return require('./markers');
+            }
+        } catch (_error) { /* ignore */ }
+        return null;
+    })();
 
     if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants missing required values');
     }
+    const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
     if (!ExpansionFallbackModule) {
         throw new Error('CardExpansionFallback missing required helpers');
@@ -234,13 +243,27 @@ const CardSniper = /**
         return playerKey === 'black' ? 'white' : 'black';
     }
 
-    function pickNearestEnemyTarget(gameState: SniperGameState, sourceRow: number, sourceCol: number, enemyValue: SniperOwnerValue, randomFn: () => number): SniperEffectTarget | null {
+    function isManifestTarget(cardState: SniperCardState, row: number, col: number): boolean {
+        if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
+            return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
+        }
+        return (cardState.markers || []).some((marker) => (
+            marker &&
+            marker.row === row &&
+            marker.col === col &&
+            (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
+            MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
+        ));
+    }
+
+    function pickNearestEnemyTarget(cardState: SniperCardState, gameState: SniperGameState, sourceRow: number, sourceCol: number, enemyValue: SniperOwnerValue, randomFn: () => number): SniperEffectTarget | null {
         const candidates: SniperEffectTarget[] = [];
         const dims = resolveBoardDims(gameState);
         for (let r = 0; r < dims.rows; r++) {
             for (let c = 0; c < dims.cols; c++) {
                 if (!gameState.board) continue;
                 if (gameState.board[r][c] !== enemyValue) continue;
+                if (isManifestTarget(cardState, r, c)) continue;
                 const dr = r - sourceRow;
                 const dc = c - sourceCol;
                 const distSq = (dr * dr) + (dc * dc);
@@ -251,6 +274,7 @@ const CardSniper = /**
         const expansionCells = getExpansionCells(gameState);
         for (const expansion of expansionCells) {
             if (!expansion || expansion.owner !== enemyValue) continue;
+            if (isManifestTarget(cardState, expansion.row, expansion.col)) continue;
             const dr = expansion.row - sourceRow;
             const dc = expansion.col - sourceCol;
             const distSq = (dr * dr) + (dc * dc);
@@ -308,7 +332,7 @@ const CardSniper = /**
                 continue;
             }
 
-            const target = pickNearestEnemyTarget(gameState, sniper.row, sniper.col, enemyValue, randomFn);
+            const target = pickNearestEnemyTarget(cardState, gameState, sniper.row, sniper.col, enemyValue, randomFn);
             if (target) {
                 let destroyedRes = false;
                 const destroyMeta: SniperDestroyMeta = {
@@ -408,7 +432,7 @@ const CardSniper = /**
         }
 
         const resolveAnchor = (): SniperTurnStartResult => {
-        const target = pickNearestEnemyTarget(gameState, row, col, enemyValue, randomFn);
+        const target = pickNearestEnemyTarget(cardState, gameState, row, col, enemyValue, randomFn);
         if (target) {
             let destroyedRes = false;
             const destroyMeta: SniperDestroyMeta = {

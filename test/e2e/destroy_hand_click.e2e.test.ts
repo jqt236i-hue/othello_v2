@@ -48,16 +48,57 @@ describe('Destroy hand card then place E2E', () => {
       const root = window as unknown as { isProcessing?: boolean; isCardAnimating?: boolean };
       return root.isProcessing !== true && root.isCardAnimating !== true;
     }, { timeout: 10000 });
+    await page.evaluate(() => {
+      const root = window as unknown as {
+        cardState?: {
+          hands?: { black?: string[]; white?: string[] };
+          charge?: { black?: number; white?: number };
+          selectedCardId?: string | null;
+          selectedCardOwnerKey?: string | null;
+          hasDestroyedCardThisTurnByPlayer?: { black?: boolean; white?: boolean };
+          hasUsedCardThisTurnByPlayer?: { black?: boolean; white?: boolean };
+        };
+        renderCardUI?: () => void;
+      };
+      if (!root.cardState) return;
+      root.cardState.hands = root.cardState.hands || { black: [], white: [] };
+      root.cardState.hands.black = ['chest_01'];
+      root.cardState.charge = root.cardState.charge || {};
+      root.cardState.charge.black = 100;
+      root.cardState.selectedCardId = null;
+      root.cardState.selectedCardOwnerKey = null;
+      root.cardState.hasDestroyedCardThisTurnByPlayer = root.cardState.hasDestroyedCardThisTurnByPlayer || {};
+      root.cardState.hasDestroyedCardThisTurnByPlayer.black = false;
+      root.cardState.hasUsedCardThisTurnByPlayer = root.cardState.hasUsedCardThisTurnByPlayer || {};
+      root.cardState.hasUsedCardThisTurnByPlayer.black = false;
+      if (typeof root.renderCardUI === 'function') root.renderCardUI();
+    });
+    await page.waitForSelector('#hand-black .card-item.clickable[data-card-id="chest_01"]', { timeout: 10000 });
 
     const handCount = await page.locator('#hand-black .card-item.clickable').count();
     expect(handCount).toBeGreaterThan(0);
+    const destroyableCardIndex = await page.evaluate(() => {
+      const root = window as unknown as {
+        SpecialCardRegistry?: { isInviolableSpecialCardId?: (cardId: unknown) => boolean };
+      };
+      const cards = Array.from(document.querySelectorAll('#hand-black .card-item.clickable')) as HTMLElement[];
+      return cards.findIndex((cardEl) => {
+        const cardId = cardEl.dataset.cardId || '';
+        const registry = root.SpecialCardRegistry;
+        if (registry && typeof registry.isInviolableSpecialCardId === 'function') {
+          return registry.isInviolableSpecialCardId(cardId) !== true;
+        }
+        return true;
+      });
+    });
+    expect(destroyableCardIndex).toBeGreaterThanOrEqual(0);
 
     const beforeDestroy = await page.evaluate(() => {
       const root = window as unknown as { cardState?: { discard?: unknown[] } };
       return Array.isArray(root.cardState?.discard) ? root.cardState!.discard!.length : 0;
     });
 
-    await page.locator('#hand-black .card-item.clickable').first().click({ force: true });
+    await page.locator('#hand-black .card-item.clickable').nth(destroyableCardIndex).click({ force: true });
     await page.locator('#destroy-card-btn').click({ force: true });
 
     await page.waitForFunction((previousDiscardCount: number) => {
