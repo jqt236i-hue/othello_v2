@@ -37,7 +37,7 @@ let _config = {
   policyWeight: 0.75,
   topK: 8,
   heuristicRerankWeight: 3.0,
-  whiteSafetyMultiplier: 1.45,
+  whiteSafetyMultiplier: 1.0,
   exactSolveEmpties: 10,
   exactSolveNodeBudget: 50000,
   exactSolveMaxMs: 250,

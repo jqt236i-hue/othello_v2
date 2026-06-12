@@ -57,6 +57,67 @@ describe('othello ONNX hardcase replay helpers', () => {
 });
 
 describe('othello ONNX training loop profiles', () => {
+  test('defaults train a balanced lightweight normal Othello model', () => {
+    const { parseArgs } = require('../scripts/run-othello-onnx-training-loop');
+
+    const args = parseArgs([]);
+
+    expect(args.whiteSampleWeight).toBe(1);
+    expect(args.blackSampleWeight).toBe(1);
+    expect(args.openingPreferredPlayer).toBe('');
+    expect(args.openingPreferredPlayerRate).toBe(0);
+    expect(args.hiddenDim).toBe(640);
+    expect(args.depth).toBe(6);
+    expect(args.maxOnnxBytes).toBe(25 * 1024 * 1024);
+    expect(args.gateMinBlackPointRate).toBeGreaterThan(0);
+    expect(args.championGateMinBlackPointRate).toBeGreaterThan(0);
+  });
+
+  test('gate summary requires black and white side thresholds and size cap', () => {
+    const { summarizeGate } = require('../scripts/run-othello-onnx-training-loop');
+    const gate = {
+      totals: {
+        onnxPointRate: 0.62,
+        onnxBlackPointRate: 0.49,
+        onnxWhitePointRate: 0.72,
+        averageBlackDiscDiffFromOnnx: 1.5,
+        averageWhiteDiscDiffFromOnnx: 5
+      }
+    };
+
+    const failed = summarizeGate(gate, {
+      minPointRate: 0.55,
+      minBlackPointRate: 0.5,
+      minWhitePointRate: 0.5,
+      minBlackDiscDiff: 0,
+      minWhiteDiscDiff: 0,
+      modelBytes: 10 * 1024 * 1024,
+      maxModelBytes: 25 * 1024 * 1024
+    });
+
+    expect(failed.promoted).toBe(false);
+    expect(failed.blackPointRate).toBe(0.49);
+    expect(failed.sizePassed).toBe(true);
+
+    const oversized = summarizeGate({
+      totals: {
+        ...gate.totals,
+        onnxBlackPointRate: 0.6
+      }
+    }, {
+      minPointRate: 0.55,
+      minBlackPointRate: 0.5,
+      minWhitePointRate: 0.5,
+      minBlackDiscDiff: 0,
+      minWhiteDiscDiff: 0,
+      modelBytes: 26 * 1024 * 1024,
+      maxModelBytes: 25 * 1024 * 1024
+    });
+
+    expect(oversized.promoted).toBe(false);
+    expect(oversized.sizePassed).toBe(false);
+  });
+
   test('loads profile defaults and lets explicit CLI args override them', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-onnx-profile-'));
     try {

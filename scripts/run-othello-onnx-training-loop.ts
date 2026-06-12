@@ -95,12 +95,18 @@ function parseArgs(argv: any) {
     else if (cur === "--black-sample-weight") args.blackSampleWeight = parseFloatArg(argv[++i], args.blackSampleWeight, 0.01, 100);
     else if (cur === "--gate-pairs") args.gatePairs = parseIntArg(argv[++i], args.gatePairs, 1);
     else if (cur === "--gate-opening-plies") args.gateOpeningPlies = parseIntArg(argv[++i], args.gateOpeningPlies, 0);
+    else if (cur === "--gate-min-point-rate") args.gateMinPointRate = parseFloatArg(argv[++i], args.gateMinPointRate, 0, 1);
+    else if (cur === "--gate-min-black-point-rate") args.gateMinBlackPointRate = parseFloatArg(argv[++i], args.gateMinBlackPointRate, 0, 1);
     else if (cur === "--gate-min-white-point-rate") args.gateMinWhitePointRate = parseFloatArg(argv[++i], args.gateMinWhitePointRate, 0, 1);
+    else if (cur === "--gate-min-black-disc-diff") args.gateMinBlackDiscDiff = Number(argv[++i]);
     else if (cur === "--gate-min-white-disc-diff") args.gateMinWhiteDiscDiff = Number(argv[++i]);
     else if (cur === "--champion-gate-pairs") args.championGatePairs = parseIntArg(argv[++i], args.championGatePairs, 1);
     else if (cur === "--champion-gate-min-point-rate") args.championGateMinPointRate = parseFloatArg(argv[++i], args.championGateMinPointRate, 0, 1);
+    else if (cur === "--champion-gate-min-black-point-rate") args.championGateMinBlackPointRate = parseFloatArg(argv[++i], args.championGateMinBlackPointRate, 0, 1);
     else if (cur === "--champion-gate-min-white-point-rate") args.championGateMinWhitePointRate = parseFloatArg(argv[++i], args.championGateMinWhitePointRate, 0, 1);
+    else if (cur === "--champion-gate-min-black-disc-diff") args.championGateMinBlackDiscDiff = Number(argv[++i]);
     else if (cur === "--champion-gate-min-white-disc-diff") args.championGateMinWhiteDiscDiff = Number(argv[++i]);
+    else if (cur === "--max-onnx-bytes") args.maxOnnxBytes = parseIntArg(argv[++i], args.maxOnnxBytes, 1);
     else if (cur === "--heuristic-rerank-weight") args.heuristicRerankWeight = parseFloatArg(argv[++i], args.heuristicRerankWeight, 0, 100);
     else if (cur === "--policy-weight") args.policyWeight = parseFloatArg(argv[++i], args.policyWeight, 0, 100);
     else if (cur === "--top-k") args.topK = parseIntArg(argv[++i], args.topK, 1);
@@ -157,10 +163,18 @@ function printHelp() {
     "  -j, --jobs <n>",
     "  --preflight",
     "  --gate-pairs <n>",
+    "  --gate-min-point-rate <n>",
+    "  --gate-min-black-point-rate <n>",
+    "  --gate-min-white-point-rate <n>",
+    "  --gate-min-black-disc-diff <n>",
+    "  --gate-min-white-disc-diff <n>",
     "  --champion-gate-pairs <n>",
     "  --champion-gate-min-point-rate <n>",
+    "  --champion-gate-min-black-point-rate <n>",
     "  --champion-gate-min-white-point-rate <n>",
+    "  --champion-gate-min-black-disc-diff <n>",
     "  --champion-gate-min-white-disc-diff <n>",
+    "  --max-onnx-bytes <n>",
     "  --heuristic-rerank-weight <n>",
     "  --policy-weight <n>",
     "  --top-k <n>",
@@ -221,29 +235,59 @@ function copyFile(source: any, destination: any) {
   fs.copyFileSync(source, destination);
 }
 
+function fileSize(filePath: any) {
+  return fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+}
+
 function readJsonIfExists(filePath: any) {
   if (!fs.existsSync(filePath)) return null;
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function summarizeGate(gatePath: any, thresholds: any) {
-  const gate = readJsonIfExists(gatePath);
+function readGateInput(gateInput: any) {
+  if (gateInput && typeof gateInput === "object") return gateInput;
+  return readJsonIfExists(gateInput);
+}
+
+function summarizeGate(gateInput: any, thresholds: any) {
+  const gate = readGateInput(gateInput);
   const totals = gate && gate.totals ? gate.totals : {};
   const pointRate = Number(totals.onnxPointRate || 0);
+  const blackPointRate = Number(totals.onnxBlackPointRate || 0);
   const whitePointRate = Number(totals.onnxWhitePointRate || 0);
+  const blackDiff = Number(totals.averageBlackDiscDiffFromOnnx || 0);
   const whiteDiff = Number(totals.averageWhiteDiscDiffFromOnnx || 0);
   const minPointRate = Number.isFinite(Number(thresholds.minPointRate)) ? Number(thresholds.minPointRate) : 0;
+  const minBlackPointRate = Number.isFinite(Number(thresholds.minBlackPointRate)) ? Number(thresholds.minBlackPointRate) : 0;
   const minWhitePointRate = Number.isFinite(Number(thresholds.minWhitePointRate)) ? Number(thresholds.minWhitePointRate) : 0;
+  const minBlackDiscDiff = Number.isFinite(Number(thresholds.minBlackDiscDiff)) ? Number(thresholds.minBlackDiscDiff) : Number.NEGATIVE_INFINITY;
   const minWhiteDiscDiff = Number.isFinite(Number(thresholds.minWhiteDiscDiff)) ? Number(thresholds.minWhiteDiscDiff) : Number.NEGATIVE_INFINITY;
+  const modelBytes = Number.isFinite(Number(thresholds.modelBytes)) ? Number(thresholds.modelBytes) : 0;
+  const maxModelBytes = Number.isFinite(Number(thresholds.maxModelBytes)) ? Number(thresholds.maxModelBytes) : Number.POSITIVE_INFINITY;
+  const sizePassed = modelBytes <= maxModelBytes;
   return {
-    promoted: pointRate >= minPointRate && whitePointRate >= minWhitePointRate && whiteDiff >= minWhiteDiscDiff,
+    promoted: (
+      pointRate >= minPointRate &&
+      blackPointRate >= minBlackPointRate &&
+      whitePointRate >= minWhitePointRate &&
+      blackDiff >= minBlackDiscDiff &&
+      whiteDiff >= minWhiteDiscDiff &&
+      sizePassed
+    ),
+    blackPointRate,
     whitePointRate,
+    averageBlackDiscDiffFromOnnx: blackDiff,
     averageWhiteDiscDiffFromOnnx: whiteDiff,
     onnxPointRate: pointRate,
+    modelBytes,
+    maxModelBytes,
+    sizePassed,
     games: Number(totals.games || 0),
     thresholds: {
       minPointRate,
+      minBlackPointRate,
       minWhitePointRate,
+      minBlackDiscDiff,
       minWhiteDiscDiff
     },
     gate
@@ -444,6 +488,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--white-sample-weight", String(args.whiteSampleWeight),
         "--black-sample-weight", String(args.blackSampleWeight)
       ]);
+      const modelBytes = fileSize(model) + fileSize(`${model}.meta.json`);
 
       updateSummary(summary, summaryPath, { phase: "dataset_eval" });
       const datasetEval = path.join(iterDir, `onnx-dataset.${tag}.eval.json`);
@@ -480,9 +525,13 @@ function main(argv: any = process.argv.slice(2)) {
       ]);
 
       const gateResult = summarizeGate(gateEval, {
-        minPointRate: 0,
+        minPointRate: args.gateMinPointRate,
+        minBlackPointRate: args.gateMinBlackPointRate,
         minWhitePointRate: args.gateMinWhitePointRate,
-        minWhiteDiscDiff: args.gateMinWhiteDiscDiff
+        minBlackDiscDiff: args.gateMinBlackDiscDiff,
+        minWhiteDiscDiff: args.gateMinWhiteDiscDiff,
+        modelBytes,
+        maxModelBytes: args.maxOnnxBytes
       });
       updateSummary(summary, summaryPath, { phase: "champion_gate" });
       const championGateEval = path.join(iterDir, `onnx-champion-gate.${tag}.eval.json`);
@@ -505,8 +554,12 @@ function main(argv: any = process.argv.slice(2)) {
       ]);
       const championGateResult = summarizeGate(championGateEval, {
         minPointRate: args.championGateMinPointRate,
+        minBlackPointRate: args.championGateMinBlackPointRate,
         minWhitePointRate: args.championGateMinWhitePointRate,
-        minWhiteDiscDiff: args.championGateMinWhiteDiscDiff
+        minBlackDiscDiff: args.championGateMinBlackDiscDiff,
+        minWhiteDiscDiff: args.championGateMinWhiteDiscDiff,
+        modelBytes,
+        maxModelBytes: args.maxOnnxBytes
       });
       let runtimeModelOut = "";
       let runtimeMetaOut = "";
@@ -539,6 +592,9 @@ function main(argv: any = process.argv.slice(2)) {
         model,
         meta: `${model}.meta.json`,
         metrics,
+        modelBytes,
+        maxOnnxBytes: args.maxOnnxBytes,
+        modelSizePassed: modelBytes <= args.maxOnnxBytes,
         datasetEval,
         gateEval,
         championGateEval,
@@ -548,16 +604,26 @@ function main(argv: any = process.argv.slice(2)) {
         gatePassed: gateResult.promoted,
         championGatePassed: championGateResult.promoted,
         gate: {
+          blackPointRate: gateResult.blackPointRate,
           whitePointRate: gateResult.whitePointRate,
+          averageBlackDiscDiffFromOnnx: gateResult.averageBlackDiscDiffFromOnnx,
           averageWhiteDiscDiffFromOnnx: gateResult.averageWhiteDiscDiffFromOnnx,
           onnxPointRate: gateResult.onnxPointRate,
+          sizePassed: gateResult.sizePassed,
+          modelBytes: gateResult.modelBytes,
+          maxModelBytes: gateResult.maxModelBytes,
           games: gateResult.games,
           thresholds: gateResult.thresholds
         },
         championGate: {
+          blackPointRate: championGateResult.blackPointRate,
           whitePointRate: championGateResult.whitePointRate,
+          averageBlackDiscDiffFromOnnx: championGateResult.averageBlackDiscDiffFromOnnx,
           averageWhiteDiscDiffFromOnnx: championGateResult.averageWhiteDiscDiffFromOnnx,
           onnxPointRate: championGateResult.onnxPointRate,
+          sizePassed: championGateResult.sizePassed,
+          modelBytes: championGateResult.modelBytes,
+          maxModelBytes: championGateResult.maxModelBytes,
           games: championGateResult.games,
           thresholds: championGateResult.thresholds
         },
@@ -575,7 +641,7 @@ function main(argv: any = process.argv.slice(2)) {
         lastChampionGate: one.championGate,
         lastPromoted: shouldPromote
       });
-      appendLog(summary.launcherLog, `[${args.sessionTag}] iteration ${iteration}/${args.iterations} done promoted=${shouldPromote} gatePassed=${gateResult.promoted} championGatePassed=${championGateResult.promoted} whitePointRate=${gateResult.whitePointRate.toFixed(4)} whiteDiff=${gateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)} championPointRate=${championGateResult.onnxPointRate.toFixed(4)} championWhitePointRate=${championGateResult.whitePointRate.toFixed(4)} championWhiteDiff=${championGateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)}`);
+      appendLog(summary.launcherLog, `[${args.sessionTag}] iteration ${iteration}/${args.iterations} done promoted=${shouldPromote} gatePassed=${gateResult.promoted} championGatePassed=${championGateResult.promoted} modelBytes=${modelBytes} sizePassed=${gateResult.sizePassed && championGateResult.sizePassed} pointRate=${gateResult.onnxPointRate.toFixed(4)} blackPointRate=${gateResult.blackPointRate.toFixed(4)} whitePointRate=${gateResult.whitePointRate.toFixed(4)} blackDiff=${gateResult.averageBlackDiscDiffFromOnnx.toFixed(2)} whiteDiff=${gateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)} championPointRate=${championGateResult.onnxPointRate.toFixed(4)} championBlackPointRate=${championGateResult.blackPointRate.toFixed(4)} championWhitePointRate=${championGateResult.whitePointRate.toFixed(4)} championBlackDiff=${championGateResult.averageBlackDiscDiffFromOnnx.toFixed(2)} championWhiteDiff=${championGateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)}`);
       const pruned = pruneIntermediateArtifacts(summary, replaySelfplay.concat(hardcaseReplay), runsRoot);
       if (pruned.removedFiles > 0) {
         appendLog(summary.launcherLog, `[${args.sessionTag}] pruned_intermediates files=${pruned.removedFiles} bytes=${pruned.removedBytes}`);
@@ -599,5 +665,6 @@ if (require.main === module) main();
 
 export {
   main,
-  parseArgs
+  parseArgs,
+  summarizeGate
 };

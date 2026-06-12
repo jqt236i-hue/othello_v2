@@ -65,7 +65,7 @@ function parseArgs(argv: any) {
     heuristicRerankWeight: 3.0,
     policyWeight: 0.75,
     topK: 8,
-    whiteSafetyMultiplier: 1.45,
+    whiteSafetyMultiplier: 1.0,
     out: "othello-ai/data/onnx/onnx-vs-table.eval.json",
     verbose: false
   };
@@ -360,11 +360,21 @@ function summarizeGames(games: any) {
   let onnxWhiteWins = 0;
   let onnxWhiteDraws = 0;
   let onnxWhiteDiffTotal = 0;
+  let onnxBlackGames = 0;
+  let onnxBlackWins = 0;
+  let onnxBlackDraws = 0;
+  let onnxBlackDiffTotal = 0;
   for (const game of games) {
     diffTotal += game.discDiffFromOnnx;
     if (game.winner === "onnx") onnxWins += 1;
     else if (game.winner === "baseline") baselineWins += 1;
     else draws += 1;
+    if (game.blackAgentId === "onnx") {
+      onnxBlackGames += 1;
+      onnxBlackDiffTotal += game.discDiffFromOnnx;
+      if (game.winner === "onnx") onnxBlackWins += 1;
+      else if (game.winner === "draw") onnxBlackDraws += 1;
+    }
     if (game.whiteAgentId === "onnx") {
       onnxWhiteGames += 1;
       onnxWhiteDiffTotal += game.discDiffFromOnnx;
@@ -374,6 +384,7 @@ function summarizeGames(games: any) {
   }
   const onnxPoints = onnxWins + draws * 0.5;
   const baselinePoints = baselineWins + draws * 0.5;
+  const onnxBlackPoints = onnxBlackWins + onnxBlackDraws * 0.5;
   const onnxWhitePoints = onnxWhiteWins + onnxWhiteDraws * 0.5;
   return {
     games: games.length,
@@ -384,6 +395,11 @@ function summarizeGames(games: any) {
     baselinePoints,
     onnxPointRate: games.length > 0 ? onnxPoints / games.length : 0,
     averageDiscDiffFromOnnx: games.length > 0 ? diffTotal / games.length : 0,
+    onnxBlackGames,
+    onnxBlackWins,
+    onnxBlackDraws,
+    onnxBlackPointRate: onnxBlackGames > 0 ? onnxBlackPoints / onnxBlackGames : 0,
+    averageBlackDiscDiffFromOnnx: onnxBlackGames > 0 ? onnxBlackDiffTotal / onnxBlackGames : 0,
     onnxWhiteGames,
     onnxWhiteWins,
     onnxWhiteDraws,
@@ -691,7 +707,9 @@ async function main(argv: any = process.argv.slice(2)) {
     `baselineWins: ${summary.totals.baselineWins}`,
     `draws: ${summary.totals.draws}`,
     `onnxPointRate: ${summary.totals.onnxPointRate.toFixed(4)}`,
+    `onnxBlackPointRate: ${summary.totals.onnxBlackPointRate.toFixed(4)}`,
     `onnxWhitePointRate: ${summary.totals.onnxWhitePointRate.toFixed(4)}`,
+    `avgBlackDiscDiffFromOnnx: ${summary.totals.averageBlackDiscDiffFromOnnx.toFixed(2)}`,
     `avgWhiteDiscDiffFromOnnx: ${summary.totals.averageWhiteDiscDiffFromOnnx.toFixed(2)}`,
     `avgDiscDiffFromOnnx: ${summary.totals.averageDiscDiffFromOnnx.toFixed(2)}`,
     `onnxAvgMs: ${summary.inference.onnx.averageMs.toFixed(3)}`,
@@ -711,5 +729,6 @@ if (require.main === module) {
 
 export {
   main,
-  parseArgs
+  parseArgs,
+  summarizeGames
 };
