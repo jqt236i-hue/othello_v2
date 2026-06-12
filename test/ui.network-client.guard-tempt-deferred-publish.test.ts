@@ -59,6 +59,257 @@ const CASES = [
     }
   },
   {
+    label: 'DESTROY_ONE_STONE',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'destroy.js'),
+    handlerName: 'handleDestroySelection',
+    pendingType: 'DESTROY_ONE_STONE',
+    rawEventType: 'destroy_selected',
+    rawEvent: { destroyed: true },
+    cardId: 'destroy_01',
+    initialBoardEntries: [
+      { row: 2, col: 2, value: -1 }
+    ],
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: []
+    }),
+    buildNextGameState: (gameState) => {
+      const nextGameState = cloneJson(gameState);
+      nextGameState.board[2][2] = 0;
+      nextGameState.currentPlayer = global.WHITE;
+      nextGameState.turnNumber = 12;
+      return nextGameState;
+    },
+    assertAppliedState: ({ gameState, cardState }) => {
+      expect(gameState.board[2][2]).toBe(0);
+      expect(cardState.markers).toEqual([]);
+    }
+  },
+  {
+    label: 'REVERSE_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'reverse-will.js'),
+    handlerName: 'handleReverseWillSelection',
+    pendingType: 'REVERSE_WILL',
+    rawEventType: 'reverse_will_flipped',
+    rawEvent: {
+      details: [
+        { row: 2, col: 2, ownerBefore: 'white', ownerAfter: 'black' }
+      ]
+    },
+    cardId: 'reverse_will_01',
+    initialBoardEntries: [
+      { row: 2, col: 2, value: -1 }
+    ],
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: []
+    }),
+    buildNextGameState: (gameState) => {
+      const nextGameState = cloneJson(gameState);
+      nextGameState.board[2][2] = 1;
+      nextGameState.currentPlayer = global.WHITE;
+      nextGameState.turnNumber = 12;
+      return nextGameState;
+    },
+    assertAppliedState: ({ gameState, cardState }) => {
+      expect(gameState.board[2][2]).toBe(1);
+      expect(cardState.markers).toEqual([]);
+    }
+  },
+  {
+    label: 'EXTEND_LIFE_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'extend-life.js'),
+    handlerName: 'handleExtendLifeSelection',
+    pendingType: 'EXTEND_LIFE_WILL',
+    rawEventType: 'extend_life_selected',
+    cardId: 'extend_life_01',
+    initialMarkers: [
+      {
+        id: 81,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      }
+    ],
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 81,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 6 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 6 })
+        })
+      ]));
+    }
+  },
+  {
+    label: 'EXTEND_LIFE_GOD',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'extend-life.js'),
+    handlerName: 'handleExtendLifeSelection',
+    pendingType: 'EXTEND_LIFE_GOD',
+    rawEventType: 'extend_life_selected',
+    cardId: 'extend_life_god_01',
+    initialMarkers: [
+      {
+        id: 91,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      }
+    ],
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 91,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 12 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 12 })
+        })
+      ]));
+    }
+  },
+  {
+    label: 'CORROSION_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'extend-life.js'),
+    handlerName: 'handleCorrosionSelection',
+    pendingType: 'CORROSION_WILL',
+    rawEventType: 'corrosion_will_resolved',
+    rawEvent: { affectedCount: 1 },
+    cardId: 'corrosion_01',
+    initialMarkers: [
+      {
+        id: 101,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'white',
+        data: { type: 'WORK', remainingOwnerTurns: 5 }
+      }
+    ],
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 101,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'white',
+          data: { type: 'WORK', remainingOwnerTurns: 2 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'white',
+          data: expect.objectContaining({ type: 'WORK', remainingOwnerTurns: 2 })
+        })
+      ]));
+    }
+  },
+  {
+    label: 'SEED_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'seed.js'),
+    handlerName: 'handleSeedSelection',
+    pendingType: 'SEED_WILL',
+    rawEventType: 'seed_selected',
+    cardId: 'seed_01',
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 111,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'SEED', remainingOwnerTurns: 5 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'SEED', remainingOwnerTurns: 5 })
+        })
+      ]));
+    }
+  },
+  {
+    label: 'FREEZE_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'freeze.js'),
+    handlerName: 'handleFreezeSelection',
+    pendingType: 'FREEZE_WILL',
+    rawEventType: 'freeze_selected',
+    cardId: 'freeze_01',
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 121,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+        }
+      ]
+    }),
+    assertAppliedState: ({ cardState }) => {
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'FREEZE', remainingOwnerTurns: 5 })
+        })
+      ]));
+    }
+  },
+  {
     label: 'GUARD_WILL',
     modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'guard.js'),
     handlerName: 'handleGuardSelection',
@@ -306,14 +557,27 @@ function createLiveResponseSnapshot(stateVersion) {
   };
 }
 
-function createSnapshot(stateVersion, pendingType, cardId) {
+function createSnapshot(stateVersion, pendingType, cardId, options = {}) {
+  const board = createBoard(8, 8);
+  for (const entry of options.initialBoardEntries || []) {
+    if (
+      entry
+      && Number.isInteger(entry.row)
+      && Number.isInteger(entry.col)
+      && board[entry.row]
+      && Object.prototype.hasOwnProperty.call(board[entry.row], entry.col)
+    ) {
+      board[entry.row][entry.col] = entry.value;
+    }
+  }
+
   return {
     stateVersion,
     _meta: createSnapshotMeta(stateVersion),
     gameState: {
       currentPlayer: 1,
       turnNumber: 11,
-      board: createBoard(8, 8)
+      board
     },
     cardState: {
       selectedCardId: null,
@@ -326,14 +590,25 @@ function createSnapshot(stateVersion, pendingType, cardId) {
       },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
       lastUsedCardByPlayer: { black: null, white: null },
-      markers: [],
+      markers: cloneJson(options.initialMarkers || []),
       discard: [],
       turnIndex: 4
     }
   };
 }
 
-describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath, handlerName, pendingType, rawEventType, buildNextCardState, buildNextGameState, assertAppliedState, cardId }) => {
+describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) => {
+  const {
+    modulePath,
+    handlerName,
+    pendingType,
+    rawEventType,
+    rawEvent,
+    buildNextCardState,
+    buildNextGameState,
+    assertAppliedState,
+    cardId
+  } = caseConfig;
   let dom;
   let publishBodies;
   let runTurnMock;
@@ -359,7 +634,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
     global.MATCH_MODE = 'network';
     global.DEBUG_HUMAN_VS_HUMAN = false;
 
-    const initial = createSnapshot(20, pendingType, cardId);
+    const initial = createSnapshot(20, pendingType, cardId, caseConfig);
     global.gameState = initial.gameState;
     global.cardState = initial.cardState;
 
@@ -402,9 +677,14 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
           currentPlayer: global.WHITE,
           turnNumber: 12
         };
+    const appliedRawEvent = {
+      type: rawEventType,
+      applied: true,
+      ...(rawEvent || {})
+    };
     runTurnMock = jest.fn(() => ({
       ok: true,
-      rawEvents: [{ type: rawEventType, applied: true }],
+      rawEvents: [appliedRawEvent],
       nextCardState,
       nextGameState,
       playbackEvents: [{ type: 'status_applied', phase: 1 }]
@@ -431,7 +711,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
           seatKey: 'black',
           seatToken: 'seat-token',
           stateVersion: 20,
-          snapshot: createSnapshot(20, pendingType, cardId)
+          snapshot: createSnapshot(20, pendingType, cardId, caseConfig)
         });
       }
 
