@@ -238,7 +238,8 @@ const SoundEngine = {
 
     _getResultBgmOutputVolume() {
         const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
-        return this._clamp01(sliderVolume * (this.isMuted ? 0 : 1));
+        const masterVolume = this._clamp01(this._toNonNegativeNumber(this.masterVolume, 1));
+        return this._clamp01(sliderVolume * masterVolume * (this.isMuted ? 0 : 1));
     },
 
     _updateBgmOutputVolume() {

@@ -344,7 +344,7 @@ describe('sound handler', () => {
     expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
     expect(resultAudio.src).toBe('assets/audio/other/勝利リザルト-bpm165.mp3');
     expect(resultAudio.loop).toBe(false);
-    expect(resultAudio.volume).toBeCloseTo(0.25);
+    expect(resultAudio.volume).toBeCloseTo(0.25 * 0.5);
     expect(resultAudio.play).toHaveBeenCalledTimes(1);
 
     resultAudio.onended();
@@ -473,7 +473,7 @@ describe('sound handler', () => {
     expect(createdSources[0].loopStart).toBe(0);
     expect(createdSources[0].loopEnd).toBeCloseTo(90 * 60 / 115, 6);
     expect(createdSources[0].start).toHaveBeenCalledWith(0, 0);
-    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25, 0);
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25 * 0.5, 0);
 
     expect(engine.stopResultBgm({ resumeBgm: true })).toBe(true);
 

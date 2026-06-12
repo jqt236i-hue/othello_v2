@@ -177,6 +177,23 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
   });
 
+  test('master volume scales active result BGM output', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+
+    soundEngine.bgm = { paused: false, pause: jest.fn() };
+    soundEngine.bgmVolume = 0.8;
+
+    expect(soundEngine.playResultBgm('win')).toBe(true);
+    const resultBgm = instances[0];
+
+    expect(resultBgm.volume).toBeCloseTo(0.8 * DEFAULT_MASTER_VOLUME, 6);
+
+    soundEngine.setMasterVolume(0.25);
+
+    expect(resultBgm.volume).toBeCloseTo(0.8 * 0.25, 6);
+  });
+
   test('duration-end revert sound uses the renamed asset mapping', () => {
     const soundEngine = loadSoundEngine();
 
