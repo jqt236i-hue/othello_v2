@@ -9,6 +9,7 @@ const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
 const TurnPipelineUIAdapter = require('../game/turn/pipeline_ui_adapter');
+const SubPlacementContinuation = require('../game/turn/sub-placement-continuation');
 const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
@@ -461,15 +462,36 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     const resolvedAction = MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action);
 
     const prng = createCommandActionPrng(room, currentSnapshot);
+    const currentCardState = currentSnapshot.cardState || {};
+    const skipTurnStartForSubPlacement = (
+        SubPlacementContinuation &&
+        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
+        SubPlacementContinuation.isSubPlacementTurnActive(currentCardState, playerKey)
+    );
+    const resolvedActionRecord = resolvedAction && typeof resolvedAction === 'object' ? resolvedAction : {};
+    const pendingByPlayer = currentCardState && currentCardState.pendingEffectByPlayer && typeof currentCardState.pendingEffectByPlayer === 'object'
+        ? currentCardState.pendingEffectByPlayer
+        : {};
+    const expectedPendingForPlayer = pendingByPlayer && pendingByPlayer[playerKey] && typeof pendingByPlayer[playerKey] === 'object'
+        ? pendingByPlayer[playerKey]
+        : {};
+    const expectedPendingType = String(expectedPendingForPlayer.type || '').toUpperCase();
+    const skipTurnStartForTeleportSelection = !!(
+        resolvedActionRecord.pendingSelectionState &&
+        typeof resolvedActionRecord.pendingSelectionState === 'object' &&
+        (expectedPendingType === 'TELEPORT_WILL' || expectedPendingType === 'CELL_TELEPORT_WILL')
+    );
+    const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForTeleportSelection;
     const result = TurnPipeline.applyTurnSafe(
-        currentSnapshot.cardState,
+        currentCardState,
         currentSnapshot.gameState,
         playerKey,
         resolvedAction,
         prng,
         {
             currentStateVersion: currentTurnIndex,
-            prngState: currentSnapshot.cardState && currentSnapshot.cardState.prngState
+            prngState: currentCardState && currentCardState.prngState,
+            skipTurnStart: skipCommandTurnStart
         }
     );
 
@@ -514,7 +536,9 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         actionPresentationEvents
     );
 
-    const turnStartPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    const turnStartPlaybackAssembly = skipCommandTurnStart
+        ? null
+        : reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
     if (
         actionChargeDeltaEvents.length > 0
         && nextSnapshot

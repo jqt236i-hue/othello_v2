@@ -150,6 +150,7 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../game/logic/cards/teleport.js': () => require('../game/logic/cards/teleport.js'),
     '../game/logic/cards/clone.js': () => require('../game/logic/cards/clone.js'),
     '../game/logic/cards/meteor.js': () => require('../game/logic/cards/meteor.js'),
+    '../game/logic/cards/meteor_god.js': () => require('../game/logic/cards/meteor_god.js'),
     '../game/logic/cards/shrink.js': () => require('../game/logic/cards/shrink.js'),
     '../game/logic/cards/living_will.js': () => require('../game/logic/cards/living_will.js'),
     '../game/logic/cards/targets.js': () => require('../game/logic/cards/targets.js'),
@@ -183,6 +184,7 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../game/logic/card-resolution/hand-effects': () => require('../game/logic/card-resolution/hand-effects'),
     '../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will'),
     '../game/logic/card-resolution/theory-incarnation': () => require('../game/logic/card-resolution/theory-incarnation'),
+    '../game/logic/card-resolution/board-executor': () => require('../game/logic/card-resolution/board-executor'),
     '../game/logic/card-resolution/special-stone-marker-factory': () => require('../game/logic/card-resolution/special-stone-marker-factory'),
     '../game/logic/card-resolution/position-swap': () => require('../game/logic/card-resolution/position-swap'),
     '../game/logic/markers_adapter.js': () => require('../game/logic/markers_adapter.js'),
@@ -517,6 +519,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards/teleport.js', 'CardTeleport'],
             ['../game/logic/cards/clone.js', 'CardClone'],
             ['../game/logic/cards/meteor.js', 'CardMeteor'],
+            ['../game/logic/cards/meteor_god.js', 'CardMeteorGod'],
             ['../game/logic/cards/shrink.js', 'CardShrink'],
             ['../game/logic/cards/living_will.js', 'CardLivingWill'],
             ['../game/logic/cards/targets.js', 'CardTargets'],
@@ -550,6 +553,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/card-resolution/hand-effects', 'CardHandEffects'],
             ['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution'],
             ['../game/logic/card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution'],
+            ['../game/logic/card-resolution/board-executor', 'CardBoardExecutorResolution'],
             ['../game/logic/card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory'],
             ['../game/logic/card-resolution/position-swap', 'CardPositionSwapEffects']
         ];
@@ -1305,6 +1309,7 @@ async function applyCommandPublishToSnapshot(
         typeof resolvedActionRecord.pendingSelectionState === 'object' &&
         (expectedPendingType === 'TELEPORT_WILL' || expectedPendingType === 'CELL_TELEPORT_WILL')
     );
+    const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForTeleportSelection;
     const result = TurnPipeline.applyTurnSafe(
         currentCardState,
         currentSnapshot.gameState,
@@ -1314,7 +1319,7 @@ async function applyCommandPublishToSnapshot(
         {
             currentStateVersion: currentTurnIndex,
             prngState: currentCardState.prngState,
-            skipTurnStart: skipTurnStartForSubPlacement || skipTurnStartForTeleportSelection
+            skipTurnStart: skipCommandTurnStart
         }
     );
 
@@ -1360,7 +1365,9 @@ async function applyCommandPublishToSnapshot(
         TurnPipelineUIAdapter
     );
 
-    const turnStartPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter);
+    const turnStartPlaybackAssembly = skipCommandTurnStart
+        ? null
+        : await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter);
     MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
