@@ -1371,6 +1371,43 @@ describe('cpu decision refactor helpers', () => {
     }));
   });
 
+  test('setCpuDecisionRuntime(null) clears injected match mode', async () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.OthelloOnnxRuntime = {
+      chooseMove: jest.fn(async () => candidates[1])
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async () => candidates[0])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'reversi',
+      readHumanVsHumanMode: () => false
+    });
+
+    expect(await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 5)).toBe(candidates[1]);
+    expect(global.OthelloOnnxRuntime.chooseMove).toHaveBeenCalledTimes(1);
+    expect(global.CpuPolicyOnnxRuntime.chooseMove).not.toHaveBeenCalled();
+
+    cpuDecision.setCpuDecisionRuntime(null);
+
+    expect(await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 5)).toBeNull();
+    expect(global.OthelloOnnxRuntime.chooseMove).toHaveBeenCalledTimes(1);
+    expect(global.CpuPolicyOnnxRuntime.chooseMove).not.toHaveBeenCalled();
+  });
+
   test('selectCpuMoveWithPolicy forces Lv6 placement path in cpu mode for normal turns', () => {
     const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
     global.cpuSmartness.white = 1;
