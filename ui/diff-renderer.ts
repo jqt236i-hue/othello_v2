@@ -1003,6 +1003,10 @@ var ViewerContextModule: any = null;
 if (typeof require === 'function') {
     try { ViewerContextModule = require('./diff-renderer/viewer-context'); } catch (e: any) { /* ignore */ }
 }
+var StoneInfoPanelModule: any = null;
+if (typeof require === 'function') {
+    try { StoneInfoPanelModule = require('./diff-renderer/stone-info-panel'); } catch (e: any) { /* ignore */ }
+}
 var PlaybackStateModule: any = null;
 if (typeof require === 'function') {
     try { PlaybackStateModule = require('./playback-state-manager'); } catch (e: any) { /* ignore */ }
@@ -1896,29 +1900,9 @@ function _isSameBoardCoord(rowA: any, colA: any, rowB: any, colB: any) {
 
 function _ensureStoneInfoPanel() {
     if (typeof document === 'undefined') return null;
-    let panel = document.getElementById('stone-info-panel');
-    if (panel) return panel;
-
-    panel = document.createElement('div');
-    panel.id = 'stone-info-panel';
-    panel.className = 'stone-info-panel';
-    panel.setAttribute('aria-live', 'polite');
-    panel.setAttribute('aria-atomic', 'true');
-    panel.setAttribute('aria-hidden', 'true');
-    panel.innerHTML = [
-        '<div id="stone-info-name" class="stone-info-name"></div>',
-        '<div id="stone-info-desc" class="stone-info-desc"></div>',
-        '<div id="stone-info-meta" class="stone-info-meta is-empty"></div>'
-    ].join('');
-    const manifestPanel = document.getElementById('manifest-effect-panel');
-    const effectPanel = document.getElementById('effect-live-panel');
-    if (manifestPanel && manifestPanel.parentNode) {
-        manifestPanel.parentNode.insertBefore(panel, manifestPanel);
-    } else if (effectPanel && effectPanel.parentNode) {
-        effectPanel.parentNode.insertBefore(panel, effectPanel.nextSibling);
-    } else {
-        document.body.appendChild(panel);
-    }
+    const panel = StoneInfoPanelModule && typeof StoneInfoPanelModule.ensureStoneInfoPanel === 'function'
+        ? StoneInfoPanelModule.ensureStoneInfoPanel(document)
+        : null;
     _stoneInfoPanelRefs = null;
     return panel;
 }
@@ -2001,24 +1985,17 @@ function _isStoneInfoPanelVisible() {
 }
 
 function _isHoverPointerEvent(ev: any) {
-    if (ev && ev.pointerType === 'touch') return false;
-    if (ev && (ev.pointerType === 'mouse' || ev.pointerType === 'pen')) return true;
-    try {
-        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-            return window.matchMedia('(hover: hover)').matches;
-        }
-    } catch (e: any) { /* ignore */ }
-    return true;
+    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.isHoverPointerEvent === 'function') {
+        return StoneInfoPanelModule.isHoverPointerEvent(typeof window !== 'undefined' ? window : null, ev);
+    }
+    return !(ev && ev.pointerType === 'touch');
 }
 
 function _isTouchStoneInfoEvent(ev: any) {
-    if (ev && ev.pointerType === 'touch') return true;
-    try {
-        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-            return window.matchMedia('(hover: none)').matches;
-        }
-    } catch (e: any) { /* ignore */ }
-    return false;
+    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.isTouchStoneInfoEvent === 'function') {
+        return StoneInfoPanelModule.isTouchStoneInfoEvent(typeof window !== 'undefined' ? window : null, ev);
+    }
+    return !!(ev && ev.pointerType === 'touch');
 }
 
 function _ensureStoneInfoTagPanel() {
@@ -2400,16 +2377,14 @@ let _outsideCloseHandlerBound = false;
 function _ensureOutsideCloseHandler() {
     if (_outsideCloseHandlerBound || typeof document === 'undefined') return;
     _outsideCloseHandlerBound = true;
+    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.attachStoneInfoPanelDismissHandlers === 'function') {
+        StoneInfoPanelModule.attachStoneInfoPanelDismissHandlers(document, {
+            bindTagAutoDismiss: _bindStoneInfoTagAutoDismiss,
+            hideStoneInfoPanel: _hideStoneInfoPanel
+        });
+        return;
+    }
     _bindStoneInfoTagAutoDismiss();
-    document.addEventListener('pointerdown', (ev: PointerEvent) => {
-        const panel = document.getElementById('stone-info-panel');
-        if (!panel || !panel.classList.contains('visible')) return;
-        const target = ev.target as Node | null;
-        if (panel.contains(target)) return;
-        const board = document.getElementById('board');
-        if (board && board.contains(target)) return;
-        _hideStoneInfoPanel();
-    }, true);
 }
 
 function attachBoardCellInteraction(cell: any, row: any, col: any) {
