@@ -48,6 +48,36 @@ describe('PendingCoordinator', () => {
     });
   });
 
+  test('applyPendingSelectionCardContext adds place coordinates from pending target payload for network publish', () => {
+    const action = {
+      type: 'place',
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: {
+        type: 'METEOR_WILL',
+        stage: 'selectTarget',
+        cardId: 'meteor_01',
+        pendingEffectId: 'pending_1_1'
+      }
+    };
+    const params = {
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: action.pendingSelectionState
+    };
+
+    expect(
+      PendingCoordinator.applyPendingSelectionCardContext(params, 'black', params.pendingSelectionState, { action })
+    ).toEqual(expect.objectContaining({
+      row: 0,
+      col: 0,
+      meteorTarget: { row: 0, col: 0 }
+    }));
+    expect(action).toEqual(expect.objectContaining({
+      row: 0,
+      col: 0,
+      meteorTarget: { row: 0, col: 0 }
+    }));
+  });
+
   test('clearPendingEffect clears pending state and cached pending action for the requested player', () => {
     global.ActionManager = {
       ActionManager: {

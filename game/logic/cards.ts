@@ -2349,13 +2349,12 @@ const {
             getCellTeleportTargets,
             getCloneTargets,
             getSwapTargets,
-            getPositionSwapTargets: (nextCardState: any, nextGameState: any, nextPlayerKey: any) => getSelectableTargets({
-                ...nextCardState,
-                pendingEffectByPlayer: {
-                    ...(nextCardState.pendingEffectByPlayer || { black: null, white: null }),
-                    [nextPlayerKey]: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' }
-                }
-            }, nextGameState, nextPlayerKey),
+            getPositionSwapTargets: (nextCardState: any, nextGameState: any, nextPlayerKey: any) => getPositionSwapTargets(
+                nextCardState,
+                nextGameState,
+                nextPlayerKey,
+                { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' }
+            ),
             getBoardExpansionTargets,
             getBoardExpansionGodTargets,
             getBoardShrinkTargets,

@@ -396,6 +396,18 @@ const pendingCoordinatorModule = (function (root: any) {
 
     function applyPendingSelectionCardContext(target: any, playerKey: any, pendingLike: any, options: any): any {
         var payload = (target && typeof target === 'object') ? target : {};
+        var opts = (options && typeof options === 'object') ? options : {};
+        var action = opts.action && typeof opts.action === 'object' ? opts.action : null;
+        var actionType = String(
+            (action && (action.type || action.actionType)) ||
+            payload.type ||
+            payload.actionType ||
+            'place'
+        );
+        ensurePlaceActionCoordinates(payload, actionType);
+        if (action) {
+            ensurePlaceActionCoordinates(action, actionType);
+        }
         return payload;
     }
 

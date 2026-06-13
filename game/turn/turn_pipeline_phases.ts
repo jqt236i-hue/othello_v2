@@ -30,6 +30,32 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         './turn-start/timer-phase': 'TurnStartTimerPhase'
     });
 
+    const TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS: Record<string, () => any> = Object.freeze({
+        '../logic/markers_adapter': () => require('../logic/markers_adapter'),
+        '../logic/cards/utils': () => require('../logic/cards/utils'),
+        '../logic/context': () => require('../logic/context'),
+        '../../shared-constants': () => require('../../shared-constants'),
+        '../../utils/owner-helpers': () => require('../../utils/owner-helpers'),
+        '../../shared/destroy-outcome-contract': () => require('../../shared/destroy-outcome-contract'),
+        './turn_pipeline_phase_helpers': () => require('./turn_pipeline_phase_helpers'),
+        './pending-coordinator': () => require('./pending-coordinator'),
+        './sub-placement-continuation': () => require('./sub-placement-continuation'),
+        './action-phase/continuation': () => require('./action-phase/continuation'),
+        './action-phase/placement-effects': () => require('./action-phase/placement-effects'),
+        './card-usage/immediate-effects': () => require('./card-usage/immediate-effects'),
+        './board-charge': () => require('./board-charge'),
+        './presentation-helpers': () => require('./presentation-helpers'),
+        './round-state': () => require('./round-state'),
+        './action-phase/pre-placement-selection': () => require('./action-phase/pre-placement-selection'),
+        './action-phase/place-resolution': () => require('./action-phase/place-resolution'),
+        './action-phase/placement-immediate-effects': () => require('./action-phase/placement-immediate-effects'),
+        './action-phase/turn-handoff': () => require('./action-phase/turn-handoff'),
+        './phase-presentation-finalizer': () => require('./phase-presentation-finalizer'),
+        './turn-start/marker-phase': () => require('./turn-start/marker-phase'),
+        './turn-start/post-processing': () => require('./turn-start/post-processing'),
+        './turn-start/timer-phase': () => require('./turn-start/timer-phase')
+    });
+
     function getRuntimeModuleGlobal(globalKey: string): any {
         if (!globalKey) return null;
         try {
@@ -43,12 +69,39 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return null;
     }
 
-    function requireOptionalModule(id: string): any {
-        try {
-            return _require(id);
-        } catch (e) {
-            return getRuntimeModuleGlobal(TURN_PIPELINE_PHASE_MODULE_GLOBALS[id]);
+    function unwrapOptionalModule(value: any, depth = 0): any {
+        if (!value || typeof value !== 'object' || depth > 5) return value;
+        if (value['module.exports'] && value['module.exports'] !== value) {
+            return unwrapOptionalModule(value['module.exports'], depth + 1);
         }
+        if (value.default && value.default !== value) {
+            return unwrapOptionalModule(value.default, depth + 1);
+        }
+        return value;
+    }
+
+    function hasUsableOptionalModule(value: any): boolean {
+        if (!value) return false;
+        if (typeof value === 'function') return true;
+        if (typeof value !== 'object') return true;
+        return Object.keys(value).some((key) => key !== '__esModule');
+    }
+
+    function requireOptionalModule(id: string): any {
+        const staticLoader = TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS[id];
+        if (typeof staticLoader === 'function') {
+            try {
+                const staticModule = unwrapOptionalModule(staticLoader());
+                if (hasUsableOptionalModule(staticModule)) return staticModule;
+            } catch (e) { /* fall through to runtime require/global fallback */ }
+        }
+        try {
+            const requiredModule = unwrapOptionalModule(_require(id));
+            if (hasUsableOptionalModule(requiredModule)) return requiredModule;
+        } catch (e) {
+            /* fall through to global fallback */
+        }
+        return unwrapOptionalModule(getRuntimeModuleGlobal(TURN_PIPELINE_PHASE_MODULE_GLOBALS[id]));
     }
 
     const MarkersAdapter = requireOptionalModule('../logic/markers_adapter');

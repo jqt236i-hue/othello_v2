@@ -151,6 +151,7 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../game/logic/cards/expansion.js': () => require('../game/logic/cards/expansion.js'),
     '../game/logic/cards/movement.js': () => require('../game/logic/cards/movement.js'),
     '../game/logic/cards/teleport.js': () => require('../game/logic/cards/teleport.js'),
+    '../game/logic/cards/cell-removal.js': () => require('../game/logic/cards/cell-removal.js'),
     '../game/logic/cards/clone.js': () => require('../game/logic/cards/clone.js'),
     '../game/logic/cards/meteor.js': () => require('../game/logic/cards/meteor.js'),
     '../game/logic/cards/meteor_god.js': () => require('../game/logic/cards/meteor_god.js'),
@@ -518,6 +519,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards/selectors-core-utils.js', 'CardSelectorsCoreUtils'],
             ['../game/logic/cards/selectors-board-shape.js', 'CardSelectorsBoardShape'],
             ['../game/logic/cards/expansion.js', 'CardExpansion'],
+            ['../game/logic/cards/cell-removal.js', 'CardCellRemoval'],
             ['../game/logic/cards/movement.js', 'CardMovement'],
             ['../game/logic/cards/teleport.js', 'CardTeleport'],
             ['../game/logic/cards/clone.js', 'CardClone'],
@@ -1334,7 +1336,6 @@ async function applyCommandPublishToSnapshot(
             events: result && Array.isArray(result.events) ? result.events : []
         };
     }
-
     const nextSnapshot = {
         gameState: result.gameState,
         cardState: result.cardState

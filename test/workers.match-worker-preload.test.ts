@@ -103,6 +103,21 @@ describe('match worker card preload', () => {
     }
   });
 
+  test('turn pipeline optional modules are statically loadable for workerd bundles', () => {
+    const turnPhaseSource = readRepoFile('game/turn/turn_pipeline_phases.ts');
+    const loaderBlock = turnPhaseSource.slice(
+      turnPhaseSource.indexOf('TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS'),
+      turnPhaseSource.indexOf('function getRuntimeModuleGlobal')
+    );
+    const requirePaths = Array.from(turnPhaseSource.matchAll(/requireOptionalModule\('([^']+)'\)/g)).map((match) => match[1]);
+
+    expect(loaderBlock.length).toBeGreaterThan(0);
+    expect(requirePaths.length).toBeGreaterThan(0);
+    for (const requirePath of requirePaths) {
+      expect(loaderBlock).toContain(`'${requirePath}': () => require('${requirePath}')`);
+    }
+  });
+
   test('runtime preload exposes nested turn-start marker phase modules', () => {
     const markerPhaseSource = readRepoFile('game/turn/turn-start/marker-phase.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');

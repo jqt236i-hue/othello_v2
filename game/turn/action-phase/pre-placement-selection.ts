@@ -748,4 +748,11 @@ const ActionPhasePrePlacementSelectionModule = {
     resolvePrePlacementSelectionAction
 };
 
+try {
+    const root = (typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : null)) as any;
+    if (root && !root.TurnActionPhasePrePlacementSelection) {
+        root.TurnActionPhasePrePlacementSelection = ActionPhasePrePlacementSelectionModule;
+    }
+} catch (e) { /* ignore global registration fallback */ }
+
 export = ActionPhasePrePlacementSelectionModule;

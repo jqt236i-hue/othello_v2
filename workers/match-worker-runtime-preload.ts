@@ -104,6 +104,7 @@ installRuntimeModule('CardContext', () => require('../game/logic/context.js'));
 installRuntimeModule('CardExpansion', () => require('../game/logic/cards/expansion.js'));
 installRuntimeModule('CardSelectorsCoreUtils', () => require('../game/logic/cards/selectors-core-utils.js'));
 installRuntimeModule('CardSelectorsBoardShape', () => require('../game/logic/cards/selectors-board-shape.js'));
+installRuntimeModule('CardCellRemoval', () => require('../game/logic/cards/cell-removal.js'));
 installRuntimeModule('CardMovement', () => require('../game/logic/cards/movement.js'));
 installRuntimeModule('CardTeleport', () => require('../game/logic/cards/teleport.js'));
 installRuntimeModule('CardClone', () => require('../game/logic/cards/clone.js'));

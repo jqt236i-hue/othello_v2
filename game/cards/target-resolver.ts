@@ -36,6 +36,9 @@ function readRuntimeGlobal(globalKey: string): any {
 }
 
 function unwrapModule(mod: any): any {
+    if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'module.exports')) {
+        return mod['module.exports'] || mod;
+    }
     if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
         return mod.default || mod;
     }
