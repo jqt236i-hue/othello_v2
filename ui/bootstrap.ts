@@ -27,6 +27,13 @@ try {
     }
 } catch (e: any) { /* ignore */ }
 
+let BootstrapRuntimeResolvers: any = null;
+try {
+    if (typeof _require === 'function') {
+        BootstrapRuntimeResolvers = _require('./bootstrap/runtime-resolvers');
+    }
+} catch (e: any) { /* ignore */ }
+
 function readCpuSmartnessValueFromSelect(id: string): number | string {
     try {
         if (CpuProfileSelectionModule && typeof CpuProfileSelectionModule.readCpuSmartnessValueFromSelectId === 'function') {
@@ -352,6 +359,64 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             || /[?&]special-debug=true(?:&|$)/i.test(query);
     }
 
+    function createBootstrapRuntimeResolvers() {
+        if (BootstrapRuntimeResolvers && typeof BootstrapRuntimeResolvers.createRuntimeResolvers === 'function') {
+            return BootstrapRuntimeResolvers.createRuntimeResolvers({
+                getRegisteredUIGlobals,
+                readDebugQueryString,
+                isDebugSessionEnabled,
+                debugLog
+            });
+        }
+        function resolveRuntimeFunction(name: string) {
+            try {
+                if (typeof name !== 'string') return null;
+                const registered = getRegisteredUIGlobals();
+                const registeredCandidate = registered && (registered as any)[name];
+                if (typeof registeredCandidate === 'function') return registeredCandidate;
+                if (typeof globalThis === 'undefined') return null;
+                const candidate = (globalThis as any)[name];
+                return typeof candidate === 'function' ? candidate : null;
+            } catch (e: any) {
+                return null;
+            }
+        }
+        function resolveRuntimeValue(name: string) {
+            try {
+                if (typeof name !== 'string' || typeof globalThis === 'undefined') return undefined;
+                return Object.prototype.hasOwnProperty.call(globalThis, name)
+                    ? (globalThis as any)[name]
+                    : undefined;
+            } catch (e: any) {
+                return undefined;
+            }
+        }
+        function readMatchMode() {
+            try {
+                if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                    return (globalThis as any).getCurrentMatchMode();
+                }
+                if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
+            } catch (e: any) { /* ignore */ }
+            return null;
+        }
+        function readHumanVsHumanMode() {
+            try {
+                return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
+            } catch (e: any) { /* ignore */ }
+            return false;
+        }
+        return {
+            resolveRuntimeFunction,
+            resolveRuntimeValue,
+            readMatchMode,
+            readHumanVsHumanMode,
+            readQuerySearch: readDebugQueryString,
+            isDebugLogAvailable: isDebugSessionEnabled,
+            debugLog
+        };
+    }
+
     function setDebugLogTarget(target: any, enabled: any) {
         if (!target || typeof target !== 'object') return;
         if (enabled) {
@@ -587,33 +652,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     }
 
     function buildPendingSelectionFlowBridge() {
+        const runtimeResolvers = createBootstrapRuntimeResolvers();
         return {
-            readMatchMode: () => {
-                try {
-                    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                        return (globalThis as any).getCurrentMatchMode();
-                    }
-                    if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                } catch (e: any) { /* ignore */ }
-                return null;
-            },
-            readHumanVsHumanMode: () => {
-                try {
-                    return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-                } catch (e: any) {
-                    return false;
-                }
-            },
-            resolveRuntimeValue: (name: string) => {
-                try {
-                    if (typeof name !== 'string' || typeof globalThis === 'undefined') return undefined;
-                    return Object.prototype.hasOwnProperty.call(globalThis, name)
-                        ? (globalThis as any)[name]
-                        : undefined;
-                } catch (e: any) {
-                    return undefined;
-                }
-            },
+            readMatchMode: runtimeResolvers.readMatchMode,
+            readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
+            resolveRuntimeValue: runtimeResolvers.resolveRuntimeValue,
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
             acquireSelectionSettlementLock: (meta: any) => {
                 try {
@@ -1407,6 +1450,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     }
 
     function installNetworkDI(timerService: any) {
+        const runtimeResolvers = createBootstrapRuntimeResolvers();
         // Early registration: if the CPU turn handler is available on the game side, register its
         // processCpuTurn/processAutoBlackTurn to UIBootstrap so UI consumers can schedule CPU
         // turns immediately without waiting for other bootstrap steps. This avoids boot-order
@@ -1427,53 +1471,19 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 }
                 if (typeof cpu.setCpuUIImpl === 'function') {
                     cpu.setCpuUIImpl({
-                        readMatchMode: () => {
-                            try {
-                                if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                                    return (globalThis as any).getCurrentMatchMode();
-                                }
-                                if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                            } catch (e: any) { /* ignore */ }
-                            return null;
-                        },
-                        readHumanVsHumanMode: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-                            } catch (e: any) { /* ignore */ }
-                            return false;
-                        },
-                        readQuerySearch: () => readDebugQueryString(),
-                        isDebugLogAvailable: () => isDebugSessionEnabled(),
-                        debugLog,
+                        readMatchMode: runtimeResolvers.readMatchMode,
+                        readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
+                        readQuerySearch: runtimeResolvers.readQuerySearch,
+                        isDebugLogAvailable: runtimeResolvers.isDebugLogAvailable,
+                        debugLog: runtimeResolvers.debugLog,
                         readCpuSmartness: () => {
                             return {
                                 black: readCpuSmartnessValueFromSelect('smartBlack'),
                                 white: readCpuSmartnessValueFromSelect('smartWhite')
                             };
                         },
-                        resolveRuntimeFunction: (name: string) => {
-                            try {
-                                if (typeof name !== 'string') return null;
-                                const registered = getRegisteredUIGlobals();
-                                const registeredCandidate = registered && (registered as any)[name];
-                                if (typeof registeredCandidate === 'function') return registeredCandidate;
-                                if (typeof globalThis === 'undefined') return null;
-                                const candidate = (globalThis as any)[name];
-                                return typeof candidate === 'function' ? candidate : null;
-                            } catch (e: any) {
-                                return null;
-                            }
-                        },
-                        resolveRuntimeValue: (name: string) => {
-                            try {
-                                if (typeof name !== 'string' || typeof globalThis === 'undefined') return undefined;
-                                return Object.prototype.hasOwnProperty.call(globalThis, name)
-                                    ? (globalThis as any)[name]
-                                    : undefined;
-                            } catch (e: any) {
-                                return undefined;
-                            }
-                        },
+                        resolveRuntimeFunction: runtimeResolvers.resolveRuntimeFunction,
+                        resolveRuntimeValue: runtimeResolvers.resolveRuntimeValue,
                         readProcessing: () => {
                             try {
                                 const playbackState = getPlaybackStateModuleForReset();
@@ -1637,34 +1647,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         try { cpu = require('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
                         passHandler.setPassHandlerRuntime({
                             processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
-                            readMatchMode: () => {
-                                try {
-                                    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                                        return (globalThis as any).getCurrentMatchMode();
-                                    }
-                                    if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                                } catch (e: any) { /* ignore */ }
-                                return null;
-                            },
-                            readHumanVsHumanMode: () => {
-                                try {
-                                    return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-                                } catch (e: any) { /* ignore */ }
-                                return false;
-                            },
-                            resolveRuntimeFunction: (name: string) => {
-                                try {
-                                    if (typeof name !== 'string') return null;
-                                    const registered = getRegisteredUIGlobals();
-                                    const registeredCandidate = registered && (registered as any)[name];
-                                    if (typeof registeredCandidate === 'function') return registeredCandidate;
-                                    if (typeof globalThis === 'undefined') return null;
-                                    const candidate = (globalThis as any)[name];
-                                    return typeof candidate === 'function' ? candidate : null;
-                                } catch (e: any) {
-                                    return null;
-                                }
-                            },
+                            readMatchMode: runtimeResolvers.readMatchMode,
+                            readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
+                            resolveRuntimeFunction: runtimeResolvers.resolveRuntimeFunction,
                             showResult: () => {
                                 try {
                                     const fn = typeof globalThis !== 'undefined' ? (globalThis as any).showResult : null;
@@ -1770,21 +1755,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 try { cpu = require('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
                 cpuDecision.setCpuDecisionRuntime({
                     processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
-                    readMatchMode: () => {
-                        try {
-                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                                return (globalThis as any).getCurrentMatchMode();
-                            }
-                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                        } catch (e: any) { /* ignore */ }
-                        return null;
-                    },
-                    readHumanVsHumanMode: () => {
-                        try {
-                            return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-                        } catch (e: any) { /* ignore */ }
-                        return false;
-                    },
+                    readMatchMode: runtimeResolvers.readMatchMode,
+                    readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
                     readDebugFlag: (name: any) => {
                         try {
                             if (typeof name !== 'string' || typeof globalThis === 'undefined') return false;
@@ -1792,15 +1764,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         } catch (e: any) { /* ignore */ }
                         return false;
                     },
-                    isDebugLogAvailable: () => isDebugSessionEnabled(),
-                    readQuerySearch: () => {
-                        try {
-                            return (typeof location !== 'undefined' && location && typeof location.search === 'string')
-                                ? location.search
-                                : '';
-                        } catch (e: any) { /* ignore */ }
-                        return '';
-                    },
+                    isDebugLogAvailable: runtimeResolvers.isDebugLogAvailable,
+                    readQuerySearch: runtimeResolvers.readQuerySearch,
                     readCpuSmartness: () => {
                         return {
                             black: readCpuSmartnessValueFromSelect('smartBlack'),
@@ -1928,17 +1893,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             const turnPipelinePhases = require('../game/turn/turn_pipeline_phases');
             if (turnPipelinePhases && typeof turnPipelinePhases.setTurnPipelinePhasesRuntime === 'function') {
                 turnPipelinePhases.setTurnPipelinePhasesRuntime({
-                    isDebugLogAvailable: () => isDebugSessionEnabled(),
-                    debugLog,
-                    readMatchMode: () => {
-                        try {
-                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                                return (globalThis as any).getCurrentMatchMode();
-                            }
-                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                        } catch (e: any) { /* ignore */ }
-                        return null;
-                    }
+                    isDebugLogAvailable: runtimeResolvers.isDebugLogAvailable,
+                    debugLog: runtimeResolvers.debugLog,
+                    readMatchMode: runtimeResolvers.readMatchMode
                 });
             }
         } catch (e: any) { /* ignore */ }
@@ -1972,14 +1929,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             } catch (e: any) { /* ignore */ }
                             return undefined;
                         },
-                        readQuerySearch: () => {
-                            try {
-                                return (typeof location !== 'undefined' && location && typeof location.search === 'string')
-                                    ? location.search
-                                    : '';
-                            } catch (e: any) { /* ignore */ }
-                            return '';
-                        }
+                        readQuerySearch: runtimeResolvers.readQuerySearch
                     });
                 }
             } catch (e: any) { /* ignore */ }
@@ -2001,6 +1951,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     }
 
     function installUIDI(timersImpl: any, timerService: any) {
+        const runtimeResolvers = createBootstrapRuntimeResolvers();
         // Move visuals
         _connect('./move-executor-visuals', '../game/move-executor-visuals', (uiMod: any) => ({
             applyFlipAnimations: uiMod.applyFlipAnimations,
@@ -2033,21 +1984,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return null;
                 }
             })(),
-            readMatchMode: () => {
-                try {
-                    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                        return (globalThis as any).getCurrentMatchMode();
-                    }
-                    if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                } catch (e: any) { /* ignore */ }
-                return null;
-            },
-            readHumanVsHumanMode: () => {
-                try {
-                    return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-                } catch (e: any) { /* ignore */ }
-                return false;
-            },
+            readMatchMode: runtimeResolvers.readMatchMode,
+            readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
             setProcessing: (next: boolean) => {
                 try {
                     const playbackState = getPlaybackStateModuleForReset();
@@ -2455,21 +2393,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             white: readCpuSmartnessValueFromSelect('smartWhite')
                         };
                     },
-                    readMatchMode: () => {
-                        try {
-                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                                return (globalThis as any).getCurrentMatchMode();
-                            }
-                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                        } catch (e: any) { /* ignore */ }
-                        return null;
-                    },
-                    readHumanVsHumanMode: () => {
-                        try {
-                            return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-                        } catch (e: any) { /* ignore */ }
-                        return false;
-                    },
+                    readMatchMode: runtimeResolvers.readMatchMode,
+                    readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
                     updateCpuCharacter: () => {
                         try {
                             const fn = typeof globalThis !== 'undefined' ? (globalThis as any).updateCpuCharacter : null;
