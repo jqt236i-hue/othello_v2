@@ -148,6 +148,39 @@ describe('PendingCoordinator', () => {
     }));
   });
 
+  test('createPendingSelectionAction adds place coordinates from the selected target payload', () => {
+    const cardState = {
+      turnIndex: 3,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'METEOR_WILL',
+          stage: 'selectTarget',
+          cardId: 'meteor_01',
+          pendingEffectId: 'pending_3_1'
+        },
+        white: null
+      }
+    };
+
+    const action = PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'METEOR_WILL',
+      { meteorTarget: { row: 0, col: 0 } },
+      { cardState }
+    );
+
+    expect(action).toEqual(expect.objectContaining({
+      type: 'place',
+      row: 0,
+      col: 0,
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: expect.objectContaining({
+        type: 'METEOR_WILL',
+        pendingEffectId: 'pending_3_1'
+      })
+    }));
+  });
+
   test('buildPendingSelectionTargetPayload derives target fields from the pending selection registry', () => {
     const cases = [
       ['DESTROY_ONE_STONE', 'destroyTarget'],

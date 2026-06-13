@@ -370,6 +370,30 @@ const pendingCoordinatorModule = (function (root: any) {
         return { row: target.row, col: target.col };
     }
 
+    function resolvePrimarySelectionTargetFromPayload(payload: any): any {
+        if (!payload || typeof payload !== 'object') return null;
+        var keys = Object.keys(payload);
+        for (var index = 0; index < keys.length; index += 1) {
+            var key = keys[index];
+            if (key === 'pendingSelectionState') continue;
+            var value = payload[key];
+            var target = clonePendingSelectionTransportTarget(value);
+            if (target) return target;
+        }
+        return null;
+    }
+
+    function ensurePlaceActionCoordinates(payload: any, actionType: any): any {
+        if (!payload || typeof payload !== 'object') return payload;
+        if (String(actionType || '').trim().toLowerCase() !== 'place') return payload;
+        if (Number.isInteger(payload.row) && Number.isInteger(payload.col)) return payload;
+        var target = resolvePrimarySelectionTargetFromPayload(payload);
+        if (!target) return payload;
+        if (!Number.isInteger(payload.row)) payload.row = target.row;
+        if (!Number.isInteger(payload.col)) payload.col = target.col;
+        return payload;
+    }
+
     function applyPendingSelectionCardContext(target: any, playerKey: any, pendingLike: any, options: any): any {
         var payload = (target && typeof target === 'object') ? target : {};
         return payload;
@@ -449,6 +473,7 @@ const pendingCoordinatorModule = (function (root: any) {
         }
 
         var actionType = typeof opts.actionType === 'string' && opts.actionType ? opts.actionType : 'place';
+        ensurePlaceActionCoordinates(normalizedPayload, actionType);
         var createAction = (typeof opts.createAction === 'function')
             ? opts.createAction
             : (
