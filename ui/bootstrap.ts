@@ -48,6 +48,13 @@ try {
     }
 } catch (e: any) { /* ignore */ }
 
+let BootstrapAssetManifestRuntime: any = null;
+try {
+    if (typeof _require === 'function') {
+        BootstrapAssetManifestRuntime = _require('./bootstrap/asset-manifest-runtime');
+    }
+} catch (e: any) { /* ignore */ }
+
 function readCpuSmartnessValueFromSelect(id: string): number | string {
     try {
         if (CpuProfileSelectionModule && typeof CpuProfileSelectionModule.readCpuSmartnessValueFromSelectId === 'function') {
@@ -113,7 +120,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     let _uiGlobals: any = {};
     let _gameDIInstallResult: any = null;
     let _stoneBaseImagesReadyPromise: any = null;
-    let _loadedAssetManifest: any = null;
     const ASSET_MANIFEST_UPDATED_EVENT = 'asset-manifest:updated';
     const STONE_BASE_IMAGE_PATHS = [
         'assets/images/stones/normal_stone-black.png',
@@ -2377,60 +2383,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         return event;
     }
 
-    function setLoadedAssetManifest(manifest: any, options: any = {}) {
-        _loadedAssetManifest = isAssetManifestShape(manifest) ? manifest : null;
-        if (options.dispatch === false) return _loadedAssetManifest;
-
+    function dispatchAssetManifestUpdated(manifest: any, options: any = {}) {
         const target = resolveAssetManifestEventTarget(options.root);
-        if (!target) return _loadedAssetManifest;
+        if (!target) return false;
 
-        const event = createAssetManifestUpdatedEvent(target, _loadedAssetManifest);
-        if (!event) return _loadedAssetManifest;
+        const event = createAssetManifestUpdatedEvent(target, manifest);
+        if (!event) return false;
         try { target.dispatchEvent(event); } catch (e: any) { /* ignore */ }
-        return _loadedAssetManifest;
-    }
-
-    function getLoadedAssetManifest() {
-        return _loadedAssetManifest;
-    }
-
-    async function refreshLoadedAssetManifest(opts: any = {}) {
-        try {
-            const fetchFn = (opts.root && typeof opts.root.fetch === 'function')
-                ? opts.root.fetch.bind(opts.root)
-                : (typeof fetch === 'function' ? fetch : null);
-            if (typeof fetchFn !== 'function') {
-                return { status: 'unavailable', reason: 'fetch-unavailable' };
-            }
-            try {
-                const locationRef = (opts.root && opts.root.location)
-                    || (typeof location !== 'undefined' ? location : null);
-                if (locationRef && (locationRef.protocol === 'file:' || locationRef.origin === 'null')) {
-                    return { status: 'skipped', reason: 'file-origin' };
-                }
-            } catch (e: any) { /* ignore */ }
-
-            const manifestUrl = String(opts.manifestUrl || 'assets/asset-manifest.json').trim() || 'assets/asset-manifest.json';
-            const response = await fetchFn(manifestUrl, { cache: 'no-store' });
-            if (!response || response.ok !== true) {
-                return {
-                    status: 'error',
-                    reason: 'fetch-failed',
-                    code: response && Number.isFinite(Number(response.status)) ? Number(response.status) : null
-                };
-            }
-            const manifest = await response.json();
-            if (!isAssetManifestShape(manifest)) {
-                return { status: 'error', reason: 'invalid-manifest' };
-            }
-            setLoadedAssetManifest(manifest, {
-                root: opts.root,
-                dispatch: opts.dispatch !== false
-            });
-            return { status: 'ok', manifest };
-        } catch (e: any) {
-            return { status: 'error', reason: String(e) };
-        }
+        return true;
     }
 
     function preloadAssets(manifest: any, opts: any) {
@@ -2442,37 +2402,19 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         }
     }
 
-    async function applyAssetManifest(manifest: any, policy: any = { mode: 'compat' }, opts: any = {}) {
-        if (!manifest || !manifest.files) return { status: 'error', details: 'invalid manifest' };
-        setLoadedAssetManifest(manifest, { root: opts.root, dispatch: true });
-        try {
-            const res = await preloadAssets(manifest, opts || {});
-            if (res.success) {
-                return { status: 'ok', details: res };
-            }
-            // failed to preload some assets
-            if (policy && policy.mode === 'strict') {
-                return { status: 'error', details: res };
-            }
-            // compat mode: log and continue with fallback
-            try { if (typeof console !== 'undefined' && console.warn) console.warn('[ASSET_MANIFEST] preload incomplete, using fallback', res.failed); } catch (e: any) { /* Intentionally empty: console guard */ }
-            return { status: 'fallback', details: res };
-        } catch (e: any) {
-            return { status: 'error', details: String(e) };
-        }
-    }
+    const assetManifestRuntime = BootstrapAssetManifestRuntime && typeof BootstrapAssetManifestRuntime.createAssetManifestRuntime === 'function'
+        ? BootstrapAssetManifestRuntime.createAssetManifestRuntime({
+            preloadAssets,
+            isAssetManifestShape,
+            dispatchAssetManifestUpdated
+        })
+        : null;
 
-    // Handler to be called with the server-sent GameInit payload
-    // payload may include assetManifest and other init fields
-    async function handleGameInit(payload: any, opts: any = { assetPolicy: { mode: 'compat' } }) {
-        if (!payload) return { status: 'no_payload' };
-        if (payload.assetManifest) {
-            const res = await applyAssetManifest(payload.assetManifest, opts.assetPolicy || { mode: 'compat' }, opts);
-            try { if (typeof window !== 'undefined') window.__assetManifestStatus = res; } catch (e: any) { /* Intentionally empty: window assignment guard */ }
-            return { status: 'asset_manifest_handled', result: res };
-        }
-        return { status: 'no_asset_manifest' };
-    }
+    const setLoadedAssetManifest = assetManifestRuntime.setLoadedAssetManifest;
+    const getLoadedAssetManifest = assetManifestRuntime.getLoadedAssetManifest;
+    const refreshLoadedAssetManifest = assetManifestRuntime.refreshLoadedAssetManifest;
+    const applyAssetManifest = assetManifestRuntime.applyAssetManifest;
+    const handleGameInit = assetManifestRuntime.handleGameInit;
 
     ensureOwnerHelpersGlobal();
 
