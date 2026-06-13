@@ -1544,7 +1544,7 @@
 - `ROBOT_VACUUM_WILL`: 吸い込み破壊（`robot_vacuum_suck`）のみ吸い込み演出を再生する
 - 持続ターン切れで特殊石が同色の通常石へ戻る場合は、通常石化クロスフェードを再生する。`TRAP_WILL` の不発は例外で、通常石化せず不発消滅として扱う
 - `GLUTTONOUS_WILL`: 捕食時は「捕食破壊」と「進入移動」を同一フェーズで再生し、2連続捕食失敗時の自己消滅は通常の破壊演出を使う
-- `METEOR_WILL` / `METEOR_GOD` / `BOARD_SHRINK_WILL` / `BOARD_SHRINK_GOD`: 穴化対象マスに石がある場合はその石の破壊演出を再生する。`METEOR_WILL` / `METEOR_GOD` は演出後に穴マス画像を永続表示し、`BOARD_SHRINK_WILL` / `BOARD_SHRINK_GOD` は選択完了時に対象マス/対象列を同一フェーズで一括再生し、その位置まで盤面外側フレームが内側へ押し込まれる見た目を永続表示する
+- `METEOR_WILL` / `METEOR_GOD` / `BOARD_SHRINK_WILL` / `BOARD_SHRINK_GOD`: 穴化対象マスに石がある場合はその石の破壊演出を再生する。`METEOR_GOD` は因果抹消神石から対象マスへ黒いビームを放ってから穴マス化する。`METEOR_WILL` / `METEOR_GOD` は演出後に穴マス画像を永続表示し、`BOARD_SHRINK_WILL` / `BOARD_SHRINK_GOD` は選択完了時に対象マス/対象列を同一フェーズで一括再生し、その位置まで盤面外側フレームが内側へ押し込まれる見た目を永続表示する
 - `FREEZE_WILL`: 対象マスに `assets/images/other/ICE.png` をやや薄めの半透明で重ね、凍結中はそのマスの石を含めて凍った見た目を維持する
 - `WORK_WILL`: 出稼ぎ石関連の吹き出し（配置時・終了時・収入時）を出稼ぎ石近くに約3秒表示し、終端でフェードアウトする（クリック操作は妨げない）
 - `WORK_WILL` の吹き出し背景は、可読性優先で半透明を弱めて表示する

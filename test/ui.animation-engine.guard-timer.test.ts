@@ -1610,6 +1610,7 @@ describe('animation-engine guard timer rendering', () => {
     ['destroy dragon breath', 'DESTROY_DRAGON_WILL', 'destroy_dragon_breath', 'animateDestroyDragonBreath'],
     ['ultimate destroy god lightning', 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', 'animateUdgLightningStrike'],
     ['lightning will strike', 'LIGHTNING_WILL', 'lightning_destroyed', 'animateUdgLightningStrike'],
+    ['meteor god black beam', 'METEOR_GOD', 'meteor_god_cell_destroy', 'animateMeteorGodBlackBeam'],
     ['will hunter king slash', 'WILL_HUNTER_KING', 'will_hunter_king_slash', 'animateWillHunterKingSlash'],
     ['robot vacuum suction', 'ROBOT_VACUUM', 'robot_vacuum_suck', 'animateRobotVacuumSuction']
   ])('%s still plays source animation when target disc was already removed', async (_label, cause, reason, methodName) => {

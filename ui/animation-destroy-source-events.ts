@@ -277,6 +277,191 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
     if (layer.parentElement) layer.parentElement.removeChild(layer);
 }
 
+async function animateMeteorGodBlackBeam(target: any, deps: DestroySourceAnimationDeps) {
+    if (!target) return;
+    if (deps.isNoAnim()) return;
+
+    const source = deps.resolveSniperSource(target);
+    if (!source) return;
+
+    const fromCell = deps.getCellEl(source.row, source.col);
+    const toCell = deps.getCellEl(target.r, target.col);
+    if (!fromCell || !toCell) return;
+    if (!document || !document.body) return;
+
+    const fromRect = fromCell.getBoundingClientRect();
+    const toRect = toCell.getBoundingClientRect();
+
+    const fromX = fromRect.left + (fromRect.width / 2);
+    const fromY = fromRect.top + (fromRect.height / 2);
+    const toX = toRect.left + (toRect.width / 2);
+    const toY = toRect.top + (toRect.height / 2);
+
+    const deltaX = toX - fromX;
+    const deltaY = toY - fromY;
+    const distance = Math.max(1, Math.hypot(deltaX, deltaY));
+    const angleDeg = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+    const durationMs = Math.max(260, Math.min(460, Math.round(230 + (distance * 0.22))));
+
+    const layer = document.createElement('div');
+    layer.style.position = 'fixed';
+    layer.style.left = '0';
+    layer.style.top = '0';
+    layer.style.width = '100vw';
+    layer.style.height = '100vh';
+    layer.style.pointerEvents = 'none';
+    layer.style.zIndex = '1260';
+    layer.style.overflow = 'hidden';
+
+    const outerBeam = document.createElement('div');
+    outerBeam.style.position = 'fixed';
+    outerBeam.style.left = `${fromX}px`;
+    outerBeam.style.top = `${fromY - 7}px`;
+    outerBeam.style.width = `${distance}px`;
+    outerBeam.style.height = '14px';
+    outerBeam.style.transformOrigin = '0 50%';
+    outerBeam.style.transform = `rotate(${angleDeg}deg) scaleX(0.08)`;
+    outerBeam.style.borderRadius = '999px';
+    outerBeam.style.background = 'linear-gradient(90deg, rgba(14,10,22,0.1) 0%, rgba(42,20,74,0.96) 18%, rgba(7,5,10,0.98) 52%, rgba(61,28,98,0.92) 84%, rgba(10,6,18,0.08) 100%)';
+    outerBeam.style.boxShadow = '0 0 12px rgba(32, 12, 62, 0.98), 0 0 26px rgba(112, 58, 174, 0.62)';
+    outerBeam.style.opacity = '0';
+
+    const coreBeam = document.createElement('div');
+    coreBeam.style.position = 'fixed';
+    coreBeam.style.left = `${fromX}px`;
+    coreBeam.style.top = `${fromY - 3}px`;
+    coreBeam.style.width = `${distance}px`;
+    coreBeam.style.height = '6px';
+    coreBeam.style.transformOrigin = '0 50%';
+    coreBeam.style.transform = `rotate(${angleDeg}deg) scaleX(0.04)`;
+    coreBeam.style.borderRadius = '999px';
+    coreBeam.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.98) 22%, rgba(0,0,0,1) 70%, rgba(20,10,28,0.86) 100%)';
+    coreBeam.style.boxShadow = 'inset 0 0 5px rgba(151, 92, 214, 0.34), 0 0 7px rgba(0, 0, 0, 0.95)';
+    coreBeam.style.opacity = '0';
+
+    const muzzle = document.createElement('div');
+    muzzle.style.position = 'fixed';
+    muzzle.style.left = `${fromX - 12}px`;
+    muzzle.style.top = `${fromY - 12}px`;
+    muzzle.style.width = '24px';
+    muzzle.style.height = '24px';
+    muzzle.style.borderRadius = '50%';
+    muzzle.style.background = 'radial-gradient(circle, rgba(0,0,0,0.98) 0%, rgba(35,16,58,0.88) 46%, rgba(93,48,148,0.18) 76%, rgba(0,0,0,0) 100%)';
+    muzzle.style.boxShadow = '0 0 20px rgba(78, 37, 132, 0.82)';
+    muzzle.style.opacity = '0';
+    muzzle.style.transform = 'scale(0.45)';
+
+    const impact = document.createElement('div');
+    impact.style.position = 'fixed';
+    impact.style.left = `${toX - 20}px`;
+    impact.style.top = `${toY - 20}px`;
+    impact.style.width = '40px';
+    impact.style.height = '40px';
+    impact.style.borderRadius = '50%';
+    impact.style.background = 'radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(13,7,23,0.98) 44%, rgba(95,45,152,0.56) 70%, rgba(0,0,0,0) 100%)';
+    impact.style.boxShadow = '0 0 22px rgba(73, 34, 126, 0.88), inset 0 0 12px rgba(0,0,0,0.95)';
+    impact.style.opacity = '0';
+    impact.style.transform = 'scale(0.28)';
+
+    const ring = document.createElement('div');
+    ring.style.position = 'fixed';
+    ring.style.left = `${toX - 18}px`;
+    ring.style.top = `${toY - 18}px`;
+    ring.style.width = '36px';
+    ring.style.height = '36px';
+    ring.style.borderRadius = '50%';
+    ring.style.border = '2px solid rgba(24, 10, 42, 0.92)';
+    ring.style.boxShadow = '0 0 14px rgba(129, 74, 196, 0.7)';
+    ring.style.opacity = '0';
+    ring.style.transform = 'scale(1.32)';
+
+    layer.appendChild(outerBeam);
+    layer.appendChild(coreBeam);
+    layer.appendChild(muzzle);
+    layer.appendChild(impact);
+    layer.appendChild(ring);
+    document.body.appendChild(layer);
+
+    await new Promise<void>((resolve) => {
+        let timeoutId: any = null;
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            if (timeoutId !== null) {
+                try { deps.timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
+                timeoutId = null;
+            }
+            resolve();
+        };
+
+        try {
+            if (outerBeam.animate) {
+                outerBeam.animate([
+                    { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.08)` },
+                    { offset: 0.16, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                    { offset: 0.74, opacity: 0.94, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                    { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.96)` }
+                ], {
+                    duration: durationMs,
+                    easing: 'cubic-bezier(0.2, 0.78, 0.18, 1)'
+                });
+            }
+            if (coreBeam.animate) {
+                coreBeam.animate([
+                    { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.04)` },
+                    { offset: 0.12, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                    { offset: 0.7, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                    { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.9)` }
+                ], {
+                    duration: Math.max(220, durationMs - 30),
+                    easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)'
+                });
+            }
+            if (muzzle.animate) {
+                muzzle.animate([
+                    { offset: 0, opacity: 0, transform: 'scale(0.45)' },
+                    { offset: 0.18, opacity: 0.95, transform: 'scale(1.1)' },
+                    { offset: 0.72, opacity: 0.78, transform: 'scale(0.92)' },
+                    { offset: 1, opacity: 0, transform: 'scale(0.58)' }
+                ], {
+                    duration: durationMs,
+                    easing: 'ease-out'
+                });
+            }
+            if (impact.animate) {
+                impact.animate([
+                    { offset: 0, opacity: 0, transform: 'scale(0.28)' },
+                    { offset: 0.18, opacity: 0.9, transform: 'scale(1.18)' },
+                    { offset: 0.74, opacity: 0.88, transform: 'scale(0.82)' },
+                    { offset: 1, opacity: 0, transform: 'scale(0.22)' }
+                ], {
+                    duration: Math.max(240, durationMs + 60),
+                    easing: 'cubic-bezier(0.16, 0.82, 0.24, 1)'
+                });
+            }
+            if (ring.animate) {
+                ring.animate([
+                    { offset: 0, opacity: 0, transform: 'scale(1.32)' },
+                    { offset: 0.2, opacity: 0.92, transform: 'scale(1.02)' },
+                    { offset: 1, opacity: 0, transform: 'scale(0.18)' }
+                ], {
+                    duration: Math.max(240, durationMs + 70),
+                    easing: 'cubic-bezier(0.2, 0.72, 0.2, 1)'
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
+        try {
+            timeoutId = deps.timer().setTimeout(finish, durationMs + 140, deps.playbackScope);
+        } catch (e: any) {
+            timeoutId = setTimeout(finish, durationMs + 140);
+        }
+    });
+
+    if (layer.parentElement) layer.parentElement.removeChild(layer);
+}
+
 async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
@@ -621,6 +806,7 @@ module.exports = {
     animateSniperProjectile,
     animateRobotVacuumSuction,
     animateDestroyDragonBreath,
+    animateMeteorGodBlackBeam,
     animateUdgLightningStrike,
     animateWillHunterKingSlash
 };

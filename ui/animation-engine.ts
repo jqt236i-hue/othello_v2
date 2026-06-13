@@ -77,6 +77,12 @@ const {
             animationMethod: 'animateUdgLightningStrike'
         }),
         Object.freeze({
+            causes: Object.freeze(['METEOR_GOD']),
+            reasonPrefix: 'meteor_god_cell_destroy',
+            sourceResolver: '_resolveSniperSource',
+            animationMethod: 'animateMeteorGodBlackBeam'
+        }),
+        Object.freeze({
             causes: Object.freeze(['WILL_HUNTER_KING']),
             reasonPrefix: 'will_hunter_king_slash',
             sourceResolver: null,
@@ -991,6 +997,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
         async animateUdgLightningStrike(target: any) {
             return AnimationDestroySourceEvents.animateUdgLightningStrike(target, this._getDestroySourceAnimationDeps());
+        }
+
+        async animateMeteorGodBlackBeam(target: any) {
+            return AnimationDestroySourceEvents.animateMeteorGodBlackBeam(target, this._getDestroySourceAnimationDeps());
         }
 
         /**
