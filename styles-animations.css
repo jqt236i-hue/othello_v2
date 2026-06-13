@@ -193,16 +193,13 @@
 }
 
 /* Static special-card presentation: avoid card-related motion during use scenes. */
-.special-card-cinematic-overlay,
-.special-card-cinematic-overlay::before,
 .special-card-cinematic-character,
 .special-card-cinematic-frame,
 .special-card-cinematic-frame::before,
 .special-card-cinematic-frame::after,
 .special-card-cinematic-title,
 .special-card-cinematic-quote,
-.special-card-cinematic-quote-line,
-.manifest-ending-overlay {
+.special-card-cinematic-quote-line {
     animation: none !important;
     transition: none !important;
 }

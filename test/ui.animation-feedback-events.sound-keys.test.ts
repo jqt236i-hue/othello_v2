@@ -78,6 +78,16 @@ describe('animation feedback sound key coverage', () => {
     expect(staticPresentationBlock).not.toContain('.manifest-summary-popup');
   });
 
+  test('special card dim overlays keep their fade effects enabled', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-animations.css'), 'utf8');
+    const staticPresentationBlock = css.match(/\/\* Static special-card presentation:[\s\S]*?\}\s*/)?.[0] || '';
+
+    expect(css).toMatch(/\.special-card-cinematic-overlay\s*\{[\s\S]*transition:\s*opacity 320ms ease/);
+    expect(css).toMatch(/\.manifest-ending-overlay\s*\{[\s\S]*animation:\s*manifestEndingDim/);
+    expect(staticPresentationBlock).not.toContain('.special-card-cinematic-overlay');
+    expect(staticPresentationBlock).not.toContain('.manifest-ending-overlay');
+  });
+
   test('duplicate sound keys in one playback event are deduplicated before playback', async () => {
     const playEffectByKey = jest.fn();
     await AnimationFeedbackEvents.handleSoundEffectEvent(
