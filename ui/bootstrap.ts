@@ -34,6 +34,20 @@ try {
     }
 } catch (e: any) { /* ignore */ }
 
+let BootstrapCpuRuntimeWiring: any = null;
+try {
+    if (typeof _require === 'function') {
+        BootstrapCpuRuntimeWiring = _require('./bootstrap/cpu-runtime-wiring');
+    }
+} catch (e: any) { /* ignore */ }
+
+let BootstrapPassRuntimeWiring: any = null;
+try {
+    if (typeof _require === 'function') {
+        BootstrapPassRuntimeWiring = _require('./bootstrap/pass-runtime-wiring');
+    }
+} catch (e: any) { /* ignore */ }
+
 function readCpuSmartnessValueFromSelect(id: string): number | string {
     try {
         if (CpuProfileSelectionModule && typeof CpuProfileSelectionModule.readCpuSmartnessValueFromSelectId === 'function') {
@@ -1451,286 +1465,41 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
     function installNetworkDI(timerService: any) {
         const runtimeResolvers = createBootstrapRuntimeResolvers();
-        // Early registration: if the CPU turn handler is available on the game side, register its
-        // processCpuTurn/processAutoBlackTurn to UIBootstrap so UI consumers can schedule CPU
-        // turns immediately without waiting for other bootstrap steps. This avoids boot-order
-        // races where a SCHEDULE_CPU_TURN event would otherwise go unhandled.
+        // Early CPU registration stays before pass wiring so pass runtime can resolve processCpuTurn.
         try {
-            const cpu = require('../game/cpu-turn-handler');
-            let cpuDecision: any = null;
-            try { cpuDecision = require('../game/cpu-decision'); } catch (e: any) { /* ignore */ }
-            if (cpu) {
-                const cpuGlobals: any = {};
-                if (typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
-                if (typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
-                if (cpuDecision && typeof cpuDecision.selectMoveFromOnnxPolicyAsync === 'function') {
-                    cpuGlobals.selectMoveFromOnnxPolicyAsync = cpuDecision.selectMoveFromOnnxPolicyAsync;
-                }
-                if (typeof cpu.setCpuTurnTimerService === 'function') {
-                    cpu.setCpuTurnTimerService(timerService || null);
-                }
-                if (typeof cpu.setCpuUIImpl === 'function') {
-                    cpu.setCpuUIImpl({
-                        readMatchMode: runtimeResolvers.readMatchMode,
-                        readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
-                        readQuerySearch: runtimeResolvers.readQuerySearch,
-                        isDebugLogAvailable: runtimeResolvers.isDebugLogAvailable,
-                        debugLog: runtimeResolvers.debugLog,
-                        readCpuSmartness: () => {
-                            return {
-                                black: readCpuSmartnessValueFromSelect('smartBlack'),
-                                white: readCpuSmartnessValueFromSelect('smartWhite')
-                            };
-                        },
-                        resolveRuntimeFunction: runtimeResolvers.resolveRuntimeFunction,
-                        resolveRuntimeValue: runtimeResolvers.resolveRuntimeValue,
-                        readProcessing: () => {
-                            try {
-                                const playbackState = getPlaybackStateModuleForReset();
-                                if (playbackState && typeof playbackState.getProcessing === 'function') {
-                                    return playbackState.getProcessing() === true;
-                                }
-                            } catch (e: any) { /* ignore */ }
-                            try {
-                                return typeof globalThis !== 'undefined' && (globalThis as any).isProcessing === true;
-                            } catch (e: any) {
-                                return false;
-                            }
-                        },
-                        readAnimationBusy: () => {
-                            try {
-                                const playbackState = getPlaybackStateModuleForReset();
-                                if (playbackState && typeof playbackState.getCardAnimating === 'function' && playbackState.getCardAnimating() === true) {
-                                    return true;
-                                }
-                                if (playbackState && typeof playbackState.getPlaybackActive === 'function' && playbackState.getPlaybackActive() === true) {
-                                    return true;
-                                }
-                            } catch (e: any) { /* ignore */ }
-                            try {
-                                if (typeof globalThis !== 'undefined') {
-                                    return (globalThis as any).isCardAnimating === true
-                                        || (globalThis as any).VisualPlaybackActive === true;
-                                }
-                            } catch (e: any) { /* ignore */ }
-                            return false;
-                        },
-                        readBenchFastMode: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' && (globalThis as any).__BENCH_FAST_MODE === true;
-                            } catch (e: any) {
-                                return false;
-                            }
-                        },
-                        getCpuLv6SharedProfile: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_SHARED_PROFILE : null;
-                            } catch (e: any) {
-                                return null;
-                            }
-                        },
-                        readCpuLv6MinThinkMs: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_MIN_THINK_MS : undefined;
-                            } catch (e: any) {
-                                return undefined;
-                            }
-                        },
-                        getCpuCardLogic: () => {
-                            try {
-                                const cardLogic = require('../game/logic/cards');
-                                if (cardLogic) return cardLogic;
-                            } catch (e: any) { /* ignore */ }
-                            try {
-                                return typeof globalThis !== 'undefined' ? (globalThis as any).CardLogic : null;
-                            } catch (e: any) {
-                                return null;
-                            }
-                        },
-                        TurnPipelineUIAdapter: (() => {
-                            try {
-                                return require('../game/turn/pipeline_ui_adapter');
-                            } catch (e: any) {
-                                return undefined;
-                            }
-                        })(),
-                        TurnPipeline: (() => {
-                            try {
-                                return require('../game/turn/turn_pipeline');
-                            } catch (e: any) {
-                                return undefined;
-                            }
-                        })(),
-                        resolveExecuteMove: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' && typeof (globalThis as any).executeMove === 'function'
-                                    ? (globalThis as any).executeMove
-                                    : null;
-                            } catch (e: any) {
-                                return null;
-                            }
-                        },
-                        resolveProcessPassTurn: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' && typeof (globalThis as any).processPassTurn === 'function'
-                                    ? (globalThis as any).processPassTurn
-                                    : null;
-                            } catch (e: any) {
-                                return null;
-                            }
-                        },
-                        setProcessing: (next: boolean) => {
-                            try {
-                                const playbackState = getPlaybackStateModuleForReset();
-                                if (playbackState && typeof playbackState.setBusyState === 'function') {
-                                    playbackState.setBusyState({ processing: next === true });
-                                } else if (playbackState && typeof playbackState.setProcessing === 'function') {
-                                    playbackState.setProcessing(next === true);
-                                }
-                            } catch (e: any) { /* ignore */ }
-                            try {
-                                if (typeof globalThis !== 'undefined') {
-                                    (globalThis as any).isProcessing = next === true;
-                                }
-                            } catch (e: any) { /* ignore */ }
-                        },
-                        applyRuntimeStatePatch: (nextCardState: any, nextGameState: any) => {
-                            try {
-                                if (nextCardState && typeof globalThis !== 'undefined') {
-                                    (globalThis as any).cardState = nextCardState;
-                                }
-                                if (nextGameState && typeof globalThis !== 'undefined') {
-                                    (globalThis as any).gameState = nextGameState;
-                                }
-                            } catch (e: any) { /* ignore */ }
-                        },
-                        emitLogAdded: (message: any, kind?: any) => {
-                            try {
-                                const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitLogAdded : null;
-                                if (typeof fn !== 'function') return false;
-                                if (typeof kind === 'undefined') fn(message);
-                                else fn(message, kind);
-                                return true;
-                            } catch (e: any) {
-                                return false;
-                            }
-                        },
-                        getCommentaryRuntimeRoot: () => {
-                            try {
-                                return typeof globalThis !== 'undefined' ? globalThis : null;
-                            } catch (e: any) {
-                                return null;
-                            }
-                        }
-                    });
-                }
+            if (BootstrapCpuRuntimeWiring && typeof BootstrapCpuRuntimeWiring.installCpuRuntimeWiring === 'function') {
+                const result = BootstrapCpuRuntimeWiring.installCpuRuntimeWiring({
+                    requireModule: (id: string) => require(id),
+                    timerService,
+                    runtimeResolvers,
+                    readCpuSmartnessValueFromSelect,
+                    getPlaybackStateModuleForReset,
+                    registerUIGlobals
+                });
+                const cpuGlobals = result && result.registeredGlobals ? result.registeredGlobals : {};
                 if (Object.keys(cpuGlobals).length) {
                     try { registerUIGlobals(cpuGlobals); } catch (e: any) { /* ignore */ }
-                    try { if (typeof globalThis !== 'undefined') { if (cpuGlobals.processCpuTurn) (globalThis as any).processCpuTurn = cpuGlobals.processCpuTurn; if (cpuGlobals.processAutoBlackTurn) (globalThis as any).processAutoBlackTurn = cpuGlobals.processAutoBlackTurn; } } catch (e: any) { /* ignore */ }
+                    try {
+                        if (typeof globalThis !== 'undefined') {
+                            if (cpuGlobals.processCpuTurn) (globalThis as any).processCpuTurn = cpuGlobals.processCpuTurn;
+                            if (cpuGlobals.processAutoBlackTurn) (globalThis as any).processAutoBlackTurn = cpuGlobals.processAutoBlackTurn;
+                        }
+                    } catch (e: any) { /* ignore */ }
                 }
             }
         } catch (e: any) { /* ignore */ }
 
-        // Inject UI-cross-boundary modules into game/pass-handler via DI
+        // Inject UI-cross-boundary modules into game/pass-handler via DI.
         try {
-            const passHandler = require('../game/pass-handler');
-            if (passHandler) {
-                const passGlobals: any = {};
-                if (typeof passHandler.processPassTurn === 'function') passGlobals.processPassTurn = passHandler.processPassTurn;
-                if (typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function') passGlobals.ensureCurrentPlayerCanActOrPass = passHandler.ensureCurrentPlayerCanActOrPass;
-                if (typeof passHandler.setPassHandlerTimerService === 'function') {
-                    passHandler.setPassHandlerTimerService(timerService || null);
-                }
-                try {
-                    if (typeof passHandler.setPassHandlerRuntime === 'function') {
-                        let cpu: any = null;
-                        try { cpu = require('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
-                        passHandler.setPassHandlerRuntime({
-                            processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
-                            readMatchMode: runtimeResolvers.readMatchMode,
-                            readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
-                            resolveRuntimeFunction: runtimeResolvers.resolveRuntimeFunction,
-                            showResult: () => {
-                                try {
-                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).showResult : null;
-                                    if (typeof fn !== 'function') return false;
-                                    fn();
-                                    return true;
-                                } catch (e: any) {
-                                    return false;
-                                }
-                            },
-                            getActionManager: () => {
-                                try {
-                                    return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null;
-                                } catch (e: any) {
-                                    return null;
-                                }
-                            },
-                            getNetworkTurnHandoff: () => {
-                                try {
-                                    return typeof globalThis !== 'undefined' ? (globalThis as any).NetworkTurnHandoff : null;
-                                } catch (e: any) {
-                                    return null;
-                                }
-                            },
-                            setProcessing: (next: boolean) => {
-                                try {
-                                    const playbackState = getPlaybackStateModuleForReset();
-                                    if (playbackState && typeof playbackState.setBusyState === 'function') {
-                                        playbackState.setBusyState({ processing: next === true });
-                                    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
-                                        playbackState.setProcessing(next === true);
-                                    }
-                                } catch (e: any) { /* ignore */ }
-                                try {
-                                    if (typeof globalThis !== 'undefined') {
-                                        (globalThis as any).isProcessing = next === true;
-                                    }
-                                } catch (e: any) { /* ignore */ }
-                            },
-                            publishSnapshot: (meta: any) => {
-                                try {
-                                    if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
-                                    const client = (globalThis as any).NetworkMatchClient;
-                                    if (typeof client.publishSnapshot !== 'function') return undefined;
-                                    if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
-                                    return client.publishSnapshot(meta);
-                                } catch (e: any) {
-                                    return undefined;
-                                }
-                            },
-                            emitBoardUpdate: () => {
-                                try {
-                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitBoardUpdate : null;
-                                    if (typeof fn !== 'function') return false;
-                                    return fn() === true;
-                                } catch (e: any) {
-                                    return false;
-                                }
-                            },
-                            emitGameStateChange: () => {
-                                try {
-                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitGameStateChange : null;
-                                    if (typeof fn !== 'function') return false;
-                                    return fn() === true;
-                                } catch (e: any) {
-                                    return false;
-                                }
-                            },
-                            emitLogAdded: (message: any, kind?: any) => {
-                                try {
-                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitLogAdded : null;
-                                    if (typeof fn !== 'function') return false;
-                                    fn(message, kind);
-                                    return true;
-                                } catch (e: any) {
-                                    return false;
-                                }
-                            }
-                        });
-                    }
-                } catch (e: any) { /* ignore */ }
+            if (BootstrapPassRuntimeWiring && typeof BootstrapPassRuntimeWiring.installPassRuntimeWiring === 'function') {
+                const result = BootstrapPassRuntimeWiring.installPassRuntimeWiring({
+                    requireModule: (id: string) => require(id),
+                    timerService,
+                    runtimeResolvers,
+                    getPlaybackStateModuleForReset,
+                    registerUIGlobals
+                });
+                const passGlobals = result && result.registeredGlobals ? result.registeredGlobals : {};
                 if (Object.keys(passGlobals).length) {
                     try { registerUIGlobals(passGlobals); } catch (e: any) { /* ignore */ }
                     try {

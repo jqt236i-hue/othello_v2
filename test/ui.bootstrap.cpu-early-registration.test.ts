@@ -21,10 +21,12 @@ describe('UI bootstrap early CPU registration', () => {
     try { delete global.getCurrentMatchMode; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.customRuntimeFn; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.__runtimeOwnValueForTest; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.ActionManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.NetworkTurnHandoff; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {
-    const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuUIImpl: jest.fn() };
+    const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuTurnTimerService: jest.fn(), setCpuUIImpl: jest.fn() };
     const setPassHandlerRuntime = jest.fn();
     const setCpuDecisionRuntime = jest.fn();
     const selectMoveFromOnnxPolicyAsync = jest.fn();
@@ -52,6 +54,10 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof globals.processAutoBlackTurn).toBe('function');
     expect(globals.selectMoveFromOnnxPolicyAsync).toBe(selectMoveFromOnnxPolicyAsync);
     expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
+    expect(mockCpu.setCpuTurnTimerService).toHaveBeenCalledWith(expect.objectContaining({
+      setTimeout: expect.any(Function),
+      clearTimeout: expect.any(Function)
+    }));
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readQuerySearch).toBe('function');
@@ -64,6 +70,10 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction).toBe('function');
     expect(setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')).toBe(selectMoveFromOnnxPolicyAsync);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].showResult).toBe('function');
+    global.ActionManager = { sentinel: 'action' };
+    global.NetworkTurnHandoff = { sentinel: 'handoff' };
+    expect(setPassHandlerRuntime.mock.calls[0][0].getActionManager()).toBe(global.ActionManager);
+    expect(setPassHandlerRuntime.mock.calls[0][0].getNetworkTurnHandoff()).toBe(global.NetworkTurnHandoff);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].setProcessing).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].publishSnapshot).toBe('function');
     expect(setCpuDecisionRuntime).toHaveBeenCalledTimes(1);
@@ -77,6 +87,19 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof setTurnPipelinePhasesRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     // Also mirrors to globalThis for legacy fallback
     expect(typeof global.processCpuTurn === 'function' || typeof globalThis.processCpuTurn === 'function').toBe(true);
+  });
+
+  test('installGameDI tolerates missing optional CPU and pass modules', () => {
+    jest.doMock('../game/cpu-turn-handler', () => {
+      throw new Error('cpu module unavailable');
+    });
+    jest.doMock('../game/pass-handler', () => {
+      throw new Error('pass module unavailable');
+    });
+
+    const uiBoot = require('../ui/bootstrap.js');
+
+    expect(() => uiBoot.installGameDI()).not.toThrow();
   });
 
   test('installGameDI runtime readers prefer registered globals and own globalThis values', () => {
