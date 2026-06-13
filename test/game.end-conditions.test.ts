@@ -44,6 +44,17 @@ describe('Core end conditions', () => {
     expect(Core.isGameOver(state)).toBe(true);
   });
 
+  test('applyPass treats missing consecutivePasses as zero before incrementing', () => {
+    const board = makeBoard();
+    board[0][0] = Core.BLACK;
+    const state = makeState(board);
+    delete (state as any).consecutivePasses;
+
+    const nextState = Core.applyPass(state);
+
+    expect(nextState.consecutivePasses).toBe(1);
+  });
+
   test('still ends when the board is full', () => {
     const board = makeBoard(8, 8, Core.BLACK);
     const state = makeState(board);

@@ -29,6 +29,87 @@ function createRoom() {
 }
 
 describe('match worker timeout controller', () => {
+  test('expired timeout can use injected forced pass resolver instead of direct core pass', async () => {
+    const room = createRoom();
+    const broadcastCalls: any[] = [];
+    const applyTimeoutPassToSnapshot = jest.fn(async ({ snapshot, playerKey }: any) => ({
+      ok: true,
+      snapshot: {
+        ...snapshot,
+        gameState: {
+          ...(snapshot as any).gameState,
+          currentPlayer: -1,
+          consecutivePasses: 1,
+          turnNumber: 10
+        },
+        cardState: {
+          ...(snapshot as any).cardState,
+          turnIndex: 11,
+          lastTurnStartedFor: 'white',
+          pendingEffectByPlayer: { black: null, white: null }
+        }
+      },
+      playbackEvents: [{ type: 'pass', phase: 1 }],
+      effectLogs: ['forced timeout pass'],
+      playbackDiagnostics: { source: 'forced-pass' }
+    }));
+    const loadCoreLogicModule = jest.fn(async () => ({
+      applyPass() {
+        throw new Error('timeout should not use direct core pass when resolver is available');
+      }
+    }));
+    const reconcileTurnStartAndCollectPlayback = jest.fn(async () => ({
+      playbackEvents: [{ type: 'draw_card', phase: 1 }],
+      diagnostics: null,
+      effectLogs: []
+    }));
+
+    const controller = createMatchWorkerTimeoutController({
+      getRoom: () => room,
+      asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
+      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
+      resolveTurnSeatKey: () => 'black',
+      refreshTurnTimer: async () => false,
+      saveRoom: async () => undefined,
+      loadCoreLogicModule,
+      applyTimeoutPassToSnapshot,
+      deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
+      stripTransientPresentationState: (snapshot: any) => {
+        if (snapshot && snapshot.gameState) delete snapshot.gameState.__resultShown;
+        return snapshot;
+      },
+      reconcileTurnStartAndCollectPlayback,
+      reportPlaybackAssemblyDiagnostics: () => undefined,
+      toPublicNetworkDebugEnabled: () => false,
+      toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
+      computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
+      appendAuthorityLog: () => [],
+      broadcastSnapshot: async (meta) => { broadcastCalls.push(meta); }
+    } as any);
+
+    const result = await controller.applyExpiredTurnTimeoutIfNeeded({ nowMs: 20 });
+
+    expect(result).toEqual({ applied: true, stateVersion: 5, playerKey: 'black' });
+    expect(applyTimeoutPassToSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      room,
+      playerKey: 'black',
+      nowMs: 20
+    }));
+    expect(loadCoreLogicModule).not.toHaveBeenCalled();
+    expect(reconcileTurnStartAndCollectPlayback).not.toHaveBeenCalled();
+    expect(room.snapshot.gameState.turnNumber).toBe(10);
+    expect(room.snapshot.cardState.turnIndex).toBe(11);
+    expect(room.snapshot.gameState.__resultShown).toBeUndefined();
+    expect(room.snapshot.cardState.selectedCardId).toBeNull();
+    expect(room.snapshot.cardState.selectedCardOwnerKey).toBeNull();
+    expect(broadcastCalls[0]).toEqual(expect.objectContaining({
+      actionType: 'timeout_pass',
+      playbackEvents: [{ type: 'pass', phase: 1 }],
+      effectLogs: ['forced timeout pass'],
+      playbackDiagnostics: { source: 'forced-pass' }
+    }));
+  });
+
   test('expired timeout applies pass, clears transient pending state, and broadcasts timeout snapshot', async () => {
     const room = createRoom();
     const refreshCalls: any[] = [];

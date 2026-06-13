@@ -180,6 +180,49 @@ describe('pass-handler flows', () => {
         expect((global as any).gameState.consecutivePasses).toBe(2);
     });
 
+    test('pass rejected でも両者行動不能なら実際のパス遷移で終局へ進める', async () => {
+        delete require.cache[modPath];
+        const applyPass = jest.fn((state: any) => ({
+            ...state,
+            currentPlayer: -state.currentPlayer,
+            consecutivePasses: (Number.isFinite(Number(state.consecutivePasses)) ? Number(state.consecutivePasses) : 0) + 1,
+            turnNumber: (Number.isFinite(Number(state.turnNumber)) ? Number(state.turnNumber) : 0) + 1
+        }));
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn(() => ({
+                ok: false,
+                events: [{ type: 'action_rejected', reason: 'ILLEGAL_PASS', message: 'stale pass rejection' }]
+            }))
+        };
+        (global as any).Core = {
+            getLegalMoves: jest.fn(() => []),
+            applyPass
+        };
+        (global as any).cardState = {
+            turnIndex: 0,
+            turnCountByPlayer: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: { black: null, white: null }
+        };
+        (global as any).gameState = {
+            currentPlayer: (global as any).BLACK,
+            consecutivePasses: 0,
+            turnNumber: 7
+        };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+
+        await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+
+        expect(applyPass).toHaveBeenCalledTimes(2);
+        expect((global as any).showResult).toHaveBeenCalledTimes(1);
+        expect((global as any).gameState).toEqual(expect.objectContaining({
+            currentPlayer: (global as any).BLACK,
+            consecutivePasses: 2,
+            turnNumber: 9
+        }));
+    });
+
     test('pass rejected かつ行動可能なら終局表示しない', async () => {
         delete require.cache[modPath];
         (global as any).TurnPipeline = {
@@ -195,6 +238,46 @@ describe('pass-handler flows', () => {
         injectPassHandlerRuntimeFromGlobals(ph);
         await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
         expect((global as any).showResult).not.toHaveBeenCalled();
+    });
+
+    test('pass rejected かつ未解決pendingがあれば終局救済しない', async () => {
+        delete require.cache[modPath];
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn(() => ({
+                ok: false,
+                events: [{ type: 'action_rejected', reason: 'ILLEGAL_PASS', message: 'pending action remains' }]
+            }))
+        };
+        (global as any).Core = {
+            getLegalMoves: jest.fn(() => []),
+            applyPass: jest.fn((state: any) => ({
+                ...state,
+                currentPlayer: -state.currentPlayer,
+                consecutivePasses: (Number(state.consecutivePasses) || 0) + 1
+            }))
+        };
+        (global as any).cardState = {
+            turnIndex: 0,
+            turnCountByPlayer: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: {
+                black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+                white: null
+            }
+        };
+        (global as any).gameState = {
+            currentPlayer: (global as any).BLACK,
+            consecutivePasses: 0,
+            turnNumber: 7
+        };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+
+        await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
+
+        expect((global as any).showResult).not.toHaveBeenCalled();
+        expect((global as any).Core.applyPass).not.toHaveBeenCalled();
+        expect((global as any).gameState.consecutivePasses).toBe(0);
     });
 
     test('ensureCurrentPlayerCanActOrPass は行動可能なら何もしない', () => {

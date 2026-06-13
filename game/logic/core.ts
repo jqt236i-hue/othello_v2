@@ -556,7 +556,10 @@ function applyMove(state: any, move: Move): any {
 function applyPass(state: any): any {
     const newState = copyGameState(state);
     newState.currentPlayer = -newState.currentPlayer;
-    newState.consecutivePasses = state.consecutivePasses + 1;
+    const previousPasses = Number.isFinite(Number(state.consecutivePasses))
+        ? Math.max(0, Math.trunc(Number(state.consecutivePasses)))
+        : 0;
+    newState.consecutivePasses = previousPasses + 1;
     newState.turnNumber = (state.turnNumber || 0) + 1;
     advanceRoundAfterCompletedTurn(newState, state.currentPlayer);
     return newState;

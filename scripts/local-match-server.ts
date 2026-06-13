@@ -572,6 +572,29 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     };
 }
 
+function applyTimeoutPassToSnapshot(room: any, playerKey: any) {
+    const normalizedPlayerKey = normalizePlayerKey(playerKey);
+    const snapshot = room && room.snapshot && typeof room.snapshot === 'object' ? room.snapshot : null;
+    const cardState = snapshot && snapshot.cardState && typeof snapshot.cardState === 'object'
+        ? snapshot.cardState
+        : {};
+    const turnIndex = Number.isFinite(Number(cardState.turnIndex))
+        ? Math.trunc(Number(cardState.turnIndex))
+        : 0;
+    return applyCommandPublishToSnapshot(room, {
+        actionType: 'pass',
+        actor: normalizedPlayerKey,
+        turnIndex,
+        action: {
+            type: 'pass',
+            playerKey: normalizedPlayerKey,
+            turnIndex,
+            forcePass: true,
+            reason: 'timeout'
+        }
+    }, normalizedPlayerKey);
+}
+
 function hasTwoActiveSeats(room: any) {
     return !!(room && room.seats && room.seats.black && room.seats.white);
 }
@@ -1134,8 +1157,14 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         return { applied: false };
     }
 
-    const nextSnapshot = deepClone(snapshot);
-    nextSnapshot.gameState = Core.applyPass(nextSnapshot.gameState);
+    const timeoutPassResult = applyTimeoutPassToSnapshot(room, timedOutSeatKey);
+    const usedTimeoutPassCommand = !!(timeoutPassResult && timeoutPassResult.ok === true && timeoutPassResult.snapshot);
+    const nextSnapshot = usedTimeoutPassCommand
+        ? deepClone(timeoutPassResult.snapshot)
+        : deepClone(snapshot);
+    if (!usedTimeoutPassCommand) {
+        nextSnapshot.gameState = Core.applyPass(nextSnapshot.gameState);
+    }
     MatchAuthority.stripTransientPresentationState(nextSnapshot);
     if (
         nextSnapshot.cardState
@@ -1147,16 +1176,27 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
         nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
     }
-    const serverPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
-    MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-    });
-    const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
-        ? serverPlaybackAssembly.playbackEvents
-        : [];
-    const serverEffectLogs = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
-        ? serverPlaybackAssembly.effectLogs
-        : [];
+    const serverPlaybackAssembly = usedTimeoutPassCommand
+        ? null
+        : reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    if (!usedTimeoutPassCommand) {
+        MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room)
+        });
+    }
+    const serverPlaybackEvents = usedTimeoutPassCommand && Array.isArray(timeoutPassResult.playbackEvents)
+        ? timeoutPassResult.playbackEvents
+        : (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
+            ? serverPlaybackAssembly.playbackEvents
+            : [];
+    const serverEffectLogs = usedTimeoutPassCommand && Array.isArray(timeoutPassResult.effectLogs)
+        ? timeoutPassResult.effectLogs
+        : (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
+            ? serverPlaybackAssembly.effectLogs
+            : [];
+    const serverPlaybackDiagnostics = usedTimeoutPassCommand
+        ? (timeoutPassResult.playbackDiagnostics || null)
+        : MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room));
 
     room.stateVersion = Number.isFinite(Number(room.stateVersion))
         ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
@@ -1179,7 +1219,7 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         actionType: 'timeout_pass',
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
-        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
+        playbackDiagnostics: serverPlaybackDiagnostics,
         operationId: `timeout_${room.stateVersion}_${nowMs}`
     });
     return { applied: true, stateVersion: room.stateVersion };
@@ -1982,6 +2022,7 @@ function startLocalMatchServerFromCli() {
 export = {
     createLocalMatchServer,
     applyCommandPublishToSnapshot,
+    applyTimeoutPassToSnapshot,
     makeInitialSnapshot,
     buildInitialDeckSnapshotOptions,
     resetRoomsForTests,

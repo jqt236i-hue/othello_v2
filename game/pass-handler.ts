@@ -506,6 +506,7 @@ function getLegalMovesForPlayer(playerValue: any) {
 
 function playerHasAnyAvailableAction(playerValue: any) {
     const playerKey = normalizePlayerKey(playerValue, 'black');
+    if (readPendingForPassHandler(playerKey)) return true;
     const legalMoves = getLegalMovesForPlayer(playerValue);
     if (legalMoves.length > 0) return true;
     return hasUsableCardFor(playerKey);
@@ -517,10 +518,59 @@ function isNoActionTerminalState() {
     return !playerHasAnyAvailableAction(safeBlack) && !playerHasAnyAvailableAction(safeWhite);
 }
 
+function resolveCorePassApi() {
+    if (typeof Core !== 'undefined' && Core && typeof Core.applyPass === 'function') return Core;
+    if (typeof CoreLogic !== 'undefined' && CoreLogic && typeof CoreLogic.applyPass === 'function') return CoreLogic;
+    if (typeof require === 'function') {
+        try {
+            const coreModule = require('./logic/core');
+            if (coreModule && typeof coreModule.applyPass === 'function') return coreModule;
+        } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
+function normalizePassCount(value: any) {
+    return Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : 0;
+}
+
+function applyNoActionTerminalPass(state: any) {
+    const core = resolveCorePassApi();
+    if (core && typeof core.applyPass === 'function') {
+        try {
+            return core.applyPass(state);
+        } catch (e) {
+            // Fall back to the minimal pass transition below for legacy tests and partial states.
+        }
+    }
+    return Object.assign({}, state || {}, {
+        currentPlayer: state && Number.isFinite(Number(state.currentPlayer))
+            ? -Number(state.currentPlayer)
+            : state && state.currentPlayer === 'black'
+                ? 'white'
+                : state && state.currentPlayer === 'white'
+                    ? 'black'
+                    : state ? state.currentPlayer : undefined,
+        consecutivePasses: normalizePassCount(state && state.consecutivePasses) + 1,
+        turnNumber: normalizePassCount(state && state.turnNumber) + 1
+    });
+}
+
+function advanceNoActionTerminalPasses() {
+    if (!gameState) return false;
+    let guard = 0;
+    while (normalizePassCount(gameState.consecutivePasses) < 2 && guard < 2) {
+        if (playerHasAnyAvailableAction(gameState.currentPlayer)) return false;
+        gameState = applyNoActionTerminalPass(gameState);
+        guard += 1;
+    }
+    return normalizePassCount(gameState && gameState.consecutivePasses) >= 2;
+}
+
 function finalizeNoActionTerminal() {
     if (!isNoActionTerminalState()) return false;
-    if (gameState && (typeof gameState.consecutivePasses !== 'number' || gameState.consecutivePasses < 2)) {
-        gameState.consecutivePasses = 2;
+    if (gameState && normalizePassCount(gameState.consecutivePasses) < 2) {
+        if (!advanceNoActionTerminalPasses()) return false;
     }
     showPassHandlerResultIfAvailable();
     setPassHandlerProcessing(false);

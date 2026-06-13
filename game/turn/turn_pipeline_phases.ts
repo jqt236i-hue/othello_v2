@@ -1178,7 +1178,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
                 const ctx = resolveSafeCardContext(CardLogic, cardState);
                 const legalMoves = Core.getLegalMoves(gameState, playerValue, ctx);
-                if (legalMoves.length > 0) {
+                const forcePass = action && (
+                    action.forcePass === true
+                    || action.timeoutPass === true
+                    || String(action.reason || '').trim().toLowerCase() === 'timeout'
+                );
+                if (legalMoves.length > 0 && !forcePass) {
                     throw new Error('Illegal pass: legal moves available');
                 }
                 // Pass policy: abandon any unresolved card effect for this turn.

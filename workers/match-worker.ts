@@ -1397,6 +1397,32 @@ async function applyCommandPublishToSnapshot(
     };
 }
 
+async function applyTimeoutPassToSnapshot(options: {
+    room: MatchWorkerRoomState;
+    playerKey: unknown;
+    nowMs?: unknown;
+}): Promise<Record<string, unknown>> {
+    const room = options && options.room ? options.room : null;
+    const playerKey = normalizePlayerKey(options && options.playerKey);
+    const snapshot = asWorkerSnapshot(room && room.snapshot);
+    const cardState = asRecord(snapshot.cardState);
+    const turnIndex = Number.isFinite(Number(cardState.turnIndex))
+        ? Math.trunc(Number(cardState.turnIndex))
+        : 0;
+    return applyCommandPublishToSnapshot(room, {
+        actionType: 'pass',
+        actor: playerKey,
+        turnIndex,
+        action: {
+            type: 'pass',
+            playerKey,
+            turnIndex,
+            forcePass: true,
+            reason: 'timeout'
+        }
+    }, playerKey);
+}
+
 async function reconcileTurnStartIfNeeded(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, options?: MatchWorkerTurnStartOptions | null): Promise<unknown[] | unknown> {
     const opts = asRecord(options);
     const snapshotRecord = asWorkerSnapshot(snapshot);
@@ -2124,6 +2150,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 refreshTurnTimer: (options) => this.refreshTurnTimer(options),
                 saveRoom: () => this.saveRoom(),
                 loadCoreLogicModule,
+                applyTimeoutPassToSnapshot,
                 deepClone,
                 stripTransientPresentationState: MatchAuthority.stripTransientPresentationState,
                 reconcileTurnStartAndCollectPlayback,

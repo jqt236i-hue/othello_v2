@@ -14,6 +14,19 @@ type MatchWorkerTimeoutControllerConfig = {
     refreshTurnTimer: (options?: MatchWorkerTurnTimerOptions | null) => Promise<boolean>;
     saveRoom: () => Promise<void>;
     loadCoreLogicModule: () => Promise<{ applyPass: (gameState: unknown) => unknown }>;
+    applyTimeoutPassToSnapshot?: (options: {
+        room: MatchWorkerRoomState;
+        snapshot: MatchWorkerPublicSnapshot;
+        playerKey: string;
+        nowMs: number;
+    }) => Promise<{
+        ok?: boolean;
+        snapshot?: MatchWorkerPublicSnapshot;
+        playbackEvents?: unknown[];
+        effectLogs?: unknown[];
+        playbackDiagnostics?: unknown;
+        diagnostics?: unknown;
+    } | null | undefined>;
     deepClone: <T>(value: T) => T;
     stripTransientPresentationState: (snapshot: unknown) => unknown;
     reconcileTurnStartAndCollectPlayback: (room: MatchWorkerRoomState | null | undefined, snapshot: unknown) => Promise<MatchWorkerPlaybackAssembly>;
@@ -64,9 +77,35 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             return { applied: false };
         }
 
-        const core = await cfg.loadCoreLogicModule();
-        const nextSnapshot = cfg.deepClone(snapshot) as MatchWorkerPublicSnapshot;
-        nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
+        let nextSnapshot: MatchWorkerPublicSnapshot;
+        let serverPlaybackEvents: unknown[] = [];
+        let serverEffectLogs: unknown[] = [];
+        let serverPlaybackDiagnostics: unknown = null;
+        const timeoutPassResolver = typeof cfg.applyTimeoutPassToSnapshot === 'function'
+            ? cfg.applyTimeoutPassToSnapshot
+            : null;
+        if (timeoutPassResolver) {
+            const resolved = await timeoutPassResolver({
+                room,
+                snapshot: cfg.deepClone(snapshot) as MatchWorkerPublicSnapshot,
+                playerKey: timedOutSeatKey,
+                nowMs
+            });
+            if (!resolved || resolved.ok !== true || !resolved.snapshot) {
+                return { applied: false };
+            }
+            nextSnapshot = cfg.deepClone(resolved.snapshot) as MatchWorkerPublicSnapshot;
+            serverPlaybackEvents = Array.isArray(resolved.playbackEvents) ? resolved.playbackEvents : [];
+            serverEffectLogs = Array.isArray(resolved.effectLogs) ? resolved.effectLogs : [];
+            serverPlaybackDiagnostics = resolved.playbackDiagnostics || cfg.toDebugPlaybackDiagnostics(resolved.diagnostics, cfg.toPublicNetworkDebugEnabled(room));
+            cfg.reportPlaybackAssemblyDiagnostics('worker-timeout-pass', resolved.diagnostics || null, {
+                networkDebugEnabled: cfg.toPublicNetworkDebugEnabled(room)
+            });
+        } else {
+            const core = await cfg.loadCoreLogicModule();
+            nextSnapshot = cfg.deepClone(snapshot) as MatchWorkerPublicSnapshot;
+            nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
+        }
         cfg.stripTransientPresentationState(nextSnapshot);
         if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
             if (
@@ -79,16 +118,19 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
         if (nextSnapshot.cardState && (nextSnapshot.cardState as any).pendingEffectByPlayer && typeof (nextSnapshot.cardState as any).pendingEffectByPlayer === 'object') {
             cfg.asRecord((nextSnapshot.cardState as any).pendingEffectByPlayer)[timedOutSeatKey] = null;
         }
-        const serverPlaybackAssembly = await cfg.reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
-        cfg.reportPlaybackAssemblyDiagnostics('worker-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
-            networkDebugEnabled: cfg.toPublicNetworkDebugEnabled(room)
-        });
-        const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
-            ? serverPlaybackAssembly.playbackEvents
-            : [];
-        const serverEffectLogs = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
-            ? serverPlaybackAssembly.effectLogs
-            : [];
+        if (!timeoutPassResolver) {
+            const serverPlaybackAssembly = await cfg.reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+            cfg.reportPlaybackAssemblyDiagnostics('worker-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
+                networkDebugEnabled: cfg.toPublicNetworkDebugEnabled(room)
+            });
+            serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
+                ? serverPlaybackAssembly.playbackEvents
+                : [];
+            serverEffectLogs = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
+                ? serverPlaybackAssembly.effectLogs
+                : [];
+            serverPlaybackDiagnostics = cfg.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, cfg.toPublicNetworkDebugEnabled(room));
+        }
 
         room.stateVersion = Number.isFinite(Number(room.stateVersion))
             ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
@@ -115,7 +157,7 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             actionType: 'timeout_pass',
             playbackEvents: serverPlaybackEvents,
             effectLogs: serverEffectLogs,
-            playbackDiagnostics: cfg.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, cfg.toPublicNetworkDebugEnabled(room)),
+            playbackDiagnostics: serverPlaybackDiagnostics,
             operationId: `timeout_${room.stateVersion}_${nowMs}`
         });
 
