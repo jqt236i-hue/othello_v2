@@ -1002,6 +1002,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (p && typeof p.random === 'function') {
                     mergedDebugOptions.prng = p;
                 }
+                const requestedHandIndex = Number(action.useCardHandIndex);
+                if (Number.isInteger(requestedHandIndex) && requestedHandIndex >= 0) {
+                    mergedDebugOptions.handIndex = Math.trunc(requestedHandIndex);
+                }
                 const ok = CardLogic.applyCardUsage(
                     cardState,
                     gameState,

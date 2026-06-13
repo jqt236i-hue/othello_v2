@@ -337,6 +337,62 @@ describe('card use source element selection', () => {
     expect(global.addLog).toHaveBeenCalledWith('布石不足: 援軍の意志 (必要: 19, 所持: 14)');
   });
 
+  test('network mode allows observer will stolen cards with projected zero cost', () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.gameState.currentPlayer = global.BLACK;
+    global.cardState.selectedCardId = 'supply_01';
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.cardState.charge.black = 0;
+    global.cardState.hands.black = ['supply_01'];
+    global.cardState.handCostAdjustmentsByPlayer = {
+      black: [{ overrideCost: 0 }],
+      white: []
+    };
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 20 }),
+      getUsableCardIds: () => ['supply_01']
+    };
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('布石不足'));
+  });
+
+  test('network mode uses clicked hand slot for duplicate observer will stolen cards', () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.gameState.currentPlayer = global.BLACK;
+    global.cardState.selectedCardId = null;
+    global.cardState.selectedCardOwnerKey = null;
+    global.cardState.charge.black = 0;
+    global.cardState.hands.black = ['supply_01', 'supply_01'];
+    global.cardState.handCostAdjustmentsByPlayer = {
+      black: [null, { overrideCost: 0 }],
+      white: []
+    };
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 20 }),
+      getUsableCardIds: () => ['supply_01']
+    };
+
+    require('../cards/card-interaction.js');
+    window.onCardClick('supply_01', 'black', 1);
+    expect(global.cardState.selectedCardHandIndex).toBe(1);
+
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3]).toEqual(expect.objectContaining({
+      useCardId: 'supply_01',
+      useCardOwnerKey: 'black',
+      useCardHandIndex: 1
+    }));
+    expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('布石不足'));
+  });
+
   test('network server-authored card use does not advance local action history', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';

@@ -1787,6 +1787,7 @@ function sanitizePendingSelectionActionForAuthority(snapshotValue: unknown, play
     const nextAction = deepClone(action) as Record<string, unknown>;
     delete nextAction.useCardId;
     delete nextAction.useCardOwnerKey;
+    delete nextAction.useCardHandIndex;
     return nextAction;
 }
 

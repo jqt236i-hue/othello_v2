@@ -671,6 +671,33 @@ function hasActiveManifestStone(cardState: any): boolean {
     return markers.some(isActiveManifestStoneMarker);
 }
 
+function normalizeRequestedHandIndex(opts: any): number | null {
+    const source = opts && typeof opts === 'object' ? opts : {};
+    const candidates = [source.handIndex, source.useCardHandIndex];
+    for (const candidate of candidates) {
+        const numeric = Number(candidate);
+        if (Number.isInteger(numeric) && numeric >= 0) {
+            return Math.trunc(numeric);
+        }
+    }
+    return null;
+}
+
+function resolveHandIndexForCard(cardState: any, playerKey: string, cardId: string, opts?: any): number {
+    const hands = cardState && cardState.hands;
+    if (!hands || !Array.isArray(hands[playerKey])) return -1;
+    const hand = hands[playerKey];
+    const requestedIndex = normalizeRequestedHandIndex(opts);
+    if (
+        requestedIndex !== null
+        && requestedIndex < hand.length
+        && String(hand[requestedIndex]) === String(cardId)
+    ) {
+        return requestedIndex;
+    }
+    return hand.indexOf(cardId);
+}
+
 function canUseCard(cardState: any, playerKey: string, cardId: string, context: Context, opts?: any): boolean {
     const { RIBO_WILL_UNLOCK_TURN_INDEX } = getConstants(context);
     const hands = cardState && cardState.hands;
@@ -683,7 +710,7 @@ function canUseCard(cardState: any, playerKey: string, cardId: string, context: 
         && (cardState as any).hasUsedCardThisTurnByPlayer
         && (cardState as any).hasUsedCardThisTurnByPlayer[playerKey];
     if (hasLiveTurnUsageFlag) return false;
-    const handIndex = hands[playerKey].indexOf(cardId);
+    const handIndex = resolveHandIndexForCard(cardState, playerKey, cardId, opts);
     if (handIndex < 0) return false;
     if (!skipCostAndTurnLimit) {
         const copyId = getHandCopyIdAt(cardState, playerKey, handIndex);
@@ -754,8 +781,10 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
     const hand = cardState.hands[playerKey];
     const res: string[] = [];
 
-    for (const cardId of hand) {
-        if (!canUseCard(cardState, playerKey, cardId, context, opts)) continue;
+    for (let handIndex = 0; handIndex < hand.length; handIndex += 1) {
+        const cardId = hand[handIndex];
+        const perSlotOpts = Object.assign({}, opts || {}, { handIndex });
+        if (!canUseCard(cardState, playerKey, cardId, context, perSlotOpts)) continue;
         const def = getCardDef(cardId, context);
         if (!def) continue;
         const type = def.type;
@@ -906,6 +935,7 @@ export = {
     getCardDisplayName,
     getCardCodeName,
     getCardCost,
+    resolveHandIndexForCard,
     canUseCard,
     ensureHandDestroyFlags,
     ensureCardCopyState,

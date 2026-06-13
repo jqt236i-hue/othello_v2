@@ -1112,13 +1112,13 @@ function _detachHandCardClickHandler(cardEl: any) {
     catch (e) { /* ignore */ }
     cardEl.__cardClickHandler = null;
 }
-function _setHandCardClickHandler(cardEl: any, clickable: any, cardId: any, ownerKey: any) {
+function _setHandCardClickHandler(cardEl: any, clickable: any, cardId: any, ownerKey: any, handIndex?: any) {
     if (!cardEl || typeof cardEl !== 'object')
         return;
     _detachHandCardClickHandler(cardEl);
     if (!clickable || typeof onCardClick !== 'function')
         return;
-    const handler = () => onCardClick(cardId, ownerKey);
+    const handler = () => onCardClick(cardId, ownerKey, handIndex);
     cardEl.__cardClickHandler = handler;
     cardEl.addEventListener('click', handler);
 }
@@ -1850,7 +1850,11 @@ function renderCardUI() {
             && hasNotUsedThisTurn
             && state.canAfford
             && isRuleUsable;
-        state.isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
+        const selectedHandIndex = Number(cardState.selectedCardHandIndex);
+        const hasSelectedHandIndex = Number.isInteger(selectedHandIndex) && selectedHandIndex >= 0;
+        state.isSelected = cardState.selectedCardId === cardId
+            && selectedOwnerKey === ownerKey
+            && (!hasSelectedHandIndex || Math.trunc(selectedHandIndex) === state.actualIndex);
         return state;
     }
     function _ensureRenderedHandElement(handTrackEl: any, existingChildren: any, entryState: any, ownerKey: any) {
@@ -1904,7 +1908,7 @@ function renderCardUI() {
         else {
             const canClick = entryState.canInspectOwnerHand && canInteract;
             _syncCardCostBadgeForRender(cardEl, entryState.cost);
-            _setHandCardClickHandler(cardEl, canClick, entryState.cardId, ownerKey);
+            _setHandCardClickHandler(cardEl, canClick, entryState.cardId, ownerKey, entryState.actualIndex);
             cardEl.classList.toggle('clickable', canClick);
             cardEl.classList.toggle('affordable', entryState.canAfford);
             cardEl.classList.toggle('usable', entryState.usable);

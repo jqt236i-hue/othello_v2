@@ -124,6 +124,36 @@ function buildUseCardBody(runtime, cardId, operationId) {
   };
 }
 
+test('worker publish uses selected hand index for duplicate zero-cost observer stolen copy', () => {
+  const runtime = createCardUseRuntime('supply_01', 77);
+  const snapshot = runtime.getSnapshot();
+  snapshot.cardState.hands.black = ['supply_01', 'supply_01'];
+  snapshot.cardState._handCopyIdsByPlayer.black = [301, 302];
+  snapshot.cardState.charge.black = 0;
+  snapshot.cardState.cardCostOverridesByCopyId = {
+    302: { cost: 0, sourceType: 'OBSERVER_WILL' }
+  };
+  snapshot.cardState.cardCostModifiersByCopyId = {};
+  snapshot.cardState.selectedCardHandIndex = 1;
+  runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(snapshot);
+
+  const body = buildUseCardBody(runtime, 'supply_01', 'op_worker_observer_duplicate_zero_use');
+  body.params.useCardHandIndex = 1;
+  body.action.useCardHandIndex = 1;
+
+  const result = runWorkerPublish(clone(snapshot), runtime.getRoom().stateVersion, body, 77);
+
+  expect(result.status).toBe(200);
+  expect(result.payload && result.payload.ok).toBe(true);
+  expect(result.payload.snapshot.cardState.charge.black).toBe(0);
+  expect(result.payload.snapshot.cardState.hands.black.filter((id) => id === 'supply_01')).toHaveLength(1);
+  expect(result.payload.snapshot.cardState.discard).toContain('supply_01');
+  expect(result.internalSnapshot.cardState._handCopyIdsByPlayer.black).toContain(301);
+  expect(result.internalSnapshot.cardState._handCopyIdsByPlayer.black).not.toContain(302);
+  expect(result.internalSnapshot.cardState._discardCopyIds).toContain(302);
+  expect((result.payload.snapshot.cardState.handCostAdjustmentsByPlayer.black || []).filter(Boolean)).toEqual([]);
+});
+
 function runWorkerPublish(initialSnapshot, stateVersion, body, seed = 71) {
   const runner = [
     "(async () => {",
@@ -147,7 +177,8 @@ function runWorkerPublish(initialSnapshot, stateVersion, body, seed = 71) {
     "  durableObject.broadcastSnapshot = async () => {};",
     "  const response = await durableObject.handlePublish(Object.assign({}, body, { roomId: 'WPAR', seatToken: body.seatKey === 'white' ? 'token_white' : 'token_black' }));",
     "  const payload = await response.json();",
-    `  process.stdout.write('${WORKER_RESULT_MARKER}' + JSON.stringify({ status: response.status, payload }));`,
+    "  const storedRoom = storage.get('match_room_state_v1');",
+    `  process.stdout.write('${WORKER_RESULT_MARKER}' + JSON.stringify({ status: response.status, payload, internalSnapshot: storedRoom && storedRoom.snapshot }));`,
     "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
   ].join('\n');
 

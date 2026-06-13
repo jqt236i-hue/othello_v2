@@ -179,7 +179,7 @@ describe('card renderer hand inspection', () => {
 
     ownCardEl.click();
 
-    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'black');
+    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'black', 0);
 
     dom.window.close();
   });
@@ -230,7 +230,7 @@ describe('card renderer hand inspection', () => {
 
     ownCardEl.click();
 
-    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'black');
+    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'black', 0);
 
     dom.window.close();
   });
@@ -634,6 +634,34 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('network own hand cost badge uses projected observer will override', () => {
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'black',
+      networkClientIsActive: true,
+      currentPlayer: 1,
+      hands: { black: ['supply_01'], white: [] }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      { id: 'supply_01', name: 'Supply', desc: 'd', cost: 20 }
+    ];
+    window.cardState.handCostAdjustmentsByPlayer = {
+      black: [{ overrideCost: 0 }],
+      white: []
+    };
+
+    window.renderCardUI();
+
+    const costValue = window.document.querySelector('#hand-black .card-cost-badge .cost-value');
+    const cardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(costValue.textContent).toBe('0');
+    expect(cardEl.classList.contains('cost-tier-white')).toBe(true);
+
+    dom.window.close();
+  });
+
   test('cpu mode shows all opponent hand cards face-up after reveal hand marks every copy', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
@@ -740,7 +768,7 @@ describe('card renderer hand inspection', () => {
 
     ownCardEl.click();
 
-    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'white');
+    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'white', 0);
 
     dom.window.close();
   });
@@ -764,7 +792,7 @@ describe('card renderer hand inspection', () => {
 
     revealedOppCardEl.click();
 
-    expect(window.onCardClick).toHaveBeenCalledWith('opp_card', 'white');
+    expect(window.onCardClick).toHaveBeenCalledWith('opp_card', 'white', 0);
 
     dom.window.close();
   });
@@ -799,7 +827,7 @@ describe('card renderer hand inspection', () => {
 
     whiteCardEl.click();
 
-    expect(window.onCardClick).toHaveBeenCalledWith('opp_card', 'white');
+    expect(window.onCardClick).toHaveBeenCalledWith('opp_card', 'white', 0);
 
     dom.window.close();
   });
@@ -936,7 +964,7 @@ describe('card renderer hand inspection', () => {
 
     ownCardEl.click();
 
-    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'white');
+    expect(window.onCardClick).toHaveBeenCalledWith('own_card', 'white', 0);
 
     dom.window.close();
   });

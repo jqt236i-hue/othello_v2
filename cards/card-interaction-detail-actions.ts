@@ -11,7 +11,7 @@ type CardInteractionDetailActionsDeps = {
     canInteractWithCardUi: () => boolean;
     isSelectionSettlementLocked: () => boolean;
     getCardDef: (cardId: any) => any;
-    getEffectiveCardCost?: (cardId: any, ownerKey: any) => number;
+    getEffectiveCardCost?: (cardId: any, ownerKey: any, handIndex?: any) => number;
     getCardStateValue: () => any;
     isSelectedCardUsableNow: (playerKey: any, cardId: any, options?: any) => boolean;
     getLegalMovesForCurrentPlayer: () => any[];
@@ -193,7 +193,7 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
             : (typeof cfg.isSelectionSettlementLocked === 'function' && cfg.isSelectionSettlementLocked() === true);
         const selectedCardDef = context.hasSelection ? cfg.getCardDef(context.selectedId) : null;
         const effectiveCost = context.hasSelection && typeof cfg.getEffectiveCardCost === 'function'
-            ? cfg.getEffectiveCardCost(context.selectedId, playerKey)
+            ? cfg.getEffectiveCardCost(context.selectedId, playerKey, context.selectedHandIndex)
             : null;
         const cost = Number.isFinite(Number(effectiveCost))
             ? Number(effectiveCost)
@@ -203,7 +203,13 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         const canUseSelectedCardByRules = !!(context.hasSelection && cfg.isSelectedCardUsableNow(
             playerKey,
             context.selectedId,
-            isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined
+            Object.assign(
+                {},
+                isDebugUnlimited ? { skipCostAndTurnLimit: true } : null,
+                Number.isInteger(Number(context.selectedHandIndex)) && Number(context.selectedHandIndex) >= 0
+                    ? { handIndex: Math.trunc(Number(context.selectedHandIndex)) }
+                    : null
+            )
         ));
         const noLegalMoves = cfg.getLegalMovesForCurrentPlayer().length === 0;
         const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer ? cardStateValue.pendingEffectByPlayer : {};

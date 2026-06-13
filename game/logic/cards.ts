@@ -2142,8 +2142,8 @@ const {
      * @param {string} cardId
      * @returns {boolean}
      */
-    function canUseCard(cardState: any, playerKey: any, cardId: any) {
-        return requireCardHandAccess().canUseCard(cardState, playerKey, cardId);
+    function canUseCard(cardState: any, playerKey: any, cardId: any, opts?: any) {
+        return requireCardHandAccess().canUseCard(cardState, playerKey, cardId, opts);
     }
 
     function resolveCoreLogicForCards() {

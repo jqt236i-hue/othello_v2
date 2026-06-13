@@ -218,6 +218,64 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     expect(warning.textContent).toBe('');
   });
 
+  test('hand overlay select button is disabled while interaction is busy', () => {
+    const overlayView = require('../cards/card-interaction-overlay-view.ts');
+    let overlayRefs = null;
+    let selectedKey = null;
+    let canInteract = false;
+    const executeObserverWillSelection = jest.fn();
+
+    const deps = {
+      getDocumentRef: () => document,
+      getWindowRef: () => window,
+      getOverlayRefs: () => overlayRefs,
+      setOverlayRefs: (refs) => { overlayRefs = refs; },
+      getCardStateValue: () => ({
+        hands: { black: ['dummy_01'], white: ['offer_1'] },
+        pendingEffectByPlayer: {
+          black: {
+            type: 'OBSERVER_WILL',
+            stage: 'selectTarget',
+            offers: [{ handIndex: 0, cardId: 'offer_1' }]
+          },
+          white: null
+        }
+      }),
+      getHandLimit: () => 5,
+      getHeavenSelection: () => selectedKey,
+      setHeavenSelection: (_playerKey, offerKey) => { selectedKey = offerKey; },
+      resolveCardDef: (id) => ({ id, name: `name_${id}`, desc: `desc_${id}`, cost: 2 }),
+      getCardCostTier: () => 'gray',
+      getCardDisplayTypeKey: () => 'test',
+      getCardDisplayLabel: (cardId) => `name_${cardId}`,
+      fitCardNameForDisplay: jest.fn(),
+      appendCardDisplayBadges: jest.fn(),
+      getOverlayCardDescriptionText: (_cardDef, cardId) => `desc_${cardId}`,
+      canInteractWithCardUi: () => canInteract,
+      playUiEffectSound: jest.fn(),
+      executeHeavenSelection: jest.fn(),
+      executeCondemnSelection: jest.fn(),
+      executeObserverWillSelection
+    };
+
+    overlayView.renderHeavenOverlay('black', deps);
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    const reason = document.getElementById('heaven-blessing-reason');
+
+    expect(selectBtn.disabled).toBe(true);
+    expect(reason.textContent).toBe('演出中...');
+    selectBtn.click();
+    expect(executeObserverWillSelection).not.toHaveBeenCalled();
+
+    canInteract = true;
+    overlayView.renderHeavenOverlay('black', deps);
+
+    expect(selectBtn.disabled).toBe(false);
+    expect(reason.textContent).toBe('');
+    selectBtn.click();
+    expect(executeObserverWillSelection).toHaveBeenCalledWith('black', 0, 'offer_1');
+  });
+
   test('hand full disables selection with reason text', () => {
     global.cardState.hands.black = ['a', 'b', 'c', 'd', 'e'];
     require('../cards/card-interaction.js');

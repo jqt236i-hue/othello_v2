@@ -40,7 +40,7 @@ export function createCardInteractionHandDom(deps: CardInteractionHandDomDeps) {
         return matches;
     }
 
-    function findCardElementInOwnerHand(cardId: any, ownerKey: any) {
+    function findCardElementInOwnerHand(cardId: any, ownerKey: any, handIndex?: any) {
         if (!cardId) return null;
         const documentRef = typeof deps.getDocumentRef === 'function' ? deps.getDocumentRef() : null;
         if (!documentRef) return null;
@@ -56,6 +56,11 @@ export function createCardInteractionHandDom(deps: CardInteractionHandDomDeps) {
         });
 
         if (ownerMatched.length > 0) {
+            const requestedIndex = Number(handIndex);
+            if (Number.isInteger(requestedIndex) && requestedIndex >= 0) {
+                const indexed = ownerMatched.find((el) => Number(el && el.dataset ? el.dataset.handIndex : NaN) === Math.trunc(requestedIndex));
+                if (indexed) return indexed;
+            }
             const visible = ownerMatched.find((el) => !el.classList.contains('hidden'));
             return visible || ownerMatched[0];
         }

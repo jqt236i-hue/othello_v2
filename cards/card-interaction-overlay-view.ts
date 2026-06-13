@@ -27,6 +27,7 @@ type OverlayViewDeps = {
     appendCardDisplayBadges: (cardEl: any, cardDef: any, cost: any, tier: any) => any;
     createCardFaceElement?: (cardId: any, options?: any) => any;
     getOverlayCardDescriptionText: (cardDef: any, cardId: any) => any;
+    canInteractWithCardUi?: () => boolean;
     playUiEffectSound: (effectKey: any) => any;
     executeHeavenSelection: (playerKey: any, selectedCardId: any) => any;
     executeCondemnSelection: (playerKey: any, targetIndex: any, targetCardId: any) => any;
@@ -236,8 +237,12 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
     refs.detailName.textContent = deps.getCardDisplayLabel(selectedCardId, selectedDef);
     refs.detailDesc.textContent = deps.getOverlayCardDescriptionText(selectedDef, selectedCardId);
     refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : (pendingType === 'OBSERVER_WILL' ? '奪う' : '選択');
-    refs.selectBtn.disabled = handFull || !selectedOffer;
+    const canInteract = typeof deps.canInteractWithCardUi === 'function'
+        ? deps.canInteractWithCardUi() !== false
+        : true;
+    refs.selectBtn.disabled = handFull || !selectedOffer || !canInteract;
     refs.selectBtn.onclick = () => {
+        if (!canInteract) return;
         if (!selectedOffer) return;
         if (pendingType === 'CONDEMN_WILL') {
             const targetIndex = (selectedOffer && typeof selectedOffer === 'object') ? selectedOffer.handIndex : null;
@@ -251,7 +256,9 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
         }
         deps.executeHeavenSelection(playerKey, selectedCardId);
     };
-    refs.reason.textContent = handFull ? '手札上限のため選択できません' : '';
+    refs.reason.textContent = handFull
+        ? '手札上限のため選択できません'
+        : (!canInteract ? '演出中...' : '');
     refs.root.classList.add('active');
     positionHeavenOverlayNearBoard(deps);
 }

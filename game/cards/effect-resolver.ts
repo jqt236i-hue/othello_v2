@@ -610,7 +610,9 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     : !!(CardMarkersModule && typeof CardMarkersModule.isCardPlayLockedForPlayer === 'function' && CardMarkersModule.isCardPlayLockedForPlayer(cardState, chargeOwnerKey));
   if (cardPlayLocked) return false;
 
-  const idx = cardState.hands[handKey].indexOf(cardId);
+  const idx = CardHandManagerModule && typeof CardHandManagerModule.resolveHandIndexForCard === 'function'
+    ? CardHandManagerModule.resolveHandIndexForCard(cardState, handKey, cardId, _opts)
+    : cardState.hands[handKey].indexOf(cardId);
   if (idx === -1) return false;
 
   const costFn = typeof getCardCostFn === 'function' ? getCardCostFn : getCardCost;

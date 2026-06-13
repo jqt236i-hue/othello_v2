@@ -431,16 +431,51 @@ function _appendCardDisplayBadges(cardEl: any, cardDef: any, cost: any, tier: an
     cardEl.appendChild(badgeRow);
 }
 
-function _setSelectedCardSelection(cardId: any, ownerKey: any) {
+function _normalizeSelectedHandIndexValue(value: any): number | null {
+    const numeric = Number(value);
+    if (!Number.isInteger(numeric) || numeric < 0) return null;
+    return Math.trunc(numeric);
+}
+
+function _resolveHandIndexForSelectedCard(ownerKey: any, cardId: any, handIndex?: any): number {
+    const owner = _normalizeOwnerKey(ownerKey);
+    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[owner])
+        ? cardState.hands[owner]
+        : null;
+    if (!hand || !cardId) return -1;
+    const requestedIndex = _normalizeSelectedHandIndexValue(handIndex);
+    if (requestedIndex !== null && requestedIndex < hand.length && String(hand[requestedIndex]) === String(cardId)) {
+        return requestedIndex;
+    }
+    const storedIndex = _normalizeSelectedHandIndexValue(cardState.selectedCardHandIndex);
+    if (storedIndex !== null && storedIndex < hand.length && String(hand[storedIndex]) === String(cardId)) {
+        return storedIndex;
+    }
+    return hand.indexOf(cardId);
+}
+
+function _isSameSelectedCardSelection(cardId: any, ownerKey: any, handIndex?: any): boolean {
+    const stateRef = _getCardStateRef();
+    if (!stateRef || stateRef.selectedCardId !== cardId || _getSelectedCardOwnerKey(ownerKey) !== ownerKey) return false;
+    const requestedIndex = _normalizeSelectedHandIndexValue(handIndex);
+    if (requestedIndex === null) return true;
+    return _resolveHandIndexForSelectedCard(ownerKey, cardId) === requestedIndex;
+}
+
+function _setSelectedCardSelection(cardId: any, ownerKey: any, handIndex?: any) {
     const stateRef = _getCardStateRef();
     if (!stateRef || typeof stateRef !== 'object') return;
     if (!cardId) {
         stateRef.selectedCardId = null;
         stateRef.selectedCardOwnerKey = null;
+        stateRef.selectedCardHandIndex = null;
         return;
     }
     stateRef.selectedCardId = cardId;
-    stateRef.selectedCardOwnerKey = _normalizeOwnerKey(ownerKey);
+    const normalizedOwner = _normalizeOwnerKey(ownerKey);
+    stateRef.selectedCardOwnerKey = normalizedOwner;
+    const resolvedIndex = _resolveHandIndexForSelectedCard(normalizedOwner, cardId, handIndex);
+    stateRef.selectedCardHandIndex = resolvedIndex >= 0 ? resolvedIndex : null;
 }
 
 function _clearSelectedCardSelection() {
@@ -448,6 +483,7 @@ function _clearSelectedCardSelection() {
     if (!stateRef || typeof stateRef !== 'object') return;
     stateRef.selectedCardId = null;
     stateRef.selectedCardOwnerKey = null;
+    stateRef.selectedCardHandIndex = null;
 }
 
 function _getSelectedCardOwnerKey(defaultOwnerKey: any) {
@@ -579,6 +615,7 @@ function _getCardInteractionOverlayViewDeps() {
             ? _cardRendererModule.createCardFaceElement
             : undefined,
         getOverlayCardDescriptionText: _getOverlayCardDescriptionText,
+        canInteractWithCardUi: _canInteractWithCardUi,
         playUiEffectSound,
         executeHeavenSelection: _executeHeavenSelection,
         executeCondemnSelection: _executeCondemnSelection,
@@ -620,7 +657,7 @@ const _cardInteractionDetailActions = (_cardInteractionDetailActionsModule && ty
         getCardDef: (cardId: any) => ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
             ? CardLogic.getCardDef(cardId)
             : null),
-        getEffectiveCardCost: (cardId: any, ownerKey: any) => _getEffectiveCardCostForHandCard(cardId, ownerKey),
+        getEffectiveCardCost: (cardId: any, ownerKey: any, handIndex?: any) => _getEffectiveCardCostForHandCard(cardId, ownerKey, handIndex),
         getCardStateValue: () => cardState,
         isSelectedCardUsableNow: _isSelectedCardUsableNow,
         getLegalMovesForCurrentPlayer: _getLegalMovesForCurrentPlayer,
@@ -1005,7 +1042,7 @@ function _isSelectedCardUsableNow(playerKey: any, cardId: any, opts: any) {
 
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.canUseCard === 'function') {
-            return !!CardLogic.canUseCard(cardState, playerKey, cardId);
+            return !!CardLogic.canUseCard(cardState, playerKey, cardId, opts);
         }
     } catch (e) { /* ignore */ }
 
@@ -1026,9 +1063,9 @@ function _queryOwnerHandElements(ownerKey: any, selector: any) {
     return [];
 }
 
-function _findCardElementInOwnerHand(cardId: any, ownerKey: any) {
+function _findCardElementInOwnerHand(cardId: any, ownerKey: any, handIndex?: any) {
     if (_cardInteractionHandDom && typeof _cardInteractionHandDom.findCardElementInOwnerHand === 'function') {
-        return _cardInteractionHandDom.findCardElementInOwnerHand(cardId, ownerKey);
+        return _cardInteractionHandDom.findCardElementInOwnerHand(cardId, ownerKey, handIndex);
     }
     return null;
 }
@@ -1850,21 +1887,22 @@ function _resolveSelectedHandCardActionContext(options: any) {
         playerKey,
         actionPlayerKey,
         cardId,
-        selectedOwnerKey
+        selectedOwnerKey,
+        selectedHandIndex: _resolveHandIndexForSelectedCard(selectedOwnerKey, cardId)
     };
 }
 
-function _getEffectiveCardCostForHandCard(cardId: any, ownerKey: any) {
+function _getEffectiveCardCostForHandCard(cardId: any, ownerKey: any, handIndex?: any) {
     const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
         ? CardLogic.getCardDef(cardId)
         : null;
     const baseCost = cardDef ? (cardDef.cost || 0) : 0;
     try {
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[ownerKey])) return baseCost;
-        const handIndex = cardState.hands[ownerKey].indexOf(cardId);
-        if (handIndex < 0) return baseCost;
+        const resolvedHandIndex = _resolveHandIndexForSelectedCard(ownerKey, cardId, handIndex);
+        if (resolvedHandIndex < 0) return baseCost;
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getHandCopyIdAt === 'function' && typeof CardLogic.getEffectiveCardCostForCopy === 'function') {
-            const copyId = CardLogic.getHandCopyIdAt(cardState, ownerKey, handIndex);
+            const copyId = CardLogic.getHandCopyIdAt(cardState, ownerKey, resolvedHandIndex);
             const copyKey = String(Number(copyId || 0));
             const hasOverride = !!(
                 copyKey !== '0'
@@ -1880,7 +1918,7 @@ function _getEffectiveCardCostForHandCard(cardId: any, ownerKey: any) {
                 return CardLogic.getEffectiveCardCostForCopy(cardState, cardId, copyId);
             }
         }
-        const projectedCost = _getProjectedHandCost(cardState, ownerKey, handIndex, baseCost);
+        const projectedCost = _getProjectedHandCost(cardState, ownerKey, resolvedHandIndex, baseCost);
         if (projectedCost !== null && Number.isFinite(Number(projectedCost))) {
             return Number(projectedCost);
         }
@@ -2140,7 +2178,10 @@ function _resolveCardDetailSelectionContext(playerKey: any) {
         selectedId,
         selectedOwnerKey,
         hasSelection: hasInspectableSelection && selectedOwnerKey === playerKey,
-        normalizedSelectedId: hasInspectableSelection ? selectedId : null
+        normalizedSelectedId: hasInspectableSelection ? selectedId : null,
+        selectedHandIndex: hasInspectableSelection
+            ? _resolveHandIndexForSelectedCard(selectedOwnerKey, selectedId)
+            : -1
     };
 }
 
@@ -2338,7 +2379,7 @@ function playUiEffectSound(effectKey: any) {
     } catch (e) { /* ignore */ }
 }
 
-function onCardClick(cardId: any, ownerKey: any) {
+function onCardClick(cardId: any, ownerKey: any, handIndex?: any) {
     const isDebugUnlimited = _isDebugUnlimitedUsage();
     const isDebugHvH = _isDebugHvHMode();
     if (_isAutoModeActive()) return;
@@ -2361,10 +2402,10 @@ function onCardClick(cardId: any, ownerKey: any) {
         playUiEffectSound('hand_card_select');
         _settleLingeringHandFadeForOwner(clickedOwnerKey);
 
-        if (stateRef && stateRef.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === clickedOwnerKey) {
+        if (_isSameSelectedCardSelection(cardId, clickedOwnerKey, handIndex)) {
             _clearSelectedCardSelection();
         } else {
-            _setSelectedCardSelection(cardId, clickedOwnerKey);
+            _setSelectedCardSelection(cardId, clickedOwnerKey, handIndex);
         }
 
         renderCardUI();
@@ -2380,10 +2421,10 @@ function onCardClick(cardId: any, ownerKey: any) {
     playUiEffectSound('hand_card_select');
     _settleLingeringHandFadeForOwner(actionOwnerKey);
 
-    if (stateRef && stateRef.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === actionOwnerKey) {
+    if (_isSameSelectedCardSelection(cardId, actionOwnerKey, handIndex)) {
         _clearSelectedCardSelection();
     } else {
-        _setSelectedCardSelection(cardId, actionOwnerKey);
+        _setSelectedCardSelection(cardId, actionOwnerKey, handIndex);
     }
 
     renderCardUI();
@@ -2424,31 +2465,40 @@ function useSelectedCard() {
     const isDebugUnlimited = _isDebugUnlimitedUsage();
     const actionContext = _resolveSelectedHandCardActionContext({ isDebugUnlimited });
     if (!actionContext) return;
-    const { playerKey, actionPlayerKey, cardId } = actionContext;
+    const { playerKey, actionPlayerKey, cardId, selectedHandIndex } = actionContext;
 
     if (!isDebugUnlimited && _hasPlayerUsedCardThisActiveTurn(actionPlayerKey)) return;
 
     const cardDef = CardLogic.getCardDef(cardId);
 
     // Charge Check (in debug mode, skip)
-    const cost = _getEffectiveCardCostForHandCard(cardId, actionPlayerKey);
+    const cost = _getEffectiveCardCostForHandCard(cardId, actionPlayerKey, selectedHandIndex);
     if (!isDebugUnlimited && (cardState.charge[actionPlayerKey] || 0) < cost) {
         addLog(`布石不足: ${cardDef ? cardDef.name : cardId} (必要: ${cost}, 所持: ${cardState.charge[actionPlayerKey] || 0})`);
         return;
     }
-    if (!_isSelectedCardUsableNow(actionPlayerKey, cardId, isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined)) {
+    const usableCheckOptions = Object.assign(
+        {},
+        isDebugUnlimited ? { skipCostAndTurnLimit: true } : null,
+        Number.isInteger(selectedHandIndex) && selectedHandIndex >= 0 ? { handIndex: selectedHandIndex } : null
+    );
+    if (!_isSelectedCardUsableNow(actionPlayerKey, cardId, usableCheckOptions)) {
         addLog('このカードは現在使用できません（対象不足など）');
         renderCardUI();
         return;
     }
     // ownerKey = who holds the card (victim when FATE_WILL); playerKey = network auth key.
     const ownerKey = actionPlayerKey;
-    const usedCardEl = _findCardElementInOwnerHand(cardId, ownerKey);
+    const usedCardEl = _findCardElementInOwnerHand(cardId, ownerKey, selectedHandIndex);
     const usedCardRect = _snapshotElementRect(usedCardEl);
     const debugOptions = isDebugUnlimited ? { ignoreCost: true, noConsume: true } : null;
+    const actionPayload: any = { useCardId: cardId, useCardOwnerKey: ownerKey, debugOptions };
+    if (Number.isInteger(selectedHandIndex) && selectedHandIndex >= 0) {
+        actionPayload.useCardHandIndex = selectedHandIndex;
+    }
     const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('use_card', playerKey, { useCardId: cardId, useCardOwnerKey: ownerKey, debugOptions })
-        : { type: 'use_card', useCardId: cardId, useCardOwnerKey: ownerKey, debugOptions };
+        ? ActionManager.ActionManager.createAction('use_card', playerKey, actionPayload)
+        : { type: 'use_card', ...actionPayload };
 
     const result = _runCardPipelineActionOrLogFailure(playerKey, action, 'カード使用に失敗しました');
     if (!result) return;

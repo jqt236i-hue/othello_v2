@@ -53,6 +53,27 @@ describe('OBSERVER_WILL card copy cost ledger', () => {
     expect(cardState.charge.black).toBe(0);
   });
 
+  test('selected hand index uses the zero-cost stolen copy when duplicate card ids exist', () => {
+    const cardState = createCardState();
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: 1,
+      turnNumber: 20
+    };
+    const original = CardLogic.addCardToHand(cardState, 'black', 'supply_01');
+    const stolen = CardLogic.addCardToHand(cardState, 'black', 'supply_01');
+    cardState.charge.black = 0;
+    CardLogic.setCardCostOverrideForCopyId(cardState, stolen.cardCopyId, 0, 'OBSERVER_WILL');
+
+    expect(CardLogic.canUseCard(cardState, 'black', 'supply_01')).toBe(false);
+    expect(CardLogic.canUseCard(cardState, 'black', 'supply_01', { handIndex: 1 })).toBe(true);
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'supply_01', 'black', { handIndex: 1 })).toBe(true);
+
+    expect(cardState.charge.black).toBe(0);
+    expect(CardLogic.getHandCopyIds(cardState, 'black')).toEqual([original.cardCopyId]);
+    expect(cardState._discardCopyIds[cardState._discardCopyIds.length - 1]).toBe(stolen.cardCopyId);
+  });
+
   test('effective +5 modifier blocks use until the modified cost is affordable', () => {
     const cardState = createCardState();
     const added = CardLogic.addCardToHand(cardState, 'white', 'silver_stone');

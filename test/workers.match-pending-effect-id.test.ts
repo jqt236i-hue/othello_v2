@@ -1268,6 +1268,12 @@ describe('worker pendingEffectId contract', () => {
       stateVersion: 1
     }));
     expect(result.payload.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.payload.snapshot.cardState.hands.black).toEqual(['supply_01']);
+    expect(result.payload.snapshot.cardState.handCostAdjustmentsByPlayer.black).toEqual([
+      { overrideCost: 0 }
+    ]);
+    expect(result.payload.snapshot.cardState.cardCostOverridesByCopyId).toBeUndefined();
+    expect(result.payload.snapshot.cardState._handCopyIdsByPlayer).toBeUndefined();
     expect(result.internalCardState.hands.black).toEqual(['supply_01']);
     expect(result.internalCardState.hands.white).toEqual(['silver_stone']);
     expect(result.internalCardState.cardCostOverridesByCopyId['101']).toEqual(expect.objectContaining({ cost: 0 }));
