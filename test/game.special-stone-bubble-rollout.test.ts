@@ -186,7 +186,10 @@ describe('special stone speech rollout', () => {
   });
 
   test.each([
-    ['STONE_SALVATION_GOD', 'STONE_SALVATION_GOD']
+    ['STONE_SALVATION_GOD', 'STONE_SALVATION_GOD'],
+    ['METEOR_GOD', 'METEOR_GOD'],
+    ['AFTERIMAGE_WILL', 'AFTERIMAGE_WILL'],
+    ['PERMA_PROTECT_NEXT_STONE', 'PERMA_PROTECTED']
   ])('%s placement emits a generic place speech bubble', (cardType, specialType) => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);

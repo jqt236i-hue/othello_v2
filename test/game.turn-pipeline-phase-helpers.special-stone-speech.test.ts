@@ -83,6 +83,20 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       '消えたつもりなら誤算だ、私はまだ盤にいる。',
       '生きる意志が残っていた、もう一度だけ立つ。'
     ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PERMA_PROTECTED', 'place')).toEqual([
+      '反転ごときでは崩れない。',
+      'じっくり強くなる、焦るな。',
+      '守り抜いて、次の段へ行く。',
+      '時間は私の味方だ。',
+      '揺るがず待つ、それが強さだ。'
+    ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('AFTERIMAGE_WILL', 'place')).toEqual([
+      '本物はひとつ、でも見切れるかな。',
+      '先に見えるのは残像の方だ。',
+      '追うほど手元がずれるよ。',
+      '揺らいだ輪郭で惑わせる。',
+      'まずは見失ってもらおうか。'
+    ]);
   });
 
   test('keeps excluded stones and unsupported scenarios out of the catalog', () => {
@@ -103,6 +117,7 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       'ROBOT_VACUUM',
       'ULTIMATE_HYPERACTIVE',
       'STONE_SALVATION_GOD',
+      'METEOR_GOD',
     ];
 
     for (const special of speakingStones) {
@@ -112,5 +127,19 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     }
 
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('STONE_SALVATION_GOD', 'place')).toContain('迷える石たちよ、私の光のもとへ。');
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('METEOR_GOD', 'place')).toContain('因果の穴を開ける、目を逸らすな。');
+  });
+
+  test('adds place and destroy lines for non-duration protection-style stones', () => {
+    const speakingStones = [
+      'PERMA_PROTECTED',
+      'AFTERIMAGE_WILL',
+    ];
+
+    for (const special of speakingStones) {
+      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'place')).toHaveLength(5);
+      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'destroy')).toHaveLength(5);
+      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'duration_end')).toBeNull();
+    }
   });
 });
