@@ -53,13 +53,26 @@ describe('pending selection card contracts', () => {
     }
   });
 
-  test('SUPER_ATTRACTION_WILL selection continues to normal placement', () => {
-    const entry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY.SUPER_ATTRACTION_WILL;
-    const contract = PendingStateManager.resolvePendingSelectionContract('SUPER_ATTRACTION_WILL');
+  test('movement selection cards continue to normal placement', () => {
+    const movementSelectionCardTypes = [
+      'STRONG_WIND_WILL',
+      'BUOYANCY_WILL',
+      'SUPER_BUOYANCY_WILL',
+      'GRAVITY_WILL',
+      'SUPER_GRAVITY_WILL',
+      'SUPER_ATTRACTION_WILL'
+    ];
 
-    expect(entry.turnOutcome).toBe('continue_turn');
-    expect(contract && contract.turnOutcome).toBe('continue_turn');
-    expect(PendingStateManager.isSelectionOnlyEndTurnPendingType('SUPER_ATTRACTION_WILL')).toBe(false);
+    for (const cardType of movementSelectionCardTypes) {
+      const entry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY[cardType];
+      const contract = PendingStateManager.resolvePendingSelectionContract(cardType);
+
+      expect(entry.kind).toBe(cardType === 'SUPER_ATTRACTION_WILL' ? 'multi_stage' : 'continue_turn');
+      expect(entry.turnOutcome).toBe('continue_turn');
+      expect(contract && contract.kind).toBe(entry.kind);
+      expect(contract && contract.turnOutcome).toBe('continue_turn');
+      expect(PendingStateManager.isSelectionOnlyEndTurnPendingType(cardType)).toBe(false);
+    }
   });
 
   test('registry target methods are sufficient for card-use prechecks', () => {

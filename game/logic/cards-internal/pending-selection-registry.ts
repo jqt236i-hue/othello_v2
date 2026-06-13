@@ -52,8 +52,8 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         cpuHandlerNames: ['cpuSelectReverseWillWithPolicy']
     },
     STRONG_WIND_WILL: {
-        kind: 'end_turn',
-        turnOutcome: 'end_turn',
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
         deferNetworkPublish: true,
         waitForPlaybackIdle: true,
         needsTargetSelection: true,
@@ -63,8 +63,8 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         cpuHandlerNames: ['cpuSelectStrongWindWillWithPolicy']
     },
     BUOYANCY_WILL: {
-        kind: 'end_turn',
-        turnOutcome: 'end_turn',
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
         deferNetworkPublish: true,
         waitForPlaybackIdle: true,
         needsTargetSelection: true,
@@ -74,8 +74,8 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         cpuHandlerNames: ['cpuSelectBuoyancyWillWithPolicy']
     },
     SUPER_BUOYANCY_WILL: {
-        kind: 'end_turn',
-        turnOutcome: 'end_turn',
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
         deferNetworkPublish: true,
         waitForPlaybackIdle: true,
         needsTargetSelection: true,
@@ -85,8 +85,8 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         cpuHandlerNames: ['cpuSelectSuperBuoyancyWillWithPolicy']
     },
     GRAVITY_WILL: {
-        kind: 'end_turn',
-        turnOutcome: 'end_turn',
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
         deferNetworkPublish: true,
         waitForPlaybackIdle: true,
         needsTargetSelection: true,
@@ -96,8 +96,8 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         cpuHandlerNames: ['cpuSelectGravityWillWithPolicy']
     },
     SUPER_GRAVITY_WILL: {
-        kind: 'end_turn',
-        turnOutcome: 'end_turn',
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
         deferNetworkPublish: true,
         waitForPlaybackIdle: true,
         needsTargetSelection: true,

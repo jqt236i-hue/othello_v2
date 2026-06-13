@@ -71,11 +71,11 @@
 | type | kind | turn outcome | cancel | dispatch | target resolver |
 | --- | --- | --- | --- | --- | --- |
 | `DESTROY_ONE_STONE` | continue_turn | continue_turn | 可 | destroy | getDestroyTargets(board) |
-| `STRONG_WIND_WILL` | end_turn | end_turn | 不可/未指定 | strong_wind | getStrongWindTargets(board) |
-| `BUOYANCY_WILL` | end_turn | end_turn | 不可/未指定 | buoyancy | getBuoyancyTargets(board) |
-| `SUPER_BUOYANCY_WILL` | end_turn | end_turn | 不可/未指定 | super_buoyancy | getSuperBuoyancyTargets(board) |
-| `GRAVITY_WILL` | end_turn | end_turn | 不可/未指定 | gravity | getGravityTargets(board) |
-| `SUPER_GRAVITY_WILL` | end_turn | end_turn | 不可/未指定 | super_gravity | getSuperGravityTargets(board) |
+| `STRONG_WIND_WILL` | continue_turn | continue_turn | 不可/未指定 | strong_wind | getStrongWindTargets(board) |
+| `BUOYANCY_WILL` | continue_turn | continue_turn | 不可/未指定 | buoyancy | getBuoyancyTargets(board) |
+| `SUPER_BUOYANCY_WILL` | continue_turn | continue_turn | 不可/未指定 | super_buoyancy | getSuperBuoyancyTargets(board) |
+| `GRAVITY_WILL` | continue_turn | continue_turn | 不可/未指定 | gravity | getGravityTargets(board) |
+| `SUPER_GRAVITY_WILL` | continue_turn | continue_turn | 不可/未指定 | super_gravity | getSuperGravityTargets(board) |
 | `SUPER_ATTRACTION_WILL` | multi_stage | continue_turn | 不可/未指定 | super_attraction | getSuperAttractionTargets(player_pending) |
 | `TELEPORT_WILL` | continue_turn | continue_turn | 不可/未指定 | teleport | getTeleportTargets(board) |
 | `CELL_TELEPORT_WILL` | continue_turn | continue_turn | 不可/未指定 | cell_teleport | getCellTeleportTargets(board) |
