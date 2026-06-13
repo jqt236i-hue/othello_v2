@@ -1755,9 +1755,10 @@
 
 /* Shared premium panels opened from the left command rail */
 :is(#networkModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel) {
-    --rail-panel-accent: #f2c95f;
+    --rail-panel-accent: #53d6d1;
+    --rail-panel-gold: #f2c95f;
     --rail-panel-cyan: #7ed7ff;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.34);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.36);
     border-radius: calc(8px * var(--layout-stage-scale));
     clip-path: polygon(
         calc(12px * var(--layout-stage-scale)) 0,
@@ -1768,14 +1769,14 @@
         0 calc(12px * var(--layout-stage-scale))
     );
     background:
-        radial-gradient(120% 84% at 16% 0%, rgba(242, 201, 95, 0.13), transparent 42%),
-        radial-gradient(100% 90% at 100% 0%, rgba(126, 215, 255, 0.09), transparent 42%),
-        linear-gradient(135deg, rgba(25, 22, 18, 0.96), rgba(10, 13, 15, 0.96) 58%, rgba(23, 15, 11, 0.96));
+        radial-gradient(120% 84% at 16% 0%, rgba(83, 214, 209, 0.16), transparent 42%),
+        radial-gradient(100% 90% at 100% 0%, rgba(126, 215, 255, 0.11), transparent 42%),
+        linear-gradient(135deg, rgba(7, 18, 22, 0.97), rgba(5, 11, 14, 0.97) 58%, rgba(6, 18, 20, 0.97));
     box-shadow:
         0 calc(18px * var(--layout-stage-scale)) calc(42px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
-        0 0 calc(22px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.10),
-        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.20),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 220, 0.05);
+        0 0 calc(22px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.12),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(83, 214, 209, 0.24),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(203, 255, 249, 0.05);
     color: #f4ead8;
     backdrop-filter: blur(calc(9px * var(--layout-stage-scale)));
     -webkit-backdrop-filter: blur(calc(9px * var(--layout-stage-scale)));
@@ -1792,8 +1793,8 @@
     right: calc(14px * var(--layout-stage-scale));
     top: calc(7px * var(--layout-stage-scale));
     height: calc(1px * var(--layout-stage-scale));
-    background: linear-gradient(90deg, transparent, rgba(242, 201, 95, 0.72), rgba(126, 215, 255, 0.36), transparent);
-    box-shadow: 0 0 calc(9px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.18);
+    background: linear-gradient(90deg, transparent, rgba(83, 214, 209, 0.78), rgba(242, 201, 95, 0.32), transparent);
+    box-shadow: 0 0 calc(9px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.20);
     pointer-events: none;
     z-index: 1;
 }
@@ -1802,21 +1803,21 @@
     position: relative;
     align-items: center;
     padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
-    border-bottom: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.18);
+    border-bottom: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.20);
     background:
-        linear-gradient(90deg, rgba(242, 201, 95, 0.10), rgba(126, 215, 255, 0.05), transparent 70%),
-        rgba(0, 0, 0, 0.16);
+        linear-gradient(90deg, rgba(83, 214, 209, 0.12), rgba(126, 215, 255, 0.06), transparent 70%),
+        rgba(0, 10, 13, 0.28);
 }
 
 :is(.network-title, .leaderboard-title, .gacha-title, .deck-builder-title, #handSkinPanelTitle, #rules-help-title) {
-    color: #ffe7a8;
+    color: #dffffb;
     font-size: calc(14px * var(--layout-stage-scale));
     font-weight: 900;
     line-height: 1.2;
     letter-spacing: 0;
     text-shadow:
         0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.74),
-        0 0 calc(10px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.18);
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.22);
 }
 
 :is(#networkCloseBtn, #leaderboardCloseBtn, #gachaCloseBtn, #deckBuilderCloseBtn, #handSkinCloseBtn, #rules-help-close-btn) {
@@ -1825,11 +1826,11 @@
     height: calc(28px * var(--layout-stage-scale));
     padding: 0;
     border-radius: 50%;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.44);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.50);
     background:
         radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.24), transparent 36%),
-        linear-gradient(180deg, rgba(76, 47, 37, 0.94), rgba(24, 17, 14, 0.98));
-    color: #ffe8bc;
+        linear-gradient(180deg, rgba(13, 43, 50, 0.94), rgba(5, 14, 18, 0.98));
+    color: #dffffb;
     font-size: calc(16px * var(--layout-stage-scale));
     font-weight: 900;
     line-height: 1;
@@ -1839,7 +1840,7 @@
 }
 
 :is(#networkCloseBtn, #leaderboardCloseBtn, #gachaCloseBtn, #deckBuilderCloseBtn, #handSkinCloseBtn, #rules-help-close-btn):hover {
-    border-color: rgba(255, 226, 150, 0.76);
+    border-color: rgba(126, 239, 234, 0.78);
     filter: brightness(1.08);
 }
 
@@ -1849,7 +1850,7 @@
 
 :is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages) {
     scrollbar-width: thin;
-    scrollbar-color: rgba(242, 201, 95, 0.42) rgba(0, 0, 0, 0.22);
+    scrollbar-color: rgba(83, 214, 209, 0.48) rgba(0, 0, 0, 0.22);
 }
 
 :is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages)::-webkit-scrollbar {
@@ -1862,30 +1863,30 @@
 
 :is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
     border-radius: calc(999px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, rgba(242, 201, 95, 0.60), rgba(126, 215, 255, 0.28));
+    background: linear-gradient(180deg, rgba(83, 214, 209, 0.66), rgba(126, 215, 255, 0.32));
 }
 
-:is(#networkServerInput, #networkPlayerNameInput, #networkRoomIdInput, #leaderboardNameInput, .deck-builder-name-row input, .deck-builder-code-input, .compact-number-input, select.compact-select) {
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.22);
+:is(#networkServerInput, #networkPlayerNameInput, #networkRoomIdInput, #networkRoomPasswordInput, #leaderboardNameInput, .deck-builder-name-row input, .deck-builder-code-input, .compact-number-input, select.compact-select) {
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.24);
     border-radius: calc(5px * var(--layout-stage-scale));
-    background: rgba(5, 7, 9, 0.62);
+    background: rgba(3, 12, 16, 0.66);
     color: #f2e5cc;
     box-shadow:
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.10),
         inset 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54);
 }
 
-:is(#networkCreateBtn, #networkJoinBtn, #networkLeaveBtn, #networkCopyRoomBtn, #leaderboardReloadBtn, #gachaDetailToggleBtn, #gachaSinglePullBtn, #gachaTenPullBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #debugModeBtn, #bgmPlayBtn, #bgmPauseBtn):not(.quick-control-btn) {
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.38);
+:is(#networkCreateBtn, #networkJoinBtn, .network-room-entry-join, #networkLeaveBtn, #networkCopyRoomBtn, #leaderboardReloadBtn, #gachaDetailToggleBtn, #gachaSinglePullBtn, #gachaTenPullBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #debugModeBtn, #bgmPlayBtn, #bgmPauseBtn):not(.quick-control-btn) {
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.38);
     border-radius: calc(5px * var(--layout-stage-scale));
     background:
-        linear-gradient(180deg, rgba(242, 201, 95, 0.16), rgba(255, 255, 255, 0) 48%),
-        linear-gradient(180deg, rgba(40, 36, 31, 0.96), rgba(16, 17, 18, 0.98));
+        linear-gradient(180deg, rgba(83, 214, 209, 0.14), rgba(255, 255, 255, 0) 48%),
+        linear-gradient(180deg, rgba(12, 35, 42, 0.96), rgba(7, 14, 18, 0.98));
     color: #f4ead8;
     font-weight: 800;
     box-shadow:
         0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.30),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.26);
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(83, 214, 209, 0.30);
 }
 
 :is(#networkCreateBtn, #gachaTenPullBtn) {
@@ -1895,37 +1896,83 @@
         linear-gradient(180deg, rgba(30, 45, 50, 0.98), rgba(14, 18, 20, 0.98));
 }
 
+#networkCreateBtn {
+    color: #e9f8ff;
+    border-color: rgba(126, 215, 255, 0.62);
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        0 0 calc(12px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.14),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.42);
+}
+
+#networkJoinBtn,
+.network-room-entry-join {
+    color: #fff2c9;
+    border-color: rgba(242, 201, 95, 0.46);
+    background:
+        linear-gradient(180deg, rgba(242, 201, 95, 0.16), rgba(255, 255, 255, 0) 48%),
+        linear-gradient(180deg, rgba(18, 33, 37, 0.98), rgba(7, 14, 18, 0.98));
+}
+
+#networkLeaveBtn,
+#networkCopyRoomBtn {
+    color: rgba(244, 234, 216, 0.82);
+    border-color: rgba(244, 234, 216, 0.20);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0) 48%),
+        linear-gradient(180deg, rgba(31, 30, 29, 0.95), rgba(13, 14, 15, 0.98));
+    box-shadow:
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.26),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(244, 234, 216, 0.12);
+}
+
+#networkCopyRoomBtn {
+    font-weight: 700;
+}
+
+#networkServerInput:focus,
+#networkPlayerNameInput:focus,
+#networkRoomIdInput:focus,
+#networkRoomPasswordInput:focus {
+    border-color: rgba(126, 215, 255, 0.62);
+    outline: none;
+    box-shadow:
+        0 0 0 calc(2px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.16),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.20),
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54);
+}
+
 #appearancePanelTabs,
 #rules-help-tabs {
     padding: calc(6px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.16);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.18);
     border-radius: calc(6px * var(--layout-stage-scale));
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(1, 10, 13, 0.40);
 }
 
 :is(.appearance-panel-tab, .rules-help-tab) {
     border-radius: calc(5px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid transparent;
     background: rgba(255, 255, 255, 0.035);
-    color: rgba(244, 234, 216, 0.78);
+    color: rgba(228, 255, 251, 0.78);
     font-weight: 800;
 }
 
 :is(.appearance-panel-tab.is-active, .rules-help-tab.is-active) {
-    border-color: rgba(242, 201, 95, 0.50);
+    border-color: rgba(83, 214, 209, 0.54);
     background:
-        radial-gradient(100% 80% at 20% 0%, rgba(242, 201, 95, 0.22), transparent 46%),
-        linear-gradient(180deg, rgba(37, 58, 60, 0.84), rgba(18, 24, 24, 0.86));
-    color: #fff0be;
+        radial-gradient(100% 80% at 20% 0%, rgba(83, 214, 209, 0.26), transparent 46%),
+        linear-gradient(180deg, rgba(18, 62, 67, 0.86), rgba(8, 25, 29, 0.88));
+    color: #e8fffb;
     box-shadow:
-        0 0 calc(12px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.12),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.34);
+        0 0 calc(12px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.16),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28);
 }
 
 :is(.hand-skin-option, .background-skin-option, .font-skin-option, .deck-builder-preset-card, .deck-builder-effective-summary, .deck-builder-notice, #networkBoardSizeRow, #leaderboardList, #gachaDetailsPanel) {
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.16);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.16);
     border-radius: calc(7px * var(--layout-stage-scale));
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-        rgba(0, 0, 0, 0.24);
+        rgba(2, 12, 15, 0.34);
 }

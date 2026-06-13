@@ -3,10 +3,12 @@ import type { MatchWorkerEnv } from './match-worker-types';
 type MatchWorkerApiControllerConfig = {
     corsHeaders: Record<string, string>;
     leaderboardRoomId: string;
+    lobbyRoomId?: string;
     normalizeRoomId: (value: unknown) => string;
     jsonResponse: (statusCode: number, payload: unknown) => Response;
     withCORS: (response: Response) => Response;
     handleCreate: (env: MatchWorkerEnv, options: unknown) => Promise<Response>;
+    afterRoomMutation?: (env: MatchWorkerEnv, pathname: string, roomId: string, response: Response) => Promise<void> | void;
 };
 
 type ParsedPostBodyResult =
@@ -44,6 +46,10 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         return getRoomStub(env, cfg.leaderboardRoomId);
     }
 
+    function getLobbyStub(env: MatchWorkerEnv) {
+        return getRoomStub(env, cfg.lobbyRoomId || '__match_lobby__');
+    }
+
     async function forwardJsonToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, payload: unknown): Promise<Response> {
         try {
             const stub = getRoomStub(env, roomId);
@@ -53,6 +59,9 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
                 body: JSON.stringify(payload || {})
             });
             const response = await stub.fetch(req);
+            if (typeof cfg.afterRoomMutation === 'function') {
+                await cfg.afterRoomMutation(env, pathname, roomId, response.clone());
+            }
             return cfg.withCORS(response);
         } catch (error) {
             return cfg.jsonResponse(500, {
@@ -130,6 +139,27 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         }
     }
 
+    async function forwardGetToLobby(env: MatchWorkerEnv, pathname: string, sourceUrl: string): Promise<Response> {
+        try {
+            const stub = getLobbyStub(env);
+            const urlObj = new URL(sourceUrl);
+            const target = new URL(`https://room${pathname}`);
+            for (const [key, value] of urlObj.searchParams.entries()) {
+                target.searchParams.set(key, value);
+            }
+            const req = new Request(target.toString(), { method: 'GET' });
+            const response = await stub.fetch(req);
+            return cfg.withCORS(response);
+        } catch (error) {
+            return cfg.jsonResponse(500, {
+                ok: false,
+                reason: 'LOBBY_FORWARD_FAILED',
+                message: errorMessage(error),
+                pathname
+            });
+        }
+    }
+
     async function parsePostBody(request: Request): Promise<ParsedPostBodyResult> {
         const raw = await request.text();
         const body = parseJsonBody(raw);
@@ -159,6 +189,10 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
                     message: errorMessage(error)
                 });
             }
+        }
+
+        if (request.method === 'GET' && pathname === '/api/match/list') {
+            return forwardGetToLobby(env, pathname, request.url);
         }
 
         if (request.method === 'POST' && (pathname === '/api/match/join' || pathname === '/api/match/leave' || pathname === '/api/match/publish' || pathname === '/api/match/chat' || pathname === '/api/match/hand-skin')) {
@@ -214,6 +248,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         forwardGetToRoom,
         forwardJsonToLeaderboard,
         forwardGetToLeaderboard,
+        forwardGetToLobby,
         parsePostBody,
         handleMatchApi,
         handleLeaderboardApi

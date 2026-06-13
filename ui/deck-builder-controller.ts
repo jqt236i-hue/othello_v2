@@ -819,6 +819,42 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             });
         }
 
+        function buildBuiltInPresetViewModel() {
+            const presets = DeckSpecHelpers && typeof DeckSpecHelpers.getBuiltInDeckPresets === 'function'
+                ? DeckSpecHelpers.getBuiltInDeckPresets()
+                : [];
+            return presets.map((preset: any) => {
+                const deckSpec = decodeDeckSpecOrNull(preset && preset.deckCode);
+                const presetId = String(preset && preset.id || '').trim();
+                const displayName = normalizeChoiceLabel(preset && preset.displayName, '固定プリセット');
+                if (!deckSpec) {
+                    return {
+                        id: presetId,
+                        displayName,
+                        summaryText: '読み込み不可',
+                        noteText: 'catalog 変更などで無効です',
+                        noteIsError: true,
+                        canUse: false,
+                        isActive: false
+                    };
+                }
+
+                const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
+                const active = state.activeLocalChoice
+                    && state.activeLocalChoice.source === 'built-in-preset'
+                    && state.activeLocalChoice.presetId === presetId;
+                return {
+                    id: presetId,
+                    displayName,
+                    summaryText: `${summary.deckSize}枚 / ${summary.distinctCount}種`,
+                    noteText: active ? '現在使用中' : '',
+                    noteIsError: false,
+                    canUse: true,
+                    isActive: active
+                };
+            });
+        }
+
         function buildEditorViewModel() {
             const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
             const editorPreset = findPresetById(state.editor.presetId);
@@ -881,6 +917,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 noticeText: state.noticeText,
                 noticeIsError: state.noticeIsError,
                 standardSummaryText: `${getDefaultDeckSize()}枚 / 有効カードから重複なしランダム`,
+                builtInPresets: buildBuiltInPresetViewModel(),
                 presets: buildPresetViewModel(),
                 editor: buildEditorViewModel()
             };
@@ -890,6 +927,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             const renderOptions = (optionsOverride && typeof optionsOverride === 'object') ? optionsOverride : {};
             DeckBuilderRendererModule.renderDeckBuilder(refs, buildViewModel(), {
                 onUseStandard: useStandardDeck,
+                onUseBuiltInPreset: useBuiltInDeckPreset,
                 onUsePreset: usePreset,
                 onEditPreset: editPreset,
                 onEditorBack: backToPresetList,
@@ -951,6 +989,35 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         function useStandardDeck() {
             setLocalActiveChoice(createStandardChoice({ source: 'standard' }));
             emitNotice('デフォルトデッキへ切り替えました', false, true);
+            render();
+        }
+
+        function useBuiltInDeckPreset(presetId: any) {
+            const normalizedPresetId = String(presetId || '').trim();
+            const presets = DeckSpecHelpers && typeof DeckSpecHelpers.getBuiltInDeckPresets === 'function'
+                ? DeckSpecHelpers.getBuiltInDeckPresets()
+                : [];
+            const preset = presets.find((candidate: any) => String(candidate && candidate.id || '') === normalizedPresetId);
+            if (!preset || !preset.deckCode) {
+                emitNotice('この固定プリセットは現在使えません', true, false);
+                render();
+                return;
+            }
+
+            const displayName = normalizeChoiceLabel(preset.displayName, '固定プリセット');
+            const choice = createChoiceFromDeckCode(preset.deckCode, {
+                source: 'built-in-preset',
+                name: displayName,
+                presetId: normalizedPresetId
+            });
+            if (!choice) {
+                emitNotice('この固定プリセットは現在の catalog では使えません', true, false);
+                render();
+                return;
+            }
+
+            setLocalActiveChoice(choice);
+            emitNotice(`${displayName} を使用中にしました`, false, true);
             render();
         }
 

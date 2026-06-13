@@ -1,6 +1,6 @@
 {
   "version": "2026-06-13",
-  "generatedAt": "2026-06-13T08:42:47.411Z",
+  "generatedAt": "2026-06-13T12:35:49.302Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -676,7 +676,7 @@
     },
     {
       "path": "assets/audio/bgm/manifest-stones/執行の道-bpm150.wav",
-      "sha256": "98f541c95e1c5db7d3e23484fe11c5fb5a4be39e046400ab175cb020daaf1844"
+      "sha256": "a1848c7d855aa3a67f6049f94b4582692eda121cd4d437e833c0b34bb527e3ed"
     },
     {
       "path": "assets/audio/bgm/manifest-stones/理論の道-BPM135.wav",

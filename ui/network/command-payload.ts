@@ -19,7 +19,6 @@ const OMITTED_ACTION_KEYS: Record<string, boolean> = Object.freeze({
 });
 
 let networkActionSchemaModule: any = null;
-let pendingCoordinatorModule: any = null;
 const PlayerKeyHelpers = _require('./player-key');
 
 function resolveNetworkActionSchemaModule(): any {
@@ -31,18 +30,6 @@ function resolveNetworkActionSchemaModule(): any {
     networkActionSchemaModule = (globalThis as any).NetworkActionSchema;
   }
   return networkActionSchemaModule;
-}
-
-function resolvePendingCoordinatorModule(override?: any): any {
-  if (override && typeof override === 'object') return override;
-  if (pendingCoordinatorModule) return pendingCoordinatorModule;
-  try {
-    pendingCoordinatorModule = _require('../../../game/turn/pending-coordinator');
-  } catch (e) { /* ignore */ }
-  if (!pendingCoordinatorModule && typeof globalThis !== 'undefined' && (globalThis as any).PendingCoordinator) {
-    pendingCoordinatorModule = (globalThis as any).PendingCoordinator;
-  }
-  return pendingCoordinatorModule;
 }
 
 function normalizePlayerKey(value: any, fallback?: any, override?: any): string {
@@ -94,9 +81,8 @@ function serializeActionForCommandPayload(action: any, fallbackPlayerKey?: any, 
 
 function applyPendingSelectionCardContext(params: any, actor: string, options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
-  const pendingCoordinator = resolvePendingCoordinatorModule(opts.pendingCoordinator);
-  if (pendingCoordinator && typeof pendingCoordinator.applyPendingSelectionCardContext === 'function') {
-    pendingCoordinator.applyPendingSelectionCardContext(params, actor, params && params.pendingSelectionState, {
+  if (typeof opts.applyPendingSelectionCardContext === 'function') {
+    opts.applyPendingSelectionCardContext(params, actor, params && params.pendingSelectionState, {
       action: opts.action
     });
     return params;
@@ -122,7 +108,7 @@ function buildPublishCommandPayload(info: any, options?: any): any {
         params,
         serialized.actor || playerKey,
         {
-          pendingCoordinator: opts.pendingCoordinator,
+          applyPendingSelectionCardContext: opts.applyPendingSelectionCardContext,
           action: action
         }
       );

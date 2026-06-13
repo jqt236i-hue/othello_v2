@@ -1,0 +1,121 @@
+import * as BoardHintProjection from '../shared/board-hint-projection';
+
+function toArray(set: Set<string>): string[] {
+  return Array.from(set).sort();
+}
+
+describe('board hint projection', () => {
+  test('collects selected target highlights for multi-stage pending cards', () => {
+    expect(toArray(BoardHintProjection.collectPendingSelectedTargetHighlightKeys({
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      firstTarget: { row: 1, col: 2 },
+      selectedTargets: [{ row: 3, col: 4 }, { row: 5, col: 6 }]
+    }))).toEqual(['1,2', '3,4', '5,6']);
+  });
+
+  test('builds random spawn previews from injected card logic', () => {
+    const projection = BoardHintProjection.buildBoardHintProjection({
+      gameState: { board: [[0]], currentPlayer: 1 },
+      cardState: {
+        selectedCardId: 'reinforce_01',
+        selectedCardOwnerKey: 'black',
+        pendingEffectByPlayer: { black: null }
+      },
+      playerKey: 'black',
+      boardShape: { rows: 1, cols: 1 },
+      canControlCurrentTurn: true,
+      isHumanTurn: true,
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => []),
+        getCardType: jest.fn(() => 'REINFORCEMENT_WILL'),
+        getReinforcementWillTargets: jest.fn(() => [{ row: 0, col: 0 }])
+      },
+      getLegalMoves: jest.fn(() => [{ row: 0, col: 0 }])
+    });
+
+    expect(toArray(projection.randomSpawnPreviewSet)).toEqual(['0,0']);
+    expect(projection.showLegalHints).toBe(false);
+    expect(toArray(projection.legalSet)).toEqual([]);
+  });
+
+  test('combines normal legal hints and taboo reverse candidates', () => {
+    const projection = BoardHintProjection.buildBoardHintProjection({
+      gameState: {
+        board: [
+          [0, 1],
+          [0, 0]
+        ],
+        currentPlayer: 1
+      },
+      cardState: {
+        pendingEffectByPlayer: {
+          black: { type: 'TABOO_REVERSE_WILL' }
+        }
+      },
+      playerKey: 'black',
+      boardShape: { rows: 2, cols: 2 },
+      canControlCurrentTurn: true,
+      isHumanTurn: true,
+      expansions: [{ row: 2, col: 0, owner: 0 }],
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => []),
+        getCardContext: jest.fn(() => ({ protectedStones: [], permaProtectedStones: [] })),
+        getTabooReverseCandidates: jest.fn((_cardState, _gameState, _playerKey, row, col) => (
+          row === 1 && col === 0 ? [{ row: 0, col: 1 }] : []
+        ))
+      },
+      getLegalMoves: jest.fn(() => [{ row: 0, col: 0 }])
+    });
+
+    expect(projection.showLegalHints).toBe(true);
+    expect(toArray(projection.normalLegalSet)).toEqual(['0,0']);
+    expect(toArray(projection.tabooLegalSet)).toEqual(['1,0']);
+    expect(toArray(projection.legalSet)).toEqual(['0,0', '1,0']);
+  });
+
+  test('builds board shrink direction and preview hints', () => {
+    const pending = {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      firstTarget: { row: 2, col: 2 }
+    };
+    const selectableTargets = [
+      { row: 2, col: 4, lineCells: [{ row: 2, col: 3 }, { row: 2, col: 4 }] },
+      { row: 0, col: 2, lineCells: [{ row: 1, col: 2 }, { row: 0, col: 2 }] }
+    ];
+
+    expect(Array.from(BoardHintProjection.buildBoardShrinkGodDirectionHintMap(pending, selectableTargets).entries()).sort()).toEqual([
+      ['0,2', 'up'],
+      ['2,4', 'right']
+    ]);
+    expect(toArray(BoardHintProjection.collectBoardShrinkGodPreviewHighlightKeys(pending, selectableTargets))).toEqual([
+      '0,2',
+      '1,2',
+      '2,3',
+      '2,4'
+    ]);
+  });
+
+  test('treats non-array selectable target results as empty', () => {
+    const projection = BoardHintProjection.buildBoardHintProjection({
+      gameState: { board: [[0]], currentPlayer: 1 },
+      cardState: {
+        pendingEffectByPlayer: {
+          black: { type: 'GUARD_WILL', stage: 'selectTarget' }
+        }
+      },
+      playerKey: 'black',
+      boardShape: { rows: 1, cols: 1 },
+      canControlCurrentTurn: true,
+      isHumanTurn: true,
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => ({ row: 0, col: 0 }))
+      },
+      getLegalMoves: jest.fn(() => [])
+    });
+
+    expect(projection.selectableTargets).toEqual([]);
+    expect(projection.isSelectingTarget).toBe(false);
+  });
+});

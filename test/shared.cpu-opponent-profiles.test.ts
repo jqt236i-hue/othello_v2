@@ -1,6 +1,9 @@
 const CpuOpponentProfiles = require('../shared/cpu-opponent-profiles.js');
 const CpuOpponentStartupOptions = require('../shared/cpu-opponent-startup-options.js');
+const DeckCodecModule = require('../shared/deck-codec.js');
 const DeckSpecHelpers = require('../shared/deck-spec.js');
+
+const EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE = 'D1C1:ghost_01.perma_01.trap_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.clone_01.hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.crystal_stone*2.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.stone_salvation_god_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.meteor_god_01';
 
 describe('cpu opponent profiles', () => {
   test('defines the visible CPU opponent menu from one source', () => {
@@ -65,6 +68,34 @@ describe('cpu opponent profiles', () => {
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6')).toBe(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6-board-executor')).toBe(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('7-theory-incarnation')).toBe(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode());
+  });
+
+  test('exposes the dedicated CPU decks as built-in deck presets', () => {
+    expect(DeckSpecHelpers.getBuiltInDeckPresets()).toEqual([
+      {
+        id: 'observation',
+        displayName: '観測デッキ',
+        deckCode: DeckSpecHelpers.getCpuLv6WhiteDeckCode()
+      },
+      {
+        id: 'execution',
+        displayName: '執行デッキ',
+        deckCode: DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode()
+      },
+      {
+        id: 'theory',
+        displayName: '理論デッキ',
+        deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode()
+      }
+    ]);
+  });
+
+  test('keeps Lv7 theory incarnation on the configured fixed deck code', () => {
+    expect(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode()).toBe(EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE);
+
+    const deckSpec = DeckCodecModule.decodeDeckCode(EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE);
+
+    expect(deckSpec.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
   });
 
   test('resolves startup options for Lv7 handicap and normal levels', () => {

@@ -43,6 +43,7 @@ export interface MatchAuthorityAcceptedOperationHistoryBySeat {
 export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     roomId?: string | null;
     stateVersion?: number | null;
+    createdAt?: number | null;
     updatedAt?: number | null;
     seed?: number | null;
     snapshot?: unknown;
@@ -70,6 +71,8 @@ export interface MatchAuthorityPublishMeta {
 export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObject {
     ok?: boolean;
     roomId?: unknown;
+    roomName?: unknown;
+    createdAt?: unknown;
     serverTime?: unknown;
     stateVersion?: unknown;
     snapshot?: unknown;
@@ -102,6 +105,7 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     ok: boolean;
     roomId: string | null;
     serverTime: number;
+    createdAt?: number | null;
     stateVersion?: number | null;
     snapshot?: unknown;
     seats?: MatchAuthorityPublicSeats;

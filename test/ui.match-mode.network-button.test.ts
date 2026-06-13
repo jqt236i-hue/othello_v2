@@ -5,6 +5,7 @@ describe('match-mode network button behavior', () => {
   let createRoom;
   let joinRoom;
   let leaveRoom;
+  let listRooms;
 
   function dispatchWheel(target, props) {
     const ev = new dom.window.Event('wheel', { bubbles: true, cancelable: true });
@@ -108,10 +109,12 @@ describe('match-mode network button behavior', () => {
     createRoom = jest.fn(async () => ({ ok: true, roomId: 'A1B', networkDebugEnabled: true }));
     joinRoom = jest.fn(async () => ({ ok: true, roomId: 'A1B', networkDebugEnabled: false }));
     leaveRoom = jest.fn(async () => ({ ok: true }));
+    listRooms = jest.fn(async () => ({ ok: true, rooms: [] }));
     window.NetworkMatchClient = {
       createRoom,
       joinRoom,
       leaveRoom,
+      listRooms,
       setStatusWriter: jest.fn(),
       setRoomStateListener: jest.fn(),
       setTurnTimerListener: jest.fn((listener) => {
@@ -306,12 +309,28 @@ describe('match-mode network button behavior', () => {
     };
 
     const playerInput = document.getElementById('networkPlayerNameInput');
-    const roomInput = document.getElementById('networkRoomIdInput');
-    const joinBtn = document.getElementById('networkJoinBtn');
-
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    listRooms.mockResolvedValue({
+      ok: true,
+      rooms: [{
+        roomId: 'A1B',
+        roomName: '無名部屋',
+        hostName: 'くろ',
+        boardLabel: '8x8',
+        seatCount: 1,
+        maxSeats: 2,
+        hasPassword: false
+      }]
+    });
     playerInput.value = 'しろ';
-    roomInput.value = 'a1b';
-    joinBtn.click();
+    networkBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    const joinEntryBtn = document.querySelector('.network-room-entry-join');
+    expect(joinEntryBtn).toBeTruthy();
+    joinEntryBtn.click();
     await Promise.resolve();
     await Promise.resolve();
 
@@ -395,7 +414,7 @@ describe('match-mode network button behavior', () => {
     expect(leaveRoom).toHaveBeenCalledTimes(1);
   });
 
-  test('部屋番号コピーボタンで入力値をコピーできる', async () => {
+  test('ルーム名コピーボタンで入力値をコピーできる', async () => {
     const roomInput = document.getElementById('networkRoomIdInput');
     const copyBtn = document.getElementById('networkCopyRoomBtn');
     const status = document.getElementById('networkStatusText');
@@ -406,17 +425,17 @@ describe('match-mode network button behavior', () => {
       configurable: true
     });
 
-    roomInput.value = 'a a!1';
+    roomInput.value = '対戦部屋';
     copyBtn.click();
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(writeText).toHaveBeenCalledWith('AA1');
-    expect(roomInput.value).toBe('AA1');
-    expect(status.textContent).toContain('AA1');
+    expect(writeText).toHaveBeenCalledWith('対戦部屋');
+    expect(roomInput.value).toBe('対戦部屋');
+    expect(status.textContent).toContain('対戦部屋');
   });
 
-  test('部屋番号が空ならコピーせずエラーを表示する', async () => {
+  test('ルーム名が空なら無名部屋としてコピーできる', async () => {
     const roomInput = document.getElementById('networkRoomIdInput');
     const copyBtn = document.getElementById('networkCopyRoomBtn');
     const status = document.getElementById('networkStatusText');
@@ -432,8 +451,8 @@ describe('match-mode network button behavior', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(writeText).not.toHaveBeenCalled();
-    expect(status.textContent).toBe('コピーする部屋番号がありません');
+    expect(writeText).toHaveBeenCalledWith('無名部屋');
+    expect(status.textContent).toContain('無名部屋');
   });
 
   test('部屋作成時にデバッグ有効チェックを付けるとcreate payloadへ反映される', async () => {

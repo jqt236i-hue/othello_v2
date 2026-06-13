@@ -247,6 +247,34 @@ function createButton(text: string, className: string, onClick?: () => void, opt
   return button;
 }
 
+function createPresetCard(preset: any, actions: HTMLElement): HTMLElement {
+  const presetCard = document.createElement('div');
+  presetCard.className = 'deck-builder-preset-card';
+  if (preset.isActive) {
+    presetCard.classList.add('is-active');
+  }
+
+  const title = document.createElement('div');
+  title.className = 'deck-builder-preset-title';
+  title.textContent = preset.displayName;
+  presetCard.appendChild(title);
+
+  const summary = document.createElement('div');
+  summary.className = 'deck-builder-preset-summary';
+  summary.textContent = preset.summaryText;
+  presetCard.appendChild(summary);
+
+  if (preset.noteText) {
+    const note = document.createElement('div');
+    note.className = `deck-builder-preset-note${preset.noteIsError ? ' is-error' : ''}`;
+    note.textContent = preset.noteText;
+    presetCard.appendChild(note);
+  }
+
+  presetCard.appendChild(actions);
+  return presetCard;
+}
+
 function renderPresetView(container: HTMLElement, viewModel: any, handlers: any): void {
   const wrapper = document.createElement('div');
   wrapper.className = 'deck-builder-view deck-builder-view-presets';
@@ -255,6 +283,9 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   intro.className = 'deck-builder-intro';
   intro.textContent = '3つまで保存できます。使用で即時切替、編集で構築画面を開きます。';
   wrapper.appendChild(intro);
+
+  const defaultPresetRow = document.createElement('div');
+  defaultPresetRow.className = 'deck-builder-default-preset-row';
 
   const standardCard = document.createElement('div');
   standardCard.className = 'deck-builder-preset-card deck-builder-standard-card';
@@ -270,41 +301,40 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   standardActions.className = 'deck-builder-actions-row';
   standardActions.appendChild(createButton('使用', 'btn-small', handlers.onUseStandard));
   standardCard.appendChild(standardActions);
-  wrapper.appendChild(standardCard);
+  defaultPresetRow.appendChild(standardCard);
+
+  const builtInPresets = Array.isArray(viewModel.builtInPresets) ? viewModel.builtInPresets : [];
+  if (builtInPresets.length > 0) {
+    const builtInSection = document.createElement('div');
+    builtInSection.className = 'deck-builder-built-in-preset-section';
+
+    const builtInTitle = document.createElement('div');
+    builtInTitle.className = 'deck-builder-section-title';
+    builtInTitle.textContent = 'デフォルトプリセットデッキ';
+    builtInSection.appendChild(builtInTitle);
+
+    const builtInGrid = document.createElement('div');
+    builtInGrid.className = 'deck-builder-built-in-preset-grid deck-builder-preset-grid';
+    builtInPresets.forEach((preset: any) => {
+      const actions = document.createElement('div');
+      actions.className = 'deck-builder-actions-row';
+      actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUseBuiltInPreset(preset.id), { disabled: !preset.canUse }));
+      builtInGrid.appendChild(createPresetCard(preset, actions));
+    });
+    builtInSection.appendChild(builtInGrid);
+    defaultPresetRow.appendChild(builtInSection);
+  }
+  wrapper.appendChild(defaultPresetRow);
 
   const presetGrid = document.createElement('div');
   presetGrid.className = 'deck-builder-preset-grid';
   viewModel.presets.forEach((preset: any) => {
-    const presetCard = document.createElement('div');
-    presetCard.className = 'deck-builder-preset-card';
-    if (preset.isActive) {
-      presetCard.classList.add('is-active');
-    }
-
-    const title = document.createElement('div');
-    title.className = 'deck-builder-preset-title';
-    title.textContent = preset.displayName;
-    presetCard.appendChild(title);
-
-    const summary = document.createElement('div');
-    summary.className = 'deck-builder-preset-summary';
-    summary.textContent = preset.summaryText;
-    presetCard.appendChild(summary);
-
-    if (preset.noteText) {
-      const note = document.createElement('div');
-      note.className = `deck-builder-preset-note${preset.noteIsError ? ' is-error' : ''}`;
-      note.textContent = preset.noteText;
-      presetCard.appendChild(note);
-    }
-
     const actions = document.createElement('div');
     actions.className = 'deck-builder-actions-row';
     actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
     actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
-    presetCard.appendChild(actions);
 
-    presetGrid.appendChild(presetCard);
+    presetGrid.appendChild(createPresetCard(preset, actions));
   });
   wrapper.appendChild(presetGrid);
 

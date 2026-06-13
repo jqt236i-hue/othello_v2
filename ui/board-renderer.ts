@@ -58,6 +58,37 @@ if (typeof require === 'function') {
     try { BoardRendererManifestStoneRegistryModule = require('../shared/manifest-stone-registry'); } catch (e: any) { /* ignore */ }
 }
 
+var BoardRendererHintProjectionModule: any = null;
+if (typeof require === 'function') {
+    try { BoardRendererHintProjectionModule = require('../shared/board-hint-projection'); } catch (e: any) { /* ignore */ }
+}
+
+function _getBoardHintProjectionForBoardRenderer() {
+    if (BoardRendererHintProjectionModule) return BoardRendererHintProjectionModule;
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).BoardHintProjection) {
+            BoardRendererHintProjectionModule = (globalThis as any).BoardHintProjection;
+            return BoardRendererHintProjectionModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _buildBoardHintProjectionForBoardRenderer(gameStateValue: any, cardStateValue: any, playerKey: any, boardShape: any, canControlCurrentTurn: boolean, isHumanTurn: boolean) {
+    const projectionModule = _getBoardHintProjectionForBoardRenderer();
+    if (!projectionModule || typeof projectionModule.buildBoardHintProjection !== 'function') return null;
+    return projectionModule.buildBoardHintProjection({
+        gameState: gameStateValue,
+        cardState: cardStateValue,
+        playerKey,
+        boardShape,
+        canControlCurrentTurn,
+        isHumanTurn,
+        cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : null),
+        getLegalMoves: (typeof getLegalMoves === 'function' ? getLegalMoves : null)
+    });
+}
+
 function _getBoardShapeForBoardRenderer() {
     const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
         ? gameState
@@ -591,101 +622,26 @@ function applyTimeStopLegalEmphasis(cell: any, active: any) {
     cell.classList.toggle('time-stop-legal-emphasis', shouldEmphasize);
 }
 
-function _addPendingSelectedTargetHighlightKey(out: any, target: any) {
-    if (!out || !target) return;
-    const row = Number(target.row);
-    const col = Number(target.col);
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-    out.add(`${row},${col}`);
-}
-
-function collectPendingSelectedTargetHighlightKeys(pending: any) {
-    const out = new Set();
-    if (!pending || pending.stage !== 'selectTarget') return out;
-
-    const pendingType = String(pending.type || '').toUpperCase();
-    if (
-        pendingType === 'POSITION_SWAP_WILL' ||
-        pendingType === 'SUPER_ATTRACTION_WILL' ||
-        pendingType === 'BOARD_EXPANSION_GOD' ||
-        pendingType === 'BOARD_SHRINK_GOD'
-    ) {
-        _addPendingSelectedTargetHighlightKey(out, pending.firstTarget);
+const collectPendingSelectedTargetHighlightKeys = (pending: any) => {
+    const projectionModule = _getBoardHintProjectionForBoardRenderer();
+    if (projectionModule && typeof projectionModule.collectPendingSelectedTargetHighlightKeys === 'function') {
+        return projectionModule.collectPendingSelectedTargetHighlightKeys(pending);
     }
-    if (
-        pendingType === 'BOARD_EXPANSION_GOD' ||
-        pendingType === 'BOARD_SHRINK_WILL'
-    ) {
-        const selectedTargets = Array.isArray(pending.selectedTargets) ? pending.selectedTargets : [];
-        for (const target of selectedTargets) {
-            _addPendingSelectedTargetHighlightKey(out, target);
-        }
-    }
-    return out;
-}
+    return new Set();
+};
 
-function _resolveSelectedCardOwnerKeyForBoardPreview(cardStateValue: any, fallbackPlayerKey: any) {
-    if (cardStateValue && (cardStateValue.selectedCardOwnerKey === 'white' || cardStateValue.selectedCardOwnerKey === 'black')) {
-        return cardStateValue.selectedCardOwnerKey;
+const collectRandomSpawnPreviewHighlightKeys = (cardStateValue: any, gameStateValue: any, playerKey: any, options?: any) => {
+    const projectionModule = _getBoardHintProjectionForBoardRenderer();
+    if (projectionModule && typeof projectionModule.collectRandomSpawnPreviewHighlightKeys === 'function') {
+        return projectionModule.collectRandomSpawnPreviewHighlightKeys({
+            cardState: cardStateValue,
+            gameState: gameStateValue,
+            playerKey,
+            cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : null)
+        }, options && options.pending, options);
     }
-    return fallbackPlayerKey === 'white' || fallbackPlayerKey === 'black'
-        ? fallbackPlayerKey
-        : null;
-}
-
-function _resolveRandomSpawnPreviewTargetsForBoard(cardStateValue: any, gameStateValue: any, playerKey: any) {
-    if (
-        typeof CardLogic === 'undefined' ||
-        !CardLogic ||
-        !cardStateValue ||
-        !gameStateValue ||
-        (playerKey !== 'black' && playerKey !== 'white')
-    ) {
-        return [];
-    }
-    const selectedCardId = cardStateValue.selectedCardId;
-    if (!selectedCardId) return [];
-
-    let selectedCardType = '';
-    try {
-        if (typeof CardLogic.getCardType === 'function') {
-            selectedCardType = String(CardLogic.getCardType(selectedCardId) || '');
-        }
-    } catch (e: any) { /* ignore */ }
-    if (!selectedCardType) {
-        try {
-            const selectedCardDef = typeof CardLogic.getCardDef === 'function'
-                ? CardLogic.getCardDef(selectedCardId)
-                : null;
-            selectedCardType = String(selectedCardDef && selectedCardDef.type ? selectedCardDef.type : '');
-        } catch (e: any) { /* ignore */ }
-    }
-
-    if (selectedCardType === 'REINFORCEMENT_WILL' && typeof CardLogic.getReinforcementWillTargets === 'function') {
-        return CardLogic.getReinforcementWillTargets(cardStateValue, gameStateValue, playerKey) || [];
-    }
-    if (selectedCardType === 'SUPPORT_TROOPS_WILL' && typeof CardLogic.getSupportTroopsWillTargets === 'function') {
-        return CardLogic.getSupportTroopsWillTargets(cardStateValue, gameStateValue, playerKey) || [];
-    }
-    return [];
-}
-
-function collectRandomSpawnPreviewHighlightKeys(cardStateValue: any, gameStateValue: any, playerKey: any, options?: any) {
-    const out = new Set();
-    if (options && options.enabled === false) return out;
-    if (options && options.pending) return out;
-    const selectedOwnerKey = _resolveSelectedCardOwnerKeyForBoardPreview(cardStateValue, playerKey);
-    if (!selectedOwnerKey || selectedOwnerKey !== playerKey) return out;
-
-    const targets = _resolveRandomSpawnPreviewTargetsForBoard(cardStateValue, gameStateValue, playerKey);
-    for (const target of Array.isArray(targets) ? targets : []) {
-        const row = Number(target && target.row);
-        const col = Number(target && target.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        out.add(`${row},${col}`);
-    }
-    return out;
-}
+    return new Set();
+};
 
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
 const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
@@ -703,121 +659,6 @@ const BOARD_SHRINK_WILL_DIRECTION_HINT_DIRECTION_CLASSES = [
     'board-shrink-will-direction-left',
     'board-shrink-will-direction-right'
 ];
-
-function _resolveBoardShrinkDirectionNameForBoard(direction: any) {
-    const row = Number(direction && direction.row);
-    const col = Number(direction && direction.col);
-    if (Math.abs(col) >= Math.abs(row) && col !== 0) {
-        return col > 0 ? 'right' : 'left';
-    }
-    if (row !== 0) {
-        return row > 0 ? 'down' : 'up';
-    }
-    return null;
-}
-
-function _resolveBoardShrinkGodDirectionForBoard(firstTarget: any, target: any) {
-    const firstRow = Number(firstTarget && firstTarget.row);
-    const firstCol = Number(firstTarget && firstTarget.col);
-    const targetRow = Number(target && target.row);
-    const targetCol = Number(target && target.col);
-    if (!Number.isInteger(firstRow) || !Number.isInteger(firstCol) || !Number.isInteger(targetRow) || !Number.isInteger(targetCol)) {
-        return null;
-    }
-    const rowDelta = targetRow - firstRow;
-    const colDelta = targetCol - firstCol;
-    if (Math.abs(colDelta) >= Math.abs(rowDelta) && colDelta !== 0) {
-        return colDelta > 0 ? 'right' : 'left';
-    }
-    if (rowDelta !== 0) {
-        return rowDelta > 0 ? 'down' : 'up';
-    }
-    return null;
-}
-
-function _buildBoardShrinkGodDirectionHintMapForBoard(pending: any, selectableTargets: any) {
-    const out = new Map();
-    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
-        return out;
-    }
-    if (!pending.firstTarget || !Array.isArray(selectableTargets) || selectableTargets.length === 0) {
-        return out;
-    }
-    for (const target of selectableTargets) {
-        const row = Number(target && target.row);
-        const col = Number(target && target.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        const direction = _resolveBoardShrinkGodDirectionForBoard(pending.firstTarget, target);
-        if (!direction) continue;
-        out.set(`${row},${col}`, direction);
-    }
-    return out;
-}
-
-function _resolveBoardShrinkWillDirectionForBoard(pending: any, target: any) {
-    const selectedTargets = Array.isArray(pending && pending.selectedTargets) ? pending.selectedTargets : [];
-    const targetRow = Number(target && target.row);
-    const targetCol = Number(target && target.col);
-    if (!Number.isInteger(targetRow) || !Number.isInteger(targetCol) || selectedTargets.length <= 0) {
-        return null;
-    }
-    const explicitDirection = _resolveBoardShrinkDirectionNameForBoard(target && target.direction);
-    if (explicitDirection) return explicitDirection;
-    for (let i = selectedTargets.length - 1; i >= 0; i--) {
-        const selected = selectedTargets[i];
-        const row = Number(selected && selected.row);
-        const col = Number(selected && selected.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        const rowDelta = targetRow - row;
-        const colDelta = targetCol - col;
-        if (Math.abs(rowDelta) + Math.abs(colDelta) !== 1) continue;
-        return _resolveBoardShrinkDirectionNameForBoard({ row: rowDelta, col: colDelta });
-    }
-    return null;
-}
-
-function _buildBoardShrinkWillDirectionHintMapForBoard(pending: any, selectableTargets: any) {
-    const out = new Map();
-    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_WILL') {
-        return out;
-    }
-    const selectedTargets = Array.isArray(pending.selectedTargets) ? pending.selectedTargets : [];
-    if (selectedTargets.length <= 0 || !Array.isArray(selectableTargets) || selectableTargets.length === 0) {
-        return out;
-    }
-    for (const target of selectableTargets) {
-        const row = Number(target && target.row);
-        const col = Number(target && target.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        const direction = _resolveBoardShrinkWillDirectionForBoard(pending, target);
-        if (!direction) continue;
-        out.set(`${row},${col}`, direction);
-    }
-    return out;
-}
-
-function _collectBoardShrinkGodPreviewHighlightKeysForBoard(pending: any, selectableTargets: any) {
-    const out = new Set();
-    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
-        return out;
-    }
-    const firstRow = Number(pending.firstTarget && pending.firstTarget.row);
-    const firstCol = Number(pending.firstTarget && pending.firstTarget.col);
-    if (!Number.isInteger(firstRow) || !Number.isInteger(firstCol) || !Array.isArray(selectableTargets)) {
-        return out;
-    }
-    for (const target of selectableTargets) {
-        const lineCells = Array.isArray(target && target.lineCells) ? target.lineCells : [target];
-        for (const cell of lineCells) {
-            const row = Number(cell && cell.row);
-            const col = Number(cell && cell.col);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-            if (row === firstRow && col === firstCol) continue;
-            out.add(`${row},${col}`);
-        }
-    }
-    return out;
-}
 
 function _clearBoardShrinkGodDirectionHintForBoard(cell: any) {
     if (!cell || !cell.classList) return;
@@ -949,10 +790,15 @@ function _ensureBoardShrinkWillDirectionHintForBoard(cell: any, direction: any) 
     hint.style.zIndex = '48';
 }
 
-function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, pending: any, selectableTargets: any) {
+function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, hintProjection: any) {
     if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
-    const hintMap = _buildBoardShrinkGodDirectionHintMapForBoard(pending, selectableTargets);
-    const willHintMap = _buildBoardShrinkWillDirectionHintMapForBoard(pending, selectableTargets);
+    const projection = hintProjection && typeof hintProjection === 'object' ? hintProjection : {};
+    const hintMap = projection.boardShrinkGodDirectionHintMap instanceof Map
+        ? projection.boardShrinkGodDirectionHintMap
+        : new Map();
+    const willHintMap = projection.boardShrinkWillDirectionHintMap instanceof Map
+        ? projection.boardShrinkWillDirectionHintMap
+        : new Map();
     const cells = boardEl.querySelectorAll('.cell');
     cells.forEach((cell: any) => {
         const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
@@ -1234,18 +1080,7 @@ function renderBoardFullLegacy() {
         pending.type === 'SNIPER_WILL' ||
         pending.type === 'LAST_RESORT'
     ));
-    const selectableTargets = CardLogic.getSelectableTargets
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
-    const isSelectingTarget = !!(
-        pending &&
-        pending.stage === 'selectTarget' &&
-        Array.isArray(selectableTargets) &&
-        selectableTargets.length > 0
-    );
-    if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
     const boardShape = _applyBoardCssVarsForBoardRenderer(boardEl);
-    const selectableTargetSet = new Set(selectableTargets.map((p: any) => p.row + ',' + p.col));
     const isNetworkMode = !!(OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function'
         ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
         : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
@@ -1259,41 +1094,24 @@ function renderBoardFullLegacy() {
         : ((gameState.currentPlayer === BLACK) ||
             (window.DEBUG_HUMAN_VS_HUMAN && gameState.currentPlayer === WHITE) ||
             isFateWillControlledTurn);
-    const randomSpawnPreviewSet = isHumanTurn
-        ? collectRandomSpawnPreviewHighlightKeys(cardState, gameState, playerKey, {
-            enabled: canControlCurrentTurn,
-            pending
-        })
-        : new Set();
-    const showLegalHints = isHumanTurn
-        && !isSelectingTarget
-        && randomSpawnPreviewSet.size <= 0
-        && canControlCurrentTurn;
-    const selectedTargetHighlightSet = isHumanTurn
-        ? collectPendingSelectedTargetHighlightKeys(pending)
-        : new Set();
-    const boardShrinkGodPreviewHighlightSet = isHumanTurn
-        ? _collectBoardShrinkGodPreviewHighlightKeysForBoard(pending, selectableTargets)
-        : new Set();
-
-    let normalLegalSet = new Set();
-    if (showLegalHints) {
-        const legalMoves = getLegalMoves(gameState, context.protectedStones, context.permaProtectedStones);
-        normalLegalSet = new Set(legalMoves.map((m: any) => `${m.row},${m.col}`));
-    }
-
-    const tabooLegalSet = new Set();
-    if (showLegalHints && isTabooReversePending && typeof CardLogic.getTabooReverseCandidates === 'function') {
-        for (let r = 0; r < boardShape.rows; r++) {
-            for (let c = 0; c < boardShape.cols; c++) {
-                if (gameState.board[r][c] !== EMPTY) continue;
-                const candidates = CardLogic.getTabooReverseCandidates(cardState, gameState, playerKey, r, c);
-                if (!Array.isArray(candidates) || candidates.length === 0) continue;
-                tabooLegalSet.add(`${r},${c}`);
-            }
-        }
-    }
-    const legalSet = new Set([...normalLegalSet, ...tabooLegalSet]);
+    const hintProjection = _buildBoardHintProjectionForBoardRenderer(
+        gameState,
+        cardState,
+        playerKey,
+        boardShape,
+        canControlCurrentTurn,
+        isHumanTurn
+    ) || {};
+    const selectableTargets = Array.isArray(hintProjection.selectableTargets) ? hintProjection.selectableTargets : [];
+    const selectableTargetSet = hintProjection.selectableTargetSet instanceof Set ? hintProjection.selectableTargetSet : new Set();
+    const isSelectingTarget = hintProjection.isSelectingTarget === true;
+    if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
+    const randomSpawnPreviewSet = hintProjection.randomSpawnPreviewSet instanceof Set ? hintProjection.randomSpawnPreviewSet : new Set();
+    const showLegalHints = hintProjection.showLegalHints === true;
+    const selectedTargetHighlightSet = hintProjection.selectedTargetHighlightSet instanceof Set ? hintProjection.selectedTargetHighlightSet : new Set();
+    const boardShrinkGodPreviewHighlightSet = hintProjection.boardShrinkGodPreviewHighlightSet instanceof Set ? hintProjection.boardShrinkGodPreviewHighlightSet : new Set();
+    const legalSet = hintProjection.legalSet instanceof Set ? hintProjection.legalSet : new Set();
+    const tabooLegalSet = hintProjection.tabooLegalSet instanceof Set ? hintProjection.tabooLegalSet : new Set();
 
     // Build unified special/bomb maps from markers (primary)
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
@@ -1575,7 +1393,7 @@ function renderBoardFullLegacy() {
             boardEl.appendChild(cell);
         }
     }
-    _syncBoardShrinkGodDirectionHintsForBoard(boardEl, pending, selectableTargets);
+    _syncBoardShrinkGodDirectionHintsForBoard(boardEl, hintProjection);
 }
 
 // NOTE:

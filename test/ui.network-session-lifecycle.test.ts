@@ -149,14 +149,27 @@ describe('NetworkSessionLifecycleController', () => {
   });
 
   describe('createRoom - エラーハンドリング', () => {
-    test('プレイヤー名が空の場合はエラー', async () => {
-      mockConfig.normalizePlayerName.mockReturnValue('');
+    test('作成時のプレイヤー名が空の場合はランダム名で作成する', async () => {
+      mockConfig.createRandomPlayerName = jest.fn(() => 'ゲストABC');
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        roomName: '無名部屋',
+        seatKey: 'black'
+      }));
 
-      const result = await controller.createRoom({ playerName: '' });
+      const result = await controller.createRoom({ playerName: '', roomName: '' });
 
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe('PLAYER_NAME_REQUIRED');
-      expect(mockConfig.emitStatus).toHaveBeenCalled();
+      expect(result.ok).toBe(true);
+      expect(result.playerName).toBe('ゲストABC');
+      expect(mockConfig.requestJson).toHaveBeenCalledWith(
+        'POST',
+        '/api/match/create',
+        expect.objectContaining({
+          playerName: 'ゲストABC',
+          roomName: '無名部屋'
+        })
+      );
     });
 
     test('APIが見つからない場合はエラー', async () => {
@@ -303,6 +316,54 @@ describe('NetworkSessionLifecycleController', () => {
       expect(result.ok).toBe(true);
       expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
       expect(mockConfig.requestJson).toHaveBeenCalledTimes(2);
+    });
+
+    test('パスワード不一致は専用メッセージを表示する', async () => {
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(403, {
+        ok: false,
+        reason: 'ROOM_PASSWORD_INVALID'
+      }));
+
+      const result = await controller.joinRoom('ABC', {
+        playerName: 'テスト',
+        roomPassword: 'wrong'
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('ROOM_PASSWORD_INVALID');
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith('パスワードが違います', true);
+    });
+  });
+
+  describe('listRooms', () => {
+    test('公開ルーム一覧を取得する', async () => {
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        rooms: [
+          { roomId: 'ABC', hostName: 'くろ', seatCount: 1, maxSeats: 2, hasPassword: false }
+        ]
+      }));
+
+      const result = await controller.listRooms({ serverUrl: 'http://localhost:8787' });
+
+      expect(result).toEqual({
+        ok: true,
+        rooms: [
+          { roomId: 'ABC', hostName: 'くろ', seatCount: 1, maxSeats: 2, hasPassword: false }
+        ]
+      });
+      expect(mockConfig.setServerUrl).toHaveBeenCalledWith('http://localhost:8787');
+      expect(mockConfig.requestJson).toHaveBeenCalledWith('GET', '/api/match/list');
+    });
+
+    test('一覧APIがない場合は専用エラーを返す', async () => {
+      mockConfig.isMatchApiMissing.mockReturnValue(true);
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(404, { ok: false }));
+
+      const result = await controller.listRooms();
+
+      expect(result).toEqual({ ok: false, reason: 'MATCH_API_NOT_FOUND', rooms: [] });
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith('ネット対戦: サーバーに接続できません', true);
     });
   });
 

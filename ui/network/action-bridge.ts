@@ -6,34 +6,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-let cardLogicModule: any = null;
 let networkActionSchemaModule: any = null;
-let pendingCoordinatorModule: any = null;
 let playbackEventHelpersModule: any = null;
 const PlayerKeyHelpers = _require('./player-key');
 
 function resolveCardLogicModule(override?: any): any {
   if (override && typeof override === 'object') return override;
-  if (cardLogicModule) return cardLogicModule;
-  try {
-    cardLogicModule = _require('../../game/logic/cards.js');
-  } catch (e) { /* ignore */ }
-  if (!cardLogicModule && typeof globalThis !== 'undefined' && (globalThis as any).CardLogic) {
-    cardLogicModule = (globalThis as any).CardLogic;
-  }
-  return cardLogicModule;
-}
-
-function resolvePendingCoordinatorModule(override?: any): any {
-  if (override && typeof override === 'object') return override;
-  if (pendingCoordinatorModule) return pendingCoordinatorModule;
-  try {
-    pendingCoordinatorModule = _require('../../game/turn/pending-coordinator.js');
-  } catch (e) { /* ignore */ }
-  if (!pendingCoordinatorModule && typeof globalThis !== 'undefined' && (globalThis as any).PendingCoordinator) {
-    pendingCoordinatorModule = (globalThis as any).PendingCoordinator;
-  }
-  return pendingCoordinatorModule;
+  return null;
 }
 
 function resolveNetworkActionSchemaModule(): any {
@@ -69,6 +48,10 @@ function normalizePlayerKey(value: any, fallback?: any, override?: any): string 
 function resolveCardTypeForId(cardId: string, options?: any): string | null {
   if (!cardId) return null;
   const opts = (options && typeof options === 'object') ? options : {};
+  if (typeof opts.resolveCardTypeForId === 'function') {
+    const resolved = opts.resolveCardTypeForId(cardId);
+    return resolved ? String(resolved) : null;
+  }
   const cardLogic = resolveCardLogicModule(opts.cardLogicModule);
   if (!cardLogic || typeof cardLogic.getCardDef !== 'function') return null;
   const def = cardLogic.getCardDef(cardId);
@@ -158,12 +141,13 @@ function buildSkippedLocalExecutionResult(publishPromise: any): any {
   };
 }
 
-function getPendingEffectType(pendingCoordinator: any, cardStateValue: any, playerKey: any, fallbackNormalizePlayerKey?: any): any {
+function getPendingEffectType(cardStateValue: any, playerKey: any, options?: any): any {
+  const opts = (options && typeof options === 'object') ? options : {};
   try {
-    if (pendingCoordinator && typeof pendingCoordinator.getPendingEffectType === 'function') {
-      return pendingCoordinator.getPendingEffectType(
+    if (typeof opts.getPendingEffectType === 'function') {
+      return opts.getPendingEffectType(
         cardStateValue,
-        normalizePlayerKey(playerKey, 'black', fallbackNormalizePlayerKey)
+        normalizePlayerKey(playerKey, 'black', opts.normalizePlayerKey)
       );
     }
   } catch (e) { /* ignore */ }
@@ -186,10 +170,6 @@ function createNetworkActionBridge(config?: any): any {
   function shouldDeferNetworkPublishForPendingType(cardType: string): boolean {
     if (typeof cfg.shouldDeferNetworkPublishForPendingType === 'function') {
       return cfg.shouldDeferNetworkPublishForPendingType(cardType) === true;
-    }
-    const pendingCoordinator = resolvePendingCoordinatorModule(cfg.pendingCoordinatorModule);
-    if (pendingCoordinator && typeof pendingCoordinator.shouldDeferNetworkPublishForPendingType === 'function') {
-      return pendingCoordinator.shouldDeferNetworkPublishForPendingType(cardType) === true;
     }
     return false;
   }
@@ -220,10 +200,9 @@ function createNetworkActionBridge(config?: any): any {
         if (actionType === 'use_card') {
           const cardId = action && (action.useCardId || action.cardId);
           const cardType = resolveCardTypeForId(cardId, {
-            cardLogicModule: cfg.cardLogicModule
+            resolveCardTypeForId: cfg.resolveCardTypeForId
           });
-          const pendingCoordinator = resolvePendingCoordinatorModule(cfg.pendingCoordinatorModule);
-          if (pendingCoordinator && !cardType) {
+          if (typeof cfg.resolveCardTypeForId === 'function' && cardId && !cardType) {
             return {
               ok: false,
               rejectedReason: 'PENDING_CARD_TYPE_UNRESOLVED',
@@ -246,13 +225,14 @@ function createNetworkActionBridge(config?: any): any {
       const result = originalRunTurnWithAdapter.call(rootRef.TurnPipelineUIAdapter, cardStateArg, gameStateArg, playerKey, action, turnPipeline);
 
       if (typeof cfg.isActive === 'function' && cfg.isActive() === true && result && result.ok !== false) {
-        const pendingCoordinatorForResult = resolvePendingCoordinatorModule(cfg.pendingCoordinatorModule);
         const deferredByAction = !!(action && action.deferNetworkPublish === true);
         const pendingType = getPendingEffectType(
-          pendingCoordinatorForResult,
           result.nextCardState || cardStateArg,
           playerKey,
-          cfg.normalizePlayerKey
+          {
+            getPendingEffectType: cfg.getPendingEffectType,
+            normalizePlayerKey: cfg.normalizePlayerKey
+          }
         );
         if (!deferredByAction && !shouldDeferNetworkPublishForPendingType(pendingType)) {
           queueCommandPublish(playerKey, action, {

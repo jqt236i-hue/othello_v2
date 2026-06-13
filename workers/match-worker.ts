@@ -38,6 +38,7 @@ import type {
 } from './match-worker-types';
 
 const ModuleExportUtils = require('../shared/module-export-utils');
+const MatchRoomLobby = require('../shared/match-room-lobby');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
     MatchAuthorityAcceptedOperationEntry,
@@ -71,6 +72,7 @@ type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
 };
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
+const LOBBY_STORAGE_KEY = 'match_room_lobby_v1';
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
@@ -78,6 +80,7 @@ const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PL
     : 7;
 const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v3';
 const LEADERBOARD_STORAGE_VERSION = 3;
+const MATCH_LOBBY_ROOM_ID = '__match_lobby__';
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
 const LEADERBOARD_PLAYER_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
 const LEADERBOARD_DEFAULT_LIMIT = 10;
@@ -1799,6 +1802,9 @@ async function resolveDeckSelection(rawDeckCodeValue: unknown): Promise<MatchWor
 async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Response> {
     const opts = asRecord(options);
     const networkDebugEnabled = opts.networkDebugEnabled === true;
+    const playerName = normalizeNetworkPlayerName(opts.playerName) || MatchRoomLobby.createRandomPlayerName();
+    const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
+    const roomPassword = MatchRoomLobby.normalizeRoomPassword(opts.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(opts.roomBoardConfig);
     const deckSelection = await resolveDeckSelection(opts.deckCode);
     if (!deckSelection.ok) {
@@ -1843,9 +1849,11 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 roomId,
                 seed,
                 snapshot,
-                playerName: opts.playerName,
+                playerName,
                 selectedHandSkinId: opts.selectedHandSkinId,
                 networkDebugEnabled,
+                roomName,
+                roomPassword,
                 initialDeckSpecByPlayer,
                 roomDeck,
                 roomBoardConfig
@@ -1855,6 +1863,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
         if (response.status === 409) {
             continue;
         }
+        await syncLobbyFromResponse(env, roomId, response.clone());
         return withCORS(response);
     }
     return jsonResponse(500, { ok: false, reason: 'CREATE_RETRY_EXHAUSTED' });
@@ -1863,14 +1872,68 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
 const MatchWorkerApiController = createMatchWorkerApiController({
     corsHeaders: CORS_HEADERS,
     leaderboardRoomId: LEADERBOARD_ROOM_ID,
+    lobbyRoomId: MATCH_LOBBY_ROOM_ID,
     normalizeRoomId,
     jsonResponse,
     withCORS,
-    handleCreate
+    handleCreate,
+    afterRoomMutation: async (env, pathname, roomId, response) => {
+        if (pathname !== '/api/match/join' && pathname !== '/api/match/leave') return;
+        await syncLobbyFromResponse(env, roomId, response);
+    }
 });
 
 function getRoomStub(env: MatchWorkerEnv, roomId: string) {
     return MatchWorkerApiController.getRoomStub(env, roomId);
+}
+
+function withPublicRoomPasswordMetadata(payloadValue: unknown, roomValue: unknown): unknown {
+    const payload = asRecord(payloadValue);
+    payload.roomHasPassword = MatchRoomLobby.hasRoomPassword(roomValue);
+    return payload;
+}
+
+function buildLobbyEntryFromPayload(payloadValue: unknown, fallbackRoomId: string): unknown | null {
+    const payload = asRecord(payloadValue);
+    const entry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, payload, {
+        roomId: payload.roomId || fallbackRoomId,
+        roomHasPassword: payload.roomHasPassword === true
+    }));
+    return entry;
+}
+
+async function postLobbyUpdate(env: MatchWorkerEnv, pathname: string, body: unknown): Promise<void> {
+    try {
+        const stub = getRoomStub(env, MATCH_LOBBY_ROOM_ID);
+        await stub.fetch(new Request(`https://room${pathname}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {})
+        }));
+    } catch (e) { /* lobby is best-effort; room authority remains canonical */ }
+}
+
+async function syncLobbyFromResponse(env: MatchWorkerEnv, fallbackRoomId: string, response: Response): Promise<void> {
+    if (!response) return;
+    let payload: unknown = null;
+    try {
+        payload = await response.json();
+    } catch (e) {
+        return;
+    }
+    const roomId = normalizeRoomId(asRecord(payload).roomId || fallbackRoomId);
+    if (!roomId) return;
+    if (response.status === 404 && asRecord(payload).reason === 'ROOM_NOT_FOUND') {
+        await postLobbyUpdate(env, '/internal/lobby/remove', { roomId });
+        return;
+    }
+    if (response.status < 200 || response.status >= 300) return;
+    const entry = buildLobbyEntryFromPayload(payload, roomId);
+    if (entry) {
+        await postLobbyUpdate(env, '/internal/lobby/upsert', { entry });
+    } else {
+        await postLobbyUpdate(env, '/internal/lobby/remove', { roomId });
+    }
 }
 
 function handleMatchApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
@@ -2109,6 +2172,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
+        if (this.room && !Number.isFinite(Number(this.room.createdAt))) {
+            this.room.createdAt = Number.isFinite(Number(this.room.updatedAt)) ? Number(this.room.updatedAt) : Date.now();
+        }
         if (this.room && !Array.isArray(this.room.sseEventBuffer)) {
             this.room.sseEventBuffer = [];
         }
@@ -2139,6 +2205,83 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (this.state.storage && typeof this.state.storage.deleteAlarm === 'function') {
             await this.state.storage.deleteAlarm();
         }
+    }
+
+    async expireWaitingRoomIfNeeded(nowMs = Date.now()): Promise<boolean> {
+        if (!this.room || !MatchRoomLobby.isWaitingRoomExpired(this.room, nowMs)) return false;
+        await this.removeRoom();
+        return true;
+    }
+
+    async syncWaitingRoomExpiryAlarm(nowMs = Date.now()): Promise<boolean> {
+        if (!this.room || !MatchRoomLobby.isWaitingRoom(this.room)) return false;
+        if (await this.expireWaitingRoomIfNeeded(nowMs)) return true;
+        const expiresAt = MatchRoomLobby.getWaitingRoomExpiresAt(this.room);
+        if (expiresAt > 0 && this.state.storage && typeof this.state.storage.setAlarm === 'function') {
+            await this.state.storage.setAlarm(expiresAt);
+        }
+        return false;
+    }
+
+    async readLobbyEntries(): Promise<Record<string, unknown>> {
+        const store = await this.state.storage.get(LOBBY_STORAGE_KEY);
+        const source = asRecord(store);
+        return source.rooms && typeof source.rooms === 'object'
+            ? Object.assign({}, source.rooms as Record<string, unknown>)
+            : {};
+    }
+
+    async writeLobbyEntries(rooms: Record<string, unknown>): Promise<void> {
+        await this.state.storage.put(LOBBY_STORAGE_KEY, {
+            version: 1,
+            rooms,
+            updatedAt: Date.now()
+        });
+    }
+
+    async handleLobbyUpsert(body: Record<string, unknown>): Promise<Response> {
+        const entry = asRecord(body.entry || body);
+        const roomId = normalizeRoomId(entry.roomId);
+        if (!roomId) return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
+        const publicEntry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, entry, { roomId }), { nowMs: Date.now() });
+        if (!publicEntry) {
+            return this.handleLobbyRemove({ roomId });
+        }
+        const rooms = await this.readLobbyEntries();
+        rooms[roomId] = publicEntry;
+        await this.writeLobbyEntries(rooms);
+        return jsonResponse(200, { ok: true, entry: publicEntry });
+    }
+
+    async handleLobbyRemove(body: Record<string, unknown>): Promise<Response> {
+        const roomId = normalizeRoomId(body.roomId);
+        if (!roomId) return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
+        const rooms = await this.readLobbyEntries();
+        delete rooms[roomId];
+        await this.writeLobbyEntries(rooms);
+        return jsonResponse(200, { ok: true });
+    }
+
+    async handleLobbyList(): Promise<Response> {
+        const nowMs = Date.now();
+        const rooms = await this.readLobbyEntries();
+        const nextRooms: Record<string, unknown> = {};
+        let changed = false;
+        for (const [roomId, entry] of Object.entries(rooms)) {
+            const publicEntry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, asRecord(entry), { roomId }), { nowMs });
+            if (publicEntry) {
+                nextRooms[roomId] = publicEntry;
+            } else {
+                changed = true;
+            }
+        }
+        if (changed) {
+            await this.writeLobbyEntries(nextRooms);
+        }
+        return jsonResponse(200, {
+            ok: true,
+            rooms: MatchRoomLobby.sortRoomListEntries(Object.values(nextRooms))
+        });
     }
 
     nextSseEventId(): string {
@@ -2205,6 +2348,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             ? cloneInitialDeckSpecByPlayer(opts.initialDeckSpecByPlayer)
             : null;
         const roomDeck = (opts.roomDeck && typeof opts.roomDeck === 'object') ? deepClone(opts.roomDeck) : null;
+        const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
+        const roomPassword = MatchRoomLobby.normalizeRoomPassword(opts.roomPassword);
         const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(
             opts.roomBoardConfig,
             asRecord(snapshot && snapshot.gameState).board
@@ -2219,6 +2364,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
+            roomName,
+            roomPassword,
             roomBoardConfig,
             networkDebugEnabled,
             stateVersion: 0,
@@ -2242,6 +2389,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             authorityLog: [],
             chatMessages: [],
             chatSeq: 0,
+            createdAt: nowMs,
             updatedAt: nowMs
         };
     }
@@ -2266,6 +2414,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         await this.loadRoom();
         if (!this.room) return;
         const nowMs = Date.now();
+        if (await this.expireWaitingRoomIfNeeded(nowMs)) return;
         const result = await this.applyExpiredTurnTimeoutIfNeeded({ nowMs });
         if (!result || result.applied !== true) {
             const timerChanged = await this.refreshTurnTimer({ nowMs, forceRestart: false });
@@ -2287,7 +2436,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const snapshot = (payload.snapshot && typeof payload.snapshot === 'object')
             ? payload.snapshot as MatchWorkerPublicSnapshot
             : null;
-        const playerName = normalizeNetworkPlayerName(payload.playerName);
+        const playerName = normalizeNetworkPlayerName(payload.playerName) || MatchRoomLobby.createRandomPlayerName();
         const selectedHandSkinId = normalizeSeatHandSkinId(payload.selectedHandSkinId);
         const initialDeckSpec = (payload.initialDeckSpec && typeof payload.initialDeckSpec === 'object')
             ? deepClone(payload.initialDeckSpec)
@@ -2303,6 +2452,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = payload.networkDebugEnabled === true;
+        const roomName = MatchRoomLobby.resolveRoomName(payload.roomName);
+        const roomPassword = MatchRoomLobby.normalizeRoomPassword(payload.roomPassword);
 
         if (!roomId) {
             return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
@@ -2310,10 +2461,6 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!snapshot || !snapshot.gameState || !snapshot.cardState) {
             return jsonResponse(400, { ok: false, reason: 'SNAPSHOT_REQUIRED' });
         }
-        if (!playerName) {
-            return jsonResponse(400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
-        }
-
         const room = this.createRoomState(roomId, {
             seed,
             snapshot,
@@ -2321,7 +2468,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             initialDeckSpecByPlayer,
             roomDeck,
             roomBoardConfig,
-            networkDebugEnabled
+            networkDebugEnabled,
+            roomName,
+            roomPassword
         });
         this.room = room;
         this.sseEventBuffer = [];
@@ -2334,11 +2483,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         room.seatHandSkins = publicSeatState.seatHandSkins;
         room.updatedAt = Date.now();
         await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: false });
+        await this.syncWaitingRoomExpiryAlarm(room.updatedAt);
         await this.saveRoom();
 
         const serverTime = Date.now();
 
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             seatKey: 'black',
             playerName,
@@ -2350,13 +2500,17 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             snapshot: toPublicSnapshot(room, 'black'),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        }));
+        }), room);
+        return jsonResponse(200, responsePayload);
     }
 
     async handleJoin(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
         if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireWaitingRoomIfNeeded(Date.now())) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
 
@@ -2376,6 +2530,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
         const providedToken = String(body.seatToken || '').trim();
+        const authenticatedSeatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, providedToken);
+        if (!authenticatedSeatKey && !MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
+            return jsonResponse(403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
+        }
         const seatKey = resolveSeatForJoin(room, requestedSeatKey, providedToken);
         if (!seatKey) {
             return jsonResponse(409, { ok: false, reason: 'ROOM_FULL' });
@@ -2440,7 +2598,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
 
         const serverTime = Date.now();
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             seatKey,
             playerName,
@@ -2453,7 +2611,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        }));
+        }), room);
+        return jsonResponse(200, responsePayload);
     }
 
     async handleLeave(body: Record<string, unknown>): Promise<Response> {
@@ -2494,12 +2653,13 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
 
         const serverTime = Date.now();
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             roomBoardConfig: toPublicRoomBoardConfig(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        }));
+        }), room);
+        return jsonResponse(200, responsePayload);
     }
 
     async handleHandSkin(body: Record<string, unknown>): Promise<Response> {
@@ -2640,6 +2800,22 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
             return this.handleInternalCreate(urlObj, parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/lobby/upsert') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleLobbyUpsert(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/lobby/remove') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleLobbyRemove(parsed || {});
+        }
+
+        if (request.method === 'GET' && pathname === '/api/match/list') {
+            return this.handleLobbyList();
         }
 
         if (request.method === 'POST' && pathname === '/api/match/join') {

@@ -38,6 +38,7 @@ const MODE_OTHELLO = 'othello';
     let networkStatusBaseIsError = false;
     let networkTurnTimerInfo: any = null;
     let networkRoomDebugEnabled = false;
+    let selectedNetworkRoomId = '';
 
     const uiRefs: any = {
         modeCpuBtn: null,
@@ -57,6 +58,9 @@ const MODE_OTHELLO = 'othello';
         networkCopyRoomBtn: null,
         networkCreateBtn: null,
         networkJoinBtn: null,
+        networkRoomPasswordInput: null,
+        networkRoomListRefreshBtn: null,
+        networkRoomList: null,
         networkLeaveBtn: null,
         networkStatus: null,
         networkDeckInfo: null,
@@ -625,6 +629,214 @@ const MODE_OTHELLO = 'othello';
         renderNetworkStatus();
     }
 
+    function normalizeRoomPassword(value: any) {
+        return Array.from(String(value || '').trim()).slice(0, 20).join('');
+    }
+
+    function formatRoomIdInput(value: any) {
+        return String(value || '')
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, '')
+            .slice(0, 3);
+    }
+
+    function normalizeRoomName(value: any) {
+        return Array.from(String(value || '').trim()).slice(0, 20).join('');
+    }
+
+    function readNetworkRoomPassword() {
+        return uiRefs.networkRoomPasswordInput ? normalizeRoomPassword(uiRefs.networkRoomPasswordInput.value) : '';
+    }
+
+    function readNetworkRoomName() {
+        return uiRefs.networkRoomInput ? normalizeRoomName(uiRefs.networkRoomInput.value) : '';
+    }
+
+    function createNetworkPanelInput(id: string, type: string, placeholder: string) {
+        const input = document.createElement('input');
+        input.id = id;
+        input.type = type;
+        input.placeholder = placeholder;
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        return input;
+    }
+
+    function ensureNetworkLobbyUi() {
+        if (!uiRefs.networkPanel || uiRefs.networkRoomList) return;
+        const roomInput = uiRefs.networkRoomInput;
+        if (roomInput) {
+            roomInput.placeholder = 'ルーム名（任意）';
+            roomInput.maxLength = 20;
+            roomInput.removeAttribute('pattern');
+        }
+        if (uiRefs.networkCopyRoomBtn) {
+            uiRefs.networkCopyRoomBtn.textContent = 'ルーム名コピー';
+        }
+        const existingPasswordInput = typeof document !== 'undefined'
+            ? document.getElementById('networkRoomPasswordInput')
+            : null;
+        const passwordInput = (existingPasswordInput as HTMLInputElement | null)
+            || createNetworkPanelInput('networkRoomPasswordInput', 'password', 'パスワード（任意）');
+        passwordInput.maxLength = 20;
+        if (!existingPasswordInput && roomInput && roomInput.parentNode === uiRefs.networkPanel) {
+            uiRefs.networkPanel.insertBefore(passwordInput, roomInput.nextSibling);
+        } else if (!existingPasswordInput) {
+            uiRefs.networkPanel.appendChild(passwordInput);
+        }
+        uiRefs.networkRoomPasswordInput = passwordInput;
+
+        const listWrap = document.createElement('div');
+        listWrap.id = 'networkRoomListPanel';
+
+        const header = document.createElement('div');
+        header.id = 'networkRoomListHeader';
+        const title = document.createElement('span');
+        title.textContent = 'ルーム一覧';
+        const refreshBtn = document.createElement('button');
+        refreshBtn.id = 'networkRoomListRefreshBtn';
+        refreshBtn.className = 'btn-small';
+        refreshBtn.type = 'button';
+        refreshBtn.textContent = '更新';
+        header.appendChild(title);
+        header.appendChild(refreshBtn);
+
+        const list = document.createElement('div');
+        list.id = 'networkRoomList';
+        list.setAttribute('aria-live', 'polite');
+
+        listWrap.appendChild(header);
+        listWrap.appendChild(list);
+
+        const deckInfo = uiRefs.networkDeckInfo;
+        if (deckInfo && deckInfo.parentNode === uiRefs.networkPanel) {
+            uiRefs.networkPanel.insertBefore(listWrap, deckInfo);
+        } else {
+            uiRefs.networkPanel.appendChild(listWrap);
+        }
+        uiRefs.networkRoomListRefreshBtn = refreshBtn;
+        uiRefs.networkRoomList = list;
+    }
+
+    function renderNetworkRoomList(rooms: any[]) {
+        if (!uiRefs.networkRoomList) return;
+        uiRefs.networkRoomList.textContent = '';
+        const list = Array.isArray(rooms) ? rooms : [];
+        if (list.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'network-room-list-empty';
+            empty.textContent = '募集中のルームはありません';
+            uiRefs.networkRoomList.appendChild(empty);
+            return;
+        }
+
+        list.forEach((room) => {
+            const entry = room && typeof room === 'object' ? room : {};
+            const roomId = formatRoomIdInput(entry.roomId);
+            if (!roomId) return;
+            const item = document.createElement('div');
+            item.className = 'network-room-list-entry';
+            item.dataset.roomId = roomId;
+            item.dataset.hasPassword = entry.hasPassword === true ? '1' : '0';
+            item.dataset.roomName = normalizeRoomName(entry.roomName) || '無名部屋';
+            const roomName = normalizeRoomName(entry.roomName) || '無名部屋';
+            const host = normalizePlayerName(entry.hostName) || '名前なし';
+            const boardLabel = String(entry.boardLabel || '8x8');
+            const seatCount = Number.isFinite(Number(entry.seatCount)) ? Number(entry.seatCount) : 1;
+            const maxSeats = Number.isFinite(Number(entry.maxSeats)) ? Number(entry.maxSeats) : 2;
+            const body = document.createElement('div');
+            body.className = 'network-room-entry-body';
+            const main = document.createElement('span');
+            main.className = 'network-room-entry-main';
+            const nameEl = document.createElement('span');
+            nameEl.className = 'network-room-entry-name';
+            nameEl.textContent = roomName;
+            const badgeWrap = document.createElement('span');
+            badgeWrap.className = 'network-room-entry-badges';
+            const seatBadge = document.createElement('span');
+            seatBadge.className = 'network-room-entry-badge';
+            seatBadge.textContent = `${seatCount}/${maxSeats}`;
+            badgeWrap.appendChild(seatBadge);
+            if (entry.hasPassword === true) {
+                const passwordBadge = document.createElement('span');
+                passwordBadge.className = 'network-room-entry-badge is-password';
+                passwordBadge.textContent = '鍵あり';
+                badgeWrap.appendChild(passwordBadge);
+            }
+            main.appendChild(nameEl);
+            main.appendChild(badgeWrap);
+
+            const meta = document.createElement('span');
+            meta.className = 'network-room-entry-meta';
+            const hostEl = document.createElement('span');
+            hostEl.textContent = `ホスト ${host}`;
+            const boardEl = document.createElement('span');
+            boardEl.textContent = `盤面 ${boardLabel}`;
+            meta.appendChild(hostEl);
+            meta.appendChild(boardEl);
+
+            body.appendChild(main);
+            body.appendChild(meta);
+
+            const joinButton = document.createElement('button');
+            joinButton.type = 'button';
+            joinButton.className = 'btn-small network-room-entry-join';
+            joinButton.textContent = '参加';
+            joinButton.setAttribute(
+                'aria-label',
+                `${roomName}に参加。ホスト ${host}、盤面 ${boardLabel}、${seatCount}/${maxSeats}${entry.hasPassword === true ? '、パスワードあり' : ''}`
+            );
+            joinButton.addEventListener('click', () => {
+                joinRoomFromList(roomId, roomName, entry.hasPassword === true);
+            });
+            item.appendChild(body);
+            item.appendChild(joinButton);
+            uiRefs.networkRoomList.appendChild(item);
+        });
+    }
+
+    async function refreshNetworkRoomList(options?: any) {
+        const silentStatus = !!(options && options.silentStatus === true);
+        if (!root.NetworkMatchClient || typeof root.NetworkMatchClient.listRooms !== 'function') {
+            if (!silentStatus) writeNetworkStatus('ルーム一覧を取得できません', true);
+            return;
+        }
+        const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
+        try {
+            if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
+                root.NetworkMatchClient.setServerUrl(serverUrl);
+            }
+            const result = await root.NetworkMatchClient.listRooms({ serverUrl });
+            if (!result || result.ok !== true) {
+                renderNetworkRoomList([]);
+                return;
+            }
+            renderNetworkRoomList(result.rooms || []);
+            if (!silentStatus) writeNetworkStatus(`ルーム一覧を更新しました（${(result.rooms || []).length}件）`, false);
+        } catch (e) {
+            renderNetworkRoomList([]);
+            if (!silentStatus) writeNetworkStatus('ルーム一覧の取得に失敗しました', true);
+        }
+    }
+
+    async function joinRoomFromList(roomId: string, roomName: string, hasPassword: boolean) {
+        selectedNetworkRoomId = roomId;
+        if (uiRefs.networkRoomInput) {
+            uiRefs.networkRoomInput.value = roomName || '無名部屋';
+        }
+        if (hasPassword && !readNetworkRoomPassword()) {
+            writeNetworkStatus('パスワードを入力してください', true);
+            if (uiRefs.networkRoomPasswordInput && typeof uiRefs.networkRoomPasswordInput.focus === 'function') {
+                uiRefs.networkRoomPasswordInput.focus();
+            }
+            return;
+        }
+        if (uiRefs.networkJoinBtn && typeof uiRefs.networkJoinBtn.click === 'function') {
+            uiRefs.networkJoinBtn.click();
+        }
+    }
+
     function isNetworkOverlayOpen() {
         return !!(uiRefs.networkOverlay && uiRefs.networkOverlay.classList.contains('is-open'));
     }
@@ -649,6 +861,9 @@ const MODE_OTHELLO = 'othello';
             } catch (e) {
                 try { focusTarget.focus(); } catch (_e) { /* ignore */ }
             }
+        }
+        if (open && uiRefs.networkRoomList) {
+            Promise.resolve(refreshNetworkRoomList()).catch(() => { /* ignore */ });
         }
     }
 
@@ -1312,14 +1527,6 @@ const MODE_OTHELLO = 'othello';
     }
 
     function bindNetworkButtons() {
-        const formatRoomIdInput = (value: any) => {
-            return String(value || '')
-                .trim()
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, '')
-                .slice(0, 3);
-        };
-
         const copyTextToClipboard = async (value: any) => {
             const text = String(value || '');
             if (!text) return false;
@@ -1478,12 +1685,23 @@ const MODE_OTHELLO = 'othello';
             });
         }
 
+        if (uiRefs.networkRoomPasswordInput) {
+            uiRefs.networkRoomPasswordInput.setAttribute('maxlength', '20');
+            uiRefs.networkRoomPasswordInput.addEventListener('input', () => {
+                uiRefs.networkRoomPasswordInput.value = normalizeRoomPassword(uiRefs.networkRoomPasswordInput.value);
+            });
+            uiRefs.networkRoomPasswordInput.addEventListener('change', () => {
+                uiRefs.networkRoomPasswordInput.value = normalizeRoomPassword(uiRefs.networkRoomPasswordInput.value);
+            });
+        }
+
         if (uiRefs.networkRoomInput) {
             uiRefs.networkRoomInput.addEventListener('input', () => {
-                uiRefs.networkRoomInput.value = formatRoomIdInput(uiRefs.networkRoomInput.value);
+                uiRefs.networkRoomInput.value = normalizeRoomName(uiRefs.networkRoomInput.value);
+                selectedNetworkRoomId = '';
             });
             uiRefs.networkRoomInput.addEventListener('change', () => {
-                uiRefs.networkRoomInput.value = formatRoomIdInput(uiRefs.networkRoomInput.value);
+                uiRefs.networkRoomInput.value = normalizeRoomName(uiRefs.networkRoomInput.value);
             });
         }
 
@@ -1517,21 +1735,24 @@ const MODE_OTHELLO = 'othello';
 
         if (uiRefs.networkCopyRoomBtn) {
             uiRefs.networkCopyRoomBtn.addEventListener('click', async () => {
-                const roomId = uiRefs.networkRoomInput ? formatRoomIdInput(uiRefs.networkRoomInput.value) : '';
-                if (uiRefs.networkRoomInput) {
-                    uiRefs.networkRoomInput.value = roomId;
-                }
-                if (!roomId) {
-                    writeNetworkStatus('コピーする部屋番号がありません', true);
+                const roomName = readNetworkRoomName() || '無名部屋';
+                if (!roomName) {
+                    writeNetworkStatus('コピーするルーム名がありません', true);
                     return;
                 }
 
-                const copied = await copyTextToClipboard(roomId);
+                const copied = await copyTextToClipboard(roomName);
                 if (copied) {
-                    writeNetworkStatus(`部屋番号 ${roomId} をコピーしました`, false);
+                    writeNetworkStatus(`ルーム名「${roomName}」をコピーしました`, false);
                     return;
                 }
-                writeNetworkStatus('部屋番号のコピーに失敗しました', true);
+                writeNetworkStatus('ルーム名のコピーに失敗しました', true);
+            });
+        }
+
+        if (uiRefs.networkRoomListRefreshBtn) {
+            uiRefs.networkRoomListRefreshBtn.addEventListener('click', () => {
+                refreshNetworkRoomList();
             });
         }
 
@@ -1539,7 +1760,9 @@ const MODE_OTHELLO = 'othello';
             uiRefs.networkCreateBtn.addEventListener('click', async () => {
                 await setMode(MODE_NETWORK, { silentLog: true });
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
-                const playerName = resolveRequiredNetworkPlayerName();
+                const playerName = uiRefs.networkPlayerNameInput
+                    ? normalizePlayerName(uiRefs.networkPlayerNameInput.value)
+                    : '';
                 const localDeckSelection = readActiveLocalDeckSelection();
                 const deckCode = localDeckSelection.deckCode;
                 const roomBoardConfig = getPendingRoomBoardConfig();
@@ -1547,7 +1770,6 @@ const MODE_OTHELLO = 'othello';
                     uiRefs.networkEnableDebugCheckbox
                     && uiRefs.networkEnableDebugCheckbox.checked
                 );
-                if (!playerName) return;
                 notifyInvalidCustomDeckFallback(localDeckSelection);
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
@@ -1557,11 +1779,17 @@ const MODE_OTHELLO = 'othello';
                         serverUrl,
                         playerName,
                         deckCode,
+                        roomName: readNetworkRoomName(),
+                        roomPassword: readNetworkRoomPassword(),
                         roomBoardConfig,
                         networkDebugEnabled: requestedNetworkDebugEnabled
                     });
                     if (result && result.ok && uiRefs.networkRoomInput) {
-                        uiRefs.networkRoomInput.value = result.roomId || '';
+                        uiRefs.networkRoomInput.value = result.roomName || readNetworkRoomName() || '無名部屋';
+                    }
+                    if (result && result.ok && result.playerName && uiRefs.networkPlayerNameInput) {
+                        uiRefs.networkPlayerNameInput.value = result.playerName;
+                        setSharedPlayerName(result.playerName);
                     }
                     if (result && result.ok) {
                         networkRoomDebugEnabled = result.networkDebugEnabled === true;
@@ -1570,6 +1798,7 @@ const MODE_OTHELLO = 'othello';
                     }
                     refreshNetworkChatVisibility();
                     renderNetworkDeckInfo();
+                    refreshNetworkRoomList({ silentStatus: true });
                     refreshBoardUi();
                 } catch (e) {
                     writeNetworkStatus('部屋作成に失敗しました', true);
@@ -1580,18 +1809,27 @@ const MODE_OTHELLO = 'othello';
         if (uiRefs.networkJoinBtn) {
             uiRefs.networkJoinBtn.addEventListener('click', async () => {
                 await setMode(MODE_NETWORK, { silentLog: true });
-                const roomId = uiRefs.networkRoomInput ? formatRoomIdInput(uiRefs.networkRoomInput.value) : '';
+                const roomId = selectedNetworkRoomId;
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
                 const localDeckSelection = readActiveLocalDeckSelection();
                 const deckCode = localDeckSelection.deckCode;
                 if (!playerName) return;
+                if (!roomId) {
+                    writeNetworkStatus('ルーム一覧から参加するルームを選んでください', true);
+                    return;
+                }
                 notifyInvalidCustomDeckFallback(localDeckSelection);
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);
                     }
-                    const result = await root.NetworkMatchClient.joinRoom(roomId, { serverUrl, playerName, deckCode });
+                    const result = await root.NetworkMatchClient.joinRoom(roomId, {
+                        serverUrl,
+                        playerName,
+                        deckCode,
+                        roomPassword: readNetworkRoomPassword()
+                    });
                     if (result && result.ok) {
                         networkRoomDebugEnabled = result.networkDebugEnabled === true;
                         applyNetworkDebugModeAccess();
@@ -1669,6 +1907,7 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkChatInput = opts.networkChatInput || null;
         uiRefs.networkChatSendBtn = opts.networkChatSendBtn || null;
         uiRefs.autoToggleBtn = opts.autoToggleBtn || null;
+        ensureNetworkLobbyUi();
         if (uiRefs.networkEnableDebugCheckbox) {
             uiRefs.networkEnableDebugCheckbox.checked = false;
         }

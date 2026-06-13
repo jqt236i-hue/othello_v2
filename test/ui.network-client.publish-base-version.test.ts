@@ -1175,6 +1175,17 @@ describe('NetworkMatchClient queued publish', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  test('未接続時の getRoomBoardConfig は通常盤面を部屋固定として返さない', () => {
+    global.gameState.boardConfig = { rows: 8, cols: 8, standard8x8: true };
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    expect(client.isActive()).toBe(false);
+    expect(client.getRoomBoardConfig()).toBeNull();
+  });
+
   test('createRoom は deckCode と roomBoardConfig を送信し部屋メタデータを保持する', async () => {
     let createBody = null;
 
@@ -1232,6 +1243,7 @@ describe('NetworkMatchClient queued publish', () => {
     expect(created.ok).toBe(true);
     expect(createBody).toEqual({
       playerName: 'くろ',
+      roomName: '無名部屋',
       deckCode: 'D1C1:test_card*3',
       roomBoardConfig: {
         rows: 7,

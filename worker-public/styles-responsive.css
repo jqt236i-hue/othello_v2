@@ -133,6 +133,18 @@
         max-height: calc(84px * var(--layout-stage-scale));
     }
 
+    .network-room-entry-main {
+        align-items: flex-start;
+    }
+
+    .deck-builder-default-preset-row {
+        grid-template-columns: 1fr;
+    }
+
+    .deck-builder-built-in-preset-grid {
+        grid-template-columns: repeat(auto-fit, minmax(calc(108px * var(--layout-stage-scale)), 1fr));
+    }
+
 }
 
 #cpu-character-panel,
@@ -328,6 +340,34 @@ html.layout-profile-phone-portrait #networkChatPanel.is-open {
 
 html.layout-profile-phone-portrait #networkModal {
     width: var(--layout-phone-portrait-aux-panel-width);
+}
+
+html.layout-profile-phone-portrait #networkModalBody {
+    padding: calc(10px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .network-section,
+html.layout-profile-phone-portrait #networkBoardSizeRow,
+html.layout-profile-phone-portrait #networkRoomListPanel {
+    padding: calc(8px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .network-create-fields {
+    grid-template-columns: 1fr;
+}
+
+html.layout-profile-phone-portrait #networkRoomList {
+    max-height: calc(128px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .network-room-entry-main {
+    align-items: flex-start;
+}
+
+@media (max-width: 560px) {
+    .network-create-fields {
+        grid-template-columns: 1fr;
+    }
 }
 
 html.layout-profile-phone-portrait #quick-controls-bar {

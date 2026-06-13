@@ -1,8 +1,11 @@
 'use strict';
 
+const MatchRoomLobby = require('./match-room-lobby');
+
 interface MatchEntryPayloadHelpers {
   normalizePlayerName?: (value: unknown) => string;
   normalizeRoomId?: (value: unknown) => string;
+  createRandomPlayerName?: () => string;
   sanitizeDeckCode?: (value: unknown) => unknown;
   cloneData?: (value: unknown) => unknown;
   readSelectedHandSkinId?: () => unknown;
@@ -16,6 +19,8 @@ interface MatchEntryPayloadOptions {
   deckCode?: unknown;
   roomBoardConfig?: unknown;
   networkDebugEnabled?: unknown;
+  roomPassword?: unknown;
+  roomName?: unknown;
 }
 
 interface ResolvedDeckCode {
@@ -69,6 +74,10 @@ function normalizeRoomId(value: unknown, helpers?: MatchEntryPayloadHelpers): st
     return String(h.normalizeRoomId(value) || '').trim().toUpperCase();
   }
   return String(value || '').trim().toUpperCase();
+}
+
+function normalizeRoomPassword(value: unknown): string {
+  return Array.from(String(value || '').trim()).slice(0, 20).join('');
 }
 
 function resolveDeckCode(rawDeckCode: unknown, helpers?: MatchEntryPayloadHelpers): ResolvedDeckCode {
@@ -132,17 +141,27 @@ function buildCreateRoomPayload(
 ): MatchEntryPayloadResult {
   const opts = (options && typeof options === 'object') ? options : {};
   const h = resolveHelpers(helpers);
-  const playerName = normalizePlayerName(opts.playerName, h);
+  let playerName = normalizePlayerName(opts.playerName, h);
   if (!playerName) {
-    return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
+    const randomName = typeof h.createRandomPlayerName === 'function'
+      ? h.createRandomPlayerName()
+      : MatchRoomLobby.createRandomPlayerName();
+    playerName = normalizePlayerName(randomName, h) || MatchRoomLobby.createRandomPlayerName();
   }
 
-  const payload: Record<string, unknown> = { playerName };
+  const payload: Record<string, unknown> = {
+    playerName,
+    roomName: MatchRoomLobby.resolveRoomName(opts.roomName)
+  };
   if (opts.networkDebugEnabled === true) {
     payload.networkDebugEnabled = true;
   }
 
   const deckCode = appendOptionalDeckCode(payload, opts.deckCode, h);
+  const roomPassword = normalizeRoomPassword(opts.roomPassword);
+  if (roomPassword) {
+    payload.roomPassword = roomPassword;
+  }
   if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
     payload.roomBoardConfig = cloneData(opts.roomBoardConfig, h);
   }
@@ -189,6 +208,10 @@ function buildJoinRoomPayload(
   }
 
   const deckCode = appendOptionalDeckCode(payload, opts.deckCode, h);
+  const roomPassword = normalizeRoomPassword(opts.roomPassword);
+  if (roomPassword) {
+    payload.roomPassword = roomPassword;
+  }
   const storedClaim = typeof h.readSeatClaim === 'function' ? h.readSeatClaim(normalizedRoomId) : null;
   let usedStoredClaim = false;
   if (storedClaim && typeof storedClaim === 'object') {
@@ -222,12 +245,17 @@ function buildJoinRetryPayload(entry: MatchEntryPayloadResult | Record<string, u
   if (deckCode) {
     retryPayload.deckCode = deckCode;
   }
+  const roomPassword = normalizeRoomPassword(payload.roomPassword);
+  if (roomPassword) {
+    retryPayload.roomPassword = roomPassword;
+  }
   return retryPayload;
 }
 
 const MatchEntryPayload = {
   normalizePlayerName,
   normalizeRoomId,
+  normalizeRoomPassword,
   resolveDeckCode,
   buildCreateRoomPayload,
   buildJoinRoomPayload,

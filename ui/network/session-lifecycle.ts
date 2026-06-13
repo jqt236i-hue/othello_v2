@@ -36,7 +36,7 @@ function createNetworkSessionLifecycleController(config: any): any {
 
   function emitMatchApiMissing(): void {
     if (typeof cfg.emitStatus === 'function') {
-      cfg.emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
+      cfg.emitStatus('ネット対戦: サーバーに接続できません', true);
     }
   }
 
@@ -44,6 +44,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     return {
       normalizePlayerName: cfg.normalizePlayerName,
       normalizeRoomId: cfg.normalizeRoomId,
+      createRandomPlayerName: cfg.createRandomPlayerName,
       sanitizeDeckCode: cfg.sanitizeDeckCode,
       cloneData: cfg.cloneData,
       readSelectedHandSkinId: cfg.readSelectedHandSkinId,
@@ -93,6 +94,12 @@ function createNetworkSessionLifecycleController(config: any): any {
       emitDeckCodeInvalid();
       return { ok: false, reason: 'DECK_CODE_INVALID' };
     }
+    if (res.data && res.data.reason === 'ROOM_PASSWORD_INVALID') {
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus('パスワードが違います', true);
+      }
+      return { ok: false, reason: 'ROOM_PASSWORD_INVALID' };
+    }
     if (typeof cfg.emitStatus === 'function') {
       cfg.emitStatus(opts.fallbackMessage, true);
     }
@@ -135,16 +142,46 @@ function createNetworkSessionLifecycleController(config: any): any {
     openStream();
 
     const state = readState();
+    const roomName = String(res.data.roomName || entryPayload.payload.roomName || '無名部屋');
     if (typeof cfg.emitStatus === 'function') {
-      cfg.emitStatus('ネット対戦: 部屋 ' + state.roomId + ' を作成（' + (state.seatKey === 'black' ? '黒' : '白') + '）');
+      cfg.emitStatus('ネット対戦: ルーム「' + roomName + '」を作成（' + (state.seatKey === 'black' ? '黒' : '白') + '）');
     }
 
     return {
       ok: true,
       roomId: state.roomId,
+      roomName,
       seatKey: state.seatKey,
       playerName: entryPayload.playerName,
       networkDebugEnabled: state.networkDebugEnabled === true
+    };
+  }
+
+  async function listRooms(options?: any): Promise<any> {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
+      cfg.setServerUrl(opts.serverUrl);
+    }
+
+    const res = await cfg.requestJson('GET', '/api/match/list');
+    if (!res.ok || !res.data || res.data.ok !== true) {
+      if (typeof cfg.isMatchApiMissing === 'function' && cfg.isMatchApiMissing(res)) {
+        emitMatchApiMissing();
+        return { ok: false, reason: 'MATCH_API_NOT_FOUND', rooms: [] };
+      }
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus('ルーム一覧の取得に失敗しました', true);
+      }
+      return {
+        ok: false,
+        reason: (res.data && res.data.reason) || 'ROOM_LIST_FAILED',
+        rooms: []
+      };
+    }
+
+    return {
+      ok: true,
+      rooms: Array.isArray(res.data.rooms) ? res.data.rooms : []
     };
   }
 
@@ -189,13 +226,15 @@ function createNetworkSessionLifecycleController(config: any): any {
     openStream();
 
     const state = readState();
+    const roomName = String(res.data.roomName || 'ルーム');
     if (typeof cfg.emitStatus === 'function') {
-      cfg.emitStatus('ネット対戦: 部屋 ' + state.roomId + ' ' + (res.data.rejoined ? 'へ再参加' : 'に参加') + '（' + (state.seatKey === 'black' ? '黒' : '白') + '）');
+      cfg.emitStatus('ネット対戦: ルーム「' + roomName + '」' + (res.data.rejoined ? 'へ再参加' : 'に参加') + '（' + (state.seatKey === 'black' ? '黒' : '白') + '）');
     }
 
     return {
       ok: true,
       roomId: state.roomId,
+      roomName,
       seatKey: state.seatKey,
       playerName: entryPayload.playerName,
       networkDebugEnabled: state.networkDebugEnabled === true
@@ -357,6 +396,7 @@ function createNetworkSessionLifecycleController(config: any): any {
   return {
     createRoom: createRoom,
     joinRoom: joinRoom,
+    listRooms: listRooms,
     syncLatestState: syncLatestState,
     leaveRoom: leaveRoom
   };

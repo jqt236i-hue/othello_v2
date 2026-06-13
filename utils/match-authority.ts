@@ -835,6 +835,12 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
         serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
     };
 
+    if (Object.prototype.hasOwnProperty.call(opts, 'roomName')) {
+        payload.roomName = String(opts.roomName || '').trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'createdAt')) {
+        payload.createdAt = Number.isFinite(Number(opts.createdAt)) ? Math.trunc(Number(opts.createdAt)) : null;
+    }
     if (Object.prototype.hasOwnProperty.call(opts, 'stateVersion')) {
         payload.stateVersion = normalizeStateVersion(opts.stateVersion);
     }
@@ -924,6 +930,12 @@ function buildRoomPayloadFromRoom(
     const hasRoomSeats = room.seats && typeof room.seats === 'object';
     if (!Object.prototype.hasOwnProperty.call(source, 'roomId') && room.roomId) {
         source.roomId = room.roomId;
+    }
+    if (!Object.prototype.hasOwnProperty.call(source, 'roomName')) {
+        source.roomName = room.roomName || '';
+    }
+    if (!Object.prototype.hasOwnProperty.call(source, 'createdAt') && Number.isFinite(Number(room.createdAt))) {
+        source.createdAt = room.createdAt;
     }
     if (!Object.prototype.hasOwnProperty.call(source, 'seats') && hasRoomSeats) {
         source.seats = room.seats;

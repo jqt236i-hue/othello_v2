@@ -26,6 +26,7 @@ export interface DurableObjectStateLike {
         get(key: string): Promise<unknown> | unknown;
         put(key: string, value: unknown): Promise<void> | void;
         delete(key: string): Promise<boolean | void> | boolean | void;
+        getAlarm?(): Promise<number | Date | null> | number | Date | null;
         setAlarm?(value: number | Date): Promise<void> | void;
         deleteAlarm?(): Promise<void> | void;
     };
@@ -260,6 +261,7 @@ export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     initialDeckSpec?: unknown;
     initialDeckSpecByPlayer?: unknown;
     roomDeck?: unknown;
+    roomName?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: unknown;
 }

@@ -66,36 +66,23 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const PlaybackStateModule = resolveNetworkClientModule('./playback-state-manager', root.PlaybackStateManager || null);
-    const PendingCoordinatorModule = resolveNetworkClientModule('../game/turn/pending-coordinator', root.PendingCoordinator || null);
-    const PendingStateManagerModule = resolveNetworkClientModule('../game/logic/cards-internal/pending-state-manager', root.CardPendingStateManager || null);
+    const NetworkGameContractAdapterModule = resolveNetworkClientModule('./network/game-contract-adapter', root.NetworkGameContractAdapter || null);
     const ResultOverlayModule = resolveNetworkClientModule('./result-overlay', root || null);
+    const NetworkGameContract = NetworkGameContractAdapterModule
+        && typeof NetworkGameContractAdapterModule.createNetworkGameContractAdapter === 'function'
+        ? NetworkGameContractAdapterModule.createNetworkGameContractAdapter({ root })
+        : null;
 
     function resolvePendingSelectionContract(cardType: any) {
-        if (!cardType) return null;
-        try {
-            if (PendingCoordinatorModule && typeof PendingCoordinatorModule.getPendingSelectionContract === 'function') {
-                const contract = PendingCoordinatorModule.getPendingSelectionContract(cardType);
-                if (contract && typeof contract === 'object') return contract;
-            }
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (PendingStateManagerModule && typeof PendingStateManagerModule.resolvePendingSelectionContract === 'function') {
-                const contract = PendingStateManagerModule.resolvePendingSelectionContract(cardType);
-                if (contract && typeof contract === 'object') return contract;
-            }
-        } catch (e: any) { /* ignore */ }
-        return null;
+        return NetworkGameContract && typeof NetworkGameContract.getPendingSelectionContract === 'function'
+            ? NetworkGameContract.getPendingSelectionContract(cardType)
+            : null;
     }
 
     function shouldDeferNetworkPublishForPendingType(cardType: any) {
-        if (!cardType) return false;
-        try {
-            if (PendingCoordinatorModule && typeof PendingCoordinatorModule.shouldDeferNetworkPublishForPendingType === 'function') {
-                return PendingCoordinatorModule.shouldDeferNetworkPublishForPendingType(cardType) === true;
-            }
-        } catch (e: any) { /* ignore */ }
-        const contract = resolvePendingSelectionContract(cardType);
-        return !!(contract && contract.deferNetworkPublish === true);
+        return NetworkGameContract && typeof NetworkGameContract.shouldDeferNetworkPublishForPendingType === 'function'
+            ? NetworkGameContract.shouldDeferNetworkPublishForPendingType(cardType) === true
+            : false;
     }
 
     function syncPendingSelectionActionCache(pendingEffectByPlayer: any) {
@@ -111,18 +98,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 syncOptions.preservePlayerKeys = [normalizePlayerKey(state.seatKey)];
             }
         } catch (e: any) { /* ignore */ }
-        try {
-            if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
-                return PendingCoordinatorModule.syncPendingSelectionActionCache(
-                    pendingEffectByPlayer,
-                    syncOptions.preservePlayerKeys ? syncOptions : undefined
-                );
-            }
-        } catch (e: any) { /* ignore */ }
-        return {
-            cleared: [],
-            retained: []
-        };
+        return NetworkGameContract && typeof NetworkGameContract.syncPendingSelectionActionCache === 'function'
+            ? NetworkGameContract.syncPendingSelectionActionCache(
+                pendingEffectByPlayer,
+                syncOptions.preservePlayerKeys ? syncOptions : undefined
+            )
+            : {
+                cleared: [],
+                retained: []
+            };
     }
 
     function createInitialResultPresentationState() {
@@ -686,7 +670,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             root,
             isActive: () => state.active,
             normalizePlayerKey,
-            cardLogicModule: resolveCardLogicModule(),
+            resolveCardTypeForId: (cardId: any) => (
+                NetworkGameContract && typeof NetworkGameContract.resolveCardTypeForId === 'function'
+                    ? NetworkGameContract.resolveCardTypeForId(cardId)
+                    : null
+            ),
+            getPendingEffectType: (cardStateValue: any, playerKey: any) => (
+                NetworkGameContract && typeof NetworkGameContract.getPendingEffectType === 'function'
+                    ? NetworkGameContract.getPendingEffectType(cardStateValue, playerKey, normalizePlayerKey)
+                    : null
+            ),
             queueCommandPublish: (playerKey: any, action: any, options: any) => queueCommandPublish(playerKey, action, options),
             shouldDeferNetworkPublishForPendingType
         });
@@ -1315,7 +1308,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return moduleRef.buildPublishCommandPayload(info, {
             playerKey,
             normalizePlayerKey,
-            pendingCoordinator: PendingCoordinatorModule,
+            applyPendingSelectionCardContext: NetworkGameContract && typeof NetworkGameContract.applyPendingSelectionCardContext === 'function'
+                ? NetworkGameContract.applyPendingSelectionCardContext
+                : null,
             includePlayerParam: true
         });
     }
@@ -2155,6 +2150,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
+    function listRooms(options: any) {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'listRooms',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE', rooms: [] })
+        );
+    }
+
     function syncLatestState() {
         return invokeControllerMethod(
             getNetworkSessionLifecycleController,
@@ -2290,6 +2294,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function getRoomBoardConfig() {
+        if (!isActive()) {
+            return null;
+        }
         if (state.roomBoardConfig && typeof state.roomBoardConfig === 'object') {
             return cloneReadableNetworkStateValue(state.roomBoardConfig, null);
         }
@@ -2442,6 +2449,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         updateHandSkin,
         createRoom,
         joinRoom,
+        listRooms,
         leaveRoom,
         syncLatestState,
         publishCommand,

@@ -13,6 +13,7 @@ const SubPlacementContinuation = require('../game/turn/sub-placement-continuatio
 const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
+const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
 const PlaybackEventHelpers = require('../shared/playback-event-helpers');
 const DeckCodecModule = require('../shared/deck-codec');
@@ -1031,6 +1032,27 @@ function closeSeatStreams(room: any, seatKey: any) {
     stopHeartbeatLoopIfIdle();
 }
 
+function closeRoomStreams(room: any) {
+    if (!room || !room.streams) return;
+    for (const [streamId, streamInfo] of Array.from(room.streams.entries()) as any[]) {
+        room.streams.delete(streamId);
+        try { streamInfo.res.end(); } catch (e) { /* ignore */ }
+    }
+    stopHeartbeatLoopIfIdle();
+}
+
+function deleteRoom(roomId: string, room: any) {
+    closeRoomStreams(room);
+    rooms.delete(roomId);
+}
+
+function disposeExpiredWaitingRooms(nowMs = Date.now()) {
+    for (const [roomId, room] of Array.from(rooms.entries()) as any[]) {
+        if (!MatchRoomLobby.isWaitingRoomExpired(room, nowMs)) continue;
+        deleteRoom(roomId, room);
+    }
+}
+
 function broadcastChat(room: any, payload: any) {
     if (!room) return;
     const eventId = nextSseEventId(room);
@@ -1056,7 +1078,8 @@ function makeRoom(options: any) {
         roomId = makeRoomId();
     }
 
-    const seed = Date.now();
+    const nowMs = Date.now();
+    const seed = nowMs;
     const initialSnapshotOptions: any = buildInitialDeckSnapshotOptions(opts);
     const snapshot = makeInitialSnapshot(seed, initialSnapshotOptions);
     const room = {
@@ -1069,6 +1092,8 @@ function makeRoom(options: any) {
         seatNames: { black: '', white: '' },
         seatHandSkins: { black: '', white: '' },
         seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
+        roomName: MatchRoomLobby.resolveRoomName(opts.roomName),
+        roomPassword: MatchRoomLobby.normalizeRoomPassword(opts.roomPassword),
         roomDeck: null,
         roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: opts.networkDebugEnabled === true,
@@ -1080,7 +1105,8 @@ function makeRoom(options: any) {
         chatMessages: [],
         chatSeq: 0,
         streams: new Map(),
-        updatedAt: Date.now()
+        createdAt: nowMs,
+        updatedAt: nowMs
     };
     rooms.set(roomId, room);
     return room;
@@ -1161,22 +1187,19 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
 
 async function handleCreate(req: any, res: any) {
     const body = await parseBody(req);
-    const playerName = normalizeNetworkPlayerName(body.playerName);
+    const playerName = normalizeNetworkPlayerName(body.playerName) || MatchRoomLobby.createRandomPlayerName();
     const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
     const networkDebugEnabled = body.networkDebugEnabled === true;
+    const roomName = MatchRoomLobby.resolveRoomName(body.roomName);
+    const roomPassword = MatchRoomLobby.normalizeRoomPassword(body.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(body.roomBoardConfig);
-    if (!playerName) {
-        writeJson(res, 400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
-        return;
-    }
-
     const deckSelection = resolveDeckSelection(body.deckCode);
     if (!deckSelection.ok) {
         writeJson(res, 400, { ok: false, reason: deckSelection.reason || 'DECK_CODE_INVALID' });
         return;
     }
 
-    const room = makeRoom({ networkDebugEnabled, roomBoardConfig });
+    const room = makeRoom({ networkDebugEnabled, roomBoardConfig, roomName, roomPassword });
     room.seats.black = true;
     room.seatNames.black = playerName;
     room.seatHandSkins.black = selectedHandSkinId;
@@ -1218,6 +1241,12 @@ async function handleJoin(req: any, res: any) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
+    const existingRoom = rooms.get(roomId);
+    if (MatchRoomLobby.isWaitingRoomExpired(existingRoom, Date.now())) {
+        deleteRoom(roomId, existingRoom);
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
 
     const deckSelection = resolveDeckSelection(body.deckCode);
     if (!deckSelection.ok) {
@@ -1226,6 +1255,11 @@ async function handleJoin(req: any, res: any) {
     }
 
     const room = rooms.get(roomId);
+    const authenticatedSeatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, providedToken);
+    if (!authenticatedSeatKey && !MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
+        writeJson(res, 403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
+        return;
+    }
     const seatKey = resolveSeatForJoin(room, requestedSeatKey, providedToken);
     if (!seatKey) {
         writeJson(res, 409, { ok: false, reason: 'ROOM_FULL' });
@@ -1297,6 +1331,17 @@ async function handleJoin(req: any, res: any) {
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     }));
+}
+
+function handleList(_req: any, res: any) {
+    const nowMs = Date.now();
+    disposeExpiredWaitingRooms(nowMs);
+    const roomsList = MatchRoomLobby.sortRoomListEntries(
+        Array.from(rooms.values())
+            .map((room) => MatchRoomLobby.toPublicRoomListEntry(room, { nowMs }))
+            .filter(Boolean)
+    );
+    writeJson(res, 200, { ok: true, rooms: roomsList });
 }
 
 async function handleLeave(req: any, res: any) {
@@ -1893,6 +1938,11 @@ function createLocalMatchServer() {
 
             if (req.method === 'GET' && pathname === '/api/match/state') {
                 handleState(req, res, urlObj);
+                return;
+            }
+
+            if (req.method === 'GET' && pathname === '/api/match/list') {
+                handleList(req, res);
                 return;
             }
 

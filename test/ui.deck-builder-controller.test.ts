@@ -208,6 +208,58 @@ describe('deck builder controller', () => {
     expect(firstCard.dataset.cardType).toBeTruthy();
   });
 
+  test('固定プリセットデッキをデフォルトデッキの右側に集約して使用できる', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
+    const body = document.getElementById('body');
+
+    const controller = createDeckBuilderController({
+      root: window,
+      refs: {
+        openBtn: document.getElementById('openBtn'),
+        controlSummary: document.getElementById('summary'),
+        overlay: document.getElementById('overlay'),
+        closeBtn: document.getElementById('closeBtn'),
+        headerSummary: document.getElementById('header'),
+        body
+      }
+    });
+
+    controller.open();
+
+    const defaultRow = body.querySelector('.deck-builder-default-preset-row');
+    expect(defaultRow).toBeTruthy();
+    expect(defaultRow.querySelector('.deck-builder-standard-card .deck-builder-preset-title').textContent).toBe('デフォルトデッキ');
+
+    const builtInSection = defaultRow.querySelector('.deck-builder-built-in-preset-section');
+    expect(builtInSection).toBeTruthy();
+    const builtInCards = Array.from(builtInSection.querySelectorAll('.deck-builder-built-in-preset-grid .deck-builder-preset-card'));
+    expect(builtInCards.map((card) => card.querySelector('.deck-builder-preset-title').textContent)).toEqual([
+      '観測デッキ',
+      '執行デッキ',
+      '理論デッキ'
+    ]);
+
+    const presetGrids = Array.from(body.querySelectorAll('.deck-builder-preset-grid'));
+    const presetGrid = presetGrids[presetGrids.length - 1];
+    expect(presetGrid).toBeTruthy();
+    expect(defaultRow.compareDocumentPosition(presetGrid) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const theoryCard = builtInCards[2];
+    const buttons = Array.from(theoryCard.querySelectorAll('button'));
+    expect(buttons.map((button) => button.textContent)).toEqual(['使用']);
+    buttons[0].click();
+
+    expect(controller.getActiveLocalChoice()).toMatchObject({
+      source: 'built-in-preset',
+      mode: 'custom',
+      name: '理論デッキ',
+      deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
+      presetId: 'theory'
+    });
+    expect(document.getElementById('summary').textContent).toBe('理論デッキ / 30枚');
+  });
+
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {
     const DeckSpecHelpers = require('../shared/deck-spec.js');
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');

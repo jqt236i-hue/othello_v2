@@ -105,6 +105,38 @@ describe('match worker api controller', () => {
     expect(seen[0].url).toContain('seatKey=white');
   });
 
+  test('match list GET は lobby durable object へ転送する', async () => {
+    const seen: Array<{ roomId: string; url: string }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      lobbyRoomId: '__match_lobby__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    } as any);
+
+    const env = createEnv((roomId, request) => {
+      seen.push({ roomId, url: request.url });
+      return jsonResponse(200, { ok: true, rooms: [] });
+    });
+
+    const response = await controller.handleMatchApi(
+      new Request('https://worker/api/match/list', { method: 'GET' }),
+      env as any
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-Test-Cors')).toBe('1');
+    expect(seen).toEqual([
+      {
+        roomId: '__match_lobby__',
+        url: 'https://room/api/match/list'
+      }
+    ]);
+  });
+
   test('leaderboard submit は leaderboard durable object へ転送する', async () => {
     const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
     const controller = createMatchWorkerApiController({
