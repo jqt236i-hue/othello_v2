@@ -17,6 +17,10 @@ describe('UI bootstrap early CPU registration', () => {
     try { delete global.PlaybackStateManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.showResult; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.isProcessing; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.MATCH_MODE; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.getCurrentMatchMode; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.customRuntimeFn; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.__runtimeOwnValueForTest; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {
@@ -73,6 +77,46 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof setTurnPipelinePhasesRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     // Also mirrors to globalThis for legacy fallback
     expect(typeof global.processCpuTurn === 'function' || typeof globalThis.processCpuTurn === 'function').toBe(true);
+  });
+
+  test('installGameDI runtime readers prefer registered globals and own globalThis values', () => {
+    const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuUIImpl: jest.fn() };
+    const setPassHandlerRuntime = jest.fn();
+    jest.doMock('../game/cpu-turn-handler', () => mockCpu);
+    jest.doMock('../game/pass-handler', () => ({
+      setPassHandlerRuntime,
+      setPlaybackStateManager: jest.fn(),
+      setNetworkMatchClient: jest.fn()
+    }));
+    jest.doMock('../game/cpu-decision', () => ({
+      setCpuDecisionRuntime: jest.fn(),
+      selectMoveFromOnnxPolicyAsync: jest.fn()
+    }));
+    jest.doMock('../game/turn/turn_pipeline_phases', () => ({
+      setTurnPipelinePhasesRuntime: jest.fn()
+    }));
+
+    const uiBoot = require('../ui/bootstrap.js');
+    const registeredFn = jest.fn();
+    const globalFn = jest.fn();
+    uiBoot.registerUIGlobals({ customRuntimeFn: registeredFn });
+    global.customRuntimeFn = globalFn;
+    global.MATCH_MODE = 'local';
+    global.getCurrentMatchMode = jest.fn(() => 'network');
+    global.__runtimeOwnValueForTest = { source: 'own' };
+
+    uiBoot.installGameDI();
+
+    const cpuRuntime = mockCpu.setCpuUIImpl.mock.calls[0][0];
+    const passRuntime = setPassHandlerRuntime.mock.calls[0][0];
+    expect(cpuRuntime.readMatchMode()).toBe('network');
+    expect(global.getCurrentMatchMode).toHaveBeenCalledTimes(1);
+    expect(cpuRuntime.resolveRuntimeFunction('customRuntimeFn')).toBe(registeredFn);
+    expect(passRuntime.resolveRuntimeFunction('customRuntimeFn')).toBe(registeredFn);
+    expect(cpuRuntime.resolveRuntimeFunction('missingRuntimeFn')).toBeNull();
+    expect(cpuRuntime.resolveRuntimeValue('__runtimeOwnValueForTest')).toEqual({ source: 'own' });
+    expect(Object.prototype.hasOwnProperty.call(globalThis, 'toString')).toBe(false);
+    expect(cpuRuntime.resolveRuntimeValue('toString')).toBeUndefined();
   });
 
   test('classic-script installGameDI wires pending selection bridge through globals when require is unavailable', () => {
