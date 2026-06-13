@@ -322,6 +322,7 @@ const CpuDecisionPendingScoreModule = requireCpuDecisionModuleOrNull('./cpu-deci
 const CpuDecisionPendingOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-onnx');
 const CpuDecisionOnnxMoveModule = requireCpuDecisionModuleOrNull('./cpu-decision-onnx-move');
 const CpuDecisionPlacementPriorityModule = requireCpuDecisionModuleOrNull('./cpu-decision-placement-priority');
+const CpuDecisionPublicApiModule = requireCpuDecisionModuleOrNull('./cpu-decision-public-api');
 const CpuDecisionCardActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-actions');
 const CpuDecisionCardPipelineModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-pipeline');
 const CpuDecisionPendingPipelineModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-pipeline');
@@ -3683,7 +3684,7 @@ function computeCpuAction(playerKey: any): any {
 
 // Node.js環境用エクスポート
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
+    const cpuDecisionPublicApi = {
         cpuMaybeDestroyHandCardWithPolicy,
         cpuMaybeUseCardWithPolicy,
         selectHandCardToDestroy,
@@ -3732,6 +3733,9 @@ if (typeof module !== 'undefined' && module.exports) {
         setCpuExecutionMode,
         setCpuDecisionRuntime
     };
+    module.exports = CpuDecisionPublicApiModule && typeof CpuDecisionPublicApiModule.assertCpuDecisionPublicApi === 'function'
+        ? CpuDecisionPublicApiModule.assertCpuDecisionPublicApi(cpuDecisionPublicApi)
+        : cpuDecisionPublicApi;
 }
 
 // Register via UIBootstrap when available for legacy global access at the UI boundary.
