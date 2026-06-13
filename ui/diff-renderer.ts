@@ -1007,6 +1007,10 @@ var StoneInfoPanelModule: any = null;
 if (typeof require === 'function') {
     try { StoneInfoPanelModule = require('./diff-renderer/stone-info-panel'); } catch (e: any) { /* ignore */ }
 }
+var SpecialMarkerRendererModule: any = null;
+if (typeof require === 'function') {
+    try { SpecialMarkerRendererModule = require('./diff-renderer/special-marker-renderer'); } catch (e: any) { /* ignore */ }
+}
 var PlaybackStateModule: any = null;
 if (typeof require === 'function') {
     try { PlaybackStateModule = require('./playback-state-manager'); } catch (e: any) { /* ignore */ }
@@ -1022,6 +1026,17 @@ function _isVisualPlaybackActiveForDiff() {
         return PlaybackStateModule.getPlaybackActive() === true;
     }
     return false;
+}
+
+function _createSpecialMarkerRendererForDiff() {
+    if (typeof document === 'undefined') return null;
+    if (SpecialMarkerRendererModule && typeof SpecialMarkerRendererModule.createSpecialMarkerRenderer === 'function') {
+        return SpecialMarkerRendererModule.createSpecialMarkerRenderer({
+            documentRef: document,
+            applyDoubleDigitTimerClass: _applyDoubleDigitTimerClassForDiff
+        });
+    }
+    return null;
 }
 
 function _consumeBoardUpdateContextForDiff() {
@@ -3110,6 +3125,7 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
     const boardShape = _getBoardShapeForDiff(_resolveGameStateForDiffRender());
     const isExpansionCell = _isExpansionCoordinateForDiff(row, col, boardShape);
     const expansionSide = _resolveExpansionSideForDiff(state && state.side ? state.side : null, row, col, boardShape);
+    const markerRenderer = _createSpecialMarkerRendererForDiff();
 
     // If a destroy-fade is actively running on this disc, skip re-rendering this cell
     // so we don't interrupt the disappearance animation.
@@ -3224,52 +3240,37 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
         if (blockedType === 'METEOR_HOLE') {
             if (blockedVisualVariant === 'BOARD_FRAME') {
                 cell.classList.add('board-shrink-hole-cell');
-                const holeMark = document.createElement('div');
-                holeMark.className = 'board-shrink-hole-mark';
                 const innerBoundaryMask = typeof state.blockade.innerBoundaryMask === 'string'
                     ? state.blockade.innerBoundaryMask.split(',').map((edge: any) => String(edge || '').trim()).filter((edge: any) => !!edge)
                     : [];
-                for (const edge of innerBoundaryMask) {
-                    const edgeEl = document.createElement('div');
-                    edgeEl.className = `board-shrink-hole-inner-edge inner-edge-${edge}`;
-                    holeMark.appendChild(edgeEl);
-                }
+                const holeMark = markerRenderer
+                    ? markerRenderer.createHoleMark('board-shrink', innerBoundaryMask)
+                    : document.createElement('div');
+                if (!markerRenderer) holeMark.className = 'board-shrink-hole-mark';
                 cell.appendChild(holeMark);
             } else {
                 cell.classList.add('meteor-hole-cell');
-                const holeMark = document.createElement('div');
-                holeMark.className = 'meteor-hole-mark';
+                const holeMark = markerRenderer
+                    ? markerRenderer.createHoleMark('meteor')
+                    : document.createElement('div');
+                if (!markerRenderer) holeMark.className = 'meteor-hole-mark';
                 cell.appendChild(holeMark);
             }
         } else {
-            const blockadeMark = document.createElement('div');
-            blockadeMark.className = 'blockade-mark';
-            const remain = Number(state.blockade.remainingOwnerTurns);
-            if (Number.isFinite(remain)) {
-                const turnLabel = document.createElement('div');
-                turnLabel.className = 'blockade-turn';
-                turnLabel.textContent = String(Math.max(0, remain));
-                blockadeMark.appendChild(turnLabel);
-            }
+            const blockadeMark = markerRenderer
+                ? markerRenderer.createBlockadeMark(state.blockade.remainingOwnerTurns)
+                : document.createElement('div');
+            if (!markerRenderer) blockadeMark.className = 'blockade-mark';
             cell.appendChild(blockadeMark);
         }
     }
 
     if (state.seed && state.value === EMPTY && !state.blockade) {
         cell.classList.add('seeded-cell');
-        const seedMark = document.createElement('div');
-        seedMark.className = 'seed-mark';
-        const seedIcon = document.createElement('div');
-        seedIcon.className = 'seed-icon';
-        seedMark.appendChild(seedIcon);
-        const remain = Number(state.seed.remainingOwnerTurns);
-        if (Number.isFinite(remain)) {
-            const turnLabel = document.createElement('div');
-            turnLabel.className = 'seed-turn countdown-timer';
-            turnLabel.textContent = String(Math.max(0, Math.trunc(remain)));
-            _applyDoubleDigitTimerClassForDiff(turnLabel, remain);
-            seedMark.appendChild(turnLabel);
-        }
+        const seedMark = markerRenderer
+            ? markerRenderer.createSeedMark(state.seed.remainingOwnerTurns)
+            : document.createElement('div');
+        if (!markerRenderer) seedMark.className = 'seed-mark';
         cell.appendChild(seedMark);
     }
 
@@ -3278,9 +3279,13 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
         if (state.theoryNumberCell) {
             cell.classList.add('has-theory-number-cell');
         }
-        const bonusLabel = document.createElement('div');
-        bonusLabel.className = 'board-bonus-number';
-        bonusLabel.textContent = String(state.boardBonus);
+        const bonusLabel = markerRenderer
+            ? markerRenderer.createBonusLabel(state.boardBonus)
+            : document.createElement('div');
+        if (!markerRenderer) {
+            bonusLabel.className = 'board-bonus-number';
+            bonusLabel.textContent = String(state.boardBonus);
+        }
         cell.appendChild(bonusLabel);
     }
 
@@ -3351,31 +3356,44 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
 
             // Add timer for effects with remaining turns
             if (state.special.remainingOwnerTurns !== undefined) {
-                const timer = document.createElement('div');
-                timer.className = (specialStatusSnapshot && specialStatusSnapshot.timerClass)
+                const timerClass = (specialStatusSnapshot && specialStatusSnapshot.timerClass)
                     ? specialStatusSnapshot.timerClass
                     : 'special-timer';
                 const remaining = Math.max(0, Math.trunc(Number(state.special.remainingOwnerTurns)));
-                timer.textContent = String(remaining);
-                _applyDoubleDigitTimerClassForDiff(timer, remaining);
+                const timer = markerRenderer
+                    ? markerRenderer.createTimedMarkerLabel(timerClass, remaining)
+                    : document.createElement('div');
+                if (!markerRenderer) {
+                    timer.className = timerClass;
+                    timer.textContent = String(remaining);
+                    _applyDoubleDigitTimerClassForDiff(timer, remaining);
+                }
                 discHud.appendChild(timer);
             }
 
             if (canShowSpecialFlipEvade) {
-                const evadeTimer = document.createElement('div');
-                evadeTimer.className = 'stone-timer flip-evade-timer';
                 const specialEvadeRemaining = Math.max(0, Math.trunc(state.special.flipEvadeRemaining));
-                evadeTimer.textContent = String(specialEvadeRemaining);
-                _applyDoubleDigitTimerClassForDiff(evadeTimer, specialEvadeRemaining);
+                const evadeTimer = markerRenderer
+                    ? markerRenderer.createTimedMarkerLabel('stone-timer flip-evade-timer', specialEvadeRemaining)
+                    : document.createElement('div');
+                if (!markerRenderer) {
+                    evadeTimer.className = 'stone-timer flip-evade-timer';
+                    evadeTimer.textContent = String(specialEvadeRemaining);
+                    _applyDoubleDigitTimerClassForDiff(evadeTimer, specialEvadeRemaining);
+                }
                 discHud.appendChild(evadeTimer);
             }
 
             if (canShowDestroyEvade) {
-                const destroyEvadeTimer = document.createElement('div');
-                destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
                 const destroyEvadeRemaining = Math.max(0, Math.trunc(state.special.destroyEvadeRemaining));
-                destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
-                _applyDoubleDigitTimerClassForDiff(destroyEvadeTimer, destroyEvadeRemaining);
+                const destroyEvadeTimer = markerRenderer
+                    ? markerRenderer.createTimedMarkerLabel('stone-timer destroy-evade-timer', destroyEvadeRemaining)
+                    : document.createElement('div');
+                if (!markerRenderer) {
+                    destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
+                    destroyEvadeTimer.textContent = String(destroyEvadeRemaining);
+                    _applyDoubleDigitTimerClassForDiff(destroyEvadeTimer, destroyEvadeRemaining);
+                }
                 discHud.appendChild(destroyEvadeTimer);
             }
         }
@@ -3395,20 +3413,28 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
                 applyStoneVisualEffect(disc, 'timeBombStone', { owner: state.bomb.owner });
             }
             disc.classList.add('bomb', 'special-stone', bombOwnerClass);
-            const timeLabel = document.createElement('div');
-            timeLabel.className = 'bomb-timer countdown-timer';
             const bombRemaining = Math.max(0, Math.trunc(Number(state.bomb.remainingTurns)));
-            timeLabel.textContent = String(bombRemaining);
-            _applyDoubleDigitTimerClassForDiff(timeLabel, bombRemaining);
+            const timeLabel = markerRenderer
+                ? markerRenderer.createTimedMarkerLabel('bomb-timer countdown-timer', bombRemaining)
+                : document.createElement('div');
+            if (!markerRenderer) {
+                timeLabel.className = 'bomb-timer countdown-timer';
+                timeLabel.textContent = String(bombRemaining);
+                _applyDoubleDigitTimerClassForDiff(timeLabel, bombRemaining);
+            }
             discHud.appendChild(timeLabel);
         }
 
         if (state.guard && typeof state.guard.remainingOwnerTurns === 'number') {
-            const guardTimer = document.createElement('div');
-            guardTimer.className = 'guard-timer';
             const guardRemaining = Math.max(0, Math.trunc(state.guard.remainingOwnerTurns));
-            guardTimer.textContent = String(guardRemaining);
-            _applyDoubleDigitTimerClassForDiff(guardTimer, guardRemaining);
+            const guardTimer = markerRenderer
+                ? markerRenderer.createGuardTimerLabel(guardRemaining)
+                : document.createElement('div');
+            if (!markerRenderer) {
+                guardTimer.className = 'guard-timer';
+                guardTimer.textContent = String(guardRemaining);
+                _applyDoubleDigitTimerClassForDiff(guardTimer, guardRemaining);
+            }
             discHud.appendChild(guardTimer);
         }
 
@@ -3437,15 +3463,10 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
 
     if (state.frozen) {
         cell.classList.add('frozen-cell');
-        const freezeMark = document.createElement('div');
-        freezeMark.className = 'freeze-mark';
-        const remain = Number(state.frozen.remainingOwnerTurns);
-        if (Number.isFinite(remain)) {
-            const turnLabel = document.createElement('div');
-            turnLabel.className = 'freeze-turn';
-            turnLabel.textContent = String(Math.max(0, Math.trunc(remain)));
-            freezeMark.appendChild(turnLabel);
-        }
+        const freezeMark = markerRenderer
+            ? markerRenderer.createFreezeMark(state.frozen.remainingOwnerTurns)
+            : document.createElement('div');
+        if (!markerRenderer) freezeMark.className = 'freeze-mark';
         cell.appendChild(freezeMark);
     }
 }
