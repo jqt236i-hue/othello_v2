@@ -30,7 +30,7 @@
             manifestBgmKey: 'theory_incarnation_path',
             manifestBgmTrack: Object.freeze({
                 name: '理論の道',
-                file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3',
+                file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.wav',
                 loopStart: 0,
                 loopEnd: 28.444444
             })
