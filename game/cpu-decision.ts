@@ -37,16 +37,16 @@ function isAISystemAvailable(): any {
 function isCpuDebugEnabled(): any {
     try {
         if (
-            cpuDecisionRuntime &&
-            typeof cpuDecisionRuntime.isDebugLogAvailable === 'function' &&
-            cpuDecisionRuntime.isDebugLogAvailable() === true
+            getCpuDecisionRuntime() &&
+            typeof getCpuDecisionRuntime().isDebugLogAvailable === 'function' &&
+            getCpuDecisionRuntime().isDebugLogAvailable() === true
         ) {
             return true;
         }
     } catch (e) { /* ignore */ }
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function') {
-            const flag = cpuDecisionRuntime.readDebugFlag('DEBUG_CPU_LOG');
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().readDebugFlag === 'function') {
+            const flag = getCpuDecisionRuntime().readDebugFlag('DEBUG_CPU_LOG');
             if (flag === true) return true;
         }
     } catch (e) { /* ignore */ }
@@ -113,21 +113,32 @@ let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
 }
+let CpuDecisionRuntimeBoundaryModule: any = null;
+if (typeof require === 'function') {
+    try { CpuDecisionRuntimeBoundaryModule = _require('./cpu-decision-runtime'); } catch (e) { /* ignore */ }
+}
+const CpuDecisionRuntimeBoundary = CpuDecisionRuntimeBoundaryModule && typeof CpuDecisionRuntimeBoundaryModule.createCpuDecisionRuntimeBoundary === 'function'
+    ? CpuDecisionRuntimeBoundaryModule.createCpuDecisionRuntimeBoundary()
+    : null;
+
+function getCpuDecisionRuntime(): any {
+    return CpuDecisionRuntimeBoundary && typeof CpuDecisionRuntimeBoundary.getRuntime === 'function'
+        ? CpuDecisionRuntimeBoundary.getRuntime()
+        : null;
+}
 
 function readRuntimeModule(moduleKey: any): any {
-    try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readModule === 'function') {
-            const moduleRef = cpuDecisionRuntime.readModule(moduleKey);
-            if (moduleRef) return moduleRef;
-        }
-    } catch (e) { /* ignore */ }
+    if (CpuDecisionRuntimeBoundary && typeof CpuDecisionRuntimeBoundary.readRuntimeModule === 'function') {
+        return CpuDecisionRuntimeBoundary.readRuntimeModule(moduleKey);
+    }
     return null;
 }
 
 function resolveCpuSmartnessLevel(playerKey: any): number {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readCpuSmartness === 'function') {
-            const smartness = cpuDecisionRuntime.readCpuSmartness();
+        const runtime = getCpuDecisionRuntime();
+        if (runtime && typeof runtime.readCpuSmartness === 'function') {
+            const smartness = runtime.readCpuSmartness();
             const value = smartness && smartness[playerKey];
             if (Number.isFinite(Number(value))) {
                 return Math.max(1, Math.min(6, Math.floor(Number(value))));
@@ -634,26 +645,17 @@ function resolveOthelloBrowserCpuRuntime(): any {
 }
 
 function resolveCpuDecisionMatchMode(): string {
-    try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readMatchMode === 'function') {
-            const mode = String(cpuDecisionRuntime.readMatchMode() || '').trim().toLowerCase();
-            if (mode) return mode;
-        }
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.getCurrentMatchMode === 'function') {
-            const mode = String(cpuDecisionRuntime.getCurrentMatchMode() || '').trim().toLowerCase();
-            if (mode) return mode;
-        }
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.MATCH_MODE !== 'undefined') {
-            const mode = String(cpuDecisionRuntime.MATCH_MODE || '').trim().toLowerCase();
-            if (mode) return mode;
-        }
-    } catch (e) { /* ignore */ }
+    if (CpuDecisionRuntimeBoundary && typeof CpuDecisionRuntimeBoundary.resolveCpuDecisionMatchMode === 'function') {
+        return CpuDecisionRuntimeBoundary.resolveCpuDecisionMatchMode();
+    }
     return '';
 }
 
 function isOthelloModeForCpuDecision(): boolean {
-    const mode = resolveCpuDecisionMatchMode();
-    return mode === 'reversi' || mode === 'othello';
+    if (CpuDecisionRuntimeBoundary && typeof CpuDecisionRuntimeBoundary.isOthelloModeForCpuDecision === 'function') {
+        return CpuDecisionRuntimeBoundary.isOthelloModeForCpuDecision();
+    }
+    return false;
 }
 
 function resolveOthelloOnnxRuntime(): any {
@@ -676,10 +678,10 @@ function resolveOthelloOnnxRuntime(): any {
 
 function shouldUseOthelloOnnxRuntime(): boolean {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('CPU_DISABLE_OTHELLO_ONNX') === true) return false;
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().readDebugFlag === 'function' && getCpuDecisionRuntime().readDebugFlag('CPU_DISABLE_OTHELLO_ONNX') === true) return false;
     } catch (e) { /* ignore */ }
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('CPU_FORCE_OTHELLO_ONNX') === true) return true;
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().readDebugFlag === 'function' && getCpuDecisionRuntime().readDebugFlag('CPU_FORCE_OTHELLO_ONNX') === true) return true;
     } catch (e) { /* ignore */ }
     try {
         const qs = readCpuDecisionQuerySearch();
@@ -882,10 +884,10 @@ function createLookaheadPriorScoreFn(playerKey: any, level: any, legalMovesCount
 function resolveCpuLv6SharedProfile(): any {
     try {
         if (
-            cpuDecisionRuntime &&
-            typeof cpuDecisionRuntime.getCpuLv6SharedProfile === 'function'
+            getCpuDecisionRuntime() &&
+            typeof getCpuDecisionRuntime().getCpuLv6SharedProfile === 'function'
         ) {
-            const profile = cpuDecisionRuntime.getCpuLv6SharedProfile();
+            const profile = getCpuDecisionRuntime().getCpuLv6SharedProfile();
             if (profile && typeof profile === 'object') return profile;
         }
     } catch (e) { /* ignore */ }
@@ -938,10 +940,10 @@ function resolveCpuCurrentTurnNumber(): any {
 function resolveCpuLv6OnnxRuntimeGuardOverrides(): any {
     try {
         if (
-            cpuDecisionRuntime &&
-            typeof cpuDecisionRuntime.readCpuLv6OnnxRuntimeGuard === 'function'
+            getCpuDecisionRuntime() &&
+            typeof getCpuDecisionRuntime().readCpuLv6OnnxRuntimeGuard === 'function'
         ) {
-            const guard = cpuDecisionRuntime.readCpuLv6OnnxRuntimeGuard();
+            const guard = getCpuDecisionRuntime().readCpuLv6OnnxRuntimeGuard();
             if (guard && typeof guard === 'object') return guard;
         }
     } catch (e) { /* ignore */ }
@@ -951,10 +953,10 @@ function resolveCpuLv6OnnxRuntimeGuardOverrides(): any {
 function readLegacyPendingSelectionBudgetMs(): any {
     try {
         if (
-            cpuDecisionRuntime &&
-            typeof cpuDecisionRuntime.readCpuLv6PendingSelectionBudgetMs === 'function'
+            getCpuDecisionRuntime() &&
+            typeof getCpuDecisionRuntime().readCpuLv6PendingSelectionBudgetMs === 'function'
         ) {
-            return Number(cpuDecisionRuntime.readCpuLv6PendingSelectionBudgetMs());
+            return Number(getCpuDecisionRuntime().readCpuLv6PendingSelectionBudgetMs());
         }
     } catch (e) { /* ignore */ }
     return NaN;
@@ -1087,29 +1089,23 @@ function logCpuOnnxLatencyDegrade(level: any, playerKey: any, operationKey: any,
 let cpuExecutionMode = 'browser';
 function setCpuExecutionMode(mode: any): any { cpuExecutionMode = mode === 'headless' ? 'headless' : 'browser'; }
 
-let cpuDecisionRuntime: any = null;
 function setCpuDecisionRuntime(runtime: any): any {
-    if (!runtime || typeof runtime !== 'object') {
-        cpuDecisionRuntime = null;
-        return;
+    if (CpuDecisionRuntimeBoundary && typeof CpuDecisionRuntimeBoundary.setCpuDecisionRuntime === 'function') {
+        CpuDecisionRuntimeBoundary.setCpuDecisionRuntime(runtime);
     }
-    cpuDecisionRuntime = Object.assign({}, cpuDecisionRuntime || {}, runtime);
 }
 
 function readCpuDecisionQuerySearch(): string {
-    try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readQuerySearch === 'function') {
-            const qs = cpuDecisionRuntime.readQuerySearch();
-            return typeof qs === 'string' ? qs : String(qs || '');
-        }
-    } catch (e) { /* ignore */ }
+    if (CpuDecisionRuntimeBoundary && typeof CpuDecisionRuntimeBoundary.readCpuDecisionQuerySearch === 'function') {
+        return CpuDecisionRuntimeBoundary.readCpuDecisionQuerySearch();
+    }
     return '';
 }
 
 function emitCpuDecisionBoardUpdate(): any {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitBoardUpdate === 'function') {
-            cpuDecisionRuntime.emitBoardUpdate();
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().emitBoardUpdate === 'function') {
+            getCpuDecisionRuntime().emitBoardUpdate();
             return true;
         }
     } catch (e) { /* ignore */ }
@@ -1123,8 +1119,8 @@ function emitCpuDecisionBoardUpdate(): any {
 
 function emitCpuDecisionCardStateChange(): any {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitCardStateChange === 'function') {
-            cpuDecisionRuntime.emitCardStateChange();
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().emitCardStateChange === 'function') {
+            getCpuDecisionRuntime().emitCardStateChange();
             return true;
         }
     } catch (e) { /* ignore */ }
@@ -1138,8 +1134,8 @@ function emitCpuDecisionCardStateChange(): any {
 
 function emitCpuDecisionGameStateChange(): any {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitGameStateChange === 'function') {
-            cpuDecisionRuntime.emitGameStateChange();
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().emitGameStateChange === 'function') {
+            getCpuDecisionRuntime().emitGameStateChange();
             return true;
         }
     } catch (e) { /* ignore */ }
@@ -1153,11 +1149,11 @@ function emitCpuDecisionGameStateChange(): any {
 
 function emitCpuDecisionLogAdded(message: any, kind?: string): any {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitLogAdded === 'function') {
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().emitLogAdded === 'function') {
             if (typeof kind === 'undefined') {
-                cpuDecisionRuntime.emitLogAdded(message);
+                getCpuDecisionRuntime().emitLogAdded(message);
             } else {
-                cpuDecisionRuntime.emitLogAdded(message, kind);
+                getCpuDecisionRuntime().emitLogAdded(message, kind);
             }
             return true;
         }
@@ -1173,8 +1169,8 @@ function emitCpuDecisionLogAdded(message: any, kind?: string): any {
 
 function emitCpuDecisionEffectLog(message: any): any {
     try {
-        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitEffectLog === 'function') {
-            cpuDecisionRuntime.emitEffectLog(message);
+        if (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().emitEffectLog === 'function') {
+            getCpuDecisionRuntime().emitEffectLog(message);
             return true;
         }
     } catch (e) { /* ignore */ }
@@ -1195,7 +1191,7 @@ function getCpuTimerService(): any {
 
 const CpuDecisionSelectionFlow = (CpuDecisionSelectionFlowModule && typeof CpuDecisionSelectionFlowModule.createCpuDecisionSelectionFlow === 'function')
     ? CpuDecisionSelectionFlowModule.createCpuDecisionSelectionFlow({
-        getRuntime: () => cpuDecisionRuntime,
+        getRuntime: () => getCpuDecisionRuntime(),
         getNetworkTurnHandoff: () => cpuDecisionNetworkTurnHandoff,
         getTimerService: () => getCpuTimerService(),
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
@@ -1277,7 +1273,7 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         runCpuHandDestroyViaPipeline: (playerKey: any, destroyCardId: any) => runCpuHandDestroyViaPipeline(playerKey, destroyCardId),
         runCpuCardUseViaPipeline: (playerKey: any, cardId: any, cardDef: any) => runCpuCardUseViaPipeline(playerKey, cardId, cardDef),
         resolveTurnPipelineUIAdapter: () => resolveTurnPipelineAdapter(),
-        getRuntime: () => cpuDecisionRuntime,
+        getRuntime: () => getCpuDecisionRuntime(),
         emitCpuSelectionStateChange: () => emitCpuSelectionStateChange(),
         emitCardStateChange: () => emitCpuDecisionCardStateChange(),
         emitBoardUpdate: () => emitCpuDecisionBoardUpdate(),
@@ -2278,7 +2274,7 @@ function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
         const qs = readCpuDecisionQuerySearch();
         const debugEnabled =
             /[?&]debug=(1|true)\b/i.test(qs) ||
-            (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('DEBUG_UNLIMITED_USAGE') === true);
+            (getCpuDecisionRuntime() && typeof getCpuDecisionRuntime().readDebugFlag === 'function' && getCpuDecisionRuntime().readDebugFlag('DEBUG_UNLIMITED_USAGE') === true);
         if (!debugEnabled) return false;
         const enabled = /[?&]cpuTrapOnly=(1|true)\b/i.test(qs);
         if (!enabled) return false;
@@ -2295,10 +2291,10 @@ function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
 function _findTrapCardIdInCatalog(): any {
     try {
         const injectedDefs = (
-            cpuDecisionRuntime &&
-            typeof cpuDecisionRuntime.getCardDefs === 'function'
+            getCpuDecisionRuntime() &&
+            typeof getCpuDecisionRuntime().getCardDefs === 'function'
         )
-            ? cpuDecisionRuntime.getCardDefs()
+            ? getCpuDecisionRuntime().getCardDefs()
             : null;
         const defs = (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS))
             ? CARD_DEFS
