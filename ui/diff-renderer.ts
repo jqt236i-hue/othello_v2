@@ -876,6 +876,15 @@ function _applyExpansionCellPositionForDiff(cell: any, row: any, col: any, shape
     cell.style.bottom = '';
 }
 
+function _applyBoardEdgeClassesForDiff(cell: any, row: any, col: any, shapeOrGameState: any) {
+    if (!cell || !cell.classList) return;
+    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
+    cell.classList.toggle('cell-edge-left', col === 0);
+    cell.classList.toggle('cell-edge-right', col === shape.cols - 1);
+    cell.classList.toggle('cell-edge-top', row === 0);
+    cell.classList.toggle('cell-edge-bottom', row === shape.rows - 1);
+}
+
 function _getExpansionDescriptorsForDiff(gameState: any): any[] {
     const boardShape = _getBoardShapeForDiff(gameState);
     const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
@@ -2326,6 +2335,7 @@ function initializeBoardDOM(boardEl: any) {
             cell.className = 'cell';
             cell.dataset.row = String(r);
             cell.dataset.col = String(c);
+            _applyBoardEdgeClassesForDiff(cell, r, c, boardShape);
             attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
             _cacheCell(r, c, cell);
@@ -2981,6 +2991,7 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
         }
         _applyExpansionCellPositionForDiff(cell, row, col, boardShape);
     } else {
+        _applyBoardEdgeClassesForDiff(cell, row, col, boardShape);
         cell.style.top = '';
         cell.style.left = '';
         cell.style.right = '';

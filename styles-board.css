@@ -11,6 +11,7 @@
     --board-cell-height-percent: calc(100% / var(--board-rows));
     --board-layer-decoration: 0;
     --board-layer-cell: 1;
+    --board-layer-occupied-cell: 4;
     --board-layer-expanded-cell: 8;
     --board-surface-base-color: #1f4738;
     --board-surface-base-image:
@@ -100,6 +101,10 @@
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.12);
 }
 
+.cell.has-disc {
+    z-index: var(--board-layer-occupied-cell);
+}
+
 #board .cell-expanded {
     position: absolute;
     width: var(--board-cell-width-percent);
@@ -173,6 +178,22 @@
 }
 
 #board.board-expanded-bottom::after {
+    border-bottom-color: transparent;
+}
+
+#board.board-expanded-left .cell-edge-left:not(.cell-expanded) {
+    border-left-color: transparent;
+}
+
+#board.board-expanded-right .cell-edge-right:not(.cell-expanded) {
+    border-right-color: transparent;
+}
+
+#board.board-expanded-top .cell-edge-top:not(.cell-expanded) {
+    border-top-color: transparent;
+}
+
+#board.board-expanded-bottom .cell-edge-bottom:not(.cell-expanded) {
     border-bottom-color: transparent;
 }
 

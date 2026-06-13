@@ -135,6 +135,31 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(boardEl.classList.contains('board-expanded-bottom')).toBe(true);
   });
 
+  test('marks normal board edge cells for expansion seam styling', () => {
+    const diff = require('../ui/diff-renderer.js');
+    diff.resetRenderStats();
+    global.gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: global.EMPTY,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'left', row: 2, col: -1, owner: global.EMPTY },
+        { side: 'right', row: 5, col: 8, owner: global.EMPTY },
+        { side: 'top', row: -1, col: 0, owner: global.EMPTY },
+        { side: 'bottom', row: 8, col: 7, owner: global.EMPTY }
+      ]
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(boardEl.querySelector('.cell[data-row="2"][data-col="0"]').classList.contains('cell-edge-left')).toBe(true);
+    expect(boardEl.querySelector('.cell[data-row="5"][data-col="7"]').classList.contains('cell-edge-right')).toBe(true);
+    expect(boardEl.querySelector('.cell[data-row="0"][data-col="0"]').classList.contains('cell-edge-top')).toBe(true);
+    expect(boardEl.querySelector('.cell[data-row="7"][data-col="7"]').classList.contains('cell-edge-bottom')).toBe(true);
+  });
+
   test('marks the left-top expansion corner as legal-free during FREE_PLACEMENT', () => {
     const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
@@ -283,5 +308,17 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(boardCss).toMatch(/#board\.board-expanded-bottom\s*\{[\s\S]*border-bottom-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\.board-expanded-bottom::after\s*\{[\s\S]*border-bottom-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\s+\.cell-expanded-bottom\s*\{[\s\S]*border-top-color:\s*transparent/);
+
+    expect(boardCss).toMatch(/#board\.board-expanded-left\s+\.cell-edge-left:not\(\.cell-expanded\)\s*\{[\s\S]*border-left-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-right\s+\.cell-edge-right:not\(\.cell-expanded\)\s*\{[\s\S]*border-right-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-top\s+\.cell-edge-top:not\(\.cell-expanded\)\s*\{[\s\S]*border-top-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board\.board-expanded-bottom\s+\.cell-edge-bottom:not\(\.cell-expanded\)\s*\{[\s\S]*border-bottom-color:\s*transparent/);
+  });
+
+  test('board CSS keeps occupied cells above neighboring grid lines', () => {
+    const boardCss = readRepoTextFile('styles-board.css');
+
+    expect(boardCss).toMatch(/#board\s*\{[\s\S]*--board-layer-occupied-cell:\s*4;/);
+    expect(boardCss).toMatch(/\.cell\.has-disc\s*\{[\s\S]*z-index:\s*var\(--board-layer-occupied-cell\);/);
   });
 });
