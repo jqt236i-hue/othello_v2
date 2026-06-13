@@ -261,7 +261,7 @@ describe('animation feedback sound key coverage', () => {
           manifestBgmKey: 'observer_will_path',
           manifestBgmTrack: {
             name: '観測の道',
-            file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+            file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav',
             loopStart: 9.6,
             loopEnd: 62.4
           },
@@ -283,7 +283,7 @@ describe('animation feedback sound key coverage', () => {
     expect(syncManifestBgmOverride).toHaveBeenCalledWith(
       'observer_will_path',
       expect.objectContaining({
-        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav'
       })
     );
     expect((window as any).__manifestPresentationOverride).toMatchObject({

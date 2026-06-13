@@ -68,7 +68,7 @@ describe('assets manifest', () => {
       'assets/images/other/観測石.png',
       'assets/audio/bgm/manifest-stones/理論の道-BPM135.wav',
       'assets/audio/bgm/manifest-stones/執行の道-bpm150.wav',
-      'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+      'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav',
       'assets/audio/sound-effect/observer_will_capture.mp3',
       'assets/images/background/manifest-worlds/理論の世界.png',
       'assets/images/background/manifest-worlds/執行の世界.png',

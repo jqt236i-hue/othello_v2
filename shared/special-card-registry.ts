@@ -72,7 +72,7 @@
             manifestBgmKey: 'observer_will_path',
             manifestBgmTrack: Object.freeze({
                 name: '観測の道',
-                file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+                file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav',
                 loopStart: 9.6,
                 loopEnd: 62.4
             })

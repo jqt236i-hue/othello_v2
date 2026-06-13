@@ -329,13 +329,13 @@ describe('SoundEngine default BGM', () => {
 
     const started = soundEngine.setManifestBgmOverride('observer_will_path', {
       name: '観測の道',
-      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav'
     });
 
     const manifestBgm = instances[1];
     expect(started).toBe(true);
     expect(normalBgm.pause).toHaveBeenCalledTimes(1);
-    expect(manifestBgm.src).toBe('assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3');
+    expect(manifestBgm.src).toBe('assets/audio/bgm/manifest-stones/観測の道-bpm150.wav');
     expect(manifestBgm.loop).toBe(true);
     expect(manifestBgm.play).toHaveBeenCalledTimes(1);
 
@@ -358,7 +358,7 @@ describe('SoundEngine default BGM', () => {
 
       soundEngine.setManifestBgmOverride('observer_will_path', {
         name: '観測の道',
-        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav'
       });
       const manifestBgm = instances[1];
       const manifestStartVolume = manifestBgm.volume;
@@ -409,7 +409,7 @@ describe('SoundEngine default BGM', () => {
       const beforeManifestCount = instances.length;
       const started = soundEngine.setManifestBgmOverride('observer_will_path', {
         name: '観測の道',
-        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav'
       });
       const manifestBgm = instances[beforeManifestCount];
 
@@ -437,7 +437,7 @@ describe('SoundEngine default BGM', () => {
     const normalBgm = instances[0];
     const started = soundEngine.setManifestBgmOverride('observer_will_path', {
       name: '観測の道',
-      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav'
     });
     const manifestBgm = instances[1];
 
@@ -468,7 +468,7 @@ describe('SoundEngine default BGM', () => {
 
     const started = soundEngine.setManifestBgmOverride('observer_will_path', {
       name: '観測の道',
-      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav',
       loopStart: 9.6,
       loopEnd: 62.4
     });
@@ -478,7 +478,7 @@ describe('SoundEngine default BGM', () => {
     expect(normalBgm.pause).toHaveBeenCalledTimes(1);
     expect(soundEngine._manifestBgm.__bufferedLoop).toBe(true);
     expect(soundEngine._manifestBgm.paused).toBe(false);
-    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3');
+    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/manifest-stones/観測の道-bpm150.wav');
     expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
     expect(sources).toHaveLength(1);
     expect(sources[0].loop).toBe(true);
@@ -494,7 +494,7 @@ describe('SoundEngine default BGM', () => {
     soundEngine.allowBgmPlay = false;
     const started = soundEngine.setManifestBgmOverride('observer_will_path', {
       name: '観測の道',
-      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
+      file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav',
       loopStart: 9.6,
       loopEnd: 62.4
     });
