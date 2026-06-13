@@ -127,19 +127,25 @@ describe('cpu decision refactor helpers', () => {
     expect(res.cardId).toBeDefined();
   });
 
-  test('selectCardToUse prefers learned use_card action when score exists', () => {
+  test('selectCardToUse ignores learned use_card action and uses programmed card policy', () => {
     global.cardState.hands.white = ['c_low', 'c_high'];
     global.CardLogic = {
       canUseCard: () => true,
-      getCardDef: (id) => ({ name: id })
+      getCardDef: (id) => ({ id, name: id, type: 'TREASURE_BOX' }),
+      getCardCost: (id) => (id === 'c_high' ? 10 : 1)
     };
     global.CpuPolicyTableRuntime = {
       getActionScoreForKey: jest.fn((key) => (key === 'use_card:c_high' ? 9999 : null))
     };
+    jest.spyOn(cpuPolicyCore, 'chooseCardWithRiskProfile').mockReturnValue({
+      cardId: 'c_low',
+      cardDef: { id: 'c_low', name: 'c_low', type: 'TREASURE_BOX' }
+    });
 
     const res = cpuDecision.selectCardToUse('white');
     expect(res).toBeDefined();
-    expect(res.cardId).toBe('c_high');
+    expect(res.cardId).toBe('c_low');
+    expect(global.CpuPolicyTableRuntime.getActionScoreForKey).not.toHaveBeenCalled();
   });
 
   test('selectCpuMoveWithPolicy はカスタム盤面で 8x8 学習手筋を使わずコア判断へ戻す', () => {
@@ -206,7 +212,7 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CpuPolicyOnnxRuntime.chooseMove).not.toHaveBeenCalled();
   });
 
-  test('selectCardToUse follows shared Lv6 policy-table core path for risky learned card choice', () => {
+  test('selectCardToUse follows programmed Lv6 card core path for risky table card score', () => {
     global.gameState = {
       board: [
         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -264,12 +270,13 @@ describe('cpu decision refactor helpers', () => {
     expect(res).toBeDefined();
     expect(res.cardId).toBe('guard_01');
     expect(cpuPolicyCore.scoreCardUseDecision).toHaveBeenCalledWith(
-      'time_01',
+      'guard_01',
       global.CardLogic.getCardCost,
       global.CardLogic.getCardDef,
       expect.objectContaining({ level: 6, legalMovesCount: 2 })
     );
     expect(cpuPolicyCore.chooseCardWithRiskProfile).toHaveBeenCalled();
+    expect(global.CpuPolicyTableRuntime.getActionScoreForKey).not.toHaveBeenCalled();
   });
 
   test('selectCardToUse falls through when shared Lv6 choice fails high-confidence gate', () => {
@@ -374,29 +381,6 @@ describe('cpu decision refactor helpers', () => {
     expect(res).toBeDefined();
     expect(res.cardId).toBe('guard_01');
     expect(global.CpuPolicyTableRuntime.getActionScoreForKey).not.toHaveBeenCalled();
-  });
-
-  test('selectCardFromOnnxPolicyAsync はカスタム盤面で ONNX カード判断を使わない', async () => {
-    global.gameState = {
-      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
-      currentPlayer: -1
-    };
-    global.cardState = {
-      hands: { white: ['guard_01'], black: [] },
-      pendingEffectByPlayer: { white: null, black: null },
-      hasUsedCardThisTurnByPlayer: { white: false, black: false },
-      charge: { white: 20, black: 10 },
-      boardBonusByCell: {},
-      boardBonusConsumedByCell: {}
-    };
-    global.CpuPolicyOnnxRuntime = {
-      chooseCard: jest.fn(async () => 'guard_01')
-    };
-
-    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 1, ['guard_01']);
-
-    expect(res).toBeNull();
-    expect(global.CpuPolicyOnnxRuntime.chooseCard).not.toHaveBeenCalled();
   });
 
   test('all catalog card types have explicit Lv6 plan pressure profile', () => {
@@ -922,132 +906,6 @@ describe('cpu decision refactor helpers', () => {
 
     expect(allowed).toBe(true);
     scoreSpy.mockRestore();
-  });
-
-  test('selectCardFromOnnxPolicyAsync returns onnx-picked card when available', async () => {
-    global.gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
-      currentPlayer: -1
-    };
-    global.cardState.hands.white = ['c_low', 'c_high'];
-    global.CardLogic = {
-      getCardDef: (id) => ({ name: id })
-    };
-    global.CpuPolicyOnnxRuntime = {
-      chooseCard: jest.fn(async () => 'c_high')
-    };
-
-    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 0, ['c_low', 'c_high']);
-    expect(res).toBeDefined();
-    expect(res.cardId).toBe('c_high');
-    expect(global.CpuPolicyOnnxRuntime.chooseCard).toHaveBeenCalled();
-  });
-
-  test('selectCardFromOnnxPolicyAsync returns hold marker when onnx decides no-card', async () => {
-    global.gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
-      currentPlayer: -1
-    };
-    global.cardState.hands.white = ['c_low', 'c_high'];
-    global.CardLogic = {
-      getCardDef: (id) => ({ name: id })
-    };
-    global.CpuPolicyOnnxRuntime = {
-      chooseCard: jest.fn(async () => null),
-      getStatus: jest.fn(() => ({
-        loaded: true,
-        hasCardHead: true,
-        noCardSupported: true,
-        lastError: null
-      }))
-    };
-
-    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 4, ['c_low', 'c_high']);
-    expect(res).toEqual({ hold: true });
-  });
-
-  test('selectCardFromOnnxPolicyAsync はカスタム盤面で ONNX 学習カード経路を使わない', async () => {
-    global.gameState = {
-      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
-      currentPlayer: -1
-    };
-    global.cardState.hands.white = ['c_low', 'c_high'];
-    global.CardLogic = {
-      getCardDef: (id) => ({ name: id })
-    };
-    global.CpuPolicyOnnxRuntime = {
-      chooseCard: jest.fn(async () => 'c_high')
-    };
-
-    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 2, ['c_low', 'c_high']);
-
-    expect(res).toBeNull();
-    expect(global.CpuPolicyOnnxRuntime.chooseCard).not.toHaveBeenCalled();
-  });
-
-  test('selectCardFromOnnxPolicyAsync reranks risky ONNX card at Lv6', async () => {
-    global.gameState = {
-      board: [
-        [0, 1, 1, 1, 1, 1, 1, 0],
-        [1, -1, -1, -1, -1, -1, -1, 1],
-        [1, -1, -1, -1, -1, -1, -1, 1],
-        [1, -1, -1, -1, 1, 1, -1, 1],
-        [1, -1, -1, 1, -1, 1, -1, 1],
-        [1, -1, -1, -1, -1, -1, -1, 1],
-        [1, -1, -1, -1, -1, -1, -1, 1],
-        [0, 1, 1, 1, 1, 1, 1, 0]
-      ],
-      currentPlayer: -1
-    };
-    global.cardState = {
-      hands: { white: ['guard_01', 'time_01'], black: [] },
-      pendingEffectByPlayer: { white: null, black: null },
-      hasUsedCardThisTurnByPlayer: { white: false, black: false },
-      charge: { white: 20, black: 10 },
-      boardBonusByCell: {},
-      boardBonusConsumedByCell: {}
-    };
-    global.CardLogic = {
-      getCardDef: (id) => {
-        if (id === 'guard_01') return { id, name: 'guard', type: 'GUARD_WILL' };
-        if (id === 'time_01') return { id, name: 'time', type: 'TIME_BOMB' };
-        return { id, name: id, type: 'TREASURE_BOX' };
-      },
-      getCardCost: (id) => {
-        if (id === 'guard_01') return 2;
-        if (id === 'time_01') return 10;
-        return 1;
-      }
-    };
-    global.CpuPolicyOnnxRuntime = {
-      chooseCard: jest.fn(async () => 'time_01')
-    };
-
-    const legalMoves = [
-      { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
-      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
-    ];
-    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, legalMoves.length, ['guard_01', 'time_01'], legalMoves);
-    expect(res).toBeDefined();
-    expect(res.cardId).toBe('guard_01');
-  });
-
-  test('selectCardFromOnnxPolicyAsync falls back when card ONNX exceeds latency budget', async () => {
-    cpuDecision.setCpuDecisionRuntime({
-      readCpuLv6OnnxRuntimeGuard: () => ({ cardBudgetMs: 5 })
-    });
-    global.cardState.hands.white = ['c_low', 'c_high'];
-    global.CardLogic = {
-      getCardDef: (id) => ({ name: id })
-    };
-    global.CpuPolicyOnnxRuntime = {
-      chooseCard: jest.fn(() => new Promise((resolve) => {
-        setTimeout(() => resolve('c_high'), 25);
-      }))
-    };
-
-    const res = await cpuDecision.selectCardFromOnnxPolicyAsync('white', 6, 0, ['c_low', 'c_high']);
-    expect(res).toBeNull();
   });
 
   test('selectMoveFromOnnxPolicyAsync applies tactical correction for risky non-corner move at Lv6', async () => {

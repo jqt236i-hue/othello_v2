@@ -8,7 +8,6 @@ import type { CardState, GameState, PlayerKey } from '../src/types';
 
 // Global declarations for functions not in ui/globals.d.ts
 declare const countDiscs: any;
-declare const selectCardFromOnnxPolicyAsync: any;
 declare const applyCardChoice: any;
 declare const buildCardUseDecisionContext: any;
 declare const isCardChoiceAllowedByPlan: any;
@@ -661,24 +660,6 @@ function resolveCpuLv6BrowserRuntimeCapability() {
     return capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
 }
 
-function shouldUseOnnxCardDecision(level: any) {
-    if (!Number.isFinite(level) || level < 6) return true;
-    const shared = readExplicitCpuLv6SharedProfile();
-    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
-    if (shared && capabilityModule) {
-        if (typeof capabilityModule.shouldUseCpuLv6OnnxCardDecision === 'function') {
-            return capabilityModule.shouldUseCpuLv6OnnxCardDecision(shared);
-        }
-        if (typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability === 'function') {
-            const capability = capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
-            if (capability && typeof capability.usesOnnxCardDecision === 'boolean') {
-                return capability.usesOnnxCardDecision === true;
-            }
-        }
-    }
-    return true;
-}
-
 function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
     if (shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler()) return true;
@@ -867,71 +848,6 @@ function getLastUsedCardIdSafe(playerKey: any) {
     return null;
 }
 
-function getHandSizeSafe(playerKey: any) {
-    try {
-        if (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) {
-            return cardState.hands[playerKey].length;
-        }
-    } catch (e) { /* ignore */ }
-    return 0;
-}
-
-function getChargeSafe(playerKey: any) {
-    try {
-        if (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) {
-            return Number(cardState.charge[playerKey]);
-        }
-    } catch (e) { /* ignore */ }
-    return 0;
-}
-
-function getDiscDiffSafe(playerKey: any) {
-    const counts = countDiscsSafe(gameState);
-    const black = Number.isFinite(counts && counts.black) ? counts.black : 0;
-    const white = Number.isFinite(counts && counts.white) ? counts.white : 0;
-    return playerKey === 'black' ? (black - white) : (white - black);
-}
-
-function shouldOverrideOnnxHoldDecision(playerKey: any, level: any, legalMovesCount: any) {
-    const safeLevel = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
-    const safeLegalMoves = Number.isFinite(legalMovesCount) ? Math.max(0, Math.floor(legalMovesCount)) : 0;
-    const handSize = getHandSizeSafe(playerKey);
-    const ownCharge = getChargeSafe(playerKey);
-    const discDiff = getDiscDiffSafe(playerKey);
-    const turnNumber = getCurrentTurnNumberSafe();
-    const lateGame = Number.isFinite(turnNumber) ? turnNumber >= 44 : false;
-
-    // Lv6 は ONNX の温存判断を優先し、上書きは「強い緊急条件」に限定する。
-    if (safeLevel >= 6) {
-        const handNearCap = handSize >= 4;
-        const handAtCap = handSize >= 5;
-        const handLoaded = handSize >= 3;
-        if (handAtCap && ownCharge >= 18) return true;
-        if (handNearCap && ownCharge >= 24) return true;
-        if (handLoaded && ownCharge >= 20) return true;
-        if (safeLegalMoves <= 0 && handAtCap && ownCharge >= 22) return true;
-        if (safeLegalMoves <= 2 && ownCharge >= 10) return true;
-        if (safeLegalMoves <= 3 && handLoaded && ownCharge >= 8) return true;
-        if (safeLegalMoves <= 1 && discDiff <= -8 && ownCharge >= 14) return true;
-        if (handNearCap && discDiff <= 4 && ownCharge >= 12) return true;
-        if (!handNearCap && handLoaded && discDiff <= 0 && ownCharge >= 10) return true;
-        if (handAtCap && ownCharge >= 26 && discDiff <= 2) return true;
-        if (handNearCap && ownCharge >= 34 && discDiff <= -2) return true;
-        if (lateGame && handSize >= 3 && ownCharge >= 10) return true;
-        if (lateGame && handSize >= 2 && ownCharge >= 6) return true;
-        if (lateGame && handNearCap && discDiff <= -6 && ownCharge >= 14) return true;
-        return false;
-    }
-
-    // Lv1-5 は従来どおり簡易救済を維持。
-    if (safeLegalMoves <= 1) return true;
-    if (handSize >= 5) return true;
-    if (handSize >= 4 && ownCharge >= 32) return true;
-    if (discDiff <= -10) return true;
-    if (lateGame && handSize >= 3 && ownCharge >= 24 && discDiff <= -4) return true;
-    return false;
-}
-
 function resolveCommentaryCpuLevel(playerKey: any, explicitLevel: any) {
     const direct = Number(explicitLevel);
     if (Number.isFinite(direct) && direct >= 1) return Math.max(1, Math.floor(direct));
@@ -1087,89 +1003,6 @@ const presentationRuntime = CpuTurnPresentationRuntimeModule.createPresentationR
     },
     processCpuTurn: () => processCpuTurn()
 });
-
-async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMovesCount: number, legalMoves: any[]): Promise<{ attempted: boolean; applied: boolean; hold: boolean; }> {
-    const none = { attempted: false, applied: false, hold: false };
-    if (!shouldUseOnnxCardDecision(level)) return none;
-    const selectCardFromOnnx = resolveRuntimeFunction('selectCardFromOnnxPolicyAsync')
-        || (typeof selectCardFromOnnxPolicyAsync === 'function' ? selectCardFromOnnxPolicyAsync : null);
-    const applyCardChoiceFn = resolveRuntimeFunction('applyCardChoice')
-        || (typeof applyCardChoice === 'function' ? applyCardChoice : null);
-    const cardLogicForOnnx = resolveCpuCardLogic();
-    if (typeof selectCardFromOnnx !== 'function') return none;
-    if (typeof applyCardChoiceFn !== 'function') return none;
-    if (!cardLogicForOnnx || !cardState || !gameState) return none;
-    if (
-        cardState &&
-        cardState.hasUsedCardThisTurnByPlayer &&
-        cardState.hasUsedCardThisTurnByPlayer[playerKey]
-    ) {
-        return none;
-    }
-    try {
-        let usable = [];
-        if (cardLogicForOnnx && typeof cardLogicForOnnx.getUsableCardIds === 'function') {
-            usable = cardLogicForOnnx.getUsableCardIds(cardState, gameState, playerKey) || [];
-        }
-        if (!Array.isArray(usable) || usable.length === 0) return none;
-        const safeMoves = Array.isArray(legalMoves) ? legalMoves : [];
-        const choice = await selectCardFromOnnx(playerKey, level, legalMovesCount, usable, safeMoves);
-        if (choice && choice.hold === true) {
-            return { attempted: true, applied: false, hold: true };
-        }
-        if (!choice || !choice.cardId) return { attempted: true, applied: false, hold: false };
-        const buildCardUseDecisionContextFn = resolveCpuDecisionFunction('buildCardUseDecisionContext')
-            || (typeof buildCardUseDecisionContext === 'function' ? buildCardUseDecisionContext : null);
-        const isCardChoiceAllowedByRiskFn = resolveCpuDecisionFunction('isCardChoiceAllowedByRisk')
-            || (typeof isCardChoiceAllowedByRisk === 'function' ? isCardChoiceAllowedByRisk : null);
-        const isCardChoiceAllowedByHighConfidenceFn = resolveCpuDecisionFunction('isCardChoiceAllowedByHighConfidence')
-            || (typeof isCardChoiceAllowedByHighConfidence === 'function' ? isCardChoiceAllowedByHighConfidence : null);
-        let decisionContext = null;
-        if (typeof buildCardUseDecisionContextFn === 'function') {
-            try {
-                decisionContext = buildCardUseDecisionContextFn(playerKey, level, legalMovesCount, safeMoves, usable);
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof isCardChoiceAllowedByPlan === 'function') {
-            try {
-                const cornerPlanState = decisionContext && decisionContext.cornerPlanState
-                    ? decisionContext.cornerPlanState
-                    : null;
-                const allowedByPlan = isCardChoiceAllowedByPlan(
-                    playerKey,
-                    level,
-                    legalMovesCount,
-                    choice.cardId,
-                    choice.cardDef,
-                    cornerPlanState,
-                    decisionContext
-                );
-                if (!allowedByPlan) return { attempted: true, applied: false, hold: false };
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof isCardChoiceAllowedByRiskFn === 'function') {
-            const allowed = isCardChoiceAllowedByRiskFn(playerKey, level, legalMovesCount, choice.cardId, decisionContext);
-            if (!allowed) return { attempted: true, applied: false, hold: false };
-        }
-        if (typeof isCardChoiceAllowedByHighConfidenceFn === 'function') {
-            const confident = isCardChoiceAllowedByHighConfidenceFn(
-                playerKey,
-                level,
-                legalMovesCount,
-                choice.cardId,
-                decisionContext
-            );
-            if (!confident) return { attempted: true, applied: false, hold: false };
-        }
-        return { attempted: true, applied: !!applyCardChoiceFn(playerKey, choice), hold: false };
-    } catch (e) {
-        debugCpuTrace('[AI] selectCardFromOnnxPolicyAsync failed; fallback to policy table/core', {
-            playerKey,
-            error: e && (e as any).message ? (e as any).message : String(e)
-        });
-        return none;
-    }
-}
 
 function selectCpuMoveSafe(candidateMoves: any, playerKey: any) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
@@ -1348,27 +1181,22 @@ function scheduleRetry(fn: any, delayMs: any = getAnimationRetryDelayMs()) {
 const CpuTurnCardPhase = (CpuTurnCardPhaseModule && typeof CpuTurnCardPhaseModule.createCpuTurnCardPhase === 'function')
     ? CpuTurnCardPhaseModule.createCpuTurnCardPhase({
         emitCpuCommentary,
-        getActiveProtectionSafe,
         getAnimationRetryDelayMs,
         getDestroyHandCardWithPolicyFn: () => (
             resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
             || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null)
         ),
-        getFlipBlockersSafe,
         getLastUsedCardIdSafe,
         getUseCardWithPolicyFn: () => (
             resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
             || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null)
         ),
         isUiAnimationBusy,
-        maybeUseCardFromOnnx,
-        resolveGenerateMovesForPlayer,
         runCpuTurn: (playerKey: any, options?: any) => runCpuTurn(playerKey, options || {}),
         scheduleRetry,
         scheduleRunCpuTurn,
         setCpuProcessing,
         shouldAbortCpuForHumanMode,
-        shouldOverrideOnnxHoldDecision,
         shouldSkipCardPhaseForProfile,
         tryDestroyHighPriorityHandCardViaAdapter
     })
@@ -1456,7 +1284,6 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
         handleCpuTurnError,
         isCpuDebugLogAvailable,
         isUiAnimationBusy,
-        maybeUseCardFromOnnx,
         resetPendingSelectRetryState,
         resolveCpuCardLogic,
         resolveExecuteMoveFn,

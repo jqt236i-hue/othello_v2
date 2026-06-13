@@ -23,7 +23,6 @@ function createConfig(overrides: Record<string, any> = {}) {
       handleCpuTurnError: jest.fn(),
       isCpuDebugLogAvailable: jest.fn(() => false),
       isUiAnimationBusy: jest.fn(() => false),
-      maybeUseCardFromOnnx: jest.fn(async () => ({ attempted: true, applied: false, hold: true })),
       resetPendingSelectRetryState: jest.fn(),
       resolveCpuCardLogic: jest.fn(() => ({
         hasUsableCard: jest.fn(() => true)

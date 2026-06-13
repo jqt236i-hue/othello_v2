@@ -16,7 +16,6 @@ type CpuTurnMovePhaseConfig = {
     handleCpuTurnError: (playerKey: any, selfName: any, error: any, autoMode: any) => any;
     isCpuDebugLogAvailable: () => any;
     isUiAnimationBusy: () => any;
-    maybeUseCardFromOnnx: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any) => Promise<any>;
     resetPendingSelectRetryState: (playerKey: any) => any;
     resolveCpuCardLogic: () => any;
     resolveExecuteMoveFn: () => any;
@@ -69,23 +68,19 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 : false;
             if (!othelloMode && stillUsableCard) {
                 const expectedRetryTurnNumber = cfg.getCurrentTurnNumberSafe();
-                const onnxCardDecision = await cfg.maybeUseCardFromOnnx(playerKey, level, 0, []);
-                if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_onnx_retry')) {
-                    return { status: 'handled' };
+                let retried = false;
+                const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
+                if (typeof useCardWithPolicyFn === 'function') {
+                    retried = !!useCardWithPolicyFn(playerKey);
                 }
-                const currentPlayerKeyAfterOnnx = cfg.getCurrentPlayerKeySafe();
-                const currentTurnNumberAfterOnnx = cfg.getCurrentTurnNumberSafe();
+                const currentPlayerKeyAfterRetry = cfg.getCurrentPlayerKeySafe();
+                const currentTurnNumberAfterRetry = cfg.getCurrentTurnNumberSafe();
                 if (
-                    (currentPlayerKeyAfterOnnx && currentPlayerKeyAfterOnnx !== playerKey) ||
-                    (expectedRetryTurnNumber !== null && currentTurnNumberAfterOnnx !== expectedRetryTurnNumber)
+                    (currentPlayerKeyAfterRetry && currentPlayerKeyAfterRetry !== playerKey) ||
+                    (expectedRetryTurnNumber !== null && currentTurnNumberAfterRetry !== expectedRetryTurnNumber)
                 ) {
                     cfg.setCpuProcessing(false);
                     return { status: 'handled' };
-                }
-                let retried = !!(onnxCardDecision && onnxCardDecision.applied === true);
-                const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
-                if (!retried && typeof useCardWithPolicyFn === 'function') {
-                    retried = !!useCardWithPolicyFn(playerKey);
                 }
                 if (!retried) {
                     retried = cfg.tryApplyAnyUsableCard(playerKey, level, 0, []);

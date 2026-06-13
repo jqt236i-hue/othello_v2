@@ -44,7 +44,6 @@ interface OnnxRuntimeGuard {
     maxP95LatencyMs: number;
     maxMaxLatencyMs: number;
     moveBudgetMs: number;
-    cardBudgetMs: number;
     pendingSelectionBudgetMs: number;
 }
 
@@ -171,7 +170,6 @@ const CPU_LV6_SHARED_PROFILE: CpuLv6SharedProfile = {
             maxP95LatencyMs: 28,
             maxMaxLatencyMs: 45,
             moveBudgetMs: 120,
-            cardBudgetMs: 80,
             pendingSelectionBudgetMs: 120
         }
     },

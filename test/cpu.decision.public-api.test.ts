@@ -44,7 +44,6 @@ describe('cpu-decision public api', () => {
       'hasPlanPressureProfileForCardType',
       'isCardChoiceAllowedByHighConfidence',
       'isCardChoiceAllowedByRisk',
-      'selectCardFromOnnxPolicyAsync',
       'selectCardToUse',
       'selectCpuMoveWithPolicy',
       'selectHandCardToDestroy',

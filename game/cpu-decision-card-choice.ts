@@ -21,7 +21,6 @@ type CpuDecisionCardChoiceConfig = {
     resolvePlayerValue: (playerKey: any) => any;
     selectCardByLevel6Consensus: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any) => any;
     selectCardBySharedPolicyTableCore: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any) => any;
-    selectCardFromLearnedPolicy: (playerKey: any, level: any, legalMovesCount: any, usableCardIds: any) => any;
     shouldHoldCardByQuiescence: (playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any) => any;
     shouldUseSharedPolicyTableCoreCardDecision: (level: any) => any;
     warn: (...args: any[]) => void;
@@ -148,10 +147,6 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
                 );
                 if (isAllowedChoice(lv6Consensus)) {
                     return lv6Consensus;
-                }
-                const learnedChoice = cfg.selectCardFromLearnedPolicy(playerKey, level, legalMoves.length, usable);
-                if (isAllowedChoice(learnedChoice)) {
-                    return learnedChoice;
                 }
             }
             if (usable.length) {

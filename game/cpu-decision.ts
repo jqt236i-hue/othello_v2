@@ -303,7 +303,6 @@ const CpuDecisionPlanPressureModule = requireCpuDecisionModuleOrNull('./cpu-deci
 const CpuDecisionMovePlanModule = requireCpuDecisionModuleOrNull('./cpu-decision-move-plan');
 const CpuDecisionCardContextModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-context');
 const CpuDecisionCardRiskModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-risk');
-const CpuDecisionCardOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-onnx');
 const CpuDecisionCardLearnedModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-learned');
 const CpuDecisionCardChoiceModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-choice');
 const CpuDecisionMoveSelectionModule = requireCpuDecisionModuleOrNull('./cpu-decision-move-selection');
@@ -595,7 +594,6 @@ function resolvePolicyOnnxRuntime(): any {
         globalModule &&
         (
             typeof globalModule.chooseMove === 'function' ||
-            typeof globalModule.chooseCard === 'function' ||
             typeof globalModule.choosePendingTarget === 'function' ||
             typeof globalModule.evaluatePosition === 'function'
         )
@@ -609,7 +607,6 @@ function resolvePolicyOnnxRuntime(): any {
             moduleRef &&
             (
                 typeof moduleRef.chooseMove === 'function' ||
-                typeof moduleRef.chooseCard === 'function' ||
                 typeof moduleRef.choosePendingTarget === 'function' ||
                 typeof moduleRef.evaluatePosition === 'function'
             )
@@ -1002,7 +999,6 @@ function resolveCpuLv6OnnxRuntimeGuard(): any {
         maxP95LatencyMs: Math.max(0, readNumber('maxP95LatencyMs', 0)),
         maxMaxLatencyMs: Math.max(0, readNumber('maxMaxLatencyMs', 0)),
         moveBudgetMs: Math.max(0, Math.floor(readNumber('moveBudgetMs', 0))),
-        cardBudgetMs: Math.max(0, Math.floor(readNumber('cardBudgetMs', 0))),
         pendingSelectionBudgetMs: Math.max(0, Math.floor(pendingSelectionBudgetMs))
     };
 }
@@ -1012,7 +1008,6 @@ function resolveCpuLv6OnnxRuntimeBudgetMs(level: any, operationKey: any): any {
     const guard = resolveCpuLv6OnnxRuntimeGuard();
     if (!guard) return 0;
     if (operationKey === 'chooseMove') return guard.moveBudgetMs;
-    if (operationKey === 'chooseCard') return guard.cardBudgetMs;
     if (operationKey === 'choosePendingTarget') return guard.pendingSelectionBudgetMs;
     return 0;
 }
@@ -1636,48 +1631,11 @@ function refineOnnxMoveByTacticalPlan(candidateMoves: any, selectedMove: any, pl
     return selected;
 }
 
-function canRerankOnnxCardChoice(level: any, usableCardIds: any): any {
-    return !!(CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.canRerankOnnxCardChoice === 'function'
-        ? CpuDecisionCardOnnx.canRerankOnnxCardChoice(level, usableCardIds)
-        : false);
-}
-
-function scoreCardForOnnxRerank(cardId: any, playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
-    return CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.scoreCardForOnnxRerank === 'function'
-        ? CpuDecisionCardOnnx.scoreCardForOnnxRerank(cardId, playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext)
-        : Number.NEGATIVE_INFINITY;
-}
-
-function rerankOnnxCardChoice(selectedCardId: any, playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any): any {
-    return CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.rerankOnnxCardChoice === 'function'
-        ? CpuDecisionCardOnnx.rerankOnnxCardChoice(selectedCardId, playerKey, level, legalMovesCount, legalMoves, usableCardIds)
-        : { cardId: selectedCardId, changed: false, gap: 0 };
-}
-
-async function selectCardFromOnnxPolicyAsync(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any, legalMoves: any): Promise<any> {
-    return CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.selectCardFromOnnxPolicyAsync === 'function'
-        ? CpuDecisionCardOnnx.selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usableCardIds, legalMoves)
-        : null;
-}
-
-function selectCardFromLearnedPolicy(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any): any {
-    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.selectCardFromLearnedPolicy === 'function'
-        ? CpuDecisionCardLearned.selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds)
-        : null;
-}
-
 function shouldUseSharedPolicyTableCoreCardDecisionLocal(level: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesPolicyTableCoreCardDecision === true;
-    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
-    if (capabilityModule && typeof capabilityModule.shouldUseCpuLv6OnnxCardDecision === 'function') {
-        return capabilityModule.shouldUseCpuLv6OnnxCardDecision(resolveCpuLv6SharedProfile(), {
-            guardOverrides: resolveCpuLv6OnnxRuntimeGuardOverrides(),
-            legacyPendingSelectionBudgetMs: readLegacyPendingSelectionBudgetMs()
-        }) === false;
-    }
-    return false;
+    return true;
 }
 
 function shouldUseSharedPolicyTableCoreCardDecision(level: any): any {
@@ -1695,12 +1653,6 @@ function createCardChoiceFromId(cardId: any): any {
 function selectCardBySharedPolicyTableCore(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
     return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.selectCardBySharedPolicyTableCore === 'function'
         ? CpuDecisionCardLearned.selectCardBySharedPolicyTableCore(playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext)
-        : null;
-}
-
-function getLearnedCardActionScore(cardId: any, playerKey: any, level: any, legalMovesCount: any): any {
-    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.getLearnedCardActionScore === 'function'
-        ? CpuDecisionCardLearned.getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount)
         : null;
 }
 
@@ -2060,36 +2012,8 @@ const CpuDecisionCardRisk = (CpuDecisionCardRiskModule && typeof CpuDecisionCard
     })
     : null;
 
-const CpuDecisionCardOnnx = (CpuDecisionCardOnnxModule && typeof CpuDecisionCardOnnxModule.createCpuDecisionCardOnnx === 'function')
-    ? CpuDecisionCardOnnxModule.createCpuDecisionCardOnnx({
-        getCpuPolicyCore: () => CpuPolicyCore,
-        resolveCardLogic: () => resolveCardLogicForCpuDecision(),
-        resolvePolicyOnnxRuntime,
-        canUseStandardBoardCpuPolicy,
-        evaluateCpuOnnxLatencyGate,
-        logCpuOnnxLatencyDegrade,
-        resolveCpuLv6OnnxRuntimeBudgetMs,
-        getHandCardIdsForPlayer,
-        buildOnnxContext,
-        awaitCpuPromiseWithinBudget,
-        getCpuOnnxBudgetTimeout: () => CPU_ONNX_BUDGET_TIMEOUT,
-        buildCardUseDecisionContext,
-        resolveCardType,
-        isRecoveryCardType,
-        isHoldCardType,
-        isChargeRampCardType,
-        whiteLv6CornerSwingKeepTypes: WHITE_LV6_CORNER_SWING_KEEP_TYPES,
-        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
-        warn: (...args: any[]) => console.warn(...args)
-    })
-    : null;
-
 const CpuDecisionCardLearned = (CpuDecisionCardLearnedModule && typeof CpuDecisionCardLearnedModule.createCpuDecisionCardLearned === 'function')
     ? CpuDecisionCardLearnedModule.createCpuDecisionCardLearned({
-        resolvePolicyTableRuntime,
-        getCurrentCpuBoard,
-        canUseStandardBoardCpuPolicy,
-        resolvePendingType,
         resolveCardLogic: () => resolveCardLogicForCpuDecision(),
         getCpuPolicyCore: () => CpuPolicyCore,
         buildCardUseDecisionContext,
@@ -2442,7 +2366,6 @@ const CpuDecisionCardChoice = (CpuDecisionCardChoiceModule && typeof CpuDecision
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
         selectCardByLevel6Consensus,
         selectCardBySharedPolicyTableCore,
-        selectCardFromLearnedPolicy,
         shouldHoldCardByQuiescence,
         shouldUseSharedPolicyTableCoreCardDecision,
         warn: (...args: any[]) => console.warn(...args)
@@ -3956,7 +3879,6 @@ if (typeof module !== 'undefined' && module.exports) {
         applyCardChoice,
         selectCpuMoveWithPolicy,
         selectMoveFromOnnxPolicyAsync,
-        selectCardFromOnnxPolicyAsync,
         isCardChoiceAllowedByRisk,
         isCardChoiceAllowedByHighConfidence,
         hasPlanPressureProfileForCardType,

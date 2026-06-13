@@ -248,7 +248,6 @@ describe('prepare-worker-assets', () => {
         const generatedPaths = GENERATED_OPTIONAL_ASSETS.map((one) => one.sourceRelativePath);
         expect(generatedPaths).toEqual(expect.arrayContaining([
             'data/models/policy-net.onnx',
-            'data/models/policy-card.onnx',
             'data/models/policy-target.onnx',
             'data/models/policy-value.onnx',
             'data/models/othello/policy-value.onnx'

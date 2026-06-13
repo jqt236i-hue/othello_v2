@@ -1,20 +1,15 @@
 type CpuTurnCardPhaseConfig = {
     emitCpuCommentary: (eventType: any, playerKey: any, extra: any) => any;
-    getActiveProtectionSafe: (playerValue: any) => any;
     getAnimationRetryDelayMs: () => any;
     getDestroyHandCardWithPolicyFn: () => any;
-    getFlipBlockersSafe: () => any;
     getLastUsedCardIdSafe: (playerKey: any) => any;
     getUseCardWithPolicyFn: () => any;
     isUiAnimationBusy: () => any;
-    maybeUseCardFromOnnx: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any) => Promise<any>;
-    resolveGenerateMovesForPlayer: () => any;
     runCpuTurn: (playerKey: any, options?: any) => any;
     scheduleRetry: (fn: any, delayMs?: any) => any;
     scheduleRunCpuTurn: (playerKey: any, options: any, delayMs: any) => any;
     setCpuProcessing: (active: any) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
-    shouldOverrideOnnxHoldDecision: (playerKey: any, level: any, legalMovesCount: any) => any;
     shouldSkipCardPhaseForProfile?: (playerKey: any, level: any) => any;
     tryDestroyHighPriorityHandCardViaAdapter: (playerKey: any) => any;
 };
@@ -27,7 +22,6 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
         const playerKey = opts.playerKey;
         const autoMode = opts.autoMode === true;
         const level = opts.level;
-        const selfColor = opts.selfColor;
         const othelloMode = opts.othelloMode === true;
         const hasUsedCardThisTurn = opts.hasUsedCardThisTurn === true;
         const hasPendingSelection = opts.hasPendingSelection === true;
@@ -59,25 +53,8 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
         }
 
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
-            const protectionPreview = cfg.getActiveProtectionSafe(selfColor);
-            const permaPreview = cfg.getFlipBlockersSafe();
-            const generateMovesForPlayerFn = cfg.resolveGenerateMovesForPlayer();
-            const previewMoves = generateMovesForPlayerFn
-                ? generateMovesForPlayerFn(selfColor, null, protectionPreview, permaPreview)
-                : [];
-            const previewLegalMovesCount = Array.isArray(previewMoves) ? previewMoves.length : 0;
-
-            const onnxCardDecision = await cfg.maybeUseCardFromOnnx(playerKey, level, previewLegalMovesCount, previewMoves);
-            if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_onnx_card_decision')) {
-                return { status: 'handled' };
-            }
-            let applied = !!(onnxCardDecision && onnxCardDecision.applied === true);
-            const heldByOnnx = !!(onnxCardDecision && onnxCardDecision.hold === true);
-            const overrideHold = heldByOnnx && cfg.shouldOverrideOnnxHoldDecision(playerKey, level, previewLegalMovesCount);
-            if (!applied && (!heldByOnnx || overrideHold)) {
-                const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
-                applied = (typeof useCardWithPolicyFn === 'function') ? !!useCardWithPolicyFn(playerKey) : false;
-            }
+            const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
+            const applied = (typeof useCardWithPolicyFn === 'function') ? !!useCardWithPolicyFn(playerKey) : false;
             if (applied) {
                 cfg.emitCpuCommentary('card_used', playerKey, {
                     level,

@@ -111,7 +111,6 @@ const VERIFY_ROOT_FILES: readonly string[] = Object.freeze(ROOT_FILES.slice());
 const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'game/ai/commentary-data.js',
     'data/models/policy-net.onnx.meta.json',
-    'data/models/policy-card.onnx.meta.json',
     'data/models/policy-target.onnx.meta.json',
     'data/models/policy-value.onnx.meta.json',
     'data/models/policy-table.json',
@@ -129,13 +128,6 @@ const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.
         sourceRelativePath: 'data/models/policy-net.onnx',
         compressedRelativePath: 'data/models/policy-net.onnx.chunk.',
         manifestRelativePath: 'data/models/policy-net.onnx',
-        compression: 'split',
-        chunkSizeBytes: 8 * 1024 * 1024
-    },
-    {
-        sourceRelativePath: 'data/models/policy-card.onnx',
-        compressedRelativePath: 'data/models/policy-card.onnx.chunk.',
-        manifestRelativePath: 'data/models/policy-card.onnx',
         compression: 'split',
         chunkSizeBytes: 8 * 1024 * 1024
     },

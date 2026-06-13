@@ -11,14 +11,9 @@ describe('shared cpu lv6 runtime capability', () => {
     };
   }
 
-  test('shared ONNX decision helpers expose move and card mode decisions', () => {
+  test('shared ONNX decision helper is move-only', () => {
     expect(
       CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(
-        profileWithModes('policy-table-lookahead', 'policy-table-core')
-      )
-    ).toBe(false);
-    expect(
-      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(
         profileWithModes('policy-table-lookahead', 'policy-table-core')
       )
     ).toBe(false);
@@ -28,28 +23,15 @@ describe('shared cpu lv6 runtime capability', () => {
         profileWithModes('onnx', 'onnx')
       )
     ).toBe(true);
-    expect(
-      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(
-        profileWithModes('onnx', 'onnx')
-      )
-    ).toBe(true);
 
     expect(
       CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(
-        profileWithModes('hybrid', 'hybrid')
-      )
-    ).toBe(true);
-    expect(
-      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(
         profileWithModes('hybrid', 'hybrid')
       )
     ).toBe(true);
 
     expect(
       CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxMoveDecision(profileWithModes())
-    ).toBe(true);
-    expect(
-      CpuLv6RuntimeCapability.shouldUseCpuLv6OnnxCardDecision(profileWithModes())
     ).toBe(true);
   });
 
@@ -68,13 +50,12 @@ describe('shared cpu lv6 runtime capability', () => {
   test('forcePrimaryOnnx only changes primary-load gating and keeps guard overrides explicit', () => {
     const capability = CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability(cpuLv6SharedProfile, {
       forcePrimaryOnnx: true,
-      guardOverrides: { cardBudgetMs: 33 },
+      guardOverrides: { moveBudgetMs: 99 },
       legacyPendingSelectionBudgetMs: 77
     });
 
     expect(capability.shouldLoadPrimaryOnnxRuntime).toBe(true);
-    expect(capability.onnxRuntimeGuard.moveBudgetMs).toBe(120);
-    expect(capability.onnxRuntimeGuard.cardBudgetMs).toBe(33);
+    expect(capability.onnxRuntimeGuard.moveBudgetMs).toBe(99);
     expect(capability.onnxRuntimeGuard.pendingSelectionBudgetMs).toBe(77);
   });
 

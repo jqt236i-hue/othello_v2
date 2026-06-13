@@ -28,13 +28,11 @@ describe('ui level match script args', () => {
     test('parseArgs accepts auxiliary ONNX wait requirements', () => {
         const args = parseArgs([
             '--require-onnx-loaded',
-            '--require-card-model-loaded',
             '--require-target-model-loaded',
             '--require-value-model-loaded'
         ]);
 
         expect(args.requireOnnxLoaded).toBe(true);
-        expect(args.requireCardModelLoaded).toBe(true);
         expect(args.requireTargetModelLoaded).toBe(true);
         expect(args.requireValueModelLoaded).toBe(true);
     });

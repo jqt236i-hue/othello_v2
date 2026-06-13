@@ -1,10 +1,6 @@
 const { createCpuDecisionCardLearned } = require('../game/cpu-decision-card-learned');
 
 function createCardLearned(overrides = {}) {
-  const board = overrides.board || Array.from({ length: 8 }, () => Array(8).fill(0));
-  const runtime = overrides.runtime || {
-    getActionScoreForKey: (key) => (key === 'use_card:b' ? 20 : 5)
-  };
   const cardLogic = overrides.cardLogic || {
     getCardDef: (id) => ({ id, type: id === 'b' ? 'GUARD_WILL' : 'TREASURE_BOX' }),
     getCardCost: (id) => (id === 'b' ? 8 : 2)
@@ -14,10 +10,6 @@ function createCardLearned(overrides = {}) {
     chooseCardWithRiskProfile: () => null
   };
   return createCpuDecisionCardLearned({
-    resolvePolicyTableRuntime: () => runtime,
-    getCurrentCpuBoard: () => board,
-    canUseStandardBoardCpuPolicy: overrides.canUseStandardBoardCpuPolicy || (() => true),
-    resolvePendingType: () => 'DOUBLE_PLACE',
     resolveCardLogic: () => cardLogic,
     getCpuPolicyCore: () => cpuPolicyCore,
     buildCardUseDecisionContext: () => overrides.context || ({
@@ -35,28 +27,8 @@ function createCardLearned(overrides = {}) {
 }
 
 describe('cpu decision card learned module', () => {
-  test('selectCardFromLearnedPolicy chooses the highest policy-table card score', () => {
-    const learned = createCardLearned();
-
-    expect(learned.selectCardFromLearnedPolicy('white', 6, 3, ['a', 'b'])).toEqual({
-      cardId: 'b',
-      cardDef: { id: 'b', type: 'GUARD_WILL' }
-    });
-  });
-
-  test('getLearnedCardActionScore respects standard-board gating', () => {
+  test('selectCardBySharedPolicyTableCore uses risk profile without learned policy-table choice', () => {
     const learned = createCardLearned({
-      canUseStandardBoardCpuPolicy: () => false
-    });
-
-    expect(learned.getLearnedCardActionScore('a', 'white', 6, 2)).toBeNull();
-  });
-
-  test('selectCardBySharedPolicyTableCore falls back to risk profile when learned choice is rejected', () => {
-    const learned = createCardLearned({
-      runtime: {
-        getActionScoreForKey: () => 99
-      },
       cpuPolicyCore: {
         scoreCardUseDecision: (cardId) => ({
           score: cardId === 'a' ? 20 : 1,

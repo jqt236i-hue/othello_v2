@@ -55,7 +55,6 @@
         primaryMoveSource: string;
         primaryCardSource: string;
         usesOnnxMoveDecision: boolean;
-        usesOnnxCardDecision: boolean;
         usesPolicyTableLookaheadMoveDecision: boolean;
         usesPolicyTableCoreCardDecision: boolean;
         shouldLoadPrimaryOnnxRuntime: boolean;
@@ -70,7 +69,6 @@
         maxP95LatencyMs: number;
         maxMaxLatencyMs: number;
         moveBudgetMs: number;
-        cardBudgetMs: number;
         pendingSelectionBudgetMs: number;
     }
 
@@ -114,12 +112,6 @@
             normalized !== 'policy-table-core';
     }
 
-    function usesOnnxCardDecisionMode(mode: unknown): boolean {
-        const normalized = normalizeCpuLv6DecisionMode(mode);
-        if (!normalized) return true;
-        return normalized !== 'policy-table-core';
-    }
-
     function readGuardNumber(
         overrides: { [key: string]: number } | null,
         configured: { [key: string]: unknown } | null,
@@ -155,7 +147,6 @@
             maxP95LatencyMs: Math.max(0, readGuardNumber(overrides, configured, 'maxP95LatencyMs', 0)),
             maxMaxLatencyMs: Math.max(0, readGuardNumber(overrides, configured, 'maxMaxLatencyMs', 0)),
             moveBudgetMs: Math.max(0, Math.floor(readGuardNumber(overrides, configured, 'moveBudgetMs', 0))),
-            cardBudgetMs: Math.max(0, Math.floor(readGuardNumber(overrides, configured, 'cardBudgetMs', 0))),
             pendingSelectionBudgetMs: Math.max(0, Math.floor(pendingSelectionBudgetMs))
         };
     }
@@ -166,27 +157,22 @@
         const moveDecisionMode = normalizeCpuLv6DecisionMode(browserProfile && browserProfile.moveDecisionMode);
         const cardDecisionMode = normalizeCpuLv6DecisionMode(browserProfile && browserProfile.cardDecisionMode);
         const usesOnnxMoveDecision = usesOnnxMoveDecisionMode(moveDecisionMode);
-        const usesOnnxCardDecision = usesOnnxCardDecisionMode(cardDecisionMode);
         const shouldLoadPrimaryOnnxRuntime =
             !browserProfile ||
             opts.forcePrimaryOnnx === true ||
-            usesOnnxMoveDecision ||
-            usesOnnxCardDecision;
+            usesOnnxMoveDecision;
 
         return {
             browserProfile,
             moveDecisionMode,
             cardDecisionMode,
             primaryMoveSource: usesOnnxMoveDecision ? 'onnx' : 'policy-table',
-            primaryCardSource: usesOnnxCardDecision ? 'onnx' : 'policy-table',
+            primaryCardSource: 'policy-table',
             usesOnnxMoveDecision,
-            usesOnnxCardDecision,
             usesPolicyTableLookaheadMoveDecision:
                 !usesOnnxMoveDecision &&
                 (moveDecisionMode === 'policy-table-lookahead' || moveDecisionMode === 'browser-policy-lookahead'),
-            usesPolicyTableCoreCardDecision:
-                !usesOnnxCardDecision &&
-                cardDecisionMode === 'policy-table-core',
+            usesPolicyTableCoreCardDecision: cardDecisionMode === 'policy-table-core',
             shouldLoadPrimaryOnnxRuntime,
             hasAuxiliaryTargetHead: true,
             hasAuxiliaryValueHead: true,
@@ -196,10 +182,6 @@
 
     function shouldUseCpuLv6OnnxMoveDecision(sharedProfile: unknown, options: unknown): boolean {
         return resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxMoveDecision === true;
-    }
-
-    function shouldUseCpuLv6OnnxCardDecision(sharedProfile: unknown, options: unknown): boolean {
-        return resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options).usesOnnxCardDecision === true;
     }
 
     function resolveCpuLv6LookaheadTimeCaps(sharedProfile: unknown, options: unknown): TimeCapConfig {
@@ -277,11 +259,9 @@
         resolveCpuLv6BrowserProfile,
         resolveCpuLv6TeacherProfile,
         usesOnnxMoveDecisionMode,
-        usesOnnxCardDecisionMode,
         resolveCpuLv6OnnxRuntimeGuard,
         resolveCpuLv6BrowserRuntimeCapability,
         shouldUseCpuLv6OnnxMoveDecision,
-        shouldUseCpuLv6OnnxCardDecision,
         resolveCpuLv6LookaheadTimeCaps,
         resolveCpuLv6LookaheadWeights,
         isStandardBoardCpuPolicyCompatible

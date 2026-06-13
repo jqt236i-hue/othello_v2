@@ -20,7 +20,6 @@ type LevelMatchArgs = {
     out: string;
     timeoutMs: number;
     requireOnnxLoaded: boolean;
-    requireCardModelLoaded: boolean;
     requireTargetModelLoaded: boolean;
     requireValueModelLoaded: boolean;
     onnxWaitMs: number;
@@ -47,7 +46,6 @@ function parseArgs(argv: string[]) {
         out: path.resolve(process.cwd(), 'data', 'runs', 'level-match.json'),
         timeoutMs: 180000,
         requireOnnxLoaded: false,
-        requireCardModelLoaded: false,
         requireTargetModelLoaded: false,
         requireValueModelLoaded: false,
         onnxWaitMs: 30000,
@@ -83,10 +81,6 @@ function parseArgs(argv: string[]) {
         }
         if (a === '--require-onnx-loaded') {
             args.requireOnnxLoaded = true;
-            continue;
-        }
-        if (a === '--require-card-model-loaded') {
-            args.requireCardModelLoaded = true;
             continue;
         }
         if (a === '--require-target-model-loaded') {
@@ -128,7 +122,6 @@ function printHelp() {
         '  -o, --out <path>  Output JSON path (default: data/runs/level-match.json)',
         '  --timeout-ms <n>  Max wait time for game end (default: 180000)',
         '  --require-onnx-loaded  Fail if ONNX runtime does not become loaded before start',
-        '  --require-card-model-loaded  Also wait for card-specialist capability before start',
         '  --require-target-model-loaded  Also wait for pending-target ONNX before start',
         '  --require-value-model-loaded  Also wait for value ONNX before start',
         '  --onnx-wait-ms <n>     Wait timeout for ONNX load check (default: 30000)',
@@ -336,14 +329,10 @@ async function runMatch(args: any) {
         stage = 'goto';
         const queryParts = [];
         const requiresOnnxRuntime = args.requireOnnxLoaded ||
-            args.requireCardModelLoaded ||
             args.requireTargetModelLoaded ||
             args.requireValueModelLoaded;
         if (requiresOnnxRuntime) {
             queryParts.push('cpuOnnx=1');
-        }
-        if (args.requireOnnxLoaded || args.requireCardModelLoaded) {
-            queryParts.push('cardSpecialist=1');
         }
         const query = queryParts.length ? `?${queryParts.join('&')}` : '';
         await page.goto(`http://127.0.0.1:${port}/${query}`);
@@ -394,18 +383,13 @@ async function runMatch(args: any) {
                     ? window.CpuPolicyOnnxRuntime.getStatus()
                     : null;
                 if (!status || status.loaded !== true) return false;
-                if (requirements.requireCardModelLoaded !== true) {
-                    if (requirements.requireTargetModelLoaded !== true && requirements.requireValueModelLoaded !== true) {
-                        return true;
-                    }
-                } else if (!(status.cardModelLoaded === true || status.hasCardHead === true)) {
-                    return false;
+                if (requirements.requireTargetModelLoaded !== true && requirements.requireValueModelLoaded !== true) {
+                    return true;
                 }
                 if (requirements.requireTargetModelLoaded === true && status.targetModelLoaded !== true) return false;
                 if (requirements.requireValueModelLoaded === true && status.valueModelLoaded !== true) return false;
                 return true;
             }, {
-                requireCardModelLoaded: args.requireCardModelLoaded === true,
                 requireTargetModelLoaded: args.requireTargetModelLoaded === true,
                 requireValueModelLoaded: args.requireValueModelLoaded === true
             }, {

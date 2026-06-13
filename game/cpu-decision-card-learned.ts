@@ -1,8 +1,4 @@
 type CpuDecisionCardLearnedConfig = {
-    resolvePolicyTableRuntime: () => any;
-    getCurrentCpuBoard: () => any;
-    canUseStandardBoardCpuPolicy: (boardRef: any, featureKey: any, playerKey: any, level: any) => any;
-    resolvePendingType: (playerKey: any) => any;
     resolveCardLogic: () => any;
     getCpuPolicyCore: () => any;
     buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => any;
@@ -13,51 +9,12 @@ type CpuDecisionCardLearnedConfig = {
 export function createCpuDecisionCardLearned(config: CpuDecisionCardLearnedConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionCardLearnedConfig;
 
-    function resolvePolicyTableRuntime(): any {
-        return cfg.resolvePolicyTableRuntime ? cfg.resolvePolicyTableRuntime() : null;
-    }
-
     function resolveCardLogic(): any {
         return cfg.resolveCardLogic ? cfg.resolveCardLogic() : null;
     }
 
     function resolveCpuPolicyCore(): any {
         return cfg.getCpuPolicyCore ? cfg.getCpuPolicyCore() : null;
-    }
-
-    function selectCardFromLearnedPolicy(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any): any {
-        const runtime = resolvePolicyTableRuntime();
-        if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
-        if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
-        const boardRef = cfg.getCurrentCpuBoard();
-        if (!cfg.canUseStandardBoardCpuPolicy(boardRef, 'policy-table-card', playerKey, level)) return null;
-
-        let bestCardId: any = null;
-        let bestScore = -Infinity;
-        for (const cardId of usableCardIds) {
-            const actionKey = `use_card:${cardId}`;
-            let score: any = null;
-            try {
-                score = runtime.getActionScoreForKey(actionKey, {
-                    playerKey,
-                    level,
-                    board: boardRef,
-                    pendingType: cfg.resolvePendingType(playerKey),
-                    legalMovesCount
-                });
-            } catch (e) { score = null; }
-            if (!Number.isFinite(score)) continue;
-            if (score > bestScore) {
-                bestScore = score;
-                bestCardId = cardId;
-            }
-        }
-        if (!bestCardId) return null;
-        const cardLogicRef = resolveCardLogic();
-        const cardDef = (cardLogicRef && typeof cardLogicRef.getCardDef === 'function')
-            ? cardLogicRef.getCardDef(bestCardId)
-            : null;
-        return { cardId: bestCardId, cardDef };
     }
 
     function createCardChoiceFromId(cardId: any): any {
@@ -75,20 +32,7 @@ export function createCpuDecisionCardLearned(config: CpuDecisionCardLearnedConfi
         if (!cardLogicRef) return null;
 
         const context = prebuiltContext || cfg.buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
-        const learnedChoice = selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds);
         const cpuPolicyCore = resolveCpuPolicyCore();
-        if (learnedChoice && learnedChoice.cardId) {
-            if (!cpuPolicyCore || typeof cpuPolicyCore.scoreCardUseDecision !== 'function') return learnedChoice;
-            const score = cpuPolicyCore.scoreCardUseDecision(
-                learnedChoice.cardId,
-                cardLogicRef.getCardCost,
-                cardLogicRef.getCardDef,
-                context
-            );
-            if (!score || score.shouldUse === true) {
-                return learnedChoice;
-            }
-        }
 
         if (cpuPolicyCore && typeof cpuPolicyCore.chooseCardWithRiskProfile === 'function') {
             const selected = cpuPolicyCore.chooseCardWithRiskProfile(
@@ -118,26 +62,6 @@ export function createCpuDecisionCardLearned(config: CpuDecisionCardLearnedConfi
         return null;
     }
 
-    function getLearnedCardActionScore(cardId: any, playerKey: any, level: any, legalMovesCount: any): any {
-        if (!cardId) return null;
-        const runtime = resolvePolicyTableRuntime();
-        if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
-        try {
-            const boardRef = cfg.getCurrentCpuBoard();
-            if (!cfg.canUseStandardBoardCpuPolicy(boardRef, 'policy-table-card-score', playerKey, level)) return null;
-            const score = runtime.getActionScoreForKey(`use_card:${cardId}`, {
-                playerKey,
-                level,
-                board: boardRef,
-                pendingType: cfg.resolvePendingType(playerKey),
-                legalMovesCount
-            });
-            return Number.isFinite(score) ? Number(score) : null;
-        } catch (e) {
-            return null;
-        }
-    }
-
     function selectCardByLevel6Consensus(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
         if (!Number.isFinite(level) || level < 6) return null;
         if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
@@ -162,11 +86,7 @@ export function createCpuDecisionCardLearned(config: CpuDecisionCardLearnedConfi
             );
             if (!decision || !Number.isFinite(decision.score)) continue;
 
-            const learnedRaw = getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount);
-            const learnedBoost = Number.isFinite(learnedRaw)
-                ? (Math.sign(learnedRaw) * Math.log1p(Math.abs(learnedRaw)) * 20)
-                : 0;
-            const score = Number(decision.score) + learnedBoost;
+            const score = Number(decision.score);
             const one = { cardId, score, decision };
             if (!best || score > best.score || (score === best.score && String(cardId) < String(best.cardId))) {
                 second = best;
@@ -202,11 +122,9 @@ export function createCpuDecisionCardLearned(config: CpuDecisionCardLearnedConfi
     }
 
     return {
-        selectCardFromLearnedPolicy,
         shouldUseSharedPolicyTableCoreCardDecision: (level: any) => cfg.shouldUseSharedPolicyTableCoreCardDecision(level),
         createCardChoiceFromId,
         selectCardBySharedPolicyTableCore,
-        getLearnedCardActionScore,
         selectCardByLevel6Consensus
     };
 }

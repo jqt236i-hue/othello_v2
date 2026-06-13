@@ -29,17 +29,6 @@ function _debugLog(...args: any[]): void {
   } catch (e) { /* ignore */ }
 }
 
-function _shouldUseCardSpecialistByDefault(): boolean {
-  try {
-    const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
-    if (/[?&]cardSpecialist=1\b/i.test(qs) || /[?&]card_specialist=1\b/i.test(qs)) return true;
-  } catch (e) { /* ignore */ }
-  try {
-    if (typeof window !== 'undefined' && (window as any).CPU_USE_CARD_SPECIALIST === true) return true;
-  } catch (e) { /* ignore */ }
-  return false;
-}
-
 function _uniqueStrings(values: any[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -258,11 +247,9 @@ function _shouldLoadBrowserOnnxRuntime(): boolean {
   const capabilityModule = _resolveCpuLv6RuntimeCapabilityModule();
   if (
     capabilityModule &&
-    typeof capabilityModule.shouldUseCpuLv6OnnxMoveDecision === 'function' &&
-    typeof capabilityModule.shouldUseCpuLv6OnnxCardDecision === 'function'
+    typeof capabilityModule.shouldUseCpuLv6OnnxMoveDecision === 'function'
   ) {
-    return capabilityModule.shouldUseCpuLv6OnnxMoveDecision(shared, { forcePrimaryOnnx: _shouldForceOnnxLoad() }) ||
-      capabilityModule.shouldUseCpuLv6OnnxCardDecision(shared, { forcePrimaryOnnx: _shouldForceOnnxLoad() });
+    return capabilityModule.shouldUseCpuLv6OnnxMoveDecision(shared, { forcePrimaryOnnx: _shouldForceOnnxLoad() });
   }
   return true;
 }
@@ -615,21 +602,16 @@ async function initPolicyOnnxModel(): Promise<void> {
 
   const modelRel = 'data/models/policy-net.onnx';
   const metaRel = 'data/models/policy-net.onnx.meta.json';
-  const cardModelRel = 'data/models/policy-card.onnx';
-  const cardMetaRel = 'data/models/policy-card.onnx.meta.json';
   const targetModelRel = 'data/models/policy-target.onnx';
   const targetMetaRel = 'data/models/policy-target.onnx.meta.json';
   const valueModelRel = 'data/models/policy-value.onnx';
   const valueMetaRel = 'data/models/policy-value.onnx.meta.json';
   let modelUrl = modelRel;
   let metaUrl = metaRel;
-  let cardModelUrl = cardModelRel;
-  let cardMetaUrl = cardMetaRel;
   let targetModelUrl = targetModelRel;
   let targetMetaUrl = targetMetaRel;
   let valueModelUrl = valueModelRel;
   let valueMetaUrl = valueMetaRel;
-  let useCardSpecialist = _shouldUseCardSpecialistByDefault();
   let hasTargetModel = false;
   let hasValueModel = false;
   const loadTimeoutMs = _getCpuModelLoadTimeoutMs();
@@ -661,27 +643,10 @@ async function initPolicyOnnxModel(): Promise<void> {
   if (fetchImpl && shouldLoadPrimaryOnnx) {
     const resolvedRoot = _deriveResolvedRootFromUrl(modelUrl, modelRel);
     if (resolvedRoot) {
-      cardModelUrl = _joinAssetUrl(resolvedRoot, cardModelRel);
-      cardMetaUrl = _joinAssetUrl(resolvedRoot, cardMetaRel);
       targetModelUrl = _joinAssetUrl(resolvedRoot, targetModelRel);
       targetMetaUrl = _joinAssetUrl(resolvedRoot, targetMetaRel);
       valueModelUrl = _joinAssetUrl(resolvedRoot, valueModelRel);
       valueMetaUrl = _joinAssetUrl(resolvedRoot, valueMetaRel);
-    }
-  }
-
-  if (fetchImpl && shouldLoadPrimaryOnnx && useCardSpecialist) {
-    const resolvedRoot = _deriveResolvedRootFromUrl(modelUrl, modelRel);
-    const candidateCardModelUrl = _joinAssetUrl(resolvedRoot, cardModelRel);
-    const candidateCardMetaUrl = _joinAssetUrl(resolvedRoot, cardMetaRel);
-    const hasCardModel = await _probeUrl(fetchImpl, candidateCardModelUrl);
-    const hasCardMeta = hasCardModel ? await _probeUrl(fetchImpl, candidateCardMetaUrl) : false;
-    if (hasCardModel && hasCardMeta) {
-      cardModelUrl = candidateCardModelUrl;
-      cardMetaUrl = candidateCardMetaUrl;
-      useCardSpecialist = true;
-    } else {
-      useCardSpecialist = false;
     }
   }
 
@@ -726,13 +691,10 @@ async function initPolicyOnnxModel(): Promise<void> {
         minLevel: 6,
         sourceUrl: modelUrl,
         metaUrl: metaUrl,
-        cardSourceUrl: cardModelUrl,
-        cardMetaUrl: cardMetaUrl,
         targetSourceUrl: targetModelUrl,
         targetMetaUrl: targetMetaUrl,
         valueSourceUrl: valueModelUrl,
         valueMetaUrl: valueMetaUrl,
-        useCardSpecialist,
         enableWebGpuExecution: (typeof globalThis !== 'undefined' && (globalThis as any).ENABLE_ONNX_WEBGPU === true),
         readQuerySearch: () => {
           try {
@@ -758,19 +720,6 @@ async function initPolicyOnnxModel(): Promise<void> {
         lastError: ''
       });
       _debugLog(`[CPU] policy-onnx loaded (${modelUrl})`);
-      if (useCardSpecialist && typeof runtime.loadCardModelFromUrl === 'function') {
-        try {
-          const cardOk = await _withLoadTimeout(runtime.loadCardModelFromUrl(cardModelUrl, cardMetaUrl), loadTimeoutMs, 'policy-card load');
-          if (cardOk) {
-            _debugLog(`[CPU] policy-card loaded (${cardModelUrl})`);
-          } else if (_isDebugEnabled()) {
-            const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
-            console.warn('[CPU] policy-card not loaded', status && status.cardLastError ? status.cardLastError : '');
-          }
-        } catch (cardErr) {
-          if (_isDebugEnabled()) console.warn('[CPU] policy-card loading failed', cardErr);
-        }
-      }
       await _loadAuxiliaryPolicyOnnxModels(runtime, {
         hasTargetModel,
         targetModelUrl,

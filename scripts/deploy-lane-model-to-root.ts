@@ -184,8 +184,6 @@ function deployLaneModelToRoot(options: DeployArgs): DryRunDeploySummary | Deplo
     const onnxFiles = [
         { name: 'policy-net.onnx' },
         { name: 'policy-net.onnx.meta.json' },
-        { name: 'policy-card.onnx' },
-        { name: 'policy-card.onnx.meta.json' },
         { name: 'policy-target.onnx' },
         { name: 'policy-target.onnx.meta.json' },
         { name: 'policy-value.onnx' },

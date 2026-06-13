@@ -18,7 +18,6 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
  * Outputs:
  *   place_logits: (1, 100) float32
  *   wdl_logits:   (1, 3)  float32  [Win, Draw, Loss]
- *   card_logits:  (1, card_action_dim) float32 (optional)
  */
 
 
@@ -194,11 +193,10 @@ async function loadModel(modelPath: any, metaPath: any): Promise<any> {
 }
 
 async function evaluate(context: any): Promise<any> {
-    /** Run inference and return {policy, wdl, card, value}.
+    /** Run inference and return {policy, wdl, value}.
      *
      * policy: Map<moveIndex, probability>
      * wdl: {win, draw, loss} probabilities
-     * card: Map<cardIndex, probability> (optional)
      * value: scalar expected value (-1 to 1)
      */
     if (!_session) {
@@ -221,8 +219,6 @@ async function evaluate(context: any): Promise<any> {
     // Parse outputs
     const placeOut = results.place_logits;
     const wdlOut = results.wdl_logits;
-    const cardOut = results.card_logits;
-
     const policy = new Map();
     if (placeOut && placeOut.data) {
         const data = placeOut.data;
@@ -256,23 +252,7 @@ async function evaluate(context: any): Promise<any> {
         value = wdl.win * 1.0 + wdl.draw * 0.0 + wdl.loss * (-1.0);
     }
 
-    let card = null;
-    if (cardOut && cardOut.data) {
-        card = new Map();
-        const data = cardOut.data;
-        let sum = 0;
-        const expScores = [];
-        for (let i = 0; i < data.length; i++) {
-            const expScore = Math.exp(data[i]);
-            expScores.push(expScore);
-            sum += expScore;
-        }
-        for (let i = 0; i < data.length; i++) {
-            card.set(i, sum > 0 ? expScores[i] / sum : 0);
-        }
-    }
-
-    return { policy, wdl, card, value };
+    return { policy, wdl, value };
 }
 
 async function chooseMove(candidateMoves: any, context: any): Promise<any> {
@@ -300,32 +280,6 @@ async function chooseMove(candidateMoves: any, context: any): Promise<any> {
     }
 }
 
-async function chooseCard(usableCardIds: any, context: any): Promise<any> {
-    /** Choose best card from usable cards. */
-    if (!usableCardIds || usableCardIds.length === 0) return null;
-
-    try {
-        const result = await evaluate(context);
-        const cardProbs = result.card;
-        if (!cardProbs) return null;
-
-        let bestCard = null;
-        let bestScore = -Infinity;
-        for (const cardId of usableCardIds) {
-            const idx = _cardIdToIndex(cardId);
-            const score = cardProbs.get(idx) || -Infinity;
-            if (score > bestScore) {
-                bestScore = score;
-                bestCard = cardId;
-            }
-        }
-        return bestCard;
-    } catch (err) {
-        _lastError = err;
-        return null;
-    }
-}
-
 function getLastError(): any {
     return _lastError;
 }
@@ -334,7 +288,6 @@ export = {
     loadModel,
     evaluate,
     chooseMove,
-    chooseCard,
     getLastError,
     buildBoardTensor,
     buildAuxVector,

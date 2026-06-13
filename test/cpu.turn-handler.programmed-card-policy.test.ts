@@ -86,7 +86,7 @@ function createCapturingTimerService(callbacks: Array<() => void>) {
     };
 }
 
-describe('cpu-turn-handler onnx hold behavior', () => {
+describe('cpu-turn-handler programmed card policy behavior', () => {
     beforeEach(() => {
         mod.resetCpuTurnHandlerState();
         mod.setTimers(null);
@@ -111,7 +111,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
             hasUsableCard: () => true,
             getCardDef: (id: string) => ({ id })
         };
-        global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
         global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
         mod.setCpuUIImpl({
             readBenchFastMode: () => global.__BENCH_FAST_MODE === true,
@@ -154,7 +153,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         delete global.showResult;
     });
 
-    test('respects ONNX hold in stable state', async () => {
+    test('uses programmed card policy in stable state', async () => {
         global.cardState = {
             hands: { white: ['card_a', 'card_b', 'card_c', 'card_d', 'card_e'], black: [] },
             charge: { white: 10, black: 10 },
@@ -172,8 +171,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
-        expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
     test('Lv7 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
@@ -192,7 +190,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
         expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
         expect(global.executeMove).toHaveBeenCalledWith(move);
@@ -214,7 +211,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('black');
 
-        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
         expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
         expect(global.executeMove).toHaveBeenCalledWith(move);
@@ -236,25 +232,15 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalledWith(
-            'white',
-            6,
-            1,
-            ['card_a'],
-            [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
-        );
+        expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test.each(lowYieldEconomyCards)('Lv7 theory incarnation blocks low-yield $name selected by ONNX', async (cardCase) => {
+    test.each(lowYieldEconomyCards)('Lv7 theory incarnation blocks low-yield $name through programmed policy', async (cardCase) => {
         setupLowYieldEconomyCard(cardCase, cardCase.legalMoves);
-        global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({
-            cardId: cardCase.id,
-            cardDef: { id: cardCase.id, name: cardCase.name, type: cardCase.type }
-        }));
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
+        expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
         expect(global.applyCardChoice).not.toHaveBeenCalledWith('white', expect.objectContaining({
             cardId: cardCase.id
         }));
@@ -277,7 +263,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(getPlaybackStateManager).not.toHaveBeenCalled();
     });
 
-    test('overrides ONNX hold in emergency state for Lv6', async () => {
+    test('uses programmed card policy in emergency state for Lv6', async () => {
         const emergencyBoard = Array.from({ length: 8 }, () => Array(8).fill(1));
         emergencyBoard[0][0] = -1;
         emergencyBoard[0][1] = -1;
@@ -300,11 +286,10 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('overrides ONNX hold when hand is at cap and charge is high (Lv6)', async () => {
+    test('uses programmed card policy when hand is at cap and charge is high (Lv6)', async () => {
         global.cardState = {
             hands: { white: ['a', 'b', 'c', 'd', 'e'], black: [] },
             charge: { white: 30, black: 8 },
@@ -321,11 +306,10 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('overrides ONNX hold when mobility is low and charge is available (Lv6)', async () => {
+    test('uses programmed card policy when mobility is low and charge is available (Lv6)', async () => {
         global.cardState = {
             hands: { white: ['a', 'b', 'c', 'd'], black: [] },
             charge: { white: 14, black: 8 },
@@ -341,11 +325,10 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('overrides ONNX hold when hand is loaded and state is only slightly behind (Lv6)', async () => {
+    test('uses programmed card policy when hand is loaded and state is only slightly behind (Lv6)', async () => {
         const board = makeBoard();
         board[0][0] = 1;
         board[0][1] = -1;
@@ -366,11 +349,10 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('skips ONNX card path when shared profile requests policy-table/core parity', async () => {
+    test('uses programmed card path when shared profile requests policy-table/core parity', async () => {
         global.CPU_LV6_SHARED_PROFILE = {
             browser: {
                 cardDecisionMode: 'policy-table-core'
@@ -392,7 +374,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
@@ -496,7 +477,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(global.showResult).toHaveBeenCalledTimes(1);
     });
 
-    test('no-legal-moves retry still falls back to policy and direct card use after ONNX hold', async () => {
+    test('no-legal-moves retry uses policy and direct card use without ONNX hold', async () => {
         global.cardState = {
             hands: { white: ['card_a'], black: [] },
             charge: { white: 10, black: 10 },
@@ -511,7 +492,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
         expect(global.applyCardChoice).toHaveBeenCalledWith('white', {
             cardId: 'card_a',
@@ -521,7 +501,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
     test.each(lowYieldEconomyCards)('no-legal-moves direct retry does not bypass Lv6 low-yield $name gate', async (cardCase) => {
         setupLowYieldEconomyCard(cardCase, []);
-        global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
 
         await mod.runCpuTurn('white');
 
@@ -572,7 +551,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
         expect(action.type).toBe('destroy_hand_card');
         expect(action.destroyCardId).toBe('fate_01');
-        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
         expect(timerService.setTimeout).toHaveBeenCalled();
         // Execute stored callbacks to clean up timers
@@ -621,7 +599,6 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
         expect(action.type).toBe('destroy_hand_card');
         expect(action.destroyCardId).toBe('corner_tribute_01');
-        expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
         expect(timerService.setTimeout).toHaveBeenCalled();
         // Execute stored callbacks to clean up timers
