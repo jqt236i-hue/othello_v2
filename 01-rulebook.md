@@ -2120,10 +2120,12 @@
 - `TIME_BOMB` / `STRONG_WIND_WILL` / `POSITION_SWAP_WILL` の対象選択は、爆発範囲・移動先・入替先の座席価値（角/辺/数字/特殊石）を加味して決める
 - `Lv6` の pending 対象選択は、対象モデルが使えるときだけ新経路へ入り、読込失敗・推論失敗・予算超過時は既存の対象評価へ即時縮退する
 - ブラウザの `Lv6` 用 `ONNX` runtime は `CPU_LV6_SHARED_PROFILE.browser.onnxRuntimeGuard` の平均/p95/max レイテンシ閾値と操作別予算を監視し、`chooseMove` / `chooseCard` / pending 対象選択のどれかが超過した場合は、その判断結果を採用せず既存の `policy_table` / 共有方針経路へ即時縮退する
-- `GOLD_STONE` / `RAINBOW_STONE` / `SILVER_STONE` / `PLUNDER_WILL` は、合法手の反転期待値（反転枚数+数字マス）とコスト差分を用いて使用可否を判定する
-- `CRYSTAL_STONE` は、合法手のうち「数字マスの最大値」を別枠で評価し、数字マスが薄い局面では強く見送る
-- `Lv6白CPU` の `GOLD_STONE` / `RAINBOW_STONE` / `SILVER_STONE` / `PLUNDER_WILL` は、原則として「今打つと3枚以上反転できる」局面でのみ積極使用し、2枚以下しか反転できない局面では強く見送る
-- `Lv6白CPU` の `CRYSTAL_STONE` は、原則として「今打つと数字マス2以上を踏める」局面でのみ積極使用し、数字マス1以下しか踏めない局面では強く見送る
+- CPUは `GOLD_STONE` / `RAINBOW_STONE` / `SILVER_STONE` / `CRYSTAL_STONE` / `PLUNDER_WILL` を、カードコスト込みの得失が必ずプラスになる局面でのみ使用する
+- `SILVER_STONE` は `反転数 x 2 - 3 > 0`、つまり反転2枚以上の時だけ使用する
+- `GOLD_STONE` は `反転数 x 3 - 6 > 0`、つまり反転3枚以上の時だけ使用する
+- `RAINBOW_STONE` は `反転数 x 5 - 10 > 0`、つまり反転3枚以上の時だけ使用する
+- `CRYSTAL_STONE` は `数字マス値 - 6 > 0`、つまり数字マス7以上の時だけ使用する
+- `PLUNDER_WILL` は `min(反転数, 相手布石) x 2 - 4 > 0`、つまり反転3枚以上かつ相手布石3以上で吸収3以上が見込める時だけ使用する
 - `Lv6白CPU` の `GLUTTONOUS_WILL` は、原則として「今打つと4枚以上反転できる」局面でのみ積極使用し、4枚未満しか反転できない局面では強く見送る
 - `Lv6白CPU` の `CLONE_WILL` は、自石を対象にする前提の上で角を元石にしにくくし、展開余地があり複製価値の高い自石を優先する
 - `Lv6白CPU` の `CLONE_WILL` は、反転期待値が低く、残り布石余力や回復札ラインを削る局面では積極使用しない

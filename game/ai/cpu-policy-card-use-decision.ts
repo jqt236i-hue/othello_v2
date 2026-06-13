@@ -59,6 +59,15 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         return Math.max(0, Math.floor(maxLegalBoardBonus || 0)) - Math.max(0, Number(cardCost) || 0);
     }
 
+    function getPlunderSwingExtraProfit(maxLegalFlips: number, oppCharge: unknown, cardCost: number): number {
+        const possibleFlips = Math.max(0, Math.floor(maxLegalFlips || 0));
+        const availableOpponentCharge = Number.isFinite(Number(oppCharge))
+            ? Math.max(0, Math.floor(Number(oppCharge)))
+            : 0;
+        const siphon = Math.min(possibleFlips, availableOpponentCharge);
+        return (siphon * 2) - Math.max(0, Number(cardCost) || 0);
+    }
+
     function scoreCardUseDecision(
         cardId: CpuPolicyCardId,
         getCardCost: CpuPolicyCardCostResolver,
@@ -243,25 +252,22 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
                 minUseScore: ctx.minUseScore
             };
         }
-        if (ctx.level >= 6 && (isGoldStone || isRainbowStone || isSilverStone || isCrystalStone)) {
+        if (isGoldStone || isRainbowStone || isSilverStone || isCrystalStone || isPlunderWill) {
             const multiplier = isRainbowStone ? 6 : (isGoldStone ? 4 : (isSilverStone ? 3 : 2));
             const extraProfit = isCrystalStone
                 ? getNumberCellExtraProfit(maxLegalBoardBonus, cardCost)
-                : getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost);
-            const crystalHasRelevantNumberCell = isCrystalStone && maxLegalBoardBonus >= 2;
-            if (extraProfit <= 0 && !crystalHasRelevantNumberCell) {
-                return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'cpu_lv6_unprofitable_charge_roi');
+                : (isPlunderWill
+                    ? getPlunderSwingExtraProfit(maxLegalFlips, ctx.oppCharge, cardCost)
+                    : getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost));
+            if (extraProfit <= 0) {
+                return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'cpu_unprofitable_charge_roi');
             }
         }
         const highYieldChargeRecovery = (
             ((isGoldStone || isRainbowStone || isSilverStone) &&
                 getFlipMultiplierExtraProfit(maxLegalFlips, isRainbowStone ? 6 : (isGoldStone ? 4 : 3), cardCost) > 0) ||
-            (isCrystalStone && maxLegalBoardBonus >= 2) ||
-            (isPlunderWill &&
-                maxLegalFlips >= 3 &&
-                maxLegalGain >= 3 &&
-                Number.isFinite(ctx.oppCharge) &&
-                Number(ctx.oppCharge) >= 3)
+            (isCrystalStone && getNumberCellExtraProfit(maxLegalBoardBonus, cardCost) > 0) ||
+            (isPlunderWill && getPlunderSwingExtraProfit(maxLegalFlips, ctx.oppCharge, cardCost) > 0)
         );
         if (!ctx.forceUseCard && reserveGap > 0) {
             let reservePenalty = reserveGap * 26;
@@ -560,7 +566,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         if (isPlunderWill) {
             const siphon = Math.min(Math.max(0, Math.floor(ctx.oppCharge || 0)), maxLegalFlips);
             score -= 8;
-            score += (siphon - cardCost) * 8;
+            score += ((siphon * 2) - cardCost) * 8;
             if (avgLegalFlips >= 2.5) score += 10;
             if (maxLegalFlips < 3 && !ctx.forceUseCard) {
                 score -= 240;

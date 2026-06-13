@@ -1423,10 +1423,10 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(false);
     });
 
-    test('scoreCardUseDecision suppresses SILVER_STONE below three flips', () => {
+    test('scoreCardUseDecision suppresses SILVER_STONE below profit line', () => {
         const out = core.scoreCardUseDecision(
             'silver',
-            () => 5,
+            () => 3,
             () => ({ id: 'silver', type: 'SILVER_STONE' }),
             {
                 level: 6,
@@ -1438,9 +1438,9 @@ describe('cpu-policy-core', () => {
                 handSize: 3,
                 ownCorners: 1,
                 oppCorners: 1,
-                maxLegalFlips: 2,
-                maxLegalGain: 2,
-                avgLegalFlips: 1.8
+                maxLegalFlips: 1,
+                maxLegalGain: 1,
+                avgLegalFlips: 1
             }
         );
         expect(out.shouldUse).toBe(false);
@@ -1521,7 +1521,7 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
-    test('scoreCardUseDecision allows CRYSTAL_STONE on a high-value number cell before strict cost profit', () => {
+    test('scoreCardUseDecision suppresses CRYSTAL_STONE at break-even number cell even with high flips', () => {
         const out = core.scoreCardUseDecision(
             'crystal',
             () => 6,
@@ -1543,7 +1543,8 @@ describe('cpu-policy-core', () => {
                 avgLegalFlips: 3
             }
         );
-        expect(out.shouldUse).toBe(true);
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('cpu_unprofitable_charge_roi');
     });
 
     test('scoreCardUseDecision suppresses CRYSTAL_STONE when数字マス利益がない', () => {
@@ -2976,11 +2977,70 @@ describe('cpu-policy-core', () => {
             maxLegalGain: 2
         });
         const rainbow = core.scoreCardUseDecision('rainbow', () => 10, (id: string) => defs[id], common);
-        const plunder = core.scoreCardUseDecision('plunder', () => 7, (id: string) => defs[id], common);
+        const plunder = core.scoreCardUseDecision('plunder', () => 4, (id: string) => defs[id], common);
         expect(gold.shouldUse).toBe(true);
         expect(silver.shouldUse).toBe(true);
         expect(rainbow.shouldUse).toBe(true);
         expect(plunder.shouldUse).toBe(true);
+    });
+
+    test.each([
+        {
+            label: 'silver below profit line',
+            cardId: 'silver',
+            cardType: 'SILVER_STONE',
+            cost: 3,
+            context: { maxLegalFlips: 1, maxLegalGain: 1 }
+        },
+        {
+            label: 'gold at break-even line',
+            cardId: 'gold',
+            cardType: 'GOLD_STONE',
+            cost: 6,
+            context: { maxLegalFlips: 2, maxLegalGain: 9 }
+        },
+        {
+            label: 'rainbow at break-even line',
+            cardId: 'rainbow',
+            cardType: 'RAINBOW_STONE',
+            cost: 10,
+            context: { maxLegalFlips: 2, maxLegalGain: 9 }
+        },
+        {
+            label: 'crystal at break-even number cell',
+            cardId: 'crystal',
+            cardType: 'CRYSTAL_STONE',
+            cost: 6,
+            context: { maxLegalFlips: 5, maxLegalGain: 20, maxLegalBoardBonus: 6, highBonusMoveAvailable: true }
+        },
+        {
+            label: 'plunder at break-even swing',
+            cardId: 'plunder',
+            cardType: 'PLUNDER_WILL',
+            cost: 4,
+            context: { maxLegalFlips: 2, maxLegalGain: 9, oppCharge: 2 }
+        }
+    ])('scoreCardUseDecision hard-blocks $label even when forced', ({ cardId, cardType, cost, context }) => {
+        const out = core.scoreCardUseDecision(
+            cardId,
+            () => cost,
+            () => ({ id: cardId, type: cardType }),
+            {
+                level: 6,
+                forceUseCard: true,
+                legalMovesCount: 4,
+                discDiff: -8,
+                empties: 28,
+                ownCharge: 50,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                ...context
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('cpu_unprofitable_charge_roi');
     });
 
     test('scoreCardUseDecision suppresses gold and rainbow at card-cost break-even for Lv6+', () => {
