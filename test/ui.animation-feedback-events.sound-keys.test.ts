@@ -69,6 +69,15 @@ describe('animation feedback sound key coverage', () => {
     expect(css).toContain('rgba(7, 12, 18, 0.62)');
   });
 
+  test('manifest summary popup keeps fade transitions enabled', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-animations.css'), 'utf8');
+    const staticPresentationBlock = css.match(/\/\* Static special-card presentation:[\s\S]*?\}\s*/)?.[0] || '';
+
+    expect(css).toMatch(/\.manifest-summary-popup\s*\{[\s\S]*opacity 280ms ease[\s\S]*transform 360ms/);
+    expect(css).toMatch(/\.manifest-summary-popup\.is-leaving\s*\{[\s\S]*opacity:\s*0/);
+    expect(staticPresentationBlock).not.toContain('.manifest-summary-popup');
+  });
+
   test('duplicate sound keys in one playback event are deduplicated before playback', async () => {
     const playEffectByKey = jest.fn();
     await AnimationFeedbackEvents.handleSoundEffectEvent(

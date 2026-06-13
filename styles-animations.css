@@ -202,10 +202,13 @@
 .special-card-cinematic-title,
 .special-card-cinematic-quote,
 .special-card-cinematic-quote-line,
-.manifest-ending-overlay,
-.manifest-summary-popup {
+.manifest-ending-overlay {
     animation: none !important;
     transition: none !important;
+}
+
+.manifest-summary-popup {
+    animation: none !important;
 }
 
 .special-card-cinematic-character,
