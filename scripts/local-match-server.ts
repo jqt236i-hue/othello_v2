@@ -477,12 +477,12 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         ? pendingByPlayer[playerKey]
         : {};
     const expectedPendingType = String(expectedPendingForPlayer.type || '').toUpperCase();
-    const skipTurnStartForTeleportSelection = !!(
+    const skipTurnStartForPendingSelection = !!(
         resolvedActionRecord.pendingSelectionState &&
         typeof resolvedActionRecord.pendingSelectionState === 'object' &&
-        (expectedPendingType === 'TELEPORT_WILL' || expectedPendingType === 'CELL_TELEPORT_WILL')
+        expectedPendingType
     );
-    const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForTeleportSelection;
+    const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForPendingSelection;
     const result = TurnPipeline.applyTurnSafe(
         currentCardState,
         currentSnapshot.gameState,

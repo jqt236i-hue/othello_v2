@@ -602,9 +602,14 @@ describe('worker card pattern parity', () => {
   test('meteor will network pending follow-up creates a meteor hole without requiring a legal placement cell', () => {
     const cardId = 'meteor_01';
     const runtime = createCardUseRuntime(cardId, 71);
+    const runtimeSnapshot = runtime.getSnapshot();
+    runtimeSnapshot.cardState.debugHandFilled = true;
+    runtimeSnapshot.cardState.debugNoDraw = true;
     const initialSnapshot = clone(runtime.getSnapshot());
     const initialVersion = runtime.getRoom().stateVersion;
     const useBody = buildUseCardBody(runtime, cardId, 'op_worker_pattern_meteor_will_followup_use');
+    useBody.params.debugOptions = { ignoreCost: true, noConsume: true };
+    useBody.action.debugOptions = { ignoreCost: true, noConsume: true };
     const workerUse = runWorkerPublish(initialSnapshot, initialVersion, clone(useBody), 71);
     expect(workerUse.status).toBe(200);
     expect(workerUse.payload && workerUse.payload.ok).toBe(true);
