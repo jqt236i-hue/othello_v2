@@ -53,6 +53,15 @@ describe('pending selection card contracts', () => {
     }
   });
 
+  test('SUPER_ATTRACTION_WILL selection continues to normal placement', () => {
+    const entry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY.SUPER_ATTRACTION_WILL;
+    const contract = PendingStateManager.resolvePendingSelectionContract('SUPER_ATTRACTION_WILL');
+
+    expect(entry.turnOutcome).toBe('continue_turn');
+    expect(contract && contract.turnOutcome).toBe('continue_turn');
+    expect(PendingStateManager.isSelectionOnlyEndTurnPendingType('SUPER_ATTRACTION_WILL')).toBe(false);
+  });
+
   test('registry target methods are sufficient for card-use prechecks', () => {
     const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY;
 

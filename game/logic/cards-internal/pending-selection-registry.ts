@@ -108,7 +108,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
     },
     SUPER_ATTRACTION_WILL: {
         kind: 'multi_stage',
-        turnOutcome: 'end_turn',
+        turnOutcome: 'continue_turn',
         deferNetworkPublish: true,
         waitForPlaybackIdle: true,
         needsTargetSelection: true,
