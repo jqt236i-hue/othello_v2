@@ -999,6 +999,10 @@ if (!OwnerHelpersModule) {
         if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) OwnerHelpersModule = (globalThis as any).OwnerHelpers;
     } catch (e: any) { /* ignore */ }
 }
+var ViewerContextModule: any = null;
+if (typeof require === 'function') {
+    try { ViewerContextModule = require('./diff-renderer/viewer-context'); } catch (e: any) { /* ignore */ }
+}
 var PlaybackStateModule: any = null;
 if (typeof require === 'function') {
     try { PlaybackStateModule = require('./playback-state-manager'); } catch (e: any) { /* ignore */ }
@@ -1765,24 +1769,49 @@ function _isBoardHiddenTrap(marker: any) {
     return true;
 }
 
+function _resolveViewerContextForDiff() {
+    const root = typeof window !== 'undefined' ? window : null;
+    try {
+        if (ViewerContextModule && typeof ViewerContextModule.resolveDiffRendererViewerContext === 'function') {
+            return ViewerContextModule.resolveDiffRendererViewerContext(root, OwnerHelpersModule);
+        }
+    } catch (e: any) { /* fallback to local resolution */ }
+    let localPlayerKey: any = null;
+    let isNetworkMode = false;
+    try {
+        const directKeys = [root && root.LOCAL_PLAYER_KEY, root && root.__LOCAL_PLAYER_KEY, root && root.BOARD_VIEWER_KEY];
+        for (const key of directKeys) {
+            if (key === 'white' || key === 'black') {
+                localPlayerKey = key;
+                break;
+            }
+        }
+    } catch (e: any) { localPlayerKey = null; }
+    try {
+        isNetworkMode = !!(
+            root &&
+            (
+                (typeof root.getCurrentMatchMode === 'function' && root.getCurrentMatchMode() === 'network') ||
+                root.MATCH_MODE === 'network'
+            )
+        );
+    } catch (e: any) { isNetworkMode = false; }
+    return {
+        seatKey: null,
+        localPlayerKey,
+        isNetworkMode,
+        debugHumanVsHuman: !!(root && root.DEBUG_HUMAN_VS_HUMAN === true)
+    };
+}
+
 function _resolveNetworkLocalPlayerKeyForDiff() {
-    try {
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
-            return OwnerHelpersModule.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null);
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined') {
-            if (window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
-                const seatKey = window.NetworkMatchClient.getSeatKey();
-                if (seatKey === 'white' || seatKey === 'black') return seatKey;
-            }
-            const directKeys = [window.LOCAL_PLAYER_KEY, window.__LOCAL_PLAYER_KEY, window.BOARD_VIEWER_KEY];
-            for (const key of directKeys) {
-                if (key === 'white' || key === 'black') return key;
-            }
-        }
-    } catch (e: any) { /* ignore */ }
+    const viewerContext = _resolveViewerContextForDiff();
+    if (viewerContext.localPlayerKey === 'white' || viewerContext.localPlayerKey === 'black') {
+        return viewerContext.localPlayerKey;
+    }
+    if (viewerContext.seatKey === 'white' || viewerContext.seatKey === 'black') {
+        return viewerContext.seatKey;
+    }
     return 'black';
 }
 
@@ -1795,20 +1824,14 @@ function _canLocalPlayerControlCurrentTurnForDiff() {
                 gameState: typeof gameState !== 'undefined' ? gameState : null,
                 currentPlayer: gameState && gameState.currentPlayer,
                 localPlayerKey: _resolveNetworkLocalPlayerKeyForDiff(),
-                debugHumanVsHuman: typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true
+                debugHumanVsHuman: _resolveViewerContextForDiff().debugHumanVsHuman === true
             }).canOperateBoard === true;
         }
     } catch (e: any) { /* fallback to legacy local checks */ }
-    let isNetworkMode = false;
-    try {
-        isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')
-            ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
-            : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
-                ? window.getCurrentMatchMode() === 'network'
-                : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network'));
-    } catch (e: any) { /* ignore */ }
+    const viewerContext = _resolveViewerContextForDiff();
+    const isNetworkMode = viewerContext.isNetworkMode === true;
     const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
-    const isHvH = !!(typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true);
+    const isHvH = viewerContext.debugHumanVsHuman === true;
     if (isNetworkMode || !isHvH) {
         const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
         const fwc = cs && cs.fateWillControllerByTurnOwner;
@@ -2555,14 +2578,7 @@ function buildCurrentCellState() {
         pending.type === 'LAST_RESORT'
     ));
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
-    let isNetworkMode = false;
-    try {
-        isNetworkMode = (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function')
-            ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
-            : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
-                ? window.getCurrentMatchMode() === 'network'
-                : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network'));
-    } catch (e: any) { /* ignore */ }
+    const isNetworkMode = _resolveViewerContextForDiff().isNetworkMode === true;
     const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForDiff();
     const isFateWillControlledTurn = !!(
         cardState &&
