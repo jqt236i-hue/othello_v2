@@ -16,4 +16,5 @@ if (!MatchRoomDurableObjectExport) {
 
 export const MatchRoomDurableObject = MatchRoomDurableObjectExport;
 export const MatchRoomDurableObjectV2 = MatchRoomDurableObjectExport;
+export const MatchRoomDurableObjectV3 = MatchRoomDurableObjectExport;
 export default defaultWorker;

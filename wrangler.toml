@@ -10,7 +10,7 @@ binding = "ASSETS"
 
 [durable_objects]
 bindings = [
-  { name = "MATCH_ROOM", class_name = "MatchRoomDurableObjectV2" }
+  { name = "MATCH_ROOM", class_name = "MatchRoomDurableObjectV3" }
 ]
 
 [[migrations]]
@@ -20,3 +20,7 @@ new_sqlite_classes = ["MatchRoomDurableObject"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["MatchRoomDurableObjectV2"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["MatchRoomDurableObjectV3"]
