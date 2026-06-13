@@ -75,6 +75,48 @@ describe('OBSERVER_WILL repayments', () => {
     expect(blackCount).toBe(1);
   });
 
+  test('shortage destruction carries turn PRNG into salvation god revive for serialized state', () => {
+    let randomIndex = 0;
+    const prng = {
+      shuffle: (arr) => arr,
+      random: () => {
+        const values = [0.3, 0];
+        const value = values[Math.min(randomIndex, values.length - 1)];
+        randomIndex += 1;
+        return value;
+      }
+    };
+    const cardState = createCardState();
+    const gameState = createGameState();
+    delete cardState._defaultRandomSource;
+    cardState.charge.black = 1;
+    cardState.markers.push({
+      id: 1,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
+    });
+    cardState.observerWillRepaymentsByPlayer.black.push({
+      sourceType: 'OBSERVER_WILL',
+      status: 'active',
+      stolenCardId: 'meteor_01',
+      repaymentAmount: 3,
+      remainingOwnerTurns: 9,
+      shortageDestroyCount: 1
+    });
+
+    const summary = CardLogic.processObserverWillRepaymentsAtTurnStart(cardState, gameState, 'black', prng);
+    const reviveEvents = cardState.presentationEvents.filter((event) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+
+    expect(summary.entries[0]).toEqual(expect.objectContaining({
+      shortage: true,
+      destroyedCount: 1
+    }));
+    expect(reviveEvents).toHaveLength(1);
+  });
+
   test('shortage destruction excludes guarded and frozen own stones', () => {
     const cardState = createCardState();
     const gameState = createGameState();

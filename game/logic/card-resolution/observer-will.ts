@@ -277,18 +277,25 @@ function resolveObserverWillRepaymentTurnStartEntry(cardState: CardState, gameSt
             shortageDestroyCount,
             prng
         );
-        for (const target of targets) {
-            const destroyRes = deps.destroyCellWithPresentation(
-                cardState,
-                gameState,
-                target.row,
-                target.col,
-                'OBSERVER_WILL',
-                'observer_will_repayment_shortage',
-                { owner: ownerKey }
-            );
-            if (!destroyRes || !destroyRes.destroyed) continue;
-            entry.destroyed.push({ row: target.row, col: target.col });
+        const destroyTargets = () => {
+            for (const target of targets) {
+                const destroyRes = deps.destroyCellWithPresentation(
+                    cardState,
+                    gameState,
+                    target.row,
+                    target.col,
+                    'OBSERVER_WILL',
+                    'observer_will_repayment_shortage',
+                    { owner: ownerKey, randomSource: prng }
+                );
+                if (!destroyRes || !destroyRes.destroyed) continue;
+                entry.destroyed.push({ row: target.row, col: target.col });
+            }
+        };
+        if (typeof deps.runBoardOpsDestroyBlock === 'function') {
+            deps.runBoardOpsDestroyBlock(cardState, gameState, destroyTargets, { randomSource: prng });
+        } else {
+            destroyTargets();
         }
         entry.destroyedCount = entry.destroyed.length;
     }
