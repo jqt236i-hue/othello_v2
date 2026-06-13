@@ -124,9 +124,14 @@ function buildPublishRequest(info: PublishRequestInfo, options: PublishRequestOp
   const optionTurnIndex = Number.isFinite(Number(opts.turnIndex))
     ? Math.trunc(Number(opts.turnIndex))
     : null;
+  const normalizedQueuedActionType = String(queuedActionType || '').trim().toLowerCase();
   const requestTurnIndex = hasPendingSelectionState && commandTurnIndex !== null
     ? commandTurnIndex
-    : (optionTurnIndex !== null ? optionTurnIndex : commandTurnIndex);
+    : (
+      normalizedQueuedActionType === 'use_card' && optionTurnIndex !== null && commandTurnIndex !== null
+        ? Math.max(optionTurnIndex, commandTurnIndex)
+        : (optionTurnIndex !== null ? optionTurnIndex : commandTurnIndex)
+    );
 
   requestPayload.actor = commandPayload.actor || playerKey;
   requestPayload.params = commandPayload.params || {};

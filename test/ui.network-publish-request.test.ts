@@ -88,6 +88,38 @@ describe('NetworkPublishRequestModule', () => {
     expect(result.requestPayload.turnIndex).toBe(25);
   });
 
+  test('does not downgrade use_card turnIndex when live publish state is stale', () => {
+    const result = NetworkPublishRequestModule.buildPublishRequest({
+      action: {
+        type: 'use_card',
+        playerKey: 'black',
+        useCardId: 'meteor_god_01',
+        useCardOwnerKey: 'black',
+        turnIndex: 4
+      }
+    }, {
+      playerKey: 'black',
+      roomId: 'ROOM123',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      operationId: 'op_meteor_god_use',
+      baseVersion: 42,
+      turnIndex: 3,
+      buildPublishCommandPayload: () => ({
+        actionType: 'use_card',
+        actor: 'black',
+        params: {
+          useCardId: 'meteor_god_01',
+          useCardOwnerKey: 'black'
+        },
+        turnIndex: 4
+      })
+    });
+
+    expect(result.requestPayload.actionType).toBe('use_card');
+    expect(result.requestPayload.turnIndex).toBe(4);
+  });
+
   test('uses command turnIndex for pending selection publish', () => {
     const result = NetworkPublishRequestModule.buildPublishRequest({
       action: {

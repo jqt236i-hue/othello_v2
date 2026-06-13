@@ -493,6 +493,81 @@ describe('worker card pattern parity', () => {
     expect(workerSoundKeys).toContain('bomb_explode');
   }, 90000);
 
+  test('meteor god follow-up place creates the anchor and immediate meteor hole in worker runtime', () => {
+    const cardId = 'meteor_god_01';
+    const runtime = createCardUseRuntime(cardId, 71);
+    const initialSnapshot = clone(runtime.getSnapshot());
+    const initialVersion = runtime.getRoom().stateVersion;
+    const useBody = buildUseCardBody(runtime, cardId, 'op_worker_pattern_meteor_god_followup_use');
+    const workerUse = runWorkerPublish(initialSnapshot, initialVersion, clone(useBody), 71);
+    expect(workerUse.status).toBe(200);
+    expect(workerUse.payload && workerUse.payload.ok).toBe(true);
+    expect(workerUse.payload.snapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'METEOR_GOD',
+      stage: null
+    }));
+
+    const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+    const workerMove = pickFirstLegalMove(workerSnapshotAfterUse, 'black');
+    const workerPlaceTurnIndex = Number(workerSnapshotAfterUse && workerSnapshotAfterUse.cardState && workerSnapshotAfterUse.cardState.turnIndex) || 0;
+    const workerPlaceBody = {
+      seatKey: 'black',
+      playerKey: 'black',
+      baseVersion: Number(workerUse.payload.stateVersion),
+      operationId: 'op_worker_pattern_meteor_god_followup_place',
+      actionType: 'place',
+      actor: 'black',
+      params: {
+        row: workerMove.row,
+        col: workerMove.col
+      },
+      turnIndex: workerPlaceTurnIndex,
+      action: {
+        type: 'place',
+        playerKey: 'black',
+        row: workerMove.row,
+        col: workerMove.col,
+        turnIndex: workerPlaceTurnIndex
+      }
+    };
+    const workerPlace = runWorkerPublish(workerSnapshotAfterUse, Number(workerUse.payload.stateVersion), workerPlaceBody, 71);
+    expect(workerPlace.status).toBe(200);
+    expect(workerPlace.payload && workerPlace.payload.ok).toBe(true);
+
+    const workerMarkers = workerPlace.payload.snapshot.cardState.markers || [];
+    expect(workerMarkers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_GOD' })
+      }),
+      expect.objectContaining({
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE' })
+      })
+    ]));
+    expect(workerPlace.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'destroy' }),
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({
+          special: 'METEOR_HOLE',
+          cellRemovalCause: 'METEOR_GOD'
+        })
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ soundKey: 'meteor_hole' })
+        ])
+      })
+    ]));
+    expect(workerPlace.payload.effectLogs).toEqual(expect.arrayContaining([
+      expect.stringContaining('因果抹消神石'),
+      expect.stringContaining('穴化')
+    ]));
+  }, 90000);
+
   test('network debug fill can use position swap will with debug no-consume options', () => {
     const cardId = 'position_swap_01';
     const runtime = LocalMatchRuntime.createRuntime({ seed: 71, networkDebugEnabled: true });
