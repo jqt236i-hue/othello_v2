@@ -491,6 +491,7 @@ const CASES = [
     pendingType: 'METEOR_WILL',
     rawEventType: 'meteor_selected',
     cardId: 'meteor_01',
+    expectPublishOnlySelection: true,
     buildNextCardState: (cardState) => ({
       ...cloneJson(cardState),
       pendingEffectByPlayer: { black: null, white: null },
@@ -514,6 +515,57 @@ const CASES = [
     },
     assertAppliedState: ({ gameState, cardState }) => {
       expect(gameState.board[2][2]).toBe(0);
+      expect(cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          data: expect.objectContaining({ type: 'METEOR_HOLE' })
+        })
+      ]));
+    }
+  },
+  {
+    label: 'CELL_TELEPORT_WILL',
+    modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'teleport.js'),
+    handlerName: 'handleTeleportSelection',
+    pendingType: 'CELL_TELEPORT_WILL',
+    rawEventType: 'teleport_selected',
+    cardId: 'cell_teleport_01',
+    initialBoardEntries: [
+      { row: 2, col: 2, value: 1 }
+    ],
+    expectPublishOnlySelection: true,
+    buildNextCardState: (cardState) => ({
+      ...cloneJson(cardState),
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          id: 72,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'METEOR_HOLE' }
+        }
+      ]
+    }),
+    buildNextGameState: (gameState) => {
+      const nextGameState = cloneJson(gameState);
+      nextGameState.board[2][2] = 0;
+      nextGameState.boardExpansion = {
+        cells: [
+          { row: -1, col: 2, owner: 1 }
+        ]
+      };
+      nextGameState.currentPlayer = global.WHITE;
+      nextGameState.turnNumber = 12;
+      return nextGameState;
+    },
+    assertAppliedState: ({ gameState, cardState }) => {
+      expect(gameState.board[2][2]).toBe(0);
+      expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+        expect.objectContaining({ row: -1, col: 2, owner: 1 })
+      ]));
       expect(cardState.markers).toEqual(expect.arrayContaining([
         expect.objectContaining({
           row: 2,
@@ -609,7 +661,8 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     buildNextCardState,
     buildNextGameState,
     assertAppliedState,
-    cardId
+    cardId,
+    expectPublishOnlySelection
   } = caseConfig;
   let dom;
   let publishBodies;
@@ -684,13 +737,17 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
       applied: true,
       ...(rawEvent || {})
     };
-    runTurnMock = jest.fn(() => ({
-      ok: true,
-      rawEvents: [appliedRawEvent],
-      nextCardState,
-      nextGameState,
-      playbackEvents: [{ type: 'status_applied', phase: 1 }]
-    }));
+    runTurnMock = expectPublishOnlySelection
+      ? jest.fn(() => {
+        throw new Error(`${pendingType} must not locally preview network target selection`);
+      })
+      : jest.fn(() => ({
+        ok: true,
+        rawEvents: [appliedRawEvent],
+        nextCardState,
+        nextGameState,
+        playbackEvents: [{ type: 'status_applied', phase: 1 }]
+      }));
     global.TurnPipelineUIAdapter = {
       runTurnWithAdapter: runTurnMock
     };
@@ -721,14 +778,23 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
         const body = JSON.parse(init.body || '{}');
         publishBodies.push(body);
         const previewResult = runTurnMock.mock.results[0] && runTurnMock.mock.results[0].value;
-        const authoritativeSnapshot = (previewResult && previewResult.nextGameState && previewResult.nextCardState)
+        const authoritativeSnapshot = expectPublishOnlySelection
           ? {
-            stateVersion: 21,
-            _meta: createSnapshotMeta(21),
-            gameState: cloneJson(previewResult.nextGameState),
-            cardState: cloneJson(previewResult.nextCardState)
-          }
-          : createLiveResponseSnapshot(21);
+              stateVersion: 21,
+              _meta: createSnapshotMeta(21),
+              gameState: cloneJson(nextGameState),
+              cardState: cloneJson(nextCardState)
+            }
+          : (
+              previewResult && previewResult.nextGameState && previewResult.nextCardState
+                ? {
+                    stateVersion: 21,
+                    _meta: createSnapshotMeta(21),
+                    gameState: cloneJson(previewResult.nextGameState),
+                    cardState: cloneJson(previewResult.nextCardState)
+                  }
+                : createLiveResponseSnapshot(21)
+            );
         return jsonResponse(200, {
           ok: true,
           roomId: 'GTD',
@@ -804,22 +870,23 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const action = runTurnMock.mock.calls[0][3];
     const presentation = require(PRESENTATION_PATH);
-    expect(action.deferNetworkPublish).toBe(true);
-    const actionParamKey = Object.keys(action).find((key) => (
-      key !== 'type'
-      && key !== 'player'
-      && key !== 'turnIndex'
-      && key !== 'deferNetworkPublish'
-      && key !== 'pendingSelectionState'
-    ));
     const registryActionConfig = PendingSelectionRegistry.getPendingSelectionActionConfig(pendingType);
 
     expect(registryActionConfig).toEqual(expect.objectContaining({
-      field: actionParamKey
+      field: expect.any(String)
     }));
     expect(publishBodies).toHaveLength(1);
+    if (expectPublishOnlySelection) {
+      expect(runTurnMock).not.toHaveBeenCalled();
+    }
+    const action = expectPublishOnlySelection
+      ? publishBodies[0].action
+      : runTurnMock.mock.calls[0][3];
+    const actionParamKey = registryActionConfig.field;
+    expect(action).toEqual(expect.objectContaining({
+      deferNetworkPublish: true
+    }));
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({

@@ -130,6 +130,21 @@ function createSelectionSettlementLockReleaser(deps: SelectionPendingExecutionDe
     };
 }
 
+function preservePendingSelectionIdentity(nextPending: any, previousPending: any) {
+    if (!nextPending || typeof nextPending !== 'object') return false;
+    if (!previousPending || typeof previousPending !== 'object') return false;
+    const keys = ['pendingEffectId', 'cardId', 'sourceHandIndex'];
+    let changed = false;
+    for (let index = 0; index < keys.length; index += 1) {
+        const key = keys[index];
+        if (typeof nextPending[key] !== 'undefined' && nextPending[key] !== null && nextPending[key] !== '') continue;
+        if (typeof previousPending[key] === 'undefined' || previousPending[key] === null || previousPending[key] === '') continue;
+        nextPending[key] = previousPending[key];
+        changed = true;
+    }
+    return changed;
+}
+
 async function executePendingSelectionCore(options: any, deps: SelectionPendingExecutionDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const row = Number(opts.row);
@@ -331,6 +346,11 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             executionResult = preview.result;
             appliedSelection = preview.appliedSelection;
             const appliedState = deps.applySelectionStateResult(executionResult, stateRefs) || stateRefs;
+            const appliedPendingByPlayer = appliedState.cardState && appliedState.cardState.pendingEffectByPlayer;
+            const appliedPending = appliedPendingByPlayer ? appliedPendingByPlayer[playerKey] : null;
+            if (deps.normalizePendingType(appliedPending && appliedPending.type) === resolvedPendingType) {
+                preservePendingSelectionIdentity(appliedPending, pending);
+            }
             playbackEvents = Array.isArray(executionResult.playbackEvents)
                 ? executionResult.playbackEvents
                 : [];

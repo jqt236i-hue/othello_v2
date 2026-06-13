@@ -596,11 +596,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function shouldUseNetworkPublishOnlyPendingSelection(pendingType: any) {
+        const normalizedPendingType = normalizePendingType(pendingType);
         if (readMatchMode() !== 'network') return false;
-        if (!shouldDeferNetworkPublishForPendingType(pendingType)) return false;
+        if (!shouldDeferNetworkPublishForPendingType(normalizedPendingType)) return false;
+        if (
+            normalizedPendingType === 'METEOR_WILL'
+            || normalizedPendingType === 'CELL_TELEPORT_WILL'
+        ) {
+            return hasActiveNetworkPublishClient();
+        }
         const contract = resolvePendingSelectionContract(pendingType);
         if (contract && contract.kind === 'multi_stage') return false;
-        if (!isSelectionOnlyEndTurnPendingType(pendingType)) return false;
+        if (!isSelectionOnlyEndTurnPendingType(normalizedPendingType)) return false;
         return hasActiveNetworkPublishClient();
     }
 

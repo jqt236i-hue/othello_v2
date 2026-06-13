@@ -60,11 +60,12 @@ const CASES = [
     actionField: 'positionSwapTarget',
     firstTarget: { row: 2, col: 3 },
     secondTarget: { row: 5, col: 4 },
-    initialPending: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01' },
+    initialPending: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget', cardId: 'position_swap_01', pendingEffectId: 'pending_position_swap_1' },
     intermediatePending: {
       type: 'POSITION_SWAP_WILL',
       stage: 'selectTarget',
       cardId: 'position_swap_01',
+      pendingEffectId: 'pending_position_swap_1',
       firstTarget: { row: 2, col: 3 }
     },
     buildFirstResult: (currentSnapshot) => ({
@@ -112,6 +113,7 @@ const CASES = [
     expectedTransportState: {
       type: 'POSITION_SWAP_WILL',
       stage: 'selectTarget',
+      pendingEffectId: 'pending_position_swap_1',
       firstTarget: { row: 2, col: 3 }
     }
   },
