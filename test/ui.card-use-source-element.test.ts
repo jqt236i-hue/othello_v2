@@ -508,6 +508,48 @@ describe('card use source element selection', () => {
     expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
+  test('network mode does not auto-advance after server-authored card use leaves board target pending', async () => {
+    let resolvePublish;
+    const publishPromise = new Promise((resolve) => {
+      resolvePublish = resolve;
+    });
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: 'METEOR_WILL', name: '因果抹消', desc: 'd', cost: 1 })
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      pendingSelectionActive: true,
+      publishPromise,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    global.renderCardUI.mockClear();
+    global.cardState.selectedCardOwnerKey = 'black';
+
+    window.useSelectedCard();
+
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'dup_card'
+    };
+    resolvePublish({ ok: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'METEOR_WILL',
+      stage: 'selectTarget'
+    }));
+    expect(global.window.isProcessing).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+  });
+
   test('network mode keeps selection and logs failure when server-authored card use publish is rejected', async () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';

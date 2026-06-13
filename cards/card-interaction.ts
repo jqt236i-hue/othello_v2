@@ -1752,6 +1752,35 @@ function _getRunResultPublishPromise(runResult: any) {
         : null;
 }
 
+function _hasBoardPendingSelectionForOwner(ownerKey: any) {
+    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!normalizedOwnerKey) return false;
+    const candidates: any[] = [];
+    const pushCandidate = (value: any) => {
+        if (value && typeof value === 'object' && candidates.indexOf(value) < 0) candidates.push(value);
+    };
+    pushCandidate(_getCardStateRef());
+    const rootRef = _getUiRootRef();
+    if (rootRef) pushCandidate(rootRef.cardState);
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis) pushCandidate((globalThis as any).cardState);
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof cardState !== 'undefined') pushCandidate(cardState);
+    } catch (e) { /* ignore */ }
+
+    return candidates.some((stateRef) => {
+        const pending = (stateRef && stateRef.pendingEffectByPlayer)
+            ? stateRef.pendingEffectByPlayer[normalizedOwnerKey]
+            : null;
+        return !!(
+            pending
+            && pending.stage === 'selectTarget'
+            && !_isHandOverlayPendingTypeForCardUi(pending.type)
+        );
+    });
+}
+
 function _renderCardUiSafely() {
     if (typeof renderCardUI !== 'function') return;
     try { renderCardUI(); } catch (e) { /* ignore */ }
@@ -1798,6 +1827,9 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
                     clickHandler(bufferedClick.row, bufferedClick.col);
                     return;
                 } catch (e) { /* ignore */ }
+            }
+            if (_hasBoardPendingSelectionForOwner(ownerKey)) {
+                return;
             }
             if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
                 ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });

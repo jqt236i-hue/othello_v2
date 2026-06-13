@@ -599,6 +599,90 @@ describe('worker card pattern parity', () => {
     ]));
   }, 90000);
 
+  test('meteor will network pending follow-up creates a meteor hole without requiring a legal placement cell', () => {
+    const cardId = 'meteor_01';
+    const runtime = createCardUseRuntime(cardId, 71);
+    const initialSnapshot = clone(runtime.getSnapshot());
+    const initialVersion = runtime.getRoom().stateVersion;
+    const useBody = buildUseCardBody(runtime, cardId, 'op_worker_pattern_meteor_will_followup_use');
+    const workerUse = runWorkerPublish(initialSnapshot, initialVersion, clone(useBody), 71);
+    expect(workerUse.status).toBe(200);
+    expect(workerUse.payload && workerUse.payload.ok).toBe(true);
+
+    const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+    const pending = workerSnapshotAfterUse.cardState.pendingEffectByPlayer.black;
+    expect(pending).toEqual(expect.objectContaining({
+      type: 'METEOR_WILL',
+      stage: 'selectTarget'
+    }));
+
+    const pendingSelectionState = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId,
+      pendingEffectId: pending.pendingEffectId
+    };
+    const workerPlaceTurnIndex = Number(workerSnapshotAfterUse && workerSnapshotAfterUse.cardState && workerSnapshotAfterUse.cardState.turnIndex) || 0;
+    const workerPlaceBody = {
+      seatKey: 'black',
+      playerKey: 'black',
+      baseVersion: Number(workerUse.payload.stateVersion),
+      operationId: 'op_worker_pattern_meteor_will_followup_place',
+      actionType: 'place',
+      actor: 'black',
+      params: {
+        meteorTarget: { row: 0, col: 0 },
+        player: 'black',
+        pendingSelectionState,
+        row: 0,
+        col: 0
+      },
+      turnIndex: workerPlaceTurnIndex,
+      action: {
+        type: 'place',
+        meteorTarget: { row: 0, col: 0 },
+        player: 'black',
+        deferNetworkPublish: true,
+        pendingSelectionState,
+        row: 0,
+        col: 0,
+        turnIndex: workerPlaceTurnIndex
+      }
+    };
+    const workerPlace = runWorkerPublish(workerSnapshotAfterUse, Number(workerUse.payload.stateVersion), workerPlaceBody, 71);
+    expect(workerPlace.status).toBe(200);
+    expect(workerPlace.payload && workerPlace.payload.ok).toBe(true);
+    expect(workerPlace.payload.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(workerPlace.payload.snapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE' })
+      })
+    ]));
+    expect(workerPlace.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({
+          special: 'METEOR_HOLE',
+          cellRemovalCause: 'METEOR_WILL'
+        })
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ soundKey: 'meteor_hole' })
+        ])
+      })
+    ]));
+    expect(workerPlace.payload.effectLogs).toEqual(expect.arrayContaining([
+      expect.stringContaining('因果抹消'),
+      expect.stringContaining('マスごと破壊')
+    ]));
+  }, 90000);
+
   test('network debug fill can use position swap will with debug no-consume options', () => {
     const cardId = 'position_swap_01';
     const runtime = LocalMatchRuntime.createRuntime({ seed: 71, networkDebugEnabled: true });
