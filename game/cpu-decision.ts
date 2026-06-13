@@ -1476,10 +1476,16 @@ function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, 
 }
 
 async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
-    const useOthelloOnnx = isOthelloModeForCpuDecision() && shouldUseOthelloOnnxRuntime();
+    const board = getCurrentCpuBoard();
+    const pendingType = resolvePendingType(playerKey);
+    const forceCardModeOthelloPlacement = Number.isFinite(level) &&
+        level >= 6 &&
+        shouldUseOthelloOnnxRuntime() &&
+        shouldForceCardModeLv6Placement(playerKey, pendingType, board);
+    const useOthelloOnnx = shouldUseOthelloOnnxRuntime() &&
+        (isOthelloModeForCpuDecision() || forceCardModeOthelloPlacement);
     const runtime = useOthelloOnnx ? resolveOthelloOnnxRuntime() : resolvePolicyOnnxRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
-    const board = getCurrentCpuBoard();
     if (!canUseStandardBoardCpuPolicy(board, useOthelloOnnx ? 'othello-onnx-move' : 'onnx-move', playerKey, level)) return null;
     let prioritizedCandidateMoves = useOthelloOnnx
         ? (Array.isArray(candidateMoves) ? candidateMoves : [])

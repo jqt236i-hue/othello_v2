@@ -1441,6 +1441,43 @@ describe('cpu decision refactor helpers', () => {
     expect(lookedSpy).toHaveBeenCalled();
   });
 
+  test('selectMoveFromOnnxPolicyAsync uses normal Othello ONNX before card ONNX for Lv6 cpu placement', async () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: ['guard_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.OthelloOnnxRuntime = {
+      chooseMove: jest.fn(async () => candidates[1])
+    };
+    global.CpuPolicyOnnxRuntime = {
+      chooseMove: jest.fn(async () => candidates[0])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'cpu'
+    });
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+
+    expect(move).toBe(candidates[1]);
+    expect(global.OthelloOnnxRuntime.chooseMove).toHaveBeenCalledWith(candidates, expect.objectContaining({
+      playerKey: 'white',
+      level: 6,
+      board: global.gameState.board,
+      legalMovesCount: candidates.length
+    }));
+    expect(global.CpuPolicyOnnxRuntime.chooseMove).not.toHaveBeenCalled();
+  });
+
   test('selectCpuMoveWithPolicy does not force Lv6 placement when pending effect exists in cpu mode', () => {
     const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
     global.cpuSmartness.white = 1;
