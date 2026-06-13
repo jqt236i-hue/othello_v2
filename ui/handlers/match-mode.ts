@@ -1163,12 +1163,17 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkChatMessages.innerHTML = '';
     }
 
+    function normalizeNetworkChatSeatKey(value: any) {
+        const normalized = String(value || '').trim().toLowerCase();
+        return normalized === 'white' ? 'white' : 'black';
+    }
+
     function appendNetworkChatMessage(entry: any) {
         if (!uiRefs.networkChatMessages || !entry || !entry.text) return;
-        const seatKey = (entry.seatKey === 'white') ? 'white' : 'black';
+        const seatKey = normalizeNetworkChatSeatKey(entry.seatKey);
         const seatLabel = seatKey === 'white' ? '白' : '黒';
         const localSeat = (root.NetworkMatchClient && typeof root.NetworkMatchClient.getSeatKey === 'function')
-            ? root.NetworkMatchClient.getSeatKey()
+            ? normalizeNetworkChatSeatKey(root.NetworkMatchClient.getSeatKey())
             : 'black';
 
         const line = document.createElement('div');
@@ -1179,6 +1184,27 @@ const MODE_OTHELLO = 'othello';
         line.textContent = `${seatLabel}: ${entry.text}`;
         uiRefs.networkChatMessages.appendChild(line);
         uiRefs.networkChatMessages.scrollTop = uiRefs.networkChatMessages.scrollHeight;
+    }
+
+    function showNetworkChatSpeechBubble(entry: any) {
+        if (!entry || !entry.text) return;
+        const seatKey = normalizeNetworkChatSeatKey(entry.seatKey);
+        const localSeat = (root.NetworkMatchClient && typeof root.NetworkMatchClient.getSeatKey === 'function')
+            ? normalizeNetworkChatSeatKey(root.NetworkMatchClient.getSeatKey())
+            : 'black';
+        const speechText = String(entry.text || '').trim();
+        if (!speechText) return;
+
+        if (seatKey === localSeat) {
+            if (typeof root.showHeroSpeechBubble === 'function') {
+                root.showHeroSpeechBubble(speechText);
+            }
+            return;
+        }
+
+        if (typeof root.showCpuSpeechBubble === 'function') {
+            root.showCpuSpeechBubble(speechText);
+        }
     }
 
     function renderNetworkChatHistory(messages: any) {
@@ -1619,6 +1645,7 @@ const MODE_OTHELLO = 'othello';
                 }
                 if (payload.type === 'message' && payload.message) {
                     appendNetworkChatMessage(payload.message);
+                    showNetworkChatSpeechBubble(payload.message);
                 }
             });
         }

@@ -39,6 +39,11 @@ describe('match-mode network button behavior', () => {
       networkStatus: document.getElementById('networkStatusText'),
       networkDeckInfo: document.getElementById('networkDeckInfo'),
       networkTimerStatus: document.getElementById('networkTimerStatus'),
+      networkChatPanel: document.getElementById('networkChatPanel'),
+      networkChatToggle: document.getElementById('networkChatToggle'),
+      networkChatMessages: document.getElementById('networkChatMessages'),
+      networkChatInput: document.getElementById('networkChatInput'),
+      networkChatSendBtn: document.getElementById('networkChatSendBtn'),
       autoToggleBtn: document.getElementById('autoToggleBtn')
     };
   }
@@ -78,6 +83,12 @@ describe('match-mode network button behavior', () => {
       '<div id="networkStatusText"></div>' +
       '<div id="networkDeckInfo"></div>' +
       '<div id="networkTimerStatus"></div>' +
+      '<div id="networkChatPanel" aria-hidden="true">' +
+      '<button id="networkChatToggle" type="button"></button>' +
+      '<div id="networkChatMessages"></div>' +
+      '<input id="networkChatInput" type="text" />' +
+      '<button id="networkChatSendBtn" type="button"></button>' +
+      '</div>' +
       '<div id="deck-white"></div>' +
       '<div id="deck-black"></div>' +
       '<div id="hand-white"></div>' +
@@ -104,6 +115,8 @@ describe('match-mode network button behavior', () => {
     global.location = dom.window.location;
     global.addLog = jest.fn();
     global.updateCpuCharacter = jest.fn();
+    window.showCpuSpeechBubble = jest.fn();
+    window.showHeroSpeechBubble = jest.fn();
     window.setNetworkDebugModeAccess = jest.fn();
 
     createRoom = jest.fn(async () => ({ ok: true, roomId: 'A1B', networkDebugEnabled: true }));
@@ -178,6 +191,33 @@ describe('match-mode network button behavior', () => {
 
   test('初期化直後に部屋盤面情報が未確定でも 8x8 表示へ安全にフォールバックする', () => {
     expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルトデッキ / 作成時に送る盤面: 8x8');
+  });
+
+  test('ネット対戦チャット新着は席に応じて自分側か相手側の吹き出しへ表示する', () => {
+    const chatListener = window.NetworkMatchClient.setChatListener.mock.calls[0][0];
+    expect(typeof chatListener).toBe('function');
+
+    chatListener({
+      type: 'history',
+      messages: [{ id: 1, seatKey: 'white', text: '履歴', serverTime: 1 }]
+    });
+
+    expect(window.showHeroSpeechBubble).not.toHaveBeenCalled();
+    expect(window.showCpuSpeechBubble).not.toHaveBeenCalled();
+
+    chatListener({
+      type: 'message',
+      message: { id: 2, seatKey: 'black', text: '自分の発言', serverTime: 2 }
+    });
+    chatListener({
+      type: 'message',
+      message: { id: 3, seatKey: 'white', text: '相手の発言', serverTime: 3 }
+    });
+
+    expect(window.showHeroSpeechBubble).toHaveBeenCalledWith('自分の発言');
+    expect(window.showCpuSpeechBubble).toHaveBeenCalledWith('相手の発言');
+    expect(document.getElementById('networkChatMessages').textContent).toContain('黒: 自分の発言');
+    expect(document.getElementById('networkChatMessages').textContent).toContain('白: 相手の発言');
   });
 
   test('リバーシモードはカード系UIを隠しCPUレベル選択を残す', async () => {

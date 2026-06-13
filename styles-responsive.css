@@ -239,7 +239,8 @@ html.layout-profile-phone-portrait #effect-live-panel,
 html.layout-profile-phone-portrait #manifest-effect-panel,
 html.layout-profile-phone-portrait #cpu-character-panel,
 html.layout-profile-phone-portrait #hero-character-panel,
-html.layout-profile-phone-portrait #cpu-speech-bubble {
+html.layout-profile-phone-portrait #cpu-speech-bubble,
+html.layout-profile-phone-portrait #hero-speech-bubble {
     display: none;
 }
 
@@ -1318,7 +1319,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 }
 
 @media (max-width: 56.25em) {
-    #cpu-speech-bubble {
+    #cpu-speech-bubble,
+    #hero-speech-bubble {
         max-width: min(72vw, calc(320px * var(--layout-stage-scale)));
         padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
         font-size: calc(12px * var(--layout-stage-scale));
@@ -1326,7 +1328,8 @@ html.sim-aspect-5-4 #effect-live-panel {
 }
 
 @media (orientation: landscape) and (max-width: 56.25em) {
-    #cpu-speech-bubble {
+    #cpu-speech-bubble,
+    #hero-speech-bubble {
         max-width: min(58vw, calc(250px * var(--layout-stage-scale)));
         font-size: calc(11px * var(--layout-stage-scale));
         padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));

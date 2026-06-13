@@ -71,7 +71,7 @@ function setupPortraitBubbleDom() {
   });
 
   window.document.body.appendChild = (node) => {
-    if (node && node.id === 'cpu-speech-bubble') {
+    if (node && (node.id === 'cpu-speech-bubble' || node.id === 'hero-speech-bubble')) {
       bindDynamicBubbleRect(node);
     }
     return nativeAppendChild(node);
@@ -82,6 +82,7 @@ function setupPortraitBubbleDom() {
   jest.resetModules();
   const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
   window.showCpuSpeechBubble = statusDisplay.showCpuSpeechBubble;
+  window.showHeroSpeechBubble = statusDisplay.showHeroSpeechBubble;
 
   return { dom, window, boardFrame };
 }
@@ -131,6 +132,27 @@ describe('status-display portrait commentary bubbles', () => {
       const cpuBubble = window.document.getElementById('cpu-speech-bubble');
       expect(cpuBubble).not.toBeNull();
       expect(cpuBubble.getBoundingClientRect().left).toBeGreaterThanOrEqual(boardRect.right + 12);
+    } finally {
+      teardownPortraitBubbleDom(dom);
+    }
+  });
+
+  test('shows hero speech bubble anchored to the hero portrait without clearing cpu bubble', () => {
+    const { dom, window } = setupPortraitBubbleDom();
+    try {
+      window.showCpuSpeechBubble('相手の発言');
+      window.showHeroSpeechBubble('自分の発言');
+
+      const cpuBubble = window.document.getElementById('cpu-speech-bubble');
+      const heroBubble = window.document.getElementById('hero-speech-bubble');
+
+      expect(cpuBubble).not.toBeNull();
+      expect(heroBubble).not.toBeNull();
+      expect(cpuBubble.textContent).toBe('相手の発言');
+      expect(heroBubble.textContent).toBe('自分の発言');
+      expect(cpuBubble.classList.contains('is-visible')).toBe(true);
+      expect(heroBubble.classList.contains('is-visible')).toBe(true);
+      expect(heroBubble.getBoundingClientRect().right).toBeLessThan(520);
     } finally {
       teardownPortraitBubbleDom(dom);
     }
