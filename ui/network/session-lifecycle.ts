@@ -7,6 +7,7 @@ function createNetworkSessionLifecycleController(config: any): any {
   const roomIdPattern = cfg.roomIdPattern instanceof RegExp ? cfg.roomIdPattern : /^[A-Z0-9]{3}$/;
   const roomIdLength = Number.isFinite(Number(cfg.roomIdLength)) ? Math.trunc(Number(cfg.roomIdLength)) : 3;
   const playerNameMax = Number.isFinite(Number(cfg.playerNameMax)) ? Math.trunc(Number(cfg.playerNameMax)) : 7;
+  let createRoomInProgress = false;
 
   function readState(): any {
     const state = typeof cfg.getState === 'function' ? cfg.getState() : null;
@@ -114,6 +115,20 @@ function createNetworkSessionLifecycleController(config: any): any {
 
   async function createRoom(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
+    const currentState = readState();
+    if (currentState.roomId) {
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus('すでにネット対戦の部屋に参加しています', true);
+      }
+      return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: currentState.roomId };
+    }
+    if (createRoomInProgress) {
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus('部屋作成中です', false);
+      }
+      return { ok: false, reason: 'CREATE_IN_PROGRESS' };
+    }
+
     if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
       cfg.setServerUrl(opts.serverUrl);
     }
@@ -124,7 +139,13 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
     emitDeckCodeFallbackIfNeeded(entryPayload);
 
-    const res = await cfg.requestJson('POST', '/api/match/create', entryPayload.payload);
+    createRoomInProgress = true;
+    let res: any;
+    try {
+      res = await cfg.requestJson('POST', '/api/match/create', entryPayload.payload);
+    } finally {
+      createRoomInProgress = false;
+    }
     if (!res.ok || !res.data || res.data.ok !== true) {
       return handleRoomEntryFailure(res, {
         fallbackReason: 'CREATE_FAILED',

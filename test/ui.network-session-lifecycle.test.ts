@@ -146,6 +146,40 @@ describe('NetworkSessionLifecycleController', () => {
         false
       );
     });
+
+    test('すでに部屋に参加している場合は新しい部屋作成要求を送らない', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token123';
+
+      const result = await controller.createRoom({ playerName: 'テスト' });
+
+      expect(result).toEqual({ ok: false, reason: 'ALREADY_IN_ROOM', roomId: 'ABC' });
+      expect(mockConfig.requestJson).not.toHaveBeenCalled();
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith('すでにネット対戦の部屋に参加しています', true);
+    });
+
+    test('部屋作成中の再クリックは追加の作成要求を送らない', async () => {
+      let resolveCreate;
+      mockConfig.requestJson.mockImplementation(() => new Promise((resolve) => {
+        resolveCreate = resolve;
+      }));
+
+      const firstCreate = controller.createRoom({ playerName: 'テスト' });
+      const secondCreate = await controller.createRoom({ playerName: 'テスト' });
+
+      expect(secondCreate).toEqual({ ok: false, reason: 'CREATE_IN_PROGRESS' });
+      expect(mockConfig.requestJson).toHaveBeenCalledTimes(1);
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith('部屋作成中です', false);
+
+      resolveCreate(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        seatKey: 'black',
+        seatToken: 'token123'
+      }));
+      await expect(firstCreate).resolves.toMatchObject({ ok: true, roomId: 'ABC' });
+    });
   });
 
   describe('createRoom - エラーハンドリング', () => {
