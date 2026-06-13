@@ -27,6 +27,17 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return String(pendingType || '').trim().toUpperCase();
     }
 
+    const NETWORK_PUBLISH_ONLY_PENDING_SELECTION_TYPES = Object.freeze([
+        'STRONG_WIND_WILL',
+        'BUOYANCY_WILL',
+        'SUPER_BUOYANCY_WILL',
+        'GRAVITY_WILL',
+        'SUPER_GRAVITY_WILL',
+        'TELEPORT_WILL',
+        'CELL_TELEPORT_WILL',
+        'METEOR_WILL'
+    ]);
+
     function getNetworkTurnHandoff() {
         if (cachedNetworkTurnHandoff && typeof cachedNetworkTurnHandoff === 'object') {
             return cachedNetworkTurnHandoff;
@@ -599,10 +610,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const normalizedPendingType = normalizePendingType(pendingType);
         if (readMatchMode() !== 'network') return false;
         if (!shouldDeferNetworkPublishForPendingType(normalizedPendingType)) return false;
-        if (
-            normalizedPendingType === 'METEOR_WILL'
-            || normalizedPendingType === 'CELL_TELEPORT_WILL'
-        ) {
+        if (NETWORK_PUBLISH_ONLY_PENDING_SELECTION_TYPES.indexOf(normalizedPendingType) !== -1) {
             return hasActiveNetworkPublishClient();
         }
         const contract = resolvePendingSelectionContract(pendingType);

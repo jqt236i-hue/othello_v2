@@ -1,7 +1,8 @@
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
-const MODULE_PATH = path.resolve(__dirname, '..', 'game', 'card-effects', 'strong-wind.js');
+const STRONG_WIND_MODULE_PATH = path.resolve(__dirname, '..', 'game', 'card-effects', 'strong-wind.js');
+const TELEPORT_MODULE_PATH = path.resolve(__dirname, '..', 'game', 'card-effects', 'teleport.js');
 const PRESENTATION_PATH = path.resolve(__dirname, '..', 'game', 'logic', 'presentation.js');
 
 const CASES = [
@@ -39,6 +40,14 @@ const CASES = [
     pendingType: 'GRAVITY_WILL',
     actionField: 'gravityTarget',
     cardId: 'gravity_01'
+  },
+  {
+    label: 'TELEPORT_WILL',
+    modulePath: TELEPORT_MODULE_PATH,
+    handlerName: 'handleTeleportSelection',
+    pendingType: 'TELEPORT_WILL',
+    actionField: 'teleportTarget',
+    cardId: 'teleport_01'
   }
 ];
 
@@ -107,7 +116,13 @@ function createSnapshot(stateVersion, pendingType, cardId) {
   };
 }
 
-describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerName, pendingType, actionField, cardId }) => {
+describe.each(CASES)('NetworkMatchClient $label deferred publish', ({
+  modulePath = STRONG_WIND_MODULE_PATH,
+  handlerName,
+  pendingType,
+  actionField,
+  cardId
+}) => {
   let dom;
   let publishBodies;
   let runTurnMock;
@@ -118,7 +133,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
       emitPresentationEvent: jest.fn(() => true)
     }), { virtual: false });
 
-    delete require.cache[MODULE_PATH];
+    delete require.cache[modulePath];
 
     dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
     global.window = dom.window;
@@ -302,7 +317,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     expect(global.gameState.board).toHaveLength(7);
     expect(global.gameState.board[0]).toHaveLength(9);
 
-    const handlers = require('../game/card-effects/strong-wind.js');
+    const handlers = require(modulePath);
     const result = await handlers[handlerName](6, 8, 'black');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
