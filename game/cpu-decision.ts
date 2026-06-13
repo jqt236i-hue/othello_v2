@@ -320,6 +320,7 @@ const CpuDecisionMoveSelectionModule = requireCpuDecisionModuleOrNull('./cpu-dec
 const CpuDecisionPendingActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-actions');
 const CpuDecisionPendingScoreModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-score');
 const CpuDecisionPendingOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-onnx');
+const CpuDecisionOnnxMoveModule = requireCpuDecisionModuleOrNull('./cpu-decision-onnx-move');
 const CpuDecisionCardActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-actions');
 const CpuDecisionCardPipelineModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-pipeline');
 const CpuDecisionPendingPipelineModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-pipeline');
@@ -1471,75 +1472,38 @@ function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, 
     });
 }
 
+const CpuDecisionOnnxMove = (CpuDecisionOnnxMoveModule && typeof CpuDecisionOnnxMoveModule.createCpuDecisionOnnxMove === 'function')
+    ? CpuDecisionOnnxMoveModule.createCpuDecisionOnnxMove({
+        getCurrentCpuBoard,
+        resolvePendingType,
+        shouldUseOthelloOnnxRuntime,
+        shouldForceCardModeLv6Placement,
+        isOthelloModeForCpuDecision,
+        resolveOthelloOnnxRuntime,
+        resolvePolicyOnnxRuntime,
+        canUseStandardBoardCpuPolicy,
+        filterMovesByLv6PlacementPriority,
+        filterLv6OpenCornerAdjacentMoves,
+        evaluateCpuOnnxLatencyGate,
+        logCpuOnnxLatencyDegrade,
+        resolveCpuLv6OnnxRuntimeBudgetMs,
+        awaitCpuPromiseWithinBudget,
+        getCpuOnnxBudgetTimeout: () => CPU_ONNX_BUDGET_TIMEOUT,
+        buildOnnxContext,
+        getHandCardIdsForPlayer,
+        resolveCandidateMoveByCoord,
+        refineOnnxMoveByTacticalPlan,
+        selectMoveByLookahead,
+        isSameMoveByCoord,
+        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
+        warn: (...args: any[]) => console.warn(...args)
+    })
+    : null;
+
 async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
-    const board = getCurrentCpuBoard();
-    const pendingType = resolvePendingType(playerKey);
-    const forceCardModeOthelloPlacement = Number.isFinite(level) &&
-        level >= 6 &&
-        shouldUseOthelloOnnxRuntime() &&
-        shouldForceCardModeLv6Placement(playerKey, pendingType, board);
-    const useOthelloOnnx = shouldUseOthelloOnnxRuntime() &&
-        (isOthelloModeForCpuDecision() || forceCardModeOthelloPlacement);
-    const runtime = useOthelloOnnx ? resolveOthelloOnnxRuntime() : resolvePolicyOnnxRuntime();
-    if (!runtime || typeof runtime.chooseMove !== 'function') return null;
-    if (!canUseStandardBoardCpuPolicy(board, useOthelloOnnx ? 'othello-onnx-move' : 'onnx-move', playerKey, level)) return null;
-    let prioritizedCandidateMoves = useOthelloOnnx
-        ? (Array.isArray(candidateMoves) ? candidateMoves : [])
-        : filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves);
-    if (!useOthelloOnnx && Number.isFinite(level) && level >= 6) {
-        prioritizedCandidateMoves = filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
-    }
-    const preGate = evaluateCpuOnnxLatencyGate(runtime, 'chooseMove', level);
-    if (preGate.shouldDegrade) {
-        logCpuOnnxLatencyDegrade(level, playerKey, 'chooseMove', preGate.reason);
-        return null;
-    }
-    const budgetMs = resolveCpuLv6OnnxRuntimeBudgetMs(level, 'chooseMove');
-    try {
-        const handCardIds = getHandCardIdsForPlayer(playerKey);
-        const selected = await awaitCpuPromiseWithinBudget(
-            () => runtime.chooseMove(
-                prioritizedCandidateMoves,
-                useOthelloOnnx
-                    ? { playerKey, level, board, legalMovesCount: prioritizedCandidateMoves.length }
-                    : buildOnnxContext(playerKey, level, prioritizedCandidateMoves.length, handCardIds, null)
-            ),
-            budgetMs,
-            CPU_ONNX_BUDGET_TIMEOUT
-        );
-        if (selected === CPU_ONNX_BUDGET_TIMEOUT) {
-            logCpuOnnxLatencyDegrade(level, playerKey, 'chooseMove', `timeout budget=${budgetMs}ms`);
-            return null;
-        }
-        const postGate = evaluateCpuOnnxLatencyGate(runtime, 'chooseMove', level);
-        if (postGate.shouldDegrade) {
-            logCpuOnnxLatencyDegrade(level, playerKey, 'chooseMove', postGate.reason);
-            return null;
-        }
-        if (useOthelloOnnx) {
-            const resolved = resolveCandidateMoveByCoord(prioritizedCandidateMoves, selected) || selected;
-            if (resolved) {
-                cpuDebugLog(`[CPU] Lv${level} ${playerKey}: リバーシONNX選択 (${resolved.row},${resolved.col})`);
-            }
-            return resolved;
-        }
-        const tactical = refineOnnxMoveByTacticalPlan(prioritizedCandidateMoves, selected, playerKey, level);
-        if (!Number.isFinite(level) || level < 6) {
-            return tactical;
-        }
-        const searched = selectMoveByLookahead(prioritizedCandidateMoves, playerKey, level, selected);
-        if (!searched) return tactical;
-        const resolved = resolveCandidateMoveByCoord(prioritizedCandidateMoves, searched) || searched;
-        if (tactical && !isSameMoveByCoord(resolved, tactical)) {
-            cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: ONNX手を先読み補正 (${tactical.row},${tactical.col}) -> (${resolved.row},${resolved.col})`
-            );
-        }
-        return resolved;
-    } catch (e) {
-        console.warn(useOthelloOnnx ? '[CPU] othello ONNX runtime failed, fallback to default policy' : '[CPU] policy-onnx runtime failed, fallback to default policy', e);
-        return null;
-    }
+    return CpuDecisionOnnxMove && typeof CpuDecisionOnnxMove.selectMoveFromOnnxPolicyAsync === 'function'
+        ? CpuDecisionOnnxMove.selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level)
+        : null;
 }
 
 function shouldForceCardModeLv6Placement(playerKey: any, pendingType: any, boardRef: any): any {
