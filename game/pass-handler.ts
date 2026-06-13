@@ -429,6 +429,36 @@ function resolvePassPublishPlayerKey(turnOwnerKey: string) {
     return normalizePlayerKey(effectiveOperatorKey, normalizedTurnOwnerKey);
 }
 
+function resolveNetworkSeatKeyForPassHandler() {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.readNetworkSeatKey === 'function') {
+            const seatKey = normalizePlayerKeyOptional(passHandlerRuntime.readNetworkSeatKey());
+            if (seatKey) return seatKey;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.LOCAL_PLAYER_KEY !== 'undefined') {
+            const seatKey = normalizePlayerKeyOptional(passHandlerRuntime.LOCAL_PLAYER_KEY);
+            if (seatKey) return seatKey;
+        }
+        if (passHandlerRuntime && typeof passHandlerRuntime.__LOCAL_PLAYER_KEY !== 'undefined') {
+            const seatKey = normalizePlayerKeyOptional(passHandlerRuntime.__LOCAL_PLAYER_KEY);
+            if (seatKey) return seatKey;
+        }
+        if (passHandlerRuntime && typeof passHandlerRuntime.BOARD_VIEWER_KEY !== 'undefined') {
+            const seatKey = normalizePlayerKeyOptional(passHandlerRuntime.BOARD_VIEWER_KEY);
+            if (seatKey) return seatKey;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function canPublishNetworkPassForTurnOwner(turnOwnerKey: string) {
+    const publishPlayerKey = resolvePassPublishPlayerKey(turnOwnerKey || 'black');
+    const localSeatKey = resolveNetworkSeatKeyForPassHandler();
+    return !!localSeatKey && localSeatKey === publishPlayerKey;
+}
+
 function publishPassSnapshot(playerKey: string, actionOverride?: any) {
     const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
     const action = (actionOverride && typeof actionOverride === 'object')
@@ -604,11 +634,12 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
     const hasCard = hasUsableCardFor(playerKey);
     if (legalMoves.length > 0 || hasCard) return false;
 
-    // Human turns must keep explicit pass semantics:
-    // even with no legal move, allow manual card use/discard decisions first.
-    // Auto-pass is reserved for CPU-controlled turns only.
-    if (!isCpuControlledPlayer(playerKey)) {
-        return false;
+    // With no legal move and no usable card, pass is the only available action.
+    // Network mode must publish an authoritative pass command instead of applying a local delayed pass.
+    if (isExplicitNetworkMatchMode()) {
+        if (!canPublishNetworkPassForTurnOwner(playerKey)) return false;
+        processPassTurn(playerKey, true);
+        return true;
     }
 
     if (opts.useBlackDelay && typeof BLACK !== 'undefined' && currentPlayer === BLACK) {
@@ -616,7 +647,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
         return true;
     }
 
-    processPassTurn(playerKey, !!opts.autoMode);
+    processPassTurn(playerKey, true);
     return true;
 }
 

@@ -27,6 +27,21 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
         processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
         readMatchMode: runtimeResolvers.readMatchMode,
         readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
+        readNetworkSeatKey: () => {
+          try {
+            if (typeof globalThis === 'undefined') return null;
+            const root = globalThis as any;
+            const client = root.NetworkMatchClient;
+            if (client && typeof client.getSeatKey === 'function') {
+              const seatKey = client.getSeatKey();
+              if (seatKey === 'black' || seatKey === 'white') return seatKey;
+            }
+            if (root.LOCAL_PLAYER_KEY === 'black' || root.LOCAL_PLAYER_KEY === 'white') return root.LOCAL_PLAYER_KEY;
+            if (root.__LOCAL_PLAYER_KEY === 'black' || root.__LOCAL_PLAYER_KEY === 'white') return root.__LOCAL_PLAYER_KEY;
+            if (root.BOARD_VIEWER_KEY === 'black' || root.BOARD_VIEWER_KEY === 'white') return root.BOARD_VIEWER_KEY;
+          } catch (e: any) { /* ignore */ }
+          return null;
+        },
         resolveRuntimeFunction: runtimeResolvers.resolveRuntimeFunction,
         showResult: () => {
           try {
