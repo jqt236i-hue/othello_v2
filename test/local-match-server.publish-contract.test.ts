@@ -637,6 +637,130 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('authoritative reverse will selection lets flip-evasion stones dodge on publish', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+
+      const patched = patchRoomSnapshotForTests(roomId, (room) => {
+        const snapshot = room.snapshot;
+        const board = createEmptyBoard();
+        board[2][2] = 1;
+        board[2][3] = -1;
+        board[2][4] = 1;
+        board[3][3] = -1;
+        board[3][4] = 1;
+        board[4][3] = 1;
+        board[4][4] = -1;
+
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.turnNumber = 5;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.board = board;
+        snapshot.cardState.turnIndex = 5;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState.charge.black = 0;
+        snapshot.cardState.charge.white = 0;
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState.hands.white = [];
+        snapshot.cardState.pendingEffectByPlayer = {
+          black: {
+            type: 'REVERSE_WILL',
+            stage: 'selectTarget',
+            cardId: 'reverse_will_01',
+            pendingEffectId: 'pending_5_1'
+          },
+          white: null
+        };
+        snapshot.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
+        snapshot.cardState.lastUsedCardByPlayer = { black: 'reverse_will_01', white: null };
+        snapshot.cardState.discard = ['reverse_will_01'];
+        snapshot.cardState.markers = [{
+          id: 'afterimage_reverse_target',
+          kind: 'specialStone',
+          row: 2,
+          col: 3,
+          owner: 'white',
+          data: { type: 'AFTERIMAGE_WILL', flipEvadeRemaining: 3, destroyEvadeRemaining: 3 }
+        }];
+      });
+      expect(patched).toBe(true);
+
+      const reverseSelection = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_reverse_will_evade_select_1',
+        actionType: 'place',
+        actor: 'black',
+        params: {
+          reverseWillTarget: { row: 2, col: 2 },
+          player: 'black',
+          pendingSelectionState: {
+            type: 'REVERSE_WILL',
+            stage: 'selectTarget',
+            cardId: 'reverse_will_01',
+            pendingEffectId: 'pending_5_1'
+          }
+        },
+        turnIndex: 5
+      });
+
+      expect(reverseSelection.status).toBe(200);
+      expect(reverseSelection.data.ok).toBe(true);
+      expect(reverseSelection.data.snapshot.gameState.currentPlayer).toBe(1);
+      expect(reverseSelection.data.snapshot.gameState.board[2][3]).toBe(0);
+      expect(reverseSelection.data.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+
+      const marker = reverseSelection.data.snapshot.cardState.markers.find((entry) => (
+        entry && entry.id === 'afterimage_reverse_target'
+      ));
+      expect(marker).toEqual(expect.objectContaining({
+        owner: 'white',
+        data: expect.objectContaining({
+          type: 'AFTERIMAGE_WILL',
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 3
+        })
+      }));
+      expect(marker.row === 2 && marker.col === 3).toBe(false);
+      expect(reverseSelection.data.snapshot.gameState.board[marker.row][marker.col]).toBe(-1);
+      expect(reverseSelection.data.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'move',
+          targets: expect.arrayContaining([
+            expect.objectContaining({
+              from: expect.objectContaining({ r: 2, col: 3 }),
+              cause: 'AFTERIMAGE_WILL',
+              reason: 'afterimage_will_flip_evade_move'
+            })
+          ])
+        })
+      ]));
+      expect(reverseSelection.data.playbackEvents).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'flip',
+          targets: expect.arrayContaining([
+            expect.objectContaining({
+              r: 2,
+              col: 3,
+              cause: 'REVERSE_WILL',
+              reason: 'reverse_will_flip'
+            })
+          ])
+        })
+      ]));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('stale pendingEffectId publish is rejected before deferred selection is applied', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

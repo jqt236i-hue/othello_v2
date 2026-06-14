@@ -3209,6 +3209,36 @@ const {
         return targets;
     }
 
+    function hasUsableFlipEvadeMarkerAt(cardState: any, row: any, col: any) {
+        const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+        return markers.some((marker: any) => {
+            if (!marker || marker.row !== row || marker.col !== col) return false;
+            if (EvasionStatus && typeof EvasionStatus.canUseFlipEvade === 'function') {
+                return EvasionStatus.canUseFlipEvade(marker) === true;
+            }
+            const typeUpper = String(marker.data && marker.data.type || '').trim().toUpperCase();
+            if (!['HYPERACTIVE', 'ESCAPE_HYPERACTIVE', 'EXTREME_HYPERACTIVE', 'ULTIMATE_HYPERACTIVE', 'AFTERIMAGE_WILL', 'WILL_HUNTER_KING'].includes(typeUpper)) {
+                return false;
+            }
+            const remaining = Number(marker.data && marker.data.flipEvadeRemaining);
+            return !Number.isFinite(remaining) || remaining > 0;
+        });
+    }
+
+    function getCurrentActionRandomSource(cardState: any) {
+        if (cardState && cardState._boardOpsRandomSource && typeof cardState._boardOpsRandomSource.random === 'function') {
+            return cardState._boardOpsRandomSource;
+        }
+        const currentMeta = cardState && cardState._currentActionMeta;
+        if (currentMeta && currentMeta.randomSource && typeof currentMeta.randomSource.random === 'function') {
+            return currentMeta.randomSource;
+        }
+        if (cardState && cardState._defaultRandomSource && typeof cardState._defaultRandomSource.random === 'function') {
+            return cardState._defaultRandomSource;
+        }
+        return defaultPrng;
+    }
+
     function applyReverseWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         const targetCell = normalizeReverseWillCell(row, col);
         const invalidTarget = targetCell || { row, col };
@@ -3232,7 +3262,28 @@ const {
         const appliedFlips: Array<{ row: number; col: number }> = [];
         const blockedFlips: Array<{ row: number; col: number; reason?: string }> = [];
         let blockedByGhost = false;
-        for (const pos of reverse.flips) {
+        let remainingFlips: Array<{ row: number; col: number }> = reverse.flips;
+        if (reverse.flips.some((pos: any) => hasUsableFlipEvadeMarkerAt(cardState, pos.row, pos.col))) {
+            const flipEvadeResult = resolveHyperactiveFlipEvasion(
+                cardState,
+                gameState,
+                reverse.flips,
+                reverse.ownerKey,
+                getCurrentActionRandomSource(cardState)
+            );
+            if (flipEvadeResult && Array.isArray(flipEvadeResult.remainingFlips)) {
+                remainingFlips = flipEvadeResult.remainingFlips.map((cell: any) => {
+                    if (Array.isArray(cell) && Number.isInteger(cell[0]) && Number.isInteger(cell[1])) {
+                        return { row: cell[0], col: cell[1] };
+                    }
+                    if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) {
+                        return { row: cell.row, col: cell.col };
+                    }
+                    return null;
+                }).filter((cell: any) => !!cell);
+            }
+        }
+        for (const pos of remainingFlips) {
             let changed = true;
             if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
                 const changeRes = BoardOpsModule.changeAt(

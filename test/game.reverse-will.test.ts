@@ -243,4 +243,55 @@ describe('REVERSE_WILL（反転の意志）', () => {
       })
     ]));
   });
+
+  test('lets flip-evasion stones dodge REVERSE_WILL card-effect flips', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = {
+      type: 'REVERSE_WILL',
+      cardId: 'reverse_will_01',
+      stage: 'selectTarget'
+    };
+    cardState.charge.black = 0;
+    gameState.board[2][2] = Shared.BLACK;
+    gameState.board[2][3] = Shared.WHITE;
+    gameState.board[2][4] = Shared.BLACK;
+    cardState.markers.push({
+      id: 'afterimage_reverse_target',
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'white',
+      data: { type: 'AFTERIMAGE_WILL', flipEvadeRemaining: 3, destroyEvadeRemaining: 3 }
+    });
+
+    const selected = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      {
+        type: 'place',
+        reverseWillTarget: { row: 2, col: 2 },
+        pendingSelectionState: { type: 'REVERSE_WILL', cardId: 'reverse_will_01', stage: 'selectTarget' }
+      },
+      PRNG
+    );
+
+    const marker = selected.cardState.markers.find((entry: any) => entry && entry.id === 'afterimage_reverse_target');
+    expect(selected.gameState.board[2][3]).toBe(Shared.EMPTY);
+    expect(marker).toBeTruthy();
+    expect(marker.row === 2 && marker.col === 3).toBe(false);
+    expect(selected.gameState.board[marker.row][marker.col]).toBe(Shared.WHITE);
+    expect(marker.data.flipEvadeRemaining).toBe(2);
+    expect(marker.data.destroyEvadeRemaining).toBe(3);
+    expect(selected.cardState.charge.black).toBe(0);
+    expect(selected.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'reverse_will_flipped',
+        applied: true,
+        details: [],
+        logicalFlipCount: 1,
+        flipCount: 0
+      })
+    ]));
+  });
 });
