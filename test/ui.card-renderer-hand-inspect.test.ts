@@ -662,6 +662,36 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('network own hand projected observer zero-cost card stays visually usable with real rule logic', () => {
+    const dom = createRendererContext({
+      matchMode: 'network',
+      seatKey: 'black',
+      networkClientIsActive: true,
+      currentPlayer: 1,
+      hands: { black: ['supply_01'], white: [] }
+    });
+    const { window } = dom;
+
+    const cardLogic = require('../game/logic/cards.js');
+    window.CardLogic = cardLogic;
+    global.CardLogic = cardLogic;
+    window.CARD_DEFS = [
+      { id: 'supply_01', name: '補給の意志', desc: 'd', cost: 1, type: 'SUPPLY_WILL' }
+    ];
+    window.cardState.charge.black = 0;
+    window.cardState.handCostAdjustmentsByPlayer = {
+      black: [{ overrideCost: 0 }],
+      white: []
+    };
+
+    window.renderCardUI();
+
+    const cardEl = window.document.querySelector('#hand-black .card-item.visible');
+    expect(cardEl.classList.contains('usable')).toBe(true);
+
+    dom.window.close();
+  });
+
   test('cpu mode shows all opponent hand cards face-up after reveal hand marks every copy', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',

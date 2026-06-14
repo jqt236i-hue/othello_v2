@@ -361,6 +361,28 @@ describe('card use source element selection', () => {
     expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('布石不足'));
   });
 
+  test('network mode allows projected observer zero-cost cards through real rule usability checks', () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.gameState.currentPlayer = global.BLACK;
+    global.cardState.selectedCardId = 'supply_01';
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.cardState.selectedCardHandIndex = 0;
+    global.cardState.charge.black = 0;
+    global.cardState.hands.black = ['supply_01'];
+    global.cardState.handCostAdjustmentsByPlayer = {
+      black: [{ overrideCost: 0 }],
+      white: []
+    };
+    global.CardLogic = require('../game/logic/cards.js');
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('現在使用できません'));
+  });
+
   test('network mode uses clicked hand slot for duplicate observer will stolen cards', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';

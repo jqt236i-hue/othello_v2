@@ -1737,7 +1737,7 @@ function renderCardUI() {
             return null;
         }
         try {
-            const opts = isDebugUnlimited ? { skipCostAndTurnLimit: true } : undefined;
+            const opts = (isDebugUnlimited || isNetworkMode) ? { skipCostAndTurnLimit: true } : undefined;
             const usableIds = CardLogicModule.getUsableCardIds(cardState, gameState, owner, opts);
             ruleUsableCardIdSetByOwner[owner] = new Set(Array.isArray(usableIds) ? usableIds : []);
             return ruleUsableCardIdSetByOwner[owner] || null;

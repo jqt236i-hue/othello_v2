@@ -1033,17 +1033,20 @@ function _ensureHandDestroyFlags() {
 function _isSelectedCardUsableNow(playerKey: any, cardId: any, opts: any) {
     if (!playerKey || !cardId || !cardState || !gameState) return false;
     if (!_doesPlayerOwnCard(playerKey, cardId)) return false;
+    const ruleCheckOptions = _isNetworkMode()
+        ? Object.assign({}, opts || {}, { skipCostAndTurnLimit: true })
+        : opts;
 
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getUsableCardIds === 'function') {
-            const usableIds = CardLogic.getUsableCardIds(cardState, gameState, playerKey, opts) || [];
+            const usableIds = CardLogic.getUsableCardIds(cardState, gameState, playerKey, ruleCheckOptions) || [];
             return usableIds.includes(cardId);
         }
     } catch (e) { /* ignore */ }
 
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.canUseCard === 'function') {
-            return !!CardLogic.canUseCard(cardState, playerKey, cardId, opts);
+            return !!CardLogic.canUseCard(cardState, playerKey, cardId, ruleCheckOptions);
         }
     } catch (e) { /* ignore */ }
 
