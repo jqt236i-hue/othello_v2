@@ -6,7 +6,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'breeding_01',
   name_ja: '繁殖の意志',
   type: 'BREEDING_WILL',
-  cost: 16,
+  cost: 12,
   desc_ja: '次に置く石を繁殖化。配置時+自ターン開始時に周囲へ1個生成し、各生成後に通常反転判定。',
   display_type_ja: '守護'
 });

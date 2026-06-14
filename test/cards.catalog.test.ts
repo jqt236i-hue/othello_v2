@@ -147,7 +147,7 @@ describe('cards catalog consistency', () => {
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     expect(byId.has('reinforcement_01')).toBe(true);
     expect(byId.get('reinforcement_01').type).toBe('REINFORCEMENT_WILL');
-    expect(Number(byId.get('reinforcement_01').cost)).toBe(6);
+    expect(Number(byId.get('reinforcement_01').cost)).toBe(1);
     expect(byId.get('reinforcement_01').display_type_ja).toBe('繁栄');
   });
 
@@ -191,11 +191,11 @@ describe('cards catalog consistency', () => {
     expect(card.desc_ja).not.toContain('反転で得る布石');
   });
 
-  test('regen/perma costs are swapped as specified', () => {
+  test('regen/perma costs reflect latest balance', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     expect(Number(byId.get('regen_01').cost)).toBe(12);
-    expect(Number(byId.get('perma_01').cost)).toBe(15);
+    expect(Number(byId.get('perma_01').cost)).toBe(16);
   });
 
   test('free placement and buoyancy/gravity costs reflect latest balance', () => {
@@ -214,7 +214,7 @@ describe('cards catalog consistency', () => {
     const card = byId.get('perma_01');
     expect(card).toBeTruthy();
     expect(card.type).toBe('PERMA_PROTECT_NEXT_STONE');
-    expect(Number(card.cost)).toBe(15);
+    expect(Number(card.cost)).toBe(16);
     expect(card.name_ja).toBe('強い意志');
     expect(card.desc_ja).toContain('10ターン');
     expect(card.desc_ja).toContain('最強の意志');

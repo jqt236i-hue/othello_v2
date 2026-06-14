@@ -6,7 +6,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'hyperactive_01',
   name_ja: '多動の意志',
   type: 'HYPERACTIVE_WILL',
-  cost: 8,
+  cost: 5,
   desc_ja: '次に置く石を多動化。両者ターン開始時に1マス移動、反転回避を1回持つ。',
   display_type_ja: '戦闘'
 });

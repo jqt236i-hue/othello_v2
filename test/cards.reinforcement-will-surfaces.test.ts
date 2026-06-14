@@ -6,7 +6,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'reinforcement_01',
   name_ja: '増援の意志',
   type: 'REINFORCEMENT_WILL',
-  cost: 6,
+  cost: 1,
   desc_ja: '既存石の近くの空きマスに、自分の通常石を1個ランダム配置(反転可)',
   display_type_ja: '繁栄'
 });
