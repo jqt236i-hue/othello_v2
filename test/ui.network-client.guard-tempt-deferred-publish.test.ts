@@ -418,7 +418,7 @@ const CASES = [
     pendingType: 'CLONE_WILL',
     rawEventType: 'clone_selected',
     cardId: 'clone_01',
-    expectPreviewBoardSyncContext: true,
+    expectPublishOnlySelection: true,
     buildNextCardState: (cardState) => ({
       ...cloneJson(cardState),
       pendingEffectByPlayer: { black: null, white: null },

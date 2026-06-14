@@ -2088,6 +2088,12 @@ describe('pending selection flow contracts', () => {
       row: 2,
       col: 2,
       actionPayload: { meteorTarget: { row: 2, col: 2 } }
+    },
+    {
+      pendingType: 'CLONE_WILL',
+      row: 3,
+      col: 3,
+      actionPayload: { cloneTarget: { row: 3, col: 3 } }
     }
   ])(
     'network publish-only deferred selection sends authoritative action without local preview for $pendingType',

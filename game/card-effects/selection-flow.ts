@@ -35,6 +35,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'SUPER_GRAVITY_WILL',
         'TELEPORT_WILL',
         'CELL_TELEPORT_WILL',
+        'CLONE_WILL',
         'METEOR_WILL'
     ]);
 
