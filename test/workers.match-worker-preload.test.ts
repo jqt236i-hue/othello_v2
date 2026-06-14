@@ -98,7 +98,10 @@ describe('match worker card preload', () => {
     ];
 
     for (const sourcePath of dependentCardSources) {
-      expect(readRepoFile(sourcePath)).toContain("safeRequire('./cell-removal')");
+      const source = readRepoFile(sourcePath);
+      expect(source).toContain("safeRequire('./cell-removal')");
+      expect(source).toContain('CardCellRemoval');
+      expect(source).toMatch(/self[^;]+CardCellRemoval/);
     }
     expect(fs.existsSync(path.join(ROOT, cellRemovalRuntimeShimPath))).toBe(true);
     expectWorkerModuleRegistration(workerSource, cellRemovalGlobalKey, cellRemovalImportPath);

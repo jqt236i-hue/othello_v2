@@ -180,7 +180,9 @@ const BoardOpsModule: MeteorGodBoardOpsModule | null = safeRequire('../board_ops
 const ExpansionFallbackModule = safeRequire('./expansion');
 const RandomSourceModule = safeRequire('./random-source');
 const CardMarkersModule: MeteorGodCardMarkersModule | null = safeRequire('./markers');
-const CardCellRemoval = safeRequire('./cell-removal') || {
+const CardCellRemoval = ((typeof module === 'object' && module.exports)
+  ? safeRequire('./cell-removal')
+  : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null) || {
   applyHoleStyleCellRemoval: (_cardState: MeteorGodCardState, _gameState: MeteorGodGameState, targetRow: number, targetCol: number, _playerKey: string, cause: string) => ({
     applied: false,
     reason: 'cell_removal_dependency_missing',
