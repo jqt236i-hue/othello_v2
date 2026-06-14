@@ -68,6 +68,12 @@ describe('pass clears pending card effect', () => {
 
     const normalPass = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'pass' });
     expect(normalPass.ok).toBe(false);
+    expect(normalPass.rejectedReason).toBe('ILLEGAL_PASS');
+    expect(normalPass.events).toContainEqual(expect.objectContaining({
+      type: 'action_rejected',
+      reason: 'ILLEGAL_PASS',
+      message: expect.stringContaining('Illegal pass')
+    }));
 
     const forcedPass = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', {
       type: 'pass',

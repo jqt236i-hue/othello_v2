@@ -822,7 +822,8 @@ function createWorkerTurnPipelineModule(
             const errorRecord = asRecord(error);
             const rawMsg = errorRecord.message ? String(errorRecord.message) : 'unknown_error';
             let reason = 'UNKNOWN';
-            if (rawMsg.includes('Illegal move')) reason = 'ILLEGAL_MOVE';
+            if (rawMsg.includes('Illegal pass')) reason = 'ILLEGAL_PASS';
+            else if (rawMsg.includes('Illegal move')) reason = 'ILLEGAL_MOVE';
             else if (rawMsg.includes('applyCardUsage failed')) reason = 'CARD_USE_FAILED';
             else if (rawMsg.includes('requires')) reason = 'MISSING_REQUIRED_TARGET';
             else if (rawMsg.includes('Unknown action.type')) reason = 'UNKNOWN_ACTION_TYPE';
