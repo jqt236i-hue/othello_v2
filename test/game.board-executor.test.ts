@@ -43,6 +43,33 @@ function hasMarker(cardState: any, type: string): boolean {
   return (cardState.markers || []).some((marker: any) => marker && marker.data && marker.data.type === type);
 }
 
+const PREVIOUS_BOARD_EXECUTOR_FLIP_GAIN_SOURCE_TYPES = [
+  'placement_flip_gain',
+  'reverse_will_flip_gain',
+  'dragon_immediate',
+  'dragon_turn_start',
+  'breeding_immediate',
+  'breeding_turn_start',
+  'hyperactive_turn_start',
+  'robot_vacuum_turn_start',
+  'ultimate_hyperactive_turn_start',
+  'instant_hyperactive_immediate',
+  'regen_capture_immediate',
+  'regen_capture_turn_start',
+  'seed_turn_start',
+  'proliferation_turn_start',
+  'stone_salvation_god_turn_start',
+  'generated_spawn_turn_start',
+  'clone_will_selection',
+  'proliferation_immediate',
+  'stone_salvation_god_immediate',
+  'generated_spawn_immediate',
+  'equality_will_immediate',
+  'reinforcement_will_immediate',
+  'support_troops_will_immediate',
+  'salvation_will_immediate'
+];
+
 describe('盤界の執行者', () => {
   test('手札上の使用可否にも自分の特殊石条件を反映する', () => {
     const prng = createPrng();
@@ -283,4 +310,45 @@ describe('盤界の執行者', () => {
     expect(opponentEffects.chargeGained).toBe(3);
     expect(cardState.charge.white).toBe(3);
   });
+
+  test.each(PREVIOUS_BOARD_EXECUTOR_FLIP_GAIN_SOURCE_TYPES)(
+    '旧倍化対象の盤面布石イベントを倍化しない: %s',
+    (sourceType) => {
+      const prng = createPrng();
+      const cardState: any = CardLogic.createCardState(prng);
+      const emitted = jest.fn();
+      cardState.charge.black = 0;
+      cardState.markers.push({
+        id: `executor_${sourceType}`,
+        kind: 'manifestStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true }
+      });
+
+      const gained = BoardCharge.awardBoardChargeGain(CardLogic, cardState, 'black', 2, {
+        targetRow: 2,
+        targetCol: 3,
+        sourceType
+      }, {
+        CardUtilsModule: {
+          addChargeWithDelta: CardLogic.addChargeValue
+        },
+        chargeMax: 99,
+        emitBoardChargeBubblePresentation: emitted
+      } as any);
+
+      expect(gained).toBe(2);
+      expect(cardState.charge.black).toBe(2);
+      expect(cardState.chargeGainedTotal.black).toBe(2);
+      expect(emitted).toHaveBeenCalledWith(CardLogic, cardState, expect.objectContaining({
+        player: 'black',
+        row: 2,
+        col: 3,
+        gained: 2,
+        sourceType
+      }));
+    }
+  );
 });
