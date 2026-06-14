@@ -85,6 +85,25 @@ describe('pass fail-safe when no legal moves', () => {
     expect(global.window.isProcessing).toBe(false);
   });
 
+  test('manual pass proceeds when theory placement lock makes normal legal moves unusable', () => {
+    global.Core = { getLegalMoves: () => [{ row: 2, col: 3, flips: [[3, 3]] }] };
+    global.CardLogic = {
+      getCardDef: () => null,
+      getCardContext: () => ({}),
+      isPlacementLockedForPlayer: jest.fn(() => true)
+    };
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const passBtn = document.getElementById('pass-btn');
+    expect(passBtn.style.display).toBe('inline-block');
+    expect(passBtn.disabled).toBe(false);
+
+    window.passCurrentTurn();
+
+    expect(global.processPassTurn).toHaveBeenCalledWith('black', false);
+  });
+
   test('manual pass clears stale busy flags through PlaybackStateManager', () => {
     let processing = true;
     let cardAnimating = false;

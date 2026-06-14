@@ -27,6 +27,7 @@ function createController(overrides?: Record<string, any>) {
     getCardStateValue: () => cardState,
     isSelectedCardUsableNow: jest.fn(() => true),
     getLegalMovesForCurrentPlayer: jest.fn(() => []),
+    isPlacementLockedForPlayer: jest.fn(() => false),
     isVisualPlaybackRunningNow: jest.fn(() => false),
     isStaleVisualPlaybackLock: jest.fn(() => false),
     isReversiMode: jest.fn(() => false),
@@ -60,6 +61,24 @@ describe('card interaction detail actions module', () => {
     expect(actionState.canShowPass).toBe(true);
     expect(actionState.canPass).toBe(true);
     expect(actionState.reason).toBe('');
+  });
+
+  test('resolve action state allows pass when placement lock makes normal moves unusable', () => {
+    const ctx = createController({
+      deps: {
+        getLegalMovesForCurrentPlayer: jest.fn(() => [{ row: 2, col: 3, flips: [[3, 3]] }]),
+        isPlacementLockedForPlayer: jest.fn(() => true)
+      }
+    });
+
+    const actionState = ctx.controller.resolveCardDetailActionState({
+      playerKey: 'black',
+      hasSelection: false,
+      selectedId: null
+    });
+
+    expect(actionState.canShowPass).toBe(true);
+    expect(actionState.canPass).toBe(true);
   });
 
   test('resolve action state marks heaven selection and debug unlimited bypasses normal limits', () => {

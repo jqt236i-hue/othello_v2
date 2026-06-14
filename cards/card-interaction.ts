@@ -661,6 +661,7 @@ const _cardInteractionDetailActions = (_cardInteractionDetailActionsModule && ty
         getCardStateValue: () => cardState,
         isSelectedCardUsableNow: _isSelectedCardUsableNow,
         getLegalMovesForCurrentPlayer: _getLegalMovesForCurrentPlayer,
+        isPlacementLockedForPlayer: _isPlacementLockedForPlayer,
         isVisualPlaybackRunningNow: _isVisualPlaybackRunningNow,
         isStaleVisualPlaybackLock: _isStaleVisualPlaybackLock,
         isReversiMode: _isReversiMode,
@@ -1366,6 +1367,22 @@ function _getLegalMovesForCurrentPlayer() {
     } catch (e) {
         return [];
     }
+}
+
+function _isPlacementLockedForPlayer(playerKey: any) {
+    try {
+        return typeof CardLogic !== 'undefined'
+            && CardLogic
+            && typeof CardLogic.isPlacementLockedForPlayer === 'function'
+            && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function _hasEffectivePlacementMoveForPlayer(playerKey: any) {
+    if (_isPlacementLockedForPlayer(playerKey)) return false;
+    return _getLegalMovesForCurrentPlayer().length > 0;
 }
 
 function _getCurrentMatchMode() {
@@ -2614,8 +2631,7 @@ function passCurrentTurn() {
     const pending = (cardState && cardState.pendingEffectByPlayer)
         ? cardState.pendingEffectByPlayer[pendingCheckKey]
         : null;
-    const legalMoves = _getLegalMovesForCurrentPlayer();
-    if (legalMoves.length > 0) return;
+    if (_hasEffectivePlacementMoveForPlayer(pendingCheckKey)) return;
     if (pending && pending.stage === 'selectTarget') return;
 
     if (_isCardUiBusy()) {

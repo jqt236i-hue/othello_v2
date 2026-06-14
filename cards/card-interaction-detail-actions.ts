@@ -15,6 +15,7 @@ type CardInteractionDetailActionsDeps = {
     getCardStateValue: () => any;
     isSelectedCardUsableNow: (playerKey: any, cardId: any, options?: any) => boolean;
     getLegalMovesForCurrentPlayer: () => any[];
+    isPlacementLockedForPlayer?: (playerKey: any) => boolean;
     isVisualPlaybackRunningNow: () => boolean;
     isStaleVisualPlaybackLock: () => boolean;
     isReversiMode: () => boolean;
@@ -211,7 +212,10 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
                     : null
             )
         ));
-        const noLegalMoves = cfg.getLegalMovesForCurrentPlayer().length === 0;
+        const placementLocked = typeof cfg.isPlacementLockedForPlayer === 'function'
+            ? cfg.isPlacementLockedForPlayer(playerKey) === true
+            : false;
+        const noLegalMoves = placementLocked || cfg.getLegalMovesForCurrentPlayer().length === 0;
         const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer ? cardStateValue.pendingEffectByPlayer : {};
         const pending = pendingByPlayer[playerKey];
         const isSelectingTarget = !!(pending && pending.stage === 'selectTarget');

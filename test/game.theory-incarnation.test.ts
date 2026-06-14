@@ -1,5 +1,6 @@
 import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
+import * as Core from '../game/logic/core.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as SpecialStoneMarkerFactory from '../game/logic/card-resolution/special-stone-marker-factory';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
@@ -259,6 +260,26 @@ describe('理論の化身', () => {
     expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 3, absoluteProtected: true }));
     expect(CardLogic.isPlacementLockedForPlayer(cardState, 'black')).toBe(true);
     expect(CardLogic.isCardPlayLockedForPlayer(cardState, 'black')).toBe(true);
+  });
+
+  test('理論石顕現中の所有者は通常合法手があっても pass fallback で手番終了できる', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    expect(Core.getLegalMoves(gameState, Shared.BLACK)).not.toHaveLength(0);
+    CardLogic.addMarker(cardState, 'manifestStone', 0, 0, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 2,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION'
+    });
+    expect(CardLogic.isPlacementLockedForPlayer(cardState, 'black')).toBe(true);
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'pass' }, prng, { skipTurnStart: true });
+
+    expect(result.events).toContainEqual(expect.objectContaining({ type: 'pass', player: 'black' }));
+    expect(gameState.currentPlayer).toBe(Shared.WHITE);
   });
 
   test('理論石を配置した直後にも理論数字マスから特殊石を出現させ、残り3回を消費しない', () => {

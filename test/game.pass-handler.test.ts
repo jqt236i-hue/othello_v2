@@ -661,6 +661,34 @@ describe('pass-handler flows', () => {
         }));
     });
 
+    test('network mode は配置ロック中の合法手を行動可能扱いせず pass command を送る', () => {
+        delete require.cache[modPath];
+        (global as any).MATCH_MODE = 'network';
+        (global as any).LOCAL_PLAYER_KEY = 'white';
+        (global as any).gameState = { currentPlayer: (global as any).WHITE };
+        (global as any).cardState = { turnIndex: 8, turnCountByPlayer: { black: 2, white: 2 }, hands: { black: [], white: [] } };
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = {
+            getLegalMoves: jest.fn(() => [{ row: 2, col: 3, flips: [[3, 3]] }])
+        };
+        (global as any).CardLogic = {
+            getCardContext: jest.fn(() => ({})),
+            hasUsableCard: jest.fn(() => false),
+            isPlacementLockedForPlayer: jest.fn(() => true)
+        };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+        expect(handled).toBe(true);
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+        expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+            playerKey: 'white',
+            actionType: 'pass',
+            action: { type: 'pass', playerKey: 'white', turnIndex: 8 },
+            playbackEvents: []
+        }));
+    });
+
     test('network pass publish はローカル適用せず現在 turnIndex の command を送る', async () => {
         delete require.cache[modPath];
         const publishSnapshotMock = jest.fn();

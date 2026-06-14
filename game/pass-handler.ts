@@ -494,6 +494,16 @@ function hasUsableCardFor(playerKey: string) {
     return false;
 }
 
+function isPlacementLockedForPlayerKey(playerKey: string) {
+    try {
+        return typeof CardLogic !== 'undefined'
+            && CardLogic
+            && typeof CardLogic.isPlacementLockedForPlayer === 'function'
+            && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function resolveCoreApi() {
     if (typeof Core !== 'undefined' && Core && typeof Core.getLegalMoves === 'function') return Core;
     if (typeof CoreLogic !== 'undefined' && CoreLogic && typeof CoreLogic.getLegalMoves === 'function') return CoreLogic;
@@ -534,11 +544,16 @@ function getLegalMovesForPlayer(playerValue: any) {
     }
 }
 
+function hasEffectiveLegalPlacementForPlayer(playerValue: any, playerKeyOverride?: string) {
+    const playerKey = normalizePlayerKey(playerKeyOverride || playerValue, 'black');
+    if (isPlacementLockedForPlayerKey(playerKey)) return false;
+    return getLegalMovesForPlayer(playerValue).length > 0;
+}
+
 function playerHasAnyAvailableAction(playerValue: any) {
     const playerKey = normalizePlayerKey(playerValue, 'black');
     if (readPendingForPassHandler(playerKey)) return true;
-    const legalMoves = getLegalMovesForPlayer(playerValue);
-    if (legalMoves.length > 0) return true;
+    if (hasEffectiveLegalPlacementForPlayer(playerValue, playerKey)) return true;
     return hasUsableCardFor(playerKey);
 }
 
@@ -630,9 +645,9 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
     // Target selection is still an available action, so do not auto-pass.
     if (pending && pending.stage === 'selectTarget') return false;
 
-    const legalMoves = getLegalMovesForPlayer(currentPlayer);
+    const hasLegalPlacement = hasEffectiveLegalPlacementForPlayer(currentPlayer, playerKey);
     const hasCard = hasUsableCardFor(playerKey);
-    if (legalMoves.length > 0 || hasCard) return false;
+    if (hasLegalPlacement || hasCard) return false;
 
     // With no legal move and no usable card, pass is the only available action.
     // Network mode must publish an authoritative pass command instead of applying a local delayed pass.
@@ -744,11 +759,12 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
         ? getLegalMoves(gameState, nextProtection, nextPerma)
         : [];
     const nextPlayerKey = normalizePlayerKey(nextPlayer, 'black');
+    const nextHasPlacement = !isPlacementLockedForPlayerKey(nextPlayerKey) && nextMoves.length > 0;
     const nextHasCard = hasUsableCardFor(nextPlayerKey);
     const nextIsWhite = nextPlayerKey === 'white';
     const nextIsCpuControlled = isCpuControlledPlayer(nextPlayerKey);
     const humanMode = isHumanVsHumanModeEnabled();
-    if (!nextMoves.length && !nextHasCard) {
+    if (!nextHasPlacement && !nextHasCard) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
             showPassHandlerResultIfAvailable();
             setPassHandlerProcessing(false);
