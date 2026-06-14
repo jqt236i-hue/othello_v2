@@ -8,6 +8,10 @@ declare const updateCardDetailPanel: any;
 
 type CardRendererRuntimeRoot = typeof globalThis & Record<string, any>;
 type PlayerOwnerKey = 'black' | 'white';
+type ChargeDeltaPopupOptions = {
+    label?: string;
+    placement?: string;
+};
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
@@ -1384,15 +1388,29 @@ function _mapChargeDeltaOwnerToVisibleSlot(ownerKey: any, bottomOwnerKey: any) {
 function _createVisibleChargeDeltaHandler(baseChargeDeltaHandler: any, bottomOwnerKey: any) {
     if (!baseChargeDeltaHandler)
         return null;
-    return (playerKey: any, delta: any) => {
+    return (playerKey: any, delta: any, popupOptions?: ChargeDeltaPopupOptions | null) => {
         const ownerKey = _normalizeChargeDeltaOwnerKey(playerKey);
         const slotKey = _mapChargeDeltaOwnerToVisibleSlot(ownerKey, bottomOwnerKey);
-        baseChargeDeltaHandler(slotKey, delta);
+        if (popupOptions) {
+            baseChargeDeltaHandler(slotKey, delta, popupOptions);
+        } else {
+            baseChargeDeltaHandler(slotKey, delta);
+        }
     };
+}
+function _resolveChargeDeltaPopupOptions(events: any[], signKey: string): ChargeDeltaPopupOptions | null {
+    if (signKey !== 'decrease' || !Array.isArray(events) || events.length === 0) {
+        return null;
+    }
+    const isObserverRepaymentOnly = events.every((ev) => String(ev && ev.reason || '').trim() === 'observer_will_repayment');
+    return isObserverRepaymentOnly
+        ? { label: '観測の代償', placement: 'above' }
+        : null;
 }
 function _collectHudChargeDeltaTotalsBySign(events: any) {
     const list = Array.isArray(events) ? events : [];
     const totals = { increase: 0, decrease: 0 };
+    const eventsBySign: Record<string, any[]> = { increase: [], decrease: [] };
     const signOrder = [];
     for (const ev of list) {
         const delta = Number(ev && ev.delta ? ev.delta : 0);
@@ -1402,8 +1420,9 @@ function _collectHudChargeDeltaTotalsBySign(events: any) {
         if (totals[signKey] === 0)
             signOrder.push(signKey);
         totals[signKey] += delta;
+        eventsBySign[signKey].push(ev);
     }
-    return { totals, signOrder };
+    return { totals, eventsBySign, signOrder };
 }
 function consumeChargeDeltaEventList(eventsSource: any, chargeDeltaHandler: any) {
     if (!Array.isArray(eventsSource) || eventsSource.length === 0) {
@@ -1432,11 +1451,11 @@ function consumeChargeDeltaEventList(eventsSource: any, chargeDeltaHandler: any)
     }
     for (const player of playerOrder) {
         const playerEvents = eventsByPlayer[player];
-        const { totals, signOrder } = _collectHudChargeDeltaTotalsBySign(playerEvents);
+        const { totals, eventsBySign, signOrder } = _collectHudChargeDeltaTotalsBySign(playerEvents);
         for (const signKey of signOrder) {
             const totalDelta = totals[signKey as keyof typeof totals];
             if (totalDelta !== 0) {
-                chargeDeltaHandler(player, totalDelta);
+                chargeDeltaHandler(player, totalDelta, _resolveChargeDeltaPopupOptions(eventsBySign[signKey], signKey));
             }
         }
     }

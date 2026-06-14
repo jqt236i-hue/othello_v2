@@ -207,6 +207,11 @@
     transform-origin: left center;
 }
 
+.charge-delta.is-above {
+    --charge-delta-drift-x: 0px;
+    transform-origin: center bottom;
+}
+
 .charge-delta.is-restart {
     opacity: 0 !important;
     transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) !important;

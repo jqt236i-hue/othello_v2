@@ -360,6 +360,11 @@ let _chargeDeltaSeq: any = Object.create(null);
 const CHARGE_HUD_LAYER_ID = 'charge-hud-layer';
 const BOARD_FRAME_ID = 'board-frame';
 
+type ChargeDeltaDisplayOptions = {
+  label?: string;
+  placement?: string;
+};
+
 function _getChargeDeltaSignKey(deltaOrSign: any): string {
   if (deltaOrSign === 'increase' || deltaOrSign === 'decrease') return deltaOrSign;
   return Number(deltaOrSign) > 0 ? 'increase' : 'decrease';
@@ -438,11 +443,25 @@ function _isMirroredChargeDeltaSlot(key: string): boolean {
 
 function _applyChargeDeltaSideClass(el: HTMLElement, showOnLeft: boolean): void {
   if (!el || !el.classList) return;
-  el.classList.remove('is-side-left', 'is-side-right');
+  el.classList.remove('is-side-left', 'is-side-right', 'is-above');
   el.classList.add(showOnLeft ? 'is-side-left' : 'is-side-right');
 }
 
-function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void {
+function _applyChargeDeltaAboveClass(el: HTMLElement): void {
+  if (!el || !el.classList) return;
+  el.classList.remove('is-side-left', 'is-side-right');
+  el.classList.add('is-above');
+}
+
+function _shouldPlaceChargeDeltaAbove(options?: ChargeDeltaDisplayOptions | null): boolean {
+  return !!(options && options.placement === 'above');
+}
+
+function _resolveChargeDeltaAnchorGapPx(el: HTMLElement | null): number {
+  return _resolveChargeDeltaCssPx(el, '--layout-size-charge-delta-anchor-gap', 8);
+}
+
+function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement, options?: ChargeDeltaDisplayOptions | null): void {
   if (typeof document === 'undefined' || !el) return;
   const chargeId = (key === 'black') ? 'charge-black' : 'charge-white';
   const chargeEl = document.getElementById(chargeId);
@@ -461,15 +480,24 @@ function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void 
   const chargeWidth = Number.isFinite(chargeRect.width) ? chargeRect.width : 0;
   const chargeHeight = Number.isFinite(chargeRect.height) ? chargeRect.height : 0;
   const chargeRight = Number.isFinite(chargeRect.right) ? chargeRect.right : (chargeRect.left + chargeWidth);
-  const gap = _resolveChargeDeltaSideGapPx(el);
+  const placeAbove = _shouldPlaceChargeDeltaAbove(options);
+  const gap = placeAbove ? _resolveChargeDeltaAnchorGapPx(el) : _resolveChargeDeltaSideGapPx(el);
   const isPositive = Number(delta) > 0;
   const showOnLeft = _isMirroredChargeDeltaSlot(key) ? !isPositive : isPositive;
-  _applyChargeDeltaSideClass(el, showOnLeft);
+  if (placeAbove) {
+    _applyChargeDeltaAboveClass(el);
+  } else {
+    _applyChargeDeltaSideClass(el, showOnLeft);
+  }
 
-  const anchorLeft = showOnLeft
-    ? (chargeRect.left - deltaWidth - gap)
-    : (chargeRight + gap);
-  const anchorTop = chargeRect.top + ((chargeHeight - deltaHeight) / 2);
+  const anchorLeft = placeAbove
+    ? (chargeRect.left + ((chargeWidth - deltaWidth) / 2))
+    : (showOnLeft
+      ? (chargeRect.left - deltaWidth - gap)
+      : (chargeRight + gap));
+  const anchorTop = placeAbove
+    ? (chargeRect.top - deltaHeight - gap)
+    : chargeRect.top + ((chargeHeight - deltaHeight) / 2);
   const anchorRoot = _resolveChargeDeltaAnchorRoot(el);
   const anchorRootRect = (anchorRoot && typeof anchorRoot.getBoundingClientRect === 'function')
     ? anchorRoot.getBoundingClientRect()
@@ -506,10 +534,12 @@ function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement): void 
   el.style.bottom = 'auto';
 }
 
-function _setChargeDeltaText(el: HTMLElement, delta: number): void {
+function _setChargeDeltaText(el: HTMLElement, delta: number, options?: ChargeDeltaDisplayOptions | null): void {
   if (!el) return;
   const sign = delta > 0 ? '+' : '';
-  el.textContent = sign + delta;
+  const deltaText = sign + delta;
+  const label = String((options && options.label) || '').trim();
+  el.textContent = label ? `${label} ${deltaText}` : deltaText;
 }
 
 function _applyChargeDeltaVariant(el: HTMLElement, delta: number): void {
@@ -546,10 +576,10 @@ function _requestChargeDeltaFrame(callback: () => void, timer: any): void {
   callback();
 }
 
-function _scheduleChargeDeltaLifecycle(surfaceKey: string, key: string, delta: any, el: HTMLElement, seq: number, timer: any): void {
+function _scheduleChargeDeltaLifecycle(surfaceKey: string, key: string, delta: any, el: HTMLElement, seq: number, timer: any, options?: ChargeDeltaDisplayOptions | null): void {
   const startShow = function () {
     if ((_chargeDeltaSeq[surfaceKey] || 0) !== seq) return;
-    _positionChargeDeltaEl(key, delta, el);
+    _positionChargeDeltaEl(key, delta, el, options);
     el.classList.remove('is-restart');
     el.classList.remove('is-fadeout');
     el.classList.add('is-visible');
@@ -567,7 +597,7 @@ function _scheduleChargeDeltaLifecycle(surfaceKey: string, key: string, delta: a
   _requestChargeDeltaFrame(startShow, timer);
 }
 
-function _showChargeDeltaNow(key: string, delta: number): void {
+function _showChargeDeltaNow(key: string, delta: number, options?: ChargeDeltaDisplayOptions | null): void {
   if (typeof document === 'undefined') return;
   if (!Number.isFinite(delta) || delta === 0) return;
 
@@ -575,8 +605,8 @@ function _showChargeDeltaNow(key: string, delta: number): void {
   const el = _resolveChargeDeltaEl(key, delta);
   if (!el) return;
 
-  _setChargeDeltaText(el, delta);
-  _positionChargeDeltaEl(key, delta, el);
+  _setChargeDeltaText(el, delta, options);
+  _positionChargeDeltaEl(key, delta, el, options);
   _applyChargeDeltaVariant(el, delta);
 
   const timer = _Timer();
@@ -586,15 +616,15 @@ function _showChargeDeltaNow(key: string, delta: number): void {
   _chargeDeltaSeq[surfaceKey] = seq;
 
   _restartChargeDeltaAnimation(el);
-  _scheduleChargeDeltaLifecycle(surfaceKey, key, delta, el, seq, timer);
+  _scheduleChargeDeltaLifecycle(surfaceKey, key, delta, el, seq, timer, options);
 }
 
-function showChargeDelta(playerKey: string, delta: number): void {
+function showChargeDelta(playerKey: string, delta: number, options?: ChargeDeltaDisplayOptions): void {
   if (!Number.isFinite(delta) || delta === 0) return;
   if (typeof document === 'undefined') return;
 
   const key = (playerKey === 'white' || (playerKey as any) === WHITE || (playerKey as any) === -1) ? 'white' : 'black';
-  _showChargeDeltaNow(key, Number(delta));
+  _showChargeDeltaNow(key, Number(delta), options || null);
 }
 
 if (typeof window !== 'undefined') {

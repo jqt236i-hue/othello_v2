@@ -155,4 +155,18 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     expect(increaseEl.classList.contains('is-side-left')).toBe(true);
     expect(decreaseEl.classList.contains('is-side-right')).toBe(true);
   });
+
+  test('can show observer repayment text above the charge display', () => {
+    const stoneVisuals = require(path.resolve(__dirname, '..', 'ui', 'stone-visuals.js'));
+    const decreaseEl = document.getElementById('charge-delta-black-decrease');
+
+    stoneVisuals.showChargeDelta('black', -3, { label: '観測の代償', placement: 'above' });
+
+    expect(decreaseEl.textContent).toBe('観測の代償 -3');
+    expect(decreaseEl.style.left).toBe('253px');
+    expect(decreaseEl.style.top).toBe('544px');
+    expect(decreaseEl.classList.contains('is-above')).toBe(true);
+    expect(decreaseEl.classList.contains('is-side-left')).toBe(false);
+    expect(decreaseEl.classList.contains('is-side-right')).toBe(false);
+  });
 });

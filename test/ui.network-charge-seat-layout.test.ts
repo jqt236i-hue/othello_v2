@@ -345,6 +345,24 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('labels observer will repayment HUD deltas as observation cost', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: -3, reason: 'observer_will_repayment' }
+    ];
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', -3, {
+      label: '観測の代償',
+      placement: 'above'
+    });
+
+    dom.window.close();
+  });
+
   test('also routes board-anchored charge gains through the HUD popup', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;
