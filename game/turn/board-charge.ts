@@ -4,22 +4,6 @@ type BoardChargeDeps = {
     emitBoardChargeBubblePresentation?: (CardLogic: any, cardState: any, payload: any) => void;
 };
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const BoardExecutorResolution = safeRequire('../logic/card-resolution/board-executor');
-
 function buildBoardChargeDeltaMeta(row: any, col: any, sourceType: any) {
     const anchorRow = Number(row);
     const anchorCol = Number(col);
@@ -95,15 +79,12 @@ function addChargeWithTotal(cardState: any, playerKey: any, amount: any, options
     const deltaMeta = (opts && opts.popupKind === 'board')
         ? buildBoardChargeDeltaMeta(boardAnchor!.row, boardAnchor!.col, opts.sourceType)
         : null;
-    const resolvedAmount = BoardExecutorResolution && typeof BoardExecutorResolution.resolveBoardExecutorChargeGainAmount === 'function'
-        ? BoardExecutorResolution.resolveBoardExecutorChargeGainAmount(cardState, playerKey, amount, opts)
-        : amount;
     const deltaRes = (deps && deps.CardUtilsModule && typeof deps.CardUtilsModule.addChargeWithDelta === 'function')
-        ? deps.CardUtilsModule.addChargeWithDelta(cardState, playerKey, resolvedAmount, reason, deltaMeta)
+        ? deps.CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, deltaMeta)
         : null;
     let added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
-    if (!deltaRes || (Number(resolvedAmount) > 0 && added <= 0 && before < chargeMax && (cardState.charge[playerKey] || 0) <= before)) {
-        const after = Math.min(chargeMax, before + resolvedAmount);
+    if (!deltaRes || (Number(amount) > 0 && added <= 0 && before < chargeMax && (cardState.charge[playerKey] || 0) <= before)) {
+        const after = Math.min(chargeMax, before + amount);
         cardState.charge[playerKey] = after;
         added = after - before;
     }

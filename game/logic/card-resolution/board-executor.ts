@@ -25,34 +25,6 @@ const ManifestStoneRegistryFallback = safeRequire('../../../shared/manifest-ston
 const BOARD_EXECUTOR_MARKER_TYPE = 'BOARD_EXECUTOR';
 const BOARD_EXECUTOR_DURATION_OWNER_TURNS = 4;
 
-const BOARD_EXECUTOR_FLIP_CHARGE_SOURCE_TYPES = new Set([
-    'placement_flip_gain',
-    'reverse_will_flip_gain',
-    'swap_flip_gain',
-    'dragon_immediate',
-    'dragon_turn_start',
-    'breeding_immediate',
-    'breeding_turn_start',
-    'hyperactive_turn_start',
-    'robot_vacuum_turn_start',
-    'ultimate_hyperactive_turn_start',
-    'instant_hyperactive_immediate',
-    'regen_capture_immediate',
-    'regen_capture_turn_start',
-    'seed_turn_start',
-    'proliferation_turn_start',
-    'stone_salvation_god_turn_start',
-    'generated_spawn_turn_start',
-    'clone_will_selection',
-    'proliferation_immediate',
-    'stone_salvation_god_immediate',
-    'generated_spawn_immediate',
-    'equality_will_immediate',
-    'reinforcement_will_immediate',
-    'support_troops_will_immediate',
-    'salvation_will_immediate'
-]);
-
 function ownerKeyOf(playerKey: any): PlayerKey {
     return playerKey === 'white' ? 'white' : 'black';
 }
@@ -105,13 +77,6 @@ function isActiveBoardExecutorMarker(marker: any, deps?: any): boolean {
 
 function hasActiveBoardExecutor(cardState: CardState, deps?: any): boolean {
     return getMarkers(cardState, deps).some((marker) => isActiveBoardExecutorMarker(marker, deps));
-}
-
-function hasActiveBoardExecutorOwnedBy(cardState: CardState, playerKey: PlayerKey, deps?: any): boolean {
-    const ownerKey = ownerKeyOf(playerKey);
-    return getMarkers(cardState, deps).some((marker) => (
-        isActiveBoardExecutorMarker(marker, deps) && markerOwnerOf(marker) === ownerKey
-    ));
 }
 
 function countsAsBoardExecutorSpecialStone(marker: any): boolean {
@@ -313,20 +278,6 @@ function processBoardExecutorMarkerAtTurnStart(cardState: CardState, gameState: 
     };
 }
 
-function isBoardExecutorFlipChargeSource(meta: any): boolean {
-    const sourceType = String(meta && meta.sourceType || '').trim();
-    if (!sourceType) return false;
-    if (BOARD_EXECUTOR_FLIP_CHARGE_SOURCE_TYPES.has(sourceType)) return true;
-    return /_flip_gain$/.test(sourceType);
-}
-
-function resolveBoardExecutorChargeGainAmount(cardState: CardState, playerKey: PlayerKey, amount: any, meta?: any): number {
-    const base = Number(amount);
-    if (!Number.isFinite(base) || base <= 0) return Number.isFinite(base) ? base : 0;
-    if (!isBoardExecutorFlipChargeSource(meta)) return base;
-    return hasActiveBoardExecutorOwnedBy(cardState, ownerKeyOf(playerKey)) ? base * 2 : base;
-}
-
 export = {
     BOARD_EXECUTOR_MARKER_TYPE,
     BOARD_EXECUTOR_DURATION_OWNER_TURNS,
@@ -335,8 +286,5 @@ export = {
     applyBoardExecutorStoneReservation,
     processBoardExecutorHandTaxAtTurnStart,
     processBoardExecutorMarkerAtTurnStart,
-    hasActiveBoardExecutor,
-    hasActiveBoardExecutorOwnedBy,
-    isBoardExecutorFlipChargeSource,
-    resolveBoardExecutorChargeGainAmount
+    hasActiveBoardExecutor
 };

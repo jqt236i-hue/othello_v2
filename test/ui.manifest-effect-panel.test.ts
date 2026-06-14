@@ -74,14 +74,13 @@ describe('manifest effect panel', () => {
     expect(panel?.classList.contains('is-visible')).toBe(true);
     expect(panel?.textContent).toContain('執行領域');
     expect(document.getElementById('manifest-effect-title')?.textContent).toBe('執行領域　残り4ターン');
-    expect(panel?.textContent).toContain('所有者: 反転布石 x2');
+    expect(panel?.textContent).not.toContain('反転布石');
     expect(panel?.textContent).toContain('両者: カード使用不可');
     expect(panel?.textContent).toContain('両者: 手札が多いほど布石を失う');
     expect(panel?.textContent).toContain('黒: 手札3枚 → 次開始 -4');
     expect(panel?.textContent).toContain('白: 手札5枚 → 次開始 -16');
-    expect(panel?.querySelector('.manifest-effect-label')?.textContent).toBe('所有者:');
-    expect(panel?.querySelector('.manifest-effect-value')?.textContent).toContain('反転布石 x2');
-    expect(panel?.querySelector('.manifest-effect-value-strong')?.textContent).toBe('x2');
+    expect(panel?.querySelector('.manifest-effect-label')?.textContent).toBe('両者:');
+    expect(panel?.querySelector('.manifest-effect-value')?.textContent).toContain('カード使用不可');
     expect(panel?.querySelectorAll('.manifest-effect-line--dynamic .manifest-effect-value-strong')).toHaveLength(4);
 
     (global as any).cardState.hands.white = ['w1', 'w2'];

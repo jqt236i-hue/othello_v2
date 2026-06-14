@@ -593,13 +593,12 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
         return {
             title: _formatManifestEffectTitleWithRemainingTurns('執行領域', active),
             lines: [
-                '所有者: 反転布石 x2',
                 '両者: カード使用不可',
                 '両者: 手札が多いほど布石を失う',
                 `黒: 手札${blackHandCount}枚 → 次開始 -${_getBoardExecutorHandTaxAmount(blackHandCount)}`,
                 `白: 手札${whiteHandCount}枚 → 次開始 -${_getBoardExecutorHandTaxAmount(whiteHandCount)}`
             ],
-            dynamicStartIndex: 3
+            dynamicStartIndex: 2
         };
     }
     if (typeKey === 'OBSERVER_WILL') {

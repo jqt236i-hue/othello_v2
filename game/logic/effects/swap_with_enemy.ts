@@ -31,10 +31,6 @@ const SharedBoardUtils = ((typeof module === 'object' && module.exports)
     ? safeRequire('../../../shared/shared-board-utils')
     : null) || (typeof self !== 'undefined' ? ((self as any).SharedBoardUtils || null) : null);
 
-const BoardExecutorResolution = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../card-resolution/board-executor')
-    : null) || (typeof self !== 'undefined' ? ((self as any).CardBoardExecutorResolution || null) : null);
-
 function resolveSwapWithEnemyModuleOrNull(id: string, resolveSelfFallback: () => any): any {
     if (typeof require === 'function') {
         try {
@@ -301,16 +297,13 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
         anchorRow: row,
         anchorCol: col
     };
-    const resolvedChargeGain = BoardExecutorResolution && typeof BoardExecutorResolution.resolveBoardExecutorChargeGainAmount === 'function'
-        ? BoardExecutorResolution.resolveBoardExecutorChargeGainAmount(cardState, playerKey, chargeGain, chargeMeta)
-        : chargeGain;
     let added = 0;
     if (CardUtils && typeof CardUtils.addChargeWithDelta === 'function') {
-        const deltaRes = CardUtils.addChargeWithDelta(cardState, playerKey, resolvedChargeGain, 'swap_flip_gain', chargeMeta);
+        const deltaRes = CardUtils.addChargeWithDelta(cardState, playerKey, chargeGain, 'swap_flip_gain', chargeMeta);
         added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
     } else {
         const before = Number((cardState as any).charge[playerKey] || 0);
-        (cardState as any).charge[playerKey] = Math.min(CHARGE_MAX || 99, ((cardState as any).charge[playerKey] || 0) + resolvedChargeGain);
+        (cardState as any).charge[playerKey] = Math.min(CHARGE_MAX || 99, ((cardState as any).charge[playerKey] || 0) + chargeGain);
         added = Number((cardState as any).charge[playerKey] || 0) - before;
     }
     if (added > 0 && typeof deps.emitPresentationEvent === 'function') {

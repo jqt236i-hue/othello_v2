@@ -250,7 +250,7 @@ describe('盤界の執行者', () => {
     }
   });
 
-  test('所有者が反転で得る布石だけを2倍にし、数字マス布石は倍化しない', () => {
+  test('所有者の反転布石を倍化せず、数字マス布石も通常どおり獲得する', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -266,8 +266,8 @@ describe('盤界の執行者', () => {
     });
 
     const placementEffects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 2, 3, 3, prng);
-    expect(placementEffects.chargeGained).toBe(6);
-    expect(cardState.charge.black).toBe(6);
+    expect(placementEffects.chargeGained).toBe(3);
+    expect(cardState.charge.black).toBe(3);
 
     const boardBonusGained = BoardCharge.applyPlacementBoardBonusGain(CardLogic, cardState, 'black', 2, 3, 5, 0, {
       CardUtilsModule: {
@@ -277,7 +277,7 @@ describe('盤界の執行者', () => {
       emitBoardChargeBubblePresentation: jest.fn()
     } as any);
     expect(boardBonusGained).toBe(5);
-    expect(cardState.charge.black).toBe(11);
+    expect(cardState.charge.black).toBe(8);
 
     const opponentEffects = CardLogic.applyPlacementEffects(cardState, gameState, 'white', 2, 4, 3, prng);
     expect(opponentEffects.chargeGained).toBe(3);

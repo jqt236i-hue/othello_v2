@@ -45,7 +45,7 @@ describe('cpu-policy card profiles module', () => {
     expect(profiles.CARD_TYPE_MOVE_PLAN_PROFILE.BOARD_EXECUTOR).toEqual(expect.objectContaining({
       archetype: 'controlBoard',
       placementWeight: 0,
-      flipBias: 4
+      flipBias: 0
     }));
   });
 

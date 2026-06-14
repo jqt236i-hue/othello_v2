@@ -631,7 +631,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         CLONE_WILL: { archetype: 'spawnMobile', placementWeight: 0, ownAdjBias: 1, edgeBias: 2 },
         CONDEMN_WILL: { archetype: 'economyCycle', placementWeight: 0 },
         OBSERVER_WILL: { archetype: 'economyCycle', placementWeight: 0 },
-        BOARD_EXECUTOR: { archetype: 'controlBoard', placementWeight: 0, flipBias: 4, stabilityBias: -3 },
+        BOARD_EXECUTOR: { archetype: 'controlBoard', placementWeight: 0, stabilityBias: -3 },
         THEORY_INCARNATION: { archetype: 'economyCycle', placementWeight: 0, bonusBias: 5, stabilityBias: -2 },
         EXECUTION_WILL: { archetype: 'economyCycle', placementWeight: 0 },
         REVEAL_HAND_WILL: { archetype: 'economyCycle', placementWeight: 0 },

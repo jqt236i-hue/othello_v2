@@ -187,7 +187,8 @@ describe('cards catalog consistency', () => {
       display_type_ja: '特殊'
     }));
     expect(card.desc_ja).toContain('盤面に自分の特殊石');
-    expect(card.desc_ja).toContain('反転で得る布石を2倍');
+    expect(card.desc_ja).toContain('手札カード使用を封じ');
+    expect(card.desc_ja).not.toContain('反転で得る布石');
   });
 
   test('regen/perma costs are swapped as specified', () => {
