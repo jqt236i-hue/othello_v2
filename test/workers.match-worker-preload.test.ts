@@ -35,6 +35,11 @@ function expectRuntimePreloadRegistration(runtimePreloadSource: string, globalKe
   expect(runtimePreloadSource).toContain(`require('${importPath}')`);
 }
 
+function expectWorkerModuleRegistration(workerSource: string, globalKey: string, importPath: string): void {
+  expect(workerSource).toContain(`'${importPath}':`);
+  expect(workerSource).toContain(`['${importPath}', '${globalKey}']`);
+}
+
 function extractStringLiteralMap(source: string, startToken: string, endToken: string): Map<string, string> {
   const blockStart = source.indexOf(startToken);
   const blockEnd = source.indexOf(endToken);
@@ -58,8 +63,7 @@ describe('match worker card preload', () => {
 
     expect(dependencies.length).toBeGreaterThan(0);
     for (const dependency of dependencies) {
-      expect(workerSource).toContain(`'${dependency.importPath}':`);
-      expect(workerSource).toContain(`['${dependency.importPath}', '${dependency.globalKey}']`);
+      expectWorkerModuleRegistration(workerSource, dependency.globalKey, dependency.importPath);
       expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
     }
   });
@@ -78,6 +82,25 @@ describe('match worker card preload', () => {
     for (const dependency of dependencies) {
       expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
     }
+  });
+
+  test('worker preloads nested hole-style cell removal dependency used by card modules', () => {
+    const workerSource = readRepoFile('workers/match-worker.ts');
+    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
+    const cellRemovalImportPath = '../game/logic/cards/cell-removal.js';
+    const cellRemovalGlobalKey = 'CardCellRemoval';
+    const dependentCardSources = [
+      'game/logic/cards/meteor.ts',
+      'game/logic/cards/meteor_god.ts',
+      'game/logic/cards/shrink.ts',
+      'game/logic/cards/teleport.ts'
+    ];
+
+    for (const sourcePath of dependentCardSources) {
+      expect(readRepoFile(sourcePath)).toContain("safeRequire('./cell-removal')");
+    }
+    expectWorkerModuleRegistration(workerSource, cellRemovalGlobalKey, cellRemovalImportPath);
+    expectRuntimePreloadRegistration(runtimePreloadSource, cellRemovalGlobalKey, cellRemovalImportPath);
   });
 
   test('runtime preload exposes every turn pipeline phase fallback module', () => {

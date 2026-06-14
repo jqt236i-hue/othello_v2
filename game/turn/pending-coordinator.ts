@@ -370,7 +370,7 @@ const pendingCoordinatorModule = (function (root: any) {
         return { row: target.row, col: target.col };
     }
 
-    function resolvePrimarySelectionTargetFromPayload(payload: any): any {
+    function resolveFirstCoordinateTargetFromSelectionPayload(payload: any): any {
         if (!payload || typeof payload !== 'object') return null;
         var keys = Object.keys(payload);
         for (var index = 0; index < keys.length; index += 1) {
@@ -383,15 +383,15 @@ const pendingCoordinatorModule = (function (root: any) {
         return null;
     }
 
-    function ensurePlaceActionCoordinates(payload: any, actionType: any): any {
-        if (!payload || typeof payload !== 'object') return payload;
-        if (String(actionType || '').trim().toLowerCase() !== 'place') return payload;
-        if (Number.isInteger(payload.row) && Number.isInteger(payload.col)) return payload;
-        var target = resolvePrimarySelectionTargetFromPayload(payload);
-        if (!target) return payload;
+    function copySelectionTargetCoordinatesToPlacePayload(payload: any, actionType: any): boolean {
+        if (!payload || typeof payload !== 'object') return false;
+        if (String(actionType || '').trim().toLowerCase() !== 'place') return false;
+        if (Number.isInteger(payload.row) && Number.isInteger(payload.col)) return false;
+        var target = resolveFirstCoordinateTargetFromSelectionPayload(payload);
+        if (!target) return false;
         if (!Number.isInteger(payload.row)) payload.row = target.row;
         if (!Number.isInteger(payload.col)) payload.col = target.col;
-        return payload;
+        return true;
     }
 
     function applyPendingSelectionCardContext(target: any, playerKey: any, pendingLike: any, options: any): any {
@@ -404,9 +404,11 @@ const pendingCoordinatorModule = (function (root: any) {
             payload.actionType ||
             'place'
         );
-        ensurePlaceActionCoordinates(payload, actionType);
+        // Network pending selections keep their real target in a card-specific field
+        // (meteorTarget, trapTarget, etc.). Command publishing also needs root row/col.
+        copySelectionTargetCoordinatesToPlacePayload(payload, actionType);
         if (action) {
-            ensurePlaceActionCoordinates(action, actionType);
+            copySelectionTargetCoordinatesToPlacePayload(action, actionType);
         }
         return payload;
     }
@@ -485,7 +487,7 @@ const pendingCoordinatorModule = (function (root: any) {
         }
 
         var actionType = typeof opts.actionType === 'string' && opts.actionType ? opts.actionType : 'place';
-        ensurePlaceActionCoordinates(normalizedPayload, actionType);
+        copySelectionTargetCoordinatesToPlacePayload(normalizedPayload, actionType);
         var createAction = (typeof opts.createAction === 'function')
             ? opts.createAction
             : (

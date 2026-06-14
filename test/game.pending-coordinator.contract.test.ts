@@ -78,6 +78,70 @@ describe('PendingCoordinator', () => {
     }));
   });
 
+  test('applyPendingSelectionCardContext keeps explicit place coordinates when already present', () => {
+    const action = {
+      type: 'place',
+      row: 4,
+      col: 5,
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: {
+        type: 'METEOR_WILL',
+        stage: 'selectTarget',
+        cardId: 'meteor_01',
+        pendingEffectId: 'pending_1_1'
+      }
+    };
+    const params = {
+      row: 4,
+      col: 5,
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: action.pendingSelectionState
+    };
+
+    expect(
+      PendingCoordinator.applyPendingSelectionCardContext(params, 'black', params.pendingSelectionState, { action })
+    ).toEqual(expect.objectContaining({
+      row: 4,
+      col: 5,
+      meteorTarget: { row: 0, col: 0 }
+    }));
+    expect(action).toEqual(expect.objectContaining({
+      row: 4,
+      col: 5,
+      meteorTarget: { row: 0, col: 0 }
+    }));
+  });
+
+  test('applyPendingSelectionCardContext does not add root coordinates to non-place actions', () => {
+    const action = {
+      type: 'use_card',
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: {
+        type: 'METEOR_WILL',
+        stage: 'selectTarget',
+        cardId: 'meteor_01'
+      }
+    };
+    const params = {
+      actionType: 'use_card',
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: action.pendingSelectionState
+    };
+
+    expect(
+      PendingCoordinator.applyPendingSelectionCardContext(params, 'black', params.pendingSelectionState, { action })
+    ).toEqual({
+      actionType: 'use_card',
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: action.pendingSelectionState
+    });
+    expect(action).toEqual({
+      type: 'use_card',
+      meteorTarget: { row: 0, col: 0 },
+      pendingSelectionState: action.pendingSelectionState
+    });
+  });
+
   test('clearPendingEffect clears pending state and cached pending action for the requested player', () => {
     global.ActionManager = {
       ActionManager: {
