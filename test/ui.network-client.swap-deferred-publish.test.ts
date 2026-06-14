@@ -247,6 +247,8 @@ describe('NetworkMatchClient swap deferred publish', () => {
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
+      row: 6,
+      col: 8,
       swapTarget: { row: 6, col: 8 },
       pendingSelectionState: {
         type: 'SWAP_WITH_ENEMY',
@@ -254,6 +256,8 @@ describe('NetworkMatchClient swap deferred publish', () => {
         cardId: 'swap_01'
       }
     });
+    expect(publishBodies[0].params.row).toBe(publishBodies[0].params.swapTarget.row);
+    expect(publishBodies[0].params.col).toBe(publishBodies[0].params.swapTarget.col);
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();
   });

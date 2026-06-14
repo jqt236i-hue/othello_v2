@@ -821,6 +821,42 @@ describe('Network special cards E2E', () => {
       expect(guestState.markers.length).toBeGreaterThanOrEqual(2);
       expect(guestState.boardByMarker.every((entry: any) => entry.boardValue === 1)).toBe(true);
       expect(guestState.turnNumber).toBe(hostState.turnNumber);
+
+      const whiteMoveInfo = await getFirstLegalMove(guestPage);
+      const whiteMove = whiteMoveInfo.hintedMove || whiteMoveInfo.firstLogicMove;
+      expect(whiteMove).toEqual(expect.objectContaining({
+        row: expect.any(Number),
+        col: expect.any(Number)
+      }));
+
+      const turnBeforeWhitePlacement = guestState.turnNumber;
+      await guestPage.click(`.cell[data-row="${whiteMove.row}"][data-col="${whiteMove.col}"]`);
+
+      const hasWhitePlacementSettled = (args: any) => !!(
+        window.gameState
+        && window.gameState.currentPlayer === 1
+        && window.gameState.turnNumber === args.turnNumber + 1
+        && window.gameState.board
+        && window.gameState.board[args.move.row]
+        && window.gameState.board[args.move.row][args.move.col] === -1
+        && window.cardState
+        && window.cardState.pendingEffectByPlayer
+        && window.cardState.pendingEffectByPlayer.white === null
+        && window.isProcessing !== true
+        && window.isCardAnimating !== true
+        && window.VisualPlaybackActive !== true
+      );
+
+      await hostPage.waitForFunction(
+        hasWhitePlacementSettled,
+        { move: whiteMove, turnNumber: turnBeforeWhitePlacement },
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        hasWhitePlacementSettled,
+        { move: whiteMove, turnNumber: turnBeforeWhitePlacement },
+        { timeout: 20000 }
+      );
     } finally {
       await stopPlaywrightPage(hostPage, 5000);
       await stopPlaywrightPage(guestPage, 5000);
