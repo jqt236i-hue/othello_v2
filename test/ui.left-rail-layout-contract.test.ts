@@ -45,7 +45,7 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(83,\s*214,\s*209/);
     expect(layoutCss).toMatch(/:is\(#networkCloseBtn,\s*#leaderboardCloseBtn,\s*#gachaCloseBtn,\s*#deckBuilderCloseBtn,\s*#handSkinCloseBtn,\s*#rules-help-close-btn\)[\s\S]*border-radius:\s*50%/);
     expect(layoutCss).toMatch(/:is\(#networkModalHeader,\s*#leaderboardModalHeader,\s*#gachaModalHeader,\s*#deckBuilderModalHeader,\s*#handSkinPanelHeader,\s*#rules-help-title-row\)[\s\S]*background:/);
-    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#fontSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
+    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
     expect(layoutCss).toMatch(/#handSkinPanel[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/#rules-help-panel[\s\S]*position:\s*fixed/);
     expect(layoutCss).not.toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)\s*\{[^}]*position:\s*relative/);

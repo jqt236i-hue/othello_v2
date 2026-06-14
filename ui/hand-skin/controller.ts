@@ -86,6 +86,22 @@ function resolveFontControllerModule(rootRef: any): any {
   return null;
 }
 
+function resolveStoneControllerModule(rootRef: any): any {
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  if (ctx && ctx.StoneSkinControllerModule) return ctx.StoneSkinControllerModule;
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).StoneSkinControllerModule) {
+      return (globalThis as any).StoneSkinControllerModule;
+    }
+  } catch (e) { /* ignore */ }
+  if (typeof _require === 'function') {
+    try {
+      return _require('../stone-skin/controller.js');
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 function resolveUIBootstrapModule(rootRef: any): any {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
   if (ctx && ctx.UIBootstrap) return ctx.UIBootstrap;
@@ -244,6 +260,7 @@ function setupHandSkinControls(options?: any): any {
   const runtimeModule = resolveRuntimeModule(rootRef);
   const backgroundControllerModule = resolveBackgroundControllerModule(rootRef);
   const fontControllerModule = resolveFontControllerModule(rootRef);
+  const stoneControllerModule = resolveStoneControllerModule(rootRef);
   if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
 
   const button = opts.button || docRef.getElementById('handSkinBtn');
@@ -253,9 +270,11 @@ function setupHandSkinControls(options?: any): any {
   const handSection = opts.handSection || docRef.getElementById('handSkinSection');
   const backgroundSection = opts.backgroundSection || docRef.getElementById('backgroundSkinSection');
   const fontSection = opts.fontSection || docRef.getElementById('fontSkinSection');
+  const stoneSection = opts.stoneSection || docRef.getElementById('stoneSkinSection');
   const handTabBtn = opts.handTabBtn || docRef.getElementById('appearanceTabHand');
   const backgroundTabBtn = opts.backgroundTabBtn || docRef.getElementById('appearanceTabBackground');
   const fontTabBtn = opts.fontTabBtn || docRef.getElementById('appearanceTabFont');
+  const stoneTabBtn = opts.stoneTabBtn || docRef.getElementById('appearanceTabStone');
   const handImageEl = opts.handImage || docRef.getElementById('handImage');
   if (!button || !panel || !optionsEl || !handImageEl) return null;
 
@@ -270,6 +289,12 @@ function setupHandSkinControls(options?: any): any {
     : null;
   const fontControllerApi = fontControllerModule && typeof fontControllerModule.setupFontSkinControls === 'function'
     ? fontControllerModule.setupFontSkinControls({
+      root: rootRef,
+      document: docRef
+    })
+    : null;
+  const stoneControllerApi = stoneControllerModule && typeof stoneControllerModule.setupStoneSkinControls === 'function'
+    ? stoneControllerModule.setupStoneSkinControls({
       root: rootRef,
       document: docRef
     })
@@ -359,19 +384,24 @@ function setupHandSkinControls(options?: any): any {
   function setActiveTab(nextTab: string): void {
     const hasBackgroundTab = !!(backgroundControllerApi && backgroundSection && backgroundTabBtn);
     const hasFontTab = !!(fontControllerApi && fontSection && fontTabBtn);
+    const hasStoneTab = !!(stoneControllerApi && stoneSection && stoneTabBtn);
     if (nextTab === 'background' && hasBackgroundTab) {
       activeTab = 'background';
     } else if (nextTab === 'font' && hasFontTab) {
       activeTab = 'font';
+    } else if (nextTab === 'stone' && hasStoneTab) {
+      activeTab = 'stone';
     } else {
       activeTab = 'hand';
     }
     if (handSection) handSection.hidden = activeTab !== 'hand';
     if (backgroundSection) backgroundSection.hidden = activeTab !== 'background';
     if (fontSection) fontSection.hidden = activeTab !== 'font';
+    if (stoneSection) stoneSection.hidden = activeTab !== 'stone';
     syncTabButtonState(handTabBtn, 'hand', true);
     syncTabButtonState(backgroundTabBtn, 'background', hasBackgroundTab);
     syncTabButtonState(fontTabBtn, 'font', hasFontTab);
+    syncTabButtonState(stoneTabBtn, 'stone', hasStoneTab);
   }
 
   function openPanel(): void {
@@ -381,6 +411,9 @@ function setupHandSkinControls(options?: any): any {
     }
     if (fontControllerApi && typeof fontControllerApi.refreshOptions === 'function') {
       fontControllerApi.refreshOptions();
+    }
+    if (stoneControllerApi && typeof stoneControllerApi.refreshOptions === 'function') {
+      stoneControllerApi.refreshOptions();
     }
     setActiveTab(activeTab);
     isOpen = true;
@@ -430,6 +463,13 @@ function setupHandSkinControls(options?: any): any {
     fontTabBtn.addEventListener('click', function (event: any) {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setActiveTab('font');
+    });
+  }
+
+  if (stoneTabBtn) {
+    stoneTabBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setActiveTab('stone');
     });
   }
 

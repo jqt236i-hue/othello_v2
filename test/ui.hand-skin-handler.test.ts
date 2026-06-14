@@ -17,6 +17,7 @@ describe('hand skin handler', () => {
           <button id="appearanceTabHand" type="button"></button>
           <button id="appearanceTabBackground" type="button"></button>
           <button id="appearanceTabFont" type="button"></button>
+          <button id="appearanceTabStone" type="button"></button>
         </div>
         <div id="handSkinSection">
           <div id="handSkinOptions"></div>
@@ -26,6 +27,9 @@ describe('hand skin handler', () => {
         </div>
         <div id="fontSkinSection" hidden>
           <div id="fontSkinOptions"></div>
+        </div>
+        <div id="stoneSkinSection" hidden>
+          <div id="stoneSkinOptions"></div>
         </div>
       </div>
       <img id="handImage" src="assets/images/hand-skin/勇者の手.png" alt="" />
@@ -230,6 +234,24 @@ describe('hand skin handler', () => {
     expect(document.body.getAttribute('data-font-skin-id')).toBe('dot-gothic');
     expect(document.documentElement.getAttribute('data-font-skin-id')).toBe('dot-gothic');
     expect(document.body.style.getPropertyValue('--selected-app-font-family')).toContain('DotGothic16');
+    expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+  });
+
+  test('stone tab persists selected normal stone skin without affecting the selected hand skin', () => {
+    unlockAltGachaHandSkin();
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    document.getElementById('handSkinBtn').click();
+    document.getElementById('appearanceTabStone').click();
+    document.querySelector('[data-stone-skin-id="o-stone"]').click();
+
+    expect(window.localStorage.getItem('othello.stoneSkin')).toBe('o-stone');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
+    expect(document.documentElement.style.getPropertyValue('--normal-stone-black-image')).toBe('url("assets/images/stone-skin/o-stone/black.png")');
+    expect(document.documentElement.style.getPropertyValue('--normal-stone-white-image')).toBe('url("assets/images/stone-skin/o-stone/white.png")');
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
     expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
@@ -444,5 +466,7 @@ describe('hand skin handler', () => {
     expect(html).toMatch(/id="handSkinOptions"/);
     expect(html).toMatch(/id="appearanceTabFont"/);
     expect(html).toMatch(/id="fontSkinOptions"/);
+    expect(html).toMatch(/id="appearanceTabStone"/);
+    expect(html).toMatch(/id="stoneSkinOptions"/);
   });
 });

@@ -111,6 +111,7 @@ body[data-font-skin-id="dot-gothic"] :is(
     .hand-skin-option,
     .background-skin-option,
     .font-skin-option,
+    .stone-skin-option,
     #card-detail-desc,
     #card-detail-live-state,
     #card-detail-more,
@@ -154,6 +155,8 @@ body[data-font-skin-id="dot-gothic"] :is(
     .rules-help-counter-meaning,
     .font-skin-option-copy,
     .font-skin-option-note,
+    .stone-skin-option-copy,
+    .stone-skin-option-note,
     .held-use-card-name,
     .held-use-card-cost
 ) {

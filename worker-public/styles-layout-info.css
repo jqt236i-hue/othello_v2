@@ -1039,14 +1039,16 @@
 
 #handSkinOptions,
 #backgroundSkinOptions,
-#fontSkinOptions {
+#fontSkinOptions,
+#stoneSkinOptions {
     display: grid;
     gap: calc(8px * var(--layout-stage-scale));
 }
 
 .hand-skin-option,
 .background-skin-option,
-.font-skin-option {
+.font-skin-option,
+.stone-skin-option {
     width: 100%;
     display: grid;
     grid-template-columns: calc(86px * var(--layout-stage-scale)) 1fr;
@@ -1066,7 +1068,9 @@
 .background-skin-option:hover,
 .background-skin-option:focus-visible,
 .font-skin-option:hover,
-.font-skin-option:focus-visible {
+.font-skin-option:focus-visible,
+.stone-skin-option:hover,
+.stone-skin-option:focus-visible {
     border-color: #d7b47a;
     background: rgba(255, 236, 179, 0.11);
     outline: none;
@@ -1074,7 +1078,8 @@
 
 .hand-skin-option.is-selected,
 .background-skin-option.is-selected,
-.font-skin-option.is-selected {
+.font-skin-option.is-selected,
+.stone-skin-option.is-selected {
     border-color: #d7b47a;
     background: rgba(255, 236, 179, 0.16);
     box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 236, 179, 0.2);
@@ -1112,9 +1117,33 @@
     letter-spacing: calc(0.3px * var(--layout-stage-scale));
 }
 
+.stone-skin-option-preview {
+    width: calc(86px * var(--layout-stage-scale));
+    height: calc(64px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(7px * var(--layout-stage-scale));
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background:
+        linear-gradient(135deg, rgba(29, 66, 55, 0.92), rgba(10, 24, 20, 0.92));
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 236, 179, 0.1),
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.05);
+}
+
+.stone-skin-option-stone {
+    width: calc(30px * var(--layout-stage-scale));
+    height: calc(30px * var(--layout-stage-scale));
+    object-fit: contain;
+    border-radius: 50%;
+    filter: drop-shadow(0 calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42));
+}
+
 .hand-skin-option-copy,
 .background-skin-option-copy,
-.font-skin-option-copy {
+.font-skin-option-copy,
+.stone-skin-option-copy {
     display: flex;
     flex-direction: column;
     gap: calc(4px * var(--layout-stage-scale));
@@ -1123,7 +1152,8 @@
 
 .hand-skin-option-label,
 .background-skin-option-label,
-.font-skin-option-label {
+.font-skin-option-label,
+.stone-skin-option-label {
     font-size: calc(14px * var(--layout-stage-scale));
     font-weight: 700;
     color: #fff0cc;
@@ -1131,7 +1161,8 @@
 
 .hand-skin-option-note,
 .background-skin-option-note,
-.font-skin-option-note {
+.font-skin-option-note,
+.stone-skin-option-note {
     font-size: calc(11px * var(--layout-stage-scale));
     color: rgba(255, 240, 204, 0.78);
 }
@@ -1882,20 +1913,20 @@
     padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages) {
+:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages) {
     scrollbar-width: thin;
     scrollbar-color: rgba(83, 214, 209, 0.48) rgba(0, 0, 0, 0.22);
 }
 
-:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages)::-webkit-scrollbar {
+:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages)::-webkit-scrollbar {
     width: calc(8px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
+:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.18);
 }
 
-:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
+:is(#networkPanel, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
     border-radius: calc(999px * var(--layout-stage-scale));
     background: linear-gradient(180deg, rgba(83, 214, 209, 0.66), rgba(126, 215, 255, 0.32));
 }
@@ -2003,7 +2034,7 @@
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28);
 }
 
-:is(.hand-skin-option, .background-skin-option, .font-skin-option, .deck-builder-preset-card, .deck-builder-effective-summary, .deck-builder-notice, #networkBoardSizeRow, #leaderboardList, #gachaDetailsPanel) {
+:is(.hand-skin-option, .background-skin-option, .font-skin-option, .stone-skin-option, .deck-builder-preset-card, .deck-builder-effective-summary, .deck-builder-notice, #networkBoardSizeRow, #leaderboardList, #gachaDetailsPanel) {
     border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.16);
     border-radius: calc(7px * var(--layout-stage-scale));
     background:
