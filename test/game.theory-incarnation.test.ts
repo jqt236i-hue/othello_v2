@@ -110,11 +110,11 @@ describe('理論の化身', () => {
   test('生成候補はカタログ上の特殊石カード型からマーカーを構築する', () => {
     const table = SpecialStoneMarkerFactory.buildTheoryIncarnationSpawnTable([
       { id: 'hard_01', type: 'PROTECTED_NEXT_STONE', cost: 1 },
-      { id: 'perma_01', type: 'PERMA_PROTECT_NEXT_STONE', cost: 15 },
+      { id: 'perma_01', type: 'PERMA_PROTECT_NEXT_STONE', cost: 16 },
       { id: 'destroy_dragon_01', type: 'DESTROY_DRAGON_WILL', cost: 7 },
       { id: 'robot_vacuum_01', type: 'ROBOT_VACUUM_WILL', cost: 17 },
-      { id: 'hyperactive_01', type: 'HYPERACTIVE_WILL', cost: 8 },
-      { id: 'extreme_hyperactive_01', type: 'EXTREME_HYPERACTIVE_WILL', cost: 35 },
+      { id: 'hyperactive_01', type: 'HYPERACTIVE_WILL', cost: 5 },
+      { id: 'extreme_hyperactive_01', type: 'EXTREME_HYPERACTIVE_WILL', cost: 32 },
       { id: 'escape_01', type: 'ESCAPE_WILL', cost: 7 },
       { id: 'gluttonous_will_01', type: 'GLUTTONOUS_WILL', cost: 29 },
       { id: 'udg_01', type: 'ULTIMATE_DESTROY_GOD', cost: 25 },
@@ -123,7 +123,7 @@ describe('理論の化身', () => {
       { id: 'work_01', type: 'WORK_WILL', cost: 11 },
       { id: 'instant_hyperactive_01', type: 'INSTANT_HYPERACTIVE_WILL', cost: 2 },
       { id: 'time_bomb_01', type: 'TIME_BOMB', cost: 9 },
-      { id: 'trap_01', type: 'TRAP_WILL', cost: 4 }
+      { id: 'trap_01', type: 'TRAP_WILL', cost: 6 }
     ], {
       SpecialStoneRegistry,
       ownerKey: 'black',
@@ -144,7 +144,7 @@ describe('理論の化身', () => {
       }),
       expect.objectContaining({
         cardType: 'PERMA_PROTECT_NEXT_STONE',
-        cardCost: 15,
+        cardCost: 16,
         markerData: expect.objectContaining({ type: 'PERMA_PROTECTED', strongWillPromotionThreshold: 10 })
       }),
       expect.objectContaining({
@@ -159,12 +159,12 @@ describe('理論の化身', () => {
       }),
       expect.objectContaining({
         cardType: 'HYPERACTIVE_WILL',
-        cardCost: 8,
+        cardCost: 5,
         markerData: expect.objectContaining({ type: 'HYPERACTIVE', flipEvadeRemaining: 1 })
       }),
       expect.objectContaining({
         cardType: 'EXTREME_HYPERACTIVE_WILL',
-        cardCost: 35,
+        cardCost: 32,
         markerData: expect.objectContaining({ type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 })
       }),
       expect.objectContaining({
