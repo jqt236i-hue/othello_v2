@@ -259,6 +259,8 @@ describe('NetworkMatchClient trap deferred publish', () => {
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
+      row: 6,
+      col: 8,
       trapTarget: { row: 6, col: 8 },
       pendingSelectionState: {
         type: 'TRAP_WILL',

@@ -966,7 +966,7 @@ describe('worker pendingEffectId contract', () => {
         row: 2,
         col: 2,
         owner: 'black',
-        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 4 })
+        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 6 })
       })
     ]));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
@@ -975,7 +975,7 @@ describe('worker pendingEffectId contract', () => {
         rawType: 'STATUS_TICK',
         meta: expect.objectContaining({
           special: 'GUARD',
-          timer: 4,
+          timer: 6,
           reason: 'extend_life_applied',
           highlightTone: 'positive'
         })
