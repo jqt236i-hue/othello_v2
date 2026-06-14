@@ -364,6 +364,39 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return this.isPlaying === true;
         }
 
+        _resolvePlaybackWatchdogMs() {
+            const configured = (typeof window !== 'undefined')
+                ? Number(window.PLAYBACK_WATCHDOG_MS)
+                : NaN;
+            return Number.isFinite(configured) && configured >= 0
+                ? configured
+                : 10000;
+        }
+
+        _resolvePlaybackOverlapWaitMs() {
+            const explicit = (typeof window !== 'undefined')
+                ? Number(window.PLAYBACK_OVERLAP_WAIT_MS)
+                : NaN;
+            if (Number.isFinite(explicit) && explicit >= 0) {
+                return explicit;
+            }
+            return Math.max(3000, this._resolvePlaybackWatchdogMs() + 250);
+        }
+
+        async _waitForActivePlaybackToSettle(timeoutMs: any) {
+            const safeTimeoutMs = Number.isFinite(Number(timeoutMs))
+                ? Math.max(0, Number(timeoutMs))
+                : 0;
+            const startedAt = Date.now();
+            while (this._isPlaybackStateActive() && (this.isPlaying === true || this._activePlaybackRunId !== null)) {
+                if (safeTimeoutMs > 0 && Date.now() - startedAt >= safeTimeoutMs) {
+                    return false;
+                }
+                await new Promise(resolve => _Timer().setTimeout(resolve, 25));
+            }
+            return true;
+        }
+
         _toBoardIndex(value: any) {
             if (value === null || typeof value === 'undefined') return null;
             if (typeof value === 'boolean') return null;
@@ -1035,11 +1068,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
             const hasActivePlaybackRun = this.isPlaying === true || this._activePlaybackRunId !== null;
             if (this._isPlaybackStateActive() && hasActivePlaybackRun) {
-                console.warn('[AnimationEngine] Already playing. Aborting previous...');
-                this.isAborted = true;
-                // Wait a short settle period
-                await new Promise(r => _Timer().setTimeout(r, 100));
-                this.isAborted = false;
+                const overlapWaitMs = this._resolvePlaybackOverlapWaitMs();
+                const settled = await this._waitForActivePlaybackToSettle(overlapWaitMs);
+                if (!settled && this._isPlaybackStateActive() && (this.isPlaying === true || this._activePlaybackRunId !== null)) {
+                    console.warn('[AnimationEngine] Already playing. Aborting previous...');
+                    this.isAborted = true;
+                    // Wait a short settle period
+                    await new Promise(r => _Timer().setTimeout(r, 100));
+                    this.isAborted = false;
+                }
             }
 
             const runId = this._playbackRunSequence + 1;
@@ -1069,7 +1106,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 }
 
                 // Watchdog to prevent permanent freezes
-                const WATCHDOG_TIMEOUT_MS = (typeof window !== 'undefined' && Number.isFinite(window.PLAYBACK_WATCHDOG_MS)) ? window.PLAYBACK_WATCHDOG_MS : 10000;
+                const WATCHDOG_TIMEOUT_MS = this._resolvePlaybackWatchdogMs();
                 if (this.playbackScope !== null) {
                     this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS, this.playbackScope);
                 } else {

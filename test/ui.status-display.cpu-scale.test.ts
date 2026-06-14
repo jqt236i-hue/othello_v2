@@ -39,6 +39,7 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-1,[\s\S]*\.cpu-level-menu-item\.cpu-level-tier-5[\s\S]*--cpu-tier-glow-selected-alpha:\s*0\.045/);
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-profile-board-executor[\s\S]*--cpu-tier-accent:\s*212,\s*78,\s*255/);
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-7[\s\S]*--cpu-tier-accent:\s*224,\s*52,\s*64/);
+    expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-8,[\s\S]*\.cpu-level-menu-item\.cpu-level-profile-ending-ash[\s\S]*--cpu-tier-accent:\s*154,\s*168,\s*174/);
     expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*0/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
     expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);

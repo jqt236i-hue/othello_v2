@@ -215,6 +215,23 @@ function createDeckCardElement(cardDef: any, options?: any): HTMLElement {
   countBadge.textContent = `x${Number(opts.count) || 0}`;
   cardEl.appendChild(countBadge);
 
+  if (opts.detailButton !== false) {
+    const detailButton = document.createElement('button');
+    detailButton.type = 'button';
+    detailButton.className = 'deck-builder-card-detail-btn';
+    detailButton.textContent = '詳細';
+    detailButton.setAttribute('aria-label', `${cardDef && cardDef.name ? cardDef.name : 'カード'} の効果詳細`);
+    detailButton.setAttribute('aria-pressed', opts.detailActive ? 'true' : 'false');
+    detailButton.addEventListener('click', (event: any) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+      if (typeof opts.onDetailClick === 'function') {
+        opts.onDetailClick(event);
+      }
+    });
+    cardEl.appendChild(detailButton);
+  }
+
   if (opts.footerText) {
     const footer = document.createElement('div');
     footer.className = 'deck-builder-card-footer';
@@ -227,6 +244,68 @@ function createDeckCardElement(cardDef: any, options?: any): HTMLElement {
   }
 
   return cardEl;
+}
+
+function createCardEffectTextBlock(label: string, text: string, className: string): HTMLElement | null {
+  const normalized = String(text || '').trim();
+  if (!normalized) return null;
+
+  const block = document.createElement('div');
+  block.className = className;
+
+  const labelEl = document.createElement('div');
+  labelEl.className = 'deck-builder-card-detail-label';
+  labelEl.textContent = label;
+  block.appendChild(labelEl);
+
+  const textEl = document.createElement('div');
+  textEl.className = 'deck-builder-card-detail-text';
+  textEl.textContent = normalized;
+  block.appendChild(textEl);
+
+  return block;
+}
+
+function createEditorCardDetailPopup(detailCard: any, handlers: any): HTMLElement | null {
+  if (!detailCard || typeof detailCard !== 'object') return null;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'deck-builder-card-detail-popup-backdrop';
+
+  const popup = document.createElement('section');
+  popup.className = 'deck-builder-card-detail-popup';
+  popup.setAttribute('role', 'dialog');
+  popup.setAttribute('aria-modal', 'true');
+  popup.setAttribute('aria-label', `${detailCard.cardName || 'カード'} の効果詳細`);
+  popup.addEventListener('click', (event: any) => {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+  });
+
+  const header = document.createElement('div');
+  header.className = 'deck-builder-card-detail-header';
+
+  const title = document.createElement('div');
+  title.className = 'deck-builder-card-detail-title';
+  title.textContent = detailCard.cardName || 'カード効果';
+  header.appendChild(title);
+
+  const closeButton = createButton('×', 'btn-small deck-builder-card-detail-popup-close', () => {
+    if (handlers && typeof handlers.onEditorCloseCardDetail === 'function') {
+      handlers.onEditorCloseCardDetail();
+    }
+  });
+  closeButton.setAttribute('aria-label', 'カード効果を閉じる');
+  header.appendChild(closeButton);
+  popup.appendChild(header);
+
+  const quickBlock = createCardEffectTextBlock('効果', detailCard.quickText, 'deck-builder-card-detail-summary');
+  if (quickBlock) popup.appendChild(quickBlock);
+
+  const detailBlock = createCardEffectTextBlock('詳細効果', detailCard.detailText, 'deck-builder-card-detail-body');
+  if (detailBlock) popup.appendChild(detailBlock);
+
+  backdrop.appendChild(popup);
+  return backdrop;
 }
 
 function createButton(text: string, className: string, onClick?: () => void, options?: any): HTMLButtonElement {
@@ -387,6 +466,11 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   actionRow.appendChild(createButton('コードコピー', 'btn-small', handlers.onEditorCopyCode, { disabled: !editor.canCopy }));
   wrapper.appendChild(actionRow);
 
+  const detailPopup = createEditorCardDetailPopup(editor.detailCard, handlers);
+  if (detailPopup) {
+    wrapper.appendChild(detailPopup);
+  }
+
   const codeBlock = document.createElement('div');
   codeBlock.className = 'deck-builder-code-block';
   const codeLabel = document.createElement('div');
@@ -423,6 +507,8 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
         count: entry.count,
         clickable: true,
         active: true,
+        detailActive: editor.detailCard && editor.detailCard.cardId === entry.cardId,
+        onDetailClick: (event: any) => handlers.onEditorShowCardDetail(entry.cardId, event, 'deck-builder-selected-grid'),
         footerText: '押すと1枚戻す',
         onClick: (event: any) => handlers.onEditorRemoveCard(entry.cardId, event)
       });
@@ -445,6 +531,8 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
       count: entry.selectedCount,
       clickable: !entry.disabledAdd,
       disabled: entry.disabledAdd,
+      detailActive: editor.detailCard && editor.detailCard.cardId === entry.cardId,
+      onDetailClick: (event: any) => handlers.onEditorShowCardDetail(entry.cardId, event, 'deck-builder-candidate-grid'),
       footerText: entry.footerText,
       onClick: (event: any) => handlers.onEditorAddCard(entry.cardId, event)
     });

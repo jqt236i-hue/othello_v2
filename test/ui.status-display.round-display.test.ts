@@ -10,8 +10,8 @@ function setupStatusDisplayDom(gameStateOverride) {
     '<img id="cpu-character-img" />' +
     '<div id="cpu-level-label"></div>' +
     '<img id="hero-character-img" src="assets/images/hero/HERO.png" />' +
-    '<select id="smartWhite"><option value="1">1</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option></select>' +
-    '<select id="smartBlack"><option value="1">1</option><option value="6">Lv6: 盤理の観測者</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option></select>' +
+    '<select id="smartWhite"><option value="1">1</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option><option value="8-ending-ash">Lv8: 終焉の冥灰</option></select>' +
+    '<select id="smartBlack"><option value="1">1</option><option value="6">Lv6: 盤理の観測者</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option><option value="8-ending-ash">Lv8: 終焉の冥灰</option></select>' +
     '<div id="hero-label"></div>' +
     '</body></html>',
     { runScripts: 'outside-only', url: 'http://localhost/' }
@@ -174,6 +174,22 @@ describe('status-display round bonus surface', () => {
     expect(img.src).toContain('assets/images/special-cards/characters/theory_incarnation.png');
     expect(img.alt).toBe('理論の化身');
     expect(label.textContent).toBe('Lv7 理論の化身');
+
+    teardownStatusDisplayDom(dom);
+  });
+
+  test('uses ending ash portrait and label for the ending ash Lv8 profile', () => {
+    const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
+    const smartWhite = window.document.getElementById('smartWhite') as HTMLSelectElement;
+    smartWhite.value = '8-ending-ash';
+
+    window.updateStatus();
+
+    const img = window.document.getElementById('cpu-character-img') as HTMLImageElement;
+    const label = window.document.getElementById('cpu-level-label') as HTMLElement;
+    expect(decodeURIComponent(img.src)).toContain('assets/images/special-cards/characters/終焉の冥灰.png');
+    expect(img.alt).toBe('終焉の冥灰');
+    expect(label.textContent).toBe('Lv8 終焉の冥灰');
 
     teardownStatusDisplayDom(dom);
   });

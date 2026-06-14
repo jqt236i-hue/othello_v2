@@ -50,12 +50,14 @@ describe('smart cpu level shortcut', () => {
     expect(menu).not.toBeNull();
     expect(menu?.hidden).toBe(false);
     expect(shortcut.getAttribute('aria-expanded')).toBe('true');
-    expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(8);
+    expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(9);
     expect(menu?.querySelector('.cpu-level-menu-item.is-selected')?.getAttribute('data-cpu-level')).toBe('1');
     expect(menu?.querySelector('[data-cpu-level="1"]')?.classList.contains('cpu-level-tier-1')).toBe(true);
     expect(menu?.querySelector('[data-cpu-level="5"]')?.classList.contains('cpu-level-tier-5')).toBe(true);
     expect(menu?.querySelector('[data-cpu-level="6-board-executor"]')?.classList.contains('cpu-level-profile-board-executor')).toBe(true);
     expect(menu?.querySelector('[data-cpu-level="7-theory-incarnation"]')?.classList.contains('cpu-level-tier-7')).toBe(true);
+    expect(menu?.querySelector('[data-cpu-level="8-ending-ash"]')?.classList.contains('cpu-level-tier-8')).toBe(true);
+    expect(menu?.querySelector('[data-cpu-level="8-ending-ash"]')?.classList.contains('cpu-level-profile-ending-ash')).toBe(true);
 
     (menu?.querySelector('[data-cpu-level="4"]') as HTMLButtonElement).click();
 
@@ -77,6 +79,13 @@ describe('smart cpu level shortcut', () => {
 
     expect(smartWhite.value).toBe('7-theory-incarnation');
     expect((global as any).cpuSmartness.white).toBe(7);
+
+    shortcut.click();
+    const lv8Menu = document.getElementById('cpu-level-menu');
+    (lv8Menu?.querySelector('[data-cpu-level="8-ending-ash"]') as HTMLButtonElement).click();
+
+    expect(smartWhite.value).toBe('8-ending-ash');
+    expect((global as any).cpuSmartness.white).toBe(8);
 
     delete global.window;
     delete global.document;

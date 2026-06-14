@@ -4,6 +4,7 @@
  */
 
 import { setupSidePanelAnchor } from './side-panel-anchor';
+import GameKeyboardShortcuts = require('../game-keyboard-shortcuts');
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -222,6 +223,9 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
     sidePanelToggleBtn: refs.sidePanelToggleBtn,
     initialCollapsed: debugAllowed !== true,
     root
+  });
+  GameKeyboardShortcuts.setupGameKeyboardShortcuts({
+    getWindowRef: () => root as (Window & Record<string, unknown>) | null
   });
 
   if (refs.destroyBtn && typeof destroySelectedHandCard === 'function') {

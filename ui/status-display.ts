@@ -14,6 +14,7 @@ let roundDisplayBonusTimer: any = null;
 let roundDisplayBonusFadeTimer: any = null;
 let roundDisplayBonusState: any = null;
 let latestBattleStatusEventText = '';
+let battleStatusNetworkTimerInfo: any = null;
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/HERO.png';
@@ -462,6 +463,50 @@ function resolveBattleStatusLatestText(): string {
     return latestBattleStatusEventText || '-';
 }
 
+function normalizeBattleStatusTimerSeatKey(value: any): PlayerKey {
+    return normalizePlayerKeyForStatusDisplay(value);
+}
+
+function resolveBattleStatusNetworkTimerText(): { text: string; ariaLabel: string } {
+    if (!isNetworkModeForLabels()) return { text: '', ariaLabel: '' };
+    const timer = (battleStatusNetworkTimerInfo && typeof battleStatusNetworkTimerInfo === 'object')
+        ? battleStatusNetworkTimerInfo
+        : null;
+    if (!timer || timer.active !== true) return { text: '', ariaLabel: '' };
+
+    const limitSeconds = Number.isFinite(Number(timer.limitSeconds))
+        ? Math.max(1, Math.trunc(Number(timer.limitSeconds)))
+        : 120;
+    const remainingMs = Number.isFinite(Number(timer.remainingMs)) ? Number(timer.remainingMs) : null;
+    const remainingSeconds = remainingMs === null
+        ? limitSeconds
+        : Math.max(0, Math.ceil(remainingMs / 1000));
+    const turnSeatKey = normalizeBattleStatusTimerSeatKey(timer.turnSeatKey);
+    const turnSeatLabel = turnSeatKey === 'white' ? '白' : '黒';
+
+    return {
+        text: `残り ${remainingSeconds}秒`,
+        ariaLabel: `ネット対戦 ${turnSeatLabel}の手番 残り ${remainingSeconds} 秒`
+    };
+}
+
+function renderBattleStatusNetworkTimer(el: any): void {
+    if (!el) return;
+    const display = resolveBattleStatusNetworkTimerText();
+    el.textContent = display.text;
+    el.hidden = !display.text;
+    if (display.ariaLabel) {
+        el.setAttribute('aria-label', display.ariaLabel);
+    } else {
+        el.removeAttribute('aria-label');
+    }
+}
+
+function setBattleStatusNetworkTimerInfo(timerInfo: any): void {
+    battleStatusNetworkTimerInfo = (timerInfo && typeof timerInfo === 'object') ? timerInfo : null;
+    updateBattleStatusPanel();
+}
+
 function ensureBattleStatusPanel(): any {
     const panel = getEffectLivePanelElement();
     if (!panel) return null;
@@ -473,6 +518,7 @@ function ensureBattleStatusPanel(): any {
     panel.innerHTML = [
         '<div class="battle-status-topline">',
         '  <div class="battle-status-round"></div>',
+        '  <div class="battle-status-network-timer" hidden></div>',
         '</div>',
         '<div class="battle-status-score" aria-label="石数">',
         '  <span class="battle-status-count battle-status-count--black"></span>',
@@ -499,12 +545,14 @@ function updateBattleStatusPanel(): void {
     const panel = ensureBattleStatusPanel();
     if (!panel) return;
     const roundEl = panel.querySelector('.battle-status-round');
+    const timerEl = panel.querySelector('.battle-status-network-timer');
     const blackEl = panel.querySelector('.battle-status-count--black');
     const whiteEl = panel.querySelector('.battle-status-count--white');
     const turnEl = panel.querySelector('.battle-status-turn');
     const latestEl = panel.querySelector('.battle-status-latest');
     const counts = countBoardStonesForBattleStatus();
     if (roundEl) roundEl.textContent = `ROUND ${resolveRoundNumberForStatusDisplay()}`;
+    renderBattleStatusNetworkTimer(timerEl);
     renderBattleStatusStoneCount(blackEl, 'black', counts.black);
     renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
@@ -992,6 +1040,7 @@ if (typeof window !== 'undefined') {
     try { (window as any).positionHeroSpeechBubble = positionHeroSpeechBubble; } catch (e) { /* ignore */ }
     try { (window as any).showRoundBonusDisplay = showRoundBonusDisplay; } catch (e) { /* ignore */ }
     try { (window as any).clearRoundDisplayBonus = clearRoundDisplayBonus; } catch (e) { /* ignore */ }
+    try { (window as any).setBattleStatusNetworkTimerInfo = setBattleStatusNetworkTimerInfo; } catch (e) { /* ignore */ }
     try { (window as any).updateCpuCharacter = updateCpuCharacter; } catch (e) { /* ignore */ }
     try { (window as any).updateStatus = updateStatus; } catch (e) { /* ignore */ }
     try { (window as any).recordBattleStatusEvent = recordBattleStatusEvent; } catch (e) { /* ignore */ }
@@ -1056,6 +1105,7 @@ const StatusDisplayModule = {
     updateCpuCharacter,
     updateStatus,
     updateBattleStatusPanel,
+    setBattleStatusNetworkTimerInfo,
     recordBattleStatusEvent,
     clearBattleStatusPanel,
     updateFateWillBanner,

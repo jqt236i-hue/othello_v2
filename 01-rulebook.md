@@ -121,7 +121,8 @@
 - CPU対戦で黒または白に `Lv6: 盤理の観測者` を選んだ場合、その側はデフォルトデッキの代わりに `D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.breeding_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.observer_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.reinforcement_01.support_troops_01` の固定デッキを使う
 - CPU対戦で黒または白に `Lv6: 盤界の執行者` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使い、その側はデフォルトデッキの代わりに `D1C1:sniper_01.ghost_01.afterimage_will_01.swap_01.strong_wind_01.super_buoyancy_01.super_gravity_01.super_attraction_01.trap_01.tempt_01.capture_01.regen_01.destroy_01.proliferation_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.double_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.equality_will_01` の固定デッキを使う
 - CPU対戦で黒または白に `Lv7: 理論の化身` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使う。その側の初期所持布石は50とし、`turnNumber >= 8` になるまでカード使用を行わず通常の石配置だけを行う。その側はデフォルトデッキの代わりに `D1C1:ghost_01.perma_01.trap_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.clone_01.hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.crystal_stone*2.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.stone_salvation_god_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.meteor_god_01` の固定デッキを使う
-- デッキ構築画面では、保存プリセット3枠とは別に `観測デッキ` / `執行デッキ` / `理論デッキ` を固定プリセットとして表示し、それぞれ上記CPU専用固定デッキをローカル使用デッキとして選択できる
+- CPU対戦で黒または白に `Lv8: 終焉の冥灰` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使う。その側の初期所持布石は99とし、`turnNumber >= 6` になるまでカード使用を行わず通常の石配置だけを行う。その側はデフォルトデッキの代わりに `D1C1:swap_01*2.position_swap_01*2.perma_01*3.strong_wind_01.super_buoyancy_01.buoyancy_01.super_gravity_01.super_attraction_01.gravity_01.tempt_01.regen_01.destroy_01*3.udr_01.will_hunter_king_01.observer_will_01.guard_01*2.stone_salvation_god_01.board_expand_01*2.board_shrink_01.meteor_01.support_troops_01.meteor_god_01` の固定デッキを使う
+- デッキ構築画面では、保存プリセット3枠とは別に `観測デッキ` / `執行デッキ` / `理論デッキ` / `冥灰デッキ` を固定プリセットとして表示し、それぞれ上記CPU専用固定デッキをローカル使用デッキとして選択できる
 - ネット対戦では各プレイヤーが自分の deck を room に持ち込み、黒白で別内容の deck を使ってよい
 - ネット対戦で片方だけがカスタムデッキを持ち込んだ場合は、そのまま「デフォルトデッキ vs カスタムデッキ」として扱い、内容を無理に共通化しない
 - ネット対戦で両者ともデフォルトデッキの場合、room ごとに 30 種を 1 回だけ抽選して黒白で共有し、その後の山札順だけを黒白別にシャッフルする
@@ -130,6 +131,7 @@
 - ネット対戦中は room に記録された黒用/白用 deck を最優先で使い、各端末のローカル保存デッキより優先する
 - デッキ構築画面の候補カード一覧と選択中カード一覧は、コストの高い順で表示する。同コスト時はカードID昇順で固定する
 - デッキ構築画面の候補カードを押したとき、選択枚数が 0/1/2 の場合は 1 枚追加し、3 枚のときは次の押下でそのカードを 0 枚に戻す
+- デッキ構築画面の候補カード / 選択中カードには、カード名の上に `詳細` ボタンを表示する。`詳細` 押下では枚数追加/削除を行わず、画面中央の追加ポップアップにそのカードの効果要約と詳細効果を表示する。ポップアップは右上の `×` で閉じる
 - デッキ構築画面の上部ヘッダには、編集中デッキの現在枚数を常時 `0/30` 形式で表示する
 - 例外として、カード効果（例: `HEAVEN_BLESSING` や手札移送系）により対局中に通常カードの重複が発生する場合がある
 - `理論の化身` / `盤界の執行者` / `盤理の観測者` は特殊カードIDとして扱い、手札奪取・手札破壊・ランダム破棄・手札交換・手札全消去の対象にならない
@@ -1819,6 +1821,12 @@
 - デバッグモード `ON` 中は、手札カードを左右へ一定量スワイプすると即座に手札全体を横移動できるようにし、短めの長押し後ドラッグでも同じ操作を許可する
 - デバッグモード `ON` 中の手札デバッグスクロールは端で止めず、端を超えた入力は反対端へ回り込むループ動作にする
 - デバッグモード `ON` 中は、マウスホイールでも同じ手札を横移動できるようにする
+- デバッグモード `ON` 中は、盤面フレーム右端に上下それぞれの `カード検索` ボタンと短いショートカット表示を出す。上側は相手側フレーム右端から下へ、下側は自分側フレーム右端から上へ検索入力を展開し、展開直後に文字入力フォーカスを移す。自分側検索は `/`、相手側検索は `?` でも開ける
+- `カード検索` は対象側の現在手札を表示名とひらがな読みで検索する。カードIDでは検索しない。候補行にはカード表示名と `使用` ボタンを表示し、`使用` を押すと既存の手札カード選択・カード使用処理を通してそのカードを使用する。候補表示中は `↑` / `↓` で候補を選び、`Enter` で選択中のカードを使用できる。カード使用後は検索パネルを自動で閉じる
+- 通常ゲーム画面では、キーボードショートカットを使える。`W` / `A` / `S` / `D` は現在表示されている合法手候補のカーソルを上下左右へ移動し、`Space` はカーソル中の合法手に石を置く。`Shift + A` / `Shift + D` は操作可能な手札カードを左右へ選択し、`Enter` は選択中カードを使用、`Shift + Enter` は選択中カードを破壊する。
+- キーボードショートカットは既存のクリック操作と同じ入口を使う。石配置は `handleCellClick` 相当、カード選択は手札カードクリック相当、カード使用/破壊は既存の `使用` / `破壊` ボタン相当として扱う。
+- 入力欄、カード検索、ネットチャット、BGM選択、help、見た目設定、ガチャ、デッキ構築、ネット対戦設定、ランキング等のパネル操作中は、ゲーム用キーボードショートカットを無効にする。
+- 合法手カーソルはUI表示専用で、局面・手番・ネットワーク権威には含めない。ターン変更、カード効果、盤面更新などで候補が変わった場合は、現在表示されている合法手候補へ補正し、候補がなければカーソルを消す。
 - 画面左下に `HELP` ボタンを固定表示する（英字大文字）
 - `HELP` ボタン押下で、画面中央に `help` パネルを表示する
 - `help` パネル上部にはタブ `カード図鑑` / `効果一覧` / `ルールと操作` / `数字UI` / `アップデート情報` を並べ、押下したタブだけを表示する
@@ -2195,6 +2203,7 @@
 - `promotion_v3` の既定 quality gate は `games=120` / `seeds=3` / `threshold=0.001` / `min-seed-pass=2` とし、角・端品質の大幅退行を止める guard として使う
 - `promotion_v3` の既定 ONNX gate は `games=16` / `seeds=3` / `threshold=0.480` / `min-seed=0.39` / `min-pass=2` とし、推論系の safety line は軽量確認で早く回しつつ、seed 安定性は維持する
 - `cards_v2_rootfix` プリセットの既定並列数は `selfplay=6` / `adoption=6` / `onnx-gate=6` とし、常時高負荷を避けながらループ継続性を優先する
+- `Lv8: 終焉の冥灰` の通常配置、pending 対象選択、カード使用判断は `decisionLevel: 6` として扱い、既存の `Lv6` 以上の共有判断経路を使う
 - 教師CPUとブラウザ版白`Lv6`の共有設定は `constants/cpu-lv6-shared-profile.js` を単一ソースとし、探索深さ・枝数・カード混合率・モデルプール方針だけでなく、最終的な置き手/カードの決定経路も片側だけで別管理しない
 - `cards_v2_rootfix` の教師自己対局は、ブラウザ`Lv6`以上との乖離を避けるため、共有プロファイルの既定値として `policy-mix-rate=1.0` / `pool-size=1` / `sampling=uniform` / `current-anchor-rate=1.0` / `use-promoted-model-only=true` を使い、通常置き手は通常オセロ用 `ONNX` 優先 + `policy_table + 角/端先読み` フォールバック、カードは `policy_table + 共有カード方針` の同一路線で決定する
 - 教師自己対局はブラウザ白`Lv6`と同じ決定経路を使うが、ループ速度を落としすぎないため、共有プロファイルの teacher 用軽量探索キャップ（短い時間上限・縮小ノード予算・浅い深さ・狭い枝幅）を使う

@@ -183,6 +183,86 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CpuPolicyTableRuntime.getActionScore).not.toHaveBeenCalled();
   });
 
+  test('selectCpuMoveWithPolicy resolves ending ash profile id to Lv6 shared placement logic', () => {
+    const candidateMoves = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
+    ];
+
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 99, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.cpuSmartness.white = '8-ending-ash';
+    global.AISystem = null;
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockReturnValue(candidateMoves[1]);
+    jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves) => moves[0]);
+
+    const res = cpuDecision.selectCpuMoveWithPolicy(candidateMoves, 'white');
+
+    expect(res).toEqual(candidateMoves[1]);
+    expect(cpuPolicyCore.chooseMoveByLookahead).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({
+      level: 6
+    }));
+  });
+
+  test('selectCpuMoveWithPolicy resolves numeric Lv8 selection to Lv6 shared placement logic', () => {
+    const candidateMoves = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
+    ];
+
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 99, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.cpuSmartness.white = 8;
+    global.AISystem = null;
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockReturnValue(candidateMoves[1]);
+    jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves) => moves[0]);
+
+    const res = cpuDecision.selectCpuMoveWithPolicy(candidateMoves, 'white');
+
+    expect(res).toEqual(candidateMoves[1]);
+    expect(cpuPolicyCore.chooseMoveByLookahead).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({
+      level: 6
+    }));
+  });
+
   test('selectMoveFromOnnxPolicyAsync はカスタム盤面で ONNX 手選択を使わない', async () => {
     const board = Array.from({ length: 7 }, () => Array(9).fill(0));
     const candidateMoves = [

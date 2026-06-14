@@ -104,6 +104,22 @@ describe('initializeUI side panel toggle', () => {
   test('iPhone縦プロファイルでは初期表示を折りたたみ状態にする', () => {
     document.documentElement.classList.add('layout-profile-phone-portrait');
     document.documentElement.setAttribute('data-layout-profile', 'layout-profile-phone-portrait');
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 844, configurable: true });
+    const sidePanelBeforeInit = document.getElementById('side-panel');
+    const toggleBtnBeforeInit = document.getElementById('sidePanelToggleBtn');
+    if (sidePanelBeforeInit) {
+      sidePanelBeforeInit.getBoundingClientRect = () => ({
+        x: 0, y: 0, left: 0, top: 0, right: 240, bottom: 280, width: 240, height: 280,
+        toJSON() { return {}; }
+      });
+    }
+    if (toggleBtnBeforeInit) {
+      toggleBtnBeforeInit.getBoundingClientRect = () => ({
+        x: 64, y: 790, left: 64, top: 790, right: 118, bottom: 824, width: 54, height: 34,
+        toJSON() { return {}; }
+      });
+    }
 
     const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
@@ -126,8 +142,8 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
-    expect(sidePanel.style.left).toBe('132px');
-    expect(sidePanel.style.top).toBe('190px');
+    expect(sidePanel.style.left).toBe('75px');
+    expect(sidePanel.style.top).toBe('282px');
     expect(sidePanel.style.right).toBe('');
     expect(sidePanel.style.bottom).toBe('');
     expect(sawResetGameThrowLog()).toBe(false);

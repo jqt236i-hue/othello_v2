@@ -65,7 +65,7 @@ function readCpuSmartnessValueFromSelect(id: string): number | string {
     const raw = String(el && el.value || '').trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(7, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(8, Math.floor(n))) : raw;
 }
 
 function createInjectedTimerService(timersImpl: any) {

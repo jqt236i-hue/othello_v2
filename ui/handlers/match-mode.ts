@@ -1633,6 +1633,11 @@ const MODE_OTHELLO = 'othello';
             root.NetworkMatchClient.setTurnTimerListener((timerInfo: any) => {
                 networkTurnTimerInfo = (timerInfo && typeof timerInfo === 'object') ? timerInfo : null;
                 renderNetworkStatus();
+                try {
+                    if (typeof root.setBattleStatusNetworkTimerInfo === 'function') {
+                        root.setBattleStatusNetworkTimerInfo(networkTurnTimerInfo);
+                    }
+                } catch (e) { /* ignore */ }
             });
         }
 

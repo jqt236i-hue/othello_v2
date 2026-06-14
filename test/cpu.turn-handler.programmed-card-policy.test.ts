@@ -235,6 +235,46 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
+    test('Lv8 ending ash skips all card-use paths before turn 6 and places a stone', async () => {
+        const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        global.cpuSmartness = { white: '8-ending-ash', black: 1 };
+        global.cardState = {
+            hands: { white: ['observer_will_01'], black: [] },
+            charge: { white: 99, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 5 };
+        global.generateMovesForPlayer = jest.fn(() => [move]);
+        global.selectCpuMoveWithPolicy = jest.fn(() => move);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+        expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(move);
+    });
+
+    test('Lv8 ending ash uses Lv6 card logic from turn 6 onward', async () => {
+        global.cpuSmartness = { white: '8-ending-ash', black: 1 };
+        global.cardState = {
+            hands: { white: ['observer_will_01'], black: [] },
+            charge: { white: 99, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 6 };
+        global.generateMovesForPlayer = jest.fn(() => [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+        ]);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
+    });
+
     test.each(lowYieldEconomyCards)('Lv7 theory incarnation blocks low-yield $name through programmed policy', async (cardCase) => {
         setupLowYieldEconomyCard(cardCase, cardCase.legalMoves);
 
@@ -408,6 +448,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
     test('runCpuTurn commits the ONNX move directly without policy fallback override', async () => {
         const onnxMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
         const fallbackMove = { row: 5, col: 4, flips: [{ row: 4, col: 4 }] };
+        global.cpuSmartness = { white: '8-ending-ash', black: 1 };
         global.CardLogic = {
             getUsableCardIds: () => [],
             hasUsableCard: () => false,

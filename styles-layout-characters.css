@@ -252,6 +252,12 @@
     --cpu-tier-accent-strong: 255, 184, 188;
 }
 
+.cpu-level-menu-item.cpu-level-tier-8,
+.cpu-level-menu-item.cpu-level-profile-ending-ash {
+    --cpu-tier-accent: 154, 168, 174;
+    --cpu-tier-accent-strong: 238, 244, 246;
+}
+
 .cpu-level-menu-item:hover,
 .cpu-level-menu-item:focus-visible {
     border-color: rgba(var(--cpu-tier-accent), var(--cpu-tier-border-hover-alpha));

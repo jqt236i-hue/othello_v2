@@ -113,6 +113,10 @@ let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
 }
+let CpuOpponentProfiles: any = null;
+if (typeof require === 'function') {
+    try { CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles'); } catch (e) { /* ignore */ }
+}
 let CpuDecisionRuntimeBoundaryModule: any = null;
 if (typeof require === 'function') {
     try { CpuDecisionRuntimeBoundaryModule = _require('./cpu-decision-runtime'); } catch (e) { /* ignore */ }
@@ -134,22 +138,45 @@ function readRuntimeModule(moduleKey: any): any {
     return null;
 }
 
-function resolveCpuSmartnessLevel(playerKey: any): number {
+function resolveCpuDecisionLevelValue(value: any): number | null {
+    try {
+        if (CpuOpponentProfiles && typeof CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection === 'function') {
+            const selection = CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection(value);
+            if (selection && Number.isFinite(Number(selection.decisionLevel))) {
+                return Math.max(1, Math.min(6, Math.floor(Number(selection.decisionLevel))));
+            }
+        }
+    } catch (e) { /* ignore and fall back to numeric values */ }
+    if (Number.isFinite(Number(value))) {
+        return Math.max(1, Math.min(6, Math.floor(Number(value))));
+    }
+    return null;
+}
+
+function resolveCpuDecisionLevelForPlayer(playerKey: any): number {
     try {
         const runtime = getCpuDecisionRuntime();
         if (runtime && typeof runtime.readCpuSmartness === 'function') {
-            const smartness = runtime.readCpuSmartness();
-            const value = smartness && smartness[playerKey];
-            if (Number.isFinite(Number(value))) {
-                return Math.max(1, Math.min(6, Math.floor(Number(value))));
-            }
+            const profileValues = runtime.readCpuSmartness();
+            const profileValue = profileValues && profileValues[playerKey];
+            const decisionLevel = resolveCpuDecisionLevelValue(profileValue);
+            if (decisionLevel !== null) return decisionLevel;
         }
     } catch (e) { /* ignore and fall back to legacy globals */ }
-    const smartness = (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
-    if (smartness && Number.isFinite(smartness[playerKey])) {
-        return Number(smartness[playerKey]);
+    const profileValues = (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
+    if (profileValues) {
+        const decisionLevel = resolveCpuDecisionLevelValue(profileValues[playerKey]);
+        if (decisionLevel !== null) return decisionLevel;
     }
     return 1;
+}
+
+function resolveCpuSmartnessValue(value: any): number | null {
+    return resolveCpuDecisionLevelValue(value);
+}
+
+function resolveCpuSmartnessLevel(playerKey: any): number {
+    return resolveCpuDecisionLevelForPlayer(playerKey);
 }
 
 function resolveCardLogicForCpuDecision(): any {
@@ -1258,8 +1285,8 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         resolveCardLogic: () => resolveCardLogicForCpuDecision(),
         readPendingEffect: (playerKey: any) => readCpuPendingEffect(playerKey),
-        resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
-        readCardUseDisplayLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
+        resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
+        readCardUseDisplayLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
@@ -1929,7 +1956,7 @@ const CpuDecisionMovePlan = (CpuDecisionMovePlanModule && typeof CpuDecisionMove
         getCpuPolicyCore: () => CpuPolicyCore,
         getCurrentCpuBoard: () => getCurrentCpuBoard(),
         onStrictPendingPlacementOverride: (playerKey: any, pendingType: any, bestAnchoredMove: any) => {
-            const level = resolveCpuSmartnessLevel(playerKey);
+            const level = resolveCpuDecisionLevelForPlayer(playerKey);
             cpuDebugLog(
                 `[CPU] Lv${level} ${playerKey}: ${pendingType}配置を安定寄せへ補正 (${bestAnchoredMove.row}, ${bestAnchoredMove.col})`
             );
@@ -2006,7 +2033,7 @@ const CpuDecisionPendingScore = (CpuDecisionPendingScoreModule && typeof CpuDeci
         scoreSeatStrategicValue,
         countBoardStatsForPlayer,
         getCornerProximity,
-        getCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
+        getCpuSmartnessLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuPolicyCore: () => CpuPolicyCore,
         buildMovePlanContext,
@@ -2038,7 +2065,7 @@ const CpuDecisionPendingOnnx = (CpuDecisionPendingOnnxModule && typeof CpuDecisi
         choosePendingTargetWithPolicy,
         isSameMoveByCoord,
         scorePendingTargetByType,
-        getCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
+        getCpuSmartnessLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
         resolvePolicyOnnxRuntime,
         canUseStandardBoardCpuPolicy,
         resolvePendingSelectionOnnxBudgetMs,
@@ -2747,7 +2774,7 @@ function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerPr
 
 function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
     if (!Array.isArray(targets) || targets.length <= 0) return [];
-    const level = resolveCpuSmartnessLevel(playerKey);
+    const level = resolveCpuDecisionLevelForPlayer(playerKey);
     if (level < 6) return targets;
     return targets.filter((target: any) => {
         if (!target) return false;
@@ -3021,7 +3048,7 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
-    const level = resolveCpuSmartnessLevel(playerKey);
+    const level = resolveCpuDecisionLevelForPlayer(playerKey);
     const board = getCurrentCpuBoard();
     const cardLogicRef = (typeof CardLogic !== 'undefined') ? CardLogic : null;
     const selectorTargets = (cardLogicRef && typeof cardLogicRef.getSelectableTargets === 'function')
@@ -3138,7 +3165,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey: any): Promise<any> {
     let targetCardId = offers[0];
     let bestCost = -Infinity;
     let bestScore = Number.NEGATIVE_INFINITY;
-    const level = resolveCpuSmartnessLevel(playerKey);
+    const level = resolveCpuDecisionLevelForPlayer(playerKey);
     const player = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
@@ -3230,7 +3257,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
     let target = offers[0];
     let bestCost = -Infinity;
     let bestScore = Number.NEGATIVE_INFINITY;
-    const level = resolveCpuSmartnessLevel(playerKey);
+    const level = resolveCpuDecisionLevelForPlayer(playerKey);
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const opponentValue = opponentKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)

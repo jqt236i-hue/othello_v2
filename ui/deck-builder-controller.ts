@@ -13,6 +13,7 @@ const DeckCodecModule = _require('../shared/deck-codec');
 const DeckPresetStorage = _require('./storage/deck-presets');
 const DeckBuilderStateModule = _require('./deck-builder-state');
 const DeckBuilderRendererModule = _require('./deck-builder-renderer');
+const CardInteractionEffectsModule = _require('../cards/card-interaction-effects');
 const SharedBoardUtilsModule = _require('../shared/shared-board-utils');
 const SharedBoardUtils = SharedBoardUtilsModule && SharedBoardUtilsModule.default
     ? SharedBoardUtilsModule.default
@@ -62,7 +63,8 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 presetId: '',
                 nameValue: '',
                 draft: DeckBuilderStateModule.createEmptyDraft(),
-                codeInputValue: ''
+                codeInputValue: '',
+                detailCardId: ''
             }
         };
 
@@ -231,6 +233,49 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 return rightCost - leftCost;
             }
             return String(leftDef.id || '').localeCompare(String(rightDef.id || ''), 'en');
+        }
+
+        function normalizeDeckBuilderEffectText(text: any) {
+            return String(text || '').replace(/\r\n?/g, '\n').trim();
+        }
+
+        function resolveDeckBuilderCardDetail(cardDef: any) {
+            if (!cardDef || typeof cardDef !== 'object') return null;
+
+            const cardId = String(cardDef.id || '').trim();
+            const cardName = normalizeChoiceLabel(cardDef.name || cardDef.name_ja, cardId || 'カード');
+            let descriptionTexts: any = null;
+
+            try {
+                if (CardInteractionEffectsModule && typeof CardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
+                    descriptionTexts = CardInteractionEffectsModule.resolveCardDescriptionTexts(cardDef, {
+                        resolveChargeMaxText: () => '99',
+                        quickTextMaxLength: 42
+                    });
+                }
+            } catch (e: any) {
+                descriptionTexts = null;
+            }
+
+            const fallbackDesc = normalizeDeckBuilderEffectText(cardDef.desc || cardDef.desc_ja || '');
+            const quickText = normalizeDeckBuilderEffectText(
+                descriptionTexts && descriptionTexts.quickText
+                    ? descriptionTexts.quickText
+                    : fallbackDesc
+            ) || '効果説明は準備中';
+            const distinctDetailText = normalizeDeckBuilderEffectText(descriptionTexts && descriptionTexts.distinctDetailText);
+            const detailText = distinctDetailText || normalizeDeckBuilderEffectText(
+                descriptionTexts && descriptionTexts.detailText
+                    ? descriptionTexts.detailText
+                    : fallbackDesc
+            );
+
+            return {
+                cardId,
+                cardName,
+                quickText,
+                detailText: detailText && detailText !== quickText ? detailText : ''
+            };
         }
 
         function getDefaultDeckSize() {
@@ -858,10 +903,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         function buildEditorViewModel() {
             const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
             const editorPreset = findPresetById(state.editor.presetId);
-            const candidateCards = DeckBuilderRendererModule.getEnabledCardDefs()
+            const enabledCardDefs = DeckBuilderRendererModule.getEnabledCardDefs()
                 .slice()
-                .sort(compareCardDefsForDeckBuilder)
-                .map((cardDef: any) => {
+                .sort(compareCardDefsForDeckBuilder);
+            const candidateCards = enabledCardDefs.map((cardDef: any) => {
                 const selectedCount = DeckBuilderStateModule.getSelectedCount(state.editor.draft, cardDef.id);
                 const maxCopies = typeof DeckBuilderStateModule.getMaxCopiesForCardId === 'function'
                     ? DeckBuilderStateModule.getMaxCopiesForCardId(cardDef.id)
@@ -883,6 +928,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             const selectedCards = DeckBuilderStateModule.listSelectedCards(state.editor.draft)
                 .slice()
                 .sort((left: any, right: any) => compareCardDefsForDeckBuilder(left.cardDef, right.cardDef));
+            const detailCardId = String(state.editor.detailCardId || '').trim();
+            const detailCardDef = detailCardId
+                ? enabledCardDefs.find((cardDef: any) => String(cardDef && cardDef.id || '') === detailCardId)
+                : null;
 
             return {
                 titleText: normalizeChoiceLabel(editorPreset && editorPreset.name, 'プリセット編集'),
@@ -892,6 +941,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 canUse: true,
                 canCopy: true,
                 codeInputValue: state.editor.codeInputValue,
+                detailCard: resolveDeckBuilderCardDetail(detailCardDef),
                 selectedCards,
                 candidateCards
             };
@@ -939,6 +989,8 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 },
                 onEditorAddCard: addCardToEditor,
                 onEditorRemoveCard: removeCardFromEditor,
+                onEditorShowCardDetail: showEditorCardDetail,
+                onEditorCloseCardDetail: closeEditorCardDetail,
                 onEditorImportCode: importEditorCode,
                 onEditorSave: saveEditorPreset,
                 onEditorUse: useEditorDraft,
@@ -1066,11 +1118,13 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 state.editor.codeInputValue = '';
             }
 
+            state.editor.detailCardId = '';
             state.view = 'editor';
             render();
         }
 
         function backToPresetList() {
+            state.editor.detailCardId = '';
             state.view = 'presets';
             render();
         }
@@ -1085,6 +1139,22 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             state.editor.draft = DeckBuilderStateModule.removeCardFromDraft(state.editor.draft, cardId);
             syncEditorCodeFromDraft();
             renderPreservingEditorScroll(buildEditorCardAnchorOptions(cardId, event, 'deck-builder-selected-grid'));
+        }
+
+        function showEditorCardDetail(cardId: any, event: any, gridClassName: any) {
+            const normalizedCardId = String(cardId || '').trim();
+            if (!normalizedCardId) return;
+            state.editor.detailCardId = normalizedCardId;
+            renderPreservingEditorScroll(buildEditorCardAnchorOptions(
+                normalizedCardId,
+                event,
+                gridClassName || 'deck-builder-candidate-grid'
+            ));
+        }
+
+        function closeEditorCardDetail() {
+            state.editor.detailCardId = '';
+            renderPreservingEditorScroll();
         }
 
         function importEditorCode() {

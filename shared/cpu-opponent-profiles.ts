@@ -7,7 +7,7 @@ interface CpuOpponentProfile {
     name: string;
     menuLabel: string;
     portraitSrc: string;
-    deckProfile: 'default' | 'lv6-default' | 'lv6-board-executor' | 'lv7-theory-incarnation';
+    deckProfile: 'default' | 'lv6-default' | 'lv6-board-executor' | 'lv7-theory-incarnation' | 'lv8-ending-ash';
     initialCharge?: number;
     initialChargeByPlayer?: { black?: number; white?: number };
     cardUseUnlockTurnNumber?: number;
@@ -16,6 +16,14 @@ interface CpuOpponentProfile {
 interface CpuOpponentMenuOption {
     value: string;
     label: string;
+}
+
+interface CpuOpponentRuntimeSelection {
+    profile: CpuOpponentProfile;
+    profileId: string;
+    level: number;
+    decisionLevel: number;
+    cardUseUnlockTurnNumber: number | null;
 }
 
 const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
@@ -93,6 +101,18 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         initialCharge: 50,
         initialChargeByPlayer: { white: 50 },
         cardUseUnlockTurnNumber: 8
+    },
+    {
+        id: '8-ending-ash',
+        level: 8,
+        decisionLevel: 6,
+        name: '終焉の冥灰',
+        menuLabel: 'Lv8: 終焉の冥灰',
+        portraitSrc: 'assets/images/special-cards/characters/終焉の冥灰.png',
+        deckProfile: 'lv8-ending-ash',
+        initialCharge: 99,
+        initialChargeByPlayer: { black: 99, white: 99 },
+        cardUseUnlockTurnNumber: 6
     }
 ];
 
@@ -109,7 +129,7 @@ CPU_OPPONENT_PROFILES.forEach((profile) => {
 function clampCpuLevel(value: unknown): number {
     const n = Number(value);
     if (!Number.isFinite(n)) return 1;
-    return Math.max(1, Math.min(7, Math.floor(n)));
+    return Math.max(1, Math.min(8, Math.floor(n)));
 }
 
 function getCpuOpponentProfiles(): CpuOpponentProfile[] {
@@ -134,9 +154,12 @@ function getCpuOpponentLevel(value: unknown): number {
     return getCpuOpponentProfile(value).level;
 }
 
-function getCpuOpponentDecisionLevel(value: unknown): number {
-    const profile = getCpuOpponentProfile(value);
+function normalizeCpuOpponentDecisionLevel(profile: CpuOpponentProfile): number {
     return Number.isFinite(Number(profile.decisionLevel)) ? Math.max(1, Math.floor(Number(profile.decisionLevel))) : profile.level;
+}
+
+function getCpuOpponentDecisionLevel(value: unknown): number {
+    return resolveCpuOpponentRuntimeSelection(value).decisionLevel;
 }
 
 function getCpuOpponentProfileId(value: unknown): string {
@@ -173,6 +196,25 @@ function getCpuOpponentCardUseUnlockTurnNumber(value: unknown): number | null {
     return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
 }
 
+function resolveCpuOpponentRuntimeSelection(value: unknown): CpuOpponentRuntimeSelection {
+    const profile = getCpuOpponentProfile(value);
+    return {
+        profile,
+        profileId: profile.id,
+        level: profile.level,
+        decisionLevel: normalizeCpuOpponentDecisionLevel(profile),
+        cardUseUnlockTurnNumber: getCpuOpponentCardUseUnlockTurnNumber(profile.id)
+    };
+}
+
+function shouldSkipCpuOpponentCardPhase(value: unknown, turnNumber: unknown): boolean {
+    const selection = resolveCpuOpponentRuntimeSelection(value);
+    if (!Number.isFinite(Number(selection.cardUseUnlockTurnNumber))) return false;
+    const currentTurnNumber = Number(turnNumber);
+    if (!Number.isFinite(currentTurnNumber)) return false;
+    return currentTurnNumber < Math.max(0, Math.floor(Number(selection.cardUseUnlockTurnNumber)));
+}
+
 function isCpuOpponentProfile(value: unknown, profileId: string): boolean {
     return getCpuOpponentProfileId(value) === profileId;
 }
@@ -187,5 +229,7 @@ export = {
     getCpuOpponentInitialChargeByPlayer,
     getCpuOpponentInitialChargeForPlayer,
     getCpuOpponentCardUseUnlockTurnNumber,
+    resolveCpuOpponentRuntimeSelection,
+    shouldSkipCpuOpponentCardPhase,
     isCpuOpponentProfile
 };

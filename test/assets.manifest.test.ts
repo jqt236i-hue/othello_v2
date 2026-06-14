@@ -75,7 +75,8 @@ describe('assets manifest', () => {
       'assets/images/background/manifest-worlds/観測の世界.png',
       'assets/images/special-cards/characters/theory_incarnation.png',
       'assets/images/special-cards/characters/board_executor.png',
-      'assets/images/special-cards/characters/observer_will.png'
+      'assets/images/special-cards/characters/observer_will.png',
+      'assets/images/special-cards/characters/終焉の冥灰.png'
     ].forEach((assetPath) => {
       assert.ok(
         manifest.files.some((file) => file.path === assetPath),

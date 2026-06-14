@@ -237,7 +237,8 @@ describe('deck builder controller', () => {
     expect(builtInCards.map((card) => card.querySelector('.deck-builder-preset-title').textContent)).toEqual([
       '観測デッキ',
       '執行デッキ',
-      '理論デッキ'
+      '理論デッキ',
+      '冥灰デッキ'
     ]);
 
     const presetGrids = Array.from(body.querySelectorAll('.deck-builder-preset-grid'));
@@ -258,6 +259,20 @@ describe('deck builder controller', () => {
       presetId: 'theory'
     });
     expect(document.getElementById('summary').textContent).toBe('理論デッキ / 30枚');
+
+    const endingAshCard = builtInCards[3];
+    const endingAshButtons = Array.from(endingAshCard.querySelectorAll('button'));
+    expect(endingAshButtons.map((button) => button.textContent)).toEqual(['使用']);
+    endingAshButtons[0].click();
+
+    expect(controller.getActiveLocalChoice()).toMatchObject({
+      source: 'built-in-preset',
+      mode: 'custom',
+      name: '冥灰デッキ',
+      deckCode: DeckSpecHelpers.getCpuLv8EndingAshDeckCode(),
+      presetId: 'ending-ash'
+    });
+    expect(document.getElementById('summary').textContent).toBe('冥灰デッキ / 30枚');
   });
 
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {
@@ -883,6 +898,53 @@ describe('deck builder controller', () => {
     expect(options.initialDeckSpecByPlayer.white).toBeUndefined();
     expect(options.initialDeckSpecByPlayer.black.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
     expect(options.initialChargeByPlayer).toEqual({ black: 50 });
+  });
+
+  test('CPU Lv8終焉の冥灰対戦では白CPUへ冥灰専用デッキと初期布石99を入れる', () => {
+    window.getCurrentMatchMode = () => 'cpu';
+    const smartWhite = document.getElementById('smartWhite');
+    const option = document.createElement('option');
+    option.value = '8-ending-ash';
+    option.textContent = 'Lv8: 終焉の冥灰';
+    smartWhite.appendChild(option);
+    smartWhite.value = '8-ending-ash';
+    const controller = createController();
+
+    const options = controller.buildCardInitOptions();
+    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
+
+    expect(whiteCardIds).toContain('observer_will_01');
+    expect(whiteCardIds).toContain('meteor_god_01');
+    expect(whiteCardIds).toContain('destroy_01');
+    expect(whiteCardIds).toContain('board_expand_01');
+    expect(whiteCardIds).not.toContain('theory_incarnation_01');
+    expect(whiteCardIds).not.toContain('board_executor_01');
+    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialChargeByPlayer).toEqual({ white: 99 });
+  });
+
+  test('CPU Lv8終焉の冥灰を黒に選ぶと黒CPUへ冥灰専用デッキと初期布石99を入れる', () => {
+    window.getCurrentMatchMode = () => 'cpu';
+    const smartBlack = document.getElementById('smartBlack');
+    const option = document.createElement('option');
+    option.value = '8-ending-ash';
+    option.textContent = 'Lv8: 終焉の冥灰';
+    smartBlack.appendChild(option);
+    smartBlack.value = '8-ending-ash';
+    const controller = createController();
+
+    const options = controller.buildCardInitOptions();
+    const blackCardIds = options.initialDeckSpecByPlayer.black.cards.map((entry) => entry.cardId);
+
+    expect(blackCardIds).toContain('observer_will_01');
+    expect(blackCardIds).toContain('meteor_god_01');
+    expect(blackCardIds).toContain('destroy_01');
+    expect(blackCardIds).toContain('board_expand_01');
+    expect(blackCardIds).not.toContain('theory_incarnation_01');
+    expect(blackCardIds).not.toContain('board_executor_01');
+    expect(options.initialDeckSpecByPlayer.white).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer.black.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialChargeByPlayer).toEqual({ black: 99 });
   });
 
   test('無効な保存済みプリセットは activePresetId を外してデフォルトデッキへ戻す', () => {

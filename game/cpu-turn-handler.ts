@@ -259,20 +259,20 @@ function clampCpuLevelForTurn(value: any): number {
     return Math.max(1, Math.min(6, Math.floor(n)));
 }
 
-function readRawCpuSmartnessForTurn(playerKey: PlayerKey): any {
+function readCpuProfileValueForTurn(playerKey: PlayerKey): any {
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.readCpuSmartness === 'function') {
-            const smartness = __uiImpl_cpu.readCpuSmartness();
-            if (smartness && Object.prototype.hasOwnProperty.call(smartness, playerKey)) {
-                return smartness[playerKey];
+            const profileValues = __uiImpl_cpu.readCpuSmartness();
+            if (profileValues && Object.prototype.hasOwnProperty.call(profileValues, playerKey)) {
+                return profileValues[playerKey];
             }
         }
     } catch (e) { /* ignore */ }
 
-    const cpuSmartnessRef = resolveRuntimeValue('cpuSmartness')
+    const cpuProfileValuesRef = resolveRuntimeValue('cpuSmartness')
         || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
-    if (cpuSmartnessRef && Object.prototype.hasOwnProperty.call(cpuSmartnessRef, playerKey)) {
-        return cpuSmartnessRef[playerKey];
+    if (cpuProfileValuesRef && Object.prototype.hasOwnProperty.call(cpuProfileValuesRef, playerKey)) {
+        return cpuProfileValuesRef[playerKey];
     }
     return null;
 }
@@ -294,27 +294,37 @@ function resolveCpuDecisionFunction(name: string): Function | null {
 }
 
 function resolveCpuOpponentProfileForTurn(playerKey: PlayerKey): any {
-    const raw = readRawCpuSmartnessForTurn(playerKey);
-    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentProfile === 'function') {
-        return CpuOpponentProfiles.getCpuOpponentProfile(raw);
+    const selection = resolveCpuRuntimeSelectionForTurn(playerKey);
+    return selection && selection.profile ? selection.profile : null;
+}
+
+function resolveCpuRuntimeSelectionForTurn(playerKey: PlayerKey): any {
+    const profileValue = readCpuProfileValueForTurn(playerKey);
+    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection === 'function') {
+        return CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection(profileValue);
     }
     return null;
 }
 
-function resolveCpuLevelForTurn(playerKey: PlayerKey): number {
-    const raw = readRawCpuSmartnessForTurn(playerKey);
-    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentDecisionLevel === 'function') {
-        return CpuOpponentProfiles.getCpuOpponentDecisionLevel(raw);
+function resolveCpuDecisionLevelForTurn(playerKey: PlayerKey): number {
+    const profileValue = readCpuProfileValueForTurn(playerKey);
+    const selection = resolveCpuRuntimeSelectionForTurn(playerKey);
+    if (selection && Number.isFinite(Number(selection.decisionLevel))) {
+        return Math.max(1, Math.floor(Number(selection.decisionLevel)));
     }
-    return clampCpuLevelForTurn(raw);
+    return clampCpuLevelForTurn(profileValue);
 }
 
 function shouldSkipCardPhaseForProfile(playerKey: PlayerKey): boolean {
-    const profile = resolveCpuOpponentProfileForTurn(playerKey);
-    if (!profile || !Number.isFinite(Number(profile.cardUseUnlockTurnNumber))) return false;
+    const profileValue = readCpuProfileValueForTurn(playerKey);
     const turnNumber = getCurrentTurnNumberSafe();
+    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase === 'function') {
+        return !!CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase(profileValue, turnNumber);
+    }
+    const selection = resolveCpuRuntimeSelectionForTurn(playerKey);
+    if (!selection || !Number.isFinite(Number(selection.cardUseUnlockTurnNumber))) return false;
     if (!Number.isFinite(Number(turnNumber))) return false;
-    return Number(turnNumber) < Math.max(0, Math.floor(Number(profile.cardUseUnlockTurnNumber)));
+    return Number(turnNumber) < Math.max(0, Math.floor(Number(selection.cardUseUnlockTurnNumber)));
 }
 
 function resolveCpuCardLogic() {
@@ -1156,7 +1166,7 @@ function tryApplyAnyUsableCard(playerKey: any, level?: any, legalMovesCount?: an
     if (typeof applyChoice !== 'function') return false;
     const usableIds = getUsableCardIdsForCpuRetry(playerKey);
     if (!usableIds.length) return false;
-    const resolvedLevel = Number.isFinite(Number(level)) ? Number(level) : resolveCpuLevelForTurn(playerKey);
+    const resolvedLevel = Number.isFinite(Number(level)) ? Number(level) : resolveCpuDecisionLevelForTurn(playerKey);
     const safeMoves = Array.isArray(legalMoves) ? legalMoves : [];
     const safeLegalMovesCount = Number.isFinite(Number(legalMovesCount)) ? Number(legalMovesCount) : safeMoves.length;
     for (const cardId of usableIds) {
@@ -1431,7 +1441,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
     }
 
     try {
-        const level = resolveCpuLevelForTurn(playerKey);
+        const level = resolveCpuDecisionLevelForTurn(playerKey);
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
         const othelloMode = isOthelloModeForCpuTurnHandler();

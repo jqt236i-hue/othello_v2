@@ -1142,7 +1142,7 @@ function resetGame(options?: any) {
         }
         const n = Number(value);
         if (!Number.isFinite(n)) return 1;
-        return Math.max(1, Math.min(7, Math.floor(n)));
+        return Math.max(1, Math.min(8, Math.floor(n)));
     };
 
     // Read CPU smartness from UI helper if available (avoid direct DOM access in game/)

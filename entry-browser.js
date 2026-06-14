@@ -1179,6 +1179,20 @@ try {
   console.warn("[boot] skip " + "dist/cards/card-interaction: " + e.message);
 }
 
+// dist/ui/debug-card-search
+try {
+  var _modDebugCardSearch = require("./dist/ui/debug-card-search");
+  if (_modDebugCardSearch) {
+    Object.assign(window, _modDebugCardSearch);
+    window.DebugCardSearchModule = _modDebugCardSearch;
+    if (typeof _modDebugCardSearch.initDebugCardSearch === "function") {
+      window.debugCardSearchController = _modDebugCardSearch.initDebugCardSearch();
+    }
+  }
+} catch (e) {
+  console.warn("[boot] skip " + "dist/ui/debug-card-search: " + e.message);
+}
+
 // dist/ui/storage/deck-presets
 try {
   var _mod139 = require("./dist/ui/storage/deck-presets");

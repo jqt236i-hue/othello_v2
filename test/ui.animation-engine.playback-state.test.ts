@@ -92,6 +92,65 @@ describe('animation-engine playback-state integration', () => {
     executePhaseSpy.mockRestore();
   });
 
+  test('overlapping play waits for the active playback instead of aborting it', async () => {
+    jest.unmock('../ui/playback-state-manager');
+    const manager = require('../ui/playback-state-manager.js');
+    const engine = require('../ui/animation-engine.js');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    let resolveFirstPhase = null;
+    let resolveSecondPhase = null;
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase')
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstPhase = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondPhase = resolve;
+      }));
+
+    try {
+      const firstPlayPromise = engine.play([{ type: 'move', phase: 1, targets: [] }]);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const secondPlayPromise = engine.play([{ type: 'move', phase: 1, targets: [] }]);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(manager.getPlaybackActive()).toBe(true);
+      expect(executePhaseSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).not.toHaveBeenCalledWith('[AnimationEngine] Already playing. Aborting previous...');
+
+      expect(typeof resolveFirstPhase).toBe('function');
+      resolveFirstPhase();
+      await firstPlayPromise;
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(executePhaseSpy).toHaveBeenCalledTimes(2);
+      expect(typeof resolveSecondPhase).toBe('function');
+      resolveSecondPhase();
+      await secondPlayPromise;
+
+      expect(manager.getPlaybackActive()).toBe(false);
+      expect(engine.isPlaying).toBe(false);
+    } finally {
+      warnSpy.mockRestore();
+      executePhaseSpy.mockRestore();
+    }
+  });
+
+  test('default overlap wait follows the playback watchdog budget', () => {
+    jest.unmock('../ui/playback-state-manager');
+    global.window.PLAYBACK_WATCHDOG_MS = 7200;
+    const engine = require('../ui/animation-engine.js');
+
+    expect(engine._resolvePlaybackOverlapWaitMs()).toBe(7450);
+
+    global.window.PLAYBACK_OVERLAP_WAIT_MS = 1200;
+    expect(engine._resolvePlaybackOverlapWaitMs()).toBe(1200);
+  });
+
   test('pre-armed snapshot playback lock does not log overlapping playback warning', async () => {
     jest.unmock('../ui/playback-state-manager');
     const manager = require('../ui/playback-state-manager.js');

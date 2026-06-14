@@ -48,11 +48,26 @@ async function createDebugRoom(page: any, playerName: string) {
   await page.waitForFunction(
     () => {
       const input = document.querySelector('input[placeholder="部屋番号（3桁）"]') as HTMLInputElement | null;
-      return !!(window.NetworkMatchClient && window.NetworkMatchClient.isActive && window.NetworkMatchClient.isActive() && input && /^[A-Z0-9]{3}$/.test(input.value));
+      const clientRoomId = window.NetworkMatchClient && typeof window.NetworkMatchClient.getRoomId === 'function'
+        ? window.NetworkMatchClient.getRoomId()
+        : '';
+      return !!(
+        window.NetworkMatchClient
+        && window.NetworkMatchClient.isActive
+        && window.NetworkMatchClient.isActive()
+        && (
+          /^[A-Z0-9]{3}$/.test(String(clientRoomId || ''))
+          || !!(input && /^[A-Z0-9]{3}$/.test(input.value))
+        )
+      );
     },
     { timeout: 15000 }
   );
   const roomId = await page.evaluate(() => {
+    const clientRoomId = window.NetworkMatchClient && typeof window.NetworkMatchClient.getRoomId === 'function'
+      ? window.NetworkMatchClient.getRoomId()
+      : '';
+    if (/^[A-Z0-9]{3}$/.test(String(clientRoomId || ''))) return String(clientRoomId);
     const input = document.querySelector('input[placeholder="部屋番号（3桁）"]') as HTMLInputElement | null;
     return input ? input.value : '';
   });
@@ -71,8 +86,21 @@ async function joinRoom(page: any, roomId: string, playerName: string) {
     { timeout: 15000 }
   );
   await page.getByPlaceholder('名前を入力してください', { exact: true }).fill(playerName);
-  await page.getByPlaceholder('部屋番号（3桁）', { exact: true }).fill(roomId);
-  await page.getByRole('button', { name: '参加' }).click();
+  const joinResult = await page.evaluate(async ({ targetRoomId, targetPlayerName }) => {
+    try {
+      return await window.NetworkMatchClient.joinRoom(targetRoomId, {
+        playerName: targetPlayerName
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        thrown: String(error && (error as any).stack ? (error as any).stack : error)
+      };
+    }
+  }, { targetRoomId: roomId, targetPlayerName: playerName });
+  if (!joinResult || joinResult.ok !== true) {
+    throw new Error(`joinRoom failed: ${JSON.stringify(joinResult)}`);
+  }
   await page.waitForFunction(
     () => !!(
       window.NetworkMatchClient
@@ -99,7 +127,7 @@ async function fillDebugHandForSeat(page: any, seatKey: 'black' | 'white') {
     ),
     { timeout: 15000 }
   );
-  await page.evaluate((playerKey) => {
+  const fillResult = await page.evaluate(async (playerKey) => {
     window.DEBUG_UNLIMITED_USAGE = true;
     window.DEBUG_HUMAN_VS_HUMAN = true;
     if (window.__uiImpl_turn_manager) {
@@ -112,11 +140,67 @@ async function fillDebugHandForSeat(page: any, seatKey: 'black' | 'white') {
     window.cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;
     window.cardState.lastUsedCardByPlayer = window.cardState.lastUsedCardByPlayer || {};
     window.cardState.lastUsedCardByPlayer[playerKey] = null;
+    const networkClient = window.NetworkMatchClient;
+    const isNetworkActive = !!(
+      networkClient
+      && typeof networkClient.isActive === 'function'
+      && networkClient.isActive()
+    );
+    if (isNetworkActive) {
+      const activeSeat = typeof networkClient.getSeatKey === 'function'
+        ? networkClient.getSeatKey()
+        : null;
+      if (activeSeat !== playerKey) {
+        return {
+          network: true,
+          ok: false,
+          error: `debug_fill_hand seat mismatch: active=${activeSeat || 'unknown'}, requested=${playerKey}`
+        };
+      }
+      if (typeof networkClient.publishSnapshot !== 'function') {
+        return {
+          network: true,
+          ok: false,
+          error: 'debug_fill_hand publishSnapshot unavailable'
+        };
+      }
+      try {
+        const result = await networkClient.publishSnapshot({
+          actionType: 'debug_fill_hand',
+          playbackEvents: [],
+          action: { type: 'debug_fill_hand' }
+        });
+        if (typeof window.renderCardUI === 'function') window.renderCardUI();
+        return { network: true, ok: !(result && result.ok === false), result };
+      } catch (error) {
+        return {
+          network: true,
+          ok: false,
+          error: String(error && (error as any).stack ? (error as any).stack : error)
+        };
+      }
+    }
+    const debugActions = window.DebugActions || (
+      typeof window.require === 'function'
+        ? window.require('game/debug/debug-actions.js')
+        : null
+    );
+    let applied = false;
+    if (debugActions && typeof debugActions.fillDebugHand === 'function') {
+      applied = debugActions.fillDebugHand(window.cardState, {
+        playerKey,
+        charge: 99
+      }) === true;
+    }
     window.isProcessing = false;
     window.isCardAnimating = false;
     window.VisualPlaybackActive = false;
     if (typeof window.renderCardUI === 'function') window.renderCardUI();
+    return { network: false, ok: applied };
   }, seatKey);
+  if (!fillResult || fillResult.ok !== true) {
+    throw new Error(`fillDebugHandForSeat failed: ${JSON.stringify(fillResult)}`);
+  }
   await page.waitForFunction(
     (playerKey) => Array.isArray(window.cardState && window.cardState.hands && window.cardState.hands[playerKey])
       && window.cardState.hands[playerKey].includes('gold_stone'),
@@ -236,6 +320,34 @@ async function readProliferationState(page: any) {
 async function installPlaybackProbe(page: any, seatKey: 'black' | 'white') {
   await fillDebugHandForSeat(page, seatKey);
   await page.evaluate(() => {
+    window.__testAnimationWarnings = [];
+    if (!window.__testAnimationConsoleWrapped) {
+      const originalWarn = typeof console.warn === 'function' ? console.warn.bind(console) : null;
+      const originalError = typeof console.error === 'function' ? console.error.bind(console) : null;
+      const pushAnimationWarning = (args: any[]) => {
+        const text = args.map((arg) => {
+          if (typeof arg === 'string') return arg;
+          try { return JSON.stringify(arg); } catch (_e) { return String(arg); }
+        }).join(' ');
+        if (/AnimationEngine|WATCHDOG|Already playing/i.test(text)) {
+          window.__testAnimationWarnings.push(text);
+        }
+      };
+      if (originalWarn) {
+        console.warn = (...args: any[]) => {
+          pushAnimationWarning(args);
+          return originalWarn(...args);
+        };
+      }
+      if (originalError) {
+        console.error = (...args: any[]) => {
+          pushAnimationWarning(args);
+          return originalError(...args);
+        };
+      }
+      window.__testAnimationConsoleWrapped = true;
+    }
+
     window.__testPlaybackSounds = [];
     if (window.SoundEngine && typeof window.SoundEngine.playEffectByKey === 'function' && !window.__testPlaybackSoundWrapped) {
       const originalPlayEffectByKey = window.SoundEngine.playEffectByKey.bind(window.SoundEngine);
@@ -284,7 +396,8 @@ async function clearPlaybackProbe(page: any) {
 async function readPlaybackProbe(page: any) {
   return page.evaluate(() => ({
     sounds: Array.isArray(window.__testPlaybackSounds) ? window.__testPlaybackSounds.slice() : [],
-    highlights: Array.isArray(window.__testPlaybackHighlights) ? window.__testPlaybackHighlights.slice() : []
+    highlights: Array.isArray(window.__testPlaybackHighlights) ? window.__testPlaybackHighlights.slice() : [],
+    animationWarnings: Array.isArray(window.__testAnimationWarnings) ? window.__testAnimationWarnings.slice() : []
   }));
 }
 
@@ -391,6 +504,164 @@ describe('Network special cards E2E', () => {
         cardAnimating: false,
         playback: false
       });
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
+  test('METEOR_GOD follow-up placement creates an immediate meteor hole on both network clients', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await installPlaybackProbe(hostPage, 'black');
+      await installPlaybackProbe(guestPage, 'white');
+      const legalMove = await getFirstLegalMove(hostPage);
+      const moveToPlay = legalMove.hintedMove || legalMove.firstLogicMove;
+      expect(moveToPlay).toEqual(expect.objectContaining({
+        row: expect.any(Number),
+        col: expect.any(Number)
+      }));
+      await useCard(hostPage, 'black', 'meteor_god_01');
+      await hostPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
+
+      const hasMeteorGodSettled = (move: any) => !!(
+        window.gameState
+        && window.gameState.currentPlayer === -1
+        && window.cardState
+        && window.cardState.pendingEffectByPlayer
+        && window.cardState.pendingEffectByPlayer.black === null
+        && Array.isArray(window.cardState.markers)
+        && window.cardState.markers.some((marker: any) => (
+          marker
+          && marker.row === move.row
+          && marker.col === move.col
+          && marker.owner === 'black'
+          && marker.data
+          && marker.data.type === 'METEOR_GOD'
+        ))
+        && window.cardState.markers.some((marker: any) => (
+          marker
+          && marker.owner === 'black'
+          && marker.data
+          && marker.data.type === 'METEOR_HOLE'
+          && window.gameState.board
+          && window.gameState.board[marker.row]
+          && window.gameState.board[marker.row][marker.col] === 0
+        ))
+        && window.isProcessing !== true
+        && window.isCardAnimating !== true
+        && window.VisualPlaybackActive !== true
+      );
+
+      await hostPage.waitForFunction(hasMeteorGodSettled, moveToPlay, { timeout: 20000 });
+      await guestPage.waitForFunction(hasMeteorGodSettled, moveToPlay, { timeout: 20000 });
+
+      const readMeteorGodState = async (page: any) => page.evaluate(({ row, col }) => {
+        const markers = Array.isArray(window.cardState && window.cardState.markers)
+          ? window.cardState.markers
+          : [];
+        const anchor = markers.find((marker: any) => (
+          marker
+          && marker.row === row
+          && marker.col === col
+          && marker.owner === 'black'
+          && marker.data
+          && marker.data.type === 'METEOR_GOD'
+        )) || null;
+        const holes = markers.filter((marker: any) => (
+          marker
+          && marker.owner === 'black'
+          && marker.data
+          && marker.data.type === 'METEOR_HOLE'
+        )).map((marker: any) => ({
+          row: marker.row,
+          col: marker.col,
+          boardValue: window.gameState && window.gameState.board && window.gameState.board[marker.row]
+            ? window.gameState.board[marker.row][marker.col]
+            : null
+        }));
+        return {
+          anchor: anchor
+            ? {
+                row: anchor.row,
+                col: anchor.col,
+                type: anchor.data.type,
+                remainingOwnerTurns: anchor.data.remainingOwnerTurns
+              }
+            : null,
+          holes,
+          currentPlayer: window.gameState ? window.gameState.currentPlayer : null,
+          pendingBlack: window.cardState && window.cardState.pendingEffectByPlayer
+            ? window.cardState.pendingEffectByPlayer.black
+            : null,
+          busy: {
+            processing: !!window.isProcessing,
+            cardAnimating: !!window.isCardAnimating,
+            playback: !!window.VisualPlaybackActive
+          }
+        };
+      }, moveToPlay);
+      const hostState = await readMeteorGodState(hostPage);
+      const guestState = await readMeteorGodState(guestPage);
+      const hostProbe = await readPlaybackProbe(hostPage);
+      const guestProbe = await readPlaybackProbe(guestPage);
+
+      expect(hostState.anchor).toEqual(expect.objectContaining({
+        row: moveToPlay.row,
+        col: moveToPlay.col,
+        type: 'METEOR_GOD'
+      }));
+      expect(hostState.holes.length).toBeGreaterThanOrEqual(1);
+      expect(hostState.holes.every((entry: any) => entry.boardValue === 0)).toBe(true);
+      expect(hostState.currentPlayer).toBe(-1);
+      expect(hostState.pendingBlack).toBeNull();
+      expect(hostState.busy).toEqual({
+        processing: false,
+        cardAnimating: false,
+        playback: false
+      });
+
+      expect(guestState.anchor).toEqual(expect.objectContaining({
+        row: moveToPlay.row,
+        col: moveToPlay.col,
+        type: 'METEOR_GOD'
+      }));
+      expect(guestState.holes.length).toBe(hostState.holes.length);
+      expect(guestState.holes.every((entry: any) => entry.boardValue === 0)).toBe(true);
+      expect(guestState.currentPlayer).toBe(-1);
+      expect(guestState.pendingBlack).toBeNull();
+      expect(guestState.busy).toEqual({
+        processing: false,
+        cardAnimating: false,
+        playback: false
+      });
+      expect(hostProbe.sounds).toContain('meteor_hole');
+      expect(guestProbe.sounds).toContain('meteor_hole');
+      expect(hostProbe.animationWarnings).toEqual([]);
+      expect(guestProbe.animationWarnings).toEqual([]);
     } finally {
       await stopPlaywrightPage(hostPage, 5000);
       await stopPlaywrightPage(guestPage, 5000);

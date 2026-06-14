@@ -118,6 +118,7 @@ describe('battle status panel', () => {
     window.updateStatus();
 
     expect(effectPanel.querySelector('.battle-status-round')?.textContent).toBe('ROUND 4');
+    expect(effectPanel.querySelector('.battle-status-network-timer')?.textContent).toBe('');
     expect(effectPanel.querySelector('.battle-status-kicker')).toBeNull();
     expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('4');
     expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('4');
@@ -129,6 +130,36 @@ describe('battle status panel', () => {
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
     expect(effectPanel.querySelector('.battle-status-latest-label')?.textContent).toBe('直近');
     expect(effectPanel.querySelector('.battle-status-latest-value')?.textContent).toBe('-');
+
+    teardownBattleStatusDom(dom);
+  });
+
+  test('network timer appears to the right of round only during network battle', () => {
+    const { dom, window, effectPanel } = setupBattleStatusDom();
+    window.MatchMode = { isNetworkModeActive: jest.fn(() => true) };
+
+    window.updateStatus();
+    window.setBattleStatusNetworkTimerInfo({
+      active: true,
+      turnSeatKey: 'black',
+      remainingMs: 119400,
+      limitSeconds: 120,
+      isOwnTurn: true
+    });
+
+    const topLine = effectPanel.querySelector('.battle-status-topline');
+    const roundEl = effectPanel.querySelector('.battle-status-round');
+    const timerEl = effectPanel.querySelector('.battle-status-network-timer');
+    expect(topLine?.children[0]).toBe(roundEl);
+    expect(topLine?.children[1]).toBe(timerEl);
+    expect(timerEl?.textContent).toBe('残り 120秒');
+    expect(timerEl?.getAttribute('aria-label')).toBe('ネット対戦 黒の手番 残り 120 秒');
+    expect((timerEl as HTMLElement).hidden).toBe(false);
+
+    window.MatchMode.isNetworkModeActive.mockReturnValue(false);
+    window.updateStatus();
+    expect(timerEl?.textContent).toBe('');
+    expect((timerEl as HTMLElement).hidden).toBe(true);
 
     teardownBattleStatusDom(dom);
   });

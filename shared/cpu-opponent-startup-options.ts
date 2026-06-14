@@ -27,6 +27,10 @@ function normalizePlayerKey(value: unknown): CpuOpponentPlayerKey | null {
 function getCpuOpponentDeckCode(profileValue: unknown): string | null {
     const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
     if (!profile || !profile.deckProfile || profile.deckProfile === 'default') return null;
+    if (profile.deckProfile === 'lv8-ending-ash'
+        && typeof DeckSpecHelpers.getCpuLv8EndingAshDeckCode === 'function') {
+        return DeckSpecHelpers.getCpuLv8EndingAshDeckCode();
+    }
     if (profile.deckProfile === 'lv7-theory-incarnation'
         && typeof DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode === 'function') {
         return DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode();
