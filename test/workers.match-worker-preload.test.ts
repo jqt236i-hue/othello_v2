@@ -87,6 +87,7 @@ describe('match worker card preload', () => {
   test('worker preloads nested hole-style cell removal dependency used by card modules', () => {
     const workerSource = readRepoFile('workers/match-worker.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
+    const cellRemovalRuntimeShimPath = 'game/logic/cards/cell-removal.js';
     const cellRemovalImportPath = '../game/logic/cards/cell-removal.js';
     const cellRemovalGlobalKey = 'CardCellRemoval';
     const dependentCardSources = [
@@ -99,6 +100,7 @@ describe('match worker card preload', () => {
     for (const sourcePath of dependentCardSources) {
       expect(readRepoFile(sourcePath)).toContain("safeRequire('./cell-removal')");
     }
+    expect(fs.existsSync(path.join(ROOT, cellRemovalRuntimeShimPath))).toBe(true);
     expectWorkerModuleRegistration(workerSource, cellRemovalGlobalKey, cellRemovalImportPath);
     expectRuntimePreloadRegistration(runtimePreloadSource, cellRemovalGlobalKey, cellRemovalImportPath);
   });
