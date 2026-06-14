@@ -637,6 +637,99 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('standard network placement lets flip-evasion stones dodge instead of flipping', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'しろ'
+      });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+
+      patchRoomSnapshotForTests(roomId, (room) => {
+        const board = createEmptyBoard();
+        board[3][2] = Core.BLACK;
+        board[3][3] = Core.WHITE;
+        board[3][4] = Core.EMPTY;
+
+        room.snapshot.gameState.board = board;
+        room.snapshot.gameState.currentPlayer = Core.BLACK;
+        room.snapshot.gameState.turnNumber = 1;
+        room.snapshot.cardState.markers = [{
+          id: 'afterimage_evade_1',
+          kind: 'specialStone',
+          row: 3,
+          col: 3,
+          owner: 'white',
+          data: {
+            type: 'AFTERIMAGE_WILL',
+            flipEvadeRemaining: 3,
+            destroyEvadeRemaining: 3
+          }
+        }];
+        room.snapshot.cardState.turnIndex = 1;
+        room.snapshot.cardState.lastTurnStartedFor = 'black';
+        room.snapshot.cardState._activeTurnPlayer = 'black';
+        room.snapshot.cardState.pendingEffectByPlayer = { black: null, white: null };
+      });
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: joined.data.stateVersion,
+        operationId: 'op_afterimage_flip_evade_place',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: 3, col: 4 },
+        turnIndex: 1,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: 3,
+          col: 4,
+          turnIndex: 1
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.ok).toBe(true);
+      const snapshot = response.data.snapshot;
+      expect(snapshot.gameState.board[3][3]).toBe(Core.EMPTY);
+      expect(snapshot.gameState.board[3][4]).toBe(Core.BLACK);
+
+      const marker = snapshot.cardState.markers.find((item) => item && item.id === 'afterimage_evade_1');
+      expect(marker).toEqual(expect.objectContaining({
+        owner: 'white',
+        data: expect.objectContaining({
+          type: 'AFTERIMAGE_WILL',
+          flipEvadeRemaining: 2
+        })
+      }));
+      expect(marker.row === 3 && marker.col === 3).toBe(false);
+      expect(snapshot.gameState.board[marker.row][marker.col]).toBe(Core.WHITE);
+      expect(response.data.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'move',
+          targets: expect.arrayContaining([
+            expect.objectContaining({
+              from: { r: 3, col: 3 },
+              cause: 'AFTERIMAGE_WILL',
+              reason: 'afterimage_will_flip_evade_move'
+            })
+          ])
+        })
+      ]));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('authoritative reverse will selection lets flip-evasion stones dodge on publish', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
