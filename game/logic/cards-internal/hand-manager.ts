@@ -380,9 +380,8 @@ function addCardToHand(cardState: any, playerKey: string, cardId: string, contex
     const copyState = ensureCardCopyState(cardState);
     const hand = hands[ownerKey];
     const options = (opts && typeof opts === 'object') ? opts : {};
-    const autoDestroyOnEntry = getCardType(cardId, context) === 'TIME_STOP_GOD';
     if (!Array.isArray(hand)) return null;
-    if (!autoDestroyOnEntry && !options.ignoreHandLimit && hand.length >= MAX_HAND_SIZE) return null;
+    if (!options.ignoreHandLimit && hand.length >= MAX_HAND_SIZE) return null;
     const cardCopyId = normalizeSingleCopyId(cardState, options.cardCopyId);
     const requestedInsertIndex = Number(options.insertIndex);
     const insertIndex = Number.isInteger(requestedInsertIndex)
@@ -390,14 +389,6 @@ function addCardToHand(cardState: any, playerKey: string, cardId: string, contex
         : hand.length;
     hand.splice(insertIndex, 0, cardId);
     copyState.handCopyIdsByPlayer[ownerKey].splice(insertIndex, 0, cardCopyId);
-    if (autoDestroyOnEntry) {
-        const removedCardId = hand.splice(insertIndex, 1)[0];
-        const removedCopyId = normalizeSingleCopyId(
-            cardState,
-            copyState.handCopyIdsByPlayer[ownerKey].splice(insertIndex, 1)[0]
-        );
-        addCardToDiscard(cardState, removedCardId, removedCopyId);
-    }
     return {
         cardId,
         cardCopyId,

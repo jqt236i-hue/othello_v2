@@ -150,7 +150,7 @@ describe('CardHandManager module', () => {
     expect(CardHandManager.isCardCopyIdRevealedToViewer(cardState, 'black', restored.cardCopyId, context)).toBe(true);
   });
 
-  test('TIME_STOP_GOD is destroyed immediately when it enters hand', () => {
+  test('TIME_STOP_GOD stays in hand when drawn', () => {
     const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const cardId = 'time_stop_god_01';
     const context = {
@@ -180,8 +180,8 @@ describe('CardHandManager module', () => {
     };
 
     expect(CardHandManager.commitDraw(cardState, 'black', null, context)).toBe(cardId);
-    expect(cardState.hands.black).toEqual([]);
-    expect(cardState.discard).toEqual([cardId]);
-    expect(CardHandManager.getHandCopyIds(cardState, 'black')).toEqual([]);
+    expect(cardState.hands.black).toEqual([cardId]);
+    expect(cardState.discard).toEqual([]);
+    expect(CardHandManager.getHandCopyIds(cardState, 'black')).toHaveLength(1);
   });
 });

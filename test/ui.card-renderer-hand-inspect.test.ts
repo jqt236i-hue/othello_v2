@@ -210,6 +210,44 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('cpu mode renders TIME_STOP_GOD in own hand as selectable and usable when its cost condition is met', () => {
+    const dom = createRendererContext({
+      matchMode: 'cpu',
+      currentPlayer: 1,
+      hands: { black: ['time_stop_god_01'], white: [] }
+    });
+    const { window } = dom;
+
+    window.CARD_DEFS = [
+      {
+        id: 'time_stop_god_01',
+        name: '時間停石',
+        desc: 'd',
+        cost: 0,
+        type: 'TIME_STOP_GOD',
+        display_type_ja: '禁忌'
+      }
+    ];
+    window.gameState.board[0][0] = window.BLACK;
+    window.gameState.board[0][1] = window.BLACK;
+    window.gameState.board[0][2] = window.BLACK;
+    window.cardState.charge.black = 0;
+
+    window.renderCardUI();
+
+    const ownCardEl = window.document.querySelector('#hand-black .card-item.visible[data-card-id="time_stop_god_01"]');
+    expect(ownCardEl).not.toBeNull();
+    expect(ownCardEl.textContent).toContain('時間停石');
+    expect(ownCardEl.classList.contains('clickable')).toBe(true);
+    expect(ownCardEl.classList.contains('usable')).toBe(true);
+
+    ownCardEl.click();
+
+    expect(window.onCardClick).toHaveBeenCalledWith('time_stop_god_01', 'black', 0);
+
+    dom.window.close();
+  });
+
   test('stale visual playback lock does not remove hand clickability', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
