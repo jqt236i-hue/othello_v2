@@ -28,4 +28,25 @@ describe('stone skin runtime', () => {
     expect(document.documentElement.style.getPropertyValue('--normal-stone-black-image')).toBe('url("assets/images/stone-skin/o-stone/black.png")');
     expect(document.documentElement.style.getPropertyValue('--normal-stone-white-image')).toBe('url("assets/images/stone-skin/o-stone/white.png")');
   });
+
+  test('resolves selected normal stone background images from the shared variables', () => {
+    const runtime = require('../ui/stone-skin/runtime.ts');
+
+    runtime.syncDisplayedStoneSkin(window, 'o-stone');
+
+    expect(runtime.getNormalStoneImageVariableName('black')).toBe('--normal-stone-black-image');
+    expect(runtime.getNormalStoneImageVariableName('white')).toBe('--normal-stone-white-image');
+    expect(runtime.resolveNormalStoneBackgroundImage('black', window)).toContain('assets/images/stone-skin/o-stone/black.png');
+    expect(runtime.resolveNormalStoneBackgroundImage('white', window)).toContain('assets/images/stone-skin/o-stone/white.png');
+  });
+
+  test('falls back to default normal stone images when no document root is available', () => {
+    const runtime = require('../ui/stone-skin/runtime.ts');
+
+    delete (global as any).window;
+    delete (global as any).document;
+
+    expect(runtime.resolveNormalStoneBackgroundImage('black', null)).toBe('url("assets/images/stones/normal_stone-black.png")');
+    expect(runtime.resolveNormalStoneBackgroundImage('white', null)).toBe('url("assets/images/stones/normal_stone-white.png")');
+  });
 });

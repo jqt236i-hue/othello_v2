@@ -1,5 +1,11 @@
 export {};
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
 type DestroySourceAnimationDeps = {
     isNoAnim: () => boolean;
     getCellEl: (row: any, col: any) => any;
@@ -11,6 +17,20 @@ type DestroySourceAnimationDeps = {
     timer: () => any;
     playbackScope: any;
 };
+
+let cachedStoneSkinRuntimeModule: any = null;
+
+function resolveStoneSkinRuntimeModule() {
+    if (cachedStoneSkinRuntimeModule && typeof cachedStoneSkinRuntimeModule === 'object') {
+        return cachedStoneSkinRuntimeModule;
+    }
+    if (typeof _require === 'function') {
+        try {
+            cachedStoneSkinRuntimeModule = _require('./stone-skin/runtime');
+        } catch (e) { /* ignore */ }
+    }
+    return cachedStoneSkinRuntimeModule;
+}
 
 function resolveSniperProjectileOwner(target: any) {
     const t = (target && typeof target === 'object') ? target : {};
@@ -25,24 +45,13 @@ function resolveSniperProjectileOwner(target: any) {
 }
 
 function resolveNormalStoneBackgroundImage(owner: 'black' | 'white'): string {
-    const variableName = owner === 'white' ? '--normal-stone-white-image' : '--normal-stone-black-image';
-    const fallbackPath = owner === 'white'
-        ? "url('assets/images/stones/normal_stone-white.png')"
-        : "url('assets/images/stones/normal_stone-black.png')";
-    try {
-        const rootEl = typeof document !== 'undefined' ? document.documentElement : null;
-        if (!rootEl) return fallbackPath;
-        const inlineValue = rootEl.style && typeof rootEl.style.getPropertyValue === 'function'
-            ? rootEl.style.getPropertyValue(variableName)
-            : '';
-        const computedValue = typeof getComputedStyle === 'function'
-            ? getComputedStyle(rootEl).getPropertyValue(variableName)
-            : '';
-        const resolvedValue = String(inlineValue || computedValue || '').trim();
-        return resolvedValue || fallbackPath;
-    } catch {
-        return fallbackPath;
+    const runtimeModule = resolveStoneSkinRuntimeModule();
+    if (runtimeModule && typeof runtimeModule.resolveNormalStoneBackgroundImage === 'function') {
+        return runtimeModule.resolveNormalStoneBackgroundImage(owner);
     }
+    return owner === 'white'
+        ? 'url("assets/images/stones/normal_stone-white.png")'
+        : 'url("assets/images/stones/normal_stone-black.png")';
 }
 
 async function animateSniperProjectile(target: any, deps: DestroySourceAnimationDeps) {

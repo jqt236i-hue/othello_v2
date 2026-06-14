@@ -21,6 +21,8 @@ interface StoneSkinCatalogModule {
   getStoneSkinDefinition?: (skinId: string, rootRef?: Window) => StoneSkinDefinition | null;
 }
 
+type NormalStoneOwner = 'black' | 'white';
+
 function resolveRootRef(rootRef: Window | null | undefined): Window | null {
   if (rootRef && typeof rootRef === 'object') return rootRef;
   try {
@@ -63,6 +65,46 @@ function cssUrl(path: string): string {
   return 'url("' + String(path || '').replace(/"/g, '\\"') + '")';
 }
 
+function normalizeNormalStoneOwner(owner: unknown): NormalStoneOwner {
+  return String(owner || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
+}
+
+function getNormalStoneImageVariableName(owner: unknown): string {
+  return normalizeNormalStoneOwner(owner) === 'white'
+    ? '--normal-stone-white-image'
+    : '--normal-stone-black-image';
+}
+
+function getDefaultNormalStoneImagePath(owner: unknown): string {
+  return normalizeNormalStoneOwner(owner) === 'white'
+    ? 'assets/images/stones/normal_stone-white.png'
+    : 'assets/images/stones/normal_stone-black.png';
+}
+
+function resolveNormalStoneBackgroundImage(owner: unknown, rootRef?: Window | null): string {
+  const fallbackValue = cssUrl(getDefaultNormalStoneImagePath(owner));
+  try {
+    const docRef = resolveDocument(rootRef);
+    const rootEl = docRef && docRef.documentElement ? docRef.documentElement : null;
+    if (!rootEl) return fallbackValue;
+    const variableName = getNormalStoneImageVariableName(owner);
+    const inlineValue = rootEl.style && typeof rootEl.style.getPropertyValue === 'function'
+      ? rootEl.style.getPropertyValue(variableName)
+      : '';
+    const ctx = resolveRootRef(rootRef);
+    const computedStyleReader = ctx && typeof ctx.getComputedStyle === 'function'
+      ? ctx.getComputedStyle.bind(ctx)
+      : (typeof getComputedStyle === 'function' ? getComputedStyle : null);
+    const computedValue = computedStyleReader
+      ? computedStyleReader(rootEl).getPropertyValue(variableName)
+      : '';
+    const resolvedValue = String(inlineValue || computedValue || '').trim();
+    return resolvedValue || fallbackValue;
+  } catch {
+    return fallbackValue;
+  }
+}
+
 function applyStoneSkin(rootRef: Window | null | undefined, skinId: string): StoneSkinDefinition | null {
   const ctx = resolveRootRef(rootRef);
   const docRef = resolveDocument(ctx);
@@ -73,8 +115,8 @@ function applyStoneSkin(rootRef: Window | null | undefined, skinId: string): Sto
   if (!docRef || !definition || !docRef.documentElement) return null;
   const rootEl = docRef.documentElement;
   rootEl.setAttribute('data-stone-skin-id', definition.id);
-  rootEl.style.setProperty('--normal-stone-black-image', cssUrl(definition.blackImagePath));
-  rootEl.style.setProperty('--normal-stone-white-image', cssUrl(definition.whiteImagePath));
+  rootEl.style.setProperty(getNormalStoneImageVariableName('black'), cssUrl(definition.blackImagePath));
+  rootEl.style.setProperty(getNormalStoneImageVariableName('white'), cssUrl(definition.whiteImagePath));
   return definition;
 }
 
@@ -90,6 +132,10 @@ function syncDisplayedStoneSkin(rootRef: Window | null | undefined, preferredSki
 export = {
   resolveRootRef,
   resolveDocument,
+  normalizeNormalStoneOwner,
+  getNormalStoneImageVariableName,
+  getDefaultNormalStoneImagePath,
+  resolveNormalStoneBackgroundImage,
   applyStoneSkin,
   syncDisplayedStoneSkin
 };
