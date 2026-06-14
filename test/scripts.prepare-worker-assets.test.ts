@@ -254,4 +254,39 @@ describe('prepare-worker-assets', () => {
         ]));
         expect(OPTIONAL_FILES).not.toEqual(expect.arrayContaining(generatedPaths));
     });
+
+    test('writes model asset availability manifest for browser probes', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-model-manifest-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: [],
+            verifyRootFiles: [],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: ['data/models/policy-table.json'],
+            generatedOptionalAssets: [{
+                sourceRelativePath: 'data/models/othello/policy-value.onnx',
+                compressedRelativePath: 'data/models/othello/policy-value.onnx.chunk.',
+                manifestRelativePath: 'data/models/othello/policy-value.onnx',
+                compression: 'split',
+                chunkSizeBytes: 5,
+                splitThresholdBytes: 12
+            }]
+        };
+
+        writeFile(path.join(rootDir, 'data/models/policy-table.json'), '{"schemaVersion":"policy_table.v2","states":{}}');
+        writeFile(path.join(rootDir, 'data/models/othello/policy-value.onnx'), 'abc');
+        prepareWorkerAssets(options);
+
+        const manifest = JSON.parse(fs.readFileSync(path.join(outDir, 'data/models/model-assets.json'), 'utf8'));
+        expect(manifest.schemaVersion).toBe('model_assets.v1');
+        expect(manifest.files).toEqual(expect.arrayContaining([
+            'data/models/policy-table.json',
+            'data/models/othello/policy-value.onnx'
+        ]));
+        expect(manifest.files).not.toContain('data/models/policy-target.onnx');
+    });
 });

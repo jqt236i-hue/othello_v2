@@ -63,6 +63,7 @@ function findRepoRoot(startDir: string): string {
 const ROOT = findRepoRoot(path.resolve(__dirname, '..'));
 const OUT_DIR = path.join(ROOT, 'worker-public');
 const WORKER_ASSET_MAX_BYTES = 25 * 1024 * 1024;
+const MODEL_ASSET_MANIFEST_PATH = 'data/models/model-assets.json';
 
 const ROOT_FILES: readonly string[] = Object.freeze([
     '.assetsignore',
@@ -363,6 +364,25 @@ function writeGeneratedOptionalAssets(generatedAssets: any, config: any) {
     }
 }
 
+function writeModelAssetManifest(optionalFiles: any, generatedAssets: any, config: any) {
+    const settings = createPrepareConfig(config);
+    const files = new Set<string>();
+    for (const relativePath of Array.isArray(optionalFiles) ? optionalFiles : []) {
+        files.add(normalizeRelativePath(relativePath));
+    }
+    for (const asset of Array.isArray(generatedAssets) ? generatedAssets : []) {
+        files.add(normalizeRelativePath(asset.relativePath));
+    }
+    const payload = {
+        schemaVersion: 'model_assets.v1',
+        generatedAt: new Date().toISOString(),
+        files: Array.from(files).filter(Boolean).sort()
+    };
+    const dst = path.join(settings.outDir, MODEL_ASSET_MANIFEST_PATH);
+    ensureDir(path.dirname(dst));
+    fs.writeFileSync(dst, JSON.stringify(payload, null, 2), 'utf8');
+}
+
 function copyDirectoryRecursive(srcDir: any, dstDir: any, relativePrefix: string = '') {
     if (!fs.existsSync(srcDir)) return;
     ensureDir(dstDir);
@@ -508,6 +528,7 @@ function prepareWorkerAssets(options?: PrepareWorkerAssetsOptions) {
 
     copyableOptionalFiles.forEach((relativePath: any) => copyFileByRelative(relativePath, settings));
     writeGeneratedOptionalAssets(generatedOptionalAssets, settings);
+    writeModelAssetManifest(copyableOptionalFiles, generatedOptionalAssets, settings);
     copyFileByRelative(path.join('assets', 'asset-manifest.json'), settings);
 
     verifyMirrors(copyableOptionalFiles, generatedOptionalAssets, settings);

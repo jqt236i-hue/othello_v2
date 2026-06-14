@@ -236,6 +236,72 @@ describe('ui cpu-policy handler', () => {
     consoleError.mockRestore();
   });
 
+  test('initPolicyTableModel skips direct probes when worker model manifest excludes the asset', async () => {
+    const fetch = jest.fn(async (url) => {
+      if (String(url) === 'data/models/model-assets.json') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            schemaVersion: 'model_assets.v1',
+            files: ['data/models/othello/policy-value.onnx']
+          })
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+    const loadFromUrl = jest.fn(async () => true);
+    global.window.fetch = fetch;
+    global.window.CpuPolicyTableRuntime = {
+      configure: jest.fn(),
+      loadFromUrl
+    };
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await handlers.initPolicyTableModel();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('data/models/model-assets.json', { cache: 'no-store' });
+    expect(loadFromUrl).not.toHaveBeenCalled();
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.skipped).toBe(true);
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.skipReason).toBe('model-asset-unavailable');
+    expect(consoleError).not.toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
+  test('initPolicyOnnxModel skips auxiliary probes when worker model manifest excludes target and value assets', async () => {
+    const fetch = jest.fn(async (url) => {
+      if (String(url) === 'data/models/model-assets.json') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            schemaVersion: 'model_assets.v1',
+            files: ['data/models/othello/policy-value.onnx']
+          })
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+    const loadTargetModelFromUrl = jest.fn(async () => true);
+    const loadValueModelFromUrl = jest.fn(async () => true);
+    global.window.fetch = fetch;
+    global.window.CpuPolicyOnnxRuntime = {
+      loadFromUrl: jest.fn(async () => true),
+      loadTargetModelFromUrl,
+      loadValueModelFromUrl
+    };
+
+    await handlers.initPolicyOnnxModel();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(loadTargetModelFromUrl).not.toHaveBeenCalled();
+    expect(loadValueModelFromUrl).not.toHaveBeenCalled();
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.targetSkipped).toBe(true);
+    expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.valueSkipped).toBe(true);
+  });
+
   test('initPolicyTableModel times out hung runtime load for safe fallback', async () => {
     global.window.CPU_MODEL_LOAD_TIMEOUT_MS = 1;
     global.window.CpuPolicyTableRuntime = {

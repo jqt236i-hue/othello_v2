@@ -7,6 +7,14 @@ declare var cpuSmartness: any;
 declare var mccfrPolicy: any;
 declare var addLog: any;
 
+const MODEL_ASSET_MANIFEST_URL = 'data/models/model-assets.json';
+
+let _modelAssetManifestCache: any = {
+  fetchImpl: null,
+  loaded: false,
+  manifest: null
+};
+
 function _isDebugEnabled(): boolean {
   try {
     const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
@@ -378,7 +386,61 @@ async function _probeUrl(fetchImpl: any, url: string): Promise<boolean> {
   }
 }
 
+function _normalizeModelAssetPath(relativePath: string): string {
+  return String(relativePath || '').replace(/^\/+/, '').replace(/\\/g, '/');
+}
+
+function _isModelAssetManifestShape(payload: any): boolean {
+  return !!(
+    payload &&
+    typeof payload === 'object' &&
+    payload.schemaVersion === 'model_assets.v1' &&
+    Array.isArray(payload.files)
+  );
+}
+
+async function _loadModelAssetManifest(fetchImpl: any): Promise<any> {
+  if (!fetchImpl) return null;
+  if (_modelAssetManifestCache.loaded === true && _modelAssetManifestCache.fetchImpl === fetchImpl) {
+    return _modelAssetManifestCache.manifest;
+  }
+  _modelAssetManifestCache = {
+    fetchImpl,
+    loaded: true,
+    manifest: null
+  };
+  try {
+    const response = await fetchImpl(MODEL_ASSET_MANIFEST_URL, { cache: 'no-store' });
+    if (!response || response.ok !== true || typeof response.json !== 'function') return null;
+    const payload = await response.json();
+    if (!_isModelAssetManifestShape(payload)) return null;
+    const files = new Set<string>();
+    for (const one of payload.files) {
+      const normalized = _normalizeModelAssetPath(one);
+      if (normalized) files.add(normalized);
+    }
+    const manifest = { files };
+    _modelAssetManifestCache.manifest = manifest;
+    return manifest;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function _readModelAssetAvailability(fetchImpl: any, relativePath: string): Promise<boolean | null> {
+  const normalized = _normalizeModelAssetPath(relativePath);
+  if (!normalized || !normalized.startsWith('data/models/')) return null;
+  const manifest = await _loadModelAssetManifest(fetchImpl);
+  if (!manifest || !(manifest.files instanceof Set)) return null;
+  return manifest.files.has(normalized);
+}
+
 async function _resolveAssetPair(fetchImpl: any, primaryRelativePath: string, secondaryRelativePath: string): Promise<any> {
+  const primaryAvailability = await _readModelAssetAvailability(fetchImpl, primaryRelativePath);
+  const secondaryAvailability = await _readModelAssetAvailability(fetchImpl, secondaryRelativePath);
+  if (primaryAvailability === false || secondaryAvailability === false) {
+    return { unavailableByManifest: true };
+  }
   const roots = _candidateAssetRoots();
   for (const root of roots) {
     const primaryUrl = _joinAssetUrl(root, primaryRelativePath);
@@ -393,6 +455,10 @@ async function _resolveAssetPair(fetchImpl: any, primaryRelativePath: string, se
 }
 
 async function _resolveSingleAsset(fetchImpl: any, relativePath: string): Promise<any> {
+  const availability = await _readModelAssetAvailability(fetchImpl, relativePath);
+  if (availability === false) {
+    return { unavailableByManifest: true };
+  }
   const roots = _candidateAssetRoots();
   for (const root of roots) {
     const url = _joinAssetUrl(root, relativePath);
@@ -403,6 +469,11 @@ async function _resolveSingleAsset(fetchImpl: any, relativePath: string): Promis
 }
 
 async function _resolveOptionalAssetPair(fetchImpl: any, primaryRelativePath: string, secondaryRelativePath: string, preferredRoot: string): Promise<any> {
+  const primaryAvailability = await _readModelAssetAvailability(fetchImpl, primaryRelativePath);
+  const secondaryAvailability = await _readModelAssetAvailability(fetchImpl, secondaryRelativePath);
+  if (primaryAvailability === false || secondaryAvailability === false) {
+    return { unavailableByManifest: true };
+  }
   const preferred = String(preferredRoot || '').trim();
   if (preferred) {
     const primaryUrl = _joinAssetUrl(preferred, primaryRelativePath);
@@ -621,6 +692,14 @@ async function initPolicyOnnxModel(): Promise<void> {
     : null;
   if (fetchImpl && shouldLoadPrimaryOnnx) {
     const resolved = await _resolveAssetPair(fetchImpl, modelRel, metaRel);
+    if (resolved && resolved.unavailableByManifest) {
+      _reportCriticalModelLoadIssue(
+        'onnx',
+        'policy-net assets are not included in the deployed model asset manifest.',
+        { sourceUrl: '', metaUrl: '', skipped: true, skipReason: 'model-asset-unavailable' }
+      );
+      return;
+    }
     if (!resolved) {
       _reportCriticalModelLoadIssue(
         'onnx',
@@ -655,7 +734,15 @@ async function initPolicyOnnxModel(): Promise<void> {
     const resolvedTarget = shouldLoadAuxiliaryTargetModel
       ? await _resolveOptionalAssetPair(fetchImpl, targetModelRel, targetMetaRel, resolvedRoot)
       : null;
-    if (resolvedTarget) {
+    if (resolvedTarget && resolvedTarget.unavailableByManifest) {
+      _setCpuModelLoadStatus('onnx', {
+        targetLoaded: false,
+        targetSourceUrl: '',
+        targetMetaUrl: '',
+        targetSkipped: true,
+        targetSkipReason: 'model-asset-unavailable'
+      });
+    } else if (resolvedTarget) {
       targetModelUrl = resolvedTarget.primaryUrl;
       targetMetaUrl = resolvedTarget.secondaryUrl;
       hasTargetModel = true;
@@ -663,7 +750,15 @@ async function initPolicyOnnxModel(): Promise<void> {
     const resolvedValue = shouldLoadAuxiliaryValueModel
       ? await _resolveOptionalAssetPair(fetchImpl, valueModelRel, valueMetaRel, resolvedRoot)
       : null;
-    if (resolvedValue) {
+    if (resolvedValue && resolvedValue.unavailableByManifest) {
+      _setCpuModelLoadStatus('onnx', {
+        valueLoaded: false,
+        valueSourceUrl: '',
+        valueMetaUrl: '',
+        valueSkipped: true,
+        valueSkipReason: 'model-asset-unavailable'
+      });
+    } else if (resolvedValue) {
       valueModelUrl = resolvedValue.primaryUrl;
       valueMetaUrl = resolvedValue.secondaryUrl;
       hasValueModel = true;
@@ -758,6 +853,17 @@ async function initPolicyTableModel(): Promise<void> {
     : null;
   if (fetchImpl) {
     const resolved = await _resolveSingleAsset(fetchImpl, modelRel);
+    if (resolved && resolved.unavailableByManifest) {
+      _setCpuModelLoadStatus('table', {
+        loaded: false,
+        sourceUrl: '',
+        triedRoots: [],
+        lastError: '',
+        skipped: true,
+        skipReason: 'model-asset-unavailable'
+      });
+      return;
+    }
     if (!resolved) {
       _reportCriticalModelLoadIssue(
         'table',
@@ -835,6 +941,19 @@ async function initOthelloOnnxModel(): Promise<void> {
 
   if (fetchImpl) {
     const resolved = await _resolveAssetPair(fetchImpl, modelRel, metaRel);
+    if (resolved && resolved.unavailableByManifest) {
+      _setCpuModelLoadStatus('othelloOnnx', {
+        loaded: false,
+        sourceUrl: '',
+        metaUrl: '',
+        triedRoots: [],
+        lastError: '',
+        skipped: true,
+        skipReason: 'model-asset-unavailable'
+      });
+      _debugLog('[CPU] othello ONNX asset is not included in the deployed model manifest');
+      return;
+    }
     if (!resolved) {
       _setCpuModelLoadStatus('othelloOnnx', {
         loaded: false,
@@ -924,6 +1043,23 @@ async function initOthelloPolicyTableModel(): Promise<void> {
   if (fetchImpl) {
     const resolvedPolicy = await _resolveSingleAsset(fetchImpl, policyRel);
     const resolvedValue = await _resolveSingleAsset(fetchImpl, valueRel);
+    if (
+      (resolvedPolicy && resolvedPolicy.unavailableByManifest) ||
+      (resolvedValue && resolvedValue.unavailableByManifest)
+    ) {
+      _setCpuModelLoadStatus('othelloTable', {
+        loaded: false,
+        valueLoaded: false,
+        sourceUrl: '',
+        valueSourceUrl: '',
+        triedRoots: [],
+        lastError: '',
+        skipped: true,
+        skipReason: 'model-asset-unavailable'
+      });
+      _debugLog('[CPU] othello policy/value table assets are not included in the deployed model manifest');
+      return;
+    }
     if (!resolvedPolicy || !resolvedValue) {
       _reportCriticalModelLoadIssue(
         'othelloTable',
