@@ -730,6 +730,119 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('network card-use placement lets afterimage stones dodge standard flips', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        networkDebugEnabled: true
+      });
+      const roomId = created.data.roomId;
+      const blackToken = created.data.seatToken;
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId,
+        playerName: 'しろ'
+      });
+      const whiteToken = joined.data.seatToken;
+
+      let snapshot = joined.data.snapshot;
+      let stateVersion = joined.data.stateVersion;
+
+      const publish = async (seatKey, seatToken, actionType, params, operationId) => {
+        const turnIndex = snapshot && snapshot.cardState && Number.isFinite(Number(snapshot.cardState.turnIndex))
+          ? Number(snapshot.cardState.turnIndex)
+          : 0;
+        const response = await requestJson(port, 'POST', '/api/match/publish', {
+          roomId,
+          seatKey,
+          playerKey: seatKey,
+          seatToken,
+          baseVersion: stateVersion,
+          operationId,
+          actionType,
+          actor: seatKey,
+          params,
+          turnIndex,
+          action: Object.assign({ type: actionType, playerKey: seatKey, turnIndex }, params)
+        });
+        expect(response.status).toBe(200);
+        expect(response.data.ok).toBe(true);
+        snapshot = response.data.snapshot;
+        stateVersion = response.data.stateVersion;
+        return response;
+      };
+
+      await publish('white', whiteToken, 'debug_fill_hand', {
+        cardIds: ['afterimage_will_01'],
+        replaceExisting: true,
+        charge: 99
+      }, 'op_afterimage_card_use_fill_white');
+
+      await publish('black', blackToken, 'place', { row: 2, col: 3 }, 'op_afterimage_card_use_black_opening');
+      await publish('white', whiteToken, 'use_card', {
+        useCardId: 'afterimage_will_01',
+        useCardOwnerKey: 'white'
+      }, 'op_afterimage_card_use_use_card');
+
+      const placed = await publish('white', whiteToken, 'place', { row: 2, col: 2 }, 'op_afterimage_card_use_white_place');
+      const placedMarker = placed.data.snapshot.cardState.markers.find((marker) => (
+        marker &&
+        marker.kind === 'specialStone' &&
+        marker.row === 2 &&
+        marker.col === 2 &&
+        marker.data &&
+        marker.data.type === 'AFTERIMAGE_WILL'
+      ));
+      expect(placedMarker).toEqual(expect.objectContaining({
+        owner: 'white',
+        data: expect.objectContaining({
+          type: 'AFTERIMAGE_WILL',
+          flipEvadeRemaining: 3,
+          destroyEvadeRemaining: 3
+        })
+      }));
+
+      const flipped = await publish('black', blackToken, 'place', { row: 2, col: 1 }, 'op_afterimage_card_use_black_flip_attempt');
+      const afterSnapshot = flipped.data.snapshot;
+      expect(afterSnapshot.gameState.board[2][1]).toBe(Core.BLACK);
+      expect(afterSnapshot.gameState.board[2][2]).toBe(Core.EMPTY);
+
+      const movedMarker = afterSnapshot.cardState.markers.find((marker) => (
+        marker &&
+        marker.kind === 'specialStone' &&
+        marker.owner === 'white' &&
+        marker.data &&
+        marker.data.type === 'AFTERIMAGE_WILL'
+      ));
+      expect(movedMarker).toEqual(expect.objectContaining({
+        owner: 'white',
+        data: expect.objectContaining({
+          type: 'AFTERIMAGE_WILL',
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 3
+        })
+      }));
+      expect(movedMarker.row === 2 && movedMarker.col === 2).toBe(false);
+      expect(afterSnapshot.gameState.board[movedMarker.row][movedMarker.col]).toBe(Core.WHITE);
+      expect(flipped.data.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'move',
+          targets: expect.arrayContaining([
+            expect.objectContaining({
+              from: { r: 2, col: 2 },
+              cause: 'AFTERIMAGE_WILL',
+              reason: 'afterimage_will_flip_evade_move'
+            })
+          ])
+        })
+      ]));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('authoritative reverse will selection lets flip-evasion stones dodge on publish', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

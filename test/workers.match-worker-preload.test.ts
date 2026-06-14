@@ -108,6 +108,16 @@ describe('match worker card preload', () => {
     expectRuntimePreloadRegistration(runtimePreloadSource, cellRemovalGlobalKey, cellRemovalImportPath);
   });
 
+  test('worker exposes shared evasion status before bundled card modules load', () => {
+    const workerSource = readRepoFile('workers/match-worker.ts');
+    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
+    const evasionStatusImportPath = '../shared/evasion-status.js';
+    const evasionStatusGlobalKey = 'EvasionStatus';
+
+    expectWorkerModuleRegistration(workerSource, evasionStatusGlobalKey, evasionStatusImportPath);
+    expectRuntimePreloadRegistration(runtimePreloadSource, evasionStatusGlobalKey, evasionStatusImportPath);
+  });
+
   test('runtime preload exposes every turn pipeline phase fallback module', () => {
     const turnPhaseSource = readRepoFile('game/turn/turn_pipeline_phases.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');

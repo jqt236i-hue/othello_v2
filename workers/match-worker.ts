@@ -113,6 +113,7 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../shared/deck-codec.js': () => require('../shared/deck-codec.js'),
     '../shared/player-encoding.js': () => require('../shared/player-encoding.js'),
     '../shared/destroy-outcome-contract.js': () => require('../shared/destroy-outcome-contract.js'),
+    '../shared/evasion-status.js': () => require('../shared/evasion-status.js'),
     '../shared/manifest-stone-registry.js': () => require('../shared/manifest-stone-registry.js'),
     '../shared/stone-status-snapshot.js': () => require('../shared/stone-status-snapshot.js'),
     '../shared/special-card-registry.js': () => require('../shared/special-card-registry.js'),
@@ -486,6 +487,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
         const requiredGlobals: Array<[string, string]> = [
             ['../shared/player-encoding.js', 'PlayerEncoding'],
             ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
+            ['../shared/evasion-status.js', 'EvasionStatus'],
             ['../shared/manifest-stone-registry.js', 'ManifestStoneRegistry'],
             ['../shared/stone-status-snapshot.js', 'StoneStatusSnapshot'],
             ['../shared/special-card-registry.js', 'SpecialCardRegistry'],

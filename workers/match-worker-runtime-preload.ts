@@ -66,6 +66,7 @@ installRuntimeModule('DeckSpecHelpers', () => require('../shared/deck-spec.js'))
 installRuntimeModule('DeckCodecModule', () => require('../shared/deck-codec.js'));
 installRuntimeModule('PlayerEncoding', () => require('../shared/player-encoding.js'));
 installRuntimeModule('DestroyOutcomeContract', () => require('../shared/destroy-outcome-contract.js'));
+installRuntimeModule('EvasionStatus', () => require('../shared/evasion-status.js'));
 installRuntimeModule('ManifestStoneRegistry', () => require('../shared/manifest-stone-registry.js'));
 installRuntimeModule('StoneStatusSnapshot', () => require('../shared/stone-status-snapshot.js'));
 installRuntimeModule('SpecialCardRegistry', () => require('../shared/special-card-registry.js'));
