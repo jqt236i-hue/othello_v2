@@ -30,10 +30,10 @@ describe('SpecialCardRegistry', () => {
       cardId: 'board_executor_01',
       markerType: 'BOARD_EXECUTOR',
       displayName: '盤界の執行者',
-      quote: '盤界の名において執行する。彷徨える魂よ、今ここに収束せよ',
+      quote: '盤界の名において執行する。因果を歪ませる変数に、一切の例外を認めない。',
       quoteLines: [
         '盤界の名において執行する。',
-        '彷徨える魂よ、今ここに収束せよ'
+        '因果を歪ませる変数に、一切の例外を認めない。'
       ],
       characterImage: 'assets/images/special-cards/characters/board_executor.png',
       manifestBgmKey: 'board_executor_path',
