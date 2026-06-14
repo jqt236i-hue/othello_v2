@@ -24,6 +24,27 @@ function resolveSniperProjectileOwner(target: any) {
     return 'black';
 }
 
+function resolveNormalStoneBackgroundImage(owner: 'black' | 'white'): string {
+    const variableName = owner === 'white' ? '--normal-stone-white-image' : '--normal-stone-black-image';
+    const fallbackPath = owner === 'white'
+        ? "url('assets/images/stones/normal_stone-white.png')"
+        : "url('assets/images/stones/normal_stone-black.png')";
+    try {
+        const rootEl = typeof document !== 'undefined' ? document.documentElement : null;
+        if (!rootEl) return fallbackPath;
+        const inlineValue = rootEl.style && typeof rootEl.style.getPropertyValue === 'function'
+            ? rootEl.style.getPropertyValue(variableName)
+            : '';
+        const computedValue = typeof getComputedStyle === 'function'
+            ? getComputedStyle(rootEl).getPropertyValue(variableName)
+            : '';
+        const resolvedValue = String(inlineValue || computedValue || '').trim();
+        return resolvedValue || fallbackPath;
+    } catch {
+        return fallbackPath;
+    }
+}
+
 async function animateSniperProjectile(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
@@ -38,9 +59,7 @@ async function animateSniperProjectile(target: any, deps: DestroySourceAnimation
     const fromRect = fromCell.getBoundingClientRect();
     const toRect = toCell.getBoundingClientRect();
     const owner = resolveSniperProjectileOwner(target);
-    const imgPath = owner === 'white'
-        ? 'assets/images/stones/normal_stone-white.png'
-        : 'assets/images/stones/normal_stone-black.png';
+    const imgPath = resolveNormalStoneBackgroundImage(owner);
 
     const sourceDiscScale = 0.82;
     const projectileScale = 0.25;
@@ -58,7 +77,7 @@ async function animateSniperProjectile(target: any, deps: DestroySourceAnimation
     projectile.style.width = `${projectileSize}px`;
     projectile.style.height = `${projectileSize}px`;
     projectile.style.borderRadius = '50%';
-    projectile.style.backgroundImage = `url('${imgPath}')`;
+    projectile.style.backgroundImage = imgPath;
     projectile.style.backgroundSize = '100% 100%';
     projectile.style.backgroundRepeat = 'no-repeat';
     projectile.style.backgroundPosition = 'center';
@@ -98,9 +117,7 @@ async function animateRobotVacuumSuction(target: any, deps: DestroySourceAnimati
     const toRect = toCell.getBoundingClientRect();
 
     const ownerBefore = String(target.ownerBefore || '').toLowerCase();
-    const imgPath = ownerBefore === 'white'
-        ? 'assets/images/stones/normal_stone-white.png'
-        : 'assets/images/stones/normal_stone-black.png';
+    const imgPath = resolveNormalStoneBackgroundImage(ownerBefore === 'white' ? 'white' : 'black');
 
     const sourceDiscScale = 0.82;
     const projectileScale = 1;
@@ -118,7 +135,7 @@ async function animateRobotVacuumSuction(target: any, deps: DestroySourceAnimati
     projectile.style.width = `${projectileSize}px`;
     projectile.style.height = `${projectileSize}px`;
     projectile.style.borderRadius = '50%';
-    projectile.style.backgroundImage = `url('${imgPath}')`;
+    projectile.style.backgroundImage = imgPath;
     projectile.style.backgroundSize = '100% 100%';
     projectile.style.backgroundRepeat = 'no-repeat';
     projectile.style.backgroundPosition = 'center';
