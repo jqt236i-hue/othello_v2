@@ -75,7 +75,7 @@ describe('debug test scenarios', () => {
       charge: { black: 0, white: 0 },
       pendingEffectByPlayer: { black: { type: 'DUMMY' }, white: { type: 'DUMMY' } },
       hasUsedCardThisTurnByPlayer: { black: true, white: true },
-      markers: [{ kind: 'manifestStone', row: 0, col: 0, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 } }],
+      markers: [{ kind: 'manifestStone', row: 0, col: 0, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 } }],
       numberCellCollectedTotalByPlayer: { black: 3, white: 2 }
     };
 
@@ -141,14 +141,14 @@ describe('debug test scenarios', () => {
         row: 2,
         col: 3,
         owner: 'black',
-        data: expect.objectContaining({ type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 })
+        data: expect.objectContaining({ type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 })
       })
     ]);
     expect(cardState.lastTurnStartedFor).toBe(null);
     expect(cardState.theoryIncarnationStateByPlayer.black).toEqual(expect.objectContaining({
       sessionId: 'debug_theory_spawn_black',
       ownerKey: 'black',
-      remainingSpawnCount: 3
+      remainingSpawnCount: 5
     }));
     expect(Object.keys(cardState.theoryNumberCellsBySession.debug_theory_spawn_black.cells)).toHaveLength(5);
     expect(cardState.theoryNumberCellByCell['0,0']).toEqual({ sessionId: 'debug_theory_spawn_black', ownerKey: 'black' });

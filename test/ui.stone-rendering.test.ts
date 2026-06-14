@@ -395,7 +395,7 @@ describe('UI stone rendering', () => {
         row: 4,
         col: 2,
         owner: 'black',
-        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 }
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 }
       },
       {
         id: 52,

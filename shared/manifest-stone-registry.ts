@@ -16,7 +16,7 @@
             markerType: 'THEORY_INCARNATION',
             displayName: '理論の化身',
             displayCategoryName: '顕現石',
-            durationOwnerTurns: 3,
+            durationOwnerTurns: 5,
             absoluteProtected: true,
             visualEffectKey: 'theoryIncarnationStone',
             imagePathByOwner: Object.freeze({

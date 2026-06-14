@@ -157,7 +157,7 @@ describe('RIBO_WILL（リボ払いの意志）', () => {
     }];
     for (let col = 0; col < 8; col += 1) gameState.board[0][col] = SharedConstants.BLACK;
     CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 });
-    CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3, absoluteProtected: true });
+    CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5, absoluteProtected: true });
     CardLogic.addMarker(cardState, 'specialStone', 0, 2, 'black', { type: 'GUARD', remainingOwnerTurns: 3 });
     CardLogic.addMarker(cardState, 'specialStone', 0, 3, 'black', { type: 'FREEZE', remainingOwnerTurns: 2 });
 

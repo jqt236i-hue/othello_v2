@@ -174,6 +174,29 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
   });
 
+  test('THEORY_INCARNATION shows inviolable together with updated duration', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'theory_incarnation_01',
+      name: '理論の化身',
+      type: 'THEORY_INCARNATION',
+      cost: 0,
+      desc: '数字マスから実際に得た布石合計42以上で使用可能。空きマスを理論数字マスへ書き換え、理論の化身を顕現させる。'
+    };
+
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
+    expect(getTagLabels()).not.toContain('絶対保護');
+    expect(document.getElementById('card-detail-more').textContent).toContain('5T不可侵の顕現石');
+    expect(document.getElementById('card-detail-more').textContent).toContain('最大6回特殊石を出現できる');
+  });
+
   test('BOARD_EXECUTOR shows inviolable together with duration', () => {
     require('../cards/card-interaction.js');
 

@@ -125,7 +125,7 @@ describe('special card foundation marker metadata and locks', () => {
     const CardMarkers = require('../game/logic/cards/markers.ts');
     const cardState = {
       markers: [
-        { kind: 'manifestStone', row: 1, col: 1, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 } },
+        { kind: 'manifestStone', row: 1, col: 1, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 } },
         { kind: 'manifestStone', row: 2, col: 2, owner: 'white', data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4 } },
         { kind: 'manifestStone', row: 3, col: 3, owner: 'black', data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 5 } },
         { kind: 'manifestStone', row: 4, col: 4, owner: 'white', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 0 } }
@@ -151,7 +151,7 @@ describe('special card foundation marker metadata and locks', () => {
       hands: { black: ['guard_01'], white: [] },
       charge: { black: 10, white: 10 },
       markers: [
-        { kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 } }
+        { kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 } }
       ]
     };
 

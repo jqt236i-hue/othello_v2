@@ -74,7 +74,7 @@ describe('理論の化身', () => {
     gameState.board[0][2] = Shared.EMPTY;
     gameState.board[0][3] = Shared.EMPTY;
     cardState.theoryIncarnationStateByPlayer = {
-      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
       white: null
     };
     cardState.theoryNumberCellsBySession = {
@@ -93,7 +93,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'specialStone', 0, 2, 'black', { type: 'FREEZE', remainingOwnerTurns: 2 });
     CardLogic.addMarker(cardState, 'manifestStone', 3, 3, 'black', {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 3,
+      remainingOwnerTurns: 5,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION',
       sessionId: 'theory_black_1'
@@ -257,7 +257,7 @@ describe('理論の化身', () => {
     expect(placed.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_marker_applied' }));
     const marker = cardState.markers.find((entry: any) => entry && entry.data && entry.data.type === 'THEORY_INCARNATION');
     expect(marker).toEqual(expect.objectContaining({ row: 2, col: 3, owner: 'black', kind: 'manifestStone' }));
-    expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 3, absoluteProtected: true }));
+    expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 5, absoluteProtected: true }));
     expect(CardLogic.isPlacementLockedForPlayer(cardState, 'black')).toBe(true);
     expect(CardLogic.isCardPlayLockedForPlayer(cardState, 'black')).toBe(true);
   });
@@ -282,7 +282,7 @@ describe('理論の化身', () => {
     expect(gameState.currentPlayer).toBe(Shared.WHITE);
   });
 
-  test('理論石を配置した直後にも理論数字マスから特殊石を出現させ、残り3回を消費しない', () => {
+  test('理論石を配置した直後にも理論数字マスから特殊石を出現させ、残り5回を消費しない', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -323,7 +323,7 @@ describe('理論の化身', () => {
         })
       })
     }));
-    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(3);
+    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(5);
     expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
   });
 
@@ -362,12 +362,12 @@ describe('理論の化身', () => {
       }
     };
     cardState.theoryIncarnationStateByPlayer = {
-      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
       white: null
     };
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 3,
+      remainingOwnerTurns: 5,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION'
     });
@@ -445,12 +445,12 @@ describe('理論の化身', () => {
       }
     };
     cardState.theoryIncarnationStateByPlayer = {
-      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
       white: null
     };
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 3,
+      remainingOwnerTurns: 5,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION'
     });
@@ -586,7 +586,7 @@ describe('理論の化身', () => {
       row: 0,
       col: 0
     }));
-    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(3);
+    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(5);
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
     expect(gameState.board[0][1]).toBe(Shared.BLACK);
     expect(cardState.markers).toEqual(expect.arrayContaining([
@@ -642,12 +642,12 @@ describe('理論の化身', () => {
       }
     };
     cardState.theoryIncarnationStateByPlayer = {
-      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
       white: null
     };
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 3,
+      remainingOwnerTurns: 5,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION'
     });
@@ -671,46 +671,27 @@ describe('理論の化身', () => {
     }));
   });
 
-  test('理論石顕現中は複数回の自ターン開始で連続して自動終了する', () => {
-    const prng = createPrng([0, 0, 0]);
+  test('理論石顕現中は5回の自ターン開始で連続して自動終了し、5回目に満了する', () => {
+    const prng = createPrng([0, 0, 0, 0, 0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();
     gameState.currentPlayer = Shared.BLACK;
-    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5, '0,2': 5 };
+    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5, '0,2': 5, '0,3': 5, '0,4': 5 };
     cardState.theoryNumberCellByCell = {
       '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' },
       '0,1': { sessionId: 'theory_black_1', ownerKey: 'black' },
-      '0,2': { sessionId: 'theory_black_1', ownerKey: 'black' }
+      '0,2': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,3': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,4': { sessionId: 'theory_black_1', ownerKey: 'black' }
     };
     cardState.theoryNumberCellsBySession = {
       theory_black_1: {
         ownerKey: 'black',
-        cells: {
-          '0,0': {
+        cells: Object.fromEntries([0, 1, 2, 3, 4].map((col) => [
+          `0,${col}`,
+          {
             row: 0,
-            col: 0,
-            value: 5,
-            originalValue: 0,
-            originalConsumed: false,
-            spawnType: 'GHOST',
-            sourceCardId: 'ghost_01',
-            sourceCardType: 'GHOST_WILL',
-            sourceCardCost: 5
-          },
-          '0,1': {
-            row: 0,
-            col: 1,
-            value: 5,
-            originalValue: 0,
-            originalConsumed: false,
-            spawnType: 'GHOST',
-            sourceCardId: 'ghost_01',
-            sourceCardType: 'GHOST_WILL',
-            sourceCardCost: 5
-          },
-          '0,2': {
-            row: 0,
-            col: 2,
+            col,
             value: 5,
             originalValue: 0,
             originalConsumed: false,
@@ -719,34 +700,32 @@ describe('理論の化身', () => {
             sourceCardType: 'GHOST_WILL',
             sourceCardCost: 5
           }
-        }
+        ]))
       }
     };
     cardState.theoryIncarnationStateByPlayer = {
-      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 3 },
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
       white: null
     };
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 3,
+      remainingOwnerTurns: 5,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
-    const first = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
-    expect(first.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_auto_turn_end', player: 'black' }));
-    expect(gameState.currentPlayer).toBe(Shared.WHITE);
+    for (let turn = 1; turn <= 4; turn += 1) {
+      gameState.currentPlayer = Shared.BLACK;
+      const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: turn - 1 }, prng);
+      expect(result.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_auto_turn_end', player: 'black' }));
+      expect(result.events.map((event: any) => event && event.type)).not.toContain('theory_incarnation_marker_expired');
+      expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(5 - turn);
+      expect(gameState.currentPlayer).toBe(Shared.WHITE);
+    }
 
     gameState.currentPlayer = Shared.BLACK;
-    const second = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 1 }, prng);
-    expect(second.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_auto_turn_end', player: 'black' }));
-    expect(gameState.currentPlayer).toBe(Shared.WHITE);
-    expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(1);
-    expect(cardState.markers.filter((entry: any) => entry && entry.data && entry.data.sourceType === 'THEORY_INCARNATION')).toHaveLength(3);
-
-    gameState.currentPlayer = Shared.BLACK;
-    const third = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 2 }, prng);
-    const eventTypes = third.events.map((event: any) => event && event.type);
+    const fifth = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 4 }, prng);
+    const eventTypes = fifth.events.map((event: any) => event && event.type);
     const spawnIndex = eventTypes.indexOf('theory_incarnation_spawned');
     const autoEndIndex = eventTypes.indexOf('theory_incarnation_auto_turn_end');
     const expiredIndex = eventTypes.indexOf('theory_incarnation_marker_expired');
@@ -762,6 +741,6 @@ describe('理論の化身', () => {
       entry.data &&
       entry.data.type === 'THEORY_INCARNATION'
     ))).toBe(false);
-    expect(cardState.markers.filter((entry: any) => entry && entry.data && entry.data.sourceType === 'THEORY_INCARNATION')).toHaveLength(3);
+    expect(cardState.markers.filter((entry: any) => entry && entry.data && entry.data.sourceType === 'THEORY_INCARNATION')).toHaveLength(5);
   });
 });

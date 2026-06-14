@@ -30,7 +30,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
           owner: 'black',
           data: {
             type: 'THEORY_INCARNATION',
-            remainingOwnerTurns: 3,
+            remainingOwnerTurns: 5,
             visualEffectKey: 'theoryIncarnationStone'
           }
         }]
@@ -47,7 +47,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     expect(out[0].targets[0].after).toEqual(expect.objectContaining({
       color: 1,
       special: 'THEORY_INCARNATION',
-      timer: 3,
+      timer: 5,
       owner: 'black',
       manifestAura: { owner: 'black' }
     }));

@@ -307,7 +307,7 @@ function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any
     owner: 'black',
     data: {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 3,
+      remainingOwnerTurns: 5,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION',
       visualEffectKey: 'theoryIncarnationStone'
@@ -323,7 +323,7 @@ function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any
     white: Number(cardState.numberCellCollectedTotalByPlayer && cardState.numberCellCollectedTotalByPlayer.white || 0)
   };
   cardState.theoryIncarnationStateByPlayer = {
-    black: { sessionId: THEORY_SPAWN_SESSION_ID, ownerKey: 'black', remainingSpawnCount: 3 },
+    black: { sessionId: THEORY_SPAWN_SESSION_ID, ownerKey: 'black', remainingSpawnCount: 5 },
     white: null
   };
   cardState.nextTheoryIncarnationStoneByPlayer = { black: null, white: null };

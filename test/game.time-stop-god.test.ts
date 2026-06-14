@@ -115,7 +115,7 @@ describe('TIME_STOP_GOD（時間停石）', () => {
       gameState.board[0][col] = Core.BLACK;
     }
     CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 });
-    CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3, absoluteProtected: true });
+    CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5, absoluteProtected: true });
     CardLogic.addMarker(cardState, 'manifestStone', 0, 2, 'black', { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true });
 
     expect(CardLogic.getTimeStopGodDestroyableCount(cardState, gameState, 'black')).toBe(0);
