@@ -170,6 +170,30 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         } catch (e: any) { /* ignore */ }
     }
 
+    function armBoardUpdateDuringPlayback(context: any) {
+        const syncContext = {
+            ...(context && typeof context === 'object' ? context : {}),
+            allowBoardUpdateDuringPlayback: true
+        };
+        try {
+            const BoardUpdateSyncRuntime = resolveNetworkClientModule(
+                './board-update-sync-runtime',
+                resolveNetworkClientGlobal('BoardUpdateSyncRuntime')
+            );
+            if (BoardUpdateSyncRuntime && typeof BoardUpdateSyncRuntime.armBoardUpdateSyncContext === 'function') {
+                BoardUpdateSyncRuntime.armBoardUpdateSyncContext(syncContext);
+                return true;
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (root && typeof root === 'object') {
+                root.__boardUpdateSyncContext = { ...syncContext };
+                return true;
+            }
+        } catch (e: any) { /* ignore */ }
+        return false;
+    }
+
     function shouldClearStaleBoardUpdateContext(options: any) {
         const opts = options || {};
         if (opts.force !== true) return false;
@@ -2520,6 +2544,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                         if (typeof api.publishSnapshot !== 'function') return false;
                         if (typeof api.isActive === 'function') return api.isActive() === true;
                         return true;
+                    },
+                    armBoardUpdateDuringPlayback: (context: any) => {
+                        return armBoardUpdateDuringPlayback(context);
                     }
                 });
             }

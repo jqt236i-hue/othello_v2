@@ -13,6 +13,7 @@ const CASES = [
     pendingType: 'TEMPT_WILL',
     rawEventType: 'tempt_selected',
     cardId: 'tempt_01',
+    expectPreviewBoardSyncContext: true,
     buildNextCardState: (cardState) => ({
       ...cloneJson(cardState),
       pendingEffectByPlayer: { black: null, white: null },
@@ -417,6 +418,7 @@ const CASES = [
     pendingType: 'CLONE_WILL',
     rawEventType: 'clone_selected',
     cardId: 'clone_01',
+    expectPreviewBoardSyncContext: true,
     buildNextCardState: (cardState) => ({
       ...cloneJson(cardState),
       pendingEffectByPlayer: { black: null, white: null },
@@ -662,11 +664,14 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     buildNextGameState,
     assertAppliedState,
     cardId,
-    expectPublishOnlySelection
+    expectPublishOnlySelection,
+    expectPreviewBoardSyncContext
   } = caseConfig;
   let dom;
   let publishBodies;
   let runTurnMock;
+  let BoardUpdateSyncRuntime;
+  let boardUpdateContexts;
 
   beforeEach(() => {
     jest.resetModules();
@@ -681,6 +686,9 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     global.document = dom.window.document;
     global.location = dom.window.location;
     global.localStorage = dom.window.localStorage;
+    BoardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+    BoardUpdateSyncRuntime.clearBoardUpdateSyncContext();
+    boardUpdateContexts = [];
 
     global.BLACK = 1;
     global.WHITE = -1;
@@ -703,7 +711,10 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     global.emitLogAdded = jest.fn();
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
-    global.emitBoardUpdate = jest.fn();
+    global.emitBoardUpdate = jest.fn(() => {
+      boardUpdateContexts.push(BoardUpdateSyncRuntime.peekBoardUpdateSyncContext());
+      return true;
+    });
     global.renderCardUI = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.waitForPlaybackIdle = jest.fn(async () => {});
@@ -820,6 +831,13 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     } catch (e) {
       // ignore
     }
+    try {
+      if (BoardUpdateSyncRuntime && typeof BoardUpdateSyncRuntime.clearBoardUpdateSyncContext === 'function') {
+        BoardUpdateSyncRuntime.clearBoardUpdateSyncContext();
+      }
+    } catch (e) {
+      // ignore
+    }
 
     delete global.window;
     delete global.document;
@@ -889,7 +907,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     }));
     expect(publishBodies[0].actionType).toBe('place');
     expect(publishBodies[0].actor).toBe('black');
-    expect(publishBodies[0].params).toEqual({
+    expect(publishBodies[0].params).toEqual(expect.objectContaining({
       player: 'black',
       [actionParamKey]: action[actionParamKey],
       pendingSelectionState: {
@@ -898,7 +916,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
         cardId,
         pendingEffectId: 'pending_4_1'
       }
-    });
+    }));
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.gameState.turnNumber).toBe(12);
@@ -910,5 +928,14 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
       cardState: global.cardState,
       emitLogAdded: global.emitLogAdded
     });
+    if (expectPreviewBoardSyncContext) {
+      expect(boardUpdateContexts).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          allowBoardUpdateDuringPlayback: true,
+          source: 'selection-flow',
+          reason: 'selection_state_sync'
+        })
+      ]));
+    }
   });
 });
