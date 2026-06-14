@@ -58,9 +58,6 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             to: normalizedDestroyResult && normalizedDestroyResult.to ? normalizedDestroyResult.to : null
         });
         opts.applyTrapEffectsAfterSelection();
-        if (applied) {
-            opts.handOffTurnAfterSelection();
-        }
         return {
             handled: true,
             generatedSpawnFlipResults: Array.isArray(normalizedDestroyResult && normalizedDestroyResult.generatedSpawnFlipResults)

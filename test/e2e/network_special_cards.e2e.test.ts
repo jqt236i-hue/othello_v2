@@ -668,7 +668,7 @@ describe('Network special cards E2E', () => {
     }
   }, 90000);
 
-  test('PROLIFERATION_WILL survives DESTROY_ONE_STONE and still hands off the turn on both network clients', async () => {
+  test('PROLIFERATION_WILL survives DESTROY_ONE_STONE and keeps the placement turn on both network clients', async () => {
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
     const hostPage = await hostContext.newPage();
@@ -756,7 +756,7 @@ describe('Network special cards E2E', () => {
       await hostPage.waitForFunction(
         () => !!(
           window.gameState
-          && window.gameState.currentPlayer === 1
+          && window.gameState.currentPlayer === -1
           && window.cardState
           && window.cardState.pendingEffectByPlayer
           && window.cardState.pendingEffectByPlayer.white === null
@@ -775,7 +775,7 @@ describe('Network special cards E2E', () => {
       await guestPage.waitForFunction(
         () => !!(
           window.gameState
-          && window.gameState.currentPlayer === 1
+          && window.gameState.currentPlayer === -1
           && window.cardState
           && window.cardState.pendingEffectByPlayer
           && window.cardState.pendingEffectByPlayer.white === null
@@ -796,7 +796,7 @@ describe('Network special cards E2E', () => {
       const guestState = await readProliferationState(guestPage);
 
       expect(hostState.pendingWhite).toBeNull();
-      expect(hostState.currentPlayer).toBe(1);
+      expect(hostState.currentPlayer).toBe(-1);
       expect(hostState.busy).toEqual({
         processing: false,
         cardAnimating: false,
@@ -809,7 +809,7 @@ describe('Network special cards E2E', () => {
       expect(hostState.boardByMarker.every((entry: any) => entry.boardValue === 1)).toBe(true);
 
       expect(guestState.pendingWhite).toBeNull();
-      expect(guestState.currentPlayer).toBe(1);
+      expect(guestState.currentPlayer).toBe(-1);
       expect(guestState.busy).toEqual({
         processing: false,
         cardAnimating: false,

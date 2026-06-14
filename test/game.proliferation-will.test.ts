@@ -586,7 +586,7 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     expectNoGeneratedSpawnFlipTransientState(result.cardState);
   });
 
-  test('DESTROY_ONE_STONE on a proliferation stone hands off the turn after proliferation resolves', () => {
+  test('DESTROY_ONE_STONE on a proliferation stone consumes pending and keeps the same placement turn', () => {
     const { cardState, gameState, prng } = createState([0]);
 
     gameState.currentPlayer = Shared.WHITE;
@@ -633,8 +633,8 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
         Math.abs(destroySelected.to.col - 3)
       )
     ).toBeLessThanOrEqual(1);
-    expect(result.gameState.currentPlayer).toBe(Shared.BLACK);
-    expect(result.gameState.turnNumber).toBe(8);
+    expect(result.gameState.currentPlayer).toBe(Shared.WHITE);
+    expect(result.gameState.turnNumber).toBe(7);
     expect(result.cardState.pendingEffectByPlayer.white).toBeNull();
     expect(result.gameState.board[2][3]).toBe(Shared.BLACK);
     expect(result.gameState.board[destroySelected.to.row][destroySelected.to.col]).toBe(Shared.BLACK);
