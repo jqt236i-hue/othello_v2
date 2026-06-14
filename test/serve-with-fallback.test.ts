@@ -6,7 +6,8 @@ const {
     parseArgs,
     chooseServePort,
     buildHttpServerArgs,
-    computeAssetSourceFingerprint
+    computeAssetSourceFingerprint,
+    generateLocalModelAssetManifest
 } = require('../scripts/serve-with-fallback');
 
 function listenOnce(server, options) {
@@ -80,6 +81,32 @@ describe('serve-with-fallback', () => {
             fs.writeFileSync(path.join(exrDir, '意志.png'), 'exr');
             const afterAssetAdd = computeAssetSourceFingerprint(tmpRoot);
             expect(afterAssetAdd).not.toBe(beforeManifestEdit);
+        } finally {
+            fs.rmSync(tmpRoot, { recursive: true, force: true });
+        }
+    });
+
+    test('generateLocalModelAssetManifest writes available root model assets for local probes', () => {
+        const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'serve-model-assets-'));
+        const othelloDir = path.join(tmpRoot, 'data', 'models', 'othello');
+        fs.mkdirSync(othelloDir, { recursive: true });
+        fs.writeFileSync(path.join(othelloDir, 'policy-value.onnx'), 'onnx');
+        fs.writeFileSync(path.join(othelloDir, 'policy-value.onnx.meta.json'), '{}');
+
+        try {
+            const result = generateLocalModelAssetManifest(tmpRoot);
+            const manifestPath = path.join(tmpRoot, 'data', 'models', 'model-assets.json');
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+            expect(result.files).toEqual(manifest.files);
+            expect(manifest.schemaVersion).toBe('model_assets.v1');
+            expect(manifest.files).toEqual([
+                'data/models/othello/policy-value.onnx',
+                'data/models/othello/policy-value.onnx.meta.json'
+            ]);
+            expect(manifest.files).not.toContain('data/models/policy-target.onnx');
+            expect(manifest.files).not.toContain('data/models/policy-value.onnx');
+            expect(manifest.files).not.toContain('data/models/policy-table.json');
         } finally {
             fs.rmSync(tmpRoot, { recursive: true, force: true });
         }

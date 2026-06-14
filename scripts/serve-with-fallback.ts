@@ -34,6 +34,21 @@ interface ArtifactRefreshOptions {
     intervalMs?: number;
 }
 
+const LOCAL_MODEL_ASSET_MANIFEST_PATH = path.join('data', 'models', 'model-assets.json');
+const LOCAL_MODEL_ASSET_CANDIDATES = Object.freeze([
+    'data/models/policy-net.onnx',
+    'data/models/policy-net.onnx.meta.json',
+    'data/models/policy-target.onnx',
+    'data/models/policy-target.onnx.meta.json',
+    'data/models/policy-value.onnx',
+    'data/models/policy-value.onnx.meta.json',
+    'data/models/policy-table.json',
+    'data/models/othello/policy-value.onnx',
+    'data/models/othello/policy-value.onnx.meta.json',
+    'data/models/othello/policy-table.json',
+    'data/models/othello/value-table.json'
+]);
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
@@ -188,6 +203,24 @@ function refreshGeneratedCatalogArtifacts(rootPath: string) {
     if (fs.existsSync(gachaDir) && fs.existsSync(sharedDir)) {
         generateObservationGachaCatalogs({ root: resolvedRoot });
     }
+
+    generateLocalModelAssetManifest(resolvedRoot);
+}
+
+function generateLocalModelAssetManifest(rootPath: string) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const files = LOCAL_MODEL_ASSET_CANDIDATES
+        .filter((relativePath) => fs.existsSync(path.join(resolvedRoot, relativePath)))
+        .sort();
+    const payload = {
+        schemaVersion: 'model_assets.v1',
+        generatedAt: new Date().toISOString(),
+        files
+    };
+    const outPath = path.join(resolvedRoot, LOCAL_MODEL_ASSET_MANIFEST_PATH);
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, JSON.stringify(payload, null, 2), 'utf8');
+    return { outPath, files };
 }
 
 function computeBrowserScriptFingerprint(rootPath: string) {
@@ -352,6 +385,7 @@ export = {
     buildHttpServerArgs,
     resolveHttpServerEntrypoint,
     computeAssetSourceFingerprint,
+    generateLocalModelAssetManifest,
     refreshGeneratedCatalogArtifactsIfNeeded,
     startArtifactRefreshLoop,
     main
