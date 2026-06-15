@@ -483,6 +483,16 @@ html.layout-profile-phone-portrait #deck-black {
 html.layout-profile-phone-portrait #deck-black {
     order: 2;
     align-self: flex-end;
+    width: calc(50px * var(--layout-stage-scale));
+    height: calc(66px * var(--layout-stage-scale));
+    margin-left: auto;
+    margin-right: calc(2px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #deck-black .deck-count {
+    min-width: calc(28px * var(--layout-stage-scale));
+    padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    font-size: calc(11px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #hand-white,
