@@ -940,13 +940,26 @@
     display: inline-flex;
 }
 
+#rules-help-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    background: rgba(0, 0, 0, 0.72);
+    z-index: calc(var(--z-floating-control) + 540);
+    pointer-events: auto;
+}
+
+#rules-help-backdrop.is-open {
+    display: block;
+}
+
 #rules-help-panel {
     position: fixed;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
     --rules-help-page-min-height: min(58vh, 500px);
-    z-index: var(--z-modal-rules-help);
+    z-index: calc(var(--z-floating-control) + 541);
     width: min(860px, calc(100vw - 44px));
     max-height: min(80vh, 700px);
     background: var(--bg-panel-dark);
@@ -1251,6 +1264,126 @@
 
 #rules-help-page-catalog.is-active {
     display: flex;
+    flex-direction: column;
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+#rules-help-catalog-controls {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 260px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: calc(8px * var(--layout-stage-scale));
+    width: 100%;
+    padding: calc(8px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.12);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.24);
+}
+
+#rules-help-card-search-label {
+    color: var(--color-text-gold-light);
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 700;
+}
+
+#rules-help-card-search-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: calc(6px * var(--layout-stage-scale));
+}
+
+#rules-help-card-search {
+    width: 100%;
+    min-width: 0;
+    height: calc(32px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.18);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background: rgba(8, 10, 14, 0.86);
+    color: var(--color-text-bright);
+    padding: calc(5px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    font-size: calc(13px * var(--layout-stage-scale));
+    outline: none;
+}
+
+#rules-help-card-search::placeholder {
+    color: rgba(235, 224, 204, 0.48);
+}
+
+#rules-help-card-search:focus {
+    border-color: rgba(126, 215, 255, 0.74);
+    box-shadow: 0 0 0 calc(2px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.16);
+}
+
+#rules-help-card-filter-clear {
+    flex: 0 0 auto;
+    min-height: calc(32px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(242, 201, 95, 0.4);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background: rgba(42, 32, 18, 0.9);
+    color: #ffe1aa;
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#rules-help-card-filter-clear:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+#rules-help-card-tag-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-height: calc(72px * var(--layout-stage-scale));
+    overflow-y: auto;
+    gap: calc(5px * var(--layout-stage-scale));
+    padding-right: calc(3px * var(--layout-stage-scale));
+}
+
+.rules-help-card-tag-filter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(28px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.16);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.rules-help-card-tag-filter:hover {
+    border-color: rgba(126, 215, 255, 0.55);
+    color: var(--color-text-bright);
+    background: rgba(83, 214, 209, 0.12);
+}
+
+.rules-help-card-tag-filter.is-active {
+    border-color: rgba(242, 201, 95, 0.78);
+    color: #ffecb3;
+    background: rgba(120, 86, 30, 0.38);
+}
+
+.rules-help-card-tag-filter-empty {
+    color: rgba(235, 224, 204, 0.54);
+    font-size: calc(12px * var(--layout-stage-scale));
+}
+
+#rules-help-card-filter-status {
+    justify-self: end;
+    color: rgba(235, 224, 204, 0.72);
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 #rules-help-catalog-layout {
@@ -1293,6 +1426,16 @@
     border-color: #d4af37;
     background: rgba(120, 86, 30, 0.34);
     color: #ffecb3;
+}
+
+.rules-help-card-empty {
+    border: var(--layout-size-border-thin) dashed rgba(255, 255, 255, 0.18);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    color: rgba(235, 224, 204, 0.68);
+    padding: calc(12px * var(--layout-stage-scale));
+    text-align: center;
+    font-size: calc(13px * var(--layout-stage-scale));
+    line-height: 1.45;
 }
 
 .rules-help-card-item-meta,
@@ -1353,6 +1496,7 @@
 
 #rules-help-card-list,
 #rules-help-card-detail,
+#rules-help-card-tag-filters,
 #rules-help-effects-list,
 #rules-help-updates-list,
 #rules-help-guide-layout,
@@ -1366,6 +1510,7 @@
 
 #rules-help-card-list::-webkit-scrollbar,
 #rules-help-card-detail::-webkit-scrollbar,
+#rules-help-card-tag-filters::-webkit-scrollbar,
 #rules-help-effects-list::-webkit-scrollbar,
 #rules-help-updates-list::-webkit-scrollbar,
 #rules-help-guide-layout::-webkit-scrollbar,
@@ -1377,6 +1522,7 @@
 
 #rules-help-card-list::-webkit-scrollbar-button,
 #rules-help-card-detail::-webkit-scrollbar-button,
+#rules-help-card-tag-filters::-webkit-scrollbar-button,
 #rules-help-effects-list::-webkit-scrollbar-button,
 #rules-help-updates-list::-webkit-scrollbar-button,
 #rules-help-guide-layout::-webkit-scrollbar-button,
@@ -1390,6 +1536,7 @@
 
 #rules-help-card-list::-webkit-scrollbar-track,
 #rules-help-card-detail::-webkit-scrollbar-track,
+#rules-help-card-tag-filters::-webkit-scrollbar-track,
 #rules-help-effects-list::-webkit-scrollbar-track,
 #rules-help-updates-list::-webkit-scrollbar-track,
 #rules-help-guide-layout::-webkit-scrollbar-track,
@@ -1402,6 +1549,7 @@
 
 #rules-help-card-list::-webkit-scrollbar-thumb,
 #rules-help-card-detail::-webkit-scrollbar-thumb,
+#rules-help-card-tag-filters::-webkit-scrollbar-thumb,
 #rules-help-effects-list::-webkit-scrollbar-thumb,
 #rules-help-updates-list::-webkit-scrollbar-thumb,
 #rules-help-guide-layout::-webkit-scrollbar-thumb,
@@ -1420,6 +1568,7 @@
 
 #rules-help-card-list::-webkit-scrollbar-thumb:hover,
 #rules-help-card-detail::-webkit-scrollbar-thumb:hover,
+#rules-help-card-tag-filters::-webkit-scrollbar-thumb:hover,
 #rules-help-effects-list::-webkit-scrollbar-thumb:hover,
 #rules-help-updates-list::-webkit-scrollbar-thumb:hover,
 #rules-help-guide-layout::-webkit-scrollbar-thumb:hover,

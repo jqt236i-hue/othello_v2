@@ -86,6 +86,7 @@
         </div>
     </div>
 
+    <div id="rules-help-backdrop" aria-hidden="true"></div>
     <div id="rules-help-panel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="help">
         <div id="rules-help-title-row">
             <div id="rules-help-title">help</div>
@@ -106,6 +107,17 @@
         <div id="rules-help-pages">
             <section id="rules-help-page-catalog" class="rules-help-page is-active" data-help-page="catalog"
                 aria-hidden="false">
+                <div id="rules-help-catalog-controls" aria-label="カード図鑑の絞り込み">
+                    <label id="rules-help-card-search-label" for="rules-help-card-search">検索</label>
+                    <div id="rules-help-card-search-row">
+                        <input id="rules-help-card-search" type="search" placeholder="カード名・効果・タグ" autocomplete="off"
+                            spellcheck="false" aria-labelledby="rules-help-card-search-label"
+                            aria-controls="rules-help-card-list" />
+                        <button id="rules-help-card-filter-clear" type="button" aria-disabled="true" disabled>クリア</button>
+                    </div>
+                    <div id="rules-help-card-tag-filters" role="group" aria-label="効果タグで絞り込み"></div>
+                    <div id="rules-help-card-filter-status" role="status" aria-live="polite" aria-atomic="true">0 / 0枚</div>
+                </div>
                 <div id="rules-help-catalog-layout">
                     <div id="rules-help-card-list" role="listbox" aria-label="カード一覧"></div>
                     <div id="rules-help-card-detail">
@@ -756,7 +768,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=212680069866467"></script>
+    <script src="public/module-registry.js?v=157981845199329"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=213110615082557"></script>
