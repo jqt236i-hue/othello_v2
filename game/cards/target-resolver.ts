@@ -68,6 +68,7 @@ const CardSelectors = loadRuntimeModule('../logic/cards/selectors', 'CardSelecto
 const CardTargets = loadRuntimeModule('../logic/cards/targets', 'CardTargets');
 const CardFlips = loadRuntimeModule('../logic/cards/flips', 'CardFlips');
 const SpecialStoneRegistry = loadRuntimeModule('../../shared/special-stone-registry', 'SpecialStoneRegistry');
+const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext');
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS, BOARD_SIZE } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;
@@ -418,63 +419,26 @@ const Flips = CardFlips || {};
     }
 
     function getCardContext(cardState: any) {
-        const specials = getSpecialMarkers(cardState);
-        const isFlipProtectedSpecial = (marker: any) => {
-            const markerType = marker && marker.data && marker.data.type;
-            if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneInfo === 'function') {
-                const info = SpecialStoneRegistry.getSpecialStoneInfo(markerType);
-                if (info && info.flipProtected === true) return true;
-            }
-            return false;
-        };
-        const protectedStones = specials
-            .filter((s: any) => s.data && s.data.type === 'PROTECTED')
-            .map((s: any) => ({ row: s.row, col: s.col, owner: s.owner }));
-        const absoluteProtectedStones = specials
-            .filter((s: any) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
-            .map((s: any) => ({
-                row: s.row,
-                col: s.col,
-                owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
-            }));
-        const permaProtectedStones = specials
-            .filter((s: any) => {
-                if (!s.data) return false;
-                if (isFlipProtectedSpecial(s)) return true;
-                return (
-                    s.data.type === 'ABSOLUTE_PROTECTED' ||
-                    s.data.type === 'PERMA_PROTECTED' ||
-                    s.data.type === 'DRAGON' ||
-                    s.data.type === 'BREEDING' ||
-                    s.data.type === 'DESTROY_DRAGON' ||
-                    s.data.type === 'LIGHTNING' ||
-                    s.data.type === 'GLUTTONOUS' ||
-                    s.data.type === 'ULTIMATE_DESTROY_GOD' ||
-                    s.data.type === 'GUARD' ||
-                    s.data.type === 'STONE_SALVATION_GOD' ||
-                    s.data.type === 'FREEZE'
-                );
-            })
-            .map((s: any) => ({
-                row: s.row,
-                col: s.col,
-                owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
-            }));
-
-        const blockedCells: any[] = [];
-        for (const m of specials) {
-            if (!m || !m.data) continue;
-            if (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE' || m.data.type === 'FREEZE') {
-                blockedCells.push({ row: m.row, col: m.col });
-            }
+        if (!CardProtectionContext || typeof CardProtectionContext.buildCardProtectionContext !== 'function') {
+            throw new Error('[target-resolver] CardProtectionContext.buildCardProtectionContext not available');
         }
-
-        return {
-            protectedStones,
-            absoluteProtectedStones,
-            permaProtectedStones,
-            blockedCells
-        };
+        if (!SpecialStoneRegistry || typeof SpecialStoneRegistry.getSpecialStoneInfo !== 'function') {
+            throw new Error('[target-resolver] SpecialStoneRegistry.getSpecialStoneInfo not available');
+        }
+        return CardProtectionContext.buildCardProtectionContext(cardState, {
+            constants: SharedConstants,
+            SpecialStoneRegistry,
+            getSpecialMarkers,
+            getManifestMarkers: () => [],
+            getBombMarkers: () => [],
+            getBlockingMarkers: (state: any) => {
+                const specials = getSpecialMarkers(state);
+                return specials.filter((entry: any) => {
+                    const type = String(entry && entry.data && entry.data.type || '').toUpperCase();
+                    return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE';
+                });
+            }
+        });
     }
 
     function getTabooReverseDirectionalFlips(gameState: any, row: any, col: any, ownerVal: any, direction: any, context: any) {

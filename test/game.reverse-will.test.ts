@@ -2,6 +2,7 @@ import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 
+const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
 const PRNG = { shuffle: (arr: any[]) => arr, random: () => 0.5 };
 
 function makeEmptyBoard() {
@@ -18,6 +19,12 @@ function makeState() {
     consecutivePasses: 0
   };
   return { cardState, gameState };
+}
+
+function registryFlipProtectedTypes(): string[] {
+  return Object.entries(SpecialStoneRegistry.SPECIAL_STONE_REGISTRY || {})
+    .filter(([, info]: any) => info && info.flipProtected === true)
+    .map(([type]) => String(type));
 }
 
 describe('REVERSE_WILL（反転の意志）', () => {
@@ -162,24 +169,27 @@ describe('REVERSE_WILL（反転の意志）', () => {
     ]));
   });
 
-  test('does not list reverse targets that require flipping a flip-protected special stone', () => {
+  test.each(registryFlipProtectedTypes())('does not list reverse targets through %s', (specialType) => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = Shared.BLACK;
     gameState.board[3][4] = Shared.WHITE;
     gameState.board[3][5] = Shared.BLACK;
     cardState.markers.push({
-      id: 'meteor-god-protected',
+      id: `${specialType}-protected`,
       kind: 'specialStone',
       row: 3,
       col: 4,
       owner: 'white',
-      data: { type: 'METEOR_GOD', remainingOwnerTurns: 6 }
+      data: { type: specialType, remainingOwnerTurns: 6 }
     });
 
     const targets = CardLogic.getReverseWillTargets(cardState, gameState);
 
     expect(targets).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 3, col: 3 })
+    ]));
+    expect(targets).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 5 })
     ]));
   });
 
