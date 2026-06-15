@@ -457,6 +457,49 @@ function findBombMarkerAt(cardState: CardState, row: number, col: number): any {
     ));
 }
 
+function markerCellKey(row: any, col: any): string {
+    return `${Number(row)},${Number(col)}`;
+}
+
+function createMarkerCellIndex(cardState: CardState) {
+    const byCell = new Map<string, any[]>();
+    const markers = getMarkers(cardState);
+    for (const marker of markers) {
+        if (!marker || !Number.isFinite(Number(marker.row)) || !Number.isFinite(Number(marker.col))) continue;
+        const key = markerCellKey(marker.row, marker.col);
+        const list = byCell.get(key);
+        if (list) list.push(marker);
+        else byCell.set(key, [marker]);
+    }
+    const api = {
+        get(row: any, col: any): any[] {
+            return byCell.get(markerCellKey(row, col)) || [];
+        },
+        some(row: any, col: any, predicate: (marker: any) => boolean): boolean {
+            return api.get(row, col).some(predicate);
+        },
+        find(row: any, col: any, predicate: (marker: any) => boolean): any {
+            return api.get(row, col).find(predicate);
+        },
+        findSpecial(row: any, col: any, type?: string, owner?: PlayerKey): any {
+            return api.find(row, col, (marker: any) => (
+                marker &&
+                isSpecialStoneMarker(marker) &&
+                (type ? (marker.data && marker.data.type === type) : true) &&
+                (owner ? marker.owner === owner : true)
+            ));
+        },
+        isSpecialStoneAt(row: any, col: any): boolean {
+            return !!api.find(row, col, (marker: any) => {
+                if (!marker) return false;
+                if (isSpecialStoneMarker(marker) && !isNormalVisualSpecialMarker(marker)) return true;
+                return isBombCategoryMarker(marker);
+            });
+        }
+    };
+    return api;
+}
+
 interface RemoveMarkersOptions {
     kind?: string;
     category?: string;
@@ -915,6 +958,7 @@ export = {
     findSpecialMarkerAt,
     findManifestMarkerAt,
     findBombMarkerAt,
+    createMarkerCellIndex,
     removeMarkersAt,
     getSpecialMarkerAt,
     getTrueSpecialStoneMarkerAt,

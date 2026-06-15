@@ -136,6 +136,31 @@ describe('move-generator expansion pending regression', () => {
     ]));
   });
 
+  test('SWAP_WITH_ENEMY still excludes special or bomb markers on regular and expansion cells', () => {
+    const { cardState, gameState } = createStates();
+    global.cardState = cardState;
+    global.gameState = gameState;
+
+    gameState.board[0][0] = Core.WHITE;
+    gameState.board[1][0] = Core.BLACK;
+    gameState.boardExpansion.cells[0].owner = Core.WHITE;
+    gameState.boardExpansion.owner = Core.WHITE;
+    cardState.markers = [
+      { id: 'special-regular', kind: 'specialStone', row: 0, col: 0, owner: 'white', data: { type: 'GUARD' } },
+      { id: 'bomb-expansion', kind: 'bomb', row: -1, col: 0, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb' } }
+    ];
+
+    const MoveGenerator = require('../game/move-generator.js');
+    const moves = MoveGenerator.generateSwapMoves(Core.BLACK, [], [], []);
+
+    expect(moves).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 0, col: 0, effectUsed: 'SWAP_WITH_ENEMY' })
+    ]));
+    expect(moves).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0, effectUsed: 'SWAP_WITH_ENEMY' })
+    ]));
+  });
+
   test.each(['CAPTURE_WILL', 'CLONE_WILL'])(
     '%s blocks normal move generation while target selection is pending',
     (pendingType) => {

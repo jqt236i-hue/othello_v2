@@ -40,6 +40,7 @@ const MoveGeneratorBoardOps = requireMoveGeneratorModuleOrNull('./logic/board_op
 const MoveGeneratorSharedBoardUtils = requireMoveGeneratorModuleOrNull('../shared/shared-board-utils');
 
 const MoveGeneratorMarkersAdapter = requireMoveGeneratorModuleOrNull('./logic/markers_adapter');
+const MoveGeneratorCardMarkers = requireMoveGeneratorModuleOrNull('./logic/cards/markers');
 
 function getFlipsForMoveGeneration(state: any, row: number, col: number, player: any, protection: any, perma: any) {
     const legacyGetFlips = (MoveGeneratorLegacyCore && typeof MoveGeneratorLegacyCore.getFlips === 'function')
@@ -330,6 +331,12 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
     const legalSet = new Set(legal.map((m: any) => m.row + ',' + m.col));
     const protectedCells = createProtectedCellSet(protection, perma);
     const markers = (typeof cardState !== 'undefined' && cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    const markerIndex = MoveGeneratorCardMarkers && typeof MoveGeneratorCardMarkers.createMarkerCellIndex === 'function'
+        ? MoveGeneratorCardMarkers.createMarkerCellIndex(cardState)
+        : null;
+    const hasSpecialOrBombAt = (row: any, col: any) => markerIndex
+        ? markerIndex.some(row, col, isSpecialOrBombMarkerForMoveGeneration)
+        : markers.some((m: any) => (m.row === row && m.col === col) && isSpecialOrBombMarkerForMoveGeneration(m));
 
     const deepCloneState = (s: any) => (typeof structuredClone === 'function') ? structuredClone(s) : JSON.parse(JSON.stringify(s));
 
@@ -341,7 +348,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
             const key = r + ',' + c;
 
             if (cellVal === -player && !protectedCells.has(key)) {
-                const hasSpecialOrBomb = markers.some((m: any) => (m.row === r && m.col === c) && isSpecialOrBombMarkerForMoveGeneration(m));
+                const hasSpecialOrBomb = hasSpecialOrBombAt(r, c);
                 if (hasSpecialOrBomb) continue;
                 const clonedState = deepCloneState(gameState);
                 setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
@@ -357,12 +364,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
         const key = expansion.row + ',' + expansion.col;
         if (Number(expansion.owner) !== -player || protectedCells.has(key)) continue;
 
-        const hasSpecialOrBomb = markers.some((marker: any) => (
-            marker &&
-            marker.row === expansion.row &&
-            marker.col === expansion.col &&
-            isSpecialOrBombMarkerForMoveGeneration(marker)
-        ));
+        const hasSpecialOrBomb = hasSpecialOrBombAt(expansion.row, expansion.col);
         if (hasSpecialOrBomb) continue;
 
         const clonedState = deepCloneState(gameState);

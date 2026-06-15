@@ -66,4 +66,30 @@ describe('card target resolver taboo reverse picker', () => {
       score: 2
     });
   });
+
+  test('fallback trap targets keep excluding bomb and own trap markers', () => {
+    jest.resetModules();
+    jest.doMock('../game/logic/cards/selectors', () => ({}));
+    jest.doMock('../game/logic/cards/targets', () => ({}));
+    const resolver = require('../game/cards/target-resolver');
+    const gameState = {
+      board: [
+        [1, 1, 1],
+        [0, 0, 0],
+        [0, 0, 0]
+      ]
+    };
+    const cardState = {
+      markers: [
+        { id: 'bomb', kind: 'bomb', row: 0, col: 0, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb' } },
+        { id: 'trap', kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'TRAP' } }
+      ]
+    };
+
+    expect(resolver.getTrapTargets(cardState, gameState, 'black')).toEqual([
+      { row: 0, col: 2 }
+    ]);
+    jest.dontMock('../game/logic/cards/selectors');
+    jest.dontMock('../game/logic/cards/targets');
+  });
 });

@@ -316,6 +316,16 @@ const Flips = CardFlips || {};
         );
     }
 
+    function createMarkersAtLookup(cardState: any) {
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markerCellIndex = Markers && typeof Markers.createMarkerCellIndex === 'function'
+            ? Markers.createMarkerCellIndex(cardState)
+            : null;
+        return (row: any, col: any) => markerCellIndex
+            ? markerCellIndex.get(row, col)
+            : markers.filter((m: any) => m && m.row === row && m.col === col);
+    }
+
     function getSpecialMarkers(cardState: any) {
         if (Markers && typeof Markers.getSpecialMarkers === 'function') {
             return Markers.getSpecialMarkers(cardState);
@@ -648,19 +658,17 @@ const Flips = CardFlips || {};
             return Selectors.getTrapTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markersAt = createMarkersAtLookup(cardState);
         const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
             if (getCellValue(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasOwnTrap = markers.some((m: any) => (
+            const hasOwnTrap = markersAt(row, col).some((m: any) => (
                 m &&
-                m.row === row &&
-                m.col === col &&
                 m.kind === 'specialStone' &&
                 m.owner === playerKey &&
                 m.data &&
@@ -909,14 +917,12 @@ const Flips = CardFlips || {};
             return Selectors.getDestroyTargets(cardState, gameState);
         }
         const res: any[] = [];
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markersAt = createMarkersAtLookup(cardState);
         forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
-            const guarded = markers.some((m: any) =>
+            const guarded = markersAt(r, c).some((m: any) =>
                 m &&
                 m.kind === 'specialStone' &&
-                m.row === r &&
-                m.col === c &&
                 m.data &&
                 m.data.type === 'GUARD'
             );
@@ -933,7 +939,7 @@ const Flips = CardFlips || {};
         }
         const res: any[] = [];
         const opVal = playerKey === 'black' ? WHITE : BLACK;
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markersAt = createMarkersAtLookup(cardState);
         const isHiddenTrapForPlayer = (m: any) => (
             m &&
             m.kind === 'specialStone' &&
@@ -945,8 +951,8 @@ const Flips = CardFlips || {};
 
         forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner !== opVal) return;
-            const hasSpecialOrBomb = markers.some((m: any) => {
-                if (!m || m.row !== r || m.col !== c) return false;
+            const hasSpecialOrBomb = markersAt(r, c).some((m: any) => {
+                if (!m) return false;
                 if (m.kind !== 'specialStone') return false;
                 if (isHiddenTrapForPlayer(m)) return false;
                 const isExpiredUltimateHyperactive = !!(
@@ -969,13 +975,13 @@ const Flips = CardFlips || {};
             return Selectors.getGuardTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markersAt = createMarkersAtLookup(cardState);
         const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
             if (getCellValue(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
             res.push({ row, col });
@@ -1001,12 +1007,10 @@ const Flips = CardFlips || {};
         }
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const res: any[] = [];
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const isGuarded = (r: any, c: any) => markers.some((m: any) =>
+        const markersAt = createMarkersAtLookup(cardState);
+        const isGuarded = (r: any, c: any) => markersAt(r, c).some((m: any) =>
             m &&
             m.kind === 'specialStone' &&
-            m.row === r &&
-            m.col === c &&
             m.data &&
             m.data.type === 'GUARD'
         );
@@ -1225,19 +1229,17 @@ const Flips = CardFlips || {};
             return Selectors.getLivingWillTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markersAt = createMarkersAtLookup(cardState);
         const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
             if (getCellValue(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasLivingWill = markers.some((m: any) => (
+            const hasLivingWill = markersAt(row, col).some((m: any) => (
                 m &&
-                m.row === row &&
-                m.col === col &&
                 m.kind === 'specialStone' &&
                 m.data &&
                 m.data.type === 'LIVING_WILL'
