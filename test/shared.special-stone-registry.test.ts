@@ -58,6 +58,10 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('RAINBOW')).toBe('placement_effect');
   });
 
+  test('classifies Rescue God duration as a normal special stone body timer', () => {
+    expect(SpecialStoneRegistry.getSpecialStoneTimerClass('STONE_SALVATION_GOD', 'special-timer')).toBe('special-timer');
+  });
+
   test('classifies instant hyperactive marker as placement_effect', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('HYPERACTIVE', { instantPlacementOnly: true })).toBe('placement_effect');
     expect(SpecialStoneRegistry.classifyMarkerRuleClass({

@@ -54,6 +54,29 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.special-timer')).toBeNull();
   });
 
+  test('syncDiscVisual uses shared special-stone timer classes for body duration labels', () => {
+    const engine = require('../ui/animation-engine');
+    const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
+
+    for (const item of [
+      { type: 'STONE_SALVATION_GOD', timer: 12 },
+      { type: 'LIGHTNING', timer: 6 },
+      { type: 'METEOR_GOD', timer: 5 }
+    ]) {
+      const disc = document.createElement('div');
+      disc.className = 'disc black';
+      engine.syncDiscVisual(disc, { color: 1, special: item.type, timer: item.timer, owner: 'black' });
+
+      const expectedClass = SpecialStoneRegistry.getSpecialStoneTimerClass(item.type, 'special-timer');
+      const timer = disc.querySelector(`.${expectedClass}`);
+      expect(timer).not.toBeNull();
+      expect(timer!.textContent).toBe(String(item.timer));
+      if (expectedClass !== 'countdown-timer') {
+        expect(disc.querySelector('.countdown-timer')).toBeNull();
+      }
+    }
+  });
+
   test('syncDiscVisual toggles living will aura without dropping the current special visual', () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');

@@ -666,6 +666,45 @@ describe('UI stone rendering', () => {
     assert.strictEqual(disc.querySelector('.special-timer'), null);
   });
 
+  test('board-renderer uses shared special-stone timer classes for body duration labels', () => {
+    const boardRenderer = require('../ui/board-renderer.js');
+    const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    const cases = [
+      { type: 'STONE_SALVATION_GOD', row: 0, col: 0, timer: 12 },
+      { type: 'LIGHTNING', row: 0, col: 1, timer: 6 },
+      { type: 'METEOR_GOD', row: 0, col: 2, timer: 5 }
+    ];
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    for (const item of cases) gameState.board[item.row][item.col] = BLACK;
+    cardState.markers = cases.map((item, index) => ({
+      id: 100 + index,
+      kind: 'specialStone',
+      row: item.row,
+      col: item.col,
+      owner: 'black',
+      data: { type: item.type, remainingOwnerTurns: item.timer }
+    }));
+
+    boardRenderer.renderBoardFull();
+
+    for (const item of cases) {
+      const expectedClass = SpecialStoneRegistry.getSpecialStoneTimerClass(item.type, 'special-timer');
+      const disc = boardEl.querySelector(`.cell[data-row="${item.row}"][data-col="${item.col}"] .disc`);
+      assert.ok(disc, `expected ${item.type} disc`);
+      const timer = disc.querySelector(`.${expectedClass}`);
+      assert.ok(timer, `expected ${item.type} to use ${expectedClass}`);
+      assert.strictEqual(timer.textContent, String(item.timer));
+      if (expectedClass !== 'countdown-timer') {
+        assert.strictEqual(disc.querySelector('.countdown-timer'), null, `${item.type} should not use countdown timer`);
+      }
+    }
+  });
+
   test('diff-renderer renders freeze overlay and remaining turns on frozen cells', () => {
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');

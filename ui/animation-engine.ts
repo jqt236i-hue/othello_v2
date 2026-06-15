@@ -149,6 +149,7 @@ var AnimationDestroySourceEvents = requireRuntimeModuleOrWindowGlobal('./animati
 var AnimationTheoryEvents = requireRuntimeModuleOrWindowGlobal('./animation-theory-events', 'AnimationTheoryEvents');
 var LayoutReadBatch = requireRuntimeModuleOrWindowGlobal('./layout-read-batch', 'LayoutReadBatch');
 var TransientOverlayBatch = requireRuntimeModuleOrWindowGlobal('./transient-overlay-batch', 'TransientOverlayBatch');
+var StoneStatusSnapshot = requireRuntimeModuleOrWindowGlobal('../shared/stone-status-snapshot', 'StoneStatusSnapshot');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -176,6 +177,29 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         };
     };
     var PlaybackState = PlaybackStateManager || null;
+
+    function resolveSpecialTimerClassForAnimation(specialType: any): string {
+        const typeUpper = String(specialType || '').toUpperCase();
+        if (typeUpper === 'TIME_BOMB') return 'bomb-timer countdown-timer';
+        if (typeUpper === 'GUARD') return 'guard-timer';
+
+        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.createSpecialStoneStatusSnapshot === 'function') {
+            const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({ type: typeUpper }, { mode: 'raw' });
+            if (snapshot && snapshot.timerClass) {
+                const timerClass = String(snapshot.timerClass);
+                return timerClass === 'countdown-timer'
+                    ? timerClass
+                    : `stone-timer ${timerClass}`;
+            }
+        }
+
+        if (typeUpper === 'DRAGON' || typeUpper === 'DESTROY_DRAGON') return 'stone-timer dragon-timer';
+        if (typeUpper === 'ULTIMATE_DESTROY_GOD') return 'stone-timer udg-timer';
+        if (typeUpper === 'BREEDING') return 'stone-timer breeding-timer';
+        if (typeUpper === 'WORK') return 'stone-timer work-timer';
+        if (typeUpper === 'TIME_STOP' || typeUpper === 'PERMA_PROTECTED') return 'countdown-timer';
+        return 'stone-timer special-timer';
+    }
 
     // Ensure minimal telemetry helpers exist even without initializeUI
     if (typeof window !== 'undefined') {
@@ -2076,14 +2100,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             };
 
             if (Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
-                let primaryClass = 'stone-timer special-timer';
-                if (specialType === 'TIME_BOMB') primaryClass = 'bomb-timer countdown-timer';
-                else if (specialType === 'GUARD') primaryClass = 'guard-timer';
-                else if (specialType === 'DRAGON' || specialType === 'DESTROY_DRAGON') primaryClass = 'stone-timer dragon-timer';
-                else if (specialType === 'ULTIMATE_DESTROY_GOD') primaryClass = 'stone-timer udg-timer';
-                else if (specialType === 'BREEDING') primaryClass = 'stone-timer breeding-timer';
-                else if (specialType === 'WORK') primaryClass = 'stone-timer work-timer';
-                else if (specialType === 'TIME_STOP' || specialType === 'PERMA_PROTECTED') primaryClass = 'countdown-timer';
+                const primaryClass = resolveSpecialTimerClassForAnimation(specialType);
                 appendTimer(primaryClass, primaryTimerValue, undefined);
             }
 

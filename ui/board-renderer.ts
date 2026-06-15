@@ -58,6 +58,11 @@ if (typeof require === 'function') {
     try { BoardRendererManifestStoneRegistryModule = require('../shared/manifest-stone-registry'); } catch (e: any) { /* ignore */ }
 }
 
+var BoardRendererStoneStatusSnapshotModule: any = null;
+if (typeof require === 'function') {
+    try { BoardRendererStoneStatusSnapshotModule = require('../shared/stone-status-snapshot'); } catch (e: any) { /* ignore */ }
+}
+
 var BoardRendererHintProjectionModule: any = null;
 if (typeof require === 'function') {
     try { BoardRendererHintProjectionModule = require('../shared/board-hint-projection'); } catch (e: any) { /* ignore */ }
@@ -130,6 +135,37 @@ function _getManifestStoneRegistryForBoardRenderer() {
         }
     } catch (e: any) { /* ignore */ }
     return null;
+}
+
+function _getStoneStatusSnapshotForBoardRenderer() {
+    if (BoardRendererStoneStatusSnapshotModule) return BoardRendererStoneStatusSnapshotModule;
+    try {
+        if (typeof window !== 'undefined' && (window as any).StoneStatusSnapshot) {
+            BoardRendererStoneStatusSnapshotModule = (window as any).StoneStatusSnapshot;
+            return BoardRendererStoneStatusSnapshotModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).StoneStatusSnapshot) {
+            BoardRendererStoneStatusSnapshotModule = (globalThis as any).StoneStatusSnapshot;
+            return BoardRendererStoneStatusSnapshotModule;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveSpecialTimerClassForBoard(type: any) {
+    const snapshotModule = _getStoneStatusSnapshotForBoardRenderer();
+    if (snapshotModule && typeof snapshotModule.createSpecialStoneStatusSnapshot === 'function') {
+        const snapshot = snapshotModule.createSpecialStoneStatusSnapshot({ type }, { mode: 'raw' });
+        if (snapshot && snapshot.timerClass) return String(snapshot.timerClass);
+    }
+    const typeUpper = String(type || '').toUpperCase();
+    return (typeUpper === 'DRAGON' || typeUpper === 'DESTROY_DRAGON') ? 'dragon-timer'
+        : (typeUpper === 'ULTIMATE_DESTROY_GOD' ? 'udg-timer'
+            : (typeUpper === 'BREEDING' ? 'breeding-timer'
+                : (typeUpper === 'WORK' ? 'work-timer'
+                    : ((typeUpper === 'TIME_STOP' || typeUpper === 'PERMA_PROTECTED') ? 'countdown-timer' : 'special-timer'))));
 }
 
 function _isManifestStoneTypeForBoardRenderer(rawType: any) {
@@ -1310,12 +1346,7 @@ function renderBoardFullLegacy() {
                     // Add timer for effects with remaining turns
                     if (special.remainingOwnerTurns !== undefined) {
                         const timer = document.createElement('div');
-                        timer.className =
-                            (special.type === 'DRAGON' || special.type === 'DESTROY_DRAGON') ? 'dragon-timer'
-                                : (special.type === 'ULTIMATE_DESTROY_GOD' ? 'udg-timer'
-                                    : (special.type === 'BREEDING' ? 'breeding-timer'
-                                        : (special.type === 'WORK' ? 'work-timer'
-                                            : ((special.type === 'TIME_STOP' || special.type === 'PERMA_PROTECTED') ? 'countdown-timer' : 'special-timer'))));
+                        timer.className = _resolveSpecialTimerClassForBoard(special.type);
                         const remaining = Math.max(0, Math.trunc(Number(special.remainingOwnerTurns)));
                         timer.textContent = String(remaining);
                         _applyDoubleDigitTimerClassForBoard(timer, remaining);

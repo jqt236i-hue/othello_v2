@@ -296,8 +296,7 @@
         STONE_SALVATION_GOD: Object.freeze({
             name: '救済神',
             desc: '破壊された石を復活させる。',
-            flipProtected: true,
-            timerClass: 'countdown-timer'
+            flipProtected: true
         }),
         TRAP: Object.freeze({
             name: '罠石',
