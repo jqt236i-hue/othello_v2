@@ -147,6 +147,7 @@ var AnimationPlacementEvents = requireRuntimeModuleOrWindowGlobal('./animation-p
 var AnimationStatusEvents = requireRuntimeModuleOrWindowGlobal('./animation-status-events', 'AnimationStatusEvents');
 var AnimationDestroySourceEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-source-events', 'AnimationDestroySourceEvents');
 var AnimationTheoryEvents = requireRuntimeModuleOrWindowGlobal('./animation-theory-events', 'AnimationTheoryEvents');
+var LayoutReadBatch = requireRuntimeModuleOrWindowGlobal('./layout-read-batch', 'LayoutReadBatch');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -1005,7 +1006,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 waitForAnimationFinish: (anim: any, durationMs: any, timeoutPaddingMs: any) => this._waitForAnimationFinish(anim, durationMs, timeoutPaddingMs),
                 sleep: (ms: any) => this._sleep(ms),
                 timer: _Timer,
-                playbackScope: this.playbackScope
+                playbackScope: this.playbackScope,
+                layoutBatch: this._getPhaseLayoutBatch()
             };
         }
 
@@ -1243,13 +1245,21 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     });
                 }
             }
-            return { superCrushDestinations };
+            const layoutBatch = (LayoutReadBatch && typeof LayoutReadBatch.createLayoutReadBatch === 'function')
+                ? LayoutReadBatch.createLayoutReadBatch()
+                : null;
+            return { superCrushDestinations, layoutBatch };
         }
 
         _getSuperCrushDestinationContext(row: any, col: any) {
             const ctx = this._phaseContext;
             if (!ctx || !(ctx.superCrushDestinations instanceof Map)) return null;
             return ctx.superCrushDestinations.get(`${row},${col}`) || null;
+        }
+
+        _getPhaseLayoutBatch() {
+            const ctx = this._phaseContext;
+            return ctx && ctx.layoutBatch ? ctx.layoutBatch : null;
         }
 
         async _withPhaseContext(context: any, runner: any) {

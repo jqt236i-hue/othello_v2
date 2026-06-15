@@ -12,6 +12,23 @@ describe('animation-engine _sleep', () => {
     await expect(engine._sleep(1000)).resolves.toBeUndefined();
   });
 
+  test('phase context exposes a layout read batch during one phase', async () => {
+    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+
+    const engine = require('../ui/animation-engine.js');
+    const executeEventSpy = jest.spyOn(engine, 'executeEvent').mockResolvedValue(undefined);
+    const phaseContext = engine._buildPhaseContext([]);
+
+    expect(phaseContext.layoutBatch).toBeTruthy();
+    expect(typeof phaseContext.layoutBatch.readRect).toBe('function');
+    await engine.executePhase([{ type: 'log', phase: 1, message: 'x' }]);
+
+    expect(executeEventSpy).toHaveBeenCalledTimes(1);
+
+    executeEventSpy.mockRestore();
+    delete global.document;
+  });
+
   test('returns 500ms fade only for breeding spawn targets', () => {
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
     const engine = require('../ui/animation-engine.js');
