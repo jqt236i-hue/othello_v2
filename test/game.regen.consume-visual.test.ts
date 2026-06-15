@@ -3,11 +3,19 @@ import * as CardLogic from '../game/logic/cards.js';
 import * as Core from '../game/logic/core.js';
 import * as BoardOps from '../game/logic/board_ops.js';
 
+const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
+
 function createPrng() {
   return {
     shuffle: (arr) => arr,
     random: () => 0.5
   };
+}
+
+function registryFlipProtectedTypes(): string[] {
+  return Object.entries(SpecialStoneRegistry.SPECIAL_STONE_REGISTRY || {})
+    .filter(([, info]: any) => info && info.flipProtected === true)
+    .map(([type]) => String(type));
 }
 
 describe('regen consume visual event', () => {
@@ -399,7 +407,7 @@ describe('regen consume visual event', () => {
     ]));
   });
 
-  test('destroy-triggered regen capture does not flip through flip-protected stones', () => {
+  test.each(registryFlipProtectedTypes())('destroy-triggered regen capture does not flip through %s', (specialType) => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Core.BLACK;
     board[3][4] = Core.WHITE;
@@ -417,26 +425,25 @@ describe('regen consume visual event', () => {
         data: { type: 'REGEN', regenRemaining: 2, ownerColor: Core.BLACK }
       },
       {
-        id: 'lightning-protected',
+        id: `${specialType}-protected`,
         row: 3,
         col: 4,
         kind: 'specialStone',
         owner: 'white',
         createdSeq: 2,
-        data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
+        data: { type: specialType, remainingOwnerTurns: 6 }
       }
     );
-    const gameState = { board };
 
-    const destroyed = BoardOps.destroyAt(cardState, gameState, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
+    const destroyed = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
 
     expect(destroyed).toMatchObject({
       kind: 'regenerated',
       regenerated: true,
       captureFlips: []
     });
-    expect(gameState.board[3][3]).toBe(Core.BLACK);
-    expect(gameState.board[3][4]).toBe(Core.WHITE);
+    expect(board[3][3]).toBe(Core.BLACK);
+    expect(board[3][4]).toBe(Core.WHITE);
   });
 
   test('BoardOps.destroyAt returns regenerated outcome and keeps expansion regen stone in place', () => {

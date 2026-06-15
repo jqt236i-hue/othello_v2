@@ -4,28 +4,51 @@
  */
 
 const CardRegen = (function (root: any, factory: any) {
-    if (root && root.SharedConstants) {
-        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null, root.SpecialStoneRegistry || null));
-    }
     if (typeof module === 'object' && module.exports) {
         let CardMarkersModule = null;
         let SpecialStoneRegistryModule = null;
+        let ProtectionContextModule = null;
         try {
             CardMarkersModule = require('./markers');
         } catch (e) { /* ignore */ }
         try {
             SpecialStoneRegistryModule = require('../../../shared/special-stone-registry');
         } catch (e) { /* ignore */ }
+        try {
+            ProtectionContextModule = require('../cards-internal/protection-context');
+        } catch (e) { /* ignore */ }
         return factory(
             require('../../../shared-constants'),
             require('../../../shared/shared-board-utils'),
             CardMarkersModule,
-            SpecialStoneRegistryModule
+            SpecialStoneRegistryModule,
+            ProtectionContextModule
         );
-    } else {
-        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null, root.SpecialStoneRegistry || null));
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any, SharedBoardUtils: any, CardMarkersModule: any, SpecialStoneRegistryModule: any) {
+    if (root && root.SharedConstants) {
+        return (root.CardRegen = factory(
+            root.SharedConstants,
+            root.SharedBoardUtils || null,
+            root.CardMarkers || null,
+            root.SpecialStoneRegistry || null,
+            root.CardProtectionContext || null
+        ));
+    } else {
+        return (root.CardRegen = factory(
+            root.SharedConstants,
+            root.SharedBoardUtils || null,
+            root.CardMarkers || null,
+            root.SpecialStoneRegistry || null,
+            root.CardProtectionContext || null
+        ));
+    }
+}(typeof self !== 'undefined' ? self : this, function (
+    SharedConstants: any,
+    SharedBoardUtils: any,
+    CardMarkersModule: any,
+    SpecialStoneRegistryModule: any,
+    ProtectionContextModule: any
+) {
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
@@ -48,14 +71,9 @@ const CardRegen = (function (root: any, factory: any) {
         return getRuntimeGlobalValue('SpecialStoneRegistry');
     }
 
-    function isFlipProtectedSpecialMarker(marker: any) {
-        const markerType = marker && marker.data && marker.data.type;
-        const registry = getSpecialStoneRegistryModule();
-        if (registry && typeof registry.getSpecialStoneInfo === 'function') {
-            const info = registry.getSpecialStoneInfo(markerType);
-            if (info && info.flipProtected === true) return true;
-        }
-        return false;
+    function getProtectionContextModule() {
+        if (ProtectionContextModule) return ProtectionContextModule;
+        return getRuntimeGlobalValue('CardProtectionContext');
     }
 
     if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined) {
@@ -227,19 +245,31 @@ const CardRegen = (function (root: any, factory: any) {
     }
 
     function _getRegenCardContext(cardState: any, deps: any = {}) {
-        const getCardContext = deps.getCardContext || (() => ({
-            protectedStones: (cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED').map((m: any) => ({ row: m.row, col: m.col })) : []),
-            permaProtectedStones: (cardState.markers ? cardState.markers.filter((m: any) => {
-                if (!(m && m.kind === 'specialStone' && m.data)) return false;
-                if (isFlipProtectedSpecialMarker(m)) return true;
-                if (m.data.type === 'PERMA_PROTECTED' || m.data.type === 'DRAGON' || m.data.type === 'BREEDING' || m.data.type === 'ULTIMATE_DESTROY_GOD' || m.data.type === 'GUARD') {
-                    return true;
+        const getCardContext = typeof deps.getCardContext === 'function'
+            ? deps.getCardContext
+            : null;
+        const buildFallbackCardContext = () => {
+            const protectionContext = getProtectionContextModule();
+            const specialStoneRegistry = getSpecialStoneRegistryModule();
+            if (!protectionContext || typeof protectionContext.buildCardProtectionContext !== 'function') {
+                throw new Error('[regen] CardProtectionContext.buildCardProtectionContext not available');
+            }
+            if (!specialStoneRegistry || typeof specialStoneRegistry.getSpecialStoneInfo !== 'function') {
+                throw new Error('[regen] SpecialStoneRegistry.getSpecialStoneInfo not available');
+            }
+            return protectionContext.buildCardProtectionContext(cardState, {
+                constants: SharedConstants,
+                SpecialStoneRegistry: specialStoneRegistry,
+                getManifestMarkers: () => [],
+                getBombMarkers: () => [],
+                isAdditionalPermaProtectedMarker(marker: any) {
+                    if (!(marker && marker.data)) return false;
+                    if (String(marker.data.type || '').toUpperCase() !== 'ULTIMATE_HYPERACTIVE') return false;
+                    const remaining = Number(marker.data.remainingOwnerTurns);
+                    return !Number.isFinite(remaining) || remaining > 0;
                 }
-                if (m.data.type !== 'ULTIMATE_HYPERACTIVE') return false;
-                const remaining = Number(m.data.remainingOwnerTurns);
-                return !Number.isFinite(remaining) || remaining > 0;
-            }).map((m: any) => ({ row: m.row, col: m.col })) : [])
-        }));
+            });
+        };
         const clearBombAt = deps.clearBombAt || ((cs: any, r: any, c: any) => {
             const cardMarkers = getCardMarkersModule();
             if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
@@ -248,7 +278,7 @@ const CardRegen = (function (root: any, factory: any) {
             }
             if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c));
         });
-        const context = getCardContext(cardState);
+        const context = getCardContext ? getCardContext(cardState) : buildFallbackCardContext();
         const blockedSet = context.blockedCells ? new Set(context.blockedCells.map((p: any) => `${p.row},${p.col}`)) : null;
         const protSet = context.protectedStones ? new Set(context.protectedStones.map((p: any) => `${p.row},${p.col}`)) : null;
         const permaSet = context.permaProtectedStones ? new Set(context.permaProtectedStones.map((p: any) => `${p.row},${p.col}`)) : null;
