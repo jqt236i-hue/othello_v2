@@ -39,6 +39,42 @@ let HandAnimationUtilsModule: any = _resolveCardRendererModule('../ui/animation-
 let PlayerSlotElementsModule: any = _resolveCardRendererModule('../ui/player-slot-elements', 'PlayerSlotElements');
 let CardLogicModule: any = _resolveCardRendererModule('../game/logic/cards', 'CardLogic');
 let SpecialCardRegistryModule: any = _resolveCardRendererModule('../shared/special-card-registry', 'SpecialCardRegistry');
+let PerformanceMonitorModule: any = _resolveCardRendererModule('../ui/performance-monitor', 'CardReversiPerformanceMonitor');
+function _getPerformanceMonitorForCardRenderer() {
+    if (PerformanceMonitorModule)
+        return PerformanceMonitorModule;
+    PerformanceMonitorModule = _resolveCardRendererModule('../ui/performance-monitor', 'CardReversiPerformanceMonitor');
+    return PerformanceMonitorModule;
+}
+function _perfCountForCardRenderer(name: string, amount?: number, meta?: any) {
+    const monitor = _getPerformanceMonitorForCardRenderer();
+    if (!monitor || typeof monitor.count !== 'function')
+        return;
+    try {
+        monitor.count(name, amount, meta);
+    }
+    catch (e) { /* ignore */ }
+}
+function _perfBeginSpanForCardRenderer(name: string, meta?: any): any {
+    const monitor = _getPerformanceMonitorForCardRenderer();
+    if (!monitor || typeof monitor.beginSpan !== 'function')
+        return null;
+    try {
+        return monitor.beginSpan(name, meta);
+    }
+    catch (e) {
+        return null;
+    }
+}
+function _perfEndSpanForCardRenderer(token: any, meta?: any) {
+    const monitor = _getPerformanceMonitorForCardRenderer();
+    if (!monitor || typeof monitor.endSpan !== 'function')
+        return;
+    try {
+        monitor.endSpan(token, meta);
+    }
+    catch (e) { /* ignore */ }
+}
 function getCardCostTier(cost: number): string {
     const safeCost = Number.isFinite(cost) ? cost : 0;
     if (safeCost === 0)
@@ -1591,9 +1627,16 @@ function _getPlayerSlotElementsForRender() {
     };
 }
 function renderCardUI() {
+    const perfMeta = { entry: 'renderCardUI' };
+    _perfCountForCardRenderer('ui.renderCardUI.calls', 1, perfMeta);
+    const perfToken = _perfBeginSpanForCardRenderer('ui.renderCardUI', perfMeta);
+    let completed = false;
+    let skippedMissingState = false;
+    try {
     const gameState = _resolveCardRendererGameState();
     const cardState = _normalizeCardStateForRender(_resolveCardRendererCardState());
     if (!gameState || !Array.isArray(gameState.board) || gameState.board.length <= 0 || !cardState) {
+        skippedMissingState = true;
         return;
     }
     const { deckBlackEl, deckWhiteEl, handBlackEl, handWhiteEl } = _getPlayerSlotElementsForRender();
@@ -2011,6 +2054,10 @@ function renderCardUI() {
             const effects = cardState.activeEffectsByPlayer.white;
             content.textContent = effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし';
         }
+    }
+    completed = true;
+    } finally {
+        _perfEndSpanForCardRenderer(perfToken, { completed, skippedMissingState });
     }
 }
 try {

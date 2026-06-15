@@ -6,6 +6,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+let PerformanceMonitorModule: any = null;
+
 function getRoot(): any {
   const base: any = (typeof globalThis !== 'undefined' ? globalThis : {});
   if (base && base.window && typeof base.window === 'object') return base.window;
@@ -13,6 +15,40 @@ function getRoot(): any {
     if (typeof window !== 'undefined' && window) return window;
   } catch (e) { /* ignore */ }
   return base;
+}
+
+function resolvePerformanceMonitor(): any {
+  if (PerformanceMonitorModule) return PerformanceMonitorModule;
+  try {
+    PerformanceMonitorModule = _require('./performance-monitor');
+    if (PerformanceMonitorModule) return PerformanceMonitorModule;
+  } catch (e) { /* ignore */ }
+  const root = getRoot();
+  try {
+    if (root && root.CardReversiPerformanceMonitor) {
+      PerformanceMonitorModule = root.CardReversiPerformanceMonitor;
+      return PerformanceMonitorModule;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function perfCount(name: string, amount?: number, meta?: any): void {
+  const monitor = resolvePerformanceMonitor();
+  if (!monitor || typeof monitor.count !== 'function') return;
+  try { monitor.count(name, amount, meta); } catch (e) { /* ignore */ }
+}
+
+function perfBeginSpan(name: string, meta?: any): any {
+  const monitor = resolvePerformanceMonitor();
+  if (!monitor || typeof monitor.beginSpan !== 'function') return null;
+  try { return monitor.beginSpan(name, meta); } catch (e) { return null; }
+}
+
+function perfEndSpan(token: any, meta?: any): void {
+  const monitor = resolvePerformanceMonitor();
+  if (!monitor || typeof monitor.endSpan !== 'function') return;
+  try { monitor.endSpan(token, meta); } catch (e) { /* ignore */ }
 }
 
 function getMirrorTargets(): any[] {
@@ -88,6 +124,20 @@ function getAnimationEngine(options?: any): any {
 let activePlaybackAbortHandle: any = null;
 let nextSelectionSettlementLockId = 1;
 const selectionSettlementLockIds = new Set<number>();
+let playbackLockPerfToken: any = null;
+
+function beginPlaybackLockPerfSpan(reason: string): void {
+  if (playbackLockPerfToken) return;
+  perfCount('playback.lock.begin', 1, { reason });
+  playbackLockPerfToken = perfBeginSpan('playback.lock', { reason });
+}
+
+function endPlaybackLockPerfSpan(reason: string): void {
+  if (!playbackLockPerfToken) return;
+  const token = playbackLockPerfToken;
+  playbackLockPerfToken = null;
+  perfEndSpan(token, { reason });
+}
 
 function syncSelectionSettlementLockMirror(): number {
   const count = selectionSettlementLockIds.size;
@@ -620,6 +670,7 @@ function consumeSuppressNextDiffFlip(): boolean {
 
 function beginPlayback(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
+  beginPlaybackLockPerfSpan('beginPlayback');
   setInteractionLock(true);
   if (opts.startedAt === null) {
     setPlaybackStartedAt(null);
@@ -652,6 +703,7 @@ function finalizePlayback(options?: any): any {
   setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
   setPlaybackStartedAt(null);
   setBoardLockActive(false, opts);
+  endPlaybackLockPerfSpan('finalizePlayback');
   if (typeof opts.emitBoardUpdate === 'function') {
     opts.emitBoardUpdate();
   }
@@ -668,6 +720,7 @@ function clearPlaybackLock(options?: any): boolean {
   setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
   setPlaybackStartedAt(null);
   setBoardLockActive(getPlaybackActive(), opts);
+  endPlaybackLockPerfSpan('clearPlaybackLock');
   return true;
 }
 
