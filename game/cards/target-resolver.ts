@@ -67,6 +67,7 @@ const CardMarkers = loadRuntimeModule('../logic/cards/markers', 'CardMarkers');
 const CardSelectors = loadRuntimeModule('../logic/cards/selectors', 'CardSelectors');
 const CardTargets = loadRuntimeModule('../logic/cards/targets', 'CardTargets');
 const CardFlips = loadRuntimeModule('../logic/cards/flips', 'CardFlips');
+const SpecialStoneRegistry = loadRuntimeModule('../../shared/special-stone-registry', 'SpecialStoneRegistry');
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS, BOARD_SIZE } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;
@@ -418,6 +419,14 @@ const Flips = CardFlips || {};
 
     function getCardContext(cardState: any) {
         const specials = getSpecialMarkers(cardState);
+        const isFlipProtectedSpecial = (marker: any) => {
+            const markerType = marker && marker.data && marker.data.type;
+            if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneInfo === 'function') {
+                const info = SpecialStoneRegistry.getSpecialStoneInfo(markerType);
+                if (info && info.flipProtected === true) return true;
+            }
+            return false;
+        };
         const protectedStones = specials
             .filter((s: any) => s.data && s.data.type === 'PROTECTED')
             .map((s: any) => ({ row: s.row, col: s.col, owner: s.owner }));
@@ -431,6 +440,7 @@ const Flips = CardFlips || {};
         const permaProtectedStones = specials
             .filter((s: any) => {
                 if (!s.data) return false;
+                if (isFlipProtectedSpecial(s)) return true;
                 return (
                     s.data.type === 'ABSOLUTE_PROTECTED' ||
                     s.data.type === 'PERMA_PROTECTED' ||

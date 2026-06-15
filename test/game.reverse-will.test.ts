@@ -32,7 +32,7 @@ describe('REVERSE_WILL（反転の意志）', () => {
     const used = CardLogic.applyCardUsage(cardState, gameState, 'black', 'reverse_will_01');
 
     expect(used).toBe(true);
-    expect(cardState.charge.black).toBe(0);
+    expect(cardState.charge.black).toBe(2);
     expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
       type: 'REVERSE_WILL',
       cardId: 'reverse_will_01',
@@ -159,6 +159,27 @@ describe('REVERSE_WILL（反転の意志）', () => {
     ]));
     expect(targets).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 1, col: 1 })
+    ]));
+  });
+
+  test('does not list reverse targets that require flipping a flip-protected special stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][4] = Shared.WHITE;
+    gameState.board[3][5] = Shared.BLACK;
+    cardState.markers.push({
+      id: 'meteor-god-protected',
+      kind: 'specialStone',
+      row: 3,
+      col: 4,
+      owner: 'white',
+      data: { type: 'METEOR_GOD', remainingOwnerTurns: 6 }
+    });
+
+    const targets = CardLogic.getReverseWillTargets(cardState, gameState);
+
+    expect(targets).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 3 })
     ]));
   });
 
