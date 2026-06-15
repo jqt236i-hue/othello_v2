@@ -5,22 +5,27 @@
 
 const CardRegen = (function (root: any, factory: any) {
     if (root && root.SharedConstants) {
-        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null));
+        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null, root.SpecialStoneRegistry || null));
     }
     if (typeof module === 'object' && module.exports) {
         let CardMarkersModule = null;
+        let SpecialStoneRegistryModule = null;
         try {
             CardMarkersModule = require('./markers');
+        } catch (e) { /* ignore */ }
+        try {
+            SpecialStoneRegistryModule = require('../../../shared/special-stone-registry');
         } catch (e) { /* ignore */ }
         return factory(
             require('../../../shared-constants'),
             require('../../../shared/shared-board-utils'),
-            CardMarkersModule
+            CardMarkersModule,
+            SpecialStoneRegistryModule
         );
     } else {
-        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null));
+        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null, root.SpecialStoneRegistry || null));
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any, SharedBoardUtils: any, CardMarkersModule: any) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any, SharedBoardUtils: any, CardMarkersModule: any, SpecialStoneRegistryModule: any) {
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
@@ -36,6 +41,21 @@ const CardRegen = (function (root: any, factory: any) {
     function getCardMarkersModule() {
         if (CardMarkersModule) return CardMarkersModule;
         return getRuntimeGlobalValue('CardMarkers');
+    }
+
+    function getSpecialStoneRegistryModule() {
+        if (SpecialStoneRegistryModule) return SpecialStoneRegistryModule;
+        return getRuntimeGlobalValue('SpecialStoneRegistry');
+    }
+
+    function isFlipProtectedSpecialMarker(marker: any) {
+        const markerType = marker && marker.data && marker.data.type;
+        const registry = getSpecialStoneRegistryModule();
+        if (registry && typeof registry.getSpecialStoneInfo === 'function') {
+            const info = registry.getSpecialStoneInfo(markerType);
+            if (info && info.flipProtected === true) return true;
+        }
+        return false;
     }
 
     if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined) {
@@ -211,6 +231,7 @@ const CardRegen = (function (root: any, factory: any) {
             protectedStones: (cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED').map((m: any) => ({ row: m.row, col: m.col })) : []),
             permaProtectedStones: (cardState.markers ? cardState.markers.filter((m: any) => {
                 if (!(m && m.kind === 'specialStone' && m.data)) return false;
+                if (isFlipProtectedSpecialMarker(m)) return true;
                 if (m.data.type === 'PERMA_PROTECTED' || m.data.type === 'DRAGON' || m.data.type === 'BREEDING' || m.data.type === 'ULTIMATE_DESTROY_GOD' || m.data.type === 'GUARD') {
                     return true;
                 }

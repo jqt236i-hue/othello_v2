@@ -399,6 +399,46 @@ describe('regen consume visual event', () => {
     ]));
   });
 
+  test('destroy-triggered regen capture does not flip through flip-protected stones', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[3][3] = Core.BLACK;
+    board[3][4] = Core.WHITE;
+    board[3][5] = Core.BLACK;
+
+    const cardState = CardLogic.createCardState(createPrng());
+    cardState.markers.push(
+      {
+        id: 'regen-direct',
+        row: 3,
+        col: 3,
+        kind: 'specialStone',
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'REGEN', regenRemaining: 2, ownerColor: Core.BLACK }
+      },
+      {
+        id: 'lightning-protected',
+        row: 3,
+        col: 4,
+        kind: 'specialStone',
+        owner: 'white',
+        createdSeq: 2,
+        data: { type: 'LIGHTNING', remainingOwnerTurns: 6 }
+      }
+    );
+    const gameState = { board };
+
+    const destroyed = BoardOps.destroyAt(cardState, gameState, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
+
+    expect(destroyed).toMatchObject({
+      kind: 'regenerated',
+      regenerated: true,
+      captureFlips: []
+    });
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
+    expect(gameState.board[3][4]).toBe(Core.WHITE);
+  });
+
   test('BoardOps.destroyAt returns regenerated outcome and keeps expansion regen stone in place', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
