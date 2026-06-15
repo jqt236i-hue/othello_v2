@@ -987,6 +987,85 @@ function _applyDoubleDigitTimerClassForDiff(timerElement: any, rawValue: any) {
         timerElement.classList.add('timer-double-digit');
     }
 }
+function _setTimedLabelTextForDiff(label: any, value: any) {
+    if (!label) return false;
+    const numericValue = Number(value);
+    const remaining = Number.isFinite(numericValue) ? Math.max(0, Math.trunc(numericValue)) : 0;
+    label.textContent = String(remaining);
+    label.classList.remove('timer-double-digit');
+    _applyDoubleDigitTimerClassForDiff(label, remaining);
+    return true;
+}
+function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
+    if (!source || typeof source !== 'object') return source;
+    const cloned = {
+        ...source,
+        special: source.special ? { ...source.special } : source.special,
+        inherited: source.inherited ? { ...source.inherited } : source.inherited,
+        guard: source.guard ? { ...source.guard } : source.guard,
+        bomb: source.bomb ? { ...source.bomb } : source.bomb,
+        blockade: source.blockade ? { ...source.blockade } : source.blockade,
+        frozen: source.frozen ? { ...source.frozen } : source.frozen,
+        seed: source.seed ? { ...source.seed } : source.seed
+    };
+    if (cloned.special) {
+        cloned.special.remainingOwnerTurns = 0;
+        cloned.special.flipEvadeRemaining = 0;
+        cloned.special.destroyEvadeRemaining = 0;
+    }
+    if (cloned.inherited) {
+        cloned.inherited.remainingOwnerTurns = 0;
+        cloned.inherited.flipEvadeRemaining = 0;
+        cloned.inherited.destroyEvadeRemaining = 0;
+    }
+    if (cloned.guard) cloned.guard.remainingOwnerTurns = 0;
+    if (cloned.bomb) cloned.bomb.remainingTurns = 0;
+    if (cloned.blockade) cloned.blockade.remainingOwnerTurns = 0;
+    if (cloned.frozen) cloned.frozen.remainingOwnerTurns = 0;
+    if (cloned.seed) cloned.seed.remainingOwnerTurns = 0;
+    return cloned;
+}
+function _onlyTimedLabelsChangedForDiff(prevState: any, state: any) {
+    if (!prevState || !state) return false;
+    const prevComparable = _cloneCellStateWithTimedLabelsNormalizedForDiff(prevState);
+    const nextComparable = _cloneCellStateWithTimedLabelsNormalizedForDiff(state);
+    return cellStatesEqual(prevComparable, nextComparable);
+}
+function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any) {
+    if (!_onlyTimedLabelsChangedForDiff(prevState, state)) return false;
+    const disc = cell && cell.querySelector ? cell.querySelector('.disc') : null;
+    if (!disc) return false;
+    let patched = false;
+    if (prevState.special && state.special && prevState.special.remainingOwnerTurns !== state.special.remainingOwnerTurns) {
+        const timer = disc.querySelector('.stone-timer, .special-timer, .udg-timer, .dragon-timer, .work-timer');
+        patched = _setTimedLabelTextForDiff(timer, state.special.remainingOwnerTurns) || patched;
+    }
+    if (prevState.special && state.special && prevState.special.flipEvadeRemaining !== state.special.flipEvadeRemaining) {
+        patched = _setTimedLabelTextForDiff(disc.querySelector('.flip-evade-timer'), state.special.flipEvadeRemaining) || patched;
+    }
+    if (prevState.special && state.special && prevState.special.destroyEvadeRemaining !== state.special.destroyEvadeRemaining) {
+        patched = _setTimedLabelTextForDiff(disc.querySelector('.destroy-evade-timer'), state.special.destroyEvadeRemaining) || patched;
+    }
+    if (prevState.guard && state.guard && prevState.guard.remainingOwnerTurns !== state.guard.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(disc.querySelector('.guard-timer'), state.guard.remainingOwnerTurns) || patched;
+    }
+    if (prevState.bomb && state.bomb && prevState.bomb.remainingTurns !== state.bomb.remainingTurns) {
+        patched = _setTimedLabelTextForDiff(disc.querySelector('.bomb-timer.countdown-timer'), state.bomb.remainingTurns) || patched;
+    }
+    if (prevState.inherited && state.inherited && prevState.inherited.remainingOwnerTurns !== state.inherited.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(disc.querySelector('.inherited-timer'), state.inherited.remainingOwnerTurns) || patched;
+    }
+    if (prevState.blockade && state.blockade && prevState.blockade.remainingOwnerTurns !== state.blockade.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(cell.querySelector('.blockade-turn'), state.blockade.remainingOwnerTurns) || patched;
+    }
+    if (prevState.frozen && state.frozen && prevState.frozen.remainingOwnerTurns !== state.frozen.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(cell.querySelector('.freeze-turn'), state.frozen.remainingOwnerTurns) || patched;
+    }
+    if (prevState.seed && state.seed && prevState.seed.remainingOwnerTurns !== state.seed.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(cell.querySelector('.seed-turn.countdown-timer'), state.seed.remainingOwnerTurns) || patched;
+    }
+    return patched;
+}
 
 function _resolveStrongWillDisplayTurnsForDiff(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
@@ -2979,6 +3058,10 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             }, fadeMs + 50);
             return;
         }
+    }
+
+    if (prevState && _tryPatchTimedMarkerLabelsForDiff(cell, prevState, state)) {
+        return;
     }
 
     // Clear existing classes and content
