@@ -516,8 +516,10 @@ function resolveCoreApi() {
     return null;
 }
 
-function getLegalMovesForPlayer(playerValue: any) {
+function getLegalMovesForPlayer(playerValue: any, playerKeyOverride?: string) {
     if (!gameState) return [];
+    const playerKey = normalizePlayerKey(playerKeyOverride || playerValue, 'black');
+    const corePlayerValue = resolvePlayerValue(playerKey, playerValue);
 
     const core = resolveCoreApi();
     if (core) {
@@ -525,15 +527,15 @@ function getLegalMovesForPlayer(playerValue: any) {
             const ctx = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardContext === 'function')
                 ? CardLogic.getCardContext(cardState)
                 : { protectedStones: [], permaProtectedStones: [], bombs: [] };
-            return core.getLegalMoves(gameState, playerValue, ctx) || [];
+            return core.getLegalMoves(gameState, corePlayerValue, ctx) || [];
         } catch (e) { /* ignore */ }
     }
 
     if (typeof getLegalMoves !== 'function') return [];
     try {
-        const probeState = Object.assign({}, gameState, { currentPlayer: playerValue });
+        const probeState = Object.assign({}, gameState, { currentPlayer: corePlayerValue });
         const protection = (typeof getActiveProtectionForPlayer === 'function')
-            ? getActiveProtectionForPlayer(playerValue)
+            ? getActiveProtectionForPlayer(corePlayerValue)
             : [];
         const perma = (typeof getFlipBlockers === 'function')
             ? getFlipBlockers()
@@ -547,7 +549,7 @@ function getLegalMovesForPlayer(playerValue: any) {
 function hasEffectiveLegalPlacementForPlayer(playerValue: any, playerKeyOverride?: string) {
     const playerKey = normalizePlayerKey(playerKeyOverride || playerValue, 'black');
     if (isPlacementLockedForPlayerKey(playerKey)) return false;
-    return getLegalMovesForPlayer(playerValue).length > 0;
+    return getLegalMovesForPlayer(playerValue, playerKey).length > 0;
 }
 
 function playerHasAnyAvailableAction(playerValue: any) {

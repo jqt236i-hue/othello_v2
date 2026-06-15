@@ -247,6 +247,39 @@ describe('pass-handler flows', () => {
         expect((global as any).showResult).not.toHaveBeenCalled();
     });
 
+    test('string currentPlayer の合法手を数値 player と同じように扱い自動パスしない', () => {
+        delete require.cache[modPath];
+        (global as any).gameState = { currentPlayer: 'black' };
+        (global as any).cardState = {
+            turnIndex: 3,
+            turnCountByPlayer: { black: 1, white: 0 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: { black: null, white: null }
+        };
+        (global as any).Core = {
+            getLegalMoves: jest.fn((_state: any, player: any) => (
+                player === (global as any).BLACK ? [{ row: 2, col: 3, flips: [[3, 3]] }] : []
+            ))
+        };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn(() => ({
+                ok: false,
+                events: [{ type: 'action_rejected', reason: 'ILLEGAL_PASS' }]
+            }))
+        };
+
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+
+        expect(ph.ensureCurrentPlayerCanActOrPass()).toBe(false);
+        expect((global as any).Core.getLegalMoves).toHaveBeenCalledWith(
+            (global as any).gameState,
+            (global as any).BLACK,
+            expect.any(Object)
+        );
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+    });
+
     test('pass rejected かつ未解決pendingがあれば終局救済しない', async () => {
         delete require.cache[modPath];
         (global as any).TurnPipeline = {
