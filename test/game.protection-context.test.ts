@@ -46,12 +46,18 @@ describe('card protection context', () => {
     markers.push(marker('ULTIMATE_HYPERACTIVE', 7, 7, 'black', { remainingOwnerTurns: 6 }));
 
     const context = build({ markers });
+    const protectedMarker = markers.find((entry) => entry.data.type === 'PROTECTED');
+    expect(protectedMarker).toBeTruthy();
 
     expect(context.protectedStones).toEqual([
-      expect.objectContaining({ row: 0, col: 0, owner: 'white' })
+      expect.objectContaining({
+        row: protectedMarker.row,
+        col: protectedMarker.col,
+        owner: protectedMarker.owner
+      })
     ]);
     expect(context.permaProtectedStones).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 0, col: 0 })
+      expect.objectContaining({ row: protectedMarker.row, col: protectedMarker.col })
     ]));
 
     for (const type of protectedTypes.filter((entry) => entry !== 'PROTECTED')) {

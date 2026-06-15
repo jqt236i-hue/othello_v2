@@ -46,4 +46,26 @@ describe('special effects helpers', () => {
       expect.objectContaining({ row: 6, col: 7 })
     ]));
   });
+
+  test('requires the shared special stone registry instead of silently degrading', () => {
+    jest.isolateModules(() => {
+      jest.doMock('../shared/special-stone-registry', () => {
+        throw new Error('registry intentionally unavailable');
+      });
+
+      delete (global as any).SpecialStoneRegistry;
+      (global as any).cardState = {
+        markers: [
+          special('METEOR_GOD', 0, 1),
+          special('ULTIMATE_HYPERACTIVE', 1, 2, 'black', { remainingOwnerTurns: 2 })
+        ]
+      };
+
+      const isolatedHelpers = require('../game/special-effects/helpers.ts');
+
+      expect(() => isolatedHelpers.getFlipBlockers())
+        .toThrow('[special-effects/helpers] SpecialStoneRegistry.getSpecialStoneInfo required');
+    });
+    jest.dontMock('../shared/special-stone-registry');
+  });
 });

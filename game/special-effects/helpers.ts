@@ -6,10 +6,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 type SpecialStoneRegistryModule = {
     normalizeSpecialStoneType?: (rawType: unknown) => string | null;
-    getSpecialStoneInfo?: (rawType: unknown) => { flipProtected?: boolean } | null;
+    getSpecialStoneInfo: (rawType: unknown) => { flipProtected?: boolean } | null;
 };
 
-let cachedSpecialStoneRegistry: SpecialStoneRegistryModule | null | undefined;
+let cachedSpecialStoneRegistry: SpecialStoneRegistryModule | undefined;
 
 /**
  * @file helpers.js
@@ -52,7 +52,7 @@ function readGlobalValue(key: string): any {
     return null;
 }
 
-function getSpecialStoneRegistry(): SpecialStoneRegistryModule | null {
+function getSpecialStoneRegistry(): SpecialStoneRegistryModule {
     if (cachedSpecialStoneRegistry !== undefined) return cachedSpecialStoneRegistry;
     let registry: SpecialStoneRegistryModule | null = null;
     try {
@@ -66,8 +66,11 @@ function getSpecialStoneRegistry(): SpecialStoneRegistryModule | null {
             ? globalRegistry
             : null;
     }
-    cachedSpecialStoneRegistry = registry;
-    return registry;
+    if (!registry || typeof registry.getSpecialStoneInfo !== 'function') {
+        throw new Error('[special-effects/helpers] SpecialStoneRegistry.getSpecialStoneInfo required');
+    }
+    cachedSpecialStoneRegistry = registry as SpecialStoneRegistryModule;
+    return cachedSpecialStoneRegistry;
 }
 
 function normalizeSpecialType(rawType: unknown): string {
@@ -86,9 +89,7 @@ function isRegistryFlipBlocker(marker: any): boolean {
     const type = normalizeSpecialType(marker.data.type);
     if (!type || type === 'PROTECTED') return false;
     const registry = getSpecialStoneRegistry();
-    const info = registry && typeof registry.getSpecialStoneInfo === 'function'
-        ? registry.getSpecialStoneInfo(type)
-        : null;
+    const info = registry.getSpecialStoneInfo(type);
     return !!(info && info.flipProtected === true);
 }
 
