@@ -51,6 +51,23 @@ function warnDispatchFailure(message: string, error?: unknown): boolean {
   return false;
 }
 
+function resolveRenderScheduler(): any {
+  const target = getRoot();
+  try {
+    if (target && (target as any).RenderScheduler && typeof (target as any).RenderScheduler.requestBoardRender === 'function') {
+      return (target as any).RenderScheduler;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof globalThis !== 'undefined'
+      && (globalThis as any).RenderScheduler
+      && typeof (globalThis as any).RenderScheduler.requestBoardRender === 'function') {
+      return (globalThis as any).RenderScheduler;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
 function requestBoardUpdate(options: BoardUpdateOptions): boolean {
   const config = (options && typeof options === 'object') ? options : {};
   const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', config.emitBoardUpdate || null);
@@ -70,6 +87,22 @@ function requestBoardUpdate(options: BoardUpdateOptions): boolean {
     }
     if (emitted !== false) return true;
     return warnDispatchFailure('emitBoardUpdate reported failure');
+  }
+
+  const renderScheduler = resolveRenderScheduler();
+  if (renderScheduler && typeof renderScheduler.requestBoardRender === 'function') {
+    try {
+      return renderScheduler.requestBoardRender({
+        source: (typeof config.source === 'string' && config.source.trim())
+          ? config.source.trim()
+          : 'ui.board-update-dispatch',
+        reason: (typeof config.reason === 'string' && config.reason.trim())
+          ? config.reason.trim()
+          : 'requestBoardUpdate'
+      }) !== false;
+    } catch (error) {
+      return warnDispatchFailure('RenderScheduler requestBoardRender failed', error);
+    }
   }
 
   const renderBoard = resolveGlobalFunction('renderBoard', config.renderBoard || null);

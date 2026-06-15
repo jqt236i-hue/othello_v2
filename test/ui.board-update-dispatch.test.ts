@@ -48,6 +48,24 @@ describe('ui board update dispatch', () => {
     expect(global.renderBoard).toHaveBeenCalledTimes(1);
   });
 
+  test('falls back to RenderScheduler requestBoardRender before direct renderBoard', () => {
+    global.RenderScheduler = {
+      requestBoardRender: jest.fn(() => true)
+    };
+    global.renderBoard = jest.fn();
+
+    const dispatch = require('../ui/board-update-dispatch.js');
+    expect(dispatch.requestBoardUpdate({ source: 'unit-test', reason: 'scheduler-fallback' })).toBe(true);
+
+    expect(global.RenderScheduler.requestBoardRender).toHaveBeenCalledWith({
+      source: 'unit-test',
+      reason: 'scheduler-fallback'
+    });
+    expect(global.renderBoard).not.toHaveBeenCalled();
+
+    delete global.RenderScheduler;
+  });
+
   test('returns false and does not hide emitBoardUpdate failure behind renderBoard fallback', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     global.emitBoardUpdate = jest.fn(() => false);
