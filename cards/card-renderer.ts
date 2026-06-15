@@ -1210,6 +1210,53 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
         glowLayerEl.removeChild(glowLayerEl.lastElementChild);
     }
 }
+const handSlotElementSignatureByContainer = new WeakMap<any, string>();
+function _buildHandSlotElementSignature(
+    ownerKey: any,
+    entryStates: any[],
+    shouldFade: any,
+    ownerHandLength: any,
+    showTimeStopVictimOverlay: any,
+    canInteract: any,
+    fadeCount: any
+) {
+    return JSON.stringify({
+        ownerKey,
+        shouldFade: !!shouldFade,
+        ownerHandLength,
+        showTimeStopVictimOverlay: !!showTimeStopVictimOverlay,
+        canInteract: !!canInteract,
+        fadeCount: Number(fadeCount) || 0,
+        entries: (Array.isArray(entryStates) ? entryStates : []).map((state: any) => ({
+            visualIndex: state.visualIndex,
+            desiredKind: state.desiredKind,
+            cardId: state.cardId || null,
+            actualIndex: state.actualIndex,
+            isCaptureReservedSlot: !!state.isCaptureReservedSlot,
+            canInspectOwnerHand: !!state.canInspectOwnerHand,
+            canAfford: !!state.canAfford,
+            cost: Number(state.cost) || 0,
+            usable: !!state.usable,
+            availableGlow: !!state.availableGlow,
+            isSelected: !!state.isSelected,
+            isObserved: !!state.isObserved
+        }))
+    });
+}
+function _canSkipHandElementApplication(containerEl: any, handTrackEl: any, signature: string, expectedLength: number) {
+    return !!(
+        containerEl
+        && handTrackEl
+        && handSlotElementSignatureByContainer.get(containerEl) === signature
+        && handTrackEl.children
+        && handTrackEl.children.length === expectedLength
+    );
+}
+function _markHandElementApplication(containerEl: any, signature: string) {
+    if (containerEl) {
+        handSlotElementSignatureByContainer.set(containerEl, signature);
+    }
+}
 function _canReuseHandCardElement(cardEl: any, desiredKind: any, cardId: any, ownerKey: any) {
     if (!cardEl || !cardEl.classList)
         return false;
@@ -1970,16 +2017,34 @@ function renderCardUI() {
         const renderEntries = _buildHandRenderEntries(ownerHand, _resolveInsertedReservedHandIndex(ownerKey, ownerHand.length));
         const existingChildren = Array.from(handTrackEl.children);
         const entryStates = renderEntries.map((entry: any) => _resolveHandEntryViewState(entry, ownerKey, revealByDefault));
-        entryStates.forEach((entryState: any) => {
-            const cardEl = _ensureRenderedHandElement(handTrackEl, existingChildren, entryState, ownerKey);
-            _applyRenderedHandElementState(cardEl, entryState, ownerKey, shouldFade, ownerHand.length);
-        });
-        while (handTrackEl.children.length > entryStates.length) {
-            const extraChild = handTrackEl.lastElementChild;
-            if (!extraChild)
-                break;
-            _detachHandCardClickHandler(extraChild);
-            handTrackEl.removeChild(extraChild);
+        const elementSignature = _buildHandSlotElementSignature(
+            ownerKey,
+            entryStates,
+            shouldFade,
+            ownerHand.length,
+            showTimeStopVictimOverlay,
+            canInteract,
+            fadeCount
+        );
+        const canSkipElementApplication = _canSkipHandElementApplication(
+            containerEl,
+            handTrackEl,
+            elementSignature,
+            entryStates.length
+        );
+        if (!canSkipElementApplication) {
+            entryStates.forEach((entryState: any) => {
+                const cardEl = _ensureRenderedHandElement(handTrackEl, existingChildren, entryState, ownerKey);
+                _applyRenderedHandElementState(cardEl, entryState, ownerKey, shouldFade, ownerHand.length);
+            });
+            while (handTrackEl.children.length > entryStates.length) {
+                const extraChild = handTrackEl.lastElementChild;
+                if (!extraChild)
+                    break;
+                _detachHandCardClickHandler(extraChild);
+                handTrackEl.removeChild(extraChild);
+            }
+            _markHandElementApplication(containerEl, elementSignature);
         }
         _syncHandAvailabilityGlowLayer(containerEl, handTrackEl, entryStates, ownerKey);
         _syncTimeStopHandOverlayForRender(containerEl, showTimeStopVictimOverlay);
