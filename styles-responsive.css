@@ -70,6 +70,15 @@
         min-height: var(--rules-help-page-min-height);
     }
 
+    #rules-help-catalog-controls {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    #rules-help-card-filter-status {
+        justify-self: start;
+    }
+
     #rules-help-card-list,
     #rules-help-effects-list,
     #rules-help-guide-layout,

@@ -316,6 +316,12 @@ function _normalizeCatalogCards(rawCards: any[]): any[] {
   return normalized;
 }
 
+function _normalizeCatalogFilterText(text: any): string {
+  return _normalizeCardDescText(text)
+    .replace(/[\s\u3000]+/g, '')
+    .toLowerCase();
+}
+
 function _sortCatalogCards(cards: any[]): any[] {
   return cards.slice().sort((a: any, b: any) => {
     const costA = Number.isFinite(a.cost) ? a.cost : Number.MAX_SAFE_INTEGER;
@@ -406,11 +412,28 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   const cardListEl = rulesHelpPanel.querySelector('#rules-help-card-list');
   const cardNameEl = rulesHelpPanel.querySelector('#rules-help-card-name');
   const cardDescEl = rulesHelpPanel.querySelector('#rules-help-card-desc');
+  const cardSearchInput = rulesHelpPanel.querySelector('#rules-help-card-search') as HTMLInputElement | null;
+  const tagFiltersEl = rulesHelpPanel.querySelector('#rules-help-card-tag-filters') as HTMLElement | null;
+  const filterStatusEl = rulesHelpPanel.querySelector('#rules-help-card-filter-status') as HTMLElement | null;
+  const filterClearBtn = rulesHelpPanel.querySelector('#rules-help-card-filter-clear') as HTMLButtonElement | null;
   const updatesListEl = rulesHelpPanel.querySelector('#rules-help-updates-list');
   const catalogCards = _readCatalogCards();
+  const cardDescriptionTextsById = new Map<string, any>();
+  const cardSearchTextById = new Map<string, string>();
+  const activeTagLabels = new Set<string>();
 
   let isOpen = false;
   let selectedCardId: string | null = null;
+
+  function getCardDescriptionTexts(card: any): any {
+    const cardId = _safeText(card && card.id, '');
+    if (cardId && cardDescriptionTextsById.has(cardId)) {
+      return cardDescriptionTextsById.get(cardId);
+    }
+    const descriptionTexts = _resolveCardDescriptionTexts(card);
+    if (cardId) cardDescriptionTextsById.set(cardId, descriptionTexts);
+    return descriptionTexts;
+  }
 
   function getCardDisplayTypeLabel(card: any): string {
     return _safeText(card && (card.displayTypeLabel || card.display_type_ja || card.displayTypeJa), '');
@@ -446,6 +469,122 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     row.appendChild(costEl);
 
     return row;
+  }
+
+  function getCardEffectTags(card: any): any[] {
+    const descriptionTexts = getCardDescriptionTexts(card);
+    return Array.isArray(descriptionTexts && descriptionTexts.effectTags)
+      ? descriptionTexts.effectTags
+      : (Array.isArray(descriptionTexts && descriptionTexts.numericTags)
+        ? descriptionTexts.numericTags
+        : []);
+  }
+
+  function getNormalizedCardEffectTags(card: any): any[] {
+    return _normalizeResolvedCardEffectTags(getCardEffectTags(card));
+  }
+
+  function getCardSearchText(card: any): string {
+    const cardId = _safeText(card && card.id, '');
+    if (cardId && cardSearchTextById.has(cardId)) {
+      return cardSearchTextById.get(cardId) as string;
+    }
+
+    const descriptionTexts = getCardDescriptionTexts(card);
+    const tags = getNormalizedCardEffectTags(card);
+    const costText = Number.isFinite(card && card.cost) ? `コスト${card.cost}` : '';
+    const searchText = [
+      card && card.name,
+      getCardDisplayTypeLabel(card),
+      costText,
+      card && card.desc,
+      descriptionTexts && descriptionTexts.quickText,
+      descriptionTexts && descriptionTexts.detailText,
+      descriptionTexts && descriptionTexts.distinctDetailText,
+      tags.map((tag: any) => tag.label).join(' ')
+    ].map((part) => _safeText(part, '')).filter(Boolean).join(' ');
+    const normalized = _normalizeCatalogFilterText(searchText);
+    if (cardId) cardSearchTextById.set(cardId, normalized);
+    return normalized;
+  }
+
+  function getSearchTerms(): string[] {
+    if (!cardSearchInput) return [];
+    return String(cardSearchInput.value || '')
+      .split(/[\s\u3000]+/)
+      .map((term) => _normalizeCatalogFilterText(term))
+      .filter(Boolean);
+  }
+
+  function cardMatchesActiveTags(card: any): boolean {
+    if (activeTagLabels.size === 0) return true;
+    const labels = new Set(getNormalizedCardEffectTags(card).map((tag: any) => tag.label));
+    for (const label of activeTagLabels) {
+      if (!labels.has(label)) return false;
+    }
+    return true;
+  }
+
+  function cardMatchesSearchTerms(card: any, searchTerms: string[]): boolean {
+    if (!searchTerms.length) return true;
+    const searchText = getCardSearchText(card);
+    return searchTerms.every((term) => searchText.includes(term));
+  }
+
+  function getFilteredCatalogCards(): any[] {
+    const searchTerms = getSearchTerms();
+    return catalogCards.filter((card: any) => (
+      cardMatchesActiveTags(card) && cardMatchesSearchTerms(card, searchTerms)
+    ));
+  }
+
+  function updateFilterStatus(filteredCount: number): void {
+    const totalCount = catalogCards.length;
+    if (filterStatusEl) {
+      const searchText = cardSearchInput ? String(cardSearchInput.value || '').trim() : '';
+      const tagText = Array.from(activeTagLabels).join(' / ');
+      const suffixParts: string[] = [];
+      if (searchText) suffixParts.push(`検索: ${searchText}`);
+      if (tagText) suffixParts.push(`タグ: ${tagText}`);
+      filterStatusEl.textContent = suffixParts.length
+        ? `${filteredCount} / ${totalCount}枚（${suffixParts.join('、')}）`
+        : `${filteredCount} / ${totalCount}枚`;
+    }
+    if (filterClearBtn) {
+      const hasSearch = !!(cardSearchInput && String(cardSearchInput.value || '').trim());
+      const hasFilters = hasSearch || activeTagLabels.size > 0;
+      filterClearBtn.disabled = !hasFilters;
+      filterClearBtn.setAttribute('aria-disabled', hasFilters ? 'false' : 'true');
+    }
+  }
+
+  function updateTagFilterButtons(): void {
+    if (!tagFiltersEl) return;
+    const buttons = Array.from(tagFiltersEl.querySelectorAll('.rules-help-card-tag-filter'));
+    for (const button of buttons) {
+      const label = button.getAttribute('data-card-tag-label') || '';
+      const active = activeTagLabels.has(label);
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  }
+
+  function renderNoCatalogMatches(): void {
+    if (cardListEl) {
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'rules-help-card-empty';
+      emptyEl.textContent = catalogCards.length
+        ? '条件に合うカードがありません'
+        : 'カード情報が見つかりません';
+      cardListEl.appendChild(emptyEl);
+    }
+    selectedCardId = null;
+    if (cardNameEl) cardNameEl.textContent = catalogCards.length ? '検索結果なし' : 'カード情報が見つかりません';
+    if (cardDescEl) {
+      cardDescEl.textContent = catalogCards.length
+        ? '検索語やタグを減らすと見つかるかもしれません。'
+        : 'カード図鑑の読み込みに失敗しました。';
+    }
   }
 
   function createCardListContent(card: any): DocumentFragment {
@@ -570,12 +709,8 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     selectedCardId = card.id;
     renderSelectedCardHeading(card);
     if (cardDescEl) {
-      const descriptionTexts = _resolveCardDescriptionTexts(card);
-      const effectTags = Array.isArray(descriptionTexts && descriptionTexts.effectTags)
-        ? descriptionTexts.effectTags
-        : (Array.isArray(descriptionTexts && descriptionTexts.numericTags)
-          ? descriptionTexts.numericTags
-          : []);
+      const descriptionTexts = getCardDescriptionTexts(card);
+      const effectTags = getCardEffectTags(card);
       const quick = _safeText(descriptionTexts && descriptionTexts.quickText, card.desc);
       const detail = _safeText(descriptionTexts && descriptionTexts.distinctDetailText, '');
       cardDescEl.innerHTML = '';
@@ -607,14 +742,16 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   function renderCatalogCards(): void {
     if (!cardListEl) return;
     cardListEl.innerHTML = '';
+    const filteredCards = getFilteredCatalogCards();
+    updateFilterStatus(filteredCards.length);
+    updateTagFilterButtons();
 
-    if (!catalogCards.length) {
-      if (cardNameEl) cardNameEl.textContent = 'カード情報が見つかりません';
-      if (cardDescEl) cardDescEl.textContent = 'カード図鑑の読み込みに失敗しました。';
+    if (!filteredCards.length) {
+      renderNoCatalogMatches();
       return;
     }
 
-    for (const card of catalogCards) {
+    for (const card of filteredCards) {
       const itemBtn = document.createElement('button');
       itemBtn.type = 'button';
       itemBtn.className = 'rules-help-card-item';
@@ -629,7 +766,57 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       cardListEl.appendChild(itemBtn);
     }
 
-    updateSelectedCard(catalogCards[0].id);
+    const selectedStillVisible = !!selectedCardId && filteredCards.some((card: any) => card.id === selectedCardId);
+    updateSelectedCard(selectedStillVisible ? selectedCardId as string : filteredCards[0].id);
+  }
+
+  function renderTagFilters(): void {
+    if (!tagFiltersEl) return;
+    tagFiltersEl.innerHTML = '';
+
+    const tagEntries: any[] = [];
+    const seen = new Set<string>();
+    for (const card of catalogCards) {
+      for (const tag of getNormalizedCardEffectTags(card)) {
+        const label = _safeText(tag && tag.label, '');
+        if (!label || seen.has(label)) continue;
+        seen.add(label);
+        const count = catalogCards.filter((entry: any) => (
+          getNormalizedCardEffectTags(entry).some((entryTag: any) => entryTag.label === label)
+        )).length;
+        tagEntries.push({ label, kind: _safeText(tag && tag.kind, ''), count });
+      }
+    }
+
+    if (!tagEntries.length) {
+      const emptyEl = document.createElement('span');
+      emptyEl.className = 'rules-help-card-tag-filter-empty';
+      emptyEl.textContent = '効果タグなし';
+      tagFiltersEl.appendChild(emptyEl);
+      return;
+    }
+
+    for (const tag of tagEntries) {
+      const filterBtn = document.createElement('button');
+      filterBtn.type = 'button';
+      filterBtn.className = 'rules-help-card-tag-filter';
+      const kindClass = _getCardEffectTagKindClass(tag.kind);
+      if (kindClass) filterBtn.classList.add(kindClass);
+      filterBtn.textContent = tag.label;
+      filterBtn.setAttribute('data-card-tag-label', tag.label);
+      filterBtn.setAttribute('aria-pressed', 'false');
+      filterBtn.setAttribute('aria-label', `${tag.label}で絞り込み（${tag.count}枚）`);
+      filterBtn.addEventListener('click', (event: Event) => {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (activeTagLabels.has(tag.label)) {
+          activeTagLabels.delete(tag.label);
+        } else {
+          activeTagLabels.add(tag.label);
+        }
+        renderCatalogCards();
+      });
+      tagFiltersEl.appendChild(filterBtn);
+    }
   }
 
   function activateTab(tabKey: string): void {
@@ -704,6 +891,25 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     closePanel();
   });
 
+  if (cardSearchInput) {
+    cardSearchInput.addEventListener('input', () => {
+      renderCatalogCards();
+    });
+  }
+
+  if (filterClearBtn) {
+    filterClearBtn.addEventListener('click', (event: Event) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (cardSearchInput) cardSearchInput.value = '';
+      activeTagLabels.clear();
+      renderCatalogCards();
+      if (cardSearchInput && typeof cardSearchInput.focus === 'function') {
+        cardSearchInput.focus();
+      }
+    });
+  }
+
+  renderTagFilters();
   renderCatalogCards();
   renderHelpUpdates(updatesListEl as HTMLElement);
   if (tabButtons.length > 0) {

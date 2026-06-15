@@ -319,6 +319,124 @@ describe('rules help panel', () => {
     expect(cardDescEl.textContent).toContain('完全保護中は敵対的・強制的な石効果を受けない。');
   });
 
+  test('filters card encyclopedia by search text and effect tag chips', () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
+        <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
+        <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
+          <div id="rules-help-catalog-controls">
+            <input id="rules-help-card-search" type="search" />
+            <button id="rules-help-card-filter-clear" type="button"></button>
+            <div id="rules-help-card-tag-filters"></div>
+            <div id="rules-help-card-filter-status"></div>
+          </div>
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
+        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
+        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
+      </div>
+    </body></html>`);
+
+    window.CardInteractionEffects = {
+      resolveCardDescriptionTexts: (cardDef) => {
+        const byId = {
+          afterimage_will_01: {
+            quickText: '次に置く石を残像石化する。',
+            distinctDetailText: '反転回避と破壊回避を持つ。',
+            effectTags: [
+              { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
+              { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
+            ]
+          },
+          guard_01: {
+            quickText: '自分石1つに完全保護を付与する。',
+            distinctDetailText: '完全保護中は敵対的な効果を受けない。',
+            effectTags: [
+              { kind: 'full-protection', label: '完全保護' },
+              { kind: 'duration-turns', value: 3, label: '3ターン持続' }
+            ]
+          },
+          blockade_01: {
+            quickText: '空きマス1つを封鎖する。',
+            distinctDetailText: '3ターン持続する封鎖マスを作る。',
+            effectTags: [
+              { kind: 'duration-turns', value: 3, label: '3ターン持続' }
+            ]
+          },
+          supply_01: {
+            quickText: '山札から2枚ドローする。',
+            distinctDetailText: '',
+            effectTags: []
+          }
+        };
+        return byId[cardDef.id] || { quickText: cardDef.desc, distinctDetailText: '', effectTags: [] };
+      }
+    };
+    global.CardInteractionEffects = window.CardInteractionEffects;
+    window.CardCatalog = {
+      cards: [
+        { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 1, desc: '完全保護を付与する', display_type_ja: '守護' },
+        { id: 'afterimage_will_01', name: '避ける意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '残像石化する', display_type_ja: '回避' },
+        { id: 'blockade_01', name: '封鎖の意志', type: 'BLOCKADE_WILL', cost: 7, desc: '封鎖マスを作る', display_type_ja: '妨害' },
+        { id: 'supply_01', name: '補給の意志', type: 'SUPPLY_WILL', cost: 2, desc: '山札から2枚ドロー', display_type_ja: '補給' }
+      ]
+    };
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+    btn.click();
+
+    const searchInput = document.getElementById('rules-help-card-search') as HTMLInputElement;
+    const clearButton = document.getElementById('rules-help-card-filter-clear');
+    const filterStatus = document.getElementById('rules-help-card-filter-status');
+    const tagLabels = () => Array.from(document.querySelectorAll('.rules-help-card-tag-filter')).map((el) => el.textContent);
+    const cardNames = () => Array.from(document.querySelectorAll('.rules-help-card-item-name')).map((el) => el.textContent);
+    const selectedTitle = () => document.querySelector('#rules-help-card-name .rules-help-card-title').textContent;
+
+    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志']);
+    expect(tagLabels()).toEqual(['完全保護', '3ターン持続', '反転回避3回', '破壊回避3回']);
+    expect(filterStatus.textContent).toContain('4 / 4枚');
+
+    searchInput.value = '完全保護';
+    searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+
+    expect(cardNames()).toEqual(['守る意志']);
+    expect(selectedTitle()).toBe('守る意志');
+    expect(filterStatus.textContent).toContain('1 / 4枚');
+
+    clearButton.click();
+    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志']);
+    expect(searchInput.value).toBe('');
+
+    const flipEvasionFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
+      .find((el) => el.textContent === '反転回避3回') as HTMLButtonElement;
+    flipEvasionFilter.click();
+
+    expect(flipEvasionFilter.getAttribute('aria-pressed')).toBe('true');
+    expect(cardNames()).toEqual(['避ける意志']);
+    expect(selectedTitle()).toBe('避ける意志');
+    expect(filterStatus.textContent).toContain('1 / 4枚');
+
+    searchInput.value = '山札';
+    searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+
+    expect(document.querySelectorAll('.rules-help-card-item')).toHaveLength(0);
+    expect(document.getElementById('rules-help-card-list').textContent).toContain('条件に合うカードがありません');
+    expect(document.getElementById('rules-help-card-name').textContent).toBe('検索結果なし');
+  });
+
   test('effect glossary list includes 反転回避 and 破壊回避 entries', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
@@ -347,6 +465,14 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/data-help-tab="updates">アップデート情報<\/button>/);
     expect(html).toMatch(/id="rules-help-updates-list"/);
+  });
+
+  test('index html includes card encyclopedia search and tag filter controls', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/id="rules-help-card-search"/);
+    expect(html).toMatch(/id="rules-help-card-tag-filters"/);
+    expect(html).toMatch(/id="rules-help-card-filter-status"/);
+    expect(html).toMatch(/id="rules-help-card-filter-clear"/);
   });
 
   test('index html includes counter ui help tab and key legend texts', () => {
