@@ -339,7 +339,7 @@ describe('rules help panel', () => {
     cardButtons[1].click();
 
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
-    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護']);
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3ターン持続']);
     expect(cardDescEl.textContent).toContain('完全保護中は敵対的・強制的な石効果を受けない。');
   });
 
@@ -442,6 +442,7 @@ describe('rules help panel', () => {
     expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
     expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '反転回避', '破壊回避']);
     expect(tagLabels()).not.toContain('5ターン後に発動');
+    expect(tagLabels()).not.toContain('3ターン持続');
     expect(filterStatus.textContent).toContain('5 / 5枚');
 
     searchInput.value = '完全保護';

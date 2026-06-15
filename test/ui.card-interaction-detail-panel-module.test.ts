@@ -108,10 +108,11 @@ describe('card interaction detail panel module', () => {
     expect(liveStateEl?.style.display).toBe('block');
     expect(Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag') || []).map((el) => el.textContent)).toEqual([
       '反転保護',
-      '特殊石'
+      '特殊石',
+      '8ターン持続'
     ]);
     const tagButtons = Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag-button') || []);
-    expect(tagButtons).toHaveLength(2);
+    expect(tagButtons).toHaveLength(3);
     expect(tagButtons[0].tagName).toBe('BUTTON');
     expect(tagButtons[0].getAttribute('data-card-tag-label')).toBe('反転保護');
     expect(tagButtons[0].getAttribute('aria-label')).toBe('反転保護の説明を表示');

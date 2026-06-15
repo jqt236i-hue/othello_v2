@@ -33,12 +33,16 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   ABSOLUTE_PROTECTION: 'absolute-protection',
   INVIOLABLE: 'inviolable',
   FLIP_EVASION: 'flip-evasion',
-  DESTROY_EVASION: 'destroy-evasion'
+  DESTROY_EVASION: 'destroy-evasion',
+  DURATION_TURNS: 'duration-turns',
+  DELAYED_ACTIVATION_TURNS: 'delayed-activation-turns'
 });
 
 const CARD_NUMERIC_TAG_KIND = Object.freeze({
   FLIP_EVASION: CARD_EFFECT_TAG_KIND.FLIP_EVASION,
-  DESTROY_EVASION: CARD_EFFECT_TAG_KIND.DESTROY_EVASION
+  DESTROY_EVASION: CARD_EFFECT_TAG_KIND.DESTROY_EVASION,
+  DURATION_TURNS: CARD_EFFECT_TAG_KIND.DURATION_TURNS,
+  DELAYED_ACTIVATION_TURNS: CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS
 });
 
 const CARD_NUMERIC_TAG_KIND_SET = new Set<string>(Object.values(CARD_NUMERIC_TAG_KIND));
@@ -77,6 +81,10 @@ function buildCardEffectTag(kind: string, value?: number) {
     label = '反転回避';
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DESTROY_EVASION) {
     label = '破壊回避';
+  } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DURATION_TURNS) {
+    label = `${normalizedValue}ターン持続`;
+  } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS) {
+    label = `${normalizedValue}ターン後に発動`;
   } else {
     return null;
   }
@@ -101,6 +109,8 @@ const absoluteProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSO
 const inviolableTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.INVIOLABLE);
 const flipEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_EVASION, value);
 const destroyEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DESTROY_EVASION, value);
+const durationTurnsTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DURATION_TURNS, value);
+const delayedActivationTurnsTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS, value);
 
 function freezeCardEffectTags(tags: any[]) {
   return Object.freeze((Array.isArray(tags) ? tags : []).filter(Boolean));
@@ -308,40 +318,42 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
 const cardEffectTagsByType = Object.freeze({
   PROTECTED_NEXT_STONE: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
   ANCHOR_WILL: freezeCardEffectTags([flipProtectionTag()]),
-  SNIPER_WILL: freezeCardEffectTags([specialStoneTag()]),
-  GHOST_WILL: freezeCardEffectTags([specialStoneTag()]),
+  SNIPER_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6)]),
+  GHOST_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(8)]),
   AFTERIMAGE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(3), destroyEvasionTag(3)]),
-  PERMA_PROTECT_NEXT_STONE: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
+  PERMA_PROTECT_NEXT_STONE: freezeCardEffectTags([specialStoneTag(), flipProtectionTag(), delayedActivationTurnsTag(10)]),
   TRAP_WILL: freezeCardEffectTags([specialStoneTag()]),
-  TIME_BOMB: freezeCardEffectTags([specialStoneTag()]),
-  TIME_STOP_GOD: freezeCardEffectTags([specialStoneTag()]),
+  TIME_BOMB: freezeCardEffectTags([specialStoneTag(), delayedActivationTurnsTag(3)]),
+  TIME_STOP_GOD: freezeCardEffectTags([specialStoneTag(), delayedActivationTurnsTag(5)]),
   REGEN_WILL: freezeCardEffectTags([specialStoneTag()]),
-  ULTIMATE_REVERSE_DRAGON: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
-  BREEDING_WILL: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
-  PROLIFERATION_WILL: freezeCardEffectTags([specialStoneTag()]),
+  ULTIMATE_REVERSE_DRAGON: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(8), flipProtectionTag()]),
+  BREEDING_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5), flipProtectionTag()]),
+  PROLIFERATION_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(10)]),
   CELL_TELEPORT_WILL: freezeCardEffectTags([holeCellTag()]),
-  SEED_WILL: freezeCardEffectTags([]),
+  SEED_WILL: freezeCardEffectTags([delayedActivationTurnsTag(5)]),
   HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
   ESCAPE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
-  ROBOT_VACUUM_WILL: freezeCardEffectTags([specialStoneTag()]),
+  ROBOT_VACUUM_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
   GLUTTONOUS_WILL: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
-  WILL_HUNTER_KING: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(2), destroyEvasionTag(2)]),
+  WILL_HUNTER_KING: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(2), destroyEvasionTag(2), durationTurnsTag(8)]),
   EXTREME_HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(3), destroyEvasionTag(1)]),
-  WORK_WILL: freezeCardEffectTags([specialStoneTag()]),
-  GUARD_WILL: freezeCardEffectTags([fullProtectionTag()]),
-  GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag()]),
-  THEORY_INCARNATION: freezeCardEffectTags([inviolableTag()]),
-  BOARD_EXECUTOR: freezeCardEffectTags([holeCellTag(), inviolableTag()]),
-  OBSERVER_WILL: freezeCardEffectTags([inviolableTag()]),
-  ULTIMATE_DESTROY_GOD: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
-  DESTROY_DRAGON_WILL: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
-  LIGHTNING_WILL: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
+  WORK_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
+  GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
+  GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
+  THEORY_INCARNATION: freezeCardEffectTags([inviolableTag(), durationTurnsTag(5)]),
+  BOARD_EXECUTOR: freezeCardEffectTags([holeCellTag(), inviolableTag(), durationTurnsTag(4)]),
+  OBSERVER_WILL: freezeCardEffectTags([inviolableTag(), durationTurnsTag(5)]),
+  ULTIMATE_DESTROY_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
+  DESTROY_DRAGON_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(3), flipProtectionTag()]),
+  LIGHTNING_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
   METEOR_WILL: freezeCardEffectTags([holeCellTag()]),
   BOARD_SHRINK_WILL: freezeCardEffectTags([holeCellTag()]),
   BOARD_SHRINK_GOD: freezeCardEffectTags([holeCellTag()]),
-  METEOR_GOD: freezeCardEffectTags([specialStoneTag(), flipProtectionTag(), holeCellTag()]),
-  STONE_SALVATION_GOD: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
-  ULTIMATE_HYPERACTIVE_GOD: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(3), destroyEvasionTag(1)]),
+  METEOR_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag(), holeCellTag()]),
+  STONE_SALVATION_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(12), flipProtectionTag()]),
+  ULTIMATE_HYPERACTIVE_GOD: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(3), destroyEvasionTag(1), durationTurnsTag(12)]),
+  BLOCKADE_WILL: freezeCardEffectTags([durationTurnsTag(3)]),
+  FREEZE_WILL: freezeCardEffectTags([durationTurnsTag(5)]),
 });
 
 const cardNumericTagsByType = Object.freeze(Object.fromEntries(

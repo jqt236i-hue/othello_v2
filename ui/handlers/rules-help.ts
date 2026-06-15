@@ -762,18 +762,24 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       const label = _safeText(rawTag.label, '');
       if (!label) continue;
       const kind = _safeText(rawTag.kind, '').toLowerCase();
-      if (
-        kind === 'duration-turns' ||
-        kind === 'delayed-activation-turns' ||
-        /^\d+ターン持続$/.test(label) ||
-        /^\d+ターン後に発動$/.test(label)
-      ) continue;
+
       const dedupeKey = `${kind}:${label}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
       normalizedTags.push({ kind, label });
     }
     return normalizedTags;
+  }
+
+  function shouldHideCardTagFromFilter(tag: any): boolean {
+    const kind = _safeText(tag && tag.kind, '').toLowerCase();
+    const label = _safeText(tag && tag.label, '');
+    return (
+      kind === 'duration-turns' ||
+      kind === 'delayed-activation-turns' ||
+      /^\d+ターン(?:持続|継続)$/.test(label) ||
+      /^\d+ターン後に発動$/.test(label)
+    );
   }
 
   function _getCardEffectTagKindClass(kind: string): string {
@@ -935,7 +941,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     for (const card of catalogCards) {
       for (const tag of getNormalizedCardEffectTags(card)) {
         const label = _safeText(tag && tag.label, '');
-        if (!label || seen.has(label)) continue;
+        if (!label || seen.has(label) || shouldHideCardTagFromFilter(tag)) continue;
         seen.add(label);
         const count = catalogCards.filter((entry: any) => (
           getNormalizedCardEffectTags(entry).some((entryTag: any) => entryTag.label === label)

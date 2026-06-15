@@ -80,7 +80,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['特殊石', '反転保護']);
+    expect(getTagLabels()).toEqual(['特殊石', '8ターン持続', '反転保護']);
     expect(tagsEl.style.display).toBe('flex');
 
     const desc = document.getElementById('card-detail-desc').textContent;
@@ -88,7 +88,7 @@ describe('card detail effect tags', () => {
     expect(desc).toContain('置いた石が龍化');
   });
 
-  test('ROBOT_VACUUM_WILL shows the special stone tag without duration tags', () => {
+  test('ROBOT_VACUUM_WILL shows the special stone tag together with duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -107,11 +107,11 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['特殊石']);
+    expect(getTagLabels()).toEqual(['特殊石', '5ターン持続']);
     expect(document.getElementById('card-detail-desc').textContent).toBe('次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。');
   });
 
-  test('DESTROY_DRAGON_WILL shows special stone together with flip protection', () => {
+  test('DESTROY_DRAGON_WILL shows special stone together with duration and flip protection', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -128,10 +128,10 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['特殊石', '反転保護']);
+    expect(getTagLabels()).toEqual(['特殊石', '3ターン持続', '反転保護']);
   });
 
-  test('GUARD_WILL shows full protection without duration tags', () => {
+  test('GUARD_WILL shows full protection together with duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -148,10 +148,10 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['完全保護']);
+    expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
   });
 
-  test('OBSERVER_WILL shows inviolable without special-stone or duration tags', () => {
+  test('OBSERVER_WILL shows inviolable together with duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -168,13 +168,13 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵']);
+    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('観測者を顕現させる');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
   });
 
-  test('THEORY_INCARNATION shows inviolable without special-stone or duration tags', () => {
+  test('THEORY_INCARNATION shows inviolable together with duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -191,13 +191,13 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵']);
+    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-more').textContent).toContain('5T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大6回特殊石を出現できる');
   });
 
-  test('BOARD_EXECUTOR shows hole-cell and inviolable without special-stone or duration tags', () => {
+  test('BOARD_EXECUTOR shows hole-cell and inviolable together with duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -214,7 +214,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['穴マス化', '不可侵']);
+    expect(getTagLabels()).toEqual(['穴マス化', '不可侵', '4ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('盤界の執行者を顕現させる');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
@@ -241,7 +241,7 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['特殊石', '反転回避', '破壊回避']);
   });
 
-  test('TIME_STOP_GOD detail follows rulebook timing text without delayed activation tag', () => {
+  test('TIME_STOP_GOD detail follows rulebook timing text and keeps delayed activation tag', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -265,7 +265,7 @@ describe('card detail effect tags', () => {
     expect(detailText).toContain('5回目の所有者ターン開始時');
     expect(detailText).toContain('反転保護は持たない');
 
-    expect(getTagLabels()).toEqual(['特殊石']);
+    expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
   });
 
   test('METEOR_WILL and BOARD_EXECUTOR show hole-cell tags', () => {
@@ -297,7 +297,7 @@ describe('card detail effect tags', () => {
     global.CardLogic.getCardDef = () => boardExecutorDef;
 
     window.updateCardDetailPanel();
-    expect(getTagLabels()).toEqual(['穴マス化', '不可侵']);
+    expect(getTagLabels()).toEqual(['穴マス化', '不可侵', '4ターン持続']);
   });
 
   test('TRAP_WILL keeps opponent-turn wording in text and shows the special stone tag', () => {
@@ -566,9 +566,9 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     const tagButtons = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'));
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '反転保護']);
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '8ターン持続', '反転保護']);
 
-    const specialStoneButton = tagButtons[0];
+    const specialStoneButton = tagButtons.find((el) => el.textContent === '特殊石');
     specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
     const popupEl = document.getElementById('card-detail-tag-popover');
@@ -586,7 +586,7 @@ describe('card detail effect tags', () => {
     expect(popupEl.classList.contains('is-open')).toBe(false);
     expect(popupEl.getAttribute('aria-hidden')).toBe('true');
 
-    const flipProtectionButton = tagButtons[1];
+    const flipProtectionButton = tagButtons.find((el) => el.textContent === '反転保護');
     flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
     expect(popupEl.classList.contains('is-open')).toBe(true);
