@@ -17,7 +17,22 @@ type AnimationMoveEventDeps = {
     waitForAnimationFinish: (animation: any, durationMs: any, timeoutBufferMs: any) => Promise<any>;
     syncDiscVisual: (disc: any, after: any) => any;
     removeDiscFromCell: (cell: any, disc: any) => any;
+    layoutBatch?: {
+        readRect?: (element: any) => any;
+    } | null;
 };
+
+function readElementRect(element: any, deps: AnimationMoveEventDeps) {
+    if (!element) return null;
+    const batch = deps && deps.layoutBatch;
+    if (batch && typeof batch.readRect === 'function') {
+        const rect = batch.readRect(element);
+        if (rect) return rect;
+    }
+    return typeof element.getBoundingClientRect === 'function'
+        ? element.getBoundingClientRect()
+        : null;
+}
 
 function getMoveSemantics(target: any, deps: AnimationMoveEventDeps) {
     const cause = deps.getTargetCause(target);
@@ -129,8 +144,8 @@ function resolveMoveWaypointDeltas(target: any, fromRect: any, deps: AnimationMo
     const out = [];
     for (const point of normalizedWaypoints) {
         const cell = deps.getCellEl(point.row, point.col);
-        if (!cell || typeof cell.getBoundingClientRect !== 'function') return [];
-        const rect = cell.getBoundingClientRect();
+        const rect = readElementRect(cell, deps);
+        if (!rect) return [];
         out.push({
             deltaX: rect.left - fromRect.left,
             deltaY: rect.top - fromRect.top
@@ -616,8 +631,13 @@ async function handleExtremeForcedSwapMove(ev: any, deps: AnimationMoveEventDeps
         if (sourceDisc) sourceDisc.style.visibility = 'hidden';
         if (occupiedDisc) occupiedDisc.style.visibility = 'hidden';
 
-        const overlapFromRect = fromCell.getBoundingClientRect();
-        const overlapToRect = overlapCell.getBoundingClientRect();
+        const overlapFromRect = readElementRect(fromCell, deps);
+        const overlapToRect = readElementRect(overlapCell, deps);
+        if (!overlapFromRect || !overlapToRect) {
+            if (!canApplyFinalState) return false;
+            applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after, deps);
+            return true;
+        }
         overlapGhost = createMoveGhostFromState(lead.after || leadGhostState, overlapFromRect, deps);
         if (!overlapGhost) {
             if (!canApplyFinalState) return false;
@@ -655,8 +675,13 @@ async function handleExtremeForcedSwapMove(ev: any, deps: AnimationMoveEventDeps
             }
         }
 
-        const returnFromRect = overlapCell.getBoundingClientRect();
-        const returnToRect = returnCell.getBoundingClientRect();
+        const returnFromRect = readElementRect(overlapCell, deps);
+        const returnToRect = readElementRect(returnCell, deps);
+        if (!returnFromRect || !returnToRect) {
+            if (!canApplyFinalState) return false;
+            applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after, deps);
+            return true;
+        }
         returnGhost = createMoveGhostFromState(follow.after || followGhostState, returnFromRect, deps);
         if (!returnGhost) {
             if (!canApplyFinalState) return false;
@@ -743,8 +768,9 @@ async function handleMoveEvent(ev: any, deps: AnimationMoveEventDeps) {
             const useGhostOnly = moveContext.useGhostOnly;
             ensureMoveDiscVisible(disc);
 
-            const fromRect = fromCell.getBoundingClientRect();
-            const toRect = toCell.getBoundingClientRect();
+            const fromRect = readElementRect(fromCell, deps);
+            const toRect = readElementRect(toCell, deps);
+            if (!fromRect || !toRect) return;
             const deltaX = toRect.left - fromRect.left;
             const deltaY = toRect.top - fromRect.top;
             const waypointDeltas = resolveMoveWaypointDeltas(target, fromRect, deps);

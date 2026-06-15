@@ -1846,7 +1846,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 resolveMoveDurationScale: (target: any) => this._resolveMoveDurationScale(target),
                 waitForAnimationFinish: (animation: any, durationMs: any, timeoutBufferMs: any) => this._waitForAnimationFinish(animation, durationMs, timeoutBufferMs),
                 syncDiscVisual: (disc: any, after: any) => this.syncDiscVisual(disc, after),
-                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc)
+                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
+                layoutBatch: this._getPhaseLayoutBatch()
             });
         }
 

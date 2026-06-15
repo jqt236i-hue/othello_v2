@@ -214,8 +214,9 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
     const toCell = deps.getCellEl(target.r, target.col);
     if (!fromCell || !toCell) return;
 
-    const fromRect = fromCell.getBoundingClientRect();
-    const toRect = toCell.getBoundingClientRect();
+    const fromRect = readElementRect(fromCell, deps);
+    const toRect = readElementRect(toCell, deps);
+    if (!fromRect || !toRect) return;
 
     const fromX = fromRect.left + (fromRect.width / 2);
     const fromY = fromRect.top + (fromRect.height / 2);
@@ -349,8 +350,9 @@ async function animateMeteorGodBlackBeam(target: any, deps: DestroySourceAnimati
     if (!fromCell || !toCell) return;
     if (!document || !document.body) return;
 
-    const fromRect = fromCell.getBoundingClientRect();
-    const toRect = toCell.getBoundingClientRect();
+    const fromRect = readElementRect(fromCell, deps);
+    const toRect = readElementRect(toCell, deps);
+    if (!fromRect || !toRect) return;
 
     const fromX = fromRect.left + (fromRect.width / 2);
     const fromY = fromRect.top + (fromRect.height / 2);
@@ -815,7 +817,8 @@ async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimat
     const cell = deps.getCellEl(target.r, target.col);
     if (!cell) return;
 
-    const cellRect = cell.getBoundingClientRect();
+    const cellRect = readElementRect(cell, deps);
+    if (!cellRect) return;
     const source = deps.resolveSniperSource(target);
     const slash = document.createElement('div');
     slash.className = 'will-hunter-king-slash';
@@ -824,11 +827,13 @@ async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimat
     if (source) {
         const sourceCell = deps.getCellEl(source.row, source.col);
         if (sourceCell) {
-            const sourceRect = sourceCell.getBoundingClientRect();
-            angleDeg = Math.atan2(
-                (cellRect.top + (cellRect.height / 2)) - (sourceRect.top + (sourceRect.height / 2)),
-                (cellRect.left + (cellRect.width / 2)) - (sourceRect.left + (sourceRect.width / 2))
-            ) * (180 / Math.PI);
+            const sourceRect = readElementRect(sourceCell, deps);
+            if (sourceRect) {
+                angleDeg = Math.atan2(
+                    (cellRect.top + (cellRect.height / 2)) - (sourceRect.top + (sourceRect.height / 2)),
+                    (cellRect.left + (cellRect.width / 2)) - (sourceRect.left + (sourceRect.width / 2))
+                ) * (180 / Math.PI);
+            }
         }
     }
 
