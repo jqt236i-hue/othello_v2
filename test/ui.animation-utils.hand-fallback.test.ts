@@ -311,6 +311,27 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
+  test('playCardUseHandAnimation falls back to card face preload when path resolver returns no art', async () => {
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      card_1: 'assets/images/card/from-card-face.png'
+    });
+    const resolveCardBackgroundArtPath = jest.fn(() => '');
+    global.resolveCardBackgroundArtPath = resolveCardBackgroundArtPath;
+    window.resolveCardBackgroundArtPath = resolveCardBackgroundArtPath;
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = undefined;
+    const mod = require('../ui/animation-utils.js');
+
+    const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_1', cost: 5, name: 'Test' });
+    await Promise.resolve();
+
+    expect(resolveCardBackgroundArtPath).toHaveBeenCalledWith('card_1', expect.objectContaining({ ownerKey: 'black' }));
+    expect(global.createCardFaceElement).toHaveBeenCalled();
+    expect(imageSrcs).toContain('assets/images/card/from-card-face.png');
+    await expect(promise).resolves.toBeUndefined();
+  });
+
   test('playCardUseHandAnimation preloads the visual descriptor card background when payload cardId is hidden', async () => {
     const imageSrcs = [];
     installCardBackgroundPreloadFixture(imageSrcs, {

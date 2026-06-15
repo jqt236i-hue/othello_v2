@@ -643,8 +643,10 @@ function _resolveCardFaceArtPathForPreload(cardId: any, options: any = {}) {
             const resolvedPath = _normalizeCardFaceArtPreloadPath(
                 resolveCardBackgroundArtPath(normalizedCardId, { ownerKey: ownerKey || undefined })
             );
-            if (pathCache) pathCache[cacheKey] = resolvedPath || '';
-            return resolvedPath || '';
+            if (resolvedPath) {
+                if (pathCache) pathCache[cacheKey] = resolvedPath;
+                return resolvedPath;
+            }
         } catch (e: any) { /* fall through to compatibility path */ }
     }
     const createCardFaceElement = _resolveCreateCardFaceElement();
