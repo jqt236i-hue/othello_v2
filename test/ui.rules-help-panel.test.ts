@@ -320,7 +320,20 @@ describe('rules help panel', () => {
 
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
-    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['特殊石', '反転回避', '破壊回避']);
+    const tagButtons = Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')) as HTMLButtonElement[];
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '反転回避', '破壊回避']);
+    expect(tagButtons.every((el) => el.tagName === 'BUTTON')).toBe(true);
+
+    tagButtons[0].click();
+
+    const popover = document.querySelector('.rules-help-tag-popover') as HTMLElement;
+    expect(popover).toBeTruthy();
+    expect(popover.getAttribute('aria-hidden')).toBe('false');
+    expect(popover.querySelector('[data-tag-popover-title]').textContent).toBe('特殊石');
+    expect(popover.querySelector('[data-tag-popover-body]').textContent).toContain('盤面に残って次ターン以降も能力主体');
+
+    (popover.querySelector('.rules-help-tag-popover-close') as HTMLButtonElement).click();
+    expect(popover.getAttribute('aria-hidden')).toBe('true');
 
     const cardButtons = Array.from(document.querySelectorAll('.rules-help-card-item'));
     cardButtons[1].click();
@@ -483,6 +496,62 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
+  });
+
+  test('effect glossary shares card tag descriptions and includes inviolable', () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
+        <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
+        <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page">
+          <dl id="rules-help-effects-list"></dl>
+        </section>
+        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
+        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
+      </div>
+    </body></html>`);
+
+    window.CardCatalog = { cards: [] };
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+    btn.click();
+
+    const terms = Array.from(document.querySelectorAll('.rules-help-effect-term-button')).map((el) => el.textContent);
+    expect(terms).toEqual(expect.arrayContaining([
+      '特殊石',
+      '穴マス化',
+      '不可侵',
+      '反転保護',
+      '完全保護',
+      '反転回避',
+      '破壊回避'
+    ]));
+
+    const inviolableButton = Array.from(document.querySelectorAll('.rules-help-effect-term-button'))
+      .find((el) => el.textContent === '不可侵') as HTMLButtonElement;
+    expect(inviolableButton).toBeTruthy();
+
+    inviolableButton.click();
+
+    const popover = document.querySelector('.rules-help-tag-popover') as HTMLElement;
+    expect(popover).toBeTruthy();
+    expect(popover.getAttribute('aria-hidden')).toBe('false');
+    expect(popover.querySelector('[data-tag-popover-title]').textContent).toBe('不可侵');
+    expect(popover.querySelector('[data-tag-popover-body]').textContent).toContain('通常のカード効果や手札効果の対象から外す');
   });
 
   test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
