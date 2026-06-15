@@ -162,9 +162,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
     var BoardUpdateDispatch = (AnimationResolver && typeof AnimationResolver.resolveModuleOrGlobal === 'function')
         ? AnimationResolver.resolveModuleOrGlobal('./board-update-dispatch', 'BoardUpdateDispatch')
         : ((typeof require === 'function') ? requireRuntimeModuleOrNull('./board-update-dispatch') : readWindowGlobal('BoardUpdateDispatch'));
-    var PerformanceMonitor = (AnimationResolver && typeof AnimationResolver.resolveModuleOrGlobal === 'function')
-        ? AnimationResolver.resolveModuleOrGlobal('./performance-monitor', 'CardReversiPerformanceMonitor')
-        : ((typeof require === 'function') ? requireRuntimeModuleOrNull('./performance-monitor') : readWindowGlobal('CardReversiPerformanceMonitor'));
     var _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
         if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
         return {
@@ -197,39 +194,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
         } catch (e: any) { /* ignore */ }
         return null;
-    }
-
-    function _getPerformanceMonitor(): any {
-        if (PerformanceMonitor) return PerformanceMonitor;
-        const rootRef = _getUiRootRef();
-        return rootRef && rootRef.CardReversiPerformanceMonitor ? rootRef.CardReversiPerformanceMonitor : null;
-    }
-
-    function _perfCount(name: string, amount?: number, meta?: any) {
-        const monitor = _getPerformanceMonitor();
-        if (!monitor || typeof monitor.count !== 'function') return;
-        try { monitor.count(name, amount, meta); } catch (e: any) { /* ignore */ }
-    }
-
-    function _perfBeginSpan(name: string, meta?: any): any {
-        const monitor = _getPerformanceMonitor();
-        if (!monitor || typeof monitor.beginSpan !== 'function') return null;
-        try { return monitor.beginSpan(name, meta); } catch (e: any) { return null; }
-    }
-
-    function _perfEndSpan(token: any, meta?: any) {
-        const monitor = _getPerformanceMonitor();
-        if (!monitor || typeof monitor.endSpan !== 'function') return;
-        try { monitor.endSpan(token, meta); } catch (e: any) { /* ignore */ }
-    }
-
-    function _buildPlaybackEventTypeCounts(events: any[]): any {
-        const counts: Record<string, number> = {};
-        for (const event of events || []) {
-            const type = String(event && event.type ? event.type : 'unknown');
-            counts[type] = (counts[type] || 0) + 1;
-        }
-        return counts;
     }
 
     function _consumeLocalPlaybackSoundSkip(soundKey: any) {
@@ -1118,16 +1082,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             const runId = this._playbackRunSequence + 1;
             this._playbackRunSequence = runId;
             this._activePlaybackRunId = runId;
-            const phases = this.groupByPhase(normalizedEvents);
-            const sortedPhases = Object.keys(phases).sort((a, b) => Number(a) - Number(b));
-            const playbackPerfMeta = {
-                runId,
-                eventCount: normalizedEvents.length,
-                phaseCount: sortedPhases.length,
-                typeCounts: _buildPlaybackEventTypeCounts(normalizedEvents)
-            };
-            _perfCount('animation.playback.events', normalizedEvents.length, playbackPerfMeta);
-            const playbackPerfToken = _perfBeginSpan('animation.playback', playbackPerfMeta);
             const runState = {
                 scope: null,
                 watchdogId: null,
@@ -1160,7 +1114,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 }
                 runState.watchdogId = this._watchdogId;
 
+                // Group by phase
                 this._remainingEvents = normalizedEvents.slice();
+                const phases = this.groupByPhase(normalizedEvents);
+                const sortedPhases = Object.keys(phases).sort((a, b) => Number(a) - Number(b));
 
                 for (const phase of sortedPhases) {
                     if (this.isAborted) {
@@ -1247,12 +1204,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         _requestBoardUpdate();
                     }
                 }
-                _perfEndSpan(playbackPerfToken, {
-                    runId,
-                    completed: !abortedDuringPlay && !this._watchdogFired && !runState.externallyAborted,
-                    aborted: abortedDuringPlay || runState.externallyAborted,
-                    watchdogFired: this._watchdogFired === true
-                });
               }
         }
         groupByPhase(events: any) {
@@ -1379,70 +1330,56 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
         async executePhase(phaseEvents: any) {
             const events = Array.isArray(phaseEvents) ? phaseEvents.slice() : [];
-            const phaseValue = events.length && events[0] ? Number(events[0].phase || 0) : 0;
-            const phasePerfMeta = {
-                phase: Number.isFinite(phaseValue) ? phaseValue : 0,
-                eventCount: events.length,
-                typeCounts: _buildPlaybackEventTypeCounts(events)
-            };
-            _perfCount('animation.playback.phase.events', events.length, phasePerfMeta);
-            const phasePerfToken = _perfBeginSpan('animation.playback.phase', phasePerfMeta);
-            try {
-                const hasTreasureGainCue = events.some((ev) => {
-                    if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
-                    if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
-                    const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                    return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
-                });
+            const hasTreasureGainCue = events.some((ev) => {
+                if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
+                if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
+                const targets = Array.isArray(ev.targets) ? ev.targets : [];
+                return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
+            });
 
-                const effectiveEvents = hasTreasureGainCue
-                    ? events
-                        .map((ev) => {
-                            if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return ev;
-                            const keys = [];
-                            if (ev.soundKey) keys.push(String(ev.soundKey).trim());
-                            const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                            for (const t of targets) {
-                                if (t && t.soundKey) keys.push(String(t.soundKey).trim());
-                            }
-                            const filtered = keys.filter((k) => k && k !== 'charge_gain_common');
-                            if (!filtered.length) return null;
-                            const nextEv = Object.assign({}, ev);
-                            delete nextEv.soundKey;
-                            nextEv.targets = filtered.map((soundKey) => ({ soundKey }));
-                            return nextEv;
-                        })
-                        .filter((ev) => !!ev)
-                    : events;
+            const effectiveEvents = hasTreasureGainCue
+                ? events
+                    .map((ev) => {
+                        if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return ev;
+                        const keys = [];
+                        if (ev.soundKey) keys.push(String(ev.soundKey).trim());
+                        const targets = Array.isArray(ev.targets) ? ev.targets : [];
+                        for (const t of targets) {
+                            if (t && t.soundKey) keys.push(String(t.soundKey).trim());
+                        }
+                        const filtered = keys.filter((k) => k && k !== 'charge_gain_common');
+                        if (!filtered.length) return null;
+                        const nextEv = Object.assign({}, ev);
+                        delete nextEv.soundKey;
+                        nextEv.targets = filtered.map((soundKey) => ({ soundKey }));
+                        return nextEv;
+                    })
+                    .filter((ev) => !!ev)
+                : events;
 
-                const manifestEndingEvents = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.MANIFEST_ENDING);
-                if (manifestEndingEvents.length) {
-                    const remainingEvents = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.MANIFEST_ENDING);
-                    for (const ev of manifestEndingEvents) {
-                        await this.executeEvent(ev);
-                    }
-                    if (remainingEvents.length) {
-                        await this.executePhase(remainingEvents);
-                    }
-                    return;
+            const manifestEndingEvents = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.MANIFEST_ENDING);
+            if (manifestEndingEvents.length) {
+                const remainingEvents = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.MANIFEST_ENDING);
+                for (const ev of manifestEndingEvents) {
+                    await this.executeEvent(ev);
                 }
-
-                // Batch flip events within the same phase so that multiple flips animate together.
-                const phaseContext = this._buildPhaseContext(effectiveEvents);
-                await this._withPhaseContext(phaseContext, async () => {
-                    const flips = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.FLIP);
-                    const nonFlips = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.FLIP);
-
-                    const promises = [];
-                    if (flips.length) promises.push(this.executeFlipBatch(flips));
-                    if (nonFlips.length) promises.push(...nonFlips.map(ev => this.executeEvent(ev)));
-                    await Promise.all(promises);
-                });
-            } finally {
-                _perfEndSpan(phasePerfToken, {
-                    completed: this.isAborted !== true
-                });
+                if (remainingEvents.length) {
+                    await this.executePhase(remainingEvents);
+                }
+                return;
             }
+
+            // Batch flip events within the same phase so that multiple flips animate together.
+            const phaseContext = this._buildPhaseContext(effectiveEvents);
+            await this._withPhaseContext(phaseContext, async () => {
+                const flips = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.FLIP);
+                const nonFlips = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.FLIP);
+
+                const promises = [];
+                if (flips.length) promises.push(this.executeFlipBatch(flips));
+                if (nonFlips.length) promises.push(...nonFlips.map(ev => this.executeEvent(ev)));
+                await Promise.all(promises);
+            });
         }
 
         async _sleep(ms: any) {

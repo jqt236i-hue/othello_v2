@@ -63,46 +63,6 @@ if (typeof require === 'function') {
     try { BoardRendererHintProjectionModule = require('../shared/board-hint-projection'); } catch (e: any) { /* ignore */ }
 }
 
-var BoardRendererPerformanceMonitorModule: any = null;
-if (typeof require === 'function') {
-    try { BoardRendererPerformanceMonitorModule = require('./performance-monitor'); } catch (e: any) { /* ignore */ }
-}
-
-function _getPerformanceMonitorForBoardRenderer() {
-    if (BoardRendererPerformanceMonitorModule) return BoardRendererPerformanceMonitorModule;
-    try {
-        if (typeof window !== 'undefined' && (window as any).CardReversiPerformanceMonitor) {
-            BoardRendererPerformanceMonitorModule = (window as any).CardReversiPerformanceMonitor;
-            return BoardRendererPerformanceMonitorModule;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CardReversiPerformanceMonitor) {
-            BoardRendererPerformanceMonitorModule = (globalThis as any).CardReversiPerformanceMonitor;
-            return BoardRendererPerformanceMonitorModule;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
-function _perfCountForBoardRenderer(name: string, amount?: number, meta?: any) {
-    const monitor = _getPerformanceMonitorForBoardRenderer();
-    if (!monitor || typeof monitor.count !== 'function') return;
-    try { monitor.count(name, amount, meta); } catch (e: any) { /* ignore */ }
-}
-
-function _perfBeginSpanForBoardRenderer(name: string, meta?: any): any {
-    const monitor = _getPerformanceMonitorForBoardRenderer();
-    if (!monitor || typeof monitor.beginSpan !== 'function') return null;
-    try { return monitor.beginSpan(name, meta); } catch (e: any) { return null; }
-}
-
-function _perfEndSpanForBoardRenderer(token: any, meta?: any) {
-    const monitor = _getPerformanceMonitorForBoardRenderer();
-    if (!monitor || typeof monitor.endSpan !== 'function') return;
-    try { monitor.endSpan(token, meta); } catch (e: any) { /* ignore */ }
-}
-
 function _getBoardHintProjectionForBoardRenderer() {
     if (BoardRendererHintProjectionModule) return BoardRendererHintProjectionModule;
     try {
@@ -858,57 +818,46 @@ function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, hintProjection:
 }
 
 function renderBoard() {
-    const perfMeta = { entry: 'renderBoard' };
-    _perfCountForBoardRenderer('ui.renderBoard.calls', 1, perfMeta);
-    const perfToken = _perfBeginSpanForBoardRenderer('ui.renderBoard', perfMeta);
-    let skippedForPlayback = false;
-    let completed = false;
-    try {
-        _syncTimeStopClassForBoardRenderer();
-        // Single Visual Writer: skip renders while playback is active or already queued.
-        const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
-        const allowBoardUpdateDuringPlayback = !!(
-            boardUpdateSyncContext
-            && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
-        );
-        if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
-            skippedForPlayback = true;
-            return;
-        }
-        // Determine whether we are in a "target selection" card mode.
-        // In selection mode, normal "placeable move" hints must not appear.
-        try {
-            const player = gameState.currentPlayer;
-            const playerKey = getPlayerKey(player);
-            const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
-            const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
-                ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-                : [];
-            const isSelectingTarget = !!(
-                pending &&
-                pending.stage === 'selectTarget' &&
-                Array.isArray(selectableTargets) &&
-                selectableTargets.length > 0
-            );
-            if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
-        } catch (e: any) {
-            // UI only
-        }
-        syncBoardPixelSizing(boardEl);
-
-        // Use differential rendering if available
-        if (typeof renderBoardDiff === 'function') {
-            renderBoardDiff(boardEl);
-        } else {
-            // diff-renderer is required; avoid legacy full render path
-            console.error('[Board Renderer] diff-renderer.js not loaded; rendering skipped');
-            return;
-        }
-        updateOccupancyUI();
-        completed = true;
-    } finally {
-        _perfEndSpanForBoardRenderer(perfToken, { completed, skippedForPlayback });
+    _syncTimeStopClassForBoardRenderer();
+    // Single Visual Writer: skip renders while playback is active or already queued.
+    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
+    const allowBoardUpdateDuringPlayback = !!(
+        boardUpdateSyncContext
+        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
+    );
+    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
+        return;
     }
+    // Determine whether we are in a "target selection" card mode.
+    // In selection mode, normal "placeable move" hints must not appear.
+    try {
+        const player = gameState.currentPlayer;
+        const playerKey = getPlayerKey(player);
+        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
+            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+            : [];
+        const isSelectingTarget = !!(
+            pending &&
+            pending.stage === 'selectTarget' &&
+            Array.isArray(selectableTargets) &&
+            selectableTargets.length > 0
+        );
+        if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
+    } catch (e: any) {
+        // UI only
+    }
+    syncBoardPixelSizing(boardEl);
+
+    // Use differential rendering if available
+    if (typeof renderBoardDiff === 'function') {
+        renderBoardDiff(boardEl);
+    } else {
+        // diff-renderer is required; avoid legacy full render path
+        console.error('[Board Renderer] diff-renderer.js not loaded; rendering skipped');
+        return;
+    }
+    updateOccupancyUI();
 }
 
 /**
@@ -1087,39 +1036,26 @@ function _resolveBoardDiffResetDelegate() {
 }
 
 function renderBoardFull() {
-    const perfMeta = { entry: 'renderBoardFull' };
-    _perfCountForBoardRenderer('ui.renderBoardFull.calls', 1, perfMeta);
-    const perfToken = _perfBeginSpanForBoardRenderer('ui.renderBoardFull', perfMeta);
-    let skippedForPlayback = false;
-    let completed = false;
-    try {
-        _syncTimeStopClassForBoardRenderer();
-        // Single Visual Writer: skip renders while playback is active or already queued.
-        if (_shouldSkipBoardRenderForPlayback()) {
-            skippedForPlayback = true;
-            return;
-        }
-        const fullRender = _resolveBoardFullRenderDelegate();
-        if (typeof fullRender === 'function') {
-            fullRender(boardEl);
-            completed = true;
-            return;
-        }
-        const diffRender = _resolveBoardDiffRenderDelegate();
-        if (typeof diffRender === 'function') {
-            const resetDiffRender = _resolveBoardDiffResetDelegate();
-            if (typeof resetDiffRender === 'function') {
-                resetDiffRender();
-            }
-            diffRender(boardEl);
-            completed = true;
-            return;
-        }
-        renderBoardFullLegacy();
-        completed = true;
-    } finally {
-        _perfEndSpanForBoardRenderer(perfToken, { completed, skippedForPlayback });
+    _syncTimeStopClassForBoardRenderer();
+    // Single Visual Writer: skip renders while playback is active or already queued.
+    if (_shouldSkipBoardRenderForPlayback()) {
+        return;
     }
+    const fullRender = _resolveBoardFullRenderDelegate();
+    if (typeof fullRender === 'function') {
+        fullRender(boardEl);
+        return;
+    }
+    const diffRender = _resolveBoardDiffRenderDelegate();
+    if (typeof diffRender === 'function') {
+        const resetDiffRender = _resolveBoardDiffResetDelegate();
+        if (typeof resetDiffRender === 'function') {
+            resetDiffRender();
+        }
+        diffRender(boardEl);
+        return;
+    }
+    renderBoardFullLegacy();
 }
 
 function renderBoardFullLegacy() {
