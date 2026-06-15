@@ -221,3 +221,41 @@ Keep Single Visual Writer. During playback, defer board/card UI refreshes alread
 ## First Safe Pass
 
 Implement Task 1 and Task 2 only. They add opt-in measurement and do not change gameplay rules, event generation, or visible playback behavior.
+
+## Removal Memo: Delete Instrumentation After Measurement
+
+This performance monitor is a temporary measurement scaffold. After it has captured enough data to identify the endgame and high-special-stone bottlenecks, remove it completely unless the user explicitly decides to keep a small permanent debug surface.
+
+### Delete These Files
+
+- `ui/performance-monitor.ts`
+- `ui/performance-monitor.js`
+- `test/ui.performance-monitor.test.ts`
+- `test/ui.performance-monitor.playback.test.ts`
+- `test/ui.performance-monitor.render-lock.test.ts`
+
+### Remove These Call Sites
+
+- In `ui/animation-engine.ts`, remove the `./performance-monitor` resolver, `_perfCount`, `_perfBeginSpan`, `_perfEndSpan`, `_buildPlaybackEventTypeCounts`, and all `animation.playback*` instrumentation.
+- In `ui/playback-state-manager.ts`, remove the `./performance-monitor` resolver, `perf*` helpers, `playbackLockPerfToken`, `beginPlaybackLockPerfSpan`, `endPlaybackLockPerfSpan`, and lock span calls in `beginPlayback`, `finalizePlayback`, and `clearPlaybackLock`.
+- In `ui/board-renderer.ts`, remove the `./performance-monitor` resolver, `_perf*ForBoardRenderer` helpers, and `ui.renderBoard*` wrappers.
+- In `cards/card-renderer.ts`, remove the `../ui/performance-monitor` resolver, `_perf*ForCardRenderer` helpers, and the `renderCardUI` wrapper.
+- If `npm run build:browser` or `npm run worker:prepare` has later added generated references, regenerate after deleting the source hooks instead of hand-editing generated files first.
+
+### Keep These Invariants While Removing It
+
+- Do not change `game/`, `shared/`, CPU, or pure card logic.
+- Do not change canonical state, snapshot authority, or `events[]` meaning/order.
+- Do not change animation order, phase grouping, sound timing, or Single Visual Writer behavior.
+- Do not leave `window.CardReversiPerformanceMonitor`, `window.getCardReversiPerformanceSnapshot`, or `CARD_REVERSI_PERF_MONITOR` code paths behind unless intentionally kept as a permanent debug feature.
+
+### Verification For Deletion
+
+Run these after the deletion pass:
+
+- `rg -n "performance-monitor|CardReversiPerformanceMonitor|getCardReversiPerformanceSnapshot|CARD_REVERSI_PERF_MONITOR|animation\\.playback\\.phase|ui\\.renderBoard\\.calls|ui\\.renderCardUI\\.calls|playback\\.lock" . --glob "!dist/**" --glob "!worker-public/**"`
+- `npx jest --runInBand --runTestsByPath test/ui.animation-engine.test.ts test/ui.playback-state-manager.test.ts test/ui.card-renderer-hand-inspect.test.ts`
+- `npm run typecheck`
+- If browser generated assets had already included the monitor, run `npm run build:browser` after source deletion and review `public/module-registry.js`.
+
+Expected result: no source references to the monitor remain, nearby UI/playback/card renderer tests still pass, and normal gameplay behavior is unchanged.
