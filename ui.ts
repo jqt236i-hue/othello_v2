@@ -4,6 +4,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const RenderSchedulerModule = (() => {
+    try {
+        return _require('./ui/render-scheduler');
+    } catch (e) {
+        try {
+            return (typeof globalThis !== 'undefined') ? (globalThis as any).RenderScheduler : null;
+        } catch (e2) {
+            return null;
+        }
+    }
+})();
+
 /**
  * @file ui.ts
  * @description メインUIモジュール（縮小版）
@@ -109,39 +121,80 @@ export function _queueUiSyncMicrotask(callback: () => void) {
     Promise.resolve().then(callback).catch(() => {});
 }
 
+function _getRenderScheduler() {
+    return RenderSchedulerModule && typeof RenderSchedulerModule === 'object'
+        ? RenderSchedulerModule
+        : null;
+}
+
+function _configureRenderScheduler() {
+    const scheduler = _getRenderScheduler();
+    if (!scheduler || typeof scheduler.configureRenderScheduler !== 'function') return null;
+    scheduler.configureRenderScheduler({
+        renderBoard,
+        renderCardUI: _resolveRenderCardUiForSync(),
+        updateStatus,
+        shouldDeferUiSync: _hasPendingPlaybackOrPresentation,
+        requestAnimationFrame: (callback: FrameRequestCallback) => {
+            if (_hasPendingPlaybackOrPresentation()) {
+                return _getUiSyncRaf()(callback);
+            }
+            _queueUiSyncMicrotask(() => callback(Date.now()));
+            return 0;
+        },
+        cancelAnimationFrame: (id: number) => {
+            if (id) {
+                try {
+                    const cancel = (typeof cancelAnimationFrame === 'function')
+                        ? cancelAnimationFrame
+                        : ((typeof window !== 'undefined' && typeof (window as any).cancelAnimationFrame === 'function')
+                            ? (window as any).cancelAnimationFrame.bind(window)
+                            : null);
+                    if (cancel) cancel(id);
+                } catch (e) { /* ignore */ }
+            }
+        }
+    });
+    return scheduler;
+}
+
+function _syncUiQueueExportState() {
+    const scheduler = _getRenderScheduler();
+    const state = scheduler && typeof scheduler.getVisualUpdateState === 'function'
+        ? scheduler.getVisualUpdateState()
+        : null;
+    _deferredUiSyncQueued = !!(state && (state.boardQueued || state.statusQueued || state.scheduled));
+    _deferredUiSyncNeedsBoardRender = !!(state && state.boardQueued);
+    _deferredUiSyncNeedsStatusUpdate = !!(state && state.statusQueued);
+    _cardUiSyncQueued = !!(state && state.cardUiQueued);
+    _cardUiSyncFlushScheduled = !!(state && state.scheduled);
+    _cardUiSyncDeferredUntilIdle = !!(state && state.deferredUntilIdle);
+    _cardUiSyncReasons = state && Array.isArray(state.reasons) ? state.reasons.slice() : [];
+}
+
 export function _queueDeferredUiSyncWork(options?: any) {
     const opts = (options && typeof options === 'object') ? options : {};
-    if (opts.renderBoard === true) _deferredUiSyncNeedsBoardRender = true;
-    if (opts.updateStatus === true) _deferredUiSyncNeedsStatusUpdate = true;
+    const scheduler = _configureRenderScheduler();
+    if (scheduler && opts.renderBoard === true) {
+        scheduler.requestBoardRender({ source: 'ui.ts', reason: 'deferred-board' });
+    }
+    if (scheduler && opts.updateStatus === true) {
+        scheduler.requestStatusUpdate({ source: 'ui.ts', reason: 'deferred-status' });
+    }
+    _syncUiQueueExportState();
 }
 
 export function _flushDeferredUiSyncWork() {
-    const shouldRenderBoard = _deferredUiSyncNeedsBoardRender;
-    const shouldUpdateStatus = _deferredUiSyncNeedsStatusUpdate;
-    _deferredUiSyncNeedsBoardRender = false;
-    _deferredUiSyncNeedsStatusUpdate = false;
-    if (shouldRenderBoard) {
-        try { renderBoard(); } catch (e) { /* ignore */ }
-    }
-    if (shouldUpdateStatus) {
-        try { updateStatus(); } catch (e) { /* ignore */ }
-    }
+    const scheduler = _configureRenderScheduler();
+    const result = scheduler && typeof scheduler.flushVisualUpdates === 'function'
+        ? scheduler.flushVisualUpdates({ ignorePlayback: true })
+        : false;
+    _syncUiQueueExportState();
+    return result;
 }
 
 export function _deferUiSyncUntilPlaybackIdle(options?: any) {
     _queueDeferredUiSyncWork(options);
-    if (_deferredUiSyncQueued) return;
-    _deferredUiSyncQueued = true;
-    const raf = _getUiSyncRaf();
-    const tick = () => {
-        if (_hasPendingPlaybackOrPresentation()) {
-            raf(tick);
-            return;
-        }
-        _deferredUiSyncQueued = false;
-        _flushDeferredUiSyncWork();
-    };
-    raf(tick);
 }
 
 export function _runWhenPlaybackIdle(onIdle: () => void, options?: any) {
@@ -202,65 +255,36 @@ export function _syncVisibleChargeDisplaysNow() {
 
 export function _flushCardUiSyncQueue(options?: any) {
     const opts = (options && typeof options === 'object') ? options : {};
-    if (!_cardUiSyncQueued) return false;
-    if (opts.ignorePlayback !== true && _hasPendingPlaybackOrPresentation()) {
-        _deferCardUiSyncUntilPlaybackIdle();
-        return false;
-    }
-    _cardUiSyncQueued = false;
-    _cardUiSyncDeferredUntilIdle = false;
-    _cardUiSyncReasons = [];
-    const renderCardUiFn = _resolveRenderCardUiForSync();
-    if (typeof renderCardUiFn !== 'function') {
-        return false;
-    }
-    try {
-        renderCardUiFn();
-        return true;
-    } catch (e) {
-        return false;
-    }
+    const scheduler = _configureRenderScheduler();
+    const result = scheduler && typeof scheduler.flushVisualUpdates === 'function'
+        ? scheduler.flushVisualUpdates({ ignorePlayback: opts.ignorePlayback === true })
+        : false;
+    _syncUiQueueExportState();
+    return result;
 }
 
 export function _scheduleCardUiSyncFlush() {
-    if (_cardUiSyncFlushScheduled) return;
-    _cardUiSyncFlushScheduled = true;
-    _queueUiSyncMicrotask(() => {
-        _cardUiSyncFlushScheduled = false;
-        _flushCardUiSyncQueue();
-    });
+    const scheduler = _configureRenderScheduler();
+    if (scheduler && typeof scheduler.requestCardUiRender === 'function') {
+        scheduler.requestCardUiRender({ source: 'ui.ts', reason: 'scheduled-card-ui' });
+    }
+    _syncUiQueueExportState();
 }
 
 export function _deferCardUiSyncUntilPlaybackIdle() {
-    if (_cardUiSyncDeferredUntilIdle) return;
-    _cardUiSyncDeferredUntilIdle = true;
-    const raf = _getUiSyncRaf();
-    const tick = () => {
-        if (!_cardUiSyncQueued) {
-            _cardUiSyncDeferredUntilIdle = false;
-            return;
-        }
-        if (_hasPendingPlaybackOrPresentation()) {
-            raf(tick);
-            return;
-        }
-        _cardUiSyncDeferredUntilIdle = false;
-        _scheduleCardUiSyncFlush();
-    };
-    raf(tick);
+    _scheduleCardUiSyncFlush();
 }
 
 export function requestCardUiSync(reason?: string, options?: any) {
     const opts = (options && typeof options === 'object') ? options : {};
+    const scheduler = _configureRenderScheduler();
     const normalizedReason = String(reason || opts.reason || '').trim();
-    if (normalizedReason) {
-        _cardUiSyncReasons.push(normalizedReason);
-    }
-    _cardUiSyncQueued = true;
+    if (!scheduler || typeof scheduler.requestCardUiRender !== 'function') return false;
+    scheduler.requestCardUiRender({ source: 'ui.ts', reason: normalizedReason || 'request-card-ui-sync' });
     if (opts.deferUntilIdle === false) {
-        return _flushCardUiSyncQueue({ ignorePlayback: true });
+        scheduler.flushVisualUpdates({ ignorePlayback: true });
     }
-    _scheduleCardUiSyncFlush();
+    _syncUiQueueExportState();
     return true;
 }
 

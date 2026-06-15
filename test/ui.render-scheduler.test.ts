@@ -96,4 +96,29 @@ describe('ui render scheduler', () => {
     expect(scheduler.flushNow({ ignorePlayback: true })).toBe(true);
     expect(calls).toEqual(['board', 'card', 'status']);
   });
+
+  test('ui requestCardUiSync still coalesces through scheduler-compatible state', async () => {
+    jest.resetModules();
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
+      cb(16);
+      return 1;
+    };
+    (global as any).window.renderCardUI = jest.fn();
+    (global as any).window.renderBoard = jest.fn();
+
+    const ui = require('../ui.ts');
+    expect(ui.requestCardUiSync('unit')).toBe(true);
+    await Promise.resolve();
+
+    expect((global as any).window.renderCardUI).toHaveBeenCalledTimes(1);
+
+    dom.window.close();
+    delete (global as any).window;
+    delete (global as any).document;
+    delete (global as any).requestAnimationFrame;
+  });
 });
