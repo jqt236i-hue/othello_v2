@@ -90,6 +90,14 @@ describe('card surface layout contract', () => {
       expect(layoutInfoCss).toMatch(new RegExp(`\\.rules-help-card-tag-filter\\.${className}[\\s\\S]*--rules-help-tag-filter-border:[\\s\\S]*--rules-help-tag-filter-color:[\\s\\S]*--rules-help-tag-filter-bg:`));
     }
   });
+  test('rules help tag filter layout stays stable while filters are active', () => {
+    const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
+
+    expect(layoutInfoCss).toMatch(/#rules-help-catalog-controls\s*\{[\s\S]*grid-template-columns:\s*auto\s+minmax\(180px,\s*260px\)\s+minmax\(0,\s*1fr\)\s+minmax\(calc\(70px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(layoutInfoCss).toMatch(/#rules-help-card-tag-filters\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(calc\(76px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(76px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+    expect(layoutInfoCss).toMatch(/\.rules-help-card-tag-filter\s*\{[\s\S]*width:\s*100%/);
+    expect(layoutInfoCss).toMatch(/#rules-help-card-filter-status\s*\{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis/);
+  });
 
   test('card surfaces suppress type badges while keeping other card layout tokens intact', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');

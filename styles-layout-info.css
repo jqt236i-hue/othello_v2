@@ -1270,7 +1270,7 @@
 
 #rules-help-catalog-controls {
     display: grid;
-    grid-template-columns: auto minmax(180px, 260px) minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(180px, 260px) minmax(0, 1fr) minmax(calc(70px * var(--layout-stage-scale)), calc(96px * var(--layout-stage-scale)));
     align-items: center;
     gap: calc(8px * var(--layout-stage-scale));
     width: 100%;
@@ -1334,9 +1334,10 @@
 }
 
 #rules-help-card-tag-filters {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(76px * var(--layout-stage-scale)), calc(76px * var(--layout-stage-scale))));
     align-items: center;
-    flex-wrap: wrap;
+    justify-content: start;
     min-width: 0;
     max-height: calc(72px * var(--layout-stage-scale));
     overflow-y: auto;
@@ -1359,6 +1360,7 @@
     border-radius: calc(999px * var(--layout-stage-scale));
     background: var(--rules-help-tag-filter-bg);
     color: var(--rules-help-tag-filter-color);
+    width: 100%;
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 700;
     line-height: 1;
@@ -1446,10 +1448,14 @@
 
 #rules-help-card-filter-status {
     justify-self: end;
+    min-width: 0;
+    max-width: calc(96px * var(--layout-stage-scale));
     color: rgba(235, 224, 204, 0.72);
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 700;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #rules-help-catalog-layout {
