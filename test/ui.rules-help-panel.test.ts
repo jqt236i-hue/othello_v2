@@ -366,8 +366,16 @@ describe('rules help panel', () => {
             distinctDetailText: '反転回避と破壊回避を持つ。',
             effectTags: [
               { kind: 'special-stone', label: '特殊石' },
+              { kind: 'delayed-activation-turns', value: 5, label: '5ターン後に発動' },
               { kind: 'flip-evasion', value: 3, label: '反転回避' },
               { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
+            ]
+          },
+          meteor_01: {
+            quickText: 'マス1つを永続の穴にする。',
+            distinctDetailText: '穴マスは配置できず反転経路を遮断する。',
+            effectTags: [
+              { kind: 'hole-cell', label: '穴マス化' }
             ]
           },
           guard_01: {
@@ -398,6 +406,7 @@ describe('rules help panel', () => {
     window.CardCatalog = {
       cards: [
         { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 1, desc: '完全保護を付与する', display_type_ja: '守護' },
+        { id: 'meteor_01', name: '因果抹消', type: 'METEOR_WILL', cost: 10, desc: 'マスを穴にする', display_type_ja: '禁忌' },
         { id: 'afterimage_will_01', name: '避ける意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '残像石化する', display_type_ja: '回避' },
         { id: 'blockade_01', name: '封鎖の意志', type: 'BLOCKADE_WILL', cost: 7, desc: '封鎖マスを作る', display_type_ja: '妨害' },
         { id: 'supply_01', name: '補給の意志', type: 'SUPPLY_WILL', cost: 2, desc: '山札から2枚ドロー', display_type_ja: '補給' }
@@ -417,19 +426,20 @@ describe('rules help panel', () => {
     const cardNames = () => Array.from(document.querySelectorAll('.rules-help-card-item-name')).map((el) => el.textContent);
     const selectedTitle = () => document.querySelector('#rules-help-card-name .rules-help-card-title').textContent;
 
-    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志']);
-    expect(tagLabels()).toEqual(['完全保護', '特殊石', '反転回避', '破壊回避']);
-    expect(filterStatus.textContent).toContain('4 / 4枚');
+    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
+    expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '反転回避', '破壊回避']);
+    expect(tagLabels()).not.toContain('5ターン後に発動');
+    expect(filterStatus.textContent).toContain('5 / 5枚');
 
     searchInput.value = '完全保護';
     searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
 
     expect(cardNames()).toEqual(['守る意志']);
     expect(selectedTitle()).toBe('守る意志');
-    expect(filterStatus.textContent).toContain('1 / 4枚');
+    expect(filterStatus.textContent).toContain('1 / 5枚');
 
     clearButton.click();
-    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志']);
+    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
     expect(searchInput.value).toBe('');
 
     const specialStoneFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
@@ -442,6 +452,16 @@ describe('rules help panel', () => {
 
     clearButton.click();
 
+    const holeCellFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
+      .find((el) => el.textContent === '穴マス化') as HTMLButtonElement;
+    holeCellFilter.click();
+
+    expect(holeCellFilter.getAttribute('aria-pressed')).toBe('true');
+    expect(cardNames()).toEqual(['因果抹消']);
+    expect(selectedTitle()).toBe('因果抹消');
+
+    clearButton.click();
+
     const flipEvasionFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
       .find((el) => el.textContent === '反転回避') as HTMLButtonElement;
     flipEvasionFilter.click();
@@ -449,7 +469,7 @@ describe('rules help panel', () => {
     expect(flipEvasionFilter.getAttribute('aria-pressed')).toBe('true');
     expect(cardNames()).toEqual(['避ける意志']);
     expect(selectedTitle()).toBe('避ける意志');
-    expect(filterStatus.textContent).toContain('1 / 4枚');
+    expect(filterStatus.textContent).toContain('1 / 5枚');
 
     searchInput.value = '山札';
     searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));

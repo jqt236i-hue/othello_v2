@@ -21,11 +21,15 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getNumericTagLabels('ROBOT_VACUUM_WILL')).toEqual([]);
   });
 
-  test('TIME_BOMB, TIME_STOP_GOD, PERMA_PROTECT_NEXT_STONE, and SEED_WILL use delayed activation tags', () => {
-    expect(getNumericTagLabels('TIME_BOMB')).toEqual(['3ターン後に発動']);
-    expect(getNumericTagLabels('TIME_STOP_GOD')).toEqual(['5ターン後に発動']);
-    expect(getNumericTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['10ターン後に発動']);
-    expect(getNumericTagLabels('SEED_WILL')).toEqual(['5ターン後に発動']);
+  test('delayed activation timing is not exposed as a card filter tag', () => {
+    expect(getEffectTagLabels('TIME_BOMB')).toEqual(['特殊石']);
+    expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石']);
+    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
+    expect(getEffectTagLabels('SEED_WILL')).toEqual([]);
+    expect(getNumericTagLabels('TIME_BOMB')).toEqual([]);
+    expect(getNumericTagLabels('TIME_STOP_GOD')).toEqual([]);
+    expect(getNumericTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual([]);
+    expect(getNumericTagLabels('SEED_WILL')).toEqual([]);
   });
 
   test('TRAP_WILL and RIBO_WILL do not invent numeric tags for opponent-turn or repayment wording', () => {
@@ -35,8 +39,8 @@ describe('CardInteractionEffects effect tags', () => {
 
   test('special stone tag audit follows the rulebook special-stone definition', () => {
     expect(getEffectTagLabels('TRAP_WILL')).toEqual(['特殊石']);
-    expect(getEffectTagLabels('TIME_BOMB')).toEqual(['特殊石', '3ターン後に発動']);
-    expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石', '5ターン後に発動']);
+    expect(getEffectTagLabels('TIME_BOMB')).toEqual(['特殊石']);
+    expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石']);
     expect(getEffectTagLabels('REGEN_WILL')).toEqual(['特殊石']);
     expect(getEffectTagLabels('HYPERACTIVE_WILL')).toEqual(['特殊石', '反転回避']);
     expect(getEffectTagLabels('ESCAPE_WILL')).toEqual(['特殊石', '反転回避']);
@@ -51,7 +55,7 @@ describe('CardInteractionEffects effect tags', () => {
 
   test('protection tag audit covers all cards that should expose 反転保護 or 完全保護', () => {
     expect(getEffectTagLabels('PROTECTED_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
-    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護', '10ターン後に発動']);
+    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('ANCHOR_WILL')).toEqual(['反転保護']);
     expect(getEffectTagLabels('ULTIMATE_REVERSE_DRAGON')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('BREEDING_WILL')).toEqual(['特殊石', '反転保護']);
@@ -61,7 +65,16 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('DESTROY_DRAGON_WILL')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('LIGHTNING_WILL')).toEqual(['特殊石', '反転保護']);
-    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '反転保護']);
+    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '反転保護', '穴マス化']);
+  });
+
+  test('hole-cell tag audit covers cards that make permanent hole cells', () => {
+    expect(getEffectTagLabels('CELL_TELEPORT_WILL')).toEqual(['穴マス化']);
+    expect(getEffectTagLabels('METEOR_WILL')).toEqual(['穴マス化']);
+    expect(getEffectTagLabels('BOARD_SHRINK_WILL')).toEqual(['穴マス化']);
+    expect(getEffectTagLabels('BOARD_SHRINK_GOD')).toEqual(['穴マス化']);
+    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['穴マス化', '不可侵']);
+    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '反転保護', '穴マス化']);
   });
 
   test('numeric tag resolver stays numeric-only even after protection tags are added', () => {

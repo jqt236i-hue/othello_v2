@@ -1373,6 +1373,12 @@
     background: rgba(29, 92, 60, 0.16);
 }
 
+.rules-help-card-tag-filter.is-hole-cell {
+    border-color: rgba(178, 161, 225, 0.42);
+    color: #d0c2ff;
+    background: rgba(53, 42, 88, 0.18);
+}
+
 .rules-help-card-tag-filter.is-active {
     border-color: rgba(242, 201, 95, 0.78);
     color: #ffecb3;

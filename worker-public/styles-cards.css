@@ -1787,6 +1787,16 @@
         linear-gradient(135deg, rgba(24, 67, 45, 0.94), rgba(8, 14, 11, 0.90));
 }
 
+.card-detail-effect-tag.is-hole-cell,
+.rules-help-card-tag.is-hole-cell {
+    --card-detail-tag-accent: rgba(178, 161, 225, 0.76);
+    color: #d0c2ff;
+    border-color: rgba(178, 161, 225, 0.58);
+    background:
+        linear-gradient(180deg, rgba(178, 161, 225, 0.16), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(44, 36, 70, 0.94), rgba(10, 9, 14, 0.90));
+}
+
 .card-detail-effect-tag.is-flip-protection,
 .rules-help-card-tag.is-flip-protection {
     --card-detail-tag-accent: rgba(159, 232, 255, 0.78);
@@ -1815,16 +1825,6 @@
     background:
         linear-gradient(180deg, rgba(255, 177, 138, 0.16), rgba(255, 255, 255, 0) 46%),
         linear-gradient(135deg, rgba(75, 38, 24, 0.94), rgba(14, 10, 9, 0.90));
-}
-
-.card-detail-effect-tag.is-delayed-activation-turns,
-.rules-help-card-tag.is-delayed-activation-turns {
-    --card-detail-tag-accent: rgba(185, 223, 122, 0.76);
-    color: #b9df7a;
-    border-color: rgba(185, 223, 122, 0.58);
-    background:
-        linear-gradient(180deg, rgba(185, 223, 122, 0.16), rgba(255, 255, 255, 0) 46%),
-        linear-gradient(135deg, rgba(46, 68, 24, 0.94), rgba(10, 14, 9, 0.90));
 }
 
 .card-detail-effect-tag-button {

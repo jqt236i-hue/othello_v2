@@ -12,6 +12,7 @@ declare var CARD_DEFS: any;
 'use strict';
 
 const EFFECT_GLOSSARY_TERMS = Object.freeze([
+  '穴マス化',
   'マス破壊',
   '破壊／爆発',
   '連鎖反転',
@@ -637,7 +638,12 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       const label = _safeText(rawTag.label, '');
       if (!label) continue;
       const kind = _safeText(rawTag.kind, '').toLowerCase();
-      if (kind === 'duration-turns' || /^\d+ターン持続$/.test(label)) continue;
+      if (
+        kind === 'duration-turns' ||
+        kind === 'delayed-activation-turns' ||
+        /^\d+ターン持続$/.test(label) ||
+        /^\d+ターン後に発動$/.test(label)
+      ) continue;
       const dedupeKey = `${kind}:${label}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
@@ -650,6 +656,23 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     const normalizedKind = _safeText(kind, '').toLowerCase();
     if (!normalizedKind) return '';
     return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
+  }
+
+  const tagFilterSortOrder = new Map<string, number>([
+    ['特殊石', 10],
+    ['穴マス化', 20],
+    ['不可侵', 30],
+    ['反転保護', 40],
+    ['完全保護', 50],
+    ['反転回避', 60],
+    ['破壊回避', 70]
+  ]);
+
+  function getTagFilterSortRank(label: string): number {
+    const normalizedLabel = _safeText(label, '');
+    return tagFilterSortOrder.has(normalizedLabel)
+      ? Number(tagFilterSortOrder.get(normalizedLabel))
+      : 1000;
   }
 
   function createCardEffectTagSection(tags: any[]): HTMLDivElement | null {
@@ -798,6 +821,12 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       tagFiltersEl.appendChild(emptyEl);
       return;
     }
+
+    tagEntries.sort((a, b) => {
+      const rankDiff = getTagFilterSortRank(a && a.label) - getTagFilterSortRank(b && b.label);
+      if (rankDiff !== 0) return rankDiff;
+      return _safeText(a && a.label, '').localeCompare(_safeText(b && b.label, ''), 'ja');
+    });
 
     for (const tag of tagEntries) {
       const filterBtn = document.createElement('button');

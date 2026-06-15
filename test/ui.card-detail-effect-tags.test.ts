@@ -197,7 +197,7 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-more').textContent).toContain('最大6回特殊石を出現できる');
   });
 
-  test('BOARD_EXECUTOR shows inviolable without special-stone or duration tags', () => {
+  test('BOARD_EXECUTOR shows hole-cell and inviolable without special-stone or duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -214,7 +214,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵']);
+    expect(getTagLabels()).toEqual(['穴マス化', '不可侵']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('盤界の執行者を顕現させる');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
@@ -241,7 +241,7 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['特殊石', '反転回避', '破壊回避']);
   });
 
-  test('TIME_STOP_GOD detail follows rulebook timing text and shows delayed activation tag', () => {
+  test('TIME_STOP_GOD detail follows rulebook timing text without delayed activation tag', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -265,7 +265,39 @@ describe('card detail effect tags', () => {
     expect(detailText).toContain('5回目の所有者ターン開始時');
     expect(detailText).toContain('反転保護は持たない');
 
-    expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
+    expect(getTagLabels()).toEqual(['特殊石']);
+  });
+
+  test('METEOR_WILL and BOARD_EXECUTOR show hole-cell tags', () => {
+    require('../cards/card-interaction.js');
+
+    const meteorDef = {
+      id: 'meteor_01',
+      name: '因果抹消',
+      type: 'METEOR_WILL',
+      cost: 10,
+      desc: 'マス1つを選び石ごと完全消滅させて永続の穴にする。'
+    };
+    global.cardState.selectedCardId = meteorDef.id;
+    global.cardState.hands.black = [meteorDef.id];
+    global.CardLogic.getCardDef = () => meteorDef;
+
+    window.updateCardDetailPanel();
+    expect(getTagLabels()).toEqual(['穴マス化']);
+
+    const boardExecutorDef = {
+      id: 'board_executor_01',
+      name: '盤界の執行者',
+      type: 'BOARD_EXECUTOR',
+      cost: 0,
+      desc: '盤面上のすべての特殊石を穴にし、盤界の執行者を顕現させる。'
+    };
+    global.cardState.selectedCardId = boardExecutorDef.id;
+    global.cardState.hands.black = [boardExecutorDef.id];
+    global.CardLogic.getCardDef = () => boardExecutorDef;
+
+    window.updateCardDetailPanel();
+    expect(getTagLabels()).toEqual(['穴マス化', '不可侵']);
   });
 
   test('TRAP_WILL keeps opponent-turn wording in text and shows the special stone tag', () => {
