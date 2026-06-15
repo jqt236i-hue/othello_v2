@@ -87,6 +87,7 @@ describe('card use source element selection', () => {
     delete global.window;
     delete global.document;
     delete global.renderBoard;
+    delete global.requestCardUiSync;
   });
 
   test('prefers owner hand element when same card id exists in both hands', () => {
@@ -218,6 +219,22 @@ describe('card use source element selection', () => {
     expect(global.cardState.selectedCardOwnerKey).toBeNull();
     expect(global.renderCardUI).toHaveBeenCalledTimes(2);
     expect(global.renderBoard).toHaveBeenCalledTimes(2);
+  });
+
+  test('onCardClick requests coalesced card UI sync when scheduler bridge is available', () => {
+    global.requestCardUiSync = jest.fn();
+    window.requestCardUiSync = global.requestCardUiSync;
+    require('../cards/card-interaction.js');
+
+    global.cardState.selectedCardId = null;
+    global.cardState.selectedCardOwnerKey = null;
+
+    window.onCardClick('dup_card', 'black');
+
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.requestCardUiSync).toHaveBeenCalledWith('card-interaction:select-card');
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+    expect(global.renderBoard).toHaveBeenCalledTimes(1);
   });
 
   test('network mode resolves local seat from BOARD_VIEWER_KEY when LOCAL_PLAYER_KEY is missing', () => {

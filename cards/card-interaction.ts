@@ -146,6 +146,18 @@ function _requestImmediateVisualBoardRefresh() {
     _requestImmediateBoardRefresh();
 }
 
+function _requestCardUiSyncForInteraction(reason: any) {
+    const requestCardUiSyncFn = _readCardInteractionRuntimeFunction('requestCardUiSync');
+    if (typeof requestCardUiSyncFn === 'function') {
+        try {
+            requestCardUiSyncFn(reason || 'card-interaction');
+            return;
+        } catch (e) { /* fall through to direct render */ }
+    }
+    if (typeof renderCardUI !== 'function') return;
+    try { renderCardUI(); } catch (e) { /* ignore */ }
+}
+
 function _rememberResolvedDebugActions(candidate: any) {
     if (!candidate || typeof candidate !== 'object') return null;
     const hasFill = typeof candidate.fillDebugHand === 'function';
@@ -581,6 +593,7 @@ function _getCardInteractionOverlaySelectionDeps() {
         hideHeavenOverlay: _hideHeavenOverlay,
         runPipelineAction: _runPipelineAction,
         addLog,
+        requestCardUiSync: _requestCardUiSyncForInteraction,
         renderCardUI: (typeof renderCardUI === 'function') ? renderCardUI : null,
         emitBoardUpdate: _resolveEmitBoardUpdateFn(),
         renderBoard: _resolveRenderBoardFn(),
@@ -1802,8 +1815,7 @@ function _hasBoardPendingSelectionForOwner(ownerKey: any) {
 }
 
 function _renderCardUiSafely() {
-    if (typeof renderCardUI !== 'function') return;
-    try { renderCardUI(); } catch (e) { /* ignore */ }
+    _requestCardUiSyncForInteraction('card-interaction:safe-render');
 }
 
 function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any, runResult: any) {
@@ -1930,7 +1942,7 @@ function _resolveSelectedHandCardActionContext(options: any) {
     if (selectedOwnerKey !== actionPlayerKey || !_doesPlayerOwnCard(actionPlayerKey, cardId)) {
         _clearSelectedCardSelection();
         addLog('自分の手札からカードを選択してください');
-        renderCardUI();
+        _requestCardUiSyncForInteraction('card-interaction:clear-invalid-selection');
         _requestImmediateVisualBoardRefresh();
         return null;
     }
@@ -2101,7 +2113,7 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) 
     if (typeof renderCardUI !== 'function') return;
     const opts = (options && typeof options === 'object') ? options : {};
     if (!shouldDelay) {
-        renderCardUI();
+        _requestCardUiSyncForInteraction('card-interaction:optional-playback-delay');
         return;
     }
     if (opts.renderImmediately === true) {
@@ -2114,7 +2126,7 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) 
         return;
     }
 
-    renderCardUI();
+    _requestCardUiSyncForInteraction('card-interaction:playback-delay-fallback');
 }
 
 function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
@@ -2209,13 +2221,13 @@ function fillDebugHand() {
             }
             loaded.fillDebugHand(cardState, { fillWhite: shouldFillWhite });
             addLog('🐛 デバッグ: 全種類のカードを手札に追加');
-            if (typeof renderCardUI === 'function') renderCardUI();
+            _requestCardUiSyncForInteraction('card-interaction:debug-fill-hand');
         });
         return;
     }
     dbg.fillDebugHand(cardState, { fillWhite: shouldFillWhite });
     addLog('🐛 デバッグ: 全種類のカードを手札に追加');
-    if (typeof renderCardUI === 'function') renderCardUI();
+    _requestCardUiSyncForInteraction('card-interaction:debug-fill-hand');
 }
 
 function _resolveCardDetailSelectionContext(playerKey: any) {
@@ -2460,7 +2472,7 @@ function onCardClick(cardId: any, ownerKey: any, handIndex?: any) {
             _setSelectedCardSelection(cardId, clickedOwnerKey, handIndex);
         }
 
-        renderCardUI();
+        _requestCardUiSyncForInteraction('card-interaction:select-cross-owner-card');
         _requestImmediateVisualBoardRefresh();
         return;
     }
@@ -2479,7 +2491,7 @@ function onCardClick(cardId: any, ownerKey: any, handIndex?: any) {
         _setSelectedCardSelection(cardId, actionOwnerKey, handIndex);
     }
 
-    renderCardUI();
+    _requestCardUiSyncForInteraction('card-interaction:select-card');
     _requestImmediateVisualBoardRefresh();
 }
 
@@ -2536,7 +2548,7 @@ function useSelectedCard() {
     );
     if (!_isSelectedCardUsableNow(actionPlayerKey, cardId, usableCheckOptions)) {
         addLog('このカードは現在使用できません（対象不足など）');
-        renderCardUI();
+        _requestCardUiSyncForInteraction('card-interaction:unusable-selected-card');
         return;
     }
     // ownerKey = who holds the card (victim when FATE_WILL); playerKey = network auth key.
@@ -2679,7 +2691,7 @@ function cancelPendingSelection(specificPlayerKey: any) {
     } else {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の対象選択をキャンセルしました`);
     }
-    renderCardUI();
+    _requestCardUiSyncForInteraction('card-interaction:cancel-pending-selection');
     _requestImmediateVisualBoardRefresh();
 }
 

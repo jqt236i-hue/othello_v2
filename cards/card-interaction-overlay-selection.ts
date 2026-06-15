@@ -14,6 +14,7 @@ type OverlaySelectionDeps = {
     hideHeavenOverlay: () => any;
     runPipelineAction: (playerKey: any, action: any) => any;
     addLog: (message: any) => any;
+    requestCardUiSync?: (reason?: any) => any;
     renderCardUI?: () => any;
     emitBoardUpdate?: () => any;
     renderBoard?: () => any;
@@ -24,6 +25,16 @@ type OverlaySelectionDeps = {
     getRunResultPlaybackEvents: (runResult: any) => any[];
     getCardDisplayLabel: (cardId: any, cardDef: any) => any;
 };
+
+function requestCardUiRefresh(deps: OverlaySelectionDeps, reason: any) {
+    if (typeof deps.requestCardUiSync === 'function') {
+        try {
+            deps.requestCardUiSync(reason);
+            return;
+        } catch (e) { /* fall through to direct render */ }
+    }
+    if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
+}
 
 function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, deps: OverlaySelectionDeps) {
     const cardStateValue = deps.getCardStateValue();
@@ -81,7 +92,7 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
                 deps.hideHeavenOverlay();
             },
             onFailure: () => {
-                if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
+                requestCardUiRefresh(deps, 'card-interaction:heaven-selection-publish-failure');
                 deps.addLog('天の恵みの選択送信に失敗しました');
             }
         })) {
@@ -93,7 +104,7 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
         deps.addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
         deps.clearHeavenSelection(playerKey);
         deps.hideHeavenOverlay();
-        if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
+        requestCardUiRefresh(deps, 'card-interaction:heaven-selection');
         if (typeof deps.emitBoardUpdate === 'function') deps.emitBoardUpdate();
         else if (typeof deps.renderBoard === 'function') deps.renderBoard();
         finalizePendingSelectionAfterRun(playerKey, 'HEAVEN_BLESSING', result, deps);
@@ -120,7 +131,7 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
                 deps.hideHeavenOverlay();
             },
             onFailure: () => {
-                if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
+                requestCardUiRefresh(deps, 'card-interaction:condemn-selection-publish-failure');
                 deps.addLog('断罪の意志の選択送信に失敗しました');
             }
         })) {
@@ -160,7 +171,7 @@ function executeObserverWillSelection(playerKey: any, targetIndex: any, targetCa
                 deps.hideHeavenOverlay();
             },
             onFailure: () => {
-                if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
+                requestCardUiRefresh(deps, 'card-interaction:observer-selection-publish-failure');
                 deps.addLog('盤理の観測者の選択送信に失敗しました');
             }
         })) {
