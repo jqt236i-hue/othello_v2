@@ -1162,10 +1162,64 @@ function _resolveHandAvailabilityGlowTierClass(cardEl: any) {
     const classes = Array.from(cardEl.classList);
     return classes.find((className: any) => /^cost-tier-/.test(String(className))) || '';
 }
+const handGlowLayoutCacheByContainer = new WeakMap<any, { signature: string; layoutKey: string; dirty: boolean }>();
+let handGlowResizeListenerInstalled = false;
+function _markAllHandGlowLayoutsDirty() {
+    try {
+        const root = typeof document !== 'undefined' ? document : null;
+        if (!root)
+            return;
+        ['hand-black', 'hand-white'].forEach((id) => {
+            const el = root.getElementById(id);
+            const cache = el ? handGlowLayoutCacheByContainer.get(el) : null;
+            if (cache)
+                cache.dirty = true;
+        });
+    } catch (e) { /* ignore */ }
+}
+function _ensureHandGlowResizeInvalidation() {
+    if (handGlowResizeListenerInstalled)
+        return;
+    if (typeof window === 'undefined' || !window || typeof window.addEventListener !== 'function')
+        return;
+    window.addEventListener('resize', _markAllHandGlowLayoutsDirty);
+    handGlowResizeListenerInstalled = true;
+}
+function _buildHandGlowLayoutSignature(ownerKey: any, entryStates: any[]) {
+    return JSON.stringify({
+        ownerKey,
+        entries: (Array.isArray(entryStates) ? entryStates : [])
+            .filter((state: any) => state && state.desiredKind === 'face' && state.availableGlow)
+            .map((state: any) => ({
+                visualIndex: state.visualIndex,
+                cardId: state.cardId || null,
+                availableGlow: !!state.availableGlow,
+                cost: Number(state.cost) || 0
+            }))
+    });
+}
+function _buildHandGlowLayoutEnvironmentKey(containerEl: any, handTrackEl: any) {
+    return JSON.stringify({
+        containerClientWidth: Number(containerEl && containerEl.clientWidth) || 0,
+        containerClientHeight: Number(containerEl && containerEl.clientHeight) || 0,
+        trackClientWidth: Number(handTrackEl && handTrackEl.clientWidth) || 0,
+        trackClientHeight: Number(handTrackEl && handTrackEl.clientHeight) || 0,
+        trackScrollLeft: Number(handTrackEl && handTrackEl.scrollLeft) || 0,
+        trackScrollTop: Number(handTrackEl && handTrackEl.scrollTop) || 0,
+        childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
+    });
+}
 function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, renderEntries: any, ownerKey: any) {
     const glowLayerEl = _ensureHandAvailabilityGlowLayer(containerEl, handTrackEl);
     if (!glowLayerEl || !handTrackEl || typeof document === 'undefined')
         return;
+    _ensureHandGlowResizeInvalidation();
+    const signature = _buildHandGlowLayoutSignature(ownerKey, renderEntries);
+    const layoutKey = _buildHandGlowLayoutEnvironmentKey(containerEl, handTrackEl);
+    const cached = handGlowLayoutCacheByContainer.get(containerEl);
+    if (cached && cached.signature === signature && cached.layoutKey === layoutKey && cached.dirty !== true) {
+        return;
+    }
     const containerRect = typeof containerEl.getBoundingClientRect === 'function'
         ? containerEl.getBoundingClientRect()
         : { left: 0, top: 0 };
@@ -1209,6 +1263,7 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
     while (glowLayerEl.children.length > glowIndex) {
         glowLayerEl.removeChild(glowLayerEl.lastElementChild);
     }
+    handGlowLayoutCacheByContainer.set(containerEl, { signature, layoutKey, dirty: false });
 }
 const handSlotElementSignatureByContainer = new WeakMap<any, string>();
 function _buildHandSlotElementSignature(
