@@ -560,7 +560,7 @@ describe('card detail effect tags', () => {
     expect(detailMoreEl.style.display).toBe('none');
   });
 
-  test('effect tag buttons toggle tag explanation panel for status tags', () => {
+  test('effect tag buttons open centered tag popup for status tags', () => {
     require('../cards/card-interaction.js');
 
     window.updateCardDetailPanel();
@@ -571,27 +571,30 @@ describe('card detail effect tags', () => {
     const specialStoneButton = tagButtons[0];
     specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
-    const panelEl = document.getElementById('card-detail-tab-panel');
-    const titleEl = document.getElementById('card-detail-tab-title');
-    const bodyEl = document.getElementById('card-detail-tab-body');
-    expect(panelEl).not.toBeNull();
-    expect(panelEl.classList.contains('is-open')).toBe(true);
+    const popupEl = document.getElementById('card-detail-tag-popover');
+    const titleEl = document.getElementById('card-detail-tag-popover-title');
+    const bodyEl = document.getElementById('card-detail-tag-popover-body');
+    const tabPanelEl = document.getElementById('card-detail-tab-panel');
+    expect(popupEl).not.toBeNull();
+    expect(popupEl.classList.contains('is-open')).toBe(true);
+    expect(popupEl.getAttribute('aria-hidden')).toBe('false');
     expect(titleEl.textContent).toBe('特殊石');
     expect(bodyEl.textContent).toContain('盤面に残って次ターン以降も能力主体として生きる石');
+    expect(tabPanelEl && tabPanelEl.classList.contains('is-open')).toBeFalsy();
 
     specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    expect(panelEl.classList.contains('is-open')).toBe(false);
+    expect(popupEl.classList.contains('is-open')).toBe(false);
+    expect(popupEl.getAttribute('aria-hidden')).toBe('true');
 
     const flipProtectionButton = tagButtons[1];
     flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
-    expect(panelEl).not.toBeNull();
-    expect(panelEl.classList.contains('is-open')).toBe(true);
+    expect(popupEl.classList.contains('is-open')).toBe(true);
     expect(titleEl.textContent).toBe('反転保護');
     expect(bodyEl.textContent).toContain('反転されない');
 
-    flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    expect(panelEl.classList.contains('is-open')).toBe(false);
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(popupEl.classList.contains('is-open')).toBe(false);
   });
 
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {

@@ -297,6 +297,8 @@ let _cardDetailTabState = {
     cardId: null as any
 };
 let _cardDetailTagAutoDismissBound = false;
+let _cardDetailTagPopoverEl: any = null;
+let _cardDetailTagPopoverDismissBound = false;
 const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
 const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
 const LOCAL_PLAYBACK_SOUND_SKIP_MS = 5000;
@@ -884,6 +886,121 @@ function _bindCardDetailTagAutoDismiss() {
     }
 }
 
+function _ensureCardDetailTagPopover() {
+    if (_cardDetailTagPopoverEl && document.body && document.body.contains(_cardDetailTagPopoverEl)) {
+        return _cardDetailTagPopoverEl;
+    }
+    if (!document || !document.body) return null;
+
+    const popover = document.createElement('div');
+    popover.id = 'card-detail-tag-popover';
+    popover.className = 'card-detail-tag-popover';
+    popover.setAttribute('role', 'dialog');
+    popover.setAttribute('aria-modal', 'false');
+    popover.setAttribute('aria-hidden', 'true');
+    popover.setAttribute('aria-labelledby', 'card-detail-tag-popover-title');
+
+    const header = document.createElement('div');
+    header.className = 'card-detail-tag-popover-header';
+
+    const title = document.createElement('div');
+    title.id = 'card-detail-tag-popover-title';
+    title.className = 'card-detail-tag-popover-title';
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'card-detail-tag-popover-close';
+    closeButton.setAttribute('aria-label', '効果タグ説明を閉じる');
+    closeButton.textContent = '×';
+    closeButton.addEventListener('click', () => {
+        _closeCardDetailTagPopover();
+    });
+
+    const body = document.createElement('div');
+    body.id = 'card-detail-tag-popover-body';
+    body.className = 'card-detail-tag-popover-body';
+
+    header.appendChild(title);
+    header.appendChild(closeButton);
+    popover.appendChild(header);
+    popover.appendChild(body);
+    document.body.appendChild(popover);
+    _cardDetailTagPopoverEl = popover;
+    return popover;
+}
+
+function _isCardDetailTagPopoverOpenFor(key: any) {
+    const popover = _cardDetailTagPopoverEl;
+    return !!(
+        popover &&
+        popover.classList &&
+        popover.classList.contains('is-open') &&
+        String(popover.getAttribute('data-card-tag-key') || '') === String(key || '')
+    );
+}
+
+function _closeCardDetailTagPopover() {
+    const popover = _cardDetailTagPopoverEl;
+    if (!popover || !popover.classList) return false;
+    popover.classList.remove('is-open');
+    popover.setAttribute('aria-hidden', 'true');
+    popover.removeAttribute('data-card-tag-key');
+    popover.removeAttribute('data-card-id');
+    return true;
+}
+
+function _openCardDetailTagPopover(key: any, bodyText: any, cardId: any) {
+    const popover = _ensureCardDetailTagPopover();
+    if (!popover) return false;
+    const titleEl = document.getElementById('card-detail-tag-popover-title');
+    const bodyEl = document.getElementById('card-detail-tag-popover-body');
+    if (titleEl) titleEl.textContent = String(key || '');
+    if (bodyEl) bodyEl.textContent = String(bodyText || '');
+    popover.setAttribute('data-card-tag-key', String(key || ''));
+    if (cardId) {
+        popover.setAttribute('data-card-id', String(cardId));
+    } else {
+        popover.removeAttribute('data-card-id');
+    }
+    popover.setAttribute('aria-hidden', 'false');
+    popover.classList.add('is-open');
+    return true;
+}
+
+function _syncCardDetailTagPopoverSelection(cardId: any) {
+    const popover = _cardDetailTagPopoverEl;
+    if (!popover || !popover.classList || !popover.classList.contains('is-open')) return;
+    const nextCardId = cardId ? String(cardId) : '';
+    const popoverCardId = String(popover.getAttribute('data-card-id') || '');
+    if (!nextCardId || (popoverCardId && popoverCardId !== nextCardId)) {
+        _closeCardDetailTagPopover();
+    }
+}
+
+function _bindCardDetailTagPopoverAutoDismiss() {
+    if (_cardDetailTagPopoverDismissBound || !document) return;
+    document.addEventListener('pointerdown', (event: any) => {
+        const popover = _cardDetailTagPopoverEl;
+        if (!popover || !popover.classList || !popover.classList.contains('is-open')) return;
+        const rawTarget = event ? event.target : null;
+        const targetEl = rawTarget && rawTarget.nodeType === 1
+            ? rawTarget
+            : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        if (targetEl && typeof targetEl.closest === 'function') {
+            if (targetEl.closest('#card-detail-tag-popover')) return;
+            if (targetEl.closest('#card-detail-effect-tags')) return;
+        }
+        _closeCardDetailTagPopover();
+    }, true);
+    document.addEventListener('keydown', (event: any) => {
+        if (!event || event.key !== 'Escape') return;
+        const popover = _cardDetailTagPopoverEl;
+        if (!popover || !popover.classList || !popover.classList.contains('is-open')) return;
+        _closeCardDetailTagPopover();
+    });
+    _cardDetailTagPopoverDismissBound = true;
+}
+
 function _resolveCardDetailTagMeaningKey(tag: any) {
     const key = String(tag || '').trim();
     if (!key) return '';
@@ -896,16 +1013,14 @@ function _resolveCardDetailTagMeaningKey(tag: any) {
 function _toggleCardDetailTagExplanation(tag: any) {
     const key = String(tag || '').trim();
     if (!key) return false;
+    if (_isCardDetailTagPopoverOpenFor(key)) {
+        return _closeCardDetailTagPopover();
+    }
     const meaningKey = _resolveCardDetailTagMeaningKey(key);
     const meaning = CARD_DETAIL_TAG_MEANINGS[meaningKey as keyof typeof CARD_DETAIL_TAG_MEANINGS] || `${key}の説明は未登録です。`;
     const selectedId = cardState ? cardState.selectedCardId : null;
-    return _toggleCardDetailTabPanel({
-        mode: 'tag',
-        key,
-        cardId: selectedId ? String(selectedId) : null,
-        title: key,
-        body: meaning
-    });
+    _closeCardDetailTagTabIfOpen();
+    return _openCardDetailTagPopover(key, meaning, selectedId ? String(selectedId) : null);
 }
 
 function _bindCardDetailTagClickEvents(tagsEl: any) {
@@ -2319,6 +2434,7 @@ function updateCardDetailPanel() {
     const { selectedId, selectedOwnerKey, hasSelection, normalizedSelectedId } = selectionContext;
 
     _syncCardDetailExpandedSelection(normalizedSelectedId);
+    _syncCardDetailTagPopoverSelection(normalizedSelectedId);
 
     _closeCardDetailTagTabIfOpen();
     const selectedCardDef = normalizedSelectedId ? CardLogic.getCardDef(normalizedSelectedId) : null;
@@ -2713,6 +2829,7 @@ if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.init
     _cardDetailLandscapeAnchorSync.init();
 }
 _bindCardDetailTagAutoDismiss();
+_bindCardDetailTagPopoverAutoDismiss();
 
 export = {
     fillDebugHand,

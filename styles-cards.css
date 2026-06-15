@@ -1858,6 +1858,77 @@
     outline-offset: calc(1px * var(--layout-stage-scale));
 }
 
+.card-detail-tag-popover {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    z-index: 1400;
+    width: min(calc(360px * var(--layout-stage-scale)), calc(100vw - 36px));
+    padding: calc(12px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+    border: var(--layout-size-border-medium) solid rgba(111, 205, 255, 0.42);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background: rgba(3, 12, 16, 0.96);
+    box-shadow:
+        0 calc(18px * var(--layout-stage-scale)) calc(46px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 calc(18px * var(--layout-stage-scale)) rgba(111, 205, 255, 0.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.card-detail-tag-popover.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.card-detail-tag-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(12px * var(--layout-stage-scale));
+    margin-bottom: calc(8px * var(--layout-stage-scale));
+}
+
+.card-detail-tag-popover-title {
+    color: var(--color-text-gold);
+    font-size: calc(16px * var(--layout-stage-scale));
+    font-weight: 800;
+}
+
+.card-detail-tag-popover-close {
+    width: calc(26px * var(--layout-stage-scale));
+    height: calc(26px * var(--layout-stage-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-bright);
+    font-size: calc(18px * var(--layout-stage-scale));
+    line-height: 1;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.06);
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.16);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.card-detail-tag-popover-close:hover,
+.card-detail-tag-popover-close:focus-visible {
+    border-color: rgba(111, 205, 255, 0.8);
+    color: #f7fbff;
+    outline: none;
+    box-shadow:
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(111, 205, 255, 0.22),
+        0 0 calc(12px * var(--layout-stage-scale)) rgba(111, 205, 255, 0.16);
+}
+
+.card-detail-tag-popover-body {
+    color: var(--color-text-bright);
+    font-size: calc(13.5px * var(--layout-stage-scale));
+    line-height: 1.55;
+}
+
 #card-detail-more {
     position: relative;
     font-size: calc(13px * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
