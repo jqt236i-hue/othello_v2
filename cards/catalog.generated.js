@@ -120,7 +120,7 @@ window.CardCatalog = {
       "id": "super_attraction_01",
       "name_ja": "超引力",
       "type": "SUPER_ATTRACTION_WILL",
-      "cost": 40,
+      "cost": 38,
       "desc_ja": "盤面の石1つを選び、盤面上の別マスまで最短経路で引き寄せる。経路上と指定マス上の石はすべて破壊する。",
       "display_type_ja": "殲滅"
     },
