@@ -1824,7 +1824,10 @@ function _finalizeHandAddAnimation(payload: any, options: any) {
 }
 
 function _finalizeHandAddAfterCardFaceArtReady(payload: any, options: any, preloadPromise: any) {
-    return _waitForCardFaceArtPreload(preloadPromise, CARD_FACE_ART_REVEAL_WAIT_MS)
+    const waitForPreload = _shouldWaitForCardFaceArtPreload(preloadPromise)
+        ? _waitForCardFaceArtPreload(preloadPromise, CARD_FACE_ART_REVEAL_WAIT_MS)
+        : Promise.resolve(preloadPromise);
+    return waitForPreload
         .catch(() => null)
         .then(() => {
             _finalizeHandAddAnimation(payload, options);

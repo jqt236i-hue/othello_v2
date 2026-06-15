@@ -250,6 +250,54 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
+  test('playDrawCardHandAnimation finalizes no-wait preload without scheduling card art timeout', async () => {
+    jest.useFakeTimers();
+
+    const timeoutSpy = jest.spyOn(global, 'setTimeout');
+    window.resolveCardBackgroundArtPath = jest.fn(() => '');
+    global.resolveCardBackgroundArtPath = window.resolveCardBackgroundArtPath;
+    window.__drawHandAnimActive = true;
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playDrawCardHandAnimation({ player: 'black', cardId: 'missing_card', count: 1 });
+
+    try {
+      await Promise.resolve();
+      expect(timeoutSpy).not.toHaveBeenCalledWith(expect.any(Function), 900);
+      await expect(promise).resolves.toBeUndefined();
+
+      expect(global.renderCardUI).toHaveBeenCalled();
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  test('playDrawCardHandAnimation still waits through card art timeout when preload needs waiting', async () => {
+    jest.useFakeTimers();
+
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      deck_wait: 'assets/images/card/wait-card.png'
+    });
+    window.__drawHandAnimActive = true;
+    const timeoutSpy = jest.spyOn(global, 'setTimeout');
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playDrawCardHandAnimation({ player: 'black', cardId: 'deck_wait', count: 1 });
+
+    try {
+      await Promise.resolve();
+
+      expect(imageSrcs).toContain('assets/images/card/wait-card.png');
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 900);
+
+      await jest.advanceTimersByTimeAsync(901);
+      await expect(promise).resolves.toBeUndefined();
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
   test('playCardUseHandAnimation preloads the moving card background', async () => {
     const imageSrcs = [];
     installCardBackgroundPreloadFixture(imageSrcs, {
