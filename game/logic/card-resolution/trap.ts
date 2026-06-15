@@ -56,6 +56,9 @@ function applyTrapWill(cardState: CardState, gameState: GameState, playerKey: Pl
 function processTrapEffects(cardState: CardState, gameState: GameState, activePlayerKey: PlayerKey, options: any, deps: any): Record<string, any> {
     const opts = options || {};
     const expireOnOwnerTurnStart = !!opts.expireOnOwnerTurnStart;
+    const randomSource = opts.randomSource && typeof opts.randomSource.random === 'function'
+        ? opts.randomSource
+        : (opts.prng && typeof opts.prng.random === 'function' ? opts.prng : null);
     const res: Record<string, any> = { triggered: [], expired: [], disarmed: [] };
     if (!cardState || !gameState || !gameState.board) return res;
 
@@ -109,7 +112,9 @@ function processTrapEffects(cardState: CardState, gameState: GameState, activePl
                     });
                 }
                 if (typeof destroyAt === 'function') {
-                    destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: ownerKey });
+                    const destroyMeta: Record<string, any> = { special: 'TRAP_REVEAL', owner: ownerKey };
+                    if (randomSource) destroyMeta.randomSource = randomSource;
+                    destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', destroyMeta);
                 } else if (typeof setCellValueForCard === 'function' && typeof removeMarkersAt === 'function') {
                     setCellValueForCard(gameState, row, col, P_EMPTY);
                     removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });

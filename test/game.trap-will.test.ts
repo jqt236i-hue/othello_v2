@@ -4,6 +4,7 @@ import * as Core from '../game/logic/core.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 import * as BoardOps from '../game/logic/board_ops.js';
+import * as TurnStartPostProcessing from '../game/turn/turn-start/post-processing.js';
 
 describe('TRAP_WILL (罠の意志)', () => {
   function makeState() {
@@ -200,6 +201,70 @@ describe('TRAP_WILL (罠の意志)', () => {
 
     const remainingTrap = (cardState.markers || []).find(m => m && m.data && m.data.type === 'TRAP');
     expect(remainingTrap).toBeUndefined();
+  });
+
+  test('turn-start trap expiry uses the turn PRNG when Stone Salvation God revives the destroyed trap stone', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    delete cardState._defaultRandomSource;
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: Core.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[0][0] = Core.BLACK;
+    gameState.board[1][1] = Core.BLACK;
+    cardState.markers.push(
+      {
+        id: 20,
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
+      },
+      {
+        id: 21,
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        data: { type: 'TRAP', hidden: true }
+      }
+    );
+
+    TurnStartPostProcessing.finalizeTurnStartMarkerProcessing({
+      CardLogic,
+      cardState,
+      gameState,
+      playerKey: 'black',
+      events: [],
+      prng,
+      processedTurnStartMarkers: undefined,
+      workMarkersBeforeStart: [],
+      specialStoneSpeechBeforeStart: [],
+      eventStartIndex: 0,
+      presentationStartIndex: 0,
+      applyPostFlipRevives: () => ({}),
+      awardBoardChargeGain: () => {},
+      pushTrapEvents: () => {},
+      emitTrapHandRemoveEvents: () => {},
+      normalizePlayerKey: (value) => value,
+      isWorkDurationEndPresentationEvent: () => false,
+      emitWorkRemovedPresentationFromSnapshots: () => {},
+      emitSpecialStoneBubblesFromPhase: () => {}
+    });
+
+    expect(gameState.board[1][1]).toBe(Core.EMPTY);
+    expect(
+      cardState.presentationEvents.some((event) => (
+        event &&
+        event.type === 'SPAWN' &&
+        event.reason === 'stone_salvation_god_revive' &&
+        event.cause === 'STONE_SALVATION_GOD'
+      ))
+    ).toBe(true);
   });
 
   test('can set trap on own expansion stone', () => {

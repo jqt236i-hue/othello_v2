@@ -86,7 +86,10 @@ function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProce
     }
 
     if (typeof opts.CardLogic.processTrapEffects === 'function') {
-        const trapRes = opts.CardLogic.processTrapEffects(opts.cardState, opts.gameState, opts.playerKey, { expireOnOwnerTurnStart: true });
+        const trapRes = opts.CardLogic.processTrapEffects(opts.cardState, opts.gameState, opts.playerKey, {
+            expireOnOwnerTurnStart: true,
+            randomSource: opts.prng
+        });
         opts.pushTrapEvents(opts.events, trapRes);
         opts.emitTrapHandRemoveEvents(opts.CardLogic, opts.cardState, trapRes);
     }
