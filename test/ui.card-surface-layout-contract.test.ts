@@ -72,6 +72,25 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/#card-detail-actions > #use-card-btn:not\(:disabled\)[\s\S]*border:[\s\S]*rgba\(34,\s*216,\s*120,\s*0\.78\)/);
   });
 
+  test('effect tag chips keep distinct colors across detail and help surfaces', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+    const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
+    const tagClasses = [
+      'is-special-stone',
+      'is-hole-cell',
+      'is-inviolable',
+      'is-flip-protection',
+      'is-full-protection',
+      'is-flip-evasion',
+      'is-destroy-evasion'
+    ];
+
+    for (const className of tagClasses) {
+      expect(cardsCss).toMatch(new RegExp(`\\.card-detail-effect-tag\\.${className},[\\s\\S]*\\.rules-help-card-tag\\.${className}[\\s\\S]*--card-detail-tag-accent:[\\s\\S]*color:[\\s\\S]*border-color:[\\s\\S]*background:`));
+      expect(layoutInfoCss).toMatch(new RegExp(`\\.rules-help-card-tag-filter\\.${className}[\\s\\S]*--rules-help-tag-filter-border:[\\s\\S]*--rules-help-tag-filter-color:[\\s\\S]*--rules-help-tag-filter-bg:`));
+    }
+  });
+
   test('card surfaces suppress type badges while keeping other card layout tokens intact', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
