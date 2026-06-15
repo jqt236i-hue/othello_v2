@@ -193,21 +193,34 @@
 }
 
 #hand-white {
+    --layout-hand-fixed-card-width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * var(--layout-opponent-hand-scale));
     margin-bottom: calc(10px * var(--layout-stage-scale));
 }
 
 #hand-black {
+    --layout-hand-fixed-card-width: calc(var(--layout-size-card-large-width) * var(--layout-priority-hand-scale));
     margin-top: calc(4px * var(--layout-stage-scale));
     margin-right: 0;
 }
 
 /* Hand Containers */
 .hand-container {
+    --layout-hand-fixed-card-width: var(--layout-size-card-width);
+    --layout-hand-fixed-slot-count: 5;
+    --layout-hand-fixed-slot-gap-count: calc(var(--layout-hand-fixed-slot-count) - 1);
+    --layout-hand-fixed-padding-x: calc(10px * var(--layout-stage-scale));
+    --layout-hand-fixed-width: calc(
+        (var(--layout-hand-fixed-card-width) * var(--layout-hand-fixed-slot-count)) +
+        (var(--layout-size-ui-gap-small) * var(--layout-hand-fixed-slot-gap-count)) +
+        var(--layout-hand-fixed-padding-x)
+    );
     position: relative;
     display: flex;
+    box-sizing: border-box;
     justify-content: center;
     gap: var(--layout-size-ui-gap-small);
     flex-wrap: nowrap;
+    width: min(var(--layout-hand-fixed-width), var(--layout-size-hand-max-width));
     max-width: var(--layout-size-hand-max-width);
     min-height: var(--layout-size-hand-min-height-top);
     padding: calc(5px * var(--layout-stage-scale));
