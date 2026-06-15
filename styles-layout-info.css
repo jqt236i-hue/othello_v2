@@ -940,13 +940,26 @@
     display: inline-flex;
 }
 
+#rules-help-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    background: rgba(0, 0, 0, 0.72);
+    z-index: calc(var(--z-floating-control) + 540);
+    pointer-events: auto;
+}
+
+#rules-help-backdrop.is-open {
+    display: block;
+}
+
 #rules-help-panel {
     position: fixed;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
     --rules-help-page-min-height: min(58vh, 500px);
-    z-index: var(--z-modal-rules-help);
+    z-index: calc(var(--z-floating-control) + 541);
     width: min(860px, calc(100vw - 44px));
     max-height: min(80vh, 700px);
     background: var(--bg-panel-dark);

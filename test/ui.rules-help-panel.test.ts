@@ -18,6 +18,7 @@ describe('rules help panel', () => {
     jest.resetModules();
     setDom(`<!doctype html><html><body>
       <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-backdrop" aria-hidden="true"></div>
       <div id="rules-help-panel" aria-hidden="true"><button id="rules-help-close-btn" type="button"></button><div id="inner"></div></div>
       <div id="board"></div>
     </body></html>`);
@@ -34,12 +35,15 @@ describe('rules help panel', () => {
     const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
+    const backdrop = document.getElementById('rules-help-backdrop');
 
     mod.setupRulesHelp(btn, panel);
 
     btn.click();
     expect(panel.classList.contains('is-open')).toBe(true);
     expect(panel.getAttribute('aria-hidden')).toBe('false');
+    expect(backdrop.classList.contains('is-open')).toBe(true);
+    expect(backdrop.getAttribute('aria-hidden')).toBe('false');
     expect(btn.getAttribute('aria-expanded')).toBe('true');
 
     dispatchPointer(document.getElementById('inner'));
@@ -48,13 +52,16 @@ describe('rules help panel', () => {
     dispatchPointer(document.body);
     expect(panel.classList.contains('is-open')).toBe(false);
     expect(panel.getAttribute('aria-hidden')).toBe('true');
+    expect(backdrop.classList.contains('is-open')).toBe(false);
+    expect(backdrop.getAttribute('aria-hidden')).toBe('true');
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
-  test('outside click still reaches board handler', () => {
+  test('backdrop click closes without reaching board handler', () => {
     const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
+    const backdrop = document.getElementById('rules-help-backdrop');
     const board = document.getElementById('board');
 
     let hit = 0;
@@ -64,8 +71,8 @@ describe('rules help panel', () => {
     btn.click();
     expect(panel.classList.contains('is-open')).toBe(true);
 
-    dispatchPointer(board);
-    expect(hit).toBe(1);
+    dispatchPointer(backdrop);
+    expect(hit).toBe(0);
     expect(panel.classList.contains('is-open')).toBe(false);
   });
 
@@ -73,6 +80,7 @@ describe('rules help panel', () => {
     const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
+    const backdrop = document.getElementById('rules-help-backdrop');
     const closeBtn = document.getElementById('rules-help-close-btn');
 
     mod.setupRulesHelp(btn, panel);
@@ -82,6 +90,8 @@ describe('rules help panel', () => {
     closeBtn.click();
     expect(panel.classList.contains('is-open')).toBe(false);
     expect(panel.getAttribute('aria-hidden')).toBe('true');
+    expect(backdrop.classList.contains('is-open')).toBe(false);
+    expect(backdrop.getAttribute('aria-hidden')).toBe('true');
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
@@ -473,6 +483,16 @@ describe('rules help panel', () => {
     expect(html).toMatch(/id="rules-help-card-tag-filters"/);
     expect(html).toMatch(/id="rules-help-card-filter-status"/);
     expect(html).toMatch(/id="rules-help-card-filter-clear"/);
+  });
+
+  test('index html and css include rules help backdrop layer', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const css = fs.readFileSync(path.resolve(__dirname, '../styles-layout-info.css'), 'utf8');
+
+    expect(html).toMatch(/id="rules-help-backdrop"/);
+    expect(css).toMatch(/#rules-help-backdrop\s*\{/);
+    expect(css).toMatch(/#rules-help-backdrop\.is-open\s*\{/);
+    expect(css).toMatch(/#rules-help-panel\.is-open\s*\{/);
   });
 
   test('index html includes counter ui help tab and key legend texts', () => {

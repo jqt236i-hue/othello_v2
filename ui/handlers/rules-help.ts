@@ -406,6 +406,8 @@ function renderHelpUpdates(updateListEl: HTMLElement | null): void {
 
 function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement): void {
   if (!rulesHelpBtn || !rulesHelpPanel) return;
+  const docRef = rulesHelpPanel.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const rulesHelpBackdrop = docRef ? docRef.getElementById('rules-help-backdrop') : null;
   const closeBtn = rulesHelpPanel.querySelector('#rules-help-close-btn');
   const tabButtons = Array.from(rulesHelpPanel.querySelectorAll('[data-help-tab]'));
   const tabPages = Array.from(rulesHelpPanel.querySelectorAll('[data-help-page]'));
@@ -837,6 +839,10 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
   function openPanel(): void {
     isOpen = true;
+    if (rulesHelpBackdrop) {
+      rulesHelpBackdrop.classList.add('is-open');
+      rulesHelpBackdrop.setAttribute('aria-hidden', 'false');
+    }
     rulesHelpPanel.classList.add('is-open');
     rulesHelpPanel.setAttribute('aria-hidden', 'false');
     rulesHelpBtn.setAttribute('aria-expanded', 'true');
@@ -849,6 +855,10 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
   function closePanel(): void {
     isOpen = false;
+    if (rulesHelpBackdrop) {
+      rulesHelpBackdrop.classList.remove('is-open');
+      rulesHelpBackdrop.setAttribute('aria-hidden', 'true');
+    }
     rulesHelpPanel.classList.remove('is-open');
     rulesHelpPanel.setAttribute('aria-hidden', 'true');
     rulesHelpBtn.setAttribute('aria-expanded', 'false');
