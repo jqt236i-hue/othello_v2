@@ -10,12 +10,22 @@ describe('deck fixed hand layout contract', () => {
     expect(layoutCss).toMatch(/#hand-white\s*\{[\s\S]*--layout-hand-fixed-card-width:\s*calc\(var\(--layout-size-card-width\)\s*\*\s*var\(--layout-priority-hand-scale\)\s*\*\s*var\(--layout-opponent-hand-scale\)\)/);
   });
 
-  test('debug and phone portrait layouts can still overflow hands without changing the fixed normal contract', () => {
+  test('debug layouts can still overflow hands without changing the fixed normal contract', () => {
     const layoutCss = readRepoTextFile('styles-layout.css');
-    const responsiveCss = readRepoTextFile('styles-responsive.css');
 
     expect(layoutCss).toMatch(/html\.debug-layout \.hand-container,[\s\S]*body\.debug-layout \.hand-container\s*\{[\s\S]*overflow:\s*hidden/);
     expect(layoutCss).toMatch(/html\.debug-layout \.hand-track,[\s\S]*body\.debug-layout \.hand-track\s*\{[\s\S]*justify-content:\s*flex-start/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #hand-white,\s*[\s\S]*#hand-black\s*\{[\s\S]*width:\s*auto;[\s\S]*overflow-x:\s*auto/);
+  });
+
+  test('phone portrait keeps the player deck after a fixed five-card hand lane', () => {
+    const responsiveCss = readRepoTextFile('styles-responsive.css');
+
+    expect(responsiveCss).toMatch(/--layout-phone-portrait-player-row-width:\s*min\(calc\(540px\s*\*\s*var\(--layout-stage-scale\)\),\s*96vw\)/);
+    expect(responsiveCss).toMatch(/--layout-phone-portrait-hand-fixed-card-width:\s*calc\(92px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/--layout-phone-portrait-hand-fixed-padding-x:\s*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/--layout-phone-portrait-hand-fixed-width:[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait \.player-area-bottom\s*\{[\s\S]*width:\s*var\(--layout-phone-portrait-player-row-width\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #deck-black\s*\{[\s\S]*margin-left:\s*0/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #hand-black\s*\{[\s\S]*--layout-hand-fixed-card-width:\s*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*width:\s*min\(var\(--layout-phone-portrait-hand-fixed-width\),\s*calc\(100%\s*-\s*var\(--layout-phone-portrait-player-deck-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-gap\)\)\)/);
   });
 });

@@ -176,6 +176,23 @@
 /* iPhone portrait profile: dedicate vertical flow to hands/board/card detail. */
 html.layout-profile-phone-portrait {
     --layout-phone-portrait-main-column-width: min(calc(430px * var(--layout-stage-scale)), 96vw);
+    --layout-phone-portrait-player-row-width: min(calc(540px * var(--layout-stage-scale)), 96vw);
+    --layout-phone-portrait-player-deck-width: calc(50px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-deck-gap: calc(4px * var(--layout-stage-scale));
+    --layout-phone-portrait-hand-fixed-card-width: calc(92px * var(--layout-stage-scale));
+    --layout-phone-portrait-hand-fixed-padding-x: calc(10px * var(--layout-stage-scale));
+    --layout-phone-portrait-hand-fixed-width: calc(
+        var(--layout-phone-portrait-hand-fixed-card-width) +
+        var(--layout-phone-portrait-hand-fixed-card-width) +
+        var(--layout-phone-portrait-hand-fixed-card-width) +
+        var(--layout-phone-portrait-hand-fixed-card-width) +
+        var(--layout-phone-portrait-hand-fixed-card-width) +
+        var(--layout-size-ui-gap-small) +
+        var(--layout-size-ui-gap-small) +
+        var(--layout-size-ui-gap-small) +
+        var(--layout-size-ui-gap-small) +
+        var(--layout-phone-portrait-hand-fixed-padding-x)
+    );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
     --layout-phone-portrait-player-bottom-offset: calc(18px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
@@ -208,6 +225,7 @@ html.layout-profile-phone-portrait .player-area-top {
 }
 
 html.layout-profile-phone-portrait .player-area-bottom {
+    width: var(--layout-phone-portrait-player-row-width);
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
@@ -483,10 +501,10 @@ html.layout-profile-phone-portrait #deck-black {
 html.layout-profile-phone-portrait #deck-black {
     order: 2;
     align-self: flex-end;
-    width: calc(50px * var(--layout-stage-scale));
+    width: var(--layout-phone-portrait-player-deck-width);
     height: calc(66px * var(--layout-stage-scale));
-    margin-left: auto;
-    margin-right: calc(2px * var(--layout-stage-scale));
+    margin-left: 0;
+    margin-right: 0;
 }
 
 html.layout-profile-phone-portrait #deck-black .deck-count {
@@ -522,7 +540,10 @@ html.layout-profile-phone-portrait #hand-white .card-item {
 }
 
 html.layout-profile-phone-portrait #hand-black {
+    --layout-hand-fixed-card-width: var(--layout-phone-portrait-hand-fixed-card-width);
     order: 2;
+    flex: 0 1 min(var(--layout-phone-portrait-hand-fixed-width), calc(100% - var(--layout-phone-portrait-player-deck-width) - var(--layout-phone-portrait-player-deck-gap)));
+    width: min(var(--layout-phone-portrait-hand-fixed-width), calc(100% - var(--layout-phone-portrait-player-deck-width) - var(--layout-phone-portrait-player-deck-gap)));
     min-height: calc(108px * var(--layout-stage-scale));
     margin-top: 0;
 }
