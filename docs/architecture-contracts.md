@@ -432,6 +432,21 @@ The following rules apply:
 
 This rule exists because runtime-only divergence in effect lookup previously caused worker-only gameplay mismatch.
 
+### 10.1 Flip-protection context
+
+`shared/special-stone-registry.ts` is the source of truth for special-stone flip protection.
+Card resolution paths that need `protectedStones`, `permaProtectedStones`, `absoluteProtectedStones`, `bombs`, or `blockedCells` must build them through `game/logic/cards-internal/protection-context.ts` or a wrapper that delegates to it.
+
+Do not keep local hand-written lists of flip-protected special-stone types in card effect resolution, target availability, regen fallback, turn blockers, CPU helpers, worker logic, or UI presentation.
+
+The only valid exceptions are explicit non-registry overlays whose duration or behavior is not encoded as `flipProtected` in `SpecialStoneRegistry` yet. These exceptions must be passed as named callbacks or kept as small local predicates next to the delegating wrapper, so they are visible during review.
+
+When adding a new flip-protected special stone:
+
+- set `flipProtected: true` in `shared/special-stone-registry.ts`
+- cover it through registry-wide tests rather than a single named-stone assertion
+- run focused card-resolution tests that exercise effect resolution, target availability, and any fallback path touched by the card
+
 ## 11. Root vs mirror contracts
 
 Root files are canonical.
