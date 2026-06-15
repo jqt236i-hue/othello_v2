@@ -16,9 +16,41 @@ type DestroySourceAnimationDeps = {
     sleep: (ms: any) => Promise<void>;
     timer: () => any;
     playbackScope: any;
+    layoutBatch?: {
+        readRect?: (element: any) => any;
+    } | null;
+    transientOverlayBatch?: {
+        getRoot?: (options?: any) => HTMLElement | null;
+        append?: (element: HTMLElement) => boolean;
+        cleanup?: () => boolean;
+    } | null;
 };
 
 let cachedStoneSkinRuntimeModule: any = null;
+
+function readElementRect(element: any, deps: DestroySourceAnimationDeps) {
+    if (!element) return null;
+    const batch = deps && deps.layoutBatch;
+    if (batch && typeof batch.readRect === 'function') {
+        const rect = batch.readRect(element);
+        if (rect) return rect;
+    }
+    return typeof element.getBoundingClientRect === 'function'
+        ? element.getBoundingClientRect()
+        : null;
+}
+
+function appendTransientOverlay(overlay: HTMLElement, deps: DestroySourceAnimationDeps): boolean {
+    const batch = deps && deps.transientOverlayBatch;
+    if (batch && typeof batch.append === 'function') {
+        return batch.append(overlay) !== false;
+    }
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.appendChild(overlay);
+        return true;
+    }
+    return false;
+}
 
 function resolveStoneSkinRuntimeModule() {
     if (cachedStoneSkinRuntimeModule && typeof cachedStoneSkinRuntimeModule === 'object') {
@@ -65,8 +97,9 @@ async function animateSniperProjectile(target: any, deps: DestroySourceAnimation
     const toCell = deps.getCellEl(target.r, target.col);
     if (!fromCell || !toCell) return;
 
-    const fromRect = fromCell.getBoundingClientRect();
-    const toRect = toCell.getBoundingClientRect();
+    const fromRect = readElementRect(fromCell, deps);
+    const toRect = readElementRect(toCell, deps);
+    if (!fromRect || !toRect) return;
     const owner = resolveSniperProjectileOwner(target);
     const imgPath = resolveNormalStoneBackgroundImage(owner);
 
@@ -122,8 +155,9 @@ async function animateRobotVacuumSuction(target: any, deps: DestroySourceAnimati
     const toCell = deps.getCellEl(source.row, source.col);
     if (!fromCell || !toCell) return;
 
-    const fromRect = fromCell.getBoundingClientRect();
-    const toRect = toCell.getBoundingClientRect();
+    const fromRect = readElementRect(fromCell, deps);
+    const toRect = readElementRect(toCell, deps);
+    if (!fromRect || !toRect) return;
 
     const ownerBefore = String(target.ownerBefore || '').toLowerCase();
     const imgPath = resolveNormalStoneBackgroundImage(ownerBefore === 'white' ? 'white' : 'black');
@@ -500,8 +534,9 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
     if (!fromCell || !toCell) return;
     if (!document || !document.body) return;
 
-    const fromRect = fromCell.getBoundingClientRect();
-    const toRect = toCell.getBoundingClientRect();
+    const fromRect = readElementRect(fromCell, deps);
+    const toRect = readElementRect(toCell, deps);
+    if (!fromRect || !toRect) return;
     const startX = fromRect.left + (fromRect.width / 2);
     const startY = fromRect.top + (fromRect.height / 2);
     const endX = toRect.left + (toRect.width / 2);
@@ -641,7 +676,7 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
     ring.style.zIndex = '1251';
     overlay.appendChild(ring);
 
-    document.body.appendChild(overlay);
+    appendTransientOverlay(overlay, deps);
 
     const durationMs = Math.max(170, Math.min(300, Math.round(170 + (distance * 0.12))));
     const animations: any[] = [];

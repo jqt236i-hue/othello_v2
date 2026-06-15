@@ -148,6 +148,7 @@ var AnimationStatusEvents = requireRuntimeModuleOrWindowGlobal('./animation-stat
 var AnimationDestroySourceEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-source-events', 'AnimationDestroySourceEvents');
 var AnimationTheoryEvents = requireRuntimeModuleOrWindowGlobal('./animation-theory-events', 'AnimationTheoryEvents');
 var LayoutReadBatch = requireRuntimeModuleOrWindowGlobal('./layout-read-batch', 'LayoutReadBatch');
+var TransientOverlayBatch = requireRuntimeModuleOrWindowGlobal('./transient-overlay-batch', 'TransientOverlayBatch');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -1007,7 +1008,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 sleep: (ms: any) => this._sleep(ms),
                 timer: _Timer,
                 playbackScope: this.playbackScope,
-                layoutBatch: this._getPhaseLayoutBatch()
+                layoutBatch: this._getPhaseLayoutBatch(),
+                transientOverlayBatch: this._getPhaseTransientOverlayBatch()
             };
         }
 
@@ -1248,7 +1250,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             const layoutBatch = (LayoutReadBatch && typeof LayoutReadBatch.createLayoutReadBatch === 'function')
                 ? LayoutReadBatch.createLayoutReadBatch()
                 : null;
-            return { superCrushDestinations, layoutBatch };
+            const transientOverlayBatch = (TransientOverlayBatch && typeof TransientOverlayBatch.createTransientOverlayBatch === 'function')
+                ? TransientOverlayBatch.createTransientOverlayBatch({ documentRef: (typeof document !== 'undefined' ? document : null) })
+                : null;
+            return { superCrushDestinations, layoutBatch, transientOverlayBatch };
         }
 
         _getSuperCrushDestinationContext(row: any, col: any) {
@@ -1262,12 +1267,22 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return ctx && ctx.layoutBatch ? ctx.layoutBatch : null;
         }
 
+        _getPhaseTransientOverlayBatch() {
+            const ctx = this._phaseContext;
+            return ctx && ctx.transientOverlayBatch ? ctx.transientOverlayBatch : null;
+        }
+
         async _withPhaseContext(context: any, runner: any) {
             const prev = this._phaseContext;
             this._phaseContext = context || null;
             try {
                 return await runner();
             } finally {
+                try {
+                    if (context && context.transientOverlayBatch && typeof context.transientOverlayBatch.cleanup === 'function') {
+                        context.transientOverlayBatch.cleanup();
+                    }
+                } catch (e: any) { /* ignore */ }
                 this._phaseContext = prev;
             }
         }
