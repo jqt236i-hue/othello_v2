@@ -286,8 +286,8 @@ describe('rules help panel', () => {
           : '完全保護中は敵対的・強制的な石効果を受けない。',
         effectTags: cardDef.id === 'afterimage_will_01'
           ? [
-            { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
-            { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
+            { kind: 'flip-evasion', value: 3, label: '反転回避' },
+            { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
           ]
           : [
             { kind: 'full-protection', label: '完全保護' },
@@ -295,8 +295,8 @@ describe('rules help panel', () => {
           ],
         numericTags: cardDef.id === 'afterimage_will_01'
           ? [
-            { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
-            { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
+            { kind: 'flip-evasion', value: 3, label: '反転回避' },
+            { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
           ]
           : [
             { kind: 'duration-turns', value: 3, label: '3ターン持続' }
@@ -319,7 +319,7 @@ describe('rules help panel', () => {
 
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
-    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['反転回避3回', '破壊回避3回']);
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['反転回避', '破壊回避']);
 
     const cardButtons = Array.from(document.querySelectorAll('.rules-help-card-item'));
     cardButtons[1].click();
@@ -364,8 +364,8 @@ describe('rules help panel', () => {
             quickText: '次に置く石を残像石化する。',
             distinctDetailText: '反転回避と破壊回避を持つ。',
             effectTags: [
-              { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
-              { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
+              { kind: 'flip-evasion', value: 3, label: '反転回避' },
+              { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
             ]
           },
           guard_01: {
@@ -416,7 +416,7 @@ describe('rules help panel', () => {
     const selectedTitle = () => document.querySelector('#rules-help-card-name .rules-help-card-title').textContent;
 
     expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志']);
-    expect(tagLabels()).toEqual(['完全保護', '3ターン持続', '反転回避3回', '破壊回避3回']);
+    expect(tagLabels()).toEqual(['完全保護', '3ターン持続', '反転回避', '破壊回避']);
     expect(filterStatus.textContent).toContain('4 / 4枚');
 
     searchInput.value = '完全保護';
@@ -431,7 +431,7 @@ describe('rules help panel', () => {
     expect(searchInput.value).toBe('');
 
     const flipEvasionFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
-      .find((el) => el.textContent === '反転回避3回') as HTMLButtonElement;
+      .find((el) => el.textContent === '反転回避') as HTMLButtonElement;
     flipEvasionFilter.click();
 
     expect(flipEvasionFilter.getAttribute('aria-pressed')).toBe('true');

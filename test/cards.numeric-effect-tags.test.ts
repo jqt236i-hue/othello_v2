@@ -11,8 +11,9 @@ describe('CardInteractionEffects effect tags', () => {
     return CardInteractionEffects.resolveCardNumericTags({ type: cardType }).map((tag) => tag.label);
   }
 
-  test('AFTERIMAGE_WILL returns flip and destroy evasion count tags', () => {
-    expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避3回', '破壊回避3回']);
+  test('AFTERIMAGE_WILL returns flip and destroy evasion tags without count-specific labels', () => {
+    expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避', '破壊回避']);
+    expect(getNumericTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避', '破壊回避']);
   });
 
   test('ROBOT_VACUUM_WILL returns only its base duration tag', () => {

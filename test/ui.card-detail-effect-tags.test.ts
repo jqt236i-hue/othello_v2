@@ -221,7 +221,7 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-more').textContent).toContain('絶対保護も貫通');
   });
 
-  test('AFTERIMAGE_WILL shows flip and destroy evasion count tags together', () => {
+  test('AFTERIMAGE_WILL shows flip and destroy evasion tags without count-specific labels', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -238,7 +238,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['反転回避3回', '破壊回避3回']);
+    expect(getTagLabels()).toEqual(['反転回避', '破壊回避']);
   });
 
   test('TIME_STOP_GOD detail follows rulebook timing text and shows delayed activation tag', () => {

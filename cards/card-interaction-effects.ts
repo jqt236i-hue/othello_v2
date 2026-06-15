@@ -70,9 +70,9 @@ function buildCardEffectTag(kind: string, value?: number) {
 
   let label = '';
   if (normalizedKind === CARD_EFFECT_TAG_KIND.FLIP_EVASION) {
-    label = `反転回避${normalizedValue}回`;
+    label = '反転回避';
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DESTROY_EVASION) {
-    label = `破壊回避${normalizedValue}回`;
+    label = '破壊回避';
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DURATION_TURNS) {
     label = `${normalizedValue}ターン持続`;
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS) {
