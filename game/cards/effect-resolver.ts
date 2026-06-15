@@ -69,7 +69,9 @@ const CardPendingStateManagerModule = loadRuntimeModule('../logic/cards-internal
 const CardUsagePrechecksModule = loadRuntimeModule('../logic/cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
 const PendingSelectionRegistryModule = loadRuntimeModule('../logic/cards-internal/pending-selection-registry', 'PendingSelectionRegistry', {});
 const CardMarkersModule = loadRuntimeModule('../logic/cards/markers', 'CardMarkers', null);
+const SpecialStoneRegistry = loadRuntimeModule('../../shared/special-stone-registry', 'SpecialStoneRegistry', null);
 const ManifestStoneRegistry = loadRuntimeModule('../../shared/manifest-stone-registry', 'ManifestStoneRegistry', null);
+const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext', null);
 
 const {
   CARD_DEFS,
@@ -79,14 +81,6 @@ const {
   EMPTY,
   CHARGE_MAX
 } = SharedConstants || {};
-
-function isManifestStoneType(rawType: any): boolean {
-  if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
-    return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
-  }
-  const type = String(rawType || '').trim().toUpperCase();
-  return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
-}
 
 function isBoardExecutorHolePresentationEvent(event: any): boolean {
   if (!event || typeof event !== 'object') return false;
@@ -432,90 +426,29 @@ function getCardEffectTimingContext(deps: any) {
 }
 
 function getCardContext(cardState: any, deps: any) {
-  const { getSpecialMarkers, getManifestMarkers, getBombMarkers, getBlockingMarkers, isFrozenCellForCard } = deps || {};
-
-  const specials = typeof getSpecialMarkers === 'function'
-    ? getSpecialMarkers(cardState)
-    : (cardState && Array.isArray(cardState.markers) ? cardState.markers.filter((m: any) => m && m.kind === 'specialStone') : []);
-  const manifests = typeof getManifestMarkers === 'function'
-    ? getManifestMarkers(cardState)
-    : (cardState && Array.isArray(cardState.markers) ? cardState.markers.filter((m: any) => (
-      m &&
-      (m.kind === 'manifestStone' || m.kind === 'specialStone') &&
-      m.data &&
-      isManifestStoneType(m.data.type)
-    )) : []);
-
-  const protectedStones = specials
-    .filter((s: any) => s.data && s.data.type === 'PROTECTED')
-    .map((s: any) => ({ row: s.row, col: s.col, owner: s.owner }));
-
-  const absoluteProtectedStones = specials
-    .filter((s: any) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
-    .concat(manifests)
-    .map((s: any) => ({
-      row: s.row,
-      col: s.col,
-      owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
-    }));
-
-  const permaProtectedStones = specials
-    .filter((s: any) => {
-      if (!s.data) return false;
-      if (
-        s.data.type === 'ABSOLUTE_PROTECTED' ||
-        s.data.type === 'PERMA_PROTECTED' ||
-        s.data.type === 'DRAGON' ||
-        s.data.type === 'BREEDING' ||
-        s.data.type === 'DESTROY_DRAGON' ||
-        s.data.type === 'LIGHTNING' ||
-        s.data.type === 'METEOR_GOD' ||
-        s.data.type === 'GLUTTONOUS' ||
-        s.data.type === 'ULTIMATE_DESTROY_GOD' ||
-        s.data.type === 'GUARD' ||
-        s.data.type === 'STONE_SALVATION_GOD' ||
-        s.data.type === 'FREEZE'
-      ) {
-        return true;
-      }
-      if (typeof isFrozenCellForCard === 'function' && isFrozenCellForCard(cardState, s.row, s.col)) return true;
-      return false;
-    })
-    .concat(manifests)
-    .map((s: any) => ({
-      row: s.row,
-      col: s.col,
-      owner: s.owner === 'black' ? BLACK : WHITE
-    }));
-
-  const bombs = typeof getBombMarkers === 'function'
-    ? getBombMarkers(cardState).map((b: any) => ({
-      row: b.row,
-      col: b.col,
-      remainingTurns: b.data ? b.data.remainingTurns : undefined,
-      owner: b.owner,
-      placedTurn: b.data ? b.data.placedTurn : undefined,
-      createdSeq: b.createdSeq
-    }))
-    : [];
-
-  const blockedCells = typeof getBlockingMarkers === 'function'
-    ? getBlockingMarkers(cardState).map((m: any) => ({
-      row: m.row,
-      col: m.col,
-      type: m.data ? m.data.type : null,
-      remainingOwnerTurns: m.data ? m.data.remainingOwnerTurns : undefined,
-      owner: m.owner
-    }))
-    : [];
-
-  return {
-    protectedStones,
-    absoluteProtectedStones,
-    permaProtectedStones,
-    bombs,
-    blockedCells
-  };
+  if (!CardProtectionContext || typeof CardProtectionContext.buildCardProtectionContext !== 'function') {
+    throw new Error('[effect-resolver] CardProtectionContext.buildCardProtectionContext not available');
+  }
+  if (!SpecialStoneRegistry || typeof SpecialStoneRegistry.getSpecialStoneInfo !== 'function') {
+    throw new Error('[effect-resolver] SpecialStoneRegistry.getSpecialStoneInfo not available');
+  }
+  const {
+    getSpecialMarkers,
+    getManifestMarkers,
+    getBombMarkers,
+    getBlockingMarkers,
+    isFrozenCellForCard
+  } = deps || {};
+  return CardProtectionContext.buildCardProtectionContext(cardState, {
+    constants: SharedConstants,
+    SpecialStoneRegistry,
+    ManifestStoneRegistry,
+    getSpecialMarkers,
+    getManifestMarkers,
+    getBombMarkers,
+    getBlockingMarkers,
+    isFrozenCellForCard
+  });
 }
 
 /**
