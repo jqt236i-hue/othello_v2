@@ -16,6 +16,7 @@ function requireDestroyModuleOrNull(id: string): any {
 const PendingSelectionFlow = requireDestroyModuleOrNull('./selection-flow');
 const PendingCoordinator = requireDestroyModuleOrNull('../turn/pending-coordinator');
 const DestroyOutcomeContract = requireDestroyModuleOrNull('../../shared/destroy-outcome-contract');
+const CardEffectStateRefs = _require('./state-refs');
 const ControllerEvents = _require('../controller-events');
 function getEmitLogAdded(): ((message: string) => void) | null {
     if (__uiImpl_destroy && typeof __uiImpl_destroy.emitLogAdded === 'function') return __uiImpl_destroy.emitLogAdded;
@@ -29,7 +30,6 @@ function getLogMessages(): any {
     return _require('../log-messages');
 }
 const GameControllerSlim = _require('../game-controller-slim');
-const CardSystem = _require('../../card-system');
 
 let __uiImpl_destroy: any = {};
 
@@ -137,15 +137,8 @@ async function handleDestroySelection(row: number, col: number, playerKey: strin
         ? __uiImpl_destroy.getCardLogic()
         : null;
     if (cardLogic && typeof cardLogic.getSelectableTargets === 'function') {
-        const gameState = __uiImpl_destroy && typeof __uiImpl_destroy.getGameState === 'function'
-            ? __uiImpl_destroy.getGameState()
-            : null;
-        const injectedCardState = __uiImpl_destroy && typeof __uiImpl_destroy.getCardState === 'function'
-            ? __uiImpl_destroy.getCardState()
-            : null;
-        const activeCardState = (injectedCardState && typeof injectedCardState === 'object')
-            ? injectedCardState
-            : CardSystem.cardState;
+        const gameState = CardEffectStateRefs.resolveActiveGameState(__uiImpl_destroy);
+        const activeCardState = CardEffectStateRefs.resolveActiveCardState(__uiImpl_destroy);
         const targets = cardLogic.getSelectableTargets(activeCardState, gameState, playerKey) || [];
         const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
         if (!allowed) {

@@ -7,7 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 // Imports replacing globalThis references
 const cardEffectsHelpers = _require('./helpers');
 const { getPlayerKey, getPlayerDisplayName } = cardEffectsHelpers;
-const CardSystem = _require('../../card-system');
+const CardEffectStateRefs = _require('./state-refs');
 const ControllerEvents = _require('../controller-events');
 const LOG_MESSAGES = _require('../log-messages');
 
@@ -60,14 +60,7 @@ function readPlacementPendingType(move: any): string | null {
     if (!move) return null;
     const playerKey = typeof getPlayerKey === 'function' ? getPlayerKey(move.player) : null;
     if (!playerKey) return null;
-    const injectedCardState = __uiImpl_placement && typeof __uiImpl_placement.getCardState === 'function'
-        ? __uiImpl_placement.getCardState()
-        : null;
-    const activeCardState = (injectedCardState && typeof injectedCardState === 'object')
-        ? injectedCardState
-        : (CardSystem.cardState && typeof CardSystem.cardState === 'object')
-        ? CardSystem.cardState
-        : null;
+    const activeCardState = CardEffectStateRefs.resolveActiveCardState(__uiImpl_placement);
     if (!activeCardState) return null;
 
     const pendingCoordinator = resolvePendingCoordinator();
