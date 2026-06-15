@@ -1209,6 +1209,11 @@ function _buildHandGlowLayoutEnvironmentKey(containerEl: any, handTrackEl: any) 
         childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
     });
 }
+function _countExpectedHandAvailabilityGlows(renderEntries: any) {
+    return (Array.isArray(renderEntries) ? renderEntries : [])
+        .filter((entryState: any) => entryState && entryState.desiredKind === 'face' && entryState.availableGlow)
+        .length;
+}
 function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, renderEntries: any, ownerKey: any) {
     const glowLayerEl = _ensureHandAvailabilityGlowLayer(containerEl, handTrackEl);
     if (!glowLayerEl || !handTrackEl || typeof document === 'undefined')
@@ -1216,8 +1221,16 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
     _ensureHandGlowResizeInvalidation();
     const signature = _buildHandGlowLayoutSignature(ownerKey, renderEntries);
     const layoutKey = _buildHandGlowLayoutEnvironmentKey(containerEl, handTrackEl);
+    const expectedGlowCount = _countExpectedHandAvailabilityGlows(renderEntries);
     const cached = handGlowLayoutCacheByContainer.get(containerEl);
-    if (cached && cached.signature === signature && cached.layoutKey === layoutKey && cached.dirty !== true) {
+    if (
+        cached &&
+        cached.signature === signature &&
+        cached.layoutKey === layoutKey &&
+        cached.dirty !== true &&
+        glowLayerEl.children &&
+        glowLayerEl.children.length === expectedGlowCount
+    ) {
         return;
     }
     const containerRect = typeof containerEl.getBoundingClientRect === 'function'

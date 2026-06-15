@@ -23,4 +23,14 @@ describe('marker cell index', () => {
     expect(index.findSpecial(1, 1, 'FREEZE', 'white')).toBe(Markers.findSpecialMarkerAt(cardState, 1, 1, 'FREEZE', 'white'));
     expect(index.isSpecialStoneAt(1, 1)).toBe(Markers.isSpecialStoneAt(cardState, 1, 1));
   });
+
+  test('does not coerce string coordinates into numeric cell lookups', () => {
+    const stringCoordMarker = { id: 's', kind: 'specialStone', row: '1', col: '1', owner: 'black', data: { type: 'GUARD' } };
+    const cardState = { markers: [stringCoordMarker] };
+
+    const index = Markers.createMarkerCellIndex(cardState);
+    expect(index.get(1, 1)).toEqual([]);
+    expect(index.findSpecial(1, 1, 'GUARD', 'black')).toBe(Markers.findSpecialMarkerAt(cardState, 1, 1, 'GUARD', 'black'));
+    expect(index.isSpecialStoneAt(1, 1)).toBe(Markers.isSpecialStoneAt(cardState, 1, 1));
+  });
 });

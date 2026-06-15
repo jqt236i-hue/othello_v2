@@ -115,4 +115,34 @@ describe('card renderer hand glow layout cache', () => {
     renderer.renderCardUI();
     expect(rectSpy.mock.calls.length).toBeGreaterThan(afterScroll);
   });
+
+  test('rebuilds glow layout when cached glow nodes are missing', () => {
+    const renderer = require('../cards/card-renderer.js');
+    const rectSpy = jest.spyOn(dom.window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const element = this as HTMLElement;
+      const index = Number(element.dataset.handIndex || 0);
+      return {
+        left: index * 10,
+        top: index * 5,
+        width: 80,
+        height: 120,
+        right: index * 10 + 80,
+        bottom: index * 5 + 120,
+        x: index * 10,
+        y: index * 5,
+        toJSON: () => ({})
+      } as DOMRect;
+    });
+
+    renderer.renderCardUI();
+    const glowLayer = document.querySelector('#hand-black .hand-availability-glow-layer') as HTMLElement;
+    expect(glowLayer.children.length).toBeGreaterThan(0);
+    const afterFirst = rectSpy.mock.calls.length;
+
+    glowLayer.innerHTML = '';
+    renderer.renderCardUI();
+
+    expect(glowLayer.children.length).toBeGreaterThan(0);
+    expect(rectSpy.mock.calls.length).toBeGreaterThan(afterFirst);
+  });
 });

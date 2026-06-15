@@ -458,14 +458,14 @@ function findBombMarkerAt(cardState: CardState, row: number, col: number): any {
 }
 
 function markerCellKey(row: any, col: any): string {
-    return `${Number(row)},${Number(col)}`;
+    return `${typeof row}:${String(row)},${typeof col}:${String(col)}`;
 }
 
 function createMarkerCellIndex(cardState: CardState) {
     const byCell = new Map<string, any[]>();
     const markers = getMarkers(cardState);
     for (const marker of markers) {
-        if (!marker || !Number.isFinite(Number(marker.row)) || !Number.isFinite(Number(marker.col))) continue;
+        if (!marker || !Number.isFinite(marker.row) || !Number.isFinite(marker.col)) continue;
         const key = markerCellKey(marker.row, marker.col);
         const list = byCell.get(key);
         if (list) list.push(marker);

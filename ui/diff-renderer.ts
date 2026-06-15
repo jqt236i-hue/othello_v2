@@ -996,6 +996,48 @@ function _setTimedLabelTextForDiff(label: any, value: any) {
     _applyDoubleDigitTimerClassForDiff(label, remaining);
     return true;
 }
+function _isFiniteTimedLabelValueForDiff(value: any) {
+    if (value === null || typeof value === 'undefined') return false;
+    return Number.isFinite(Number(value));
+}
+function _timerClassToSelectorForDiff(className: any) {
+    const parts = String(className || '')
+        .split(/\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+    if (!parts.length) return '';
+    return parts.map((part) => `.${part}`).join('');
+}
+function _findSpecialPrimaryTimerLabelForDiff(disc: any, special: any) {
+    if (!disc || !disc.querySelectorAll || !special) return null;
+    const snapshot = _createSpecialStoneStatusSnapshotForDiff({
+        type: special.type,
+        remainingOwnerTurns: special.remainingOwnerTurns,
+        flipEvadeRemaining: special.flipEvadeRemaining,
+        destroyEvadeRemaining: special.destroyEvadeRemaining
+    }, { mode: 'raw' });
+    const timerClass = (snapshot && snapshot.timerClass) ? snapshot.timerClass : 'special-timer';
+    const selector = _timerClassToSelectorForDiff(timerClass);
+    if (!selector) return null;
+    const candidates = Array.from(disc.querySelectorAll(selector));
+    return candidates.find((label: any) => !(
+        label.classList.contains('flip-evade-timer') ||
+        label.classList.contains('destroy-evade-timer') ||
+        label.classList.contains('bomb-timer') ||
+        label.classList.contains('guard-timer') ||
+        label.classList.contains('inherited-timer')
+    )) || null;
+}
+function _patchChangedTimedLabelForDiff(label: any, previousValue: any, nextValue: any, setValue: any) {
+    if (previousValue === nextValue) return { ok: true, patched: false };
+    if (!_isFiniteTimedLabelValueForDiff(previousValue)) return { ok: false, patched: false };
+    if (!_isFiniteTimedLabelValueForDiff(nextValue)) return { ok: false, patched: false };
+    if (!label) return { ok: false, patched: false };
+    return {
+        ok: true,
+        patched: _setTimedLabelTextForDiff(label, setValue)
+    };
+}
 function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
     if (!source || typeof source !== 'object') return source;
     const cloned = {
@@ -1036,33 +1078,38 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     const disc = cell && cell.querySelector ? cell.querySelector('.disc') : null;
     if (!disc) return false;
     let patched = false;
+    const patch = (label: any, previousValue: any, nextValue: any, setValue: any = nextValue) => {
+        const result = _patchChangedTimedLabelForDiff(label, previousValue, nextValue, setValue);
+        if (!result.ok) return false;
+        patched = result.patched || patched;
+        return true;
+    };
     if (prevState.special && state.special && prevState.special.remainingOwnerTurns !== state.special.remainingOwnerTurns) {
-        const timer = disc.querySelector('.stone-timer, .special-timer, .udg-timer, .dragon-timer, .work-timer');
-        patched = _setTimedLabelTextForDiff(timer, state.special.remainingOwnerTurns) || patched;
+        if (!patch(_findSpecialPrimaryTimerLabelForDiff(disc, state.special), prevState.special.remainingOwnerTurns, state.special.remainingOwnerTurns)) return false;
     }
     if (prevState.special && state.special && prevState.special.flipEvadeRemaining !== state.special.flipEvadeRemaining) {
-        patched = _setTimedLabelTextForDiff(disc.querySelector('.flip-evade-timer'), state.special.flipEvadeRemaining) || patched;
+        if (!patch(disc.querySelector('.flip-evade-timer'), prevState.special.flipEvadeRemaining, state.special.flipEvadeRemaining)) return false;
     }
     if (prevState.special && state.special && prevState.special.destroyEvadeRemaining !== state.special.destroyEvadeRemaining) {
-        patched = _setTimedLabelTextForDiff(disc.querySelector('.destroy-evade-timer'), state.special.destroyEvadeRemaining) || patched;
+        if (!patch(disc.querySelector('.destroy-evade-timer'), prevState.special.destroyEvadeRemaining, state.special.destroyEvadeRemaining)) return false;
     }
     if (prevState.guard && state.guard && prevState.guard.remainingOwnerTurns !== state.guard.remainingOwnerTurns) {
-        patched = _setTimedLabelTextForDiff(disc.querySelector('.guard-timer'), state.guard.remainingOwnerTurns) || patched;
+        if (!patch(disc.querySelector('.guard-timer'), prevState.guard.remainingOwnerTurns, state.guard.remainingOwnerTurns)) return false;
     }
     if (prevState.bomb && state.bomb && prevState.bomb.remainingTurns !== state.bomb.remainingTurns) {
-        patched = _setTimedLabelTextForDiff(disc.querySelector('.bomb-timer.countdown-timer'), state.bomb.remainingTurns) || patched;
+        if (!patch(disc.querySelector('.bomb-timer.countdown-timer'), prevState.bomb.remainingTurns, state.bomb.remainingTurns)) return false;
     }
     if (prevState.inherited && state.inherited && prevState.inherited.remainingOwnerTurns !== state.inherited.remainingOwnerTurns) {
-        patched = _setTimedLabelTextForDiff(disc.querySelector('.inherited-timer'), state.inherited.remainingOwnerTurns) || patched;
+        if (!patch(disc.querySelector('.inherited-timer'), prevState.inherited.remainingOwnerTurns, state.inherited.remainingOwnerTurns)) return false;
     }
     if (prevState.blockade && state.blockade && prevState.blockade.remainingOwnerTurns !== state.blockade.remainingOwnerTurns) {
-        patched = _setTimedLabelTextForDiff(cell.querySelector('.blockade-turn'), state.blockade.remainingOwnerTurns) || patched;
+        if (!patch(cell.querySelector('.blockade-turn'), prevState.blockade.remainingOwnerTurns, state.blockade.remainingOwnerTurns)) return false;
     }
     if (prevState.frozen && state.frozen && prevState.frozen.remainingOwnerTurns !== state.frozen.remainingOwnerTurns) {
-        patched = _setTimedLabelTextForDiff(cell.querySelector('.freeze-turn'), state.frozen.remainingOwnerTurns) || patched;
+        if (!patch(cell.querySelector('.freeze-turn'), prevState.frozen.remainingOwnerTurns, state.frozen.remainingOwnerTurns)) return false;
     }
     if (prevState.seed && state.seed && prevState.seed.remainingOwnerTurns !== state.seed.remainingOwnerTurns) {
-        patched = _setTimedLabelTextForDiff(cell.querySelector('.seed-turn.countdown-timer'), state.seed.remainingOwnerTurns) || patched;
+        if (!patch(cell.querySelector('.seed-turn.countdown-timer'), prevState.seed.remainingOwnerTurns, state.seed.remainingOwnerTurns)) return false;
     }
     return patched;
 }
@@ -1644,7 +1691,13 @@ function _resolveFlipEvadeDisplayForDiff(special: any) {
         specialTypeUpper === 'WILL_HUNTER_KING' ||
         specialTypeUpper === 'AFTERIMAGE_WILL'
     );
-    return (special && specialSupportsFlipEvade && Number.isFinite(Number(special.flipEvadeRemaining)))
+    return (
+        special &&
+        specialSupportsFlipEvade &&
+        special.flipEvadeRemaining !== null &&
+        typeof special.flipEvadeRemaining !== 'undefined' &&
+        Number.isFinite(Number(special.flipEvadeRemaining))
+    )
         ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
         : null;
 }
@@ -1657,7 +1710,13 @@ function _resolveDestroyEvadeDisplayForDiff(special: any) {
         specialTypeUpper === 'WILL_HUNTER_KING' ||
         specialTypeUpper === 'AFTERIMAGE_WILL'
     );
-    return (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
+    return (
+        special &&
+        specialSupportsDestroyEvade &&
+        special.destroyEvadeRemaining !== null &&
+        typeof special.destroyEvadeRemaining !== 'undefined' &&
+        Number.isFinite(Number(special.destroyEvadeRemaining))
+    )
         ? Math.max(0, Math.trunc(Number(special.destroyEvadeRemaining)))
         : null;
 }
@@ -2641,14 +2700,14 @@ function buildCurrentCellState() {
                     markerTypeUpper === 'AFTERIMAGE_WILL'
                 ))
                     ? (
-                        Number.isFinite(Number(m.data.destroyEvadeRemaining))
+                        _isFiniteTimedLabelValueForDiff(m.data.destroyEvadeRemaining)
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
                             : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 1 : (markerTypeUpper === 'AFTERIMAGE_WILL' ? 3 : null))
                     )
                     : null,
                 flipEvadeRemaining: markerSupportsFlipEvade
                     ? (
-                        Number.isFinite(Number(m.data.flipEvadeRemaining))
+                        _isFiniteTimedLabelValueForDiff(m.data.flipEvadeRemaining)
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
                             : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE' || markerTypeUpper === 'AFTERIMAGE_WILL') ? 3 : null)
                     )
