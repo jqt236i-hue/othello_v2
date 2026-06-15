@@ -134,18 +134,23 @@ function readRepoFile(relativePath: string): string {
 
 function directRectReadLines(source: string): string[] {
   const lines = source.split(/\r?\n/);
-  let insideReadElementRect = false;
+  let readElementRectDepth = 0;
   const offenders: string[] = [];
   lines.forEach((rawLine, index) => {
     const line = rawLine.trim();
+    const isReadElementRectStart = /^function readElementRect\(/.test(line);
+    const insideReadElementRect = readElementRectDepth > 0 || isReadElementRectStart;
     if (/^function readElementRect\(/.test(line)) {
-      insideReadElementRect = true;
+      readElementRectDepth = 0;
     }
     if (line.includes('.getBoundingClientRect(') && !insideReadElementRect) {
       offenders.push(`${index + 1}: ${line}`);
     }
-    if (insideReadElementRect && line === '}') {
-      insideReadElementRect = false;
+    if (insideReadElementRect) {
+      const opens = (line.match(/{/g) || []).length;
+      const closes = (line.match(/}/g) || []).length;
+      readElementRectDepth += opens - closes;
+      if (readElementRectDepth < 0) readElementRectDepth = 0;
     }
   });
   return offenders;
@@ -523,9 +528,9 @@ git commit -m "Skip identical hand element updates"
 
 ---
 
-## Task 3: Cache Hand Glow Layout Until Resize Or Hand Signature Change
+## Task 3: Cache Hand Glow Layout Until Layout Environment Changes
 
-**Risk:** Medium. Glow positioning is visual. The cache must invalidate on resize and on hand entry signature changes.
+**Risk:** Medium. Glow positioning is visual. The cache must invalidate on resize, scroll offset changes, container/track size changes, and hand entry signature changes.
 
 **Files:**
 - Modify: `cards/card-renderer.ts`
@@ -604,7 +609,7 @@ describe('card renderer hand glow layout cache', () => {
     delete (global as any).getCurrentMatchMode;
   });
 
-  test('identical hand input reuses glow layout until window resize invalidates it', () => {
+  test('identical hand input reuses glow layout until layout environment changes', () => {
     const renderer = require('../cards/card-renderer.js');
     const rectSpy = jest.spyOn(dom.window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
       const element = this as HTMLElement;
@@ -627,9 +632,15 @@ describe('card renderer hand glow layout cache', () => {
     renderer.renderCardUI();
     expect(rectSpy.mock.calls.length).toBe(afterFirst);
 
+    const handTrack = document.querySelector('#hand-black .hand-track') as HTMLElement;
+    handTrack.scrollLeft = 12;
+    renderer.renderCardUI();
+    const afterScroll = rectSpy.mock.calls.length;
+    expect(afterScroll).toBeGreaterThan(afterFirst);
+
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     renderer.renderCardUI();
-    expect(rectSpy.mock.calls.length).toBeGreaterThan(afterFirst);
+    expect(rectSpy.mock.calls.length).toBeGreaterThan(afterScroll);
   });
 });
 ```
@@ -653,7 +664,7 @@ FAIL because the second identical render still calls getBoundingClientRect.
 In `cards/card-renderer.ts`, near the hand signature cache, add:
 
 ```ts
-const handGlowLayoutCacheByContainer = new WeakMap<any, { signature: string; dirty: boolean }>();
+const handGlowLayoutCacheByContainer = new WeakMap<any, { signature: string; layoutKey: string; dirty: boolean }>();
 let handGlowResizeListenerInstalled = false;
 
 function _markAllHandGlowLayoutsDirty() {
@@ -694,17 +705,30 @@ function _buildHandGlowLayoutSignature(ownerKey: any, entryStates: any[]) {
             }))
     });
 }
+
+function _buildHandGlowLayoutEnvironmentKey(containerEl: any, handTrackEl: any) {
+    return JSON.stringify({
+        containerClientWidth: Number(containerEl && containerEl.clientWidth) || 0,
+        containerClientHeight: Number(containerEl && containerEl.clientHeight) || 0,
+        trackClientWidth: Number(handTrackEl && handTrackEl.clientWidth) || 0,
+        trackClientHeight: Number(handTrackEl && handTrackEl.clientHeight) || 0,
+        trackScrollLeft: Number(handTrackEl && handTrackEl.scrollLeft) || 0,
+        trackScrollTop: Number(handTrackEl && handTrackEl.scrollTop) || 0,
+        childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
+    });
+}
 ```
 
-- [ ] **Step 5: Skip glow sync only when layout is known clean**
+- [ ] **Step 5: Skip glow sync only when signature and layout environment are known clean**
 
 At the start of `_syncHandAvailabilityGlowLayer(...)`, after `glowLayerEl` and `handTrackEl` are confirmed:
 
 ```ts
     _ensureHandGlowResizeInvalidation();
     const signature = _buildHandGlowLayoutSignature(ownerKey, renderEntries);
+    const layoutKey = _buildHandGlowLayoutEnvironmentKey(containerEl, handTrackEl);
     const cached = handGlowLayoutCacheByContainer.get(containerEl);
-    if (cached && cached.signature === signature && cached.dirty !== true) {
+    if (cached && cached.signature === signature && cached.layoutKey === layoutKey && cached.dirty !== true) {
         return;
     }
 ```
@@ -712,10 +736,10 @@ At the start of `_syncHandAvailabilityGlowLayer(...)`, after `glowLayerEl` and `
 After successful sync and removal of stale glow elements, add:
 
 ```ts
-    handGlowLayoutCacheByContainer.set(containerEl, { signature, dirty: false });
+    handGlowLayoutCacheByContainer.set(containerEl, { signature, layoutKey, dirty: false });
 ```
 
-If `renderEntries` changes, the signature changes and the glow layout is recomputed. If the window resizes, `_markAllHandGlowLayoutsDirty()` forces recompute on the next render.
+If `renderEntries` changes, the signature changes and the glow layout is recomputed. If the window resizes, `_markAllHandGlowLayoutsDirty()` forces recompute on the next render. If the hand track scrolls or the container/track dimensions change, `layoutKey` changes and recomputes without requiring a resize event.
 
 - [ ] **Step 6: Validate Task 3**
 
@@ -868,24 +892,45 @@ function _setTimedLabelTextForDiff(label: any, value: any) {
     return true;
 }
 
-function _sameTimedSpecialVisualIdentityForDiff(prevState: any, state: any) {
-    if (!prevState || !state || !prevState.special || !state.special) return false;
-    return (
-        prevState.value === state.value &&
-        prevState.special.type === state.special.type &&
-        prevState.special.owner === state.special.owner &&
-        !!prevState.guard === !!state.guard &&
-        !!prevState.bomb === !!state.bomb &&
-        !!prevState.blockade === !!state.blockade &&
-        !!prevState.frozen === !!state.frozen &&
-        !!prevState.seed === !!state.seed &&
-        prevState.livingWillAura === state.livingWillAura &&
-        prevState.manifestAura === state.manifestAura
-    );
+function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
+    if (!source || typeof source !== 'object') return source;
+    const cloned = {
+        ...source,
+        special: source.special ? { ...source.special } : source.special,
+        inherited: source.inherited ? { ...source.inherited } : source.inherited,
+        guard: source.guard ? { ...source.guard } : source.guard,
+        bomb: source.bomb ? { ...source.bomb } : source.bomb,
+        blockade: source.blockade ? { ...source.blockade } : source.blockade,
+        frozen: source.frozen ? { ...source.frozen } : source.frozen,
+        seed: source.seed ? { ...source.seed } : source.seed
+    };
+    if (cloned.special) {
+        cloned.special.remainingOwnerTurns = 0;
+        cloned.special.flipEvadeRemaining = 0;
+        cloned.special.destroyEvadeRemaining = 0;
+    }
+    if (cloned.inherited) {
+        cloned.inherited.remainingOwnerTurns = 0;
+        cloned.inherited.flipEvadeRemaining = 0;
+        cloned.inherited.destroyEvadeRemaining = 0;
+    }
+    if (cloned.guard) cloned.guard.remainingOwnerTurns = 0;
+    if (cloned.bomb) cloned.bomb.remainingTurns = 0;
+    if (cloned.blockade) cloned.blockade.remainingOwnerTurns = 0;
+    if (cloned.frozen) cloned.frozen.remainingOwnerTurns = 0;
+    if (cloned.seed) cloned.seed.remainingOwnerTurns = 0;
+    return cloned;
+}
+
+function _onlyTimedLabelsChangedForDiff(prevState: any, state: any) {
+    if (!prevState || !state) return false;
+    const prevComparable = _cloneCellStateWithTimedLabelsNormalizedForDiff(prevState);
+    const nextComparable = _cloneCellStateWithTimedLabelsNormalizedForDiff(state);
+    return cellStatesEqual(prevComparable, nextComparable);
 }
 
 function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any) {
-    if (!_sameTimedSpecialVisualIdentityForDiff(prevState, state)) return false;
+    if (!_onlyTimedLabelsChangedForDiff(prevState, state)) return false;
     const disc = cell && cell.querySelector ? cell.querySelector('.disc') : null;
     if (!disc) return false;
     let patched = false;
@@ -904,6 +949,18 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     }
     if (prevState.bomb && state.bomb && prevState.bomb.remainingTurns !== state.bomb.remainingTurns) {
         patched = _setTimedLabelTextForDiff(disc.querySelector('.bomb-timer.countdown-timer'), state.bomb.remainingTurns) || patched;
+    }
+    if (prevState.inherited && state.inherited && prevState.inherited.remainingOwnerTurns !== state.inherited.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(disc.querySelector('.inherited-timer'), state.inherited.remainingOwnerTurns) || patched;
+    }
+    if (prevState.blockade && state.blockade && prevState.blockade.remainingOwnerTurns !== state.blockade.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(cell.querySelector('.blockade-turn'), state.blockade.remainingOwnerTurns) || patched;
+    }
+    if (prevState.frozen && state.frozen && prevState.frozen.remainingOwnerTurns !== state.frozen.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(cell.querySelector('.freeze-turn'), state.frozen.remainingOwnerTurns) || patched;
+    }
+    if (prevState.seed && state.seed && prevState.seed.remainingOwnerTurns !== state.seed.remainingOwnerTurns) {
+        patched = _setTimedLabelTextForDiff(cell.querySelector('.seed-turn.countdown-timer'), state.seed.remainingOwnerTurns) || patched;
     }
     return patched;
 }
@@ -927,7 +984,7 @@ insert:
     }
 ```
 
-This must stay after the destroy-fade and overlay skip guards so active animations are not clobbered.
+This must stay after the destroy-fade and overlay skip guards so active animations are not clobbered. The patch path must use `cellStatesEqual()` after normalizing only timed label values; do not replace it with a hand-written partial identity check, because that would miss legal/highlight/preview/aura/class changes.
 
 - [ ] **Step 5: Validate Task 4**
 
@@ -1066,17 +1123,14 @@ function createMarkerCellIndex(cardState: CardState) {
 }
 ```
 
-Add `createMarkerCellIndex` to the exported object.
+Add `createMarkerCellIndex` to the exported object. Do not change existing `findSpecialMarkerAt`, `getSpecialMarkerAt`, or `isSpecialStoneAt` behavior in this task.
 
 - [ ] **Step 4: Use index in `game/move-generator.ts` swap generation**
 
-At the top-level module setup, require markers if not already present:
+At the top-level module setup, require card marker helpers if not already present:
 
 ```ts
-let CardMarkersModule: any = null;
-try {
-    CardMarkersModule = typeof require === 'function' ? require('./logic/cards/markers') : null;
-} catch (e) { /* ignore */ }
+const MoveGeneratorCardMarkers = requireMoveGeneratorModuleOrNull('./logic/cards/markers');
 ```
 
 Inside `generateSwapMoves(...)`, replace the local marker scan setup:
@@ -1089,8 +1143,8 @@ with:
 
 ```ts
 const markers = (typeof cardState !== 'undefined' && cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-const markerIndex = CardMarkersModule && typeof CardMarkersModule.createMarkerCellIndex === 'function'
-    ? CardMarkersModule.createMarkerCellIndex(cardState)
+const markerIndex = MoveGeneratorCardMarkers && typeof MoveGeneratorCardMarkers.createMarkerCellIndex === 'function'
+    ? MoveGeneratorCardMarkers.createMarkerCellIndex(cardState)
     : null;
 const hasSpecialOrBombAt = (row: any, col: any) => markerIndex
     ? markerIndex.some(row, col, isSpecialOrBombMarkerForMoveGeneration)
@@ -1142,18 +1196,38 @@ Append to `test/game.move-generator.expansion-pending.test.ts`:
 
 In `game/cards/target-resolver.ts`, keep existing `Markers.findSpecialMarkerAt(...)` and `Markers.isSpecialStoneAt(...)` paths. Only add an index for fallback scan paths where the file currently loops `markers.some(...)` inside board cell loops.
 
-Add near helper definitions:
+Add this helper near the other local helper functions:
 
 ```ts
-    const markerCellIndex = Markers && typeof Markers.createMarkerCellIndex === 'function'
-        ? Markers.createMarkerCellIndex(cardState)
-        : null;
-    const getMarkersAt = (row: any, col: any) => markerCellIndex
-        ? markerCellIndex.get(row, col)
-        : ((cardState && Array.isArray(cardState.markers)) ? cardState.markers.filter((m: any) => m && m.row === row && m.col === col) : []);
+    function createMarkersAtLookup(cardState: any) {
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        const markerCellIndex = Markers && typeof Markers.createMarkerCellIndex === 'function'
+            ? Markers.createMarkerCellIndex(cardState)
+            : null;
+        return (row: any, col: any) => markerCellIndex
+            ? markerCellIndex.get(row, col)
+            : markers.filter((m: any) => m && m.row === row && m.col === col);
+    }
 ```
 
-Then replace only local fallback expressions of the form:
+Then, inside these fallback selectors, create a local lookup once before the board loop:
+
+```ts
+        const markersAt = createMarkersAtLookup(cardState);
+```
+
+Apply this only to:
+
+```text
+getTrapTargets
+getDestroyTargets
+getSwapTargets
+getGuardTargets
+getTemptTargets
+getLivingWillTargets
+```
+
+Replace only local fallback expressions of the form:
 
 ```ts
 markers.some((m: any) => m && m.row === row && m.col === col && predicate(m))
@@ -1162,33 +1236,76 @@ markers.some((m: any) => m && m.row === row && m.col === col && predicate(m))
 with:
 
 ```ts
-getMarkersAt(row, col).some((m: any) => predicate(m))
+markersAt(row, col).some((m: any) => predicate(m))
 ```
 
 Do not replace calls that delegate to `Markers.findSpecialMarkerAt(...)`; those already centralize behavior.
 
-- [ ] **Step 7: Use index in UDG local scans**
+- [ ] **Step 7: Use short-lived index in UDG local scans**
 
-In `game/logic/cards/udg.ts`, create a local index only inside functions that scan the same `cardState.markers` repeatedly:
+In `game/logic/cards/udg.ts`, create a short-lived lookup helper. It must not be reused across marker movement or marker deletion, because UDG processing mutates `cardState.markers`.
 
 ```ts
-const markerIndex = CardMarkersModule && typeof CardMarkersModule.createMarkerCellIndex === 'function'
-    ? CardMarkersModule.createMarkerCellIndex(cardState)
-    : null;
-const markersAt = (row: any, col: any) => markerIndex
-    ? markerIndex.get(row, col)
-    : ((cardState && Array.isArray((cardState as any).markers)) ? (cardState as any).markers.filter((m: any) => m && m.row === row && m.col === col) : []);
+function createUdgMarkersAtLookup(cardState: CardState) {
+    const markers = (cardState && Array.isArray((cardState as any).markers)) ? (cardState as any).markers : [];
+    const markerIndex = CardMarkersModule && typeof CardMarkersModule.createMarkerCellIndex === 'function'
+        ? CardMarkersModule.createMarkerCellIndex(cardState)
+        : null;
+    return (row: any, col: any) => markerIndex
+        ? markerIndex.get(row, col)
+        : markers.filter((m: any) => m && m.row === row && m.col === col);
+}
 ```
 
-Use `markersAt(row, col).some(...)` in:
+Change `isBlockedDestinationCell(...)` to accept an optional lookup and use it only for that call:
+
+```ts
+function isBlockedDestinationCell(cardState: CardState, row: number, col: number, markersAt?: (row: any, col: any) => any[]): boolean {
+    const markers = typeof markersAt === 'function'
+        ? markersAt(row, col)
+        : ((cardState && Array.isArray((cardState as any).markers)) ? (cardState as any).markers : []);
+    return markers.some((marker: any) => {
+        if (!marker || marker.row !== row || marker.col !== col) return false;
+        if (marker.kind !== 'specialStone') return false;
+        const markerType = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+        return markerType === 'BLOCKADE' || markerType === 'METEOR_HOLE' || markerType === 'FREEZE';
+    });
+}
+```
+
+In `getRandomTurnStartMoveDestination(...)`, build the lookup once before the candidate loops and pass it into `isBlockedDestinationCell(...)`:
+
+```ts
+const markersAt = createUdgMarkersAtLookup(cardState);
+```
+
+Change `isManifestTarget(...)` to use a per-call lookup supplied through deps without bypassing injected behavior.
+
+Extend the existing `UDGDeps` interface with this field:
+
+```ts
+    markersAt?: (row: any, col: any) => any[];
+```
+
+When fallback marker scans are needed, use:
+
+```ts
+const markers = typeof deps.markersAt === 'function'
+    ? deps.markersAt(row, col)
+    : ((cardState && Array.isArray((cardState as any).markers)) ? (cardState as any).markers : []);
+```
+
+Use this short-lived lookup in:
 
 ```text
-isBlockedDestinationCell fallback
-isManifestTarget fallback
+getRandomTurnStartMoveDestination candidate filtering
 collectDestroyedNeighbors target filtering
+processUltimateDestroyGodEffectsAtAnchor target filtering
 ```
 
-Keep injected deps (`deps.isManifestStoneAt`, `deps.selectRandomEmptyBoardShapeDestination`, `deps.destroyAt`, `deps.BoardOps`) ahead of the index path.
+For `collectDestroyedNeighbors(...)` and `processUltimateDestroyGodEffectsAtAnchor(...)`, create `const markersAt = createUdgMarkersAtLookup(cardState);` immediately before filtering `neighborCells`, then call `isManifestTarget(cardState, cell.row, cell.col, { ...deps, markersAt })`.
+
+Keep injected deps (`deps.isManifestStoneAt`, `deps.selectRandomEmptyBoardShapeDestination`, `deps.destroyAt`, `deps.BoardOps`) ahead of the index path. Rebuild the lookup after any code path that calls `moveCoexistingMarkers`, `destroyAt`, `BoardOps.destroyAt`, or directly mutates `cardState.markers`.
 
 - [ ] **Step 8: Validate Task 5**
 
