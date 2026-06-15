@@ -140,7 +140,13 @@ async function handleDestroySelection(row: number, col: number, playerKey: strin
         const gameState = __uiImpl_destroy && typeof __uiImpl_destroy.getGameState === 'function'
             ? __uiImpl_destroy.getGameState()
             : null;
-        const targets = cardLogic.getSelectableTargets(CardSystem.cardState, gameState, playerKey) || [];
+        const injectedCardState = __uiImpl_destroy && typeof __uiImpl_destroy.getCardState === 'function'
+            ? __uiImpl_destroy.getCardState()
+            : null;
+        const activeCardState = (injectedCardState && typeof injectedCardState === 'object')
+            ? injectedCardState
+            : CardSystem.cardState;
+        const targets = cardLogic.getSelectableTargets(activeCardState, gameState, playerKey) || [];
         const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
         if (!allowed) {
             const emitLogAdded = getEmitLogAdded();

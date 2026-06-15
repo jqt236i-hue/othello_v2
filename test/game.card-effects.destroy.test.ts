@@ -82,4 +82,37 @@ describe('destroy', () => {
         expect(mockExecutePendingSelection).not.toHaveBeenCalled();
         expect(global.emitLogAdded).toHaveBeenCalledWith('破壊する石を選んでください');
     });
+
+    test('対象判定はCardSystemの古い参照ではなく注入された現在cardStateを見る', async () => {
+        const currentCardState = {
+            pendingEffectByPlayer: {
+                black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget', cardId: 'destroy_01' },
+                white: null
+            },
+            markers: []
+        };
+        global.gameState = { board: [[1]] };
+        global.CardLogic = {
+            getSelectableTargets: jest.fn((cardStateArg) => (
+                cardStateArg === currentCardState
+                    ? [{ row: 4, col: 5 }]
+                    : []
+            ))
+        };
+        setUIImpl({
+            emitLogAdded: global.emitLogAdded,
+            getLogMessages: () => global.LOG_MESSAGES,
+            posToNotation: global.posToNotation,
+            getCardLogic: () => global.CardLogic || null,
+            getCardState: () => currentCardState,
+            getGameState: () => global.gameState || null
+        });
+        mockExecutePendingSelection.mockResolvedValue({ ok: true });
+
+        await handleDestroySelection(4, 5, 'black');
+
+        expect(global.CardLogic.getSelectableTargets).toHaveBeenCalledWith(currentCardState, global.gameState, 'black');
+        expect(mockExecutePendingSelection).toHaveBeenCalledTimes(1);
+        expect(global.emitLogAdded).not.toHaveBeenCalledWith('破壊する石を選んでください');
+    });
 });
