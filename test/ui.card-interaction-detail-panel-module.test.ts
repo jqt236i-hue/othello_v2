@@ -86,6 +86,8 @@ describe('card interaction detail panel module', () => {
       effectTags: [
         { kind: 'status', label: '反転保護' },
         { kind: 'status', label: '反転保護' },
+        { kind: 'special-stone', label: '特殊石' },
+        { kind: 'special-stone', label: '特殊石' },
         { kind: 'numeric', label: '8ターン持続' }
       ]
     };
@@ -106,7 +108,7 @@ describe('card interaction detail panel module', () => {
     expect(liveStateEl?.style.display).toBe('block');
     expect(Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag') || []).map((el) => el.textContent)).toEqual([
       '反転保護',
-      '8ターン持続'
+      '特殊石'
     ]);
     const tagButtons = Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag-button') || []);
     expect(tagButtons).toHaveLength(2);

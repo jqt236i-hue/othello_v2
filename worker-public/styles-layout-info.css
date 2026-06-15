@@ -1367,6 +1367,12 @@
     background: rgba(83, 214, 209, 0.12);
 }
 
+.rules-help-card-tag-filter.is-special-stone {
+    border-color: rgba(126, 230, 170, 0.38);
+    color: #a8f0c7;
+    background: rgba(29, 92, 60, 0.16);
+}
+
 .rules-help-card-tag-filter.is-active {
     border-color: rgba(242, 201, 95, 0.78);
     color: #ffecb3;

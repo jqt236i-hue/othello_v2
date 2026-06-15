@@ -73,14 +73,14 @@ describe('card detail effect tags', () => {
     delete global.document;
   });
 
-  test('card detail panel renders flip protection and duration tags separately from summary text', () => {
+  test('card detail panel renders special stone and flip protection tags separately from summary text', () => {
     require('../cards/card-interaction.js');
 
     window.updateCardDetailPanel();
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['反転保護', '8ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石', '反転保護']);
     expect(tagsEl.style.display).toBe('flex');
 
     const desc = document.getElementById('card-detail-desc').textContent;
@@ -88,7 +88,7 @@ describe('card detail effect tags', () => {
     expect(desc).toContain('置いた石が龍化');
   });
 
-  test('ROBOT_VACUUM_WILL shows the base duration as a numeric tag', () => {
+  test('ROBOT_VACUUM_WILL shows the special stone tag without duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -107,11 +107,11 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['5ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石']);
     expect(document.getElementById('card-detail-desc').textContent).toBe('次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。');
   });
 
-  test('DESTROY_DRAGON_WILL shows flip protection together with duration', () => {
+  test('DESTROY_DRAGON_WILL shows special stone together with flip protection', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -128,10 +128,10 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['反転保護', '3ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石', '反転保護']);
   });
 
-  test('GUARD_WILL shows full protection together with duration', () => {
+  test('GUARD_WILL shows full protection without duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -148,10 +148,10 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
+    expect(getTagLabels()).toEqual(['完全保護']);
   });
 
-  test('OBSERVER_WILL shows inviolable together with duration', () => {
+  test('OBSERVER_WILL shows inviolable without special-stone or duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -168,13 +168,13 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['不可侵']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('観測者を顕現させる');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
   });
 
-  test('THEORY_INCARNATION shows inviolable together with updated duration', () => {
+  test('THEORY_INCARNATION shows inviolable without special-stone or duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -191,13 +191,13 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['不可侵']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-more').textContent).toContain('5T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大6回特殊石を出現できる');
   });
 
-  test('BOARD_EXECUTOR shows inviolable together with duration', () => {
+  test('BOARD_EXECUTOR shows inviolable without special-stone or duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -214,7 +214,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['不可侵']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('盤界の執行者を顕現させる');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
@@ -238,7 +238,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['反転回避', '破壊回避']);
+    expect(getTagLabels()).toEqual(['特殊石', '反転回避', '破壊回避']);
   });
 
   test('TIME_STOP_GOD detail follows rulebook timing text and shows delayed activation tag', () => {
@@ -265,10 +265,10 @@ describe('card detail effect tags', () => {
     expect(detailText).toContain('5回目の所有者ターン開始時');
     expect(detailText).toContain('反転保護は持たない');
 
-    expect(getTagLabels()).toEqual(['5ターン後に発動']);
+    expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
   });
 
-  test('TRAP_WILL keeps opponent-turn wording in text and does not invent a numeric tag', () => {
+  test('TRAP_WILL keeps opponent-turn wording in text and shows the special stone tag', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -285,8 +285,8 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual([]);
-    expect(document.getElementById('card-detail-effect-tags').style.display).toBe('none');
+    expect(getTagLabels()).toEqual(['特殊石']);
+    expect(document.getElementById('card-detail-effect-tags').style.display).toBe('flex');
   });
 
   test('SALVATION_WILL detail panel shows positive salvageable count as live state', () => {
@@ -528,20 +528,31 @@ describe('card detail effect tags', () => {
     expect(detailMoreEl.style.display).toBe('none');
   });
 
-  test('effect tag buttons toggle tag explanation panel for status and numeric tags', () => {
+  test('effect tag buttons toggle tag explanation panel for status tags', () => {
     require('../cards/card-interaction.js');
 
     window.updateCardDetailPanel();
 
     const tagButtons = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'));
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['反転保護', '8ターン持続']);
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '反転保護']);
 
-    const flipProtectionButton = tagButtons[0];
-    flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    const specialStoneButton = tagButtons[0];
+    specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
     const panelEl = document.getElementById('card-detail-tab-panel');
     const titleEl = document.getElementById('card-detail-tab-title');
     const bodyEl = document.getElementById('card-detail-tab-body');
+    expect(panelEl).not.toBeNull();
+    expect(panelEl.classList.contains('is-open')).toBe(true);
+    expect(titleEl.textContent).toBe('特殊石');
+    expect(bodyEl.textContent).toContain('盤面に残って次ターン以降も能力主体として生きる石');
+
+    specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(panelEl.classList.contains('is-open')).toBe(false);
+
+    const flipProtectionButton = tagButtons[1];
+    flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
     expect(panelEl).not.toBeNull();
     expect(panelEl.classList.contains('is-open')).toBe(true);
     expect(titleEl.textContent).toBe('反転保護');
@@ -549,12 +560,6 @@ describe('card detail effect tags', () => {
 
     flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(panelEl.classList.contains('is-open')).toBe(false);
-
-    const durationButton = tagButtons[1];
-    durationButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    expect(panelEl.classList.contains('is-open')).toBe(true);
-    expect(titleEl.textContent).toBe('8ターン持続');
-    expect(bodyEl.textContent).toContain('ターン数');
   });
 
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {
