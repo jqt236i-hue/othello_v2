@@ -538,6 +538,38 @@ function _getCardFaceArtPreloadCache() {
     return null;
 }
 
+function _getCardFaceArtPathCache() {
+    const root = _getCardFaceArtPreloadRoot();
+    if (!root) return null;
+    try {
+        if (!root.__cardFaceArtPathCache || typeof root.__cardFaceArtPathCache !== 'object') {
+            root.__cardFaceArtPathCache = Object.create(null);
+        }
+        return root.__cardFaceArtPathCache;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveCardBackgroundArtPathFunction() {
+    try {
+        if (typeof window !== 'undefined' && window && typeof (window as any).resolveCardBackgroundArtPath === 'function') {
+            return (window as any).resolveCardBackgroundArtPath;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).resolveCardBackgroundArtPath === 'function') {
+            return (globalThis as any).resolveCardBackgroundArtPath;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        const cardRenderer = _require('../cards/card-renderer');
+        if (cardRenderer && typeof cardRenderer.resolveCardBackgroundArtPath === 'function') {
+            return cardRenderer.resolveCardBackgroundArtPath;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function _getCardFaceArtImageCtor() {
     try {
         if (typeof window !== 'undefined' && window && typeof (window as any).Image === 'function') {
@@ -599,11 +631,29 @@ function _readCardFaceArtPathFromElement(cardEl: any) {
 function _resolveCardFaceArtPathForPreload(cardId: any, options: any = {}) {
     const normalizedCardId = String(cardId || '').trim();
     if (!normalizedCardId || _isHiddenHandTokenId(normalizedCardId)) return '';
+    const ownerKey = String(options && options.ownerKey || '').trim();
+    const cacheKey = `${ownerKey}::${normalizedCardId}`;
+    const pathCache = _getCardFaceArtPathCache();
+    if (pathCache && Object.prototype.hasOwnProperty.call(pathCache, cacheKey)) {
+        return pathCache[cacheKey] || '';
+    }
+    const resolveCardBackgroundArtPath = _resolveCardBackgroundArtPathFunction();
+    if (typeof resolveCardBackgroundArtPath === 'function') {
+        try {
+            const resolvedPath = _normalizeCardFaceArtPreloadPath(
+                resolveCardBackgroundArtPath(normalizedCardId, { ownerKey: ownerKey || undefined })
+            );
+            if (pathCache) pathCache[cacheKey] = resolvedPath || '';
+            return resolvedPath || '';
+        } catch (e: any) { /* fall through to compatibility path */ }
+    }
     const createCardFaceElement = _resolveCreateCardFaceElement();
     if (typeof createCardFaceElement !== 'function') return '';
     try {
         const cardEl = createCardFaceElement(normalizedCardId, { ownerKey: options.ownerKey });
-        return _readCardFaceArtPathFromElement(cardEl);
+        const resolvedPath = _readCardFaceArtPathFromElement(cardEl);
+        if (pathCache) pathCache[cacheKey] = resolvedPath || '';
+        return resolvedPath;
     } catch (e: any) { /* ignore */ }
     return '';
 }
@@ -2270,14 +2320,15 @@ function playCardUseHandAnimation(payload: any) {
             void cleanup();
         }, 3200, sc);
 
-        const handRect = handEl.getBoundingClientRect();
-        const chargeRect = chargeEl.getBoundingClientRect();
         const explicitSourceCardEl = (data.sourceCardEl && typeof data.sourceCardEl.cloneNode === 'function') ? data.sourceCardEl : null;
         // IMPORTANT:
         // Do not auto-pick "last hand card" as animation source.
         // In AUTO mode the hand can update between decision/apply/render, causing visible card mismatch.
         // Prefer payload(cardId/name/cost) unless an explicit source element is supplied.
         const sourceCardEl = explicitSourceCardEl || null;
+        const srcRect = _resolveCardUseSourceRect(sourceCardEl, data.sourceCardRect);
+        const handRect = srcRect ? null : handEl.getBoundingClientRect();
+        const chargeRect = chargeEl.getBoundingClientRect();
         const HOLD_MS = 850;
         const FADE_MS = 420;
 
@@ -2302,7 +2353,6 @@ function playCardUseHandAnimation(payload: any) {
         movingCard.style.zIndex = '1300';
         movingCard.style.transform = 'translate(0px, 0px)';
         movingCard.style.margin = '0';
-        const srcRect = _resolveCardUseSourceRect(sourceCardEl, data.sourceCardRect);
         const cardWidth = srcRect ? srcRect.width : 91;
         const cardHeight = srcRect ? srcRect.height : 124;
         const startX = srcRect ? srcRect.left : (handRect.left + handRect.width / 2 - cardWidth / 2);

@@ -266,6 +266,15 @@ function applyCardBackgroundArtToFace(cardEl: any, cardDef: any, options: any) {
     cardEl.style.setProperty('--card-background-art-image', `url("${escapedPath}")`);
     return cardEl;
 }
+function resolveCardBackgroundArtPath(cardId: any, _options?: any) {
+    const resolvedCardId = String(cardId || '').trim();
+    if (!resolvedCardId) {
+        return '';
+    }
+    const cardDef = CARD_DEFS.find((c: any) => c && String(c.id || '').trim() === resolvedCardId) || null;
+    const art = _resolveCardBackgroundArt(cardDef, resolvedCardId);
+    return art && art.imagePath ? art.imagePath : '';
+}
 function _resolveCardSpecialArt(cardDef: any, fallbackCardId: any, options: any) {
     const resolvedCardDef = _resolveCardDefForFaceVisual(cardDef, fallbackCardId);
     const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
@@ -510,6 +519,7 @@ try {
     if (typeof window !== 'undefined') {
         window.fitCardNameElement = _fitCardNameElement;
         window.applyCardSpecialArtToFace = applyCardSpecialArtToFace;
+        window.resolveCardBackgroundArtPath = resolveCardBackgroundArtPath;
     }
 }
 catch (e) { /* ignore */ }
@@ -2156,6 +2166,7 @@ catch (e) { /* ignore */ }
 export = {
     getCardCostTier,
     applyCardSpecialArtToFace,
+    resolveCardBackgroundArtPath,
     createCardFaceElement,
     consumeChargeDeltaEventList,
     consumeChargeDeltaEvents,

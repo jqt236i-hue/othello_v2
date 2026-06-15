@@ -143,6 +143,7 @@ describe('animation-utils hand fallback', () => {
     delete global.SharedConstants;
     delete global.Image;
     delete global.createCardFaceElement;
+    delete global.resolveCardBackgroundArtPath;
   });
 
   test('playHandAnimation completes even when Element.animate is unavailable', async () => {
@@ -262,6 +263,51 @@ describe('animation-utils hand fallback', () => {
     await Promise.resolve();
 
     expect(imageSrcs).toContain('assets/images/card/02_自由の意志.png');
+    await expect(promise).resolves.toBeUndefined();
+  });
+
+  test('playCardUseHandAnimation resolves preload art without building an extra card face when path resolver exists', async () => {
+    jest.useFakeTimers();
+    const imageSrcs = [];
+    installCardBackgroundPreloadFixture(imageSrcs, {
+      card_1: 'assets/images/card/from-card-face.png'
+    });
+    const resolveCardBackgroundArtPath = jest.fn(() => 'assets/images/card/from-resolver.png');
+    global.resolveCardBackgroundArtPath = resolveCardBackgroundArtPath;
+    window.resolveCardBackgroundArtPath = resolveCardBackgroundArtPath;
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+    document.getElementById('hand-black').getBoundingClientRect = () => ({
+      left: 180,
+      top: 480,
+      width: 260,
+      height: 140,
+      right: 440,
+      bottom: 620
+    });
+    document.getElementById('charge-black').getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_1', cost: 5, name: 'Test' });
+
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(4000);
+    await Promise.resolve();
+
+    expect(resolveCardBackgroundArtPath).toHaveBeenCalledWith('card_1', expect.objectContaining({ ownerKey: 'black' }));
+    expect(imageSrcs).toContain('assets/images/card/from-resolver.png');
+    expect(global.createCardFaceElement).toHaveBeenCalledTimes(1);
     await expect(promise).resolves.toBeUndefined();
   });
 
@@ -901,6 +947,61 @@ describe('animation-utils hand fallback', () => {
       .map((call) => call[0])
       .filter((frames) => Array.isArray(frames) && frames.every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')));
 
+    expect(transformCalls[1]).toEqual([
+      { transform: 'translate(0px, -14px)' },
+      { transform: 'translate(215px, -220px)' }
+    ]);
+  });
+
+  test('playCardUseHandAnimation skips hand layout read when sourceCardRect is available', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-black');
+    const chargeEl = document.getElementById('charge-black');
+    handEl.getBoundingClientRect = jest.fn(() => {
+      throw new Error('hand rect should not be read when sourceCardRect is available');
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 430,
+      top: 410,
+      width: 100,
+      height: 40,
+      right: 530,
+      bottom: 450
+    });
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'black',
+      owner: 'black',
+      cardId: 'card_1',
+      cost: 5,
+      name: 'Test',
+      sourceCardRect: {
+        left: 220,
+        top: 500,
+        width: 90,
+        height: 120,
+        right: 310,
+        bottom: 620
+      }
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(handEl.getBoundingClientRect).not.toHaveBeenCalled();
+    const transformCalls = animateMock.mock.calls
+      .map((call) => call[0])
+      .filter((frames) => Array.isArray(frames) && frames.every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')));
     expect(transformCalls[1]).toEqual([
       { transform: 'translate(0px, -14px)' },
       { transform: 'translate(215px, -220px)' }
