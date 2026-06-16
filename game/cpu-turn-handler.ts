@@ -453,6 +453,39 @@ function resolveCpuControlledTurnOwnerKey(): PlayerKey | null {
     return effectiveOperatorKey === 'white' ? turnOwnerKey : null;
 }
 
+function resolveTurnStartPlayerValue(playerKey: PlayerKey): any {
+    return playerKey === 'white' ? CONST_WHITE : CONST_BLACK;
+}
+
+function isPlacementLockedForCpuPlayer(playerKey: PlayerKey): boolean {
+    const cardLogicRef = resolveCpuCardLogic();
+    if (!cardLogicRef || typeof cardLogicRef.isPlacementLockedForPlayer !== 'function') return false;
+    try {
+        return cardLogicRef.isPlacementLockedForPlayer(cardState, playerKey) === true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function handlePlacementLockedCpuTurnStart(playerKey: PlayerKey): Promise<boolean> {
+    if (!isPlacementLockedForCpuPlayer(playerKey)) return false;
+    const lastTurnStartedFor = cardState && typeof cardState === 'object'
+        ? (cardState as any).lastTurnStartedFor
+        : null;
+    if (lastTurnStartedFor === playerKey) {
+        setCpuProcessing(false);
+        return true;
+    }
+    const onTurnStartFn = resolveRuntimeFunction('onTurnStart');
+    if (typeof onTurnStartFn !== 'function') {
+        setCpuProcessing(false);
+        return true;
+    }
+    setCpuProcessing(false);
+    await Promise.resolve(onTurnStartFn(resolveTurnStartPlayerValue(playerKey)));
+    return true;
+}
+
 function readCpuMatchMode(): any {
     if (__uiImpl_cpu && typeof __uiImpl_cpu.readMatchMode === 'function') {
         try {
@@ -1449,6 +1482,10 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
         const othelloMode = isOthelloModeForCpuTurnHandler();
+
+        if (!othelloMode && await handlePlacementLockedCpuTurnStart(playerKey)) {
+            return;
+        }
 
         emitCpuCommentary('turn_start', playerKey, {
             level,

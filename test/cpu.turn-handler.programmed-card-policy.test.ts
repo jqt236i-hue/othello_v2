@@ -148,6 +148,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         delete global.selectCpuMoveWithPolicy;
         delete global.cpuMaybeDestroyHandCardWithPolicy;
         delete global.processPassTurn;
+        delete global.onTurnStart;
         delete global.__CPU_TEST_QUERY_SEARCH;
         delete global.isGameOver;
         delete global.showResult;
@@ -233,6 +234,48 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         await mod.runCpuTurn('white');
 
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
+    });
+
+    test('CPU turn defers to turn-start auto end while 理論の化身 locks placement', async () => {
+        const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        global.cpuSmartness = { white: 7, black: 1 };
+        global.cardState = {
+            hands: { white: ['some_card'], black: [] },
+            charge: { white: 50, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+            lastTurnStartedFor: 'black',
+            markers: [
+                {
+                    kind: 'manifestStone',
+                    row: 2,
+                    col: 2,
+                    owner: 'white',
+                    data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 3 }
+                }
+            ]
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 12 };
+        global.CardLogic = {
+            getUsableCardIds: () => ['some_card'],
+            hasUsableCard: () => true,
+            getCardDef: (id: string) => ({ id }),
+            isPlacementLockedForPlayer: jest.fn(() => true)
+        };
+        global.generateMovesForPlayer = jest.fn(() => [move]);
+        global.selectCpuMoveWithPolicy = jest.fn(() => move);
+        global.onTurnStart = jest.fn(async () => {
+            global.gameState.currentPlayer = 'black';
+            return { stopAction: true, playbackEvents: [] };
+        });
+
+        await mod.runCpuTurn('white');
+
+        expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
+        expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
+        expect(global.executeMove).not.toHaveBeenCalled();
+        expect(global.processPassTurn).not.toHaveBeenCalled();
     });
 
     test('Lv8 ending ash skips all card-use paths before turn 6 and places a stone', async () => {
