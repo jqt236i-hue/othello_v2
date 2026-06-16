@@ -99,7 +99,17 @@ function _uiAutoTick(): void {
       ? (window as any).BLACK
       : ((typeof globalThis !== 'undefined' && (globalThis as any).BLACK !== undefined) ? (globalThis as any).BLACK : 1);
     const turnNum = state ? state.turnNumber : null;
-    if (_lastTurnNumber !== null && turnNum === _lastTurnNumber) {
+    const winBusy = (typeof window !== 'undefined') && (
+      _isPlaybackActiveForAuto() ||
+      _isCardAnimatingForAuto() ||
+      (window as any).isProcessing === true
+    );
+    const hasPendingPresentation = _hasPendingPresentationEvents();
+    if (winBusy || hasPendingPresentation) {
+      if (turnNum !== null && _lastTurnNumber === null) {
+        _lastTurnNumber = turnNum;
+      }
+    } else if (_lastTurnNumber !== null && turnNum === _lastTurnNumber) {
       _stallTickCount++;
     } else if (turnNum !== null) {
       _stallTickCount = 0;
@@ -107,12 +117,6 @@ function _uiAutoTick(): void {
     }
 
     if (state && state.currentPlayer === blackValue) {
-      const winBusy = (typeof window !== 'undefined') && (
-        _isPlaybackActiveForAuto() ||
-        _isCardAnimatingForAuto() ||
-        (window as any).isProcessing === true
-      );
-      const hasPendingPresentation = _hasPendingPresentationEvents();
       if (!(window as any).isProcessing && !(window as any).isCardAnimating && !winBusy && !hasPendingPresentation) {
         const processAutoBlackTurnFn = (typeof window !== 'undefined' && typeof (window as any).processAutoBlackTurn === 'function')
           ? (window as any).processAutoBlackTurn

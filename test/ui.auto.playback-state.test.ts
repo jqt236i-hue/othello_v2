@@ -72,4 +72,22 @@ describe('setupAutoToggle playback-state gating', () => {
     expect(global.window.isCardAnimating).toBe(false);
     expect(global.processAutoBlackTurn).not.toHaveBeenCalled();
   });
+
+  test('does not stop auto mode while CPU processing keeps the same turn active', () => {
+    playbackStateMock.getPlaybackActive.mockReturnValue(false);
+    playbackStateMock.getCardAnimating.mockReturnValue(false);
+    global.window.isProcessing = true;
+    global.isProcessing = true;
+
+    const autoModule = require('../ui/handlers/auto.js');
+    const button = document.getElementById('autoToggleBtn');
+    autoModule.setupAutoToggle(button);
+
+    button.click();
+    jest.advanceTimersByTime(800 * 60);
+
+    expect(global.window.AUTO_MODE_ACTIVE).toBe(true);
+    expect(global.addLog).not.toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
+    expect(global.processAutoBlackTurn).not.toHaveBeenCalled();
+  });
 });
