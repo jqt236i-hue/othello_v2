@@ -97,14 +97,24 @@ trainCycleArgs:
   - "0.09"
   - --adoption-quality-weight-final-edge-share
   - "0.04"
+  - --adoption-quality-weight-corner-donation-avoidance
+  - "0.14"
+  - --adoption-quality-weight-opponent-safe-edge-avoidance
+  - "0.12"
+  - --adoption-quality-weight-own-safe-edge
+  - "0.12"
+  - --adoption-quality-weight-own-edge-gap-avoidance
+  - "0.10"
+  - --adoption-quality-weight-opponent-edge-cut
+  - "0.08"
   - --adoption-quality-weight-bonus
   - "0.004"
   - --adoption-quality-weight-card-immediate
-  - "0.018"
+  - "0"
   - --adoption-quality-weight-card-future
-  - "0.024"
+  - "0"
   - --adoption-quality-weight-place-delta
-  - "0.012"
+  - "0"
   - --adoption-use-guide-baseline
   - --onnx-gate
   - --onnx-gate-games
