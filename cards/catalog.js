@@ -711,6 +711,16 @@ window.CardCatalog = {
       "desc": "盤面上の特殊石本体または石状態1つを選び、その持続ターンを半減させる。対象がない場合は使用不可。"
     },
     {
+      "id": "hard_will_01",
+      "name_ja": "硬い意志",
+      "type": "HARD_WILL",
+      "cost": 4,
+      "desc_ja": "盤面上の自分の石1つに破壊保護を付与する。8ターン持続。",
+      "display_type_ja": "守護",
+      "name": "硬い意志",
+      "desc": "盤面上の自分の石1つに破壊保護を付与する。8ターン持続。"
+    },
+    {
       "id": "guard_01",
       "name_ja": "守る意志",
       "type": "GUARD_WILL",
