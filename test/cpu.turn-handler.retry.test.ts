@@ -177,4 +177,47 @@ describe('cpu-turn-handler helpers', () => {
     expect(global.PlaybackStateManager.getProcessing).toHaveBeenCalled();
     expect(waitMs).toHaveBeenCalledTimes(1);
   });
+
+  test('runCpuTurn aborts black auto turn when runtime state has advanced to white', async () => {
+    global.BLACK = 1;
+    global.WHITE = -1;
+    const staleGlobalState = {
+      currentPlayer: global.BLACK,
+      turnNumber: 12,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    const runtimeState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 13,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.cpuSmartness = { black: 1, white: 6 };
+    global.isCardAnimating = false;
+    global.isProcessing = false;
+    global.isGameOver = jest.fn(() => false);
+    global.gameState = staleGlobalState;
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      hands: { black: [], white: [] },
+      charge: { black: 0, white: 0 }
+    };
+    global.generateMovesForPlayer = jest.fn(() => [{ row: 1, col: 2, flips: [] }]);
+    global.executeMove = jest.fn();
+
+    mod.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: (name: string) => {
+        if (name === 'gameState') return runtimeState;
+        return resolveGlobalRuntimeValue(name);
+      },
+      resolveExecuteMove: () => global.executeMove
+    });
+
+    await mod.runCpuTurn('black', { autoMode: true });
+
+    expect(global.executeMove).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(false);
+  });
 });

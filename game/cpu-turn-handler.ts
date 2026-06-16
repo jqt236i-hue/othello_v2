@@ -1340,7 +1340,7 @@ async function processAutoBlackTurn(): Promise<void> {
         setCpuProcessing(false);
         return;
     }
-    if (gameState.currentPlayer !== CONST_BLACK) return;
+    if (getCurrentPlayerKeySafe() !== 'black') return;
     if (readCpuProcessing() || isUiAnimationBusy()) {
         scheduleRunCpuTurn('black', { autoMode: true }, getAnimationRetryDelayMs());
         return;
@@ -1379,10 +1379,17 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
     const isWhite = playerKey === 'white';
     const selfColor = isWhite ? CONST_WHITE : CONST_BLACK;
     const selfName = isWhite ? '白' : '黒';
-    const currentPlayer = gameState ? gameState.currentPlayer : null;
-    const currentPlayerKey = (currentPlayer === CONST_BLACK || currentPlayer === 'black')
-        ? 'black'
-        : ((currentPlayer === CONST_WHITE || currentPlayer === 'white') ? 'white' : null);
+    const currentPlayer = (() => {
+        try {
+            const runtimeGameState = resolveRuntimeValue('gameState');
+            const state = runtimeGameState && typeof runtimeGameState === 'object'
+                ? runtimeGameState
+                : (gameState || null);
+            return state ? state.currentPlayer : null;
+        } catch (e) { /* ignore */ }
+        return null;
+    })();
+    const currentPlayerKey = getCurrentPlayerKeySafe();
 
     if (shouldAbortCpuForHumanMode(playerKey, 'run_start')) {
         return;

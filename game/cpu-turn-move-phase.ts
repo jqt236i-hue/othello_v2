@@ -157,9 +157,9 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             if (cfg.shouldAbortCpuForHumanMode(playerKey, 'commit_selected_move')) {
                 return;
             }
-            const gameState = cfg.getGameState();
-            const nowCurrent = gameState ? gameState.currentPlayer : null;
-            const nowCurrentKey = normalizePlayerKeyFromValue(nowCurrent, cfg.blackValue, cfg.whiteValue);
+            const nowCurrentKey = cfg.getCurrentPlayerKeySafe
+                ? cfg.getCurrentPlayerKeySafe()
+                : normalizePlayerKeyFromValue((cfg.getGameState() || {}).currentPlayer, cfg.blackValue, cfg.whiteValue);
             const nowTurnNumber = cfg.getCurrentTurnNumberSafe();
             if (nowCurrentKey && nowCurrentKey !== playerKey) {
                 cfg.debugCpuTrace('[AI] skip stale delayed move commit (turn changed)', {
