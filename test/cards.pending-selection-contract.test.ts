@@ -75,6 +75,26 @@ describe('pending selection card contracts', () => {
     }
   });
 
+  // End-turn target-selection cards enter NetworkTurnHandoff after local playback events.
+  // If this set grows, add a CPU handoff regression case before updating the expected list.
+  test('end-turn pending selections with playback wait are explicitly covered by CPU handoff tests', () => {
+    const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY;
+    const endTurnWaitTypes = Object.keys(registry)
+      .filter((type) => {
+        const entry = registry[type];
+        return entry
+          && entry.turnOutcome === 'end_turn'
+          && entry.waitForPlaybackIdle === true
+          && entry.needsTargetSelection === true;
+      })
+      .sort();
+
+    expect(endTurnWaitTypes).toEqual([
+      'SWAP_WITH_ENEMY',
+      'TRAP_WILL'
+    ]);
+  });
+
   test('registry target methods are sufficient for card-use prechecks', () => {
     const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY;
 

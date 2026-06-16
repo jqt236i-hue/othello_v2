@@ -262,6 +262,14 @@ Pending selection resolution is gameplay-adjacent, but network publishing remain
 - When no bridge publisher is installed, selection flow must fall back to local preview / pipeline execution rather than treating a root network client as authority.
 - Deferred selection publish tests must cover both active bridge publishing and the no-bridge fail-closed path.
 
+#### 7.2.2 Pending selection settlement locks
+
+Pending target selection uses a settlement lock to reject duplicate board input while a selected target is being resolved. This lock is a UI-entry guard, not playback itself. Any pending selection whose registry contract has `waitForPlaybackIdle: true` must release the settlement lock before calling a handoff path that waits for playback idle.
+
+Reason: `PlaybackStateManager.getPlaybackActive()` treats `hasSelectionSettlementLock()` as active playback. Holding the settlement lock while awaiting playback idle creates a self-deadlock: playback idle waits for the lock to clear, while the lock waits for the finalizer to return.
+
+For end-turn pending selections that schedule a local white CPU turn, the scheduled callback must clear selection processing before calling `processCpuTurn()`. CPU turn processing intentionally refuses to run while `isProcessing` is true.
+
 ### 7.3 Single Visual Writer
 
 During playback, board DOM writes must be coordinated so there is a single effective board writer.
