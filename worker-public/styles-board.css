@@ -1253,8 +1253,8 @@ html.stone-images-loaded .disc.white {
 .stone-timer.flip-evade-timer,
 .flip-evade-timer {
     left: auto;
-    right: calc(-5px * var(--layout-stage-scale));
-    top: calc(-5px * var(--layout-stage-scale));
+    right: calc(-3px * var(--layout-stage-scale));
+    top: calc(-3px * var(--layout-stage-scale));
     bottom: auto;
     transform: none;
     line-height: 1;
@@ -1274,10 +1274,10 @@ html.stone-images-loaded .disc.white {
 
 .stone-timer.destroy-evade-timer,
 .destroy-evade-timer {
-    left: calc(-5px * var(--layout-stage-scale));
+    left: calc(-3px * var(--layout-stage-scale));
     right: auto;
     top: auto;
-    bottom: calc(-5px * var(--layout-stage-scale));
+    bottom: calc(-3px * var(--layout-stage-scale));
     transform: none;
     line-height: 1;
     width: calc(18px * var(--layout-stage-scale));

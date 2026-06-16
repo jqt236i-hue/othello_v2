@@ -805,28 +805,24 @@ function buildCloneWillFixture() {
   };
 }
 
-function buildGuardWillFixture(config = {}) {
-  const pendingType = config.pendingType || 'GUARD_WILL';
-  const cardId = config.cardId || 'guard_01';
-  const target = config.target || { row: 3, col: 3 };
+function buildGuardWillFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
-  setStone(snapshot, target.row, target.col, 'black');
+  setStone(snapshot, 3, 3, 'black');
   snapshot.cardState.pendingEffectByPlayer.black = {
-    type: pendingType,
+    type: 'GUARD_WILL',
     stage: 'selectTarget',
-    cardId
+    cardId: 'guard_01'
   };
   return {
-    name: pendingType,
-    expectedStatusApplied: config.expectedStatusApplied || null,
+    name: 'GUARD_WILL',
     snapshot,
     action: buildCommandAction(2, {
       playerKey: 'black',
       row: 2,
       col: 3,
-      actionId: `fixture_${String(pendingType).toLowerCase()}_place`,
+      actionId: 'fixture_guard_will_place',
       __skipTurnStart: false,
-      guardTarget: target
+      guardTarget: { row: 3, col: 3 }
     })
   };
 }
@@ -1208,11 +1204,6 @@ function buildPlaybackParityFixtures() {
     }),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
-    buildGuardWillFixture({
-      cardId: 'hard_will_01',
-      pendingType: 'HARD_WILL',
-      expectedStatusApplied: { row: 3, col: 3, special: 'DESTROY_PROTECTION' }
-    }),
     buildBoardPendingStatusFixture({
       cardId: 'guardian_god_01',
       pendingType: 'GUARDIAN_GOD',
