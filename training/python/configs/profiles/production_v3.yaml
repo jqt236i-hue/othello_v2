@@ -46,6 +46,7 @@ trainCycleArgs:
   - --train-card-every
   - "0"
   - --no-train-target-head
+  - --no-train-value-head
   - --card-usage-rate
   - "0.60"
   - --selfplay-policy-mix-rate
