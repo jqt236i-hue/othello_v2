@@ -597,15 +597,19 @@ describe('rules help panel', () => {
     expect(css).toMatch(/#rules-help-panel\.is-open\s*\{/);
   });
 
-  test('index html includes counter ui help tab and key legend texts', () => {
+  test('index html includes stone marker help tab and key legend texts', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
-    expect(html).toMatch(/data-help-tab="counters">数字UI<\/button>/);
+    expect(html).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
+    expect(html).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
     expect(html).toMatch(/盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。/);
     expect(html).toMatch(/完全保護の残りターン/);
     expect(html).toMatch(/特殊石本体の持続ターン/);
     expect(html).toMatch(/下中央の赤い三角形数字/);
     expect(html).toMatch(/カウントダウン専用の残り回数/);
+    expect(html).toMatch(/中央左の灰色バッジ/);
+    expect(html).toMatch(/反転保護の目印/);
+    expect(html).toMatch(/stone-flip-protection-badge/);
     expect(html).not.toMatch(/下中央のひし形数字/);
     expect(html).toMatch(/破壊回避の残り回数/);
   });

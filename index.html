@@ -100,7 +100,7 @@
             <button id="rules-help-tab-guide" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-guide" data-help-tab="guide">ルールと操作</button>
             <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">数字UI</button>
+                aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">石マーカー</button>
             <button id="rules-help-tab-updates" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-updates" data-help-tab="updates">アップデート情報</button>
         </div>
@@ -227,14 +227,14 @@
                 <div id="rules-help-counters-layout">
                     <section class="rules-help-counter-summary" aria-labelledby="rules-help-counters-title">
                         <div class="rules-help-counter-summary-copy">
-                            <div id="rules-help-counters-title" class="rules-help-counter-summary-title">石の上の数字の見方
+                            <div id="rules-help-counters-title" class="rules-help-counter-summary-title">石の上のマーカーの見方
                             </div>
                             <div class="rules-help-counter-summary-text">
-                                石の上に出る数字は、位置と形で意味が変わります。下中央の数字は石本体やカウントダウン系、
-                                左右の小さい数字は回避回数系と覚えると見分けやすいです。
+                                石の上に出る数字やバッジは、位置と形で意味が変わります。下中央の数字は石本体やカウントダウン系、
+                                左右の小さい数字は回避回数系、中央左の灰色バッジは反転保護と覚えると見分けやすいです。
                             </div>
                             <div class="rules-help-counter-summary-note">
-                                色や輪郭が少し違っても、同じ位置に出る数字はほぼ同じ意味です。長押しすると石の詳しい効果も見られます。
+                                色や輪郭が少し違っても、同じ位置に出るマーカーはほぼ同じ意味です。数字の詳しい意味も、石情報で確認できます。
                             </div>
                         </div>
                         <div class="rules-help-counter-demo" aria-hidden="true">
@@ -246,6 +246,7 @@
                                 </div>
                                 <div class="disc__hud">
                                     <div class="countdown-timer">5</div>
+                                    <div class="stone-flip-protection-badge">反</div>
                                     <div class="stone-timer flip-evade-timer">3</div>
                                     <div class="stone-timer destroy-evade-timer">1</div>
                                 </div>
@@ -371,6 +372,29 @@
                             </div>
                             <div class="rules-help-counter-cell rules-help-counter-cell--note">
                                 破壊をあと何回まで避けられるかを表します。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-flip-protection-badge">反</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">中央左の灰色バッジ</div>
+                                <div class="rules-help-counter-meaning">反転保護の目印</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                反転されない石を表します。灰色の五角形に「反」と表示されます。
                             </div>
                         </div>
                     </div>
