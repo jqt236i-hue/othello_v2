@@ -251,19 +251,18 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
 
     async function cpuSelectGuardWillWithPolicy(playerKey: any): Promise<any> {
         const pending = cfg.readCpuPendingEffect(playerKey);
-        const pendingType = (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD' || pending.type === 'HARD_WILL'))
+        const pendingType = (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD'))
             ? pending.type
             : 'GUARD_WILL';
-        const isHardWill = pendingType === 'HARD_WILL';
         return runTargetAction({
             playerKey,
             pendingType,
             pending,
             targets: getSelectableTargets(playerKey),
-            noTargetLabel: isHardWill ? '硬い意志対象なし' : '守る対象なし',
-            targetLabel: isHardWill ? '硬い意志ターゲット' : '守るターゲット',
+            noTargetLabel: '守る対象なし',
+            targetLabel: '守るターゲット',
             payloadKey: 'guardTarget',
-            applyMethodName: isHardWill ? 'applyHardWill' : 'applyGuardWill'
+            applyMethodName: 'applyGuardWill'
         });
     }
 

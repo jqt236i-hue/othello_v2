@@ -1,6 +1,5 @@
 import * as PendingCoordinator from '../game/turn/pending-coordinator.js';
 import * as CardLogic from '../game/logic/cards.js';
-import * as PendingSelectionRegistry from '../game/logic/cards-internal/pending-selection-registry.js';
 
 describe('PendingCoordinator', () => {
   afterEach(() => {
@@ -349,18 +348,6 @@ describe('PendingCoordinator', () => {
       kind: 'continue_turn',
       deferNetworkPublish: true
     }));
-    expect(PendingCoordinator.requiresPendingTarget('HARD_WILL')).toBe(true);
-    expect(PendingCoordinator.getPendingSelectionContract('HARD_WILL')).toEqual(expect.objectContaining({
-      kind: 'continue_turn',
-      turnOutcome: 'continue_turn',
-      deferNetworkPublish: true,
-      waitForPlaybackIdle: true
-    }));
-    expect(PendingSelectionRegistry.getPendingSelectionEntry('HARD_WILL')).toEqual(expect.objectContaining({
-      dispatchKey: 'guard',
-      target: expect.objectContaining({ method: 'getGuardTargets', argsKey: 'player' }),
-      action: expect.objectContaining({ policyMethod: 'chooseGuardTarget', field: 'guardTarget' })
-    }));
     expect(PendingCoordinator.getPendingSelectionContract('HEAVEN_BLESSING')).toEqual(expect.objectContaining({
       kind: 'hand_overlay',
       turnOutcome: 'continue_turn',
@@ -370,9 +357,6 @@ describe('PendingCoordinator', () => {
     expect(PendingCoordinator.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
     expect(PendingCoordinator.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(true);
     expect(PendingCoordinator.shouldWaitForPlaybackIdleForPendingType('GUARD_WILL')).toBe(true);
-    expect(PendingCoordinator.isSelectionOnlyEndTurnPendingType('HARD_WILL')).toBe(false);
-    expect(PendingCoordinator.shouldDeferNetworkPublishForPendingType('HARD_WILL')).toBe(true);
-    expect(PendingCoordinator.shouldWaitForPlaybackIdleForPendingType('HARD_WILL')).toBe(true);
     expect(PendingCoordinator.resolvePendingSelectionDispatchKey('HEAVEN_BLESSING')).toBe('heaven_blessing');
   });
 

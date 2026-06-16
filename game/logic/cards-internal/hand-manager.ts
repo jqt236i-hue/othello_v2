@@ -851,7 +851,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
 
             if (type === 'TEMPT_WILL' && !requireLocalTargets(context, 'getTemptWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TRAP_WILL' && !requireLocalTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
-            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD' || type === 'HARD_WILL') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
+            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'LIVING_WILL' && !requireLocalTargets(context, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireLocalTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'CORROSION_WILL' && !requireLocalTargets(context, 'getCorrosionTargets', [cardState, gameState, playerKey], 1)) continue;
@@ -892,7 +892,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'SWAP_WITH_ENEMY' && !requireModuleTargets(context, 'getSwapTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'POSITION_SWAP_WILL' && !requireModuleTargets(context, 'getPositionSwapTargets', [cardState, gameState, playerKey, null], 2)) continue;
             if (type === 'TRAP_WILL' && !requireModuleTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
-            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD' || type === 'HARD_WILL') && !requireModuleTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
+            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireModuleTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'LIVING_WILL' && !requireModuleTargets(context, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireModuleTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TIME_BOMB' && !requireModuleTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;

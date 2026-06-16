@@ -23,9 +23,9 @@ describe('guard', () => {
         expect(callArg.row).toBe(3);
         expect(callArg.col).toBe(4);
         expect(callArg.playerKey).toBe('black');
-        expect(callArg.pendingTypes).toEqual(['GUARD_WILL', 'GUARDIAN_GOD', 'HARD_WILL']);
+        expect(callArg.pendingTypes).toEqual(['GUARD_WILL', 'GUARDIAN_GOD']);
         expect(callArg.actionPayload).toEqual({ guardTarget: { row: 3, col: 4 } });
-        expect(callArg.invalidMessage).toBe('保護を付与する自分の石を選んでください');
+        expect(callArg.invalidMessage).toBe('守る石にする自分の石を選んでください');
         expect(typeof callArg.validateResult).toBe('function');
         expect(typeof callArg.buildPlaybackMeta).toBe('function');
     });
@@ -53,20 +53,6 @@ describe('guard', () => {
             const result = {
                 ok: true,
                 rawEvents: [{ type: 'guard_selected', applied: true }]
-            };
-            const isValid = options.validateResult({ result });
-            expect(isValid).toBe(true);
-            return Promise.resolve(result);
-        });
-
-        await handleGuardSelection(3, 4, 'black');
-    });
-
-    test('validateResult: hard_will_selectedイベントがapplied=trueの場合は有効', async () => {
-        mockExecutePendingSelection.mockImplementation((options) => {
-            const result = {
-                ok: true,
-                rawEvents: [{ type: 'hard_will_selected', applied: true }]
             };
             const isValid = options.validateResult({ result });
             expect(isValid).toBe(true);
@@ -146,19 +132,6 @@ describe('guard', () => {
             const meta = options.buildPlaybackMeta({ pendingType: 'GUARDIAN_GOD' });
             expect(meta).toEqual({
                 cause: 'GUARDIAN_GOD',
-                target: { row: 3, col: 4 }
-            });
-            return Promise.resolve({ ok: true });
-        });
-
-        await handleGuardSelection(3, 4, 'black');
-    });
-
-    test('buildPlaybackMeta: HARD_WILLの場合のメタデータ', async () => {
-        mockExecutePendingSelection.mockImplementation((options) => {
-            const meta = options.buildPlaybackMeta({ pendingType: 'HARD_WILL' });
-            expect(meta).toEqual({
-                cause: 'HARD_WILL',
                 target: { row: 3, col: 4 }
             });
             return Promise.resolve({ ok: true });

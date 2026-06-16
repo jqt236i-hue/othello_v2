@@ -145,47 +145,4 @@ describe('pending selection turn outcome contract', () => {
     expect(coveredTypes.sort()).toEqual(Object.keys(registry).sort());
     expect(failures).toEqual([]);
   });
-
-  test('HARD_WILL guardTarget applies destroy protection without ending the turn', () => {
-    const applyHardWill = jest.fn(() => applied());
-    const events: any[] = [];
-    let handoffCalls = 0;
-
-    const result = PrePlacementSelection.resolvePrePlacementSelectionAction({
-      CardLogic: {
-        ...createCardLogicStub(),
-        applyHardWill
-      },
-      cardState: {},
-      gameState: {},
-      playerKey: 'black',
-      action: {
-        type: 'place',
-        guardTarget: { row: 3, col: 4 }
-      },
-      events,
-      prng: { random: () => 0 },
-      pending: {
-        type: 'HARD_WILL',
-        stage: 'selectTarget',
-        cardId: 'hard_will_01'
-      },
-      createDestroyOutcome: (value: any) => value,
-      isDestroyOutcomeResolved: (value: any) => !!(value && (value.applied === true || value.destroyed === true || value.kind)),
-      applyTrapEffectsAfterSelection: () => undefined,
-      handOffTurnAfterSelection: () => {
-        handoffCalls += 1;
-      },
-      emitDurationSelectionStatusTick: () => undefined,
-      emitHandRemovePresentation: () => undefined,
-      emitHandAddPresentation: () => undefined
-    });
-
-    expect(result).toBe(true);
-    expect(applyHardWill).toHaveBeenCalledWith({}, {}, 'black', 3, 4);
-    expect(events).toEqual([
-      { type: 'hard_will_selected', player: 'black', target: { row: 3, col: 4 }, applied: true }
-    ]);
-    expect(handoffCalls).toBe(0);
-  });
 });

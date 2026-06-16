@@ -85,7 +85,6 @@ export type CardType =
   | 'EXTEND_LIFE_WILL'
   | 'EXTEND_LIFE_GOD'
   | 'CORROSION_WILL'
-  | 'HARD_WILL'
   | 'GUARD_WILL'
   | 'GUARDIAN_GOD'
   | 'LIVING_WILL'

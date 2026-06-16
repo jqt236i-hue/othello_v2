@@ -480,19 +480,17 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
         throw new Error('TRAP_WILL requires trapTarget before placement');
     }
 
-    if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD' || pending.type === 'HARD_WILL') && action.guardTarget) {
-        const isHardWill = pending.type === 'HARD_WILL';
-        const applyGuardLike = isHardWill ? opts.CardLogic.applyHardWill : opts.CardLogic.applyGuardWill;
-        const res = applyGuardLike(
+    if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD') && action.guardTarget) {
+        const res = opts.CardLogic.applyGuardWill(
             opts.cardState,
             opts.gameState,
             opts.playerKey,
             action.guardTarget.row,
             action.guardTarget.col
         );
-        opts.events.push({ type: isHardWill ? 'hard_will_selected' : 'guard_selected', player: opts.playerKey, target: action.guardTarget, applied: !!(res && res.applied) });
+        opts.events.push({ type: 'guard_selected', player: opts.playerKey, target: action.guardTarget, applied: !!(res && res.applied) });
         return true;
-    } else if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD' || pending.type === 'HARD_WILL') && action.guardTarget == null) {
+    } else if (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD') && action.guardTarget == null) {
         throw new Error('GUARD-like card requires guardTarget before placement');
     }
 

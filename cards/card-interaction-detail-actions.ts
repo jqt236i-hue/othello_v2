@@ -46,7 +46,6 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     TEMPT_WILL: '対象の相手特殊石を選んでください',
     CAPTURE_WILL: '捕獲する相手特殊石を選んでください',
     GUARD_WILL: '守る石にする自分の石を選んでください',
-    HARD_WILL: '破壊保護を付与する自分の石を選んでください',
     GUARDIAN_GOD: '守護神にする自分の石を選んでください',
     LIVING_WILL: '生きる意志を付与する自分の石を選んでください（キャンセル可）',
     EXTEND_LIFE_WILL: '延命する自分の特殊石を選んでください',

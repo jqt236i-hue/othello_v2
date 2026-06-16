@@ -324,7 +324,6 @@
         else if (snapshots.some((snapshot) => snapshot.hasDestroyEvade)) tags.push('破壊回避');
         if (primarySnapshot && !primarySnapshot.isManifestStone && !primarySnapshot.hasGhost && primarySnapshot.hasAbsoluteProtection) tags.push('絶対保護');
         if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) tags.push('反転保護');
-        if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasDestroyProtection) tags.push('破壊保護');
 
         return Array.from(new Set(tags));
     }

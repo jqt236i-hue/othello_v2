@@ -183,18 +183,6 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseGuardTarget', field: 'guardTarget' },
         cpuHandlerNames: ['cpuSelectGuardWillWithPolicy']
     },
-    HARD_WILL: {
-        kind: 'continue_turn',
-        turnOutcome: 'continue_turn',
-        deferNetworkPublish: true,
-        waitForPlaybackIdle: true,
-        needsTargetSelection: true,
-        cancellable: true,
-        dispatchKey: 'guard',
-        target: { method: 'getGuardTargets', argsKey: 'player' },
-        action: { policyMethod: 'chooseGuardTarget', field: 'guardTarget' },
-        cpuHandlerNames: ['cpuSelectGuardWillWithPolicy']
-    },
     GUARDIAN_GOD: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',

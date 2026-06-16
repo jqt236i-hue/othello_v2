@@ -38,20 +38,20 @@ describe('destroy-protection context', () => {
   test('finds registry-backed destroy protection without requiring BoardOps changes per new type', () => {
     const cardState = {
       markers: [
-        marker('DESTROY_PROTECTION', 2, 3),
+        marker('REGISTRY_PROTECTED', 2, 3),
         marker('NOT_PROTECTED', 4, 4)
       ]
     };
 
     const found = DestroyProtectionContext.resolveDestroyProtectionAt(cardState, 2, 3, {
       SpecialStoneRegistry: registry({
-        DESTROY_PROTECTION: { destroyProtected: true },
+        REGISTRY_PROTECTED: { destroyProtected: true },
         NOT_PROTECTED: { destroyProtected: false }
       })
     });
 
     expect(found).toEqual(expect.objectContaining({
-      type: 'DESTROY_PROTECTION',
+      type: 'REGISTRY_PROTECTED',
       reason: 'destroy_protected'
     }));
     expect(found.marker).toBe(cardState.markers[0]);
@@ -59,10 +59,10 @@ describe('destroy-protection context', () => {
 
   test('keeps GUARD reason stable and lets ignoreGuard bypass only GUARD', () => {
     const guardState = { markers: [marker('GUARD', 1, 1)] };
-    const genericState = { markers: [marker('DESTROY_PROTECTION', 1, 1)] };
+    const genericState = { markers: [marker('REGISTRY_PROTECTED', 1, 1)] };
     const fakeRegistry = registry({
       GUARD: { destroyProtected: true },
-      DESTROY_PROTECTION: { destroyProtected: true }
+      REGISTRY_PROTECTED: { destroyProtected: true }
     });
 
     expect(DestroyProtectionContext.resolveDestroyProtectionAt(guardState, 1, 1, {
@@ -81,7 +81,7 @@ describe('destroy-protection context', () => {
       SpecialStoneRegistry: fakeRegistry,
       ignoreGuard: true
     })).toEqual(expect.objectContaining({
-      type: 'DESTROY_PROTECTION',
+      type: 'REGISTRY_PROTECTED',
       reason: 'destroy_protected'
     }));
   });
@@ -89,12 +89,12 @@ describe('destroy-protection context', () => {
   test('ignores non-special markers and markers outside the requested cell', () => {
     const cardState = {
       markers: [
-        { ...marker('DESTROY_PROTECTION', 2, 2), kind: 'bomb' },
-        marker('DESTROY_PROTECTION', 2, 3)
+        { ...marker('REGISTRY_PROTECTED', 2, 2), kind: 'bomb' },
+        marker('REGISTRY_PROTECTED', 2, 3)
       ]
     };
     const fakeRegistry = registry({
-      DESTROY_PROTECTION: { destroyProtected: true }
+      REGISTRY_PROTECTED: { destroyProtected: true }
     });
 
     expect(DestroyProtectionContext.resolveDestroyProtectionAt(cardState, 2, 2, {
@@ -103,7 +103,7 @@ describe('destroy-protection context', () => {
     expect(DestroyProtectionContext.resolveDestroyProtectionAt(cardState, 2, 3, {
       SpecialStoneRegistry: fakeRegistry
     })).toEqual(expect.objectContaining({
-      type: 'DESTROY_PROTECTION',
+      type: 'REGISTRY_PROTECTED',
       reason: 'destroy_protected'
     }));
   });

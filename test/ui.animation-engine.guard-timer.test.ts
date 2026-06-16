@@ -92,19 +92,6 @@ describe('animation-engine guard timer rendering', () => {
     }
   });
 
-  test('syncDiscVisual uses destroy protection timer class without flip badge', () => {
-    const engine = require('../ui/animation-engine');
-    const disc = document.createElement('div');
-    disc.className = 'disc black';
-
-    engine.syncDiscVisual(disc, { color: 1, special: 'DESTROY_PROTECTION', timer: 8, owner: 'black' });
-
-    const timer = disc.querySelector('.stone-destroy-protection-timer');
-    expect(timer).not.toBeNull();
-    expect(timer!.textContent).toBe('8');
-    expect(disc.querySelector('.stone-flip-protection-badge')).toBeNull();
-  });
-
   test('syncDiscVisual toggles living will aura without dropping the current special visual', () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');

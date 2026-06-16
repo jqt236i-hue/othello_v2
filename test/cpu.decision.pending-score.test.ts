@@ -111,19 +111,6 @@ describe('cpu decision pending score module', () => {
     expect(opponentScore).toBe(-2800);
   });
 
-  test('HARD_WILL scores own targets like a destroy-only defensive selection', () => {
-    const board = createBoard();
-    board[0][1] = 1;
-    board[3][3] = -1;
-    const scorer = createScorer({ board });
-
-    const ownScore = scorer.scorePendingTargetByType('black', 'HARD_WILL', { row: 0, col: 1 }, null);
-    const opponentScore = scorer.scorePendingTargetByType('black', 'HARD_WILL', { row: 3, col: 3 }, null);
-
-    expect(ownScore).toBeGreaterThan(0);
-    expect(opponentScore).toBe(-2800);
-  });
-
   test('CLONE_WILL keeps level 6 split-eligibility gate behavior', () => {
     const board = createBoard();
     board[3][3] = 1;

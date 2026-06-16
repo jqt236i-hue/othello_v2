@@ -1158,7 +1158,6 @@ function renderBoardFullLegacy() {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const specialMap = new Map();
     const guardMap = new Map();
-    const destroyProtectionMap = new Map();
     const livingWillMap = new Map();
     const manifestAuraMap = new Map();
     const bombMap = new Map();
@@ -1184,15 +1183,6 @@ function renderBoardFullLegacy() {
             }
             if (m.data.type === 'GUARD') {
                 guardMap.set(`${m.row},${m.col}`, {
-                    row: m.row,
-                    col: m.col,
-                    owner: m.owner,
-                    remainingOwnerTurns: m.data.remainingOwnerTurns
-                });
-                continue;
-            }
-            if (m.data.type === 'DESTROY_PROTECTION') {
-                destroyProtectionMap.set(`${m.row},${m.col}`, {
                     row: m.row,
                     col: m.col,
                     owner: m.owner,
@@ -1414,16 +1404,6 @@ function renderBoardFullLegacy() {
                     guardTimer.textContent = String(guardRemaining);
                     _applyDoubleDigitTimerClassForBoard(guardTimer, guardRemaining);
                     discHud.appendChild(guardTimer);
-                }
-
-                const destroyProtectionData = destroyProtectionMap.get(key);
-                if (destroyProtectionData && typeof destroyProtectionData.remainingOwnerTurns === 'number') {
-                    const destroyProtectionTimer = document.createElement('div');
-                    destroyProtectionTimer.className = 'stone-timer stone-destroy-protection-timer';
-                    const destroyProtectionRemaining = Math.max(0, Math.trunc(Number(destroyProtectionData.remainingOwnerTurns)));
-                    destroyProtectionTimer.textContent = String(destroyProtectionRemaining);
-                    _applyDoubleDigitTimerClassForBoard(destroyProtectionTimer, destroyProtectionRemaining);
-                    discHud.appendChild(destroyProtectionTimer);
                 }
 
                 if (sproutMap.has(key)) {

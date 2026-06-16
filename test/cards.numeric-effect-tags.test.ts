@@ -16,17 +16,12 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getNumericTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避', '破壊回避']);
   });
 
-  test('ROBOT_VACUUM_WILL returns special stone and duration tags', () => {
+  test('ROBOT_VACUUM_WILL returns a special stone tag with duration tags', () => {
     expect(getEffectTagLabels('ROBOT_VACUUM_WILL')).toEqual(['特殊石', '5ターン持続']);
     expect(getNumericTagLabels('ROBOT_VACUUM_WILL')).toEqual(['5ターン持続']);
   });
 
-  test('HARD_WILL returns destroy protection and duration tags separately', () => {
-    expect(getEffectTagLabels('HARD_WILL')).toEqual(['破壊保護', '8ターン持続']);
-    expect(getNumericTagLabels('HARD_WILL')).toEqual(['8ターン持続']);
-  });
-
-  test('delayed activation timing is exposed as a numeric effect tag', () => {
+  test('delayed activation timing is exposed as a numeric tag', () => {
     expect(getEffectTagLabels('TIME_BOMB')).toEqual(['特殊石', '3ターン後に発動']);
     expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石', '5ターン後に発動']);
     expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護', '10ターン後に発動']);
@@ -52,7 +47,6 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('WORK_WILL')).toEqual(['特殊石', '5ターン持続']);
     expect(getEffectTagLabels('STONE_SALVATION_GOD')).toEqual(['特殊石', '12ターン持続', '反転保護']);
 
-    expect(getEffectTagLabels('HARD_WILL')).toEqual(['破壊保護', '8ターン持続']);
     expect(getEffectTagLabels('GUARD_WILL')).toEqual(['完全保護', '3ターン持続']);
     expect(getEffectTagLabels('BLOCKADE_WILL')).toEqual(['3ターン持続']);
     expect(getEffectTagLabels('FREEZE_WILL')).toEqual(['5ターン持続']);
@@ -66,7 +60,6 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('ULTIMATE_REVERSE_DRAGON')).toEqual(['特殊石', '8ターン持続', '反転保護']);
     expect(getEffectTagLabels('BREEDING_WILL')).toEqual(['特殊石', '5ターン持続', '反転保護']);
     expect(getEffectTagLabels('GLUTTONOUS_WILL')).toEqual(['特殊石', '反転保護']);
-    expect(getEffectTagLabels('HARD_WILL')).toEqual(['破壊保護', '8ターン持続']);
     expect(getEffectTagLabels('GUARD_WILL')).toEqual(['完全保護', '3ターン持続']);
     expect(getEffectTagLabels('GUARDIAN_GOD')).toEqual(['完全保護', '10ターン持続']);
     expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護']);
@@ -84,10 +77,9 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス化']);
   });
 
-  test('numeric tag resolver returns only numeric labels after protection tags are added', () => {
+  test('numeric tag resolver stays numeric-only even after protection tags are added', () => {
     expect(getNumericTagLabels('PROTECTED_NEXT_STONE')).toEqual([]);
     expect(getNumericTagLabels('ANCHOR_WILL')).toEqual([]);
-    expect(getNumericTagLabels('HARD_WILL')).toEqual(['8ターン持続']);
     expect(getNumericTagLabels('GUARD_WILL')).toEqual(['3ターン持続']);
     expect(getNumericTagLabels('DESTROY_DRAGON_WILL')).toEqual(['3ターン持続']);
   });

@@ -293,13 +293,6 @@
             destroyProtected: true,
             overlayOnlyVisual: true
         }),
-        DESTROY_PROTECTION: Object.freeze({
-            name: '破壊保護',
-            desc: '破壊効果だけを受けない。反転やその他の効果は通常どおり受ける。',
-            destroyProtected: true,
-            overlayOnlyVisual: true,
-            timerClass: 'stone-destroy-protection-timer'
-        }),
         STONE_SALVATION_GOD: Object.freeze({
             name: '救済神',
             desc: '破壊された石を復活させる。',
@@ -364,7 +357,6 @@
 
     const STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
         'GUARD',
-        'DESTROY_PROTECTION',
         'LIVING_WILL'
     ]);
 

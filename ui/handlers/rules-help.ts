@@ -17,14 +17,13 @@ const RULES_HELP_EFFECT_GLOSSARY = Object.freeze([
   Object.freeze({ label: '不可侵', description: '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。' }),
   Object.freeze({ label: '反転保護', description: '反転されない。挟める列ごと無効できる。' }),
   Object.freeze({ label: '完全保護', description: '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。' }),
-  Object.freeze({ label: '破壊保護', description: '破壊効果だけを受けない。反転やその他のカード効果は通常どおり受ける。' }),
   Object.freeze({ label: '反転回避', description: '相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。' }),
   Object.freeze({ label: '破壊回避', description: '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。' }),
   Object.freeze({ label: '多動状態', description: '両者ターン開始時マス移動する、基本ランダム移動。' }),
   Object.freeze({ label: '幽体', description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換以外の効果は通常どおり受ける。' }),
   Object.freeze({ label: '絶対保護', description: 'テレポート・位置交換・マス破壊・意志の喪失を含む全ての効果を無効化。解除されない。' }),
   Object.freeze({ label: 'マス破壊', description: 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。' }),
-  Object.freeze({ label: '破壊／爆発', description: '石を消滅させる。完全保護や破壊保護など、破壊を防ぐ状態の石は消滅しない。' }),
+  Object.freeze({ label: '破壊／爆発', description: '石を消滅させる。完全保護以外の保護を貫通できる。' }),
   Object.freeze({ label: '連鎖反転', description: '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。' }),
   Object.freeze({ label: '禁忌反転', description: '挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。' }),
   Object.freeze({ label: '封鎖', description: '一時的にそのマスを塞ぐ。両者とも置けず、移動でも入れない。' }),
@@ -658,7 +657,6 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     ['不可侵', 30],
     ['反転保護', 40],
     ['完全保護', 50],
-    ['破壊保護', 55],
     ['反転回避', 60],
     ['破壊回避', 70]
   ]);

@@ -29,7 +29,6 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   SPECIAL_STONE: 'special-stone',
   HOLE_CELL: 'hole-cell',
   FLIP_PROTECTION: 'flip-protection',
-  DESTROY_PROTECTION: 'destroy-protection',
   FULL_PROTECTION: 'full-protection',
   ABSOLUTE_PROTECTION: 'absolute-protection',
   INVIOLABLE: 'inviolable',
@@ -57,9 +56,6 @@ function buildCardEffectTag(kind: string, value?: number) {
 
   if (normalizedKind === CARD_EFFECT_TAG_KIND.FLIP_PROTECTION) {
     return Object.freeze({ kind: normalizedKind, label: '反転保護' });
-  }
-  if (normalizedKind === CARD_EFFECT_TAG_KIND.DESTROY_PROTECTION) {
-    return Object.freeze({ kind: normalizedKind, label: '破壊保護' });
   }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.SPECIAL_STONE) {
     return Object.freeze({ kind: normalizedKind, label: '特殊石' });
@@ -106,7 +102,6 @@ function buildCardNumericTag(kind: string, value?: number) {
 }
 
 const flipProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_PROTECTION);
-const destroyProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DESTROY_PROTECTION);
 const specialStoneTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.SPECIAL_STONE);
 const holeCellTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.HOLE_CELL);
 const fullProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FULL_PROTECTION);
@@ -131,7 +126,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   PROTECTED_NEXT_STONE: '次に置く石を弱い石化。次の相手ターン中だけ反転されず、特殊石本体として扱う',
   GHOST_WILL: '次に置く石を幽体石化。反転・破壊は受けず、誘惑・捕獲も受け流す',
   AFTERIMAGE_WILL: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石本体。',
-  SWAP_WITH_ENEMY: '相手通常石1つ選んで自分の通常石に交換する。(反転可能)',
+  SWAP_WITH_ENEMY: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。',
   POSITION_SWAP_WILL: '盤面の石2つを入れ替える',
   ANCHOR_WILL: '次に置く石を完全固定',
   PERMA_PROTECT_NEXT_STONE: '次に置く石を強い石化。ずっと反転されず、特殊石本体として扱う。10ターン経過で絶対保護石へ進化。',
@@ -199,7 +194,6 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   EXTEND_LIFE_WILL: '自分の特殊石本体または石状態1つの持続ターンを2倍にする',
   EXTEND_LIFE_GOD: '自分の特殊石本体または石状態1つの持続ターンを4倍にする',
   CORROSION_WILL: '盤面上の特殊石本体または石状態1つを選び、持続ターンを半減させる',
-  HARD_WILL: '自分石1つに破壊保護',
   GUARD_WILL: '自分石1つに完全保護',
   GUARDIAN_GOD: '自分石1つに完全保護',
   DESTROY_DRAGON_WILL: '次に置く石を破壊龍化。配置時+自ターン開始時に周囲1マスの敵石をランダム1個破壊',
@@ -301,7 +295,6 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   EXTEND_LIFE_WILL: '対象は盤面上の自分の特殊石本体または石状態。\n完全保護中の自分特殊石本体・石状態にも使える。\n現在の持続ターン値を2倍に延長する。',
   EXTEND_LIFE_GOD: '対象は盤面上の自分の特殊石本体または石状態。\n完全保護中の自分特殊石本体・石状態にも使える。\n現在の持続ターン値を4倍に延長する。',
   CORROSION_WILL: '選んだ特殊石本体または石状態の残り持続ターンを半減する。\n小数は切り捨て、最小値は1。\n爆弾・罠・盤面マーカー・配置時効果・完全保護中の対象は選べない。\n対象がない場合は使用できない。',
-  HARD_WILL: '破壊保護中は石破壊と爆破による消滅だけを受けない。\n反転や破壊以外のカード効果は通常どおり受ける。\nマス破壊・穴化は破壊保護を貫通する。',
   GUARD_WILL: '完全保護中は敵対的・強制的な石効果を受けない。\n自分への強化・維持効果は受けられ、マス破壊は貫通する。',
   GUARDIAN_GOD: '完全保護中は敵対的・強制的な石効果を受けない。\n自分への強化・維持効果は受けられ、マス破壊は貫通する。',
   DESTROY_DRAGON_WILL: '反転保護を持つ特殊石として扱う。',
@@ -345,7 +338,6 @@ const cardEffectTagsByType = Object.freeze({
   WILL_HUNTER_KING: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(2), destroyEvasionTag(2), durationTurnsTag(8)]),
   EXTREME_HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(3), destroyEvasionTag(1)]),
   WORK_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
-  HARD_WILL: freezeCardEffectTags([destroyProtectionTag(), durationTurnsTag(8)]),
   GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
   THEORY_INCARNATION: freezeCardEffectTags([inviolableTag(), durationTurnsTag(5)]),

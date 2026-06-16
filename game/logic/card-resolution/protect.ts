@@ -9,7 +9,6 @@ const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE } = SharedConstants || {};
 
 const DEFAULT_STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
-const DEFAULT_HARD_WILL_TURNS = 8;
 const DEFAULT_GUARD_WILL_TURNS = 3;
 const DEFAULT_GUARDIAN_GOD_TURNS = 10;
 
@@ -120,50 +119,8 @@ function applyGuardWill(cardState: CardState, gameState: GameState, playerKey: P
     return { applied: true, row, col };
 }
 
-function applyHardWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
-    const readCardPendingEffect = deps && deps.readCardPendingEffect;
-    const getGuardTargets = deps && deps.getGuardTargets;
-    const removeMarkersAt = deps && deps.removeMarkersAt;
-    const addMarker = deps && deps.addMarker;
-    const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
-    const MARKER_KINDS = deps && deps.MARKER_KINDS;
-
-    if (
-        typeof readCardPendingEffect !== 'function' ||
-        typeof getGuardTargets !== 'function' ||
-        typeof removeMarkersAt !== 'function' ||
-        typeof addMarker !== 'function' ||
-        typeof clearCardPendingEffect !== 'function'
-    ) {
-        return { applied: false, reason: 'deps_missing' };
-    }
-
-    const pending = readCardPendingEffect(cardState, playerKey);
-    if (!pending || pending.type !== 'HARD_WILL' || pending.stage !== 'selectTarget') {
-        return { applied: false, reason: 'not_pending' };
-    }
-    const targets = getGuardTargets(cardState, gameState, playerKey);
-    const allowed = targets.some((t: any) => t.row === row && t.col === col);
-    if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-    const remainingOwnerTurns = deps.HARD_WILL_TURNS || DEFAULT_HARD_WILL_TURNS;
-
-    removeMarkersAt(cardState, row, col, {
-        kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-        type: 'DESTROY_PROTECTION',
-        owner: playerKey
-    });
-    addMarker(cardState, 'specialStone', row, col, playerKey, {
-        type: 'DESTROY_PROTECTION',
-        remainingOwnerTurns
-    });
-    clearCardPendingEffect(cardState, playerKey);
-    return { applied: true, row, col };
-}
-
 export = {
     applyStrongWill,
     applyAbsoluteProtect,
-    applyGuardWill,
-    applyHardWill
+    applyGuardWill
 };

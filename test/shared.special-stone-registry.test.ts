@@ -45,7 +45,6 @@ describe('special stone registry rule classification', () => {
 
   test('classifies statuses, bombs, traps, board markers, and placement effects', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('GUARD')).toBe('stone_status');
-    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('DESTROY_PROTECTION')).toBe('stone_status');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('LIVING_WILL')).toBe('stone_status');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TIME_BOMB')).toBe('bomb');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TRAP')).toBe('trap');
@@ -92,25 +91,12 @@ describe('special stone registry rule classification', () => {
       expect(SpecialStoneRegistry.isInviolableStoneEffect(type)).toBe(true);
     }
 
-    for (const type of ['LIVING_WILL', 'GUARD', 'DESTROY_PROTECTION']) {
+    for (const type of ['LIVING_WILL', 'GUARD']) {
       expect(SpecialStoneRegistry.classifySpecialStoneRuleClass(type)).toBe('stone_status');
       expect(SpecialStoneRegistry.countsAsSpecialStone(type)).toBe(false);
       expect(SpecialStoneRegistry.isTargetableSpecialStone(type)).toBe(false);
       expect(SpecialStoneRegistry.canLossWillRevert(type)).toBe(false);
     }
-  });
-
-  test('DESTROY_PROTECTION is a destroy-only overlay status', () => {
-    const info = SpecialStoneRegistry.getSpecialStoneInfo('DESTROY_PROTECTION');
-
-    expect(info).toMatchObject({
-      name: '破壊保護',
-      destroyProtected: true,
-      overlayOnlyVisual: true,
-      timerClass: 'stone-destroy-protection-timer'
-    });
-    expect(info.flipProtected).not.toBe(true);
-    expect(SpecialStoneRegistry.getSpecialStoneTimerClass('DESTROY_PROTECTION', 'special-timer')).toBe('stone-destroy-protection-timer');
   });
 
   test('prepares theory incarnation spawn candidates without including traps or bombs', () => {

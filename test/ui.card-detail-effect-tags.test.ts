@@ -151,27 +151,6 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
   });
 
-  test('HARD_WILL shows destroy protection together with duration tags', () => {
-    require('../cards/card-interaction.js');
-
-    const cardDef = {
-      id: 'hard_will_01',
-      name: '硬い意志',
-      type: 'HARD_WILL',
-      cost: 4,
-      desc: '盤面上の自分の石1つに破壊保護を付与する。8ターン持続。'
-    };
-
-    global.cardState.selectedCardId = cardDef.id;
-    global.cardState.hands.black = [cardDef.id];
-    global.CardLogic.getCardDef = () => cardDef;
-
-    window.updateCardDetailPanel();
-
-    expect(getTagLabels()).toEqual(['破壊保護', '8ターン持続']);
-    expect(document.getElementById('card-detail-desc').textContent).toContain('自分石1つに破壊保護');
-  });
-
   test('OBSERVER_WILL shows inviolable together with duration tags', () => {
     require('../cards/card-interaction.js');
 

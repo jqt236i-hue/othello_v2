@@ -19,20 +19,16 @@ function wasSelectionApplied(result: any, rawEventType: string): boolean {
     return !!(selected && selected.applied);
 }
 
-function isGuardLikeSelectionApplied(result: any): boolean {
-    return wasSelectionApplied(result, 'guard_selected') || wasSelectionApplied(result, 'hard_will_selected');
-}
-
 async function handleGuardSelection(row: number, col: number, playerKey: string): Promise<any> {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
         col,
         playerKey,
-        pendingTypes: ['GUARD_WILL', 'GUARDIAN_GOD', 'HARD_WILL'],
-        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['GUARD_WILL', 'GUARDIAN_GOD', 'HARD_WILL'], row, col),
-        invalidMessage: '保護を付与する自分の石を選んでください',
-        validateResult: ({ result }: { result: any }) => isGuardLikeSelectionApplied(result),
+        pendingTypes: ['GUARD_WILL', 'GUARDIAN_GOD'],
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['GUARD_WILL', 'GUARDIAN_GOD'], row, col),
+        invalidMessage: '守る石にする自分の石を選んでください',
+        validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'guard_selected'),
         buildPlaybackMeta: ({ pendingType }: { pendingType: string }) => ({ cause: pendingType, target: { row, col } })
     });
 }

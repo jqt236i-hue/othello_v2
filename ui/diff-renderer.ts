@@ -1045,7 +1045,6 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
         special: source.special ? { ...source.special } : source.special,
         inherited: source.inherited ? { ...source.inherited } : source.inherited,
         guard: source.guard ? { ...source.guard } : source.guard,
-        destroyProtection: source.destroyProtection ? { ...source.destroyProtection } : source.destroyProtection,
         bomb: source.bomb ? { ...source.bomb } : source.bomb,
         blockade: source.blockade ? { ...source.blockade } : source.blockade,
         frozen: source.frozen ? { ...source.frozen } : source.frozen,
@@ -1062,7 +1061,6 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
         cloned.inherited.destroyEvadeRemaining = 0;
     }
     if (cloned.guard) cloned.guard.remainingOwnerTurns = 0;
-    if (cloned.destroyProtection) cloned.destroyProtection.remainingOwnerTurns = 0;
     if (cloned.bomb) cloned.bomb.remainingTurns = 0;
     if (cloned.blockade) cloned.blockade.remainingOwnerTurns = 0;
     if (cloned.frozen) cloned.frozen.remainingOwnerTurns = 0;
@@ -1097,9 +1095,6 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     }
     if (prevState.guard && state.guard && prevState.guard.remainingOwnerTurns !== state.guard.remainingOwnerTurns) {
         if (!patch(disc.querySelector('.guard-timer'), prevState.guard.remainingOwnerTurns, state.guard.remainingOwnerTurns)) return false;
-    }
-    if (prevState.destroyProtection && state.destroyProtection && prevState.destroyProtection.remainingOwnerTurns !== state.destroyProtection.remainingOwnerTurns) {
-        if (!patch(disc.querySelector('.stone-destroy-protection-timer'), prevState.destroyProtection.remainingOwnerTurns, state.destroyProtection.remainingOwnerTurns)) return false;
     }
     if (prevState.bomb && state.bomb && prevState.bomb.remainingTurns !== state.bomb.remainingTurns) {
         if (!patch(disc.querySelector('.bomb-timer.countdown-timer'), prevState.bomb.remainingTurns, state.bomb.remainingTurns)) return false;
@@ -1743,7 +1738,6 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
     '不可侵': '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
-    '破壊保護': '破壊と爆発だけを受けない。反転や破壊以外の効果は通常どおり受ける。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
     '通常石': '通常の石。配置時に挟んだ列を反転できる。'
 });
@@ -2195,7 +2189,7 @@ function _getEntryType(entry: any) {
 
 function _isOverlayOnlyMarkerEntryForDiff(entry: any) {
     const type = _getEntryType(entry);
-    return type === 'LIVING_WILL' || type === 'DESTROY_PROTECTION';
+    return type === 'LIVING_WILL';
 }
 
 function _hasHyperactiveLikeStateForDiff(state: any) {
@@ -2623,7 +2617,6 @@ function buildCurrentCellState() {
         : {};
     const specialMap = new Map();
     const guardMap = new Map();
-    const destroyProtectionMap = new Map();
     const livingWillMap = new Map();
     const manifestAuraMap = new Map();
     const bombMap = new Map();
@@ -2689,15 +2682,6 @@ function buildCurrentCellState() {
             }
             if (m.data.type === 'GUARD') {
                 guardMap.set(`${m.row},${m.col}`, {
-                    row: m.row,
-                    col: m.col,
-                    owner: m.owner,
-                    remainingOwnerTurns: m.data.remainingOwnerTurns
-                });
-                continue;
-            }
-            if (m.data.type === 'DESTROY_PROTECTION') {
-                destroyProtectionMap.set(`${m.row},${m.col}`, {
                     row: m.row,
                     col: m.col,
                     owner: m.owner,
@@ -2834,7 +2818,6 @@ function buildCurrentCellState() {
             // Get special stone at this position
             const special = val !== EMPTY ? specialMap.get(key) : null;
             const guard = val !== EMPTY ? guardMap.get(key) : null;
-            const destroyProtection = val !== EMPTY ? destroyProtectionMap.get(key) : null;
             const livingWill = val !== EMPTY ? livingWillMap.get(key) : null;
             const manifestAura = val !== EMPTY ? manifestAuraMap.get(key) : null;
             const bomb = val !== EMPTY ? bombMap.get(key) : null;
@@ -2888,10 +2871,6 @@ function buildCurrentCellState() {
                     owner: getOwnerVal(guard.owner),
                     remainingOwnerTurns: guard.remainingOwnerTurns
                 } : null,
-                destroyProtection: destroyProtection ? {
-                    owner: getOwnerVal(destroyProtection.owner),
-                    remainingOwnerTurns: destroyProtection.remainingOwnerTurns
-                } : null,
                 bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerVal(bomb.owner) } : null,
                 blockade: blockade ? {
                     type: blockade.type,
@@ -2933,7 +2912,6 @@ function buildCurrentCellState() {
         const seed = seedMap.get(expKey) || null;
         const special = expVal !== EMPTY ? specialMap.get(expKey) : null;
         const guard = expVal !== EMPTY ? guardMap.get(expKey) : null;
-        const destroyProtection = expVal !== EMPTY ? destroyProtectionMap.get(expKey) : null;
         const livingWill = expVal !== EMPTY ? livingWillMap.get(expKey) : null;
         const manifestAura = expVal !== EMPTY ? manifestAuraMap.get(expKey) : null;
         const bomb = expVal !== EMPTY ? bombMap.get(expKey) : null;
@@ -2995,10 +2973,6 @@ function buildCurrentCellState() {
             guard: guard ? {
                 owner: getOwnerVal(guard.owner),
                 remainingOwnerTurns: guard.remainingOwnerTurns
-            } : null,
-            destroyProtection: destroyProtection ? {
-                owner: getOwnerVal(destroyProtection.owner),
-                remainingOwnerTurns: destroyProtection.remainingOwnerTurns
             } : null,
             bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerVal(bomb.owner) } : null,
             blockade: blockade ? {
@@ -3063,12 +3037,6 @@ function cellStatesEqual(a: any, b: any) {
     if (a.guard && b.guard) {
         if (a.guard.owner !== b.guard.owner) return false;
         if (a.guard.remainingOwnerTurns !== b.guard.remainingOwnerTurns) return false;
-    }
-
-    if ((a.destroyProtection === null) !== (b.destroyProtection === null)) return false;
-    if (a.destroyProtection && b.destroyProtection) {
-        if (a.destroyProtection.owner !== b.destroyProtection.owner) return false;
-        if (a.destroyProtection.remainingOwnerTurns !== b.destroyProtection.remainingOwnerTurns) return false;
     }
 
     // Compare bomb state
@@ -3435,19 +3403,6 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
                 _applyDoubleDigitTimerClassForDiff(guardTimer, guardRemaining);
             }
             discHud.appendChild(guardTimer);
-        }
-
-        if (state.destroyProtection && typeof state.destroyProtection.remainingOwnerTurns === 'number') {
-            const destroyProtectionRemaining = Math.max(0, Math.trunc(Number(state.destroyProtection.remainingOwnerTurns)));
-            const destroyProtectionTimer = markerRenderer
-                ? markerRenderer.createDestroyProtectionTimerLabel(destroyProtectionRemaining)
-                : document.createElement('div');
-            if (!markerRenderer) {
-                destroyProtectionTimer.className = 'stone-timer stone-destroy-protection-timer';
-                destroyProtectionTimer.textContent = String(destroyProtectionRemaining);
-                _applyDoubleDigitTimerClassForDiff(destroyProtectionTimer, destroyProtectionRemaining);
-            }
-            discHud.appendChild(destroyProtectionTimer);
         }
 
         if (state.breedingSprout) {
