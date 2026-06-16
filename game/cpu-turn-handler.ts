@@ -672,6 +672,10 @@ function resolveCpuLv6BrowserRuntimeCapability() {
 
 function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
+    try {
+        const qs = readCpuTurnQuerySearch();
+        if (/[?&]othelloOnnx=(?:0|false)\b/i.test(qs) || /[?&]othello_onnx=(?:0|false)\b/i.test(qs)) return false;
+    } catch (e) { /* ignore */ }
     if (shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler()) return true;
     const shared = readExplicitCpuLv6SharedProfile() || resolveCpuLv6SharedProfile();
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();

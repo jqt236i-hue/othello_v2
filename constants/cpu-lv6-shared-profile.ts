@@ -103,7 +103,7 @@ const CPU_LV6_SHARED_PROFILE: CpuLv6SharedProfile = {
     version: 'teacher_lv6_parity_v5',
     browser: {
         minThinkMsWhite: 250,
-        moveDecisionMode: 'policy-table-lookahead',
+        moveDecisionMode: 'othello-onnx',
         cardDecisionMode: 'policy-table-core',
         sacrificeWillMinTurnNumber: 25,
         lookaheadTimeCaps: {

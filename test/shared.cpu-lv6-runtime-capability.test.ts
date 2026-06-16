@@ -35,14 +35,15 @@ describe('shared cpu lv6 runtime capability', () => {
     ).toBe(true);
   });
 
-  test('shared profile keeps policy-table as the primary browser Lv6 path', () => {
+  test('shared profile uses ONNX as the primary browser Lv6 move path and keeps card decisions on policy table', () => {
     const capability = CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability(cpuLv6SharedProfile);
 
-    expect(capability.primaryMoveSource).toBe('policy-table');
+    expect(capability.primaryMoveSource).toBe('onnx');
     expect(capability.primaryCardSource).toBe('policy-table');
-    expect(capability.usesPolicyTableLookaheadMoveDecision).toBe(true);
+    expect(capability.usesOnnxMoveDecision).toBe(true);
+    expect(capability.usesPolicyTableLookaheadMoveDecision).toBe(false);
     expect(capability.usesPolicyTableCoreCardDecision).toBe(true);
-    expect(capability.shouldLoadPrimaryOnnxRuntime).toBe(false);
+    expect(capability.shouldLoadPrimaryOnnxRuntime).toBe(true);
     expect(capability.hasAuxiliaryTargetHead).toBe(true);
     expect(capability.hasAuxiliaryValueHead).toBe(true);
   });

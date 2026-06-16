@@ -445,6 +445,42 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
     });
 
+    test('uses Othello ONNX move path in normal card-reversi while keeping policy-table card decisions', async () => {
+        const onnxMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        const fallbackMove = { row: 5, col: 4, flips: [{ row: 4, col: 4 }] };
+        global.CPU_LV6_SHARED_PROFILE = {
+            browser: {
+                moveDecisionMode: 'othello-onnx',
+                cardDecisionMode: 'policy-table-core'
+            }
+        };
+        global.CardLogic = {
+            getUsableCardIds: () => ['a'],
+            hasUsableCard: () => true,
+            getCardDef: (id: string) => ({ id })
+        };
+        global.cardState = {
+            hands: { white: ['a', 'b', 'c'], black: [] },
+            charge: { white: 12, black: 8 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 30 };
+        global.MATCH_MODE = 'cpu';
+        global.generateMovesForPlayer = jest.fn(() => [onnxMove, fallbackMove]);
+        global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
+        global.selectMoveFromOnnxPolicyAsync = jest.fn(async () => onnxMove);
+        global.selectCpuMoveWithPolicy = jest.fn(() => fallbackMove);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
+        expect(global.selectMoveFromOnnxPolicyAsync).toHaveBeenCalledWith([onnxMove, fallbackMove], 'white', 6);
+        expect(global.selectCpuMoveWithPolicy).not.toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(onnxMove);
+    });
+
     test('runCpuTurn commits the ONNX move directly without policy fallback override', async () => {
         const onnxMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
         const fallbackMove = { row: 5, col: 4, flips: [{ row: 4, col: 4 }] };

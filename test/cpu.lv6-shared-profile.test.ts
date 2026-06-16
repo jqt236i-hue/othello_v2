@@ -7,7 +7,7 @@ describe('cpu lv6 shared profile', () => {
         expect(cpuLv6SharedProfile.browser).toBeTruthy();
         expect(cpuLv6SharedProfile.teacher).toBeTruthy();
         expect(cpuLv6SharedProfile.browser.minThinkMsWhite).toBe(250);
-        expect(cpuLv6SharedProfile.browser.moveDecisionMode).toBe('policy-table-lookahead');
+        expect(cpuLv6SharedProfile.browser.moveDecisionMode).toBe('othello-onnx');
         expect(cpuLv6SharedProfile.browser.cardDecisionMode).toBe('policy-table-core');
         expect(cpuLv6SharedProfile.browser.sacrificeWillMinTurnNumber).toBe(25);
         expect(cpuLv6SharedProfile.browser.lookaheadTimeCaps.whiteUi.moveCapMs).toBe(1250);
