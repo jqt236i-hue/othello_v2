@@ -41,13 +41,16 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
             }
             if (destroyedForCycle) {
                 cfg.setCpuProcessing(false);
-                cfg.scheduleRetry(() => {
+                const scheduled = cfg.scheduleRetry(() => {
                     if (cfg.isUiAnimationBusy()) {
                         cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
                         return;
                     }
                     cfg.runCpuTurn(playerKey, { autoMode });
                 }, cfg.getAnimationRetryDelayMs());
+                if (scheduled === false) {
+                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                }
                 return { status: 'handled' };
             }
         }
@@ -71,7 +74,10 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                     }
                     cfg.runCpuTurn(playerKey, { autoMode });
                 };
-                cfg.scheduleRetry(resumeAfterCardAnimation, cfg.getAnimationRetryDelayMs());
+                const scheduled = cfg.scheduleRetry(resumeAfterCardAnimation, cfg.getAnimationRetryDelayMs());
+                if (scheduled === false) {
+                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                }
                 return { status: 'handled' };
             }
         }
