@@ -628,10 +628,17 @@ describe('rules help panel', () => {
 
   test('special stone duration timer classes share the green duration palette', () => {
     const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+    const cssRules = Array.from(boardCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map((match) => ({
+      selectors: match[1].split(',').map((selector) => selector.trim()),
+      body: match[2]
+    }));
 
     for (const className of ['special-timer', 'dragon-timer', 'breeding-timer', 'work-timer', 'udg-timer']) {
-      const pattern = new RegExp(`\\.${className}\\s*\\{[\\s\\S]*?rgba\\(40, 86, 60, 0\\.64\\)`);
-      expect(boardCss).toMatch(pattern);
+      const hasGreenDurationRule = cssRules.some((one) => (
+        one.selectors.includes(`.${className}`) &&
+        /rgba\(40, 86, 60, 0\.64\)/.test(one.body)
+      ));
+      expect(hasGreenDurationRule).toBe(true);
     }
   });
 
