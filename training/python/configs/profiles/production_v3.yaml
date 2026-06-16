@@ -128,4 +128,5 @@ trainCycleArgs:
   - --shape-immediate
   - "0.48"
   - --deploy-promoted-to-root
+  - --deploy-promoted-force
   - --carry-over-checkpoint
