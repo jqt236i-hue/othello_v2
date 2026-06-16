@@ -36,7 +36,8 @@ const {
     buildTargetOnnxBundleArgs,
     buildOnnxGateCommandArgs,
     buildPromotionTargetBundleArgs,
-    buildPromotionCommandArgs
+    buildPromotionCommandArgs,
+    buildDeployPromotedToRootCommandArgs
 } = require('./training-cycle-command-builders');
 const {
     buildDeckCodeArgs
@@ -267,6 +268,11 @@ function printHelp() {
         '      --no-gate-final-iteration-only Disable last-iteration-only gate mode (default)',
         '      --promote               Promote model when selected promotion mode passes (default: on)',
         '      --no-promote            Skip promotion even when final check passes',
+        '      --deploy-promoted-to-root  After lane promotion, copy the promoted lane model bundle into root data/models for local browser use',
+        '      --no-deploy-promoted-to-root Disable root model deployment after lane promotion (default)',
+        '      --deploy-promoted-root-models-dir <path> Root browser model directory (default: data/models)',
+        '      --deploy-promoted-min-states <n> Minimum lane policy-table states required for root deployment (default: 0)',
+        '      --deploy-promoted-force Deploy to root even when lane policy-table has fewer states than current root',
         '      --selfplay-use-promoted-model-only        Update next self-play guide only when promotion succeeds (default: on)',
         '      --selfplay-use-candidate-every-iteration  Update next self-play guide to latest candidate every iteration',
         '      --bootstrap-policy-model <path>  Seed self-play with an existing policy-table JSON',
@@ -1233,6 +1239,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const onnxGateMinSeedScore = promotionEligibility.onnxGateMinSeedScore;
 
     let promoted = false;
+    let deployedPromotedToRoot = false;
+    let rootDeployManifestPath = null;
     if (promoteEligible && args.promoteOnPass) {
         const adoptionResultPath = (args.promotionMode !== 'strict' && !finalPassed)
             ? p.quickAdoptionPath
@@ -1243,6 +1251,11 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         }
         runStep('promote-model', process.execPath, promoteArgs);
         promoted = true;
+        if (args.deployPromotedToRoot) {
+            runStep('deploy-promoted-root', process.execPath, buildDeployPromotedToRootCommandArgs(args, p));
+            deployedPromotedToRoot = true;
+            rootDeployManifestPath = path.resolve(args.deployPromotedRootModelsDir, 'deploy-manifest.json');
+        }
     }
 
     const iterationResult = {
@@ -1401,6 +1414,12 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             onnxGateMinSeedScore
         },
         promoted,
+        rootDeployment: {
+            enabled: args.deployPromotedToRoot === true,
+            executed: deployedPromotedToRoot,
+            rootModelsDir: args.deployPromotedRootModelsDir,
+            deployManifestPath: rootDeployManifestPath
+        },
         warehouseManifest: {
             schemaVersion: TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION,
             path: p.warehouseManifestPath
@@ -1686,6 +1705,7 @@ export = {
     buildTargetOnnxBundleArgs,
     buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
+    buildDeployPromotedToRootCommandArgs,
     resolveGateSeedConfig,
     resolveQuickComponentDelta,
     resolvePromotionEligibility,

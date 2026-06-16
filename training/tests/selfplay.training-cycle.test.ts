@@ -41,6 +41,7 @@ const {
     buildTargetOnnxBundleArgs,
     buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
+    buildDeployPromotedToRootCommandArgs,
     shouldReuseStepArtifacts,
     shouldRunGateForIteration,
     resolveGateSeedConfig,
@@ -186,6 +187,10 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxGateMaxP95LatencyMs).toBe(0);
         expect(args.onnxGateMaxMaxLatencyMs).toBe(0);
         expect(args.gateFinalIterationOnly).toBe(false);
+        expect(args.deployPromotedToRoot).toBe(false);
+        expect(args.deployPromotedRootModelsDir).toBe(path.resolve('data', 'models'));
+        expect(args.deployPromotedMinStates).toBe(0);
+        expect(args.deployPromotedForce).toBe(false);
         expect(args.reuseExistingArtifacts).toBe(false);
         expect(args.seedBankPath).toBeNull();
     });
@@ -434,6 +439,27 @@ describe('selfplay training cycle script', () => {
         expect(args.carryOverCheckpointMode).toBe('promoted-only');
     });
 
+    test('parseArgs accepts promoted root deployment options', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-root-deploy-'));
+        const rootModelsDir = path.join(tempDir, 'root-models');
+
+        try {
+            const args = parseArgs([
+                '--deploy-promoted-to-root',
+                '--deploy-promoted-root-models-dir', rootModelsDir,
+                '--deploy-promoted-min-states', '12',
+                '--deploy-promoted-force'
+            ]);
+
+            expect(args.deployPromotedToRoot).toBe(true);
+            expect(args.deployPromotedRootModelsDir).toBe(rootModelsDir);
+            expect(args.deployPromotedMinStates).toBe(12);
+            expect(args.deployPromotedForce).toBe(true);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('parseArgs accepts head-specific resume checkpoints', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-cycle-resume-'));
         const policyCheckpointPath = path.join(tempDir, 'custom-policy.pt');
@@ -575,6 +601,36 @@ describe('selfplay training cycle script', () => {
                 '--archive-dir', path.join(modelsDir, 'archive'),
                 '--manifest', path.join(modelsDir, 'promoted', 'promotion-manifest.json')
             ]));
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildDeployPromotedToRootCommandArgs copies lane champion into browser root', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-root-deploy-'));
+        const modelsDir = path.join(tempDir, 'models', 'production_v3');
+        const rootModelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        fs.mkdirSync(rootModelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--deploy-promoted-to-root',
+                '--deploy-promoted-root-models-dir', rootModelsDir,
+                '--deploy-promoted-min-states', '12',
+                '--deploy-promoted-force'
+            ]);
+            const deployArgs = buildDeployPromotedToRootCommandArgs(args, { tag: 'production_v3_test.it01' });
+
+            expect(deployArgs).toEqual([
+                path.resolve('scripts', 'deploy-lane-model-to-root.js'),
+                '--lane-dir', modelsDir,
+                '--root-models-dir', rootModelsDir,
+                '--deploy-id', 'production_v3_test.it01',
+                '--min-states', '12',
+                '--force'
+            ]);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }

@@ -12,7 +12,8 @@ const TRAINING_CYCLE_STEP_ORDER = Object.freeze([
     'adoption-quality-gate',
     'adoption-final',
     'adoption-onnx-gate',
-    'promote-model'
+    'promote-model',
+    'deploy-promoted-root'
 ]);
 
 function isTrainingCycleStep(value: any) {

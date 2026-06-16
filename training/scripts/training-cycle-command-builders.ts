@@ -413,6 +413,22 @@ function buildPromotionCommandArgs(args: any, iterationPaths: any, adoptionResul
     ];
 }
 
+function buildDeployPromotedToRootCommandArgs(args: any, iterationPaths: any) {
+    const deployArgs = [
+        path.resolve('scripts', 'deploy-lane-model-to-root.js'),
+        '--lane-dir', path.resolve(args.modelsDir),
+        '--root-models-dir', path.resolve(args.deployPromotedRootModelsDir),
+        '--deploy-id', String((iterationPaths && iterationPaths.tag) || args.runTag || 'promoted')
+    ];
+    if (Number.isFinite(Number(args.deployPromotedMinStates)) && Number(args.deployPromotedMinStates) > 0) {
+        deployArgs.push('--min-states', String(Math.floor(Number(args.deployPromotedMinStates))));
+    }
+    if (args.deployPromotedForce) {
+        deployArgs.push('--force');
+    }
+    return deployArgs;
+}
+
 export = {
     buildGenerateSelfplayDataArgs,
     buildPolicyTrainingCommandArgs,
@@ -426,5 +442,6 @@ export = {
     buildTargetOnnxBundleArgs,
     buildOnnxGateCommandArgs,
     buildPromotionTargetBundleArgs,
-    buildPromotionCommandArgs
+    buildPromotionCommandArgs,
+    buildDeployPromotedToRootCommandArgs
 };

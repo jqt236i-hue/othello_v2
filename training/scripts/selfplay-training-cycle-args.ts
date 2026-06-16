@@ -342,6 +342,10 @@ function createSelfplayTrainingCycleDefaults(env) {
         onnxPrimaryMinOnnxGateMinSeed: 0.0,
         gateFinalIterationOnly: false,
         promoteOnPass: true,
+        deployPromotedToRoot: false,
+        deployPromotedRootModelsDir: path.resolve(cwd, 'data', 'models'),
+        deployPromotedMinStates: 0,
+        deployPromotedForce: false,
         selfplayUsePromotedModelOnly: true,
         selfplayCandidateAdmission: 'promoted-only',
         bootstrapPolicyModelPath: null,
@@ -568,6 +572,12 @@ function parseSelfplayTrainingCycleArgs(argv) {
         if (a === '--no-gate-final-iteration-only') { args.gateFinalIterationOnly = false; continue; }
         if (a === '--promote') { args.promoteOnPass = true; continue; }
         if (a === '--no-promote') { args.promoteOnPass = false; continue; }
+        if (a === '--deploy-promoted-to-root') { args.deployPromotedToRoot = true; continue; }
+        if (a === '--no-deploy-promoted-to-root') { args.deployPromotedToRoot = false; continue; }
+        if (a === '--deploy-promoted-root-models-dir') { args.deployPromotedRootModelsDir = path.resolve(process.cwd(), argv[++i]); continue; }
+        if (a === '--deploy-promoted-min-states') { args.deployPromotedMinStates = Number(argv[++i]); continue; }
+        if (a === '--deploy-promoted-force') { args.deployPromotedForce = true; continue; }
+        if (a === '--no-deploy-promoted-force') { args.deployPromotedForce = false; continue; }
         if (a === '--selfplay-use-promoted-model-only') {
             args.selfplayUsePromotedModelOnly = true;
             args.selfplayCandidateAdmission = 'promoted-only';
@@ -1158,6 +1168,10 @@ function parseSelfplayTrainingCycleArgs(argv) {
     if (args.promotionMode === 'onnx-primary' && !args.onnxGateEnabled) {
         throw new Error('--promotion-mode onnx-primary requires --onnx-gate');
     }
+    if (!Number.isFinite(args.deployPromotedMinStates) || args.deployPromotedMinStates < 0) {
+        throw new Error('--deploy-promoted-min-states must be >= 0');
+    }
+    args.deployPromotedMinStates = Math.floor(args.deployPromotedMinStates);
     if (args.bootstrapPolicyModelPath && !fs.existsSync(args.bootstrapPolicyModelPath)) {
         throw new Error(`--bootstrap-policy-model not found: ${args.bootstrapPolicyModelPath}`);
     }
