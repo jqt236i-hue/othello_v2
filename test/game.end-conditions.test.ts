@@ -55,12 +55,12 @@ describe('Core end conditions', () => {
     expect(nextState.consecutivePasses).toBe(1);
   });
 
-  test('still ends when the board is full', () => {
+  test('does not end only because the board is full before two consecutive passes', () => {
     const board = makeBoard(8, 8, Core.BLACK);
     const state = makeState(board);
 
     expect(Core.countDiscs(state)).toEqual({ black: 64, white: 0 });
-    expect(Core.isGameOver(state)).toBe(true);
+    expect(Core.isGameOver(state)).toBe(false);
   });
 
   test('counts occupied expansion cells but does not use mono-color count as an instant end', () => {

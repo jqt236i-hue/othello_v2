@@ -566,17 +566,7 @@ function applyPass(state: any): any {
 }
 
 function isGameOver(state: any): boolean {
-    if (state.consecutivePasses >= 2) return true;
-
-    let emptyCount = 0;
-    forEachMainBoardCell(state, (row, col, value) => {
-        if (value === EMPTY) emptyCount += 1;
-    });
-    const expansionCells = getExpansionCells(state);
-    for (const expansion of expansionCells) {
-        if (expansion && expansion.owner === EMPTY) emptyCount++;
-    }
-    return emptyCount === 0;
+    return state.consecutivePasses >= 2;
 }
 
 function countDiscs(state: any): DiscCount {

@@ -129,7 +129,7 @@ const _gameInterface = {
         if (!CoreLogic) {
             return { isTerminal: false, value: 0 };
         }
-        // Simple terminal heuristic: no legal moves for either player or board full
+        // Simple cardless rollout heuristic: no legal moves for either player.
         const blackVal = CoreLogic.BLACK !== undefined ? CoreLogic.BLACK : 1;
         const whiteVal = CoreLogic.WHITE !== undefined ? CoreLogic.WHITE : -1;
         const blackMoves = CoreLogic.getLegalMoves ? CoreLogic.getLegalMoves(state, blackVal).length : 0;
