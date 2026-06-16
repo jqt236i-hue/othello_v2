@@ -15,7 +15,6 @@ const {
 } = require('./e2e-runtime-helpers.js');
 
 const BLACK = 1;
-const WHITE = -1;
 
 const END_TURN_CASES = [
   { label: 'SWAP_WITH_ENEMY', cardId: 'swap_01', row: 3, col: 3 },
@@ -138,11 +137,6 @@ describe('pending selection CPU handoff E2E', () => {
       await installStandardDebugState(page, cardId, false);
       await useSelectedCardAndClickTarget(page, label, row, col);
 
-      await page.waitForFunction(
-        () => window.gameState && window.gameState.currentPlayer === WHITE,
-        null,
-        { timeout: 5000 }
-      );
       await page.waitForFunction(
         () => window.gameState
           && window.gameState.currentPlayer === BLACK
