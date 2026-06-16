@@ -1161,6 +1161,28 @@ html.stone-images-loaded .disc.white {
     z-index: 76;
 }
 
+.stone-destroy-protection-timer {
+    top: calc(3px * var(--layout-stage-scale));
+    left: calc(3px * var(--layout-stage-scale));
+    bottom: auto;
+    transform: none;
+    color: #fff8da;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 48%),
+        rgba(92, 72, 26, 0.92);
+    border: var(--layout-size-border-thin) solid rgba(255, 218, 118, 0.78);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    box-shadow:
+        0 0 4px rgba(0, 0, 0, 0.52),
+        inset 0 1px 1px rgba(255, 255, 255, 0.28);
+    z-index: 75;
+}
+
+.stone-destroy-protection-timer.timer-double-digit {
+    min-width: calc(20px * var(--layout-stage-scale));
+    font-size: calc(9px * var(--layout-stage-scale));
+}
+
 /* Keep all timer labels above special-stone overlays (::before z-index:25) */
 .stone-timer,
 .special-timer {

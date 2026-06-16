@@ -105,13 +105,19 @@ describe('diff-renderer special marker renderer', () => {
     expect(guard.className).toContain('guard-timer');
     expect(guard.textContent).toBe('2');
 
+    const destroyProtection = renderer.createDestroyProtectionTimerLabel(8);
+    expect(destroyProtection.className).toContain('stone-timer');
+    expect(destroyProtection.className).toContain('stone-destroy-protection-timer');
+    expect(destroyProtection.textContent).toBe('8');
+
     const freeze = renderer.createFreezeMark(4);
     expect(freeze.className).toBe('freeze-mark');
     expect(freeze.querySelector('.freeze-turn')?.textContent).toBe('4');
     expect(applied.map((one) => one.className)).toEqual([
       'seed-turn countdown-timer',
       'stone-timer flip-evade-timer',
-      'guard-timer'
+      'guard-timer',
+      'stone-timer stone-destroy-protection-timer'
     ]);
   });
 

@@ -61,6 +61,10 @@ function getManifestStoneRegistryModule(): any {
     return safeRequire('../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
 }
 
+function getDestroyProtectionContextModule(): any {
+    return safeRequire('./cards-internal/destroy-protection-context') || getRuntimeGlobalValue('DestroyProtectionContext');
+}
+
 function isOverlayOnlySpecialStoneType(type: string): boolean {
     const registry = getSpecialStoneRegistryModule();
     if (registry && typeof registry.isOverlayOnlySpecialStoneType === 'function') {
@@ -1899,21 +1903,17 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
     const ignoreGuard = !!(meta && meta.ignoreGuard === true);
     const ignoreRegen = !!(meta && meta.ignoreRegen === true);
     const cardMarkers = getCardMarkersModule();
-
-    const guardMarker = cardMarkers && typeof cardMarkers.findSpecialMarkerAt === 'function'
-        ? cardMarkers.findSpecialMarkerAt(cardState, row, col, 'GUARD')
-        : (Array.isArray(cardState.markers)
-            ? cardState.markers.find((m: any) => (
-                m &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                m.row === row &&
-                m.col === col &&
-                m.data &&
-                m.data.type === 'GUARD'
-            ))
-            : null)
-        ;
-    if (guardMarker && !ignoreGuard) return { destroyed: false, reason: 'guard_protected' };
+    const destroyProtectionContext = getDestroyProtectionContextModule();
+    if (destroyProtectionContext && typeof destroyProtectionContext.resolveDestroyProtectionAt === 'function') {
+        const protection = destroyProtectionContext.resolveDestroyProtectionAt(cardState, row, col, {
+            SpecialStoneRegistry: getSpecialStoneRegistryModule(),
+            markerKinds: MARKER_KINDS,
+            ignoreGuard
+        });
+        if (protection && protection.reason) {
+            return { destroyed: false, reason: protection.reason };
+        }
+    }
     if (_isFrozenCell(cardState, row, col)) return { destroyed: false, reason: 'frozen_protected' };
     const ghostMarker = _getGhostMarkerAt(cardState, row, col);
     if (ghostMarker && _shouldBlockGhostDestroy(reason, meta)) {

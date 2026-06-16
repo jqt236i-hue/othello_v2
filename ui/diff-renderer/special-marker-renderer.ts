@@ -76,6 +76,19 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return createTimedMarkerLabel('guard-timer', value);
   }
 
+  function createStoneStatusTimerLabel(className: string, value: any) {
+    const normalizedClassName = String(className || '').trim() || 'special-timer';
+    const classes = normalizedClassName.split(/\s+/).filter(Boolean);
+    const fullClassName = classes.includes('stone-timer')
+      ? normalizedClassName
+      : `stone-timer ${normalizedClassName}`;
+    return createTimedMarkerLabel(fullClassName, value);
+  }
+
+  function createDestroyProtectionTimerLabel(value: any) {
+    return createStoneStatusTimerLabel('stone-destroy-protection-timer', value);
+  }
+
   function createFlipProtectionBadge() {
     const badge = doc.createElement('div');
     badge.className = 'stone-flip-protection-badge';
@@ -104,6 +117,8 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createBonusLabel,
     createTimedMarkerLabel,
     createGuardTimerLabel,
+    createStoneStatusTimerLabel,
+    createDestroyProtectionTimerLabel,
     createFlipProtectionBadge,
     createFreezeMark
   };

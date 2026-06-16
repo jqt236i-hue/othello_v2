@@ -447,6 +447,22 @@ When adding a new flip-protected special stone:
 - cover it through registry-wide tests rather than a single named-stone assertion
 - run focused card-resolution tests that exercise effect resolution, target availability, and any fallback path touched by the card
 
+### 10.2 Destroy-protection context
+
+`shared/special-stone-registry.ts` is the source of truth for special-stone destroy protection.
+Core destruction paths must resolve marker-level destroy protection through `game/logic/cards-internal/destroy-protection-context.ts` or a wrapper that delegates to it.
+
+Do not add local hand-written lists of destroy-protected special-stone types in `game/logic/board_ops.ts`, card effect modules, target resolvers, CPU helpers, worker logic, or UI presentation.
+
+`GUARD` keeps its existing `guard_protected` reason and remains bypassable only by explicit `ignoreGuard` metadata. Other registry-backed `destroyProtected` statuses must not become bypassable through `ignoreGuard` unless their rulebook entry says so.
+
+When adding a new destroy-protected stone status:
+
+- set `destroyProtected: true` in `shared/special-stone-registry.ts`
+- classify the status through the registry instead of adding a local BoardOps branch
+- cover the blocker with registry-wide tests and one focused destruction regression
+- keep cell removal, holes, movement, ownership changes, and non-destroy effects outside this protection unless the rulebook explicitly says otherwise
+
 ## 11. Root vs mirror contracts
 
 Root files are canonical.
