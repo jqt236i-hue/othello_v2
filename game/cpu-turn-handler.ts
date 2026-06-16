@@ -86,6 +86,7 @@ const CpuTurnCardPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-car
 const CpuTurnPendingPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-pending-phase');
 const CpuTurnMovePhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-move-phase');
 const CpuDecisionRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cpu-decision');
+const CpuRuntimeBoundaryModule = requireCpuTurnHandlerModuleOrNull('./cpu-decision-runtime');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -129,6 +130,12 @@ function setCpuUIImpl(obj: any): void {
     }
     __uiImpl_cpu = Object.assign({}, __uiImpl_cpu, obj || {});
 }
+const CpuTurnRuntimeBoundary = (CpuRuntimeBoundaryModule && typeof CpuRuntimeBoundaryModule.createCpuTurnRuntimeBoundary === 'function')
+    ? CpuRuntimeBoundaryModule.createCpuTurnRuntimeBoundary({
+        getUiImpl: () => __uiImpl_cpu,
+        getFallbackCardLogic: () => cpuCardLogic
+    })
+    : null;
 const ANIMATION_RETRY_DELAY_MS = 80;
 
 // Local safe constants to avoid ReferenceError for undeclared runtime constants in test environments
@@ -187,16 +194,9 @@ function getCurrentTurnNumberSafe() {
 }
 
 function resolveRuntimeFunction(name: string): Function | null {
-    try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveRuntimeFunction === 'function') {
-            const candidate = __uiImpl_cpu.resolveRuntimeFunction(name);
-            if (typeof candidate === 'function') return candidate;
-        }
-        if (__uiImpl_cpu && typeof __uiImpl_cpu[name] === 'function') {
-            return __uiImpl_cpu[name];
-        }
-    } catch (e) { /* ignore */ }
-    return null;
+    return CpuTurnRuntimeBoundary && typeof CpuTurnRuntimeBoundary.resolveRuntimeFunction === 'function'
+        ? CpuTurnRuntimeBoundary.resolveRuntimeFunction(name)
+        : null;
 }
 
 function emitCpuTurnLogAdded(message: any, kind?: string): boolean {
@@ -236,21 +236,9 @@ function resolveGenerateMovesForPlayer(): Function | null {
     return null;
 }
 function resolveRuntimeValue(name: string): any {
-    try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveRuntimeValue === 'function') {
-            const value = __uiImpl_cpu.resolveRuntimeValue(name);
-            if (typeof value !== 'undefined') return value;
-        }
-        if (__uiImpl_cpu && Object.prototype.hasOwnProperty.call(__uiImpl_cpu, name)) {
-            return __uiImpl_cpu[name];
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
-            return (globalThis as any)[name];
-        }
-    } catch (e) { /* ignore */ }
-    return undefined;
+    return CpuTurnRuntimeBoundary && typeof CpuTurnRuntimeBoundary.resolveRuntimeValue === 'function'
+        ? CpuTurnRuntimeBoundary.resolveRuntimeValue(name)
+        : undefined;
 }
 
 function clampCpuLevelForTurn(value: any): number {
@@ -328,19 +316,9 @@ function shouldSkipCardPhaseForProfile(playerKey: PlayerKey): boolean {
 }
 
 function resolveCpuCardLogic() {
-    try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.getCpuCardLogic === 'function') {
-            const logic = __uiImpl_cpu.getCpuCardLogic();
-            if (logic && typeof logic === 'object') return logic;
-        }
-        if (__uiImpl_cpu && __uiImpl_cpu.CardLogic && typeof __uiImpl_cpu.CardLogic === 'object') {
-            return __uiImpl_cpu.CardLogic;
-        }
-    } catch (e) { /* ignore */ }
-    const runtimeCardLogic = resolveRuntimeValue('CardLogic');
-    if (runtimeCardLogic && typeof runtimeCardLogic === 'object') return runtimeCardLogic;
-    if (cpuCardLogic && typeof cpuCardLogic === 'object') return cpuCardLogic;
-    return null;
+    return CpuTurnRuntimeBoundary && typeof CpuTurnRuntimeBoundary.resolveCpuCardLogic === 'function'
+        ? CpuTurnRuntimeBoundary.resolveCpuCardLogic()
+        : null;
 }
 
 function applyCpuRuntimeStatePatch(nextCardState: any, nextGameState: any) {
@@ -554,36 +532,15 @@ function shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler() {
 }
 
 function readCpuProcessing() {
-    try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.readProcessing === 'function') {
-            return __uiImpl_cpu.readProcessing() === true;
-        }
-    } catch (e) { /* ignore */ }
-    const runtimeProcessing = resolveRuntimeValue('isProcessing');
-    if (typeof runtimeProcessing !== 'undefined') return runtimeProcessing === true;
-    return false;
+    return CpuTurnRuntimeBoundary && typeof CpuTurnRuntimeBoundary.readProcessing === 'function'
+        ? CpuTurnRuntimeBoundary.readProcessing()
+        : false;
 }
 
 function setCpuProcessing(active: any) {
-    const next = active === true;
-    let handled = false;
-    try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.setProcessing === 'function') {
-            __uiImpl_cpu.setProcessing(next);
-            handled = true;
-        }
-    } catch (e) { /* ignore */ }
-    if (!handled) {
-        try {
-            const runtimeRoot = (typeof globalThis !== 'undefined')
-                ? (globalThis as any)
-                : (typeof self !== 'undefined' ? (self as any) : null);
-            if (runtimeRoot && typeof runtimeRoot === 'object') {
-                runtimeRoot['isProcessing'] = next;
-            }
-        } catch (e) { /* ignore */ }
-    }
-    return next;
+    return CpuTurnRuntimeBoundary && typeof CpuTurnRuntimeBoundary.setProcessing === 'function'
+        ? CpuTurnRuntimeBoundary.setProcessing(active)
+        : active === true;
 }
 
 function shouldAbortCpuForHumanMode(playerKey: any, context: any) {
@@ -1079,16 +1036,9 @@ function setTimers(t: any): void {
 function getTimers(): any { return timers; }
 
 function isUiAnimationBusy() {
-    try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.readAnimationBusy === 'function') {
-            return __uiImpl_cpu.readAnimationBusy() === true;
-        }
-    } catch (e) { /* ignore */ }
-    const runtimeCard = resolveRuntimeValue('isCardAnimating');
-    const runtimePlayback = resolveRuntimeValue('VisualPlaybackActive');
-    const localCard = typeof runtimeCard !== 'undefined' ? runtimeCard === true : false;
-    const winPlayback = typeof runtimePlayback !== 'undefined' ? runtimePlayback === true : false;
-    return localCard || winPlayback;
+    return CpuTurnRuntimeBoundary && typeof CpuTurnRuntimeBoundary.isAnimationBusy === 'function'
+        ? CpuTurnRuntimeBoundary.isAnimationBusy()
+        : false;
 }
 const CpuTurnScheduler = (CpuTurnSchedulerModule && typeof CpuTurnSchedulerModule.createCpuTurnScheduler === 'function')
     ? CpuTurnSchedulerModule.createCpuTurnScheduler({
