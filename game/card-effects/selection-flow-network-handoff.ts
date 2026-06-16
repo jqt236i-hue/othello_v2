@@ -89,6 +89,11 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
     if (contract && contract.turnOutcome === 'end_turn') {
         const networkTurnHandoff = deps.getNetworkTurnHandoff();
         let publishFailureHandled = false;
+        const shouldPublishNetworkHandoff = !!(
+            !skipNetworkPublish
+            && deps.readMatchMode() === 'network'
+            && deps.hasActiveNetworkPublishClient()
+        );
         if (!networkTurnHandoff || typeof networkTurnHandoff.finalizeNetworkTurnHandoff !== 'function') {
             deps.setSelectionProcessing(false);
             if (clearCardAnimatingOnFinish) deps.setSelectionCardAnimating(false);
@@ -98,7 +103,7 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
             return false;
         }
 
-        const shouldAwaitPublish = deps.readMatchMode() === 'network' && contract.deferNetworkPublish === true && deps.hasActiveNetworkPublishClient();
+        const shouldAwaitPublish = shouldPublishNetworkHandoff && contract.deferNetworkPublish === true;
         const handoffResult = await networkTurnHandoff.finalizeNetworkTurnHandoff({
             awaitPublishResult: shouldAwaitPublish,
             playerKey,
@@ -116,7 +121,7 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
                     try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
                 }
             },
-            publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }: { playerKey: any; action: any; playbackEvents: any }) => {
+            publishSnapshot: shouldPublishNetworkHandoff ? ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }: { playerKey: any; action: any; playbackEvents: any }) => {
                 const publishMeta = {
                     playerKey: publishPlayerKey,
                     actionType,
@@ -127,7 +132,7 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
                     return opts.publishSnapshot(publishMeta);
                 }
                 return deps.publishPendingSelectionSnapshot(publishMeta);
-            },
+            } : null,
             scheduleCpuTurn: deps.scheduleWhiteCpuTurn,
             onHumanTurnReady: opts.onHumanTurnReady
         });

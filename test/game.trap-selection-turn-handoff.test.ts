@@ -133,17 +133,23 @@ describe('TRAP_WILL selection turn handoff', () => {
     expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
 
-    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
-    const snapshot = global.NetworkMatchClient.publishSnapshot.mock.calls[0][0];
-    expect(snapshot).toEqual(expect.objectContaining({
-      playerKey: 'black',
-      actionType: 'place'
-    }));
-    expect(snapshot.snapshot).toBeUndefined();
-    expect(snapshot.playbackEvents).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'status_applied', phase: 1 }),
-      expect.objectContaining({ type: 'draw', phase: 2 })
-    ]));
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+
+    jest.runAllTimers();
+    expect(global.processCpuTurn).toHaveBeenCalledTimes(1);
+  });
+
+  test('local trap selection without active network publish still completes turn handoff', async () => {
+    global.MATCH_MODE = 'cpu';
+    global.NetworkMatchClient.isActive = jest.fn(() => false);
+
+    const { handleTrapSelection } = require('../game/card-effects/trap.js');
+    await handleTrapSelection(2, 2, 'black');
+
+    expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(false);
 
     jest.runAllTimers();
     expect(global.processCpuTurn).toHaveBeenCalledTimes(1);
