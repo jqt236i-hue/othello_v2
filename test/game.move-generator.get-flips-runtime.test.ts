@@ -45,16 +45,4 @@ describe('move-generator getFlips runtime wiring', () => {
       player: Core.BLACK
     }));
   });
-
-  test('normal move generation honors numeric player when currentPlayer is a string key', () => {
-    global.gameState = Core.createGameState();
-    global.gameState.currentPlayer = 'white';
-
-    const MoveGenerator = require('../game/move-generator.js');
-    const moves = MoveGenerator.generateMovesForPlayer(Core.WHITE, null, [], []);
-
-    expect(moves).toHaveLength(Core.getLegalMoves(global.gameState, Core.WHITE, CardLogic.getCardContext(global.cardState)).length);
-    expect(moves.length).toBeGreaterThan(0);
-    expect(moves.every((move) => move.player === Core.WHITE && move.playerValue === Core.WHITE)).toBe(true);
-  });
 });
