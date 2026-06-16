@@ -104,6 +104,8 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             } else {
                 console.error('[AI] processPassTurn is not available');
                 cfg.setCpuProcessing(false);
+                cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                return { status: 'retry' };
             }
             cfg.resetPendingSelectRetryState(playerKey);
             return { status: 'pass' };
@@ -133,6 +135,8 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 passFn(playerKey, autoMode);
             } else {
                 cfg.setCpuProcessing(false);
+                cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                return { status: 'retry' };
             }
             return { status: 'pass' };
         }

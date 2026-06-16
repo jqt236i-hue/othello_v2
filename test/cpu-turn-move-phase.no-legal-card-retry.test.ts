@@ -66,4 +66,32 @@ describe('cpu turn move phase no-legal card retry', () => {
     expect(passFn).toHaveBeenCalledWith('white', false);
     expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
   });
+
+  test('retries when pass handler is not available for a no-action CPU turn', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { config, scheduleRunCpuTurn } = createConfig({
+      resolveCpuCardLogic: jest.fn(() => ({
+        hasUsableCard: jest.fn(() => false)
+      })),
+      resolveProcessPassTurn: jest.fn(() => null)
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now()
+    });
+
+    expect(result).toEqual({ status: 'retry' });
+    expect(errorSpy).toHaveBeenCalledWith('[AI] processPassTurn is not available');
+    expect(config.setCpuProcessing).toHaveBeenCalledWith(false);
+    expect(scheduleRunCpuTurn).toHaveBeenCalledWith('white', { autoMode: false }, 0);
+    errorSpy.mockRestore();
+  });
 });
