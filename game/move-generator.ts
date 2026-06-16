@@ -38,9 +38,28 @@ const MoveGeneratorLegacyCore = requireMoveGeneratorModuleOrNull('./game-core-lo
 
 const MoveGeneratorBoardOps = requireMoveGeneratorModuleOrNull('./logic/board_ops');
 const MoveGeneratorSharedBoardUtils = requireMoveGeneratorModuleOrNull('../shared/shared-board-utils');
+const MoveGeneratorOwnerHelpers = requireMoveGeneratorModuleOrNull('../utils/owner-helpers');
 
 const MoveGeneratorMarkersAdapter = requireMoveGeneratorModuleOrNull('./logic/markers_adapter');
 const MoveGeneratorCardMarkers = requireMoveGeneratorModuleOrNull('./logic/cards/markers');
+
+function resolvePlayerValueForMoveGeneration(player: any, fallbackPlayer: any) {
+    const blackValue = MoveGeneratorCoreLogic && typeof MoveGeneratorCoreLogic.BLACK !== 'undefined'
+        ? MoveGeneratorCoreLogic.BLACK
+        : (typeof BLACK !== 'undefined' ? BLACK : 1);
+    const whiteValue = MoveGeneratorCoreLogic && typeof MoveGeneratorCoreLogic.WHITE !== 'undefined'
+        ? MoveGeneratorCoreLogic.WHITE
+        : (typeof WHITE !== 'undefined' ? WHITE : -1);
+    const candidate = (typeof player !== 'undefined' && player !== null) ? player : fallbackPlayer;
+    if (candidate === blackValue || candidate === 'black' || candidate === 1 || candidate === '1') return blackValue;
+    if (candidate === whiteValue || candidate === 'white' || candidate === -1 || candidate === '-1') return whiteValue;
+    if (MoveGeneratorOwnerHelpers && typeof MoveGeneratorOwnerHelpers.normalizePlayerKeyOptional === 'function') {
+        const normalized = MoveGeneratorOwnerHelpers.normalizePlayerKeyOptional(candidate);
+        if (normalized === 'black') return blackValue;
+        if (normalized === 'white') return whiteValue;
+    }
+    return fallbackPlayer;
+}
 
 function getFlipsForMoveGeneration(state: any, row: number, col: number, player: any, protection: any, perma: any) {
     const legacyGetFlips = (MoveGeneratorLegacyCore && typeof MoveGeneratorLegacyCore.getFlips === 'function')
@@ -65,7 +84,7 @@ function isSpecialOrBombMarkerForMoveGeneration(marker: any) {
 /**
  * 合法手リストを取得
  */
-function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: any) {
+function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: any, playerOverride?: any) {
     // Use centralized safe context helper when available
     let context = null;
     try {
@@ -102,7 +121,8 @@ function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: a
         };
     }
 
-    return MoveGeneratorCoreLogic.getLegalMoves(state, state.currentPlayer, context);
+    const playerValue = resolvePlayerValueForMoveGeneration(playerOverride, state.currentPlayer);
+    return MoveGeneratorCoreLogic.getLegalMoves(state, playerValue, context);
 }
 
 // ===== Shared Move Helpers =====
@@ -220,7 +240,7 @@ function isFreePlacementPendingTypeForMoveGeneration(pendingType: any) {
  * プレイヤーの手を生成（カード効果考慮）
  */
 function generateMovesForPlayer(player: any, pending: any, protection: any, perma: any) {
-    const legal = getLegalMoves(gameState, protection, perma);
+    const legal = getLegalMoves(gameState, protection, perma, player);
     if (!pending) {
         return legal.map((m: any) => ({ ...m, effectUsed: null, player, playerValue: player }));
     }
