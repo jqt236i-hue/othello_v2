@@ -21,6 +21,7 @@ describe('initializeUI action button binding', () => {
     };
     global.SoundEngine = {
       primeEffectSounds: jest.fn(),
+      installUserGestureUnlock: jest.fn(),
       init: jest.fn(),
       playEffectByKey: jest.fn()
     };
@@ -43,11 +44,13 @@ describe('initializeUI action button binding', () => {
     delete global.resetGame;
   });
 
-  test('UI初期化時に効果音を先読みする', () => {
+  test('UI初期化時に効果音のユーザー操作アンロックを予約する', () => {
     const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
-    expect(global.SoundEngine.primeEffectSounds).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.installUserGestureUnlock).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.installUserGestureUnlock).toHaveBeenCalledWith(document);
+    expect(global.SoundEngine.primeEffectSounds).not.toHaveBeenCalled();
     expect(global.SoundEngine.init).not.toHaveBeenCalled();
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
