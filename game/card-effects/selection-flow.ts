@@ -723,10 +723,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 const currentPlayer = gameStateRef ? gameStateRef.currentPlayer : null;
                 const currentTurnNumber = (gameStateRef && Number.isFinite(Number(gameStateRef.turnNumber))) ? Number(gameStateRef.turnNumber) : null;
                 const currentPlayerKey = resolveSelectionTurnPlayerKeyOptional(currentPlayer);
-                if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) return;
-                if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
+                if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) {
+                    setSelectionProcessing(false);
+                    return;
+                }
+                if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) {
+                    setSelectionProcessing(false);
+                    return;
+                }
+                setSelectionProcessing(false);
                 processCpuTurn();
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+                setSelectionProcessing(false);
+            }
         });
         if (tid && typeof tid.unref === 'function') tid.unref();
         return true;

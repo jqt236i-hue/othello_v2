@@ -238,7 +238,6 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
         const contract = deps.resolvePendingSelectionContract(resolvedPendingType);
         shouldReleaseSelectionLockBeforeFinalize = !!(
             contract
-            && contract.turnOutcome !== 'end_turn'
             && contract.waitForPlaybackIdle === true
         );
 

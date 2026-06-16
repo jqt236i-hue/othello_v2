@@ -142,6 +142,9 @@ describe('TRAP_WILL selection turn handoff', () => {
   test('local trap selection without active network publish still completes turn handoff', async () => {
     global.MATCH_MODE = 'cpu';
     global.NetworkMatchClient.isActive = jest.fn(() => false);
+    global.processCpuTurn = jest.fn(() => {
+      expect(global.isProcessing).toBe(false);
+    });
 
     const { handleTrapSelection } = require('../game/card-effects/trap.js');
     await handleTrapSelection(2, 2, 'black');
@@ -155,7 +158,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     expect(global.processCpuTurn).toHaveBeenCalledTimes(1);
   });
 
-  test('keeps busy flags through playback wait before trap handoff completes', async () => {
+  test('keeps busy flags but releases settlement lock through playback wait before trap handoff completes', async () => {
     let releasePlayback = null;
     global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
       releasePlayback = resolve;
@@ -171,7 +174,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     expect(typeof releasePlayback).toBe('function');
     expect(global.isProcessing).toBe(true);
     expect(global.isCardAnimating).toBe(true);
-    expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
     expect(global.onTurnStart).not.toHaveBeenCalled();
 
     await expect(handleTrapSelection(3, 3, 'black')).resolves.toMatchObject({
