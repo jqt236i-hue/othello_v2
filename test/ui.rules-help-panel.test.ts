@@ -642,6 +642,24 @@ describe('rules help panel', () => {
     }
   });
 
+  test('special stone duration timer frames stay compact around the number', () => {
+    const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+    const cssRules = Array.from(boardCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map((match) => ({
+      selectors: match[1].split(',').map((selector) => selector.trim()),
+      body: match[2]
+    }));
+
+    for (const className of ['special-timer', 'dragon-timer', 'breeding-timer', 'work-timer', 'udg-timer']) {
+      const declarations = cssRules
+        .filter((one) => one.selectors.includes(`.${className}`))
+        .map((one) => one.body)
+        .join('\n');
+      expect(declarations).toMatch(/line-height:\s*1;/);
+      expect(declarations).toMatch(/height:\s*calc\(14px \* var\(--layout-stage-scale\)\);/);
+      expect(declarations).toMatch(/padding:\s*0 calc\(4px \* var\(--layout-stage-scale\)\);/);
+    }
+  });
+
   test('index html guide copy points to current menu and stone-info controls', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/左下メニューで「CPU」\/「リバーシ」\/「ネット対戦」を切り替えられます。/);

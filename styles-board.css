@@ -1192,9 +1192,15 @@ html.stone-images-loaded .disc.white {
     transform: translateX(-50%);
     font-size: calc(11px * var(--layout-stage-scale));
     font-weight: bold;
+    line-height: 1;
+    height: calc(14px * var(--layout-stage-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     color: #ffffff;
     background: rgba(0, 0, 0, 0.55);
-    padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    padding: 0 calc(4px * var(--layout-stage-scale));
     border-radius: calc(4px * var(--layout-stage-scale));
     min-width: calc(14px * var(--layout-stage-scale));
     text-align: center;
@@ -1439,11 +1445,17 @@ body.othello-mode-active :is(
     transform: translateX(-50%);
     font-size: calc(11px * var(--layout-stage-scale));
     font-weight: bold;
+    line-height: 1;
+    height: calc(14px * var(--layout-stage-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     color: #ffffff;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
         rgba(40, 86, 60, 0.64);
-    padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    padding: 0 calc(4px * var(--layout-stage-scale));
     border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
     border-radius: calc(4px * var(--layout-stage-scale));
     min-width: calc(14px * var(--layout-stage-scale));
