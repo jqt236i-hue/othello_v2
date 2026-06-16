@@ -12,113 +12,28 @@ declare var CARD_DEFS: any;
 'use strict';
 
 const RULES_HELP_EFFECT_GLOSSARY = Object.freeze([
-  Object.freeze({
-    label: '特殊石',
-    description: '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。'
-  }),
-  Object.freeze({
-    label: '穴マス化',
-    description: 'マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。'
-  }),
-  Object.freeze({
-    label: '不可侵',
-    description: '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。'
-  }),
-  Object.freeze({
-    label: '反転保護',
-    description: '反転されない。挟める列ごと無効できる。'
-  }),
-  Object.freeze({
-    label: '完全保護',
-    description: '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。'
-  }),
-  Object.freeze({
-    label: '反転回避',
-    description: '相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。'
-  }),
-  Object.freeze({
-    label: '破壊回避',
-    description: '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。'
-  }),
-  Object.freeze({
-    label: '多動状態',
-    description: '両者ターン開始時マス移動する、基本ランダム移動。'
-  }),
-  Object.freeze({
-    label: '幽体',
-    description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換以外の効果は通常どおり受ける。'
-  }),
-  Object.freeze({
-    label: '絶対保護',
-    description: 'テレポート・位置交換・マス破壊・意志の喪失を含む全ての効果を無効化。解除されない。'
-  }),
-  Object.freeze({
-    label: 'マス破壊',
-    description: 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。'
-  }),
-  Object.freeze({
-    label: '破壊／爆発',
-    description: '石を消滅させる。完全保護以外の保護を貫通できる。'
-  }),
-  Object.freeze({
-    label: '連鎖反転',
-    description: '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。'
-  }),
-  Object.freeze({
-    label: '禁忌反転',
-    description: '挟めなくても反転可能。最も反転枚数が多い列1方向のみ。'
-  }),
-  Object.freeze({
-    label: '封鎖',
-    description: '一時的にそのマスを塞ぐ。両者とも置けず、移動でも入れない。'
-  }),
-  Object.freeze({
-    label: '凍結',
-    description: 'そのマスと上の石の反転・破壊・持続減少を止める。'
-  }),
-  Object.freeze({
-    label: '時間停止',
-    description: '発動したプレイヤーが2ターン連続で行動する。'
-  })
+  Object.freeze({ label: '特殊石', description: '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。' }),
+  Object.freeze({ label: '穴マス化', description: 'マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。' }),
+  Object.freeze({ label: '不可侵', description: '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。' }),
+  Object.freeze({ label: '反転保護', description: '反転されない。挟める列ごと無効できる。' }),
+  Object.freeze({ label: '完全保護', description: '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。' }),
+  Object.freeze({ label: '反転回避', description: '相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。' }),
+  Object.freeze({ label: '破壊回避', description: '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。' }),
+  Object.freeze({ label: '多動状態', description: '両者ターン開始時マス移動する、基本ランダム移動。' }),
+  Object.freeze({ label: '幽体', description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換以外の効果は通常どおり受ける。' }),
+  Object.freeze({ label: '絶対保護', description: 'テレポート・位置交換・マス破壊・意志の喪失を含む全ての効果を無効化。解除されない。' }),
+  Object.freeze({ label: 'マス破壊', description: 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。' }),
+  Object.freeze({ label: '破壊／爆発', description: '石を消滅させる。完全保護以外の保護を貫通できる。' }),
+  Object.freeze({ label: '連鎖反転', description: '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。' }),
+  Object.freeze({ label: '禁忌反転', description: '挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。' }),
+  Object.freeze({ label: '封鎖', description: '一時的にそのマスを塞ぐ。両者とも置けず、移動でも入れない。' }),
+  Object.freeze({ label: '凍結', description: 'そのマスと上の石の反転・破壊・持続減少を止める。' }),
+  Object.freeze({ label: '時間停止', description: '発動したプレイヤーが2ターン連続で行動する。' })
 ]);
-
-const RULES_HELP_EFFECT_GLOSSARY_BY_LABEL = new Map(
+const RULES_HELP_EFFECT_GLOSSARY_BY_LABEL = new Map<string, any>(
   (RULES_HELP_EFFECT_GLOSSARY as any).map((entry: any) => [entry.label, entry])
 );
-
-const EFFECT_GLOSSARY_TERMS = Object.freeze(
-  (RULES_HELP_EFFECT_GLOSSARY as any).map((entry: any) => entry.label)
-);
-
-const HELP_UPDATE_HISTORY = Object.freeze([
-  Object.freeze({
-    version: 'v1.0',
-    sections: Object.freeze([
-      Object.freeze({
-        title: 'バランス調整',
-        items: Object.freeze([
-          '繁殖の意志の持続ターンを3から5ターンに変更',
-          '延命の意志のコストを2から4に変更',
-          '演算の意志コスト7から6に変更、数字マス布石効果を2倍へ調整',
-          '最後の切り札を仕様変更\nコスト12→9に減少\n使用条件を石数負け＋合法手なしのときに変更\n自由配置を2回から3回に増加'
-        ])
-      }),
-      Object.freeze({
-        title: '新カード',
-        items: Object.freeze([
-          '時間停石を実装\nコスト0\n使用時にランダムで自石3個を破壊\n5ターン後に時間停止を発動し、2ターン連続で行動できる。',
-          '延命神を実装\nコスト10\n自分の特殊石1つの持続ターンを4倍にする。'
-        ])
-      }),
-      Object.freeze({
-        title: 'ネット対戦',
-        items: Object.freeze([
-          'ネット対戦関連の問題を修正'
-        ])
-      })
-    ])
-  })
-]);
+const EFFECT_GLOSSARY_TERMS = Object.freeze((RULES_HELP_EFFECT_GLOSSARY as any).map((entry: any) => entry.label));
 
 function _safeText(value: any, fallback: any): string {
   const text = String(value || '').trim();
@@ -409,62 +324,6 @@ function _readCatalogCards(): any[] {
   return _sortCatalogCards(cards);
 }
 
-function createHelpUpdateSection(title: string, items: any[]): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'rules-help-update-section';
-
-  if (title) {
-    const titleEl = document.createElement('div');
-    titleEl.className = 'rules-help-update-section-title';
-    titleEl.textContent = title;
-    section.appendChild(titleEl);
-  }
-
-  const listEl = document.createElement('ul');
-  listEl.className = 'rules-help-update-items';
-  for (const itemText of Array.isArray(items) ? items : []) {
-    const itemEl = document.createElement('li');
-    itemEl.className = 'rules-help-update-item';
-    itemEl.innerHTML = _formatHelpText(itemText);
-    listEl.appendChild(itemEl);
-  }
-  section.appendChild(listEl);
-  return section;
-}
-
-function renderHelpUpdates(updateListEl: HTMLElement | null): void {
-  if (!updateListEl) return;
-  updateListEl.innerHTML = '';
-
-  if (!(HELP_UPDATE_HISTORY as any).length) {
-    const emptyEl = document.createElement('div');
-    emptyEl.className = 'rules-help-update-empty';
-    emptyEl.textContent = 'アップデート情報はまだありません。';
-    updateListEl.appendChild(emptyEl);
-    return;
-  }
-
-  for (const release of HELP_UPDATE_HISTORY as any) {
-    const article = document.createElement('article');
-    article.className = 'rules-help-update-version';
-
-    const versionEl = document.createElement('div');
-    versionEl.className = 'rules-help-update-version-title';
-    versionEl.textContent = _safeText(release && release.version, 'version');
-    article.appendChild(versionEl);
-
-    const sections = Array.isArray(release && release.sections) ? release.sections : [];
-    for (const section of sections) {
-      article.appendChild(createHelpUpdateSection(
-        _safeText(section && section.title, ''),
-        Array.isArray(section && section.items) ? section.items : []
-      ));
-    }
-
-    updateListEl.appendChild(article);
-  }
-}
-
 function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement): void {
   if (!rulesHelpBtn || !rulesHelpPanel) return;
   const docRef = rulesHelpPanel.ownerDocument || (typeof document !== 'undefined' ? document : null);
@@ -480,7 +339,6 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   const filterStatusEl = rulesHelpPanel.querySelector('#rules-help-card-filter-status') as HTMLElement | null;
   const filterClearBtn = rulesHelpPanel.querySelector('#rules-help-card-filter-clear') as HTMLButtonElement | null;
   const effectsListEl = rulesHelpPanel.querySelector('#rules-help-effects-list') as HTMLElement | null;
-  const updatesListEl = rulesHelpPanel.querySelector('#rules-help-updates-list');
   const catalogCards = _readCatalogCards();
   const cardDescriptionTextsById = new Map<string, any>();
   const cardSearchTextById = new Map<string, string>();
@@ -652,9 +510,8 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     }
   }
 
-  function resolveEffectGlossaryEntry(label: string): any | null {
+  function resolveEffectGlossaryEntry(label: string): any {
     const normalizedLabel = _safeText(label, '');
-    if (!normalizedLabel) return null;
     return RULES_HELP_EFFECT_GLOSSARY_BY_LABEL.get(normalizedLabel) || null;
   }
 
@@ -664,54 +521,61 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     tagPopoverEl.setAttribute('aria-hidden', 'true');
   }
 
-  function ensureTagPopover(): HTMLElement {
-    if (tagPopoverEl) return tagPopoverEl;
+  function ensureTagPopover(): HTMLElement | null {
+    if (tagPopoverEl && rulesHelpPanel.contains(tagPopoverEl)) return tagPopoverEl;
+
     const popover = document.createElement('div');
     popover.className = 'rules-help-tag-popover';
-    popover.setAttribute('aria-hidden', 'true');
     popover.setAttribute('role', 'dialog');
     popover.setAttribute('aria-modal', 'false');
+    popover.setAttribute('aria-hidden', 'true');
+    popover.setAttribute('aria-labelledby', 'rules-help-tag-popover-title');
 
     const headerEl = document.createElement('div');
     headerEl.className = 'rules-help-tag-popover-header';
 
     const titleEl = document.createElement('div');
     titleEl.className = 'rules-help-tag-popover-title';
-    titleEl.setAttribute('data-tag-popover-title', '');
+    titleEl.id = 'rules-help-tag-popover-title';
     headerEl.appendChild(titleEl);
 
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'rules-help-tag-popover-close';
-    closeBtn.textContent = '×';
-    closeBtn.setAttribute('aria-label', 'タグ説明を閉じる');
-    closeBtn.addEventListener('click', (event: Event) => {
+    const closeEl = document.createElement('button');
+    closeEl.type = 'button';
+    closeEl.className = 'rules-help-tag-popover-close';
+    closeEl.setAttribute('aria-label', '効果タグ説明を閉じる');
+    closeEl.textContent = '×';
+    closeEl.addEventListener('click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       closeTagPopover();
     });
-    headerEl.appendChild(closeBtn);
-    popover.appendChild(headerEl);
+    headerEl.appendChild(closeEl);
 
     const bodyEl = document.createElement('div');
     bodyEl.className = 'rules-help-tag-popover-body';
-    bodyEl.setAttribute('data-tag-popover-body', '');
-    popover.appendChild(bodyEl);
 
+    popover.appendChild(headerEl);
+    popover.appendChild(bodyEl);
     rulesHelpPanel.appendChild(popover);
     tagPopoverEl = popover;
     return popover;
   }
 
-  function openTagPopover(label: string): void {
-    const entry = resolveEffectGlossaryEntry(label);
-    if (!entry) return;
+  function openTagPopover(label: string): boolean {
+    const normalizedLabel = _safeText(label, '');
+    if (!normalizedLabel) return false;
+
     const popover = ensureTagPopover();
-    const titleEl = popover.querySelector('[data-tag-popover-title]');
-    const bodyEl = popover.querySelector('[data-tag-popover-body]');
-    if (titleEl) titleEl.textContent = entry.label;
-    if (bodyEl) bodyEl.textContent = entry.description;
+    if (!popover) return false;
+    const entry = resolveEffectGlossaryEntry(normalizedLabel);
+    const titleEl = popover.querySelector('.rules-help-tag-popover-title') as HTMLElement | null;
+    const bodyEl = popover.querySelector('.rules-help-tag-popover-body') as HTMLElement | null;
+    if (titleEl) titleEl.textContent = normalizedLabel;
+    if (bodyEl) bodyEl.textContent = entry ? entry.description : `${normalizedLabel}の説明は未登録です。`;
     popover.classList.add('is-open');
     popover.setAttribute('aria-hidden', 'false');
+    const closeEl = popover.querySelector('.rules-help-tag-popover-close') as HTMLButtonElement | null;
+    if (closeEl && typeof closeEl.focus === 'function') closeEl.focus();
+    return true;
   }
 
   function createCardListContent(card: any): DocumentFragment {
@@ -762,7 +626,6 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       const label = _safeText(rawTag.label, '');
       if (!label) continue;
       const kind = _safeText(rawTag.kind, '').toLowerCase();
-
       const dedupeKey = `${kind}:${label}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
@@ -827,9 +690,11 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       if (kindClass) chip.classList.add(kindClass);
       chip.textContent = tag.label;
       chip.setAttribute('data-card-tag-kind', tag.kind || '');
-      chip.setAttribute('aria-label', `${tag.label}の説明を開く`);
+      chip.setAttribute('data-card-tag-label', tag.label);
+      chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
       chip.addEventListener('click', (event: Event) => {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
         openTagPopover(tag.label);
       });
       listEl.appendChild(chip);
@@ -991,26 +856,26 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     if (!effectsListEl) return;
     effectsListEl.innerHTML = '';
     for (const entry of RULES_HELP_EFFECT_GLOSSARY as any) {
+      if (!entry || !entry.label) continue;
       const itemEl = document.createElement('div');
       itemEl.className = 'rules-help-effect-item';
 
       const termEl = document.createElement('dt');
-      const termBtn = document.createElement('button');
-      termBtn.type = 'button';
-      termBtn.className = 'rules-help-effect-term-button';
-      termBtn.textContent = entry.label;
-      termBtn.setAttribute('aria-label', `${entry.label}の説明を開く`);
-      termBtn.addEventListener('click', (event: Event) => {
+      const termButton = document.createElement('button');
+      termButton.type = 'button';
+      termButton.className = 'rules-help-effect-term-button';
+      termButton.textContent = entry.label;
+      termButton.setAttribute('aria-label', `${entry.label}の説明を表示`);
+      termButton.addEventListener('click', (event: Event) => {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         openTagPopover(entry.label);
       });
-      termEl.appendChild(termBtn);
+      termEl.appendChild(termButton);
       itemEl.appendChild(termEl);
 
       const descriptionEl = document.createElement('dd');
       descriptionEl.textContent = entry.description;
       itemEl.appendChild(descriptionEl);
-
       effectsListEl.appendChild(itemEl);
     }
   }
@@ -1093,7 +958,8 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   document.addEventListener('keydown', (event: KeyboardEvent) => {
     if (!isOpen) return;
     if (!event || event.key !== 'Escape') return;
-    if (tagPopoverEl && tagPopoverEl.classList.contains('is-open')) {
+    if (tagPopoverEl && tagPopoverEl.getAttribute('aria-hidden') === 'false') {
+      event.preventDefault();
       closeTagPopover();
       return;
     }
@@ -1121,7 +987,6 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   renderTagFilters();
   renderEffectsList();
   renderCatalogCards();
-  renderHelpUpdates(updatesListEl as HTMLElement);
   if (tabButtons.length > 0) {
     const activeTab = tabButtons.find((button: any) => button.classList.contains('is-active'));
     activateTab(activeTab ? activeTab.getAttribute('data-help-tab') as string : tabButtons[0].getAttribute('data-help-tab') as string);

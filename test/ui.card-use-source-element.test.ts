@@ -432,6 +432,60 @@ describe('card use source element selection', () => {
     expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('布石不足'));
   });
 
+  test('hand card swipe uses actual hand index when the visual slot is shifted', () => {
+    jest.useFakeTimers();
+    try {
+      const handBlack = document.getElementById('hand-black');
+      handBlack.innerHTML = `
+        <div class="card-item visible clickable" data-card-id="source_card" data-owner-key="black" data-hand-index="0" data-actual-hand-index="0"></div>
+        <div class="card-item capture-reserved-slot" data-hand-index="1"></div>
+        <div class="card-item visible clickable" data-card-id="dup_card" data-owner-key="black" data-hand-index="2" data-actual-hand-index="1"></div>
+      `;
+      global.cardState.selectedCardId = null;
+      global.cardState.selectedCardOwnerKey = null;
+      global.cardState.selectedCardHandIndex = null;
+      global.cardState.hands.black = ['source_card', 'dup_card'];
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: id, desc: 'd', cost: 1 })
+      };
+
+      require('../cards/card-interaction.js');
+      const shiftedCard = document.querySelector('#hand-black .card-item[data-card-id="dup_card"]');
+
+      const pointerDown = new window.MouseEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 160,
+        clientY: 220
+      });
+      Object.defineProperty(pointerDown, 'pointerId', { value: 11 });
+      shiftedCard.dispatchEvent(pointerDown);
+
+      jest.advanceTimersByTime(120);
+      expect(shiftedCard.classList.contains('hand-card-swipe-dragging')).toBe(true);
+
+      const pointerUp = new window.MouseEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 160,
+        clientY: 160
+      });
+      Object.defineProperty(pointerUp, 'pointerId', { value: 11 });
+      shiftedCard.dispatchEvent(pointerUp);
+
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3]).toEqual(expect.objectContaining({
+        useCardId: 'dup_card',
+        useCardOwnerKey: 'black',
+        useCardHandIndex: 1
+      }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('network server-authored card use does not advance local action history', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';

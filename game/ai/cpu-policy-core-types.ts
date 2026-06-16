@@ -57,6 +57,49 @@ export interface CpuPolicyLegalMoveMetrics {
 
 export type CpuPolicyBoardBonusResolver = (row: number, col: number, move: CpuPolicyMove) => number;
 
+export type CpuPolicyPlacementSeat = 'corner' | 'edge' | 'inner' | 'c' | 'x';
+
+export interface CpuPolicyPlacementFeatures {
+    row: number;
+    col: number;
+    playerValue: number;
+    seat: CpuPolicyPlacementSeat;
+    isCorner: boolean;
+    isEdge: boolean;
+    isInner: boolean;
+    isCSquare: boolean;
+    isXSquare: boolean;
+    isOpenCornerAdjacentRisk: boolean;
+    cornerTaken: boolean;
+    cornerDonation: boolean;
+    opponentNextCorner: boolean;
+    opponentCornerReplyCount: number;
+    ownSafeEdgeRunBefore: number;
+    ownSafeEdgeRunAfter: number;
+    ownSafeEdgeRunDelta: number;
+    ownAnchoredEdgeBefore: number;
+    ownAnchoredEdgeAfter: number;
+    ownAnchoredEdgeDelta: number;
+    extendsOwnSafeEdge: boolean;
+    opponentSafeEdgeRunBefore: number;
+    opponentSafeEdgeRunAfter: number;
+    opponentSafeEdgeRunDelta: number;
+    opponentSafeEdgeRunAllowedCount: number;
+    allowsOpponentSafeEdgeRun: boolean;
+    breaksOpponentEdgeRun: boolean;
+    ownEdgeGapBefore: number;
+    ownEdgeGapAfter: number;
+    ownEdgeGapDelta: number;
+    createsOwnEdgeGap: boolean;
+    boardBonus: number;
+    flipCount: number;
+    ownDiscCountAfter: number;
+    ownLegalMovesAfter: number;
+    hasCornerEscape: boolean;
+    lowMobilityRisk: boolean;
+    badLowMobilityRisk: boolean;
+}
+
 export interface CpuPolicyLookaheadSearchMeta {
     endgameMode: boolean;
     empties: number;
@@ -140,6 +183,7 @@ export interface CpuPolicyCoreApi {
     scoreCardRetentionForSell(cardId: CpuPolicyCardId, getCardCost: CpuPolicyCardCostResolver, getCardDef: CpuPolicyCardDefinitionResolver, context?: CpuPolicyCardContext): CpuPolicyCardScore;
     scoreCardRetentionPriority(cardId: CpuPolicyCardId, getCardCost: CpuPolicyCardCostResolver, getCardDef: CpuPolicyCardDefinitionResolver, context?: CpuPolicyCardContext): CpuPolicyCardScore;
     scoreCardUseDecision(cardId: CpuPolicyCardId, getCardCost: CpuPolicyCardCostResolver, getCardDef: CpuPolicyCardDefinitionResolver, context?: CpuPolicyCardContext): CpuPolicyCardScore;
+    evaluatePlacementCandidate(move: CpuPolicyMove, context?: CpuPolicyMoveOptions): CpuPolicyPlacementFeatures;
     scoreMoveForCornerEdgePlan(move: CpuPolicyMove, context?: CpuPolicyMoveOptions): number;
     scoreMoveHeuristic(move: CpuPolicyMove, level?: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number): number;
 }

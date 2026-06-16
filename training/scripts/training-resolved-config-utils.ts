@@ -194,6 +194,11 @@ function applyAdoptionArgsFromResolvedConfig(target: any, specified: any, resolv
     setNumberFromFlag(target, specified, 'qualityWeightFinalCornerShare', argMap, '--adoption-quality-weight-final-corner-share');
     setNumberFromFlag(target, specified, 'qualityWeightFinalEdgeShare', argMap, '--adoption-quality-weight-final-edge-share');
     setNumberFromFlag(target, specified, 'qualityWeightFinalLongestEdgeRunShare', argMap, '--adoption-quality-weight-final-longest-edge-run-share');
+    setNumberFromFlag(target, specified, 'qualityWeightCornerDonationAvoidance', argMap, '--adoption-quality-weight-corner-donation-avoidance');
+    setNumberFromFlag(target, specified, 'qualityWeightOpponentSafeEdgeAvoidance', argMap, '--adoption-quality-weight-opponent-safe-edge-avoidance');
+    setNumberFromFlag(target, specified, 'qualityWeightOwnSafeEdge', argMap, '--adoption-quality-weight-own-safe-edge');
+    setNumberFromFlag(target, specified, 'qualityWeightOwnEdgeGapAvoidance', argMap, '--adoption-quality-weight-own-edge-gap-avoidance');
+    setNumberFromFlag(target, specified, 'qualityWeightOpponentEdgeCut', argMap, '--adoption-quality-weight-opponent-edge-cut');
     setNumberFromFlag(target, specified, 'qualityWeightBonus', argMap, '--adoption-quality-weight-bonus');
     setNumberFromFlag(target, specified, 'qualityWeightCardImmediate', argMap, '--adoption-quality-weight-card-immediate');
     setNumberFromFlag(target, specified, 'qualityWeightCardFuture', argMap, '--adoption-quality-weight-card-future');

@@ -2,6 +2,7 @@ import type {
     CpuPolicyBoard,
     CpuPolicyCardContext,
     CpuPolicyMove,
+    CpuPolicyPlacementFeatures,
     CpuPolicyPosition
 } from './cpu-policy-core-types';
 
@@ -46,6 +47,7 @@ type CpuPolicyMovePlanScoringDeps = {
     countAdjacentLoneEdgeDiscsFor?: (board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number) => number;
     countXsAndCsFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => { x: number; c: number };
     countBoardDiscsForPlayer?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => { empties: number };
+    evaluatePlacementCandidate?: (move: CpuPolicyMove, context?: CpuPolicyCardContext) => CpuPolicyPlacementFeatures | null | undefined;
 };
 
 function fallbackAsRecord(value: unknown): Record<string, unknown> {
@@ -118,6 +120,9 @@ export function createCpuPolicyMovePlanScoring(deps?: CpuPolicyMovePlanScoringDe
     const countBoardDiscsForPlayer = typeof deps?.countBoardDiscsForPlayer === 'function'
         ? deps.countBoardDiscsForPlayer
         : (() => ({ empties: 0 }));
+    const evaluatePlacementCandidate = typeof deps?.evaluatePlacementCandidate === 'function'
+        ? deps.evaluatePlacementCandidate
+        : (() => null);
 
     function evaluateImmediateCornerDonation(
         board: CpuPolicyBoard | null | undefined,
@@ -209,6 +214,11 @@ export function createCpuPolicyMovePlanScoring(deps?: CpuPolicyMovePlanScoringDe
         const oppMoves = getLegalMovesBasic(after, -playerValue);
         const ownMovesAfter = getLegalMovesBasic(after, playerValue);
         const ownCornerRepliesAfter = countCornerMovesFor(after, playerValue);
+        const placementFeatures = evaluatePlacementCandidate(move, Object.assign({}, ctx, {
+            board,
+            playerValue,
+            level
+        }));
         const movePlanProfile = resolveMovePlanProfile({ asRecord, getMovePlanProfileForCardType }, ctx);
         let oppCornerMoves = 0;
         let oppEdgeMoves = 0;
@@ -294,6 +304,39 @@ export function createCpuPolicyMovePlanScoring(deps?: CpuPolicyMovePlanScoringDe
         const oppCompleteEdgeLineDelta = Number(oppEdgeRunAfter.completeLineCount || 0) - Number(oppEdgeRunBefore.completeLineCount || 0);
         const ownLoneEdgeDiscDelta = Number(ownEdgeRunAfter.loneDiscCount || 0) - Number(ownEdgeRunBefore.loneDiscCount || 0);
         const adjacentLoneEnemyEdgeCount = countAdjacentLoneEdgeDiscsFor(board, row, col, -playerValue);
+
+        if (level >= 6 && placementFeatures) {
+            const ownSafeEdgeRunDelta = Number(placementFeatures.ownSafeEdgeRunDelta || 0);
+            const ownAnchoredEdgeDelta = Number(placementFeatures.ownAnchoredEdgeDelta || 0);
+            const opponentSafeEdgeRunDelta = Number(placementFeatures.opponentSafeEdgeRunDelta || 0);
+            const ownEdgeGapDelta = Number(placementFeatures.ownEdgeGapDelta || 0);
+            if (placementFeatures.cornerDonation) {
+                score -= 19000 + (Math.max(0, placementFeatures.opponentCornerReplyCount || 0) * 6500);
+            } else if (placementFeatures.opponentNextCorner && !isCorner(row, col, board)) {
+                score -= 8500;
+            }
+            if (placementFeatures.isOpenCornerAdjacentRisk && !isCorner(row, col, board)) {
+                score -= placementFeatures.isXSquare ? 5200 : 3200;
+            }
+            if (placementFeatures.extendsOwnSafeEdge) {
+                score += 1900 + (Math.max(0, ownSafeEdgeRunDelta) * 820) + (Math.max(0, ownAnchoredEdgeDelta) * 940);
+            }
+            if (placementFeatures.breaksOpponentEdgeRun) {
+                score += 1550 + (Math.max(0, -opponentSafeEdgeRunDelta) * 620);
+            }
+            if (placementFeatures.allowsOpponentSafeEdgeRun) {
+                score -= 2600
+                    + (Math.max(0, placementFeatures.opponentSafeEdgeRunAllowedCount || 0) * 1250)
+                    + (Math.max(0, opponentSafeEdgeRunDelta) * 760);
+            }
+            if (placementFeatures.createsOwnEdgeGap) {
+                score -= 2400 + (Math.max(0, ownEdgeGapDelta) * 780);
+            }
+            if (placementFeatures.badLowMobilityRisk) {
+                score -= 4300;
+            }
+        }
+
         score += cornerLead * 2800;
 
         if (

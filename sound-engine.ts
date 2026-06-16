@@ -68,7 +68,7 @@ const SoundEngine = {
         this.effectBaseVolume = parseFloat(String(val));
     },
     bgm: null as any,
-    bgmVolume: 0.665,
+    bgmVolume: 0.548625,
     bgmOutputVolumeScale: 0.364,
     currentTrackIndex: 5,
     allowBgmPlay: true, // Default to true requested by user
@@ -85,6 +85,10 @@ const SoundEngine = {
     _bgmBufferedState: null as BgmBufferedState | null,
     _bgmBufferCache: {} as Record<string, AudioBuffer | Promise<AudioBuffer>>,
     _effectAudioPools: {} as EffectAudioPools,
+    _effectBufferCache: {} as Record<string, AudioBuffer | undefined>,
+    _effectBufferPromises: {} as Record<string, Promise<AudioBuffer | null> | undefined>,
+    _criticalEffectKeys: ['stone_place', 'hand_card_select', 'card_use_button', 'special_card_use', 'treasure_gain'],
+    _lastEffectFailures: {} as Record<string, string>,
     effectAudioPoolSize: 3,
     _effectWarmupStarted: false,
     specialCardUseBgmMuteMs: 3000,
@@ -99,6 +103,9 @@ const SoundEngine = {
     _manifestBgmEnding: false,
     _manifestBgmTransitionTimer: null as any,
     _manifestBgmTransitionToken: 0,
+    _audioUnlocked: false,
+    _audioUnlockPromise: null as Promise<boolean> | null,
+    _audioUnlockListenersInstalled: false,
 
     // BGM Playlist
     playlist: [
@@ -159,7 +166,7 @@ const SoundEngine = {
     effectDefaultVolumeScale: 0.35,
     effectVolumeScales: {
         hand_card_select: 0.5,
-        stone_place: 15 / 7,
+        stone_place: 10 / 7,
         stone_destroy: 0.7,
         board_shrink_selected: 0.7,
         meteor_hole: 0.7
@@ -168,7 +175,6 @@ const SoundEngine = {
 
     init() {
         this._ensureAudioContext(true);
-        this.primeEffectSounds();
 
         // Init BGM on first interaction
         if (!this.bgm) {
@@ -186,9 +192,89 @@ const SoundEngine = {
             }
         }
         if (resumeIfSuspended && this.ctx && this.ctx.state === 'suspended') {
-            this.ctx.resume();
+            try { this.ctx.resume(); } catch (e) { /* ignore */ }
         }
         return this.ctx;
+    },
+
+    isAudioUnlocked() {
+        return this._audioUnlocked === true;
+    },
+
+    _createSilentUnlockBuffer(ctx: AudioContext) {
+        if (!ctx || typeof ctx.createBuffer !== 'function') return null;
+        const sampleRate = Number((ctx as any).sampleRate) || 44100;
+        const frameCount = Math.max(1, Math.floor(sampleRate / 1000));
+        return ctx.createBuffer(1, frameCount, sampleRate);
+    },
+
+    _playSilentUnlockBuffer(ctx: AudioContext) {
+        if (!ctx || typeof ctx.createBufferSource !== 'function') return false;
+        const buffer = this._createSilentUnlockBuffer(ctx);
+        if (!buffer) return false;
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        return true;
+    },
+
+    async unlockAudio() {
+        if (this._audioUnlocked === true) return true;
+        if (this._audioUnlockPromise) return this._audioUnlockPromise;
+        this._audioUnlockPromise = Promise.resolve().then(async () => {
+            const ctx = this._ensureAudioContext(false);
+            if (!ctx) return false;
+            try {
+                if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+                    await ctx.resume();
+                }
+            } catch (e) {
+                return false;
+            }
+            try {
+                this._playSilentUnlockBuffer(ctx);
+            } catch (e) { /* ignore */ }
+            this._audioUnlocked = !ctx.state || ctx.state === 'running';
+            return this._audioUnlocked;
+        }).finally(() => {
+            this._audioUnlockPromise = null;
+        });
+        return this._audioUnlockPromise;
+    },
+
+    installUserGestureUnlock(doc?: Document | any) {
+        const targetDoc = doc || (typeof document !== 'undefined' ? document : null);
+        if (!targetDoc || typeof targetDoc.addEventListener !== 'function') return false;
+        if (this._audioUnlockListenersInstalled) return false;
+        this._audioUnlockListenersInstalled = true;
+        const options = { capture: true, passive: true };
+        const removeOptions = true;
+        const handler = async () => {
+            try {
+                targetDoc.removeEventListener('pointerdown', handler, removeOptions);
+                targetDoc.removeEventListener('touchstart', handler, removeOptions);
+                targetDoc.removeEventListener('click', handler, removeOptions);
+            } catch (e) { /* ignore */ }
+            try {
+                const unlocked = await this.unlockAudio();
+                if (!unlocked) {
+                    this._audioUnlockListenersInstalled = false;
+                    this.installUserGestureUnlock(targetDoc);
+                    return;
+                }
+                await this.primeCriticalEffectSounds();
+                await this.primeRemainingEffectSounds();
+            } catch (e) {
+                this._recordEffectFailure('__unlock__', e);
+                this._audioUnlockListenersInstalled = false;
+                this.installUserGestureUnlock(targetDoc);
+            }
+        };
+        targetDoc.addEventListener('pointerdown', handler, options);
+        targetDoc.addEventListener('touchstart', handler, options);
+        targetDoc.addEventListener('click', handler, options);
+        return true;
     },
 
     _resolveBgmTrack(index: number | string) {
@@ -904,6 +990,36 @@ const SoundEngine = {
         this._loadHtmlBgmTrack(track);
     },
 
+    _canUseWebAudioEffects() {
+        if (typeof fetch !== 'function') return false;
+        const ctx = this.ctx || this._ensureAudioContext(false);
+        return !!(
+            ctx &&
+            typeof ctx.createBufferSource === 'function' &&
+            typeof ctx.createGain === 'function' &&
+            typeof ctx.decodeAudioData === 'function'
+        );
+    },
+
+    _recordEffectFailure(filePath: string, reason: any) {
+        const key = String(filePath || '').trim();
+        if (!key) return;
+        const message = reason && reason.message ? reason.message : String(reason || 'unknown failure');
+        this._lastEffectFailures[key] = message;
+    },
+
+    getDiagnostics() {
+        const ctx = this.ctx || null;
+        return {
+            audioUnlocked: this._audioUnlocked === true,
+            audioContextState: ctx && ctx.state ? ctx.state : null,
+            effectBufferCount: Object.keys(this._effectBufferCache || {}).length,
+            pendingEffectBufferCount: Object.keys(this._effectBufferPromises || {}).length,
+            htmlEffectPoolCount: Object.keys(this._effectAudioPools || {}).length,
+            lastEffectFailures: Object.assign({}, this._lastEffectFailures || {})
+        };
+    },
+
     _canCreateEffectAudioElement() {
         return typeof Audio === 'function';
     },
@@ -960,6 +1076,8 @@ const SoundEngine = {
 
     _resetEffectWarmup() {
         this._effectAudioPools = {};
+        this._effectBufferCache = {};
+        this._effectBufferPromises = {};
         this._effectWarmupStarted = false;
     },
 
@@ -984,6 +1102,8 @@ const SoundEngine = {
         const nextPath = this.getEffectFilePath(k);
         if (previousPath && previousPath !== nextPath) {
             delete this._effectAudioPools[previousPath];
+            delete this._effectBufferCache[previousPath];
+            delete this._effectBufferPromises[previousPath];
         }
         if (this._effectWarmupStarted && nextPath) {
             try { this._getEffectAudioPool(nextPath); } catch (e) { /* ignore */ }
@@ -1133,6 +1253,58 @@ const SoundEngine = {
         return `${normalizedBase}${fileName}`;
     },
 
+    primeEffectBuffer(effectKey: string, options: any = {}) {
+        const key = String(effectKey || '').trim();
+        const opts = options && typeof options === 'object' ? options : {};
+        const filePath = this.getEffectFilePath(key, opts);
+        if (!filePath || !this._canUseWebAudioEffects()) return Promise.resolve(false);
+        if (this._effectBufferCache[filePath]) return Promise.resolve(true);
+        if (this._effectBufferPromises[filePath]) {
+            return this._effectBufferPromises[filePath].then((buffer) => !!buffer);
+        }
+        const ctx = this.ctx || this._ensureAudioContext(false);
+        if (!ctx) return Promise.resolve(false);
+        const loadPromise = fetch(filePath)
+            .then((response: any) => {
+                if (!response || response.ok !== true) {
+                    const status = response && response.status ? response.status : 'unknown';
+                    throw new Error(`HTTP ${status}`);
+                }
+                return response.arrayBuffer();
+            })
+            .then((arrayBuffer: ArrayBuffer) => ctx.decodeAudioData(arrayBuffer))
+            .then((buffer: AudioBuffer) => {
+                if (buffer) {
+                    this._effectBufferCache[filePath] = buffer;
+                }
+                return buffer || null;
+            })
+            .catch((error: any) => {
+                this._recordEffectFailure(filePath, error);
+                return null;
+            })
+            .finally(() => {
+                delete this._effectBufferPromises[filePath];
+            });
+        this._effectBufferPromises[filePath] = loadPromise;
+        return loadPromise.then((buffer) => !!buffer);
+    },
+
+    primeCriticalEffectSounds() {
+        const keys = Array.isArray(this._criticalEffectKeys) ? this._criticalEffectKeys : [];
+        return Promise.all(keys.map((key) => this.primeEffectBuffer(key))).then((results) => results.filter(Boolean).length);
+    },
+
+    primeRemainingEffectSounds() {
+        const critical = new Set(Array.isArray(this._criticalEffectKeys) ? this._criticalEffectKeys : []);
+        const keys = Object.keys(this.effectSoundFiles || {}).filter((key) => !critical.has(key));
+        let chain = Promise.resolve(0);
+        keys.forEach((key) => {
+            chain = chain.then((count) => this.primeEffectBuffer(key).then((loaded) => count + (loaded ? 1 : 0)));
+        });
+        return chain;
+    },
+
     _toNonNegativeNumber(value: any, fallback: number) {
         const parsed = Number(value);
         if (!Number.isFinite(parsed)) return fallback;
@@ -1182,21 +1354,70 @@ const SoundEngine = {
         }, durationMs);
     },
 
+    _playEffectBuffer(filePath: string, volume: number) {
+        const ctx = this.ctx || this._ensureAudioContext(false);
+        const buffer = filePath ? this._effectBufferCache[filePath] : null;
+        if (!ctx || !buffer || ctx.state !== 'running') return false;
+        let source: AudioBufferSourceNode | null = null;
+        let gainNode: GainNode | null = null;
+        const disconnectNodes = () => {
+            if (source && typeof source.disconnect === 'function') {
+                try { source.disconnect(); } catch (e) { /* ignore */ }
+            }
+            if (gainNode && typeof gainNode.disconnect === 'function') {
+                try { gainNode.disconnect(); } catch (e) { /* ignore */ }
+            }
+        };
+        try {
+            source = ctx.createBufferSource();
+            source.buffer = buffer;
+            gainNode = ctx.createGain();
+            if (gainNode.gain && typeof gainNode.gain.setValueAtTime === 'function') {
+                gainNode.gain.setValueAtTime(this._clamp01(volume), Number(ctx.currentTime) || 0);
+            } else if (gainNode.gain && 'value' in gainNode.gain) {
+                gainNode.gain.value = this._clamp01(volume);
+            }
+            source.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            source.onended = () => {
+                source!.onended = null;
+                disconnectNodes();
+            };
+            source.start(0);
+            return true;
+        } catch (e) {
+            if (source) source.onended = null;
+            disconnectNodes();
+            this._recordEffectFailure(filePath, e);
+            return false;
+        }
+    },
+
     playEffectByKey(effectKey: string, options: any = {}) {
         const key = String(effectKey || '').trim();
         const opts = options && typeof options === 'object' ? options : {};
         const filePath = this.getEffectFilePath(key, opts);
         if (!filePath || this.isMuted) return false;
 
-        try { this.init(); } catch (e) { /* ignore */ }
+        try { this._ensureAudioContext(true); } catch (e) { /* ignore */ }
 
         const effectVolume = this.resolveEffectVolume(key, opts);
 
-        const audio = this._takeEffectAudio(filePath);
-        if (!audio) return false;
         if (key === 'special_card_use') {
             this._muteBgmForSpecialCardUse();
         }
+
+        if (this._canUseWebAudioEffects()) {
+            if (this._playEffectBuffer(filePath, effectVolume * (this.isMuted ? 0 : 1))) {
+                return true;
+            }
+            if (!this._effectBufferCache[filePath] && !this._effectBufferPromises[filePath]) {
+                try { this.primeEffectBuffer(key, opts); } catch (e) { /* ignore */ }
+            }
+        }
+
+        const audio = this._takeEffectAudio(filePath);
+        if (!audio) return false;
         audio.volume = effectVolume * (this.isMuted ? 0 : 1);
         try { audio.currentTime = 0; } catch (e) { /* ignore */ }
         audio.onerror = () => {
@@ -1209,6 +1430,7 @@ const SoundEngine = {
         const playPromise = audio.play();
         if (playPromise && typeof playPromise.catch === 'function') {
             playPromise.catch((e: any) => {
+                this._recordEffectFailure(filePath, e);
                 if (!this._missingEffectWarned[filePath]) {
                     this._missingEffectWarned[filePath] = true;
                     console.warn(`Effect sound play failed (${filePath}): ${e && e.message ? e.message : e}`);

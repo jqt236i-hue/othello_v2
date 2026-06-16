@@ -155,11 +155,11 @@ function printHelp() {
         '      --onnx-value-target-edge-weight <r> Value-target edge blend weight [0..1] (default: 0.0)',
         '      --onnx-value-target-economy-weight <r> Value-target economy blend weight [0..1] (default: 0.0)',
         '      --onnx-value-target-corner-emergency-weight <r> Value-target corner-emergency penalty weight [0..1] (default: 0.0)',
-        '      --train-target-head     Enable pending-target specialist training and packaging (default: on)',
+        '      --train-target-head     Enable pending-target specialist training and packaging (default: off)',
         '      --no-train-target-head  Disable pending-target specialist training and promotion packaging for this lane',
         '      --train-value-head      Enable value specialist training and packaging (default: on)',
         '      --no-train-value-head   Disable value specialist training, ONNX gate wiring, and promotion packaging for this lane',
-        '      --train-card-every <n>  Train card specialist every N iterations, starting from iteration 1 (default: 1)',
+        '      --train-card-every <n>  Train card specialist every N iterations, starting from iteration 1 (default: 0=off)',
         '      --train-target-every <n> Train pending-target specialist every N iterations, starting from iteration 1 (default: 1)',
         '      --train-value-every <n> Train value specialist every N iterations, starting from iteration 1 (default: 1)',
         '      --min-visits <n>        compatibility policy-table --min-visits (default: 12)',
@@ -221,9 +221,14 @@ function printHelp() {
         '      --adoption-quality-weight-final-corner-share <r> Adoption quality final corner share weight [0..1] (default: 0.24)',
         '      --adoption-quality-weight-final-edge-share <r> Adoption quality final edge share weight [0..1] (default: 0.06)',
         '      --adoption-quality-weight-final-longest-edge-run-share <r> Adoption quality final longest-edge-run share weight [0..1] (default: 0.08)',
+        '      --adoption-quality-weight-corner-donation-avoidance <r> Adoption quality corner-donation avoidance weight [0..1] (default: 0.14)',
+        '      --adoption-quality-weight-opponent-safe-edge-avoidance <r> Adoption quality opponent safe-edge avoidance weight [0..1] (default: 0.12)',
+        '      --adoption-quality-weight-own-safe-edge <r> Adoption quality own safe-edge extension weight [0..1] (default: 0.12)',
+        '      --adoption-quality-weight-own-edge-gap-avoidance <r> Adoption quality own edge-gap avoidance weight [0..1] (default: 0.10)',
+        '      --adoption-quality-weight-opponent-edge-cut <r> Adoption quality opponent edge-cut weight [0..1] (default: 0.08)',
         '      --adoption-quality-weight-bonus <r> Adoption quality bonus weight [0..1] (default: 0.01)',
-        '      --adoption-quality-weight-card-immediate <r> Adoption quality card-immediate weight [0..1] (default: 0.015)',
-        '      --adoption-quality-weight-card-future <r> Adoption quality card-future(3ply) weight [0..1] (default: 0.02)',
+        '      --adoption-quality-weight-card-immediate <r> Adoption quality card-immediate weight [0..1] (default: 0)',
+        '      --adoption-quality-weight-card-future <r> Adoption quality card-future(3ply) weight [0..1] (default: 0)',
         '      --adoption-quality-weight-place-delta <r> Adoption quality place-delta weight [0..1] (default: 0.015)',
         '      --adoption-use-guide-baseline  Compare candidate against current guide model in adoption benchmark',
         '      --no-adoption-use-guide-baseline Disable guide-model baseline compare (default)',
@@ -723,12 +728,14 @@ function shouldRunGateForIteration(args, iterationIndex) {
 }
 
 function shouldRunPeriodicTraining(iterationIndex, every) {
+    if (!Number.isFinite(Number(every)) || Number(every) <= 0) return false;
     const safeIteration = Number.isFinite(Number(iterationIndex))
         ? Math.max(1, Math.floor(Number(iterationIndex)))
         : 1;
     const safeEvery = Number.isFinite(Number(every))
         ? Math.max(1, Math.floor(Number(every)))
-        : 1;
+        : 0;
+    if (safeEvery <= 0) return false;
     return ((safeIteration - 1) % safeEvery) === 0;
 }
 
@@ -1342,7 +1349,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         hasTargetTrainingData,
         specialistTraining: {
             card: {
-                enabled: args.allowCardUsage,
+                enabled: args.allowCardUsage && Number(args.trainCardEvery) > 0,
                 every: args.trainCardEvery,
                 executed: trainCardThisIteration
             },

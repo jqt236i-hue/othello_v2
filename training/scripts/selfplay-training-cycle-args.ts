@@ -240,9 +240,9 @@ function createSelfplayTrainingCycleDefaults(env) {
         onnxValueTargetEdgeWeight: 0.0,
         onnxValueTargetEconomyWeight: 0.0,
         onnxValueTargetCornerEmergencyWeight: 0.0,
-        trainTargetHeadEnabled: true,
+        trainTargetHeadEnabled: false,
         trainValueHeadEnabled: true,
-        trainCardEvery: 1,
+        trainCardEvery: 0,
         trainTargetEvery: 1,
         trainValueEvery: 1,
         minVisits: 12,
@@ -303,9 +303,14 @@ function createSelfplayTrainingCycleDefaults(env) {
         adoptionQualityWeightFinalCornerShare: 0.24,
         adoptionQualityWeightFinalEdgeShare: 0.06,
         adoptionQualityWeightFinalLongestEdgeRunShare: 0.08,
+        adoptionQualityWeightCornerDonationAvoidance: 0.14,
+        adoptionQualityWeightOpponentSafeEdgeAvoidance: 0.12,
+        adoptionQualityWeightOwnSafeEdge: 0.12,
+        adoptionQualityWeightOwnEdgeGapAvoidance: 0.10,
+        adoptionQualityWeightOpponentEdgeCut: 0.08,
         adoptionQualityWeightBonus: 0.01,
-        adoptionQualityWeightCardImmediate: 0.015,
-        adoptionQualityWeightCardFuture: 0.02,
+        adoptionQualityWeightCardImmediate: 0,
+        adoptionQualityWeightCardFuture: 0,
         adoptionQualityWeightPlaceDelta: 0.015,
         adoptionUseGuideBaseline: false,
         adoptionUseAnchorBaseline: false,
@@ -517,6 +522,11 @@ function parseSelfplayTrainingCycleArgs(argv) {
         if (a === '--adoption-quality-weight-final-corner-share') { args.adoptionQualityWeightFinalCornerShare = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-final-edge-share') { args.adoptionQualityWeightFinalEdgeShare = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-final-longest-edge-run-share') { args.adoptionQualityWeightFinalLongestEdgeRunShare = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-corner-donation-avoidance') { args.adoptionQualityWeightCornerDonationAvoidance = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-opponent-safe-edge-avoidance') { args.adoptionQualityWeightOpponentSafeEdgeAvoidance = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-own-safe-edge') { args.adoptionQualityWeightOwnSafeEdge = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-own-edge-gap-avoidance') { args.adoptionQualityWeightOwnEdgeGapAvoidance = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-opponent-edge-cut') { args.adoptionQualityWeightOpponentEdgeCut = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-bonus') { args.adoptionQualityWeightBonus = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-card-immediate') { args.adoptionQualityWeightCardImmediate = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-card-future') { args.adoptionQualityWeightCardFuture = Number(argv[++i]); continue; }
@@ -834,7 +844,7 @@ function parseSelfplayTrainingCycleArgs(argv) {
     ) {
         throw new Error('onnx value-target auxiliary weights must sum to <= 0.5');
     }
-    if (!Number.isFinite(args.trainCardEvery) || args.trainCardEvery < 1) throw new Error('--train-card-every must be >= 1');
+    if (!Number.isFinite(args.trainCardEvery) || args.trainCardEvery < 0) throw new Error('--train-card-every must be >= 0 (0 disables card trainer)');
     args.trainCardEvery = Math.floor(args.trainCardEvery);
     if (!Number.isFinite(args.trainTargetEvery) || args.trainTargetEvery < 1) throw new Error('--train-target-every must be >= 1');
     args.trainTargetEvery = Math.floor(args.trainTargetEvery);
@@ -1030,6 +1040,17 @@ function parseSelfplayTrainingCycleArgs(argv) {
     }
     if (!Number.isFinite(args.adoptionQualityWeightFinalLongestEdgeRunShare) || args.adoptionQualityWeightFinalLongestEdgeRunShare < 0 || args.adoptionQualityWeightFinalLongestEdgeRunShare > 1) {
         throw new Error('--adoption-quality-weight-final-longest-edge-run-share must be in [0,1]');
+    }
+    for (const [key, flag] of [
+        ['adoptionQualityWeightCornerDonationAvoidance', '--adoption-quality-weight-corner-donation-avoidance'],
+        ['adoptionQualityWeightOpponentSafeEdgeAvoidance', '--adoption-quality-weight-opponent-safe-edge-avoidance'],
+        ['adoptionQualityWeightOwnSafeEdge', '--adoption-quality-weight-own-safe-edge'],
+        ['adoptionQualityWeightOwnEdgeGapAvoidance', '--adoption-quality-weight-own-edge-gap-avoidance'],
+        ['adoptionQualityWeightOpponentEdgeCut', '--adoption-quality-weight-opponent-edge-cut'],
+    ]) {
+        if (!Number.isFinite(args[key]) || args[key] < 0 || args[key] > 1) {
+            throw new Error(`${flag} must be in [0,1]`);
+        }
     }
     if (!Number.isFinite(args.adoptionQualityWeightBonus) || args.adoptionQualityWeightBonus < 0 || args.adoptionQualityWeightBonus > 1) {
         throw new Error('--adoption-quality-weight-bonus must be in [0,1]');

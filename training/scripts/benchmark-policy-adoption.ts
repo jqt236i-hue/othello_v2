@@ -64,6 +64,11 @@ function parseArgs(argv) {
         qualityWeightCardImmediate: 0,
         qualityWeightCardFuture: 0,
         qualityWeightPlaceDelta: 0,
+        qualityWeightCornerDonationAvoidance: 0,
+        qualityWeightOpponentSafeEdgeAvoidance: 0,
+        qualityWeightOwnSafeEdge: 0,
+        qualityWeightOwnEdgeGapAvoidance: 0,
+        qualityWeightOpponentEdgeCut: 0,
         baselineModelPath: null,
         opponentModelPath: null,
         candidateModelPath: null,
@@ -119,6 +124,11 @@ function parseArgs(argv) {
         if (a === '--quality-weight-card-immediate') { args.qualityWeightCardImmediate = Number(argv[++i]); specified.add('qualityWeightCardImmediate'); continue; }
         if (a === '--quality-weight-card-future') { args.qualityWeightCardFuture = Number(argv[++i]); specified.add('qualityWeightCardFuture'); continue; }
         if (a === '--quality-weight-place-delta') { args.qualityWeightPlaceDelta = Number(argv[++i]); specified.add('qualityWeightPlaceDelta'); continue; }
+        if (a === '--quality-weight-corner-donation-avoidance') { args.qualityWeightCornerDonationAvoidance = Number(argv[++i]); specified.add('qualityWeightCornerDonationAvoidance'); continue; }
+        if (a === '--quality-weight-opponent-safe-edge-avoidance') { args.qualityWeightOpponentSafeEdgeAvoidance = Number(argv[++i]); specified.add('qualityWeightOpponentSafeEdgeAvoidance'); continue; }
+        if (a === '--quality-weight-own-safe-edge') { args.qualityWeightOwnSafeEdge = Number(argv[++i]); specified.add('qualityWeightOwnSafeEdge'); continue; }
+        if (a === '--quality-weight-own-edge-gap-avoidance') { args.qualityWeightOwnEdgeGapAvoidance = Number(argv[++i]); specified.add('qualityWeightOwnEdgeGapAvoidance'); continue; }
+        if (a === '--quality-weight-opponent-edge-cut') { args.qualityWeightOpponentEdgeCut = Number(argv[++i]); specified.add('qualityWeightOpponentEdgeCut'); continue; }
         if (a === '--baseline-model') { args.baselineModelPath = path.resolve(process.cwd(), argv[++i]); specified.add('baselineModelPath'); continue; }
         if (a === '--opponent-model') { args.opponentModelPath = path.resolve(process.cwd(), argv[++i]); specified.add('opponentModelPath'); continue; }
         if (a === '--candidate-model') { args.candidateModelPath = path.resolve(process.cwd(), argv[++i]); specified.add('candidateModelPath'); continue; }
@@ -219,6 +229,17 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.qualityWeightPlaceDelta) || args.qualityWeightPlaceDelta < 0 || args.qualityWeightPlaceDelta > 1) {
         throw new Error('--quality-weight-place-delta must be in [0,1]');
     }
+    for (const [key, flag] of [
+        ['qualityWeightCornerDonationAvoidance', '--quality-weight-corner-donation-avoidance'],
+        ['qualityWeightOpponentSafeEdgeAvoidance', '--quality-weight-opponent-safe-edge-avoidance'],
+        ['qualityWeightOwnSafeEdge', '--quality-weight-own-safe-edge'],
+        ['qualityWeightOwnEdgeGapAvoidance', '--quality-weight-own-edge-gap-avoidance'],
+        ['qualityWeightOpponentEdgeCut', '--quality-weight-opponent-edge-cut'],
+    ]) {
+        if (!Number.isFinite(args[key]) || args[key] < 0 || args[key] > 1) {
+            throw new Error(`${flag} must be in [0,1]`);
+        }
+    }
     if (!['quick', 'quality', 'final'].includes(args.gatePhase)) {
         throw new Error('--gate-phase must be quick, quality, or final');
     }
@@ -267,6 +288,11 @@ function printHelp() {
         '      --quality-weight-final-corner-share <r> Weight for final corner share quality [0..1] (default: 0)',
         '      --quality-weight-final-edge-share <r>   Weight for final edge share quality [0..1] (default: 0)',
         '      --quality-weight-final-longest-edge-run-share <r> Weight for final longest-edge-run share quality [0..1] (default: 0)',
+        '      --quality-weight-corner-donation-avoidance <r> Weight for corner-donation avoidance quality [0..1] (default: 0)',
+        '      --quality-weight-opponent-safe-edge-avoidance <r> Weight for opponent safe-edge avoidance quality [0..1] (default: 0)',
+        '      --quality-weight-own-safe-edge <r>      Weight for own safe-edge extension quality [0..1] (default: 0)',
+        '      --quality-weight-own-edge-gap-avoidance <r> Weight for own edge-gap avoidance quality [0..1] (default: 0)',
+        '      --quality-weight-opponent-edge-cut <r> Weight for opponent edge-cut quality [0..1] (default: 0)',
         '      --quality-weight-bonus <r>           Weight for selected-bonus quality [0..1] (default: 0)',
         '      --quality-weight-card-immediate <r>  Weight for card immediate value quality [0..1] (default: 0)',
         '      --quality-weight-card-future <r>     Weight for card 3-ply future value quality [0..1] (default: 0)',
@@ -369,6 +395,14 @@ function qualityMetricsForPolicyA(result) {
             avgCardImmediateDiscDelta: 0,
             avgCardFutureDiscDelta3Ply: 0,
             avgPlaceDiscDelta: 0,
+            cornerDonationRate: 0,
+            opponentSafeEdgeAllowedRate: 0,
+            ownSafeEdgeExtendRate: 0,
+            avgOwnSafeEdgeRunDelta: 0,
+            ownEdgeGapRate: 0,
+            avgOwnEdgeGapDelta: 0,
+            opponentEdgeCutRate: 0,
+            badLowMobilityRate: 0,
             normCorner: 0,
             normEdge: 0,
             normCornerRecovery: 0,
@@ -386,7 +420,13 @@ function qualityMetricsForPolicyA(result) {
             normBonus: 0,
             normCardImmediate: 0,
             normCardFuture: 0,
-            normPlaceDelta: 0
+            normPlaceDelta: 0,
+            normCornerDonationAvoidance: 0,
+            normOpponentSafeEdgeAvoidance: 0,
+            normOwnSafeEdge: 0,
+            normOwnEdgeGapAvoidance: 0,
+            normOpponentEdgeCut: 0,
+            normBadLowMobilityAvoidance: 0
         };
     }
     const cornerTakeRate = clamp01(q.cornerTakeRate);
@@ -411,6 +451,14 @@ function qualityMetricsForPolicyA(result) {
         ? Number(q.avgCardFutureDiscDelta3Ply)
         : 0;
     const avgPlaceDiscDelta = Number.isFinite(Number(q.avgPlaceDiscDelta)) ? Number(q.avgPlaceDiscDelta) : 0;
+    const cornerDonationRate = clamp01(q.cornerDonationRate);
+    const opponentSafeEdgeAllowedRate = clamp01(q.opponentSafeEdgeAllowedRate);
+    const ownSafeEdgeExtendRate = clamp01(q.ownSafeEdgeExtendRate);
+    const avgOwnSafeEdgeRunDelta = Number.isFinite(Number(q.avgOwnSafeEdgeRunDelta)) ? Number(q.avgOwnSafeEdgeRunDelta) : 0;
+    const ownEdgeGapRate = clamp01(q.ownEdgeGapRate);
+    const avgOwnEdgeGapDelta = Number.isFinite(Number(q.avgOwnEdgeGapDelta)) ? Number(q.avgOwnEdgeGapDelta) : 0;
+    const opponentEdgeCutRate = clamp01(q.opponentEdgeCutRate);
+    const badLowMobilityRate = clamp01(q.badLowMobilityRate);
     return {
         cornerTakeRate,
         edgeTakeWhenAvailableRate,
@@ -430,6 +478,14 @@ function qualityMetricsForPolicyA(result) {
         avgCardImmediateDiscDelta,
         avgCardFutureDiscDelta3Ply,
         avgPlaceDiscDelta,
+        cornerDonationRate,
+        opponentSafeEdgeAllowedRate,
+        ownSafeEdgeExtendRate,
+        avgOwnSafeEdgeRunDelta,
+        ownEdgeGapRate,
+        avgOwnEdgeGapDelta,
+        opponentEdgeCutRate,
+        badLowMobilityRate,
         normCorner: cornerTakeRate,
         normEdge: edgeTakeWhenAvailableRate,
         normCornerRecovery: cornerRecoveryRate,
@@ -447,7 +503,13 @@ function qualityMetricsForPolicyA(result) {
         normBonus: normalizeSignedMetric(avgSelectedCellBonus, 4),
         normCardImmediate: normalizeSignedMetric(avgCardImmediateDiscDelta, 3),
         normCardFuture: normalizeSignedMetric(avgCardFutureDiscDelta3Ply, 3),
-        normPlaceDelta: normalizeSignedMetric(avgPlaceDiscDelta, 3)
+        normPlaceDelta: normalizeSignedMetric(avgPlaceDiscDelta, 3),
+        normCornerDonationAvoidance: 1 - cornerDonationRate,
+        normOpponentSafeEdgeAvoidance: 1 - opponentSafeEdgeAllowedRate,
+        normOwnSafeEdge: clamp01(ownSafeEdgeExtendRate + (Math.max(0, avgOwnSafeEdgeRunDelta) / 4)),
+        normOwnEdgeGapAvoidance: 1 - clamp01(ownEdgeGapRate + (Math.max(0, avgOwnEdgeGapDelta) / 4)),
+        normOpponentEdgeCut: opponentEdgeCutRate,
+        normBadLowMobilityAvoidance: 1 - badLowMobilityRate
     };
 }
 
@@ -470,7 +532,12 @@ function computeQualityScore(metrics, weights) {
         (metrics.normBonus * weights.bonus) +
         (metrics.normCardImmediate * weights.cardImmediate) +
         (metrics.normCardFuture * weights.cardFuture) +
-        (metrics.normPlaceDelta * weights.placeDelta)
+        (metrics.normPlaceDelta * weights.placeDelta) +
+        (metrics.normCornerDonationAvoidance * weights.cornerDonationAvoidance) +
+        (metrics.normOpponentSafeEdgeAvoidance * weights.opponentSafeEdgeAvoidance) +
+        (metrics.normOwnSafeEdge * weights.ownSafeEdge) +
+        (metrics.normOwnEdgeGapAvoidance * weights.ownEdgeGapAvoidance) +
+        (metrics.normOpponentEdgeCut * weights.opponentEdgeCut)
     );
 }
 
@@ -496,7 +563,12 @@ function computeAdoptionDecision(baseline, candidate, threshold, whitePriority, 
         bonus: 0,
         cardImmediate: 0,
         cardFuture: 0,
-        placeDelta: 0
+        placeDelta: 0,
+        cornerDonationAvoidance: 0,
+        opponentSafeEdgeAvoidance: 0,
+        ownSafeEdge: 0,
+        ownEdgeGapAvoidance: 0,
+        opponentEdgeCut: 0
     }, qualityWeights || {});
     const baselineOverallScore = baseline.result.score.APercent;
     const candidateOverallScore = candidate.result.score.APercent;
@@ -672,7 +744,12 @@ function sumConfiguredQualityWeights(options) {
         'qualityWeightBonus',
         'qualityWeightCardImmediate',
         'qualityWeightCardFuture',
-        'qualityWeightPlaceDelta'
+        'qualityWeightPlaceDelta',
+        'qualityWeightCornerDonationAvoidance',
+        'qualityWeightOpponentSafeEdgeAvoidance',
+        'qualityWeightOwnSafeEdge',
+        'qualityWeightOwnEdgeGapAvoidance',
+        'qualityWeightOpponentEdgeCut'
     ].reduce((sum, key) => sum + (Number(options && options[key]) || 0), 0);
 }
 
@@ -983,7 +1060,12 @@ async function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, star
             bonus: options.qualityWeightBonus,
             cardImmediate: options.qualityWeightCardImmediate,
             cardFuture: options.qualityWeightCardFuture,
-            placeDelta: options.qualityWeightPlaceDelta
+            placeDelta: options.qualityWeightPlaceDelta,
+            cornerDonationAvoidance: options.qualityWeightCornerDonationAvoidance,
+            opponentSafeEdgeAvoidance: options.qualityWeightOpponentSafeEdgeAvoidance,
+            ownSafeEdge: options.qualityWeightOwnSafeEdge,
+            ownEdgeGapAvoidance: options.qualityWeightOwnEdgeGapAvoidance,
+            opponentEdgeCut: options.qualityWeightOpponentEdgeCut
         }
     );
     const elapsedSec = ((Date.now() - seedStartedAt) / 1000).toFixed(1);
@@ -1078,6 +1160,11 @@ function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
             qualityWeightCardImmediate: options.qualityWeightCardImmediate,
             qualityWeightCardFuture: options.qualityWeightCardFuture,
             qualityWeightPlaceDelta: options.qualityWeightPlaceDelta,
+            qualityWeightCornerDonationAvoidance: options.qualityWeightCornerDonationAvoidance,
+            qualityWeightOpponentSafeEdgeAvoidance: options.qualityWeightOpponentSafeEdgeAvoidance,
+            qualityWeightOwnSafeEdge: options.qualityWeightOwnSafeEdge,
+            qualityWeightOwnEdgeGapAvoidance: options.qualityWeightOwnEdgeGapAvoidance,
+            qualityWeightOpponentEdgeCut: options.qualityWeightOpponentEdgeCut,
             baselineModelPath: options.baselineModelPath || null,
             opponentModelPath: options.opponentModelPath || null,
             candidateModelPath: options.candidateModelPath
@@ -1105,7 +1192,7 @@ async function runSeedEvaluationsSequential(options) {
     console.log(
         `[policy-adoption] start games=${options.games} seeds=${seeds.length} max_plies=${options.maxPlies} ` +
         `a_rate=${options.aRate} b_rate=${options.bRate} tactical_weight=${options.tacticalWeight} tactical_depth=${options.tacticalDepthOpening}/${options.tacticalDepthMid}/${options.tacticalDepthEnd} beam=${options.tacticalBeamWidth} policy_weight=${options.policyScoreWeight} heuristic_weight=${options.heuristicWeight} white_priority=${options.whitePriority} ` +
-        `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_edge_chain=${options.qualityWeightEdgeChain} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_final_longest_edge_run=${options.qualityWeightFinalLongestEdgeRunShare} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
+        `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_edge_chain=${options.qualityWeightEdgeChain} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_final_longest_edge_run=${options.qualityWeightFinalLongestEdgeRunShare} q_corner_donation_avoid=${options.qualityWeightCornerDonationAvoidance} q_opp_safe_edge_avoid=${options.qualityWeightOpponentSafeEdgeAvoidance} q_own_safe_edge=${options.qualityWeightOwnSafeEdge} q_own_gap_avoid=${options.qualityWeightOwnEdgeGapAvoidance} q_opp_edge_cut=${options.qualityWeightOpponentEdgeCut} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
         `jobs=1 total_jobs=${jobPlan.totalJobs} benchmark_jobs=${jobPlan.benchmarkJobsBySeed[0] || 1} progress_every=${progressEvery} script=${__filename}`
     );
 
@@ -1251,7 +1338,7 @@ async function runSeedEvaluationsParallel(options) {
     console.log(
         `[policy-adoption] start games=${options.games} seeds=${seeds.length} max_plies=${options.maxPlies} ` +
         `a_rate=${options.aRate} b_rate=${options.bRate} tactical_weight=${options.tacticalWeight} tactical_depth=${options.tacticalDepthOpening}/${options.tacticalDepthMid}/${options.tacticalDepthEnd} beam=${options.tacticalBeamWidth} policy_weight=${options.policyScoreWeight} heuristic_weight=${options.heuristicWeight} white_priority=${options.whitePriority} ` +
-        `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
+        `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_edge_chain=${options.qualityWeightEdgeChain} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_final_longest_edge_run=${options.qualityWeightFinalLongestEdgeRunShare} q_corner_donation_avoid=${options.qualityWeightCornerDonationAvoidance} q_opp_safe_edge_avoid=${options.qualityWeightOpponentSafeEdgeAvoidance} q_own_safe_edge=${options.qualityWeightOwnSafeEdge} q_own_gap_avoid=${options.qualityWeightOwnEdgeGapAvoidance} q_opp_edge_cut=${options.qualityWeightOpponentEdgeCut} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
         `jobs=${jobs} total_jobs=${jobPlan.totalJobs}${benchmarkJobsSummary} progress_every=${progressEvery} script=${__filename}`
     );
 
@@ -1344,7 +1431,7 @@ async function main() {
         `[policy-adoption] baseline=${d.baselineScore.toFixed(3)} candidate=${d.candidateScore.toFixed(3)} uplift=${d.uplift.toFixed(3)} uplift_lb=${d.upliftLowerBound.toFixed(3)} lb_req=${d.requiredMinLowerBound.toFixed(3)} conf=${d.confidenceLevel.toFixed(3)} min_seed_uplift=${d.minSeedUplift.toFixed(3)} threshold=${d.threshold.toFixed(3)} ` +
         `seeds=${d.seedCount || 1} seed_pass=${d.seedPassCount || 0}/${d.seedCount || 0} min_seed_req=${d.requiredMinSeedPassCount || 0} tactical_weight=${args.tacticalWeight.toFixed(2)} tactical_depth=${args.tacticalDepthOpening}/${args.tacticalDepthMid}/${args.tacticalDepthEnd} beam=${args.tacticalBeamWidth} ` +
         `policy_weight=${args.policyScoreWeight.toFixed(2)} heuristic_weight=${args.heuristicWeight.toFixed(2)} white_priority=${args.whitePriority.toFixed(2)} q_corner=${args.qualityWeightCorner.toFixed(3)} q_edge=${args.qualityWeightEdge.toFixed(3)} q_corner_recovery=${args.qualityWeightCornerRecovery.toFixed(3)} q_corner_recapture=${args.qualityWeightCornerRecapture.toFixed(3)} q_edge_recovery=${args.qualityWeightEdgeRecovery.toFixed(3)} ` +
-        `q_corner_hold=${args.qualityWeightCornerHold.toFixed(3)} q_corner_hold_turns=${args.qualityWeightCornerHoldTurns.toFixed(3)} q_edge_hold=${args.qualityWeightEdgeHold.toFixed(3)} q_final_corner=${args.qualityWeightFinalCornerShare.toFixed(3)} q_final_edge=${args.qualityWeightFinalEdgeShare.toFixed(3)} q_bonus=${args.qualityWeightBonus.toFixed(3)} q_card=${args.qualityWeightCardImmediate.toFixed(3)} q_card_future=${args.qualityWeightCardFuture.toFixed(3)} q_place=${args.qualityWeightPlaceDelta.toFixed(3)} early_stop=${d.earlyStopReason || 'none'} failure_reason=${d.primaryFailureReason || 'none'} pass=${d.passed}`
+        `q_corner_hold=${args.qualityWeightCornerHold.toFixed(3)} q_corner_hold_turns=${args.qualityWeightCornerHoldTurns.toFixed(3)} q_edge_hold=${args.qualityWeightEdgeHold.toFixed(3)} q_edge_chain=${args.qualityWeightEdgeChain.toFixed(3)} q_final_corner=${args.qualityWeightFinalCornerShare.toFixed(3)} q_final_edge=${args.qualityWeightFinalEdgeShare.toFixed(3)} q_final_longest_edge_run=${args.qualityWeightFinalLongestEdgeRunShare.toFixed(3)} q_corner_donation_avoid=${args.qualityWeightCornerDonationAvoidance.toFixed(3)} q_opp_safe_edge_avoid=${args.qualityWeightOpponentSafeEdgeAvoidance.toFixed(3)} q_own_safe_edge=${args.qualityWeightOwnSafeEdge.toFixed(3)} q_own_gap_avoid=${args.qualityWeightOwnEdgeGapAvoidance.toFixed(3)} q_opp_edge_cut=${args.qualityWeightOpponentEdgeCut.toFixed(3)} q_bonus=${args.qualityWeightBonus.toFixed(3)} q_card=${args.qualityWeightCardImmediate.toFixed(3)} q_card_future=${args.qualityWeightCardFuture.toFixed(3)} q_place=${args.qualityWeightPlaceDelta.toFixed(3)} early_stop=${d.earlyStopReason || 'none'} failure_reason=${d.primaryFailureReason || 'none'} pass=${d.passed}`
     );
     process.exit(d.passed ? 0 : 2);
 }

@@ -90,6 +90,7 @@ function createMockAudioContext() {
       },
       createBufferSource() {
         const source = {
+          buffer: null,
           loop: false,
           loopStart: 0,
           loopEnd: 0,
@@ -124,9 +125,233 @@ async function flushAsyncWork() {
 }
 
 const DEFAULT_MASTER_VOLUME = 1;
-const DEFAULT_BGM_OUTPUT_VOLUME = 0.665 * 0.364 * DEFAULT_MASTER_VOLUME;
+const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.364 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
+  test('unlockAudio resumes AudioContext and plays a silent buffer once', async () => {
+    const { context, sources } = createMockAudioContext();
+    context.state = 'suspended';
+    context.resume = jest.fn(async () => {
+      context.state = 'running';
+    });
+    const soundEngine = loadSoundEngine();
+    soundEngine.ctx = context;
+
+    await expect(soundEngine.unlockAudio()).resolves.toBe(true);
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].start).toHaveBeenCalledWith(0);
+    expect(soundEngine.isAudioUnlocked()).toBe(true);
+  });
+
+  test('playEffectByKey uses cached Web Audio buffers after unlock', async () => {
+    const { context, sources, gains } = createMockAudioContext();
+    context.state = 'running';
+    const decodedBuffer = { duration: 0.25 };
+    context.decodeAudioData = jest.fn(async () => decodedBuffer);
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(8)
+    }));
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: fetchMock });
+    soundEngine.ctx = context;
+
+    await soundEngine.unlockAudio();
+    await soundEngine.primeEffectBuffer('hand_card_select');
+    expect(soundEngine.playEffectByKey('hand_card_select')).toBe(true);
+    expect(soundEngine.playEffectByKey('hand_card_select')).toBe(true);
+
+    const effectPath = soundEngine.getEffectFilePath('hand_card_select');
+    expect(fetchMock).toHaveBeenCalledWith(effectPath);
+    expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(sources.filter((source) => source.buffer === decodedBuffer)).toHaveLength(2);
+    expect(gains.length).toBeGreaterThanOrEqual(2);
+    expect(instances.filter((audio) => audio.src === effectPath && audio.play.mock.calls.length > 0)).toHaveLength(0);
+  });
+
+  test('playEffectByKey falls back to HTMLAudio while effect buffer is still loading', async () => {
+    const { context } = createMockAudioContext();
+    context.state = 'running';
+    let resolveArrayBuffer;
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      arrayBuffer: () => new Promise((resolve) => {
+        resolveArrayBuffer = resolve;
+      })
+    }));
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: fetchMock });
+    soundEngine.ctx = context;
+
+    await soundEngine.unlockAudio();
+    const loadPromise = soundEngine.primeEffectBuffer('card_use_button');
+    await flushMicrotasks(2);
+    expect(soundEngine.playEffectByKey('card_use_button')).toBe(true);
+
+    const effectPath = soundEngine.getEffectFilePath('card_use_button');
+    const htmlAudio = instances.find((audio) => audio.src === effectPath);
+    expect(htmlAudio.play).toHaveBeenCalledTimes(1);
+
+    resolveArrayBuffer(new ArrayBuffer(8));
+    await loadPromise;
+  });
+
+  test('playEffectByKey falls back to HTMLAudio when cached Web Audio playback throws', async () => {
+    const { context } = createMockAudioContext();
+    context.state = 'running';
+    const decodedBuffer = { duration: 0.25 };
+    context.decodeAudioData = jest.fn(async () => decodedBuffer);
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(8)
+    }));
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: fetchMock });
+    soundEngine.ctx = context;
+
+    await soundEngine.unlockAudio();
+    await soundEngine.primeEffectBuffer('hand_card_select');
+
+    const originalCreateBufferSource = context.createBufferSource.bind(context);
+    context.createBufferSource = jest.fn(() => {
+      const source = originalCreateBufferSource();
+      source.start.mockImplementation(() => {
+        throw new Error('start blocked');
+      });
+      return source;
+    });
+
+    expect(soundEngine.playEffectByKey('hand_card_select')).toBe(true);
+
+    const effectPath = soundEngine.getEffectFilePath('hand_card_select');
+    const audio = instances.find((candidate) => candidate.src === effectPath);
+    expect(audio.play).toHaveBeenCalledTimes(1);
+    expect(soundEngine.getDiagnostics().lastEffectFailures[effectPath]).toMatch(/start blocked/);
+  });
+
+  test('effect buffer load failures are reported in diagnostics and HTMLAudio fallback still plays', async () => {
+    const { context } = createMockAudioContext();
+    context.state = 'running';
+    const fetchMock = jest.fn(async () => ({ ok: false, status: 404 }));
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: fetchMock });
+    soundEngine.ctx = context;
+
+    await soundEngine.unlockAudio();
+    await expect(soundEngine.primeEffectBuffer('stone_destroy')).resolves.toBe(false);
+    expect(soundEngine.playEffectByKey('stone_destroy')).toBe(true);
+
+    const effectPath = soundEngine.getEffectFilePath('stone_destroy');
+    expect(instances.find((audio) => audio.src === effectPath).play).toHaveBeenCalledTimes(1);
+    expect(soundEngine.getDiagnostics().lastEffectFailures[effectPath]).toMatch(/404/);
+  });
+
+  test('installUserGestureUnlock wires one-shot pointer and touch unlock listeners', async () => {
+    const listeners = {};
+    const doc = {
+      addEventListener: jest.fn((type, handler, options) => {
+        listeners[type] = { handler, options };
+      }),
+      removeEventListener: jest.fn()
+    };
+    const { context } = createMockAudioContext();
+    context.state = 'running';
+    const soundEngine = loadSoundEngine();
+    soundEngine.ctx = context;
+    soundEngine.unlockAudio = jest.fn(async () => true);
+    soundEngine.primeCriticalEffectSounds = jest.fn(async () => 3);
+    soundEngine.primeRemainingEffectSounds = jest.fn(async () => 10);
+
+    expect(soundEngine.installUserGestureUnlock(doc)).toBe(true);
+    expect(soundEngine.installUserGestureUnlock(doc)).toBe(false);
+    expect(doc.addEventListener).toHaveBeenCalledWith('pointerdown', expect.any(Function), expect.objectContaining({ capture: true, passive: true }));
+    expect(doc.addEventListener).toHaveBeenCalledWith('touchstart', expect.any(Function), expect.objectContaining({ capture: true, passive: true }));
+    expect(doc.addEventListener).toHaveBeenCalledWith('click', expect.any(Function), expect.objectContaining({ capture: true, passive: true }));
+
+    await listeners.pointerdown.handler();
+
+    expect(soundEngine.unlockAudio).toHaveBeenCalledTimes(1);
+    expect(soundEngine.primeCriticalEffectSounds).toHaveBeenCalledTimes(1);
+    expect(soundEngine.primeRemainingEffectSounds).toHaveBeenCalledTimes(1);
+    expect(doc.removeEventListener).toHaveBeenCalledWith('pointerdown', listeners.pointerdown.handler, true);
+  });
+
+  test('installUserGestureUnlock allows retry when the first unlock attempt fails', async () => {
+    const listeners = {};
+    const doc = {
+      addEventListener: jest.fn((type, handler, options) => {
+        listeners[type] = { handler, options };
+      }),
+      removeEventListener: jest.fn()
+    };
+    const soundEngine = loadSoundEngine();
+    soundEngine.unlockAudio = jest.fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    soundEngine.primeCriticalEffectSounds = jest.fn(async () => 3);
+    soundEngine.primeRemainingEffectSounds = jest.fn(async () => 10);
+
+    expect(soundEngine.installUserGestureUnlock(doc)).toBe(true);
+    const firstHandler = listeners.pointerdown.handler;
+    await firstHandler();
+
+    expect(soundEngine.unlockAudio).toHaveBeenCalledTimes(1);
+    expect(soundEngine.primeCriticalEffectSounds).not.toHaveBeenCalled();
+    expect(soundEngine.installUserGestureUnlock(doc)).toBe(false);
+    expect(doc.addEventListener).toHaveBeenCalledTimes(6);
+
+    const secondHandler = listeners.pointerdown.handler;
+    expect(secondHandler).not.toBe(firstHandler);
+    await secondHandler();
+
+    expect(soundEngine.unlockAudio).toHaveBeenCalledTimes(2);
+    expect(soundEngine.primeCriticalEffectSounds).toHaveBeenCalledTimes(1);
+    expect(soundEngine.primeRemainingEffectSounds).toHaveBeenCalledTimes(1);
+  });
+
+  test('playEffectByKey keeps HTMLAudio fallback when Web Audio effect buffers are unavailable', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: undefined });
+
+    expect(soundEngine.playEffectByKey('card_effect_flip')).toBe(true);
+
+    const effectPath = soundEngine.getEffectFilePath('card_effect_flip');
+    const audio = instances.find((candidate) => candidate.src === effectPath);
+    expect(audio).toBeTruthy();
+    expect(audio.play).toHaveBeenCalledTimes(1);
+  });
+
+  test('special_card_use still mutes BGM for three seconds when played through Web Audio', async () => {
+    jest.useFakeTimers();
+    try {
+      const { MockAudio, instances } = createMockHtmlAudioClass();
+      const { context } = createMockAudioContext();
+      context.state = 'running';
+      const fetchMock = jest.fn(async () => ({
+        ok: true,
+        arrayBuffer: async () => new ArrayBuffer(8)
+      }));
+      const soundEngine = loadSoundEngine({ Audio: MockAudio, fetch: fetchMock, setTimeout, clearTimeout });
+      soundEngine.ctx = context;
+      soundEngine.allowBgmPlay = false;
+      soundEngine.loadBgm(0);
+      const bgm = instances[0];
+
+      await soundEngine.unlockAudio();
+      await soundEngine.primeEffectBuffer('special_card_use');
+
+      expect(soundEngine.playEffectByKey('special_card_use')).toBe(true);
+      expect(bgm.volume).toBe(0);
+
+      jest.advanceTimersByTime(3000);
+      expect(bgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('startup default sound effect base volume is 0.56 with legacy alias', () => {
     const soundEngine = loadSoundEngine();
 
@@ -141,7 +366,7 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.effectBaseVolume).toBe(0.7);
     expect(soundEngine.volume).toBe(0.7);
-    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.525 * DEFAULT_MASTER_VOLUME, 6);
+    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.7 * 0.35 * (10 / 7) * DEFAULT_MASTER_VOLUME, 6);
   });
 
   test('startup default quick master volume is neutral at 1.0', () => {
@@ -150,10 +375,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.masterVolume).toBe(1);
   });
 
-  test('startup default BGM volume is 0.665', () => {
+  test('startup default BGM volume is 0.548625', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.bgmVolume).toBe(0.665);
+    expect(soundEngine.bgmVolume).toBe(0.548625);
   });
 
   test('startup default BGM output is scaled without moving the volume slider', () => {
@@ -163,7 +388,7 @@ describe('SoundEngine default BGM', () => {
     soundEngine.allowBgmPlay = false;
     soundEngine.loadBgm(0);
 
-    expect(soundEngine.bgmVolume).toBe(0.665);
+    expect(soundEngine.bgmVolume).toBe(0.548625);
     expect(soundEngine.bgmOutputVolumeScale).toBe(0.364);
     expect(instances[0].volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
 
@@ -183,8 +408,8 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.masterVolume).toBe(0.5);
     expect(soundEngine.volume).toBe(0.56);
-    expect(soundEngine.bgmVolume).toBe(0.665);
-    expect(instances[0].volume).toBeCloseTo(0.665 * 0.364 * 0.5, 6);
+    expect(soundEngine.bgmVolume).toBe(0.548625);
+    expect(instances[0].volume).toBeCloseTo(0.548625 * 0.364 * 0.5, 6);
     expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
   });
 
@@ -727,7 +952,7 @@ describe('SoundEngine default BGM', () => {
     expect(warmedAudio.play).toHaveBeenCalledTimes(2);
   });
 
-  test('stone placement sound uses the dedicated mp3 effect while keeping the 0.75 volume ratio', () => {
+  test('stone placement sound uses the dedicated mp3 effect while keeping the 0.5 volume ratio', () => {
     const { MockAudio, instances } = createMockHtmlAudioClass();
     const soundEngine = loadSoundEngine({ Audio: MockAudio });
     const originalPrimeEffectSounds = soundEngine.primeEffectSounds.bind(soundEngine);
@@ -739,12 +964,12 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.effectSoundFiles.stone_place).toBe('assets/audio/sound-effect-skin/default.mp3');
     expect(effectPath).toBe('assets/audio/sound-effect-skin/default.mp3');
-    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.525 * DEFAULT_MASTER_VOLUME, 6);
+    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.7 * 0.35 * (10 / 7) * DEFAULT_MASTER_VOLUME, 6);
     expect(soundEngine.playEffectByKey('stone_place')).toBe(true);
 
     const warmedAudio = instances.find((audio) => audio.src === effectPath);
     expect(warmedAudio).toBeTruthy();
-    expect(warmedAudio.volume).toBeCloseTo(0.525 * DEFAULT_MASTER_VOLUME, 6);
+    expect(warmedAudio.volume).toBeCloseTo(0.7 * 0.35 * (10 / 7) * DEFAULT_MASTER_VOLUME, 6);
     expect(warmedAudio.play).toHaveBeenCalledTimes(1);
   });
 

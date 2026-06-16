@@ -141,6 +141,7 @@ const CpuPolicySearchKeyModule = requireOptionalModule('./cpu-policy-search-key'
 const CpuPolicyLookaheadEvaluationModule = requireOptionalModule('./cpu-policy-lookahead-evaluation');
 const CpuPolicySearchOrderModule = requireOptionalModule('./cpu-policy-search-order');
 const CpuPolicyPlacementProfilesModule = requireOptionalModule('./cpu-policy-placement-profiles');
+const CpuPolicyPlacementFeaturesModule = requireOptionalModule('./cpu-policy-placement-features');
 const CpuPolicyMovePlanScoringModule = requireOptionalModule('./cpu-policy-move-plan-scoring');
 const CpuPolicyMoveSelectionModule = requireOptionalModule('./cpu-policy-move-selection');
 const CpuPolicyDecisionContextModule = requireOptionalModule('./cpu-policy-decision-context');
@@ -207,6 +208,7 @@ let CpuPolicySearchKeyCache: any = null;
 let CpuPolicyLookaheadEvaluationCache: any = null;
 let CpuPolicySearchOrderCache: any = null;
 let CpuPolicyPlacementProfilesCache: any = null;
+let CpuPolicyPlacementFeaturesCache: any = null;
 let CpuPolicyMovePlanScoringCache: any = null;
 let CpuPolicyMoveSelectionCache: any = null;
 let CpuPolicyDecisionContextCache: any = null;
@@ -485,6 +487,39 @@ function requireCpuPolicyPlacementProfiles() {
     return helpers;
 }
 
+function getCpuPolicyPlacementFeatures() {
+    if (CpuPolicyPlacementFeaturesCache) return CpuPolicyPlacementFeaturesCache;
+    if (!CpuPolicyPlacementFeaturesModule || typeof CpuPolicyPlacementFeaturesModule.createCpuPolicyPlacementFeatures !== 'function') {
+        return null;
+    }
+    CpuPolicyPlacementFeaturesCache = CpuPolicyPlacementFeaturesModule.createCpuPolicyPlacementFeatures({
+        isFiniteNumber,
+        isCorner,
+        isEdge,
+        isXSquare,
+        isCSquare,
+        adjacentCornerFor,
+        getBoardCellValueSafe,
+        inBoard,
+        applyMoveToBoard,
+        getLegalMovesBasic,
+        countCornerMovesFor,
+        summarizeEdgeRunsFor,
+        countAnchoredEdgeDiscsFromCorners,
+        countBoardDiscsForPlayer,
+        getBoardBonusAtCell
+    });
+    return CpuPolicyPlacementFeaturesCache;
+}
+
+function requireCpuPolicyPlacementFeatures() {
+    const helpers = getCpuPolicyPlacementFeatures();
+    if (!helpers) {
+        throw new Error('[cpu-policy-core] cpu-policy-placement-features module is not available');
+    }
+    return helpers;
+}
+
 function getCpuPolicyMovePlanScoring() {
     if (CpuPolicyMovePlanScoringCache) return CpuPolicyMovePlanScoringCache;
     if (!CpuPolicyMovePlanScoringModule || typeof CpuPolicyMovePlanScoringModule.createCpuPolicyMovePlanScoring !== 'function') {
@@ -516,7 +551,8 @@ function getCpuPolicyMovePlanScoring() {
         countAdjacentCellsByValue,
         countAdjacentLoneEdgeDiscsFor,
         countXsAndCsFor,
-        countBoardDiscsForPlayer
+        countBoardDiscsForPlayer,
+        evaluatePlacementCandidate
     });
     return CpuPolicyMovePlanScoringCache;
 }
@@ -938,6 +974,9 @@ const {
     countAdjacentOpponentStrikeProfile,
     collectUltimateHyperactiveLandingProfile
 } = requireCpuPolicyPlacementProfiles();
+const {
+    evaluatePlacementCandidate
+} = requireCpuPolicyPlacementFeatures();
 const {
     evaluateImmediateCornerDonation,
     scoreMoveForCornerEdgePlan
@@ -1480,6 +1519,7 @@ const cpuPolicyCoreApi: CpuPolicyCoreApi = createCpuPolicyCoreApi({
     scoreCardRetentionForSell: scoreCardRetentionPriority,
     scoreCardRetentionPriority,
     scoreCardUseDecision,
+    evaluatePlacementCandidate,
     scoreMoveForCornerEdgePlan,
     scoreMoveHeuristic
 });

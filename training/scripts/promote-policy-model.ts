@@ -215,31 +215,45 @@ function promoteModel(options: any) {
     const candidateTargetOnnxMetaPath = options.candidateTargetOnnxMetaPath || (candidateTargetOnnxPath ? `${candidateTargetOnnxPath}.meta.json` : null);
     const candidateValueOnnxPath = options.candidateValueOnnxPath || null;
     const candidateValueOnnxMetaPath = options.candidateValueOnnxMetaPath || (candidateValueOnnxPath ? `${candidateValueOnnxPath}.meta.json` : null);
-    const championPaths = buildBundlePaths(promotedDir, 'champion', options);
-    const challengerPaths = buildBundlePaths(promotedDir, 'challenger', options);
-    const archivePaths = buildBundlePaths(archiveDir, promotionId, options);
+    const targetCardOnnxPath = candidateCardOnnxPath ? options.targetCardOnnxPath : null;
+    const targetCardOnnxMetaPath = candidateCardOnnxMetaPath ? options.targetCardOnnxMetaPath : null;
+    const targetTargetOnnxPath = candidateTargetOnnxPath ? options.targetTargetOnnxPath : null;
+    const targetTargetOnnxMetaPath = candidateTargetOnnxMetaPath ? options.targetTargetOnnxMetaPath : null;
+    const targetValueOnnxPath = candidateValueOnnxPath ? options.targetValueOnnxPath : null;
+    const targetValueOnnxMetaPath = candidateValueOnnxMetaPath ? options.targetValueOnnxMetaPath : null;
+    const bundleOptions = Object.assign({}, options, {
+        targetCardOnnxPath,
+        targetCardOnnxMetaPath,
+        targetTargetOnnxPath,
+        targetTargetOnnxMetaPath,
+        targetValueOnnxPath,
+        targetValueOnnxMetaPath
+    });
+    const championPaths = buildBundlePaths(promotedDir, 'champion', bundleOptions);
+    const challengerPaths = buildBundlePaths(promotedDir, 'challenger', bundleOptions);
+    const archivePaths = buildBundlePaths(archiveDir, promotionId, bundleOptions);
 
     const archivedChampion = {
         model: archiveExistingFile(options.targetModelPath, archivePaths.modelPath),
         onnx: archiveExistingFile(options.targetOnnxPath, archivePaths.onnxPath),
         onnxMeta: archiveExistingFile(options.targetOnnxMetaPath, archivePaths.onnxMetaPath),
-        cardOnnx: archiveExistingFile(options.targetCardOnnxPath, archivePaths.cardOnnxPath),
-        cardOnnxMeta: archiveExistingFile(options.targetCardOnnxMetaPath, archivePaths.cardOnnxMetaPath),
-        targetOnnx: archiveExistingFile(options.targetTargetOnnxPath, archivePaths.targetOnnxPath),
-        targetOnnxMeta: archiveExistingFile(options.targetTargetOnnxMetaPath, archivePaths.targetOnnxMetaPath),
-        valueOnnx: archiveExistingFile(options.targetValueOnnxPath, archivePaths.valueOnnxPath),
-        valueOnnxMeta: archiveExistingFile(options.targetValueOnnxMetaPath, archivePaths.valueOnnxMetaPath)
+        cardOnnx: archiveExistingFile(targetCardOnnxPath, archivePaths.cardOnnxPath),
+        cardOnnxMeta: archiveExistingFile(targetCardOnnxMetaPath, archivePaths.cardOnnxMetaPath),
+        targetOnnx: archiveExistingFile(targetTargetOnnxPath, archivePaths.targetOnnxPath),
+        targetOnnxMeta: archiveExistingFile(targetTargetOnnxMetaPath, archivePaths.targetOnnxMetaPath),
+        valueOnnx: archiveExistingFile(targetValueOnnxPath, archivePaths.valueOnnxPath),
+        valueOnnxMeta: archiveExistingFile(targetValueOnnxMetaPath, archivePaths.valueOnnxMetaPath)
     };
 
     fs.copyFileSync(options.candidateModelPath, options.targetModelPath);
     const onnxPromotion = promoteOptionalFile(candidateOnnxPath, options.targetOnnxPath);
     const onnxMetaPromotion = promoteOptionalFile(candidateOnnxMetaPath, options.targetOnnxMetaPath);
-    const cardOnnxPromotion = promoteOptionalFile(candidateCardOnnxPath, options.targetCardOnnxPath);
-    const cardOnnxMetaPromotion = promoteOptionalFile(candidateCardOnnxMetaPath, options.targetCardOnnxMetaPath);
-    const targetOnnxPromotion = promoteOptionalFile(candidateTargetOnnxPath, options.targetTargetOnnxPath);
-    const targetOnnxMetaPromotion = promoteOptionalFile(candidateTargetOnnxMetaPath, options.targetTargetOnnxMetaPath);
-    const valueOnnxPromotion = promoteOptionalFile(candidateValueOnnxPath, options.targetValueOnnxPath);
-    const valueOnnxMetaPromotion = promoteOptionalFile(candidateValueOnnxMetaPath, options.targetValueOnnxMetaPath);
+    const cardOnnxPromotion = promoteOptionalFile(candidateCardOnnxPath, targetCardOnnxPath);
+    const cardOnnxMetaPromotion = promoteOptionalFile(candidateCardOnnxMetaPath, targetCardOnnxMetaPath);
+    const targetOnnxPromotion = promoteOptionalFile(candidateTargetOnnxPath, targetTargetOnnxPath);
+    const targetOnnxMetaPromotion = promoteOptionalFile(candidateTargetOnnxMetaPath, targetTargetOnnxMetaPath);
+    const valueOnnxPromotion = promoteOptionalFile(candidateValueOnnxPath, targetValueOnnxPath);
+    const valueOnnxMetaPromotion = promoteOptionalFile(candidateValueOnnxMetaPath, targetValueOnnxMetaPath);
 
     const championPromotion = {
         model: copyRequiredFile(options.candidateModelPath, championPaths.modelPath, 'candidate model'),
@@ -287,12 +301,12 @@ function promoteModel(options: any) {
             modelPath: options.targetModelPath,
             onnxPath: options.targetOnnxPath,
             onnxMetaPath: options.targetOnnxMetaPath,
-            cardOnnxPath: options.targetCardOnnxPath,
-            cardOnnxMetaPath: options.targetCardOnnxMetaPath,
-            targetOnnxPath: options.targetTargetOnnxPath,
-            targetOnnxMetaPath: options.targetTargetOnnxMetaPath,
-            valueOnnxPath: options.targetValueOnnxPath,
-            valueOnnxMetaPath: options.targetValueOnnxMetaPath
+            cardOnnxPath: targetCardOnnxPath,
+            cardOnnxMetaPath: targetCardOnnxMetaPath,
+            targetOnnxPath: targetTargetOnnxPath,
+            targetOnnxMetaPath: targetTargetOnnxMetaPath,
+            valueOnnxPath: targetValueOnnxPath,
+            valueOnnxMetaPath: targetValueOnnxMetaPath
         },
         champion: Object.assign({
             lifecycle: classifyTrainingArtifactPath(championPaths.rootDir).lifecycle
@@ -355,12 +369,12 @@ function promoteModel(options: any) {
             modelPath: options.targetModelPath,
             onnxPath: options.targetOnnxPath,
             onnxMetaPath: options.targetOnnxMetaPath,
-            cardOnnxPath: options.targetCardOnnxPath,
-            cardOnnxMetaPath: options.targetCardOnnxMetaPath,
-            targetOnnxPath: options.targetTargetOnnxPath,
-            targetOnnxMetaPath: options.targetTargetOnnxMetaPath,
-            valueOnnxPath: options.targetValueOnnxPath,
-            valueOnnxMetaPath: options.targetValueOnnxMetaPath
+            cardOnnxPath: targetCardOnnxPath,
+            cardOnnxMetaPath: targetCardOnnxMetaPath,
+            targetOnnxPath: targetTargetOnnxPath,
+            targetOnnxMetaPath: targetTargetOnnxMetaPath,
+            valueOnnxPath: targetValueOnnxPath,
+            valueOnnxMetaPath: targetValueOnnxMetaPath
         },
         champion: Object.assign({
             lifecycle: classifyTrainingArtifactPath(championPaths.rootDir).lifecycle

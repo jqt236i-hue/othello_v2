@@ -43,6 +43,9 @@ trainCycleArgs:
   - --max-plies
   - "220"
   - --with-cards
+  - --train-card-every
+  - "0"
+  - --no-train-target-head
   - --card-usage-rate
   - "0.60"
   - --selfplay-policy-mix-rate
@@ -100,10 +103,6 @@ trainCycleArgs:
   - val_loss
   - --onnx-early-stop-smoothing-window
   - "5"
-  - --onnx-card-no-action-weight
-  - "0.66"
-  - --onnx-card-class-balance-power
-  - "0.45"
   - --onnx-winner-sample-boost
   - "0.40"
   - --onnx-loser-sample-weight
@@ -123,7 +122,7 @@ trainCycleArgs:
   - --onnx-hand-pressure-sample-boost
   - "0.35"
   - --onnx-pending-target-sample-boost
-  - "0.45"
+  - "0"
   - --min-visits
   - "4"
   - --shape-immediate

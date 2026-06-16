@@ -104,7 +104,6 @@ describe('rules help panel', () => {
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
         <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
           <div id="rules-help-card-name"></div>
@@ -113,7 +112,6 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
-        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
     window.CardInteractionEffects = {
@@ -181,12 +179,6 @@ describe('rules help panel', () => {
     document.querySelector('[data-help-tab="counters"]').click();
     expect(document.getElementById('rules-help-page-counters').classList.contains('is-active')).toBe(true);
 
-    document.querySelector('[data-help-tab="updates"]').click();
-    expect(document.getElementById('rules-help-page-updates').classList.contains('is-active')).toBe(true);
-    const updatesText = document.getElementById('rules-help-updates-list').textContent;
-    expect(updatesText).toContain('v1.0');
-    expect(updatesText).toContain('時間停石を実装');
-    expect(updatesText).toContain('ネット対戦関連の問題を修正');
   });
 
   test('hides fully duplicated detail and keeps only non-duplicate detail sentences', () => {
@@ -198,7 +190,6 @@ describe('rules help panel', () => {
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
         <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
           <div id="rules-help-card-name"></div>
@@ -207,7 +198,6 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
-        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
 
@@ -260,7 +250,6 @@ describe('rules help panel', () => {
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
         <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
           <div id="rules-help-card-name"></div>
@@ -269,7 +258,6 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
-        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
 
@@ -320,19 +308,19 @@ describe('rules help panel', () => {
 
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
-    const tagButtons = Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')) as HTMLButtonElement[];
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '反転回避', '破壊回避']);
-    expect(tagButtons.every((el) => el.tagName === 'BUTTON')).toBe(true);
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['特殊石', '反転回避', '破壊回避']);
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).every((el) => el.tagName === 'BUTTON')).toBe(true);
 
-    tagButtons[0].click();
-
+    const specialStoneTag = Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag'))
+      .find((el) => el.textContent === '特殊石') as HTMLButtonElement;
+    specialStoneTag.click();
     const popover = document.querySelector('.rules-help-tag-popover') as HTMLElement;
-    expect(popover).toBeTruthy();
     expect(popover.getAttribute('aria-hidden')).toBe('false');
-    expect(popover.querySelector('[data-tag-popover-title]').textContent).toBe('特殊石');
-    expect(popover.querySelector('[data-tag-popover-body]').textContent).toContain('盤面に残って次ターン以降も能力主体');
+    expect(popover.querySelector('.rules-help-tag-popover-title').textContent).toBe('特殊石');
+    expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('盤面に残って次ターン以降も能力主体');
 
-    (popover.querySelector('.rules-help-tag-popover-close') as HTMLButtonElement).click();
+    const popoverClose = popover.querySelector('.rules-help-tag-popover-close') as HTMLButtonElement;
+    popoverClose.click();
     expect(popover.getAttribute('aria-hidden')).toBe('true');
 
     const cardButtons = Array.from(document.querySelectorAll('.rules-help-card-item'));
@@ -352,7 +340,6 @@ describe('rules help panel', () => {
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
         <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-catalog-controls">
             <input id="rules-help-card-search" type="search" />
@@ -367,7 +354,6 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
-        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
 
@@ -499,6 +485,13 @@ describe('rules help panel', () => {
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
   });
 
+  test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/<dt>\s*封鎖\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*凍結\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*時間停止\s*<\/dt>/);
+  });
+
   test('effect glossary shares card tag descriptions and includes inviolable', () => {
     setDom(`<!doctype html><html><body>
       <button id="rulesHelpBtn" aria-expanded="false"></button>
@@ -506,9 +499,6 @@ describe('rules help panel', () => {
         <button id="rules-help-close-btn" type="button"></button>
         <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
-        <button data-help-tab="updates" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
           <div id="rules-help-card-name"></div>
@@ -517,49 +507,31 @@ describe('rules help panel', () => {
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page">
           <dl id="rules-help-effects-list"></dl>
         </section>
-        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
-        <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
-        <section data-help-page="updates" id="rules-help-page-updates" class="rules-help-page"><div id="rules-help-updates-list"></div></section>
       </div>
     </body></html>`);
-
     window.CardCatalog = { cards: [] };
 
     const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     mod.setupRulesHelp(btn, panel);
-    btn.click();
 
-    const terms = Array.from(document.querySelectorAll('.rules-help-effect-term-button')).map((el) => el.textContent);
-    expect(terms).toEqual(expect.arrayContaining([
-      '特殊石',
-      '穴マス化',
-      '不可侵',
-      '反転保護',
-      '完全保護',
-      '反転回避',
-      '破壊回避'
-    ]));
+    const effectTerms = Array.from(document.querySelectorAll('#rules-help-effects-list dt')).map((el) => el.textContent);
+    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス化', '不可侵', '反転保護', '完全保護', '反転回避', '破壊回避']));
 
-    const inviolableButton = Array.from(document.querySelectorAll('.rules-help-effect-term-button'))
+    const inviolableButton = Array.from(document.querySelectorAll('#rules-help-effects-list .rules-help-effect-term-button'))
       .find((el) => el.textContent === '不可侵') as HTMLButtonElement;
-    expect(inviolableButton).toBeTruthy();
-
     inviolableButton.click();
 
     const popover = document.querySelector('.rules-help-tag-popover') as HTMLElement;
-    expect(popover).toBeTruthy();
     expect(popover.getAttribute('aria-hidden')).toBe('false');
-    expect(popover.querySelector('[data-tag-popover-title]').textContent).toBe('不可侵');
-    expect(popover.querySelector('[data-tag-popover-body]').textContent).toContain('通常のカード効果や手札効果の対象から外す');
+    expect(popover.querySelector('.rules-help-tag-popover-title').textContent).toBe('不可侵');
+    expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('通常のカード効果や手札効果の対象から外す');
   });
 
-  test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
+  test('effect glossary explains taboo reverse absolute-protection exception', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/<dt>\s*封鎖\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*凍結\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*時間停止\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*禁忌反転\s*<\/dt>\s*<dd>挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。<\/dd>/);
   });
 
   test('rules-help.js EFFECT_GLOSSARY_TERMS includes glossary highlight additions', () => {
@@ -573,10 +545,11 @@ describe('rules help panel', () => {
     expect(source).toContain('時間停止');
   });
 
-  test('index html includes update info help tab', () => {
+  test('index html omits update info help tab', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/data-help-tab="updates">アップデート情報<\/button>/);
-    expect(html).toMatch(/id="rules-help-updates-list"/);
+    expect(html).not.toMatch(/data-help-tab="updates"/);
+    expect(html).not.toMatch(/アップデート情報/);
+    expect(html).not.toMatch(/id="rules-help-updates-list"/);
   });
 
   test('index html includes card encyclopedia search and tag filter controls', () => {
@@ -617,6 +590,16 @@ describe('rules help panel', () => {
     expect(boardCss).not.toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?top:\s*50%;[\s\S]*?transform:\s*translateY\(-50%\);/);
     expect(html).not.toMatch(/下中央のひし形数字/);
     expect(html).toMatch(/破壊回避の残り回数/);
+  });
+
+  test('index html guide copy points to current menu and stone-info controls', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/左下メニューで「CPU」\/「リバーシ」\/「ネット対戦」を切り替えられます。/);
+    expect(html).toMatch(/音量やBGMはクイック操作や設定から調整できます。/);
+    expect(html).toMatch(/石情報は、マウスでは石にカーソルを合わせるだけで、タッチでは石を1回タップすると確認できます。/);
+    expect(html).toMatch(/数字の詳しい意味も、石情報で確認できます。/);
+    expect(html).not.toMatch(/右下パネルで「CPU \/ ネット対戦」、音量、BGMを調整できます。/);
+    expect(html).not.toMatch(/長押しすると/);
   });
 
 });

@@ -2067,6 +2067,12 @@ function renderCardUI() {
         }
         cardEl.dataset.ownerKey = ownerKey;
         cardEl.dataset.handIndex = String(entryState.visualIndex);
+        if (Number.isInteger(entryState.actualIndex) && entryState.actualIndex >= 0) {
+            cardEl.dataset.actualHandIndex = String(entryState.actualIndex);
+        }
+        else {
+            delete cardEl.dataset.actualHandIndex;
+        }
         if (!entryState.cardId) {
             delete cardEl.dataset.cardId;
         }

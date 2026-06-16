@@ -927,6 +927,8 @@ describe('card renderer hand inspection', () => {
     expect(reservedSlot.style.opacity).toBe('0');
     expect(shiftedCard).not.toBeNull();
     expect(shiftedCard.dataset.cardId).toBe('opp_card');
+    expect(shiftedCard.dataset.handIndex).toBe('2');
+    expect(shiftedCard.dataset.actualHandIndex).toBe('1');
 
     dom.window.close();
   });

@@ -322,6 +322,16 @@ def iter_ndjson(path: str) -> Iterable[dict]:
             yield rec
 
 
+def is_placement_policy_record(rec: dict) -> bool:
+    if rec.get("placementPolicyEligible") is not None:
+        return bool(rec.get("placementPolicyEligible"))
+    return (
+        rec.get("actionType") == "place"
+        and not rec.get("pendingSelection")
+        and not rec.get("pendingType")
+    )
+
+
 def _best_action_confidence_penalty(total_visits: int, action_visits: int) -> float:
     """Pessimistic penalty so bestAction does not overfit lucky low-visit actions."""
     safe_total_visits = max(2.0, float(total_visits))
@@ -390,7 +400,7 @@ def _materialize_states(table: Dict[str, Dict[str, ActionStat]], min_visits: int
     return states, kept_states
 
 
-def train(records: Iterable[dict], min_visits: int) -> dict:
+def train(records: Iterable[dict], min_visits: int, include_card_actions: bool = False) -> dict:
     table: Dict[str, Dict[str, ActionStat]] = {}
     abstract_table: Dict[str, Dict[str, ActionStat]] = {}
     lines = 0
@@ -399,6 +409,9 @@ def train(records: Iterable[dict], min_visits: int) -> dict:
 
     for rec in records:
         lines += 1
+        if not include_card_actions and not is_placement_policy_record(rec):
+            skipped += 1
+            continue
         outcome = rec.get("outcome")
         if outcome is None:
             skipped += 1
@@ -436,6 +449,8 @@ def train(records: Iterable[dict], min_visits: int) -> dict:
         "stats": {
             "recordsRead": lines,
             "recordsSkipped": skipped,
+            "placementPolicyOnly": not include_card_actions,
+            "includeCardActions": include_card_actions,
             "statesRaw": len(table),
             "statesKept": kept_states,
             "abstractStatesRaw": len(abstract_table),
@@ -541,6 +556,11 @@ def parse_args() -> argparse.Namespace:
         default=0.25,
         help="Blend ratio [0..1] of immediate disc-diff delta into outcome target.",
     )
+    p.add_argument(
+        "--include-card-actions",
+        action="store_true",
+        help="Research/compat only. Default production policy table is placement-only.",
+    )
     return p.parse_args()
 
 
@@ -553,7 +573,7 @@ def main() -> int:
 
     _TRAINING_CONTEXT["shape_immediate"] = float(args.shape_immediate)
 
-    model = train(iter_ndjson(args.input), args.min_visits)
+    model = train(iter_ndjson(args.input), args.min_visits, include_card_actions=bool(args.include_card_actions))
     out_dir = os.path.dirname(args.model_out)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)

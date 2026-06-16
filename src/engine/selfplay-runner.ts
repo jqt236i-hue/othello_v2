@@ -687,6 +687,56 @@ function selectPlacementMove(legalMoves: any, rng: any, context: any, options: a
     return null;
 }
 
+function toPlacementMetricNumber(value: any, fallback = 0) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+}
+
+function toPlacementMetricFlag(value: any) {
+    return value ? 1 : 0;
+}
+
+function summarizePlacementFeatures(features: any) {
+    if (!features || typeof features !== 'object') return null;
+    return {
+        seat: typeof features.seat === 'string' ? features.seat : null,
+        cornerTaken: toPlacementMetricFlag(features.cornerTaken),
+        cornerDonation: toPlacementMetricFlag(features.cornerDonation),
+        opponentNextCorner: toPlacementMetricFlag(features.opponentNextCorner),
+        opponentCornerReplyCount: toPlacementMetricNumber(features.opponentCornerReplyCount),
+        extendsOwnSafeEdge: toPlacementMetricFlag(features.extendsOwnSafeEdge),
+        ownSafeEdgeRunDelta: toPlacementMetricNumber(features.ownSafeEdgeRunDelta),
+        ownAnchoredEdgeDelta: toPlacementMetricNumber(features.ownAnchoredEdgeDelta),
+        allowsOpponentSafeEdgeRun: toPlacementMetricFlag(features.allowsOpponentSafeEdgeRun),
+        opponentSafeEdgeRunAllowedCount: toPlacementMetricNumber(features.opponentSafeEdgeRunAllowedCount),
+        opponentSafeEdgeRunDelta: toPlacementMetricNumber(features.opponentSafeEdgeRunDelta),
+        createsOwnEdgeGap: toPlacementMetricFlag(features.createsOwnEdgeGap),
+        ownEdgeGapDelta: toPlacementMetricNumber(features.ownEdgeGapDelta),
+        breaksOpponentEdgeRun: toPlacementMetricFlag(features.breaksOpponentEdgeRun),
+        boardBonus: toPlacementMetricNumber(features.boardBonus),
+        flipCount: toPlacementMetricNumber(features.flipCount),
+        ownDiscCountAfter: toPlacementMetricNumber(features.ownDiscCountAfter),
+        ownLegalMovesAfter: toPlacementMetricNumber(features.ownLegalMovesAfter),
+        badLowMobilityRisk: toPlacementMetricFlag(features.badLowMobilityRisk)
+    };
+}
+
+function evaluatePlacementFeaturesForSelfplay(move: any, context: any, movePlanContext: any) {
+    if (!CpuPolicyCore || typeof CpuPolicyCore.evaluatePlacementCandidate !== 'function') return null;
+    if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) return null;
+    const gameState = context && context.gameState;
+    const cardState = context && context.cardState;
+    const board = getSelfplayBoard(gameState, cardState);
+    const playerValue = toPlayerValue(context && context.playerKey);
+    return CpuPolicyCore.evaluatePlacementCandidate(move, Object.assign({}, movePlanContext || {}, {
+        board,
+        playerValue,
+        level: Number.isFinite(movePlanContext && movePlanContext.level) ? Number(movePlanContext.level) : 6,
+        boardBonusByCell: cardState && cardState.boardBonusByCell,
+        boardBonusConsumedByCell: cardState && cardState.boardBonusConsumedByCell
+    }));
+}
+
 function makeMoveKey(move: any) {
     if (!move) return '';
     return `${Number(move.row)}:${Number(move.col)}`;
@@ -922,6 +972,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
         }), move);
         const policyScore = policy !== null ? policy : 0;
         const combined = parityCombinedScoreFn ? Number(parityCombinedScoreFn(move) || 0) : 0;
+        const placementFeatures = evaluatePlacementFeaturesForSelfplay(move, context, movePlanContext);
         scoredMoves.push({
             move,
             heuristicScore: heuristic,
@@ -930,7 +981,8 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
             combinedScore: combined,
             committeeScore: 0,
             finalScore: combined,
-            committeeVotes: 0
+            committeeVotes: 0,
+            placementFeatures
         });
         if (combined > bestCombinedScore) bestCombinedScore = combined;
     }
@@ -1056,7 +1108,8 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
             combinedScore: Number(one && one.combinedScore) || 0,
             committeeScore: Number(one && one.committeeScore) || 0,
             finalScore: Number(one && one.finalScore) || 0,
-            committeeVotes: Number(one && one.committeeVotes) || 0
+            committeeVotes: Number(one && one.committeeVotes) || 0,
+            placementFeatures: summarizePlacementFeatures(one && one.placementFeatures)
         }));
 
     const selectedCombined = Number(selected.combinedScore) || 0;
@@ -1065,6 +1118,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
     const bestTactical = Number(bestTacticalScore) || 0;
     const compositeScoreMiss = Math.max(0, bestCombined - selectedCombined);
     const tacticalMissMetrics = computePositiveOpportunityMissMetrics(bestTactical, selectedTactical);
+    const selectedPlacementFeatures = summarizePlacementFeatures(selected.placementFeatures);
 
     return {
         move: selected.move,
@@ -1082,6 +1136,21 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
             selectedFinalScore: Number(selected.finalScore) || 0,
             selectedCommitteeScore: Number(selected.committeeScore) || 0,
             selectedCommitteeVotes: Number(selected.committeeVotes) || 0,
+            selectedPlacementFeatures,
+            selectedCornerTaken: selectedPlacementFeatures ? selectedPlacementFeatures.cornerTaken : 0,
+            selectedCornerDonation: selectedPlacementFeatures ? selectedPlacementFeatures.cornerDonation : 0,
+            selectedOpponentNextCorner: selectedPlacementFeatures ? selectedPlacementFeatures.opponentNextCorner : 0,
+            selectedOpponentCornerReplyCount: selectedPlacementFeatures ? selectedPlacementFeatures.opponentCornerReplyCount : 0,
+            selectedExtendsOwnSafeEdge: selectedPlacementFeatures ? selectedPlacementFeatures.extendsOwnSafeEdge : 0,
+            selectedOwnSafeEdgeRunDelta: selectedPlacementFeatures ? selectedPlacementFeatures.ownSafeEdgeRunDelta : 0,
+            selectedOwnAnchoredEdgeDelta: selectedPlacementFeatures ? selectedPlacementFeatures.ownAnchoredEdgeDelta : 0,
+            selectedAllowsOpponentSafeEdgeRun: selectedPlacementFeatures ? selectedPlacementFeatures.allowsOpponentSafeEdgeRun : 0,
+            selectedOpponentSafeEdgeRunAllowedCount: selectedPlacementFeatures ? selectedPlacementFeatures.opponentSafeEdgeRunAllowedCount : 0,
+            selectedOpponentSafeEdgeRunDelta: selectedPlacementFeatures ? selectedPlacementFeatures.opponentSafeEdgeRunDelta : 0,
+            selectedCreatesOwnEdgeGap: selectedPlacementFeatures ? selectedPlacementFeatures.createsOwnEdgeGap : 0,
+            selectedOwnEdgeGapDelta: selectedPlacementFeatures ? selectedPlacementFeatures.ownEdgeGapDelta : 0,
+            selectedBreaksOpponentEdgeRun: selectedPlacementFeatures ? selectedPlacementFeatures.breaksOpponentEdgeRun : 0,
+            selectedBadLowMobilityRisk: selectedPlacementFeatures ? selectedPlacementFeatures.badLowMobilityRisk : 0,
             forcedPlacementCategory: forcedPlacement.category || null,
             topCandidates: sortedByFinalScore
         }
@@ -1615,6 +1684,11 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
             ? decision.placementMetrics
             : null;
         const deckStats = getDeckStatsForPlayer(preDecisionCardState, playerKey);
+        const placementPolicyEligible = (
+            action.type === 'place' &&
+            !pendingSelection &&
+            !pendingType
+        ) ? 1 : 0;
 
         const record: any = {
             schemaVersion: normalizedOptions.schemaVersion,
@@ -1624,6 +1698,10 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
             turnNumber: turnNumberBefore,
             player: playerKey,
             actionType: action.type,
+            placementPolicyEligible,
+            placementPolicyLabelKey: placementPolicyEligible && Number.isFinite(action.row) && Number.isFinite(action.col)
+                ? `place:${action.row}:${action.col}`
+                : null,
             row: Number.isFinite(action.row) ? action.row : null,
             col: Number.isFinite(action.col) ? action.col : null,
             useCardId: action.useCardId || null,
@@ -1680,6 +1758,51 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
             selectedCommitteeVotes: placementMetrics && Number.isFinite(placementMetrics.selectedCommitteeVotes)
                 ? Number(placementMetrics.selectedCommitteeVotes)
                 : null,
+            selectedPlacementFeatures: placementMetrics && placementMetrics.selectedPlacementFeatures
+                ? Object.assign({}, placementMetrics.selectedPlacementFeatures)
+                : null,
+            selectedCornerTaken: placementMetrics && Number.isFinite(placementMetrics.selectedCornerTaken)
+                ? Number(placementMetrics.selectedCornerTaken)
+                : 0,
+            selectedCornerDonation: placementMetrics && Number.isFinite(placementMetrics.selectedCornerDonation)
+                ? Number(placementMetrics.selectedCornerDonation)
+                : 0,
+            selectedOpponentNextCorner: placementMetrics && Number.isFinite(placementMetrics.selectedOpponentNextCorner)
+                ? Number(placementMetrics.selectedOpponentNextCorner)
+                : 0,
+            selectedOpponentCornerReplyCount: placementMetrics && Number.isFinite(placementMetrics.selectedOpponentCornerReplyCount)
+                ? Number(placementMetrics.selectedOpponentCornerReplyCount)
+                : 0,
+            selectedExtendsOwnSafeEdge: placementMetrics && Number.isFinite(placementMetrics.selectedExtendsOwnSafeEdge)
+                ? Number(placementMetrics.selectedExtendsOwnSafeEdge)
+                : 0,
+            selectedOwnSafeEdgeRunDelta: placementMetrics && Number.isFinite(placementMetrics.selectedOwnSafeEdgeRunDelta)
+                ? Number(placementMetrics.selectedOwnSafeEdgeRunDelta)
+                : 0,
+            selectedOwnAnchoredEdgeDelta: placementMetrics && Number.isFinite(placementMetrics.selectedOwnAnchoredEdgeDelta)
+                ? Number(placementMetrics.selectedOwnAnchoredEdgeDelta)
+                : 0,
+            selectedAllowsOpponentSafeEdgeRun: placementMetrics && Number.isFinite(placementMetrics.selectedAllowsOpponentSafeEdgeRun)
+                ? Number(placementMetrics.selectedAllowsOpponentSafeEdgeRun)
+                : 0,
+            selectedOpponentSafeEdgeRunAllowedCount: placementMetrics && Number.isFinite(placementMetrics.selectedOpponentSafeEdgeRunAllowedCount)
+                ? Number(placementMetrics.selectedOpponentSafeEdgeRunAllowedCount)
+                : 0,
+            selectedOpponentSafeEdgeRunDelta: placementMetrics && Number.isFinite(placementMetrics.selectedOpponentSafeEdgeRunDelta)
+                ? Number(placementMetrics.selectedOpponentSafeEdgeRunDelta)
+                : 0,
+            selectedCreatesOwnEdgeGap: placementMetrics && Number.isFinite(placementMetrics.selectedCreatesOwnEdgeGap)
+                ? Number(placementMetrics.selectedCreatesOwnEdgeGap)
+                : 0,
+            selectedOwnEdgeGapDelta: placementMetrics && Number.isFinite(placementMetrics.selectedOwnEdgeGapDelta)
+                ? Number(placementMetrics.selectedOwnEdgeGapDelta)
+                : 0,
+            selectedBreaksOpponentEdgeRun: placementMetrics && Number.isFinite(placementMetrics.selectedBreaksOpponentEdgeRun)
+                ? Number(placementMetrics.selectedBreaksOpponentEdgeRun)
+                : 0,
+            selectedBadLowMobilityRisk: placementMetrics && Number.isFinite(placementMetrics.selectedBadLowMobilityRisk)
+                ? Number(placementMetrics.selectedBadLowMobilityRisk)
+                : 0,
             bestTacticalScore: placementMetrics && Number.isFinite(placementMetrics.bestTacticalScore)
                 ? Number(placementMetrics.bestTacticalScore)
                 : null,

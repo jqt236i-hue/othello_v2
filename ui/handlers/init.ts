@@ -23,6 +23,7 @@ declare const loadCpuPolicy: (() => void) | undefined;
 declare const resetGame: (() => void) | undefined;
 declare const SoundEngine: {
   primeEffectSounds: () => void;
+  installUserGestureUnlock?: (doc?: Document | null) => boolean;
 } | undefined;
 declare const setupDebugControls: ((btn: HTMLElement | null, hvhhBtn: HTMLElement | null, vtBtn: HTMLElement | null) => void) | undefined;
 declare const setupAutoToggle: ((btn: HTMLElement | null, sb: HTMLSelectElement | null, sw: HTMLSelectElement | null) => void) | undefined;
@@ -216,8 +217,8 @@ async function initializeUI(): Promise<void> {
     || /[?&]special-debug=true/i.test((typeof location !== 'undefined' && location.search) ? location.search : '');
 
   try {
-    if (typeof SoundEngine !== 'undefined' && typeof SoundEngine.primeEffectSounds === 'function') {
-      SoundEngine.primeEffectSounds();
+    if (typeof SoundEngine !== 'undefined' && typeof SoundEngine.installUserGestureUnlock === 'function') {
+      SoundEngine.installUserGestureUnlock(typeof document !== 'undefined' ? document : null);
     }
   } catch (e) { /* ignore */ }
 

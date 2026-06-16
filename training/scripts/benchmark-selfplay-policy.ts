@@ -280,6 +280,14 @@ function createQualityStat() {
         cornerSwingSum: 0,
         edgeSwingSum: 0,
         edgeChainSwingSum: 0,
+        cornerDonationCount: 0,
+        opponentSafeEdgeAllowedCount: 0,
+        ownSafeEdgeExtendCount: 0,
+        ownSafeEdgeRunDeltaSum: 0,
+        ownEdgeGapCount: 0,
+        ownEdgeGapDeltaSum: 0,
+        opponentEdgeCutCount: 0,
+        badLowMobilityCount: 0,
         finalGameCount: 0,
         finalCornersOwnedSum: 0,
         finalCornersTotalSum: 0,
@@ -403,6 +411,14 @@ function updateQualityForRecord(qualityAcc, rec, blackPolicy) {
         stat.placeActions += 1;
         stat.placeDiscDeltaSum += immediateDiscDelta;
         stat.selectedCellBonusSum += toFiniteNumber(rec.selectedCellBonus);
+        stat.cornerDonationCount += toFiniteNumber(rec.selectedCornerDonation) > 0 ? 1 : 0;
+        stat.opponentSafeEdgeAllowedCount += toFiniteNumber(rec.selectedAllowsOpponentSafeEdgeRun) > 0 ? 1 : 0;
+        stat.ownSafeEdgeExtendCount += toFiniteNumber(rec.selectedExtendsOwnSafeEdge) > 0 ? 1 : 0;
+        stat.ownSafeEdgeRunDeltaSum += toFiniteNumber(rec.selectedOwnSafeEdgeRunDelta);
+        stat.ownEdgeGapCount += toFiniteNumber(rec.selectedCreatesOwnEdgeGap) > 0 ? 1 : 0;
+        stat.ownEdgeGapDeltaSum += toFiniteNumber(rec.selectedOwnEdgeGapDelta);
+        stat.opponentEdgeCutCount += toFiniteNumber(rec.selectedBreaksOpponentEdgeRun) > 0 ? 1 : 0;
+        stat.badLowMobilityCount += toFiniteNumber(rec.selectedBadLowMobilityRisk) > 0 ? 1 : 0;
         if (toFiniteNumber(rec.hasCornerMoveNow) > 0) stat.cornerOpportunityCount += 1;
         if (isCornerMove(rec.row, rec.col, 8)) stat.cornerTakenCount += 1;
         if (isEdgeMove(rec.row, rec.col, 8)) {
@@ -498,6 +514,14 @@ function finalizeQualityStat(stat) {
         edgeHoldOpportunityCount: stat.edgeHoldOpportunityCount,
         edgeHoldSuccessCount: stat.edgeHoldSuccessCount,
         edgeChainSwingSum: stat.edgeChainSwingSum,
+        cornerDonationCount: stat.cornerDonationCount,
+        opponentSafeEdgeAllowedCount: stat.opponentSafeEdgeAllowedCount,
+        ownSafeEdgeExtendCount: stat.ownSafeEdgeExtendCount,
+        ownSafeEdgeRunDeltaSum: stat.ownSafeEdgeRunDeltaSum,
+        ownEdgeGapCount: stat.ownEdgeGapCount,
+        ownEdgeGapDeltaSum: stat.ownEdgeGapDeltaSum,
+        opponentEdgeCutCount: stat.opponentEdgeCutCount,
+        badLowMobilityCount: stat.badLowMobilityCount,
         cardFutureDiscDelta3PlyCount: stat.cardFutureDiscDelta3PlyCount,
         cardFutureDiscDelta3PlySum: stat.cardFutureDiscDelta3PlySum,
         finalGameCount: stat.finalGameCount,
@@ -524,6 +548,14 @@ function finalizeQualityStat(stat) {
         avgCornerSwing: stat.cornerSwingSum / totalActions,
         avgEdgeSwing: stat.edgeSwingSum / totalActions,
         avgEdgeChainSwing: stat.edgeChainSwingSum / totalActions,
+        cornerDonationRate: stat.cornerDonationCount / placeActions,
+        opponentSafeEdgeAllowedRate: stat.opponentSafeEdgeAllowedCount / placeActions,
+        ownSafeEdgeExtendRate: stat.ownSafeEdgeExtendCount / placeActions,
+        avgOwnSafeEdgeRunDelta: stat.ownSafeEdgeRunDeltaSum / placeActions,
+        ownEdgeGapRate: stat.ownEdgeGapCount / placeActions,
+        avgOwnEdgeGapDelta: stat.ownEdgeGapDeltaSum / placeActions,
+        opponentEdgeCutRate: stat.opponentEdgeCutCount / placeActions,
+        badLowMobilityRate: stat.badLowMobilityCount / placeActions,
         finalCornerShare: stat.finalCornersOwnedSum / finalCornersTotalSum,
         finalEdgeShare: stat.finalEdgesOwnedSum / finalEdgesTotalSum,
         finalLongestEdgeRunShare: stat.finalLongestEdgeRunOwnedSum / Math.max(1, stat.finalLongestEdgeRunTotalSum),

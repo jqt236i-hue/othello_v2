@@ -164,6 +164,56 @@ describe('selfplay policy promotion', () => {
         fs.unlinkSync(targetCardOnnxMeta);
     });
 
+    test('promoteModel leaves card and target artifacts untouched when no optional candidates are provided', () => {
+        const dir = path.resolve(__dirname, '..', 'data', 'models', 'promotion.optional-head-skip.test');
+        fs.rmSync(dir, { recursive: true, force: true });
+        fs.mkdirSync(dir, { recursive: true });
+
+        const adoption = path.join(dir, 'adoption.pass.json');
+        const candidate = path.join(dir, 'candidate.json');
+        const target = path.join(dir, 'policy-table.json');
+        const targetCardOnnx = path.join(dir, 'policy-card.onnx');
+        const targetCardOnnxMeta = path.join(dir, 'policy-card.onnx.meta.json');
+        const targetTargetOnnx = path.join(dir, 'policy-target.onnx');
+        const targetTargetOnnxMeta = path.join(dir, 'policy-target.onnx.meta.json');
+        const manifestPath = path.join(dir, 'promoted', 'promotion-manifest.json');
+        const payload = { schemaVersion: 'policy_table.v2', states: { k: { bestAction: 'place:0:0', actions: {} } } };
+
+        fs.writeFileSync(adoption, JSON.stringify({ decision: { passed: true } }), 'utf8');
+        fs.writeFileSync(candidate, JSON.stringify(payload), 'utf8');
+        fs.writeFileSync(targetCardOnnx, 'existing-card', 'utf8');
+        fs.writeFileSync(targetCardOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', cardOutputName: 'card_logits' }), 'utf8');
+        fs.writeFileSync(targetTargetOnnx, 'existing-target', 'utf8');
+        fs.writeFileSync(targetTargetOnnxMeta, JSON.stringify({ schemaVersion: 'policy_onnx.v1', targetOutputName: 'target_logits' }), 'utf8');
+
+        const out = promoteModel({
+            adoptionResultPath: adoption,
+            candidateModelPath: candidate,
+            targetModelPath: target,
+            targetCardOnnxPath: targetCardOnnx,
+            targetCardOnnxMetaPath: targetCardOnnxMeta,
+            targetTargetOnnxPath: targetTargetOnnx,
+            targetTargetOnnxMetaPath: targetTargetOnnxMeta,
+            manifestPath,
+            force: false
+        });
+
+        expect(out.cardOnnxPromotion.reason).toBe('not_requested');
+        expect(out.targetOnnxPromotion.reason).toBe('not_requested');
+        expect(out.archivedChampion.cardOnnx.archived).toBe(false);
+        expect(out.archivedChampion.targetOnnx.archived).toBe(false);
+        expect(fs.readFileSync(targetCardOnnx, 'utf8')).toBe('existing-card');
+        expect(fs.readFileSync(targetTargetOnnx, 'utf8')).toBe('existing-target');
+
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        expect(manifest.candidate.cardOnnxPath).toBeNull();
+        expect(manifest.candidate.targetOnnxPath).toBeNull();
+        expect(manifest.deployed.cardOnnxPath).toBeNull();
+        expect(manifest.deployed.targetOnnxPath).toBeNull();
+
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+
     test('promoteModel archives the previous champion and writes rollback manifest', () => {
         const dir = path.resolve(__dirname, '..', 'data', 'models', 'promotion.lifecycle.test');
         fs.rmSync(dir, { recursive: true, force: true });

@@ -19,6 +19,7 @@ const REQUIRED_CPU_POLICY_FUNCTIONS: Array<keyof CpuPolicyCoreApi> = [
     'scoreCardRetentionForSell',
     'scoreCardRetentionPriority',
     'scoreCardUseDecision',
+    'evaluatePlacementCandidate',
     'scoreMoveForCornerEdgePlan',
     'scoreMoveHeuristic'
 ];

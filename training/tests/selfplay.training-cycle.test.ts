@@ -108,8 +108,9 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxValueTargetEdgeWeight).toBeCloseTo(0.0, 6);
         expect(args.onnxValueTargetEconomyWeight).toBeCloseTo(0.0, 6);
         expect(args.onnxValueTargetCornerEmergencyWeight).toBeCloseTo(0.0, 6);
-        expect(args.trainTargetHeadEnabled).toBe(true);
+        expect(args.trainTargetHeadEnabled).toBe(false);
         expect(args.trainValueHeadEnabled).toBe(true);
+        expect(args.trainCardEvery).toBe(0);
         expect(args.adoptionTacticalWeight).toBeCloseTo(0.25, 6);
         expect(args.adoptionTacticalDepthOpening).toBe(4);
         expect(args.adoptionTacticalDepthMid).toBe(6);
@@ -130,9 +131,14 @@ describe('selfplay training cycle script', () => {
         expect(args.adoptionQualityWeightFinalCornerShare).toBeCloseTo(0.24, 6);
         expect(args.adoptionQualityWeightFinalEdgeShare).toBeCloseTo(0.06, 6);
         expect(args.adoptionQualityWeightFinalLongestEdgeRunShare).toBeCloseTo(0.08, 6);
+        expect(args.adoptionQualityWeightCornerDonationAvoidance).toBeCloseTo(0.14, 6);
+        expect(args.adoptionQualityWeightOpponentSafeEdgeAvoidance).toBeCloseTo(0.12, 6);
+        expect(args.adoptionQualityWeightOwnSafeEdge).toBeCloseTo(0.12, 6);
+        expect(args.adoptionQualityWeightOwnEdgeGapAvoidance).toBeCloseTo(0.10, 6);
+        expect(args.adoptionQualityWeightOpponentEdgeCut).toBeCloseTo(0.08, 6);
         expect(args.adoptionQualityWeightBonus).toBeCloseTo(0.01, 6);
-        expect(args.adoptionQualityWeightCardImmediate).toBeCloseTo(0.015, 6);
-        expect(args.adoptionQualityWeightCardFuture).toBeCloseTo(0.02, 6);
+        expect(args.adoptionQualityWeightCardImmediate).toBeCloseTo(0, 6);
+        expect(args.adoptionQualityWeightCardFuture).toBeCloseTo(0, 6);
         expect(args.adoptionQualityWeightPlaceDelta).toBeCloseTo(0.015, 6);
         expect(args.adoptionConfidenceLevel).toBeCloseTo(0.95, 6);
         expect(args.adoptionMinLowerBound).toBeCloseTo(-1, 6);
@@ -529,7 +535,9 @@ describe('selfplay training cycle script', () => {
         try {
             const args = parseArgs([
                 '--models-dir', modelsDir,
-                '--with-cards'
+                '--with-cards',
+                '--train-card-every', '1',
+                '--train-target-head'
             ]);
             const promoteArgs = buildPromotionCommandArgs(args, {
                 candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
@@ -581,6 +589,8 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--models-dir', modelsDir,
                 '--with-cards',
+                '--train-card-every', '1',
+                '--train-target-head',
                 '--no-train-value-head'
             ]);
             const promoteArgs = buildPromotionCommandArgs(args, {
@@ -613,6 +623,7 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--models-dir', modelsDir,
                 '--with-cards',
+                '--train-card-every', '1',
                 '--no-train-target-head'
             ]);
             const promoteArgs = buildPromotionCommandArgs(args, {
@@ -644,7 +655,9 @@ describe('selfplay training cycle script', () => {
         try {
             const args = parseArgs([
                 '--models-dir', modelsDir,
-                '--with-cards'
+                '--with-cards',
+                '--train-card-every', '1',
+                '--train-target-head'
             ]);
             const targetBundleArgs = buildTargetOnnxBundleArgs(args, true);
             const promotionTargetBundleArgs = buildPromotionTargetBundleArgs(args, true);
@@ -677,6 +690,8 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--models-dir', modelsDir,
                 '--with-cards',
+                '--train-card-every', '1',
+                '--train-target-head',
                 '--no-train-value-head'
             ]);
 
@@ -702,6 +717,7 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--models-dir', modelsDir,
                 '--with-cards',
+                '--train-card-every', '1',
                 '--no-train-target-head'
             ]);
 
@@ -726,7 +742,9 @@ describe('selfplay training cycle script', () => {
         try {
             const args = parseArgs([
                 '--models-dir', modelsDir,
-                '--with-cards'
+                '--with-cards',
+                '--train-card-every', '1',
+                '--train-target-head'
             ]);
             const iterationPaths = {
                 onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.onnx'),
@@ -771,6 +789,8 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--models-dir', modelsDir,
                 '--with-cards',
+                '--train-card-every', '1',
+                '--train-target-head',
                 '--no-train-value-head'
             ]);
             const iterationPaths = {
@@ -806,6 +826,7 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--models-dir', modelsDir,
                 '--with-cards',
+                '--train-card-every', '1',
                 '--no-train-target-head'
             ]);
             const iterationPaths = {
@@ -1521,6 +1542,7 @@ describe('selfplay training cycle script', () => {
                 '--run-tag', 'testtag',
                 '--max-hours', '6',
                 '--bootstrap-policy-model', bootstrapPath,
+                '--train-target-head',
                 '--resume-policy-checkpoint', policyCheckpointPath,
                 '--resume-card-checkpoint', cardCheckpointPath,
                 '--resume-target-checkpoint', targetCheckpointPath,
@@ -2267,7 +2289,7 @@ describe('selfplay training cycle script', () => {
 
             expect(payload.config.runTag).toBe('summarytest');
             expect(payload.config.onnxValSplitMode).toBe('grouped-game');
-            expect(payload.config.trainTargetHeadEnabled).toBe(true);
+            expect(payload.config.trainTargetHeadEnabled).toBe(false);
             expect(payload.config.trainValueHeadEnabled).toBe(true);
             expect(payload.latestResumeCheckpointPath).toBe(path.join(modelsDir, 'policy.resume.pt'));
             expect(payload.latestWarehouseManifestPath).toBe(latestWarehouseManifestPath);

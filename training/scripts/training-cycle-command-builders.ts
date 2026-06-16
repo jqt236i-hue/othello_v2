@@ -36,6 +36,10 @@ function isTargetHeadEnabled(args: any) {
     return !(args && args.trainTargetHeadEnabled === false);
 }
 
+function isCardSpecialistEnabled(args: any) {
+    return !!(args && args.allowCardUsage && Number.isFinite(Number(args.trainCardEvery)) && Number(args.trainCardEvery) > 0);
+}
+
 function buildAdoptionWeightArgs(args: any, adoptionCardRate: any) {
     const deckArgs = args && args.selfplayWhiteDeckCode
         ? ['--white-deck-code', String(args.selfplayWhiteDeckCode)]
@@ -63,6 +67,11 @@ function buildAdoptionWeightArgs(args: any, adoptionCardRate: any) {
         '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
         '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
         '--quality-weight-final-longest-edge-run-share', String(args.adoptionQualityWeightFinalLongestEdgeRunShare),
+        '--quality-weight-corner-donation-avoidance', String(args.adoptionQualityWeightCornerDonationAvoidance),
+        '--quality-weight-opponent-safe-edge-avoidance', String(args.adoptionQualityWeightOpponentSafeEdgeAvoidance),
+        '--quality-weight-own-safe-edge', String(args.adoptionQualityWeightOwnSafeEdge),
+        '--quality-weight-own-edge-gap-avoidance', String(args.adoptionQualityWeightOwnEdgeGapAvoidance),
+        '--quality-weight-opponent-edge-cut', String(args.adoptionQualityWeightOpponentEdgeCut),
         '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
         '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
         '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
@@ -160,7 +169,7 @@ function buildPolicyTrainingCommandArgs(options: any) {
         '--policy-table-out', iterationPaths.candidateModelPath,
         ...buildOnnxTrainerCoreArgs(args, {}),
         ...buildOnnxTrainerSampleWeightArgs(args, {
-            includeCardClassWeights: true,
+            includeCardClassWeights: false,
             includeBalanceBoosts: true
         }),
         '--metrics-out', iterationPaths.onnxMetricsPath,
@@ -303,7 +312,7 @@ function buildCandidateOnnxBundleArgs(args: any, iterationPaths: any, hasTargetT
     return [
         '--candidate-onnx', iterationPaths.onnxModelPath,
         '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
-        ...(args.allowCardUsage ? [
+        ...(isCardSpecialistEnabled(args) ? [
             '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
             '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath
         ] : []),
@@ -325,7 +334,7 @@ function buildTargetOnnxBundleArgs(args: any, hasTargetTrainingData: any) {
     return [
         '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
         '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
-        ...(args.allowCardUsage ? [
+        ...(isCardSpecialistEnabled(args) ? [
             '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
             '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json')
         ] : []),

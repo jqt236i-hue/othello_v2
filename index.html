@@ -101,8 +101,6 @@
                 aria-selected="false" aria-controls="rules-help-page-guide" data-help-tab="guide">ルールと操作</button>
             <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">石マーカー</button>
-            <button id="rules-help-tab-updates" class="rules-help-tab" type="button" role="tab"
-                aria-selected="false" aria-controls="rules-help-page-updates" data-help-tab="updates">アップデート情報</button>
         </div>
         <div id="rules-help-pages">
             <section id="rules-help-page-catalog" class="rules-help-page is-active" data-help-page="catalog"
@@ -178,7 +176,7 @@
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>禁忌反転</dt>
-                        <dd>挟めなくても反転可能。最も反転枚数が多い列1方向のみ。</dd>
+                        <dd>挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>封鎖</dt>
@@ -216,8 +214,9 @@
                             <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
                             <li>盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。</li>
                             <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
-                            <li>右下パネルで「CPU / ネット対戦」、音量、BGMを調整できます。</li>
-                            <li>石や特殊石を長押しすると、その石の効果を確認できます。</li>
+                            <li>左下メニューで「CPU」/「リバーシ」/「ネット対戦」を切り替えられます。</li>
+                            <li>音量やBGMはクイック操作や設定から調整できます。</li>
+                            <li>石情報は、マウスでは石にカーソルを合わせるだけで、タッチでは石を1回タップすると確認できます。</li>
                         </ol>
                     </section>
                 </div>
@@ -399,10 +398,6 @@
                         </div>
                     </div>
                 </div>
-            </section>
-            <section id="rules-help-page-updates" class="rules-help-page" data-help-page="updates"
-                aria-hidden="true">
-                <div id="rules-help-updates-list" aria-label="アップデート情報一覧"></div>
             </section>
         </div>
     </div>
@@ -800,10 +795,10 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=23294459794076"></script>
+    <script src="public/module-registry.js?v=122964226536203"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
-    <script src="entry-browser.js?v=253768053700432"></script>
+    <script src="entry-browser.js?v=213110615082557"></script>
 </body>
 
 </html>

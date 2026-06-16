@@ -121,7 +121,7 @@ def parse_args() -> argparse.Namespace:
         "--card-loss-weight",
         type=float,
         default=2.0,
-        help="Loss weight for card action head (default: 2.0).",
+        help="Research/compat only. Loss weight for card action head when --include-card-head is set.",
     )
     p.add_argument(
         "--card-no-action-weight",
@@ -134,6 +134,11 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.25,
         help="Inverse-frequency balance strength for card classes in [0,1] (default: 0.25).",
+    )
+    p.add_argument(
+        "--include-card-head",
+        action="store_true",
+        help="Research/compat only. Default production policy training is placement-only.",
     )
     p.add_argument("--min-visits", type=int, default=12, help="Compat policy-table --min-visits.")
     p.add_argument(
@@ -426,8 +431,18 @@ def feature_vector(rec: dict) -> list[float]:
     return out
 
 
+def is_placement_policy_record(rec: dict) -> bool:
+    if rec.get("placementPolicyEligible") is not None:
+        return bool(rec.get("placementPolicyEligible"))
+    return (
+        rec.get("actionType") == "place"
+        and not rec.get("pendingSelection")
+        and not rec.get("pendingType")
+    )
+
+
 def place_target_index(rec: dict) -> int | None:
-    if rec.get("actionType") != "place":
+    if not is_placement_policy_record(rec):
         return None
     return board_cell_index_for_record(rec, rec.get("row"), rec.get("col"))
 
@@ -541,6 +556,7 @@ def load_dataset(
     corner_balance_sample_boost: float = 0.0,
     edge_balance_sample_boost: float = 0.0,
     economy_balance_sample_boost: float = 0.0,
+    include_card_labels: bool = False,
 ) -> DatasetBundle:
     xs: list[list[float]] = []
     y_place: list[int] = []
@@ -564,8 +580,11 @@ def load_dataset(
             records_read += 1
             rec = json.loads(line)
             place_t = place_target_index(rec)
-            card_t = card_target_index(rec)
-            if place_t is None and card_t is None:
+            card_t = card_target_index(rec) if include_card_labels else None
+            if include_card_labels:
+                if place_t is None and card_t is None:
+                    continue
+            elif place_t is None:
                 continue
 
             xs.append(feature_vector(rec))
@@ -717,6 +736,7 @@ def train_model(
     corner_balance_sample_boost: float = 0.0,
     edge_balance_sample_boost: float = 0.0,
     economy_balance_sample_boost: float = 0.0,
+    include_card_head: bool = False,
 ) -> tuple[nn.Module, torch.optim.Optimizer, TrainSummary, str | None, list[dict], dict[str, Any]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
@@ -781,7 +801,8 @@ def train_model(
     if device == "cuda":
         torch.cuda.manual_seed_all(seed)
 
-    model = PolicyNet(INPUT_DIM, hidden_size, PLACE_OUTPUT_DIM, CARD_ACTION_DIM).to(device)
+    card_output_dim = CARD_ACTION_DIM if include_card_head else 0
+    model = PolicyNet(INPUT_DIM, hidden_size, PLACE_OUTPUT_DIM, card_output_dim).to(device)
     x = data.x.to(device)
     y_place = data.y_place.to(device)
     y_card = data.y_card.to(device)
@@ -814,7 +835,7 @@ def train_model(
         device=device,
         no_action_weight=card_no_action_weight,
         balance_power=card_class_balance_power,
-    )
+    ) if include_card_head else None
     if card_class_weights is not None and NO_CARD_ACTION_INDEX is not None:
         print(
             "[train_policy_onnx] "
@@ -824,7 +845,7 @@ def train_model(
         )
     loss_card_fn = (
         nn.CrossEntropyLoss(ignore_index=IGNORE_INDEX, weight=card_class_weights)
-        if CARD_ACTION_DIM > 0
+        if include_card_head and card_output_dim > 0
         else None
     )
 
@@ -1106,14 +1127,14 @@ def train_model(
     return model, opt, summary, resumed_from, epoch_metrics, split_summary
 
 
-def export_onnx(model: nn.Module, onnx_out: str) -> None:
+def export_onnx(model: nn.Module, onnx_out: str, include_card_head: bool = False) -> None:
     """Delegate to shared helper.  Kept as local name for DeepCFR backward compat."""
     output_names = ["place_logits"]
     dynamic_axes = {
         "obs": {0: "batch"},
         "place_logits": {0: "batch"},
     }
-    if CARD_ACTION_DIM > 0:
+    if include_card_head and CARD_ACTION_DIM > 0:
         output_names.append("card_logits")
         dynamic_axes["card_logits"] = {0: "batch"}
     trainer_common.export_onnx_model(model, onnx_out, INPUT_DIM, output_names, dynamic_axes)
@@ -1127,6 +1148,8 @@ def write_meta(
     device: str,
     split_summary: dict[str, Any] | None,
 ) -> None:
+    include_card_head = bool(getattr(args, "include_card_head", False))
+    card_output_dim = CARD_ACTION_DIM if include_card_head else 0
     feature_spec = list(trainer_common.BASE_FEATURE_SPEC)
     if CARD_ACTION_DIM > 0:
         feature_spec += [
@@ -1137,6 +1160,8 @@ def write_meta(
     training = trainer_common.build_common_training_meta(args, device)
     trainer_common.apply_split_summary_meta(training, split_summary)
     training.update({
+        "includeCardHead": include_card_head,
+        "placementPolicyOnly": not include_card_head,
         "cardLossWeight": args.card_loss_weight,
         "cardNoActionWeight": args.card_no_action_weight,
         "cardClassBalancePower": args.card_class_balance_power,
@@ -1146,13 +1171,13 @@ def write_meta(
         "schemaVersion": MODEL_SCHEMA_VERSION,
         "inputName": "obs",
         "outputName": "place_logits",
-        "outputNames": ["place_logits"] + (["card_logits"] if CARD_ACTION_DIM > 0 else []),
+        "outputNames": ["place_logits"] + (["card_logits"] if card_output_dim > 0 else []),
         "placeOutputName": "place_logits",
-        "cardOutputName": "card_logits" if CARD_ACTION_DIM > 0 else None,
+        "cardOutputName": "card_logits" if card_output_dim > 0 else None,
         "inputDim": INPUT_DIM,
         "baseInputDim": BASE_INPUT_DIM,
         "outputDim": PLACE_OUTPUT_DIM,
-        "cardOutputDim": CARD_ACTION_DIM,
+        "cardOutputDim": card_output_dim,
         "boardSize": BOARD_SIZE,
         "paddedBoardMinCoord": PADDED_BOARD_MIN,
         "paddedBoardMaxCoord": PADDED_BOARD_MAX,
@@ -1160,9 +1185,9 @@ def write_meta(
         "boardEnvelopeField": "boardEnvelope",
         "boardMinRowField": "boardMinRow",
         "boardMinColField": "boardMinCol",
-        "actionSpace": "place_padded10+card_choice",
-        "cardActionIds": CARD_ACTION_IDS,
-        "cardDecisionKinds": ["keep", "use", "destroy", "sell"],
+        "actionSpace": "place_padded10" if card_output_dim <= 0 else "place_padded10+card_choice",
+        "cardActionIds": CARD_ACTION_IDS if card_output_dim > 0 else [],
+        "cardDecisionKinds": ["keep", "use", "destroy", "sell"] if card_output_dim > 0 else [],
         **trainer_common.build_deck_count_feature_meta(),
         "featureSpec": feature_spec,
         "training": training,
@@ -1196,9 +1221,13 @@ def maybe_write_checkpoint(
     resumed_from: str | None,
     split_summary: dict[str, Any] | None,
 ) -> None:
+    include_card_head = bool(getattr(args, "include_card_head", False))
+    card_output_dim = CARD_ACTION_DIM if include_card_head else 0
     ckpt_training = trainer_common.build_common_checkpoint_training(args, device, resumed_from)
     trainer_common.apply_split_summary_meta(ckpt_training, split_summary)
     ckpt_training.update({
+        "includeCardHead": include_card_head,
+        "placementPolicyOnly": not include_card_head,
         "cardLossWeight": float(args.card_loss_weight),
         "cardNoActionWeight": float(args.card_no_action_weight),
         "cardClassBalancePower": float(args.card_class_balance_power),
@@ -1211,12 +1240,12 @@ def maybe_write_checkpoint(
             "inputDim": INPUT_DIM,
             "baseInputDim": BASE_INPUT_DIM,
             "placeOutputDim": PLACE_OUTPUT_DIM,
-            "cardOutputDim": CARD_ACTION_DIM,
+            "cardOutputDim": card_output_dim,
             "boardSize": BOARD_SIZE,
             "paddedBoardMinCoord": PADDED_BOARD_MIN,
             "paddedBoardMaxCoord": PADDED_BOARD_MAX,
             "paddedBoardSize": PADDED_BOARD_SIZE,
-            "cardActionIds": CARD_ACTION_IDS,
+            "cardActionIds": CARD_ACTION_IDS if card_output_dim > 0 else [],
             **trainer_common.build_deck_count_feature_meta(),
         },
         ckpt_training,
@@ -1291,6 +1320,7 @@ def main() -> int:
         corner_balance_sample_boost=float(args.corner_balance_sample_boost),
         edge_balance_sample_boost=float(args.edge_balance_sample_boost),
         economy_balance_sample_boost=float(args.economy_balance_sample_boost),
+        include_card_labels=bool(args.include_card_head),
     )
     model, optimizer, train_summary, resumed_from, epoch_metrics, split_summary = train_model(
         data=data,
@@ -1329,8 +1359,9 @@ def main() -> int:
         corner_balance_sample_boost=float(args.corner_balance_sample_boost),
         edge_balance_sample_boost=float(args.edge_balance_sample_boost),
         economy_balance_sample_boost=float(args.economy_balance_sample_boost),
+        include_card_head=bool(args.include_card_head),
     )
-    export_onnx(model, args.onnx_out)
+    export_onnx(model, args.onnx_out, include_card_head=bool(args.include_card_head))
     write_meta(meta_out, args, data, train_summary, device, split_summary)
     maybe_write_metrics(str(args.metrics_out or ""), epoch_metrics)
     maybe_write_checkpoint(
