@@ -45,6 +45,8 @@ const CardUtils = resolveSelectorsModuleOrGlobal('./utils', 'CardUtils');
 const SharedBoardUtils = resolveSelectorsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 const SelectorsCoreUtils = resolveSelectorsModuleOrGlobal('./selectors-core-utils', 'CardSelectorsCoreUtils');
 const SelectorsBoardShape = resolveSelectorsModuleOrGlobal('./selectors-board-shape', 'CardSelectorsBoardShape');
+const SpecialStoneRegistry = resolveSelectorsModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
+const DestroyProtectionContext = resolveSelectorsModuleOrGlobal('../cards-internal/destroy-protection-context', 'DestroyProtectionContext');
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
@@ -173,6 +175,17 @@ function isGuardProtectedCell(cardState: CardState, row: number, col: number): b
         m.data &&
         m.data.type === 'GUARD'
     ));
+}
+
+function resolveDestroyProtectionAt(cardState: CardState, row: number, col: number): any {
+    if (DestroyProtectionContext && typeof DestroyProtectionContext.resolveDestroyProtectionAt === 'function') {
+        return DestroyProtectionContext.resolveDestroyProtectionAt(cardState, row, col, {
+            SpecialStoneRegistry
+        });
+    }
+    return isGuardProtectedCell(cardState, row, col)
+        ? { reason: 'guard_protected' }
+        : null;
 }
 
 function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number): boolean {
@@ -390,20 +403,10 @@ interface TargetCell {
 // Return all non-empty cells (for DESTROY_ONE_STONE)
 function getDestroyTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const res: TargetCell[] = [];
-    const cs = cardState as any;
-    const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isAbsoluteProtectedCell(cardState, r, c)) return;
-        const guarded = markers.some((m: any) =>
-            m &&
-            m.kind === 'specialStone' &&
-            m.row === r &&
-            m.col === c &&
-            m.data &&
-            m.data.type === 'GUARD'
-        );
-        if (guarded) return;
+        if (resolveDestroyProtectionAt(cardState, r, c)) return;
         if (isFrozenCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });

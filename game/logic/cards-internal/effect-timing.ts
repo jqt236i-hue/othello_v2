@@ -676,7 +676,7 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
             }
             continue;
         }
-        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+        if ((dataType === 'GUARD' || dataType === 'DESTROY_PROTECTION' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
                 if (dataType === 'GHOST') {

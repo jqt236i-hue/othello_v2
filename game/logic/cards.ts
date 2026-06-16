@@ -257,6 +257,7 @@ const {
     const STRONG_WILL_PROMOTION_OWNER_TURNS = Number.isFinite(Number(SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS))
         ? Math.max(1, Math.floor(Number(SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS)))
         : 10;
+    const HARD_WILL_TURNS = 8;
     const ULTIMATE_DRAGON_TURNS = 8;
     const ULTIMATE_DESTROY_GOD_TURNS = 6;
     const ULTIMATE_HYPERACTIVE_TURNS = 12;
@@ -2705,6 +2706,18 @@ const {
         });
     }
 
+    function applyHardWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        return CardProtectModule.applyHardWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getGuardTargets,
+            removeMarkersAt,
+            addMarker,
+            clearCardPendingEffect,
+            MARKER_KINDS,
+            HARD_WILL_TURNS
+        });
+    }
+
     function applyLivingWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardLivingWillModule.applyLivingWill(
             cardState,
@@ -4390,6 +4403,7 @@ const cardsApi: any = {
         applyExtendLifeGod,
         applyCorrosionWill,
         applyGuardWill,
+        applyHardWill,
         applyLivingWill,
         applyTimeBombWill,
         applyTeleportWill,
