@@ -194,7 +194,7 @@ html.layout-profile-phone-portrait {
         var(--layout-phone-portrait-hand-fixed-padding-x)
     );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
-    --layout-phone-portrait-player-bottom-offset: calc(24px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-bottom-offset: calc(3px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-bottom-offset: calc(72px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-width: min(92vw, calc(520px * var(--layout-stage-scale)));
@@ -235,8 +235,8 @@ html.layout-profile-phone-portrait .player-area-bottom {
 }
 
 html.layout-profile-phone-portrait #board-frame {
-    --board-frame-inner-size: min(86vw, calc(372px * var(--layout-stage-scale)), 40dvh);
-    --board-frame-padding: calc(10px * var(--layout-stage-scale));
+    --board-frame-inner-size: min(92vw, calc(410px * var(--layout-stage-scale)), 44dvh);
+    --board-frame-padding: calc(7.5px * var(--layout-stage-scale));
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
 
