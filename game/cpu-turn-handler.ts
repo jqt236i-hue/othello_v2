@@ -1179,6 +1179,8 @@ const CpuTurnCardPhase = (CpuTurnCardPhaseModule && typeof CpuTurnCardPhaseModul
     ? CpuTurnCardPhaseModule.createCpuTurnCardPhase({
         emitCpuCommentary,
         getAnimationRetryDelayMs,
+        getCurrentPlayerKeySafe,
+        getCurrentTurnNumberSafe,
         getDestroyHandCardWithPolicyFn: () => (
             resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
             || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null)

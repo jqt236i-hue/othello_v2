@@ -3,6 +3,8 @@ type CpuTurnCardPhaseConfig = {
     getAnimationRetryDelayMs: () => any;
     getDestroyHandCardWithPolicyFn: () => any;
     getLastUsedCardIdSafe: (playerKey: any) => any;
+    getCurrentPlayerKeySafe?: () => any;
+    getCurrentTurnNumberSafe?: () => any;
     getUseCardWithPolicyFn: () => any;
     isUiAnimationBusy: () => any;
     runCpuTurn: (playerKey: any, options?: any) => any;
@@ -16,6 +18,19 @@ type CpuTurnCardPhaseConfig = {
 
 export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuTurnCardPhaseConfig;
+
+    function shouldSkipStaleResume(expectedPlayerKey: any, expectedTurnNumber: any): boolean {
+        const currentPlayerKey = typeof cfg.getCurrentPlayerKeySafe === 'function'
+            ? cfg.getCurrentPlayerKeySafe()
+            : null;
+        const currentTurnNumber = typeof cfg.getCurrentTurnNumberSafe === 'function'
+            ? cfg.getCurrentTurnNumberSafe()
+            : null;
+        return !!(
+            (expectedPlayerKey && currentPlayerKey && currentPlayerKey !== expectedPlayerKey) ||
+            (expectedTurnNumber !== null && currentTurnNumber !== null && currentTurnNumber !== expectedTurnNumber)
+        );
+    }
 
     async function runCpuTurnCardPhase(args: any): Promise<any> {
         const opts = (args && typeof args === 'object') ? args : {};
@@ -41,7 +56,17 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
             }
             if (destroyedForCycle) {
                 cfg.setCpuProcessing(false);
+                const expectedPlayerKey = typeof cfg.getCurrentPlayerKeySafe === 'function'
+                    ? cfg.getCurrentPlayerKeySafe()
+                    : playerKey;
+                const expectedTurnNumber = typeof cfg.getCurrentTurnNumberSafe === 'function'
+                    ? cfg.getCurrentTurnNumberSafe()
+                    : null;
                 const scheduled = cfg.scheduleRetry(() => {
+                    if (shouldSkipStaleResume(expectedPlayerKey, expectedTurnNumber)) {
+                        cfg.setCpuProcessing(false);
+                        return;
+                    }
                     if (cfg.isUiAnimationBusy()) {
                         cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
                         return;
@@ -64,8 +89,18 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                     cardId: cfg.getLastUsedCardIdSafe(playerKey)
                 });
                 cfg.setCpuProcessing(false);
+                const expectedPlayerKey = typeof cfg.getCurrentPlayerKeySafe === 'function'
+                    ? cfg.getCurrentPlayerKeySafe()
+                    : playerKey;
+                const expectedTurnNumber = typeof cfg.getCurrentTurnNumberSafe === 'function'
+                    ? cfg.getCurrentTurnNumberSafe()
+                    : null;
                 const resumeAfterCardAnimation = () => {
                     if (cfg.shouldAbortCpuForHumanMode(playerKey, 'resume_after_card_animation')) {
+                        return;
+                    }
+                    if (shouldSkipStaleResume(expectedPlayerKey, expectedTurnNumber)) {
+                        cfg.setCpuProcessing(false);
                         return;
                     }
                     if (cfg.isUiAnimationBusy()) {

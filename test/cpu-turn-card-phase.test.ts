@@ -6,6 +6,8 @@ function createConfig(overrides: Record<string, any> = {}) {
     getAnimationRetryDelayMs: jest.fn(() => 0),
     getDestroyHandCardWithPolicyFn: jest.fn(() => null),
     getLastUsedCardIdSafe: jest.fn(() => 'theory_incarnation'),
+    getCurrentPlayerKeySafe: jest.fn(() => 'white'),
+    getCurrentTurnNumberSafe: jest.fn(() => 12),
     getUseCardWithPolicyFn: jest.fn(() => jest.fn(() => true)),
     isUiAnimationBusy: jest.fn(() => false),
     runCpuTurn: jest.fn(),
@@ -59,5 +61,37 @@ describe('cpu turn card phase', () => {
     expect(config.scheduleRetry).toHaveBeenCalledTimes(1);
     expect(config.scheduleRunCpuTurn).toHaveBeenCalledWith('white', { autoMode: true }, 0);
     expect(config.runCpuTurn).not.toHaveBeenCalled();
+  });
+
+  test('skips a card-use resume when the turn changed before the retry fires', async () => {
+    let retryCallback: any = null;
+    let turnNumber = 12;
+    const config = createConfig({
+      getCurrentPlayerKeySafe: jest.fn(() => 'white'),
+      getCurrentTurnNumberSafe: jest.fn(() => turnNumber),
+      scheduleRetry: jest.fn((fn) => {
+        retryCallback = fn;
+        return true;
+      })
+    });
+    const phase = createCpuTurnCardPhase(config as any);
+
+    const result = await phase.runCpuTurnCardPhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      othelloMode: false,
+      hasUsedCardThisTurn: false,
+      hasPendingSelection: false
+    });
+
+    expect(result).toEqual({ status: 'handled' });
+    expect(typeof retryCallback).toBe('function');
+
+    turnNumber = 13;
+    retryCallback();
+
+    expect(config.runCpuTurn).not.toHaveBeenCalled();
+    expect(config.scheduleRunCpuTurn).not.toHaveBeenCalled();
   });
 });
