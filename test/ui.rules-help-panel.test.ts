@@ -599,6 +599,7 @@ describe('rules help panel', () => {
 
   test('index html includes stone marker help tab and key legend texts', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
     expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
     expect(html).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
     expect(html).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
@@ -610,6 +611,10 @@ describe('rules help panel', () => {
     expect(html).toMatch(/中央左の灰色バッジ/);
     expect(html).toMatch(/反転保護の目印/);
     expect(html).toMatch(/stone-flip-protection-badge/);
+    expect(html).toMatch(/右上の数字/);
+    expect(html).not.toMatch(/右側の縦寄り数字/);
+    expect(boardCss).toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(6px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(4px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).not.toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?top:\s*50%;[\s\S]*?transform:\s*translateY\(-50%\);/);
     expect(html).not.toMatch(/下中央のひし形数字/);
     expect(html).toMatch(/破壊回避の残り回数/);
   });

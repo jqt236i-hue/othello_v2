@@ -1226,9 +1226,9 @@ html.stone-images-loaded .disc.white {
 .flip-evade-timer {
     left: auto;
     right: calc(6px * var(--layout-stage-scale));
-    top: 50%;
+    top: calc(4px * var(--layout-stage-scale));
     bottom: auto;
-    transform: translateY(-50%);
+    transform: none;
     line-height: 1;
     height: calc(16px * var(--layout-stage-scale));
     min-width: calc(16px * var(--layout-stage-scale));
