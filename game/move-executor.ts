@@ -172,18 +172,38 @@ function getMoveExecutorCpuTurnProcessor() {
     return null;
 }
 
+function resolveMoveExecutorRuntimeValue(name: string): any {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.resolveRuntimeValue === 'function') {
+            const value = __uiImpl_move_executor.resolveRuntimeValue(name);
+            if (typeof value !== 'undefined') return value;
+        }
+        if (__uiImpl_move_executor && Object.prototype.hasOwnProperty.call(__uiImpl_move_executor, name)) {
+            return __uiImpl_move_executor[name];
+        }
+    } catch (e) { /* ignore */ }
+    return undefined;
+}
+
+function resolveMoveExecutorGameState(): any {
+    const runtimeGameState = resolveMoveExecutorRuntimeValue('gameState');
+    if (runtimeGameState && typeof runtimeGameState === 'object') return runtimeGameState;
+    return gameState || null;
+}
+
 function shouldRunScheduledCpuTurn(expected: any) {
     const exp = expected || {};
     try {
-        const currentPlayer = gameState ? gameState.currentPlayer : null;
+        const currentGameState = resolveMoveExecutorGameState();
+        const currentPlayer = currentGameState ? currentGameState.currentPlayer : null;
         const currentPlayerKey = (typeof WHITE !== 'undefined' && currentPlayer === WHITE)
             ? 'white'
             : (((typeof BLACK !== 'undefined' && currentPlayer === BLACK) || currentPlayer === 'black')
                 ? 'black'
                 : (currentPlayer === 'white' ? 'white' : null));
-        const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+        const currentTurnNumber = (currentGameState && Number.isFinite(currentGameState.turnNumber)) ? currentGameState.turnNumber : null;
         if (exp.playerKey && currentPlayerKey !== exp.playerKey) return false;
-        if (exp.turnNumber !== null && currentTurnNumber !== exp.turnNumber) return false;
+        if (Number.isFinite(exp.turnNumber) && currentTurnNumber !== exp.turnNumber) return false;
     } catch (e) { /* ignore */ }
     return true;
 }

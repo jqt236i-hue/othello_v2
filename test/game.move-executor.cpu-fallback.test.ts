@@ -102,6 +102,54 @@ describe('move-executor CPU scheduling DI', () => {
         expect(global.isProcessing).toBe(false);
     });
 
+    test('scheduled CPU callback follows runtime state when legacy gameState is stale', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 12 };
+        global.isProcessing = false;
+
+        const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
+        const move = { row: 2, col: 3, player: 1 };
+        const playerKey = 'black';
+        let runtimeGameStateOverride: any = null;
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: { currentPlayer: -1, turnNumber: 12 },
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'PLAYBACK_EVENTS', events: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const pipeline = {};
+        const mockCpu = jest.fn();
+        const delayedCallbacks: Array<() => void> = [];
+        moveExecutor.setUIImpl({
+            scheduleCpuTurn: (_delay: number, cb: () => void) => {
+                delayedCallbacks.push(cb);
+                return delayedCallbacks.length;
+            },
+            processCpuTurn: mockCpu,
+            resolveRuntimeValue: (name: string) => name === 'gameState'
+                ? (runtimeGameStateOverride || global.gameState)
+                : global[name]
+        });
+
+        await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, pipeline);
+        expect(delayedCallbacks).toHaveLength(1);
+
+        runtimeGameStateOverride = { currentPlayer: -1, turnNumber: 12 };
+        global.gameState.currentPlayer = 1;
+        delayedCallbacks[0]();
+
+        expect(mockCpu).toHaveBeenCalledTimes(1);
+        expect(global.isProcessing).toBe(false);
+    });
+
     test('missing CPU processor declines scheduling and clears processing', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
