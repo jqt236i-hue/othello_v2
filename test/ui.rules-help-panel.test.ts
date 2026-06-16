@@ -586,7 +586,12 @@ describe('rules help panel', () => {
     expect(html).toMatch(/stone-flip-protection-badge/);
     expect(html).toMatch(/右上の数字/);
     expect(html).not.toMatch(/右側の縦寄り数字/);
-    expect(boardCss).toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(6px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(4px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.guard-timer\s*\{[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.bomb-timer,\s*\.countdown-timer\s*\{[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.stone-destroy-protection-timer\s*\{[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);[\s\S]*?left:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.stone-flip-protection-badge\s*\{[\s\S]*?left:\s*calc\(-7px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(-5px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.stone-timer\.destroy-evade-timer,[\s\S]*?left:\s*calc\(-5px \* var\(--layout-stage-scale\)\);[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
     expect(boardCss).not.toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?top:\s*50%;[\s\S]*?transform:\s*translateY\(-50%\);/);
     expect(html).not.toMatch(/下中央のひし形数字/);
     expect(html).toMatch(/破壊回避の残り回数/);
