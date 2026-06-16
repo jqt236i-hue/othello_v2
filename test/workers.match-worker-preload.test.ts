@@ -118,6 +118,19 @@ describe('match worker card preload', () => {
     expectRuntimePreloadRegistration(runtimePreloadSource, evasionStatusGlobalKey, evasionStatusImportPath);
   });
 
+  test('worker exposes protection context before card effect resolver loads', () => {
+    const workerSource = readRepoFile('workers/match-worker.ts');
+    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
+    const protectionContextImportPath = '../game/logic/cards-internal/protection-context.js';
+    const protectionContextGlobalKey = 'CardProtectionContext';
+
+    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
+      "loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext'"
+    );
+    expectWorkerModuleRegistration(workerSource, protectionContextGlobalKey, protectionContextImportPath);
+    expectRuntimePreloadRegistration(runtimePreloadSource, protectionContextGlobalKey, protectionContextImportPath);
+  });
+
   test('runtime preload exposes every turn pipeline phase fallback module', () => {
     const turnPhaseSource = readRepoFile('game/turn/turn_pipeline_phases.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');

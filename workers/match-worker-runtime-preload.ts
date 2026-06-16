@@ -78,6 +78,7 @@ installRuntimeModule('CardRandomSource', () => require('../game/logic/cards-inte
 installRuntimeModule('CardEvasionDestination', () => require('../game/logic/cards-internal/evasion-destination.js'));
 installRuntimeModule('CardStateFactory', () => require('../game/logic/cards-internal/state-factory.js'));
 installRuntimeModule('CardModuleResolver', () => require('../game/logic/cards-internal/module-resolver.js'));
+installRuntimeModule('CardProtectionContext', () => require('../game/logic/cards-internal/protection-context.js'));
 installRuntimeModule('CardPresentationHelpers', () => require('../game/logic/cards-internal/presentation-helpers.js'));
 installRuntimeModule('CardCaptureSource', () => require('../game/logic/cards-internal/capture-source.js'));
 installRuntimeModule('CardProgression', () => require('../game/logic/cards-internal/progression.js'));
