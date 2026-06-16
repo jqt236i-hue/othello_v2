@@ -1981,6 +1981,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     getRuntimeRoot: () => {
                         try { return typeof globalThis !== 'undefined' ? globalThis : null; } catch (e: any) { return null; }
                     },
+                    getGamePrng: () => {
+                        try {
+                            return (typeof globalThis !== 'undefined' && typeof (globalThis as any).getGamePrng === 'function')
+                                ? (globalThis as any).getGamePrng()
+                                : undefined;
+                        } catch (e: any) {
+                            return undefined;
+                        }
+                    },
                     isDebugLogAvailable: () => isDebugSessionEnabled(),
                     readRuntimeValue: (key: string) => {
                         try { return typeof globalThis !== 'undefined' ? (globalThis as any)[key] : undefined; } catch (e: any) { return undefined; }

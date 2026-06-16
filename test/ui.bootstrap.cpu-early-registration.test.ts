@@ -369,6 +369,31 @@ describe('UI bootstrap early CPU registration', () => {
     expect(global.resetRenderStats).toHaveBeenCalledTimes(1);
   });
 
+  test('installGameDI wires turn-manager PRNG through UI bridge', () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+
+    const prng = { random: jest.fn(() => 0.25), shuffle: jest.fn((arr) => arr) };
+    global.getGamePrng = jest.fn(() => prng);
+    global.window.getGamePrng = global.getGamePrng;
+
+    const setUIImplMock = jest.fn();
+    jest.doMock('../game/turn-manager', () => ({ setUIImpl: setUIImplMock }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+
+    const uiBoot = require('../ui/bootstrap.js');
+    uiBoot.installGameDI();
+
+    const uiImpl = setUIImplMock.mock.calls
+      .map((args) => args && args[0])
+      .find((impl) => impl && typeof impl.getGamePrng === 'function');
+
+    expect(uiImpl).toBeTruthy();
+    expect(uiImpl.getGamePrng()).toBe(prng);
+    expect(global.getGamePrng).toHaveBeenCalledTimes(1);
+  });
+
   test('resetTransientUIState aborts before clearing playback context and stays stable across repeated calls', () => {
     const dom = new JSDOM(`<!doctype html><html><body>
       <div id="board" class="playback-locked">
