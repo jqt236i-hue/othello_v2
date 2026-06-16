@@ -172,22 +172,21 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
     expect(placeEvent.flips).toEqual([[3, 4]]);
   });
 
-  test('反転回避で移動先が無い場合は爆発せず通常反転される', () => {
+  test('反転回避で盤面上に有効な空きが無い場合は爆発せず通常反転される', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = Core.createGameState();
 
     gameState.board = createEmptyBoard();
     gameState.currentPlayer = Core.BLACK;
+    for (let row = 0; row < gameState.board.length; row++) {
+      for (let col = 0; col < gameState.board[row].length; col++) {
+        gameState.board[row][col] = Core.BLACK;
+      }
+    }
+    gameState.board[3][2] = Core.EMPTY;
     gameState.board[3][3] = Core.WHITE;
     gameState.board[3][4] = Core.BLACK;
-
-    for (const [row, col] of [
-      [2, 2], [2, 3], [2, 4],
-      [4, 2], [4, 3], [4, 4]
-    ]) {
-      gameState.board[row][col] = Core.BLACK;
-    }
 
     cardState.markers.push({
       id: 193,
@@ -213,12 +212,6 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
 
     expect(gameState.board[3][2]).toBe(Core.BLACK);
     expect(gameState.board[3][3]).toBe(Core.BLACK);
-    expect(gameState.board[2][2]).toBe(Core.BLACK);
-    expect(gameState.board[2][3]).toBe(Core.BLACK);
-    expect(gameState.board[2][4]).toBe(Core.BLACK);
-    expect(gameState.board[4][2]).toBe(Core.BLACK);
-    expect(gameState.board[4][3]).toBe(Core.BLACK);
-    expect(gameState.board[4][4]).toBe(Core.BLACK);
 
     const marker = (cardState.markers || []).find((m) => (
       m && m.kind === 'specialStone' && m.data && m.data.type === 'ESCAPE_HYPERACTIVE'

@@ -236,22 +236,22 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       evaded: true,
       reason: 'destroy_evaded',
       from: { row: 4, col: 4 },
-      to: { row: 3, col: 4 }
+      to: { row: 3, col: 3 }
     });
     expect(gameState.board[4][4]).toBe(Core.EMPTY);
-    expect(gameState.board[3][4]).toBe(Core.BLACK);
+    expect(gameState.board[3][3]).toBe(Core.BLACK);
 
     let marker = (cardState.markers || []).find((m) => m && m.id === 412);
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(3);
-    expect(marker.col).toBe(4);
+    expect(marker.col).toBe(3);
     expect(marker.data.flipEvadeRemaining).toBe(3);
     expect(marker.data.destroyEvadeRemaining).toBe(0);
 
-    const second = BoardOps.destroyAt(cardState, gameState, 3, 4, 'SYSTEM', 'test_destroy_again');
+    const second = BoardOps.destroyAt(cardState, gameState, 3, 3, 'SYSTEM', 'test_destroy_again');
     expect(second && second.destroyed).toBe(true);
     expect(second && second.evaded).toBe(false);
-    expect(gameState.board[3][4]).toBe(Core.EMPTY);
+    expect(gameState.board[3][3]).toBe(Core.EMPTY);
 
     marker = (cardState.markers || []).find((m) => m && m.id === 412);
     expect(marker).toBeUndefined();

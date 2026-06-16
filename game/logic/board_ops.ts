@@ -41,6 +41,7 @@ SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRu
 const SharedConstants = safeRequire('../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
 const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || getRuntimeGlobalValue('PresentationEffectProfiles');
 const EvasionStatus = safeRequire('../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
+const EvasionDestination = safeRequire('./cards-internal/evasion-destination') || getRuntimeGlobalValue('CardEvasionDestination');
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
@@ -791,22 +792,11 @@ function _getProliferationOwnerTurns(): number {
 function _findProliferationDestination(cardState: any, gameState: any, row: number, col: number, meta: any): { row: number; col: number } | null {
     const allCandidates = _collectBoardShapeEmptyCells(cardState, gameState);
     if (!allCandidates.length) return null;
-    let minDistance = Number.POSITIVE_INFINITY;
-    let candidates: Array<{ row: number; col: number }> = [];
-    for (const candidate of allCandidates) {
-        const distance = _getChebyshevDistance(row, col, candidate.row, candidate.col);
-        if (distance < minDistance) {
-            minDistance = distance;
-            candidates = [candidate];
-            continue;
-        }
-        if (distance === minDistance) {
-            candidates.push(candidate);
-        }
-    }
-    if (!candidates.length) return null;
     const randomSource = _resolveBoardOpsRandomSource(cardState, meta);
-    return candidates[_resolveRandomIndex(randomSource, candidates.length)] || candidates[0] || null;
+    if (!EvasionDestination || typeof EvasionDestination.selectNearestEmptyEvasionDestination !== 'function') {
+        throw new Error('CardEvasionDestination.selectNearestEmptyEvasionDestination is unavailable');
+    }
+    return EvasionDestination.selectNearestEmptyEvasionDestination({ row, col }, allCandidates, randomSource);
 }
 
 function _collectBoardShapeEmptyCells(cardState: any, gameState: any): Array<{ row: number; col: number }> {
@@ -1416,30 +1406,6 @@ function _consumeAfterimageMarkerOnNormalChange(cardState: any, row: number, col
     return marker;
 }
 
-function _collectAllBoardCoordinates(gameState: any): Array<{ row: number; col: number }> {
-    const coords: Array<{ row: number; col: number }> = [];
-    const dims = resolveBoardDims(gameState, null);
-    for (let row = 0; row < dims.rows; row++) {
-        for (let col = 0; col < dims.cols; col++) {
-            coords.push({ row, col });
-        }
-    }
-    const expansions = getExpansionDescriptors(gameState);
-    for (const expansion of expansions) {
-        if (!expansion) continue;
-        coords.push({ row: expansion.row, col: expansion.col });
-    }
-    return coords;
-}
-
-function _getChebyshevDistance(fromRow: number, fromCol: number, toRow: number, toCol: number): number {
-    return Math.max(Math.abs(Number(fromRow) - Number(toRow)), Math.abs(Number(fromCol) - Number(toCol)));
-}
-
-function _getManhattanDistance(fromRow: number, fromCol: number, toRow: number, toCol: number): number {
-    return Math.abs(Number(fromRow) - Number(toRow)) + Math.abs(Number(fromCol) - Number(toCol));
-}
-
 function _getForbiddenDestroyEvadeCellSet(meta: any): Set<string> {
     const out = new Set<string>();
     const cells = meta && Array.isArray(meta.forbiddenEvadeCells) ? meta.forbiddenEvadeCells : [];
@@ -1454,29 +1420,22 @@ function _getForbiddenDestroyEvadeCellSet(meta: any): Set<string> {
 
 function _findDestroyEvadeDestination(cardState: any, gameState: any, row: number, col: number, meta: any): { row: number; col: number } | null {
     const forbiddenCells = _getForbiddenDestroyEvadeCellSet(meta);
-    const candidates: Array<{ row: number; col: number; chebyshev: number; manhattan: number }> = [];
-    for (const cell of _collectAllBoardCoordinates(gameState)) {
-        if (!cell) continue;
-        if (cell.row === row && cell.col === col) continue;
-        if (forbiddenCells.has(`${cell.row},${cell.col}`)) continue;
-        const value = getCellValue(gameState, cell.row, cell.col);
-        if (value !== EMPTY) continue;
-        if (_isBlockedDestinationCell(cardState, cell.row, cell.col)) continue;
-        candidates.push({
-            row: cell.row,
-            col: cell.col,
-            chebyshev: _getChebyshevDistance(row, col, cell.row, cell.col),
-            manhattan: _getManhattanDistance(row, col, cell.row, cell.col)
-        });
-    }
+    const candidates = _collectBoardShapeEmptyCells(cardState, gameState)
+        .filter((cell) => cell && !forbiddenCells.has(`${cell.row},${cell.col}`));
     if (!candidates.length) return null;
-    candidates.sort((a, b) => {
-        if (a.chebyshev !== b.chebyshev) return a.chebyshev - b.chebyshev;
-        if (a.manhattan !== b.manhattan) return a.manhattan - b.manhattan;
-        if (a.row !== b.row) return a.row - b.row;
-        return a.col - b.col;
-    });
-    return { row: candidates[0].row, col: candidates[0].col };
+    const randomSource = _resolveBoardOpsRandomSource(cardState, meta);
+    if (!EvasionDestination || typeof EvasionDestination.selectNearestEmptyEvasionDestination !== 'function') {
+        throw new Error('CardEvasionDestination.selectNearestEmptyEvasionDestination is unavailable');
+    }
+    return EvasionDestination.selectNearestEmptyEvasionDestination(
+        { row, col },
+        candidates,
+        randomSource,
+        { forbiddenCells: Array.from(forbiddenCells).map((key) => {
+            const [forbiddenRow, forbiddenCol] = key.split(',').map(Number);
+            return { row: forbiddenRow, col: forbiddenCol };
+        }) }
+    );
 }
 
 function _moveCellMarkers(cardState: any, fromRow: number, fromCol: number, toRow: number, toCol: number): void {

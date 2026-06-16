@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '次に置く石を逃亡石化。毎ターン1マス逃げるように移動し、移動できるマスがなくなると爆発。反転回避を1回持つ。';
-const EXPECTED_DETAIL_TEXT = '毎ターン1マス逃げるように移動する。\n反転対象時は1回回避する。\nターン開始時の移動で移動先が無い場合は爆発する。\n反転回避で移動先が無い場合は通常どおり反転される。';
+const EXPECTED_DETAIL_TEXT = '毎ターン1マス逃げるように移動する。\n反転対象時は、盤面上の最も近い有効な空きマスへ1回だけ移動して回避する。\nターン開始時の移動で移動先が無い場合は爆発する。\n反転回避で有効な空きマスが1つも無い場合は爆発せず通常どおり反転され、回数は消費しない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

@@ -17,7 +17,7 @@ const RULES_HELP_EFFECT_GLOSSARY = Object.freeze([
   Object.freeze({ label: '不可侵', description: '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。' }),
   Object.freeze({ label: '反転保護', description: '反転されない。挟める列ごと無効できる。' }),
   Object.freeze({ label: '完全保護', description: '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。' }),
-  Object.freeze({ label: '反転回避', description: '相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。' }),
+  Object.freeze({ label: '反転回避', description: '相手に石を置かれて反転されるとき、元位置から最も近い有効な空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。' }),
   Object.freeze({ label: '破壊回避', description: '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。' }),
   Object.freeze({ label: '多動状態', description: '両者ターン開始時マス移動する、基本ランダム移動。' }),
   Object.freeze({ label: '幽体', description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換以外の効果は通常どおり受ける。' }),

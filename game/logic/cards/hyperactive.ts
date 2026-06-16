@@ -68,6 +68,7 @@ let BoardUtils: any = null;
 let RandomSourceModule: any = null;
 let StoneStatusSnapshot: any = null;
 let EvasionStatusModule: any = null;
+let EvasionDestinationModule: any = null;
 let HyperactiveCoreUtils: any = null;
 let HyperactiveBoardShape: any = null;
 let CardMarkersModule: any = null;
@@ -81,6 +82,7 @@ function refreshHyperactiveRuntimeModules(): void {
     RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
     StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
     EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
+    EvasionDestinationModule = resolveHyperactiveModuleOrGlobal('../cards-internal/evasion-destination', 'CardEvasionDestination') || null;
     HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
     HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
     CardMarkersModule = resolveHyperactiveModuleOrGlobal('./markers', 'CardMarkers');
@@ -427,6 +429,28 @@ function getNeighborEmptyCandidates(
         }
     }
     return includeOccupied ? emptyOut.concat(occupiedOut) : emptyOut;
+}
+
+function getBoardShapeEmptyCandidates(
+    cardState: CardState,
+    gameState: GameState,
+    deps: { isBlockedCell?: HyperactiveDeps['isBlockedCell'] }
+): Candidate[] {
+    const out: Candidate[] = [];
+    const seen = new Set<string>();
+    const isBlockedCell = deps && typeof deps.isBlockedCell === 'function'
+        ? deps.isBlockedCell
+        : (() => false);
+    forEachBoardShapeCell(gameState, (row, col, value) => {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        const key = `${row},${col}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (value !== EMPTY) return;
+        if (isBlockedCell(cardState, row, col, gameState)) return;
+        out.push({ row, col, occupied: false });
+    });
+    return out;
 }
 
 function getStraightLineEmptyCandidates(
@@ -935,20 +959,23 @@ function resolveHyperactiveFlipEvasion(
         const cause = getFlipEvadeCause(markerTypeUpper);
         const moveReason = getFlipEvadeMoveReason(markerTypeUpper);
 
-        let candidatePool = getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell })
+        let candidatePool = getBoardShapeEmptyCandidates(cardState, gameState, { isBlockedCell })
             .filter((candidate) => !forbiddenTargets.has(`${candidate.row},${candidate.col}`));
 
         let movedRes = false;
         while (candidatePool.length > 0) {
-            let target: Candidate | null = null;
-            if (markerTypeUpper === 'ESCAPE_HYPERACTIVE') {
-                const threats = collectEscapeThreats(gameState, ownerVal, entry.row, entry.col);
-                target = pickEscapeTarget(candidatePool, threats);
+            if (!EvasionDestinationModule || typeof EvasionDestinationModule.selectNearestEmptyEvasionDestination !== 'function') {
+                throw new Error('CardEvasionDestination.selectNearestEmptyEvasionDestination is unavailable');
             }
-            if (!target) {
-                const index = Math.floor(p.random() * candidatePool.length);
-                target = candidatePool[index] || candidatePool[0] || null;
-            }
+            const target = EvasionDestinationModule.selectNearestEmptyEvasionDestination(
+                { row: entry.row, col: entry.col },
+                candidatePool,
+                p,
+                { forbiddenCells: Array.from(forbiddenTargets).map((forbiddenKey) => {
+                    const [forbiddenRow, forbiddenCol] = forbiddenKey.split(',').map(Number);
+                    return { row: forbiddenRow, col: forbiddenCol };
+                }) }
+            );
             if (!target) break;
 
             const fromRow = entry.row;

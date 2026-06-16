@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。';
-const EXPECTED_DETAIL_TEXT = '次に置く石を意志狩りの王石化する。\n自ターン開始時、敵石を1つ選んでそのマスへ移動しながら破壊する。\n敵の特殊石があればそちらを優先して狙う。\n反転回避2回と破壊回避2回を持つ特殊石として扱う。';
+const EXPECTED_DETAIL_TEXT = '次に置く石を意志狩りの王石化する。\n自ターン開始時、敵石を1つ選んでそのマスへ移動しながら破壊する。\n敵の特殊石があればそちらを優先して狙う。\n反転回避2回と破壊回避2回を持ち、回避時は盤面上の最も近い有効な空きマスへ移動する。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

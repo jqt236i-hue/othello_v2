@@ -75,6 +75,7 @@ installRuntimeModule('PresentationEffectProfiles', () => require('../shared/pres
 installRuntimeModule('PlaybackEventHelpers', () => require('../shared/playback-event-helpers.js'));
 installRuntimeModule('ControllerEvents', () => require('../game/controller-events.js'));
 installRuntimeModule('CardRandomSource', () => require('../game/logic/cards-internal/random-source.js'));
+installRuntimeModule('CardEvasionDestination', () => require('../game/logic/cards-internal/evasion-destination.js'));
 installRuntimeModule('CardStateFactory', () => require('../game/logic/cards-internal/state-factory.js'));
 installRuntimeModule('CardModuleResolver', () => require('../game/logic/cards-internal/module-resolver.js'));
 installRuntimeModule('CardPresentationHelpers', () => require('../game/logic/cards-internal/presentation-helpers.js'));
