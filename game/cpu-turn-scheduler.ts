@@ -77,14 +77,14 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
         return state.count > MAX_STUCK_PENDING_SELECT_RETRIES;
     }
 
-    function scheduleRetry(fn: any, delayMs: any = cfg.getAnimationRetryDelayMs()): void {
+    function scheduleRetry(fn: any, delayMs: any = cfg.getAnimationRetryDelayMs()): boolean {
         const timers = cfg.getTimers ? cfg.getTimers() : null;
         if (hasUsableWaitMs(timers)) {
             try {
                 timers.waitMs(delayMs).then(() => {
                     try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
                 });
-                return;
+                return true;
             } catch (e) { /* fall through */ }
         }
 
@@ -95,7 +95,9 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
                 try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
             }, delayMs);
             scheduledRetryTimerIds.add(tid);
+            return true;
         }
+        return false;
     }
 
     function scheduleRunCpuTurn(playerKey: any, options: any, delayMs: any): void {
@@ -105,7 +107,7 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
         cpuRetryPendingByPlayer[key] = expectedRetryGeneration;
         const expectedPlayerKey = cfg.getCurrentPlayerKeySafe ? cfg.getCurrentPlayerKeySafe() : null;
         const expectedTurnNumber = cfg.getCurrentTurnNumberSafe ? cfg.getCurrentTurnNumberSafe() : null;
-        scheduleRetry(() => {
+        const scheduled = scheduleRetry(() => {
             if (cpuRetryPendingByPlayer[key] === expectedRetryGeneration) {
                 cpuRetryPendingByPlayer[key] = null;
             }
@@ -146,6 +148,9 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
             }
             cfg.runCpuTurn(key, options || {});
         }, delayMs);
+        if (!scheduled && cpuRetryPendingByPlayer[key] === expectedRetryGeneration) {
+            cpuRetryPendingByPlayer[key] = null;
+        }
     }
 
     return {
