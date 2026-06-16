@@ -23,11 +23,16 @@ describe('diff-renderer special marker renderer', () => {
     className = '';
     textContent = '';
     children: any[] = [];
+    attributes: Record<string, string> = {};
     classList = new FakeClassList(this);
 
     appendChild(child: any) {
       this.children.push(child);
       return child;
+    }
+
+    setAttribute(name: string, value: string) {
+      this.attributes[name] = value;
     }
 
     querySelector(selector: string) {
@@ -108,5 +113,14 @@ describe('diff-renderer special marker renderer', () => {
       'stone-timer flip-evade-timer',
       'guard-timer'
     ]);
+  });
+
+  test('creates flip protection badge with stable marker text', () => {
+    const renderer = createRenderer();
+
+    const badge = renderer.createFlipProtectionBadge();
+
+    expect(badge.className).toBe('stone-flip-protection-badge');
+    expect(badge.textContent).toBe('反');
   });
 });

@@ -150,6 +150,7 @@ var AnimationTheoryEvents = requireRuntimeModuleOrWindowGlobal('./animation-theo
 var LayoutReadBatch = requireRuntimeModuleOrWindowGlobal('./layout-read-batch', 'LayoutReadBatch');
 var TransientOverlayBatch = requireRuntimeModuleOrWindowGlobal('./transient-overlay-batch', 'TransientOverlayBatch');
 var StoneStatusSnapshot = requireRuntimeModuleOrWindowGlobal('../shared/stone-status-snapshot', 'StoneStatusSnapshot');
+var SpecialMarkerRenderer = requireRuntimeModuleOrWindowGlobal('./diff-renderer/special-marker-renderer', 'SpecialMarkerRenderer');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -199,6 +200,34 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         if (typeUpper === 'WORK') return 'stone-timer work-timer';
         if (typeUpper === 'TIME_STOP' || typeUpper === 'PERMA_PROTECTED') return 'countdown-timer';
         return 'stone-timer special-timer';
+    }
+
+    function createFlipProtectionBadgeForAnimation() {
+        if (typeof document === 'undefined') return null;
+        if (SpecialMarkerRenderer && typeof SpecialMarkerRenderer.createSpecialMarkerRenderer === 'function') {
+            const renderer = SpecialMarkerRenderer.createSpecialMarkerRenderer({ documentRef: document });
+            if (renderer && typeof renderer.createFlipProtectionBadge === 'function') {
+                return renderer.createFlipProtectionBadge();
+            }
+        }
+        const badge = document.createElement('div');
+        badge.className = 'stone-flip-protection-badge';
+        badge.textContent = '反';
+        badge.setAttribute('aria-hidden', 'true');
+        return badge;
+    }
+
+    function shouldShowFlipProtectionBadgeForAnimation(state: any, specialType: any) {
+        if (!StoneStatusSnapshot || typeof StoneStatusSnapshot.createSpecialStoneStatusSnapshot !== 'function') return false;
+        const typeUpper = String(specialType || '').toUpperCase();
+        const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
+            type: typeUpper || null,
+            remainingOwnerTurns: state && state.timer,
+            flipEvadeRemaining: state && state.flipEvadeRemaining,
+            destroyEvadeRemaining: state && state.destroyEvadeRemaining,
+            hasGuard: typeUpper === 'GUARD' || !!(state && (state.hasGuard || state.guard))
+        }, { mode: 'raw' });
+        return !!(snapshot && snapshot.hasFlipProtection);
     }
 
     // Ensure minimal telemetry helpers exist even without initializeUI
@@ -2074,7 +2103,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         syncDiscTimerOnly(disc: any, state: any) {
             if (!disc || !state) return;
 
-            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
+            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer, .stone-flip-protection-badge';
             const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
             existingTimers.forEach((el: any) => el.remove());
 
@@ -2102,6 +2131,11 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
                 const primaryClass = resolveSpecialTimerClassForAnimation(specialType);
                 appendTimer(primaryClass, primaryTimerValue, undefined);
+            }
+
+            if (shouldShowFlipProtectionBadgeForAnimation(state, specialType)) {
+                const badge = createFlipProtectionBadgeForAnimation();
+                if (badge) disc.appendChild(badge);
             }
 
             const isPrimaryFlipEvadeSpecialType = (

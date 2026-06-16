@@ -76,6 +76,14 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return createTimedMarkerLabel('guard-timer', value);
   }
 
+  function createFlipProtectionBadge() {
+    const badge = doc.createElement('div');
+    badge.className = 'stone-flip-protection-badge';
+    badge.textContent = '反';
+    badge.setAttribute('aria-hidden', 'true');
+    return badge;
+  }
+
   function createFreezeMark(remainingOwnerTurns: any) {
     const freezeMark = doc.createElement('div');
     freezeMark.className = 'freeze-mark';
@@ -96,6 +104,7 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createBonusLabel,
     createTimedMarkerLabel,
     createGuardTimerLabel,
+    createFlipProtectionBadge,
     createFreezeMark
   };
 }

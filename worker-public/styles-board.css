@@ -1195,6 +1195,33 @@ html.stone-images-loaded .disc.white {
     box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
 }
 
+.stone-flip-protection-badge {
+    position: absolute;
+    left: calc(4px * var(--layout-stage-scale));
+    top: 50%;
+    transform: translateY(-50%);
+    width: calc(18px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f4f6f8;
+    font-size: calc(10px * var(--layout-stage-scale));
+    line-height: 1;
+    font-weight: 800;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 48%),
+        rgba(92, 96, 104, 0.86);
+    border: var(--layout-size-border-thin) solid rgba(226, 230, 236, 0.72);
+    box-shadow:
+        0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.30);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    z-index: 72;
+    pointer-events: none;
+}
+
 .stone-timer.flip-evade-timer,
 .flip-evade-timer {
     left: auto;

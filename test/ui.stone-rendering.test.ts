@@ -740,6 +740,44 @@ describe('UI stone rendering', () => {
     assert.strictEqual(freezeMark.querySelector('.freeze-turn').textContent, '5');
   });
 
+  test('diff-renderer marks stones with flip protection using a left-side badge', () => {
+    if (typeof document === 'undefined') {
+      const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+      global.window = dom.window;
+      global.document = dom.window.document;
+      global.HTMLElement = dom.window.HTMLElement;
+    }
+
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[0][0] = BLACK;
+    gameState.board[0][1] = BLACK;
+    gameState.board[0][2] = BLACK;
+    gameState.board[0][3] = BLACK;
+    cardState.markers = [
+      { id: 41, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2 } },
+      { id: 42, kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'PERMA_PROTECTED' } },
+      { id: 43, kind: 'specialStone', row: 0, col: 2, owner: 'black', data: { type: 'GHOST', remainingOwnerTurns: 3 } },
+      { id: 44, kind: 'specialStone', row: 0, col: 3, owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const protectedDisc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc');
+    const permaDisc = boardEl.querySelector('.cell[data-row="0"][data-col="1"] .disc');
+    const ghostDisc = boardEl.querySelector('.cell[data-row="0"][data-col="2"] .disc');
+    const guardDisc = boardEl.querySelector('.cell[data-row="0"][data-col="3"] .disc');
+
+    assert.strictEqual(protectedDisc.querySelector('.stone-flip-protection-badge').textContent, '反');
+    assert.strictEqual(permaDisc.querySelector('.stone-flip-protection-badge').textContent, '反');
+    assert.strictEqual(ghostDisc.querySelector('.stone-flip-protection-badge'), null);
+    assert.strictEqual(guardDisc.querySelector('.stone-flip-protection-badge').textContent, '反');
+  });
+
   test('showSpecialStoneInfoAt renders TIME_STOP name and timer', () => {
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');

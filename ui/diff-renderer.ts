@@ -1859,6 +1859,23 @@ function _createSpecialStoneStatusSnapshotForDiff(input: any, options: any) {
     return null;
 }
 
+function _shouldShowFlipProtectionBadgeForDiff(input: any) {
+    const snapshot = _createSpecialStoneStatusSnapshotForDiff(input, { mode: 'raw' });
+    return !!(snapshot && snapshot.hasFlipProtection);
+}
+
+function _createFlipProtectionBadgeForDiff(markerRenderer: any) {
+    if (markerRenderer && typeof markerRenderer.createFlipProtectionBadge === 'function') {
+        return markerRenderer.createFlipProtectionBadge();
+    }
+    if (typeof document === 'undefined') return null;
+    const badge = document.createElement('div');
+    badge.className = 'stone-flip-protection-badge';
+    badge.textContent = '反';
+    badge.setAttribute('aria-hidden', 'true');
+    return badge;
+}
+
 function _buildSpecialStoneStatusTagsForDiff(inputs: any, options: any) {
     const snapshotModule = _getStoneStatusSnapshotForDiff();
     if (snapshotModule && typeof snapshotModule.buildSpecialStoneStatusTags === 'function') {
@@ -3263,6 +3280,19 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
                 hasGuard: !!state.guard
             }, { mode: 'raw' })
             : null;
+        const flipProtectionStatusInput = state.special
+            ? {
+                type: state.special.type,
+                remainingOwnerTurns: state.special.remainingOwnerTurns,
+                flipEvadeRemaining: state.special.flipEvadeRemaining,
+                destroyEvadeRemaining: state.special.destroyEvadeRemaining,
+                hasGuard: !!state.guard
+            }
+            : (state.guard ? { type: null, hasGuard: true } : null);
+        if (flipProtectionStatusInput && _shouldShowFlipProtectionBadgeForDiff(flipProtectionStatusInput)) {
+            const flipProtectionBadge = _createFlipProtectionBadgeForDiff(markerRenderer);
+            if (flipProtectionBadge) discHud.appendChild(flipProtectionBadge);
+        }
         const canShowSpecialFlipEvade = !!(
             specialStatusSnapshot &&
             specialStatusSnapshot.hasFlipEvade &&

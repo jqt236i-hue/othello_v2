@@ -54,6 +54,21 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.special-timer')).toBeNull();
   });
 
+  test('syncDiscVisual marks flip-protected stones with the protection badge', () => {
+    const engine = require('../ui/animation-engine');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+
+    engine.syncDiscVisual(disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
+
+    const badge = disc.querySelector('.stone-flip-protection-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toBe('反');
+
+    engine.syncDiscVisual(disc, { color: 1, special: 'GHOST', timer: 3, owner: 'black' });
+    expect(disc.querySelector('.stone-flip-protection-badge')).toBeNull();
+  });
+
   test('syncDiscVisual uses shared special-stone timer classes for body duration labels', () => {
     const engine = require('../ui/animation-engine');
     const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
