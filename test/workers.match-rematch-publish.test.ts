@@ -16,7 +16,7 @@ function runScenario(runnerSource, actionType) {
   return JSON.parse(String(result.stdout || '{}'));
 }
 
-function runOutOfTurnPublishScenario(actionType) {
+function runOutOfTurnPublishScenario(actionType, initialConsecutivePasses = 2) {
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
@@ -43,7 +43,7 @@ function runOutOfTurnPublishScenario(actionType) {
     "      gameState: {",
     "        board: terminalBoard,",
     "        currentPlayer: 1,",
-    "        consecutivePasses: 2,",
+    `        consecutivePasses: ${initialConsecutivePasses},`,
     "        turnNumber: 60",
     "      },",
     "      cardState: {}",
@@ -60,7 +60,7 @@ function runOutOfTurnPublishScenario(actionType) {
     "    gameState: {",
     "      board: terminalBoard,",
     "      currentPlayer: 1,",
-    "      consecutivePasses: 2,",
+    `      consecutivePasses: ${initialConsecutivePasses},`,
     "      turnNumber: 60",
     "    },",
     "    cardState: {}",
@@ -126,6 +126,14 @@ describe('match worker rematch publish', () => {
 
   test('ゲーム終了後でも reset 以外の手番外 publish は拒否する', () => {
     const result = runOutOfTurnPublishScenario('use_card');
+
+    expect(result.status).toBe(409);
+    expect(result.payload && result.payload.ok).toBe(false);
+    expect(result.payload.rejectedReason).toBe('OUT_OF_TURN');
+  });
+
+  test('盤面満杯だけではゲーム終了後 reset として手番外 publish を許可しない', () => {
+    const result = runOutOfTurnPublishScenario('reset_game', 0);
 
     expect(result.status).toBe(409);
     expect(result.payload && result.payload.ok).toBe(false);

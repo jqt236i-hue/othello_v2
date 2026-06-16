@@ -1,5 +1,7 @@
 # Card Reversi Zero-Stone Endgame Implementation Plan
 
+> **Superseded note (2026-06-17):** The canonical end condition is now only two consecutive passes (`consecutivePasses >= 2`). A full board by itself is no longer terminal. Use `01-rulebook.md` section 8.2 as the current source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Prevent Card Reversi from ending immediately only because one color has zero board discs while empty cells, cards, or pass resolution can still decide the game.

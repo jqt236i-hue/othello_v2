@@ -59,6 +59,37 @@ function copyCardState(cardState: any): any {
     return JSON.parse(JSON.stringify(cardState));
 }
 
+function normalizeConsecutivePasses(state: any): number {
+    return Number.isFinite(Number(state && state.consecutivePasses))
+        ? Math.max(0, Math.trunc(Number(state.consecutivePasses)))
+        : 0;
+}
+
+function isCoreGameOver(state: any): boolean {
+    if (CoreLogic && typeof CoreLogic.isGameOver === 'function') {
+        return !!CoreLogic.isGameOver(state);
+    }
+    return normalizeConsecutivePasses(state) >= 2;
+}
+
+function applyPassAction(state: any): any {
+    if (CoreLogic && typeof CoreLogic.applyPass === 'function') {
+        return CoreLogic.applyPass(state);
+    }
+    const nextState = copyGameState(state || {});
+    const currentPlayer = nextState.currentPlayer;
+    nextState.currentPlayer = currentPlayer === 'black'
+        ? 'white'
+        : currentPlayer === 'white'
+            ? 'black'
+            : -Number(currentPlayer || 1);
+    nextState.consecutivePasses = normalizeConsecutivePasses(state) + 1;
+    nextState.turnNumber = Number.isFinite(Number(state && state.turnNumber))
+        ? Math.trunc(Number(state.turnNumber)) + 1
+        : 1;
+    return nextState;
+}
+
 function boardToString(board: any): string {
     if (!Array.isArray(board)) return '';
     try {
@@ -101,6 +132,9 @@ const _gameInterface = {
                 actions.push({ type: 'place', row: move.row, col: move.col });
             }
         }
+        if (actions.length === 0 && !isCoreGameOver(state)) {
+            actions.push({ type: 'pass' });
+        }
         return actions;
     },
 
@@ -108,6 +142,10 @@ const _gameInterface = {
         const nextState = copyGameState(state);
         const nextCardState = copyCardState(cardState);
         const nextPlayer = playerKey === 'black' ? 'white' : 'black';
+
+        if (action.type === 'pass') {
+            return { state: applyPassAction(nextState), cardState: nextCardState, nextPlayer };
+        }
 
         if (action.type === 'place') {
             if (CoreLogic && typeof CoreLogic.applyMove === 'function') {
@@ -129,15 +167,12 @@ const _gameInterface = {
         if (!CoreLogic) {
             return { isTerminal: false, value: 0 };
         }
-        // Simple cardless rollout heuristic: no legal moves for either player.
-        const blackVal = CoreLogic.BLACK !== undefined ? CoreLogic.BLACK : 1;
-        const whiteVal = CoreLogic.WHITE !== undefined ? CoreLogic.WHITE : -1;
-        const blackMoves = CoreLogic.getLegalMoves ? CoreLogic.getLegalMoves(state, blackVal).length : 0;
-        const whiteMoves = CoreLogic.getLegalMoves ? CoreLogic.getLegalMoves(state, whiteVal).length : 0;
-        if (blackMoves > 0 || whiteMoves > 0) {
+        if (!isCoreGameOver(state)) {
             return { isTerminal: false, value: 0 };
         }
-        // Game over – compute winner
+        // Cardless rollout result after canonical pass termination.
+        const blackVal = CoreLogic.BLACK !== undefined ? CoreLogic.BLACK : 1;
+        const whiteVal = CoreLogic.WHITE !== undefined ? CoreLogic.WHITE : -1;
         let blackCount = 0;
         let whiteCount = 0;
         if (typeof CoreLogic.countDiscs === 'function') {
