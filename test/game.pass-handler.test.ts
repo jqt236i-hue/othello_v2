@@ -107,6 +107,32 @@ describe('pass-handler flows', () => {
         }
     });
 
+    test('handleBlackPassWhenNoMoves skips a stale delayed pass after the turn changes', async () => {
+        jest.useFakeTimers();
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 12 };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).WHITE }),
+                cardState: cs,
+                events: []
+            }))
+        };
+        try {
+            const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
+
+            await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+            (global as any).gameState = { currentPlayer: (global as any).WHITE, turnNumber: 13 };
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
+    });
+
     test('processPassTurn handles pass and does not throw when TurnPipeline present', async () => {
         (global as any).TurnPipeline = {
             applyTurnSafe: jest.fn((cs: any, gs: any) => ({

@@ -872,7 +872,19 @@ async function handleDoublePlaceNoSecondMove(move: any, passedPlayer: any) {
 async function handleBlackPassWhenNoMoves() {
     const safeBlackPassDelay = (typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000;
     const safeBlackName = (typeof BLACK !== 'undefined' && typeof getPlayerName === 'function') ? getPlayerName(BLACK) : '黒';
+    const expectedPlayer = gameState ? gameState.currentPlayer : null;
+    const expectedPlayerKey = normalizePlayerKeyOptional(expectedPlayer);
+    const expectedTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
     scheduleWithDelay(safeBlackPassDelay, async () => {
+        const currentPlayerKey = normalizePlayerKeyOptional(gameState ? gameState.currentPlayer : null);
+        const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+        if (
+            (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) ||
+            (expectedTurnNumber !== null && currentTurnNumber !== expectedTurnNumber)
+        ) {
+            setPassHandlerProcessing(false);
+            return;
+        }
         emitPassHandlerLog(`${safeBlackName}: パス (置ける場所がありません)`);
         const passedPlayer = gameState.currentPlayer;
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
