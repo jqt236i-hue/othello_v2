@@ -522,6 +522,43 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
   });
 
+  test('turn-start escape hyperactive explosion can trigger salvation god revive with only the phase prng', () => {
+    const { cardState, gameState, prng } = createState([0]);
+    delete (cardState as any)._defaultRandomSource;
+
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[3][3] = Shared.WHITE;
+    for (let row = 2; row <= 4; row += 1) {
+      for (let col = 2; col <= 4; col += 1) {
+        if (row === 3 && col === 3) continue;
+        gameState.board[row][col] = Shared.BLACK;
+      }
+    }
+    cardState.markers.push(
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
+      { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'ESCAPE_HYPERACTIVE' } }
+    );
+
+    expect(() => {
+      CardIogic.processHyperactiveMoveAtAnchor(cardState, gameState, 'white', 3, 3, prng, {
+        currentTurnPlayerKey: 'black',
+        expectedSpecialType: 'ESCAPE_HYPERACTIVE'
+      });
+    }).not.toThrow();
+
+    const visualEvents = (cardState.presentationEvents || []).filter((event: any) => (
+      event &&
+      (
+        (event.type === 'DESTROY' && event.cause === 'ESCAPE_HYPERACTIVE') ||
+        (event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive')
+      )
+    ));
+
+    expect(visualEvents.map((event: any) => event.type)).toEqual(expect.arrayContaining(['DESTROY', 'SPAWN']));
+    expect(visualEvents.some((event: any) => event.type === 'SPAWN' && event.ownerAfter === 'black')).toBe(true);
+    expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
+  });
+
   test('will hunter king slash keeps destroy and slash move before salvation god revive', () => {
     const { cardState, gameState, prng } = createState([0.9]);
     gameState.board[0][0] = Shared.BLACK;

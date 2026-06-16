@@ -3994,7 +3994,8 @@ const {
 
 
     function processHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
-        return CardHyperactiveModule.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        const randomSource = resolveDeterministicRandomSource(prng, defaultPrng, 'CardLogic.processHyperactiveMoveAtAnchor');
+        const deps = {
             defaultPrng: defaultPrng,
             getFlipsWithContext: getFlipsWithContextLocal,
             clearBombAt,
@@ -4006,9 +4007,14 @@ const {
             BoardOps: BoardOpsModule,
             swapOccupiedCellsWithPresentation,
             destroyAt,
+            randomSource,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
             expectedSpecialType: options.expectedSpecialType || null
-        });
+        };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardHyperactiveModule.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps),
+            { randomSource }
+        );
     }
 
     function processRobotVacuumMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
@@ -4068,7 +4074,8 @@ const {
     }
 
     function processInstantHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        return CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        const randomSource = resolveDeterministicRandomSource(prng, defaultPrng, 'CardLogic.processInstantHyperactiveMoveAtAnchor');
+        const deps = {
             defaultPrng: defaultPrng,
             getFlipsWithContext: getFlipsWithContextLocal,
             clearBombAt,
@@ -4076,12 +4083,18 @@ const {
             isBlockedCell,
             getCardContext,
             BoardOps: BoardOpsModule,
+            randomSource,
             destroyAt
-        });
+        };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps),
+            { randomSource }
+        );
     }
 
     function processUltimateHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
-        return CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        const randomSource = resolveDeterministicRandomSource(prng, defaultPrng, 'CardLogic.processUltimateHyperactiveMoveAtAnchor');
+        const deps = {
             defaultPrng: defaultPrng,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
             ultimateHyperactiveTurns: ULTIMATE_HYPERACTIVE_TURNS,
@@ -4092,8 +4105,13 @@ const {
             getFlipsWithContext: getFlipsWithContextLocal,
             getCardContext,
             BoardOps: BoardOpsModule,
+            randomSource,
             destroyAt
-        });
+        };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps),
+            { randomSource }
+        );
     }
 
 
