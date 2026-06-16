@@ -108,4 +108,33 @@ describe('selfplay bootstrap helpers module', () => {
             turnStartApplied: false
         });
     });
+
+    test('buildDecisionSnapshot marks turn-start auto handoff as stopped action', () => {
+        const applyTurnStartPhase = jest.fn((_cardLogic, _core, clonedCardState, clonedGameState) => {
+            clonedCardState.lastTurnStartedFor = null;
+            clonedGameState.currentPlayer = -1;
+            return { stopAction: true };
+        });
+        const helpers = createSelfplayBootstrapHelpers({
+            SeededPRNG: {
+                fromState: jest.fn(() => ({ random: () => 0.5 })),
+                createPRNG: jest.fn()
+            },
+            deepClone: (value) => JSON.parse(JSON.stringify(value)),
+            TurnPipelinePhases: { applyTurnStartPhase },
+            CardLogic: {},
+            Core: {}
+        });
+
+        const out = helpers.buildDecisionSnapshot(
+            { currentPlayer: 1 },
+            { lastTurnStartedFor: 'white' },
+            'black',
+            { getState: () => ({ s: 2 }) }
+        );
+
+        expect(out.turnStartApplied).toBe(true);
+        expect(out.turnStartStoppedAction).toBe(true);
+        expect(out.gameState.currentPlayer).toBe(-1);
+    });
 });

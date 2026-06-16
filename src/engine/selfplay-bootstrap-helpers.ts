@@ -33,8 +33,9 @@ export function createSelfplayBootstrapHelpers(config?: SelfplayBootstrapHelpers
         if (previewPrng && typeof previewPrng.random === 'function') {
             clonedCardState._defaultRandomSource = previewPrng;
         }
+        let turnStartResult = null;
         try {
-            turnPipelinePhases.applyTurnStartPhase(
+            turnStartResult = turnPipelinePhases.applyTurnStartPhase(
                 cardLogic,
                 core,
                 clonedCardState,
@@ -55,7 +56,9 @@ export function createSelfplayBootstrapHelpers(config?: SelfplayBootstrapHelpers
             gameState: clonedGameState,
             cardState: clonedCardState,
             prng: previewPrng,
-            turnStartApplied: true
+            turnStartApplied: true,
+            turnStartStoppedAction: !!(turnStartResult && turnStartResult.stopAction === true),
+            turnStartEvents: previewEvents.slice()
         };
     }
 

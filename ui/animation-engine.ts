@@ -217,6 +217,27 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         return badge;
     }
 
+    function createRegenBadgeForAnimation(value: any) {
+        if (typeof document === 'undefined') return null;
+        const remaining = Math.max(0, Math.trunc(Number(value)));
+        if (!Number.isFinite(remaining) || remaining <= 0) return null;
+        if (SpecialMarkerRenderer && typeof SpecialMarkerRenderer.createSpecialMarkerRenderer === 'function') {
+            const renderer = SpecialMarkerRenderer.createSpecialMarkerRenderer({ documentRef: document });
+            if (renderer && typeof renderer.createRegenBadgeLabel === 'function') {
+                return renderer.createRegenBadgeLabel(remaining);
+            }
+        }
+        const badge = document.createElement('div');
+        badge.className = 'stone-regen-badge';
+        badge.setAttribute('data-count', String(remaining));
+        if (remaining >= 10) badge.classList.add('timer-double-digit');
+        const valueLabel = document.createElement('span');
+        valueLabel.className = 'stone-regen-badge-value';
+        valueLabel.textContent = String(remaining);
+        badge.appendChild(valueLabel);
+        return badge;
+    }
+
     function shouldShowFlipProtectionBadgeForAnimation(state: any, specialType: any) {
         if (!StoneStatusSnapshot || typeof StoneStatusSnapshot.createSpecialStoneStatusSnapshot !== 'function') return false;
         const typeUpper = String(specialType || '').toUpperCase();
@@ -2103,7 +2124,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         syncDiscTimerOnly(disc: any, state: any) {
             if (!disc || !state) return;
 
-            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer, .stone-flip-protection-badge';
+            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer, .stone-flip-protection-badge, .stone-regen-badge';
             const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
             existingTimers.forEach((el: any) => el.remove());
 
@@ -2128,7 +2149,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 disc.appendChild(timerEl);
             };
 
-            if (Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
+            if (specialType === 'REGEN' && Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
+                const regenBadge = createRegenBadgeForAnimation(primaryTimerValue);
+                if (regenBadge) disc.appendChild(regenBadge);
+            } else if (Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
                 const primaryClass = resolveSpecialTimerClassForAnimation(specialType);
                 appendTimer(primaryClass, primaryTimerValue, undefined);
             }

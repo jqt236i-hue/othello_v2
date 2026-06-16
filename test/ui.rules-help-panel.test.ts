@@ -581,18 +581,25 @@ describe('rules help panel', () => {
     expect(html).toMatch(/盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。/);
     expect(html).toMatch(/完全保護の残りターン/);
     expect(html).toMatch(/特殊石本体の持続ターン/);
+    expect(html).toMatch(/中央左のピンクハートバッジ/);
+    expect(html).toMatch(/復活可能回数/);
     expect(html).toMatch(/下中央の赤い三角形数字/);
     expect(html).toMatch(/カウントダウン専用の残り回数/);
-    expect(html).toMatch(/中央左の灰色バッジ/);
+    expect(html).toMatch(/中央右の灰色バッジ/);
     expect(html).toMatch(/反転保護の目印/);
     expect(html).toMatch(/stone-flip-protection-badge/);
+    expect(html).toMatch(/stone-regen-badge/);
     expect(html).toMatch(/右上の数字/);
     expect(html).not.toMatch(/右側の縦寄り数字/);
     expect(boardCss).toMatch(/\.guard-timer\s*\{[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
     expect(boardCss).toMatch(/\.bomb-timer,\s*\.countdown-timer\s*\{[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).toMatch(/\.stone-flip-protection-badge\s*\{[\s\S]*?left:\s*calc\(-7px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(-5px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).toMatch(/\.stone-timer\.destroy-evade-timer,[\s\S]*?left:\s*calc\(-5px \* var\(--layout-stage-scale\)\);[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.cell\.has-disc\.has-regen-badge\s*\{[\s\S]*?z-index:\s*calc\(var\(--board-layer-expanded-cell\) \+ 12\);/);
+    expect(boardCss).toMatch(/\.stone-regen-badge\s*\{[\s\S]*?left:\s*calc\(-7px \* var\(--layout-stage-scale\)\);[\s\S]*?right:\s*auto;[\s\S]*?top:\s*50%;/);
+    expect(boardCss).toMatch(/\.stone-regen-badge::before\s*\{[\s\S]*?content:\s*'♥';/);
+    expect(boardCss).toMatch(/\.stone-regen-badge-value\s*\{[\s\S]*?z-index:\s*1;/);
+    expect(boardCss).toMatch(/\.stone-flip-protection-badge\s*\{[\s\S]*?left:\s*auto;[\s\S]*?right:\s*calc\(-2px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(-3px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(-3px \* var\(--layout-stage-scale\)\);/);
+    expect(boardCss).toMatch(/\.stone-timer\.destroy-evade-timer,[\s\S]*?left:\s*calc\(-3px \* var\(--layout-stage-scale\)\);[\s\S]*?bottom:\s*calc\(-3px \* var\(--layout-stage-scale\)\);/);
     expect(boardCss).not.toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?top:\s*50%;[\s\S]*?transform:\s*translateY\(-50%\);/);
     expect(html).not.toMatch(/下中央のひし形数字/);
     expect(html).toMatch(/破壊回避の残り回数/);
@@ -629,6 +636,7 @@ describe('rules help panel', () => {
       expect(declarations).toMatch(/line-height:\s*1;/);
       expect(declarations).toMatch(/height:\s*calc\(14px \* var\(--layout-stage-scale\)\);/);
       expect(declarations).toMatch(/padding:\s*0 calc\(4px \* var\(--layout-stage-scale\)\);/);
+      expect(declarations).toMatch(/bottom:\s*calc\(1px \* var\(--layout-stage-scale\)\);/);
     }
   });
 

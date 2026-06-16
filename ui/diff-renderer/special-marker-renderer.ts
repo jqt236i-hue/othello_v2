@@ -76,6 +76,19 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return createTimedMarkerLabel('guard-timer', value);
   }
 
+  function createRegenBadgeLabel(value: any) {
+    const badge = doc.createElement('div');
+    badge.className = 'stone-regen-badge';
+    const remaining = Math.max(0, Math.trunc(Number(value)));
+    badge.setAttribute('data-count', String(remaining));
+    const valueLabel = doc.createElement('span');
+    valueLabel.className = 'stone-regen-badge-value';
+    valueLabel.textContent = String(remaining);
+    badge.appendChild(valueLabel);
+    applyTimerClass(deps, badge, remaining);
+    return badge;
+  }
+
   function createStoneStatusTimerLabel(className: string, value: any) {
     const normalizedClassName = String(className || '').trim() || 'special-timer';
     const classes = normalizedClassName.split(/\s+/).filter(Boolean);
@@ -113,6 +126,7 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createBonusLabel,
     createTimedMarkerLabel,
     createGuardTimerLabel,
+    createRegenBadgeLabel,
     createStoneStatusTimerLabel,
     createFlipProtectionBadge,
     createFreezeMark

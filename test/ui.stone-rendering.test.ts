@@ -171,7 +171,7 @@ describe('UI stone rendering', () => {
       { id: 8, kind: 'specialStone', row: 0, col: 7, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 9, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
-      { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3 } },
+      { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3, remainingOwnerTurns: 3 } },
       { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } },
       { id: 14, kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } }
     ];
@@ -203,7 +203,9 @@ describe('UI stone rendering', () => {
     assert.strictEqual(protectedDisc.querySelector('.flip-evade-timer'), null);
 
     const regenDisc = boardEl.querySelector('.cell[data-row="1"][data-col="2"] .disc');
-    assert.strictEqual(regenDisc.querySelector('.special-timer').textContent, '3');
+    assert.strictEqual(regenDisc.querySelector('.special-timer'), null);
+    assert.strictEqual(regenDisc.querySelector('.stone-regen-badge').textContent, '3');
+    assert.strictEqual(boardEl.querySelector('.cell[data-row="1"][data-col="2"]').classList.contains('has-regen-badge'), true);
 
     const strongWillDisc = boardEl.querySelector('.cell[data-row="1"][data-col="3"] .disc');
     assert.strictEqual(strongWillDisc.querySelector('.countdown-timer').textContent, '6');
@@ -543,6 +545,32 @@ describe('UI stone rendering', () => {
     assert.strictEqual(flipEvadeTimer.textContent, '2');
     assert.ok(destroyEvadeTimer, 'expected destroy evade timer');
     assert.strictEqual(destroyEvadeTimer.textContent, '2');
+  });
+
+  test('diff-renderer patches regen badge changes without using duration timer', () => {
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[1][2] = BLACK;
+    cardState.markers = [
+      { id: 23, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3, remainingOwnerTurns: 3 } }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(boardEl);
+    cardState.markers[0].data.regenRemaining = 2;
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const disc = boardEl.querySelector('.cell[data-row="1"][data-col="2"] .disc');
+    const badges = disc.querySelectorAll('.stone-regen-badge');
+    assert.strictEqual(badges.length, 1);
+    assert.strictEqual(badges[0].textContent, '2');
+    assert.strictEqual(badges[0].getAttribute('data-count'), '2');
+    assert.strictEqual(badges[0].querySelector('.stone-regen-badge-value').textContent, '2');
+    assert.strictEqual(disc.querySelector('.special-timer'), null);
+    assert.strictEqual(boardEl.querySelector('.cell[data-row="1"][data-col="2"]').classList.contains('has-regen-badge'), true);
   });
 
   test('diff-renderer shows dual evade timers for afterimage will', () => {

@@ -1454,6 +1454,23 @@ const {
 
 function applyDecisionWithRetry(state: any, gameIndex: any, ply: any, playerKey: any, options: any, actionCounterRef: any) {
     const firstSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
+    if (firstSnapshot && firstSnapshot.turnStartStoppedAction === true) {
+        const nextStateVersion = (Number.isFinite(state.stateVersion) ? Number(state.stateVersion) : 0) + 1;
+        applyDecisionSnapshotBaseline(state, firstSnapshot, nextStateVersion);
+        return {
+            skippedByTurnStart: true,
+            decision: { action: { type: 'turn_start_auto' }, legalMoves: [] },
+            action: { type: 'turn_start_auto' },
+            result: {
+                ok: true,
+                gameState: state.gameState,
+                cardState: state.cardState,
+                events: Array.isArray(firstSnapshot.turnStartEvents) ? firstSnapshot.turnStartEvents.slice() : [],
+                nextStateVersion
+            },
+            decisionContext: firstSnapshot
+        };
+    }
     const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
     actionCounterRef.value += 1;
     const first = createAction(firstDecision, gameIndex, actionCounterRef.value, state.stateVersion);
@@ -1633,6 +1650,9 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
         const preDecisionCardState = state.cardState;
 
         const execution = applyDecisionWithRetry(state, gameIndex, ply, playerKey, playerPolicy, actionCounterRef);
+        if (execution && execution.skippedByTurnStart === true) {
+            continue;
+        }
         const decisionCardState = execution.decisionContext && execution.decisionContext.cardState
             ? execution.decisionContext.cardState
             : state.cardState;

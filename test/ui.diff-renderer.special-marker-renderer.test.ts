@@ -105,6 +105,10 @@ describe('diff-renderer special marker renderer', () => {
     expect(guard.className).toContain('guard-timer');
     expect(guard.textContent).toBe('2');
 
+    const regen = renderer.createRegenBadgeLabel(3);
+    expect(regen.className).toContain('stone-regen-badge');
+    expect(regen.attributes['data-count']).toBe('3');
+    expect(regen.querySelector('.stone-regen-badge-value')?.textContent).toBe('3');
 
     const freeze = renderer.createFreezeMark(4);
     expect(freeze.className).toBe('freeze-mark');
@@ -112,7 +116,8 @@ describe('diff-renderer special marker renderer', () => {
     expect(applied.map((one) => one.className)).toEqual([
       'seed-turn countdown-timer',
       'stone-timer flip-evade-timer',
-      'guard-timer'
+      'guard-timer',
+      'stone-regen-badge'
     ]);
   });
 

@@ -230,7 +230,7 @@
                             </div>
                             <div class="rules-help-counter-summary-text">
                                 石の上に出る数字やバッジは、位置と形で意味が変わります。下中央の数字は石本体やカウントダウン系、
-                                右上と左下の小さい数字は回避回数系、中央左の灰色バッジは反転保護と覚えると見分けやすいです。
+                                右上と左下の小さい数字は回避回数系、中央左のピンクハートバッジは復活回数、中央右の灰色バッジは反転保護と覚えると見分けやすいです。
                             </div>
                             <div class="rules-help-counter-summary-note">
                                 色や輪郭が少し違っても、同じ位置に出るマーカーはほぼ同じ意味です。数字の詳しい意味も、石情報で確認できます。
@@ -246,6 +246,7 @@
                                 <div class="disc__hud">
                                     <div class="countdown-timer">5</div>
                                     <div class="stone-flip-protection-badge">反</div>
+                                    <div class="stone-regen-badge" data-count="3"><span class="stone-regen-badge-value">3</span></div>
                                     <div class="stone-timer flip-evade-timer">3</div>
                                     <div class="stone-timer destroy-evade-timer">1</div>
                                 </div>
@@ -302,6 +303,29 @@
                             </div>
                             <div class="rules-help-counter-cell rules-help-counter-cell--note">
                                 一般的な特殊石の残りターンです。龍・繁殖・労働石などでも、本体側の持続表示として読みます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-regen-badge" data-count="3"><span class="stone-regen-badge-value">3</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">中央左のピンクハートバッジ</div>
+                                <div class="rules-help-counter-meaning">復活可能回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                復活の意志で付いた石が、反転や破壊からあと何回まで復活できるかを表します。
                             </div>
                         </div>
                         <div class="rules-help-counter-row">
@@ -389,7 +413,7 @@
                                 </div>
                             </div>
                             <div class="rules-help-counter-cell">
-                                <div class="rules-help-counter-label">中央左の灰色バッジ</div>
+                                <div class="rules-help-counter-label">中央右の灰色バッジ</div>
                                 <div class="rules-help-counter-meaning">反転保護の目印</div>
                             </div>
                             <div class="rules-help-counter-cell rules-help-counter-cell--note">
@@ -795,7 +819,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=32620408834063"></script>
+    <script src="public/module-registry.js?v=255236984289072"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=213110615082557"></script>

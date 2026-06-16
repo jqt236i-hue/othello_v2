@@ -17,7 +17,7 @@ window.CardCatalog = {
       "name_ja": "自由の意志",
       "type": "FREE_PLACEMENT",
       "cost": 14,
-      "desc_ja": "反転0でも空きマスに置ける。",
+      "desc_ja": "次の1手だけ、反転0でも空きマスに置ける。",
       "display_type_ja": "禁忌"
     },
     {
@@ -89,7 +89,7 @@ window.CardCatalog = {
       "name_ja": "強風の意志",
       "type": "STRONG_WIND_WILL",
       "cost": 9,
-      "desc_ja": "選択した石を左右どちらかに端まで移動させる。",
+      "desc_ja": "選択した石を左右どちらかランダム方向へ端まで移動させる。",
       "display_type_ja": "執行"
     },
     {

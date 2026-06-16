@@ -941,14 +941,11 @@ function _resolveStrongWillDisplayTurnsForBoard(data: any) {
 }
 
 function _resolveSpecialDisplayTurnsForBoard(data: any) {
+    if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') return undefined;
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
     const strongWillRemaining = _resolveStrongWillDisplayTurnsForBoard(data);
     if (strongWillRemaining !== undefined) return strongWillRemaining;
-    if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') {
-        const regenRemaining = Number(data && data.regenRemaining);
-        if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
-    }
     return undefined;
 }
 
@@ -1212,6 +1209,9 @@ function renderBoardFullLegacy() {
                 remainingOwnerTurns: isManifestType
                     ? m.data.remainingOwnerTurns
                     : _resolveSpecialDisplayTurnsForBoard(m.data),
+                regenRemaining: (!isManifestType && markerTypeUpper === 'REGEN' && Number.isFinite(Number(m.data.regenRemaining)))
+                    ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
+                    : null,
                 destroyEvadeRemaining: (!isManifestType && _isDestroyEvadeSpecialTypeForBoard(markerTypeUpper))
                     ? (
                         Number.isFinite(Number(m.data.destroyEvadeRemaining))
@@ -1325,6 +1325,14 @@ function renderBoardFullLegacy() {
                     _isDestroyEvadeSpecialTypeForBoard(special.type) &&
                     Number.isFinite(Number(destroyEvadeDisplay))
                 );
+                const specialCanShowRegenBadge = !!(
+                    special &&
+                    String(special.type || '').toUpperCase() === 'REGEN' &&
+                    Number.isFinite(Number(special.regenRemaining))
+                );
+                if (specialCanShowRegenBadge) {
+                    cell.classList.add('has-regen-badge');
+                }
                 const specialFlipEvade = specialCanShowFlipEvade
                     ? Math.max(0, Math.trunc(Number(special.flipEvadeRemaining)))
                     : null;
@@ -1344,13 +1352,31 @@ function renderBoardFullLegacy() {
                     }
 
                     // Add timer for effects with remaining turns
-                    if (special.remainingOwnerTurns !== undefined) {
+                    const displayTurns = _resolveSpecialDisplayTurnsForBoard({
+                        type: special.type,
+                        remainingOwnerTurns: special.remainingOwnerTurns,
+                        regenRemaining: special.regenRemaining
+                    });
+                    if (displayTurns !== undefined) {
                         const timer = document.createElement('div');
                         timer.className = _resolveSpecialTimerClassForBoard(special.type);
-                        const remaining = Math.max(0, Math.trunc(Number(special.remainingOwnerTurns)));
+                        const remaining = Math.max(0, Math.trunc(Number(displayTurns)));
                         timer.textContent = String(remaining);
                         _applyDoubleDigitTimerClassForBoard(timer, remaining);
                         discHud.appendChild(timer);
+                    }
+
+                    if (specialCanShowRegenBadge) {
+                        const regenBadge = document.createElement('div');
+                        regenBadge.className = 'stone-regen-badge';
+                        const regenRemaining = Math.max(0, Math.trunc(Number(special.regenRemaining)));
+                        regenBadge.setAttribute('data-count', String(regenRemaining));
+                        const regenValue = document.createElement('span');
+                        regenValue.className = 'stone-regen-badge-value';
+                        regenValue.textContent = String(regenRemaining);
+                        regenBadge.appendChild(regenValue);
+                        _applyDoubleDigitTimerClassForBoard(regenBadge, regenRemaining);
+                        discHud.appendChild(regenBadge);
                     }
 
                     if (specialCanShowFlipEvade && Number.isFinite(specialFlipEvade)) {

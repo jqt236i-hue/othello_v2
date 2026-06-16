@@ -991,6 +991,20 @@ function _setTimedLabelTextForDiff(label: any, value: any) {
     if (!label) return false;
     const numericValue = Number(value);
     const remaining = Number.isFinite(numericValue) ? Math.max(0, Math.trunc(numericValue)) : 0;
+    if (label.classList && label.classList.contains('stone-regen-badge')) {
+        label.setAttribute('data-count', String(remaining));
+        let valueLabel = label.querySelector ? label.querySelector('.stone-regen-badge-value') : null;
+        if (!valueLabel) {
+            label.textContent = '';
+            valueLabel = document.createElement('span');
+            valueLabel.className = 'stone-regen-badge-value';
+            label.appendChild(valueLabel);
+        }
+        valueLabel.textContent = String(remaining);
+        label.classList.remove('timer-double-digit');
+        _applyDoubleDigitTimerClassForDiff(label, remaining);
+        return true;
+    }
     label.textContent = String(remaining);
     label.classList.remove('timer-double-digit');
     _applyDoubleDigitTimerClassForDiff(label, remaining);
@@ -1013,6 +1027,7 @@ function _findSpecialPrimaryTimerLabelForDiff(disc: any, special: any) {
     const snapshot = _createSpecialStoneStatusSnapshotForDiff({
         type: special.type,
         remainingOwnerTurns: special.remainingOwnerTurns,
+        regenRemaining: special.regenRemaining,
         flipEvadeRemaining: special.flipEvadeRemaining,
         destroyEvadeRemaining: special.destroyEvadeRemaining
     }, { mode: 'raw' });
@@ -1023,6 +1038,7 @@ function _findSpecialPrimaryTimerLabelForDiff(disc: any, special: any) {
     return candidates.find((label: any) => !(
         label.classList.contains('flip-evade-timer') ||
         label.classList.contains('destroy-evade-timer') ||
+        label.classList.contains('stone-regen-badge') ||
         label.classList.contains('bomb-timer') ||
         label.classList.contains('guard-timer') ||
         label.classList.contains('inherited-timer')
@@ -1052,6 +1068,7 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
     };
     if (cloned.special) {
         cloned.special.remainingOwnerTurns = 0;
+        cloned.special.regenRemaining = 0;
         cloned.special.flipEvadeRemaining = 0;
         cloned.special.destroyEvadeRemaining = 0;
     }
@@ -1086,6 +1103,9 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     };
     if (prevState.special && state.special && prevState.special.remainingOwnerTurns !== state.special.remainingOwnerTurns) {
         if (!patch(_findSpecialPrimaryTimerLabelForDiff(disc, state.special), prevState.special.remainingOwnerTurns, state.special.remainingOwnerTurns)) return false;
+    }
+    if (prevState.special && state.special && prevState.special.regenRemaining !== state.special.regenRemaining) {
+        if (!patch(disc.querySelector('.stone-regen-badge'), prevState.special.regenRemaining, state.special.regenRemaining)) return false;
     }
     if (prevState.special && state.special && prevState.special.flipEvadeRemaining !== state.special.flipEvadeRemaining) {
         if (!patch(disc.querySelector('.flip-evade-timer'), prevState.special.flipEvadeRemaining, state.special.flipEvadeRemaining)) return false;
@@ -1124,14 +1144,11 @@ function _resolveStrongWillDisplayTurnsForDiff(data: any) {
 }
 
 function _resolveSpecialDisplayTurnsForDiff(data: any) {
+    if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') return undefined;
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
     const strongWillRemaining = _resolveStrongWillDisplayTurnsForDiff(data);
     if (strongWillRemaining !== undefined) return strongWillRemaining;
-    if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') {
-        const regenRemaining = Number(data && data.regenRemaining);
-        if (Number.isFinite(regenRemaining)) return Math.max(0, Math.trunc(regenRemaining));
-    }
     return undefined;
 }
 
@@ -1668,7 +1685,6 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 special: null,
                 inherited: null,
                 guard: null,
-                destroyProtection: null,
                 bomb: null,
                 blockade: null,
                 frozen: null,
@@ -2197,6 +2213,7 @@ function _hasHyperactiveLikeStateForDiff(state: any) {
     const specialSnapshot = _createSpecialStoneStatusSnapshotForDiff({
         type: state.special && state.special.type,
         remainingOwnerTurns: state.special && state.special.remainingOwnerTurns,
+        regenRemaining: state.special && state.special.regenRemaining,
         flipEvadeRemaining: state.special && state.special.flipEvadeRemaining,
         destroyEvadeRemaining: state.special && state.special.destroyEvadeRemaining,
         hasGuard: !!state.guard
@@ -2711,6 +2728,9 @@ function buildCurrentCellState() {
                 remainingOwnerTurns: isManifestType
                     ? m.data.remainingOwnerTurns
                     : _resolveSpecialDisplayTurnsForDiff(m.data),
+                regenRemaining: (!isManifestType && markerTypeUpper === 'REGEN' && _isFiniteTimedLabelValueForDiff(m.data.regenRemaining))
+                    ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
+                    : null,
                 destroyEvadeRemaining: (!isManifestType && (
                     markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
                     markerTypeUpper === 'EXTREME_HYPERACTIVE' ||
@@ -2860,6 +2880,7 @@ function buildCurrentCellState() {
                     type: special.type,
                     owner: getOwnerVal(special.owner),
                     remainingOwnerTurns: special.remainingOwnerTurns,
+                    regenRemaining: special.regenRemaining,
                     flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
                     destroyEvadeRemaining: destroyEvadeDisplay
                 } : null,
@@ -2963,6 +2984,7 @@ function buildCurrentCellState() {
                 type: special.type,
                 owner: getOwnerVal(special.owner),
                 remainingOwnerTurns: special.remainingOwnerTurns,
+                regenRemaining: special.regenRemaining,
                 flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
                 destroyEvadeRemaining: destroyEvadeDisplay
             } : null,
@@ -3021,6 +3043,7 @@ function cellStatesEqual(a: any, b: any) {
         if (a.special.type !== b.special.type) return false;
         if (a.special.owner !== b.special.owner) return false;
         if (a.special.remainingOwnerTurns !== b.special.remainingOwnerTurns) return false;
+        if (a.special.regenRemaining !== b.special.regenRemaining) return false;
         if (a.special.flipEvadeRemaining !== b.special.flipEvadeRemaining) return false;
         if (a.special.destroyEvadeRemaining !== b.special.destroyEvadeRemaining) return false;
     }
@@ -3276,6 +3299,7 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             ? _createSpecialStoneStatusSnapshotForDiff({
                 type: state.special.type,
                 remainingOwnerTurns: state.special.remainingOwnerTurns,
+                regenRemaining: state.special.regenRemaining,
                 flipEvadeRemaining: state.special.flipEvadeRemaining,
                 destroyEvadeRemaining: state.special.destroyEvadeRemaining,
                 hasGuard: !!state.guard
@@ -3285,6 +3309,7 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             ? {
                 type: state.special.type,
                 remainingOwnerTurns: state.special.remainingOwnerTurns,
+                regenRemaining: state.special.regenRemaining,
                 flipEvadeRemaining: state.special.flipEvadeRemaining,
                 destroyEvadeRemaining: state.special.destroyEvadeRemaining,
                 hasGuard: !!state.guard
@@ -3304,6 +3329,14 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             specialStatusSnapshot.hasDestroyEvade &&
             Number.isFinite(state.special.destroyEvadeRemaining)
         );
+        const canShowRegenBadge = !!(
+            state.special &&
+            String(state.special.type || '').toUpperCase() === 'REGEN' &&
+            Number.isFinite(Number(state.special.regenRemaining))
+        );
+        if (canShowRegenBadge) {
+            cell.classList.add('has-regen-badge');
+        }
 
         // Unified special stone visual effect
         if (state.special) {
@@ -3322,11 +3355,16 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
             }
 
             // Add timer for effects with remaining turns
-            if (state.special.remainingOwnerTurns !== undefined) {
+            const displayTurns = _resolveSpecialDisplayTurnsForDiff({
+                type: state.special.type,
+                remainingOwnerTurns: state.special.remainingOwnerTurns,
+                regenRemaining: state.special.regenRemaining
+            });
+            if (displayTurns !== undefined) {
                 const timerClass = (specialStatusSnapshot && specialStatusSnapshot.timerClass)
                     ? specialStatusSnapshot.timerClass
                     : 'special-timer';
-                const remaining = Math.max(0, Math.trunc(Number(state.special.remainingOwnerTurns)));
+                const remaining = Math.max(0, Math.trunc(Number(displayTurns)));
                 const timer = markerRenderer
                     ? markerRenderer.createTimedMarkerLabel(timerClass, remaining)
                     : document.createElement('div');
@@ -3336,6 +3374,23 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
                     _applyDoubleDigitTimerClassForDiff(timer, remaining);
                 }
                 discHud.appendChild(timer);
+            }
+
+            if (canShowRegenBadge) {
+                const regenRemaining = Math.max(0, Math.trunc(Number(state.special.regenRemaining)));
+                const regenBadge = markerRenderer
+                    ? markerRenderer.createRegenBadgeLabel(regenRemaining)
+                    : document.createElement('div');
+                if (!markerRenderer) {
+                    regenBadge.className = 'stone-regen-badge';
+                    regenBadge.setAttribute('data-count', String(regenRemaining));
+                    const regenValue = document.createElement('span');
+                    regenValue.className = 'stone-regen-badge-value';
+                    regenValue.textContent = String(regenRemaining);
+                    regenBadge.appendChild(regenValue);
+                    _applyDoubleDigitTimerClassForDiff(regenBadge, regenRemaining);
+                }
+                discHud.appendChild(regenBadge);
             }
 
             if (canShowSpecialFlipEvade) {
@@ -3500,6 +3555,12 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
             const shouldShowSelectable = !!(canShowHint && state && state.isSelectableFriendly);
             const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
+            const shouldRaiseRegenBadge = !!(
+                state &&
+                state.special &&
+                String(state.special.type || '').toUpperCase() === 'REGEN' &&
+                Number.isFinite(Number(state.special.regenRemaining))
+            );
 
             cell.classList.toggle('legal-free', shouldShowLegalFree);
             cell.classList.toggle('legal', shouldShowLegal);
@@ -3510,6 +3571,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);
             cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
+            cell.classList.toggle('has-regen-badge', shouldRaiseRegenBadge);
             _applyTimeStopLegalEmphasisForDiff(cell);
         } catch (e: any) { /* ignore */ }
     });

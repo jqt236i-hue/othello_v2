@@ -144,6 +144,52 @@ describe('animation-engine _sleep', () => {
     delete global.window;
   });
 
+  test('regen placement animation uses heart badge instead of duration timer', () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="1" data-col="2"></div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.window.getEffectKeyForSpecialType = jest.fn(() => 'regenStone');
+    global.window.applyStoneVisualEffect = jest.fn((disc) => disc.classList.add('special-stone', 'regen-stone'));
+
+    const engine = require('../ui/animation-engine.js');
+    engine.applyFinalStates({
+      targets: [{
+        r: 1,
+        col: 2,
+        after: { color: 1, special: 'REGEN', timer: 3, owner: 'black' }
+      }]
+    });
+    engine.applyFinalStates({
+      targets: [{
+        r: 1,
+        col: 2,
+        after: { color: 1, special: 'REGEN', timer: 2, owner: 'black' }
+      }]
+    });
+
+    const disc = dom.window.document.querySelector('.cell[data-row="1"][data-col="2"] .disc');
+    expect(disc.querySelector('.special-timer')).toBeNull();
+    expect(disc.querySelector('.stone-timer')).toBeNull();
+    expect(disc.querySelectorAll('.stone-regen-badge')).toHaveLength(1);
+    expect(disc.querySelector('.stone-regen-badge')?.textContent).toBe('2');
+    expect(disc.querySelector('.stone-regen-badge-value')?.textContent).toBe('2');
+
+    dom.window.close();
+    delete global.window;
+    delete global.document;
+  });
+
   test('spawn の直後 phase に多動系 move がある network playback でも追加ギャップなしで再生する', async () => {
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`
