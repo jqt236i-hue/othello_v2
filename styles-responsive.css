@@ -177,7 +177,7 @@
 html.layout-profile-phone-portrait {
     --layout-phone-portrait-main-column-width: min(calc(430px * var(--layout-stage-scale)), 96vw);
     --layout-phone-portrait-player-row-width: min(calc(540px * var(--layout-stage-scale)), 96vw);
-    --layout-phone-portrait-player-deck-width: calc(50px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-deck-width: calc(48px * var(--layout-stage-scale));
     --layout-phone-portrait-player-deck-gap: calc(4px * var(--layout-stage-scale));
     --layout-phone-portrait-hand-fixed-card-width: calc(92px * var(--layout-stage-scale));
     --layout-phone-portrait-hand-fixed-padding-x: calc(10px * var(--layout-stage-scale));
@@ -194,9 +194,9 @@ html.layout-profile-phone-portrait {
         var(--layout-phone-portrait-hand-fixed-padding-x)
     );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
-    --layout-phone-portrait-player-bottom-offset: calc(18px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-bottom-offset: calc(24px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
-    --layout-phone-portrait-quick-controls-bottom-offset: calc(44px * var(--layout-stage-scale));
+    --layout-phone-portrait-quick-controls-bottom-offset: calc(72px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-width: min(92vw, calc(520px * var(--layout-stage-scale)));
     --layout-phone-portrait-quick-controls-bgm-width: calc(112px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-volume-width: calc(96px * var(--layout-stage-scale));
@@ -209,7 +209,7 @@ html.layout-profile-phone-portrait #game-container {
     justify-content: flex-start;
     padding-top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
     padding-bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(102px * var(--layout-stage-scale)));
-    gap: calc(4px * var(--layout-stage-scale));
+    gap: calc(2px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait .player-area-top,
@@ -235,9 +235,9 @@ html.layout-profile-phone-portrait .player-area-bottom {
 }
 
 html.layout-profile-phone-portrait #board-frame {
-    --board-frame-inner-size: min(84vw, calc(360px * var(--layout-stage-scale)), 38dvh);
-    --board-frame-padding: calc(12px * var(--layout-stage-scale));
-    transform: translateY(calc(-8px * var(--layout-stage-scale)));
+    --board-frame-inner-size: min(86vw, calc(372px * var(--layout-stage-scale)), 40dvh);
+    --board-frame-padding: calc(10px * var(--layout-stage-scale));
+    transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
 
 html.layout-profile-phone-portrait #board {
@@ -310,8 +310,8 @@ html.layout-profile-phone-portrait #card-detail-panel {
     bottom: auto;
     width: var(--layout-phone-portrait-main-column-width);
     min-height: 0;
-    max-height: calc(170px * var(--layout-stage-scale));
-    margin: 0;
+    max-height: calc(162px * var(--layout-stage-scale));
+    margin: calc(4px * var(--layout-stage-scale)) 0 0;
     padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     transform: none;
     overflow: hidden;
@@ -325,8 +325,8 @@ html.layout-profile-phone-portrait #card-detail-name {
 }
 
 html.layout-profile-phone-portrait #card-detail-desc {
-    min-height: calc(58px * var(--layout-stage-scale));
-    max-height: calc(74px * var(--layout-stage-scale));
+    min-height: calc(52px * var(--layout-stage-scale));
+    max-height: calc(66px * var(--layout-stage-scale));
     margin-bottom: calc(4px * var(--layout-stage-scale));
     padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
     font-size: calc(12px * var(--layout-stage-scale));
@@ -502,7 +502,7 @@ html.layout-profile-phone-portrait #deck-black {
     order: 2;
     align-self: flex-end;
     width: var(--layout-phone-portrait-player-deck-width);
-    height: calc(66px * var(--layout-stage-scale));
+    height: calc(62px * var(--layout-stage-scale));
     margin-left: 0;
     margin-right: 0;
 }
@@ -529,14 +529,25 @@ html.layout-profile-phone-portrait #hand-black {
 }
 
 html.layout-profile-phone-portrait #hand-white {
-    min-height: calc(80px * var(--layout-stage-scale));
+    min-height: calc(64px * var(--layout-stage-scale));
     margin-bottom: 0;
 }
 
 html.layout-profile-phone-portrait #hand-white .card-item {
-    width: calc(72px * var(--layout-stage-scale));
-    height: calc(98px * var(--layout-stage-scale));
-    font-size: calc(11px * var(--layout-stage-scale));
+    width: calc(60px * var(--layout-stage-scale));
+    height: calc(82px * var(--layout-stage-scale));
+    font-size: calc(10px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #deck-white {
+    width: calc(44px * var(--layout-stage-scale));
+    height: calc(58px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #deck-white .deck-count {
+    min-width: calc(26px * var(--layout-stage-scale));
+    padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    font-size: calc(10px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #hand-black {
