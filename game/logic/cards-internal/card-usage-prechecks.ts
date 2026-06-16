@@ -291,6 +291,7 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getSuperGravityTargets', 1) ? result : buildFailureResult();
         case 'TRAP_WILL':
             return validateSelectionTargets(context, 'getTrapTargets', 1) ? result : buildFailureResult();
+        case 'HARD_WILL':
         case 'GUARD_WILL':
         case 'GUARDIAN_GOD':
             return validateSelectionTargets(context, 'getGuardTargets', 1) ? result : buildFailureResult();

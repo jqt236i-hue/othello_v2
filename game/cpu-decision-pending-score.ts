@@ -368,6 +368,22 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             score += (oppAdj * 180) - (ownAdj * 60) + (emptyAdj * 30);
             score += markerProfile.ownSpecialScore * 0.3;
             return score;
+        case 'HARD_WILL':
+            if (!own) return -2800;
+            if (corner) score -= 2400;
+            else if (edge) score += 280;
+            score += bonus * 80;
+            score += (ownAdj * 32) + (oppAdj * 18);
+            score += markerProfile.ownSpecialScore * 0.65;
+            if (timedProfile) {
+                score += timedProfile.ownTimedScore * 1.8;
+                score += timedProfile.ownRemainingSum * 36;
+                score += timedProfile.ownCriticalCount * 260;
+            }
+            if (markerProfile.ownSpecialScore <= 0 && (!timedProfile || timedProfile.ownTimedCount <= 0)) {
+                score += 160;
+            }
+            return score;
         case 'GUARD_WILL':
         case 'GUARDIAN_GOD':
             if (!own) return -2800;

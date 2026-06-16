@@ -30,6 +30,7 @@
     const DEFAULT_CORNER_HOLD_CARD_TYPES: Set<string> = new Set([
         'PROTECTED_NEXT_STONE',
         'PERMA_PROTECT_NEXT_STONE',
+        'HARD_WILL',
         'GUARD_WILL',
         'GUARDIAN_GOD',
         'STONE_SALVATION_GOD',
