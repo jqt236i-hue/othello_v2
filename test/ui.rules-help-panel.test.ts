@@ -597,6 +597,15 @@ describe('rules help panel', () => {
     expect(html).toMatch(/破壊回避の残り回数/);
   });
 
+  test('special stone duration timer classes share the green duration palette', () => {
+    const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+
+    for (const className of ['special-timer', 'dragon-timer', 'breeding-timer', 'work-timer', 'udg-timer']) {
+      const pattern = new RegExp(`\\.${className}\\s*\\{[\\s\\S]*?rgba\\(40, 86, 60, 0\\.64\\)`);
+      expect(boardCss).toMatch(pattern);
+    }
+  });
+
   test('index html guide copy points to current menu and stone-info controls', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/左下メニューで「CPU」\/「リバーシ」\/「ネット対戦」を切り替えられます。/);

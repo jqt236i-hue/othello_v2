@@ -1437,11 +1437,15 @@ body.othello-mode-active :is(
     font-size: calc(11px * var(--layout-stage-scale));
     font-weight: bold;
     color: #ffffff;
-    background: rgba(0, 0, 0, 0.55);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
+        rgba(40, 86, 60, 0.64);
     padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
     border-radius: calc(4px * var(--layout-stage-scale));
     min-width: calc(14px * var(--layout-stage-scale));
     text-align: center;
+    box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
     z-index: 70;
     pointer-events: none;
 }
@@ -1481,11 +1485,15 @@ body.othello-mode-active :is(
     font-size: calc(11px * var(--layout-stage-scale));
     font-weight: bold;
     color: #ffffff;
-    background: rgba(0, 0, 0, 0.55);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
+        rgba(40, 86, 60, 0.64);
     padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
     border-radius: calc(4px * var(--layout-stage-scale));
     min-width: calc(14px * var(--layout-stage-scale));
     text-align: center;
+    box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
     z-index: 70;
     pointer-events: none;
 }
@@ -1498,11 +1506,15 @@ body.othello-mode-active :is(
     font-size: calc(11px * var(--layout-stage-scale));
     font-weight: bold;
     color: #ffffff;
-    background: rgba(0, 100, 160, 0.8);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
+        rgba(40, 86, 60, 0.64);
     padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
     border-radius: calc(4px * var(--layout-stage-scale));
     min-width: calc(14px * var(--layout-stage-scale));
     text-align: center;
+    box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
     z-index: 70;
     pointer-events: none;
 }
@@ -1515,10 +1527,14 @@ body.othello-mode-active :is(
     font-size: calc(11px * var(--layout-stage-scale));
     font-weight: bold;
     color: #ffffff;
-    background: rgba(0, 0, 0, 0.55);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
+        rgba(40, 86, 60, 0.64);
     padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
     border-radius: calc(4px * var(--layout-stage-scale));
     pointer-events: none;
+    box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
     z-index: 70;
     min-width: calc(14px * var(--layout-stage-scale));
     text-align: center;
