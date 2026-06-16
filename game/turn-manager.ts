@@ -1036,7 +1036,7 @@ function dispatchPendingSelectionForTurnManager(dispatchKey: any, row: number, c
     try {
         const dispatchFn = resolveTurnManagerRuntimeFunction('dispatchPendingSelection');
         if (typeof dispatchFn === 'function') {
-            return dispatchFn(payload) === true;
+            if (dispatchFn(payload) === true) return true;
         }
     } catch (e) { /* ignore */ }
 
@@ -1048,6 +1048,17 @@ function dispatchPendingSelectionForTurnManager(dispatchKey: any, row: number, c
         if (typeof handler === 'function') {
             handler(row, col, playerKey, pending);
             return true;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        if (String(dispatchKey || '') === 'trap') {
+            const trapEffects = _require('./card-effects/trap');
+            const handler = trapEffects && trapEffects.handleTrapSelection;
+            if (typeof handler === 'function') {
+                handler(row, col, playerKey);
+                return true;
+            }
         }
     } catch (e) { /* ignore */ }
 

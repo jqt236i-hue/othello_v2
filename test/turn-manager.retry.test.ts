@@ -268,6 +268,29 @@ describe('turn-manager scheduling', () => {
     expect(global.executeMove).not.toHaveBeenCalled();
   });
 
+  test('handleCellClick resolves TRAP_WILL selection even when no global handler is registered', () => {
+    jest.resetModules();
+    const trapPath = require.resolve('../game/card-effects/trap');
+    const handleTrapSelection = jest.fn();
+    jest.doMock(trapPath, () => ({ handleTrapSelection }), { virtual: false });
+
+    global.cardState = {
+      pendingEffectByPlayer: {
+        black: { type: 'TRAP_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    delete global.handleTrapSelection;
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl(buildTurnManagerUIBridge());
+    rm.handleCellClick(2, 3);
+
+    expect(handleTrapSelection).toHaveBeenCalledWith(2, 3, 'black');
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
   test.each([
     ['CELL_TELEPORT_WILL', 'cell_teleport_01', 'handleTeleportSelection'],
     ['SEED_WILL', 'seed_01', 'handleSeedSelection']
