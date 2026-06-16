@@ -582,6 +582,61 @@ describe('pass-handler flows', () => {
         jest.useRealTimers();
     });
 
+    test('white CPU scheduling follows runtime state when legacy gameState is stale', async () => {
+        delete require.cache[modPath];
+        const cpuTurnMock = jest.fn();
+        const delayedCallbacks: Array<() => void> = [];
+        (global as any).CPU_TURN_DELAY_MS = 10;
+        (global as any).processCpuTurn = jest.fn();
+        (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
+        let runtimeGameState = (global as any).gameState;
+        (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: (() => {
+                    runtimeGameState = { currentPlayer: (global as any).WHITE, turnNumber: 4 };
+                    return Object.assign({}, gs, runtimeGameState);
+                })(),
+                cardState: cs,
+                events: []
+            }))
+        };
+
+        try {
+            const ph = require('../game/pass-handler');
+            ph.setPassHandlerTimerService({
+                setTimeout: (callback: () => void) => {
+                    delayedCallbacks.push(callback);
+                    return delayedCallbacks.length;
+                },
+                clearTimeout: jest.fn()
+            });
+            ph.setPassHandlerRuntime({
+                processCpuTurn: cpuTurnMock,
+                readMatchMode: () => 'cpu',
+                readHumanVsHumanMode: () => false,
+                resolveRuntimeValue: (name: string) => name === 'gameState' ? runtimeGameState : (global as any)[name],
+                setProcessing: (next: boolean) => {
+                    (global as any).isProcessing = next === true;
+                }
+            });
+
+            await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+            expect(delayedCallbacks).toHaveLength(1);
+
+            (global as any).gameState.currentPlayer = (global as any).BLACK;
+            (global as any).gameState.turnNumber = 3;
+            delayedCallbacks[0]();
+
+            expect(cpuTurnMock).toHaveBeenCalledTimes(1);
+            expect((global as any).isProcessing).toBe(false);
+        } finally {
+            delete (global as any).CPU_TURN_DELAY_MS;
+        }
+    });
+
     test('white CPU scheduling retries briefly when processCpuTurn becomes available after pass', async () => {
         jest.useFakeTimers();
         delete require.cache[modPath];

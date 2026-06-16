@@ -72,6 +72,25 @@ function resolvePassHandlerRuntimeFunction(name: string) {
     return null;
 }
 
+function resolvePassHandlerRuntimeValue(name: string): any {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.resolveRuntimeValue === 'function') {
+            const value = passHandlerRuntime.resolveRuntimeValue(name);
+            if (typeof value !== 'undefined') return value;
+        }
+        if (passHandlerRuntime && Object.prototype.hasOwnProperty.call(passHandlerRuntime, name)) {
+            return passHandlerRuntime[name];
+        }
+    } catch (e) { /* ignore */ }
+    return undefined;
+}
+
+function resolvePassHandlerGameState(): any {
+    const runtimeGameState = resolvePassHandlerRuntimeValue('gameState');
+    if (runtimeGameState && typeof runtimeGameState === 'object') return runtimeGameState;
+    return gameState || null;
+}
+
 function showPassHandlerResultIfAvailable() {
     const showResultFn = resolvePassHandlerRuntimeFunction('showResult');
     if (typeof showResultFn !== 'function') return false;
@@ -295,7 +314,8 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
         const releaseCpuHandoffProcessing = () => {
             setPassHandlerProcessing(false);
         };
-        const currentPlayerKey = normalizePlayerKeyOptional(gameState ? gameState.currentPlayer : null);
+        const currentGameState = resolvePassHandlerGameState();
+        const currentPlayerKey = normalizePlayerKeyOptional(currentGameState ? currentGameState.currentPlayer : null);
         if (!currentPlayerKey) {
             releaseCpuHandoffProcessing();
             return;
@@ -308,7 +328,7 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
             releaseCpuHandoffProcessing();
             return;
         }
-        const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+        const currentTurnNumber = (currentGameState && Number.isFinite(currentGameState.turnNumber)) ? currentGameState.turnNumber : null;
         const cpuFn = resolveCpuTurnFnForPass();
         if (!cpuFn) {
             if (retryCount < WHITE_CPU_TURN_MAX_RETRIES) {
@@ -876,8 +896,9 @@ async function handleBlackPassWhenNoMoves() {
     const expectedPlayerKey = normalizePlayerKeyOptional(expectedPlayer);
     const expectedTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
     scheduleWithDelay(safeBlackPassDelay, async () => {
-        const currentPlayerKey = normalizePlayerKeyOptional(gameState ? gameState.currentPlayer : null);
-        const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
+        const currentGameState = resolvePassHandlerGameState();
+        const currentPlayerKey = normalizePlayerKeyOptional(currentGameState ? currentGameState.currentPlayer : null);
+        const currentTurnNumber = (currentGameState && Number.isFinite(currentGameState.turnNumber)) ? currentGameState.turnNumber : null;
         if (
             (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) ||
             (expectedTurnNumber !== null && currentTurnNumber !== expectedTurnNumber)
