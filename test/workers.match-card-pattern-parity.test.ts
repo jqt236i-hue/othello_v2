@@ -297,6 +297,29 @@ function runWorkerPendingSelectionPlaceParityScenario(config) {
 }
 
 describe('worker card pattern parity', () => {
+  test('support troops publish resets stale consecutive pass count after spawning stones', () => {
+    const cardId = 'support_troops_01';
+    const runtime = createCardUseRuntime(cardId, 71);
+    const snapshot = runtime.getSnapshot();
+    snapshot.gameState.consecutivePasses = 1;
+    snapshot.cardState.lastTurnStartedFor = 'black';
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(snapshot);
+
+    const initialSnapshot = clone(snapshot);
+    const initialVersion = runtime.getRoom().stateVersion;
+    const body = buildUseCardBody(runtime, cardId, 'op_worker_pattern_support_troops_pass_reset');
+    const localResult = runtime.applyCommand(clone(body));
+    const workerResult = runWorkerPublish(initialSnapshot, initialVersion, body, 71);
+
+    expect(workerResult.status).toBe(200);
+    expect(workerResult.payload.ok).toBe(true);
+    expect(localResult.ok).toBe(true);
+
+    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
+    expect(localPublic.gameState.consecutivePasses).toBe(0);
+    expect(workerResult.payload.snapshot.gameState.consecutivePasses).toBe(0);
+  }, 90000);
+
   test.each([
     ['pending selection destroy', 'destroy_01'],
     ['pending selection swap', 'swap_01'],

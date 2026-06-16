@@ -54,6 +54,17 @@ function applyImmediateFlipResolutionFollowups(options: ResolveImmediateCardUsag
     });
 }
 
+function resetConsecutivePassesAfterBoardMutation(gameState: any, result: any): void {
+    if (!gameState || typeof gameState !== 'object' || !result || typeof result !== 'object') {
+        return;
+    }
+    const spawnedCount = Number(result.spawnedCount) || (Array.isArray(result.spawned) ? result.spawned.length : 0);
+    const flippedCount = Number(result.flippedCount) || (Array.isArray(result.flipped) ? result.flipped.length : 0);
+    if (spawnedCount > 0 || flippedCount > 0) {
+        gameState.consecutivePasses = 0;
+    }
+}
+
 function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffectsOptions): void {
     const opts = (options && typeof options === 'object') ? options : ({} as ResolveImmediateCardUsageEffectsOptions);
     const pendingType = opts.pendingType;
@@ -112,6 +123,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
         applyImmediateFlipResolutionFollowups(opts, res, 'equality_will_immediate');
+        resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
             type: 'equality_will_resolved',
             player: opts.playerKey,
@@ -132,6 +144,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
         applyImmediateFlipResolutionFollowups(opts, res, 'reinforcement_will_immediate');
+        resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
             type: 'reinforcement_will_resolved',
             player: opts.playerKey,
@@ -152,6 +165,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
         applyImmediateFlipResolutionFollowups(opts, res, 'support_troops_will_immediate');
+        resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
             type: 'support_troops_will_resolved',
             player: opts.playerKey,
@@ -338,6 +352,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
         applyImmediateFlipResolutionFollowups(opts, res, 'salvation_will_immediate');
+        resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
             type: 'salvation_will_resolved',
             player: opts.playerKey,

@@ -146,6 +146,33 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     }
   });
 
+  test('直前パスが残っていても、援軍の意志で盤面を変えたら連続パス数をリセットする', () => {
+    expect(supportTroopsDef).toBeTruthy();
+
+    const board = createBoard();
+    board[3][3] = Shared.BLACK;
+
+    const prng = createPrng([0, 0, 0]);
+    const cardState = createCardState(prng, supportTroopsDef.id, supportTroopsDef.cost);
+    const gameState = createGameState(board);
+    gameState.consecutivePasses = 1;
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: supportTroopsDef.id },
+      prng
+    );
+
+    const resolveEvent = result.events.find((event) => event && event.type === 'support_troops_will_resolved');
+    expect(resolveEvent).toMatchObject({
+      type: 'support_troops_will_resolved',
+      spawnedCount: 3
+    });
+    expect(result.gameState.consecutivePasses).toBe(0);
+  });
+
   test('候補が2マスしか無い局面では、置ける分だけ配置する', () => {
     expect(supportTroopsDef).toBeTruthy();
 
