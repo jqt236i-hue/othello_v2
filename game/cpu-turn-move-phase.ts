@@ -51,6 +51,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         const othelloMode = opts.othelloMode === true;
         const pending = opts.pending || null;
         const turnStartMs = Number.isFinite(opts.turnStartMs) ? opts.turnStartMs : Date.now();
+        const expectedTurnNumber = cfg.getCurrentTurnNumberSafe();
 
         const protection = cfg.getActiveProtectionSafe(selfColor);
         const perma = cfg.getFlipBlockersSafe();
@@ -159,10 +160,20 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             const gameState = cfg.getGameState();
             const nowCurrent = gameState ? gameState.currentPlayer : null;
             const nowCurrentKey = normalizePlayerKeyFromValue(nowCurrent, cfg.blackValue, cfg.whiteValue);
+            const nowTurnNumber = cfg.getCurrentTurnNumberSafe();
             if (nowCurrentKey && nowCurrentKey !== playerKey) {
                 cfg.debugCpuTrace('[AI] skip stale delayed move commit (turn changed)', {
                     playerKey,
                     nowCurrentKey
+                });
+                cfg.setCpuProcessing(false);
+                return;
+            }
+            if (expectedTurnNumber !== null && nowTurnNumber !== expectedTurnNumber) {
+                cfg.debugCpuTrace('[AI] skip stale delayed move commit (turn number changed)', {
+                    playerKey,
+                    expectedTurnNumber,
+                    nowTurnNumber
                 });
                 cfg.setCpuProcessing(false);
                 return;

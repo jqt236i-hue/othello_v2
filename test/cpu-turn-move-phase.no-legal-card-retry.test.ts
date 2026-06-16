@@ -94,4 +94,43 @@ describe('cpu turn move phase no-legal card retry', () => {
     expect(scheduleRunCpuTurn).toHaveBeenCalledWith('white', { autoMode: false }, 0);
     errorSpy.mockRestore();
   });
+
+  test('skips a delayed move commit when the turn changed before the retry fires', async () => {
+    let retryCallback: any = null;
+    let currentTurnNumber = 12;
+    const executeMove = jest.fn();
+    const { config } = createConfig({
+      getCurrentTurnNumberSafe: jest.fn(() => currentTurnNumber),
+      getGameState: jest.fn(() => ({ currentPlayer: 'white', turnNumber: currentTurnNumber })),
+      resolveGenerateMovesForPlayer: jest.fn(() => jest.fn(() => [{ row: 3, col: 4, flips: [{ row: 3, col: 3 }] }])),
+      resolveExecuteMoveFn: jest.fn(() => executeMove),
+      resolveLv6MinThinkMs: jest.fn(() => 50),
+      scheduleRetry: jest.fn((fn) => {
+        retryCallback = fn;
+        return true;
+      }),
+      selectCpuMoveSafe: jest.fn(() => ({ row: 3, col: 4, flips: [{ row: 3, col: 3 }] }))
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now()
+    });
+
+    expect(result).toEqual({ status: 'handled' });
+    expect(typeof retryCallback).toBe('function');
+
+    currentTurnNumber = 13;
+    await retryCallback();
+
+    expect(executeMove).not.toHaveBeenCalled();
+    expect(config.setCpuProcessing).toHaveBeenCalledWith(false);
+  });
 });
