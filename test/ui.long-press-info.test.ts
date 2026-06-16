@@ -636,6 +636,37 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
   });
 
+  test('long press on DESTROY_PROTECTION shows overlay tag on a normal stone', () => {
+    global.gameState.board[2][7] = global.BLACK;
+    global.cardState.markers.push({
+      kind: 'specialStone',
+      row: 2,
+      col: 7,
+      owner: 'black',
+      data: { type: 'DESTROY_PROTECTION', remainingOwnerTurns: 8 }
+    });
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 2, 7);
+
+    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 118, clientY: 84 });
+    jest.advanceTimersByTime(430);
+
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('通常石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊保護');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り8T');
+
+    const destroyProtectionTagButton = Array.from(document.querySelectorAll('#stone-info-meta .stone-info-effect-tag-button'))
+      .find((el) => el.textContent === '破壊保護');
+    expect(destroyProtectionTagButton).toBeTruthy();
+    destroyProtectionTagButton.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+    expect(document.getElementById('stone-info-tag-title').textContent).toBe('破壊保護');
+    expect(document.getElementById('stone-info-tag-body').textContent).toContain('破壊と爆発だけを受けない');
+  });
+
   test('long press on ABSOLUTE_PROTECTED shows registered info with flip and destroy protection tags', () => {
     global.cardState.markers.push({
       kind: 'specialStone',

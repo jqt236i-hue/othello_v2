@@ -385,6 +385,14 @@ describe('rules help panel', () => {
               { kind: 'duration-turns', value: 3, label: '3ターン持続' }
             ]
           },
+          hard_will_01: {
+            quickText: '自分石1つに破壊保護を付与する。',
+            distinctDetailText: '破壊保護中は石破壊と爆破による消滅だけを受けない。',
+            effectTags: [
+              { kind: 'destroy-protection', label: '破壊保護' },
+              { kind: 'duration-turns', value: 8, label: '8ターン持続' }
+            ]
+          },
           blockade_01: {
             quickText: '空きマス1つを封鎖する。',
             distinctDetailText: '3ターン持続する封鎖マスを作る。',
@@ -405,6 +413,7 @@ describe('rules help panel', () => {
     window.CardCatalog = {
       cards: [
         { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 1, desc: '完全保護を付与する', display_type_ja: '守護' },
+        { id: 'hard_will_01', name: '硬い意志', type: 'HARD_WILL', cost: 4, desc: '破壊保護を付与する', display_type_ja: '守護' },
         { id: 'meteor_01', name: '因果抹消', type: 'METEOR_WILL', cost: 10, desc: 'マスを穴にする', display_type_ja: '禁忌' },
         { id: 'afterimage_will_01', name: '避ける意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '残像石化する', display_type_ja: '回避' },
         { id: 'blockade_01', name: '封鎖の意志', type: 'BLOCKADE_WILL', cost: 7, desc: '封鎖マスを作る', display_type_ja: '妨害' },
@@ -425,21 +434,21 @@ describe('rules help panel', () => {
     const cardNames = () => Array.from(document.querySelectorAll('.rules-help-card-item-name')).map((el) => el.textContent);
     const selectedTitle = () => document.querySelector('#rules-help-card-name .rules-help-card-title').textContent;
 
-    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
-    expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '反転回避', '破壊回避']);
+    expect(cardNames()).toEqual(['守る意志', '補給の意志', '硬い意志', '封鎖の意志', '避ける意志', '因果抹消']);
+    expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '破壊保護', '反転回避', '破壊回避']);
     expect(tagLabels()).not.toContain('5ターン後に発動');
     expect(tagLabels()).not.toContain('3ターン持続');
-    expect(filterStatus.textContent).toContain('5 / 5枚');
+    expect(filterStatus.textContent).toContain('6 / 6枚');
 
     searchInput.value = '完全保護';
     searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
 
     expect(cardNames()).toEqual(['守る意志']);
     expect(selectedTitle()).toBe('守る意志');
-    expect(filterStatus.textContent).toContain('1 / 5枚');
+    expect(filterStatus.textContent).toContain('1 / 6枚');
 
     clearButton.click();
-    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
+    expect(cardNames()).toEqual(['守る意志', '補給の意志', '硬い意志', '封鎖の意志', '避ける意志', '因果抹消']);
     expect(searchInput.value).toBe('');
 
     const specialStoneFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
@@ -462,6 +471,16 @@ describe('rules help panel', () => {
 
     clearButton.click();
 
+    const destroyProtectionFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
+      .find((el) => el.textContent === '破壊保護') as HTMLButtonElement;
+    destroyProtectionFilter.click();
+
+    expect(destroyProtectionFilter.getAttribute('aria-pressed')).toBe('true');
+    expect(cardNames()).toEqual(['硬い意志']);
+    expect(selectedTitle()).toBe('硬い意志');
+
+    clearButton.click();
+
     const flipEvasionFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
       .find((el) => el.textContent === '反転回避') as HTMLButtonElement;
     flipEvasionFilter.click();
@@ -469,7 +488,7 @@ describe('rules help panel', () => {
     expect(flipEvasionFilter.getAttribute('aria-pressed')).toBe('true');
     expect(cardNames()).toEqual(['避ける意志']);
     expect(selectedTitle()).toBe('避ける意志');
-    expect(filterStatus.textContent).toContain('1 / 5枚');
+    expect(filterStatus.textContent).toContain('1 / 6枚');
 
     searchInput.value = '山札';
     searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
@@ -483,6 +502,8 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*破壊保護\s*<\/dt>/);
+    expect(html).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を消滅させる。完全保護や破壊保護など、破壊を防ぐ状態の石は消滅しない。<\/dd>/);
   });
 
   test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
@@ -517,7 +538,7 @@ describe('rules help panel', () => {
     mod.setupRulesHelp(btn, panel);
 
     const effectTerms = Array.from(document.querySelectorAll('#rules-help-effects-list dt')).map((el) => el.textContent);
-    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス化', '不可侵', '反転保護', '完全保護', '反転回避', '破壊回避']));
+    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス化', '不可侵', '反転保護', '完全保護', '破壊保護', '反転回避', '破壊回避']));
 
     const inviolableButton = Array.from(document.querySelectorAll('#rules-help-effects-list .rules-help-effect-term-button'))
       .find((el) => el.textContent === '不可侵') as HTMLButtonElement;
@@ -527,6 +548,13 @@ describe('rules help panel', () => {
     expect(popover.getAttribute('aria-hidden')).toBe('false');
     expect(popover.querySelector('.rules-help-tag-popover-title').textContent).toBe('不可侵');
     expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('通常のカード効果や手札効果の対象から外す');
+
+    const destroyProtectionButton = Array.from(document.querySelectorAll('#rules-help-effects-list .rules-help-effect-term-button'))
+      .find((el) => el.textContent === '破壊保護') as HTMLButtonElement;
+    destroyProtectionButton.click();
+
+    expect(popover.querySelector('.rules-help-tag-popover-title').textContent).toBe('破壊保護');
+    expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('破壊効果だけを受けない');
   });
 
   test('effect glossary explains taboo reverse absolute-protection exception', () => {
@@ -543,6 +571,7 @@ describe('rules help panel', () => {
     expect(source).toContain('封鎖');
     expect(source).toContain('凍結');
     expect(source).toContain('時間停止');
+    expect(source).toContain('破壊保護');
   });
 
   test('index html omits update info help tab', () => {
