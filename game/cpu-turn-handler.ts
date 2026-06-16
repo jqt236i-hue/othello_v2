@@ -1338,8 +1338,11 @@ async function processAutoBlackTurn(): Promise<void> {
         setCpuProcessing(false);
         return;
     }
-    if (readCpuProcessing() || isUiAnimationBusy()) return;
     if (gameState.currentPlayer !== CONST_BLACK) return;
+    if (readCpuProcessing() || isUiAnimationBusy()) {
+        scheduleRunCpuTurn('black', { autoMode: true }, getAnimationRetryDelayMs());
+        return;
+    }
     return runCpuTurn('black', { autoMode: true });
 }
 

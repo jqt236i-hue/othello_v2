@@ -346,6 +346,22 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(getPlaybackStateManager).not.toHaveBeenCalled();
     });
 
+    test('processAutoBlackTurn retries when CPU or animation is busy', async () => {
+        const callbacks: Array<() => void> = [];
+        const timerService = createCapturingTimerService(callbacks);
+        mod.setCpuTurnTimerService(timerService);
+        mod.setCpuUIImpl({
+            readProcessing: jest.fn(() => true)
+        });
+        global.gameState = { board: makeBoard(), currentPlayer: global.BLACK, turnNumber: 10 };
+
+        await mod.processAutoBlackTurn();
+
+        expect(timerService.setTimeout).toHaveBeenCalledTimes(1);
+        expect(callbacks).toHaveLength(1);
+        expect(global.executeMove).not.toHaveBeenCalled();
+    });
+
     test('uses programmed card policy in emergency state for Lv6', async () => {
         const emergencyBoard = Array.from({ length: 8 }, () => Array(8).fill(1));
         emergencyBoard[0][0] = -1;
