@@ -16,6 +16,7 @@ import _promotion_helpers from './promotion-helpers';
 const { readJson, writeJson, validatePolicyModel, sanitizePromotionId, archiveExistingFile } = _promotion_helpers;
 
 const DEPLOY_MANIFEST_SCHEMA = 'root_deploy_manifest.v1';
+const MODEL_ASSET_MANIFEST_SCHEMA = 'model_assets.v1';
 const DEFAULT_ROOT_MODELS_DIR = path.resolve(process.cwd(), 'data', 'models');
 
 interface DeployArgs {
@@ -68,6 +69,8 @@ interface DeployManifest {
     archiveDir: string;
     archived: Record<string, any>;
     onnxResults: Record<string, OptionalCopyResult>;
+    modelAssetManifestPath: string;
+    modelAssetManifestFiles: string[];
     forced: boolean;
 }
 
@@ -131,6 +134,51 @@ function copyOptionalFile(srcPath: string, targetPath: string, dryRun: boolean):
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.copyFileSync(srcPath, targetPath);
     return { copied: true, from: srcPath, to: targetPath };
+}
+
+function normalizeModelAssetPath(rootDir: string, filePath: string): string {
+    const relativeToRootModels = path.relative(path.resolve(rootDir), path.resolve(filePath))
+        .replace(/\\/g, '/')
+        .replace(/^\/+/, '');
+    return relativeToRootModels && !relativeToRootModels.startsWith('..')
+        ? `data/models/${relativeToRootModels}`
+        : '';
+}
+
+function readModelAssetManifest(manifestPath: string): { generatedAt?: string; files: string[] } {
+    if (!fs.existsSync(manifestPath)) return { files: [] };
+    try {
+        const payload = readJson(manifestPath) as { schemaVersion?: string; generatedAt?: string; files?: unknown[] };
+        if (payload && payload.schemaVersion === MODEL_ASSET_MANIFEST_SCHEMA && Array.isArray(payload.files)) {
+            return {
+                generatedAt: payload.generatedAt,
+                files: payload.files.map((one) => String(one || '')).filter(Boolean)
+            };
+        }
+    } catch (_e) { /* replace malformed manifest with a fresh one */ }
+    return { files: [] };
+}
+
+function writeRootModelAssetManifest(rootDir: string, deployedFilePaths: string[]): { manifestPath: string; files: string[] } {
+    const manifestPath = path.join(rootDir, 'model-assets.json');
+    const existing = readModelAssetManifest(manifestPath);
+    const files = new Set<string>();
+    for (const one of existing.files) {
+        const normalized = String(one || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        if (normalized) files.add(normalized);
+    }
+    for (const filePath of deployedFilePaths) {
+        if (!filePath || !fs.existsSync(filePath)) continue;
+        const normalized = normalizeModelAssetPath(rootDir, filePath);
+        if (normalized) files.add(normalized);
+    }
+    const sortedFiles = Array.from(files).filter(Boolean).sort();
+    writeJson(manifestPath, {
+        schemaVersion: MODEL_ASSET_MANIFEST_SCHEMA,
+        generatedAt: new Date().toISOString(),
+        files: sortedFiles
+    });
+    return { manifestPath, files: sortedFiles };
 }
 
 function deployLaneModelToRoot(options: DeployArgs): DryRunDeploySummary | DeployManifest {
@@ -228,13 +276,19 @@ function deployLaneModelToRoot(options: DeployArgs): DryRunDeploySummary | Deplo
 
     // 8. Copy ONNX files if present in lane
     const onnxResults: Record<string, OptionalCopyResult> = {};
+    const deployedModelAssetFiles = [rootModelPath];
     for (const f of onnxFiles) {
         onnxResults[f.name] = copyOptionalFile(
             path.join(laneDir, f.name),
             path.join(rootDir, f.name),
             false
         );
+        if (onnxResults[f.name].copied) {
+            deployedModelAssetFiles.push(path.join(rootDir, f.name));
+        }
     }
+
+    const modelAssetManifest = writeRootModelAssetManifest(rootDir, deployedModelAssetFiles);
 
     // 9. Read lane promotion manifest for provenance
     let sourcePromotionId: string | null = null;
@@ -260,6 +314,8 @@ function deployLaneModelToRoot(options: DeployArgs): DryRunDeploySummary | Deplo
         archiveDir,
         archived,
         onnxResults,
+        modelAssetManifestPath: modelAssetManifest.manifestPath,
+        modelAssetManifestFiles: modelAssetManifest.files,
         forced: !!options.force
     };
     const deployManifestPath = path.join(rootDir, 'deploy-manifest.json');

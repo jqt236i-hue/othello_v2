@@ -35,6 +35,13 @@ describe('deploy-lane-model-to-root', () => {
         const rootDir = createTempDir(testBase, 'root');
         writeModel(laneDir, 'policy-table.json', 100);
         writeModel(rootDir, 'policy-table.json', 10);
+        fs.writeFileSync(path.join(laneDir, 'policy-net.onnx'), 'onnx', 'utf8');
+        fs.writeFileSync(path.join(laneDir, 'policy-net.onnx.meta.json'), '{"schemaVersion":"policy_onnx.v1"}', 'utf8');
+        fs.writeFileSync(path.join(rootDir, 'model-assets.json'), JSON.stringify({
+            schemaVersion: 'model_assets.v1',
+            generatedAt: '2026-01-01T00:00:00.000Z',
+            files: ['data/models/othello/policy-table.json']
+        }), 'utf8');
 
         const result = deployLaneModelToRoot({
             laneDir,
@@ -52,6 +59,19 @@ describe('deploy-lane-model-to-root', () => {
         const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'deploy-manifest.json'), 'utf8'));
         expect(manifest.schemaVersion).toBe('root_deploy_manifest.v1');
         expect(manifest.laneStates).toBe(100);
+        expect(manifest.modelAssetManifestPath).toBe(path.join(rootDir, 'model-assets.json'));
+        expect(manifest.modelAssetManifestFiles).toEqual(expect.arrayContaining([
+            'data/models/policy-net.onnx',
+            'data/models/policy-net.onnx.meta.json'
+        ]));
+
+        const assetManifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'model-assets.json'), 'utf8'));
+        expect(assetManifest.schemaVersion).toBe('model_assets.v1');
+        expect(assetManifest.files).toEqual(expect.arrayContaining([
+            'data/models/othello/policy-table.json',
+            'data/models/policy-net.onnx',
+            'data/models/policy-net.onnx.meta.json'
+        ]));
 
         expect(fs.existsSync(path.join(rootDir, 'archive', 'test-deploy-1', 'policy-table.json'))).toBe(true);
     });
