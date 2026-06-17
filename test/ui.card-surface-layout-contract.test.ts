@@ -144,6 +144,15 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
   });
 
+  test('card faces do not keep overridden animation declarations', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+    const animationsCss = readRepoTextFile('styles-animations.css');
+
+    expect(cardsCss).toMatch(/\.card-item,[\s\S]*\.card-item \*::after\s*\{[\s\S]*animation:\s*none\s*!important/);
+    expect(cardsCss).not.toMatch(/animation:\s*(?:foil-sweep|card-shimmer|card-selected-shine|card-usable-pulse)/);
+    expect(animationsCss).not.toMatch(/@keyframes\s+(?:foil-sweep|card-shimmer|card-selected-shine|card-usable-pulse)\b/);
+  });
+
   test('card faces use a shared pentagonal frame across all card variants', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
     const layoutCss = readRepoTextFile('styles-layout.css');
