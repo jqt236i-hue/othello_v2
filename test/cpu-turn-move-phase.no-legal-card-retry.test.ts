@@ -47,8 +47,34 @@ function createConfig(overrides: Record<string, any> = {}) {
 }
 
 describe('cpu turn move phase no-legal card retry', () => {
-  test('passes instead of rescheduling forever when no legal moves and no card retry applies', async () => {
+  test('uses a normal pass when no legal moves remain but a card was still technically usable', async () => {
     const { config, passFn, scheduleRunCpuTurn } = createConfig();
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now()
+    });
+
+    expect(result).toEqual({ status: 'pass' });
+    expect(passFn).toHaveBeenCalledWith('white', {
+      autoMode: false
+    });
+    expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
+  });
+
+  test('uses auto no-action pass only when no legal moves and no usable card remain', async () => {
+    const { config, passFn, scheduleRunCpuTurn } = createConfig({
+      resolveCpuCardLogic: jest.fn(() => ({
+        hasUsableCard: jest.fn(() => false)
+      }))
+    });
     const phase = createCpuTurnMovePhase(config as any);
 
     const result = await phase.runCpuTurnMovePhase({
@@ -68,6 +94,29 @@ describe('cpu turn move phase no-legal card retry', () => {
       autoNoActionPass: true
     });
     expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
+  });
+
+  test('retries instead of stopping when the pass handler rejects the CPU pass', async () => {
+    const passFn = jest.fn(() => Promise.resolve(false));
+    const { config, scheduleRunCpuTurn } = createConfig({
+      resolveProcessPassTurn: jest.fn(() => passFn)
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now()
+    });
+
+    expect(result).toEqual({ status: 'retry' });
+    expect(config.setCpuProcessing).toHaveBeenCalledWith(false);
+    expect(scheduleRunCpuTurn).toHaveBeenCalledWith('white', { autoMode: false }, 0);
   });
 
   test('retries when pass handler is not available for a no-action CPU turn', async () => {

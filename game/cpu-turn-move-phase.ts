@@ -53,6 +53,17 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         const turnStartMs = Number.isFinite(opts.turnStartMs) ? opts.turnStartMs : Date.now();
         const expectedTurnNumber = cfg.getCurrentTurnNumberSafe();
 
+        const invokeCpuPass = async (passFn: any, passOptions: any): Promise<any> => {
+            const result = await Promise.resolve(passFn(playerKey, passOptions));
+            if (result === false) {
+                cfg.setCpuProcessing(false);
+                cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                return { status: 'retry' };
+            }
+            cfg.resetPendingSelectRetryState(playerKey);
+            return { status: 'pass' };
+        };
+
         const protection = cfg.getActiveProtectionSafe(selfColor);
         const perma = cfg.getFlipBlockersSafe();
         const generateMovesForPlayerFn = cfg.resolveGenerateMovesForPlayer();
@@ -101,15 +112,16 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     level,
                     legalMovesCount: 0
                 });
-                passFn(playerKey, { autoMode, autoNoActionPass: true });
+                const passOptions = stillUsableCard
+                    ? { autoMode }
+                    : { autoMode, autoNoActionPass: true };
+                return invokeCpuPass(passFn, passOptions);
             } else {
                 console.error('[AI] processPassTurn is not available');
                 cfg.setCpuProcessing(false);
                 cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
                 return { status: 'retry' };
             }
-            cfg.resetPendingSelectRetryState(playerKey);
-            return { status: 'pass' };
         }
 
         let move = null;
@@ -133,13 +145,12 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         if (!move) {
             const passFn = cfg.resolveProcessPassTurn();
             if (passFn) {
-                passFn(playerKey, autoMode);
+                return invokeCpuPass(passFn, autoMode);
             } else {
                 cfg.setCpuProcessing(false);
                 cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
                 return { status: 'retry' };
             }
-            return { status: 'pass' };
         }
         if (cfg.isCpuDebugLogAvailable()) {
             cfg.emitCpuDebugLog(`[AI] Move selected`, 'info', {
