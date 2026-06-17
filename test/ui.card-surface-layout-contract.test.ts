@@ -171,6 +171,19 @@ describe('card surface layout contract', () => {
     expect(cardsCss).not.toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),/);
   });
 
+  test('use card reason is defined once as a compact warning chip', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+    const reasonBlocks = cardsCss.match(/#use-card-reason\s*\{[^}]*\}/g) || [];
+
+    expect(reasonBlocks).toHaveLength(1);
+    expectCssBlockToContain(cardsCss, '#use-card-reason', /display:\s*inline-flex/);
+    expectCssBlockToContain(cardsCss, '#use-card-reason', /width:\s*auto/);
+    expectCssBlockToContain(cardsCss, '#use-card-reason', /text-align:\s*left/);
+    expectCssBlockToContain(cardsCss, '#use-card-reason', /min-height:\s*0/);
+    expectCssBlockToContain(cardsCss, '#card-detail-panel > #use-card-reason:empty', /display:\s*none/);
+    expect(cardsCss).not.toMatch(/#card-detail-panel > #use-card-reason\s*\{[\s\S]*display:\s*block/);
+  });
+
   test('card faces use a shared pentagonal frame across all card variants', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
     const layoutCss = readRepoTextFile('styles-layout.css');
