@@ -689,9 +689,10 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
 
     // With no legal move and no usable card, pass is the only available action.
     // Network mode must publish an authoritative pass command instead of applying a local delayed pass.
+    const passArg = pending ? { autoMode: true } : true;
     if (isExplicitNetworkMatchMode()) {
         if (!canPublishNetworkPassForTurnOwner(playerKey)) return false;
-        processPassTurn(playerKey, true);
+        processPassTurn(playerKey, passArg);
         return true;
     }
 
@@ -700,7 +701,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
         return true;
     }
 
-    processPassTurn(playerKey, true);
+    processPassTurn(playerKey, passArg);
     return true;
 }
 
@@ -929,7 +930,8 @@ async function handleBlackPassWhenNoMoves() {
         const passedPlayer = gameState.currentPlayer;
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
-        const passOptions = { autoNoActionPass: true };
+        const pending = readPendingForPassHandler(playerKey);
+        const passOptions = pending ? undefined : { autoNoActionPass: true };
         const result = applyPassViaPipeline(playerKey, passOptions);
         if (!result.ok) {
             return handleRejectedPass();

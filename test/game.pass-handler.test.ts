@@ -306,6 +306,74 @@ describe('pass-handler flows', () => {
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
+    test('pending が残る無合法手では ensureCurrentPlayerCanActOrPass が通常 pass で pending 破棄へ進める', () => {
+        delete require.cache[modPath];
+        (global as any).gameState = { currentPlayer: (global as any).WHITE, turnNumber: 61, consecutivePasses: 0 };
+        (global as any).cardState = {
+            turnIndex: 36,
+            turnCountByPlayer: { black: 18, white: 18 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: {
+                black: null,
+                white: {
+                    type: 'REGEN_WILL',
+                    cardId: 'regen_01',
+                    pendingEffectId: 'pending_36_21',
+                    stage: null
+                }
+            }
+        };
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        (global as any).CardLogic = {
+            hasUsableCard: jest.fn(() => false),
+            getCardContext: jest.fn(() => ({}))
+        };
+        (global as any).TurnPipeline = makeTurnPipeline();
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+
+        expect(ph.ensureCurrentPlayerCanActOrPass()).toBe(true);
+
+        expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+        const action = (global as any).TurnPipeline.applyTurnSafe.mock.calls[0][3];
+        expect(action).toEqual({ type: 'pass', turnIndex: 36 });
+    });
+
+    test('pending が残る黒の遅延 no-move pass は autoNoActionPass を付けない', async () => {
+        jest.useFakeTimers();
+        delete require.cache[modPath];
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 22, consecutivePasses: 0 };
+        (global as any).cardState = {
+            turnIndex: 14,
+            turnCountByPlayer: { black: 7, white: 7 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: {
+                black: {
+                    type: 'PROLIFERATION_WILL',
+                    cardId: 'proliferation_01',
+                    pendingEffectId: 'pending_14_7',
+                    stage: null
+                },
+                white: null
+            }
+        };
+        (global as any).TurnPipeline = makeTurnPipeline();
+        try {
+            const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
+
+            await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+            const action = (global as any).TurnPipeline.applyTurnSafe.mock.calls[0][3];
+            expect(action).toEqual({ type: 'pass', turnIndex: 14 });
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
+    });
+
     test('pass rejected かつ未解決pendingがあれば終局救済しない', async () => {
         delete require.cache[modPath];
         (global as any).TurnPipeline = {

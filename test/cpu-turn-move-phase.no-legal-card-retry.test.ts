@@ -96,6 +96,37 @@ describe('cpu turn move phase no-legal card retry', () => {
     expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
   });
 
+  test('uses a normal pass when a card pending action remains after no legal moves', async () => {
+    const { config, passFn, scheduleRunCpuTurn } = createConfig({
+      resolveCpuCardLogic: jest.fn(() => ({
+        hasUsableCard: jest.fn(() => false)
+      }))
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: {
+        type: 'PROLIFERATION_WILL',
+        cardId: 'proliferation_01',
+        pendingEffectId: 'pending_32_18',
+        stage: null
+      },
+      turnStartMs: Date.now()
+    });
+
+    expect(result).toEqual({ status: 'pass' });
+    expect(passFn).toHaveBeenCalledWith('white', {
+      autoMode: false
+    });
+    expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
+  });
+
   test('retries instead of stopping when the pass handler rejects the CPU pass', async () => {
     const passFn = jest.fn(() => Promise.resolve(false));
     const { config, scheduleRunCpuTurn } = createConfig({

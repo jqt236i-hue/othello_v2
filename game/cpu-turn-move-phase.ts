@@ -112,7 +112,8 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     level,
                     legalMovesCount: 0
                 });
-                const passOptions = stillUsableCard
+                const hasPendingAction = !!pending;
+                const passOptions = (stillUsableCard || hasPendingAction)
                     ? { autoMode }
                     : { autoMode, autoNoActionPass: true };
                 return invokeCpuPass(passFn, passOptions);
