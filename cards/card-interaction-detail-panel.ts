@@ -152,7 +152,8 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
             highlighter.renderTextWithGameTermHighlights(el, String(text || ''), {
                 documentRef: cfg.getDocumentRef(),
-                preserveLineBreaks: !!(options && options.preserveLineBreaks)
+                preserveLineBreaks: !!(options && options.preserveLineBreaks),
+                interactive: true
             });
             return;
         }

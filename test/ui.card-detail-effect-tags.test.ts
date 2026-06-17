@@ -597,6 +597,44 @@ describe('card detail effect tags', () => {
     expect(popupEl.classList.contains('is-open')).toBe(false);
   });
 
+  test('card detail term buttons open centered meaning popup from highlighted text', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'board_executor_01',
+      name: '盤界の執行者',
+      type: 'BOARD_EXECUTOR',
+      cost: 0,
+      desc: '盤面に自分の特殊石がある場合のみ使用可能。盤面上のすべての特殊石を穴にし、盤界の執行者を顕現させる。'
+    };
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const termButtons = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button')) as HTMLElement[];
+    const specialStoneButton = termButtons.find((el) => el.textContent === '特殊石');
+    expect(specialStoneButton).toBeTruthy();
+    expect(specialStoneButton.getAttribute('aria-label')).toBe('特殊石の意味を表示');
+
+    specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const popupEl = document.getElementById('card-detail-tag-popover');
+    const titleEl = document.getElementById('card-detail-tag-popover-title');
+    const bodyEl = document.getElementById('card-detail-tag-popover-body');
+
+    expect(popupEl).not.toBeNull();
+    expect(popupEl.classList.contains('is-open')).toBe(true);
+    expect(popupEl.getAttribute('aria-hidden')).toBe('false');
+    expect(popupEl.getAttribute('data-card-tag-key')).toBe('term:special-stone');
+    expect(titleEl.textContent).toBe('特殊石');
+    expect(bodyEl.textContent).toContain('盤面に残って次ターン以降も能力主体として生きる石');
+
+    specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(popupEl.classList.contains('is-open')).toBe(false);
+  });
+
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {
     global.CardInteractionEffects = {
       resolveCardDescriptionTexts: () => ({

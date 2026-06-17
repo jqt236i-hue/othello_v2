@@ -97,4 +97,23 @@ describe('text term highlighter', () => {
     expect(target.innerHTML).toContain('<br>');
     expect(Array.from(target.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['破壊', '反転']);
   });
+
+  test('renders term highlights as accessible buttons when interactive', () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="target"></div></body></html>');
+    const target = dom.window.document.getElementById('target') as HTMLElement;
+
+    renderTextWithGameTermHighlights(target, '特殊石と絶対保護', {
+      documentRef: dom.window.document,
+      interactive: true
+    });
+
+    const terms = Array.from(target.querySelectorAll('.game-term-highlight')) as HTMLElement[];
+    expect(terms.map((term) => term.tagName)).toEqual(['BUTTON', 'BUTTON']);
+    expect(terms.map((term) => term.textContent)).toEqual(['特殊石', '絶対保護']);
+    expect(terms[0].getAttribute('type')).toBe('button');
+    expect(terms[0].classList.contains('game-term-highlight-button')).toBe(true);
+    expect(terms[0].getAttribute('aria-label')).toBe('特殊石の意味を表示');
+    expect(terms[0].dataset.termId).toBe('special-stone');
+    expect(terms[1].dataset.termCategory).toBe('protection');
+  });
 });

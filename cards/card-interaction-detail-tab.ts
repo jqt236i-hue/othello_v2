@@ -84,7 +84,8 @@ export function createCardInteractionDetailTab(deps: CardInteractionDetailTabDep
         if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
             highlighter.renderTextWithGameTermHighlights(refs.body, body, {
                 documentRef: refs.body.ownerDocument,
-                preserveLineBreaks: true
+                preserveLineBreaks: true,
+                interactive: true
             });
         } else {
             refs.body.textContent = body;

@@ -311,6 +311,7 @@ let _cardDetailTabState = {
 let _cardDetailTagAutoDismissBound = false;
 let _cardDetailTagPopoverEl: any = null;
 let _cardDetailTagPopoverDismissBound = false;
+let _cardDetailTermClickBound = false;
 const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
 const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
 const LOCAL_PLAYBACK_SOUND_SKIP_MS = 5000;
@@ -969,12 +970,12 @@ function _closeCardDetailTagPopover() {
     return true;
 }
 
-function _openCardDetailTagPopover(key: any, bodyText: any, cardId: any) {
+function _openCardDetailTagPopover(key: any, bodyText: any, cardId: any, titleText?: any) {
     const popover = _ensureCardDetailTagPopover();
     if (!popover) return false;
     const titleEl = document.getElementById('card-detail-tag-popover-title');
     const bodyEl = document.getElementById('card-detail-tag-popover-body');
-    if (titleEl) titleEl.textContent = String(key || '');
+    if (titleEl) titleEl.textContent = String(titleText || key || '');
     if (bodyEl) bodyEl.textContent = String(bodyText || '');
     popover.setAttribute('data-card-tag-key', String(key || ''));
     if (cardId) {
@@ -1009,6 +1010,7 @@ function _bindCardDetailTagPopoverAutoDismiss() {
         if (targetEl && typeof targetEl.closest === 'function') {
             if (targetEl.closest('#card-detail-tag-popover')) return;
             if (targetEl.closest('#card-detail-effect-tags')) return;
+            if (targetEl.closest('.game-term-highlight-button')) return;
         }
         _closeCardDetailTagPopover();
     }, true);
@@ -1041,6 +1043,63 @@ function _toggleCardDetailTagExplanation(tag: any) {
     const selectedId = cardState ? cardState.selectedCardId : null;
     _closeCardDetailTagTabIfOpen();
     return _openCardDetailTagPopover(key, meaning, selectedId ? String(selectedId) : null);
+}
+
+function _getGameTermGlossaryEntries() {
+    if (_textTermHighlighterModule && typeof _textTermHighlighterModule.getGameTermGlossary === 'function') {
+        const entries = _textTermHighlighterModule.getGameTermGlossary();
+        return Array.isArray(entries) ? entries : [];
+    }
+    return [];
+}
+
+function _resolveCardDetailTermExplanation(termButton: any) {
+    if (!termButton || typeof termButton.getAttribute !== 'function') return null;
+    const termId = String(termButton.getAttribute('data-term-id') || '').trim();
+    const termLabel = String(termButton.getAttribute('data-term-label') || '').trim();
+    const displayedText = String(termButton.textContent || '').trim();
+    const entries = _getGameTermGlossaryEntries();
+    const entry = entries.find((item: any) => item && termId && String(item.id || '') === termId)
+        || entries.find((item: any) => item && termLabel && String(item.label || '') === termLabel);
+    const title = String((entry && entry.label) || termLabel || displayedText || '').trim();
+    if (!title) return null;
+    const key = `term:${String((entry && entry.id) || termId || title)}`;
+    return {
+        key,
+        title,
+        body: String((entry && entry.description) || `${title}の説明は未登録です。`)
+    };
+}
+
+function _toggleCardDetailTermExplanation(termButton: any) {
+    const term = _resolveCardDetailTermExplanation(termButton);
+    if (!term) return false;
+    if (_isCardDetailTagPopoverOpenFor(term.key)) {
+        return _closeCardDetailTagPopover();
+    }
+    const selectedId = cardState ? cardState.selectedCardId : null;
+    _closeCardDetailTagTabIfOpen();
+    return _openCardDetailTagPopover(term.key, term.body, selectedId ? String(selectedId) : null, term.title);
+}
+
+function _bindCardDetailTermClickEvents() {
+    if (_cardDetailTermClickBound || !document) return;
+    document.addEventListener('click', (event: any) => {
+        const rawTarget = event ? event.target : null;
+        const targetEl = rawTarget && rawTarget.nodeType === 1
+            ? rawTarget
+            : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        const termButton = targetEl && typeof targetEl.closest === 'function'
+            ? targetEl.closest('.game-term-highlight-button')
+            : null;
+        if (!termButton) return;
+        if (!termButton.closest('#card-detail-panel') && !termButton.closest('#card-detail-tab-panel')) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        _toggleCardDetailTermExplanation(termButton);
+    });
+    _cardDetailTermClickBound = true;
 }
 
 function _bindCardDetailTagClickEvents(tagsEl: any) {
@@ -2446,6 +2505,7 @@ function updateCardDetailPanel() {
     const cancelBtn = document.getElementById('cancel-card-btn');
 
     if (!nameEl || !descEl || !useBtn || !reasonEl) return;
+    _bindCardDetailTermClickEvents();
     _bindCardDetailTagClickEvents(detailTagsEl);
 
     // FATE_WILL: controller uses victim's hand/charge/pending for all interaction checks.

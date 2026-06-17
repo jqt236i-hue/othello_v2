@@ -27,6 +27,7 @@ export type RenderGameTermOptions = Readonly<{
   classPrefix?: string;
   preserveLineBreaks?: boolean;
   skipLabels?: readonly string[];
+  interactive?: boolean;
 }>;
 
 type CatalogCardText = Readonly<{
@@ -257,6 +258,7 @@ export function renderTextWithGameTermHighlights(target: Element | null | undefi
   const source = String(text || '');
   const preserveLineBreaks = !!(options && options.preserveLineBreaks);
   const classPrefix = String(options && options.classPrefix || 'game-term');
+  const interactive = !!(options && options.interactive);
   const matches = findGameTermMatches(source, options);
   target.textContent = '';
 
@@ -269,18 +271,23 @@ export function renderTextWithGameTermHighlights(target: Element | null | undefi
   const fragment = documentRef.createDocumentFragment();
   for (const match of matches) {
     appendText(documentRef, fragment, source.slice(cursor, match.start), preserveLineBreaks);
-    const span = documentRef.createElement('span');
-    span.className = [
+    const termEl = documentRef.createElement(interactive ? 'button' : 'span');
+    termEl.className = [
       `${classPrefix}-highlight`,
       `${classPrefix}-highlight--${match.category}`,
-      match.tone ? `${classPrefix}-highlight--tone-${match.tone}` : ''
+      match.tone ? `${classPrefix}-highlight--tone-${match.tone}` : '',
+      interactive ? `${classPrefix}-highlight-button` : ''
     ].filter(Boolean).join(' ');
-    span.setAttribute('data-term-id', match.id);
-    span.setAttribute('data-term-label', match.label);
-    span.setAttribute('data-term-category', match.category);
-    if (match.tone) span.setAttribute('data-term-tone', match.tone);
-    span.textContent = match.text;
-    fragment.appendChild(span);
+    if (interactive) {
+      termEl.setAttribute('type', 'button');
+      termEl.setAttribute('aria-label', `${match.text}の意味を表示`);
+    }
+    termEl.setAttribute('data-term-id', match.id);
+    termEl.setAttribute('data-term-label', match.label);
+    termEl.setAttribute('data-term-category', match.category);
+    if (match.tone) termEl.setAttribute('data-term-tone', match.tone);
+    termEl.textContent = match.text;
+    fragment.appendChild(termEl);
     cursor = match.end;
   }
   appendText(documentRef, fragment, source.slice(cursor), preserveLineBreaks);
