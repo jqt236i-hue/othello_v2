@@ -423,21 +423,9 @@ function _fitCardNameForDisplay(nameEl: any) {
 
 function _appendCardDisplayBadges(cardEl: any, cardDef: any, cost: any, tier: any) {
     if (!cardEl) return;
-    const badgeRow = document.createElement('div');
-    badgeRow.className = 'card-badge-row';
-
-    const typeLabel = _getCardDisplayTypeLabel(cardDef);
     const typeKey = _getCardDisplayTypeKey(cardDef);
     if (typeKey) {
         cardEl.dataset.cardType = typeKey;
-    }
-    if (typeLabel) {
-        const typeBadge = document.createElement('div');
-        typeBadge.className = 'card-type-badge';
-        const _iconMap: Record<string, string> = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
-        const _icon = _iconMap[typeLabel] || '';
-        typeBadge.textContent = _icon ? (_icon + ' ' + typeLabel) : typeLabel;
-        badgeRow.appendChild(typeBadge);
     }
 
     const costBadge = document.createElement('div');
@@ -453,9 +441,8 @@ function _appendCardDisplayBadges(cardEl: any, cardDef: any, cost: any, tier: an
     costLabel.textContent = 'cost';
     costBadge.appendChild(costValue);
     costBadge.appendChild(costLabel);
-    badgeRow.appendChild(costBadge);
 
-    cardEl.appendChild(badgeRow);
+    cardEl.appendChild(costBadge);
 }
 
 function _normalizeSelectedHandIndexValue(value: any): number | null {

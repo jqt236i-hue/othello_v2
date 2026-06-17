@@ -1128,6 +1128,8 @@ describe('animation-utils hand fallback', () => {
     expect(badge.classList.contains('cost-tier-blue')).toBe(true);
     expect(badge.textContent).toBe('11cost');
     expect(badge.parentElement).toBe(movingCard);
+    expect(movingCard.querySelector('.card-badge-row')).toBeNull();
+    expect(movingCard.querySelector('.card-type-badge')).toBeNull();
     expect(movingCard.querySelector('.card-badge-row .card-cost-badge')).toBeNull();
 
     jest.advanceTimersByTime(4000);
@@ -1188,6 +1190,8 @@ describe('animation-utils hand fallback', () => {
     const costBadge = movingCard.querySelector('.card-cost-badge');
     expect(costBadge.textContent).toBe('21cost');
     expect(costBadge.parentElement).toBe(movingCard);
+    expect(movingCard.querySelector('.card-badge-row')).toBeNull();
+    expect(movingCard.querySelector('.card-type-badge')).toBeNull();
     expect(movingCard.querySelector('.card-badge-row .card-cost-badge')).toBeNull();
 
     jest.advanceTimersByTime(4000);
@@ -1271,6 +1275,9 @@ describe('animation-utils hand fallback', () => {
     expect(movingCard.classList.contains('clickable')).toBe(false);
     expect(movingCard.classList.contains('usable')).toBe(false);
     expect(movingCard.classList.contains('selected')).toBe(false);
+    expect(movingCard.querySelector('.card-badge-row')).toBeNull();
+    expect(movingCard.querySelector('.card-type-badge')).toBeNull();
+    expect(movingCard.querySelector('.card-cost-badge')).toBeTruthy();
 
     jest.advanceTimersByTime(4000);
     await Promise.resolve();

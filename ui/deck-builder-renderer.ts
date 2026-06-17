@@ -127,34 +127,14 @@ function applyCardSpecialArtIfAvailable(cardEl: HTMLElement, cardDef: any): HTML
   return cardEl;
 }
 
-function ensureCardBadgeRow(cardEl: HTMLElement, cardDef: any): HTMLElement {
+function ensureCardBadges(cardEl: HTMLElement, cardDef: any): HTMLElement {
   if (!cardEl || !cardDef) return cardEl;
 
-  const typeLabel = getCardDisplayTypeLabel(cardDef);
   const typeKey = getCardDisplayTypeKey(cardDef);
   if (typeKey) {
     cardEl.dataset.cardType = typeKey;
-  }
-  let badgeRow = cardEl.querySelector('.card-badge-row');
-  let typeBadge = badgeRow ? badgeRow.querySelector('.card-type-badge') : null;
-  if (typeLabel) {
-    if (!badgeRow) {
-      badgeRow = document.createElement('div');
-      badgeRow.className = 'card-badge-row';
-      cardEl.appendChild(badgeRow);
-    }
-    if (!typeBadge) {
-      typeBadge = document.createElement('div');
-      typeBadge.className = 'card-type-badge';
-      badgeRow.insertBefore(typeBadge, badgeRow.firstChild || null);
-    }
-    (typeBadge as HTMLElement).textContent = typeLabel;
-  } else if (typeBadge) {
-    typeBadge.remove();
-  }
-  if (badgeRow && !badgeRow.querySelector('.card-type-badge')) {
-    badgeRow.remove();
-    badgeRow = null;
+  } else {
+    delete cardEl.dataset.cardType;
   }
 
   const cost = Number(cardDef.cost) || 0;
@@ -194,7 +174,7 @@ function createFallbackCardFace(cardDef: any): HTMLElement {
   } catch (e) { /* ignore */ }
 
   applyCardSpecialArtIfAvailable(cardEl, cardDef);
-  return ensureCardBadgeRow(cardEl, cardDef);
+  return ensureCardBadges(cardEl, cardDef);
 }
 
 function createDeckCardElement(cardDef: any, options?: any): HTMLElement {
@@ -215,7 +195,7 @@ function createDeckCardElement(cardDef: any, options?: any): HTMLElement {
     cardEl = createFallbackCardFace(cardDef);
   }
   applyCardSpecialArtIfAvailable(cardEl, cardDef);
-  ensureCardBadgeRow(cardEl, cardDef);
+  ensureCardBadges(cardEl, cardDef);
 
   cardEl.classList.add('deck-builder-card');
   cardEl.dataset.cardId = cardDef.id;

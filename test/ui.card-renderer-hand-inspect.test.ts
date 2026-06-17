@@ -296,6 +296,8 @@ describe('card renderer hand inspection', () => {
     expect(costBadge).toBeTruthy();
     expect(costBadge.textContent).toBe('11cost');
     expect(ownCardEl.dataset.cardType).toBe('mining');
+    expect(ownCardEl.querySelector('.card-badge-row')).toBeNull();
+    expect(ownCardEl.querySelector('.card-type-badge')).toBeNull();
 
     dom.window.close();
   });

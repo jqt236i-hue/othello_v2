@@ -82,16 +82,6 @@ function _resolveCardDisplayTypeLabel(cardDef: any, fallbackCardId: any) {
     catch (e) { /* ignore */ }
     return '';
 }
-var _DISPLAY_TYPE_ICON_MAP: Record<string, string> = {
-    '採掘': '\u26CF\uFE0E',
-    '守護': '\u26E8\uFE0E',
-    '戦闘': '\u2694\uFE0E',
-    '執行': '\u2696\uFE0E',
-    '禁忌': '\u26A0\uFE0E',
-    '殲滅': '\u2620\uFE0E',
-    '繁栄': '\u2728',
-    '特殊': '\u2726'
-};
 var _DISPLAY_TYPE_KEY_MAP: Record<string, string> = {
     '採掘': 'mining',
     '守護': 'guard',
@@ -541,19 +531,6 @@ try {
     }
 }
 catch (e) { /* ignore */ }
-function _createCardBadgeRow(cardDef: any, fallbackCardId: any) {
-    const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
-    if (!typeLabel)
-        return null;
-    const badgeRow = document.createElement('div');
-    badgeRow.className = 'card-badge-row';
-    const typeBadge = document.createElement('div');
-    typeBadge.className = 'card-type-badge';
-    const icon = _DISPLAY_TYPE_ICON_MAP[typeLabel] || '';
-    typeBadge.textContent = icon ? (icon + ' ' + typeLabel) : typeLabel;
-    badgeRow.appendChild(typeBadge);
-    return badgeRow;
-}
 function _createCardCostBadge(cost: any, tierClass: any) {
     const costBadge = document.createElement('div');
     costBadge.className = 'card-cost-badge';
@@ -595,8 +572,7 @@ function _syncCardCostBadgeForRender(cardEl: any, cost: any) {
     let costBadge: any = _findRootCardCostBadge(cardEl);
     if (!costBadge) {
         costBadge = _createCardCostBadge(safeCost, tierClass);
-        const badgeRow = cardEl.querySelector ? cardEl.querySelector('.card-badge-row') : null;
-        cardEl.insertBefore(costBadge, badgeRow || null);
+        cardEl.appendChild(costBadge);
     }
     _removeCardCostTierClasses(costBadge);
     costBadge.classList.add(tierClass);
@@ -1425,10 +1401,6 @@ function createCardFaceElement(cardId: any, options: any) {
     _fitCardNameElement(nameSpan);
     if (!isSpecialCard) {
         cardEl.appendChild(_createCardCostBadge(cost, tierClass));
-        const badgeRow = _createCardBadgeRow(cardDef, cardId);
-        if (badgeRow) {
-            cardEl.appendChild(badgeRow);
-        }
     }
     cardEl.dataset.cardId = cardId;
     return cardEl;

@@ -855,16 +855,6 @@ function _readCardUseDescriptorFromSourceElement(sourceCardEl: any) {
             descriptor.cost = parsedCost;
         }
     } catch (e: any) { /* ignore */ }
-    try {
-        const typeBadgeEl = sourceCardEl.querySelector('.card-type-badge');
-        const rawTypeText = String(typeBadgeEl && typeBadgeEl.textContent || '').trim();
-        if (rawTypeText) {
-            const normalizedTypeText = rawTypeText.replace(/^[^\p{L}\p{N}]+/u, '').trim();
-            if (normalizedTypeText) {
-                descriptor.displayTypeLabel = normalizedTypeText;
-            }
-        }
-    } catch (e: any) { /* ignore */ }
     return descriptor;
 }
 
@@ -920,7 +910,8 @@ function _buildFallbackCardUseElement(cardId: any, cardName: any, cardCost: any,
         cardEl.classList.add(tierClass);
     }
     const _typeKeyMap: Record<string, string> = { '採掘':'mining', '守護':'guard', '戦闘':'battle', '執行':'judgment', '禁忌':'taboo', '殲滅':'annihilation', '繁栄':'prosperity', '特殊':'special' };
-    const resolvedTypeKey = _typeKeyMap[resolvedTypeLabel] || '';
+    const descriptorTypeKey = String(visualDescriptor.cardType || visualDescriptor.card_type || '').trim();
+    const resolvedTypeKey = descriptorTypeKey || _typeKeyMap[resolvedTypeLabel] || '';
     if (resolvedTypeKey) {
         try { cardEl.dataset.cardType = resolvedTypeKey; } catch (e: any) { /* ignore */ }
     }
@@ -951,17 +942,6 @@ function _buildFallbackCardUseElement(cardId: any, cardName: any, cardCost: any,
         badge.appendChild(costValue);
         badge.appendChild(costLabel);
         cardEl.appendChild(badge);
-    }
-    if (resolvedTypeLabel) {
-        const badgeRow = document.createElement('div');
-        badgeRow.className = 'card-badge-row';
-        const typeBadge = document.createElement('div');
-        typeBadge.className = 'card-type-badge';
-        var _typeIconMap: Record<string, string> = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
-        var _typeIcon = _typeIconMap[resolvedTypeLabel] || '';
-        typeBadge.textContent = _typeIcon ? (_typeIcon + ' ' + resolvedTypeLabel) : resolvedTypeLabel;
-        badgeRow.appendChild(typeBadge);
-        cardEl.appendChild(badgeRow);
     }
     if (applyCardSpecialArtToFace) {
         applyCardSpecialArtToFace(cardEl, visualDescriptor, { cardId: resolvedCardId, ownerKey });

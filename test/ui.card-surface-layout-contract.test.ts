@@ -11,7 +11,6 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
     expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*conic-gradient[\s\S]*--card-back-emblem/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);
-    expect(cardsCss).toMatch(/\.card-badge-row[\s\S]*left:\s*0[\s\S]*right:\s*0[\s\S]*bottom:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)[\s\S]*left:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(cardsCss).toMatch(/\.card-name[\s\S]*padding:[\s\S]*var\(--layout-size-card-badge-font\)/);
     expect(cardsCss).toMatch(/\.flying-card[\s\S]*width:\s*var\(--layout-size-card-width\)/);
@@ -135,11 +134,13 @@ describe('card surface layout contract', () => {
     expect(layoutInfoCss).toMatch(/#rules-help-card-filter-status\s*\{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis/);
   });
 
-  test('card surfaces suppress type badges while keeping other card layout tokens intact', () => {
+  test('card surfaces do not keep hidden type badge CSS', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
-    expect(cardsCss).toMatch(/\.card-badge-row\s*\{[\s\S]*display:\s*none\s*!important/);
-    expect(cardsCss).toMatch(/\.card-type-badge\s*\{[\s\S]*display:\s*none\s*!important/);
+    expect(cardsCss).not.toMatch(/\.card-type-badge/);
+    expect(cardsCss).not.toMatch(/\.card-badge-row/);
+    expect(cardsCss).not.toMatch(/\.card-badge-row\s*\{[\s\S]*display:\s*none\s*!important/);
+    expect(cardsCss).not.toMatch(/\.card-type-badge\s*\{[\s\S]*display:\s*none\s*!important/);
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
   });
 

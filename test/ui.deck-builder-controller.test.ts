@@ -221,6 +221,8 @@ describe('deck builder controller', () => {
     expect(costBadge).toBeTruthy();
     expect(costBadge.parentElement).toBe(firstCard);
     expect(firstCard.dataset.cardType).toBeTruthy();
+    expect(firstCard.querySelector('.card-badge-row')).toBeNull();
+    expect(firstCard.querySelector('.card-type-badge')).toBeNull();
   });
 
   test('固定プリセットデッキをデフォルトデッキの右側に集約して使用できる', () => {
