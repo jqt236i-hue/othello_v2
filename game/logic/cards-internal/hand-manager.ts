@@ -844,11 +844,6 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
                 if (!helpers.canUseTimeStopGodForPlayer(cardState, gameState, playerKey)) continue;
             }
 
-            if (type === 'CORNER_TRIBUTE') {
-                if (typeof helpers.countOpponentOccupiedCornersForPlayer !== 'function') continue;
-                if (helpers.countOpponentOccupiedCornersForPlayer(cardState, gameState, playerKey) < 4) continue;
-            }
-
             if (type === 'TEMPT_WILL' && !requireLocalTargets(context, 'getTemptWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TRAP_WILL' && !requireLocalTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;

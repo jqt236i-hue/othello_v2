@@ -201,6 +201,59 @@ function buildBoardShrinkWillDirectionHintMap(pending: any, selectableTargets: a
   return out;
 }
 
+function normalizeBoardExpansionSide(side: any): string | null {
+  const normalized = String(side || '').toLowerCase();
+  if (normalized === 'top') return 'up';
+  if (normalized === 'bottom') return 'down';
+  return normalized === 'left' || normalized === 'right' || normalized === 'up' || normalized === 'down'
+    ? normalized
+    : null;
+}
+
+function resolveBoardExpansionGodDirection(target: any, boardShape: any): string | null {
+  const row = Number(target && target.row);
+  const col = Number(target && target.col);
+  const rows = Number(boardShape && boardShape.rows);
+  const cols = Number(boardShape && boardShape.cols);
+  if (!Number.isInteger(row) || !Number.isInteger(col) || !Number.isInteger(rows) || !Number.isInteger(cols) || rows <= 0 || cols <= 0) {
+    return null;
+  }
+  const vertical = row === 0 ? 'up' : row === rows - 1 ? 'down' : null;
+  const horizontal = col === 0 ? 'left' : col === cols - 1 ? 'right' : null;
+  if (vertical && horizontal) return `${vertical}-${horizontal}`;
+  return vertical || horizontal;
+}
+
+function resolveBoardExpansionDirection(pending: any, target: any, boardShape: any): string | null {
+  const pendingType = String(pending && pending.type || '').toUpperCase();
+  if (pendingType === 'BOARD_EXPANSION_WILL') {
+    return normalizeBoardExpansionSide(target && target.side);
+  }
+  if (pendingType === 'BOARD_EXPANSION_GOD') {
+    return resolveBoardExpansionGodDirection(target, boardShape);
+  }
+  return null;
+}
+
+function buildBoardExpansionDirectionHintMap(pending: any, selectableTargets: any, boardShape: any): Map<string, string> {
+  const out = new Map<string, string>();
+  const pendingType = String(pending && pending.type || '').toUpperCase();
+  if (!pending || pending.stage !== 'selectTarget' || (pendingType !== 'BOARD_EXPANSION_WILL' && pendingType !== 'BOARD_EXPANSION_GOD')) {
+    return out;
+  }
+  if (!Array.isArray(selectableTargets) || selectableTargets.length === 0) {
+    return out;
+  }
+  for (const target of selectableTargets) {
+    const key = normalizePointKey(target);
+    if (!key) continue;
+    const direction = resolveBoardExpansionDirection(pending, target, boardShape);
+    if (!direction) continue;
+    out.set(key, direction);
+  }
+  return out;
+}
+
 function collectBoardShrinkGodPreviewHighlightKeys(pending: any, selectableTargets: any): Set<string> {
   const out = new Set<string>();
   if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
@@ -299,6 +352,7 @@ function buildBoardHintProjection(inputValue: BoardHintProjectionInput): any {
     randomSpawnPreviewSet,
     selectedTargetHighlightSet: input.isHumanTurn ? collectPendingSelectedTargetHighlightKeys(pending) : new Set<string>(),
     boardShrinkGodPreviewHighlightSet: input.isHumanTurn ? collectBoardShrinkGodPreviewHighlightKeys(pending, selectableTargets) : new Set<string>(),
+    boardExpansionDirectionHintMap: buildBoardExpansionDirectionHintMap(pending, selectableTargets, input.boardShape),
     boardShrinkGodDirectionHintMap: buildBoardShrinkGodDirectionHintMap(pending, selectableTargets),
     boardShrinkWillDirectionHintMap: buildBoardShrinkWillDirectionHintMap(pending, selectableTargets)
   };
@@ -308,6 +362,7 @@ export = {
   buildBoardHintProjection,
   collectPendingSelectedTargetHighlightKeys,
   collectRandomSpawnPreviewHighlightKeys,
+  buildBoardExpansionDirectionHintMap,
   buildBoardShrinkGodDirectionHintMap,
   buildBoardShrinkWillDirectionHintMap,
   collectBoardShrinkGodPreviewHighlightKeys

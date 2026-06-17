@@ -1186,11 +1186,6 @@ const Flips = CardFlips || {};
             .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col));
     }
 
-    function getCornerTributeTargets(cardState: any, gameState: any, playerKey: any) {
-        // CORNER_TRIBUTE has no board targets; it is a condition-only card.
-        return [];
-    }
-
     function getLastResortTargets(cardState: any, gameState: any, playerKey: any) {
         // LAST_RESORT places stones on empty cells when no legal moves and losing.
         return getEmptyBoardShapeCells(cardState, gameState);
@@ -1335,6 +1330,5 @@ export = {
     getXBombTargets,
     getReinforcementTargets,
     getEqualityTargets,
-    getCornerTributeTargets,
     getLastResortTargets
 };

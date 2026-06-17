@@ -157,9 +157,24 @@ function startServer(rootDir: string, port = 0) {
     return server;
 }
 
+function resolveServeRoot(scriptDir: string = __dirname) {
+    const candidates = [
+        path.resolve(scriptDir, '..'),
+        path.resolve(scriptDir, '..', '..'),
+        process.cwd()
+    ];
+    for (const candidate of candidates) {
+        if (fs.existsSync(path.join(candidate, 'index.html'))) {
+            return candidate;
+        }
+    }
+    return candidates[0];
+}
+
 function applyBenchmarkModeBeforeInit(root: any) {
     const target = (root && typeof root === 'object') ? root : globalThis;
     try { target.__BENCH_FAST_MODE = true; } catch (e) { /* ignore */ }
+    try { target.__BENCH_ULTRA_FAST_MODE = true; } catch (e) { /* ignore */ }
     try { target.CPU_MODEL_LOAD_TIMEOUT_MS = 90000; } catch (e) { /* ignore */ }
     try { target.ANIMATION_RETRY_DELAY_MS = 0; } catch (e) { /* ignore */ }
 }
@@ -168,7 +183,7 @@ function applyBenchmarkModeAfterInit(root: any) {
     const target = (root && typeof root === 'object') ? root : globalThis;
     const shortTimerCapMs = 16;
     // Keep playback abort/watchdog timers at real durations while compressing short visual delays.
-    const criticalTimerThresholdMs = 100;
+    const criticalTimerThresholdMs = target.__BENCH_ULTRA_FAST_MODE === true ? Number.POSITIVE_INFINITY : 100;
     try { target.ANIMATION_RETRY_DELAY_MS = 0; } catch (e) { /* ignore */ }
     try {
         if (target.__BENCH_TIMEOUT_PATCHED__ !== true) {
@@ -272,7 +287,7 @@ function buildFailureSnapshot(snapshot: any, diagnostics: any) {
 }
 
 async function runMatch(args: any) {
-    const root = path.resolve(__dirname, '..');
+    const root = resolveServeRoot(__dirname);
     const startedAt = Date.now();
     const server = startServer(root, 0);
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -337,8 +352,8 @@ async function runMatch(args: any) {
         const query = queryParts.length ? `?${queryParts.join('&')}` : '';
         await page.goto(`http://127.0.0.1:${port}/${query}`);
         stage = 'wait-selectors';
-        await page.waitForSelector('#smartBlack');
-        await page.waitForSelector('#smartWhite');
+        await page.waitForSelector('#smartBlack', { state: 'attached' });
+        await page.waitForSelector('#smartWhite', { state: 'attached' });
         stage = 'wait-ui-init';
         await page.waitForFunction(() => (globalThis as BenchGlobal).__uiInitialized === true, {
             timeout: Math.min(args.timeoutMs, 30000)
@@ -349,16 +364,14 @@ async function runMatch(args: any) {
         await page.evaluate(applyBenchmarkModeAfterInit);
 
         stage = 'select-levels';
-        await page.selectOption('#smartBlack', String(args.black));
-        await page.selectOption('#smartWhite', String(args.white));
-
-        stage = 'dispatch-level-changes';
-        await page.evaluate(() => {
-            const b = document.getElementById('smartBlack');
-            const w = document.getElementById('smartWhite');
+        await page.evaluate((levels: any) => {
+            const b = document.getElementById('smartBlack') as HTMLSelectElement | null;
+            const w = document.getElementById('smartWhite') as HTMLSelectElement | null;
+            if (b) b.value = String(levels.black);
+            if (w) w.value = String(levels.white);
             if (b) b.dispatchEvent(new Event('change'));
             if (w) w.dispatchEvent(new Event('change'));
-        });
+        }, { black: args.black, white: args.white });
 
         stage = 'verify-levels';
         const selectedLevels = await page.evaluate(() => {
@@ -379,9 +392,21 @@ async function runMatch(args: any) {
         if (requiresOnnxRuntime) {
             stage = 'wait-onnx';
             await page.waitForFunction((requirements: any) => {
-                const status = (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
-                    ? window.CpuPolicyOnnxRuntime.getStatus()
-                    : null;
+                const resolveRuntime = () => {
+                    if (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function') {
+                        return window.CpuPolicyOnnxRuntime;
+                    }
+                    try {
+                        const req = (window as any).require;
+                        if (typeof req === 'function') {
+                            const runtime = req('game/ai/policy-onnx-runtime') || req('game/ai/policy-onnx-runtime.js');
+                            if (runtime && typeof runtime.getStatus === 'function') return runtime;
+                        }
+                    } catch (e) { /* ignore */ }
+                    return null;
+                };
+                const runtime = resolveRuntime();
+                const status = runtime ? runtime.getStatus() : null;
                 if (!status || status.loaded !== true) return false;
                 if (requirements.requireTargetModelLoaded !== true && requirements.requireValueModelLoaded !== true) {
                     return true;
@@ -398,9 +423,21 @@ async function runMatch(args: any) {
         } else {
             try {
                 await page.waitForFunction(() => {
-                    const status = (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
-                        ? window.CpuPolicyOnnxRuntime.getStatus()
-                        : null;
+                    const resolveRuntime = () => {
+                        if (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function') {
+                            return window.CpuPolicyOnnxRuntime;
+                        }
+                        try {
+                            const req = (window as any).require;
+                            if (typeof req === 'function') {
+                                const runtime = req('game/ai/policy-onnx-runtime') || req('game/ai/policy-onnx-runtime.js');
+                                if (runtime && typeof runtime.getStatus === 'function') return runtime;
+                            }
+                        } catch (err) { /* ignore */ }
+                        return null;
+                    };
+                    const runtime = resolveRuntime();
+                    const status = runtime ? runtime.getStatus() : null;
                     return !!(status && status.loaded === true);
                 }, { timeout: args.onnxWaitMs });
             } catch (e) {
@@ -473,9 +510,21 @@ async function runMatch(args: any) {
         });
         stage = 'collect-runtime-status';
         const runtimeStatus = await page.evaluate(() => {
-            const onnx = (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
-                ? window.CpuPolicyOnnxRuntime.getStatus()
-                : null;
+            const resolveOnnxRuntime = () => {
+                if (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function') {
+                    return window.CpuPolicyOnnxRuntime;
+                }
+                try {
+                    const req = (window as any).require;
+                    if (typeof req === 'function') {
+                        const runtime = req('game/ai/policy-onnx-runtime') || req('game/ai/policy-onnx-runtime.js');
+                        if (runtime && typeof runtime.getStatus === 'function') return runtime;
+                    }
+                } catch (e) { /* ignore */ }
+                return null;
+            };
+            const onnxRuntime = resolveOnnxRuntime();
+            const onnx = onnxRuntime ? onnxRuntime.getStatus() : null;
             const table = (window.CpuPolicyTableRuntime && typeof window.CpuPolicyTableRuntime.getStatus === 'function')
                 ? window.CpuPolicyTableRuntime.getStatus()
                 : null;
@@ -521,9 +570,19 @@ async function runMatch(args: any) {
                     autoModeActive: (globalThis as BenchGlobal).AUTO_MODE_ACTIVE === true,
                     pendingEffectType: state && state.pendingEffect ? String(state.pendingEffect.type || '') : null,
                     pendingEffectStage: state && state.pendingEffect ? String(state.pendingEffect.stage || '') : null,
-                    onnxStatus: (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
-                        ? window.CpuPolicyOnnxRuntime.getStatus()
-                        : null,
+                    onnxStatus: (() => {
+                        if (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function') {
+                            return window.CpuPolicyOnnxRuntime.getStatus();
+                        }
+                        try {
+                            const req = (window as any).require;
+                            if (typeof req === 'function') {
+                                const runtime = req('game/ai/policy-onnx-runtime') || req('game/ai/policy-onnx-runtime.js');
+                                if (runtime && typeof runtime.getStatus === 'function') return runtime.getStatus();
+                            }
+                        } catch (err) { /* ignore */ }
+                        return null;
+                    })(),
                     tableStatus: (window.CpuPolicyTableRuntime && typeof window.CpuPolicyTableRuntime.getStatus === 'function')
                         ? window.CpuPolicyTableRuntime.getStatus()
                         : null
@@ -572,5 +631,6 @@ export = {
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,
     buildFailureSnapshot,
+    resolveServeRoot,
     runMatch
 };

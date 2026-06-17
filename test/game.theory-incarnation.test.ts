@@ -117,7 +117,7 @@ describe('理論の化身', () => {
       { id: 'extreme_hyperactive_01', type: 'EXTREME_HYPERACTIVE_WILL', cost: 32 },
       { id: 'escape_01', type: 'ESCAPE_WILL', cost: 7 },
       { id: 'gluttonous_will_01', type: 'GLUTTONOUS_WILL', cost: 29 },
-      { id: 'udg_01', type: 'ULTIMATE_DESTROY_GOD', cost: 25 },
+      { id: 'udg_01', type: 'ULTIMATE_DESTROY_GOD', cost: 30 },
       { id: 'ultimate_hyperactive_01', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28 },
       { id: 'stone_salvation_god_01', type: 'STONE_SALVATION_GOD', cost: 20 },
       { id: 'work_01', type: 'WORK_WILL', cost: 11 },
@@ -179,7 +179,7 @@ describe('理論の化身', () => {
       }),
       expect.objectContaining({
         cardType: 'ULTIMATE_DESTROY_GOD',
-        cardCost: 25,
+        cardCost: 30,
         markerData: expect.objectContaining({ type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 })
       }),
       expect.objectContaining({

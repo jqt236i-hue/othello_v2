@@ -4,13 +4,13 @@ describe('hand card swipe action gesture', () => {
   test('activates after the configured long press duration', () => {
     const gesture = HandCardSwipeAction.createHandCardSwipeGesture({ x: 100, y: 120, timeMs: 1000 });
 
-    expect(HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 100, y: 120, timeMs: 1109 })).toEqual({
+    expect(HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 100, y: 120, timeMs: 1169 })).toEqual({
       action: 'pending',
       active: false,
       cancelled: false
     });
 
-    expect(HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 100, y: 120, timeMs: 1110 })).toEqual({
+    expect(HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 100, y: 120, timeMs: 1170 })).toEqual({
       action: 'pending',
       active: true,
       cancelled: false
@@ -19,10 +19,10 @@ describe('hand card swipe action gesture', () => {
 
   test('resolves upward movement as card use after long press activation', () => {
     const gesture = HandCardSwipeAction.createHandCardSwipeGesture({ x: 160, y: 220, timeMs: 0 });
-    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 160, y: 220, timeMs: 110 });
+    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 160, y: 220, timeMs: 170 });
 
-    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 164, y: 155, timeMs: 140 });
-    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 164, y: 155, timeMs: 145 });
+    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 164, y: 155, timeMs: 200 });
+    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 164, y: 155, timeMs: 205 });
 
     expect(update.action).toBe('use');
     expect(end.action).toBe('use');
@@ -32,7 +32,7 @@ describe('hand card swipe action gesture', () => {
     const gesture = HandCardSwipeAction.createHandCardSwipeGesture({ x: 160, y: 220, timeMs: 0 });
 
     const early = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 162, y: 188, timeMs: 60 });
-    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 164, y: 155, timeMs: 120 });
+    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 164, y: 155, timeMs: 180 });
 
     expect(early.cancelled).toBe(false);
     expect(early.active).toBe(false);
@@ -41,10 +41,10 @@ describe('hand card swipe action gesture', () => {
 
   test('resolves rightward movement as hand card destroy after long press activation', () => {
     const gesture = HandCardSwipeAction.createHandCardSwipeGesture({ x: 90, y: 220, timeMs: 0 });
-    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 90, y: 220, timeMs: 110 });
+    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 90, y: 220, timeMs: 170 });
 
-    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 150, y: 230, timeMs: 140 });
-    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 150, y: 230, timeMs: 145 });
+    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 150, y: 230, timeMs: 200 });
+    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 150, y: 230, timeMs: 205 });
 
     expect(update.action).toBe('destroy');
     expect(end.action).toBe('destroy');
@@ -52,10 +52,10 @@ describe('hand card swipe action gesture', () => {
 
   test('keeps a short rightward movement pending instead of destroying the card', () => {
     const gesture = HandCardSwipeAction.createHandCardSwipeGesture({ x: 90, y: 220, timeMs: 0 });
-    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 90, y: 220, timeMs: 110 });
+    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 90, y: 220, timeMs: 170 });
 
-    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 134, y: 230, timeMs: 140 });
-    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 134, y: 230, timeMs: 145 });
+    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 134, y: 230, timeMs: 200 });
+    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 134, y: 230, timeMs: 205 });
 
     expect(update.action).toBe('pending');
     expect(end.action).toBe('cancel');
@@ -63,10 +63,10 @@ describe('hand card swipe action gesture', () => {
 
   test('keeps a medium rightward movement pending before the destroy threshold', () => {
     const gesture = HandCardSwipeAction.createHandCardSwipeGesture({ x: 90, y: 220, timeMs: 0 });
-    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 90, y: 220, timeMs: 110 });
+    HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 90, y: 220, timeMs: 170 });
 
-    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 149, y: 230, timeMs: 140 });
-    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 149, y: 230, timeMs: 145 });
+    const update = HandCardSwipeAction.updateHandCardSwipeGesture(gesture, { x: 149, y: 230, timeMs: 200 });
+    const end = HandCardSwipeAction.finishHandCardSwipeGesture(gesture, { x: 149, y: 230, timeMs: 205 });
 
     expect(update.action).toBe('pending');
     expect(end.action).toBe('cancel');

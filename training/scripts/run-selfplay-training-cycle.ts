@@ -1703,6 +1703,7 @@ export = {
     resolveNextCarryOverState,
     buildCandidateOnnxBundleArgs,
     buildTargetOnnxBundleArgs,
+    buildOnnxGateCommandArgs,
     buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
     buildDeployPromotedToRootCommandArgs,

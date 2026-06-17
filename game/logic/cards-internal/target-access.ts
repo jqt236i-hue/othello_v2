@@ -77,10 +77,6 @@ function getEqualityTargets(cardState: any, gameState: any, playerKey: any, deps
     return resolveTargetResolverTargets('getEqualityTargets', [cardState, gameState, playerKey], deps);
 }
 
-function getCornerTributeTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
-    return resolveTargetResolverTargets('getCornerTributeTargets', [cardState, gameState, playerKey], deps);
-}
-
 function getLastResortTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
     return resolveTargetResolverTargets('getLastResortTargets', [cardState, gameState, playerKey], deps);
 }
@@ -246,7 +242,6 @@ module.exports = {
     getXBombTargets,
     getReinforcementTargets,
     getEqualityTargets,
-    getCornerTributeTargets,
     getLastResortTargets,
     getTrapTargets,
     getGuardTargets,

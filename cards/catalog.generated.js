@@ -9,7 +9,7 @@ window.CardCatalog = {
       "name_ja": "宝箱",
       "type": "TREASURE_BOX",
       "cost": 0,
-      "desc_ja": "使用時に布石を1〜3ランダムで獲得する。",
+      "desc_ja": "使用時に布石を1〜6ランダムで獲得する。",
       "display_type_ja": "採掘"
     },
     {
@@ -392,14 +392,6 @@ window.CardCatalog = {
       "display_type_ja": "採掘"
     },
     {
-      "id": "corner_tribute_01",
-      "name_ja": "角の代償",
-      "type": "CORNER_TRIBUTE",
-      "cost": 0,
-      "desc_ja": "相手が角に4個以上石を置いている時だけ使用可能。相手の布石を最大20奪う。",
-      "display_type_ja": "採掘"
-    },
-    {
       "id": "work_01",
       "name_ja": "出稼ぎの意志",
       "type": "WORK_WILL",
@@ -614,7 +606,7 @@ window.CardCatalog = {
       "id": "udg_01",
       "name_ja": "究極破壊神",
       "type": "ULTIMATE_DESTROY_GOD",
-      "cost": 25,
+      "cost": 30,
       "desc_ja": "次に置く石を究極破壊神化。空きマスに自由配置でき、配置時と自ターン開始時に周囲1マスの敵石を破壊する。",
       "display_type_ja": "戦闘"
     },

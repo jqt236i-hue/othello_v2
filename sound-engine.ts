@@ -69,8 +69,8 @@ const SoundEngine = {
     },
     bgm: null as any,
     bgmVolume: 0.548625,
-    bgmOutputVolumeScale: 0.364,
-    currentTrackIndex: 5,
+    bgmOutputVolumeScale: 0.3094,
+    currentTrackIndex: 0,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {
         win: { name: '勝利リザルト', file: 'assets/audio/other/勝利リザルト-bpm165.mp3', loop: false },
@@ -334,8 +334,9 @@ const SoundEngine = {
 
     _getResultBgmOutputVolume() {
         const sliderVolume = this._toNonNegativeNumber(this.bgmVolume, 0);
+        const outputScale = this._toNonNegativeNumber(this.bgmOutputVolumeScale, 1);
         const masterVolume = this._clampMasterVolume(this._toNonNegativeNumber(this.masterVolume, MASTER_VOLUME_DEFAULT));
-        return this._clamp01(sliderVolume * masterVolume * (this.isMuted ? 0 : 1));
+        return this._clamp01(sliderVolume * outputScale * masterVolume * (this.isMuted ? 0 : 1));
     },
 
     _updateBgmOutputVolume() {

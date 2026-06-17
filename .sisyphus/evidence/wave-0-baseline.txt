@@ -295,20 +295,6 @@ FAIL test/game.cpu-policy-core.test.ts
 
       at Object.<anonymous> (test/game.cpu-policy-core.test.ts:343:31)
 
-  笳・cpu-policy-core 窶ｺ chooseHandDestroyTargetForCycle immediately destroys CORNER_TRIBUTE when currently unusable
-
-    TypeError: core.chooseHandDestroyTargetForCycle is not a function
-
-      369 |
-      370 |     test('chooseHandDestroyTargetForCycle immediately destroys CORNER_TRIBUTE when currently unusable', () => {
-    > 371 |         const selected = core.chooseHandDestroyTargetForCycle(
-          |                               ^
-      372 |             ['corner_tribute_01'],
-      373 |             [],
-      374 |             () => 8,
-
-      at Object.<anonymous> (test/game.cpu-policy-core.test.ts:371:31)
-
   笳・cpu-policy-core 窶ｺ chooseHandDestroyTargetForCycle leaves TEMPT_WILL unchanged when low charge and currently unusable
 
     TypeError: core.chooseHandDestroyTargetForCycle is not a function

@@ -124,7 +124,6 @@
 - REBUILD_WILL
 - SUPPLY_WILL
 - PLUNDER_WILL
-- CORNER_TRIBUTE
 
 ### Wave 6: 収入・債務・手札公開・倍率石
 

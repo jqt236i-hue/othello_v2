@@ -63,7 +63,6 @@ export type CardType =
   | 'REBUILD_WILL'
   | 'SUPPLY_WILL'
   | 'PLUNDER_WILL'
-  | 'CORNER_TRIBUTE'
   | 'WORK_WILL'
   | 'RIBO_WILL'
   | 'LOSS_WILL'

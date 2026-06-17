@@ -13,9 +13,17 @@ let roundDisplayResizeObserver: any = null;
 let roundDisplayBonusTimer: any = null;
 let roundDisplayBonusFadeTimer: any = null;
 let roundDisplayBonusState: any = null;
+let turnArrivalToastHideTimer: any = null;
+let turnArrivalToastFadeTimer: any = null;
+let turnArrivalToastPositionTimer: any = null;
+let turnArrivalToastLastSignature = '';
+let turnArrivalToastViewportHandlersBound = false;
 let latestBattleStatusEventText = '';
 let battleStatusNetworkTimerInfo: any = null;
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
+const TURN_ARRIVAL_TOAST_ID = 'turn-arrival-toast';
+const TURN_ARRIVAL_TOAST_VISIBLE_MS = 6000;
+const TURN_ARRIVAL_TOAST_FADE_OUT_MS = 360;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/HERO.png';
 const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
@@ -36,6 +44,13 @@ const PORTRAIT_SPEECH_CONFIG: any = {
         panelId: 'hero-character-panel'
     }
 };
+
+function unrefStatusDisplayTimer(timer: any): void {
+    if (timer && typeof timer.unref === 'function') {
+        try { timer.unref(); } catch (e) { /* ignore */ }
+    }
+}
+
 const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
 const CpuProfileSelection = _require('./cpu-profile-selection');
 let StatusDisplayOwnerHelpersModule: any = null;
@@ -435,6 +450,155 @@ function resolveBattleStatusTurnLabel(): string {
     return currentPlayer === localPlayer ? 'あなたのターン' : '相手のターン';
 }
 
+function resolveTurnArrivalToastState(): { signature: string; kind: 'self' | 'enemy'; text: string } | null {
+    const state = getGameStateForStatusDisplay();
+    if (!state || state.currentPlayer === null || state.currentPlayer === undefined) return null;
+    const currentPlayer = normalizePlayerKeyForStatusDisplay(state.currentPlayer);
+    const localPlayer = getLocalPlayerKeyForBattleStatus();
+    const turnNumber = Number.isFinite(Number(state.turnNumber)) ? Math.trunc(Number(state.turnNumber)) : 0;
+    const roundNumber = Number.isFinite(Number(state.roundNumber)) ? Math.trunc(Number(state.roundNumber)) : 0;
+    const kind = currentPlayer === localPlayer ? 'self' : 'enemy';
+    return {
+        signature: `${currentPlayer}:${localPlayer}:${turnNumber}:${roundNumber}`,
+        kind,
+        text: kind === 'self' ? 'Your Turn' : 'Enemy Turn'
+    };
+}
+
+function getTurnArrivalToastElement(): any {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById(TURN_ARRIVAL_TOAST_ID);
+}
+
+function ensureTurnArrivalToastElement(): any {
+    if (typeof document === 'undefined' || !document.body) return null;
+    let el = getTurnArrivalToastElement();
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = TURN_ARRIVAL_TOAST_ID;
+    el.className = 'turn-arrival-toast';
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'true');
+    el.setAttribute('role', 'status');
+    el.innerHTML = [
+        '<span class="turn-arrival-toast-rail" aria-hidden="true"></span>',
+        '<span class="turn-arrival-toast-text"></span>'
+    ].join('');
+    document.body.appendChild(el);
+    return el;
+}
+
+function positionTurnArrivalToast(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const toast = getTurnArrivalToastElement();
+    const boardAnchor = getRoundDisplayBoardAnchorElement();
+    if (!toast || !toast.classList.contains('is-visible')) return;
+    if (!boardAnchor || typeof boardAnchor.getBoundingClientRect !== 'function') return;
+
+    const boardRect = boardAnchor.getBoundingClientRect();
+    if (!Number.isFinite(boardRect.right) || !Number.isFinite(boardRect.bottom)) return;
+    const scale = getLayoutStageScaleForStatusDisplay();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+    const toastWidth = Number.isFinite(Number(toast.offsetWidth)) ? Number(toast.offsetWidth) : 0;
+    const measuredToastHeight = Number.isFinite(Number(toast.offsetHeight)) ? Number(toast.offsetHeight) : 0;
+    const toastHeight = measuredToastHeight > 0 ? measuredToastHeight : Math.round(40 * scale);
+    const targetRight = Math.max(8, Math.min(Math.round(boardRect.right - (10 * scale)), viewportWidth - 8));
+    const left = Math.max(8, targetRight - toastWidth);
+    const targetBottom = Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (11 * scale)), viewportHeight - 8));
+    const top = Math.max(8, targetBottom - toastHeight);
+    toast.style.left = `${left}px`;
+    toast.style.top = `${top}px`;
+}
+
+function scheduleTurnArrivalToastPositionRefresh(): void {
+    positionTurnArrivalToast();
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        try {
+            window.requestAnimationFrame(() => {
+                try { positionTurnArrivalToast(); } catch (e) { /* ignore */ }
+            });
+        } catch (e) { /* ignore */ }
+    }
+    if (turnArrivalToastPositionTimer) {
+        clearTimeout(turnArrivalToastPositionTimer);
+        turnArrivalToastPositionTimer = null;
+    }
+    turnArrivalToastPositionTimer = setTimeout(() => {
+        turnArrivalToastPositionTimer = null;
+        positionTurnArrivalToast();
+    }, 180);
+    unrefStatusDisplayTimer(turnArrivalToastPositionTimer);
+}
+
+function bindTurnArrivalToastViewportHandlers(): void {
+    if (turnArrivalToastViewportHandlersBound || typeof window === 'undefined') return;
+    turnArrivalToastViewportHandlersBound = true;
+    const reposition = () => {
+        try { positionTurnArrivalToast(); } catch (e) { /* ignore */ }
+    };
+    window.addEventListener('resize', reposition);
+    window.addEventListener('orientationchange', reposition);
+    window.addEventListener('scroll', reposition, { passive: true });
+}
+
+function hideTurnArrivalToast(): void {
+    const toast = getTurnArrivalToastElement();
+    if (!toast) return;
+    toast.classList.add('is-hiding');
+    if (turnArrivalToastFadeTimer) {
+        clearTimeout(turnArrivalToastFadeTimer);
+        turnArrivalToastFadeTimer = null;
+    }
+    turnArrivalToastFadeTimer = setTimeout(() => {
+        const currentToast = getTurnArrivalToastElement();
+        if (!currentToast) return;
+        currentToast.classList.remove('is-visible', 'is-hiding', 'is-self', 'is-enemy');
+    }, TURN_ARRIVAL_TOAST_FADE_OUT_MS);
+    unrefStatusDisplayTimer(turnArrivalToastFadeTimer);
+}
+
+function showTurnArrivalToast(state: { kind: 'self' | 'enemy'; text: string }): void {
+    const toast = ensureTurnArrivalToastElement();
+    if (!toast) return;
+    const textEl = typeof toast.querySelector === 'function'
+        ? toast.querySelector('.turn-arrival-toast-text')
+        : null;
+    if (textEl) textEl.textContent = state.text;
+    else toast.textContent = state.text;
+
+    bindTurnArrivalToastViewportHandlers();
+    if (turnArrivalToastHideTimer) {
+        clearTimeout(turnArrivalToastHideTimer);
+        turnArrivalToastHideTimer = null;
+    }
+    if (turnArrivalToastFadeTimer) {
+        clearTimeout(turnArrivalToastFadeTimer);
+        turnArrivalToastFadeTimer = null;
+    }
+    toast.classList.remove('is-visible', 'is-hiding', 'is-self', 'is-enemy');
+    toast.classList.add(state.kind === 'self' ? 'is-self' : 'is-enemy');
+    void toast.offsetWidth;
+    toast.classList.add('is-visible');
+    scheduleTurnArrivalToastPositionRefresh();
+    turnArrivalToastHideTimer = setTimeout(() => {
+        turnArrivalToastHideTimer = null;
+        hideTurnArrivalToast();
+    }, TURN_ARRIVAL_TOAST_VISIBLE_MS);
+    unrefStatusDisplayTimer(turnArrivalToastHideTimer);
+}
+
+function syncTurnArrivalToast(): void {
+    const state = resolveTurnArrivalToastState();
+    if (!state) return;
+    if (state.signature === turnArrivalToastLastSignature) {
+        positionTurnArrivalToast();
+        return;
+    }
+    turnArrivalToastLastSignature = state.signature;
+    showTurnArrivalToast(state);
+}
+
 function countBoardStonesForBattleStatus(): { black: number; white: number } {
     const state = getGameStateForStatusDisplay();
     const board = state && Array.isArray(state.board) ? state.board : [];
@@ -557,6 +721,7 @@ function updateBattleStatusPanel(): void {
     renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
     renderBattleStatusLatestText(latestEl, resolveBattleStatusLatestText());
+    syncTurnArrivalToast();
 }
 
 function readCpuProfileValue(playerKey: 'black' | 'white'): string {

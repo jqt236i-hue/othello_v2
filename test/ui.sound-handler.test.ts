@@ -414,13 +414,49 @@ describe('sound handler', () => {
     expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
     expect(resultAudio.src).toBe('assets/audio/other/勝利リザルト-bpm165.mp3');
     expect(resultAudio.loop).toBe(false);
-    expect(resultAudio.volume).toBeCloseTo(0.25);
+    expect(resultAudio.volume).toBeCloseTo(0.25 * engine.bgmOutputVolumeScale);
     expect(resultAudio.play).toHaveBeenCalledTimes(1);
 
     resultAudio.onended();
 
     expect(engine.allowBgmPlay).toBe(false);
     expect(engine.bgm.pause).toHaveBeenCalledTimes(1);
+  });
+
+  test('real sound engine applies the normal BGM output scale to result BGM master volume changes', () => {
+    const createdAudio = [];
+    function FakeAudio(src) {
+      this.src = src || '';
+      this.preload = '';
+      this.loop = false;
+      this.volume = 0;
+      this.currentTime = 0;
+      this.paused = true;
+      this.play = jest.fn(() => {
+        this.paused = false;
+        return Promise.resolve();
+      });
+      this.pause = jest.fn(() => {
+        this.paused = true;
+      });
+      this.load = jest.fn();
+      createdAudio.push(this);
+    }
+
+    const engine = loadSoundEngine({ Audio: FakeAudio });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+    engine.bgmVolume = 1.2;
+    engine.masterVolume = 1;
+
+    expect(engine.playResultBgm('win')).toBe(true);
+
+    const resultAudio = createdAudio[0];
+    expect(resultAudio.volume).toBeCloseTo(1.2 * engine.bgmOutputVolumeScale);
+
+    engine.setMasterVolume(2);
+
+    expect(resultAudio.volume).toBeCloseTo(1.2 * engine.bgmOutputVolumeScale * 2);
   });
 
   test('real sound engine loops defeat result BGM and resumes normal BGM when stopped for dismissal', () => {
@@ -543,7 +579,7 @@ describe('sound handler', () => {
     expect(createdSources[0].loopStart).toBe(0);
     expect(createdSources[0].loopEnd).toBeCloseTo(90 * 60 / 115, 6);
     expect(createdSources[0].start).toHaveBeenCalledWith(0, 0);
-    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25, 0);
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25 * engine.bgmOutputVolumeScale, 0);
 
     expect(engine.stopResultBgm({ resumeBgm: true })).toBe(true);
 

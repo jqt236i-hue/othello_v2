@@ -2,7 +2,8 @@ const {
     parseArgs,
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,
-    buildFailureSnapshot
+    buildFailureSnapshot,
+    resolveServeRoot
 } = require('../scripts/run-ui-level-match');
 
 describe('ui level match script args', () => {
@@ -35,6 +36,14 @@ describe('ui level match script args', () => {
         expect(args.requireOnnxLoaded).toBe(true);
         expect(args.requireTargetModelLoaded).toBe(true);
         expect(args.requireValueModelLoaded).toBe(true);
+    });
+
+    test('resolveServeRoot points dist CLI execution at the repository root', () => {
+        const sourceScriptDir = require('path').join(process.cwd(), 'scripts');
+        const distScriptDir = require('path').join(process.cwd(), 'dist', 'scripts');
+
+        expect(resolveServeRoot(sourceScriptDir)).toBe(process.cwd());
+        expect(resolveServeRoot(distScriptDir)).toBe(process.cwd());
     });
 
     test('pre-init benchmark mode keeps timer functions untouched', () => {

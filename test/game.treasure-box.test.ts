@@ -36,7 +36,7 @@ describe('TREASURE_BOX (宝箱)', () => {
     expect(cardState.charge.black).toBe(1);
   });
 
-  test('use card: gains 3 when rng is high', () => {
+  test('use card: gains 6 when rng is high', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['chest_01'];
     cardState.charge.black = 0;
@@ -45,7 +45,7 @@ describe('TREASURE_BOX (宝箱)', () => {
     const action = { type: 'use_card', useCardId: 'chest_01' };
     TurnPipeline.applyTurn(cardState, gameState, 'black', action, prng);
 
-    expect(cardState.charge.black).toBe(3);
+    expect(cardState.charge.black).toBe(6);
   });
 
   test('use card: clears cached pending selection action together with pending state', () => {

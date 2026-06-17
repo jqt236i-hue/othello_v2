@@ -39,6 +39,7 @@ const {
     resolveNextCarryOverState,
     buildCandidateOnnxBundleArgs,
     buildTargetOnnxBundleArgs,
+    buildOnnxGateCommandArgs,
     buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
     buildDeployPromotedToRootCommandArgs,
@@ -732,6 +733,51 @@ describe('selfplay training cycle script', () => {
                 '--target-model', path.join(modelsDir, 'policy-table.json'),
                 ...targetBundleArgs
             ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildOnnxGateCommandArgs targets browser root models for runtime load verification', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-gate-root-'));
+        const laneModelsDir = path.join(tempDir, 'models', 'production_v3');
+        const rootModelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(laneModelsDir, { recursive: true });
+        fs.mkdirSync(rootModelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', laneModelsDir,
+                '--deploy-promoted-root-models-dir', rootModelsDir,
+                '--with-cards',
+                '--no-train-target-head',
+                '--no-train-value-head',
+                '--onnx-gate'
+            ]);
+            const iterationPaths = {
+                onnxModelPath: path.join(laneModelsDir, 'policy-net.candidate.test.it01.onnx'),
+                onnxMetaPath: path.join(laneModelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
+                onnxGatePath: path.join(tempDir, 'runs', 'adoption.onnx.test.it01.json')
+            };
+
+            const gateArgs = buildOnnxGateCommandArgs({
+                args,
+                iterationPaths,
+                hasTargetTrainingData: false,
+                onnxConfig: {
+                    seed: 800001,
+                    seedCount: 1,
+                    seedStride: 1000
+                }
+            });
+
+            expect(gateArgs).toEqual(expect.arrayContaining([
+                '--candidate-onnx', iterationPaths.onnxModelPath,
+                '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
+                '--target-onnx', path.join(rootModelsDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(rootModelsDir, 'policy-net.onnx.meta.json')
+            ]));
+            expect(gateArgs).not.toContain(path.join(laneModelsDir, 'policy-net.onnx'));
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }

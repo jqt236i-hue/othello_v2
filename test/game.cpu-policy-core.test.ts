@@ -459,34 +459,6 @@ describe('cpu-policy-core', () => {
         }));
     });
 
-    test('chooseHandDestroyTargetForCycle immediately destroys CORNER_TRIBUTE when currently unusable', () => {
-        const selected = core.chooseHandDestroyTargetForCycle(
-            ['corner_tribute_01'],
-            [],
-            () => 8,
-            () => ({ id: 'corner_tribute_01', type: 'CORNER_TRIBUTE' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 0,
-                ownCharge: 60,
-                handSize: 1,
-                empties: 20,
-                discDiff: 0,
-                ownCorners: 0,
-                oppCorners: 0,
-                ownEdges: 0,
-                oppEdges: 0,
-                hasCornerMoveNow: false,
-                cornerEmergency: false
-            }
-        );
-        expect(selected).toEqual(expect.objectContaining({
-            cardId: 'corner_tribute_01',
-            reason: 'bucket3_currently_unusable'
-        }));
-    });
-
     test('chooseHandDestroyTargetForCycle leaves TEMPT_WILL unchanged when low charge and currently unusable', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['tempt_01'],
@@ -2727,14 +2699,6 @@ describe('cpu-policy-core', () => {
         expect(core.isCornerHoldCardType('GUARD_WILL')).toBe(true);
         expect(core.isChargeRampCardType('TREASURE_BOX')).toBe(true);
         expect(core.isCornerRecoveryCardType('HEAVEN_BLESSING')).toBe(false);
-    });
-
-    test('CORNER_TRIBUTE keeps an explicit economy-cycle move plan profile', () => {
-        expect(core.hasMovePlanProfileForCardType('CORNER_TRIBUTE')).toBe(true);
-        expect(core.getMovePlanProfileForCardType('CORNER_TRIBUTE')).toEqual(expect.objectContaining({
-            archetype: 'economyCycle',
-            placementWeight: 0
-        }));
     });
 
     test('OBSERVER_WILL keeps explicit CPU usage and economy-cycle profile', () => {

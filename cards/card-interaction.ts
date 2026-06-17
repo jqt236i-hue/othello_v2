@@ -2834,7 +2834,7 @@ function cancelPendingDestroy(specificPlayerKey: any) {
     cancelPendingSelection(specificPlayerKey);
 }
 
-const HAND_CARD_SWIPE_LONG_PRESS_MS = 110;
+const HAND_CARD_SWIPE_LONG_PRESS_MS = 170;
 const HAND_CARD_SWIPE_ACTION_THRESHOLD_PX = 40;
 const HAND_CARD_SWIPE_DESTROY_ACTION_THRESHOLD_PX = 60;
 const HAND_CARD_SWIPE_PRE_ACTIVATION_CANCEL_PX = 24;

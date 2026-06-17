@@ -356,7 +356,7 @@ function tryDestroyHighPriorityHandCardViaAdapter(playerKey: PlayerKey): boolean
     const destroyCardId = hand.find((cardId: any) => {
         const def = typeof cardLogicRef.getCardDef === 'function' ? cardLogicRef.getCardDef(cardId) : null;
         const type = String(def && def.type || '').trim();
-        return type === 'FATE_WILL' || type === 'CORNER_TRIBUTE';
+        return type === 'FATE_WILL';
     });
     if (!destroyCardId) return false;
     const action = { type: 'destroy_hand_card', destroyCardId };

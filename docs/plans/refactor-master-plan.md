@@ -266,7 +266,6 @@ game/cards/effects/
 ├── rebuild-will.js
 ├── supply-will.js
 ├── plunder-will.js
-├── corner-tribute.js
 ├── work-will.js
 ├── ribo-will.js
 ├── equality-will.js

@@ -75,7 +75,6 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   REBUILD_WILL: '手札を再構築する',
   SUPPLY_WILL: '山札から補給する',
   PLUNDER_WILL: '相手の布石を吸収する',
-  CORNER_TRIBUTE: '相手の布石を奪う',
   WORK_WILL: '石から布石収入を得る',
   RIBO_WILL: '布石を先に得る',
   LOSS_WILL: '特殊石を通常石へ戻す',

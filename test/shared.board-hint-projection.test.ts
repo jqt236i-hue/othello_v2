@@ -97,6 +97,36 @@ describe('board hint projection', () => {
     ]);
   });
 
+  test('builds board expansion direction hints for edge and corner targets', () => {
+    const willPending = {
+      type: 'BOARD_EXPANSION_WILL',
+      stage: 'selectTarget'
+    };
+    const willTargets = [
+      { row: 2, col: 0, side: 'left' },
+      { row: 5, col: 7, side: 'right' }
+    ];
+
+    expect(Array.from(BoardHintProjection.buildBoardExpansionDirectionHintMap(willPending, willTargets, { rows: 8, cols: 8 }).entries()).sort()).toEqual([
+      ['2,0', 'left'],
+      ['5,7', 'right']
+    ]);
+
+    const godPending = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget'
+    };
+    const godTargets = [
+      { row: 0, col: 0 },
+      { row: 7, col: 7 }
+    ];
+
+    expect(Array.from(BoardHintProjection.buildBoardExpansionDirectionHintMap(godPending, godTargets, { rows: 8, cols: 8 }).entries()).sort()).toEqual([
+      ['0,0', 'up-left'],
+      ['7,7', 'down-right']
+    ]);
+  });
+
   test('treats non-array selectable target results as empty', () => {
     const projection = BoardHintProjection.buildBoardHintProjection({
       gameState: { board: [[0]], currentPlayer: 1 },

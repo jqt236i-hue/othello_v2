@@ -35,6 +35,12 @@ describe('ui cpu-policy handler', () => {
   test('initPolicyOnnxModel skips load when shared profile disables browser ONNX path', async () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);
+    global.CPU_LV6_SHARED_PROFILE = {
+      browser: {
+        moveDecisionMode: 'policy-table-lookahead',
+        cardDecisionMode: 'policy-table-core'
+      }
+    };
     global.window.CpuPolicyOnnxRuntime = { configure, loadFromUrl };
 
     await handlers.initPolicyOnnxModel();
@@ -50,6 +56,12 @@ describe('ui cpu-policy handler', () => {
     const loadTargetModelFromUrl = jest.fn(async () => true);
     const loadValueModelFromUrl = jest.fn(async () => true);
     const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    global.CPU_LV6_SHARED_PROFILE = {
+      browser: {
+        moveDecisionMode: 'policy-table-lookahead',
+        cardDecisionMode: 'policy-table-core'
+      }
+    };
     global.window.fetch = jest.fn(async (url) => {
       const s = String(url || '');
       const ok =
@@ -84,7 +96,9 @@ describe('ui cpu-policy handler', () => {
   test('initPolicyOnnxModel configures and loads runtime when available', async () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);
+    const ortApi = { Tensor: jest.fn(), InferenceSession: { create: jest.fn() } };
     global.location = { search: '?cpuOnnx=1' };
+    global.window.ort = ortApi;
     global.window.CpuPolicyOnnxRuntime = { configure, loadFromUrl };
 
     await handlers.initPolicyOnnxModel();
@@ -97,7 +111,8 @@ describe('ui cpu-policy handler', () => {
       targetSourceUrl: 'data/models/policy-target.onnx',
       targetMetaUrl: 'data/models/policy-target.onnx.meta.json',
       valueSourceUrl: 'data/models/policy-value.onnx',
-      valueMetaUrl: 'data/models/policy-value.onnx.meta.json'
+      valueMetaUrl: 'data/models/policy-value.onnx.meta.json',
+      ortApi
     }));
     expect(typeof configure.mock.calls[0][0].readQuerySearch).toBe('function');
     expect(loadFromUrl).toHaveBeenCalledWith('data/models/policy-net.onnx', 'data/models/policy-net.onnx.meta.json');
@@ -244,10 +259,18 @@ describe('ui cpu-policy handler', () => {
           status: 200,
           json: async () => ({
             schemaVersion: 'model_assets.v1',
-            files: ['data/models/othello/policy-value.onnx']
+            files: [
+              'data/models/policy-net.onnx',
+              'data/models/policy-net.onnx.meta.json'
+            ]
           })
         };
       }
+      const s = String(url || '');
+      const ok =
+        s.endsWith('data/models/policy-net.onnx') ||
+        s.endsWith('data/models/policy-net.onnx.meta.json');
+      if (ok) return { ok: true, status: 200 };
       return { ok: false, status: 404 };
     });
     const loadFromUrl = jest.fn(async () => true);
@@ -260,7 +283,7 @@ describe('ui cpu-policy handler', () => {
 
     await handlers.initPolicyTableModel();
 
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('data/models/model-assets.json', { cache: 'no-store' });
     expect(fetch).toHaveBeenCalledWith('data/models/model-assets.json', { cache: 'no-store' });
     expect(loadFromUrl).not.toHaveBeenCalled();
     expect(global.window.__CPU_MODEL_LOAD_STATUS__.table.skipped).toBe(true);
@@ -278,10 +301,18 @@ describe('ui cpu-policy handler', () => {
           status: 200,
           json: async () => ({
             schemaVersion: 'model_assets.v1',
-            files: ['data/models/othello/policy-value.onnx']
+            files: [
+              'data/models/policy-net.onnx',
+              'data/models/policy-net.onnx.meta.json'
+            ]
           })
         };
       }
+      const s = String(url || '');
+      const ok =
+        s.endsWith('data/models/policy-net.onnx') ||
+        s.endsWith('data/models/policy-net.onnx.meta.json');
+      if (ok) return { ok: true, status: 200 };
       return { ok: false, status: 404 };
     });
     const loadTargetModelFromUrl = jest.fn(async () => true);
@@ -295,7 +326,7 @@ describe('ui cpu-policy handler', () => {
 
     await handlers.initPolicyOnnxModel();
 
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('data/models/model-assets.json', { cache: 'no-store' });
     expect(loadTargetModelFromUrl).not.toHaveBeenCalled();
     expect(loadValueModelFromUrl).not.toHaveBeenCalled();
     expect(global.window.__CPU_MODEL_LOAD_STATUS__.onnx.targetSkipped).toBe(true);

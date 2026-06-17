@@ -75,26 +75,10 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
             throw new Error('TurnPipelinePhases.applyCardUsagePhase TREASURE_BOX requires an injected deterministic PRNG.');
         }
         const rnd = p.random();
-        const gained = 1 + Math.floor(Math.max(0, Math.min(0.999999, rnd)) * 3);
+        const gained = 1 + Math.floor(Math.max(0, Math.min(0.999999, rnd)) * 6);
         opts.addChargeWithTotal(opts.cardState, opts.playerKey, gained, null);
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
         opts.events.push({ type: 'treasure_box_gain', player: opts.playerKey, gained });
-    }
-
-    if (pendingType === 'CORNER_TRIBUTE') {
-        const opponentKey = opts.playerKey === 'black' ? 'white' : 'black';
-        const opponentCornerCount = (typeof opts.CardLogic.countOccupiedCornersForPlayer === 'function')
-            ? opts.CardLogic.countOccupiedCornersForPlayer(opts.cardState, opts.gameState, opponentKey)
-            : 0;
-        const stolen = opts.transferChargeBetweenPlayers(opts.cardState, opponentKey, opts.playerKey, 20, 'corner_tribute');
-        opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
-        opts.events.push({
-            type: 'corner_tribute_resolved',
-            player: opts.playerKey,
-            opponent: opponentKey,
-            stolen,
-            opponentCornerCount
-        });
     }
 
     if (pendingType === 'RIBO_WILL') {

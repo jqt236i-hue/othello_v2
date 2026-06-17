@@ -35,7 +35,6 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     CLONE_WILL: makePlanPressureProfile(2, 2, 2, 3),
     CONDEMN_WILL: makePlanPressureProfile(1, 2, 1, 1),
     EXECUTION_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    CORNER_TRIBUTE: makePlanPressureProfile(1, 3, 0, 2),
     CORROSION_WILL: makePlanPressureProfile(1, 2, 1, 1),
     CROSS_BOMB: makePlanPressureProfile(3, 4, 3, 3),
     DESTROY_DRAGON_WILL: makePlanPressureProfile(1, 2, 1, 2),

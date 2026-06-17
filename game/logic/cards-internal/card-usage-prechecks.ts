@@ -182,14 +182,6 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
-    if (cardType === 'CORNER_TRIBUTE') {
-        if (!context || !context.gameState || typeof context.countOpponentOccupiedCornersForPlayer !== 'function') {
-            return buildFailureResult();
-        }
-        return context.countOpponentOccupiedCornersForPlayer(context.cardState, context.gameState, context.playerKey) >= 4
-            ? result
-            : buildFailureResult();
-    }
     if (cardType === 'RIBO_WILL') {
         const turnIndex = Number(context && context.turnIndex);
         const unlockTurnIndex = Number(context && context.riboUnlockTurnIndex);

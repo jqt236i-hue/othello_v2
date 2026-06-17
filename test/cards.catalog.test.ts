@@ -208,6 +208,16 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('super_gravity_01').cost)).toBe(31);
   });
 
+  test('ultimate destroy god cost reflects latest balance', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(byId.get('udg_01')).toEqual(expect.objectContaining({
+      name_ja: '究極破壊神',
+      type: 'ULTIMATE_DESTROY_GOD'
+    }));
+    expect(Number(byId.get('udg_01').cost)).toBe(30);
+  });
+
   test('perma_01 (強い意志) describes evolution into 最強の意志 after 10 turns', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));

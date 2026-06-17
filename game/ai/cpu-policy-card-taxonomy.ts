@@ -83,7 +83,6 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL',
     'SUPER_ATTRACTION_WILL',
-    'CORNER_TRIBUTE',
     'WILL_HUNTER_KING',
     'THEORY_INCARNATION',
     'SEED_WILL'
@@ -102,8 +101,7 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
             'SUPER_BUOYANCY_WILL',
             'GRAVITY_WILL',
             'SUPER_GRAVITY_WILL',
-            'SUPER_ATTRACTION_WILL',
-            'CORNER_TRIBUTE'
+            'SUPER_ATTRACTION_WILL'
         ]
     )
     : new Set([
@@ -129,8 +127,7 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
         'SUPER_BUOYANCY_WILL',
         'GRAVITY_WILL',
         'SUPER_GRAVITY_WILL',
-        'SUPER_ATTRACTION_WILL',
-        'CORNER_TRIBUTE'
+        'SUPER_ATTRACTION_WILL'
     ]);
 
 const CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeuristics.createExtendedTypeSet === 'function')
@@ -169,7 +166,6 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
     ? SharedCardHeuristics.createExtendedTypeSet(
         SharedCardHeuristics.DEFAULT_CHARGE_RAMP_CARD_TYPES,
         [
-            'CORNER_TRIBUTE',
             'RIBO_WILL',
         ]
     )
@@ -180,7 +176,6 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'SILVER_STONE',
         'CRYSTAL_STONE',
         'PLUNDER_WILL',
-        'CORNER_TRIBUTE',
         'WORK_WILL',
         'RIBO_WILL',
     ]);
@@ -269,8 +264,7 @@ const SWING_CARD_TYPES = new Set([
     'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
     'GRAVITY_WILL',
-    'SUPER_GRAVITY_WILL',
-    'CORNER_TRIBUTE'
+    'SUPER_GRAVITY_WILL'
 ]);
 
 const EDGE_CONTEST_CARD_TYPES = new Set([
@@ -407,8 +401,7 @@ const CONDITION_DEPENDENT_DESTROY_CARD_TYPES = new Set([
     'SUPPORT_TROOPS_WILL',
     'CORROSION_WILL',
     'SALVATION_WILL',
-    'EXECUTION_WILL',
-    'CORNER_TRIBUTE'
+    'EXECUTION_WILL'
 ]);
 
 const LOW_CHARGE_DESTROY_MAX_CHARGE = 50;

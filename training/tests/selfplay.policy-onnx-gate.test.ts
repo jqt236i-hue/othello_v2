@@ -5,6 +5,7 @@ const {
     buildSeedList,
     buildOnnxArtifactDescriptors,
     buildUiLevelMatchArgs,
+    buildPatchedModelAssetManifestPayload,
     collectOnnxDiagnostics,
     computeOnnxGateDecision
 } = require('../scripts/benchmark-policy-onnx-gate');
@@ -251,6 +252,31 @@ describe('selfplay onnx gate benchmark script', () => {
                 targetPath: 'target-target.onnx',
                 targetMetaPath: 'target-target.onnx.meta.json'
             }
+        ]);
+    });
+
+    test('buildPatchedModelAssetManifestPayload adds gate target onnx artifacts without dropping existing files', () => {
+        const cwd = path.join('C:', 'repo');
+        const payload = buildPatchedModelAssetManifestPayload(
+            {
+                schemaVersion: 'model_assets.v1',
+                files: [
+                    'data/models/othello/policy-table.json',
+                    'data/models/policy-net.onnx'
+                ]
+            },
+            [
+                path.join(cwd, 'data', 'models', 'policy-net.onnx'),
+                path.join(cwd, 'data', 'models', 'policy-net.onnx.meta.json')
+            ],
+            cwd
+        );
+
+        expect(payload.schemaVersion).toBe('model_assets.v1');
+        expect(payload.files).toEqual([
+            'data/models/othello/policy-table.json',
+            'data/models/policy-net.onnx',
+            'data/models/policy-net.onnx.meta.json'
         ]);
     });
 

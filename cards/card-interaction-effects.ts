@@ -117,7 +117,7 @@ function freezeCardEffectTags(tags: any[]) {
 }
 
 const quickCardEffectByType: Record<string, string> = Object.freeze({
-  TREASURE_BOX: '布石を1〜3獲得',
+  TREASURE_BOX: '布石を1〜6獲得',
   PLACE_ON_EMPTY: '反転0でも空きマスに置ける',
   FREE_PLACEMENT: '次の1手だけ、反転0でも空きマスに置ける。',
   LAST_RESORT: '石数負けかつ合法手0の時に使用可能、空きマスに石を3個配置できる。',
@@ -173,7 +173,6 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   REBUILD_WILL: '特殊カード以外の手札を破壊し、新たに3枚ドローする',
   SUPPLY_WILL: '山札から2枚ドローする',
   PLUNDER_WILL: '次の反転枚数ぶん相手布石を吸収',
-  CORNER_TRIBUTE: '相手角石が4個以上ある時、布石を最大20奪う',
   WORK_WILL: '次石をアンカー化し毎ターン布石を獲得',
   LOSS_WILL: '盤面上の特殊石を全て通常石に戻す。自分の手札を全て破壊して使用。',
   DOUBLE_PLACE: '使用ターンだけ石を2連続で置ける。使用後、三連投石が手札に加わる。',
@@ -214,7 +213,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
 });
 
 const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: () => string | number) => string)> = Object.freeze({
-  TREASURE_BOX: '獲得量は1〜3のランダム。\n使用直後に布石へ加算される。',
+  TREASURE_BOX: '獲得量は1〜6のランダム。\n使用直後に布石へ加算される。',
   PLACE_ON_EMPTY: '次の1手だけ有効。',
   FREE_PLACEMENT: '次の1手だけ有効。',
   LAST_RESORT: '相手より石数が少なく、通常の合法手がない（パスしかない）時だけ使える。\nこのターン、自由配置でちょうど3回置く。\n3回目の後に通常手は追加されない。',
@@ -270,7 +269,6 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   REBUILD_WILL: '使用カードと特殊カード以外の手札をすべて先に破壊してから引き直す。\n山札が足りない場合は引ける枚数だけ補充する。',
   SUPPLY_WILL: '手札上限5枚や山札不足時は引ける分のみ。\n選択不要の即時効果。',
   PLUNDER_WILL: '相手から減らしたぶんをそのまま自分へ加算する。',
-  CORNER_TRIBUTE: '相手が現在の盤面形状の角に4個以上石を置いている時だけ使える。\n使用時に相手の布石を最大20奪って自分へ加算する。\n角には盤面拡張で増えた角と、因果抹消で角マスが穴になった結果できる疑似角も含む。',
   WORK_WILL: function resolveWorkLine(resolveChargeMaxText?: () => string | number) {
     const chargeMaxText = (typeof resolveChargeMaxText === 'function')
       ? String(resolveChargeMaxText() || '99')

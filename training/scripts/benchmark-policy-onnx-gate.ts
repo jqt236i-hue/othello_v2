@@ -234,6 +234,92 @@ function restoreFile(filePath: any, payload: any) {
     fs.writeFileSync(filePath, payload);
 }
 
+const MODEL_ASSET_MANIFEST_SCHEMA_VERSION = 'model_assets.v1';
+const MODEL_ASSET_MANIFEST_FILE = 'model-assets.json';
+
+function normalizeModelAssetManifestPath(filePath: any, cwd: string = process.cwd()) {
+    const raw = String(filePath || '').trim();
+    if (!raw) return '';
+    const relativePath = path.isAbsolute(raw) ? path.relative(cwd, raw) : raw;
+    return relativePath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
+}
+
+function buildPatchedModelAssetManifestPayload(existingPayload: any, assetPaths: any[], cwd: string = process.cwd()) {
+    const files: string[] = [];
+    const seen = new Set<string>();
+    const add = (value: any) => {
+        const normalized = normalizeModelAssetManifestPath(value, cwd);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        files.push(normalized);
+    };
+
+    if (
+        existingPayload &&
+        existingPayload.schemaVersion === MODEL_ASSET_MANIFEST_SCHEMA_VERSION &&
+        Array.isArray(existingPayload.files)
+    ) {
+        for (const filePath of existingPayload.files) add(filePath);
+    }
+
+    for (const assetPath of assetPaths || []) add(assetPath);
+
+    return {
+        schemaVersion: MODEL_ASSET_MANIFEST_SCHEMA_VERSION,
+        generatedAt: existingPayload && existingPayload.generatedAt
+            ? existingPayload.generatedAt
+            : new Date().toISOString(),
+        files
+    };
+}
+
+function readModelAssetManifestPayload(manifestPath: string) {
+    if (!fs.existsSync(manifestPath)) return null;
+    try {
+        return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    } catch (_err) {
+        return null;
+    }
+}
+
+function captureModelAssetManifestBackups(descriptors: any[]) {
+    const byManifest = new Map<string, { manifestPath: string; backup: Buffer | null; assetPaths: string[] }>();
+    for (const descriptor of descriptors) {
+        if (!descriptor || !descriptor.targetPath || !descriptor.targetMetaPath) continue;
+        const manifestPath = path.join(path.dirname(descriptor.targetPath), MODEL_ASSET_MANIFEST_FILE);
+        const key = path.resolve(manifestPath);
+        if (!byManifest.has(key)) {
+            byManifest.set(key, {
+                manifestPath,
+                backup: backupFile(manifestPath),
+                assetPaths: []
+            });
+        }
+        const entry = byManifest.get(key)!;
+        entry.assetPaths.push(descriptor.targetPath, descriptor.targetMetaPath);
+    }
+    return Array.from(byManifest.values());
+}
+
+function patchModelAssetManifestsForOnnxGate(backups: any[]) {
+    for (const backup of backups) {
+        const existingPayload = readModelAssetManifestPayload(backup.manifestPath);
+        const patchedPayload = buildPatchedModelAssetManifestPayload(
+            existingPayload,
+            backup.assetPaths,
+            process.cwd()
+        );
+        fs.mkdirSync(path.dirname(backup.manifestPath), { recursive: true });
+        fs.writeFileSync(backup.manifestPath, JSON.stringify(patchedPayload, null, 2), 'utf8');
+    }
+}
+
+function restoreModelAssetManifestBackups(backups: any[]) {
+    for (const backup of backups) {
+        restoreFile(backup.manifestPath, backup.backup);
+    }
+}
+
 const ONNX_ARTIFACT_VARIANTS = Object.freeze([
     Object.freeze({
         key: 'primary',
@@ -643,6 +729,7 @@ async function runOnnxGate(options: any) {
     const requireTargetLoaded = !!options.candidateTargetOnnxPath;
     const requireValueLoaded = !!options.candidateValueOnnxPath;
     const artifactDescriptors = captureOnnxArtifactBackups(buildOnnxArtifactDescriptors(options));
+    const manifestBackups = captureModelAssetManifestBackups(artifactDescriptors);
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const seedState = seeds.map((seed: any) => ({
         seed,
@@ -674,9 +761,10 @@ async function runOnnxGate(options: any) {
     };
     const gateStartedAt = Date.now();
 
-    copyOnnxArtifactsIntoTargets(artifactDescriptors);
-
     try {
+        copyOnnxArtifactsIntoTargets(artifactDescriptors);
+        patchModelAssetManifestsForOnnxGate(manifestBackups);
+
         const tasks = buildMatchTasks(options, seeds);
         const jobs = Math.max(1, Math.min(options.jobs, tasks.length));
         let cursor = 0;
@@ -767,6 +855,7 @@ async function runOnnxGate(options: any) {
         for (let i = 0; i < jobs; i++) workers.push(runWorker());
         await Promise.all(workers);
     } finally {
+        restoreModelAssetManifestBackups(manifestBackups);
         restoreOnnxArtifactBackups(artifactDescriptors);
     }
 
@@ -857,6 +946,7 @@ export = {
     parseArgs,
     buildSeedList,
     buildOnnxArtifactDescriptors,
+    buildPatchedModelAssetManifestPayload,
     buildUiLevelMatchArgs,
     collectOnnxDiagnostics,
     computeOnnxGateDecision,

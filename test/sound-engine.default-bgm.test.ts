@@ -125,7 +125,7 @@ async function flushAsyncWork() {
 }
 
 const DEFAULT_MASTER_VOLUME = 1;
-const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.364 * DEFAULT_MASTER_VOLUME;
+const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.3094 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
   test('unlockAudio resumes AudioContext and plays a silent buffer once', async () => {
@@ -389,13 +389,13 @@ describe('SoundEngine default BGM', () => {
     soundEngine.loadBgm(0);
 
     expect(soundEngine.bgmVolume).toBe(0.548625);
-    expect(soundEngine.bgmOutputVolumeScale).toBe(0.364);
+    expect(soundEngine.bgmOutputVolumeScale).toBe(0.3094);
     expect(instances[0].volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
 
     soundEngine.setBgmVolume(1);
 
     expect(soundEngine.bgmVolume).toBe(1);
-    expect(instances[0].volume).toBeCloseTo(0.364 * DEFAULT_MASTER_VOLUME, 6);
+    expect(instances[0].volume).toBeCloseTo(0.3094 * DEFAULT_MASTER_VOLUME, 6);
   });
 
   test('master volume scales both BGM output and effect output without overwriting per-channel sliders', () => {
@@ -409,7 +409,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.masterVolume).toBe(0.5);
     expect(soundEngine.volume).toBe(0.56);
     expect(soundEngine.bgmVolume).toBe(0.548625);
-    expect(instances[0].volume).toBeCloseTo(0.548625 * 0.364 * 0.5, 6);
+    expect(instances[0].volume).toBeCloseTo(0.548625 * 0.3094 * 0.5, 6);
     expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
   });
 
@@ -423,7 +423,7 @@ describe('SoundEngine default BGM', () => {
     soundEngine.setMasterVolume(2);
 
     expect(soundEngine.masterVolume).toBe(2);
-    expect(instances[0].volume).toBeCloseTo(0.5 * 0.364 * 2, 6);
+    expect(instances[0].volume).toBeCloseTo(0.5 * 0.3094 * 2, 6);
 
     soundEngine.setMasterVolume(3);
 
@@ -465,7 +465,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
   });
 
-  test('startup default track points to The Observer’s Tears', () => {
+  test('startup default track points to c-reversi', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.playlist).toHaveLength(6);
@@ -477,7 +477,11 @@ describe('SoundEngine default BGM', () => {
       'ノクターン',
       'The Observer’s Tears'
     ]);
-    expect(soundEngine.currentTrackIndex).toBe(5);
+    expect(soundEngine.currentTrackIndex).toBe(0);
+    expect(soundEngine.playlist[soundEngine.currentTrackIndex]).toEqual({
+      name: 'c-reversi',
+      file: 'assets/audio/bgm/c-reversi.mp3'
+    });
     expect(soundEngine.playlist[0]).toEqual({
       name: 'c-reversi',
       file: 'assets/audio/bgm/c-reversi.mp3'

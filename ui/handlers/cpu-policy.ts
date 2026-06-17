@@ -781,6 +781,9 @@ async function initPolicyOnnxModel(): Promise<void> {
 
   try {
     if (typeof runtime.configure === 'function') {
+      const ortApi = (typeof window !== 'undefined' && (window as any).ort)
+        ? (window as any).ort
+        : null;
       runtime.configure({
         enabled: true,
         minLevel: 6,
@@ -797,7 +800,8 @@ async function initPolicyOnnxModel(): Promise<void> {
           } catch (e) {
             return '';
           }
-        }
+        },
+        ortApi
       });
     }
     const ok = await _withLoadTimeout(runtime.loadFromUrl(modelUrl, metaUrl), loadTimeoutMs, 'policy-onnx load');

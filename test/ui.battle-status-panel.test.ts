@@ -134,6 +134,42 @@ describe('battle status panel', () => {
     teardownBattleStatusDom(dom);
   });
 
+  test('shows Your Turn and Enemy Turn arrival toasts for turn changes', () => {
+    jest.useFakeTimers();
+    const { dom, window } = setupBattleStatusDom();
+
+    try {
+      window.updateStatus();
+
+      const toast = window.document.getElementById('turn-arrival-toast') as HTMLElement;
+      expect(toast).not.toBeNull();
+      expect(toast.textContent?.trim()).toBe('Your Turn');
+      expect(toast.classList.contains('is-self')).toBe(true);
+      expect(toast.classList.contains('is-visible')).toBe(true);
+      expect(toast.style.left).toBe('1016px');
+      expect(toast.style.top).toBe('703px');
+
+      window.gameState.currentPlayer = -1;
+      window.gameState.turnNumber = 7;
+      global.gameState = window.gameState;
+      window.updateStatus();
+
+      expect(toast.textContent?.trim()).toBe('Enemy Turn');
+      expect(toast.classList.contains('is-enemy')).toBe(true);
+      expect(toast.classList.contains('is-visible')).toBe(true);
+
+      jest.advanceTimersByTime(6000);
+      expect(toast.classList.contains('is-hiding')).toBe(true);
+
+      jest.advanceTimersByTime(360);
+      expect(toast.classList.contains('is-visible')).toBe(false);
+      expect(toast.classList.contains('is-hiding')).toBe(false);
+    } finally {
+      teardownBattleStatusDom(dom);
+      jest.useRealTimers();
+    }
+  });
+
   test('network timer appears to the right of round only during network battle', () => {
     const { dom, window, effectPanel } = setupBattleStatusDom();
     window.MatchMode = { isNetworkModeActive: jest.fn(() => true) };

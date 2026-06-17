@@ -34,7 +34,6 @@
 - 平等の意志 (`EQUALITY_WILL`)
 - 腐食の意志 (`CORROSION_WILL`)
 - 救済の意志 (`SALVATION_WILL`)
-- 角の代償 (`CORNER_TRIBUTE`)
 
 ## 区分4: 上記以外
 

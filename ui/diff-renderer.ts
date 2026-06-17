@@ -1379,6 +1379,36 @@ const BOARD_SHRINK_WILL_DIRECTION_HINT_DIRECTION_CLASSES = [
     'board-shrink-will-direction-left',
     'board-shrink-will-direction-right'
 ];
+const BOARD_EXPANSION_DIRECTION_HINT_CLASS = 'board-expansion-direction-hint';
+const BOARD_EXPANSION_DIRECTION_HINT_TARGET_CLASS = 'board-expansion-direction-target';
+const BOARD_EXPANSION_DIRECTION_HINT_DIRECTION_CLASSES = [
+    'board-expansion-direction-up',
+    'board-expansion-direction-down',
+    'board-expansion-direction-left',
+    'board-expansion-direction-right',
+    'board-expansion-direction-up-left',
+    'board-expansion-direction-up-right',
+    'board-expansion-direction-down-left',
+    'board-expansion-direction-down-right'
+];
+
+function _getBoardDirectionHintArrowTextForDiff(direction: any) {
+    return direction === 'up'
+        ? '↑'
+        : direction === 'down'
+            ? '↓'
+            : direction === 'left'
+                ? '←'
+                : direction === 'up-left'
+                    ? '↖'
+                    : direction === 'up-right'
+                        ? '↗'
+                        : direction === 'down-left'
+                            ? '↙'
+                            : direction === 'down-right'
+                                ? '↘'
+                                : '→';
+}
 
 function _clearBoardShrinkGodDirectionHintForDiff(cell: any) {
     if (!cell || !cell.classList) return;
@@ -1408,15 +1438,23 @@ function _clearBoardShrinkWillDirectionHintForDiff(cell: any) {
     }
 }
 
+function _clearBoardExpansionDirectionHintForDiff(cell: any) {
+    if (!cell || !cell.classList) return;
+    cell.classList.remove(BOARD_EXPANSION_DIRECTION_HINT_TARGET_CLASS, ...BOARD_EXPANSION_DIRECTION_HINT_DIRECTION_CLASSES);
+    if (cell.dataset) {
+        delete cell.dataset.boardExpansionDirectionHint;
+    }
+    const hint = typeof cell.querySelector === 'function'
+        ? cell.querySelector(`.${BOARD_EXPANSION_DIRECTION_HINT_CLASS}`)
+        : null;
+    if (hint && hint.parentNode === cell) {
+        hint.parentNode.removeChild(hint);
+    }
+}
+
 function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any) {
     if (!cell || !cell.classList) return;
-    const arrowText = direction === 'up'
-        ? '↑'
-        : direction === 'down'
-            ? '↓'
-            : direction === 'left'
-                ? '←'
-                : '→';
+    const arrowText = _getBoardDirectionHintArrowTextForDiff(direction);
     cell.classList.add(BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS, `board-shrink-god-direction-${direction}`);
     if (cell.dataset) {
         cell.dataset.boardShrinkGodDirectionHint = direction;
@@ -1461,13 +1499,7 @@ function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any) {
 
 function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any) {
     if (!cell || !cell.classList) return;
-    const arrowText = direction === 'up'
-        ? '↑'
-        : direction === 'down'
-            ? '↓'
-            : direction === 'left'
-                ? '←'
-                : '→';
+    const arrowText = _getBoardDirectionHintArrowTextForDiff(direction);
     cell.classList.add(BOARD_SHRINK_WILL_DIRECTION_HINT_TARGET_CLASS, `board-shrink-will-direction-${direction}`);
     if (cell.dataset) {
         cell.dataset.boardShrinkWillDirectionHint = direction;
@@ -1510,6 +1542,51 @@ function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any) {
     hint.style.zIndex = '48';
 }
 
+function _ensureBoardExpansionDirectionHintForDiff(cell: any, direction: any) {
+    if (!cell || !cell.classList) return;
+    const arrowText = _getBoardDirectionHintArrowTextForDiff(direction);
+    cell.classList.add(BOARD_EXPANSION_DIRECTION_HINT_TARGET_CLASS, `board-expansion-direction-${direction}`);
+    if (cell.dataset) {
+        cell.dataset.boardExpansionDirectionHint = direction;
+    }
+    let hint = typeof cell.querySelector === 'function'
+        ? cell.querySelector(`.${BOARD_EXPANSION_DIRECTION_HINT_CLASS}`)
+        : null;
+    if (!hint && typeof document !== 'undefined') {
+        hint = document.createElement('div');
+        hint.className = BOARD_EXPANSION_DIRECTION_HINT_CLASS;
+        hint.setAttribute('aria-hidden', 'true');
+        cell.appendChild(hint);
+    }
+    if (!hint) return;
+    hint.textContent = arrowText;
+    if (hint.dataset) {
+        hint.dataset.direction = direction;
+    }
+    hint.style.position = 'absolute';
+    hint.style.top = '50%';
+    hint.style.left = '50%';
+    hint.style.transform = 'translate(-50%, -50%)';
+    hint.style.display = 'flex';
+    hint.style.alignItems = 'center';
+    hint.style.justifyContent = 'center';
+    hint.style.width = 'calc(24px * var(--layout-stage-scale))';
+    hint.style.height = 'calc(24px * var(--layout-stage-scale))';
+    hint.style.borderRadius = '999px';
+    hint.style.border = 'var(--layout-size-border-thin) solid rgba(218, 246, 255, 0.78)';
+    hint.style.background = 'linear-gradient(180deg, rgba(16, 76, 65, 0.94) 0%, rgba(8, 34, 29, 0.92) 100%)';
+    hint.style.boxShadow = '0 0 calc(8px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.35)';
+    hint.style.color = '#f7fffc';
+    hint.style.fontFamily = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
+    hint.style.fontSize = 'calc(15px * var(--layout-stage-scale))';
+    hint.style.fontWeight = '700';
+    hint.style.lineHeight = '1';
+    hint.style.textShadow = '0 0 calc(3px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28)';
+    hint.style.pointerEvents = 'none';
+    hint.style.userSelect = 'none';
+    hint.style.zIndex = '48';
+}
+
 function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
     if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
     const gameState = _resolveGameStateForDiffRender();
@@ -1534,6 +1611,9 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
     const willHintMap = projection.boardShrinkWillDirectionHintMap instanceof Map
         ? projection.boardShrinkWillDirectionHintMap
         : new Map();
+    const expansionHintMap = projection.boardExpansionDirectionHintMap instanceof Map
+        ? projection.boardExpansionDirectionHintMap
+        : new Map();
     const cells = boardEl.querySelectorAll('.cell');
     cells.forEach((cell: any) => {
         const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
@@ -1548,6 +1628,11 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
             _clearBoardShrinkWillDirectionHintForDiff(cell);
         } else {
             _ensureBoardShrinkWillDirectionHintForDiff(cell, willHintMap.get(key));
+        }
+        if (!key || !expansionHintMap.has(key)) {
+            _clearBoardExpansionDirectionHintForDiff(cell);
+        } else {
+            _ensureBoardExpansionDirectionHintForDiff(cell, expansionHintMap.get(key));
         }
     });
 }

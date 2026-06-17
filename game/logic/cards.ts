@@ -2500,10 +2500,6 @@ const {
         return CardTargetAccessModule.getEqualityTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
-    function getCornerTributeTargets(cardState: any, gameState: any, playerKey: any) {
-        return CardTargetAccessModule.getCornerTributeTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
-    }
-
     function getLastResortTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getLastResortTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -4516,7 +4512,6 @@ const cardsApi: any = {
         getXBombTargets,
         getReinforcementTargets,
         getEqualityTargets,
-        getCornerTributeTargets,
         getLastResortTargets,
         getCurrentCornerCellsForCard,
         countOccupiedCornersForPlayer,

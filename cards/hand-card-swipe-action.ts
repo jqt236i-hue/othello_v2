@@ -32,7 +32,7 @@ export type HandCardSwipeUpdate = {
     cancelled: boolean;
 };
 
-const DEFAULT_LONG_PRESS_MS = 110;
+const DEFAULT_LONG_PRESS_MS = 170;
 const DEFAULT_ACTION_THRESHOLD_PX = 40;
 const DEFAULT_DESTROY_ACTION_THRESHOLD_PX = 60;
 const DEFAULT_PRE_ACTIVATION_CANCEL_PX = 24;

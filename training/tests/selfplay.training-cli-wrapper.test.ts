@@ -11,7 +11,9 @@ const TRAINING_CLI_WRAPPERS = [
     'benchmark-policy-adoption.js',
     'benchmark-policy-quality-gate.js',
     'benchmark-policy-onnx-gate.js',
-    'promote-policy-model.js'
+    'run-ui-level-match.js',
+    'promote-policy-model.js',
+    'deploy-lane-model-to-root.js'
 ];
 
 const DIRECT_HELP_WRAPPERS = [
@@ -20,7 +22,9 @@ const DIRECT_HELP_WRAPPERS = [
     'generate-selfplay-data.js',
     'preflight-selfplay-training.js',
     'resolve-training-profile.js',
-    'promote-policy-model.js'
+    'run-ui-level-match.js',
+    'promote-policy-model.js',
+    'deploy-lane-model-to-root.js'
 ];
 
 function wrapperPath(name: string): string {

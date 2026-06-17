@@ -1,2 +1,1 @@
-const path = require('path');
-module.exports = require(path.join(process.cwd(), 'dist', 'scripts', 'deploy-lane-model-to-root.js'));
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "deploy-lane-model-to-root.js");

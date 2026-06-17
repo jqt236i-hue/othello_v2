@@ -63,7 +63,6 @@
 | rebuild_01 | REBUILD_WILL |  |  |  |  |  | Y | auto-covered |
 | supply_01 | SUPPLY_WILL |  |  |  |  |  | Y | auto-covered |
 | plunder_will | PLUNDER_WILL |  |  | Y |  |  |  | auto-covered |
-| corner_tribute_01 | CORNER_TRIBUTE |  |  |  |  |  | Y | auto-covered |
 | work_01 | WORK_WILL |  |  |  |  |  | Y | auto-covered |
 | ribo_01 | RIBO_WILL |  |  |  |  |  | Y | auto-covered |
 | loss_will_01 | LOSS_WILL |  |  |  |  |  | Y | auto-covered |

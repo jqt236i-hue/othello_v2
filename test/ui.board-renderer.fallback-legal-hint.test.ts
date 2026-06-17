@@ -317,6 +317,46 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
+  test('renderBoardFull shows outward direction hints while selecting board expansion targets', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [
+      { row: 2, col: 0, side: 'left' },
+      { row: 5, col: 7, side: 'right' }
+    ]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_expand_01'
+    };
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    const leftCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="0"]');
+    const rightCell = global.boardEl.querySelector('.cell[data-row="5"][data-col="7"]');
+    expect(leftCell.getAttribute('data-board-expansion-direction-hint')).toBe('left');
+    expect(leftCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('←');
+    expect(rightCell.getAttribute('data-board-expansion-direction-hint')).toBe('right');
+    expect(rightCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('→');
+  });
+
+  test('renderBoardFull shows diagonal outward direction hints while selecting board expansion god corners', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 0 }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_expand_god_01'
+    };
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    const cornerCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(cornerCell.getAttribute('data-board-expansion-direction-hint')).toBe('up-left');
+    expect(cornerCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('↖');
+  });
+
   test('renderBoard skips diff render while PLAYBACK_EVENTS are pending', () => {
     global.cardState.presentationEvents = [
       { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }

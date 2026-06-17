@@ -329,6 +329,16 @@ function buildCandidateOnnxBundleArgs(args: any, iterationPaths: any, hasTargetT
 
 function buildTargetOnnxBundleArgs(args: any, hasTargetTrainingData: any) {
     const modelsDir = path.resolve(args.modelsDir);
+    return buildTargetOnnxBundleArgsForDir(args, hasTargetTrainingData, modelsDir);
+}
+
+function buildOnnxGateTargetBundleArgs(args: any, hasTargetTrainingData: any) {
+    const rootModelsDir = path.resolve(args.deployPromotedRootModelsDir || path.resolve(process.cwd(), 'data', 'models'));
+    return buildTargetOnnxBundleArgsForDir(args, hasTargetTrainingData, rootModelsDir);
+}
+
+function buildTargetOnnxBundleArgsForDir(args: any, hasTargetTrainingData: any, targetDir: string) {
+    const modelsDir = path.resolve(targetDir);
     const includeTargetHead = isTargetHeadEnabled(args) && !!hasTargetTrainingData;
     const includeValueHead = isValueHeadEnabled(args);
     return [
@@ -369,7 +379,7 @@ function buildOnnxGateCommandArgs(options: any) {
         '--white-level', String(args.onnxGateWhiteLevel),
         '--candidate-color-mode', String(args.onnxGateCandidateColorMode),
         ...buildCandidateOnnxBundleArgs(args, iterationPaths, hasTargetTrainingData),
-        ...buildTargetOnnxBundleArgs(args, hasTargetTrainingData),
+        ...buildOnnxGateTargetBundleArgs(args, hasTargetTrainingData),
         '--out', iterationPaths.onnxGatePath
     ];
 }

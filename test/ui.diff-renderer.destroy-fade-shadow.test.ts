@@ -305,6 +305,68 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
+  test('updates BOARD_EXPANSION_WILL direction hints as pending selection changes', () => {
+    const diff = require('../ui/diff-renderer.js');
+    global.CardLogic.getSelectableTargets = () => [
+      { row: 2, col: 0, side: 'left' },
+      { row: 5, col: 7, side: 'right' }
+    ];
+
+    diff.renderBoardDiff(boardEl);
+
+    const leftCell = boardEl.querySelector('.cell[data-row="2"][data-col="0"]');
+    const rightCell = boardEl.querySelector('.cell[data-row="5"][data-col="7"]');
+    expect(leftCell.getAttribute('data-board-expansion-direction-hint')).toBeNull();
+    expect(rightCell.getAttribute('data-board-expansion-direction-hint')).toBeNull();
+
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'BOARD_EXPANSION_WILL',
+        stage: 'selectTarget',
+        cardId: 'board_expand_01'
+      },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(leftCell.getAttribute('data-board-expansion-direction-hint')).toBe('left');
+    expect(leftCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('←');
+    expect(rightCell.getAttribute('data-board-expansion-direction-hint')).toBe('right');
+    expect(rightCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('→');
+
+    global.cardState.pendingEffectByPlayer = { black: null, white: null };
+    global.CardLogic.getSelectableTargets = () => [];
+    diff.renderBoardDiff(boardEl);
+
+    expect(leftCell.getAttribute('data-board-expansion-direction-hint')).toBeNull();
+    expect(leftCell.querySelector('.board-expansion-direction-hint')).toBeNull();
+  });
+
+  test('updates BOARD_EXPANSION_GOD direction hints as pending selection changes', () => {
+    const diff = require('../ui/diff-renderer.js');
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 0 }];
+
+    diff.renderBoardDiff(boardEl);
+
+    const cornerCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(cornerCell.getAttribute('data-board-expansion-direction-hint')).toBeNull();
+
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'BOARD_EXPANSION_GOD',
+        stage: 'selectTarget',
+        cardId: 'board_expand_god_01'
+      },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(cornerCell.getAttribute('data-board-expansion-direction-hint')).toBe('up-left');
+    expect(cornerCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('↖');
+  });
+
   test('previews SUPPORT_TROOPS_WILL random spawn candidates and restores legal hints after deselection', () => {
     global.getLegalMoves = () => [{ row: 0, col: 0 }];
     global.CardLogic.getCardDef = () => ({ type: 'SUPPORT_TROOPS_WILL' });
