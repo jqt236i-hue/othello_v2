@@ -500,7 +500,7 @@
 
     <div id="quick-controls-bar" aria-label="クイック操作">
         <button id="resetBtn" class="btn-small quick-control-btn" type="button">リセット</button>
-        <button id="logToggleBtn" class="btn-small quick-control-btn" type="button" aria-controls="log" aria-expanded="false" title="ログ">ログ</button>
+        <button id="quickBgmToggleBtn" class="btn-small quick-control-btn btn-active" type="button" aria-pressed="true" title="BGM">BGM: ON</button>
         <div id="quickBgmTrackPicker" class="quick-bgm-track-picker">
             <button id="quickBgmTrackButton" class="quick-bgm-track-button" type="button" aria-haspopup="listbox" aria-expanded="false">BGM</button>
             <div id="quickBgmTrackMenu" class="quick-bgm-track-menu" role="listbox" aria-label="BGM変更"></div>
@@ -620,6 +620,7 @@
                     style="background-color: #3a2a5a; color: #ffa500; display: none;">石ビジュアル</button>
                 <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
                     style="background-color: #4a3828; color: #d7ccc8;">DEBUG: OFF</button>
+                <button id="logToggleBtn" class="btn-small" type="button" aria-controls="log" aria-expanded="false" title="ログ">ログ</button>
             </div>
             <div class="control-group board-size-group">
                 <div class="control-label">BOARD</div>

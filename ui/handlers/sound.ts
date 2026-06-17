@@ -189,12 +189,22 @@ function setupBgmControls(
   bgmPauseBtn: HTMLElement | null,
   bgmTrackSelect: HTMLSelectElement | null,
   bgmVolSlider: HTMLInputElement | null,
-  quickBgmTrackPicker: HTMLElement | null = null
+  quickBgmTrackPicker: HTMLElement | null = null,
+  quickBgmToggleBtn: HTMLElement | null = null
 ): void {
   const engine = resolveSoundEngine();
   if (!engine) return;
 
   const bgmTrackSelects = [bgmTrackSelect].filter(Boolean) as HTMLSelectElement[];
+  const isBgmEnabled = () => engine.allowBgmPlay !== false;
+  const syncQuickBgmToggle = () => {
+    if (!quickBgmToggleBtn) return;
+    const enabled = isBgmEnabled();
+    quickBgmToggleBtn.textContent = enabled ? 'BGM: ON' : 'BGM: OFF';
+    quickBgmToggleBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    quickBgmToggleBtn.classList.toggle('btn-active', enabled);
+    quickBgmToggleBtn.setAttribute('title', enabled ? 'BGMをオフ' : 'BGMをオン');
+  };
   const syncQuickBgmPicker = () => {
     if (!quickBgmTrackPicker) return;
     const button = quickBgmTrackPicker.querySelector('#quickBgmTrackButton') as HTMLButtonElement | null;
@@ -242,6 +252,7 @@ function setupBgmControls(
     select.dataset.bgmTrackBound = '1';
   }
   syncBgmTrackSelects();
+  syncQuickBgmToggle();
 
   if (quickBgmTrackPicker && quickBgmTrackPicker.dataset.bgmTrackBound !== '1') {
     const doc = quickBgmTrackPicker.ownerDocument || (typeof document !== 'undefined' ? document : null);
@@ -312,13 +323,28 @@ function setupBgmControls(
     bgmPlayBtn.addEventListener('click', () => {
       engine.init();
       engine.playBgm();
+      syncQuickBgmToggle();
     });
   }
 
   if (bgmPauseBtn) {
     bgmPauseBtn.addEventListener('click', () => {
       engine.pauseBgm();
+      syncQuickBgmToggle();
     });
+  }
+
+  if (quickBgmToggleBtn && quickBgmToggleBtn.dataset.bgmToggleBound !== '1') {
+    quickBgmToggleBtn.addEventListener('click', () => {
+      if (isBgmEnabled()) {
+        engine.pauseBgm();
+      } else {
+        engine.init();
+        engine.playBgm();
+      }
+      syncQuickBgmToggle();
+    });
+    quickBgmToggleBtn.dataset.bgmToggleBound = '1';
   }
 
   if (bgmVolSlider) {

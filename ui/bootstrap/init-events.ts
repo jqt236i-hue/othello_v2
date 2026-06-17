@@ -21,6 +21,7 @@ interface InitDomElements {
   seVolSlider: HTMLInputElement | null;
   bgmPlayBtn: HTMLElement | null;
   bgmPauseBtn: HTMLElement | null;
+  quickBgmToggleBtn: HTMLElement | null;
   quickBgmTrackPicker: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
@@ -118,7 +119,7 @@ declare const setupMatchModeControls: ((opts: Record<string, HTMLElement | null>
 declare const setupDeckBuilderControls: ((opts: Record<string, HTMLElement | null>) => unknown) | undefined;
 declare const setupSmartSelects: ((sb: HTMLSelectElement | null, sw: HTMLSelectElement | null) => void) | undefined;
 declare const setupSoundControls: ((muteBtn: HTMLElement | null, seType: HTMLSelectElement | null, seVol: HTMLInputElement | null) => void) | undefined;
-declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLElement | null, trackSel: HTMLSelectElement | null, volSlider: HTMLInputElement | null, quickTrackPicker?: HTMLElement | null) => void) | undefined;
+declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLElement | null, trackSel: HTMLSelectElement | null, volSlider: HTMLInputElement | null, quickTrackPicker?: HTMLElement | null, quickToggleBtn?: HTMLElement | null) => void) | undefined;
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
@@ -212,7 +213,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
 
   if (typeof setupSmartSelects === 'function') setupSmartSelects(refs.smartBlack, refs.smartWhite);
   if (typeof setupSoundControls === 'function') setupSoundControls(refs.muteBtn, refs.seTypeSelect, refs.seVolSlider);
-  if (typeof setupBgmControls === 'function') setupBgmControls(refs.bgmPlayBtn, refs.bgmPauseBtn, refs.bgmTrackSelect, refs.bgmVolSlider, refs.quickBgmTrackPicker);
+  if (typeof setupBgmControls === 'function') setupBgmControls(refs.bgmPlayBtn, refs.bgmPauseBtn, refs.bgmTrackSelect, refs.bgmVolSlider, refs.quickBgmTrackPicker, refs.quickBgmToggleBtn);
   if (typeof setupRulesHelp === 'function') setupRulesHelp(refs.rulesHelpBtn, refs.rulesHelpPanel);
   if (typeof setupGachaControls === 'function') setupGachaControls({ root: root as Window });
   if (typeof setupHandSkinControls === 'function') {

@@ -18,6 +18,7 @@ interface InitDomElements {
   seVolSlider: HTMLInputElement | null;
   bgmPlayBtn: HTMLElement | null;
   bgmPauseBtn: HTMLElement | null;
+  quickBgmToggleBtn: HTMLElement | null;
   quickBgmTrackPicker: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
@@ -109,7 +110,7 @@ function getInitDomElements(): InitDomElements {
   const $ = (id: string): HTMLElement | null => document.getElementById(id);
   return {
     resetBtn: $('resetBtn'), muteBtn: $('muteBtn'), logToggleBtn: $('logToggleBtn'), logPanel: $('log'), seTypeSelect: $('seTypeSelect') as HTMLSelectElement | null,
-    seVolSlider: $('seVolSlider') as HTMLInputElement | null, bgmPlayBtn: $('bgmPlayBtn'), bgmPauseBtn: $('bgmPauseBtn'), quickBgmTrackPicker: $('quickBgmTrackPicker'),
+    seVolSlider: $('seVolSlider') as HTMLInputElement | null, bgmPlayBtn: $('bgmPlayBtn'), bgmPauseBtn: $('bgmPauseBtn'), quickBgmToggleBtn: $('quickBgmToggleBtn'), quickBgmTrackPicker: $('quickBgmTrackPicker'),
     bgmTrackSelect: $('bgmTrackSelect') as HTMLSelectElement | null, bgmVolSlider: $('bgmVolSlider') as HTMLInputElement | null,
     rulesHelpBtn: $('rulesHelpBtn'), rulesHelpPanel: $('rules-help-panel'), gachaOpenBtn: $('gachaOpenBtn'),
     gachaOverlay: $('gachaOverlay'), gachaModal: $('gachaModal'), gachaCloseBtn: $('gachaCloseBtn'),

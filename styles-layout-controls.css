@@ -2738,7 +2738,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     display: grid;
     grid-template-columns: auto auto auto minmax(calc(132px * var(--layout-stage-scale)), calc(170px * var(--layout-stage-scale)));
     grid-template-areas:
-        "reset log bgmtrack bgmtrack"
+        "reset bgmtoggle bgmtrack bgmtrack"
         "autobtn mute volume volume";
     align-items: center;
     justify-content: end;
@@ -2827,29 +2827,35 @@ input[type=range].compact-slider::-webkit-slider-thumb {
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 138, 122, 0.42);
 }
 
-#logToggleBtn.quick-control-btn {
-    grid-area: log;
+#quickBgmToggleBtn.quick-control-btn {
+    --quick-control-accent: #7ed7ff;
+    --quick-control-accent-rgb: 126, 215, 255;
+    grid-area: bgmtoggle;
     justify-self: start;
-    min-width: calc(48px * var(--layout-stage-scale));
+    min-width: calc(76px * var(--layout-stage-scale));
     min-height: calc(30px * var(--layout-stage-scale));
     padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-    border-color: rgba(217, 192, 138, 0.26);
+    border-color: rgba(126, 215, 255, 0.54);
     background:
-        linear-gradient(180deg, rgba(217, 192, 138, 0.09), rgba(255, 255, 255, 0) 46%),
-        linear-gradient(180deg, rgba(25, 24, 23, 0.90), rgba(13, 14, 14, 0.94));
+        linear-gradient(180deg, rgba(126, 215, 255, 0.20), rgba(255, 255, 255, 0) 48%),
+        linear-gradient(180deg, rgba(33, 38, 40, 0.98), rgba(17, 18, 18, 0.98));
+    color: #f3ead8;
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.40);
+}
+
+#quickBgmToggleBtn.quick-control-btn[aria-pressed="false"] {
+    border-color: rgba(126, 215, 255, 0.28);
     color: rgba(238, 227, 206, 0.70);
-    opacity: 0.58;
+    background:
+        linear-gradient(180deg, rgba(126, 215, 255, 0.08), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(180deg, rgba(25, 24, 23, 0.90), rgba(13, 14, 14, 0.94));
     box-shadow:
         0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.26),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.06),
-        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(217, 192, 138, 0.18);
-}
-
-#logToggleBtn.quick-control-btn:hover:not(:disabled),
-#logToggleBtn.quick-control-btn.btn-active {
-    opacity: 0.84;
-    color: #f3ead8;
-    border-color: rgba(217, 192, 138, 0.46);
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(126, 215, 255, 0.18);
 }
 
 #quickBgmTrackPicker.quick-bgm-track-picker {

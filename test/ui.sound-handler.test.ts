@@ -152,6 +152,76 @@ describe('sound handler', () => {
     dom.window.close();
   });
 
+  test('quick BGM toggle only pauses and resumes BGM', () => {
+    const dom = new JSDOM(`<!DOCTYPE html><body>
+      <button id="bgmPlayBtn">play</button>
+      <button id="bgmPauseBtn">pause</button>
+      <button id="quickBgmToggleBtn" type="button">BGM: ON</button>
+      <select id="bgmTrackSelect"></select>
+      <div id="quickBgmTrackPicker">
+        <button id="quickBgmTrackButton" type="button" aria-haspopup="listbox" aria-expanded="false">BGM</button>
+        <div id="quickBgmTrackMenu" role="listbox"></div>
+      </div>
+      <input id="bgmVolSlider" type="range" value="0.5">
+    </body>`);
+    const document = dom.window.document;
+    global.window = dom.window;
+    global.document = document;
+    global.SoundEngine = {
+      playlist: [{ name: 'c-reversi' }],
+      currentTrackIndex: 0,
+      bgmVolume: 0.5,
+      allowBgmPlay: true,
+      bgm: { paused: false },
+      init: jest.fn(),
+      playBgm: jest.fn(function () {
+        this.allowBgmPlay = true;
+        this.bgm.paused = false;
+      }),
+      pauseBgm: jest.fn(function () {
+        this.allowBgmPlay = false;
+        this.bgm.paused = true;
+      }),
+      toggleMute: jest.fn(),
+      setBgmVolume: jest.fn(),
+      setBgmTrack: jest.fn()
+    };
+
+    const quickBgmToggleBtn = document.getElementById('quickBgmToggleBtn') as HTMLButtonElement;
+
+    SoundHandlerModule.setupBgmControls(
+      document.getElementById('bgmPlayBtn'),
+      document.getElementById('bgmPauseBtn'),
+      document.getElementById('bgmTrackSelect') as HTMLSelectElement,
+      document.getElementById('bgmVolSlider') as HTMLInputElement,
+      document.getElementById('quickBgmTrackPicker') as HTMLElement,
+      quickBgmToggleBtn
+    );
+
+    expect(quickBgmToggleBtn.textContent).toBe('BGM: ON');
+    expect(quickBgmToggleBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(quickBgmToggleBtn.classList.contains('btn-active')).toBe(true);
+
+    quickBgmToggleBtn.click();
+
+    expect(global.SoundEngine.pauseBgm).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.toggleMute).not.toHaveBeenCalled();
+    expect(quickBgmToggleBtn.textContent).toBe('BGM: OFF');
+    expect(quickBgmToggleBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(quickBgmToggleBtn.classList.contains('btn-active')).toBe(false);
+
+    quickBgmToggleBtn.click();
+
+    expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.toggleMute).not.toHaveBeenCalled();
+    expect(quickBgmToggleBtn.textContent).toBe('BGM: ON');
+    expect(quickBgmToggleBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(quickBgmToggleBtn.classList.contains('btn-active')).toBe(true);
+
+    dom.window.close();
+  });
+
   test('gacha inventory updates refresh the selectable placement sound list', () => {
     const dom = new JSDOM(`<!DOCTYPE html><body>
       <button id="muteBtn">🔊 ON</button>

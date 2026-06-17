@@ -520,6 +520,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         try {
             const bgmPlayBtn = (typeof document !== 'undefined') ? document.getElementById('bgmPlayBtn') : null;
             const bgmPauseBtn = (typeof document !== 'undefined') ? document.getElementById('bgmPauseBtn') : null;
+            const quickBgmToggleBtn = (typeof document !== 'undefined') ? document.getElementById('quickBgmToggleBtn') : null;
+            const bgmEnabled = typeof SoundEngine !== 'undefined' && SoundEngine.allowBgmPlay !== false;
+            if (quickBgmToggleBtn) {
+                quickBgmToggleBtn.textContent = bgmEnabled ? 'BGM: ON' : 'BGM: OFF';
+                quickBgmToggleBtn.setAttribute('aria-pressed', bgmEnabled ? 'true' : 'false');
+                quickBgmToggleBtn.classList.toggle('btn-active', bgmEnabled);
+                quickBgmToggleBtn.setAttribute('title', bgmEnabled ? 'BGMをオフ' : 'BGMをオン');
+            }
             if (typeof SoundEngine !== 'undefined' && SoundEngine.allowBgmPlay && !SoundEngine.bgm?.paused) {
                 if (bgmPlayBtn) bgmPlayBtn.classList.add('btn-active');
                 if (bgmPauseBtn) bgmPauseBtn.classList.remove('btn-active');
