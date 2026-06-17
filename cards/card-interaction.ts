@@ -1871,6 +1871,36 @@ function _getRunResultNextCardState(runResult: any) {
     return (cardState && typeof cardState === 'object') ? cardState : null;
 }
 
+function _hasCardUseCostChargeDelta(runResult: any, ownerKey: any) {
+    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    if (!normalizedOwnerKey) return false;
+    const nextCardState = _getRunResultNextCardState(runResult);
+    const events = (nextCardState && Array.isArray(nextCardState.chargeDeltaEvents))
+        ? nextCardState.chargeDeltaEvents
+        : [];
+    return events.some((event: any) => {
+        if (!event || typeof event !== 'object') return false;
+        const player = event.player === 'white' ? 'white' : (event.player === 'black' ? 'black' : null);
+        const delta = Number(event.delta);
+        return player === normalizedOwnerKey
+            && Number.isFinite(delta)
+            && delta < 0
+            && String(event.reason || '') === 'card_use_cost';
+    });
+}
+
+function _drainCardUseCostChargeDelta(runResult: any, ownerKey: any) {
+    if (!_hasCardUseCostChargeDelta(runResult, ownerKey)) return false;
+    const drainVisibleChargeDeltaPopups = _readCardInteractionRuntimeFunction('drainVisibleChargeDeltaPopups');
+    if (typeof drainVisibleChargeDeltaPopups !== 'function') return false;
+    try {
+        drainVisibleChargeDeltaPopups({ allowRawFallback: false });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 function _doesRunResultEnterBoardTargetSelectionForOwner(runResult: any, ownerKey: any) {
     const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!normalizedOwnerKey) return false;
@@ -2785,6 +2815,8 @@ function useSelectedCard() {
     if (!_isNetworkMode()) {
         addLog(`${playerName}がカードを使用: ${cardDef ? cardDef.name : cardId} (布石 -${isDebugUnlimited ? 0 : cost})`);
     }
+
+    _drainCardUseCostChargeDelta(result, ownerKey);
 
     // Clear selection
     _clearSelectedCardSelection();

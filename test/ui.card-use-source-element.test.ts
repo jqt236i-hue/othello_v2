@@ -157,6 +157,34 @@ describe('card use source element selection', () => {
     });
   });
 
+  test('useSelectedCard drains card use cost charge delta immediately', () => {
+    const drainVisibleChargeDeltaPopups = jest.fn();
+    global.window.drainVisibleChargeDeltaPopups = drainVisibleChargeDeltaPopups;
+    global.drainVisibleChargeDeltaPopups = drainVisibleChargeDeltaPopups;
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => {
+      global.cardState.charge.black = 9;
+      global.cardState.chargeDeltaEvents = [{
+        seq: 1,
+        player: 'black',
+        delta: -1,
+        before: 10,
+        after: 9,
+        reason: 'card_use_cost'
+      }];
+      return {
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: []
+      };
+    });
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(drainVisibleChargeDeltaPopups).toHaveBeenCalledWith({ allowRawFallback: false });
+  });
+
   test('network mode blocks selecting and using opponent hand card', () => {
     require('../cards/card-interaction.js');
 
