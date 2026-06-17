@@ -6,6 +6,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const CardSystem = _require('../../card-system');
 
+function readLegacyCardSystemState(): any | null {
+    return CardSystem && CardSystem.cardState && typeof CardSystem.cardState === 'object'
+        ? CardSystem.cardState
+        : null;
+}
+
+let legacyCardStateProvider = readLegacyCardSystemState;
+
+function setLegacyCardStateProviderForTests(provider: any): void {
+    legacyCardStateProvider = typeof provider === 'function'
+        ? provider
+        : readLegacyCardSystemState;
+}
+
 function resolveStateFromGetter(source: any, getterName: string): any | null {
     if (!source || typeof source !== 'object') return null;
     const getter = source[getterName];
@@ -18,9 +32,7 @@ function resolveActiveCardState(source: any, fallbackCardState?: any): any | nul
     const injectedCardState = resolveStateFromGetter(source, 'getCardState');
     if (injectedCardState) return injectedCardState;
     if (fallbackCardState && typeof fallbackCardState === 'object') return fallbackCardState;
-    return CardSystem && CardSystem.cardState && typeof CardSystem.cardState === 'object'
-        ? CardSystem.cardState
-        : null;
+    return legacyCardStateProvider();
 }
 
 function resolveActiveGameState(source: any, fallbackGameState?: any): any | null {
@@ -33,7 +45,8 @@ function resolveActiveGameState(source: any, fallbackGameState?: any): any | nul
 
 const CardEffectStateRefs = {
     resolveActiveCardState,
-    resolveActiveGameState
+    resolveActiveGameState,
+    setLegacyCardStateProviderForTests
 };
 
 export = CardEffectStateRefs;

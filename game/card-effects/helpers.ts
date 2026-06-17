@@ -10,8 +10,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 // Imports replacing globalThis references
-const { BLACK, WHITE } = _require('../../shared-constants');
 const CardSystem = _require('../../card-system');
+const ProtectionState = _require('./protection-state');
 
 function requireCardEffectsHelperModuleOrNull(id: string): any {
     try {
@@ -21,27 +21,14 @@ function requireCardEffectsHelperModuleOrNull(id: string): any {
     }
 }
 
-const MarkersAdapter: any = requireCardEffectsHelperModuleOrNull('../logic/markers_adapter');
 const VisualEffectsMap: any = requireCardEffectsHelperModuleOrNull('../visual-effects-map');
-const CardEffectsOwnerHelpersModule: any = requireCardEffectsHelperModuleOrNull('../../utils/owner-helpers');
 
-// Map player const to string key
-function getPlayerKey(player: number): string {
-    try {
-        if (CardEffectsOwnerHelpersModule && typeof CardEffectsOwnerHelpersModule.normalizePlayerKey === 'function') {
-            return CardEffectsOwnerHelpersModule.normalizePlayerKey(player, 'black');
-        }
-    } catch (e) { /* ignore */ }
-    return player === BLACK ? 'black' : 'white';
-}
-
-function getPlayerDisplayName(player: number): string {
-    return getPlayerKey(player) === 'black' ? '黒' : '白';
-}
-
-function getOwner(player: number): number {
-    return getPlayerKey(player) === 'black' ? BLACK : WHITE;
-}
+const {
+    getPlayerKey,
+    getPlayerDisplayName,
+    getOwner,
+    getActiveProtectionForCardState
+} = ProtectionState;
 
 /**
  * 指定プレイヤーのアクティブな保護石リストを取得
@@ -49,14 +36,7 @@ function getOwner(player: number): number {
  * @returns {Array} 保護石リスト [{row, col, remainingTurns}]
  */
 function getActiveProtectionForPlayer(player: number): any[] {
-    if (!CardSystem.cardState || !CardSystem.cardState.markers) return [];
-    const playerKey = getPlayerKey(player);
-    const markers: any[] = (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
-        ? MarkersAdapter.getSpecialMarkers(CardSystem.cardState)
-        : (CardSystem.cardState.markers || []).filter((m: any) => m.kind === 'specialStone');
-    return markers.filter((m: any) =>
-        m.owner === playerKey && m.data && m.data.type === 'PROTECTED'
-    );
+    return getActiveProtectionForCardState(CardSystem.cardState, player);
 }
 
 /**
@@ -79,6 +59,7 @@ if (typeof module !== 'undefined' && module.exports) {
         getPlayerDisplayName,
         getOwner,
         getActiveProtectionForPlayer,
+        getActiveProtectionForCardState,
         getEffectKeyForType
     };
 }

@@ -38,4 +38,37 @@ describe('card-effects state refs', () => {
         }, fallbackCardState)).toBe(fallbackCardState);
         expect(stateRefs.resolveActiveCardState(null, fallbackCardState)).toBe(fallbackCardState);
     });
+
+    test('falls back to legacy card-system state when injected state is unavailable', () => {
+        jest.resetModules();
+
+        const cardSystem = require('../card-system');
+        const stateRefs = require('../game/card-effects/state-refs');
+        const legacyState = {
+            active: true,
+            markers: [{ kind: 'specialStone', owner: 'black', data: { type: 'PROTECTED' } }]
+        };
+
+        for (const key of Object.keys(cardSystem.cardState)) {
+            delete cardSystem.cardState[key];
+        }
+        Object.assign(cardSystem.cardState, legacyState);
+
+        expect(stateRefs.resolveActiveCardState(null, null)).toBe(cardSystem.cardState);
+    });
+
+    test('prefers explicit state over legacy provider state', () => {
+        jest.resetModules();
+
+        const stateRefs = require('../game/card-effects/state-refs');
+        const explicitState = { markers: [{ id: 'explicit' }] };
+        const legacyState = { markers: [{ id: 'legacy' }] };
+
+        stateRefs.setLegacyCardStateProviderForTests(() => legacyState);
+
+        expect(stateRefs.resolveActiveCardState({ getCardState: () => explicitState }, null)).toBe(explicitState);
+        expect(stateRefs.resolveActiveCardState(null, null)).toBe(legacyState);
+
+        stateRefs.setLegacyCardStateProviderForTests(null);
+    });
 });
