@@ -127,11 +127,12 @@
     --charge-delta-edge: rgba(176, 235, 255, 0.76);
     --charge-delta-panel: rgba(12, 24, 38, 0.78);
     position: absolute;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     min-width: var(--layout-size-charge-delta-min-width);
-    min-height: var(--layout-size-charge-delta-height);
+    height: var(--layout-size-charge-delta-height);
     padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
     border: var(--layout-size-charge-delta-border) solid var(--charge-delta-edge);
     border-radius: calc(999px * var(--layout-stage-scale));
@@ -225,10 +226,18 @@
     transform: translate3d(0, 0, 0) scale(1);
 }
 
+.charge-delta.is-visible:is(.is-side-left, .is-side-right) {
+    transform: translate3d(0, var(--layout-size-charge-delta-side-offset-y), 0) scale(1);
+}
+
 .charge-delta.is-fadeout {
     opacity: 0;
     transform: translate3d(0, var(--layout-size-charge-delta-shift-y-end), 0) scale(1.08);
     transition: opacity 0.42s ease, transform 0.42s ease;
+}
+
+.charge-delta.is-fadeout:is(.is-side-left, .is-side-right) {
+    transform: translate3d(0, calc(var(--layout-size-charge-delta-side-offset-y) + var(--layout-size-charge-delta-shift-y-end)), 0) scale(1.08);
 }
 
 .charge-delta.is-increase {
