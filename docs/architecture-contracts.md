@@ -495,7 +495,7 @@ Use the nearest existing checks for the contract you touch.
 | `game/logic/cards*`, effect timing, pending state | focused Jest around affected card/effect tests |
 | network publish / projection / snapshot | worker and network regression tests, including publish/snapshot parity suites |
 | UI playback / board writer / animation ordering | focused Jest around playback, presentation, and animation suites |
-| bootstrap / `window` boundary | `npm run checkall`; focused tests: `test/game.ui-boundary.test.js`, `test/game.special-effects.ui-boundary.test.js`, `test/ui.bootstrap-shared.*.test.js` |
+| bootstrap / `window` boundary | `npm run checkall`; focused tests: `test/game.ui-boundary.test.ts`, `test/game.special-effects.ui-boundary.test.ts`, `test/ui.bootstrap-shared.test.ts` |
 | worker static mirror / deploy surface | `npm run worker:prepare` and relevant worker asset tests |
 
 Examples already present in this repo include:

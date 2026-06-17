@@ -8,7 +8,7 @@ Single-source constants boundary. Use this file with the root `AGENTS.md` as the
 | --- | --- | --- |
 | Shared meaning across runtimes | `../shared-constants.ts`, `../shared-constants.js` | Root shared constants entry; `.js` is shimmed through `dist`. |
 | Domain-specific constants | `*` | Keep values near the owning domain when not broadly shared. |
-| CPU Lv6 shared defaults | `cpu-lv6-shared-profile.js` | Also referenced by `../docs/architecture-contracts.md` §5.2. |
+| CPU Lv6 shared defaults | `cpu-lv6-shared-profile.ts` | Canonical shared defaults; the adjacent `.js` file is a compatibility shim. Also referenced by `../docs/architecture-contracts.md` §5.2. |
 | Mirror copy | `../worker-public/constants/*` | Mirror only; do not edit first. |
 
 ## Rules

@@ -9,7 +9,7 @@ Legacy/browser CPU compatibility boundary. Use this file with the root `AGENTS.m
 | Current CPU decision path | `../game/cpu-decision.ts`, `../game/cpu-turn-handler.ts`, `../game/ai/*` | Prefer these for new decision logic. |
 | Browser policy controls | `../ui/handlers/cpu-policy.ts` | UI/runtime selection only; keep logic shared. |
 | Legacy compatibility | `*` | Read-only helper/compat layer. Avoid new policy forks here. |
-| Shared capability defaults | `../shared/cpu-lv6-runtime-capability.js`, `../constants/cpu-lv6-shared-profile.js` | Do not duplicate decision-mode parsing. |
+| Shared capability defaults | `../shared/cpu-lv6-runtime-capability.ts`, `../constants/cpu-lv6-shared-profile.ts` | Canonical resolver/defaults; adjacent `.js` files are compatibility shims. Do not duplicate decision-mode parsing. |
 
 ## Rules
 

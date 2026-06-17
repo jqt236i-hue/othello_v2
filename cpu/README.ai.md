@@ -3,13 +3,13 @@
 ## 役割
 
 - `cpu/` は browser 側 CPU の互換層や補助コードを置く場所です。
-- 新しい判断ロジックは `game/cpu-decision.js`, `game/cpu-turn-handler.js`, `game/ai/*` を優先します。
+- 新しい判断ロジックは `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` を優先します（隣接する `.js` は互換 shim）。
 
 ## 主要入口
 
-- `game/cpu-decision.js`
-- `game/cpu-turn-handler.js`
-- `ui/handlers/cpu-policy.js`
+- `game/cpu-decision.ts`
+- `game/cpu-turn-handler.ts`
+- `ui/handlers/cpu-policy.ts`
 - `game/ai/*`
 
 ## 変更ルール

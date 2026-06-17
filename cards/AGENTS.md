@@ -9,7 +9,7 @@ Card UI and display catalog boundary. Use this file with the root `AGENTS.md` as
 | Card data | `catalog.json` | Source of truth for card display/catalog data. |
 | Generated catalog outputs | `catalog.js`, `catalog.ts`, `catalog.generated.js` | Keep in sync with `catalog.json`; do not hand-edit as the only change. |
 | Card interaction UI | `card-interaction.ts`, `card-interaction-effects.ts` | Presentation and interaction surface only. Effect resolution belongs in `game/`. |
-| Deck/rules surfaces | `../shared/deck-spec.js`, `../ui/handlers/rules-help.js` | Common update-miss points after card changes. |
+| Deck/rules surfaces | `../shared/deck-spec.ts`, `../ui/handlers/rules-help.ts` | Common update-miss points after card changes; adjacent `.js` files are compatibility shims. |
 
 ## Boundaries
 
