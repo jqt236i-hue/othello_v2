@@ -7,6 +7,8 @@
 
 ## 正本の置き方
 
+このファイル内のパスは repo root からの相対パスです。`worker-public/constants/README.ai.md` に同期されていても、正本は root 側です。
+
 - 共有意味の定数: `shared-constants.ts`（`shared-constants.js` は互換 shim）
 - 領域専用の定数: `constants/`
 

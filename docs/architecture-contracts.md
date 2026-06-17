@@ -73,7 +73,8 @@ Client-authored state is never canonical.
 
 CPU logic is read-only with respect to gameplay state orchestration and must not directly manipulate DOM, sound, or timers.
 
-The main decision path should live in `game/cpu-decision.js`, `game/cpu-turn-handler.js`, and `game/ai/*`.
+The main decision path should live in `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, and `game/ai/*`.
+Adjacent `.js` files are compatibility wrappers/projections unless the TypeScript migration allowlist explicitly says otherwise.
 
 ## 5. Runtime contracts
 
@@ -244,11 +245,11 @@ The canonical network flow is:
 
 Stable browser-side ownership for that flow is:
 
-- `ui/network-client.js` is the compatibility shell and outer facade
-- `ui/network/session-lifecycle.js` owns create / join / leave / latest-state lifecycle orchestration
-- `ui/network/session-seat.js` owns session activation, reset, and seat-bound session state
-- `ui/network/snapshot.js` owns authoritative snapshot apply and presentation reconciliation
-- `ui/network/snapshot-runtime.js` owns browser/runtime lookup and fallback wiring used by snapshot application
+- `ui/network-client.ts` owns the client facade source; the adjacent `.js` file is the compatibility shell exposed to classic callers
+- `ui/network/session-lifecycle.ts` owns create / join / leave / latest-state lifecycle orchestration
+- `ui/network/session-seat.ts` owns session activation, reset, and seat-bound session state
+- `ui/network/snapshot.ts` owns authoritative snapshot apply and presentation reconciliation
+- `ui/network/snapshot-runtime.ts` owns browser/runtime lookup and fallback wiring used by snapshot application
 - `game/turn-manager.ts` may request a network reset publish only through injected UI/network adapters; it must not discover a root `NetworkMatchClient` global.
 - `game/network-turn-handoff.runtime.js` may assemble handoff playback and command metadata, but actual network publish must be supplied by the caller as an injected function.
 
@@ -345,7 +346,7 @@ Projection is still authoritative.
 A projected snapshot is not “less official”; it is the official seat-specific view.
 Client projection, optimistic local state, and playback events are never canonical authority.
 
-`ui/network/snapshot.js` rejects snapshots when server authority metadata is missing or when `projectedForSeat` conflicts with the local seat.
+`ui/network/snapshot.ts` rejects snapshots when server authority metadata is missing or when `projectedForSeat` conflicts with the local seat.
 
 ### 8.3 Versioning and publish identity
 
@@ -412,12 +413,14 @@ Projection is authoritative for the viewer who receives it, but projection-speci
 
 ### 9.1 Bootstrap ownership
 
-`ui/bootstrap.js` is the main UI bootstrap boundary.
+`ui/bootstrap.ts` is the main TypeScript UI bootstrap boundary.
 It is the preferred place for wiring browser globals, registrations, and UI implementation exposure.
+`ui/bootstrap.js` remains a classic browser runtime projection and must stay aligned with that source boundary.
 
 ### 9.2 Shared bootstrap shim
 
-`shared/ui-bootstrap-shared.js` is the shared bootstrap bridge used to keep UI registration separated from pure gameplay code.
+`shared/ui-bootstrap-shared.ts` is the shared bootstrap bridge used to keep UI registration separated from pure gameplay code.
+The adjacent `.js` file is a compatibility wrapper.
 
 ### 9.3 Window exposure
 

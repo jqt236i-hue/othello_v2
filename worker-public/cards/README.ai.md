@@ -7,6 +7,8 @@
 
 ## 正本
 
+このファイル内のパスは repo root からの相対パスです。`worker-public/cards/README.ai.md` に同期されていても、正本は root 側です。
+
 - データ正本: `cards/catalog.json`
 - 仕様正本: `01-rulebook.md`
 - 生成物: `cards/catalog.js`, `cards/catalog.ts`, `cards/catalog.generated.js`
