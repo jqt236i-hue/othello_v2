@@ -1805,12 +1805,12 @@
     min-width: 0;
     box-sizing: border-box;
     background:
-        linear-gradient(180deg, rgba(83, 214, 209, 0.16), rgba(83, 214, 209, 0.05) 58%, rgba(255, 255, 255, 0.02) 100%),
-        rgba(10, 32, 35, 0.42);
-    border: var(--layout-size-border-thin) solid rgba(83, 214, 209, 0.26);
+        linear-gradient(180deg, rgba(83, 214, 209, 0.08), rgba(83, 214, 209, 0.025) 58%, rgba(255, 255, 255, 0.015) 100%),
+        rgba(8, 24, 27, 0.38);
+    border: var(--layout-size-border-thin) solid rgba(83, 214, 209, 0.18);
     border-radius: calc(7px * var(--layout-stage-scale));
     padding: calc(4px * var(--layout-stage-scale));
-    box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.08);
+    box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.05);
 }
 
 .deck-builder-built-in-preset-grid {
@@ -1852,11 +1852,11 @@
     align-items: center;
     padding: calc(6px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
     background:
-        linear-gradient(90deg, rgba(83, 214, 209, 0.18), rgba(83, 214, 209, 0.06) 52%, rgba(255, 255, 255, 0.025) 100%),
-        rgba(255, 255, 255, 0.03);
-    border-color: rgba(83, 214, 209, 0.32);
+        linear-gradient(90deg, rgba(83, 214, 209, 0.1), rgba(83, 214, 209, 0.03) 52%, rgba(255, 255, 255, 0.02) 100%),
+        rgba(255, 255, 255, 0.022);
+    border-color: rgba(83, 214, 209, 0.22);
     border-radius: calc(5px * var(--layout-stage-scale));
-    box-shadow: inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(83, 214, 209, 0.28);
+    box-shadow: inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(83, 214, 209, 0.18);
 }
 
 #deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card {
@@ -1883,14 +1883,14 @@
 .deck-builder-built-in-preset-section .deck-builder-section-title {
     font-size: calc(10px * var(--layout-stage-scale));
     font-weight: 700;
-    color: rgba(196, 255, 247, 0.86);
+    color: rgba(184, 236, 231, 0.76);
 }
 
 #deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-preset-title {
     grid-area: title;
     font-size: calc(10px * var(--layout-stage-scale));
     line-height: 1.2;
-    color: rgba(196, 255, 247, 0.94);
+    color: rgba(184, 236, 231, 0.9);
 }
 
 .deck-builder-preset-summary,
@@ -1905,7 +1905,7 @@
     grid-area: summary;
     font-size: calc(9px * var(--layout-stage-scale));
     line-height: 1.2;
-    color: rgba(208, 237, 235, 0.82);
+    color: rgba(192, 221, 219, 0.72);
 }
 
 #deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-title {
