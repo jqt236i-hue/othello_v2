@@ -88,4 +88,45 @@ describe('pass clears pending card effect', () => {
       expect.objectContaining({ type: 'pass', player: 'black' })
     ]));
   });
+
+  test('auto no-action pass is rejected when a usable card remains', () => {
+    const { cardState, gameState } = makeNoMoveState();
+    cardState.hands.black = ['chest_01'];
+    cardState.charge.black = 0;
+
+    const res = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', {
+      type: 'pass',
+      autoNoActionPass: true
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.rejectedReason).toBe('ILLEGAL_PASS');
+    expect(res.events).toContainEqual(expect.objectContaining({
+      type: 'action_rejected',
+      reason: 'ILLEGAL_PASS',
+      message: expect.stringContaining('auto pass')
+    }));
+  });
+
+  test('auto no-action pass is rejected while target selection is pending', () => {
+    const { cardState, gameState } = makeNoMoveState();
+    cardState.pendingEffectByPlayer.black = {
+      type: 'DESTROY_ONE_STONE',
+      cardId: 'destroy_01',
+      stage: 'selectTarget'
+    };
+
+    const res = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', {
+      type: 'pass',
+      autoNoActionPass: true
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.rejectedReason).toBe('ILLEGAL_PASS');
+    expect(res.events).toContainEqual(expect.objectContaining({
+      type: 'action_rejected',
+      reason: 'ILLEGAL_PASS',
+      message: expect.stringContaining('auto pass')
+    }));
+  });
 });

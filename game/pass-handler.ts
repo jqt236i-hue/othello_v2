@@ -434,11 +434,14 @@ function publishNetworkSnapshot(meta: any) {
     } catch (e) { /* ignore */ }
 }
 
-function createPassNetworkAction(playerKey: string, cardStateValue: any) {
+function createPassNetworkAction(playerKey: string, cardStateValue: any, options?: any) {
     const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
     const action: any = { type: 'pass', playerKey: normalizedPlayerKey };
     if (cardStateValue && Number.isFinite(Number(cardStateValue.turnIndex))) {
         action.turnIndex = Math.trunc(Number(cardStateValue.turnIndex));
+    }
+    if (options && options.autoNoActionPass === true) {
+        action.autoNoActionPass = true;
     }
     return action;
 }
@@ -479,11 +482,11 @@ function canPublishNetworkPassForTurnOwner(turnOwnerKey: string) {
     return !!localSeatKey && localSeatKey === publishPlayerKey;
 }
 
-function publishPassSnapshot(playerKey: string, actionOverride?: any) {
+function publishPassSnapshot(playerKey: string, actionOverride?: any, options?: any) {
     const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
     const action = (actionOverride && typeof actionOverride === 'object')
         ? actionOverride
-        : createPassNetworkAction(normalizedPlayerKey, cardState);
+        : createPassNetworkAction(normalizedPlayerKey, cardState, options);
     const meta = {
         playerKey: normalizedPlayerKey,
         actionType: 'pass',
@@ -493,10 +496,10 @@ function publishPassSnapshot(playerKey: string, actionOverride?: any) {
     return publishNetworkSnapshot(meta);
 }
 
-async function publishNetworkPassCommand(turnOwnerKey: string) {
+async function publishNetworkPassCommand(turnOwnerKey: string, options?: any) {
     const publishPlayerKey = resolvePassPublishPlayerKey(turnOwnerKey || 'black');
-    const publishAction = createPassNetworkAction(publishPlayerKey, cardState);
-    const publishResult = publishPassSnapshot(publishPlayerKey, publishAction);
+    const publishAction = createPassNetworkAction(publishPlayerKey, cardState, options);
+    const publishResult = publishPassSnapshot(publishPlayerKey, publishAction, options);
     if (publishResult && typeof publishResult.then === 'function') {
         const awaitedResult = await publishResult;
         return !(awaitedResult && typeof awaitedResult === 'object' && awaitedResult.ok === false);
@@ -601,6 +604,19 @@ function normalizePassCount(value: any) {
     return Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : 0;
 }
 
+function normalizeProcessPassTurnOptions(value: any) {
+    if (value && typeof value === 'object') {
+        return {
+            autoMode: value.autoMode === true,
+            autoNoActionPass: value.autoNoActionPass === true
+        };
+    }
+    return {
+        autoMode: value === true,
+        autoNoActionPass: value === true
+    };
+}
+
 function applyNoActionTerminalPass(state: any) {
     const core = resolveCorePassApi();
     if (core && typeof core.applyPass === 'function') {
@@ -691,7 +707,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
 /**
  * Helper to apply pass via TurnPipeline with safe fallback.
  */
-function applyPassViaPipeline(playerKey: string) {
+function applyPassViaPipeline(playerKey: string, options?: any) {
     const turnPipeline = (typeof TurnPipeline !== 'undefined')
         ? TurnPipeline
         : passHandlerTurnPipelineModule;
@@ -701,9 +717,12 @@ function applyPassViaPipeline(playerKey: string) {
 
     // Create action via injected ActionManager for tracking
         const actionApi = getPassHandlerActionApi();
+        const actionExtra = options && options.autoNoActionPass === true
+            ? { autoNoActionPass: true }
+            : {};
         const action = (actionApi && typeof actionApi.createAction === 'function')
-            ? actionApi.createAction('pass', playerKey, {})
-            : { type: 'pass' };
+            ? actionApi.createAction('pass', playerKey, actionExtra)
+            : Object.assign({ type: 'pass' }, actionExtra);
 
         if (action && cardState && typeof cardState.turnIndex === 'number') {
             (action as any).turnIndex = cardState.turnIndex;
@@ -747,13 +766,13 @@ function applyPassViaPipeline(playerKey: string) {
     }
 }
 
-async function _postApplyPassCommon(lastPlayerKey: string) {
+async function _postApplyPassCommon(lastPlayerKey: string, options?: any) {
     // Shared continuation logic after applyPassViaPipeline
     emitPassHandlerBoardUpdate();
     emitPassHandlerGameStateChange();
 
     const publishPlayerKey = resolvePassPublishPlayerKey(lastPlayerKey || 'black');
-    const publishAction = createPassNetworkAction(publishPlayerKey, cardState);
+    const publishAction = createPassNetworkAction(publishPlayerKey, cardState, options);
 
     return finalizePassTurnHandoff(lastPlayerKey || 'black', publishPlayerKey, publishAction);
 }
@@ -910,34 +929,38 @@ async function handleBlackPassWhenNoMoves() {
         const passedPlayer = gameState.currentPlayer;
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
-        const result = applyPassViaPipeline(playerKey);
+        const passOptions = { autoNoActionPass: true };
+        const result = applyPassViaPipeline(playerKey, passOptions);
         if (!result.ok) {
             return handleRejectedPass();
         }
         syncPassPipelineState(result);
 
-        await _postApplyPassCommon(playerKey);
+        await _postApplyPassCommon(playerKey, passOptions);
     }, true);
 }
 
-async function processPassTurn(playerKey: string, autoMode?: boolean) {
+async function processPassTurn(playerKey: string, autoMode?: boolean | { autoMode?: boolean; autoNoActionPass?: boolean }) {
+    const passTurnOptions = normalizeProcessPassTurnOptions(autoMode);
     const normalizedRequestPlayerKey = normalizePlayerKey(playerKey, 'black');
     const selfName = normalizedRequestPlayerKey === 'white' ? '白' : '黒';
-    emitPassHandlerLog(`${selfName}: パス${autoMode ? ' (AUTO)' : ''}`);
+    emitPassHandlerLog(`${selfName}: パス${passTurnOptions.autoMode ? ' (AUTO)' : ''}`);
     const passedPlayer = gameState.currentPlayer;
     const passedPlayerKey = normalizePlayerKey(passedPlayer, normalizedRequestPlayerKey);
 
+    const passOptions = passTurnOptions.autoNoActionPass === true ? { autoNoActionPass: true } : undefined;
+
     if (isExplicitNetworkMatchMode()) {
-        return publishNetworkPassCommand(passedPlayerKey);
+        return publishNetworkPassCommand(passedPlayerKey, passOptions);
     }
 
-    const result = applyPassViaPipeline(passedPlayerKey);
+    const result = applyPassViaPipeline(passedPlayerKey, passOptions);
     if (!result.ok) {
         return handleRejectedPass();
     }
     syncPassPipelineState(result);
 
-    return _postApplyPassCommon(passedPlayerKey);
+    return _postApplyPassCommon(passedPlayerKey, passOptions);
 }
 
 export = {

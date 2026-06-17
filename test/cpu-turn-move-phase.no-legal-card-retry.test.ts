@@ -63,7 +63,10 @@ describe('cpu turn move phase no-legal card retry', () => {
     });
 
     expect(result).toEqual({ status: 'pass' });
-    expect(passFn).toHaveBeenCalledWith('white', false);
+    expect(passFn).toHaveBeenCalledWith('white', {
+      autoMode: false,
+      autoNoActionPass: true
+    });
     expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
   });
 

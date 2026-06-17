@@ -1243,6 +1243,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     || action.timeoutPass === true
                     || String(action.reason || '').trim().toLowerCase() === 'timeout'
                 );
+                const autoNoActionPass = action && action.autoNoActionPass === true;
+                if (autoNoActionPass && !forcePass) {
+                    const pending = readPendingForActionPhase(cardState, playerKey);
+                    if (pending) {
+                        throw new Error('Illegal auto pass: pending action available');
+                    }
+                    if (legalMoves.length > 0 && !placementLocked) {
+                        throw new Error('Illegal auto pass: legal moves available');
+                    }
+                    const hasUsableCard = CardLogic
+                        && typeof CardLogic.hasUsableCard === 'function'
+                        && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true;
+                    if (hasUsableCard) {
+                        throw new Error('Illegal auto pass: usable card available');
+                    }
+                }
                 if (legalMoves.length > 0 && !placementLocked && !forcePass) {
                     throw new Error('Illegal pass: legal moves available');
                 }

@@ -101,7 +101,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     level,
                     legalMovesCount: 0
                 });
-                passFn(playerKey, autoMode);
+                passFn(playerKey, { autoMode, autoNoActionPass: true });
             } else {
                 console.error('[AI] processPassTurn is not available');
                 cfg.setCpuProcessing(false);

@@ -447,6 +447,24 @@ describe('pass-handler flows', () => {
         expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
     });
 
+    test('ensureCurrentPlayerCanActOrPass は自動パス action に no-action marker を付ける', () => {
+        delete require.cache[modPath];
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: false });
+        expect(handled).toBe(true);
+        expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            'black',
+            expect.objectContaining({
+                type: 'pass',
+                autoNoActionPass: true
+            })
+        );
+    });
+
     test('ensureCurrentPlayerCanActOrPass は white CPU が black 手番を代理操作中なら owner-keyed に自動パスする', () => {
         delete require.cache[modPath];
         (global as any).gameState = { currentPlayer: (global as any).BLACK };
@@ -481,7 +499,7 @@ describe('pass-handler flows', () => {
         expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
             playerKey: 'white',
             actionType: 'pass',
-            action: { type: 'pass', playerKey: 'white', turnIndex: 4 },
+            action: { type: 'pass', playerKey: 'white', turnIndex: 4, autoNoActionPass: true },
             playbackEvents: []
         }));
     });
@@ -502,7 +520,7 @@ describe('pass-handler flows', () => {
         expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
             playerKey: 'black',
             actionType: 'pass',
-            action: { type: 'pass', playerKey: 'black', turnIndex: 5 },
+            action: { type: 'pass', playerKey: 'black', turnIndex: 5, autoNoActionPass: true },
             playbackEvents: []
         }));
     });
@@ -770,7 +788,7 @@ describe('pass-handler flows', () => {
         expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
             playerKey: 'white',
             actionType: 'pass',
-            action: { type: 'pass', playerKey: 'white', turnIndex: 6 },
+            action: { type: 'pass', playerKey: 'white', turnIndex: 6, autoNoActionPass: true },
             playbackEvents: []
         }));
     });
@@ -798,7 +816,7 @@ describe('pass-handler flows', () => {
         expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
             playerKey: 'white',
             actionType: 'pass',
-            action: { type: 'pass', playerKey: 'white', turnIndex: 8 },
+            action: { type: 'pass', playerKey: 'white', turnIndex: 8, autoNoActionPass: true },
             playbackEvents: []
         }));
     });
