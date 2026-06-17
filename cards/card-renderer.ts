@@ -111,6 +111,98 @@ var _CARD_FACE_SPECIAL_ART_OVERRIDES: Record<string, { effectKey: string; imageP
         imagePath: 'assets/images/other/X.png'
     }
 };
+const _CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = {
+    chest_01: '01_宝箱.png',
+    free_01: '02_自由の意志.png',
+    last_resort_01: '03_最後の切り札.png',
+    sniper_01: '04_狙撃の意志.png',
+    hard_01: '05_弱い意志.png',
+    ghost_01: '06_幽霊の意志.png',
+    afterimage_will_01: '07_避ける意志.png',
+    swap_01: '08_交換の意志.png',
+    position_swap_01: '09_入替の意志.png',
+    perma_01: '10_強い意志.png',
+    strong_wind_01: '11_強風の意志.png',
+    super_buoyancy_01: '12_超浮力.png',
+    buoyancy_01: '13_浮力.png',
+    super_gravity_01: '14_超重力.png',
+    super_attraction_01: '15_超引力.png',
+    gravity_01: '16_重力.png',
+    trap_01: '17_罠の意志.png',
+    tempt_01: '18_誘惑の意志.png',
+    capture_01: '19_捕獲の意志.png',
+    double_chain_01: '20_二連鎖の意志.png',
+    triple_chain_01: '21_三連鎖の意志.png',
+    quad_chain_01: '22_四連鎖の意志.png',
+    infinite_chain_01: '23_無限連鎖の意志.png',
+    taboo_reverse_01: '24_禁忌の反転.png',
+    reverse_will_01: '25_反転の意志.png',
+    regen_01: '26_復活の意志.png',
+    destroy_01: '27_破壊の意志.png',
+    bomb_01: '28_時限爆弾.png',
+    time_stop_god_01: '29_時間停石.png',
+    udr_01: '30_究極反転龍.png',
+    breeding_01: '31_繁殖の意志.png',
+    proliferation_01: '32_増殖の意志.png',
+    clone_01: '33_複製の意志.png',
+    seed_01: '34_種まきの意志.png',
+    teleport_01: '35_テレポート.png',
+    cell_teleport_01: '36_マステレポート.png',
+    cross_bomb_01: '37_十字爆弾.png',
+    x_bomb_01: '38_クロス爆弾.png',
+    hyperactive_01: '39_多動の意志.png',
+    extreme_hyperactive_01: '40_極悪多動魔.png',
+    escape_01: '41_逃げる意志.png',
+    robot_vacuum_01: '42_ロボット掃除機.png',
+    gluttonous_will_01: '43_悪食の意志.png',
+    will_hunter_king_01: '44_意志狩りの王.png',
+    instant_hyperactive_01: '45_瞬間多動.png',
+    rebuild_01: '46_再構築の意志.png',
+    supply_01: '47_補給の意志.png',
+    plunder_will: '48_吸収の意志.png',
+    work_01: '50_出稼ぎの意志.png',
+    ribo_01: '51_リボ払いの意志.png',
+    loss_will_01: '52_意志の喪失.png',
+    double_01: '53_二連投石.png',
+    triple_01: '54_三連投石.png',
+    quad_01: '55_四連投石.png',
+    infinite_01: '56_無限投石.png',
+    heaven_01: '57_天の恵み.png',
+    reveal_hand_01: '58_観測の意志.png',
+    theory_incarnation_01: '59_理論の化身.png',
+    board_executor_01: '60_盤界の執行者.png',
+    observer_will_01: '61_盤理の観測者.png',
+    condemn_01: '62_断罪の意志.png',
+    execution_01: '63_執行の意志.png',
+    gold_stone: '64_金の意志.png',
+    rainbow_stone: '65_虹の意志.png',
+    silver_stone: '66_銀の意志.png',
+    crystal_stone: '67_演算の意志.png',
+    extend_life_01: '68_延命の意志.png',
+    extend_life_god_01: '69_延命神.png',
+    corrosion_01: '70_腐食の意志.png',
+    guard_01: '71_守る意志.png',
+    guardian_god_01: '72_守護神.png',
+    stone_salvation_god_01: '73_救済神.png',
+    destroy_dragon_01: '74_破壊龍.png',
+    lightning_01: '75_落雷.png',
+    udg_01: '76_究極破壊神.png',
+    ultimate_hyperactive_01: '77_究極多動神.png',
+    board_expand_01: '78_盤面拡張.png',
+    board_expand_god_01: '79_盤面拡張神.png',
+    board_shrink_01: '80_盤面縮小.png',
+    board_shrink_god_01: '81_盤面縮小神.png',
+    blockade_01: '82_封鎖の意志.png',
+    meteor_01: '83_因果抹消.png',
+    freeze_01: '84_凍結の意志.png',
+    salvation_01: '85_救済の意志.png',
+    living_will_01: '86_生きる意志.png',
+    reinforcement_01: '87_増援の意志.png',
+    support_troops_01: '88_援軍の意志.png',
+    equality_will_01: '89_平等の意志.png',
+    fate_will_01: '90_運命の意志.png',
+    meteor_god_01: '91_因果抹消神.png'
+};
 function _isSpecialCardFace(cardId: any) {
     return !!(
         SpecialCardRegistryModule &&
@@ -204,6 +296,12 @@ function _resolveCardBackgroundArt(cardDef: any, fallbackCardId: any) {
     const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
     if (!resolvedCardId) {
         return null;
+    }
+    const stableArtFilename = _CARD_FACE_ART_FILENAME_BY_ID[resolvedCardId];
+    if (stableArtFilename) {
+        return {
+            imagePath: `assets/images/card/${stableArtFilename}`
+        };
     }
     let sourceCards: any[] = [];
     try {
