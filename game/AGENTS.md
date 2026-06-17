@@ -30,7 +30,7 @@ logic/card-resolution/<name>.ts   # canonical headless card-resolution modules
 
 - Do not add new `window` / `globalThis` / DOM / sound / timer dependencies in `game/`.
 - Existing `globalThis` or animation calls in `special-effects/*`, `move-executor*`, `presentation*`, or `selection-flow*` are migration debt. Isolate or remove when touching nearby code.
-- `move-executor.js` and some legacy `.js` files still carry real code. Prefer `.ts` when a canonical `.ts` exists; if only legacy `.js` owns behavior, state that in the report.
+- `move-executor.ts` is the canonical source; `move-executor.js` is now a wrapper. Some other legacy `.js` files may still carry real code, so prefer `.ts` when it exists and state explicitly when a `.js` file still owns behavior.
 
 ## Verification
 

@@ -16,7 +16,7 @@ Network client submodules behind `ui/network-client.ts`. The server / Worker sna
 
 ## Local contracts
 
-- `network-client.ts` is the compatibility shell. Put new logic in this directory unless the shell contract itself changes.
+- `network-client.ts` is the TypeScript facade source; the adjacent `.js` file is the compatibility shell. Put new logic in this directory unless the facade contract itself changes.
 - Inbound data must pass through canonical snapshot inspection before touching runtime or presentation state.
 - Self-published actions can be queued optimistically, but final application comes from server response / snapshot reconciliation.
 - Presentation queue repair must not skip unresolved playback, clear another writer's work, or reorder `events[]`.

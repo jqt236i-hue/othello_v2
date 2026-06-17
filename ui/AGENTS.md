@@ -8,7 +8,7 @@ Browser UI, input, playback, and bootstrap-time DI. This file maps the internal 
 | --- | --- | --- |
 | Bootstrap / DI / load order | `bootstrap.ts`, `bootstrap/init-*.ts` | Keep DOM/event/game/network init order stable. DI belongs at bootstrap boundaries. |
 | Board animation / playback | `animation-engine.ts`, `playback-engine.ts`, `playback-state-manager.ts`, `presentation-handler.ts`, `board-update-*` | Preserve Single Visual Writer: do not add a second board DOM writer during playback. |
-| Network client state | `network-client.ts`, `network/*` | `network-client.ts` is a compatibility shell; module logic lives under `network/`. Server snapshots are authoritative. |
+| Network client state | `network-client.ts`, `network/*` | `network-client.ts` is the TypeScript facade source; most submodule logic lives under `network/`, and the adjacent `.js` file is the compatibility shell. Server snapshots are authoritative. |
 | UI handlers | `handlers/*` | Handlers wire controls/controllers/globals. Business logic belongs in the target submodule. |
 | Gacha UI | `gacha/*` | Keep transaction, catalog resolution, reveal stage, overlay view/controller separated. |
 | Cosmetic skins | `hand-skin/*`, `background-skin/*`, `cosmetics/*` | Follow `catalog` → `selection` → `runtime` → `controller` pattern. |
