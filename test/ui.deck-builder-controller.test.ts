@@ -66,7 +66,7 @@ describe('deck builder controller', () => {
   });
 
   function openEditor(body) {
-    const editButton = Array.from(body.querySelectorAll('button')).find((button) => button.textContent === '編集');
+    const editButton = Array.from(body.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid button')).find((button) => button.textContent === '編集');
     expect(editButton).toBeTruthy();
     editButton.click();
   }
@@ -263,7 +263,7 @@ describe('deck builder controller', () => {
 
     const theoryCard = builtInCards[2];
     const buttons = Array.from(theoryCard.querySelectorAll('button'));
-    expect(buttons.map((button) => button.textContent)).toEqual(['使用']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['使用', '編集']);
     buttons[0].click();
 
     expect(controller.getActiveLocalChoice()).toMatchObject({
@@ -277,7 +277,7 @@ describe('deck builder controller', () => {
 
     const endingAshCard = builtInCards[3];
     const endingAshButtons = Array.from(endingAshCard.querySelectorAll('button'));
-    expect(endingAshButtons.map((button) => button.textContent)).toEqual(['使用']);
+    expect(endingAshButtons.map((button) => button.textContent)).toEqual(['使用', '編集']);
     endingAshButtons[0].click();
 
     expect(controller.getActiveLocalChoice()).toMatchObject({
@@ -288,6 +288,47 @@ describe('deck builder controller', () => {
       presetId: 'ending-ash'
     });
     expect(document.getElementById('summary').textContent).toBe('冥灰デッキ / 30枚');
+  });
+
+  test('固定プリセットデッキを編集し、保存先プリセットを選んで上書きできる', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const body = document.getElementById('body');
+    const controller = createController();
+
+    controller.open();
+
+    const builtInCards = Array.from(body.querySelectorAll('.deck-builder-built-in-preset-grid .deck-builder-preset-card'));
+    const observeCard = builtInCards[0];
+    const editButton = Array.from(observeCard.querySelectorAll('button')).find((button) => button.textContent === '編集');
+    expect(editButton).toBeTruthy();
+
+    editButton.click();
+
+    const destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    expect(destinationSelect).toBeTruthy();
+    expect(Array.from(destinationSelect.options).map((option) => option.textContent)).toEqual([
+      'プリセット 1',
+      'プリセット 2',
+      'プリセット 3',
+      'プリセット 4',
+      'プリセット 5',
+      'プリセット 6'
+    ]);
+    expect(destinationSelect.value).toBe('preset_1');
+    expect(body.querySelector('.deck-builder-name-row input').value).toBe('観測デッキ');
+    expect(body.querySelector('.deck-builder-code-input').value).toBe(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
+
+    destinationSelect.value = 'preset_4';
+    destinationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    body.querySelector('.deck-builder-actions-row button').click();
+
+    const stored = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
+    const preset4 = stored.presets.find((preset) => preset.id === 'preset_4');
+    expect(preset4).toMatchObject({
+      id: 'preset_4',
+      name: '観測デッキ',
+      deckCode: DeckSpecHelpers.getCpuLv6WhiteDeckCode()
+    });
   });
 
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {

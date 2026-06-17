@@ -61,6 +61,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             localBoardConfig: SharedBoardUtils.buildBoardConfig(),
             editor: {
                 presetId: '',
+                sourceName: '',
                 nameValue: '',
                 draft: DeckBuilderStateModule.createEmptyDraft(),
                 codeInputValue: '',
@@ -326,6 +327,12 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             return normalizeChoiceLabel(preset && preset.name, `プリセット ${index + 1}`);
         }
 
+        function getPresetSlotLabel(preset: any, index: any) {
+            const slotName = `プリセット ${index + 1}`;
+            const presetName = String(preset && preset.name || '').replace(/\s+/g, ' ').trim();
+            return presetName ? `${slotName}（${presetName}）` : slotName;
+        }
+
         function getPresetIndex(preset: any) {
             const index = DeckPresetStorage.PRESET_IDS.indexOf(preset && preset.id);
             return index >= 0 ? index : 0;
@@ -337,6 +344,11 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         function findPresetById(presetId: any) {
             return state.presetState.presets.find((preset: any) => preset.id === presetId) || null;
+        }
+
+        function findFirstEmptyPresetId() {
+            const emptyPreset = state.presetState.presets.find((preset: any) => !preset || !preset.deckCode);
+            return emptyPreset && emptyPreset.id ? emptyPreset.id : DeckPresetStorage.PRESET_IDS[0];
         }
 
         function savePresetState() {
@@ -903,6 +915,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         function buildEditorViewModel() {
             const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
             const editorPreset = findPresetById(state.editor.presetId);
+            const presetOptions = state.presetState.presets.map((preset: any, index: any) => ({
+                id: preset.id,
+                label: getPresetSlotLabel(preset, index)
+            }));
             const enabledCardDefs = DeckBuilderRendererModule.getEnabledCardDefs()
                 .slice()
                 .sort(compareCardDefsForDeckBuilder);
@@ -934,7 +950,11 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 : null;
 
             return {
-                titleText: normalizeChoiceLabel(editorPreset && editorPreset.name, 'プリセット編集'),
+                titleText: state.editor.sourceName
+                    ? `${normalizeChoiceLabel(state.editor.sourceName, '固定プリセット')} を編集`
+                    : normalizeChoiceLabel(editorPreset && editorPreset.name, 'プリセット編集'),
+                destinationPresetId: state.editor.presetId,
+                presetOptions,
                 nameValue: state.editor.nameValue,
                 summaryText: `${draftSummary.totalCount}/${DeckSpecHelpers.CUSTOM_DECK_SIZE}枚 ・ 残り${draftSummary.remainingCount}枚`,
                 canSave: true,
@@ -980,6 +1000,12 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 onUseBuiltInPreset: useBuiltInDeckPreset,
                 onUsePreset: usePreset,
                 onEditPreset: editPreset,
+                onEditBuiltInPreset: editBuiltInDeckPreset,
+                onEditorDestinationChange: function (presetId: any) {
+                    if (findPresetById(presetId)) {
+                        state.editor.presetId = String(presetId || '').trim();
+                    }
+                },
                 onEditorBack: backToPresetList,
                 onEditorNameInput: function (value: any) {
                     state.editor.nameValue = String(value || '');
@@ -1101,6 +1127,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         function editPreset(presetId: any) {
             const preset = findPresetById(presetId);
             state.editor.presetId = presetId;
+            state.editor.sourceName = '';
             state.editor.nameValue = preset ? preset.name : '';
 
             if (preset && preset.deckCode) {
@@ -1123,8 +1150,39 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             render();
         }
 
+        function editBuiltInDeckPreset(presetId: any) {
+            const normalizedPresetId = String(presetId || '').trim();
+            const presets = DeckSpecHelpers && typeof DeckSpecHelpers.getBuiltInDeckPresets === 'function'
+                ? DeckSpecHelpers.getBuiltInDeckPresets()
+                : [];
+            const preset = presets.find((candidate: any) => String(candidate && candidate.id || '') === normalizedPresetId);
+            const displayName = normalizeChoiceLabel(preset && preset.displayName, '固定プリセット');
+            if (!preset || !preset.deckCode) {
+                emitNotice('この固定プリセットは現在編集できません', true, false);
+                render();
+                return;
+            }
+
+            const deckSpec = decodeDeckSpecOrNull(preset.deckCode);
+            if (!deckSpec) {
+                emitNotice('この固定プリセットは現在の catalog では編集できません', true, false);
+                render();
+                return;
+            }
+
+            state.editor.presetId = findFirstEmptyPresetId();
+            state.editor.sourceName = displayName;
+            state.editor.nameValue = displayName;
+            state.editor.draft = DeckBuilderStateModule.createDraftFromDeckSpec(deckSpec);
+            state.editor.codeInputValue = DeckCodecModule.encodeDeckSpec(deckSpec);
+            state.editor.detailCardId = '';
+            state.view = 'editor';
+            render();
+        }
+
         function backToPresetList() {
             state.editor.detailCardId = '';
+            state.editor.sourceName = '';
             state.view = 'presets';
             render();
         }

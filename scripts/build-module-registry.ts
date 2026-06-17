@@ -137,7 +137,7 @@ function appendRegisteredModule(lines: string[], moduleKey: string, content: str
     const moduleDir = path.posix.dirname(moduleKey);
     const cjsDir = moduleDir === '.' ? '' : moduleDir;
     let transformed = content
-        .replace(/(?:const|let|var)\s+_require\s*=\s*\(?typeof\s+__non_webpack_require__[\s\S]*?:\s*require\s*\)?\s*;?\s*/g, '');
+        .replace(/(?:const|let|var)\s+_require\s*=\s*\(?typeof\s+__non_webpack_require__[\s\S]*?;\s*/g, '');
     transformed = 'var __cjsDir=' + JSON.stringify(cjsDir) + ';var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n' + transformed;
     const jsonEncoded = JSON.stringify(transformed);
     lines.push('  _r(' + JSON.stringify(moduleKey) + ', ' + jsonEncoded + ');');

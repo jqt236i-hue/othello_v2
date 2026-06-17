@@ -1917,6 +1917,7 @@
 }
 
 .deck-builder-name-row input,
+.deck-builder-name-row select,
 .deck-builder-code-input {
     width: 100%;
     box-sizing: border-box;
@@ -1928,7 +1929,8 @@
     font-size: calc(11px * var(--layout-stage-scale));
 }
 
-.deck-builder-name-row input {
+.deck-builder-name-row input,
+.deck-builder-name-row select {
     flex: 1 1 auto;
     min-width: 0;
 }

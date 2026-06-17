@@ -398,6 +398,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
       const actions = document.createElement('div');
       actions.className = 'deck-builder-actions-row';
       actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUseBuiltInPreset(preset.id), { disabled: !preset.canUse }));
+      actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditBuiltInPreset(preset.id), { disabled: !preset.canUse }));
       builtInGrid.appendChild(createPresetCard(preset, actions));
     });
     builtInSection.appendChild(builtInGrid);
@@ -441,6 +442,27 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   topRow.appendChild(headingGroup);
   topRow.appendChild(createButton('戻る', 'btn-small', handlers.onEditorBack));
   wrapper.appendChild(topRow);
+
+  const destinationRow = document.createElement('label');
+  destinationRow.className = 'deck-builder-name-row deck-builder-destination-row';
+  const destinationLabel = document.createElement('span');
+  destinationLabel.textContent = '保存先';
+  destinationRow.appendChild(destinationLabel);
+  const destinationSelect = document.createElement('select');
+  destinationSelect.className = 'deck-builder-preset-destination-select compact-select';
+  const presetOptions = Array.isArray(editor.presetOptions) ? editor.presetOptions : [];
+  presetOptions.forEach((preset: any) => {
+    const option = document.createElement('option');
+    option.value = String(preset && preset.id || '');
+    option.textContent = String(preset && preset.label || preset && preset.id || '');
+    destinationSelect.appendChild(option);
+  });
+  destinationSelect.value = String(editor.destinationPresetId || '');
+  destinationSelect.addEventListener('change', () => {
+    handlers.onEditorDestinationChange(destinationSelect.value);
+  });
+  destinationRow.appendChild(destinationSelect);
+  wrapper.appendChild(destinationRow);
 
   const nameRow = document.createElement('label');
   nameRow.className = 'deck-builder-name-row';
