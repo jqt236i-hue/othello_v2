@@ -200,6 +200,30 @@
     background: rgba(77, 170, 166, 0.13);
 }
 
+.game-term-highlight--unique.game-term-highlight--tone-flip {
+    box-shadow: inset 0 -0.16em 0 rgba(102, 154, 190, 0.30);
+}
+
+.game-term-highlight--unique.game-term-highlight--tone-destroy {
+    box-shadow: inset 0 -0.16em 0 rgba(190, 95, 90, 0.32);
+}
+
+.game-term-highlight--unique.game-term-highlight--tone-stone {
+    box-shadow: inset 0 -0.16em 0 rgba(85, 164, 113, 0.30);
+}
+
+.game-term-highlight--unique.game-term-highlight--tone-protection {
+    box-shadow: inset 0 -0.16em 0 rgba(185, 157, 75, 0.32);
+}
+
+.game-term-highlight--unique.game-term-highlight--tone-cell {
+    box-shadow: inset 0 -0.16em 0 rgba(132, 112, 180, 0.32);
+}
+
+.game-term-highlight--unique.game-term-highlight--tone-resource {
+    box-shadow: inset 0 -0.16em 0 rgba(178, 115, 190, 0.30);
+}
+
 #log .logEntry {
     position: relative;
     direction: ltr;

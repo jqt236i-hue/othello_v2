@@ -33,6 +33,15 @@ describe('text term highlighter', () => {
     const matches = findGameTermMatches('次に置く石を究極破壊神化。周囲の敵石を破壊する。');
     expect(matches.map((match) => match.text)).toEqual(['究極破壊神', '破壊']);
     expect(matches.map((match) => match.category)).toEqual(['unique', 'destroy']);
+    expect(matches.map((match) => match.tone || match.category)).toEqual(['destroy', 'destroy']);
+  });
+
+  test('assigns secondary effect tones to proper names', () => {
+    const matches = findGameTermMatches('究極反転龍と究極破壊神を比較する。');
+    expect(matches.map((match) => [match.text, match.category, match.tone])).toEqual([
+      ['究極反転龍', 'unique', 'flip'],
+      ['究極破壊神', 'unique', 'destroy']
+    ]);
   });
 
   test('recognizes aliases while preserving displayed text', () => {
@@ -56,6 +65,23 @@ describe('text term highlighter', () => {
     const terms = Array.from(target.querySelectorAll('.game-term-highlight')) as HTMLElement[];
     expect(terms.map((term) => term.textContent)).toEqual(['破壊', '反転保護']);
     expect(terms.map((term) => term.dataset.termCategory)).toEqual(['destroy', 'protection']);
+  });
+
+  test('safe DOM renderer adds secondary tone data and class for proper names', () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="target"></div></body></html>');
+    const target = dom.window.document.getElementById('target') as HTMLElement;
+
+    renderTextWithGameTermHighlights(target, '究極破壊神化して破壊する', {
+      documentRef: dom.window.document,
+      classPrefix: 'game-term'
+    });
+
+    const terms = Array.from(target.querySelectorAll('.game-term-highlight')) as HTMLElement[];
+    expect(terms.map((term) => term.textContent)).toEqual(['究極破壊神', '破壊']);
+    expect(terms[0].classList.contains('game-term-highlight--unique')).toBe(true);
+    expect(terms[0].classList.contains('game-term-highlight--tone-destroy')).toBe(true);
+    expect(terms[0].dataset.termCategory).toBe('unique');
+    expect(terms[0].dataset.termTone).toBe('destroy');
   });
 
   test('keeps line breaks when requested', () => {

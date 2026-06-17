@@ -1,12 +1,14 @@
 import CardCatalog = require('../cards/catalog');
 
 export type GameTermCategory = 'flip' | 'destroy' | 'stone' | 'protection' | 'cell' | 'resource' | 'unique';
+export type GameTermTone = Exclude<GameTermCategory, 'unique'>;
 
 export type GameTermGlossaryEntry = Readonly<{
   id: string;
   label: string;
   category: GameTermCategory;
   description: string;
+  tone?: GameTermTone;
   aliases?: readonly string[];
 }>;
 
@@ -17,6 +19,7 @@ export type GameTermMatch = Readonly<{
   id: string;
   label: string;
   category: GameTermCategory;
+  tone?: GameTermTone;
 }>;
 
 export type RenderGameTermOptions = Readonly<{
@@ -33,6 +36,7 @@ type CatalogCardText = Readonly<{
   name?: unknown;
   desc_ja?: unknown;
   desc?: unknown;
+  display_type_ja?: unknown;
 }>;
 
 const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freeze([
@@ -102,11 +106,26 @@ function collectSpecialStoneNameTerms(text: string): string[] {
   return terms;
 }
 
+function inferUniqueTermTone(label: string, description: string, displayType: string): GameTermTone {
+  const source = `${label} ${description} ${displayType}`;
+  if (/(破壊|爆破|爆発|消滅|捕食|狙撃|因果抹消|断罪|処刑)/.test(source)) return 'destroy';
+  if (/(反転|連鎖|禁忌反転|龍)/.test(source)) return 'flip';
+  if (/(保護|守|回避|幽体|残像|復活|救済|罠|生きる)/.test(source)) return 'protection';
+  if (/(穴|封鎖|凍結|盤界|盤面縮小|盤面拡張|マステレポート)/.test(source)) return 'cell';
+  if (/(布石|コスト|持続|ターン|時間|ドロー|手札|理論|観測|延命|腐食|採掘)/.test(source)) return 'resource';
+  if (/(石|顕現|化身|執行者)/.test(source)) return 'stone';
+  if (/戦闘/.test(displayType)) return 'destroy';
+  if (/守護/.test(displayType)) return 'protection';
+  if (/繁栄|採掘/.test(displayType)) return 'resource';
+  if (/執行/.test(displayType)) return 'cell';
+  return 'stone';
+}
+
 function buildCatalogProperNameEntries(): readonly GameTermGlossaryEntry[] {
   const baseLabels = new Set(BASE_GAME_TERM_GLOSSARY.map((entry) => entry.label));
   const seen = new Set<string>();
   const entries: GameTermGlossaryEntry[] = [];
-  const addEntry = (label: string, id: string, description: string) => {
+  const addEntry = (label: string, id: string, description: string, toneSource: string, displayType: string) => {
     const normalized = toNonEmptyString(label);
     if (!normalized || baseLabels.has(normalized) || seen.has(normalized)) return;
     seen.add(normalized);
@@ -114,6 +133,7 @@ function buildCatalogProperNameEntries(): readonly GameTermGlossaryEntry[] {
       id,
       label: normalized,
       category: 'unique',
+      tone: inferUniqueTermTone(normalized, toneSource, displayType),
       description
     }));
   };
@@ -122,11 +142,12 @@ function buildCatalogProperNameEntries(): readonly GameTermGlossaryEntry[] {
     const cardId = toNonEmptyString(card.id) || toNonEmptyString(card.type) || String(cardIndex + 1);
     const cardName = toNonEmptyString(card.name_ja) || toNonEmptyString(card.name);
     const desc = toNonEmptyString(card.desc_ja) || toNonEmptyString(card.desc);
+    const displayType = toNonEmptyString(card.display_type_ja);
     if (cardName) {
-      addEntry(cardName, createStableTermId('card', cardId, cardIndex), 'カード名。');
+      addEntry(cardName, createStableTermId('card', cardId, cardIndex), 'カード名。', desc, displayType);
     }
     collectSpecialStoneNameTerms(desc).forEach((term, termIndex) => {
-      addEntry(term, createStableTermId('special-stone-name', `${cardId}-${termIndex + 1}`, entries.length), '特殊石や顕現石の固有名。');
+      addEntry(term, createStableTermId('special-stone-name', `${cardId}-${termIndex + 1}`, entries.length), '特殊石や顕現石の固有名。', `${term} ${desc}`, displayType);
     });
   });
 
@@ -194,7 +215,8 @@ export function findGameTermMatches(text: string, options?: Pick<RenderGameTermO
       text: source.slice(index, end),
       id: matched.entry.id,
       label: matched.entry.label,
-      category: matched.entry.category
+      category: matched.entry.category,
+      tone: matched.entry.tone
     }));
     index = end;
   }
@@ -241,10 +263,15 @@ export function renderTextWithGameTermHighlights(target: Element | null | undefi
   for (const match of matches) {
     appendText(documentRef, fragment, source.slice(cursor, match.start), preserveLineBreaks);
     const span = documentRef.createElement('span');
-    span.className = `${classPrefix}-highlight ${classPrefix}-highlight--${match.category}`;
+    span.className = [
+      `${classPrefix}-highlight`,
+      `${classPrefix}-highlight--${match.category}`,
+      match.tone ? `${classPrefix}-highlight--tone-${match.tone}` : ''
+    ].filter(Boolean).join(' ');
     span.setAttribute('data-term-id', match.id);
     span.setAttribute('data-term-label', match.label);
     span.setAttribute('data-term-category', match.category);
+    if (match.tone) span.setAttribute('data-term-tone', match.tone);
     span.textContent = match.text;
     fragment.appendChild(span);
     cursor = match.end;

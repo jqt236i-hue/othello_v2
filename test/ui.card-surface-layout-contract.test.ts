@@ -103,10 +103,21 @@ describe('card surface layout contract', () => {
       'resource',
       'unique'
     ];
+    const toneClasses = [
+      'flip',
+      'destroy',
+      'stone',
+      'protection',
+      'cell',
+      'resource'
+    ];
 
     expect(layoutInfoCss).toMatch(/\.game-term-highlight\s*\{[\s\S]*font-weight:\s*800[\s\S]*border-radius:\s*4px[\s\S]*box-decoration-break:\s*clone/);
     for (const className of termClasses) {
       expect(layoutInfoCss).toMatch(new RegExp(`\\.game-term-highlight--${className}\\s*\\{[\\s\\S]*color:[\\s\\S]*background:`));
+    }
+    for (const className of toneClasses) {
+      expect(layoutInfoCss).toMatch(new RegExp(`\\.game-term-highlight--unique\\.game-term-highlight--tone-${className}\\s*\\{[\\s\\S]*box-shadow:`));
     }
     expect(cardsCss).toMatch(/#card-detail-desc \.game-term-highlight,[\s\S]*#card-detail-more \.game-term-highlight,[\s\S]*#card-detail-tab-body \.game-term-highlight[\s\S]*font-weight:\s*800[\s\S]*text-shadow:/);
   });
