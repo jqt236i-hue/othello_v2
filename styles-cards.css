@@ -1224,68 +1224,6 @@
     0 18px 34px rgba(0, 0, 0, 0.54);
 }
 
-.card-item.affordable,
-.card-item.usable {
-    border: var(--layout-size-border-medium) solid rgba(255, 234, 150, 1);
-}
-
-.card-item.affordable:not(.selected),
-.card-item.usable:not(.selected) {
-    box-shadow:
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 241, 186, 0.84),
-        0 10px 20px rgba(0, 0, 0, 0.46);
-    transform: translateY(-7px) scale(1.015);
-    z-index: 13;
-    filter:
-        drop-shadow(0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 238, 164, 0.74))
-        drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 220, 128, 0.46))
-        drop-shadow(0 0 calc(28px * var(--layout-stage-scale)) rgba(255, 215, 120, 0.26))
-        brightness(1.07)
-        saturate(1.08);
-}
-
-.card-item.affordable::before,
-.card-item.usable::before {
-    border-color: rgba(255, 236, 164, 0.9);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.08),
-        inset 0 0 calc(18px * var(--layout-stage-scale)) rgba(255, 220, 120, 0.12),
-        0 0 10px rgba(255, 225, 130, 0.18);
-}
-
-.card-item.affordable .card-name,
-.card-item.usable .card-name {
-    border-color: rgba(255, 231, 150, 0.82);
-    box-shadow:
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(20, 12, 8, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.16),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.22),
-        0 0 12px rgba(255, 214, 110, 0.14),
-        0 5px 10px rgba(0, 0, 0, 0.24);
-}
-
-.card-item.affordable.visible.clickable:hover:not(.selected),
-.card-item.usable.visible.clickable:hover:not(.selected) {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow:
-        0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 247, 205, 0.94),
-        0 12px 24px rgba(0, 0, 0, 0.48);
-    filter:
-        drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 244, 190, 0.96))
-        drop-shadow(0 0 calc(18px * var(--layout-stage-scale)) rgba(255, 224, 134, 0.66))
-        drop-shadow(0 0 calc(34px * var(--layout-stage-scale)) rgba(255, 215, 120, 0.38))
-        brightness(1.14)
-        saturate(1.14);
-}
-
-.card-item.affordable .card-cost-badge,
-.card-item.usable .card-cost-badge {
-    border-color: rgba(255, 234, 150, 1);
-    box-shadow:
-        0 0 10px rgba(255, 220, 130, 0.5),
-        0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
 /* Hand hot path: keep cues readable without perpetual shimmer/pulse/shine during play. */
 :is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"]),
 :is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"])::before {
@@ -1374,6 +1312,8 @@
     border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
     box-shadow: var(--card-visible-surface-shadow);
     transform: none;
+    filter: drop-shadow(var(--ui-drop-shadow-panel));
+    -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel));
     overflow: visible;
     animation: none;
 }
@@ -1409,41 +1349,14 @@
         0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 220, 132, 0.12);
 }
 
-#hand-black .card-item.affordable:not(.selected),
-#hand-black .card-item.usable:not(.selected),
-#hand-white .card-item.affordable:not(.selected),
-#hand-white .card-item.usable:not(.selected) {
-    outline: none;
-    border: var(--layout-size-border-medium) solid var(--card-tier-border, #d9b766);
-    box-shadow: var(--card-visible-surface-shadow) !important;
-    transform: none;
-    filter: drop-shadow(var(--ui-drop-shadow-panel)) !important;
-    -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel)) !important;
-    overflow: visible;
-    animation: none !important;
-}
-
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable).visible.clickable:hover:not(.selected) {
     outline: none;
     box-shadow:
         0 7px 14px rgba(0, 0, 0, 0.42),
         0 0 6px var(--card-tier-hover-glow, rgba(255, 215, 0, 0.1));
     transform: translateY(-3px);
-    filter: drop-shadow(var(--ui-drop-shadow-panel)) !important;
-    -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel)) !important;
-}
-
-#hand-black .card-item.affordable.visible.clickable:hover:not(.selected),
-#hand-black .card-item.usable.visible.clickable:hover:not(.selected),
-#hand-white .card-item.affordable.visible.clickable:hover:not(.selected),
-#hand-white .card-item.usable.visible.clickable:hover:not(.selected) {
-    outline: none;
-    box-shadow:
-        0 7px 14px rgba(0, 0, 0, 0.42),
-        0 0 6px var(--card-tier-hover-glow, rgba(255, 215, 0, 0.1)) !important;
-    transform: translateY(-3px);
-    filter: drop-shadow(var(--ui-drop-shadow-panel)) !important;
-    -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel)) !important;
+    filter: drop-shadow(var(--ui-drop-shadow-panel));
+    -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel));
 }
 
 :is(#hand-black, #hand-white) .card-item.visible:not(.card-use-ghost) {
