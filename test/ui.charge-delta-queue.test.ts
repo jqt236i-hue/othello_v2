@@ -110,7 +110,7 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     expect(el.textContent).toBe('');
   });
 
-  test('uses mirrored left-right anchors for the opponent slot', () => {
+  test('uses the right side for decrease popups on both charge slots', () => {
     const stoneVisuals = require(path.resolve(__dirname, '..', 'ui', 'stone-visuals.js'));
     const blackIncreaseEl = document.getElementById('charge-delta-black-increase');
     const blackDecreaseEl = document.getElementById('charge-delta-black-decrease');
@@ -129,12 +129,12 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     expect(blackDecreaseEl.style.top).toBe('581px');
     expect(blackDecreaseEl.classList.contains('is-side-right')).toBe(true);
 
-    expect(whiteIncreaseEl.style.left).toBe('370px');
+    expect(whiteIncreaseEl.style.left).toBe('136px');
     expect(whiteIncreaseEl.style.top).toBe('33px');
-    expect(whiteIncreaseEl.classList.contains('is-side-right')).toBe(true);
-    expect(whiteDecreaseEl.style.left).toBe('136px');
+    expect(whiteIncreaseEl.classList.contains('is-side-left')).toBe(true);
+    expect(whiteDecreaseEl.style.left).toBe('370px');
     expect(whiteDecreaseEl.style.top).toBe('33px');
-    expect(whiteDecreaseEl.classList.contains('is-side-left')).toBe(true);
+    expect(whiteDecreaseEl.classList.contains('is-side-right')).toBe(true);
   });
 
   test('shows positive and negative popups simultaneously on the same slot', () => {

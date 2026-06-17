@@ -437,10 +437,6 @@ function _resolveChargeDeltaAnchorRoot(el: HTMLElement | null): HTMLElement | nu
   return null;
 }
 
-function _isMirroredChargeDeltaSlot(key: string): boolean {
-  return key === 'white';
-}
-
 function _applyChargeDeltaSideClass(el: HTMLElement, showOnLeft: boolean): void {
   if (!el || !el.classList) return;
   el.classList.remove('is-side-left', 'is-side-right', 'is-above');
@@ -483,7 +479,7 @@ function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement, option
   const placeAbove = _shouldPlaceChargeDeltaAbove(options);
   const gap = placeAbove ? _resolveChargeDeltaAnchorGapPx(el) : _resolveChargeDeltaSideGapPx(el);
   const isPositive = Number(delta) > 0;
-  const showOnLeft = _isMirroredChargeDeltaSlot(key) ? !isPositive : isPositive;
+  const showOnLeft = isPositive;
   if (placeAbove) {
     _applyChargeDeltaAboveClass(el);
   } else {

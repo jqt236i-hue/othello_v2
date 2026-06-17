@@ -1,3 +1,4 @@
+import path from 'path';
 import { JSDOM } from 'jsdom';
 
 describe('card use source element selection', () => {
@@ -158,9 +159,14 @@ describe('card use source element selection', () => {
   });
 
   test('useSelectedCard drains card use cost charge delta immediately', () => {
-    const drainVisibleChargeDeltaPopups = jest.fn();
-    global.window.drainVisibleChargeDeltaPopups = drainVisibleChargeDeltaPopups;
-    global.drainVisibleChargeDeltaPopups = drainVisibleChargeDeltaPopups;
+    global.window.cardState = global.cardState;
+    global.window.gameState = global.gameState;
+    global.window.StoneVisuals = {
+      showChargeDelta: jest.fn()
+    };
+    const rendererModule = require(path.resolve(__dirname, '../cards/card-renderer.js'));
+    global.window.drainVisibleChargeDeltaPopups = rendererModule.drainVisibleChargeDeltaPopups;
+    global.drainVisibleChargeDeltaPopups = rendererModule.drainVisibleChargeDeltaPopups;
     global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => {
       global.cardState.charge.black = 9;
       global.cardState.chargeDeltaEvents = [{
@@ -182,7 +188,8 @@ describe('card use source element selection', () => {
     require('../cards/card-interaction.js');
     window.useSelectedCard();
 
-    expect(drainVisibleChargeDeltaPopups).toHaveBeenCalledWith({ allowRawFallback: false });
+    expect(global.window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', -1);
+    expect(global.cardState.chargeDeltaEvents).toEqual([]);
   });
 
   test('network mode blocks selecting and using opponent hand card', () => {
