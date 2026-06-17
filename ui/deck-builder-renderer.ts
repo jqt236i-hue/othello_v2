@@ -360,7 +360,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
 
   const intro = document.createElement('div');
   intro.className = 'deck-builder-intro';
-  intro.textContent = '3つまで保存できます。使用で即時切替、編集で構築画面を開きます。';
+  intro.textContent = '6つまで保存できます。使用で即時切替、編集で構築画面を開きます。';
   wrapper.appendChild(intro);
 
   const defaultPresetRow = document.createElement('div');

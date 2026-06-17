@@ -147,6 +147,21 @@ describe('deck builder controller', () => {
     expect(document.getElementById('header').textContent).toContain('ローカル設定');
   });
 
+  test('保存プリセットを6枠まで表示する', () => {
+    const body = document.getElementById('body');
+    const controller = createController();
+
+    controller.open();
+
+    const localPresetCards = body.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card');
+    expect(localPresetCards).toHaveLength(6);
+    expect(body.textContent).toContain('6つまで保存できます');
+    expect(Array.from(localPresetCards).map((card) => card.textContent)).toEqual(expect.arrayContaining([
+      expect.stringContaining('プリセット 1'),
+      expect.stringContaining('プリセット 6')
+    ]));
+  });
+
   test('候補カードはコスト降順で表示する', () => {
     const DeckBuilderRenderer = require('../ui/deck-builder-renderer');
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');

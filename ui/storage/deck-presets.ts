@@ -24,8 +24,15 @@ interface DeckPresetState {
 
 const STORAGE_KEY = 'deck_builder_presets_v1';
 const STATE_VERSION = 1;
-const PRESET_LIMIT = 3;
-const PRESET_IDS: readonly string[] = Object.freeze(['preset_1', 'preset_2', 'preset_3']);
+const PRESET_LIMIT = 6;
+const PRESET_IDS: readonly string[] = Object.freeze([
+  'preset_1',
+  'preset_2',
+  'preset_3',
+  'preset_4',
+  'preset_5',
+  'preset_6'
+]);
 
 function normalizePresetName(value: unknown): string {
   const raw = String(value || '').replace(/\s+/g, ' ').trim();
