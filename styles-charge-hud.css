@@ -12,9 +12,11 @@
 
 .charge-display {
     position: absolute;
+    box-sizing: border-box;
     min-width: calc(116px * var(--layout-stage-scale));
+    height: calc(24px * var(--layout-stage-scale));
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: center;
     gap: calc(3px * var(--layout-stage-scale));
     padding: var(--layout-size-charge-pad-y) var(--layout-size-charge-pad-x);
@@ -65,21 +67,21 @@
 
 .charge-display .charge-label {
     color: rgba(255, 220, 150, 0.58);
-    font-size: calc(9.5px * var(--layout-stage-scale));
+    font-size: calc(9px * var(--layout-stage-scale));
     font-weight: 700;
     letter-spacing: calc(0.8px * var(--layout-stage-scale));
 }
 
 .charge-display .charge-current {
     color: #ffe5a0;
-    font-size: calc(20px * var(--layout-stage-scale));
+    font-size: calc(18.5px * var(--layout-stage-scale));
     font-weight: 800;
 }
 
 .charge-display .charge-separator,
 .charge-display .charge-max {
     color: rgba(255, 221, 149, 0.72);
-    font-size: calc(11px * var(--layout-stage-scale));
+    font-size: calc(10.5px * var(--layout-stage-scale));
     font-weight: 700;
 }
 
