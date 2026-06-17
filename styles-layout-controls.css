@@ -1797,12 +1797,17 @@
     align-items: stretch;
 }
 
-.deck-builder-built-in-preset-section {
+#deckBuilderModal .deck-builder-built-in-preset-section {
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: calc(5px * var(--layout-stage-scale));
     min-width: 0;
+    box-sizing: border-box;
+    background: rgba(83, 214, 209, 0.035);
+    border: var(--layout-size-border-thin) solid rgba(83, 214, 209, 0.12);
+    border-radius: calc(7px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale));
 }
 
 .deck-builder-built-in-preset-grid {
@@ -1820,7 +1825,15 @@
     border-radius: calc(8px * var(--layout-stage-scale));
 }
 
-.deck-builder-built-in-preset-grid .deck-builder-preset-card {
+#deckBuilderModal .deck-builder-standard-card {
+    background:
+        linear-gradient(90deg, rgba(242, 201, 95, 0.08), rgba(242, 201, 95, 0.025) 48%, rgba(255, 255, 255, 0.035) 100%),
+        rgba(255, 255, 255, 0.04);
+    border-color: rgba(242, 201, 95, 0.24);
+    box-shadow: inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.22);
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-preset-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
@@ -1829,9 +1842,18 @@
     gap: calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
     align-items: center;
     padding: calc(6px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
-    background: rgba(255, 255, 255, 0.025);
-    border-color: rgba(255, 255, 255, 0.07);
+    background:
+        linear-gradient(90deg, rgba(83, 214, 209, 0.08), rgba(83, 214, 209, 0.025) 48%, rgba(255, 255, 255, 0.025) 100%),
+        rgba(255, 255, 255, 0.025);
+    border-color: rgba(83, 214, 209, 0.18);
     border-radius: calc(5px * var(--layout-stage-scale));
+}
+
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card {
+    background:
+        linear-gradient(180deg, rgba(126, 215, 255, 0.055), rgba(126, 215, 255, 0.018) 48%, rgba(255, 255, 255, 0.035) 100%),
+        rgba(255, 255, 255, 0.04);
+    border-color: rgba(126, 215, 255, 0.16);
 }
 
 .deck-builder-preset-card.is-active {
