@@ -9,6 +9,7 @@ type CardInteractionDetailTabDeps = {
     getAutoDismissBound: () => boolean;
     setAutoDismissBound: (bound: boolean) => void;
     updateCardDetailPanel?: () => void;
+    textTermHighlighterModule?: any;
 };
 
 export function createCardInteractionDetailTab(deps: CardInteractionDetailTabDeps) {
@@ -79,7 +80,15 @@ export function createCardInteractionDetailTab(deps: CardInteractionDetailTabDep
         const cardId = payload && payload.cardId ? String(payload.cardId) : null;
 
         refs.title.textContent = title;
-        refs.body.textContent = body;
+        const highlighter = deps.textTermHighlighterModule;
+        if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
+            highlighter.renderTextWithGameTermHighlights(refs.body, body, {
+                documentRef: refs.body.ownerDocument,
+                preserveLineBreaks: true
+            });
+        } else {
+            refs.body.textContent = body;
+        }
         refs.root.classList.add('is-open');
         refs.root.setAttribute('aria-hidden', 'false');
 

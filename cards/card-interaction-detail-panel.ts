@@ -2,6 +2,7 @@ export {};
 
 type CardInteractionDetailPanelDeps = {
     effectsModule?: any;
+    textTermHighlighterModule?: any;
     getQuickCardEffect: (cardDef: any) => any;
     getDetailCardEffect: (cardDef: any) => any;
     resolveChargeMaxText: () => any;
@@ -144,6 +145,19 @@ function createCardDetailLandscapeAnchorSync(deps?: CardDetailLandscapeAnchorSyn
 
 export function createCardInteractionDetailPanel(deps: CardInteractionDetailPanelDeps) {
     const cfg = (deps && typeof deps === 'object') ? deps : {} as CardInteractionDetailPanelDeps;
+
+    function renderGameTermText(el: any, text: any, options?: { preserveLineBreaks?: boolean }) {
+        if (!el) return;
+        const highlighter = cfg.textTermHighlighterModule;
+        if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
+            highlighter.renderTextWithGameTermHighlights(el, String(text || ''), {
+                documentRef: cfg.getDocumentRef(),
+                preserveLineBreaks: !!(options && options.preserveLineBreaks)
+            });
+            return;
+        }
+        el.textContent = String(text || '');
+    }
 
     function resolveCardDescriptionTextsForCardUi(cardDef: any) {
         const effectsModule = cfg.effectsModule;
@@ -406,9 +420,9 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         if (!nameEl || !descEl) return;
         const model = displayModel || buildCardDetailDisplayModel(null, null);
         nameEl.textContent = model.cardName;
-        descEl.textContent = model.summaryText;
+        renderGameTermText(descEl, model.summaryText);
         renderCardDetailLiveState(detailStateEl, model.liveStateText);
-        if (detailMoreEl) detailMoreEl.textContent = model.detailPanelText;
+        if (detailMoreEl) renderGameTermText(detailMoreEl, model.detailPanelText, { preserveLineBreaks: true });
         renderCardDetailEffectTags(detailTagsEl, model.tags);
     }
 

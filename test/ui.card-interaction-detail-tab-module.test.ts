@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import { createCardInteractionDetailTab } from '../cards/card-interaction-detail-tab';
+import * as TextTermHighlighter from '../ui/text-term-highlighter';
 
 describe('card interaction detail tab module', () => {
   let dom: JSDOM;
@@ -38,7 +39,8 @@ describe('card interaction detail tab module', () => {
       },
       getAutoDismissBound: () => autoDismissBound,
       setAutoDismissBound: (bound) => { autoDismissBound = !!bound; },
-      updateCardDetailPanel
+      updateCardDetailPanel,
+      textTermHighlighterModule: TextTermHighlighter
     });
   });
 
@@ -120,5 +122,24 @@ describe('card interaction detail tab module', () => {
     });
     dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
     expect(tabState.open).toBe(true);
+  });
+
+  test('renders detail tab body with shared term highlights', () => {
+    detailTab.openCardDetailTabPanel({
+      mode: 'detail',
+      key: 'sample_01',
+      cardId: 'sample_01',
+      title: '確認カード の詳細効果',
+      body: '破壊と反転保護\n特殊石'
+    });
+
+    const bodyEl = dom.window.document.getElementById('card-detail-tab-body') as HTMLElement;
+    expect(bodyEl.textContent).toBe('破壊と反転保護特殊石');
+    expect(bodyEl.innerHTML).toContain('<br>');
+    expect(Array.from(bodyEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual([
+      '破壊',
+      '反転保護',
+      '特殊石'
+    ]);
   });
 });

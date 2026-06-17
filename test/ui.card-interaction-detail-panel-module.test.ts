@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import { createCardInteractionDetailPanel } from '../cards/card-interaction-detail-panel';
+import * as TextTermHighlighter from '../ui/text-term-highlighter';
 
 function createController(overrides?: Record<string, unknown>) {
   const dom = new JSDOM(`
@@ -35,6 +36,7 @@ function createController(overrides?: Record<string, unknown>) {
 
   const controller = createCardInteractionDetailPanel({
     effectsModule,
+    textTermHighlighterModule: TextTermHighlighter,
     getQuickCardEffect: (cardDef: any) => (cardDef && cardDef.quickText) || '通常要約',
     getDetailCardEffect: (cardDef: any) => (cardDef && cardDef.detailText) || '通常詳細',
     resolveChargeMaxText: () => '99',
@@ -127,5 +129,33 @@ describe('card interaction detail panel module', () => {
       detailText: '効果詳細',
       quickText: '効果要約'
     }, 'plain_01')).toBe('効果詳細');
+  });
+
+  test('applies shared term highlighting to summary and expanded detail text', () => {
+    const ctx = createController();
+    const cardDef = {
+      id: 'sample_01',
+      name: '確認カード',
+      type: 'SAMPLE',
+      quickText: '次に置く特殊石を反転保護状態で置く',
+      detailText: '破壊<script>alert(1)</script>とマス破壊を受ける。',
+      distinctDetailText: '破壊<script>alert(1)</script>とマス破壊を受ける。',
+      effectTags: []
+    };
+    const model = ctx.controller.buildCardDetailDisplayModel(cardDef, 'black');
+    const doc = ctx.dom.window.document;
+    const nameEl = doc.getElementById('card-detail-name');
+    const descEl = doc.getElementById('card-detail-desc') as HTMLElement;
+    const detailMoreEl = doc.getElementById('card-detail-more') as HTMLElement;
+    const liveStateEl = ctx.controller.ensureCardDetailLiveStateElement();
+    const tagsEl = ctx.controller.ensureCardDetailEffectTagsElement();
+
+    ctx.controller.applyCardDetailDisplayModel(nameEl, descEl, liveStateEl, detailMoreEl, tagsEl, model);
+
+    expect(descEl.textContent).toBe('次に置く特殊石を反転保護状態で置く。');
+    expect(Array.from(descEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['特殊石', '反転保護']);
+    expect(detailMoreEl.querySelector('script')).toBeNull();
+    expect(detailMoreEl.textContent).toBe('破壊<script>alert(1)</script>とマス破壊を受ける。');
+    expect(Array.from(detailMoreEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['破壊', 'マス破壊']);
   });
 });

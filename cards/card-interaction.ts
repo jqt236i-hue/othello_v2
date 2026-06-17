@@ -559,6 +559,11 @@ const _cardInteractionDetailTabModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-detail-tab'
 });
 
+const _textTermHighlighterModule = _resolveCardInteractionModule({
+    requirePath: '../ui/text-term-highlighter',
+    globalKey: 'TextTermHighlighter'
+});
+
 const _cardInteractionHandDomModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-hand-dom'
 });
@@ -653,6 +658,7 @@ function _getCardInteractionOverlayViewDeps() {
 const _cardInteractionDetailPanel = (_cardInteractionDetailPanelModule && typeof _cardInteractionDetailPanelModule.createCardInteractionDetailPanel === 'function')
     ? _cardInteractionDetailPanelModule.createCardInteractionDetailPanel({
         effectsModule: _cardInteractionEffectsModule,
+        textTermHighlighterModule: _textTermHighlighterModule,
         getQuickCardEffect: _getQuickCardEffect,
         getDetailCardEffect: _getDetailCardEffect,
         resolveChargeMaxText: _resolveChargeMaxText,
@@ -713,7 +719,8 @@ const _cardInteractionDetailTab = (_cardInteractionDetailTabModule && typeof _ca
         },
         getAutoDismissBound: () => _cardDetailTagAutoDismissBound,
         setAutoDismissBound: (bound: any) => { _cardDetailTagAutoDismissBound = !!bound; },
-        updateCardDetailPanel
+        updateCardDetailPanel,
+        textTermHighlighterModule: _textTermHighlighterModule
     })
     : null;
 
