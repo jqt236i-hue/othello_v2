@@ -130,10 +130,6 @@ export function createCpuPolicyCardHelpers(config?: CpuPolicyCardHelpersConfig) 
 
         const ctx = asRecord(context);
         const ownCharge = isFiniteNumber(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
-        const handSize = isFiniteNumber(ctx.handSize) ? Math.max(0, Math.floor(Number(ctx.handSize))) : 0;
-        if (type === 'SUPPLY_WILL' && handSize >= 2) {
-            return null;
-        }
         if (lowChargeDestroyCardTypes.has(type) && ownCharge <= lowChargeDestroyMaxCharge) {
             return 'bucket2_low_charge';
         }

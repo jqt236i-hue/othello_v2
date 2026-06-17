@@ -2841,14 +2841,14 @@ function buildCurrentCellState() {
                     ? (
                         _isFiniteTimedLabelValueForDiff(m.data.destroyEvadeRemaining)
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 1 : (markerTypeUpper === 'AFTERIMAGE_WILL' ? 3 : null))
+                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 2 : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? 5 : (markerTypeUpper === 'AFTERIMAGE_WILL' ? 3 : null)))
                     )
                     : null,
                 flipEvadeRemaining: markerSupportsFlipEvade
                     ? (
                         _isFiniteTimedLabelValueForDiff(m.data.flipEvadeRemaining)
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE' || markerTypeUpper === 'AFTERIMAGE_WILL') ? 3 : null)
+                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 5 : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? 5 : (markerTypeUpper === 'AFTERIMAGE_WILL' ? 3 : null)))
                     )
                     : 0
             });

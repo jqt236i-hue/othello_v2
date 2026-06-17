@@ -63,6 +63,27 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(gameState.board[4][5]).toBe(1);
   });
 
+  test('applySwapEffect rejects enemy ghost target because ghost is not a normal stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[4][5] = -1;
+    cardState.markers.push({
+      id: 22,
+      kind: 'specialStone',
+      row: 4,
+      col: 5,
+      owner: 'white',
+      data: { type: 'GHOST', remainingOwnerTurns: 4 }
+    });
+
+    expect(CardLogic.getSwapTargets(cardState, gameState, 'black')).not.toEqual(expect.arrayContaining([{ row: 4, col: 5 }]));
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 4, 5);
+    expect(ok).toBe(false);
+    expect(gameState.board[4][5]).toBe(-1);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 4, col: 5, owner: 'white', data: expect.objectContaining({ type: 'GHOST' }) })
+    ]));
+  });
+
   test('applyCardUsage arms SWAP_WITH_ENEMY when an enemy normal stone exists', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['swap_01'];

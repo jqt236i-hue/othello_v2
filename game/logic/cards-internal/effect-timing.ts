@@ -138,16 +138,16 @@ function getConstants(context: Context): Constants {
         STONE_SALVATION_GOD_TURNS: constants.STONE_SALVATION_GOD_TURNS,
         EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT))
             ? Number(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT)
-            : 3,
+            : 5,
         EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT: Number.isFinite(Number(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT))
             ? Number(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT)
-            : 1,
+            : 5,
         ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT))
             ? Number(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT)
-            : 3,
+            : 5,
         ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT: Number.isFinite(Number(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT))
             ? Number(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT)
-            : 1,
+            : 2,
         AFTERIMAGE_WILL_FLIP_EVADE_LIMIT: Number.isFinite(Number(constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT))
             ? Number(constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT)
             : 3,

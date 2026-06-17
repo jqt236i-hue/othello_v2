@@ -23,7 +23,6 @@
 
 - 逃げる意志 (`ESCAPE_WILL`)
 - 盤面拡張神 (`BOARD_EXPANSION_GOD`)
-- 補給の意志 (`SUPPLY_WILL`)
 - 観測の意志 (`REVEAL_HAND_WILL`)
 - 運命の意志 (`FATE_WILL`)
 

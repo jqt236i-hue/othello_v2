@@ -165,7 +165,7 @@ describe('理論の化身', () => {
       expect.objectContaining({
         cardType: 'EXTREME_HYPERACTIVE_WILL',
         cardCost: 32,
-        markerData: expect.objectContaining({ type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 })
+        markerData: expect.objectContaining({ type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 })
       }),
       expect.objectContaining({
         cardType: 'ESCAPE_WILL',

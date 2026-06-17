@@ -173,7 +173,7 @@ describe('UI stone rendering', () => {
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
       { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3, remainingOwnerTurns: 3 } },
       { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } },
-      { id: 14, kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } }
+      { id: 14, kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 } }
     ];
 
     const diffRenderer = require('../ui/diff-renderer.js');
@@ -190,14 +190,14 @@ describe('UI stone rendering', () => {
     assert.strictEqual(hyperDisc.querySelector('.flip-evade-timer').textContent, '1');
 
     const ultimateDisc = boardEl.querySelector('.cell[data-row="0"][data-col="7"] .disc');
-    assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '3');
-    assert.strictEqual(ultimateDisc.querySelector('.destroy-evade-timer').textContent, '1');
+    assert.strictEqual(ultimateDisc.querySelector('.flip-evade-timer').textContent, '5');
+    assert.strictEqual(ultimateDisc.querySelector('.destroy-evade-timer').textContent, '2');
 
     const coexistDisc = boardEl.querySelector('.cell[data-row="1"][data-col="0"] .disc');
     const coexistEvadeTimers = coexistDisc.querySelectorAll('.flip-evade-timer');
     assert.strictEqual(coexistEvadeTimers.length, 1);
-    assert.strictEqual(coexistEvadeTimers[0].textContent, '3');
-    assert.strictEqual(coexistDisc.querySelector('.destroy-evade-timer').textContent, '1');
+    assert.strictEqual(coexistEvadeTimers[0].textContent, '5');
+    assert.strictEqual(coexistDisc.querySelector('.destroy-evade-timer').textContent, '2');
 
     const protectedDisc = boardEl.querySelector('.cell[data-row="1"][data-col="1"] .disc');
     assert.strictEqual(protectedDisc.querySelector('.flip-evade-timer'), null);
@@ -212,8 +212,8 @@ describe('UI stone rendering', () => {
     assert.strictEqual(strongWillDisc.querySelector('.special-timer'), null);
 
     const extremeDisc = boardEl.querySelector('.cell[data-row="1"][data-col="4"] .disc');
-    assert.strictEqual(extremeDisc.querySelector('.flip-evade-timer').textContent, '3');
-    assert.strictEqual(extremeDisc.querySelector('.destroy-evade-timer').textContent, '1');
+    assert.strictEqual(extremeDisc.querySelector('.flip-evade-timer').textContent, '5');
+    assert.strictEqual(extremeDisc.querySelector('.destroy-evade-timer').textContent, '5');
   });
 
   test('diff-renderer shows bomb countdown for unified TIME_BOMB markers', () => {

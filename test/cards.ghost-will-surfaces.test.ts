@@ -1,24 +1,24 @@
-import * as fs from 'fs';
-const path = require('path');
+import * as path from 'path';
+
 const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-catalog.js'));
 
 const EXPECTED_BASE_CARD = Object.freeze({
-  id: 'breeding_01',
-  name_ja: '繁殖の意志',
-  type: 'BREEDING_WILL',
-  cost: 12,
-  desc_ja: '次に置く石を繁殖化。周囲優先で1個生成し、詰まり時は最寄り空きへ生成。各生成後に通常反転判定。',
+  id: 'ghost_01',
+  name_ja: '幽霊の意志',
+  type: 'GHOST_WILL',
+  cost: 5,
+  desc_ja: '次に置く石を幽体化する。反転・破壊の対象にはなるがその石自身は受けない。誘惑・捕獲など、対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。',
   display_type_ja: '守護'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
-  name: '繁殖の意志',
-  desc: '次に置く石を繁殖化。周囲優先で1個生成し、詰まり時は最寄り空きへ生成。各生成後に通常反転判定。'
+  name: '幽霊の意志',
+  desc: EXPECTED_BASE_CARD.desc_ja
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を繁殖化。周囲優先で1個生成し、詰まり時は最寄り空きへ生成。各生成後に通常反転判定。';
-const EXPECTED_DETAIL_TEXT = '生成先は起点の周囲8マスの空きを優先する。\n周囲8マスに空きが無い場合は、盤面上の最も近い有効な空きマスへ生成する。\n近さは8方向距離で判定し、同距離候補はランダム。\n盤面上に有効な空きが1つも無い場合だけ生成しない。\n持続中は前回生成石の周囲へ拡散する。\n各生成石は、そのマスを起点に通常の挟み反転を行う。';
+const EXPECTED_QUICK_TEXT = '次に置く石を幽体石化。反転・破壊だけを受け流す';
+const EXPECTED_DETAIL_TEXT = '持続する特殊石。\n反転・石破壊の対象にはなるが、その石自身は受けない。\n誘惑・捕獲など、対象条件を満たす反転・破壊以外の効果は通常どおり受ける。\n交換の意志は相手通常石のみ対象のため対象外。\n意志の喪失で通常石に戻る。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -38,13 +38,13 @@ function loadWindowCatalog(relativePath) {
   return window.CardCatalog;
 }
 
-describe('BREEDING_WILL catalog/help surfaces', () => {
+describe('GHOST_WILL catalog/help surfaces', () => {
   afterEach(() => {
     jest.resetModules();
     try { delete global.window; } catch (error) { /* Intentionally empty: test cleanup guard */ }
   });
 
-  test('catalog json / catalog.js / catalog.generated.js / generator output stay aligned for BREEDING_WILL', () => {
+  test('catalog json / catalog.js / catalog.generated.js / generator output stay aligned for GHOST_WILL', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const generatedCatalogObject = generator.generate();
     const browserCatalog = loadWindowCatalog('cards\\catalog.js');
@@ -65,34 +65,17 @@ describe('BREEDING_WILL catalog/help surfaces', () => {
     expect(browserEntry.desc).toBe(browserEntry.desc_ja);
   });
 
-  test('CardInteractionEffects exposes quick/detail help text for BREEDING_WILL', () => {
+  test('CardInteractionEffects exposes quick/detail help text for GHOST_WILL', () => {
     const CardInteractionEffects = require(path.resolve(__dirname, '..', 'cards', 'card-interaction-effects.js'));
-
     const cardDef = {
-      type: 'BREEDING_WILL',
+      type: 'GHOST_WILL',
       desc: EXPECTED_BROWSER_CARD.desc
     };
 
-    expect(CardInteractionEffects.quickCardEffectByType.BREEDING_WILL).toBe(EXPECTED_QUICK_TEXT);
-    expect(CardInteractionEffects.detailCardEffectByType.BREEDING_WILL).toBe(EXPECTED_DETAIL_TEXT);
+    expect(CardInteractionEffects.quickCardEffectByType.GHOST_WILL).toBe(EXPECTED_QUICK_TEXT);
+    expect(CardInteractionEffects.detailCardEffectByType.GHOST_WILL).toBe(EXPECTED_DETAIL_TEXT);
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).toBe(EXPECTED_QUICK_TEXT);
     expect(CardInteractionEffects.getDetailCardEffect(cardDef)).toBe(EXPECTED_DETAIL_TEXT);
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).not.toContain('...');
-  });
-
-  test('shared constants and rulebook keep the breeding wording in sync', () => {
-    const SharedConstants = require(path.resolve(__dirname, '..', 'shared-constants.js'));
-    const rulebook = fs.readFileSync(path.resolve(__dirname, '..', '01-rulebook.md'), 'utf8');
-    const sharedCard = ((SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BREEDING_WILL')) || null;
-
-    expect(sharedCard).toEqual(expect.objectContaining({
-      id: EXPECTED_BASE_CARD.id,
-      name: EXPECTED_BASE_CARD.name_ja,
-      type: EXPECTED_BASE_CARD.type,
-      cost: EXPECTED_BASE_CARD.cost,
-      desc: EXPECTED_QUICK_TEXT
-    }));
-    expect(rulebook).toContain('### 10.15 BREEDING_WILL（繁殖の意志）');
-    expect(rulebook).toContain(EXPECTED_QUICK_TEXT);
   });
 });

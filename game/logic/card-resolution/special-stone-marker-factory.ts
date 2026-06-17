@@ -130,8 +130,8 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
         case 'EXTREME_HYPERACTIVE_WILL':
             return {
                 type: 'EXTREME_HYPERACTIVE',
-                flipEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT, 3),
-                destroyEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT, 1)
+                flipEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT, 5),
+                destroyEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT, 5)
             };
         case 'ESCAPE_WILL':
             return {
@@ -153,8 +153,8 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
             return {
                 type: 'ULTIMATE_HYPERACTIVE',
                 remainingOwnerTurns: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_TURNS, FALLBACK_TURNS.ULTIMATE_HYPERACTIVE_GOD),
-                flipEvadeRemaining: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT, 3),
-                destroyEvadeRemaining: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT, 1)
+                flipEvadeRemaining: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT, 5),
+                destroyEvadeRemaining: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT, 2)
             };
         case 'WORK_WILL':
             return {

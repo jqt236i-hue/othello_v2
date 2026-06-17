@@ -50,13 +50,6 @@ async function handleCaptureSelection(row: number, col: number, playerKey: strin
             const rawEvent = result && Array.isArray(result.rawEvents)
                 ? result.rawEvents.find((event: any) => event && event.type === 'capture_selected')
                 : null;
-            if (rawEvent && rawEvent.blockedByGhost) {
-                const blockedMessage = LOG_MESSAGES && typeof LOG_MESSAGES.captureGhostBlocked === 'function'
-                    ? LOG_MESSAGES.captureGhostBlocked(playerKey === 'black' ? '黒' : '白', posToNotation(row, col))
-                    : `${playerKey === 'black' ? '黒' : '白'}が捕獲の意志を使ったが幽体に受け流された`;
-                emitCaptureLog(blockedMessage);
-                return;
-            }
             const cardName = rawEvent && rawEvent.capturedCardName ? rawEvent.capturedCardName : 'カード';
             emitCaptureLog(LOG_MESSAGES.captureApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col), cardName));
         }

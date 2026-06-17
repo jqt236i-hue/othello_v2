@@ -267,13 +267,13 @@ describe('rules help panel', () => {
       resolveCardDescriptionTexts: (cardDef) => ({
         quickText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石は反転または破壊されたとき3回まで復活する。'
-          : '自分石1つに完全保護を付与する。3ターン持続。',
+          : '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
         detailText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
-          : '完全保護中は敵対的・強制的な石効果を受けない。',
+          : '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
         distinctDetailText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
-          : '完全保護中は敵対的・強制的な石効果を受けない。',
+          : '',
         effectTags: cardDef.id === 'afterimage_will_01'
           ? [
             { kind: 'special-stone', label: '特殊石' },
@@ -330,7 +330,7 @@ describe('rules help panel', () => {
 
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3ターン持続']);
-    expect(cardDescEl.textContent).toContain('完全保護中は敵対的・強制的な石効果を受けない。');
+    expect(cardDescEl.textContent).toContain('穴マス化以外の全ての効果を無効化する。');
   });
 
   test('filters card encyclopedia by search text and effect tag chips', () => {
@@ -380,8 +380,8 @@ describe('rules help panel', () => {
             ]
           },
           guard_01: {
-            quickText: '自分石1つに完全保護を付与する。',
-            distinctDetailText: '完全保護中は敵対的な効果を受けない。',
+            quickText: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
+            distinctDetailText: '',
             effectTags: [
               { kind: 'full-protection', label: '完全保護' },
               { kind: 'duration-turns', value: 3, label: '3ターン持続' }
@@ -394,8 +394,8 @@ describe('rules help panel', () => {
               { kind: 'duration-turns', value: 3, label: '3ターン持続' }
             ]
           },
-          supply_01: {
-            quickText: '山札から2枚ドローする。',
+          silver_stone: {
+            quickText: '次の反転で得る布石を3倍にする。',
             distinctDetailText: '',
             effectTags: []
           }
@@ -410,7 +410,7 @@ describe('rules help panel', () => {
         { id: 'meteor_01', name: '因果抹消', type: 'METEOR_WILL', cost: 10, desc: 'マスを穴にする', display_type_ja: '禁忌' },
         { id: 'afterimage_will_01', name: '避ける意志', type: 'AFTERIMAGE_WILL', cost: 8, desc: '残像石化する', display_type_ja: '回避' },
         { id: 'blockade_01', name: '封鎖の意志', type: 'BLOCKADE_WILL', cost: 7, desc: '封鎖マスを作る', display_type_ja: '妨害' },
-        { id: 'supply_01', name: '補給の意志', type: 'SUPPLY_WILL', cost: 2, desc: '山札から2枚ドロー', display_type_ja: '補給' }
+        { id: 'silver_stone', name: '銀の意志', type: 'SILVER_STONE', cost: 2, desc: '次の反転で得る布石を3倍にする', display_type_ja: '採掘' }
       ]
     };
 
@@ -427,7 +427,7 @@ describe('rules help panel', () => {
     const cardNames = () => Array.from(document.querySelectorAll('.rules-help-card-item-name')).map((el) => el.textContent);
     const selectedTitle = () => document.querySelector('#rules-help-card-name .rules-help-card-title').textContent;
 
-    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
+    expect(cardNames()).toEqual(['守る意志', '銀の意志', '封鎖の意志', '避ける意志', '因果抹消']);
     expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '反転回避', '破壊回避']);
     expect(tagLabels()).not.toContain('5ターン後に発動');
     expect(tagLabels()).not.toContain('3ターン持続');
@@ -441,7 +441,7 @@ describe('rules help panel', () => {
     expect(filterStatus.textContent).toContain('1 / 5枚');
 
     clearButton.click();
-    expect(cardNames()).toEqual(['守る意志', '補給の意志', '封鎖の意志', '避ける意志', '因果抹消']);
+    expect(cardNames()).toEqual(['守る意志', '銀の意志', '封鎖の意志', '避ける意志', '因果抹消']);
     expect(searchInput.value).toBe('');
 
     const specialStoneFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))

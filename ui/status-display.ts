@@ -450,7 +450,7 @@ function resolveBattleStatusTurnLabel(): string {
     return currentPlayer === localPlayer ? 'あなたのターン' : '相手のターン';
 }
 
-function resolveTurnArrivalToastState(): { signature: string; kind: 'self' | 'enemy'; text: string } | null {
+function resolveTurnArrivalToastState(): { signature: string; kind: 'self' | 'enemy'; playerSide: PlayerKey; text: string } | null {
     const state = getGameStateForStatusDisplay();
     if (!state || state.currentPlayer === null || state.currentPlayer === undefined) return null;
     const currentPlayer = normalizePlayerKeyForStatusDisplay(state.currentPlayer);
@@ -461,6 +461,7 @@ function resolveTurnArrivalToastState(): { signature: string; kind: 'self' | 'en
     return {
         signature: `${currentPlayer}:${localPlayer}:${turnNumber}:${roundNumber}`,
         kind,
+        playerSide: currentPlayer,
         text: kind === 'self' ? 'Your Turn' : 'Enemy Turn'
     };
 }
@@ -503,9 +504,9 @@ function positionTurnArrivalToast(): void {
     const toastWidth = Number.isFinite(Number(toast.offsetWidth)) ? Number(toast.offsetWidth) : 0;
     const measuredToastHeight = Number.isFinite(Number(toast.offsetHeight)) ? Number(toast.offsetHeight) : 0;
     const toastHeight = measuredToastHeight > 0 ? measuredToastHeight : Math.round(40 * scale);
-    const targetRight = Math.max(8, Math.min(Math.round(boardRect.right - (10 * scale)), viewportWidth - 8));
+    const targetRight = Math.max(8, Math.min(Math.round(boardRect.right - (4 * scale)), viewportWidth - 8));
     const left = Math.max(8, targetRight - toastWidth);
-    const targetBottom = Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (11 * scale)), viewportHeight - 8));
+    const targetBottom = Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (15 * scale)), viewportHeight - 8));
     const top = Math.max(8, targetBottom - toastHeight);
     toast.style.left = `${left}px`;
     toast.style.top = `${top}px`;
@@ -553,12 +554,12 @@ function hideTurnArrivalToast(): void {
     turnArrivalToastFadeTimer = setTimeout(() => {
         const currentToast = getTurnArrivalToastElement();
         if (!currentToast) return;
-        currentToast.classList.remove('is-visible', 'is-hiding', 'is-self', 'is-enemy');
+        currentToast.classList.remove('is-visible', 'is-hiding', 'is-self', 'is-enemy', 'is-black-turn', 'is-white-turn');
     }, TURN_ARRIVAL_TOAST_FADE_OUT_MS);
     unrefStatusDisplayTimer(turnArrivalToastFadeTimer);
 }
 
-function showTurnArrivalToast(state: { kind: 'self' | 'enemy'; text: string }): void {
+function showTurnArrivalToast(state: { kind: 'self' | 'enemy'; playerSide: PlayerKey; text: string }): void {
     const toast = ensureTurnArrivalToastElement();
     if (!toast) return;
     const textEl = typeof toast.querySelector === 'function'
@@ -576,8 +577,9 @@ function showTurnArrivalToast(state: { kind: 'self' | 'enemy'; text: string }): 
         clearTimeout(turnArrivalToastFadeTimer);
         turnArrivalToastFadeTimer = null;
     }
-    toast.classList.remove('is-visible', 'is-hiding', 'is-self', 'is-enemy');
+    toast.classList.remove('is-visible', 'is-hiding', 'is-self', 'is-enemy', 'is-black-turn', 'is-white-turn');
     toast.classList.add(state.kind === 'self' ? 'is-self' : 'is-enemy');
+    toast.classList.add(state.playerSide === 'white' ? 'is-white-turn' : 'is-black-turn');
     void toast.offsetWidth;
     toast.classList.add('is-visible');
     scheduleTurnArrivalToastPositionRefresh();

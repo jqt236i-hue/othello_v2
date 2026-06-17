@@ -672,7 +672,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     if (flipEvadeRemaining === null) {
                         const specialType = String(special || '').toUpperCase();
                         if (specialType === 'ULTIMATE_HYPERACTIVE' || specialType === 'EXTREME_HYPERACTIVE') {
-                            flipEvadeRemaining = 3;
+                            flipEvadeRemaining = 5;
                         }
                     }
                 } else if (bombMarker) {

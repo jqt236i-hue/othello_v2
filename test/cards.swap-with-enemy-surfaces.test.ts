@@ -7,17 +7,17 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '交換の意志',
   type: 'SWAP_WITH_ENEMY',
   cost: 17,
-  desc_ja: '相手通常石1つ選んで自分の通常石に交換する。(反転可能)',
+  desc_ja: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。',
   display_type_ja: '執行'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '交換の意志',
-  desc: '相手通常石1つ選んで自分の通常石に交換する。(反転可能)'
+  desc: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。'
 });
 
-const EXPECTED_QUICK_TEXT = '相手通常石1つ選んで自分の通常石に交換する。(反転可能)';
+const EXPECTED_QUICK_TEXT = '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。';
 const EXPECTED_DETAIL_TEXT = '相手の通常石1つを自分色に交換する。\n交換後、その位置を起点に挟める相手石を通常反転する。\nそのターンは石を置かず、そこで手番終了する。';
 
 function getCardById(catalog, cardId) {

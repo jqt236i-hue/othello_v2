@@ -645,14 +645,14 @@ In `test/workers.match-pending-effect-id.test.ts`, add a scenario near the exist
 test('observer will worker follow-up cannot steal inviolable special cards', () => {
   const result = runHandFollowupScenario({
     kind: 'observer',
-    whiteHand: ['observer_will_01', 'supply_01'],
+    whiteHand: ['observer_will_01', 'hard_01'],
     whiteCopyIds: [101, 102],
     observerWillTargetIndex: 0
   });
 
   expect(result.status).toBe(400);
   expect(result.payload.ok).toBe(false);
-  expect(result.internalCardState.hands.white).toEqual(['observer_will_01', 'supply_01']);
+  expect(result.internalCardState.hands.white).toEqual(['observer_will_01', 'hard_01']);
 });
 ```
 

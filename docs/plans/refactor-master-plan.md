@@ -264,7 +264,6 @@ game/cards/effects/
 ├── extreme-hyperactive-will.js
 ├── gluttonous-will.js
 ├── rebuild-will.js
-├── supply-will.js
 ├── plunder-will.js
 ├── work-will.js
 ├── ribo-will.js

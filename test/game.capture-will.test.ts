@@ -292,7 +292,7 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     });
   });
 
-  test('capture target list includes ghost, but applying capture is deflected by ghost', () => {
+  test('capture target list includes ghost and captures it normally', () => {
     const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
     expect(captureDef).toBeTruthy();
 
@@ -317,29 +317,27 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
 
     expect(res).toMatchObject({
       applied: true,
-      blockedByGhost: true,
-      reason: 'ghost_protected',
+      capturedCardId: 'ghost_01',
+      capturedCardType: 'GHOST_WILL',
       sourceSpecialType: 'GHOST'
     });
+    expect(res.blockedByGhost).toBeUndefined();
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(gameState.board[3][5]).toBe(-1);
+    expect(gameState.board[3][5]).toBe(0);
     expect((cardState.markers || []).some((marker) => (
       marker &&
       marker.row === 3 &&
       marker.col === 5 &&
       marker.data &&
-      marker.data.type === 'GHOST' &&
-      marker.owner === 'white'
-    ))).toBe(true);
-    expect(cardState.hands.black).toEqual([]);
+      marker.data.type === 'GHOST'
+    ))).toBe(false);
+    expect(cardState.hands.black).toEqual(['ghost_01']);
     expect((cardState.presentationEvents || []).some((ev) => (
       ev &&
-      ev.type === 'DESTROY' &&
-      ev.row === 3 &&
-      ev.col === 5 &&
+      ev.type === 'HAND_ADD' &&
+      ev.cardId === 'ghost_01' &&
       ev.meta &&
-      ev.meta.blockedByGhost === true &&
-      ev.meta.special === 'GHOST'
+      ev.meta.sourceSpecialType === 'GHOST'
     ))).toBe(true);
   });
 

@@ -1154,10 +1154,10 @@ function buildPlaybackParityFixtures() {
     buildHandOverlaySelectionFixture({
       cardId: 'observer_will_01',
       pendingType: 'OBSERVER_WILL',
-      pendingExtra: { offers: [{ handIndex: 0, cardId: 'supply_01' }, { handIndex: 1, cardId: 'silver_stone' }] },
-      whiteHand: ['supply_01', 'silver_stone'],
+      pendingExtra: { offers: [{ handIndex: 0, cardId: 'hard_01' }, { handIndex: 1, cardId: 'silver_stone' }] },
+      whiteHand: ['hard_01', 'silver_stone'],
       actionPayload: { observerWillTargetIndex: 0 },
-      expectedHandRemove: { player: 'white', cardId: 'supply_01', reason: 'observer_will' }
+      expectedHandRemove: { player: 'white', cardId: 'hard_01', reason: 'observer_will' }
     }),
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),

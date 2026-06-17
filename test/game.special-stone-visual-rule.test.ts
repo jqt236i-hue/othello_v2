@@ -251,7 +251,7 @@ describe('special stone visual rule', () => {
     });
   });
 
-  test('TEMPT_WILL は幽体を対象にできるが、効果は幽体に受け流される', () => {
+  test('TEMPT_WILL は幽体を対象にでき、幽体のまま自分側へ変える', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -268,10 +268,11 @@ describe('special stone visual rule', () => {
 
     expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual(expect.arrayContaining([{ row: 6, col: 1 }]));
     const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 6, 1);
-    expect(res).toMatchObject({ applied: true, blockedByGhost: true, reason: 'ghost_protected' });
-    expect(gameState.board[6][1]).toBe(Shared.WHITE);
+    expect(res).toMatchObject({ applied: true });
+    expect(res.blockedByGhost).toBeUndefined();
+    expect(gameState.board[6][1]).toBe(Shared.BLACK);
     expect(cardState.markers).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 6, col: 1, owner: 'white', data: expect.objectContaining({ type: 'GHOST' }) })
+      expect.objectContaining({ row: 6, col: 1, owner: 'black', data: expect.objectContaining({ type: 'GHOST' }) })
     ]));
   });
 });

@@ -47,7 +47,6 @@ export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freez
     "will_hunter_king_01": "44_意志狩りの王.png",
     "instant_hyperactive_01": "45_瞬間多動.png",
     "rebuild_01": "46_再構築の意志.png",
-    "supply_01": "47_補給の意志.png",
     "plunder_will": "48_吸収の意志.png",
     "work_01": "50_出稼ぎの意志.png",
     "ribo_01": "51_リボ払いの意志.png",

@@ -37,8 +37,8 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     );
     expect(marker).toBeTruthy();
     expect(marker.data.remainingOwnerTurns).toBe(12);
-    expect(marker.data.flipEvadeRemaining).toBe(3);
-    expect(marker.data.destroyEvadeRemaining).toBe(1);
+    expect(marker.data.flipEvadeRemaining).toBe(5);
+    expect(marker.data.destroyEvadeRemaining).toBe(2);
   });
 
   test('owner turn only decrements duration, and on 12th owner turn it reverts to a normal stone', () => {
@@ -299,7 +299,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(events2.some((ev) => ev && ev.type === 'ultimate_hyperactive_moved_immediate')).toBe(true);
   });
 
-  test('ultimate hyperactive flip evasion is capped at 3 uses', () => {
+  test('ultimate hyperactive flip evasion is capped at 5 uses', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -317,7 +317,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       const markerBefore = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(markerBefore).toBeTruthy();
 
@@ -336,7 +336,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
 
       const markerAfter = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
       expect(markerAfter).toBeTruthy();
-      expect(markerAfter.data.flipEvadeRemaining).toBe(2 - i);
+      expect(markerAfter.data.flipEvadeRemaining).toBe(4 - i);
       expect(gameState.board[markerAfter.row][markerAfter.col]).toBe(Core.WHITE);
     }
 
@@ -363,7 +363,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(markerAfterCap.data.flipEvadeRemaining).toBe(0);
   });
 
-  test('ultimate hyperactive can evade destroy once and the next destroy removes it', () => {
+  test('ultimate hyperactive can evade destroy twice and the third destroy removes it', () => {
     const { cardState, gameState } = makeState();
 
     for (let row = 0; row < 8; row++) {
@@ -383,8 +383,8 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       data: {
         type: 'ULTIMATE_HYPERACTIVE',
         remainingOwnerTurns: 12,
-        flipEvadeRemaining: 3,
-        destroyEvadeRemaining: 1
+        flipEvadeRemaining: 5,
+        destroyEvadeRemaining: 2
       }
     });
 
@@ -404,13 +404,30 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(7);
     expect(marker.col).toBe(7);
-    expect(marker.data.destroyEvadeRemaining).toBe(0);
+    expect(marker.data.destroyEvadeRemaining).toBe(1);
 
     const second = BoardOps.destroyAt(cardState, gameState, 7, 7, 'SYSTEM', 'test_destroy_again');
 
-    expect(second && second.destroyed).toBe(true);
-    expect(second && second.evaded).toBe(false);
+    expect(second).toMatchObject({
+      destroyed: false,
+      evaded: true,
+      reason: 'destroy_evaded',
+      from: { row: 7, col: 7 },
+      to: { row: 4, col: 4 }
+    });
     expect(gameState.board[7][7]).toBe(Core.EMPTY);
+    expect(gameState.board[4][4]).toBe(Core.BLACK);
+    marker = (cardState.markers || []).find((m) => m && m.id === 412);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(4);
+    expect(marker.col).toBe(4);
+    expect(marker.data.destroyEvadeRemaining).toBe(0);
+
+    const third = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy_third');
+
+    expect(third && third.destroyed).toBe(true);
+    expect(third && third.evaded).toBe(false);
+    expect(gameState.board[4][4]).toBe(Core.EMPTY);
     marker = (cardState.markers || []).find((m) => m && m.id === 412);
     expect(marker).toBeUndefined();
   });
@@ -443,7 +460,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
         row: 3,
         col: 5,
         owner: 'white',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3 }
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 5 }
       }
     );
     cardState.pendingEffectByPlayer.black = {
@@ -500,7 +517,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
 
     expect(hyperactiveMarker).toBeTruthy();
     expect(ultimateMarker).toBeTruthy();
-    expect(ultimateMarker.data.flipEvadeRemaining).toBe(2);
+    expect(ultimateMarker.data.flipEvadeRemaining).toBe(4);
     expect(gameState.board[3][4]).toBe(Core.BLACK);
     expect(gameState.board[3][5]).toBe(Core.EMPTY);
     expect(gameState.board[2][6]).toBe(Core.WHITE);
@@ -525,7 +542,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
         row: 3,
         col: 3,
         owner: 'black',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3 }
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 5 }
       },
       {
         id: 601,
@@ -533,7 +550,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
         row: 3,
         col: 5,
         owner: 'white',
-        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3 }
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 5 }
       }
     );
 
@@ -583,7 +600,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(blackUltimate).toBeTruthy();
     expect(blackUltimate.data.remainingOwnerTurns).toBe(11);
     expect(whiteUltimate).toBeTruthy();
-    expect(whiteUltimate.data.flipEvadeRemaining).toBe(2);
+    expect(whiteUltimate.data.flipEvadeRemaining).toBe(4);
     expect(gameState.board[3][3]).toBe(Core.BLACK);
     expect(gameState.board[3][5]).toBe(Core.EMPTY);
     expect(gameState.board[2][6]).toBe(Core.WHITE);

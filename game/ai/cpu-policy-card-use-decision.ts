@@ -108,7 +108,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isExtendLifeGod,
             isExtendLifeCard,
             isRebuildWill,
-            isSupplyWill,
             isGoldStone,
             isCrystalStone,
             isRainbowStone,
@@ -295,7 +294,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             !isWhiteCornerSwingKeepCard
         ) {
             score -= 34;
-            if (isChargeSwingCard || isTreasureBox || isSupplyWill || isRebuildWill) score -= 18;
+            if (isChargeSwingCard || isTreasureBox || isRebuildWill) score -= 18;
         }
 
         if (ctx.discDiff >= 10) score -= 20;
@@ -587,30 +586,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (ctx.ownCharge <= 8) score += 16;
             if (ctx.handSize >= 4) score += 8;
             if (leadStable && hasCornerMoveNow && !ctx.forceUseCard) score -= 6;
-        }
-
-        if (isSupplyWill) {
-            score += 10;
-            if (ctx.handSize <= 1) score += 90;
-            else if (ctx.handSize === 2) score += 72;
-            else if (ctx.handSize === 3) score += 34;
-            else if (ctx.handSize >= 5) score -= 150;
-            else if (ctx.handSize >= 4) score -= 26;
-
-            if (usableCardIds.length <= 1 && ctx.handSize <= 3) score += 18;
-            if (openingPhase) score += 22;
-            if (midLatePhase) score += 8;
-            if (endgamePhase) score -= 80;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 26;
-            if (leadStable && ctx.handSize >= 4 && !ctx.forceUseCard) score -= 18;
-            if (cardCyclePressure >= 2 && ctx.handSize <= 3) score += 18;
-
-            if (deckRemaining !== null) {
-                if (deckRemaining <= 1) score -= 180;
-                else if (deckRemaining <= 2) score -= 96;
-                else if (deckRemaining <= 4) score -= 28;
-                else if (deckRemaining >= 8 && ctx.handSize <= 2) score += 16;
-            }
         }
 
         // FREE_PLACEMENT is strongest when legal mobility is poor and corner access is denied.

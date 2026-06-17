@@ -437,6 +437,90 @@ const CardBreeding = /**
         return targets;
     }
 
+    function _collectAllEmptyTargets(cardState: BreedingCardState, gameState: BreedingGameState, deps: BreedingProcessDeps = {}): BreedingPosition[] {
+        const targets: BreedingPosition[] = [];
+        const seen = new Set<string>();
+        const addTarget = (row: number, col: number): void => {
+            if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+            if (_getBoardCell(gameState, row, col) !== EMPTY) return;
+            if (_isBlockedByBlockade(cardState, row, col, gameState, deps)) return;
+            const key = _posKey(row, col);
+            if (seen.has(key)) return;
+            seen.add(key);
+            targets.push({ row, col });
+        };
+
+        const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
+        for (let row = 0; row < board.length; row++) {
+            const boardRow = board[row];
+            if (!Array.isArray(boardRow)) continue;
+            for (let col = 0; col < boardRow.length; col++) {
+                addTarget(row, col);
+            }
+        }
+
+        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
+            : null;
+        if (expansion && Array.isArray(expansion.cells)) {
+            for (const cell of expansion.cells) {
+                if (!cell || typeof cell !== 'object') continue;
+                const bounds = _resolveBoardBounds(gameState);
+                const col = Number.isInteger(cell.col)
+                    ? cell.col
+                    : (cell.side === 'left' ? -1 : (cell.side === 'right' && bounds ? bounds.maxCol + 1 : null));
+                const rowNum = Number(cell.row);
+                const colNum = Number(col);
+                if (!Number.isInteger(rowNum) || !Number.isInteger(colNum)) continue;
+                addTarget(rowNum, colNum);
+            }
+        } else if (expansion && expansion.active === true && Number.isInteger(expansion.row)) {
+            const bounds = _resolveBoardBounds(gameState);
+            const col = Number.isInteger(expansion.col)
+                ? expansion.col
+                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' && bounds ? bounds.maxCol + 1 : null));
+            const rowNum = Number(expansion.row);
+            const colNum = Number(col);
+            if (Number.isInteger(rowNum) && Number.isInteger(colNum)) addTarget(rowNum, colNum);
+        }
+
+        return targets;
+    }
+
+    function _chebyshevDistance(a: BreedingPosition, b: BreedingPosition): number {
+        return Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col));
+    }
+
+    function _collectNearestEmptyTargets(cardState: BreedingCardState, gameState: BreedingGameState, origins: unknown, deps: BreedingProcessDeps = {}): BreedingPosition[] {
+        const src = _normalizePositions(origins);
+        if (src.length === 0) return [];
+        const allTargets = _collectAllEmptyTargets(cardState, gameState, deps);
+        if (allTargets.length === 0) return [];
+
+        let bestDistance = Number.POSITIVE_INFINITY;
+        const nearest: BreedingPosition[] = [];
+        for (const target of allTargets) {
+            let targetDistance = Number.POSITIVE_INFINITY;
+            for (const origin of src) {
+                targetDistance = Math.min(targetDistance, _chebyshevDistance(origin, target));
+            }
+            if (targetDistance < bestDistance) {
+                bestDistance = targetDistance;
+                nearest.length = 0;
+                nearest.push(target);
+            } else if (targetDistance === bestDistance) {
+                nearest.push(target);
+            }
+        }
+        return nearest;
+    }
+
+    function _collectBreedingTargets(cardState: BreedingCardState, gameState: BreedingGameState, origins: unknown, deps: BreedingProcessDeps = {}): BreedingPosition[] {
+        const neighborTargets = _collectEmptyNeighborTargets(cardState, gameState, origins, deps);
+        if (neighborTargets.length > 0) return neighborTargets;
+        return _collectNearestEmptyTargets(cardState, gameState, origins, deps);
+    }
+
     function _pickRandomTarget(targets: BreedingPosition[], prng: BreedingRandomLike): BreedingPosition | null {
         const list = Array.isArray(targets) ? targets : [];
         if (list.length === 0) return null;
@@ -553,7 +637,7 @@ const CardBreeding = /**
         const origins = previousFrontier.length === 0 || brokenFrontier
             ? [{ row, col }]
             : previousFrontier;
-        const targets = _collectEmptyNeighborTargets(cardState, gameState, origins, deps);
+        const targets = _collectBreedingTargets(cardState, gameState, origins, deps);
         const picked = _pickRandomTarget(targets, prng);
 
         const batch = spawnAndFlipBatch(cardState, gameState, playerKey, player, picked ? [picked] : [], 'BREEDING', 'breeding_spawned', { row, col }, deps);
@@ -616,7 +700,7 @@ const CardBreeding = /**
         if (!anchor) return { spawned, destroyed, flipped };
         if (_getBoardCell(gameState, row, col) !== player) return { spawned, destroyed, flipped };
 
-        const targets = _collectEmptyNeighborTargets(cardState, gameState, [{ row, col }], deps);
+        const targets = _collectBreedingTargets(cardState, gameState, [{ row, col }], deps);
         const picked = _pickRandomTarget(targets, prng);
         const batch = spawnAndFlipBatch(cardState, gameState, playerKey, player, picked ? [picked] : [], 'BREEDING', 'breeding_spawn_immediate', { row, col }, deps);
         spawned.push(...batch.spawned);

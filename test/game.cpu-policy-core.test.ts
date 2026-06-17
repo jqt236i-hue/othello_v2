@@ -235,34 +235,6 @@ describe('cpu-policy-core', () => {
         }));
     });
 
-    test('chooseHandDestroyTargetForCycle immediately destroys SUPPLY_WILL while charge is 50 or lower', () => {
-        const selected = core.chooseHandDestroyTargetForCycle(
-            ['supply_01'],
-            ['supply_01'],
-            () => 1,
-            () => ({ id: 'supply_01', type: 'SUPPLY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 2,
-                ownCharge: 50,
-                handSize: 1,
-                empties: 32,
-                discDiff: 0,
-                ownCorners: 0,
-                oppCorners: 0,
-                ownEdges: 0,
-                oppEdges: 0,
-                hasCornerMoveNow: false,
-                cornerEmergency: false
-            }
-        );
-        expect(selected).toEqual(expect.objectContaining({
-            cardId: 'supply_01',
-            reason: 'bucket2_low_charge'
-        }));
-    });
-
     test('chooseHandDestroyTargetForCycle immediately destroys REVEAL_HAND_WILL while charge is 50 or lower', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['reveal_01'],
@@ -1055,55 +1027,6 @@ describe('cpu-policy-core', () => {
                 deckRemaining: 1,
                 ownCorners: 1,
                 oppCorners: 0
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-    });
-
-    test('scoreCardUseDecision uses SUPPLY_WILL to refill a shallow hand', () => {
-        const out = core.scoreCardUseDecision(
-            'supply',
-            () => 1,
-            () => ({ id: 'supply', type: 'SUPPLY_WILL' }),
-            {
-                level: 6,
-                legalMovesCount: 4,
-                discDiff: -2,
-                empties: 36,
-                ownCharge: 6,
-                handSize: 2,
-                handCardIds: ['supply', 'guard'],
-                usableCardIds: ['supply'],
-                deckRemaining: 10,
-                ownCorners: 0,
-                oppCorners: 1,
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: true
-            }
-        );
-        expect(out.shouldUse).toBe(true);
-        expect(out.score).toBeGreaterThan(out.minUseScore);
-    });
-
-    test('scoreCardUseDecision suppresses SUPPLY_WILL when hand is full', () => {
-        const out = core.scoreCardUseDecision(
-            'supply',
-            () => 1,
-            () => ({ id: 'supply', type: 'SUPPLY_WILL' }),
-            {
-                level: 6,
-                legalMovesCount: 4,
-                discDiff: 4,
-                empties: 30,
-                ownCharge: 10,
-                handSize: 5,
-                handCardIds: ['supply', 'guard', 'destroy', 'silver', 'work'],
-                usableCardIds: ['supply', 'guard', 'destroy'],
-                deckRemaining: 10,
-                ownCorners: 1,
-                oppCorners: 0,
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: true
             }
         );
         expect(out.shouldUse).toBe(false);
@@ -3706,9 +3629,9 @@ expect(TestSharedBoardUtils.countAdjacentLoneEdgeDiscs(supportedBoard, 0, 5, 1))
 
     test('scoreCardUseDecision lowers non-counter utility under strong enemy threat while recovery gap remains', () => {
         const lowThreat = core.scoreCardUseDecision(
-            'supply_01',
+            'rebuild_01',
             () => 0,
-            () => ({ id: 'supply_01', type: 'SUPPLY_WILL' }),
+            () => ({ id: 'rebuild_01', type: 'REBUILD_WILL' }),
             {
                 level: 6,
                 playerValue: -1,
@@ -3733,9 +3656,9 @@ expect(TestSharedBoardUtils.countAdjacentLoneEdgeDiscs(supportedBoard, 0, 5, 1))
             }
         );
         const highThreat = core.scoreCardUseDecision(
-            'supply_01',
+            'rebuild_01',
             () => 0,
-            () => ({ id: 'supply_01', type: 'SUPPLY_WILL' }),
+            () => ({ id: 'rebuild_01', type: 'REBUILD_WILL' }),
             {
                 level: 6,
                 playerValue: -1,

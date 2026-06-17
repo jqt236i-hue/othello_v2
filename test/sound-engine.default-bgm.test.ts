@@ -125,7 +125,7 @@ async function flushAsyncWork() {
 }
 
 const DEFAULT_MASTER_VOLUME = 1;
-const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.3094 * DEFAULT_MASTER_VOLUME;
+const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.24752 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
   test('unlockAudio resumes AudioContext and plays a silent buffer once', async () => {
@@ -381,7 +381,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.bgmVolume).toBe(0.548625);
   });
 
-  test('startup default BGM output is scaled without moving the volume slider', () => {
+  test('startup BGM output is globally scaled without moving the volume slider', () => {
     const { MockAudio, instances } = createMockHtmlAudioClass();
     const soundEngine = loadSoundEngine({ Audio: MockAudio });
 
@@ -389,13 +389,13 @@ describe('SoundEngine default BGM', () => {
     soundEngine.loadBgm(0);
 
     expect(soundEngine.bgmVolume).toBe(0.548625);
-    expect(soundEngine.bgmOutputVolumeScale).toBe(0.3094);
+    expect(soundEngine.bgmOutputVolumeScale).toBe(0.24752);
     expect(instances[0].volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
 
     soundEngine.setBgmVolume(1);
 
     expect(soundEngine.bgmVolume).toBe(1);
-    expect(instances[0].volume).toBeCloseTo(0.3094 * DEFAULT_MASTER_VOLUME, 6);
+    expect(instances[0].volume).toBeCloseTo(0.24752 * DEFAULT_MASTER_VOLUME, 6);
   });
 
   test('master volume scales both BGM output and effect output without overwriting per-channel sliders', () => {
@@ -409,7 +409,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.masterVolume).toBe(0.5);
     expect(soundEngine.volume).toBe(0.56);
     expect(soundEngine.bgmVolume).toBe(0.548625);
-    expect(instances[0].volume).toBeCloseTo(0.548625 * 0.3094 * 0.5, 6);
+    expect(instances[0].volume).toBeCloseTo(0.548625 * 0.24752 * 0.5, 6);
     expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
   });
 
@@ -423,14 +423,14 @@ describe('SoundEngine default BGM', () => {
     soundEngine.setMasterVolume(2);
 
     expect(soundEngine.masterVolume).toBe(2);
-    expect(instances[0].volume).toBeCloseTo(0.5 * 0.3094 * 2, 6);
+    expect(instances[0].volume).toBeCloseTo(0.5 * 0.24752 * 2, 6);
 
     soundEngine.setMasterVolume(3);
 
     expect(soundEngine.masterVolume).toBe(2);
   });
 
-  test('master volume scales active result BGM output', () => {
+  test('master volume and BGM output scale active result BGM output', () => {
     const { MockAudio, instances } = createMockHtmlAudioClass();
     const soundEngine = loadSoundEngine({ Audio: MockAudio });
 
@@ -440,11 +440,11 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.playResultBgm('win')).toBe(true);
     const resultBgm = instances[0];
 
-    expect(resultBgm.volume).toBeCloseTo(0.8 * DEFAULT_MASTER_VOLUME, 6);
+    expect(resultBgm.volume).toBeCloseTo(0.8 * 0.24752 * DEFAULT_MASTER_VOLUME, 6);
 
     soundEngine.setMasterVolume(0.25);
 
-    expect(resultBgm.volume).toBeCloseTo(0.8 * 0.25, 6);
+    expect(resultBgm.volume).toBeCloseTo(0.8 * 0.24752 * 0.25, 6);
   });
 
   test('duration-end revert sound uses the renamed asset mapping', () => {
@@ -566,6 +566,7 @@ describe('SoundEngine default BGM', () => {
     expect(normalBgm.pause).toHaveBeenCalledTimes(1);
     expect(manifestBgm.src).toBe('assets/audio/bgm/manifest-stones/観測の道-bpm150.wav');
     expect(manifestBgm.loop).toBe(true);
+    expect(manifestBgm.volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
     expect(manifestBgm.play).toHaveBeenCalledTimes(1);
 
     soundEngine.clearManifestBgmOverride();

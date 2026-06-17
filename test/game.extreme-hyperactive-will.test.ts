@@ -37,8 +37,8 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       m.data.type === 'EXTREME_HYPERACTIVE'
     ));
     expect(marker).toBeTruthy();
-    expect(marker.data.flipEvadeRemaining).toBe(3);
-    expect(marker.data.destroyEvadeRemaining).toBe(1);
+    expect(marker.data.flipEvadeRemaining).toBe(5);
+    expect(marker.data.destroyEvadeRemaining).toBe(5);
   });
 
   test('ターン開始時に移動後、周囲8マスの石を1マス遠ざける', () => {
@@ -64,7 +64,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 }
     });
 
     const events = [];
@@ -125,7 +125,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 }
     });
 
     const events = [];
@@ -150,7 +150,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
     expect(movedTarget.to).not.toEqual({ row: 1, col: 4 });
   });
 
-  test('反転回避は3回まで発動する', () => {
+  test('反転回避は5回まで発動する', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -168,11 +168,11 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5 }
     });
 
     let currentCell = [3, 3];
-    for (const remaining of [2, 1, 0]) {
+    for (const remaining of [4, 3, 2, 1, 0]) {
       const res = CardLogic.resolveHyperactiveFlipEvasion(
         cardState,
         gameState,
@@ -208,7 +208,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
     expect(markerAfterExhausted.data.flipEvadeRemaining).toBe(0);
   });
 
-  test('破壊回避は1回だけ発動する', () => {
+  test('破壊回避は5回まで発動する', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -225,33 +225,35 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       owner: 'black',
       data: {
         type: 'EXTREME_HYPERACTIVE',
-        flipEvadeRemaining: 3,
-        destroyEvadeRemaining: 1
+        flipEvadeRemaining: 5,
+        destroyEvadeRemaining: 5
       }
     });
 
-    const first = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy');
-    expect(first).toMatchObject({
-      destroyed: false,
-      evaded: true,
-      reason: 'destroy_evaded',
-      from: { row: 4, col: 4 },
-      to: { row: 3, col: 3 }
-    });
-    expect(gameState.board[4][4]).toBe(Core.EMPTY);
-    expect(gameState.board[3][3]).toBe(Core.BLACK);
-
     let marker = (cardState.markers || []).find((m) => m && m.id === 412);
-    expect(marker).toBeTruthy();
-    expect(marker.row).toBe(3);
-    expect(marker.col).toBe(3);
-    expect(marker.data.flipEvadeRemaining).toBe(3);
-    expect(marker.data.destroyEvadeRemaining).toBe(0);
+    for (const remaining of [4, 3, 2, 1, 0]) {
+      const beforeRow = marker.row;
+      const beforeCol = marker.col;
+      const result = BoardOps.destroyAt(cardState, gameState, beforeRow, beforeCol, 'SYSTEM', 'test_destroy');
+      expect(result).toMatchObject({
+        destroyed: false,
+        evaded: true,
+        reason: 'destroy_evaded',
+        from: { row: beforeRow, col: beforeCol }
+      });
 
-    const second = BoardOps.destroyAt(cardState, gameState, 3, 3, 'SYSTEM', 'test_destroy_again');
-    expect(second && second.destroyed).toBe(true);
-    expect(second && second.evaded).toBe(false);
-    expect(gameState.board[3][3]).toBe(Core.EMPTY);
+      marker = (cardState.markers || []).find((m) => m && m.id === 412);
+      expect(marker).toBeTruthy();
+      expect(marker.data.flipEvadeRemaining).toBe(5);
+      expect(marker.data.destroyEvadeRemaining).toBe(remaining);
+    }
+
+    const finalRow = marker.row;
+    const finalCol = marker.col;
+    const exhausted = BoardOps.destroyAt(cardState, gameState, finalRow, finalCol, 'SYSTEM', 'test_destroy_exhausted');
+    expect(exhausted && exhausted.destroyed).toBe(true);
+    expect(exhausted && exhausted.evaded).toBe(false);
+    expect(gameState.board[finalRow][finalCol]).toBe(Core.EMPTY);
 
     marker = (cardState.markers || []).find((m) => m && m.id === 412);
     expect(marker).toBeUndefined();
@@ -275,7 +277,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 }
     });
 
     const events = [];
@@ -324,7 +326,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 }
     });
 
     const events = [];
@@ -375,8 +377,8 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
         meta: expect.objectContaining({
           special: 'EXTREME_HYPERACTIVE',
           owner: 'black',
-          flipEvadeRemaining: 3,
-          destroyEvadeRemaining: 1
+          flipEvadeRemaining: 5,
+          destroyEvadeRemaining: 5
         })
       }),
       expect.objectContaining({
@@ -412,7 +414,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3 }
+      data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 }
     });
 
     let markerId = 2;

@@ -50,7 +50,6 @@ describe('cpu-policy card helpers module', () => {
     expect(helpers.getForcedHandDestroyReason('a', 'NEVER_USE', {}, null)).toBe('bucket1_never_use');
     expect(helpers.getForcedHandDestroyReason('a', 'LOW_CHARGE', { ownCharge: 1 }, null)).toBe('bucket2_low_charge');
     expect(helpers.getForcedHandDestroyReason('a', 'CONDITIONAL', { ownCharge: 5 }, new Set(['b']))).toBe('bucket3_currently_unusable');
-    expect(helpers.getForcedHandDestroyReason('a', 'SUPPLY_WILL', { handSize: 2 }, null)).toBeNull();
   });
 
   test('buildBlockedCardUseDecision and chooseForcedHandDestroyTarget preserve priority ordering', () => {

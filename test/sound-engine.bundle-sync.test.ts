@@ -62,7 +62,7 @@ describe('SoundEngine bundle sync', () => {
     const rootDir = path.resolve(__dirname, '..');
     const expected = readBgmOutputVolumeScale(path.join(rootDir, 'sound-engine.ts'));
 
-    expect(expected).toBe(0.3094);
+    expect(expected).toBe(0.24752);
     expect(readBgmOutputVolumeScale(path.join(rootDir, 'dist', 'sound-engine.js'))).toBe(expected);
     expect(readBgmOutputVolumeScale(path.join(rootDir, 'public', 'module-registry.js'))).toBe(expected);
     expect(readBgmOutputVolumeScale(path.join(rootDir, 'worker-public', 'public', 'module-registry.js'))).toBe(expected);

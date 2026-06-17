@@ -57,16 +57,16 @@
             flipMoveReason: 'escape_hyperactive_flip_evade_move'
         }),
         EXTREME_HYPERACTIVE: Object.freeze({
-            flipDefault: 3,
-            destroyDefault: 1,
-            visualFlipDefault: 3,
+            flipDefault: 5,
+            destroyDefault: 5,
+            visualFlipDefault: 5,
             flipCause: 'EXTREME_HYPERACTIVE_WILL',
             flipMoveReason: 'extreme_hyperactive_flip_evade_move'
         }),
         ULTIMATE_HYPERACTIVE: Object.freeze({
-            flipDefault: 3,
-            destroyDefault: 1,
-            visualFlipDefault: 3,
+            flipDefault: 5,
+            destroyDefault: 2,
+            visualFlipDefault: 5,
             flipCause: 'ULTIMATE_HYPERACTIVE_GOD',
             flipMoveReason: 'ultimate_hyperactive_flip_evade_move',
             requiresActiveDuration: true

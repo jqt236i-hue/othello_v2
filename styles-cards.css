@@ -100,6 +100,7 @@
 }
 
 .card-item {
+    --card-frame-pentagon: polygon(50% 0, 94% 5%, 100% 13%, 100% 87%, 94% 96%, 50% 100%, 6% 96%, 0 87%, 0 13%, 6% 5%);
     width: var(--layout-size-card-width);
     height: var(--layout-size-card-height);
     border-radius: var(--layout-size-card-radius);
@@ -501,7 +502,7 @@
     --card-available-outer: rgba(214, 158, 58, 0.55);
     --card-available-drop-core: rgba(255, 226, 130, 0.84);
     --card-available-drop-outer: rgba(214, 158, 58, 0.56);
-    clip-path: polygon(50% 0, 94% 5%, 100% 13%, 100% 87%, 94% 96%, 50% 100%, 6% 96%, 0 87%, 0 13%, 6% 5%);
+    clip-path: var(--card-frame-pentagon);
     --card-visible-surface-shadow:
         var(--ui-elevation-card),
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 248, 218, 0.34),
@@ -668,7 +669,7 @@
     content: '';
     inset: calc(8px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 230, 150, 0.72);
-    clip-path: polygon(50% 0, 94% 5%, 100% 13%, 100% 87%, 94% 96%, 50% 100%, 6% 96%, 0 87%, 0 13%, 6% 5%);
+    clip-path: var(--card-frame-pentagon);
     filter: none;
     transform: none;
     box-shadow:
@@ -1110,7 +1111,7 @@
         radial-gradient(circle at 50% 50%, transparent 0 14%, rgba(231, 202, 128, 0.65) 15% 17%, transparent 18% 31%, rgba(231, 202, 128, 0.36) 32% 34%, transparent 35%),
         linear-gradient(90deg, transparent 0 45%, rgba(231, 202, 128, 0.28) 46% 54%, transparent 55%),
         linear-gradient(0deg, transparent 0 45%, rgba(231, 202, 128, 0.24) 46% 54%, transparent 55%);
-    clip-path: polygon(50% 0, 94% 5%, 100% 13%, 100% 87%, 94% 96%, 50% 100%, 6% 96%, 0 87%, 0 13%, 6% 5%);
+    clip-path: var(--card-frame-pentagon);
     background:
         radial-gradient(ellipse at 50% 18%, rgba(255, 236, 170, 0.14), transparent 36%),
         linear-gradient(155deg, #4a3420 0%, #25170d 44%, #130a06 100%);

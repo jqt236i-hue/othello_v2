@@ -121,7 +121,7 @@
 | PERMA_PROTECT_NEXT_STONE | 強い意志 | 15 | 防御 |
 | STRONG_WIND_WILL | 強風の意志 | 9 | 攻撃/盤面操作 |
 | TRAP_WILL | 罠の意志 | 4 | 牽制 |
-| TEMPT_WILL | 誘惑の意志 | 23 | 攻撃 |
+| TEMPT_WILL | 誘惑の意志 | 34 | 攻撃 |
 | DOUBLE_CHAIN_WILL | 二連鎖の意志 | 22 | 攻撃 |
 | TRIPLE_CHAIN_WILL | 三連鎖の意志 | 22 | 攻撃 |
 | QUAD_CHAIN_WILL | 四連鎖の意志 | 22 | 攻撃 |
@@ -148,7 +148,7 @@
 | EXTEND_LIFE_WILL | 延命の意志 | 4 | 防御 |
 | EXTEND_LIFE_GOD | 延命神 | 10 | 防御 |
 | GUARD_WILL | 守る意志 | 2 | 防御 |
-| ULTIMATE_DESTROY_GOD | 究極破壊神 | 25 | 攻撃 |
+| ULTIMATE_DESTROY_GOD | 究極破壊神 | 30 | 攻撃 |
 | ULTIMATE_HYPERACTIVE_GOD | 究極多動神 | 28 | 展開/攪乱 |
 | BOARD_EXPANSION_WILL | 盤面拡張 | 19 | 盤面操作 |
 | BLOCKADE_WILL | 封鎖の意志 | 1 | 防御/盤面操作 |

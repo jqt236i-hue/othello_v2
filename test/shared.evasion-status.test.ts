@@ -4,8 +4,8 @@ describe('shared evasion status profiles', () => {
   test.each([
     ['HYPERACTIVE', 1, undefined, undefined, 'HYPERACTIVE', 'hyperactive_flip_evade_move', false, false],
     ['ESCAPE_HYPERACTIVE', 1, undefined, undefined, 'ESCAPE_HYPERACTIVE', 'escape_hyperactive_flip_evade_move', false, false],
-    ['EXTREME_HYPERACTIVE', 3, 1, 3, 'EXTREME_HYPERACTIVE_WILL', 'extreme_hyperactive_flip_evade_move', false, false],
-    ['ULTIMATE_HYPERACTIVE', 3, 1, 3, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip_evade_move', true, false],
+    ['EXTREME_HYPERACTIVE', 5, 5, 5, 'EXTREME_HYPERACTIVE_WILL', 'extreme_hyperactive_flip_evade_move', false, false],
+    ['ULTIMATE_HYPERACTIVE', 5, 2, 5, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip_evade_move', true, false],
     ['AFTERIMAGE_WILL', 3, 3, undefined, 'AFTERIMAGE_WILL', 'afterimage_will_flip_evade_move', false, true],
     ['WILL_HUNTER_KING', 2, 2, undefined, 'WILL_HUNTER_KING', 'will_hunter_king_flip_evade_move', false, false]
   ])(
@@ -27,11 +27,11 @@ describe('shared evasion status profiles', () => {
     expect(EvasionStatus.readFlipEvadeRemaining({ type: 'WILL_HUNTER_KING' })).toBe(2);
     expect(EvasionStatus.readDestroyEvadeRemaining({ type: 'WILL_HUNTER_KING' })).toBe(2);
     expect(EvasionStatus.readFlipEvadeRemaining({ type: 'WILL_HUNTER_KING' }, { mode: 'visual' })).toBeNull();
-    expect(EvasionStatus.readFlipEvadeRemaining({ type: 'EXTREME_HYPERACTIVE' }, { mode: 'visual' })).toBe(3);
+    expect(EvasionStatus.readFlipEvadeRemaining({ type: 'EXTREME_HYPERACTIVE' }, { mode: 'visual' })).toBe(5);
   });
 
   test('flip evasion availability respects active duration and instant-placement-only markers', () => {
-    expect(EvasionStatus.canUseFlipEvade({ type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 0, flipEvadeRemaining: 3 })).toBe(false);
+    expect(EvasionStatus.canUseFlipEvade({ type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 0, flipEvadeRemaining: 5 })).toBe(false);
     expect(EvasionStatus.canUseFlipEvade({ type: 'HYPERACTIVE', instantPlacementOnly: true, flipEvadeRemaining: 1 })).toBe(false);
     expect(EvasionStatus.canUseFlipEvade({ type: 'AFTERIMAGE_WILL' })).toBe(true);
   });

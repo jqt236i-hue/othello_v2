@@ -255,28 +255,6 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         });
     }
 
-    if (pendingType === 'SUPPLY_WILL') {
-        let drawnCount = 0;
-        if (typeof opts.CardLogic.commitDraw === 'function') {
-            for (let index = 0; index < 2; index += 1) {
-                const drawnCardId = opts.CardLogic.commitDraw(opts.cardState, opts.playerKey, p);
-                if (!drawnCardId) break;
-                drawnCount += 1;
-                if (typeof opts.CardLogic.emitPresentationEvent === 'function') {
-                    opts.CardLogic.emitPresentationEvent(opts.cardState, {
-                        type: 'DRAW_CARD',
-                        player: opts.playerKey,
-                        cardId: drawnCardId,
-                        count: 1
-                    });
-                }
-            }
-        }
-
-        opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
-        opts.events.push({ type: 'supply_will_resolved', player: opts.playerKey, drawnCount });
-    }
-
     if (pendingType === 'GLUTTONOUS_WILL') {
         const clearResult = (typeof opts.CardLogic.clearHandToDiscard === 'function')
             ? opts.CardLogic.clearHandToDiscard(opts.cardState, opts.playerKey)

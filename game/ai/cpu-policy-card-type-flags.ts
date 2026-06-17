@@ -63,7 +63,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
         const isExtendLifeCard = isExtendLifeWill || isExtendLifeGod;
         const isRebuildWill = cardType === 'REBUILD_WILL';
-        const isSupplyWill = cardType === 'SUPPLY_WILL';
         const isGoldStone = cardType === 'GOLD_STONE';
         const isCrystalStone = cardType === 'CRYSTAL_STONE';
         const isRainbowStone = cardType === 'RAINBOW_STONE';
@@ -164,7 +163,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isExtendLifeGod,
             isExtendLifeCard,
             isRebuildWill,
-            isSupplyWill,
             isGoldStone,
             isCrystalStone,
             isRainbowStone,

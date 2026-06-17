@@ -16,7 +16,7 @@ function createResolveState(markerData) {
   const prng = makePrng();
   const cardState = CardLogic.createCardState(prng);
   const gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
+    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK)),
     currentPlayer: Shared.BLACK,
     turnNumber: 1,
     consecutivePasses: 0
@@ -48,12 +48,13 @@ function createActionPhaseState(markerData) {
   const prng = makePrng();
   const cardState = CardLogic.createCardState(prng);
   const gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
+    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK)),
     currentPlayer: Shared.BLACK,
     turnNumber: 1,
     consecutivePasses: 0
   };
 
+  gameState.board[3][2] = Shared.EMPTY;
   gameState.board[3][3] = Shared.WHITE;
   gameState.board[3][4] = Shared.BLACK;
   for (const [row, col] of [
@@ -86,11 +87,11 @@ const FLIP_EVADE_CASES = Object.freeze([
   },
   {
     type: 'EXTREME_HYPERACTIVE',
-    markerData: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 }
+    markerData: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 }
   },
   {
     type: 'ULTIMATE_HYPERACTIVE',
-    markerData: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3, destroyEvadeRemaining: 1 }
+    markerData: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 5, destroyEvadeRemaining: 2 }
   },
   {
     type: 'AFTERIMAGE_WILL',

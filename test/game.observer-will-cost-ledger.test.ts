@@ -44,12 +44,12 @@ describe('OBSERVER_WILL card copy cost ledger', () => {
       currentPlayer: 1,
       turnNumber: 20
     };
-    const stolen = CardLogic.addCardToHand(cardState, 'black', 'supply_01');
+    const stolen = CardLogic.addCardToHand(cardState, 'black', 'hard_01');
     cardState.charge.black = 0;
     CardLogic.setCardCostOverrideForCopyId(cardState, stolen.cardCopyId, 0, 'OBSERVER_WILL');
 
-    expect(CardLogic.canUseCard(cardState, 'black', 'supply_01')).toBe(true);
-    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'supply_01')).toBe(true);
+    expect(CardLogic.canUseCard(cardState, 'black', 'hard_01')).toBe(true);
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'hard_01')).toBe(true);
     expect(cardState.charge.black).toBe(0);
   });
 
@@ -60,14 +60,14 @@ describe('OBSERVER_WILL card copy cost ledger', () => {
       currentPlayer: 1,
       turnNumber: 20
     };
-    const original = CardLogic.addCardToHand(cardState, 'black', 'supply_01');
-    const stolen = CardLogic.addCardToHand(cardState, 'black', 'supply_01');
+    const original = CardLogic.addCardToHand(cardState, 'black', 'hard_01');
+    const stolen = CardLogic.addCardToHand(cardState, 'black', 'hard_01');
     cardState.charge.black = 0;
     CardLogic.setCardCostOverrideForCopyId(cardState, stolen.cardCopyId, 0, 'OBSERVER_WILL');
 
-    expect(CardLogic.canUseCard(cardState, 'black', 'supply_01')).toBe(false);
-    expect(CardLogic.canUseCard(cardState, 'black', 'supply_01', { handIndex: 1 })).toBe(true);
-    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'supply_01', 'black', { handIndex: 1 })).toBe(true);
+    expect(CardLogic.canUseCard(cardState, 'black', 'hard_01')).toBe(false);
+    expect(CardLogic.canUseCard(cardState, 'black', 'hard_01', { handIndex: 1 })).toBe(true);
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'hard_01', 'black', { handIndex: 1 })).toBe(true);
 
     expect(cardState.charge.black).toBe(0);
     expect(CardLogic.getHandCopyIds(cardState, 'black')).toEqual([original.cardCopyId]);

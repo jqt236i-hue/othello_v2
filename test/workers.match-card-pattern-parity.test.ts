@@ -125,9 +125,9 @@ function buildUseCardBody(runtime, cardId, operationId) {
 }
 
 test('worker publish uses selected hand index for duplicate zero-cost observer stolen copy', () => {
-  const runtime = createCardUseRuntime('supply_01', 77);
+  const runtime = createCardUseRuntime('hard_01', 77);
   const snapshot = runtime.getSnapshot();
-  snapshot.cardState.hands.black = ['supply_01', 'supply_01'];
+  snapshot.cardState.hands.black = ['hard_01', 'hard_01'];
   snapshot.cardState._handCopyIdsByPlayer.black = [301, 302];
   snapshot.cardState.charge.black = 0;
   snapshot.cardState.cardCostOverridesByCopyId = {
@@ -137,7 +137,7 @@ test('worker publish uses selected hand index for duplicate zero-cost observer s
   snapshot.cardState.selectedCardHandIndex = 1;
   runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(snapshot);
 
-  const body = buildUseCardBody(runtime, 'supply_01', 'op_worker_observer_duplicate_zero_use');
+  const body = buildUseCardBody(runtime, 'hard_01', 'op_worker_observer_duplicate_zero_use');
   body.params.useCardHandIndex = 1;
   body.action.useCardHandIndex = 1;
 
@@ -146,8 +146,8 @@ test('worker publish uses selected hand index for duplicate zero-cost observer s
   expect(result.status).toBe(200);
   expect(result.payload && result.payload.ok).toBe(true);
   expect(result.payload.snapshot.cardState.charge.black).toBe(0);
-  expect(result.payload.snapshot.cardState.hands.black.filter((id) => id === 'supply_01')).toHaveLength(1);
-  expect(result.payload.snapshot.cardState.discard).toContain('supply_01');
+  expect(result.payload.snapshot.cardState.hands.black.filter((id) => id === 'hard_01')).toHaveLength(1);
+  expect(result.payload.snapshot.cardState.discard).toContain('hard_01');
   expect(result.internalSnapshot.cardState._handCopyIdsByPlayer.black).toContain(301);
   expect(result.internalSnapshot.cardState._handCopyIdsByPlayer.black).not.toContain(302);
   expect(result.internalSnapshot.cardState._discardCopyIds).toContain(302);
@@ -465,56 +465,6 @@ describe('worker card pattern parity', () => {
     expect(workerResult.payload.snapshot.cardState.hands.black).toEqual(['observer_will_01']);
     expect(workerResult.payload.snapshot.cardState.discard).toEqual(expect.arrayContaining([cardId, 'guard_01', 'meteor_01']));
     expect(workerResult.payload.snapshot.cardState.discard).not.toContain('observer_will_01');
-  }, 90000);
-
-  test('supply card-use draw playback matches headless authority result', () => {
-    const cardId = 'supply_01';
-    const runtime = createCardUseRuntime(cardId, 79);
-    const runtimeSnapshot = runtime.getSnapshot();
-    runtimeSnapshot.cardState.hands.black = [cardId];
-    runtimeSnapshot.cardState.deck.black = ['gold_stone', 'guard_01'];
-    runtimeSnapshot.cardState.decks.black = ['gold_stone', 'guard_01'];
-    runtimeSnapshot.cardState._handCopyIdsByPlayer.black = [];
-    runtimeSnapshot.cardState._deckCopyIdsByPlayer.black = ['gold-copy', 'guard-copy'];
-    runtimeSnapshot.cardState.selectedCardId = cardId;
-    runtimeSnapshot.cardState.selectedCardOwnerKey = 'black';
-    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
-
-    const initialSnapshot = clone(runtimeSnapshot);
-    const initialVersion = runtime.getRoom().stateVersion;
-    const body = buildUseCardBody(runtime, cardId, 'op_worker_pattern_supply_draw');
-    const localResult = runtime.applyCommand(body);
-    const workerResult = runWorkerPublish(initialSnapshot, initialVersion, body, 79);
-
-    expect(workerResult.status).toBe(200);
-    expect(workerResult.payload.ok).toBe(true);
-    expect(localResult.ok).toBe(true);
-
-    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
-    expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
-      .toEqual(normalizePublicSnapshotForParity(localPublic));
-    expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
-      .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
-
-    const workerHandAdd = collectPlaybackEventsByType(workerResult.payload.playbackEvents, 'hand_add');
-    const localHandAdd = collectPlaybackEventsByType(localResult.playbackEvents, 'hand_add');
-    expect(workerHandAdd).toEqual(localHandAdd);
-    expect(workerHandAdd).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: 'hand_add',
-        targets: expect.arrayContaining([
-          expect.objectContaining({ player: 'black', cardId: 'gold_stone' })
-        ])
-      }),
-      expect.objectContaining({
-        type: 'hand_add',
-        targets: expect.arrayContaining([
-          expect.objectContaining({ player: 'black', cardId: 'guard_01' })
-        ])
-      })
-    ]));
-    expect(workerResult.payload.snapshot.cardState.hands.black).toEqual(expect.arrayContaining(['gold_stone', 'guard_01']));
-    expect(workerResult.payload.snapshot.cardState.decks.black).toEqual([]);
   }, 90000);
 
   test.each([

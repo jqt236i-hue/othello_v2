@@ -6,7 +6,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'tempt_01',
   name_ja: '誘惑の意志',
   type: 'TEMPT_WILL',
-  cost: 23,
+  cost: 34,
   desc_ja: '相手の特殊石本体を1つ選んで自分の色に変える。弱い石・強い石・幽体石も対象。',
   display_type_ja: '執行'
 });
@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '相手の特殊石本体を1つ選んで自分の色に変える。弱い石・強い石・幽体石も対象。';
-const EXPECTED_DETAIL_TEXT = '対象は相手の特殊石本体のみ。\n弱い石・強い石・幽体石は対象に含まれる。\n絶対保護石は特殊石本体だが、対象効果を受けない。\n残りターンなどの状態を維持したまま自分側になる。\n幽体石は対象に選べるが、色は変わらない。';
+const EXPECTED_DETAIL_TEXT = '対象は相手の特殊石本体のみ。\n弱い石・強い石・幽体石は対象に含まれる。\n絶対保護石は特殊石本体だが、対象効果を受けない。\n残りターンなどの状態を維持したまま自分側になる。\n幽体石にも通常どおり成立する。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

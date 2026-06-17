@@ -61,7 +61,6 @@ export type CardType =
   | 'WILL_HUNTER_KING'
   | 'INSTANT_HYPERACTIVE_WILL'
   | 'REBUILD_WILL'
-  | 'SUPPLY_WILL'
   | 'PLUNDER_WILL'
   | 'WORK_WILL'
   | 'RIBO_WILL'

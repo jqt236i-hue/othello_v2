@@ -67,7 +67,7 @@ describe('BREEDING_WILL frontier propagation', () => {
     placeBreedingAnchor(cardState, gameState, 3, 3);
     CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
 
-    // Break frontier and block all anchor neighbors so this turn cannot spawn.
+    // Break frontier and block all anchor neighbors so this turn falls back to the nearest empty cell from the anchor.
     gameState.board[2][2] = 1;
     gameState.board[2][3] = 1;
     gameState.board[2][4] = 1;
@@ -78,16 +78,12 @@ describe('BREEDING_WILL frontier propagation', () => {
     gameState.board[3][4] = -1;
 
     CardLogic.onTurnStart(cardState, 'black', gameState);
-    const noSpawnTurn = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
-    expect(noSpawnTurn.spawned).toHaveLength(0);
-    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([]);
-
-    // Next owner turn: frontier is empty, so anchor-based spawning should resume.
-    gameState.board[2][2] = 0;
-    CardLogic.onTurnStart(cardState, 'black', gameState);
-    const resumed = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
-    expect(resumed.spawned).toHaveLength(1);
-    expect(resumed.spawned[0]).toMatchObject({ row: 2, col: 2 });
+    const fallbackTurn = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
+    expect(fallbackTurn.spawned).toHaveLength(1);
+    expect(fallbackTurn.spawned[0]).toMatchObject({ row: 3, col: 5, anchorRow: 3, anchorCol: 3 });
+    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([
+      expect.objectContaining({ row: 3, col: 5 })
+    ]);
   });
 
   test('clears one-turn sprout tags at owner turn start even without anchors', () => {
@@ -122,12 +118,14 @@ describe('BREEDING_WILL frontier propagation', () => {
     });
 
     const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
-    expect(immediate.spawned).toHaveLength(0);
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: 1, col: 1, anchorRow: 3, anchorCol: 3 });
     expect(gameState.board[2][2]).toBe(0);
+    expect(gameState.board[1][1]).toBe(1);
 
     CardLogic.onTurnStart(cardState, 'black', gameState);
     const startRes = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
-    expect(startRes.spawned).toHaveLength(0);
+    expect(startRes.spawned).toHaveLength(1);
     expect(gameState.board[2][2]).toBe(0);
   });
 
@@ -150,9 +148,13 @@ describe('BREEDING_WILL frontier propagation', () => {
 
     const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
 
-    expect(immediate.spawned).toHaveLength(0);
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: 1, col: 1, anchorRow: 3, anchorCol: 3 });
     expect(gameState.board[2][2]).toBe(0);
-    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([]);
+    expect(gameState.board[1][1]).toBe(1);
+    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([
+      expect.objectContaining({ row: 1, col: 1 })
+    ]);
   });
 
   test('does not spawn breeding stone onto empty frozen cell', () => {
@@ -174,8 +176,52 @@ describe('BREEDING_WILL frontier propagation', () => {
 
     const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
 
-    expect(immediate.spawned).toHaveLength(0);
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: 1, col: 1, anchorRow: 3, anchorCol: 3 });
     expect(gameState.board[2][2]).toBe(0);
+    expect(gameState.board[1][1]).toBe(1);
+    expect(cardState.breedingFrontierByAnchorId['101']).toEqual([
+      expect.objectContaining({ row: 1, col: 1 })
+    ]);
+  });
+
+  test('spawns to nearest empty cell when all adjacent cells are occupied', () => {
+    const { cardState, gameState } = makeState();
+    const prng = { random: () => 0.0 };
+    placeBreedingAnchor(cardState, gameState, 3, 3);
+
+    for (let row = 0; row < gameState.board.length; row++) {
+      for (let col = 0; col < gameState.board[row].length; col++) {
+        if (row === 3 && col === 3) continue;
+        gameState.board[row][col] = 1;
+      }
+    }
+    gameState.board[1][1] = 0;
+    gameState.board[0][3] = 0;
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(immediate.spawned).toHaveLength(1);
+    expect(immediate.spawned[0]).toMatchObject({ row: 1, col: 1, anchorRow: 3, anchorCol: 3 });
+    expect(gameState.board[1][1]).toBe(1);
+    expect(gameState.board[0][3]).toBe(0);
+  });
+
+  test('does not spawn when no empty cells remain on the board', () => {
+    const { cardState, gameState } = makeState();
+    const prng = { random: () => 0.0 };
+    placeBreedingAnchor(cardState, gameState, 3, 3);
+
+    for (let row = 0; row < gameState.board.length; row++) {
+      for (let col = 0; col < gameState.board[row].length; col++) {
+        if (row === 3 && col === 3) continue;
+        gameState.board[row][col] = -1;
+      }
+    }
+
+    const immediate = CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(immediate.spawned).toHaveLength(0);
     expect(cardState.breedingFrontierByAnchorId['101']).toEqual([]);
   });
 

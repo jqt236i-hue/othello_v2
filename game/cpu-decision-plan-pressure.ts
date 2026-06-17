@@ -84,7 +84,6 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     ROBOT_VACUUM_WILL: makePlanPressureProfile(2, 2, 2, 3),
     SALVATION_WILL: makePlanPressureProfile(1, 2, 1, 2),
     STONE_SALVATION_GOD: makePlanPressureProfile(1, 2, 1, 2),
-    SUPPLY_WILL: makePlanPressureProfile(1, 2, 0, 2),
     SILVER_STONE: makePlanPressureProfile(1, 2, 0, 2),
     SNIPER_WILL: makePlanPressureProfile(1, 1, 1, 2),
     STRONG_WIND_WILL: makePlanPressureProfile(2, 3, 2, 2),

@@ -255,7 +255,7 @@ describe('pipeline_ui_adapter move metadata', () => {
           special: 'EXTREME_HYPERACTIVE',
           timer: 8,
           owner: 'black',
-          destroyEvadeRemaining: 1
+          destroyEvadeRemaining: 5
         }
       },
       {
@@ -301,7 +301,7 @@ describe('pipeline_ui_adapter move metadata', () => {
         special: 'EXTREME_HYPERACTIVE',
         owner: 'black',
         timer: 8,
-        destroyEvadeRemaining: 1
+        destroyEvadeRemaining: 5
       }
     });
     expect(out[0].targets[1]).toMatchObject({

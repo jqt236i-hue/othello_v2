@@ -1301,14 +1301,14 @@ function renderBoardFullLegacy() {
                     ? (
                         Number.isFinite(Number(m.data.destroyEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.destroyEvadeRemaining)))
-                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 1 : null)
+                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 2 : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? 5 : null))
                     )
                     : null,
                 flipEvadeRemaining: (!isManifestType && _isFlipEvadeSpecialTypeForBoard(markerTypeUpper))
                     ? (
                         Number.isFinite(Number(m.data.flipEvadeRemaining))
                             ? Math.max(0, Math.trunc(Number(m.data.flipEvadeRemaining)))
-                            : ((markerTypeUpper === 'ULTIMATE_HYPERACTIVE' || markerTypeUpper === 'EXTREME_HYPERACTIVE') ? 3 : null)
+                            : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 5 : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? 5 : null))
                     )
                     : 0
             });

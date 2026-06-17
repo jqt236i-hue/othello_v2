@@ -145,9 +145,10 @@ describe('battle status panel', () => {
       expect(toast).not.toBeNull();
       expect(toast.textContent?.trim()).toBe('Your Turn');
       expect(toast.classList.contains('is-self')).toBe(true);
+      expect(toast.classList.contains('is-black-turn')).toBe(true);
       expect(toast.classList.contains('is-visible')).toBe(true);
       expect(toast.style.left).toBe('1016px');
-      expect(toast.style.top).toBe('703px');
+      expect(toast.style.top).toBe('707px');
 
       window.gameState.currentPlayer = -1;
       window.gameState.turnNumber = 7;
@@ -156,6 +157,8 @@ describe('battle status panel', () => {
 
       expect(toast.textContent?.trim()).toBe('Enemy Turn');
       expect(toast.classList.contains('is-enemy')).toBe(true);
+      expect(toast.classList.contains('is-white-turn')).toBe(true);
+      expect(toast.classList.contains('is-black-turn')).toBe(false);
       expect(toast.classList.contains('is-visible')).toBe(true);
 
       jest.advanceTimersByTime(6000);
@@ -164,6 +167,41 @@ describe('battle status panel', () => {
       jest.advanceTimersByTime(360);
       expect(toast.classList.contains('is-visible')).toBe(false);
       expect(toast.classList.contains('is-hiding')).toBe(false);
+      expect(toast.classList.contains('is-white-turn')).toBe(false);
+    } finally {
+      teardownBattleStatusDom(dom);
+      jest.useRealTimers();
+    }
+  });
+
+  test('uses actual turn color for arrival toast while preserving network local perspective', () => {
+    jest.useFakeTimers();
+    const { dom, window } = setupBattleStatusDom({
+      currentPlayer: -1,
+      turnNumber: 8
+    });
+
+    try {
+      window.MatchMode = { isNetworkModeActive: jest.fn(() => true) };
+      window.NetworkMatchClient = { getSeatKey: jest.fn(() => 'white') };
+      window.updateStatus();
+
+      const toast = window.document.getElementById('turn-arrival-toast') as HTMLElement;
+      expect(toast).not.toBeNull();
+      expect(toast.textContent?.trim()).toBe('Your Turn');
+      expect(toast.classList.contains('is-self')).toBe(true);
+      expect(toast.classList.contains('is-white-turn')).toBe(true);
+      expect(toast.classList.contains('is-black-turn')).toBe(false);
+
+      window.gameState.currentPlayer = 1;
+      window.gameState.turnNumber = 9;
+      global.gameState = window.gameState;
+      window.updateStatus();
+
+      expect(toast.textContent?.trim()).toBe('Enemy Turn');
+      expect(toast.classList.contains('is-enemy')).toBe(true);
+      expect(toast.classList.contains('is-black-turn')).toBe(true);
+      expect(toast.classList.contains('is-white-turn')).toBe(false);
     } finally {
       teardownBattleStatusDom(dom);
       jest.useRealTimers();

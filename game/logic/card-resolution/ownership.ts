@@ -127,29 +127,6 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
         return { applied: false, reason: 'absolute_protected' };
     }
 
-    if (isOpponentGhost) {
-        if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-            BoardOpsModule.changeAt(cardState, gameState, row, col, playerKey, 'TEMPT_WILL', 'tempt_convert');
-        } else if (typeof emitPresentationEvent === 'function') {
-            emitPresentationEvent(cardState, {
-                type: 'CHANGE',
-                row,
-                col,
-                ownerBefore: opponentKey,
-                ownerAfter: playerKey,
-                cause: 'TEMPT_WILL',
-                reason: 'tempt_convert',
-                meta: {
-                    blockedByGhost: true,
-                    special: 'GHOST',
-                    reason: 'tempt_convert'
-                }
-            });
-        }
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, blockedByGhost: true, reason: 'ghost_protected', row, col };
-    }
-
     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
         BoardOpsModule.changeAt(cardState, gameState, row, col, playerKey, 'TEMPT_WILL', 'tempt_applied');
     } else if (typeof setCellValueForCard === 'function') {
@@ -253,35 +230,7 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
         return { applied: false, reason: 'absolute_protected' };
     }
 
-    if (isOpponentGhost) {
-        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-            BoardOpsModule.destroyAt(cardState, gameState, row, col, 'CAPTURE_WILL', 'capture_selected');
-        } else if (typeof emitPresentationEvent === 'function') {
-            emitPresentationEvent(cardState, {
-                type: 'DESTROY',
-                row,
-                col,
-                ownerBefore: opponentKey,
-                cause: 'CAPTURE_WILL',
-                reason: 'capture_selected',
-                meta: {
-                    blockedByGhost: true,
-                    special: 'GHOST',
-                    reason: 'capture_selected'
-                }
-            });
-        }
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            target: { row, col },
-            blockedByGhost: true,
-            reason: 'ghost_protected',
-            sourceSpecialType: 'GHOST'
-        };
-    }
-
-    const markerEntry = getTrueSpecialStoneMarkerAt(cardState, row, col);
+    const markerEntry = isOpponentGhost ? ghostMarker : getTrueSpecialStoneMarkerAt(cardState, row, col);
     const captureSource = resolveCaptureSourceInfo(markerEntry);
     if (!captureSource || !captureSource.sourceCardId) {
         return { applied: false, reason: 'missing_source_card' };

@@ -1557,6 +1557,7 @@ function _shouldBlockGhostDestroy(reason: string | null, meta: any): boolean {
     const reasonLower = String(reason || '').toLowerCase();
     if (meta && meta.allowGhostDestroy === true) return false;
     if (reasonLower === 'meteor_cell_destroy') return false;
+    if (reasonLower.includes('capture')) return false;
     return true;
 }
 

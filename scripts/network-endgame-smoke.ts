@@ -8,10 +8,10 @@ const DEFAULT_MAX_STEPS = 240;
 const PLAYER_VALUE_BY_SEAT = { black: 1, white: -1 };
 
 const CARD_PLANS = [
-    ['hard_01', 'ghost_01', 'silver_stone', 'supply_01', 'chest_01', 'regen_01'],
-    ['gold_stone', 'crystal_stone', 'supply_01', 'perma_01', 'hard_01', 'ghost_01'],
-    ['supply_01', 'silver_stone', 'regen_01', 'chest_01', 'gold_stone', 'crystal_stone'],
-    ['ghost_01', 'hard_01', 'perma_01', 'chest_01', 'silver_stone', 'supply_01'],
+    ['hard_01', 'ghost_01', 'silver_stone', 'afterimage_will_01', 'chest_01', 'regen_01'],
+    ['gold_stone', 'crystal_stone', 'afterimage_will_01', 'perma_01', 'hard_01', 'ghost_01'],
+    ['afterimage_will_01', 'silver_stone', 'regen_01', 'chest_01', 'gold_stone', 'crystal_stone'],
+    ['ghost_01', 'hard_01', 'perma_01', 'chest_01', 'silver_stone', 'afterimage_will_01'],
     ['crystal_stone', 'gold_stone', 'chest_01', 'regen_01', 'hard_01', 'ghost_01']
 ];
 

@@ -69,7 +69,6 @@ Refine thresholds for:
 - `CRYSTAL_STONE`
 - `PLUNDER_WILL`
 - `TREASURE_BOX`
-- `SUPPLY_WILL`
 - `REBUILD_WILL`
 
 Desired direction:

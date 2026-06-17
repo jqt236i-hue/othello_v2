@@ -485,7 +485,7 @@
     padding: calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
     color: #cffff0;
     font-size: max(calc(12px * var(--layout-stage-scale)), 12px);
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1;
     letter-spacing: 0;
     font-variant-numeric: tabular-nums;
@@ -900,7 +900,7 @@
     align-items: center;
     justify-content: flex-start;
     gap: calc(9px * var(--layout-stage-scale));
-    min-width: calc(148px * var(--layout-stage-scale));
+    min-width: calc(164px * var(--layout-stage-scale));
     max-width: calc(100vw - calc(16px * var(--layout-stage-scale)));
     min-height: calc(40px * var(--layout-stage-scale));
     padding: calc(7px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
@@ -918,8 +918,8 @@
     color: #fff5c9;
     font-family: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
     font-size: calc(16px * var(--layout-stage-scale));
-    font-weight: 900;
-    letter-spacing: 0;
+    font-weight: 400;
+    letter-spacing: calc(1px * var(--layout-stage-scale));
     line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
@@ -941,8 +941,7 @@
     -webkit-font-smoothing: none;
     font-smooth: never;
     text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.88),
-        calc(1px * var(--layout-stage-scale)) 0 0 rgba(0, 0, 0, 0.38);
+        0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.84);
 }
 
 .turn-arrival-toast::before,
@@ -994,46 +993,47 @@
     text-overflow: ellipsis;
 }
 
-.turn-arrival-toast.is-self {
-    border-color: rgba(139, 238, 211, 0.74);
+.turn-arrival-toast.is-black-turn {
+    border-color: rgba(148, 160, 158, 0.74);
     background:
-        linear-gradient(90deg, rgba(88, 255, 211, 0.15), transparent 34%),
-        radial-gradient(circle at 8% 18%, rgba(244, 255, 252, 0.18), transparent 24%),
-        linear-gradient(180deg, rgba(12, 43, 40, 0.97), rgba(5, 17, 18, 0.95));
+        linear-gradient(90deg, rgba(143, 164, 160, 0.12), transparent 34%),
+        radial-gradient(circle at 8% 18%, rgba(238, 247, 244, 0.10), transparent 24%),
+        linear-gradient(180deg, rgba(15, 18, 18, 0.99), rgba(2, 3, 4, 0.97));
     box-shadow:
         0 calc(10px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
-        0 0 calc(19px * var(--layout-stage-scale)) rgba(92, 255, 218, 0.26),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(218, 255, 245, 0.10),
-        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(78, 246, 199, 0.32);
-    color: #dcfff4;
+        0 0 calc(18px * var(--layout-stage-scale)) rgba(109, 128, 126, 0.18),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(219, 232, 229, 0.08),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(126, 146, 142, 0.22);
+    color: #f0f5f2;
 }
 
-.turn-arrival-toast.is-self .turn-arrival-toast-rail {
-    background: linear-gradient(180deg, #effff9, #63f2c9 52%, #117863);
+.turn-arrival-toast.is-black-turn .turn-arrival-toast-rail {
+    background: linear-gradient(180deg, #e6f0ec, #7e918d 52%, #111516);
     box-shadow:
-        0 0 calc(11px * var(--layout-stage-scale)) rgba(91, 255, 213, 0.52),
+        0 0 calc(11px * var(--layout-stage-scale)) rgba(148, 170, 166, 0.34),
+        inset 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.46);
+}
+
+.turn-arrival-toast.is-white-turn {
+    border-color: rgba(210, 224, 219, 0.82);
+    background:
+        linear-gradient(90deg, rgba(135, 171, 166, 0.22), transparent 34%),
+        radial-gradient(circle at 8% 18%, rgba(255, 255, 255, 0.40), transparent 24%),
+        linear-gradient(180deg, rgba(226, 231, 224, 0.98), rgba(148, 163, 160, 0.97));
+    box-shadow:
+        0 calc(10px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 calc(18px * var(--layout-stage-scale)) rgba(182, 207, 199, 0.24),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(226, 239, 234, 0.58);
+    color: #172022;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(245, 250, 244, 0.70);
+}
+
+.turn-arrival-toast.is-white-turn .turn-arrival-toast-rail {
+    background: linear-gradient(180deg, #f8fff9, #bed2cc 52%, #657b78);
+    box-shadow:
+        0 0 calc(11px * var(--layout-stage-scale)) rgba(211, 237, 229, 0.48),
         inset 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.62);
-}
-
-.turn-arrival-toast.is-enemy {
-    border-color: rgba(255, 135, 111, 0.74);
-    background:
-        linear-gradient(90deg, rgba(255, 113, 83, 0.15), transparent 34%),
-        radial-gradient(circle at 8% 18%, rgba(255, 246, 240, 0.17), transparent 24%),
-        linear-gradient(180deg, rgba(48, 22, 20, 0.97), rgba(18, 9, 10, 0.95));
-    box-shadow:
-        0 calc(10px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
-        0 0 calc(19px * var(--layout-stage-scale)) rgba(255, 105, 80, 0.24),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 229, 216, 0.10),
-        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(255, 102, 75, 0.30);
-    color: #ffe1d8;
-}
-
-.turn-arrival-toast.is-enemy .turn-arrival-toast-rail {
-    background: linear-gradient(180deg, #fff2e7, #ff876a 52%, #8f281f);
-    box-shadow:
-        0 0 calc(11px * var(--layout-stage-scale)) rgba(255, 111, 86, 0.48),
-        inset 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.58);
 }
 
 @keyframes turn-arrival-toast-enter {

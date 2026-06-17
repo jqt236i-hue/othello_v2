@@ -330,7 +330,7 @@ describe('Network snapshot move-source empty handling', () => {
     beforeBoard[dest.row][dest.col] = global.WHITE;
     global.gameState.board = beforeBoard;
     global.cardState = createBaseCardState([
-      createSpecialMarker(source.row, source.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 3 })
+      createSpecialMarker(source.row, source.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 5, destroyEvadeRemaining: 5 })
     ]);
     diff.renderBoardDiff(global.boardEl);
 
@@ -342,7 +342,7 @@ describe('Network snapshot move-source empty handling', () => {
     afterBoard[dest.row][dest.col] = global.BLACK;
     const applied = controller.applySnapshot(
       createSnapshot(2, afterBoard, [
-        createSpecialMarker(dest.row, dest.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 3 })
+        createSpecialMarker(dest.row, dest.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 5, destroyEvadeRemaining: 5 })
       ]),
       {
         playbackEvents: [{

@@ -322,7 +322,7 @@ const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
     '破壊回避': '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。',
     '特殊石': '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。',
     '穴マス化': 'マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。',
-    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換の意志は対象外。誘惑・捕獲は受け流し、それ以外の効果は通常どおり受ける。',
+    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、誘惑・捕獲・入替など対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。',
     '反転保護': '反転されない。挟める列ごと無効できる。',
     '完全保護': '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。',
     '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
@@ -2843,7 +2843,7 @@ function useSelectedCard() {
         } catch (e) { /* ignore */ }
     }
 
-    const shouldDelayPostUseHandVisual = !!(cardDef && (cardDef.type === 'TREASURE_BOX' || cardDef.type === 'REBUILD_WILL' || cardDef.type === 'SUPPLY_WILL'))
+    const shouldDelayPostUseHandVisual = !!(cardDef && (cardDef.type === 'TREASURE_BOX' || cardDef.type === 'REBUILD_WILL'))
         || _isSpecialCardIdForInteraction(cardId)
         || _hasHandRemovePlaybackEvent(result);
     _ensureBoardPendingSelectionAfterCardUse(result, actionPlayerKey, cardId, cardDef);

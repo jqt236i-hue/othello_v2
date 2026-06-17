@@ -678,12 +678,12 @@ describe('card renderer hand inspection', () => {
       seatKey: 'black',
       networkClientIsActive: true,
       currentPlayer: 1,
-      hands: { black: ['supply_01'], white: [] }
+      hands: { black: ['hard_01'], white: [] }
     });
     const { window } = dom;
 
     window.CARD_DEFS = [
-      { id: 'supply_01', name: 'Supply', desc: 'd', cost: 20 }
+      { id: 'hard_01', name: 'Hard', desc: 'd', cost: 20 }
     ];
     window.cardState.handCostAdjustmentsByPlayer = {
       black: [{ overrideCost: 0 }],
@@ -706,7 +706,7 @@ describe('card renderer hand inspection', () => {
       seatKey: 'black',
       networkClientIsActive: true,
       currentPlayer: 1,
-      hands: { black: ['supply_01'], white: [] }
+      hands: { black: ['hard_01'], white: [] }
     });
     const { window } = dom;
 
@@ -714,7 +714,7 @@ describe('card renderer hand inspection', () => {
     window.CardLogic = cardLogic;
     global.CardLogic = cardLogic;
     window.CARD_DEFS = [
-      { id: 'supply_01', name: '補給の意志', desc: 'd', cost: 1, type: 'SUPPLY_WILL' }
+      { id: 'hard_01', name: '弱い意志', desc: 'd', cost: 1, type: 'PROTECTED_NEXT_STONE' }
     ];
     window.cardState.charge.black = 0;
     window.cardState.handCostAdjustmentsByPlayer = {

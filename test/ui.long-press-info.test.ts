@@ -334,8 +334,8 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り12T');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り3回');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り1回');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り5回');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り2回');
   });
 
   test('long press shows 幽体 tag without mislabeling it as flip protection', () => {
@@ -465,8 +465,8 @@ describe('board cell long press info', () => {
       owner: 'black',
       data: {
         type: 'EXTREME_HYPERACTIVE',
-        flipEvadeRemaining: 3,
-        destroyEvadeRemaining: 1
+        flipEvadeRemaining: 5,
+        destroyEvadeRemaining: 5
       }
     }];
 
@@ -474,8 +474,8 @@ describe('board cell long press info', () => {
     const shown = mod.showSpecialStoneInfoAt(5, 4);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('極悪多動魔');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り3回');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り1回');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り5回');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り5回');
   });
 
   test('showSpecialStoneInfoAt shows afterimage tags without 多動状態', () => {

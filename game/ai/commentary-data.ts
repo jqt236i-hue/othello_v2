@@ -73,7 +73,6 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   WILL_HUNTER_KING: '敵の特殊石を狙う',
   INSTANT_HYPERACTIVE_WILL: '配置直後に石を動かす',
   REBUILD_WILL: '手札を再構築する',
-  SUPPLY_WILL: '山札から補給する',
   PLUNDER_WILL: '相手の布石を吸収する',
   WORK_WILL: '石から布石収入を得る',
   RIBO_WILL: '布石を先に得る',

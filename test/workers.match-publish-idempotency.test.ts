@@ -781,7 +781,7 @@ function runTurnStartUltimateHyperactiveScenario() {
     "  gameState.board[6][0] = Core.BLACK;",
     "  gameState.board[6][2] = Core.WHITE;",
     "  gameState.board[6][3] = Core.EMPTY;",
-    "  cardState.markers.push({ id: 'ultimate_hyperactive_1', kind: 'specialStone', row: 6, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } });",
+    "  cardState.markers.push({ id: 'ultimate_hyperactive_1', kind: 'specialStone', row: 6, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 5, destroyEvadeRemaining: 2 } });",
     "",
     "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
     "    roomId: 'UHA1',",
@@ -915,7 +915,7 @@ function runTurnStartExtremeHyperactiveForcedSwapScenario() {
     "  for (const [row, col] of [[7, 7], [4, 4], [3, 3], [2, 2], [1, 1], [0, 0]]) {",
     "    gameState.board[row][col] = Core.WHITE;",
     "  }",
-    "  cardState.markers.push({ id: 'extreme_hyperactive_1', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } });",
+    "  cardState.markers.push({ id: 'extreme_hyperactive_1', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 } });",
     "",
     "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
     "    roomId: 'EHW1',",
@@ -1398,8 +1398,8 @@ describe('match worker publish idempotency', () => {
       data: expect.objectContaining({
         type: 'ULTIMATE_HYPERACTIVE',
         remainingOwnerTurns: 11,
-        flipEvadeRemaining: 3,
-        destroyEvadeRemaining: 1
+        flipEvadeRemaining: 5,
+        destroyEvadeRemaining: 2
       })
     }));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
@@ -1481,8 +1481,8 @@ describe('match worker publish idempotency', () => {
       owner: 'black',
       data: expect.objectContaining({
         type: 'EXTREME_HYPERACTIVE',
-        flipEvadeRemaining: 3,
-        destroyEvadeRemaining: 1
+        flipEvadeRemaining: 5,
+        destroyEvadeRemaining: 5
       })
     }));
 
@@ -1505,7 +1505,7 @@ describe('match worker publish idempotency', () => {
         after: expect.objectContaining({
           special: 'EXTREME_HYPERACTIVE',
           owner: 'black',
-          destroyEvadeRemaining: 1
+          destroyEvadeRemaining: 5
         })
       }),
       expect.objectContaining({

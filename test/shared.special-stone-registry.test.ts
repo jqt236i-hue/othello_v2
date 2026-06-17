@@ -128,10 +128,15 @@ describe('special stone registry rule classification', () => {
         tagFlipEvadeDefault: 3,
         tagDestroyEvadeDefault: 3
       });
+      expect(lateRegistry.getSpecialStoneInfo('EXTREME_HYPERACTIVE')).toMatchObject({
+        tagFlipEvadeDefault: 5,
+        tagDestroyEvadeDefault: 5,
+        visualFlipEvadeDefault: 5
+      });
       expect(lateRegistry.getSpecialStoneInfo('ULTIMATE_HYPERACTIVE')).toMatchObject({
-        tagFlipEvadeDefault: 3,
-        tagDestroyEvadeDefault: 1,
-        visualFlipEvadeDefault: 3
+        tagFlipEvadeDefault: 5,
+        tagDestroyEvadeDefault: 2,
+        visualFlipEvadeDefault: 5
       });
     } finally {
       jest.dontMock('../shared/evasion-status');

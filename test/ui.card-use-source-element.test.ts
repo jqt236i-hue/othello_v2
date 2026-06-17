@@ -386,17 +386,17 @@ describe('card use source element selection', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';
     global.gameState.currentPlayer = global.BLACK;
-    global.cardState.selectedCardId = 'supply_01';
+    global.cardState.selectedCardId = 'hard_01';
     global.cardState.selectedCardOwnerKey = 'black';
     global.cardState.charge.black = 0;
-    global.cardState.hands.black = ['supply_01'];
+    global.cardState.hands.black = ['hard_01'];
     global.cardState.handCostAdjustmentsByPlayer = {
       black: [{ overrideCost: 0 }],
       white: []
     };
     global.CardLogic = {
       getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 20 }),
-      getUsableCardIds: () => ['supply_01']
+      getUsableCardIds: () => ['hard_01']
     };
 
     require('../cards/card-interaction.js');
@@ -410,11 +410,11 @@ describe('card use source element selection', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';
     global.gameState.currentPlayer = global.BLACK;
-    global.cardState.selectedCardId = 'supply_01';
+    global.cardState.selectedCardId = 'hard_01';
     global.cardState.selectedCardOwnerKey = 'black';
     global.cardState.selectedCardHandIndex = 0;
     global.cardState.charge.black = 0;
-    global.cardState.hands.black = ['supply_01'];
+    global.cardState.hands.black = ['hard_01'];
     global.cardState.handCostAdjustmentsByPlayer = {
       black: [{ overrideCost: 0 }],
       white: []
@@ -435,25 +435,25 @@ describe('card use source element selection', () => {
     global.cardState.selectedCardId = null;
     global.cardState.selectedCardOwnerKey = null;
     global.cardState.charge.black = 0;
-    global.cardState.hands.black = ['supply_01', 'supply_01'];
+    global.cardState.hands.black = ['hard_01', 'hard_01'];
     global.cardState.handCostAdjustmentsByPlayer = {
       black: [null, { overrideCost: 0 }],
       white: []
     };
     global.CardLogic = {
       getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 20 }),
-      getUsableCardIds: () => ['supply_01']
+      getUsableCardIds: () => ['hard_01']
     };
 
     require('../cards/card-interaction.js');
-    window.onCardClick('supply_01', 'black', 1);
+    window.onCardClick('hard_01', 'black', 1);
     expect(global.cardState.selectedCardHandIndex).toBe(1);
 
     window.useSelectedCard();
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3]).toEqual(expect.objectContaining({
-      useCardId: 'supply_01',
+      useCardId: 'hard_01',
       useCardOwnerKey: 'black',
       useCardHandIndex: 1
     }));
@@ -474,7 +474,8 @@ describe('card use source element selection', () => {
       global.cardState.selectedCardHandIndex = null;
       global.cardState.hands.black = ['source_card', 'dup_card'];
       global.CardLogic = {
-        getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: id, desc: 'd', cost: 1 })
+        getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: id, desc: 'd', cost: 1 }),
+        getUsableCardIds: () => ['source_card', 'dup_card']
       };
 
       require('../cards/card-interaction.js');
@@ -490,7 +491,7 @@ describe('card use source element selection', () => {
       Object.defineProperty(pointerDown, 'pointerId', { value: 11 });
       shiftedCard.dispatchEvent(pointerDown);
 
-      jest.advanceTimersByTime(120);
+      jest.advanceTimersByTime(180);
       expect(shiftedCard.classList.contains('hand-card-swipe-dragging')).toBe(true);
 
       const pointerUp = new window.MouseEvent('pointerup', {

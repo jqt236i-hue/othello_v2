@@ -51,7 +51,7 @@ const CURRICULUM_STAGES: CurriculumStage[] = [
         startRatio: 0.3,
         endRatio: 0.6,
         cardUsageRate: 0.05,
-        allowedCards: ['PROTECTED_NEXT_STONE', 'GHOST_WILL', 'SUPPLY_WILL', 'HEAVEN_BLESSING'],
+        allowedCards: ['PROTECTED_NEXT_STONE', 'GHOST_WILL', 'HEAVEN_BLESSING'],
         tacticalDepthOpening: 4,
         tacticalDepthMid: 5,
         tacticalDepthEnd: 6,

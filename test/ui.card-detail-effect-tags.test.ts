@@ -139,7 +139,7 @@ describe('card detail effect tags', () => {
       name: '守る意志',
       type: 'GUARD_WILL',
       cost: 1,
-      desc: '自分の石1つに完全保護を付与する。3ターン持続。'
+      desc: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。'
     };
 
     global.cardState.selectedCardId = cardDef.id;

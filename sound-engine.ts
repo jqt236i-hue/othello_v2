@@ -69,7 +69,7 @@ const SoundEngine = {
     },
     bgm: null as any,
     bgmVolume: 0.548625,
-    bgmOutputVolumeScale: 0.3094,
+    bgmOutputVolumeScale: 0.24752,
     currentTrackIndex: 0,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {
