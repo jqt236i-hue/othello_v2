@@ -26,6 +26,15 @@ describe('text term highlighter', () => {
     expect(matches.map((match) => match.category)).toEqual(['protection', 'stone', 'destroy']);
   });
 
+  test('prioritizes proper names and special stone names over generic terms', () => {
+    const labels = getGameTermGlossary().map((entry) => entry.label);
+    expect(labels).toEqual(expect.arrayContaining(['究極破壊神', '破壊龍', '狙撃石']));
+
+    const matches = findGameTermMatches('次に置く石を究極破壊神化。周囲の敵石を破壊する。');
+    expect(matches.map((match) => match.text)).toEqual(['究極破壊神', '破壊']);
+    expect(matches.map((match) => match.category)).toEqual(['unique', 'destroy']);
+  });
+
   test('recognizes aliases while preserving displayed text', () => {
     const matches = findGameTermMatches('穴化できない場合は不発となり、通常石に戻る。');
     expect(matches.map((match) => match.text)).toEqual(['穴化', '通常石']);

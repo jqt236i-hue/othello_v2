@@ -1,4 +1,6 @@
-export type GameTermCategory = 'flip' | 'destroy' | 'stone' | 'protection' | 'cell' | 'resource';
+import CardCatalog = require('../cards/catalog');
+
+export type GameTermCategory = 'flip' | 'destroy' | 'stone' | 'protection' | 'cell' | 'resource' | 'unique';
 
 export type GameTermGlossaryEntry = Readonly<{
   id: string;
@@ -24,7 +26,16 @@ export type RenderGameTermOptions = Readonly<{
   skipLabels?: readonly string[];
 }>;
 
-export const GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freeze([
+type CatalogCardText = Readonly<{
+  id?: unknown;
+  type?: unknown;
+  name_ja?: unknown;
+  name?: unknown;
+  desc_ja?: unknown;
+  desc?: unknown;
+}>;
+
+const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freeze([
   Object.freeze({ id: 'flip', label: '反転', category: 'flip', description: '石の色が変わる処理。通常リバーシの挟み反転とカード効果による反転を含む。' }),
   Object.freeze({ id: 'normal-flip', label: '通常反転', category: 'flip', description: '通常リバーシの挟み条件で発生する反転。' }),
   Object.freeze({ id: 'chain-flip', label: '連鎖反転', category: 'flip', description: '通常反転の後、さらに挟める列ができた場合に追加で発生する反転。' }),
@@ -56,6 +67,75 @@ export const GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freez
   Object.freeze({ id: 'duration-turn', label: '持続ターン', category: 'resource', description: 'カードや石状態が効果を持ち続けるターン数。' }),
   Object.freeze({ id: 'turn-start', label: 'ターン開始', category: 'resource', description: '手番開始時に効果や持続管理を処理するタイミング。' }),
   Object.freeze({ id: 'time-stop', label: '時間停止', category: 'resource', description: '発動したプレイヤーが2ターン連続で行動する効果。' })
+]);
+
+function toNonEmptyString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readCatalogCards(): readonly CatalogCardText[] {
+  const cards = (CardCatalog as { cards?: unknown }).cards;
+  return Array.isArray(cards) ? cards as CatalogCardText[] : [];
+}
+
+function createStableTermId(prefix: string, raw: string, index: number): string {
+  const normalized = raw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  return normalized ? `${prefix}-${normalized}` : `${prefix}-${index + 1}`;
+}
+
+function collectSpecialStoneNameTerms(text: string): string[] {
+  const terms: string[] = [];
+  const source = String(text || '');
+  const stoneNamePattern = /(?:次に置く石を|次に置く特殊石を)([^。、\s「」]+?)化/g;
+  const manifestNamePattern = /([^。、\s「」]+?)を顕現/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = stoneNamePattern.exec(source)) !== null) {
+    const term = toNonEmptyString(match[1]);
+    if (term) terms.push(term);
+  }
+  while ((match = manifestNamePattern.exec(source)) !== null) {
+    const term = toNonEmptyString(match[1]);
+    if (term) terms.push(term);
+  }
+
+  return terms;
+}
+
+function buildCatalogProperNameEntries(): readonly GameTermGlossaryEntry[] {
+  const baseLabels = new Set(BASE_GAME_TERM_GLOSSARY.map((entry) => entry.label));
+  const seen = new Set<string>();
+  const entries: GameTermGlossaryEntry[] = [];
+  const addEntry = (label: string, id: string, description: string) => {
+    const normalized = toNonEmptyString(label);
+    if (!normalized || baseLabels.has(normalized) || seen.has(normalized)) return;
+    seen.add(normalized);
+    entries.push(Object.freeze({
+      id,
+      label: normalized,
+      category: 'unique',
+      description
+    }));
+  };
+
+  readCatalogCards().forEach((card, cardIndex) => {
+    const cardId = toNonEmptyString(card.id) || toNonEmptyString(card.type) || String(cardIndex + 1);
+    const cardName = toNonEmptyString(card.name_ja) || toNonEmptyString(card.name);
+    const desc = toNonEmptyString(card.desc_ja) || toNonEmptyString(card.desc);
+    if (cardName) {
+      addEntry(cardName, createStableTermId('card', cardId, cardIndex), 'カード名。');
+    }
+    collectSpecialStoneNameTerms(desc).forEach((term, termIndex) => {
+      addEntry(term, createStableTermId('special-stone-name', `${cardId}-${termIndex + 1}`, entries.length), '特殊石や顕現石の固有名。');
+    });
+  });
+
+  return Object.freeze(entries);
+}
+
+export const GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freeze([
+  ...BASE_GAME_TERM_GLOSSARY,
+  ...buildCatalogProperNameEntries()
 ]);
 
 type TermCandidate = Readonly<{

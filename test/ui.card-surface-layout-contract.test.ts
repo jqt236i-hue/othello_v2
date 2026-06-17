@@ -100,7 +100,8 @@ describe('card surface layout contract', () => {
       'stone',
       'protection',
       'cell',
-      'resource'
+      'resource',
+      'unique'
     ];
 
     expect(layoutInfoCss).toMatch(/\.game-term-highlight\s*\{[\s\S]*font-weight:\s*800[\s\S]*border-radius:\s*4px[\s\S]*box-decoration-break:\s*clone/);

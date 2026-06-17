@@ -2039,6 +2039,13 @@
     z-index: 1;
 }
 
+#card-detail-desc .game-term-highlight,
+#card-detail-more .game-term-highlight,
+#card-detail-tab-body .game-term-highlight {
+    font-weight: 800;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.45);
+}
+
 #card-detail-tab-panel {
     display: none;
     position: fixed;
