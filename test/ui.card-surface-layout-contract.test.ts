@@ -90,6 +90,26 @@ describe('card surface layout contract', () => {
       expect(layoutInfoCss).toMatch(new RegExp(`\\.rules-help-card-tag-filter\\.${className}[\\s\\S]*--rules-help-tag-filter-border:[\\s\\S]*--rules-help-tag-filter-color:[\\s\\S]*--rules-help-tag-filter-bg:`));
     }
   });
+
+  test('game term highlights use shared readable category colors', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+    const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
+    const termClasses = [
+      'flip',
+      'destroy',
+      'stone',
+      'protection',
+      'cell',
+      'resource'
+    ];
+
+    expect(layoutInfoCss).toMatch(/\.game-term-highlight\s*\{[\s\S]*font-weight:\s*800[\s\S]*border-radius:\s*4px[\s\S]*box-decoration-break:\s*clone/);
+    for (const className of termClasses) {
+      expect(layoutInfoCss).toMatch(new RegExp(`\\.game-term-highlight--${className}\\s*\\{[\\s\\S]*color:[\\s\\S]*background:`));
+    }
+    expect(cardsCss).toMatch(/#card-detail-desc \.game-term-highlight,[\s\S]*#card-detail-more \.game-term-highlight,[\s\S]*#card-detail-tab-body \.game-term-highlight[\s\S]*font-weight:\s*800[\s\S]*text-shadow:/);
+  });
+
   test('rules help tag filter layout stays stable while filters are active', () => {
     const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
 
