@@ -30,50 +30,10 @@ const RULES_HELP_EFFECT_GLOSSARY = Object.freeze([
   Object.freeze({ label: '凍結', description: 'そのマスと上の石の反転・破壊・持続減少を止める。' }),
   Object.freeze({ label: '時間停止', description: '発動したプレイヤーが2ターン連続で行動する。' })
 ]);
-const RULES_HELP_EFFECT_GLOSSARY_BY_LABEL = new Map<string, any>(
-  (RULES_HELP_EFFECT_GLOSSARY as any).map((entry: any) => [entry.label, entry])
-);
-const EFFECT_GLOSSARY_TERMS = Object.freeze((RULES_HELP_EFFECT_GLOSSARY as any).map((entry: any) => entry.label));
-
 function _safeText(value: any, fallback: any): string {
   const text = String(value || '').trim();
   if (text) return text;
   return String(fallback || '');
-}
-
-function _escapeHtml(text: string): string {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function _escapeRegExp(text: string): string {
-  return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function _buildEffectTermsPattern(): RegExp | null {
-  const sorted = (EFFECT_GLOSSARY_TERMS as any)
-    .slice()
-    .sort((a: string, b: string) => b.length - a.length)
-    .map((term: string) => _escapeRegExp(term));
-  if (!sorted.length) return null;
-  return new RegExp(`(${sorted.join('|')})`, 'g');
-}
-
-const _effectTermsPattern = _buildEffectTermsPattern();
-
-function _highlightEffectTerms(escapedText: string): string {
-  if (!_effectTermsPattern) return escapedText;
-  return String(escapedText || '').replace(_effectTermsPattern, '<span class="rules-help-term-highlight">$1</span>');
-}
-
-function _formatHelpText(text: string): string {
-  const escaped = _escapeHtml(text);
-  const highlighted = _highlightEffectTerms(escaped);
-  return highlighted.replace(/\n/g, '<br>');
 }
 
 function _requireFirstRulesHelpModuleOrNull(paths: string[]): any {
@@ -85,6 +45,29 @@ function _requireFirstRulesHelpModuleOrNull(paths: string[]): any {
     }
   }
   return null;
+}
+
+const _textTermHighlighterModule = _requireFirstRulesHelpModuleOrNull([
+  '../text-term-highlighter',
+  '../../ui/text-term-highlighter'
+]);
+const GAME_TERM_GLOSSARY = _textTermHighlighterModule && typeof _textTermHighlighterModule.getGameTermGlossary === 'function'
+  ? _textTermHighlighterModule.getGameTermGlossary()
+  : RULES_HELP_EFFECT_GLOSSARY;
+const GAME_TERM_GLOSSARY_BY_LABEL = new Map<string, any>(
+  (GAME_TERM_GLOSSARY as any).map((entry: any) => [entry.label, entry])
+);
+
+function _renderHelpText(targetEl: any, text: string): void {
+  if (!targetEl) return;
+  if (_textTermHighlighterModule && typeof _textTermHighlighterModule.renderTextWithGameTermHighlights === 'function') {
+    _textTermHighlighterModule.renderTextWithGameTermHighlights(targetEl, String(text || ''), {
+      documentRef: targetEl.ownerDocument || (typeof document !== 'undefined' ? document : null),
+      preserveLineBreaks: true
+    });
+    return;
+  }
+  targetEl.textContent = String(text || '');
 }
 
 function _resolveRulesHelpCardInteractionEffectsModule(): any {
@@ -512,7 +495,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
   function resolveEffectGlossaryEntry(label: string): any {
     const normalizedLabel = _safeText(label, '');
-    return RULES_HELP_EFFECT_GLOSSARY_BY_LABEL.get(normalizedLabel) || null;
+    return GAME_TERM_GLOSSARY_BY_LABEL.get(normalizedLabel) || null;
   }
 
   function closeTagPopover(): void {
@@ -570,7 +553,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     const titleEl = popover.querySelector('.rules-help-tag-popover-title') as HTMLElement | null;
     const bodyEl = popover.querySelector('.rules-help-tag-popover-body') as HTMLElement | null;
     if (titleEl) titleEl.textContent = normalizedLabel;
-    if (bodyEl) bodyEl.textContent = entry ? entry.description : `${normalizedLabel}の説明は未登録です。`;
+    if (bodyEl) _renderHelpText(bodyEl, entry ? entry.description : `${normalizedLabel}の説明は未登録です。`);
     popover.classList.add('is-open');
     popover.setAttribute('aria-hidden', 'false');
     const closeEl = popover.querySelector('.rules-help-tag-popover-close') as HTMLButtonElement | null;
@@ -612,7 +595,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
     const bodyEl = document.createElement('div');
     bodyEl.className = 'rules-help-card-section-body';
-    bodyEl.innerHTML = _formatHelpText(bodyText);
+    _renderHelpText(bodyEl, bodyText);
     section.appendChild(bodyEl);
     return section;
   }
@@ -855,7 +838,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   function renderEffectsList(): void {
     if (!effectsListEl) return;
     effectsListEl.innerHTML = '';
-    for (const entry of RULES_HELP_EFFECT_GLOSSARY as any) {
+    for (const entry of GAME_TERM_GLOSSARY as any) {
       if (!entry || !entry.label) continue;
       const itemEl = document.createElement('div');
       itemEl.className = 'rules-help-effect-item';
@@ -874,7 +857,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       itemEl.appendChild(termEl);
 
       const descriptionEl = document.createElement('dd');
-      descriptionEl.textContent = entry.description;
+      _renderHelpText(descriptionEl, entry.description);
       itemEl.appendChild(descriptionEl);
       effectsListEl.appendChild(itemEl);
     }

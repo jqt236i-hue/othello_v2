@@ -35,7 +35,7 @@ export const GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freez
   Object.freeze({ id: 'cell-destroy', label: 'マス破壊', category: 'destroy', description: 'マスごと穴にして永続封鎖する処理。' }),
   Object.freeze({ id: 'slash-destroy', label: '斬撃破壊', category: 'destroy', description: '意志狩りの王などの斬撃演出を伴う破壊。' }),
   Object.freeze({ id: 'normal-stone', label: '通常石', category: 'stone', description: '特殊効果を持たない通常の石。' }),
-  Object.freeze({ id: 'special-stone', label: '特殊石', category: 'stone', description: '通常石ではなく、盤面に残って能力主体として生きる石。' }),
+  Object.freeze({ id: 'special-stone', label: '特殊石', category: 'stone', description: '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。' }),
   Object.freeze({ id: 'manifest-stone', label: '顕現石', category: 'stone', description: '特殊カードから出現する専用石。通常カード効果の対象外になる場合がある。' }),
   Object.freeze({ id: 'ghost-stone', label: '幽体石', category: 'stone', description: '反転・破壊の対象にはなるが、その石自身は受けない特殊石。', aliases: Object.freeze(['幽体']) }),
   Object.freeze({ id: 'afterimage-stone', label: '残像石', category: 'stone', description: '反転回避と破壊回避を持つ特殊石。' }),

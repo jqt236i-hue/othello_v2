@@ -160,7 +160,9 @@ describe('rules help panel', () => {
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(cardDescEl.textContent).toContain('簡易説明');
     expect(cardDescEl.textContent).toContain('詳細効果');
-    expect(cardDescEl.querySelectorAll('.rules-help-term-highlight').length).toBeGreaterThan(0);
+    const highlightedTerms = Array.from(cardDescEl.querySelectorAll('.game-term-highlight')) as HTMLElement[];
+    expect(highlightedTerms.length).toBeGreaterThan(0);
+    expect(highlightedTerms.every((el) => el.className.includes('game-term-highlight--'))).toBe(true);
     expect(cardDescEl.querySelector('.rules-help-card-visual-image')).toBeTruthy();
 
     cardButtons[1].click();
@@ -529,6 +531,47 @@ describe('rules help panel', () => {
     expect(popover.querySelector('.rules-help-tag-popover-title').textContent).toBe('不可侵');
     expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('通常のカード効果や手札効果の対象から外す');
 
+  });
+
+  test('rules help card descriptions use shared longest-match term highlighting', () => {
+    setDom(`<!doctype html><html><body>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
+        <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
+        <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
+      </div>
+    </body></html>`);
+    window.CardCatalog = {
+      cards: [{
+        id: 'sample',
+        name: '説明確認',
+        type: 'SAMPLE',
+        cost: 1,
+        display_type_ja: '守護',
+        desc: '反転保護を持つ特殊石。マス破壊は受ける。'
+      }]
+    };
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.createElement('button');
+    btn.id = 'rulesHelpBtn';
+    btn.setAttribute('aria-expanded', 'false');
+    document.body.insertBefore(btn, document.body.firstChild);
+    const panel = document.getElementById('rules-help-panel') as HTMLElement;
+
+    mod.setupRulesHelp(btn, panel);
+    btn.click();
+
+    const cardDescEl = document.getElementById('rules-help-card-desc') as HTMLElement;
+    const terms = Array.from(cardDescEl.querySelectorAll('.game-term-highlight')) as HTMLElement[];
+    expect(terms.map((el) => el.textContent)).toEqual(['反転保護', '特殊石', 'マス破壊']);
+    expect(terms.map((el) => el.dataset.termCategory)).toEqual(['protection', 'stone', 'destroy']);
+    expect(cardDescEl.querySelectorAll('[data-term-label="反転"]')).toHaveLength(0);
   });
 
   test('effect glossary explains taboo reverse absolute-protection exception', () => {
