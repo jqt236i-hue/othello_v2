@@ -139,13 +139,17 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
   });
 
-  test('card faces use premium frame, type texture variables, and bottom name plate', () => {
+  test('card faces use a shared pentagonal frame across all card variants', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
     const layoutCss = readRepoTextFile('styles-layout.css');
 
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-type-field/);
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*--card-face-rune-pattern/);
     expect(cardsCss).toMatch(/\.card-item\.visible\s*\{[\s\S]*clip-path:\s*polygon\(50% 0/);
+    expect(cardsCss).not.toMatch(/\.card-item\.visible\.cost-tier-special\s*\{[^}]*clip-path:/);
+    expect(cardsCss).not.toMatch(/\.card-item\.visible\[data-card-id="rainbow_stone"\]\s*\{[^}]*clip-path:/);
+    expect(cardsCss).not.toMatch(/\.card-item\.visible\.special-card-face\s*\{[^}]*clip-path:/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.special-card-face::after\s*\{[^}]*clip-path:\s*polygon\(50% 0/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-gray[\s\S]*--card-tier-border:\s*#9aa4b2/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-white[\s\S]*--card-tier-border:\s*#f3f7ff/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-red[\s\S]*--card-tier-border:\s*#71d28e/);

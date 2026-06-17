@@ -626,7 +626,6 @@
 }
 
 .card-item.visible.special-card-face {
-    clip-path: polygon(50% 0, 92% 6%, 100% 18%, 100% 82%, 92% 94%, 50% 100%, 8% 94%, 0 82%, 0 18%, 8% 6%);
     --card-tier-bg-a: #f7fbff;
     --card-tier-bg-b: #d9e8f2;
     --card-tier-bg-c: #101820;
@@ -669,7 +668,7 @@
     content: '';
     inset: calc(8px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 230, 150, 0.72);
-    clip-path: polygon(50% 0, 92% 7%, 100% 19%, 100% 81%, 92% 93%, 50% 100%, 8% 93%, 0 81%, 0 19%, 8% 7%);
+    clip-path: polygon(50% 0, 94% 5%, 100% 13%, 100% 87%, 94% 96%, 50% 100%, 6% 96%, 0 87%, 0 13%, 6% 5%);
     filter: none;
     transform: none;
     box-shadow:
@@ -912,7 +911,6 @@
 }
 
 .card-item.visible.cost-tier-special {
-    clip-path: polygon(0 10%, 9% 0, 91% 0, 100% 12%, 100% 83%, 89% 100%, 11% 100%, 0 91%, 0 61%, 4% 56%, 0 50%);
     --card-tier-bg-a: #1b0f15;
     --card-tier-bg-b: #0f0a0d;
     --card-tier-bg-c: #050304;
@@ -952,7 +950,6 @@
 }
 
 .card-item.visible[data-card-id="rainbow_stone"] {
-    clip-path: polygon(0 11%, 10% 0, 92% 0, 100% 11%, 100% 87%, 90% 100%, 8% 100%, 0 89%, 0 57%, 3% 50%, 0 43%);
     --card-tier-bg-a: #ff5a7a;
     --card-tier-bg-b: #ff9f43;
     --card-tier-bg-c: #5b56ff;
