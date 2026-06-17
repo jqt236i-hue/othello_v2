@@ -166,38 +166,38 @@
 }
 
 .game-term-highlight--flip {
-    color: #88d8ff;
-    background: rgba(72, 166, 255, 0.16);
+    color: #a4d0e8;
+    background: rgba(102, 154, 190, 0.13);
 }
 
 .game-term-highlight--destroy {
-    color: #ff9a8d;
-    background: rgba(255, 76, 76, 0.17);
+    color: #e4a199;
+    background: rgba(190, 95, 90, 0.14);
 }
 
 .game-term-highlight--stone {
-    color: #82e6b1;
-    background: rgba(46, 204, 113, 0.16);
+    color: #9bd8b6;
+    background: rgba(85, 164, 113, 0.13);
 }
 
 .game-term-highlight--protection {
-    color: #f3d36b;
-    background: rgba(231, 184, 58, 0.18);
+    color: #dfc980;
+    background: rgba(185, 157, 75, 0.15);
 }
 
 .game-term-highlight--cell {
-    color: #c6a6ff;
-    background: rgba(151, 108, 255, 0.18);
+    color: #bcaee1;
+    background: rgba(132, 112, 180, 0.15);
 }
 
 .game-term-highlight--resource {
-    color: #f4c7ff;
-    background: rgba(220, 111, 255, 0.15);
+    color: #dfbfe5;
+    background: rgba(178, 115, 190, 0.13);
 }
 
 .game-term-highlight--unique {
-    color: #7ef1e8;
-    background: rgba(70, 221, 210, 0.16);
+    color: #9ed9d6;
+    background: rgba(77, 170, 166, 0.13);
 }
 
 #log .logEntry {
