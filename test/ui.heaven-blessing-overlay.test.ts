@@ -110,6 +110,7 @@ describe('HEAVEN_BLESSING overlay flow', () => {
 
   test('renders offer cards with the normal card face renderer', () => {
     const overlayView = require('../cards/card-interaction-overlay-view.ts');
+    const textTermHighlighterModule = require('../ui/text-term-highlighter.ts');
     let overlayRefs = null;
     const createCardFaceElement = jest.fn((cardId, options) => {
       const cardEl = document.createElement('div');
@@ -150,10 +151,12 @@ describe('HEAVEN_BLESSING overlay flow', () => {
       fitCardNameForDisplay: jest.fn(),
       appendCardDisplayBadges: jest.fn(),
       createCardFaceElement,
-      getOverlayCardDescriptionText: () => '説明',
+      getOverlayCardDescriptionText: () => '反転する特殊石。破壊は受ける。',
+      textTermHighlighterModule,
       playUiEffectSound: jest.fn(),
       executeHeavenSelection: jest.fn(),
-      executeCondemnSelection: jest.fn()
+      executeCondemnSelection: jest.fn(),
+      executeObserverWillSelection: jest.fn()
     });
 
     const offer = document.querySelector('.heaven-offer-card');
@@ -165,6 +168,11 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     expect(offer.classList.contains('has-special-art')).toBe(true);
     expect(offer.querySelector('.card-special-art')).toBeTruthy();
     expect(offer.querySelector('.card-cost-badge')).toBeTruthy();
+    const desc = document.getElementById('heaven-blessing-detail-desc') as HTMLElement;
+    expect(desc.textContent).toContain('反転');
+    expect(desc.textContent).toContain('特殊石');
+    expect(desc.textContent).toContain('破壊');
+    expect(Array.from(desc.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['反転', '特殊石', '破壊']);
   });
 
   test('CONDEMN_WILL overlay click does not switch to treasure_gain sound', () => {

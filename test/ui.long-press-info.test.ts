@@ -280,8 +280,10 @@ describe('board cell long press info', () => {
 
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('時間停石');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('カウント終了時に時間停止を発動する。');
-    expect(document.getElementById('stone-info-desc').textContent).not.toContain('3回目');
+    const desc = document.getElementById('stone-info-desc') as HTMLElement;
+    expect(desc.textContent).toContain('カウント終了時に時間停止を発動する。');
+    expect(desc.textContent).not.toContain('3回目');
+    expect(Array.from(desc.querySelectorAll('.game-term-highlight')).some((el) => el.textContent === '時間停止')).toBe(true);
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');

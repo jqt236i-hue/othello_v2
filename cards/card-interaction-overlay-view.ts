@@ -27,6 +27,7 @@ type OverlayViewDeps = {
     appendCardDisplayBadges: (cardEl: any, cardDef: any, cost: any, tier: any) => any;
     createCardFaceElement?: (cardId: any, options?: any) => any;
     getOverlayCardDescriptionText: (cardDef: any, cardId: any) => any;
+    textTermHighlighterModule?: any;
     canInteractWithCardUi?: () => boolean;
     playUiEffectSound: (effectKey: any) => any;
     executeHeavenSelection: (playerKey: any, selectedCardId: any) => any;
@@ -166,6 +167,19 @@ function createOverlayOfferCard(cardId: any, cardDef: any, ownerKey: any, deps: 
     return createFallbackOfferCard(cardId, cardDef, deps);
 }
 
+function renderOverlayTermText(targetEl: any, text: any, deps: OverlayViewDeps) {
+    if (!targetEl) return;
+    const highlighter = deps && deps.textTermHighlighterModule;
+    if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
+        highlighter.renderTextWithGameTermHighlights(targetEl, String(text || ''), {
+            documentRef: targetEl.ownerDocument,
+            preserveLineBreaks: true
+        });
+        return;
+    }
+    targetEl.textContent = String(text || '');
+}
+
 function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
     const refs = ensureHeavenOverlay(deps);
     if (!refs || !refs.root) return;
@@ -235,7 +249,7 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
     const selectedCardId = (selectedOffer && typeof selectedOffer === 'object') ? selectedOffer.cardId : selectedOffer;
     const selectedDef = deps.resolveCardDef(selectedCardId);
     refs.detailName.textContent = deps.getCardDisplayLabel(selectedCardId, selectedDef);
-    refs.detailDesc.textContent = deps.getOverlayCardDescriptionText(selectedDef, selectedCardId);
+    renderOverlayTermText(refs.detailDesc, deps.getOverlayCardDescriptionText(selectedDef, selectedCardId), deps);
     refs.selectBtn.textContent = pendingType === 'CONDEMN_WILL' ? '破壊' : (pendingType === 'OBSERVER_WILL' ? '奪う' : '選択');
     const canInteract = typeof deps.canInteractWithCardUi === 'function'
         ? deps.canInteractWithCardUi() !== false

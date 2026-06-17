@@ -647,6 +647,7 @@ function _getCardInteractionOverlayViewDeps() {
             ? _cardRendererModule.createCardFaceElement
             : undefined,
         getOverlayCardDescriptionText: _getOverlayCardDescriptionText,
+        textTermHighlighterModule: _textTermHighlighterModule,
         canInteractWithCardUi: _canInteractWithCardUi,
         playUiEffectSound,
         executeHeavenSelection: _executeHeavenSelection,

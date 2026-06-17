@@ -1192,6 +1192,10 @@ var StoneInfoPanelModule: any = null;
 if (typeof require === 'function') {
     try { StoneInfoPanelModule = require('./diff-renderer/stone-info-panel'); } catch (e: any) { /* ignore */ }
 }
+var TextTermHighlighterModule: any = null;
+if (typeof require === 'function') {
+    try { TextTermHighlighterModule = require('./text-term-highlighter'); } catch (e: any) { /* ignore */ }
+}
 var SpecialMarkerRendererModule: any = null;
 if (typeof require === 'function') {
     try { SpecialMarkerRendererModule = require('./diff-renderer/special-marker-renderer'); } catch (e: any) { /* ignore */ }
@@ -1969,11 +1973,23 @@ const STONE_INFO_IDLE_STATE = {
     desc: '石をタップまたはホバーして表示'
 };
 
+function _renderDiffTermText(targetEl: any, text: any): void {
+    if (!targetEl) return;
+    if (TextTermHighlighterModule && typeof TextTermHighlighterModule.renderTextWithGameTermHighlights === 'function') {
+        TextTermHighlighterModule.renderTextWithGameTermHighlights(targetEl, String(text || ''), {
+            documentRef: targetEl.ownerDocument || (typeof document !== 'undefined' ? document : null),
+            preserveLineBreaks: true
+        });
+        return;
+    }
+    targetEl.textContent = String(text || '');
+}
+
 function _showIdleStoneInfoPanel() {
     const refs = _getStoneInfoPanelRefs();
     if (!refs) return;
     refs.name.textContent = STONE_INFO_IDLE_STATE.name;
-    refs.desc.textContent = STONE_INFO_IDLE_STATE.desc;
+    _renderDiffTermText(refs.desc, STONE_INFO_IDLE_STATE.desc);
     _renderStoneInfoMetaBadges(refs.meta, []);
     refs.panel.classList.add('visible');
     refs.panel.setAttribute('aria-hidden', 'false');
@@ -2378,7 +2394,7 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     if (!refs) return false;
 
     refs.name.textContent = info.name;
-    refs.desc.textContent = info.desc;
+    _renderDiffTermText(refs.desc, info.desc);
     _renderStoneInfoMetaBadges(refs.meta, badges);
 
     refs.panel.classList.add('visible');
