@@ -65,8 +65,8 @@
     --layout-z-board-frame: 10;
     --layout-z-player-area: 20;
     --layout-z-charge-hud: 30;
-    --layout-z-charge-delta: 1009;
-    --layout-z-charge-display: 1010;
+    --layout-z-charge-display: 1009;
+    --layout-z-charge-delta: 1010;
     --z-board-fx: 30;
     --z-card-fx: 1025;
     --z-network-chat: 13000;

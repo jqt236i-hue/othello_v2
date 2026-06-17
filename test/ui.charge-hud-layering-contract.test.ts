@@ -16,7 +16,7 @@ describe('charge HUD layering contract', () => {
     expect(variablesCss).toMatch(/--layout-z-board-frame:\s*10/);
     expect(variablesCss).toMatch(/--layout-z-player-area:\s*20/);
     expect(variablesCss).toMatch(/--layout-z-charge-hud:\s*30/);
-    expect(variablesCss).toMatch(/--layout-z-charge-delta:\s*1009/);
-    expect(variablesCss).toMatch(/--layout-z-charge-display:\s*1010/);
+    expect(variablesCss).toMatch(/--layout-z-charge-display:\s*1009/);
+    expect(variablesCss).toMatch(/--layout-z-charge-delta:\s*1010/);
   });
 });

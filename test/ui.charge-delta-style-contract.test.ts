@@ -19,12 +19,12 @@ describe('charge delta style contract', () => {
 
     expect(chargeDisplayBody).toMatch(/box-shadow:\s*none/);
     expect(chargeDisplayBody).toMatch(/text-shadow:\s*none/);
-    expect(variablesCss).toMatch(/--layout-size-charge-delta-font:\s*calc\(14px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(variablesCss).toMatch(/--layout-size-charge-delta-height:\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-size-charge-delta-font:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-size-charge-delta-height:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-delta-min-width:\s*calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*position:\s*absolute/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*display:\s*flex/);
-    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*min-height:\s*var\(--layout-size-charge-delta-height\)/);
+    expect(layoutCss).toMatch(/\.charge-delta[\s\S]*height:\s*var\(--layout-size-charge-delta-height\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*padding:\s*var\(--layout-size-charge-delta-pad-y\)\s*var\(--layout-size-charge-delta-pad-x\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*overflow:\s*visible/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*z-index:\s*var\(--layout-z-charge-delta\)/);
