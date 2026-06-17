@@ -37,10 +37,11 @@ describe('text term highlighter', () => {
   });
 
   test('assigns secondary effect tones to proper names', () => {
-    const matches = findGameTermMatches('究極反転龍と究極破壊神を比較する。');
+    const matches = findGameTermMatches('究極反転龍と究極破壊神と盤界の執行者を比較する。');
     expect(matches.map((match) => [match.text, match.category, match.tone])).toEqual([
       ['究極反転龍', 'unique', 'flip'],
-      ['究極破壊神', 'unique', 'destroy']
+      ['究極破壊神', 'unique', 'destroy'],
+      ['盤界の執行者', 'unique', 'cell']
     ]);
   });
 

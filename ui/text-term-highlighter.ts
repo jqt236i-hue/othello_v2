@@ -107,6 +107,13 @@ function collectSpecialStoneNameTerms(text: string): string[] {
 }
 
 function inferUniqueTermTone(label: string, description: string, displayType: string): GameTermTone {
+  if (/(破壊|爆破|爆発|消滅|捕食|狙撃|因果抹消|断罪|処刑)/.test(label)) return 'destroy';
+  if (/(反転|連鎖|禁忌反転|龍)/.test(label)) return 'flip';
+  if (/(保護|守|回避|幽体|残像|復活|救済|罠|生きる)/.test(label)) return 'protection';
+  if (/(穴|封鎖|凍結|盤界|盤面縮小|盤面拡張|マステレポート)/.test(label)) return 'cell';
+  if (/(布石|コスト|持続|ターン|時間|ドロー|手札|理論|観測|延命|腐食|採掘)/.test(label)) return 'resource';
+  if (/(石|顕現|化身|執行者)/.test(label)) return 'stone';
+
   const source = `${label} ${description} ${displayType}`;
   if (/(破壊|爆破|爆発|消滅|捕食|狙撃|因果抹消|断罪|処刑)/.test(source)) return 'destroy';
   if (/(反転|連鎖|禁忌反転|龍)/.test(source)) return 'flip';

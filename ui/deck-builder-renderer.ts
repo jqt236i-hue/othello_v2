@@ -8,6 +8,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const DeckSpecHelpers = _require('../shared/deck-spec');
 
+let TextTermHighlighterModule: any = null;
+try {
+  TextTermHighlighterModule = _require('./text-term-highlighter');
+} catch (e) {
+  TextTermHighlighterModule = null;
+}
+
 function ensureDeckSpecHelpers(): any {
   if (!DeckSpecHelpers || typeof DeckSpecHelpers.getEnabledCardDefs !== 'function') {
     throw new Error('DeckSpecHelpers is required');
@@ -20,6 +27,19 @@ function clearElement(element: HTMLElement | null): void {
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }
+}
+
+function renderGameTermText(element: HTMLElement | null, text: string, options?: { preserveLineBreaks?: boolean }): void {
+  if (!element) return;
+  const normalized = String(text || '');
+  if (TextTermHighlighterModule && typeof TextTermHighlighterModule.renderTextWithGameTermHighlights === 'function') {
+    TextTermHighlighterModule.renderTextWithGameTermHighlights(element, normalized, {
+      documentRef: element.ownerDocument || document,
+      preserveLineBreaks: !!(options && options.preserveLineBreaks)
+    });
+    return;
+  }
+  element.textContent = normalized;
 }
 
 function measureElementOffsetWithinContainer(container: HTMLElement | null, element: HTMLElement | null): { top: number; left: number } | null {
@@ -260,7 +280,7 @@ function createCardEffectTextBlock(label: string, text: string, className: strin
 
   const textEl = document.createElement('div');
   textEl.className = 'deck-builder-card-detail-text';
-  textEl.textContent = normalized;
+  renderGameTermText(textEl, normalized, { preserveLineBreaks: true });
   block.appendChild(textEl);
 
   return block;

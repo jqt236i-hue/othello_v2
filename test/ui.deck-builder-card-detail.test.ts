@@ -107,4 +107,49 @@ describe('deck builder card detail button', () => {
 
     expect(body.querySelector('.deck-builder-card-detail-popup')).toBeFalsy();
   });
+
+  test('候補カードの詳細ポップアップは専門用語と固有名詞を共通ハイライトで表示する', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const body = document.getElementById('body') as HTMLElement;
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+
+    const targetCardDef = DeckSpecHelpers.getEnabledCardDefs()
+      .find((cardDef: any) => cardDef && cardDef.id === 'board_executor_01');
+    expect(targetCardDef).toBeTruthy();
+
+    const card = body.querySelector(`.deck-builder-candidate-grid .deck-builder-card[data-card-id="${targetCardDef.id}"]`) as HTMLElement;
+    expect(card).toBeTruthy();
+
+    const detailButton = card.querySelector('.deck-builder-card-detail-btn') as HTMLButtonElement;
+    expect(detailButton).toBeTruthy();
+    detailButton.click();
+
+    const detailPopup = body.querySelector('.deck-builder-card-detail-popup') as HTMLElement;
+    expect(detailPopup).toBeTruthy();
+
+    const highlightedTerms = Array.from(detailPopup.querySelectorAll('.game-term-highlight')) as HTMLElement[];
+    const termLabels = highlightedTerms.map((el) => el.textContent);
+
+    expect(termLabels).toEqual(expect.arrayContaining([
+      '盤界の執行者',
+      '特殊石',
+      '絶対保護',
+      '顕現石'
+    ]));
+    expect(highlightedTerms.find((el) => el.textContent === '盤界の執行者')).toEqual(expect.objectContaining({
+      dataset: expect.objectContaining({
+        termCategory: 'unique',
+        termTone: 'cell'
+      })
+    }));
+    expect(highlightedTerms.find((el) => el.textContent === '特殊石')).toEqual(expect.objectContaining({
+      dataset: expect.objectContaining({ termCategory: 'stone' })
+    }));
+    expect(highlightedTerms.find((el) => el.textContent === '絶対保護')).toEqual(expect.objectContaining({
+      dataset: expect.objectContaining({ termCategory: 'protection' })
+    }));
+  });
 });
