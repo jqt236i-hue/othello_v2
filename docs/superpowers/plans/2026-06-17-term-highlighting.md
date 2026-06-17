@@ -22,7 +22,7 @@
   - Rules help card descriptions: `#rules-help-card-desc`
   - Rules help effect descriptions and tag popovers
   - Card selection overlay detail description
-  - Stone info panel description
+  - Stone info panel description rendered by `ui/diff-renderer.ts`
 - Initial non-target surfaces:
   - Buttons such as `使用`, `破壊`, `詳細`
   - Card names such as `究極反転龍`
@@ -44,7 +44,7 @@
   - Render detail body with highlighted term spans.
 - Modify `cards/card-interaction-overlay-view.ts`
   - Render selected offer description with highlighted term spans.
-- Modify `ui/diff-renderer.ts` or `ui/stone-info-panel.ts`
+- Modify `ui/diff-renderer.ts`
   - Apply highlighting only to stone info description text, not stone names or marker badges.
 - Modify `styles-layout-info.css`
   - Replace or extend `.rules-help-term-highlight` to shared `.game-term-highlight` classes for help surfaces.
@@ -56,7 +56,8 @@
   - Add JSDOM assertions for card detail highlighting and HTML escaping.
 - Create `test/ui.text-term-highlighter.test.ts`
   - Unit-test tokenizer, longest-match behavior, aliases, protected text, and DOM rendering.
-- Modify focused stone info or overlay tests if existing coverage fails due to child spans replacing direct text nodes.
+- Modify `test/ui.heaven-blessing-overlay.test.ts` and `test/ui.long-press-info.test.ts`
+  - Assert overlay and stone info descriptions keep the same `textContent` while adding term highlight spans.
 
 ## Terminology Categories
 
@@ -411,9 +412,8 @@ test('rules help card descriptions use shared longest-match term highlighting', 
     </div>
   `;
 
-  const mod = require('../ui/handlers/rules-help.js');
-  mod.initRulesHelpPanel({
-    catalogCards: [{
+  (window as any).CardCatalog = {
+    cards: [{
       id: 'sample',
       name: '説明確認',
       type: 'SAMPLE',
@@ -421,8 +421,16 @@ test('rules help card descriptions use shared longest-match term highlighting', 
       display_type_ja: '守護',
       desc: '反転保護を持つ特殊石。マス破壊は受ける。'
     }]
-  });
-  (document.getElementById('rules-help-open-btn') || document.body).dispatchEvent(new Event('click'));
+  };
+  const mod = require('../ui/handlers/rules-help.js');
+  const btn = document.createElement('button');
+  btn.id = 'rulesHelpBtn';
+  btn.setAttribute('aria-expanded', 'false');
+  document.body.insertBefore(btn, document.body.firstChild);
+  const panel = document.getElementById('rules-help-panel') as HTMLElement;
+
+  mod.setupRulesHelp(btn, panel);
+  btn.click();
 
   const cardDescEl = document.getElementById('rules-help-card-desc') as HTMLElement;
   const terms = Array.from(cardDescEl.querySelectorAll('.game-term-highlight')) as HTMLElement[];
@@ -444,7 +452,7 @@ Expected: FAIL because rules help still emits `.rules-help-term-highlight`.
 
 - [ ] **Step 3: Replace local highlighter in `ui/handlers/rules-help.ts`**
 
-At the top-level helper area of `ui/handlers/rules-help.ts`, require the shared module:
+After `_requireFirstRulesHelpModuleOrNull()` is defined in `ui/handlers/rules-help.ts`, require the shared module:
 
 ```ts
 const _textTermHighlighterModule = _requireFirstRulesHelpModuleOrNull([
@@ -454,6 +462,9 @@ const _textTermHighlighterModule = _requireFirstRulesHelpModuleOrNull([
 const GAME_TERM_GLOSSARY = _textTermHighlighterModule && typeof _textTermHighlighterModule.getGameTermGlossary === 'function'
   ? _textTermHighlighterModule.getGameTermGlossary()
   : RULES_HELP_EFFECT_GLOSSARY;
+const GAME_TERM_GLOSSARY_BY_LABEL = new Map<string, any>(
+  (GAME_TERM_GLOSSARY as any).map((entry: any) => [entry.label, entry])
+);
 ```
 
 Replace `_highlightEffectTerms()` and `_formatHelpText()` usage with a DOM renderer helper:
@@ -474,7 +485,9 @@ function _renderHelpText(targetEl: any, text: string): void {
 
 Use `_renderHelpText(bodyEl, bodyText)` anywhere `_formatHelpText()` was assigned to `innerHTML`. Keep title/card name rendering as plain text.
 
-For effect list population, use `GAME_TERM_GLOSSARY` as the source instead of `RULES_HELP_EFFECT_GLOSSARY`, while keeping the same button/popover behavior.
+Update `resolveEffectGlossaryEntry()` to read `GAME_TERM_GLOSSARY_BY_LABEL` instead of `RULES_HELP_EFFECT_GLOSSARY_BY_LABEL`.
+
+For effect list population, use `GAME_TERM_GLOSSARY` as the source instead of `RULES_HELP_EFFECT_GLOSSARY`, while keeping the same button/popover behavior. In `openTagPopover()` and `renderEffectsList()`, use `_renderHelpText()` for description bodies so the popover and effect list descriptions also receive shared term highlights.
 
 - [ ] **Step 4: Run the focused rules-help tests**
 
@@ -512,6 +525,8 @@ Expected: a commit containing only rules-help integration and tests.
 Append this test to `test/ui.card-interaction-detail-panel-module.test.ts`:
 
 ```ts
+import * as TextTermHighlighter from '../ui/text-term-highlighter';
+
 test('applies shared term highlighting to summary and expanded detail text', () => {
   const ctx = createController();
   const cardDef = {
@@ -541,7 +556,25 @@ test('applies shared term highlighting to summary and expanded detail text', () 
 });
 ```
 
-If the stripped summary still includes punctuation after implementation, adjust only the expected text around non-highlight text, not the `.game-term-highlight` expectations.
+Also update the `createController()` helper in the same test file so the controller receives the highlighter during tests:
+
+```ts
+  const controller = createCardInteractionDetailPanel({
+    effectsModule,
+    textTermHighlighterModule: TextTermHighlighter,
+    getQuickCardEffect: (cardDef: any) => (cardDef && cardDef.quickText) || '通常要約',
+    getDetailCardEffect: (cardDef: any) => (cardDef && cardDef.detailText) || '通常詳細',
+    resolveChargeMaxText: () => '99',
+    isHiddenHandToken: (cardId: any) => String(cardId || '').startsWith('hidden_'),
+    getDocumentRef: () => dom.window.document,
+    getCardStateValue: () => cardState,
+    getGameStateValue: () => gameState,
+    getCardLogic: () => cardLogic,
+    getRiboWillUnlockTurnIndex: () => 19
+  });
+```
+
+If the stripped summary still includes different punctuation after implementation, adjust only the expected text around non-highlight text, not the `.game-term-highlight` expectations.
 
 - [ ] **Step 2: Run the focused card detail module test and confirm failure**
 
@@ -605,11 +638,10 @@ Change `applyCardDetailDisplayModel()`:
 In `cards/card-interaction.ts`, require the shared module near other optional modules:
 
 ```ts
-const _textTermHighlighterModule = _requireFirstAvailableCardInteractionModule([
-    './ui/text-term-highlighter',
-    '../ui/text-term-highlighter',
-    './text-term-highlighter'
-]);
+const _textTermHighlighterModule = _resolveCardInteractionModule({
+    requirePath: '../ui/text-term-highlighter',
+    globalKey: 'TextTermHighlighter'
+});
 ```
 
 Pass it into `createCardInteractionDetailPanel`:
@@ -620,12 +652,31 @@ Pass it into `createCardInteractionDetailPanel`:
 
 - [ ] **Step 5: Update the detail tab renderer**
 
-In `cards/card-interaction-detail-tab.ts`, add optional dependency support or a local optional require matching the existing module style. Replace body plain text rendering:
+In `cards/card-interaction-detail-tab.ts`, add optional dependency support:
+
+```ts
+type CardInteractionDetailTabDeps = {
+    getDocumentRef: () => Document | null;
+    getWindowRef: () => (Window & typeof globalThis) | null;
+    getTabRefs: () => Record<string, any> | null;
+    setTabRefs: (refs: Record<string, any> | null) => void;
+    getTabState: () => { open: boolean; mode: any; key: any; cardId: any };
+    setTabState: (state: { open: boolean; mode: any; key: any; cardId: any }) => void;
+    setExpandedState: (open: boolean, cardId: any) => void;
+    getAutoDismissBound: () => boolean;
+    setAutoDismissBound: (bound: boolean) => void;
+    updateCardDetailPanel?: () => void;
+    textTermHighlighterModule?: any;
+};
+```
+
+Replace body plain text rendering in `openCardDetailTabPanel()`:
 
 ```ts
         refs.title.textContent = title;
-        if (textTermHighlighterModule && typeof textTermHighlighterModule.renderTextWithGameTermHighlights === 'function') {
-            textTermHighlighterModule.renderTextWithGameTermHighlights(refs.body, body, {
+        const highlighter = deps.textTermHighlighterModule;
+        if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
+            highlighter.renderTextWithGameTermHighlights(refs.body, body, {
                 documentRef: refs.body.ownerDocument,
                 preserveLineBreaks: true
             });
@@ -635,6 +686,12 @@ In `cards/card-interaction-detail-tab.ts`, add optional dependency support or a 
 ```
 
 Keep `refs.title.textContent = title`.
+
+In `cards/card-interaction.ts`, pass the same module into `createCardInteractionDetailTab()`:
+
+```ts
+        textTermHighlighterModule: _textTermHighlighterModule,
+```
 
 - [ ] **Step 6: Run focused card detail tests**
 
@@ -664,8 +721,8 @@ Expected: a commit containing only card detail integration and tests.
 
 **Files:**
 - Modify: `cards/card-interaction-overlay-view.ts`
-- Modify: `ui/diff-renderer.ts` or `ui/stone-info-panel.ts`
-- Test: existing overlay/stone info tests, adjusted only where they inspect markup
+- Modify: `ui/diff-renderer.ts`
+- Test: `test/ui.heaven-blessing-overlay.test.ts`, `test/ui.long-press-info.test.ts`
 
 - [ ] **Step 1: Locate the stone info render owner**
 
@@ -677,20 +734,37 @@ rg -n "STONE_INFO_IDLE_STATE|stone info|refs\\.desc|stone-info" ui test -g "*.ts
 
 Expected: identify the current owner of `refs.desc.textContent = info.desc`, currently visible in `ui/diff-renderer.ts`.
 
-- [ ] **Step 2: Write or update focused assertions**
+- [ ] **Step 2: Write focused overlay and stone info assertions**
 
-If an existing stone info test renders the panel, add:
+In `test/ui.heaven-blessing-overlay.test.ts`, update the existing `renders offer cards with the normal card face renderer` test. Add the highlighter module near the overlay module require:
 
 ```ts
-const desc = document.querySelector('.stone-info-desc') as HTMLElement;
-expect(desc.textContent).toContain('特殊石');
-expect(Array.from(desc.querySelectorAll('.game-term-highlight')).some((el) => el.textContent === '特殊石')).toBe(true);
+const textTermHighlighterModule = require('../ui/text-term-highlighter.ts');
 ```
 
-If no direct test exists, add a focused JSDOM test around the exported renderer function that owns the stone info update. Use an input description like:
+Change that test's overlay deps so the rendered description contains terms and receives the highlighter:
 
 ```ts
-const info = { name: '特殊石', desc: '特殊石は反転保護や破壊回避を持つことがある。' };
+      getOverlayCardDescriptionText: () => '反転する特殊石。破壊は受ける。',
+      textTermHighlighterModule,
+```
+
+Add these assertions after the existing offer assertions:
+
+```ts
+const desc = document.getElementById('heaven-blessing-detail-desc') as HTMLElement;
+expect(desc.textContent).toContain('反転');
+expect(desc.textContent).toContain('特殊石');
+expect(desc.textContent).toContain('破壊');
+expect(Array.from(desc.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['反転', '特殊石', '破壊']);
+```
+
+In `test/ui.long-press-info.test.ts`, update the existing `showSpecialStoneInfoAt renders TIME_STOP name and timer` or `showSpecialStoneInfoAt uses shared TIME_STOP rulebook text` assertion:
+
+```ts
+const desc = document.getElementById('stone-info-desc') as HTMLElement;
+expect(desc.textContent).toContain('時間停止');
+expect(Array.from(desc.querySelectorAll('.game-term-highlight')).some((el) => el.textContent === '時間停止')).toBe(true);
 ```
 
 - [ ] **Step 3: Inject or require the shared renderer in overlay view**
@@ -711,6 +785,12 @@ function renderOverlayTermText(targetEl: any, text: any, deps: any) {
 }
 ```
 
+Add the optional dependency to `OverlayViewDeps`:
+
+```ts
+    textTermHighlighterModule?: any;
+```
+
 Replace:
 
 ```ts
@@ -725,16 +805,46 @@ renderOverlayTermText(refs.detailDesc, deps.getOverlayCardDescriptionText(select
 
 Wire `textTermHighlighterModule` through the existing overlay creation dependency object in `cards/card-interaction.ts`.
 
+```ts
+        textTermHighlighterModule: _textTermHighlighterModule,
+```
+
 - [ ] **Step 4: Apply renderer to stone info descriptions only**
 
-In the stone info render owner, replace only the description assignment:
+In `ui/diff-renderer.ts`, add the shared module near the optional `StoneInfoPanelModule` require block:
+
+```ts
+let TextTermHighlighterModule: any = null;
+try { TextTermHighlighterModule = require('./text-term-highlighter'); } catch (e: any) { /* ignore */ }
+```
+
+Add a local helper near `_showIdleStoneInfoPanel()`:
+
+```ts
+function _renderDiffTermText(targetEl: any, text: any): void {
+    if (targetEl && TextTermHighlighterModule && typeof TextTermHighlighterModule.renderTextWithGameTermHighlights === 'function') {
+        TextTermHighlighterModule.renderTextWithGameTermHighlights(targetEl, String(text || ''), {
+            documentRef: targetEl.ownerDocument || (typeof document !== 'undefined' ? document : null),
+            preserveLineBreaks: true
+        });
+        return;
+    }
+    if (targetEl) targetEl.textContent = String(text || '');
+}
+```
+
+Then replace only stone info description assignments:
 
 ```ts
 refs.name.textContent = info.name;
-renderTextWithGameTermHighlights(refs.desc, info.desc, {
-  documentRef: refs.desc.ownerDocument,
-  preserveLineBreaks: true
-});
+_renderDiffTermText(refs.desc, info.desc);
+```
+
+Also replace idle guidance description assignment:
+
+```ts
+refs.name.textContent = STONE_INFO_IDLE_STATE.name;
+_renderDiffTermText(refs.desc, STONE_INFO_IDLE_STATE.desc);
 ```
 
 Keep stone names, badges, timers, and board labels plain text.
@@ -744,10 +854,8 @@ Keep stone names, badges, timers, and board labels plain text.
 Run the narrow tests that cover modified surfaces:
 
 ```powershell
-npx jest test/ui.heaven-blessing-overlay.test.ts test/ui.card-interaction-detail-panel-module.test.ts --runInBand
+npx jest test/ui.heaven-blessing-overlay.test.ts test/ui.long-press-info.test.ts test/ui.card-interaction-detail-panel-module.test.ts --runInBand
 ```
-
-If stone info has a dedicated test, include it in the command.
 
 Expected: PASS.
 
@@ -757,11 +865,9 @@ Run:
 
 ```powershell
 git status --short
-git add cards/card-interaction-overlay-view.ts cards/card-interaction.ts ui/diff-renderer.ts test
+git add cards/card-interaction-overlay-view.ts cards/card-interaction.ts ui/diff-renderer.ts test/ui.heaven-blessing-overlay.test.ts test/ui.long-press-info.test.ts
 git commit -m "Highlight terminology in overlay descriptions"
 ```
-
-Before staging `test`, inspect `git diff --name-only -- test` and stage only tests intentionally changed for this task.
 
 ---
 
