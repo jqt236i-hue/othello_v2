@@ -2,6 +2,7 @@ import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as Core from '../game/logic/core.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
+import * as TheorySpawnImmediateEffects from '../game/turn/theory-spawn-immediate-effects';
 import * as SpecialStoneMarkerFactory from '../game/logic/card-resolution/special-stone-marker-factory';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 
@@ -501,6 +502,46 @@ describe('理論の化身', () => {
         })
       })
     ]));
+  });
+
+  test('理論召喚で出た破壊神の即時破壊は救済神復活に渡されたPRNGを使う', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    delete cardState._defaultRandomSource;
+    const gameState = createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][4] = Shared.WHITE;
+    cardState.markers.push(
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
+      { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 6 } }
+    );
+    const events: any[] = [];
+
+    expect(() => {
+      TheorySpawnImmediateEffects.resolveTheorySpawnImmediateEffects({
+        CardLogic,
+        cardState,
+        gameState,
+        playerKey: 'black',
+        events,
+        spawned: { row: 3, col: 3, type: 'ULTIMATE_DESTROY_GOD' },
+        prng
+      });
+    }).not.toThrow();
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'udg_destroyed_immediate',
+      details: expect.arrayContaining([expect.objectContaining({ row: 3, col: 4 })])
+    }));
+    expect(cardState.presentationEvents).toContainEqual(expect.objectContaining({
+      type: 'SPAWN',
+      ownerAfter: 'black',
+      cause: 'STONE_SALVATION_GOD',
+      reason: 'stone_salvation_god_revive'
+    }));
+    expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
   });
 
   test('理論石配置直後の理論召喚でも配置直後効果を発動する', () => {

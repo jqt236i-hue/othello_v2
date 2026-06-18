@@ -58,7 +58,8 @@ function resolveTheorySpawnImmediateEffects(options: ResolveTheorySpawnImmediate
 
     if (typeKey === 'ULTIMATE_DESTROY_GOD' && typeof opts.CardLogic.processUltimateDestroyGodEffectsAtAnchor === 'function') {
         const udgNow = opts.CardLogic.processUltimateDestroyGodEffectsAtAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, {
-            decrementRemainingOwnerTurns: false
+            decrementRemainingOwnerTurns: false,
+            randomSource: p
         });
         pushDetailsEvent(opts.events, 'udg_destroyed_immediate', udgNow && udgNow.destroyed);
         return;
