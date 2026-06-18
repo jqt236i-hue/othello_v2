@@ -129,6 +129,7 @@ export interface CpuPolicyMoveOptions {
     endgameSolveEmpties?: number;
     disableEndgameSolve?: boolean;
     virtualTimePerNodeMs?: number | null;
+    readNowMs?: (() => number) | null;
     boardBonusByCell?: Record<string, number> | null;
     boardBonusConsumedByCell?: Record<string, boolean> | null;
     priorWeight?: number;

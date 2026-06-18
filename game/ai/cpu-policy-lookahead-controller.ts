@@ -111,6 +111,12 @@ function fallbackPrepareLookaheadPrelude(input: {
     level: number;
     readVisited?: () => number;
 }): CpuPolicyLookaheadPreludeOutput {
+    const readNowMs = typeof input.opts.readNowMs === 'function'
+        ? () => {
+            const value = Number(input.opts.readNowMs && input.opts.readNowMs());
+            return Number.isFinite(value) ? value : Date.now();
+        }
+        : () => Date.now();
     return {
         empties: 0,
         endgameMode: false,
@@ -118,7 +124,7 @@ function fallbackPrepareLookaheadPrelude(input: {
         branchLimit: null,
         nodeBudget: 50_000,
         timeBudgetMs: null,
-        readNowMs: () => Date.now(),
+        readNowMs,
         deadlineMs: null,
         boardBonusByCell: input.opts.boardBonusByCell && typeof input.opts.boardBonusByCell === 'object'
             ? input.opts.boardBonusByCell as Record<string, number>

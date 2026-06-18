@@ -50,6 +50,33 @@ describe('cpu-policy lookahead prelude module', () => {
     expect(prelude.deadlineMs).toBe(508);
   });
 
+  test('uses opts readNowMs when virtual clock is not configured', () => {
+    const helpers = createCpuPolicyLookaheadPrelude({
+      isFiniteNumber: (value: unknown) => Number.isFinite(Number(value)),
+      countBoardDiscsForPlayer: () => ({ empties: 20 }),
+      resolveLookaheadDepth: () => 4,
+      resolveLookaheadBranch: () => null,
+      resolveLookaheadNodeBudget: () => 1000,
+      resolveLookaheadTimeBudgetMs: () => 25,
+      resolveLookaheadVirtualTimePerNodeMs: () => null
+    });
+    const nowValues = [100, 115];
+    const readNowMs = jest.fn(() => nowValues.shift() ?? 115);
+
+    const prelude = helpers.prepareLookaheadPrelude({
+      opts: {
+        readNowMs
+      } as any,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)) as any,
+      playerValue: 1,
+      level: 6
+    });
+
+    expect(prelude.deadlineMs).toBe(125);
+    expect(prelude.readNowMs()).toBe(115);
+    expect(readNowMs).toHaveBeenCalledTimes(2);
+  });
+
   test('notifies search meta and swallows callback errors', () => {
     const helpers = createCpuPolicyLookaheadPrelude();
     const metaSink: any[] = [];

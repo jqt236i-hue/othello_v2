@@ -117,6 +117,11 @@ export function createCpuPolicyLookaheadPrelude(deps?: CpuPolicyLookaheadPrelude
         const readVisited = typeof input.readVisited === 'function' ? input.readVisited : (() => 0);
         const readNowMs = virtualTimePerNodeMs !== null
             ? () => readVisited() * virtualTimePerNodeMs
+            : typeof opts.readNowMs === 'function'
+                ? () => {
+                    const value = Number(opts.readNowMs && opts.readNowMs());
+                    return Number.isFinite(value) ? value : Date.now();
+                }
             : () => Date.now();
         const deadlineMs = timeBudgetMs !== null ? (readNowMs() + timeBudgetMs) : null;
         const boardBonusByCell: Record<string, number> | null = opts.boardBonusByCell && typeof opts.boardBonusByCell === 'object'
