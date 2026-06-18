@@ -17,7 +17,7 @@ const FALLBACK_TURNS = Object.freeze({
     LIGHTNING_WILL: 6,
     METEOR_GOD: 6,
     TIME_STOP_GOD: 3,
-    WILL_HUNTER_KING: 4,
+    WILL_HUNTER_KING: 8,
     ROBOT_VACUUM_WILL: 4,
     ULTIMATE_HYPERACTIVE_GOD: 12,
     WORK_WILL: 5
@@ -29,6 +29,15 @@ function normalizeType(value: any): string {
 
 function readPositiveInt(value: any, fallback: number): number {
     const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function readSpecialStoneInfoInt(deps: any, type: string, key: string, fallback: number): number {
+    const registry = deps && deps.SpecialStoneRegistry;
+    const info = registry && typeof registry.getSpecialStoneInfo === 'function'
+        ? registry.getSpecialStoneInfo(type)
+        : null;
+    const n = Number(info && info[key]);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
@@ -120,7 +129,9 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
         case 'WILL_HUNTER_KING':
             return {
                 type: 'WILL_HUNTER_KING',
-                remainingOwnerTurns: readPositiveInt(constants.WILL_HUNTER_KING_TURNS, FALLBACK_TURNS.WILL_HUNTER_KING)
+                remainingOwnerTurns: readPositiveInt(constants.WILL_HUNTER_KING_TURNS, FALLBACK_TURNS.WILL_HUNTER_KING),
+                flipEvadeRemaining: readSpecialStoneInfoInt(deps, 'WILL_HUNTER_KING', 'tagFlipEvadeDefault', 2),
+                destroyEvadeRemaining: readSpecialStoneInfoInt(deps, 'WILL_HUNTER_KING', 'tagDestroyEvadeDefault', 2)
             };
         case 'HYPERACTIVE_WILL':
             return {

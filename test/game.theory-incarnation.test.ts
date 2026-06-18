@@ -118,6 +118,7 @@ describe('理論の化身', () => {
       { id: 'extreme_hyperactive_01', type: 'EXTREME_HYPERACTIVE_WILL', cost: 32 },
       { id: 'escape_01', type: 'ESCAPE_WILL', cost: 7 },
       { id: 'gluttonous_will_01', type: 'GLUTTONOUS_WILL', cost: 29 },
+      { id: 'will_hunter_king_01', type: 'WILL_HUNTER_KING', cost: 33 },
       { id: 'udg_01', type: 'ULTIMATE_DESTROY_GOD', cost: 30 },
       { id: 'ultimate_hyperactive_01', type: 'ULTIMATE_HYPERACTIVE_GOD', cost: 28 },
       { id: 'stone_salvation_god_01', type: 'STONE_SALVATION_GOD', cost: 20 },
@@ -177,6 +178,16 @@ describe('理論の化身', () => {
         cardType: 'GLUTTONOUS_WILL',
         cardCost: 29,
         markerData: expect.objectContaining({ type: 'GLUTTONOUS', gluttonousMissStreak: 0 })
+      }),
+      expect.objectContaining({
+        cardType: 'WILL_HUNTER_KING',
+        cardCost: 33,
+        markerData: expect.objectContaining({
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        })
       }),
       expect.objectContaining({
         cardType: 'ULTIMATE_DESTROY_GOD',
@@ -648,7 +659,7 @@ describe('理論の化身', () => {
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();
     gameState.currentPlayer = Shared.BLACK;
-    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5 };
+    cardState.boardBonusByCell = { '0,0': 33, '0,1': 33 };
     cardState.theoryNumberCellByCell = {
       '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' },
       '0,1': { sessionId: 'theory_black_1', ownerKey: 'black' }
@@ -660,24 +671,42 @@ describe('理論の化身', () => {
           '0,0': {
             row: 0,
             col: 0,
-            value: 5,
+            value: 33,
             originalValue: 0,
             originalConsumed: false,
-            spawnType: 'GHOST',
-            sourceCardId: 'ghost_01',
-            sourceCardType: 'GHOST_WILL',
-            sourceCardCost: 5
+            spawnType: 'WILL_HUNTER_KING',
+            sourceCardId: 'will_hunter_king_01',
+            sourceCardType: 'WILL_HUNTER_KING',
+            sourceCardCost: 33,
+            markerData: {
+              type: 'WILL_HUNTER_KING',
+              remainingOwnerTurns: 8,
+              flipEvadeRemaining: 2,
+              destroyEvadeRemaining: 2,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'will_hunter_king_01',
+              sourceCardType: 'WILL_HUNTER_KING'
+            }
           },
           '0,1': {
             row: 0,
             col: 1,
-            value: 5,
+            value: 33,
             originalValue: 0,
             originalConsumed: false,
-            spawnType: 'GHOST',
-            sourceCardId: 'ghost_01',
-            sourceCardType: 'GHOST_WILL',
-            sourceCardCost: 5
+            spawnType: 'WILL_HUNTER_KING',
+            sourceCardId: 'will_hunter_king_01',
+            sourceCardType: 'WILL_HUNTER_KING',
+            sourceCardCost: 33,
+            markerData: {
+              type: 'WILL_HUNTER_KING',
+              remainingOwnerTurns: 8,
+              flipEvadeRemaining: 2,
+              destroyEvadeRemaining: 2,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'will_hunter_king_01',
+              sourceCardType: 'WILL_HUNTER_KING'
+            }
           }
         }
       }
@@ -706,8 +735,12 @@ describe('理論の化身', () => {
           materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
           candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
-          spawnedMarkerType: 'GHOST'
-        })
+          spawnedMarkerType: 'WILL_HUNTER_KING'
+        }),
+        special: 'WILL_HUNTER_KING',
+        timer: 8,
+        flipEvadeRemaining: 2,
+        destroyEvadeRemaining: 2
       })
     }));
   });
