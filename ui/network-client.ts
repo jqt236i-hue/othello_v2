@@ -117,7 +117,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
         return {
             lastResultVersionShown: null,
-            resultShownForUnversioned: false
+            resultShownForUnversioned: false,
+            terminalResultShown: false
         };
     }
 
@@ -130,6 +131,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
         resultState.lastResultVersionShown = null;
         resultState.resultShownForUnversioned = false;
+        resultState.terminalResultShown = false;
         return resultState;
     }
 

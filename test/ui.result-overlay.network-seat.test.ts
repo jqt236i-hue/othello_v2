@@ -279,7 +279,8 @@ describe('result overlay seat perspective', () => {
     expect(mod.resetResultPresentationState(state)).toBe(state);
     expect(state).toEqual({
       lastResultVersionShown: null,
-      resultShownForUnversioned: false
+      resultShownForUnversioned: false,
+      terminalResultShown: false
     });
   });
 
@@ -657,6 +658,53 @@ describe('result overlay seat perspective', () => {
     expect(showResult).toHaveBeenCalledTimes(1);
   });
 
+  test('syncResultPresentationFromSnapshot は非終局になるまで終局リザルトを再表示しない', () => {
+    const mod = require('../ui/result-overlay.js');
+    const showResult = jest.fn();
+    global.isGameOver = jest.fn((state) => state && state.currentPlayer === -1);
+    const syncState = {
+      lastResultVersionShown: null,
+      resultShownForUnversioned: false
+    };
+    const terminalState = { currentPlayer: -1 };
+    const activeState = { currentPlayer: 1 };
+
+    const first = mod.syncResultPresentationFromSnapshot({
+      resultState: syncState,
+      stateVersion: 14,
+      gameStateRef: terminalState,
+      isGameOver: global.isGameOver,
+      showResult
+    });
+    const second = mod.syncResultPresentationFromSnapshot({
+      resultState: syncState,
+      stateVersion: 15,
+      gameStateRef: terminalState,
+      isGameOver: global.isGameOver,
+      showResult
+    });
+    const reset = mod.syncResultPresentationFromSnapshot({
+      resultState: syncState,
+      stateVersion: 16,
+      gameStateRef: activeState,
+      isGameOver: global.isGameOver,
+      showResult
+    });
+    const nextGameTerminal = mod.syncResultPresentationFromSnapshot({
+      resultState: syncState,
+      stateVersion: 17,
+      gameStateRef: terminalState,
+      isGameOver: global.isGameOver,
+      showResult
+    });
+
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+    expect(reset).toBe(false);
+    expect(nextGameTerminal).toBe(true);
+    expect(showResult).toHaveBeenCalledTimes(2);
+  });
+
   test('syncResultPresentationFromSnapshot は非終局 snapshot で既存 overlay を閉じる', () => {
     const mod = require('../ui/result-overlay.js');
     global.isGameOver = jest.fn(() => false);
@@ -766,5 +814,20 @@ describe('showResult __resultToken race condition', () => {
     // Fixed behavior: overlay still appears because delayed presentation no longer
     // depends on the transient gameState.__resultToken field surviving snapshot replacement.
     expect(document.getElementById('result-overlay')).not.toBeNull();
+  });
+
+  test('showResult は __resultShown が snapshot 置換で消えても同じ終局リザルトを再予約しない', () => {
+    jest.useFakeTimers();
+    const mod = require('../ui/result-overlay.js');
+
+    mod.showResult();
+    delete global.gameState.__resultShown;
+    mod.showResult();
+
+    expect(global.addLog).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(2500);
+
+    expect(document.querySelectorAll('#result-overlay')).toHaveLength(1);
   });
 });

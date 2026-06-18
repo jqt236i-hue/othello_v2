@@ -37,11 +37,13 @@ function createNetworkSessionSeatController(config: any): any {
     if (!target || typeof target !== 'object') {
       return {
         lastResultVersionShown: null,
-        resultShownForUnversioned: false
+        resultShownForUnversioned: false,
+        terminalResultShown: false
       };
     }
     target.lastResultVersionShown = null;
     target.resultShownForUnversioned = false;
+    target.terminalResultShown = false;
     return target;
   }
 

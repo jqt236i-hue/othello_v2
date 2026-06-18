@@ -35,6 +35,7 @@ const _observationStoneRewardByToken = new Map();
 // Updated each time showResult() is called so stale delayed callbacks can detect
 // that a newer invocation has superseded them.
 let _pendingResultToken: any = null;
+let _resultPresentationActive = false;
 
 function resolveResultOverlayModuleOrNull(id: string, globalName: string): any {
     if (typeof require === 'function') {
@@ -60,7 +61,8 @@ const ResultOverlaySoundEngineAccessModule = resolveResultOverlayModuleOrNull('.
 function createEmptyResultPresentationState() {
     return {
         lastResultVersionShown: null,
-        resultShownForUnversioned: false
+        resultShownForUnversioned: false,
+        terminalResultShown: false
     };
 }
 
@@ -72,14 +74,24 @@ function ensureResultPresentationState(resultState: any) {
     if (!Object.prototype.hasOwnProperty.call(resultState, 'resultShownForUnversioned')) {
         resultState.resultShownForUnversioned = false;
     }
+    if (!Object.prototype.hasOwnProperty.call(resultState, 'terminalResultShown')) {
+        resultState.terminalResultShown = false;
+    }
     return resultState;
 }
 
+function resetResultPresentationRuntimeState() {
+    _pendingResultToken = null;
+    _resultPresentationActive = false;
+}
+
 function resetResultPresentationState(resultState: any) {
+    resetResultPresentationRuntimeState();
     const target = ensureResultPresentationState(resultState);
     if (!target) return createEmptyResultPresentationState();
     target.lastResultVersionShown = null;
     target.resultShownForUnversioned = false;
+    target.terminalResultShown = false;
     return target;
 }
 
@@ -825,7 +837,9 @@ function syncResultPresentationFromSnapshot(options: any) {
 
     if (!terminal) {
         if (resultState) {
-            resultState.resultShownForUnversioned = false;
+            resetResultPresentationState(resultState);
+        } else {
+            resetResultPresentationRuntimeState();
         }
         dismissResultOverlayIfPresent();
         syncQuickResetButtonLabelForResultState(false);
@@ -835,6 +849,7 @@ function syncResultPresentationFromSnapshot(options: any) {
     syncQuickResetButtonLabelForResultState(true);
 
     if (resultState) {
+        if (resultState.terminalResultShown === true) return false;
         if (stateVersion !== null) {
             if (resultState.lastResultVersionShown === stateVersion) return false;
             resultState.lastResultVersionShown = stateVersion;
@@ -842,6 +857,9 @@ function syncResultPresentationFromSnapshot(options: any) {
             if (resultState.resultShownForUnversioned) return false;
             resultState.resultShownForUnversioned = true;
         }
+        resultState.terminalResultShown = true;
+    } else if (_resultPresentationActive) {
+        return false;
     }
 
     try {
@@ -907,8 +925,14 @@ function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals:
  * Show game result in log and overlay
  */
 function showResult() {
+    if (_resultPresentationActive) {
+        if (gameState) gameState.__resultShown = true;
+        syncQuickResetButtonLabelForResultState(true);
+        return;
+    }
     if (gameState && gameState.__resultShown) return;
     if (gameState) gameState.__resultShown = true;
+    _resultPresentationActive = true;
     syncQuickResetButtonLabelForResultState(true);
     const resultToken = Date.now();
     _pendingResultToken = resultToken;
@@ -1067,6 +1091,7 @@ function showResultOverlay() {
             return;
         }
 
+        resetResultPresentationState(null);
         dismissResultOverlayIfPresent();
         if (typeof resetGame === 'function') resetGame();
     };
