@@ -32,6 +32,10 @@ function createGameState() {
   return gameState;
 }
 
+function indexOfEventType(events: any[], type: string): number {
+  return events.findIndex((event: any) => event && event.type === type);
+}
+
 describe('理論の化身', () => {
   test('理論の化身は穴・封鎖・空凍結マスを理論数字マス化しない', () => {
     const prng = createPrng([0]);
@@ -628,6 +632,12 @@ describe('理論の化身', () => {
     });
 
     const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
+    const spawnIndex = indexOfEventType(result.events, 'theory_incarnation_spawned');
+    const destroyIndex = indexOfEventType(result.events, 'will_hunter_king_destroyed_immediate');
+    const moveIndex = indexOfEventType(result.events, 'will_hunter_king_moved_immediate');
+    expect(spawnIndex).toBeGreaterThanOrEqual(0);
+    expect(destroyIndex).toBeGreaterThan(spawnIndex);
+    expect(moveIndex).toBeGreaterThan(spawnIndex);
 
     expect(result.events).toContainEqual(expect.objectContaining({
       type: 'theory_incarnation_spawned',
@@ -764,6 +774,12 @@ describe('理論の化身', () => {
     cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
 
     const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng, { skipTurnStart: true });
+    const spawnIndex = indexOfEventType(result.events, 'theory_incarnation_spawned');
+    const destroyIndex = indexOfEventType(result.events, 'will_hunter_king_destroyed_immediate');
+    const moveIndex = indexOfEventType(result.events, 'will_hunter_king_moved_immediate');
+    expect(spawnIndex).toBeGreaterThanOrEqual(0);
+    expect(destroyIndex).toBeGreaterThan(spawnIndex);
+    expect(moveIndex).toBeGreaterThan(spawnIndex);
 
     expect(result.events).toContainEqual(expect.objectContaining({
       type: 'theory_incarnation_spawned',

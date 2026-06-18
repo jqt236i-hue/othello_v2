@@ -19,7 +19,7 @@ type ResolvePlacementActionOptions = {
     isOthelloMode: () => boolean;
 };
 
-const TheorySpawnImmediateEffectsModule = require('../theory-spawn-immediate-effects');
+const TheorySpawnResolutionModule = require('../theory-spawn-resolution');
 
 type ResolvePlacementActionResult = {
     boardBonusGained?: number;
@@ -218,24 +218,17 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
             if (typeof opts.CardLogic.processTheoryIncarnationMarkerAtPlacement === 'function') {
                 const placementSpawnRes = opts.CardLogic.processTheoryIncarnationMarkerAtPlacement(opts.cardState, opts.gameState, opts.playerKey, p);
                 if (placementSpawnRes && placementSpawnRes.spawned) {
-                    opts.events.push({
-                        type: 'theory_incarnation_spawned',
-                        player: opts.playerKey,
+                    TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
+                        CardLogic: opts.CardLogic,
+                        cardState: opts.cardState,
+                        gameState: opts.gameState,
+                        playerKey: opts.playerKey,
+                        events: opts.events,
+                        spawned: placementSpawnRes.spawned,
+                        prng: p,
                         timing: 'on_manifest_placement',
-                        detail: placementSpawnRes.spawned
+                        awardBoardChargeGain: opts.applyPlacementBoardBonusGain
                     });
-                    if (TheorySpawnImmediateEffectsModule && typeof TheorySpawnImmediateEffectsModule.resolveTheorySpawnImmediateEffects === 'function') {
-                        TheorySpawnImmediateEffectsModule.resolveTheorySpawnImmediateEffects({
-                            CardLogic: opts.CardLogic,
-                            cardState: opts.cardState,
-                            gameState: opts.gameState,
-                            playerKey: opts.playerKey,
-                            events: opts.events,
-                            spawned: placementSpawnRes.spawned,
-                            prng: p,
-                            awardBoardChargeGain: opts.applyPlacementBoardBonusGain
-                        });
-                    }
                 }
             }
         }
