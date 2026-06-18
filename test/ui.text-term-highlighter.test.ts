@@ -17,13 +17,14 @@ describe('text term highlighter', () => {
       '反転保護',
       '完全保護',
       '絶対保護',
-      '自由配置'
+      '自由配置',
+      '観測の代償'
     ]));
   });
 
   test('shares effect tag descriptions with highlighted game terms', () => {
     const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス化');
-    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。');
+    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マス化できる。');
   });
 
   test('catalogs free placement as a placement action term', () => {
@@ -37,6 +38,21 @@ describe('text term highlighter', () => {
     const matches = findGameTermMatches('空きマスに自由配置できる。');
     expect(matches.map((match) => [match.text, match.category])).toEqual([
       ['自由配置', 'placement']
+    ]);
+  });
+
+  test('catalogs observer repayment as a unique resource-toned term', () => {
+    const glossaryEntry = getGameTermGlossary().find((entry) => entry.label === '観測の代償');
+    expect(glossaryEntry).toMatchObject({
+      id: 'observer-will-repayment',
+      category: 'unique',
+      tone: 'resource'
+    });
+    expect(glossaryEntry?.description).toContain('元コスト20%');
+
+    const matches = findGameTermMatches('終了後観測の代償を支払う。');
+    expect(matches.map((match) => [match.text, match.category, match.tone])).toEqual([
+      ['観測の代償', 'unique', 'resource']
     ]);
   });
 

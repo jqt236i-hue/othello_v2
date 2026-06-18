@@ -488,16 +488,30 @@
             await waitForPlaybackIdleIfNeeded(basePlaybackEvents);
         }
 
+        const playbackHelpers = resolvePlaybackEventHelpers();
         let turnStartPlaybackEvents = [];
         if (typeof turnStartFn === 'function') {
-            const gameStateRef = readCurrentGameState();
-            const turnStartResult = await turnStartFn(gameStateRef ? gameStateRef.currentPlayer : null);
-            if (turnStartResult && Array.isArray(turnStartResult.playbackEvents)) {
-                turnStartPlaybackEvents = turnStartResult.playbackEvents.slice();
+            const MAX_TURN_START_CHAIN = 8;
+            for (let index = 0; index < MAX_TURN_START_CHAIN; index += 1) {
+                const gameStateRef = readCurrentGameState();
+                const beforePlayerKey = resolvePlayerKeyFromTurnValue(gameStateRef ? gameStateRef.currentPlayer : null);
+                const turnStartResult = await turnStartFn(gameStateRef ? gameStateRef.currentPlayer : null);
+                if (turnStartResult && Array.isArray(turnStartResult.playbackEvents)) {
+                    turnStartPlaybackEvents = (playbackHelpers && typeof playbackHelpers.appendPlaybackEventsAfter === 'function')
+                        ? playbackHelpers.appendPlaybackEventsAfter(turnStartPlaybackEvents, turnStartResult.playbackEvents)
+                        : turnStartPlaybackEvents.concat(turnStartResult.playbackEvents);
+                }
+                if (!(turnStartResult && turnStartResult.stopAction === true)) {
+                    break;
+                }
+                const nextGameStateRef = readCurrentGameState();
+                const afterPlayerKey = resolvePlayerKeyFromTurnValue(nextGameStateRef ? nextGameStateRef.currentPlayer : null);
+                if (!afterPlayerKey || afterPlayerKey === beforePlayerKey) {
+                    break;
+                }
             }
         }
 
-        const playbackHelpers = resolvePlaybackEventHelpers();
         const combinedPlaybackEvents = (playbackHelpers && typeof playbackHelpers.appendPlaybackEventsAfter === 'function')
             ? playbackHelpers.appendPlaybackEventsAfter(basePlaybackEvents, turnStartPlaybackEvents)
             : basePlaybackEvents.concat(turnStartPlaybackEvents);

@@ -276,6 +276,7 @@ describe('rules help panel', () => {
           : '',
         effectTags: cardDef.id === 'afterimage_will_01'
           ? [
+            { kind: 'usage-condition', label: '18手後使用可能' },
             { kind: 'special-stone', label: '特殊石' },
             { kind: 'flip-evasion', value: 3, label: '反転回避' },
             { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
@@ -311,6 +312,7 @@ describe('rules help panel', () => {
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['特殊石', '反転回避', '破壊回避']);
+    expect(cardDescEl.textContent).not.toContain('18手後使用可能');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).every((el) => el.tagName === 'BUTTON')).toBe(true);
 
     const specialStoneTag = Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag'))
@@ -366,6 +368,7 @@ describe('rules help panel', () => {
             quickText: '次に置く石を残像石化する。',
             distinctDetailText: '反転回避と破壊回避を持つ。',
             effectTags: [
+              { kind: 'usage-condition', label: '18手後使用可能' },
               { kind: 'special-stone', label: '特殊石' },
               { kind: 'delayed-activation-turns', value: 5, label: '5ターン後に発動' },
               { kind: 'flip-evasion', value: 3, label: '反転回避' },
@@ -429,6 +432,7 @@ describe('rules help panel', () => {
 
     expect(cardNames()).toEqual(['守る意志', '銀の意志', '封鎖の意志', '避ける意志', '因果抹消']);
     expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '反転回避', '破壊回避']);
+    expect(tagLabels()).not.toContain('18手後使用可能');
     expect(tagLabels()).not.toContain('5ターン後に発動');
     expect(tagLabels()).not.toContain('3ターン持続');
     expect(filterStatus.textContent).toContain('5 / 5枚');

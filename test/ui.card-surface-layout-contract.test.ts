@@ -80,6 +80,7 @@ describe('card surface layout contract', () => {
     const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
     const tagClasses = [
       'is-special-stone',
+      'is-usage-condition',
       'is-hole-cell',
       'is-inviolable',
       'is-flip-protection',

@@ -151,7 +151,7 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
   });
 
-  test('OBSERVER_WILL shows inviolable together with duration tags', () => {
+  test('OBSERVER_WILL shows usage condition before inviolable and duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -159,7 +159,7 @@ describe('card detail effect tags', () => {
       name: '盤理の観測者',
       type: 'OBSERVER_WILL',
       cost: 0,
-      desc: '相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。観測者を顕現させる。盤上にいる間相手の手札を観測できる。'
+      desc: '相手手札を1つ奪って0コスト化し、観測者を顕現させる。ターン持続中は常時相手の手札を観測でき、観測した手札のコスト＋5。終了後観測の代償を支払う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -168,13 +168,20 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
-    expect(document.getElementById('card-detail-desc').textContent).toContain('観測者を顕現させる');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('0コスト化');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('観測の代償');
+    expect(document.getElementById('card-detail-desc').textContent).not.toContain('18手');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('次の石を顕現石にする');
+    const observerRepaymentButton = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button'))
+      .find((el) => el.textContent === '観測の代償') as HTMLElement;
+    expect(observerRepaymentButton).toBeTruthy();
+    expect(observerRepaymentButton.dataset.termCategory).toBe('unique');
+    expect(observerRepaymentButton.dataset.termTone).toBe('resource');
   });
 
-  test('THEORY_INCARNATION shows inviolable together with duration tags', () => {
+  test('THEORY_INCARNATION shows usage condition before inviolable and duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -182,7 +189,7 @@ describe('card detail effect tags', () => {
       name: '理論の化身',
       type: 'THEORY_INCARNATION',
       cost: 0,
-      desc: '数字マスから実際に得た布石合計42以上で使用可能。空きマスを理論数字マスへ書き換え、理論の化身を顕現させる。'
+      desc: '空きマスを理論数字マス化し、理論の化身を顕現。顕現中は理論数字マスから特殊石が現れ、自分のターンを終了する。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -191,13 +198,14 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['不可侵', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '5ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
+    expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('5T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大6回特殊石を出現できる');
   });
 
-  test('BOARD_EXECUTOR shows hole-cell and inviolable together with duration tags', () => {
+  test('BOARD_EXECUTOR shows usage condition before inviolable and duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -205,7 +213,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面に自分の特殊石がある場合のみ使用可能。盤面上のすべての特殊石を穴にし、盤界の執行者を顕現させる。'
+      desc: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -214,9 +222,11 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['穴マス化', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).not.toContain('穴マス化');
     expect(getTagLabels()).not.toContain('絶対保護');
-    expect(document.getElementById('card-detail-desc').textContent).toContain('盤界の執行者を顕現させる');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('すべての特殊石を絶対保護ごと穴');
+    expect(document.getElementById('card-detail-desc').textContent).not.toContain('場合のみ使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
     expect(document.getElementById('card-detail-more').textContent).toContain('絶対保護も貫通');
   });
@@ -268,7 +278,7 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
   });
 
-  test('METEOR_WILL and BOARD_EXECUTOR show hole-cell tags', () => {
+  test('METEOR_WILL shows hole-cell tags and BOARD_EXECUTOR omits them', () => {
     require('../cards/card-interaction.js');
 
     const meteorDef = {
@@ -290,14 +300,15 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を穴にし、盤界の執行者を顕現させる。'
+      desc: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。'
     };
     global.cardState.selectedCardId = boardExecutorDef.id;
     global.cardState.hands.black = [boardExecutorDef.id];
     global.CardLogic.getCardDef = () => boardExecutorDef;
 
     window.updateCardDetailPanel();
-    expect(getTagLabels()).toEqual(['穴マス化', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).not.toContain('穴マス化');
   });
 
   test('TRAP_WILL keeps opponent-turn wording in text and shows the special stone tag', () => {
@@ -605,7 +616,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面に自分の特殊石がある場合のみ使用可能。盤面上のすべての特殊石を穴にし、盤界の執行者を顕現させる。'
+      desc: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
     };
     global.cardState.selectedCardId = cardDef.id;
     global.cardState.hands.black = [cardDef.id];
@@ -673,7 +684,7 @@ describe('card detail effect tags', () => {
     const termDescription = bodyEl.textContent;
 
     expect(termDescription).toBe(tagDescription);
-    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。');
+    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マス化できる。');
   });
 
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {

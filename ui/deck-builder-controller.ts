@@ -275,7 +275,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 cardId,
                 cardName,
                 quickText,
-                detailText: detailText && detailText !== quickText ? detailText : ''
+                detailText: detailText && detailText !== quickText ? detailText : '',
+                effectTags: Array.isArray(descriptionTexts && descriptionTexts.effectTags)
+                    ? descriptionTexts.effectTags
+                    : []
             };
         }
 

@@ -160,6 +160,21 @@ describe('cards catalog consistency', () => {
     expect(byId.get('support_troops_01').display_type_ja).toBe('繁栄');
   });
 
+  test('theory incarnation special card description omits its usage condition', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    const card = byId.get('theory_incarnation_01');
+    expect(card).toEqual(expect.objectContaining({
+      id: 'theory_incarnation_01',
+      name_ja: '理論の化身',
+      type: 'THEORY_INCARNATION',
+      cost: 0,
+      display_type_ja: '特殊'
+    }));
+    expect(card.desc_ja).not.toContain('使用可能');
+    expect(card.desc_ja).toBe('空きマスを理論数字マス化し、理論の化身を顕現。顕現中は理論数字マスから特殊石が現れ、自分のターンを終了する。');
+  });
+
   test('observer will special card is present with expected cost and type', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
@@ -171,8 +186,8 @@ describe('cards catalog consistency', () => {
       cost: 0,
       display_type_ja: '観測'
     }));
-    expect(card.desc_ja).toContain('18手以上');
-    expect(card.desc_ja).toBe('18手以上経過後に使用可能。相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。盤理の観測者を顕現させる。観測済みの相手手札は顕現終了後も表表示になる。');
+    expect(card.desc_ja).not.toContain('18手以上');
+    expect(card.desc_ja).toBe('相手手札を1つ奪って0コスト化し、観測者を顕現させる。ターン持続中は常時相手の手札を観測でき、観測した手札のコスト＋5。終了後観測の代償を支払う。');
   });
 
   test('board executor special card is present with expected cost and type', () => {
@@ -186,8 +201,8 @@ describe('cards catalog consistency', () => {
       cost: 0,
       display_type_ja: '特殊'
     }));
-    expect(card.desc_ja).toContain('盤面に自分の特殊石');
-    expect(card.desc_ja).toContain('手札カード使用を封じ');
+    expect(card.desc_ja).not.toContain('場合のみ使用可能');
+    expect(card.desc_ja).toContain('カード使用を封じ');
     expect(card.desc_ja).not.toContain('反転で得る布石');
   });
 

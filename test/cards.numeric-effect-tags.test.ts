@@ -50,7 +50,8 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('GUARD_WILL')).toEqual(['完全保護', '3ターン持続']);
     expect(getEffectTagLabels('BLOCKADE_WILL')).toEqual(['3ターン持続']);
     expect(getEffectTagLabels('FREEZE_WILL')).toEqual(['5ターン持続']);
-    expect(getEffectTagLabels('THEORY_INCARNATION')).toEqual(['不可侵', '5ターン持続']);
+    expect(getEffectTagLabels('THEORY_INCARNATION')).toEqual(['数字マス42獲得で使用可能', '不可侵', '5ターン持続']);
+    expect(getEffectTagLabels('OBSERVER_WILL')).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
   });
 
   test('protection tag audit covers all cards that should expose 反転保護 or 完全保護', () => {
@@ -73,13 +74,16 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('METEOR_WILL')).toEqual(['穴マス化']);
     expect(getEffectTagLabels('BOARD_SHRINK_WILL')).toEqual(['穴マス化']);
     expect(getEffectTagLabels('BOARD_SHRINK_GOD')).toEqual(['穴マス化']);
-    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['穴マス化', '不可侵', '4ターン持続']);
+    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['自特殊石存在時使用可能', '不可侵', '4ターン持続']);
     expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス化']);
   });
 
   test('numeric tag resolver stays numeric-only even after protection tags are added', () => {
     expect(getNumericTagLabels('PROTECTED_NEXT_STONE')).toEqual([]);
     expect(getNumericTagLabels('ANCHOR_WILL')).toEqual([]);
+    expect(getNumericTagLabels('THEORY_INCARNATION')).toEqual(['5ターン持続']);
+    expect(getNumericTagLabels('OBSERVER_WILL')).toEqual(['5ターン持続']);
+    expect(getNumericTagLabels('BOARD_EXECUTOR')).toEqual(['4ターン持続']);
     expect(getNumericTagLabels('GUARD_WILL')).toEqual(['3ターン持続']);
     expect(getNumericTagLabels('DESTROY_DRAGON_WILL')).toEqual(['3ターン持続']);
   });

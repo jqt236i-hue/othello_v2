@@ -1678,6 +1678,16 @@
         linear-gradient(135deg, rgba(24, 67, 45, 0.94), rgba(8, 14, 11, 0.90));
 }
 
+.card-detail-effect-tag.is-usage-condition,
+.rules-help-card-tag.is-usage-condition {
+    --card-detail-tag-accent: rgba(255, 214, 112, 0.82);
+    color: #ffe2a0;
+    border-color: rgba(255, 214, 112, 0.62);
+    background:
+        linear-gradient(180deg, rgba(255, 214, 112, 0.18), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(83, 55, 21, 0.94), rgba(17, 12, 8, 0.90));
+}
+
 .card-detail-effect-tag.is-hole-cell,
 .rules-help-card-tag.is-hole-cell {
     --card-detail-tag-accent: rgba(178, 161, 225, 0.76);

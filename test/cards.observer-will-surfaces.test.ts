@@ -7,7 +7,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '盤理の観測者',
   type: 'OBSERVER_WILL',
   cost: 0,
-  desc_ja: '18手以上経過後に使用可能。相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。盤理の観測者を顕現させる。観測済みの相手手札は顕現終了後も表表示になる。',
+  desc_ja: '相手手札を1つ奪って0コスト化し、観測者を顕現させる。ターン持続中は常時相手の手札を観測でき、観測した手札のコスト＋5。終了後観測の代償を支払う。',
   display_type_ja: '観測'
 });
 
@@ -17,8 +17,8 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
   desc: EXPECTED_BASE_CARD.desc_ja
 });
 
-const EXPECTED_QUICK_TEXT = '相手手札を1枚奪い、観測済みの相手手札のコストを5増やす。盤理の観測者を顕現させる。観測済みの相手手札は顕現終了後も表表示になる。';
-const EXPECTED_DETAIL_TEXT = '18手以上経過後に使用可能。\n盤面に顕現石が存在する間は使用できない。\n使用時に相手手札を公開して1枚選ぶ。選んだカードは自分の手札に加わり0コストになる。\n観測済みになった相手手札はカードcopyごとに1回だけコスト+5になる。奪ったカードは0コストになり、盤理の観測者による+5は残らない。特殊カードは観測で表表示にはなるが、コスト+5は受けない。\n選択後、次に置く自石として盤理の観測者を5T不可侵の顕現石として出す。盤理の観測者が盤上にいる間、相手手札は常に表表示。\n一度観測した相手手札は観測済みとなり、盤理の観測者が消滅した後も表表示のまま残る。盤理の観測者が盤上にいる間に相手が新たに引いた手札も観測済みになる。観測済みカードには双方にタグを表示する。\n盤理の観測者が消滅した後、奪ったカードの元コスト20%を自ターン開始時に最大9回返済する。布石不足時は自石4個をランダム破壊する。';
+const EXPECTED_QUICK_TEXT = '相手手札を1つ奪って0コスト化し、観測者を顕現させる。ターン持続中は常時相手の手札を観測でき、観測した手札のコスト＋5。終了後観測の代償を支払う。';
+const EXPECTED_DETAIL_TEXT = '盤面に顕現石が存在する間は使用できない。\n使用時に相手手札を公開して1枚選ぶ。選んだカードは自分の手札に加わり0コストになる。\n観測済みになった相手手札はカードcopyごとに1回だけコスト+5になる。奪ったカードは0コストになり、盤理の観測者による+5は残らない。特殊カードは観測で表表示にはなるが、コスト+5は受けない。\n選択後、次に置く自石として盤理の観測者を5T不可侵の顕現石として出す。盤理の観測者が盤上にいる間、相手手札は常に表表示。\n一度観測した相手手札は観測済みとなり、盤理の観測者が消滅した後も表表示のまま残る。盤理の観測者が盤上にいる間に相手が新たに引いた手札も観測済みになる。観測済みカードには双方にタグを表示する。\n盤理の観測者が消滅した後、観測の代償として奪ったカードの元コスト20%を自ターン開始時に最大9回返済する。布石不足時は自石4個をランダム破壊する。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -76,6 +76,7 @@ describe('OBSERVER_WILL catalog/help surfaces', () => {
     expect(CardInteractionEffects.detailCardEffectByType.OBSERVER_WILL).toBe(EXPECTED_DETAIL_TEXT);
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).toBe(EXPECTED_QUICK_TEXT);
     expect(CardInteractionEffects.getDetailCardEffect(cardDef)).toBe(EXPECTED_DETAIL_TEXT);
+    expect(CardInteractionEffects.resolveCardEffectTags(cardDef).map((tag) => tag.label)).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).not.toContain('...');
   });
 });

@@ -2,6 +2,7 @@ import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as Core from '../game/logic/core.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
+import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases';
 import * as TheorySpawnImmediateEffects from '../game/turn/theory-spawn-immediate-effects';
 import * as SpecialStoneMarkerFactory from '../game/logic/card-resolution/special-stone-marker-factory';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
@@ -579,16 +580,15 @@ describe('理論の化身', () => {
     ]));
     expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
     expect(gameState.currentPlayer).toBe(Shared.WHITE);
-    expect(gameState.consecutivePasses).toBe(1);
-    expect(result.events).toContainEqual(expect.objectContaining({
+    expect(gameState.consecutivePasses).toBe(0);
+    expect(result.events).not.toContainEqual(expect.objectContaining({
       type: 'pass',
-      player: 'black',
-      reason: 'theory_incarnation_auto_turn_end'
+      player: 'black'
     }));
     expectNoPendingTheoryAutoTurnEnd(cardState, 'black');
   });
 
-  test('理論の化身の自動終了は時間停止の連続手番中でもパス数を進める', () => {
+  test('理論の化身の自動終了は時間停止の連続手番中でもパス数を進めない', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();
@@ -610,15 +610,16 @@ describe('理論の化身', () => {
       sessionId: 'theory_black_empty'
     });
 
+    gameState.consecutivePasses = 1;
+
     const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
 
-    expect(result.events).toContainEqual(expect.objectContaining({
+    expect(result.events).not.toContainEqual(expect.objectContaining({
       type: 'pass',
-      player: 'black',
-      reason: 'theory_incarnation_auto_turn_end'
+      player: 'black'
     }));
     expect(gameState.currentPlayer).toBe(Shared.BLACK);
-    expect(gameState.consecutivePasses).toBe(1);
+    expect(gameState.consecutivePasses).toBe(0);
     expect(cardState.timeStopConsecutiveTurnsRemainingByPlayer.black).toBe(1);
   });
 
@@ -1032,5 +1033,67 @@ describe('理論の化身', () => {
       entry.data.type === 'THEORY_INCARNATION'
     ))).toBe(false);
     expect(cardState.markers.filter((entry: any) => entry && entry.data && entry.data.sourceType === 'THEORY_INCARNATION')).toHaveLength(5);
+  });
+
+  test('理論石満了後の次自ターン開始で通常カード使用ロックが解除される', () => {
+    const prng = createPrng([0, 0, 0, 0, 0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    cardState.hands.black = ['guard_01'];
+    cardState.charge.black = 10;
+    cardState.hasUsedCardThisTurnByPlayer.black = true;
+    cardState.boardBonusByCell = { '0,0': 5, '0,1': 5, '0,2': 5, '0,3': 5, '0,4': 5 };
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,1': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,2': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,3': { sessionId: 'theory_black_1', ownerKey: 'black' },
+      '0,4': { sessionId: 'theory_black_1', ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: Object.fromEntries([0, 1, 2, 3, 4].map((col) => [
+          `0,${col}`,
+          {
+            row: 0,
+            col,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5
+          }
+        ]))
+      }
+    };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 1 },
+      white: null
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 1,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION'
+    });
+
+    expect(CardLogic.canUseCard(cardState, 'black', 'guard_01')).toBe(false);
+
+    const expiry = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
+
+    expect(expiry.events.map((event: any) => event && event.type)).toContain('theory_incarnation_marker_expired');
+    expect(cardState.theoryIncarnationStateByPlayer.black).toBeNull();
+    expect(CardLogic.isCardPlayLockedForPlayer(cardState, 'black')).toBe(false);
+
+    gameState.currentPlayer = Shared.BLACK;
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);
+
+    expect(cardState.lastTurnStartedFor).toBe('black');
+    expect(cardState.hasUsedCardThisTurnByPlayer.black).toBe(false);
+    expect(CardLogic.canUseCard(cardState, 'black', 'guard_01')).toBe(true);
   });
 });

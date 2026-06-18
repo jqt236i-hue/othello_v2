@@ -1664,6 +1664,14 @@
     --rules-help-tag-filter-hover-bg: rgba(29, 92, 60, 0.34);
 }
 
+.rules-help-card-tag-filter.is-usage-condition {
+    --rules-help-tag-filter-border: rgba(255, 214, 112, 0.58);
+    --rules-help-tag-filter-color: #ffe2a0;
+    --rules-help-tag-filter-bg: rgba(83, 55, 21, 0.24);
+    --rules-help-tag-filter-hover-border: rgba(255, 214, 112, 0.84);
+    --rules-help-tag-filter-hover-bg: rgba(83, 55, 21, 0.36);
+}
+
 .rules-help-card-tag-filter.is-hole-cell {
     --rules-help-tag-filter-border: rgba(178, 161, 225, 0.56);
     --rules-help-tag-filter-color: #d0c2ff;

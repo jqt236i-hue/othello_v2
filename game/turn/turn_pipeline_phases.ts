@@ -439,6 +439,49 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return timeStopPassRes;
     }
 
+    function applyNonPassTurnCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any) {
+        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        const turnNumberAfterCompletion = Number(gameState && gameState.turnNumber || 0) + 1;
+        if (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function') {
+            return ActionPhaseTurnHandoffModule.handOffCompletedTurn({
+                Core,
+                CardLogic,
+                cardState,
+                gameState,
+                playerKey,
+                turnNumberAfterCompletion,
+                advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
+                    if (TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function') {
+                        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+                            Core: nextCore,
+                            gameState: nextGameState,
+                            playerKey: nextPlayerKey,
+                            options,
+                            normalizePlayerKey
+                        });
+                    }
+                    if (nextCore && typeof nextCore.advanceRoundAfterCompletedTurn === 'function') {
+                        return nextCore.advanceRoundAfterCompletedTurn(nextGameState, nextPlayerKey, options);
+                    }
+                    return null;
+                }
+            });
+        }
+        if (Core && typeof Core.advanceRoundAfterCompletedTurn === 'function') {
+            Core.advanceRoundAfterCompletedTurn(gameState, playerKey, null);
+        }
+        const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
+            ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
+            : { consumed: false, remaining: 0, continueTurn: false };
+        gameState.currentPlayer = timeStopPassRes.continueTurn === true ? playerValue : -playerValue;
+        gameState.consecutivePasses = 0;
+        gameState.turnNumber = turnNumberAfterCompletion;
+        if (timeStopPassRes.continueTurn === true && cardState) {
+            cardState.lastTurnStartedFor = null;
+        }
+        return timeStopPassRes;
+    }
+
     const FALLBACK_WORK_BUBBLE_SPEECH = Object.freeze({
         placeLines: Object.freeze(['ここで稼ぐ！']),
         lostLine: 'あああああああああああああ'
@@ -1029,7 +1072,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         events.push({ type: 'theory_incarnation_marker_expired', detail: expired });
                     }
                 }
-                applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, 'theory_incarnation_auto_turn_end');
+                applyNonPassTurnCompletion(CardLogic, Core, cardState, gameState, playerKey);
                 cardState.lastTurnStartedFor = null;
                 return { ok: true, events, stopAction: true };
             }

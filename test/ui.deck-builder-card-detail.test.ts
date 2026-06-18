@@ -152,4 +152,58 @@ describe('deck builder card detail button', () => {
       dataset: expect.objectContaining({ termCategory: 'protection' })
     }));
   });
+
+  test('候補カードの詳細ポップアップは特殊石のターン数と回避回数を数値付きタグで表示する', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const body = document.getElementById('body') as HTMLElement;
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+
+    const targetCardDef = DeckSpecHelpers.getEnabledCardDefs()
+      .find((cardDef: any) => cardDef && cardDef.id === 'afterimage_will_01');
+    expect(targetCardDef).toBeTruthy();
+
+    const card = body.querySelector(`.deck-builder-candidate-grid .deck-builder-card[data-card-id="${targetCardDef.id}"]`) as HTMLElement;
+    expect(card).toBeTruthy();
+
+    const detailButton = card.querySelector('.deck-builder-card-detail-btn') as HTMLButtonElement;
+    expect(detailButton).toBeTruthy();
+    detailButton.click();
+
+    const detailPopup = body.querySelector('.deck-builder-card-detail-popup') as HTMLElement;
+    expect(detailPopup).toBeTruthy();
+
+    const tagLabels = Array.from(detailPopup.querySelectorAll('.deck-builder-card-detail-tag'))
+      .map((el) => el.textContent);
+
+    expect(tagLabels).toEqual(expect.arrayContaining([
+      '特殊石',
+      '反転回避3回',
+      '破壊回避3回'
+    ]));
+
+    const durationCardDef = DeckSpecHelpers.getEnabledCardDefs()
+      .find((cardDef: any) => cardDef && cardDef.id === 'sniper_01');
+    expect(durationCardDef).toBeTruthy();
+
+    const durationCard = body.querySelector(`.deck-builder-candidate-grid .deck-builder-card[data-card-id="${durationCardDef.id}"]`) as HTMLElement;
+    expect(durationCard).toBeTruthy();
+
+    const durationDetailButton = durationCard.querySelector('.deck-builder-card-detail-btn') as HTMLButtonElement;
+    expect(durationDetailButton).toBeTruthy();
+    durationDetailButton.click();
+
+    const durationDetailPopup = body.querySelector('.deck-builder-card-detail-popup') as HTMLElement;
+    expect(durationDetailPopup).toBeTruthy();
+
+    const durationTagLabels = Array.from(durationDetailPopup.querySelectorAll('.deck-builder-card-detail-tag'))
+      .map((el) => el.textContent);
+
+    expect(durationTagLabels).toEqual(expect.arrayContaining([
+      '特殊石',
+      '6ターン持続'
+    ]));
+  });
 });

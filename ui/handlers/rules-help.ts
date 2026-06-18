@@ -592,6 +592,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       const label = _safeText(rawTag.label, '');
       if (!label) continue;
       const kind = _safeText(rawTag.kind, '').toLowerCase();
+      if (kind === 'usage-condition') continue;
       const dedupeKey = `${kind}:${label}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);

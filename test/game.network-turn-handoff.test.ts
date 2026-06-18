@@ -57,6 +57,45 @@ describe('network-turn-handoff', () => {
     expect(result).toMatchObject({ scheduledCpu: false, gameOver: false, nextPlayerKey: 'black' });
   });
 
+  test('turn start が自動終了した場合は次プレイヤーの turn start まで進める', async () => {
+    const handoff = require('../game/network-turn-handoff.js');
+    const publishSnapshot = jest.fn();
+    const onTurnStart = jest.fn(async (currentPlayer) => {
+      if (currentPlayer === 'black') {
+        global.gameState.currentPlayer = 'white';
+        return {
+          stopAction: true,
+          playbackEvents: [{ type: 'theory_auto_end', phase: 1 }]
+        };
+      }
+      return {
+        playbackEvents: [{ type: 'white_turn_start', phase: 1 }]
+      };
+    });
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'white',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3, turnIndex: 4 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      onTurnStart,
+      publishSnapshot,
+      humanMode: true
+    });
+
+    expect(onTurnStart).toHaveBeenCalledTimes(2);
+    expect(onTurnStart).toHaveBeenNthCalledWith(1, 'black');
+    expect(onTurnStart).toHaveBeenNthCalledWith(2, 'white');
+    expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playbackEvents: [
+        { type: 'flip', phase: 1 },
+        { type: 'theory_auto_end', phase: 2 },
+        { type: 'white_turn_start', phase: 3 }
+      ]
+    }));
+    expect(result).toMatchObject({ scheduledCpu: false, gameOver: false, nextPlayerKey: 'white' });
+  });
+
   test('command publish では playbackEvents を保ちつつ snapshot を送らない', async () => {
     const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();

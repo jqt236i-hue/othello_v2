@@ -266,6 +266,69 @@ function createCardEffectTextBlock(label: string, text: string, className: strin
   return block;
 }
 
+function getDeckBuilderTagKindClass(kind: any): string {
+  const normalizedKind = String(kind || '').trim().toLowerCase();
+  if (!normalizedKind) return '';
+  return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
+}
+
+function formatDeckBuilderDetailTagLabel(tag: any): string {
+  const label = String(tag && tag.label || '').trim();
+  const kind = String(tag && tag.kind || '').trim().toLowerCase();
+  const value = Math.floor(Number(tag && tag.value));
+  if (Number.isFinite(value) && value > 0) {
+    if (kind === 'flip-evasion') return `反転回避${value}回`;
+    if (kind === 'destroy-evasion') return `破壊回避${value}回`;
+  }
+  return label;
+}
+
+function normalizeDeckBuilderDetailTags(tags: any): any[] {
+  if (!Array.isArray(tags)) return [];
+  const normalizedTags: any[] = [];
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (!tag || typeof tag !== 'object') continue;
+    const label = formatDeckBuilderDetailTagLabel(tag);
+    if (!label) continue;
+    const kind = String(tag.kind || '').trim().toLowerCase();
+    const dedupeKey = `${kind}:${label}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    normalizedTags.push({ kind, label });
+  }
+  return normalizedTags;
+}
+
+function createDeckBuilderDetailTagsBlock(tags: any): HTMLElement | null {
+  const normalizedTags = normalizeDeckBuilderDetailTags(tags);
+  if (normalizedTags.length === 0) return null;
+
+  const block = document.createElement('div');
+  block.className = 'deck-builder-card-detail-tag-block';
+
+  const labelEl = document.createElement('div');
+  labelEl.className = 'deck-builder-card-detail-label';
+  labelEl.textContent = '効果タグ';
+  block.appendChild(labelEl);
+
+  const listEl = document.createElement('div');
+  listEl.className = 'deck-builder-card-detail-tag-list';
+  for (const tag of normalizedTags) {
+    const chip = document.createElement('span');
+    chip.className = 'card-detail-effect-tag deck-builder-card-detail-tag';
+    const kindClass = getDeckBuilderTagKindClass(tag.kind);
+    if (kindClass) chip.classList.add(kindClass);
+    chip.textContent = tag.label;
+    chip.setAttribute('data-card-tag-kind', tag.kind || '');
+    chip.setAttribute('data-card-tag-label', tag.label);
+    listEl.appendChild(chip);
+  }
+  block.appendChild(listEl);
+
+  return block;
+}
+
 function createEditorCardDetailPopup(detailCard: any, handlers: any): HTMLElement | null {
   if (!detailCard || typeof detailCard !== 'object') return null;
 
@@ -300,6 +363,9 @@ function createEditorCardDetailPopup(detailCard: any, handlers: any): HTMLElemen
 
   const quickBlock = createCardEffectTextBlock('効果', detailCard.quickText, 'deck-builder-card-detail-summary');
   if (quickBlock) popup.appendChild(quickBlock);
+
+  const tagsBlock = createDeckBuilderDetailTagsBlock(detailCard.effectTags);
+  if (tagsBlock) popup.appendChild(tagsBlock);
 
   const detailBlock = createCardEffectTextBlock('詳細効果', detailCard.detailText, 'deck-builder-card-detail-body');
   if (detailBlock) popup.appendChild(detailBlock);
