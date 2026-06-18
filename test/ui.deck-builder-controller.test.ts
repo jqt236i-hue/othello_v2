@@ -157,8 +157,8 @@ describe('deck builder controller', () => {
     expect(localPresetCards).toHaveLength(6);
     expect(body.textContent).toContain('6つまで保存できます');
     expect(Array.from(localPresetCards).map((card) => card.textContent)).toEqual(expect.arrayContaining([
-      expect.stringContaining('プリセット 1'),
-      expect.stringContaining('プリセット 6')
+      expect.stringContaining('空きスロット 1'),
+      expect.stringContaining('空きスロット 6')
     ]));
   });
 
@@ -309,12 +309,12 @@ describe('deck builder controller', () => {
     const destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
     expect(destinationSelect).toBeTruthy();
     expect(Array.from(destinationSelect.options).map((option) => option.textContent)).toEqual([
-      'プリセット 1',
-      'プリセット 2',
-      'プリセット 3',
-      'プリセット 4',
-      'プリセット 5',
-      'プリセット 6'
+      '空きスロット 1',
+      '空きスロット 2',
+      '空きスロット 3',
+      '空きスロット 4',
+      '空きスロット 5',
+      '空きスロット 6'
     ]);
     expect(destinationSelect.value).toBe('preset_1');
     expect(body.querySelector('.deck-builder-name-row input').value).toBe('観測デッキ');
@@ -331,6 +331,34 @@ describe('deck builder controller', () => {
       name: '観測デッキ',
       deckCode: DeckSpecHelpers.getCpuLv6WhiteDeckCode()
     });
+  });
+
+  test('保存先選択は空欄と保存済みスロットを区別して表示する', () => {
+    const { deckCode } = createThirtyCardDeck();
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_2', 'お気に入り', deckCode)));
+
+    const body = document.getElementById('body');
+    const controller = createController();
+
+    controller.open();
+
+    const builtInCards = Array.from(body.querySelectorAll('.deck-builder-built-in-preset-grid .deck-builder-preset-card'));
+    const observeCard = builtInCards[0];
+    const editButton = Array.from(observeCard.querySelectorAll('button')).find((button) => button.textContent === '編集');
+    expect(editButton).toBeTruthy();
+
+    editButton.click();
+
+    const destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    expect(destinationSelect).toBeTruthy();
+    expect(Array.from(destinationSelect.options).map((option) => option.textContent)).toEqual([
+      '空きスロット 1',
+      '保存スロット 2（お気に入り）',
+      '空きスロット 3',
+      '空きスロット 4',
+      '空きスロット 5',
+      '空きスロット 6'
+    ]);
   });
 
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {

@@ -194,7 +194,7 @@ describe('match authority spectator helpers', () => {
       const result = MatchAuthority.addSpectatorToRoom(room, {
         spectatorName: `観戦${index + 1}`,
         makeSpectatorToken: () => `token-${index + 1}`,
-        makeSpectatorId: () => `spec_${index + 1}`,
+        makeSpectatorId: () => `spec_test000${index + 1}`,
         now: 1000 + index
       });
       expect(result.ok).toBe(true);
@@ -205,7 +205,7 @@ describe('match authority spectator helpers', () => {
     const full = MatchAuthority.addSpectatorToRoom(room, {
       spectatorName: '満員後',
       makeSpectatorToken: () => 'token-5',
-      makeSpectatorId: () => 'spec_5',
+      makeSpectatorId: () => 'spec_test0005',
       now: 2000
     });
     expect(full).toEqual({ ok: false, reason: 'SPECTATOR_FULL' });
@@ -214,7 +214,7 @@ describe('match authority spectator helpers', () => {
   test('authenticates seat viewers and spectator viewers separately', () => {
     const room = createRoom({
       spectators: {
-        spec_1: { token: 'spec-token', name: '観戦1', joinedAt: 1000, lastSeenAt: 1000 }
+        spec_test0001: { token: 'spec-token', name: '観戦1', joinedAt: 1000, lastSeenAt: 1000 }
       }
     });
 
@@ -225,17 +225,17 @@ describe('match authority spectator helpers', () => {
 
     expect(MatchAuthority.resolveAuthenticatedViewer(room, {
       viewerRole: 'spectator',
-      spectatorId: 'spec_1',
+      spectatorId: 'spec_test0001',
       spectatorToken: 'spec-token',
       now: 1500
-    })).toEqual({ role: 'spectator', spectatorId: 'spec_1' });
+    })).toEqual({ role: 'spectator', spectatorId: 'spec_test0001' });
 
-    expect(room.spectators.spec_1.lastSeenAt).toBe(1500);
+    expect(room.spectators.spec_test0001.lastSeenAt).toBe(1500);
   });
 
   test('spectator projection hides both hands', () => {
     const room = createRoom();
-    const shot = MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: 'spec_1' });
+    const shot = MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: 'spec_test0001' });
     expect(shot._meta).toEqual(expect.objectContaining({
       authority: 'server',
       projectedForSeat: null,
@@ -385,7 +385,7 @@ function addSpectatorToRoom(
     }
     if (!spectatorId) return { ok: false, reason: 'SPECTATOR_ID_COLLISION' };
 
-    const spectatorName = normalizeSpectatorName(opts.spectatorName) || createRandomPlayerName();
+    const spectatorName = normalizeSpectatorName(opts.spectatorName) || '観戦者';
     const spectatorToken = String(makeToken() || '').trim();
     spectators[spectatorId] = {
         token: spectatorToken,
@@ -1142,7 +1142,7 @@ test('snapshot broadcasts use spectator-safe payload for spectator streams', asy
   const sends = [];
   const streams = new Map([
     ['seat-black', { writer: {}, viewer: { role: 'seat', seatKey: 'black' } }],
-    ['spec-one', { writer: {}, viewer: { role: 'spectator', spectatorId: 'spec_1' } }]
+    ['spec-one', { writer: {}, viewer: { role: 'spectator', spectatorId: 'spec_test0001' } }]
   ]);
   const controller = createMatchWorkerBroadcastController({
     getRoom: () => ({ roomId: 'SPC' }),
@@ -1171,7 +1171,7 @@ test('snapshot broadcasts use spectator-safe payload for spectator streams', asy
 });
 ```
 
-In `test/workers.match-worker-stream-route-controller.test.ts`, add a test that query parameters `viewerRole=spectator&spectatorId=spec_x&spectatorToken=token` are passed to `resolveAuthenticatedViewer` and accepted.
+In `test/workers.match-worker-stream-route-controller.test.ts`, add a test that query parameters `viewerRole=spectator&spectatorId=spec_test0001&spectatorToken=token` are passed to `resolveAuthenticatedViewer` and accepted.
 
 - [ ] **Step 2: Run failing stream/broadcast tests**
 

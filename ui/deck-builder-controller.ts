@@ -324,11 +324,16 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         }
 
         function getPresetDisplayName(preset: any, index: any) {
-            return normalizeChoiceLabel(preset && preset.name, `プリセット ${index + 1}`);
+            const fallbackLabel = preset && preset.deckCode
+                ? `保存スロット ${index + 1}`
+                : `空きスロット ${index + 1}`;
+            return normalizeChoiceLabel(preset && preset.name, fallbackLabel);
         }
 
         function getPresetSlotLabel(preset: any, index: any) {
-            const slotName = `プリセット ${index + 1}`;
+            const slotName = preset && preset.deckCode
+                ? `保存スロット ${index + 1}`
+                : `空きスロット ${index + 1}`;
             const presetName = String(preset && preset.name || '').replace(/\s+/g, ' ').trim();
             return presetName ? `${slotName}（${presetName}）` : slotName;
         }
