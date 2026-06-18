@@ -34,7 +34,22 @@
     }
 
     #gachaActionRow {
-        flex-direction: column;
+        grid-template-columns: 1fr;
+    }
+
+    #gachaModal {
+        width: min(360px, calc(100vw - 20px));
+        max-height: min(88dvh, 620px);
+    }
+
+    #gachaResults {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: min(38dvh, calc(300px * var(--layout-stage-scale)));
+    }
+
+    .gacha-rate-row {
+        grid-template-columns: minmax(calc(46px * var(--layout-stage-scale)), auto) 1fr auto;
+        gap: calc(6px * var(--layout-stage-scale));
     }
 
     .gacha-reveal-viewport {
