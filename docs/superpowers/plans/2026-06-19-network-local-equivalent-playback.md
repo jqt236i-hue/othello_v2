@@ -35,6 +35,7 @@ For the requested product goal, "常にローカル同等に、全部を順番�
 - Every accepted server operation that has visual effects produces one `NetworkPresentationFrame`.
 - Frames are replayed in `visualSeq` order.
 - A frame is playable only when `frame.stateVersionFrom === currentVisualVersion`.
+- Each public frame carries the projection-safe `snapshotAfter` for that viewer. The visual store commits that snapshot only after the frame playback finishes.
 - During strict network playback, player input stays locked while `visualVersion < canonicalVersion`.
 - Reconnect recovery uses the presentation journal cursor, not SSE `lastEventId`, to recover missing visuals.
 - If a client is too far behind, the room still returns a base visual snapshot plus all missing frames for the active match. It does not snapshot-skip within an active room.
@@ -76,6 +77,8 @@ For the requested product goal, "常にローカル同等に、全部を順番�
   - Wrap existing `PLAYBACK_EVENTS` dispatch so `snapshot.ts` and timeline code do not duplicate board event plumbing.
 - Create `ui/network/visual-state-store.ts`
   - Keep canonical snapshot and render-facing visual snapshot separated.
+- Modify `ui/network-client.ts`
+  - Construct the visual store and expose it to renderer/timeline dependencies.
 - Modify `ui/network/snapshot.ts`
   - Keep canonical snapshot application, but route network playback through the timeline.
 - Modify `ui/network/stream-snapshot.ts`
@@ -211,6 +214,7 @@ describe('network presentation frame contract', () => {
       playbackEvents: [{ type: 'flip', phase: 2, targets: [{ r: 3, col: 4, owner: 'black' }] }],
       effectLogs: ['黒が石を置いた'],
       projectedSnapshotHash: 'hash_4',
+      snapshotAfter: { stateVersion: 4, gameState: { board: [[1]] }, cardState: { hands: { black: [], white: [] } } },
       createdAt: 1781800000000
     });
 
@@ -222,7 +226,8 @@ describe('network presentation frame contract', () => {
       operationId: 'op_1',
       actorSeatKey: 'black',
       actionType: 'place',
-      projectedSnapshotHash: 'hash_4'
+      projectedSnapshotHash: 'hash_4',
+      snapshotAfter: { stateVersion: 4, gameState: { board: [[1]] }, cardState: { hands: { black: [], white: [] } } }
     });
     expect(frame.playbackEvents).toHaveLength(1);
   });
@@ -265,7 +270,7 @@ Expected: FAIL because `shared/network-presentation-frame` does not exist.
 Create `shared/network-presentation-frame.ts`:
 
 ```ts
-export interface NetworkPresentationFrame {
+interface NetworkPresentationFrame {
   roomId: string | null;
   visualSeq: number;
   stateVersionFrom: number;
@@ -277,6 +282,7 @@ export interface NetworkPresentationFrame {
   effectLogs: string[];
   playbackDiagnostics: unknown | null;
   projectedSnapshotHash: string | null;
+  snapshotAfter: unknown | null;
   createdAt: number;
 }
 
@@ -299,7 +305,7 @@ function normalizeStringOrNull(value: unknown): string | null {
   return text ? text : null;
 }
 
-export function normalizePresentationFrame(value: unknown): NetworkPresentationFrame {
+function normalizePresentationFrame(value: unknown): NetworkPresentationFrame {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const visualSeq = toFiniteInteger(source.visualSeq, 'visualSeq');
   const stateVersionFrom = toFiniteInteger(source.stateVersionFrom, 'stateVersionFrom');
@@ -319,11 +325,12 @@ export function normalizePresentationFrame(value: unknown): NetworkPresentationF
     effectLogs: Array.isArray(source.effectLogs) ? source.effectLogs.map((item) => String(item)) : [],
     playbackDiagnostics: source.playbackDiagnostics || null,
     projectedSnapshotHash: normalizeStringOrNull(source.projectedSnapshotHash),
+    snapshotAfter: source.snapshotAfter || null,
     createdAt: Number.isFinite(Number(source.createdAt)) ? Number(source.createdAt) : Date.now()
   };
 }
 
-export function collectFramesAfter(values: unknown, afterVisualSeq: unknown): NetworkPresentationFrame[] {
+function collectFramesAfter(values: unknown, afterVisualSeq: unknown): NetworkPresentationFrame[] {
   const minSeq = Number.isFinite(Number(afterVisualSeq)) ? Math.trunc(Number(afterVisualSeq)) : 0;
   const frames = Array.isArray(values) ? values : [];
   const bySeq = new Map<number, NetworkPresentationFrame>();
@@ -387,16 +394,22 @@ Create `test/utils.match-authority.presentation-journal.test.ts`:
 const MatchAuthority = require('../utils/match-authority');
 
 function createRoom() {
+  const initialSnapshot = {
+    stateVersion: 1,
+    _meta: { projectedSnapshotHash: 'hash_1' },
+    gameState: { currentPlayer: 1 },
+    cardState: { hands: { black: [], white: [] } }
+  };
   return {
     roomId: 'ABC',
     stateVersion: 1,
     visualSeq: 0,
     presentationJournal: [],
-    snapshot: {
-      stateVersion: 1,
-      _meta: { projectedSnapshotHash: 'hash_1' },
-      gameState: { currentPlayer: 1 },
-      cardState: { hands: { black: [], white: [] } }
+    snapshot: initialSnapshot,
+    initialSnapshotByViewer: {
+      black: initialSnapshot,
+      white: initialSnapshot,
+      spectator: initialSnapshot
     }
   };
 }
@@ -479,8 +492,7 @@ describe('match authority presentation journal', () => {
 
     const response = MatchAuthority.buildPresentationJournalResponse(room, {
       afterVisualSeq: 0,
-      viewer: { role: 'seat', seatKey: 'black' },
-      baseSnapshot: { stateVersion: 1, _meta: { projectedSnapshotHash: 'hash_1' } }
+      viewer: { role: 'seat', seatKey: 'black' }
     });
 
     expect(response.ok).toBe(true);
@@ -520,6 +532,7 @@ export interface MatchAuthorityPresentationFramePublic extends MatchAuthorityJso
     effectLogs?: string[];
     playbackDiagnostics?: unknown | null;
     projectedSnapshotHash?: string | null;
+    snapshotAfter?: unknown | null;
     createdAt: number;
 }
 
@@ -555,7 +568,7 @@ baseSnapshot?: unknown;
 
 - [ ] **Step 4: Implement journal helpers in `utils/match-authority.ts`**
 
-Add helpers near the existing SSE buffer helpers:
+Place this helper block immediately after `getBufferedSseReplayEvents(...)` in `utils/match-authority.ts`, before the final `module.exports` object:
 
 ```ts
 function getPresentationPayloadKeyForViewer(viewer: MatchAuthorityViewer | null | undefined): MatchAuthorityPresentationPayloadKey {
@@ -614,6 +627,7 @@ function toPublicPresentationFrame(entry: MatchAuthorityPresentationJournalEntry
         effectLogs: normalizeEffectLogMessages(payload.effectLogs),
         playbackDiagnostics: payload.playbackDiagnostics || null,
         projectedSnapshotHash: snapshotMeta && snapshotMeta.projectedSnapshotHash ? String(snapshotMeta.projectedSnapshotHash) : null,
+        snapshotAfter,
         createdAt: entry.createdAt
     };
 }
@@ -628,7 +642,64 @@ function getPresentationFramesAfter(room: MatchAuthorityRoomState, afterVisualSe
 }
 ```
 
-Add `buildPresentationJournalResponse(room, options)` using `getPresentationFramesAfter()` and the supplied `baseSnapshot`.
+Add `findBaseSnapshotForVisualSeq()` and `buildPresentationJournalResponse()` after `getPresentationFramesAfter()`:
+
+```ts
+function findBaseSnapshotForVisualSeq(room: MatchAuthorityRoomState, afterVisualSeq: number, viewer: MatchAuthorityViewer | null | undefined): unknown {
+    const payloadKey = getPresentationPayloadKeyForViewer(viewer);
+    if (afterVisualSeq <= 0) {
+        const initial = room.initialSnapshotByViewer && room.initialSnapshotByViewer[payloadKey];
+        return initial || room.snapshot || null;
+    }
+    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
+    const entry = journal.find((item) => Number(item && item.visualSeq) === afterVisualSeq);
+    if (!entry) return null;
+    return (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer[payloadKey])
+        || (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer.spectator)
+        || null;
+}
+
+function buildPresentationJournalResponse(room: MatchAuthorityRoomState, options: {
+    afterVisualSeq?: unknown;
+    viewer?: MatchAuthorityViewer | null;
+    serverTime?: number;
+}): Record<string, unknown> {
+    const opts = options && typeof options === 'object' ? options : {};
+    const afterVisualSeq = Number.isFinite(Number(opts.afterVisualSeq)) ? Math.max(0, Math.trunc(Number(opts.afterVisualSeq))) : 0;
+    const viewer = opts.viewer || null;
+    const currentVisualSeq = Number.isFinite(Number(room && room.visualSeq)) ? Math.trunc(Number(room.visualSeq)) : 0;
+    const currentStateVersion = Number.isFinite(Number(room && room.stateVersion)) ? Math.trunc(Number(room.stateVersion)) : 0;
+    const presentationCursor = { visualSeq: currentVisualSeq, stateVersion: currentStateVersion };
+    const baseSnapshot = findBaseSnapshotForVisualSeq(room, afterVisualSeq, viewer);
+    const serverTime = Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now();
+
+    if (!baseSnapshot) {
+        return {
+            ok: false,
+            roomId: room && room.roomId ? String(room.roomId) : '',
+            reason: 'VISUAL_CURSOR_EXPIRED',
+            baseVisualSeq: afterVisualSeq,
+            baseSnapshot: null,
+            presentationCursor,
+            presentationFrames: [],
+            snapshot: room && room.snapshot ? room.snapshot : null,
+            serverTime
+        };
+    }
+
+    return {
+        ok: true,
+        roomId: room && room.roomId ? String(room.roomId) : '',
+        baseVisualSeq: afterVisualSeq,
+        baseSnapshot,
+        presentationCursor,
+        presentationFrames: getPresentationFramesAfter(room, afterVisualSeq, viewer),
+        serverTime
+    };
+}
+```
+
+Do not use `room.snapshot` as the base snapshot when `afterVisualSeq` points at an older nonzero visual cursor.
 
 - [ ] **Step 5: Export the helpers**
 
@@ -675,16 +746,98 @@ git commit -m "Add match presentation journal helpers"
 
 - [ ] **Step 1: Write Worker acceptance test**
 
-Create `test/workers.match-presentation-journal.test.ts` with a Durable Object scenario that:
+Create `test/workers.match-presentation-journal.test.ts`:
 
-1. Creates room `JRN1`.
-2. Publishes one legal operation.
-3. Reads `/api/match/state`.
-4. Asserts `presentationCursor.visualSeq === 1`.
-5. Asserts `presentationFrames[0].stateVersionFrom === 1`.
-6. Asserts `presentationFrames[0].stateVersionTo === 2`.
+```ts
+import * as path from 'path';
+import { pathToFileURL } from 'url';
+import { spawnSync } from 'child_process';
 
-Use the existing spawned-worker style from `test/workers.match-stream-sse.test.ts`.
+const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
+
+function runScenario(runnerSource: string) {
+  const result = spawnSync(process.execPath, ['-e', runnerSource, workerModulePath], {
+    encoding: 'utf8'
+  });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || 'presentation journal runner failed');
+  }
+  return JSON.parse(String(result.stdout || '{}'));
+}
+
+function runAcceptedPublishJournalScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const TurnPipelinePhases = fromRoot('game/turn/turn_pipeline_phases.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const state = { storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key) } };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(19);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), { roomId: 'JRN1', playerName: 'くろ', seed: 19, snapshot: { gameState, cardState } });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_journal_place_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: 1,",
+    "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }",
+    "  });",
+    "  const publishPayload = await publishResponse.json();",
+    "  const stateResponse = await durableObject.fetch(new Request(`https://room/api/match/state?roomId=JRN1&seatKey=black&seatToken=${createPayload.seatToken}`));",
+    "  const statePayload = await stateResponse.json();",
+    "  process.stdout.write(JSON.stringify({",
+    "    publishStatus: publishResponse.status,",
+    "    publishPayload,",
+    "    stateStatus: stateResponse.status,",
+    "    statePayload",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
+describe('worker presentation journal', () => {
+  test('accepted publish exposes one presentation frame and advances visual cursor', () => {
+    const result = runAcceptedPublishJournalScenario();
+    expect(result.publishStatus).toBe(200);
+    expect(result.publishPayload).toMatchObject({
+      ok: true,
+      presentationCursor: { visualSeq: 1, stateVersion: 2 }
+    });
+    expect(result.publishPayload.presentationFrames).toHaveLength(1);
+    expect(result.publishPayload.presentationFrames[0]).toMatchObject({
+      visualSeq: 1,
+      stateVersionFrom: 1,
+      stateVersionTo: 2,
+      operationId: 'op_journal_place_1',
+      actorSeatKey: 'black',
+      actionType: 'place'
+    });
+    expect(result.publishPayload.presentationFrames[0].snapshotAfter).toBeTruthy();
+    expect(result.stateStatus).toBe(200);
+    expect(result.statePayload.presentationCursor).toMatchObject({ visualSeq: 1, stateVersion: 2 });
+  });
+});
+```
 
 - [ ] **Step 2: Write local server helper test**
 
@@ -773,7 +926,22 @@ Import the new types from `utils/match-authority-types.ts`.
 
 - [ ] **Step 5: Append a frame after accepted publish in `workers/match-worker.ts`**
 
-After `room.stateVersion` is incremented and before prepared snapshot broadcast is sent, build the three viewer snapshots and append one frame:
+Before the first accepted publish can be appended, store the room's starting visual snapshot once. Add a helper in `workers/match-worker.ts` and call it after room creation and again defensively before the first journal append:
+
+```ts
+function ensureInitialPresentationSnapshots(room: MatchWorkerRoomState): void {
+  if (!room || room.initialSnapshotByViewer) return;
+  room.initialSnapshotByViewer = {
+    black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+    white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+    spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+  };
+  if (!Number.isFinite(Number(room.visualSeq))) room.visualSeq = 0;
+  if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+}
+```
+
+After `room.stateVersion` is incremented and before prepared snapshot broadcast is sent, call `ensureInitialPresentationSnapshots(room)`, build the three viewer snapshots, and append one frame:
 
 ```ts
 const previousStateVersion = room.stateVersion - 1;
@@ -803,10 +971,22 @@ If the accepted operation has no playback events, still append the frame with an
 
 - [ ] **Step 6: Mirror the same append point in `scripts/local-match-server.ts`**
 
-Add a local helper:
+Add these local helper functions:
 
 ```ts
+function ensureInitialPresentationSnapshots(room: any) {
+  if (!room || room.initialSnapshotByViewer) return;
+  room.initialSnapshotByViewer = {
+    black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+    white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+    spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+  };
+  if (!Number.isFinite(Number(room.visualSeq))) room.visualSeq = 0;
+  if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+}
+
 function appendPresentationFrameForAcceptedPublish(room: any, options: any) {
+  ensureInitialPresentationSnapshots(room);
   return MatchAuthority.appendPresentationFrame(room, {
     stateVersionFrom: options.previousStateVersion,
     stateVersionTo: options.nextStateVersion,
@@ -877,23 +1057,139 @@ git commit -m "Record presentation journal frames for network actions"
 
 - [ ] **Step 1: Extend tests for recovery endpoint**
 
-Add assertions to the Worker and local tests:
+Add this test to `test/workers.match-presentation-journal.test.ts`:
 
 ```ts
-expect(recoveryPayload).toMatchObject({
-  ok: true,
-  roomId: 'JRN1',
-  baseVisualSeq: 0,
-  presentationCursor: { visualSeq: 1, stateVersion: 2 }
+test('presentation journal recovery returns base snapshot and frames after cursor', () => {
+  const result = runAcceptedPublishJournalScenario();
+  const recoveryPayload = result.recoveryPayload;
+  expect(result.recoveryStatus).toBe(200);
+  expect(recoveryPayload).toMatchObject({
+    ok: true,
+    roomId: 'JRN1',
+    baseVisualSeq: 0,
+    presentationCursor: { visualSeq: 1, stateVersion: 2 }
+  });
+  expect(recoveryPayload.baseSnapshot.stateVersion).toBe(1);
+  expect(recoveryPayload.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([1]);
+  expect(recoveryPayload.presentationFrames[0].snapshotAfter.stateVersion).toBe(2);
 });
-expect(recoveryPayload.baseSnapshot.stateVersion).toBe(1);
-expect(recoveryPayload.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([1]);
 ```
 
-Use this request shape:
+Update `runAcceptedPublishJournalScenario()` so the runner also performs this request after publish:
 
-```text
-GET /api/match/presentation-journal?roomId=JRN1&seatKey=black&seatToken=token_black&afterVisualSeq=0
+```ts
+"  const recoveryResponse = await durableObject.fetch(new Request(`https://room/api/match/presentation-journal?roomId=JRN1&seatKey=black&seatToken=${createPayload.seatToken}&afterVisualSeq=0`));",
+"  const recoveryPayload = await recoveryResponse.json();",
+"  process.stdout.write(JSON.stringify({",
+"    publishStatus: publishResponse.status,",
+"    publishPayload,",
+"    stateStatus: stateResponse.status,",
+"    statePayload,",
+"    recoveryStatus: recoveryResponse.status,",
+"    recoveryPayload",
+"  }));",
+```
+
+Create `test/local-match-server.presentation-journal.test.ts` with the same recovery contract, using the local server helpers:
+
+```ts
+import * as http from 'http';
+import * as Core from '../game/logic/core.js';
+import { createLocalMatchServer, resetRoomsForTests } from '../scripts/local-match-server.js';
+
+function requestJson(port: number, method: string, path: string, payload?: unknown): Promise<{ status: number; data: any }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port,
+      path,
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    }, (res) => {
+      let raw = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { raw += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode || 0, data: raw ? JSON.parse(raw) : {} }));
+    });
+    req.on('error', reject);
+    if (payload !== undefined) req.write(JSON.stringify(payload));
+    req.end();
+  });
+}
+
+function listen(server: ReturnType<typeof createLocalMatchServer>): Promise<number> {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.removeListener('error', reject);
+      const address = server.address();
+      resolve(typeof address === 'object' && address ? address.port : 0);
+    });
+  });
+}
+
+function closeServer(server: ReturnType<typeof createLocalMatchServer>): Promise<void> {
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
+function pickFirstLegalMove(snapshot: any): { row: number; col: number } {
+  const legalMoves = Core.getLegalMoves(snapshot.gameState, 1);
+  if (!Array.isArray(legalMoves) || legalMoves.length === 0) throw new Error('No legal move');
+  return legalMoves[0];
+}
+
+describe('local match server presentation journal', () => {
+  afterEach(() => resetRoomsForTests());
+
+  test('accepted publish can be recovered through presentation journal from visualSeq 0', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      const move = pickFirstLegalMove(created.data.snapshot);
+
+      const publish = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_local_journal_place_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: move.row, col: move.col },
+        turnIndex: created.data.snapshot.cardState.turnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: move.row,
+          col: move.col,
+          turnIndex: created.data.snapshot.cardState.turnIndex
+        }
+      });
+
+      const recovery = await requestJson(
+        port,
+        'GET',
+        `/api/match/presentation-journal?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(seatToken)}&afterVisualSeq=0`
+      );
+
+      expect(publish.status).toBe(200);
+      expect(recovery.status).toBe(200);
+      expect(recovery.data.baseVisualSeq).toBe(0);
+      expect(recovery.data.baseSnapshot.stateVersion).toBe(created.data.stateVersion);
+      expect(recovery.data.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([1]);
+      expect(recovery.data.presentationFrames[0].snapshotAfter.stateVersion).toBe(publish.data.stateVersion);
+      expect(recovery.data.presentationFrames[0].playbackEvents).toEqual(publish.data.playbackEvents);
+    } finally {
+      await closeServer(server);
+    }
+  });
+});
 ```
 
 - [ ] **Step 2: Run tests and verify failure**
@@ -906,27 +1202,9 @@ npx jest test/workers.match-presentation-journal.test.ts test/local-match-server
 
 Expected: FAIL because the endpoint does not exist.
 
-- [ ] **Step 3: Implement `buildPresentationJournalResponse()` base snapshot selection**
+- [ ] **Step 3: Verify `buildPresentationJournalResponse()` endpoint contract**
 
-In `utils/match-authority.ts`, return the snapshot that corresponds to `afterVisualSeq`:
-
-```ts
-function findBaseSnapshotForVisualSeq(room: MatchAuthorityRoomState, afterVisualSeq: number, viewer: MatchAuthorityViewer | null | undefined): unknown {
-    const payloadKey = getPresentationPayloadKeyForViewer(viewer);
-    if (afterVisualSeq <= 0) {
-        const initial = room.initialSnapshotByViewer && room.initialSnapshotByViewer[payloadKey];
-        return initial || room.snapshot || null;
-    }
-    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
-    const entry = journal.find((item) => Number(item && item.visualSeq) === afterVisualSeq);
-    if (!entry) return null;
-    return (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer[payloadKey])
-        || (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer.spectator)
-        || null;
-}
-```
-
-The response must be:
+Use the Task 3 helper from `utils/match-authority.ts`. Do not reimplement base-snapshot selection in Worker or local-server code. The endpoint response must be:
 
 ```ts
 {
@@ -955,16 +1233,29 @@ This failure path is a visible error for active-room strict playback and must no
 
 - [ ] **Step 4: Add Worker endpoint**
 
-In `workers/match-worker.ts`, add route handling for `/api/match/presentation-journal` near the existing state/stream handlers:
+Use the same authentication path as `handleState(urlObj: URL)`: parse `seatKey` with `parseSeatKeyOptional()`, call `resolveAuthenticatedViewer(room, ...)`, and return `classifyViewerTokenRejectionReason(url.searchParams)` on failure. Do not add a second seat/spectator token parser for the presentation journal route.
+
+In `workers/match-worker.ts`, add `handlePresentationJournal(request: Request)` immediately after the existing `handleState(urlObj: URL)` method and before `handleStream(request: Request)`. In the `fetch()` route switch, insert the `/api/match/presentation-journal` branch between the existing `/api/match/state` and `/api/match/stream` branches:
 
 ```ts
 async handlePresentationJournal(request: Request): Promise<Response> {
   await this.loadRoom();
   const url = new URL(request.url);
   const room = this.room;
-  if (!room) return jsonResponse({ ok: false, reason: 'ROOM_NOT_FOUND' }, 404);
-  const viewer = this.authenticateViewerFromRequest(url);
-  if (!viewer) return jsonResponse({ ok: false, reason: 'UNAUTHORIZED' }, 403);
+  if (!room) return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+  const seatKey = parseSeatKeyOptional(url.searchParams.get('seatKey'));
+  const seatToken = String(url.searchParams.get('seatToken') || '').trim();
+  const viewer = resolveAuthenticatedViewer(room, {
+    viewerRole: url.searchParams.get('viewerRole') || '',
+    seatKey,
+    seatToken,
+    spectatorId: url.searchParams.get('spectatorId') || '',
+    spectatorToken: url.searchParams.get('spectatorToken') || '',
+    now: Date.now()
+  });
+  if (!viewer) {
+    return jsonResponse(403, { ok: false, reason: classifyViewerTokenRejectionReason(url.searchParams) });
+  }
   const afterVisualSeq = Number(url.searchParams.get('afterVisualSeq') || 0);
   const payload = MatchAuthority.buildPresentationJournalResponse(room, {
     afterVisualSeq,
@@ -972,15 +1263,56 @@ async handlePresentationJournal(request: Request): Promise<Response> {
     baseSnapshot: null,
     serverTime: Date.now()
   });
-  return jsonResponse(payload, payload.ok === false ? 409 : 200);
+  return jsonResponse(payload.ok === false ? 409 : 200, payload);
 }
 ```
 
-Use existing authentication helpers rather than adding a second token parser.
+Do not accept `seatKey` without a matching `seatToken`, and do not reveal spectator frames without a matching spectator token.
 
 - [ ] **Step 5: Add local server endpoint**
 
-In `scripts/local-match-server.ts`, add:
+In `scripts/local-match-server.ts`, add `handlePresentationJournal()` after `handleState()`:
+
+```ts
+function handlePresentationJournal(req: any, res: any, urlObj: any) {
+    const roomId = String((urlObj.searchParams.get('roomId') || '')).trim().toUpperCase();
+    if (!roomId || !rooms.has(roomId)) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    const room = rooms.get(roomId);
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    applyExpiredTurnTimeoutIfNeeded(room);
+
+    const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
+    const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
+    const viewer = resolveAuthenticatedViewer(room, {
+        viewerRole: urlObj.searchParams.get('viewerRole') || '',
+        seatKey,
+        seatToken,
+        spectatorId: urlObj.searchParams.get('spectatorId') || '',
+        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+        now: Date.now()
+    });
+    if (!viewer) {
+        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
+        return;
+    }
+
+    const afterVisualSeq = Number(urlObj.searchParams.get('afterVisualSeq') || 0);
+    const payload = MatchAuthority.buildPresentationJournalResponse(room, {
+        afterVisualSeq,
+        viewer,
+        serverTime: Date.now()
+    });
+    writeJson(res, payload.ok === false ? 409 : 200, payload);
+}
+```
+
+Add the route branch in the `createLocalMatchServer()` request handler between the existing `/api/match/state` and `/api/match/stream` branches:
 
 ```ts
 if (req.method === 'GET' && pathname === '/api/match/presentation-journal') {
@@ -988,8 +1320,6 @@ if (req.method === 'GET' && pathname === '/api/match/presentation-journal') {
   return;
 }
 ```
-
-`handlePresentationJournal()` must reuse the same viewer authentication branches as `/api/match/state`.
 
 - [ ] **Step 6: Keep SSE replay as transport-only**
 
@@ -1185,6 +1515,24 @@ export = {
 
 - [ ] **Step 4: Wire shadow ingestion**
 
+In `ui/network/stream-snapshot.ts` and `ui/network/publish-flow.ts`, add this local resolver near the other runtime helpers:
+
+```ts
+function resolveNetworkPresentationTimeline(): any {
+  try {
+    if (typeof window !== 'undefined' && (window as any).NetworkPresentationTimeline) {
+      return (window as any).NetworkPresentationTimeline;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPresentationTimeline) {
+      return (globalThis as any).NetworkPresentationTimeline;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+```
+
 In `ui/network/stream-snapshot.ts`, after reading the payload:
 
 ```ts
@@ -1206,8 +1554,10 @@ if (timeline && typeof timeline.enqueueFrames === 'function') {
 In `ui/network-client.ts`, create and expose one timeline instance:
 
 ```ts
+const PresentationTimeline = resolveNetworkClientModule('./network/presentation-timeline', root.NetworkPresentationTimelineModule || null);
 const presentationTimeline = PresentationTimeline.createNetworkPresentationTimeline();
 state.presentationTimeline = presentationTimeline;
+root.NetworkPresentationTimeline = presentationTimeline;
 ```
 
 Expose diagnostics under debug only:
@@ -1366,14 +1716,58 @@ async function drainPlayableFrames(dispatcher: any): Promise<number> {
 
 - [ ] **Step 5: Route network snapshot playback through timeline**
 
-In `ui/network/snapshot.ts`, when `options.presentationFrames` is present:
+In `ui/network/snapshot.ts`, resolve the dispatcher once near the other module dependencies:
 
 ```ts
-const timeline = resolveNetworkPresentationTimeline();
-if (timeline && Array.isArray(opts.presentationFrames) && opts.presentationFrames.length > 0) {
+const NetworkPlaybackDispatcher = resolveModuleOrGlobal(
+  './playback-dispatcher',
+  'NetworkPlaybackDispatcher'
+);
+```
+
+If `resolveModuleOrGlobal()` is not available in the local scope, use the existing `_require` pattern from the top of `ui/network/snapshot.ts`:
+
+```ts
+const NetworkPlaybackDispatcher = (() => {
+  try { return _require('./playback-dispatcher'); } catch (e) { /* ignore */ }
+  try { return typeof globalThis !== 'undefined' ? (globalThis as any).NetworkPlaybackDispatcher : null; } catch (e) { return null; }
+})();
+```
+
+Then add this helper near the current playback emission helpers:
+
+```ts
+function enqueueTimelinePlaybackFromSnapshot(options: any): boolean {
+  const opts = options && typeof options === 'object' ? options : {};
+  const timeline = resolveNetworkPresentationTimeline();
+  if (!timeline || typeof timeline.enqueueFrames !== 'function') return false;
+  if (!Array.isArray(opts.presentationFrames) || opts.presentationFrames.length === 0) return false;
   timeline.enqueueFrames(opts.presentationFrames, { source: opts.source || 'snapshot' });
-  timeline.drainPlayableFrames(NetworkPlaybackDispatcher);
-  return finishWithoutDirectPlaybackEmission();
+  if (typeof timeline.drainPlayableFrames === 'function') {
+    timeline.drainPlayableFrames(NetworkPlaybackDispatcher);
+  }
+  return true;
+}
+```
+
+Then replace the `if (playbackEvents.length > 0) { ... emitPlaybackEvents(...) ... }` branch inside `finalizeSnapshotPresentation()` with:
+
+```ts
+if (playbackEvents.length > 0) {
+  if (enqueueTimelinePlaybackFromSnapshot(opts) === true) {
+    armPlaybackLockForIncomingPlayback();
+    networkPlaybackRequest = createPlaybackRequest(true, null, {
+      playbackEventCount: playbackEvents.length
+    });
+  } else {
+    let queuedPlaybackBatch: any = null;
+    armPlaybackLockForIncomingPlayback();
+    queuedPlaybackBatch = emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
+    networkPlaybackRequest = requestNetworkPlaybackDirectDispatch(queuedPlaybackBatch, 'network_snapshot');
+    if (!playbackRequestStarted(networkPlaybackRequest)) {
+      networkPlaybackRequest = requestNetworkPlaybackDrain(queuedPlaybackBatch, 'network_snapshot');
+    }
+  }
 }
 ```
 
@@ -1381,12 +1775,56 @@ Keep the existing direct `emitPlaybackEvents()` path only for legacy payloads th
 
 - [ ] **Step 6: Add visual catch-up client test**
 
-Create `test/ui.network-client.visual-catchup.test.ts` asserting:
+Create `test/ui.network-client.visual-catchup.test.ts`:
 
-1. Stream receives two frames out of order.
-2. `AnimationEngine.play` is called for visualSeq `1` before visualSeq `2`.
-3. `applySnapshot` still accepts the newest canonical state.
-4. Input lock remains active while pending frames exist.
+```ts
+const Timeline = require('../ui/network/presentation-timeline');
+
+function frame(seq: number) {
+  return {
+    visualSeq: seq,
+    stateVersionFrom: seq,
+    stateVersionTo: seq + 1,
+    playbackEvents: [{ type: `event_${seq}`, phase: seq }],
+    snapshotAfter: {
+      stateVersion: seq + 1,
+      gameState: { board: [[seq + 1]], currentPlayer: seq % 2 === 0 ? 1 : -1 },
+      cardState: { hands: { black: [], white: [] }, markers: [] }
+    }
+  };
+}
+
+describe('network visual catch-up', () => {
+  test('plays out-of-order frames in contiguous visual order', async () => {
+    const played: number[] = [];
+    const committed: number[] = [];
+    const visualStateStore = {
+      commitFrame: jest.fn((playedFrame: any) => committed.push(playedFrame.visualSeq))
+    };
+    const dispatcher = {
+      dispatchNetworkPlaybackEvents: jest.fn(async (_events: any[], options: any) => {
+        played.push(options.visualSeq);
+      })
+    };
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      visualStateStore
+    });
+
+    timeline.enqueueFrames([frame(2), frame(1)], { source: 'stream' });
+    await timeline.drainPlayableFrames(dispatcher);
+
+    expect(played).toEqual([1, 2]);
+    expect(committed).toEqual([1, 2]);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 3,
+      pendingFrameCount: 0
+    });
+  });
+});
+```
 
 - [ ] **Step 7: Run tests**
 
@@ -1415,6 +1853,7 @@ git commit -m "Route network playback through visual timeline"
 **Files:**
 - Create: `ui/network/visual-state-store.ts`
 - Modify: `ui/network/presentation-timeline.ts`
+- Modify: `ui/network-client.ts`
 - Test: `test/ui.network-visual-state-store.test.ts`
 
 - [ ] **Step 1: Write visual state store tests**
@@ -1543,7 +1982,13 @@ export = {
 
 - [ ] **Step 4: Attach frame snapshots to timeline commits**
 
-In `ui/network/presentation-timeline.ts`, when a frame is played, call:
+In `ui/network/presentation-timeline.ts`, extend `createNetworkPresentationTimeline(options)` so it captures `options.visualStateStore`:
+
+```ts
+const visualStateStore = opts.visualStateStore || null;
+```
+
+When a frame is played, call:
 
 ```ts
 if (visualStateStore && typeof visualStateStore.commitFrame === 'function') {
@@ -1556,7 +2001,26 @@ if (visualStateStore && typeof visualStateStore.commitFrame === 'function') {
 
 If a frame has no `snapshotAfter`, keep the timeline paused and expose diagnostic reason `missing_snapshot_after`.
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 5: Construct the visual store in `ui/network-client.ts`**
+
+In `ui/network-client.ts`, replace the Task 6 timeline-only initialization with this store-backed initialization:
+
+```ts
+const VisualStateStoreModule = resolveNetworkClientModule('./network/visual-state-store', root.NetworkVisualStateStoreModule || null);
+const visualStateStore = VisualStateStoreModule && typeof VisualStateStoreModule.createNetworkVisualStateStore === 'function'
+  ? VisualStateStoreModule.createNetworkVisualStateStore()
+  : null;
+state.visualStateStore = visualStateStore;
+root.NetworkVisualStateStore = state.visualStateStore;
+
+const presentationTimeline = PresentationTimeline.createNetworkPresentationTimeline({
+  visualStateStore
+});
+state.presentationTimeline = presentationTimeline;
+root.NetworkPresentationTimeline = presentationTimeline;
+```
+
+- [ ] **Step 6: Run tests**
 
 Run:
 
@@ -1567,12 +2031,12 @@ npm run typecheck
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 Run:
 
 ```powershell
-git add ui/network/visual-state-store.ts ui/network/presentation-timeline.ts test/ui.network-visual-state-store.test.ts
+git add ui/network/visual-state-store.ts ui/network/presentation-timeline.ts ui/network-client.ts test/ui.network-visual-state-store.test.ts
 git commit -m "Add network visual state store"
 ```
 
@@ -1674,15 +2138,15 @@ const renderCardState = stateRefs.cardState;
 
 Replace reads in those functions from `gameState` and `cardState` to `renderGameState` and `renderCardState`. Do not replace helper-level reads outside these render paths in this task.
 
-- [ ] **Step 5: Expose the visual store**
+- [ ] **Step 5: Verify the visual store exposure**
 
-In `ui/network-client.ts`, after creating the store:
+Task 8 should already expose the store. In this task, verify the existing code still has:
 
 ```ts
 root.NetworkVisualStateStore = state.visualStateStore;
 ```
 
-Use the same root object where `NetworkMatchClient` is installed.
+Do not create a second store instance in `ui/board-renderer.ts`.
 
 - [ ] **Step 6: Run tests**
 
@@ -1719,13 +2183,77 @@ git commit -m "Render board from network visual state"
 
 - [ ] **Step 1: Extend reconnect tests**
 
-Add a test where:
+Add this test to `test/ui.network-session-lifecycle.test.ts`:
 
-1. Client has persisted `{ roomId: 'ABC', seatKey: 'black', seatToken: 'token', lastVisualSeq: 1, lastVisualVersion: 2 }`.
-2. `/api/match/state` returns `stateVersion: 4`.
-3. `/api/match/presentation-journal?afterVisualSeq=1` returns `baseVisualSeq: 1`, `baseSnapshot.stateVersion: 2`, and frames `2`, `3`.
-4. Timeline plays frame `2` then `3`.
-5. Session persistence updates `lastVisualSeq` to `3`.
+```ts
+test('restoreStoredSession fetches presentation journal when visual cursor is behind canonical state', async () => {
+  const drained: number[] = [];
+  const persistedSession = {
+    roomId: 'ABC',
+    viewerRole: 'seat',
+    seatKey: 'black',
+    seatToken: 'token_black',
+    lastVisualSeq: 1,
+    lastVisualVersion: 2,
+    serverUrl: 'http://localhost:8787'
+  };
+  mockConfig.readStoredSession.mockReturnValue(persistedSession);
+  mockConfig.requestJson.mockImplementation(async (method: string, path: string) => {
+    if (method === 'GET' && path.startsWith('/api/match/state')) {
+      return jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        stateVersion: 4,
+        snapshot: { stateVersion: 4, gameState: { currentPlayer: 1 }, cardState: {} },
+        presentationCursor: { visualSeq: 3, stateVersion: 4 }
+      });
+    }
+    if (method === 'GET' && path.startsWith('/api/match/presentation-journal')) {
+      expect(path).toContain('afterVisualSeq=1');
+      return jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        baseVisualSeq: 1,
+        baseSnapshot: { stateVersion: 2, gameState: { currentPlayer: -1 }, cardState: {} },
+        presentationCursor: { visualSeq: 3, stateVersion: 4 },
+        presentationFrames: [
+          { visualSeq: 2, stateVersionFrom: 2, stateVersionTo: 3, playbackEvents: [{ type: 'event_2' }], snapshotAfter: { stateVersion: 3, gameState: {}, cardState: {} } },
+          { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }], snapshotAfter: { stateVersion: 4, gameState: {}, cardState: {} } }
+        ]
+      });
+    }
+    throw new Error(`unexpected request ${method} ${path}`);
+  });
+  mockConfig.visualStateStore = {
+    setBaseVisualSnapshot: jest.fn()
+  };
+  mockConfig.presentationTimeline = {
+    enqueueFrames: jest.fn(),
+    drainPlayableFrames: jest.fn(async () => {
+      drained.push(2, 3);
+      return 2;
+    }),
+    getDiagnostics: jest.fn(() => ({ visualSeq: 3, visualVersion: 4, pendingFrameCount: 0 }))
+  };
+  mockConfig.playbackDispatcher = {
+    dispatchNetworkPlaybackEvents: jest.fn(async () => undefined)
+  };
+
+  const result = await controller.restoreStoredSession();
+
+  expect(result.ok).toBe(true);
+  expect(mockConfig.visualStateStore.setBaseVisualSnapshot).toHaveBeenCalledWith(
+    expect.objectContaining({ stateVersion: 2 }),
+    expect.objectContaining({ visualSeq: 1, visualVersion: 2 })
+  );
+  expect(mockConfig.presentationTimeline.enqueueFrames).toHaveBeenCalledWith(
+    expect.arrayContaining([expect.objectContaining({ visualSeq: 2 }), expect.objectContaining({ visualSeq: 3 })]),
+    { source: 'journal_recovery' }
+  );
+  expect(drained).toEqual([2, 3]);
+  expect(mockConfig.openStream).toHaveBeenCalled();
+});
+```
 
 - [ ] **Step 2: Run test and verify failure**
 
@@ -1782,7 +2310,7 @@ visualStateStore.setBaseVisualSnapshot(payload.baseSnapshot, {
   visualVersion: payload.baseSnapshot && payload.baseSnapshot.stateVersion
 });
 timeline.enqueueFrames(payload.presentationFrames, { source: 'journal_recovery' });
-await timeline.drainPlayableFrames(playbackDispatcher);
+await timeline.drainPlayableFrames(cfg.playbackDispatcher);
 ```
 
 Do not unlock input until `timeline.getDiagnostics().visualVersion >= canonicalStateVersion`.
@@ -1913,7 +2441,7 @@ npx jest test/shared.playback-event-contract.test.ts test/game.pipeline-ui-adapt
 npm run typecheck
 ```
 
-Expected: all pass. If diagnostics expose missing target metadata in existing tests, fix the playback event assembly at the source that creates the incomplete event.
+Expected: all pass. If `network_replay_contract` diagnostics appear, stop this task and identify the exact producer by searching the failing event type in `game/turn`, `game/logic`, and `game/card-effects`. Add one failing assertion to `test/network.playback-event-assembly.contract.test.ts` that names that event type before changing the producer.
 
 - [ ] **Step 6: Commit**
 
@@ -1974,14 +2502,39 @@ Expected: FAIL because watchdog currently aborts and syncs.
 
 - [ ] **Step 3: Add strict mode to animation engine**
 
-In `ui/animation-engine.ts`, thread `strictNetworkPlayback` from `play(events, options)` into watchdog handling:
+In `ui/animation-engine.ts`, change `play(events)` to accept an optional second argument and keep the strict error on the engine instance:
 
 ```ts
-if (playbackScope.strictNetworkPlayback === true) {
+async play(events: any, options?: any) {
+  const playOptions = options && typeof options === 'object' ? options : {};
+  this._strictNetworkPlayback = playOptions.strictNetworkPlayback === true
+    || (Array.isArray(events) && events.some((event: any) => event && event.strictNetworkPlayback === true));
+  this._strictNetworkPlaybackError = null;
+  // keep the existing play body after these assignments
+}
+```
+
+In `handleWatchdog()`, branch before the current final-state sync:
+
+```ts
+if (this._strictNetworkPlayback === true) {
   const error = new Error('network_playback_watchdog');
   error.name = 'NetworkPlaybackWatchdogError';
-  rejectPlayback(error);
+  this._strictNetworkPlaybackError = error;
+  this._watchdogFired = true;
+  this.isAborted = true;
+  if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
+    PlaybackState.abortPlayback({ boardElement: this.boardEl, strictNetworkPlayback: true });
+  }
   return;
+}
+```
+
+Before `play()` returns successfully, add:
+
+```ts
+if (this._strictNetworkPlaybackError) {
+  throw this._strictNetworkPlaybackError;
 }
 ```
 
@@ -2015,15 +2568,34 @@ Diagnostics must include:
 
 - [ ] **Step 5: Keep input locked while paused**
 
-In `ui/playback-state-manager.ts`, expose timeline paused state to the existing busy check:
+In `ui/playback-state-manager.ts`, add a local resolver:
 
 ```ts
-if (NetworkPresentationTimeline && NetworkPresentationTimeline.getDiagnostics().paused === true) {
+function isNetworkPresentationTimelinePaused(): boolean {
+  try {
+    const root = typeof window !== 'undefined' ? window : globalThis;
+    const timeline = root && (root as any).NetworkPresentationTimeline;
+    return !!(
+      timeline
+      && typeof timeline.getDiagnostics === 'function'
+      && timeline.getDiagnostics()
+      && timeline.getDiagnostics().paused === true
+    );
+  } catch (e) {
+    return false;
+  }
+}
+```
+
+Then include it in the existing playback-active/busy predicate:
+
+```ts
+if (isNetworkPresentationTimelinePaused()) {
   return true;
 }
 ```
 
-Use dependency lookup matching existing global/module patterns.
+This relies on Task 6 exposing `root.NetworkPresentationTimeline`.
 
 - [ ] **Step 6: Run tests**
 
@@ -2099,7 +2671,13 @@ Expected: generated mirror output changes only from the source changes in this p
 
 - [ ] **Step 5: Run two-browser live network check**
 
-Use the existing live network verification workflow for this repo. The scenario must include:
+Use the `card-reversi-browser-live-network-check` skill. Before launching the live check, run:
+
+```powershell
+npm run worker:prepare
+```
+
+Required live scenario:
 
 1. Create room as black.
 2. Join as white in a second independent browser.
@@ -2115,6 +2693,13 @@ Expected console diagnostics:
 NetworkPresentationTimeline visualSeq advances contiguously
 paused=false
 pendingFrameCount=0 after catch-up
+```
+
+If the live-network skill is not available in the implementation session, run these fallback checks and record that two-browser live verification remains unverified:
+
+```powershell
+npm run match:check
+npm run match:endgame-check
 ```
 
 - [ ] **Step 6: Inspect final diff**
