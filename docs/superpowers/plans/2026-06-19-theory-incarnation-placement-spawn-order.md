@@ -33,11 +33,11 @@
 - Modify `game/logic/cards/markers.ts`: keep theory card-play lock, remove theory placement lock.
 - Modify `game/logic/card-resolution/theory-incarnation.ts`: change duration constant, remove turn-start spawn/autoturn behavior, add owner-placement and owner-pass processing helpers.
 - Modify `game/logic/card-resolution/theory-incarnation-spawn.ts`: stop awarding charge and number-cell collected total for theory spawns.
-- Modify `game/logic/card-resolution/theory-incarnation-state.ts`: keep state initialization, but retire auto-turn-end pending state if no longer read after implementation.
-- Modify `game/logic/cards.ts`: expose new theory helper wrappers through public `CardLogic`.
-- Modify `game/turn/action-phase/place-resolution.ts`: run theory spawn after initial manifest placement and after later successful owner placements.
+- Modify `game/logic/card-resolution/theory-incarnation-state.ts`: remove the obsolete `_theoryIncarnationPendingAutoExpireByPlayer` initialization after auto-end removal.
+- Modify `game/logic/cards.ts`: expose new theory helper wrappers through public `CardLogic` and remove the obsolete auto-end finalizer wrapper/export.
+- Modify `game/turn/action-phase/place-resolution.ts`: keep initial manifest placement spawn immediately after manifest placement, and return whether that placement armed/placed the theory manifest.
 - Modify `game/turn/turn-start/special-stone-phase.ts`: stop theory turn-start spawn and stop setting `theoryAutoTurnEnd`.
-- Modify `game/turn/turn_pipeline_phases.ts`: remove the theory auto-turn-end branch and decrement/expire theory on legal pass.
+- Modify `game/turn/turn_pipeline_phases.ts`: remove the theory auto-turn-end branch, decrement/expire theory on legal pass, and run later owner-placement theory spawn only after normal placement effects have finished.
 - Modify `game/cpu-turn-handler.ts`: remove the special CPU detour that defers to turn-start auto-end when placement is locked.
 - Modify `ui/diff-renderer.ts`: update the manifest effect panel text.
 - Modify or remove stale tests in `test/game.theory-incarnation.test.ts`, `test/special-card-foundation.test.ts`, `test/cards.catalog.test.ts`, `test/cards.numeric-effect-tags.test.ts`, `test/ui.card-detail-effect-tags.test.ts`, `test/ui.manifest-effect-panel.test.ts`, `test/cpu.turn-handler.programmed-card-policy.test.ts`, `test/turn-manager.retry.test.ts`, and `test/ui.pass-stale-busy.test.ts`.
@@ -72,9 +72,7 @@ git status --short
 
 Expected: dirty files are classified before editing. If dirty files include any file listed in this plan, inspect that file before editing:
 
-```powershell
-git diff -- <path>
-```
+Run `git diff --` with the exact dirty target file path printed by `git status --short`, for example `git diff -- game\logic\card-resolution\theory-incarnation.ts` when that file is dirty.
 
 - [ ] **Step 2: Run focused baseline tests before edits**
 
@@ -249,6 +247,13 @@ test('理論召喚は布石と理論条件合計を増やさない', () => {
     black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 4 },
     white: null
   };
+  CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+    type: 'THEORY_INCARNATION',
+    remainingOwnerTurns: 4,
+    absoluteProtected: true,
+    sourceType: 'THEORY_INCARNATION',
+    sessionId: 'theory_black_1'
+  });
 
   const result = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, 'black', prng);
 
@@ -451,7 +456,7 @@ test('CPU turn places a normal stone while 理論の化身 is active', async () 
   await mod.runCpuTurn('white');
 
   expect(global.onTurnStart).not.toHaveBeenCalled();
-  expect(global.generateMovesForPlayer).toHaveBeenCalledWith('white');
+  expect(global.generateMovesForPlayer).toHaveBeenCalledWith(global.WHITE, null, expect.anything(), expect.anything());
   expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
   expect(global.executeMove).toHaveBeenCalledWith(move);
   expect(global.processPassTurn).not.toHaveBeenCalled();
@@ -492,6 +497,7 @@ Expected: commit contains only RED test changes.
 - Modify: `cards/card-interaction-effects.ts`
 - Test: `test/special-card-foundation.test.ts`
 - Test: `test/cards.numeric-effect-tags.test.ts`
+- Test: `test/shared.manifest-stone-registry.marker-data.test.ts`
 
 - [ ] **Step 1: Change canonical theory duration constants**
 
@@ -540,12 +546,31 @@ expect(getNumericTagLabels('THEORY_INCARNATION')).toEqual(['4ターン持続']);
 
 In `test/special-card-foundation.test.ts`, change theory marker examples from `remainingOwnerTurns: 5` to `remainingOwnerTurns: 4` where the test is asserting metadata shape rather than old behavior.
 
+In `test/shared.manifest-stone-registry.marker-data.test.ts`, add this test beside the observer marker-data test:
+
+```ts
+  test('builds theory marker data with 4 owner turns', () => {
+    const data = ManifestStoneRegistry.createManifestStoneMarkerData('THEORY_INCARNATION', {
+      sessionId: 'theory_black_1'
+    });
+
+    expect(data).toEqual(expect.objectContaining({
+      type: 'THEORY_INCARNATION',
+      sourceType: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 4,
+      absoluteProtected: true,
+      visualEffectKey: 'theoryIncarnationStone',
+      sessionId: 'theory_black_1'
+    }));
+  });
+```
+
 - [ ] **Step 5: Run focused tests**
 
 Run:
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\special-card-foundation.test.ts test\cards.numeric-effect-tags.test.ts
+npx jest --runInBand --runTestsByPath test\special-card-foundation.test.ts test\cards.numeric-effect-tags.test.ts test\shared.manifest-stone-registry.marker-data.test.ts
 ```
 
 Expected: PASS for duration and lock tests. Other theory behavior tests may still fail until later tasks.
@@ -555,7 +580,7 @@ Expected: PASS for duration and lock tests. Other theory behavior tests may stil
 Run:
 
 ```powershell
-git add shared\manifest-stone-registry.ts game\logic\card-resolution\theory-incarnation.ts game\logic\cards\markers.ts cards\card-interaction-effects.ts test\special-card-foundation.test.ts test\cards.numeric-effect-tags.test.ts
+git add shared\manifest-stone-registry.ts game\logic\card-resolution\theory-incarnation.ts game\logic\cards\markers.ts cards\card-interaction-effects.ts test\special-card-foundation.test.ts test\cards.numeric-effect-tags.test.ts test\shared.manifest-stone-registry.marker-data.test.ts
 git commit -m "Allow theory owner placement"
 ```
 
@@ -607,9 +632,9 @@ function decrementTheoryDuration(cardState: CardState, marker: any, ownerKey: Pl
 }
 ```
 
-- [ ] **Step 2: Add shared expiration helper**
+- [ ] **Step 2: Add shared expiration helper and remove auto-end finalizer**
 
-In the same file, extract the body of `finalizeTheoryIncarnationAutoTurnEndExpiration` into a reusable function:
+In the same file, replace the old pending-auto-end expiration path with this reusable duration-expiration helper:
 
 ```ts
 function expireTheoryIncarnationMarker(cardState: CardState, gameState: GameState, ownerKey: PlayerKey, marker: any, prng: any, deps: any): Record<string, any> | null {
@@ -656,7 +681,7 @@ function expireTheoryIncarnationMarker(cardState: CardState, gameState: GameStat
 }
 ```
 
-Then keep `finalizeTheoryIncarnationAutoTurnEndExpiration` as a compatibility wrapper until all call sites are removed.
+Delete `finalizeTheoryIncarnationAutoTurnEndExpiration` from `game/logic/card-resolution/theory-incarnation.ts` after adding this helper. The old function is not a public gameplay contract; keeping an `AutoTurnEnd` export after removing auto-end behavior makes stale call sites easy to miss.
 
 - [ ] **Step 3: Replace turn-start processing with no-spawn/no-auto-end**
 
@@ -669,12 +694,11 @@ function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameSta
     const ownerKey = ownerKeyOf(playerKey);
     ensureTheoryState(cardState as any);
     const marker = findTheoryMarker(cardState, row, col, ownerKey, deps);
-    if (!marker || !marker.data) return { applied: false, spawned: null, expired: null, autoTurnEnd: false };
+    if (!marker || !marker.data) return { applied: false, spawned: null, expired: null };
     return {
         applied: true,
         spawned: null,
         expired: null,
-        autoTurnEnd: false,
         remainingOwnerTurns: Number(marker.data.remainingOwnerTurns || 0),
         remainingSpawnCount: Number(((cardState as any).theoryIncarnationStateByPlayer[ownerKey] || {}).remainingSpawnCount || 0)
     };
@@ -727,9 +751,9 @@ function processTheoryIncarnationOwnerPass(cardState: CardState, gameState: Game
 }
 ```
 
-Add both functions to the module export object.
+Add both functions to the module export object. Remove `finalizeTheoryIncarnationAutoTurnEndExpiration` from the same export object.
 
-- [ ] **Step 5: Expose wrappers from `game/logic/cards.ts`**
+- [ ] **Step 5: Expose new wrappers from `game/logic/cards.ts` and delete the old one**
 
 Add wrappers beside the existing theory wrappers:
 
@@ -757,9 +781,17 @@ function processTheoryIncarnationOwnerPass(cardState: any, gameState: any, playe
 
 Add both names to the public export object near the existing theory exports.
 
+Delete the old `finalizeTheoryIncarnationAutoTurnEndExpiration` wrapper from `game/logic/cards.ts`, and remove it from the public export object.
+
 - [ ] **Step 6: Wire post-placement spawn in `place-resolution.ts`**
 
-In `game/turn/action-phase/place-resolution.ts`, keep initial manifest placement spawn inside the `theoryStoneRes.applied` branch, but rename local tracking:
+In `game/turn/action-phase/place-resolution.ts`, keep initial manifest placement spawn inside the `theoryStoneRes.applied` branch. Add this field to `ResolvePlacementActionResult`:
+
+```ts
+theoryManifestPlaced?: boolean;
+```
+
+Add this local near the other placement-local variables before marker reservation handling:
 
 ```ts
 let theoryManifestPlaced = false;
@@ -771,37 +803,73 @@ Set it when `applyTheoryIncarnationStoneReservation` succeeds:
 theoryManifestPlaced = true;
 ```
 
-After the theory reservation branch and before board executor reservation, add:
+Do not run the later active-theory spawn in `place-resolution.ts`. That module returns before `resolvePlacementEffects()` and `resolvePlacementImmediateEffects()`, so running active theory there would happen before normal placement effects have finished.
+
+Add `theoryManifestPlaced` to the final return object:
 
 ```ts
-    if (
-        !theoryManifestPlaced &&
-        opts.CardLogic &&
-        typeof opts.CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement === 'function'
-    ) {
-        const activeTheorySpawnRes = opts.CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(opts.cardState, opts.gameState, opts.playerKey, p);
-        if (activeTheorySpawnRes && activeTheorySpawnRes.spawned) {
-            TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
-                CardLogic: opts.CardLogic,
-                cardState: opts.cardState,
-                gameState: opts.gameState,
-                playerKey: opts.playerKey,
-                events: opts.events,
-                spawned: activeTheorySpawnRes.spawned,
-                prng: p,
-                timing: 'after_owner_placement',
-                awardBoardChargeGain: opts.applyPlacementBoardBonusGain
-            });
-        }
-        if (activeTheorySpawnRes && activeTheorySpawnRes.expired) {
-            opts.events.push({ type: 'theory_incarnation_marker_expired', detail: activeTheorySpawnRes.expired });
-        }
-    }
+return {
+    completedSelectionOnly: false,
+    flipCount,
+    preExtra,
+    turnNumberBeforePlace,
+    othelloMode,
+    boardBonusGained,
+    numberCellMultiplierConfig,
+    theoryManifestPlaced
+};
 ```
 
-Keep the existing initial manifest placement timing as `on_manifest_placement`.
+Keep the existing initial manifest placement timing as `on_manifest_placement`. Use `after_owner_placement` only for active theory spawns on later owner turns.
 
-- [ ] **Step 7: Wire pass duration in `turn_pipeline_phases.ts`**
+- [ ] **Step 7: Wire later owner-placement spawn in `turn_pipeline_phases.ts`**
+
+In `game/turn/turn_pipeline_phases.ts`, add the theory spawn resolver with the other optional turn modules:
+
+```ts
+const TheorySpawnResolutionModule = requireOptionalModule('./theory-spawn-resolution');
+```
+
+After placement resolution, read the flag:
+
+```ts
+const theoryManifestPlaced = placementResolution.theoryManifestPlaced === true;
+```
+
+After `ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects(...)` and after the `consumeGeneratedSpawnFlipResults` block, but before `ActionPhaseContinuationModule.resolvePlacementContinuation(...)`, add:
+
+```ts
+            if (
+                !theoryManifestPlaced &&
+                CardLogic &&
+                typeof CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement === 'function'
+            ) {
+                if (!TheorySpawnResolutionModule || typeof TheorySpawnResolutionModule.resolveTheorySpawnTurnResult !== 'function') {
+                    throw new Error('TurnPipeline theory spawn resolution module unavailable');
+                }
+                const activeTheorySpawnRes = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, playerKey, p);
+                if (activeTheorySpawnRes && activeTheorySpawnRes.spawned) {
+                    TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        playerKey,
+                        events,
+                        spawned: activeTheorySpawnRes.spawned,
+                        prng: p,
+                        timing: 'after_owner_placement',
+                        awardBoardChargeGain
+                    });
+                }
+                if (activeTheorySpawnRes && activeTheorySpawnRes.expired) {
+                    events.push({ type: 'theory_incarnation_marker_expired', detail: activeTheorySpawnRes.expired });
+                }
+            }
+```
+
+This placement is intentionally after normal placement effects and before turn continuation/handoff.
+
+- [ ] **Step 8: Wire pass duration in `turn_pipeline_phases.ts`**
 
 In the pass branch of `applyActionPhase`, immediately before `applyPassCompletion(...)`, add:
 
@@ -820,9 +888,21 @@ Then keep:
                 applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events);
 ```
 
-- [ ] **Step 8: Remove theory auto-end turn-start behavior**
+- [ ] **Step 9: Remove theory auto-end turn-start behavior**
 
-In `game/turn/turn-start/special-stone-phase.ts`, keep the theory branch but remove spawn resolution and `processingState.theoryAutoTurnEnd = true`. The branch should call `processTheoryIncarnationMarkerAtTurnStart` only to preserve compatibility, then return `processingState`.
+In `game/turn/turn-start/special-stone-phase.ts`, keep the theory branch but remove spawn resolution and `processingState.theoryAutoTurnEnd = true`. The branch should call `processTheoryIncarnationMarkerAtTurnStart` only to preserve marker inspection compatibility, then return `processingState`.
+
+Remove the now-unused module import from the same file:
+
+```ts
+const TheorySpawnResolutionModule = require('../theory-spawn-resolution');
+```
+
+Remove the optional field from the processing state type:
+
+```ts
+theoryAutoTurnEnd?: boolean;
+```
 
 In `game/turn/turn_pipeline_phases.ts`, remove the block that pushes:
 
@@ -832,13 +912,27 @@ events.push({ type: 'theory_incarnation_auto_turn_end', player: playerKey });
 
 and remove the call to `applyNonPassTurnCompletion(...)` for theory auto-end.
 
-- [ ] **Step 9: Update stale auto-end tests**
+In `game/logic/card-resolution/theory-incarnation-state.ts`, delete the `_theoryIncarnationPendingAutoExpireByPlayer` initialization block:
+
+```ts
+    if (!cardState._theoryIncarnationPendingAutoExpireByPlayer || typeof cardState._theoryIncarnationPendingAutoExpireByPlayer !== 'object') {
+        cardState._theoryIncarnationPendingAutoExpireByPlayer = { black: null, white: null };
+    }
+```
+
+After these source edits, this command must return no matches:
+
+```powershell
+rg -n "theoryAutoTurnEnd|autoTurnEnd|_theoryIncarnationPendingAutoExpireByPlayer|finalizeTheoryIncarnationAutoTurnEndExpiration|theory_incarnation_auto_turn_end" game
+```
+
+- [ ] **Step 10: Update stale auto-end tests**
 
 In `test/game.theory-incarnation.test.ts`, replace tests asserting `theory_incarnation_auto_turn_end` with new assertions for placement-first spawn, pass-without-roulette, and 4-turn expiry.
 
 In `test/turn-manager.retry.test.ts`, replace `onTurnStart stops after 理論の化身 auto turn end without scheduling a normal pass` with a test that verifies `onTurnStart` logs the normal turn start and does not call `processPassTurn` solely because theory is active.
 
-- [ ] **Step 10: Run focused tests**
+- [ ] **Step 11: Run focused tests**
 
 Run:
 
@@ -848,12 +942,12 @@ npx jest --runInBand --runTestsByPath test\game.theory-incarnation.test.ts test\
 
 Expected: PASS.
 
-- [ ] **Step 11: Commit post-placement sequencing**
+- [ ] **Step 12: Commit post-placement sequencing**
 
 Run:
 
 ```powershell
-git add game\logic\card-resolution\theory-incarnation.ts game\logic\cards.ts game\turn\action-phase\place-resolution.ts game\turn\turn-start\special-stone-phase.ts game\turn\turn_pipeline_phases.ts test\game.theory-incarnation.test.ts test\turn-manager.retry.test.ts
+git add game\logic\card-resolution\theory-incarnation.ts game\logic\card-resolution\theory-incarnation-state.ts game\logic\cards.ts game\turn\action-phase\place-resolution.ts game\turn\turn-start\special-stone-phase.ts game\turn\turn_pipeline_phases.ts test\game.theory-incarnation.test.ts test\turn-manager.retry.test.ts
 git commit -m "Spawn theory stones after owner placement"
 ```
 
@@ -902,7 +996,7 @@ const {
 Run:
 
 ```powershell
-rg -n "theory_incarnation_spawn_gain|chargeGained\\).*toBe\\((5|7|33)|numberCellCollectedTotalByPlayer\\.black\\).*toBe\\((47|75)" test\game.theory-incarnation.test.ts
+rg -n "theory_incarnation_spawn_gain|chargeGained:\\s*[1-9]|chargeGainedTotal\\.[a-z]+\\)\\.toBe\\([1-9]|numberCellCollectedTotalByPlayer\\.black\\)\\.toBe\\((5|47|75)\\)" test\game.theory-incarnation.test.ts game\logic\card-resolution\theory-incarnation-spawn.ts
 ```
 
 Expected: no stale expectations that theory spawn grants charge or increases the theory condition total.
@@ -1079,7 +1173,9 @@ Expected: commit succeeds with only these files.
 - Modify: `ui/debug-test-scenarios.ts`
 - Modify: `test/ui.debug-test-scenarios.test.ts`
 - Modify: `test/ui.pass-stale-busy.test.ts`
-- Modify: any file found by the stale-text search in this task
+- Modify: `test/ui.stone-rendering.test.ts`
+- Modify: `test/game.ribo-will.test.ts`
+- Modify: `test/game.time-stop-god.test.ts`
 
 - [ ] **Step 1: Update debug scenario duration values**
 
@@ -1093,52 +1189,74 @@ Update matching expectations in `test/ui.debug-test-scenarios.test.ts` from `rem
 
 - [ ] **Step 2: Replace stale pass UI test**
 
-In `test/ui.pass-stale-busy.test.ts`, replace `manual pass proceeds when theory placement lock makes normal legal moves unusable` with a test that keeps manual pass disabled when legal moves exist and theory is active:
+In `test/ui.pass-stale-busy.test.ts`, replace `manual pass proceeds when theory placement lock makes normal legal moves unusable` with this DOM-based regression:
 
 ```ts
-test('manual pass stays disabled when theory is active but legal moves exist', () => {
-  const action = resolveActionState({
-    isAutoMode: false,
-    canActThisTurn: true,
-    canInteract: true,
-    hasNotUsedThisTurn: true,
-    getLegalMovesForCurrentPlayer: jest.fn(() => [{ row: 2, col: 3 }]),
-    isPlacementLockedForPlayer: jest.fn(() => false),
-    isSelectedCardUsableNow: jest.fn(() => false)
-  });
+test('manual pass stays unavailable when theory is active but legal moves exist', () => {
+  global.Core = { getLegalMoves: () => [{ row: 2, col: 3, flips: [[3, 3]] }] };
+  global.CardLogic = {
+    getCardDef: () => null,
+    getCardContext: () => ({}),
+    isPlacementLockedForPlayer: jest.fn(() => false)
+  };
+  global.cardState.markers = [{
+    kind: 'manifestStone',
+    owner: 'black',
+    data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4 }
+  }];
+  require('../cards/card-interaction.js');
 
-  expect(action.canPass).toBe(false);
+  window.updateCardDetailPanel();
+  const passBtn = document.getElementById('pass-btn');
+  expect(passBtn.style.display).toBe('none');
+
+  window.passCurrentTurn();
+
+  expect(global.processPassTurn).not.toHaveBeenCalled();
 });
 ```
 
-If the local helper name differs, adapt the test to the existing exported function in that file while keeping the same assertion.
+- [ ] **Step 3: Update remaining theory duration fixtures**
 
-- [ ] **Step 3: Search for stale assumptions**
+Update these known theory-specific fixture values from `5` to `4`:
 
-Run:
+```ts
+// test/ui.stone-rendering.test.ts
+data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4 }
 
-```powershell
-rg -n "自動終了|auto turn end|auto_turn_end|placement lock|石配置・カード使用不可|5ターン持続|5T|remainingOwnerTurns: 5|durationTurnsTag\\(5\\)|理論.*布石" ui cards game shared test tests 01-rulebook.md 正本
+// test/game.ribo-will.test.ts
+CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, absoluteProtected: true });
+
+// test/game.time-stop-god.test.ts
+CardLogic.addMarker(cardState, 'manifestStone', 0, 1, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, absoluteProtected: true });
 ```
 
-Expected: every remaining match is either unrelated to `理論の化身` or intentionally preserved in historical plan docs. Source/test stale matches must be updated in this task.
-
-- [ ] **Step 4: Run focused UI/debug tests**
+- [ ] **Step 4: Search for stale assumptions**
 
 Run:
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\ui.debug-test-scenarios.test.ts test\ui.pass-stale-busy.test.ts
+rg -n "THEORY_INCARNATION[^\\n]*remainingOwnerTurns: 5|remainingOwnerTurns: 5[^\\n]*THEORY_INCARNATION|THEORY_INCARNATION[^\\n]*5ターン|5ターン[^\\n]*THEORY_INCARNATION|5T[^\\n]*理論|理論[^\\n]*5T|理論[^\\n]*5ターン|所有者: 石配置・カード使用不可|theory_incarnation_auto_turn_end|theoryAutoTurnEnd|autoTurnEnd|_theoryIncarnationPendingAutoExpireByPlayer|finalizeTheoryIncarnationAutoTurnEndExpiration" ui cards game shared test tests 01-rulebook.md 正本 --glob "*.ts" --glob "*.js" --glob "*.md"
+```
+
+Expected: no matches. If this finds a source/test/doc file not listed in this plan, stop and revise the plan before editing that extra file.
+
+- [ ] **Step 5: Run focused UI/debug tests**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test\ui.debug-test-scenarios.test.ts test\ui.pass-stale-busy.test.ts test\ui.stone-rendering.test.ts test\game.ribo-will.test.ts test\game.time-stop-god.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit cleanup**
+- [ ] **Step 6: Commit cleanup**
 
 Run:
 
 ```powershell
-git add ui\debug-test-scenarios.ts test\ui.debug-test-scenarios.test.ts test\ui.pass-stale-busy.test.ts
+git add ui\debug-test-scenarios.ts test\ui.debug-test-scenarios.test.ts test\ui.pass-stale-busy.test.ts test\ui.stone-rendering.test.ts test\game.ribo-will.test.ts test\game.time-stop-god.test.ts
 git commit -m "Refresh theory debug and pass assumptions"
 ```
 
@@ -1199,7 +1317,7 @@ Expected: PASS and updates only `worker-public/` mirror files needed for root so
 Run:
 
 ```powershell
-rg -n "理論の化身.*自動|theory_incarnation_auto_turn_end|所有者: 石配置・カード使用不可|顕現中は理論数字マスから特殊石が現れ、自分のターンを終了する|理論召喚では確定した理論数字マス値|33\\+2=35|5ターン持続|5T不可侵" 01-rulebook.md 正本 cards game ui shared test tests
+rg -n "理論の化身.*自動|theory_incarnation_auto_turn_end|theoryAutoTurnEnd|autoTurnEnd|_theoryIncarnationPendingAutoExpireByPlayer|finalizeTheoryIncarnationAutoTurnEndExpiration|所有者: 石配置・カード使用不可|顕現中は理論数字マスから特殊石が現れ、自分のターンを終了する|理論召喚では確定した理論数字マス値|33\\+2=35|THEORY_INCARNATION[^\\n]*remainingOwnerTurns: 5|remainingOwnerTurns: 5[^\\n]*THEORY_INCARNATION|理論[^\\n]*5T|5T[^\\n]*理論|理論の化身[^\\n]*5ターン" 01-rulebook.md 正本 cards game ui shared test tests --glob "*.ts" --glob "*.js" --glob "*.md"
 ```
 
 Expected: no stale source/test/docs references to the removed theory behavior. Historical plan files under `docs/superpowers/plans/` are not included in this search.
@@ -1220,11 +1338,13 @@ Expected: only intentional source, generated, test, dist, and worker mirror file
 Run:
 
 ```powershell
-git add dist public\module-registry.js worker-public
+git status --short dist public\module-registry.js worker-public
+git diff --stat -- dist public\module-registry.js worker-public
+git add -- dist public\module-registry.js worker-public
 git commit -m "Sync theory incarnation browser and worker assets"
 ```
 
-Expected: commit succeeds only if these generated changes are present and were produced by `npm run build:browser` or `npm run worker:prepare`.
+Expected: run `git add -- dist public\module-registry.js worker-public` only when the preceding status/stat output contains generated or mirror files produced by `npm run build:browser` or `npm run worker:prepare` in this task. If the status output shows unrelated generated dirt, do not stage; report the exact files and ask how to proceed.
 
 If no generated or mirror files changed, skip this commit and record that no sync diff was produced.
 
@@ -1236,6 +1356,8 @@ If no generated or mirror files changed, skip this commit and record that no syn
   - Initial sequence is covered by Task 1 docs and Task 4 manifest-placement path.
   - Later owner placement before roulette is covered by Task 2 RED test and Task 4 post-placement wiring.
   - No legal move pass without roulette is covered by Task 2 RED test and Task 4 pass helper.
+  - Pass consumes one owner-turn duration but never spawns; this is made explicit in Requirements and Task 4.
+  - Initial manifest-placement spawn does not consume the later 4-turn duration; Task 1 text and Task 4 `theoryManifestPlaced` wiring protect this.
   - No charge and no theory-condition gain from spawned stones is covered by Task 2 RED test and Task 5 implementation.
   - Duration 4 is covered by Task 1 docs, Task 3 constants/tags, and Task 7 UI text.
   - CPU behavior is covered by Task 6.
