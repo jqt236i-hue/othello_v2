@@ -326,6 +326,25 @@ async function syncBoth(chromeSeat: Seat, edgeSeat: Seat): Promise<void> {
   await Promise.all([syncSeat(chromeSeat), syncSeat(edgeSeat)]);
 }
 
+async function leaveSeat(seat: Seat): Promise<void> {
+  await seat.page.evaluate(async () => {
+    const client = (window as any).NetworkMatchClient;
+    if (client && typeof client.leaveRoom === 'function') {
+      try {
+        await client.leaveRoom();
+      } catch (_e) {
+        // A cleanup failure here must not hide the scenario result.
+      }
+    }
+  });
+  await delay(50);
+}
+
+async function cleanupScenarioSessions(chromeSeat: Seat, edgeSeat: Seat): Promise<void> {
+  await Promise.all([leaveSeat(chromeSeat), leaveSeat(edgeSeat)]);
+  resetRoomsForTests();
+}
+
 async function publishAction(seat: Seat, playerKey: string, action: any): Promise<void> {
   const result = await seat.page.evaluate(async ({ actor, action: nextAction }) => {
     const client = (window as any).NetworkMatchClient;
@@ -378,43 +397,49 @@ async function resetPlaybackEvidence(seat: Seat): Promise<void> {
 }
 
 async function runScenario(scenario: Scenario, chromeSeat: Seat, edgeSeat: Seat, matchUrl: string) {
+  await cleanupScenarioSessions(chromeSeat, edgeSeat);
   await Promise.all([resetPlaybackEvidence(chromeSeat), resetPlaybackEvidence(edgeSeat)]);
-  const created = await createRoom(chromeSeat, matchUrl);
-  if (!created || created.ok !== true) {
-    throw new Error(`create room failed: ${JSON.stringify(created || {})}`);
-  }
-  const roomId = String(created.roomId || '');
-  const joined = await joinRoom(edgeSeat, matchUrl, roomId);
-  if (!joined || joined.ok !== true) {
-    throw new Error(`join room failed: ${JSON.stringify(joined || {})}`);
-  }
-  patchRoomScenario(roomId, scenario);
-  await syncBoth(chromeSeat, edgeSeat);
-  await publishAction(chromeSeat, 'black', scenario.publishAction);
-  await syncBoth(chromeSeat, edgeSeat);
-  await delay(250);
+  let roomId = '';
+  try {
+    const created = await createRoom(chromeSeat, matchUrl);
+    if (!created || created.ok !== true) {
+      throw new Error(`create room failed: ${JSON.stringify(created || {})}`);
+    }
+    roomId = String(created.roomId || '');
+    const joined = await joinRoom(edgeSeat, matchUrl, roomId);
+    if (!joined || joined.ok !== true) {
+      throw new Error(`join room failed: ${JSON.stringify(joined || {})}`);
+    }
+    patchRoomScenario(roomId, scenario);
+    await syncBoth(chromeSeat, edgeSeat);
+    await publishAction(chromeSeat, 'black', scenario.publishAction);
+    await syncBoth(chromeSeat, edgeSeat);
+    await delay(250);
 
-  const chromeEvidence = await collectPlaybackEvidence(chromeSeat);
-  const edgeEvidence = await collectPlaybackEvidence(edgeSeat);
-  const combinedReasons = [
-    ...(Array.isArray(chromeEvidence.reasons) ? chromeEvidence.reasons : []),
-    ...(Array.isArray(edgeEvidence.reasons) ? edgeEvidence.reasons : [])
-  ];
+    const chromeEvidence = await collectPlaybackEvidence(chromeSeat);
+    const edgeEvidence = await collectPlaybackEvidence(edgeSeat);
+    const combinedReasons = [
+      ...(Array.isArray(chromeEvidence.reasons) ? chromeEvidence.reasons : []),
+      ...(Array.isArray(edgeEvidence.reasons) ? edgeEvidence.reasons : [])
+    ];
 
-  const missingReasons = scenario.expectedReasons.filter((reason) => !combinedReasons.includes(reason));
-  if (missingReasons.length > 0) {
-    throw new Error(
-      `${scenario.id} missing reasons ${missingReasons.join(', ')}; reasons=${JSON.stringify(combinedReasons)}`
-    );
+    const missingReasons = scenario.expectedReasons.filter((reason) => !combinedReasons.includes(reason));
+    if (missingReasons.length > 0) {
+      throw new Error(
+        `${scenario.id} missing reasons ${missingReasons.join(', ')}; reasons=${JSON.stringify(combinedReasons)}`
+      );
+    }
+
+    return {
+      id: scenario.id,
+      roomId,
+      expectedReasons: scenario.expectedReasons,
+      chromeReasons: chromeEvidence.reasons,
+      edgeReasons: edgeEvidence.reasons
+    };
+  } finally {
+    await cleanupScenarioSessions(chromeSeat, edgeSeat);
   }
-
-  return {
-    id: scenario.id,
-    roomId,
-    expectedReasons: scenario.expectedReasons,
-    chromeReasons: chromeEvidence.reasons,
-    edgeReasons: edgeEvidence.reasons
-  };
 }
 
 async function main(): Promise<void> {
