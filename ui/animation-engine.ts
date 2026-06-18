@@ -382,6 +382,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         _phaseContext: any;
         _playbackRunSequence: any;
         _activePlaybackRunId: any;
+        _strictNetworkPlayback: any;
+        _strictNetworkPlaybackError: any;
+        _strictNetworkPlaybackReject: any;
         constructor() {
             this.isPlaying = false;
             this.boardEl = document.getElementById('board');
@@ -393,6 +396,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             this._phaseContext = null;
             this._playbackRunSequence = 0;
             this._activePlaybackRunId = null;
+            this._strictNetworkPlayback = false;
+            this._strictNetworkPlaybackError = null;
+            this._strictNetworkPlaybackReject = null;
         }
 
         _registerPlaybackAbortHandle(runId: any, runState: any) {
@@ -1119,7 +1125,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
          * @param {Array} events - Ordered PlaybackEvents
          * @returns {Promise<void>}
          */
-        async play(events: any) {
+        async play(events: any, options?: any) {
+            const playOptions = (options && typeof options === 'object') ? options : {};
             const normalizedEvents = Array.isArray(events)
                 ? events.map((ev) => this._normalizeEvent(ev))
                 : [];
@@ -1131,7 +1138,25 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             // Clear stale abort/watchdog state from previous runs.
             this.isAborted = false;
             this._watchdogFired = false;
+            this._strictNetworkPlayback = playOptions.strictNetworkPlayback === true
+                || normalizedEvents.some((event) => event && event.strictNetworkPlayback === true);
+            this._strictNetworkPlaybackError = null;
+            this._strictNetworkPlaybackReject = null;
+            const strictNetworkPlaybackThisRun = this._strictNetworkPlayback === true;
             let abortedDuringPlay = false;
+            let playbackError: any = null;
+            let strictWatchdogPromise: Promise<never> | null = null;
+            if (strictNetworkPlaybackThisRun) {
+                strictWatchdogPromise = new Promise((resolve, reject) => {
+                    this._strictNetworkPlaybackReject = reject;
+                });
+            }
+            const awaitPlaybackStep = (promise: any) => {
+                if (strictNetworkPlaybackThisRun && strictWatchdogPromise) {
+                    return Promise.race([Promise.resolve(promise), strictWatchdogPromise]);
+                }
+                return promise;
+            };
 
             // Only suppress DiffRenderer's fallback flip animation when this playback actually includes flip events.
             // Otherwise, if flip events were dropped (e.g., missing BoardOps CHANGE events), suppressing would remove
@@ -1207,7 +1232,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     this._remainingEvents = this._remainingEvents.filter((ev: any) => Number(ev.phase || 0) > Number(phase));
 
                     const phaseEvents = phases[phase];
-                    await this.executePhase(phaseEvents);
+                    await awaitPlaybackStep(this.executePhase(phaseEvents));
 
                     // Gap between readable phases (Section 3)
                     if (phase !== sortedPhases[sortedPhases.length - 1]) {
@@ -1217,12 +1242,13 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         const nextPhaseKey = sortedPhases[sortedPhases.indexOf(phase) + 1];
                         const nextEvents = phases[nextPhaseKey] || [];
                         if (!this._shouldSkipPhaseGapBetween(phaseEvents, nextEvents)) {
-                            await this._sleep(PHASE_GAP_MS);
+                            await awaitPlaybackStep(this._sleep(PHASE_GAP_MS));
                         }
                     }
                 }
             } catch (err: any) {
                 abortedDuringPlay = true;
+                playbackError = err;
                 console.error('[AnimationEngine] Playback error:', err);
             } finally {
                 this._clearPlaybackAbortHandle(abortHandle);
@@ -1282,7 +1308,19 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         _requestBoardUpdate();
                     }
                 }
-              }
+                if (isCurrentRun) {
+                    this._strictNetworkPlaybackReject = null;
+                    this._strictNetworkPlayback = false;
+                }
+            }
+            if (this._strictNetworkPlaybackError) {
+                const error = this._strictNetworkPlaybackError;
+                this._strictNetworkPlaybackError = null;
+                throw error;
+            }
+            if (playbackError && strictNetworkPlaybackThisRun) {
+                throw playbackError;
+            }
         }
         groupByPhase(events: any) {
             return events.reduce((acc: any, ev: any) => {
@@ -1498,6 +1536,20 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 if (this.playbackScope !== null) _Timer().clearScope(this.playbackScope);
             } catch (e: any) { /* best-effort */ }
             this.isAborted = true;
+            if (this._strictNetworkPlayback === true) {
+                const error: any = new Error('network_playback_watchdog');
+                error.name = 'NetworkPlaybackWatchdogError';
+                this._strictNetworkPlaybackError = error;
+                if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
+                    PlaybackState.abortPlayback({ boardElement: this.boardEl, strictNetworkPlayback: true });
+                } else if (typeof window !== 'undefined') {
+                    this.setGlobalInteractionLock(false);
+                }
+                if (typeof this._strictNetworkPlaybackReject === 'function') {
+                    this._strictNetworkPlaybackReject(error);
+                }
+                return;
+            }
             // Apply final state by requesting a full board sync
             try {
                 _requestBoardUpdate();

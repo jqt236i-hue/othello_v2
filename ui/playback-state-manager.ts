@@ -141,8 +141,25 @@ function clearPlaybackAbortHandle(handle: any): boolean {
   return true;
 }
 
+function isNetworkPresentationTimelinePaused(): boolean {
+  const targets = getMirrorTargets();
+  for (let index = 0; index < targets.length; index += 1) {
+    const target = targets[index];
+    try {
+      const timeline = target && target.NetworkPresentationTimeline;
+      if (timeline && typeof timeline.getDiagnostics === 'function') {
+        const diagnostics = timeline.getDiagnostics();
+        if (diagnostics && diagnostics.paused === true) return true;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  return false;
+}
+
 function getPlaybackActive(): boolean {
-  return readMirroredValue('VisualPlaybackActive') === true || hasSelectionSettlementLock();
+  return readMirroredValue('VisualPlaybackActive') === true
+    || hasSelectionSettlementLock()
+    || isNetworkPresentationTimelinePaused();
 }
 
 function setPlaybackActive(active: boolean): boolean {
@@ -551,7 +568,9 @@ function shouldDeferBoardUpdate(options?: any): boolean {
   if (shouldAllowSelectionEntryDuringPlayback(opts) === true) {
     return false;
   }
-  return getPlaybackActive() === true || hasPendingVisualPlayback(opts.cardState);
+  return getPlaybackActive() === true
+    || hasPendingVisualPlayback(opts.cardState)
+    || isNetworkPresentationTimelinePaused();
 }
 
 function shouldDeferUiSync(options?: any): boolean {
@@ -559,7 +578,9 @@ function shouldDeferUiSync(options?: any): boolean {
   if (shouldAllowSelectionEntryDuringPlayback(opts) === true) {
     return false;
   }
-  return getPlaybackActive() === true || hasPendingPresentationEvents(opts.cardState);
+  return getPlaybackActive() === true
+    || hasPendingPresentationEvents(opts.cardState)
+    || isNetworkPresentationTimelinePaused();
 }
 
 function setBoardUpdateContext(context: any): any {
