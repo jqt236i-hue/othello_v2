@@ -97,7 +97,7 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
         throw new Error('SWAP_WITH_ENEMY requires selecting an enemy stone before placement');
     }
 
-    let flips = [];
+    let flips: any[] = [];
     let tabooReverseApplied = false;
     let tabooReverseResult = null;
 
@@ -128,53 +128,66 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     const turnNumberBeforePlace = Number(opts.gameState.turnNumber || 0);
 
     let flipEvadeResult = null;
-
-    if (opts.BoardOps && typeof opts.BoardOps.spawnAt === 'function') {
-        const spawnCause = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'FREE_PLACEMENT' : 'SYSTEM';
-        const spawnReason = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'free_placement_place' : 'standard_place';
-        const spawnMeta: Record<string, any> = {};
-        if (pendingType === 'GOLD_STONE') {
-            spawnMeta.special = 'GOLD';
-            spawnMeta.owner = opts.playerKey;
-        } else if (pendingType === 'RAINBOW_STONE') {
-            spawnMeta.special = 'RAINBOW';
-            spawnMeta.owner = opts.playerKey;
-        } else if (pendingType === 'SILVER_STONE') {
-            spawnMeta.special = 'SILVER';
-            spawnMeta.owner = opts.playerKey;
-        } else if (pendingType === 'CROSS_BOMB') {
-            spawnMeta.special = 'CROSS_BOMB';
-            spawnMeta.owner = opts.playerKey;
-        } else if (pendingType === 'X_BOMB') {
-            spawnMeta.special = 'X_BOMB';
-            spawnMeta.owner = opts.playerKey;
-        }
-        opts.BoardOps.spawnAt(opts.cardState, opts.gameState, action.row, action.col, opts.playerKey, spawnCause, spawnReason, spawnMeta);
-        if (flipCount > 0 && typeof opts.CardLogic.resolveHyperactiveFlipEvasion === 'function') {
-            flipEvadeResult = opts.CardLogic.resolveHyperactiveFlipEvasion(opts.cardState, opts.gameState, flips, opts.playerKey, p);
-            if (flipEvadeResult && Array.isArray(flipEvadeResult.remainingFlips)) {
-                flips = flipEvadeResult.remainingFlips.slice();
-                flipCount = flips.length;
-            }
-        }
-        const flipCause = tabooReverseApplied ? 'TABOO_REVERSE_WILL' : 'SYSTEM';
-        const flipReason = tabooReverseApplied ? 'taboo_reverse_flip' : 'standard_flip';
-        const appliedPrimaryFlips = [];
+    const spawnCause = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'FREE_PLACEMENT' : 'SYSTEM';
+    const spawnReason = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'free_placement_place' : 'standard_place';
+    const spawnMeta: Record<string, any> = {};
+    if (pendingType === 'GOLD_STONE') {
+        spawnMeta.special = 'GOLD';
+        spawnMeta.owner = opts.playerKey;
+    } else if (pendingType === 'RAINBOW_STONE') {
+        spawnMeta.special = 'RAINBOW';
+        spawnMeta.owner = opts.playerKey;
+    } else if (pendingType === 'SILVER_STONE') {
+        spawnMeta.special = 'SILVER';
+        spawnMeta.owner = opts.playerKey;
+    } else if (pendingType === 'CROSS_BOMB') {
+        spawnMeta.special = 'CROSS_BOMB';
+        spawnMeta.owner = opts.playerKey;
+    } else if (pendingType === 'X_BOMB') {
+        spawnMeta.special = 'X_BOMB';
+        spawnMeta.owner = opts.playerKey;
+    }
+    const flipCause = tabooReverseApplied ? 'TABOO_REVERSE_WILL' : 'SYSTEM';
+    const flipReason = tabooReverseApplied ? 'taboo_reverse_flip' : 'standard_flip';
+    const boardPlacement = opts.CardLogic.spawnAndFlipPlacement({
+        cardState: opts.cardState,
+        gameState: opts.gameState,
+        playerKey: opts.playerKey,
+        playerValue,
+        row: action.row,
+        col: action.col,
+        allowZeroFlips: freePlacement,
+        BoardOps: opts.BoardOps,
+        getCardContext: () => ctx,
+        getFlipsWithContext: () => flips,
+        resolveFlipEvasion: (candidateFlips: any[]) => (
+            candidateFlips.length > 0 && typeof opts.CardLogic.resolveHyperactiveFlipEvasion === 'function'
+                ? opts.CardLogic.resolveHyperactiveFlipEvasion(opts.cardState, opts.gameState, candidateFlips, opts.playerKey, p)
+                : null
+        ),
+        clearBombAt: !tabooReverseApplied && typeof opts.CardLogic.clearBombAt === 'function'
+            ? opts.CardLogic.clearBombAt.bind(opts.CardLogic)
+            : undefined,
+        clearHyperactiveAtPositions: !tabooReverseApplied && typeof opts.CardLogic.clearHyperactiveAtPositions === 'function'
+            ? opts.CardLogic.clearHyperactiveAtPositions.bind(opts.CardLogic)
+            : undefined,
+        spawnCause,
+        spawnReason,
+        flipCause,
+        flipReason,
+        spawnMeta: Object.keys(spawnMeta).length > 0 ? spawnMeta : null,
+        flipMeta: tabooReverseApplied ? { allowGhostFlip: true } : null
+    });
+    if (!boardPlacement || boardPlacement.spawned !== true) {
+        throw new Error('Illegal move: placement spawn failed');
+    }
+    flipEvadeResult = boardPlacement.flipEvadeResult || null;
+    flips = Array.isArray(boardPlacement.appliedFlips) ? boardPlacement.appliedFlips.slice() : [];
+    flipCount = flips.length;
+    if (tabooReverseApplied && opts.CardLogic && typeof opts.CardLogic.transferCellMarkerOwnership === 'function') {
         for (const [fr, fc] of flips) {
-            const changeMeta = tabooReverseApplied ? { allowGhostFlip: true } : undefined;
-            const changeRes = opts.BoardOps.changeAt(opts.cardState, opts.gameState, fr, fc, opts.playerKey, flipCause, flipReason, changeMeta);
-            if (changeRes && changeRes.changed) {
-                if (tabooReverseApplied && opts.CardLogic && typeof opts.CardLogic.transferCellMarkerOwnership === 'function') {
-                    opts.CardLogic.transferCellMarkerOwnership(opts.cardState, fr, fc, opts.playerKey);
-                }
-                appliedPrimaryFlips.push([fr, fc]);
-            }
+            opts.CardLogic.transferCellMarkerOwnership(opts.cardState, fr, fc, opts.playerKey);
         }
-        flips = appliedPrimaryFlips;
-        flipCount = flips.length;
-    } else {
-        const newState = opts.Core.applyMove(opts.gameState, { row: action.row, col: action.col, flips });
-        Object.assign(opts.gameState, newState);
     }
 
     emitFlipEvadeEvents(opts.events, flipEvadeResult);
@@ -300,16 +313,6 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
                 ? (numberCellMultiplierConfig.boostedBy || pendingPlacementType || null)
                 : null
         });
-    }
-
-    if (!tabooReverseApplied && flips.length > 0 && typeof opts.CardLogic.clearBombAt === 'function') {
-        for (const [row, col] of flips) {
-            opts.CardLogic.clearBombAt(opts.cardState, row, col);
-        }
-    }
-    if (!tabooReverseApplied && flips.length > 0 && typeof opts.CardLogic.clearHyperactiveAtPositions === 'function') {
-        const flippedPositions = flips.map(([row, col]: [any, any]) => ({ row, col }));
-        opts.CardLogic.clearHyperactiveAtPositions(opts.cardState, flippedPositions);
     }
 
     if (!tabooReverseApplied && flipCount > 0 && typeof opts.CardLogic.applyRegenAfterFlips === 'function') {

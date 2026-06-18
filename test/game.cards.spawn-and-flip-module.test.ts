@@ -1,4 +1,4 @@
-const { spawnAndFlipBatch } = require('../game/logic/cards-internal/spawn-and-flip');
+const { spawnAndFlipBatch, spawnAndFlipPlacement } = require('../game/logic/cards-internal/spawn-and-flip');
 
 function createBoard(rows = 8, cols = 8, fill = 0) {
   return Array.from({ length: rows }, () => Array(cols).fill(fill));
@@ -8,6 +8,96 @@ describe('cards spawn-and-flip module', () => {
   test('registers runtime global for browser-loaded consumers', () => {
     expect(globalThis.CardSpawnAndFlip).toBeTruthy();
     expect(globalThis.CardSpawnAndFlip.spawnAndFlipBatch).toBe(spawnAndFlipBatch);
+    expect(globalThis.CardSpawnAndFlip.spawnAndFlipPlacement).toBe(spawnAndFlipPlacement);
+  });
+
+  test('spawnAndFlipPlacement spawns first and flips bracketed stones through BoardOps', () => {
+    const cardState = {};
+    const gameState = {
+      board: [
+        [0, -1, 1],
+        [0, 0, 0],
+        [0, 0, 0]
+      ]
+    };
+    const calls = [];
+    const BoardOps = {
+      spawnAt: jest.fn((cs, gs, row, col, playerKey, cause, reason, meta) => {
+        calls.push(`spawn:${row},${col}:${cause}:${reason}:${meta.special}`);
+        gs.board[row][col] = 1;
+        return { spawned: true, stoneId: 'stone_1' };
+      }),
+      changeAt: jest.fn((cs, gs, row, col, playerKey, cause, reason) => {
+        calls.push(`change:${row},${col}:${cause}:${reason}`);
+        gs.board[row][col] = 1;
+        return { changed: true };
+      })
+    };
+
+    const result = spawnAndFlipPlacement({
+      cardState,
+      gameState,
+      playerKey: 'black',
+      playerValue: 1,
+      row: 0,
+      col: 0,
+      allowZeroFlips: false,
+      BoardOps,
+      getCardContext: () => ({}),
+      getFlipsWithContext: () => [[0, 1]],
+      spawnCause: 'THEORY_INCARNATION',
+      spawnReason: 'theory_incarnation_spawn',
+      flipCause: 'THEORY_INCARNATION',
+      flipReason: 'theory_incarnation_flip',
+      spawnMeta: { special: 'GHOST' }
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      spawned: true,
+      stoneId: 'stone_1',
+      attemptedFlips: [[0, 1]],
+      appliedFlips: [[0, 1]]
+    }));
+    expect(calls).toEqual([
+      'spawn:0,0:THEORY_INCARNATION:theory_incarnation_spawn:GHOST',
+      'change:0,1:THEORY_INCARNATION:theory_incarnation_flip'
+    ]);
+    expect(gameState.board[0]).toEqual([1, 1, 1]);
+  });
+
+  test('spawnAndFlipPlacement rejects zero flips unless allowZeroFlips is true', () => {
+    const baseOptions = {
+      cardState: {},
+      gameState: { board: [[0]] },
+      playerKey: 'black',
+      playerValue: 1,
+      row: 0,
+      col: 0,
+      BoardOps: {
+        spawnAt: jest.fn((cs, gs, row, col) => {
+          gs.board[row][col] = 1;
+          return { spawned: true };
+        }),
+        changeAt: jest.fn()
+      },
+      getCardContext: () => ({}),
+      getFlipsWithContext: () => [],
+      spawnCause: 'SYSTEM',
+      spawnReason: 'standard_place',
+      flipCause: 'SYSTEM',
+      flipReason: 'standard_flip'
+    };
+
+    expect(() => spawnAndFlipPlacement({ ...baseOptions, allowZeroFlips: false })).toThrow('Illegal move: no flips and zero-flip placement is not allowed');
+
+    const result = spawnAndFlipPlacement({ ...baseOptions, allowZeroFlips: true });
+
+    expect(result).toEqual(expect.objectContaining({
+      spawned: true,
+      attemptedFlips: [],
+      appliedFlips: []
+    }));
+    expect(baseOptions.gameState.board[0][0]).toBe(1);
   });
 
   test('preserves spawn bookkeeping and dedupes flipped output inside a spawn block', () => {

@@ -477,6 +477,13 @@ const {
         return BoardOpsModule.consumeResolvedGeneratedSpawnFlipResults(cardState);
     }
 
+    function spawnAndFlipPlacement(options: any) {
+        if (!CardSpawnAndFlipModule || typeof CardSpawnAndFlipModule.spawnAndFlipPlacement !== 'function') {
+            throw new Error('[cards.js] CardSpawnAndFlip.spawnAndFlipPlacement not available');
+        }
+        return CardSpawnAndFlipModule.spawnAndFlipPlacement(options);
+    }
+
     function getCardTargetAccessDeps() {
         return {
             CardTargetsModule,
@@ -1843,6 +1850,13 @@ const {
             SpecialStoneRegistry,
             ManifestStoneRegistry,
             SpecialStoneMarkerFactory: SpecialStoneMarkerFactoryModule,
+            Core: resolveCoreLogicForCards(),
+            BoardOps: BoardOpsModule,
+            spawnAndFlipPlacement,
+            resolveSafeCardContext: getCardContext,
+            resolveHyperactiveFlipEvasion,
+            clearBombAt,
+            clearHyperactiveAtPositions,
             addMarker,
             getMarkers,
             removeMarkerById,
@@ -1851,6 +1865,7 @@ const {
             isBlockedCell,
             sampleRandomPositions,
             revertSpecialStoneWithPresentation,
+            addChargeWithTotal,
             spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
                 ? BoardOpsModule.spawnAt
                 : null
@@ -4404,6 +4419,7 @@ const cardsApi: any = {
         onTurnStart,
         consumeStoneSalvationGodRevives,
         consumeGeneratedSpawnFlipResults,
+        spawnAndFlipPlacement,
         onTurnEnd,
         applyPlacementEffects,
         tickBombs,

@@ -108,6 +108,160 @@ describe('理論の化身', () => {
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
   });
 
+  test('理論召喚は確定マスで挟める列があれば通常配置と同じ反転を行う', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+    gameState.board[0][0] = Shared.EMPTY;
+    gameState.board[0][1] = Shared.WHITE;
+    gameState.board[0][2] = Shared.WHITE;
+    gameState.board[0][3] = Shared.BLACK;
+    cardState.charge.black = 0;
+    cardState.numberCellCollectedTotalByPlayer.black = 42;
+    cardState.boardBonusByCell = { '0,0': 5 };
+    cardState.boardBonusConsumedByCell = {};
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': {
+            row: 0,
+            col: 0,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5,
+            markerData: {
+              type: 'GHOST',
+              remainingOwnerTurns: 8,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'ghost_01',
+              sourceCardType: 'GHOST_WILL'
+            }
+          }
+        }
+      }
+    };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
+      white: null
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 5,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION'
+    });
+
+    const result = CardLogic.processTheoryIncarnationMarkerAtTurnStart(cardState, gameState, 'black', 2, 2, prng);
+
+    expect(result.spawned).toEqual(expect.objectContaining({
+      row: 0,
+      col: 0,
+      type: 'GHOST',
+      flips: [{ row: 0, col: 1 }, { row: 0, col: 2 }],
+      chargeGained: 7
+    }));
+    expect(gameState.board[0][0]).toBe(Shared.BLACK);
+    expect(gameState.board[0][1]).toBe(Shared.BLACK);
+    expect(gameState.board[0][2]).toBe(Shared.BLACK);
+    expect(gameState.board[0][3]).toBe(Shared.BLACK);
+    expect(cardState.charge.black).toBe(7);
+    expect(cardState.chargeGainedTotal.black).toBe(7);
+    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(47);
+    expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
+    expect(cardState.chargeDeltaEvents).toContainEqual(expect.objectContaining({
+      player: 'black',
+      delta: 7,
+      popupKind: 'board',
+      anchorRow: 0,
+      anchorCol: 0,
+      sourceType: 'theory_incarnation_spawn_gain'
+    }));
+  });
+
+  test('理論召喚は挟める列がない確定マスでも従来通り特殊石を出現させる', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+    gameState.board[0][0] = Shared.EMPTY;
+    cardState.boardBonusByCell = { '0,0': 5 };
+    cardState.boardBonusConsumedByCell = {};
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': {
+            row: 0,
+            col: 0,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5,
+            markerData: {
+              type: 'GHOST',
+              remainingOwnerTurns: 8,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'ghost_01',
+              sourceCardType: 'GHOST_WILL'
+            }
+          }
+        }
+      }
+    };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 5 },
+      white: null
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 5,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION'
+    });
+
+    const result = CardLogic.processTheoryIncarnationMarkerAtTurnStart(cardState, gameState, 'black', 2, 2, prng);
+
+    expect(result.spawned).toEqual(expect.objectContaining({
+      row: 0,
+      col: 0,
+      type: 'GHOST',
+      flips: []
+    }));
+    expect(gameState.board[0][0]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 0,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'GHOST',
+          sourceType: 'THEORY_INCARNATION'
+        })
+      })
+    ]));
+    expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
+    expect(cardState.charge.black).toBe(5);
+    expect(cardState.chargeGainedTotal.black).toBe(5);
+    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(5);
+  });
+
   test('生成候補はカタログ上の特殊石カード型からマーカーを構築する', () => {
     const table = SpecialStoneMarkerFactory.buildTheoryIncarnationSpawnTable([
       { id: 'hard_01', type: 'PROTECTED_NEXT_STONE', cost: 1 },

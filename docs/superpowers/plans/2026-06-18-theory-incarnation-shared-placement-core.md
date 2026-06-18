@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Route `理論の化身` special-stone materialization through a shared headless board placement and flip core so selected theory cells flip bracketed stones while zero-flip materialization still works.
+**Goal:** Route `理論の化身` special-stone materialization through a shared headless board placement and flip core so selected theory cells flip bracketed stones while zero-flip materialization still works, then award charge equal to the selected theory-number cell value plus actual flip count.
 
 **Architecture:** Extend the existing `game/logic/cards-internal/spawn-and-flip.ts` helper with a one-cell place-like core. Normal placement keeps turn-flow ownership in `game/turn/action-phase/place-resolution.ts`, while theory spawn keeps roulette ownership in `game/logic/card-resolution/theory-incarnation.ts` and calls the shared core only for board mutation. Immediate special-stone effects continue to use `game/turn/immediate-effect-dispatcher.ts`.
 
@@ -13,7 +13,7 @@
 ## File Structure
 
 - Modify: `01-rulebook.md`
-  - Add the player-visible rule that theory-spawned stones flip bracketed lines but still appear with zero flips.
+  - Add the player-visible rule that theory-spawned stones flip bracketed lines, still appear with zero flips, and award theory-number value plus actual flip count.
 - Modify: `正本/カード仕様正本.md`
   - Mirror the same `理論の化身` behavior summary.
 - Modify: `game/logic/cards-internal/spawn-and-flip.ts`
@@ -41,6 +41,7 @@ Under `### 10.23.1.0 THEORY_INCARNATION（理論の化身）`, add this bullet n
 
 ```markdown
 - 理論の化身で出現する特殊石は、確定した理論数字マスへ通常配置と同じ反転判定で配置される。挟める列がある場合はその列の敵石を反転し、挟める列がない場合でも従来通り特殊石は出現する
+- 理論の化身による特殊石出現は、確定した理論数字マス値と実際に反転した石数ぶんの布石を獲得する（例: 33のマスで2石反転した場合、33+2=35布石を獲得する）
 ```
 
 - [ ] **Step 2: Update `正本/カード仕様正本.md`**
@@ -48,7 +49,7 @@ Under `### 10.23.1.0 THEORY_INCARNATION（理論の化身）`, add this bullet n
 In the `理論の化身` row, add the same behavior to the description:
 
 ```markdown
-出現時は確定マスで通常配置と同じ反転判定を行い、挟める列があれば反転する。挟める列がなくても特殊石の出現は成立する。
+出現時は確定マスで通常配置と同じ反転判定を行い、挟める列があれば反転する。挟める列がなくても特殊石の出現は成立する。理論召喚では確定した理論数字マス値と実際に反転した石数ぶんの布石を獲得する。
 ```
 
 - [ ] **Step 3: Verify the docs mention both halves of the rule**
@@ -56,7 +57,7 @@ In the `理論の化身` row, add the same behavior to the description:
 Run:
 
 ```powershell
-rg -n "挟める列|通常配置と同じ反転判定|挟める列がなくても" 01-rulebook.md 正本/カード仕様正本.md
+rg -n "挟める列|通常配置と同じ反転判定|挟める列がなくても|33\\+2=35|理論数字マス値" 01-rulebook.md 正本/カード仕様正本.md
 ```
 
 Expected: both files contain the new rule text.
@@ -79,7 +80,8 @@ test('理論召喚は確定マスで挟める列があれば通常配置と同�
   gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
   gameState.board[0][0] = Shared.EMPTY;
   gameState.board[0][1] = Shared.WHITE;
-  gameState.board[0][2] = Shared.BLACK;
+  gameState.board[0][2] = Shared.WHITE;
+  gameState.board[0][3] = Shared.BLACK;
   cardState.charge.black = 0;
   cardState.numberCellCollectedTotalByPlayer.black = 42;
   cardState.boardBonusByCell = { '0,0': 5 };
@@ -129,13 +131,16 @@ test('理論召喚は確定マスで挟める列があれば通常配置と同�
     row: 0,
     col: 0,
     type: 'GHOST',
-    flips: [{ row: 0, col: 1 }]
+    flips: [{ row: 0, col: 1 }, { row: 0, col: 2 }],
+    chargeGained: 7
   }));
   expect(gameState.board[0][0]).toBe(Shared.BLACK);
   expect(gameState.board[0][1]).toBe(Shared.BLACK);
   expect(gameState.board[0][2]).toBe(Shared.BLACK);
-  expect(cardState.charge.black).toBe(0);
-  expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
+  expect(gameState.board[0][3]).toBe(Shared.BLACK);
+  expect(cardState.charge.black).toBe(7);
+  expect(cardState.chargeGainedTotal.black).toBe(7);
+  expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(47);
   expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
 });
 ```
@@ -214,6 +219,8 @@ test('理論召喚は挟める列がない確定マスでも従来通り特殊�
     })
   ]));
   expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
+  expect(cardState.charge.black).toBe(5);
+  expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(5);
 });
 ```
 
@@ -225,7 +232,7 @@ Run:
 npm run test:jest -- --runTestsByPath test/game.theory-incarnation.test.ts
 ```
 
-Expected before implementation: the bracketed-line test fails because `gameState.board[0][1]` remains `Shared.WHITE`, and both new tests fail if `result.spawned.flips` is missing.
+Expected before implementation: the bracketed-line test fails because bracketed stones remain `Shared.WHITE`, and both new tests fail if `result.spawned.flips` / `chargeGained` are missing.
 
 ## Task 3: Add Unit Coverage For The Shared Core
 
@@ -603,7 +610,8 @@ spawnAndFlipPlacement,
 resolveSafeCardContext,
 resolveHyperactiveFlipEvasion,
 clearBombAt,
-clearHyperactiveAtPositions
+clearHyperactiveAtPositions,
+addChargeWithTotal
 ```
 
 - [ ] **Step 2: Replace direct `spawnAt` in `spawnTheorySpecialStone`**
@@ -653,17 +661,22 @@ const boardPlacement = typeof deps.spawnAndFlipPlacement === 'function'
 if (!boardPlacement || boardPlacement.spawned !== true) return null;
 ```
 
-- [ ] **Step 3: Preserve marker creation and add flips to the result payload**
+- [ ] **Step 3: Award theory-number plus flip-count charge**
+
+After the shared core call and before marking the cell consumed, add a charge award equal to `picked.cell.value + boardPlacement.appliedFlips.length`, call `addNumberCellCollectedTotal` with the theory number value, and store the actual added amount for the result payload.
+
+- [ ] **Step 4: Preserve marker creation and add flips/charge to the result payload**
 
 Keep the existing `deps.addMarker` call after the shared core call. Change the returned payload to include:
 
 ```ts
 flips: Array.isArray(boardPlacement.appliedFlips)
     ? boardPlacement.appliedFlips.map(([row, col]: [number, number]) => ({ row, col }))
-    : []
+    : [],
+chargeGained
 ```
 
-- [ ] **Step 4: Run theory tests**
+- [ ] **Step 5: Run theory tests**
 
 Run:
 

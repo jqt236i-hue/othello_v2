@@ -16,9 +16,12 @@ Player-visible rule text remains owned by `01-rulebook.md`. The stable architect
 
 - Do not change theory roulette candidate generation, weights, PRNG consumption for candidate selection, animation duration, or materialize timing.
 - Do not make theory spawn require a legal Reversi move. A selected cell with zero flips still materializes as before.
-- Do not award number-cell charge or normal placement charge from theory-spawned cells.
 - Do not consume or mutate normal pending card state while resolving a theory spawn.
 - Do not introduce DOM, sound, timer, or network dependencies into `game/logic`, `game/turn`, or shared card logic.
+
+## Charge Gain
+
+Theory-spawned cells award charge as a place-like gain: selected theory-number cell value plus the number of stones actually flipped by that spawn.
 
 ## Current Evidence
 
@@ -46,8 +49,7 @@ The helper does not own:
 
 - card cost checks
 - pending card consumption
-- number-cell charge collection
-- normal placement charge gain
+- theory-spawn charge collection
 - turn handoff
 - UI playback decisions
 - theory roulette selection
@@ -84,7 +86,7 @@ The returned `appliedFlips` becomes the existing `flips` value used by subsequen
 
 If the selected cell brackets opponent stones, those stones flip. If it brackets nothing, the special stone still appears.
 
-The theory path then adds the special marker using the prepared marker data, marks the theory number cell consumed, and returns the spawned payload. The payload should include `flips` so tests and logs can assert the board mutation without inspecting presentation internals.
+The theory path then awards charge equal to `selected theory-number value + applied flip count`, adds the special marker using the prepared marker data, marks the theory number cell consumed, and returns the spawned payload. The payload should include `flips` and `chargeGained` so tests and logs can assert the board mutation without inspecting presentation internals.
 
 ## Marker Data
 
@@ -103,7 +105,7 @@ Implementation must update `01-rulebook.md` under `THEORY_INCARNATION` to state:
 - theory-spawned special stones use ordinary placement flip judgment at the selected cell
 - if the selected cell brackets opponent stones, those stones flip
 - if the selected cell does not bracket any stones, the special stone still appears
-- theory spawn still does not grant number-cell charge
+- theory spawn grants charge equal to the selected theory-number cell value plus the number of stones actually flipped by that spawn
 
 Implementation must also update the relevant `正本/` note because this is player-visible card behavior and playback-visible board mutation.
 
@@ -113,7 +115,7 @@ Use focused tests before implementation:
 
 - theory spawn on a bracketed line flips the bracketed stone
 - theory spawn on a zero-flip cell still appears
-- theory spawn does not award number-cell charge or normal flip charge
+- theory spawn awards selected theory-number cell value plus actual flip count
 - theory-spawned `意志狩りの王` still carries duration, flip-evade, and destroy-evade counters
 - existing roulette metadata and immediate-effect tests still pass
 - normal placement tests still pass to prove the extraction preserved behavior

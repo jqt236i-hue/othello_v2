@@ -219,6 +219,37 @@ function markTheoryCellConsumed(cardState: any, sessionId: string, key: string):
     }
 }
 
+function getTheorySpawnNumberValue(cardState: any, key: string, cell: any): number {
+    const boardBonus = cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object'
+        ? cardState.boardBonusByCell
+        : null;
+    const visibleValue = boardBonus ? Number(boardBonus[key] || 0) : 0;
+    if (Number.isFinite(visibleValue) && visibleValue > 0) return Math.floor(visibleValue);
+    const cellValue = Number(cell && cell.value);
+    if (Number.isFinite(cellValue) && cellValue > 0) return Math.floor(cellValue);
+    const sourceCost = Number(cell && cell.sourceCardCost);
+    return Number.isFinite(sourceCost) && sourceCost > 0 ? Math.floor(sourceCost) : 0;
+}
+
+function awardTheorySpawnCharge(cardState: any, ownerKey: PlayerKey, row: number, col: number, numberValue: number, flipCount: number, deps: any): number {
+    const safeNumberValue = Number.isFinite(Number(numberValue)) ? Math.max(0, Math.floor(Number(numberValue))) : 0;
+    const safeFlipCount = Number.isFinite(Number(flipCount)) ? Math.max(0, Math.floor(Number(flipCount))) : 0;
+    if (safeNumberValue > 0) {
+        addNumberCellCollectedTotal(cardState, ownerKey, safeNumberValue);
+    }
+    const totalGain = safeNumberValue + safeFlipCount;
+    if (totalGain <= 0) return 0;
+    if (!deps || typeof deps.addChargeWithTotal !== 'function') {
+        throw new Error('Theory Incarnation charge helper unavailable');
+    }
+    return deps.addChargeWithTotal(cardState, ownerKey, totalGain, {
+        popupKind: 'board',
+        sourceType: 'theory_incarnation_spawn_gain',
+        anchorRow: row,
+        anchorCol: col
+    });
+}
+
 function prepareSpawnMarkerData(cardState: any, markerData: any, ownerKey: PlayerKey): any {
     const data = markerData && typeof markerData === 'object' ? { ...markerData } : {};
     const type = String(data.type || '').toUpperCase();
@@ -287,23 +318,59 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
     const ownerKey = ownerKeyOf(state.ownerKey);
     const markerData = prepareSpawnMarkerData(cardState, markerDataBase, ownerKey);
     const roulette = createTheorySpawnRoulettePayload(available, picked, markerData);
-    const spawnRes = deps.spawnAt(
+    const ownerValue = ownerKey === 'white' ? deps.WHITE : deps.BLACK;
+    const boardPlacement = typeof deps.spawnAndFlipPlacement === 'function'
+        ? deps.spawnAndFlipPlacement({
+            cardState,
+            gameState,
+            playerKey: ownerKey,
+            playerValue: ownerValue,
+            row: picked.cell.row,
+            col: picked.cell.col,
+            allowZeroFlips: true,
+            BoardOps: deps.BoardOps,
+            getCardContext: () => (
+                typeof deps.resolveSafeCardContext === 'function'
+                    ? deps.resolveSafeCardContext(cardState)
+                    : { protectedStones: [], permaProtectedStones: [] }
+            ),
+            getFlipsWithContext: deps.Core && typeof deps.Core.getFlipsWithContext === 'function'
+                ? deps.Core.getFlipsWithContext
+                : (() => []),
+            resolveFlipEvasion: (candidateFlips: any[]) => (
+                candidateFlips.length > 0 && typeof deps.resolveHyperactiveFlipEvasion === 'function'
+                    ? deps.resolveHyperactiveFlipEvasion(cardState, gameState, candidateFlips, ownerKey, prng)
+                    : null
+            ),
+            clearBombAt: typeof deps.clearBombAt === 'function' ? deps.clearBombAt : undefined,
+            clearHyperactiveAtPositions: typeof deps.clearHyperactiveAtPositions === 'function' ? deps.clearHyperactiveAtPositions : undefined,
+            spawnCause: THEORY_MARKER_TYPE,
+            spawnReason: 'theory_incarnation_spawn',
+            flipCause: THEORY_MARKER_TYPE,
+            flipReason: 'theory_incarnation_flip',
+            spawnMeta: {
+                special: markerData.type,
+                owner: ownerKey,
+                sourceCardId: picked.cell.sourceCardId || null,
+                sourceCardType: picked.cell.sourceCardType || null,
+                theorySpawnRoulette: roulette
+            }
+        })
+        : null;
+    if (!boardPlacement || boardPlacement.spawned !== true) return null;
+    const appliedFlips = Array.isArray(boardPlacement.appliedFlips)
+        ? boardPlacement.appliedFlips.slice()
+        : [];
+    const theoryNumberValue = getTheorySpawnNumberValue(cardState, picked.key, picked.cell);
+    const chargeGained = awardTheorySpawnCharge(
         cardState,
-        gameState,
-        picked.cell.row,
-        picked.cell.col,
         ownerKey,
-        THEORY_MARKER_TYPE,
-        'theory_incarnation_spawn',
-        {
-            special: markerData.type,
-            owner: ownerKey,
-            sourceCardId: picked.cell.sourceCardId || null,
-            sourceCardType: picked.cell.sourceCardType || null,
-            theorySpawnRoulette: roulette
-        }
+        Number(picked.cell.row),
+        Number(picked.cell.col),
+        theoryNumberValue,
+        appliedFlips.length,
+        deps
     );
-    if (!spawnRes || !spawnRes.spawned) return null;
     const markerKinds = deps && deps.MARKER_KINDS;
     const specialKind = markerKinds && markerKinds.SPECIAL_STONE ? markerKinds.SPECIAL_STONE : 'specialStone';
     const marker = deps.addMarker(cardState, specialKind, picked.cell.row, picked.cell.col, ownerKey, {
@@ -321,7 +388,10 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         sourceCardId: picked.cell.sourceCardId || null,
         sourceCardType: picked.cell.sourceCardType || null,
         markerId: marker && marker.id ? marker.id : null,
-        roulette
+        roulette,
+        flips: appliedFlips.map(([row, col]: [number, number]) => ({ row, col })),
+        chargeGained,
+        theoryNumberValue
     };
 }
 

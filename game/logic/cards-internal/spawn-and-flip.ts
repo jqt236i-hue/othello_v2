@@ -69,6 +69,28 @@ type SpawnAndFlipDeps = {
     buildSpawnMeta?: (target: SpawnAndFlipPosition, anchorPos: SpawnAndFlipPosition, playerKey: any, cause: string, reason: string) => Record<string, unknown> | null | undefined;
 };
 
+type SpawnAndFlipPlacementOptions = {
+    cardState: SpawnAndFlipCardState;
+    gameState: SpawnAndFlipGameState;
+    playerKey: any;
+    playerValue: any;
+    row: number;
+    col: number;
+    allowZeroFlips: boolean;
+    BoardOps?: SpawnAndFlipBoardOps | null;
+    getCardContext?: (cardState: SpawnAndFlipCardState) => SpawnAndFlipContext;
+    getFlipsWithContext?: (gameState: SpawnAndFlipGameState, row: number, col: number, playerValue: any, context: SpawnAndFlipContext) => Array<[number, number]>;
+    resolveFlipEvasion?: (flips: Array<[number, number]>) => { remainingFlips?: Array<[number, number]> } | null;
+    clearBombAt?: (cardState: SpawnAndFlipCardState, row: number, col: number) => void;
+    clearHyperactiveAtPositions?: (cardState: SpawnAndFlipCardState, positions: SpawnAndFlipPosition[]) => void;
+    spawnCause: string;
+    spawnReason: string;
+    flipCause: string;
+    flipReason: string;
+    spawnMeta?: Record<string, unknown> | null;
+    flipMeta?: Record<string, unknown> | null;
+};
+
 type SpawnAndFlipSpawnedPosition = SpawnAndFlipPosition & {
     anchorRow: any;
     anchorCol: any;
@@ -196,6 +218,65 @@ function toPositionKey(row: number, col: number): string {
     return `${row},${col}`;
 }
 
+function spawnAndFlipPlacement(options: SpawnAndFlipPlacementOptions): any {
+    const opts = options || ({} as SpawnAndFlipPlacementOptions);
+    const row = Number(opts.row);
+    const col = Number(opts.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) {
+        throw new Error('Illegal move: invalid placement cell');
+    }
+
+    const getCardContext = opts.getCardContext || (() => ({ protectedStones: [], permaProtectedStones: [] }));
+    const getFlipsWithContext = opts.getFlipsWithContext || (() => []);
+    const context = getCardContext(opts.cardState);
+    const attemptedFlips = getFlipsWithContext(opts.gameState, row, col, opts.playerValue, context);
+    if ((!Array.isArray(attemptedFlips) || attemptedFlips.length === 0) && !opts.allowZeroFlips) {
+        throw new Error('Illegal move: no flips and zero-flip placement is not allowed');
+    }
+
+    const spawnRes = opts.BoardOps && typeof opts.BoardOps.spawnAt === 'function'
+        ? opts.BoardOps.spawnAt(opts.cardState, opts.gameState, row, col, opts.playerKey, opts.spawnCause, opts.spawnReason, opts.spawnMeta || undefined)
+        : (setBoardCell(opts.gameState, row, col, opts.playerValue), { spawned: true });
+    if (spawnRes && spawnRes.spawned === false) {
+        return { spawned: false, attemptedFlips, appliedFlips: [], flipEvadeResult: null };
+    }
+
+    let remainingFlips = Array.isArray(attemptedFlips) ? attemptedFlips.slice() : [];
+    const flipEvadeResult = typeof opts.resolveFlipEvasion === 'function'
+        ? opts.resolveFlipEvasion(remainingFlips)
+        : null;
+    if (flipEvadeResult && Array.isArray(flipEvadeResult.remainingFlips)) {
+        remainingFlips = flipEvadeResult.remainingFlips.slice();
+    }
+
+    const appliedFlips: Array<[number, number]> = [];
+    for (const [flipRow, flipCol] of remainingFlips) {
+        const changeRes = opts.BoardOps && typeof opts.BoardOps.changeAt === 'function'
+            ? opts.BoardOps.changeAt(opts.cardState, opts.gameState, flipRow, flipCol, opts.playerKey, opts.flipCause, opts.flipReason, opts.flipMeta || undefined)
+            : (setBoardCell(opts.gameState, flipRow, flipCol, opts.playerValue), { changed: true });
+        if (changeRes && changeRes.changed) {
+            appliedFlips.push([flipRow, flipCol]);
+        }
+    }
+
+    if (appliedFlips.length > 0 && typeof opts.clearBombAt === 'function') {
+        for (const [flipRow, flipCol] of appliedFlips) {
+            opts.clearBombAt(opts.cardState, flipRow, flipCol);
+        }
+    }
+    if (appliedFlips.length > 0 && typeof opts.clearHyperactiveAtPositions === 'function') {
+        opts.clearHyperactiveAtPositions(opts.cardState, appliedFlips.map(([flipRow, flipCol]) => ({ row: flipRow, col: flipCol })));
+    }
+
+    return {
+        spawned: true,
+        stoneId: spawnRes ? spawnRes.stoneId : undefined,
+        attemptedFlips,
+        appliedFlips,
+        flipEvadeResult
+    };
+}
+
 function resolveGeneratedFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAndFlipGameState, playerKey: any, player: any, targets: SpawnAndFlipPosition[], deps: SpawnAndFlipDeps): SpawnAndFlipPosition[] {
     const flipped: SpawnAndFlipPosition[] = [];
     const flippedSet = new Set<string>();
@@ -310,7 +391,8 @@ function spawnAndFlipBatch(cardState: SpawnAndFlipCardState, gameState: SpawnAnd
 
 const CardSpawnAndFlip = {
     resolveGeneratedFlipBatch,
-    spawnAndFlipBatch
+    spawnAndFlipBatch,
+    spawnAndFlipPlacement
 };
 
 const spawnAndFlipRuntimeRoot = typeof self !== 'undefined'
