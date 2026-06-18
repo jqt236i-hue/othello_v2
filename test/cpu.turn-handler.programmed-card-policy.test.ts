@@ -236,7 +236,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('CPU turn defers to turn-start auto end while 理論の化身 locks placement', async () => {
+    test('CPU turn places normally while 理論の化身 only locks card play', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
         global.cpuSmartness = { white: 7, black: 1 };
         global.cardState = {
@@ -272,9 +272,10 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
 
         await mod.runCpuTurn('white');
 
-        expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
-        expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
-        expect(global.executeMove).not.toHaveBeenCalled();
+        expect(global.onTurnStart).not.toHaveBeenCalled();
+        expect(global.generateMovesForPlayer).toHaveBeenCalled();
+        expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(move);
         expect(global.processPassTurn).not.toHaveBeenCalled();
     });
 

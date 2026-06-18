@@ -368,12 +368,7 @@ function isCardPlayLockedForPlayer(cardState: CardState, playerKey: PlayerKey): 
 }
 
 function isPlacementLockedForPlayer(cardState: CardState, playerKey: PlayerKey): boolean {
-    const ownerKey = normalizeMarkerOwnerKey(playerKey);
-    return getMarkers(cardState).some((marker: any) => (
-        isActiveManifestMarker(marker) &&
-        getNormalizedMarkerType(marker) === 'THEORY_INCARNATION' &&
-        normalizeMarkerOwnerKey(marker.owner) === ownerKey
-    ));
+    return false;
 }
 
 function getBombMarkerType(marker: any): string | null {

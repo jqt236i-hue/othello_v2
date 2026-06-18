@@ -75,7 +75,7 @@ describe('debug test scenarios', () => {
       charge: { black: 0, white: 0 },
       pendingEffectByPlayer: { black: { type: 'DUMMY' }, white: { type: 'DUMMY' } },
       hasUsedCardThisTurnByPlayer: { black: true, white: true },
-      markers: [{ kind: 'manifestStone', row: 0, col: 0, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 } }],
+      markers: [{ kind: 'manifestStone', row: 0, col: 0, owner: 'black', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4 } }],
       numberCellCollectedTotalByPlayer: { black: 3, white: 2 }
     };
 
@@ -104,7 +104,7 @@ describe('debug test scenarios', () => {
     expect(cardState.theoryNumberCellByCell).toEqual({});
   });
 
-  test('theory_incarnation_spawn_ready prepares a local state that immediately runs theory spawn turn start', () => {
+  test('theory_incarnation_spawn_ready prepares a local state for the next placement spawn', () => {
     const gameState: any = {
       currentPlayer: -1,
       turnNumber: 0,
@@ -129,9 +129,9 @@ describe('debug test scenarios', () => {
 
     expect(result).toEqual(expect.objectContaining({
       applied: true,
-      scenarioId: 'theory_incarnation_spawn_ready',
-      runTurnStartPlayer: 'black'
+      scenarioId: 'theory_incarnation_spawn_ready'
     }));
+    expect(result).not.toHaveProperty('runTurnStartPlayer');
     expect(gameState.currentPlayer).toBe(1);
     expect(gameState.board[2][3]).toBe(1);
     expect(cardState.hands.black).toEqual([]);
@@ -141,14 +141,14 @@ describe('debug test scenarios', () => {
         row: 2,
         col: 3,
         owner: 'black',
-        data: expect.objectContaining({ type: 'THEORY_INCARNATION', remainingOwnerTurns: 5 })
+        data: expect.objectContaining({ type: 'THEORY_INCARNATION', remainingOwnerTurns: 4 })
       })
     ]);
     expect(cardState.lastTurnStartedFor).toBe(null);
     expect(cardState.theoryIncarnationStateByPlayer.black).toEqual(expect.objectContaining({
       sessionId: 'debug_theory_spawn_black',
       ownerKey: 'black',
-      remainingSpawnCount: 5
+      remainingSpawnCount: 4
     }));
     expect(Object.keys(cardState.theoryNumberCellsBySession.debug_theory_spawn_black.cells)).toHaveLength(5);
     expect(cardState.theoryNumberCellByCell['0,0']).toEqual({ sessionId: 'debug_theory_spawn_black', ownerKey: 'black' });

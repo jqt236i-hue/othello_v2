@@ -173,8 +173,8 @@ describe('manifest effect panel', () => {
     expect(panel?.classList.contains('is-visible')).toBe(true);
     expect(panel?.textContent).toContain('理論領域');
     expect(document.getElementById('manifest-effect-title')?.textContent).toBe('理論領域　残り2ターン');
-    expect(panel?.textContent).toContain('所有者: 石配置・カード使用不可');
+    expect(panel?.textContent).toContain('所有者: カード使用不可');
     expect(panel?.textContent).toContain('空きマスを理論数字マス化');
-    expect(panel?.textContent).toContain('ランダムで選ばれた理論数字マスと同コストの特殊石が出現');
+    expect(panel?.textContent).toContain('所有者の通常配置後に特殊石が出現');
   });
 });

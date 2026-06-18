@@ -172,7 +172,7 @@ describe('cards catalog consistency', () => {
       display_type_ja: '特殊'
     }));
     expect(card.desc_ja).not.toContain('使用可能');
-    expect(card.desc_ja).toBe('空きマスを理論数字マス化し、理論の化身を顕現。顕現中は理論数字マスから特殊石が現れ、自分のターンを終了する。');
+    expect(card.desc_ja).toBe('空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる。');
   });
 
   test('observer will special card is present with expected cost and type', () => {

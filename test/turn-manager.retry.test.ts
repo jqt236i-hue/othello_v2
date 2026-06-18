@@ -985,7 +985,7 @@ describe('turn-manager scheduling', () => {
     expect(global.cardState.prngState.calls).toBeGreaterThan(prng.getState().calls);
   });
 
-  test('onTurnStart stops after 理論の化身 auto turn end without scheduling a normal pass', async () => {
+  test('onTurnStart keeps 理論の化身 owner able to act without auto turn end', async () => {
     const CardLogic = require('../game/logic/cards.js');
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
     board[0][0] = 0;
@@ -1058,11 +1058,21 @@ describe('turn-manager scheduling', () => {
       const rm = require('../game/turn-manager.js');
       const result = await rm.onTurnStart(global.BLACK);
 
-      expect(result.stopAction).toBe(true);
+      expect(result.stopAction).toBe(false);
       expect(global.processPassTurn).not.toHaveBeenCalled();
-      expect(consoleLogSpy.mock.calls.some((args) => args.join(' ').includes('== 黒のターン'))).toBe(false);
-      expect(global.gameState.currentPlayer).toBe(global.WHITE);
-      expect(global.gameState.consecutivePasses).toBe(0);
+      expect(consoleLogSpy.mock.calls.some((args) => args.join(' ').includes('== 黒のターン'))).toBe(true);
+      expect(global.gameState.currentPlayer).toBe(global.BLACK);
+      expect(global.gameState.consecutivePasses).toBe(1);
+      expect(global.gameState.board[0][0]).toBe(0);
+      expect(global.cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(1);
+      expect(global.cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: expect.objectContaining({ type: 'THEORY_INCARNATION', remainingOwnerTurns: 1 })
+        })
+      ]));
     } finally {
       consoleLogSpy.mockRestore();
     }

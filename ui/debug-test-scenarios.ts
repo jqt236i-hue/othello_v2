@@ -307,7 +307,7 @@ function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any
     owner: 'black',
     data: {
       type: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 5,
+      remainingOwnerTurns: 4,
       absoluteProtected: true,
       sourceType: 'THEORY_INCARNATION',
       visualEffectKey: 'theoryIncarnationStone'
@@ -323,7 +323,7 @@ function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any
     white: Number(cardState.numberCellCollectedTotalByPlayer && cardState.numberCellCollectedTotalByPlayer.white || 0)
   };
   cardState.theoryIncarnationStateByPlayer = {
-    black: { sessionId: THEORY_SPAWN_SESSION_ID, ownerKey: 'black', remainingSpawnCount: 5 },
+    black: { sessionId: THEORY_SPAWN_SESSION_ID, ownerKey: 'black', remainingSpawnCount: 4 },
     white: null
   };
   cardState.nextTheoryIncarnationStoneByPlayer = { black: null, white: null };
@@ -347,8 +347,7 @@ function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any
   return {
     applied: true,
     scenarioId: THEORY_INCARNATION_SPAWN_READY,
-    runTurnStartPlayer: 'black',
-    message: 'デバッグシナリオ: 理論の化身の特殊石出現演出を即確認'
+    message: 'デバッグシナリオ: 理論の化身の配置後出現を確認可能な状態へ移行'
   };
 }
 

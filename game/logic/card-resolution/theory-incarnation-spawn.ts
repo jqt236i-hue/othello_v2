@@ -8,8 +8,7 @@ const THEORY_SPAWN_MATERIALIZE_MS = 2000;
 
 const {
     ownerKeyOf,
-    cellKeyOf,
-    addNumberCellCollectedTotal
+    cellKeyOf
 } = TheoryIncarnationState;
 
 function isBlockedForTheorySpawn(cardState: any, gameState: GameState, row: number, col: number, deps: any): boolean {
@@ -61,22 +60,7 @@ function getTheorySpawnNumberValue(cardState: any, key: string, cell: any): numb
 }
 
 function awardTheorySpawnCharge(cardState: any, ownerKey: PlayerKey, row: number, col: number, numberValue: number, flipCount: number, deps: any): number {
-    const safeNumberValue = Number.isFinite(Number(numberValue)) ? Math.max(0, Math.floor(Number(numberValue))) : 0;
-    const safeFlipCount = Number.isFinite(Number(flipCount)) ? Math.max(0, Math.floor(Number(flipCount))) : 0;
-    if (safeNumberValue > 0) {
-        addNumberCellCollectedTotal(cardState, ownerKey, safeNumberValue);
-    }
-    const totalGain = safeNumberValue + safeFlipCount;
-    if (totalGain <= 0) return 0;
-    if (!deps || typeof deps.addChargeWithTotal !== 'function') {
-        throw new Error('Theory Incarnation charge helper unavailable');
-    }
-    return deps.addChargeWithTotal(cardState, ownerKey, totalGain, {
-        popupKind: 'board',
-        sourceType: 'theory_incarnation_spawn_gain',
-        anchorRow: row,
-        anchorCol: col
-    });
+    return 0;
 }
 
 function prepareSpawnMarkerData(cardState: any, markerData: any, ownerKey: PlayerKey): any {

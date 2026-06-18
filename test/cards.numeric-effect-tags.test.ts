@@ -50,7 +50,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('GUARD_WILL')).toEqual(['完全保護', '3ターン持続']);
     expect(getEffectTagLabels('BLOCKADE_WILL')).toEqual(['3ターン持続']);
     expect(getEffectTagLabels('FREEZE_WILL')).toEqual(['5ターン持続']);
-    expect(getEffectTagLabels('THEORY_INCARNATION')).toEqual(['数字マス42獲得で使用可能', '不可侵', '5ターン持続']);
+    expect(getEffectTagLabels('THEORY_INCARNATION')).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続']);
     expect(getEffectTagLabels('OBSERVER_WILL')).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
   });
 
@@ -81,7 +81,7 @@ describe('CardInteractionEffects effect tags', () => {
   test('numeric tag resolver stays numeric-only even after protection tags are added', () => {
     expect(getNumericTagLabels('PROTECTED_NEXT_STONE')).toEqual([]);
     expect(getNumericTagLabels('ANCHOR_WILL')).toEqual([]);
-    expect(getNumericTagLabels('THEORY_INCARNATION')).toEqual(['5ターン持続']);
+    expect(getNumericTagLabels('THEORY_INCARNATION')).toEqual(['4ターン持続']);
     expect(getNumericTagLabels('OBSERVER_WILL')).toEqual(['5ターン持続']);
     expect(getNumericTagLabels('BOARD_EXECUTOR')).toEqual(['4ターン持続']);
     expect(getNumericTagLabels('GUARD_WILL')).toEqual(['3ターン持続']);

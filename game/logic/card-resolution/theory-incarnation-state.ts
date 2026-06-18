@@ -24,9 +24,6 @@ function ensureTheoryState(cardState: any): void {
     if (!cardState.numberCellCollectedTotalByPlayer || typeof cardState.numberCellCollectedTotalByPlayer !== 'object') {
         cardState.numberCellCollectedTotalByPlayer = { black: 0, white: 0 };
     }
-    if (!cardState._theoryIncarnationPendingAutoExpireByPlayer || typeof cardState._theoryIncarnationPendingAutoExpireByPlayer !== 'object') {
-        cardState._theoryIncarnationPendingAutoExpireByPlayer = { black: null, white: null };
-    }
     if (!Number.isFinite(Number(cardState._nextTheoryIncarnationSeq))) {
         cardState._nextTheoryIncarnationSeq = 1;
     }

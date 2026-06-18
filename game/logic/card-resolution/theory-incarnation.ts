@@ -6,7 +6,7 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
-const THEORY_DURATION_OWNER_TURNS = 5;
+const THEORY_DURATION_OWNER_TURNS = 4;
 const TheoryIncarnationState = require('./theory-incarnation-state');
 const TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
 
@@ -172,89 +172,36 @@ function findTheoryMarker(cardState: CardState, row: number, col: number, ownerK
     )) || null;
 }
 
-function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, prng: any, deps: any): Record<string, any> {
-    const ownerKey = ownerKeyOf(playerKey);
-    ensureTheoryState(cardState as any);
-    const marker = findTheoryMarker(cardState, row, col, ownerKey, deps);
-    if (!marker || !marker.data) return { applied: false };
-    const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey] || {
-        sessionId: marker.data.sessionId || null,
-        ownerKey,
-        remainingSpawnCount: THEORY_DURATION_OWNER_TURNS
-    };
-    const spawned = Number(state.remainingSpawnCount || 0) > 0
-        ? spawnTheorySpecialStone(cardState as any, gameState, state, prng, deps)
-        : null;
-    state.remainingSpawnCount = Math.max(0, Number(state.remainingSpawnCount || 0) - 1);
-    (cardState as any).theoryIncarnationStateByPlayer[ownerKey] = state;
-
-    const before = Number(marker.data.remainingOwnerTurns);
-    const after = Number.isFinite(before) ? Math.max(0, Math.trunc(before) - 1) : 0;
-    marker.data.remainingOwnerTurns = after;
-
-    if (after <= 0) {
-        (cardState as any)._theoryIncarnationPendingAutoExpireByPlayer[ownerKey] = {
-            row,
-            col,
-            owner: ownerKey,
-            markerId: marker.id || null,
-            sessionId: state.sessionId || marker.data.sessionId || null
-        };
-    }
-
-    return {
-        applied: true,
-        spawned,
-        expired: null,
-        autoTurnEnd: true,
-        remainingOwnerTurns: after,
-        remainingSpawnCount: state.remainingSpawnCount
-    };
-}
-
-function processTheoryIncarnationMarkerAtPlacement(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> {
-    const ownerKey = ownerKeyOf(playerKey);
-    ensureTheoryState(cardState as any);
-    const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey];
-    if (!state || typeof state !== 'object') {
-        return { applied: false, spawned: null };
-    }
-    const spawned = spawnTheorySpecialStone(cardState as any, gameState, state, prng, deps);
-    return {
-        applied: !!spawned,
-        spawned
-    };
-}
-
-function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> | null {
-    const ownerKey = ownerKeyOf(playerKey);
-    ensureTheoryState(cardState as any);
-    const pendingByPlayer = (cardState as any)._theoryIncarnationPendingAutoExpireByPlayer;
-    const pending = pendingByPlayer && pendingByPlayer[ownerKey];
-    if (!pending) return null;
-    pendingByPlayer[ownerKey] = null;
-
-    const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey] || null;
-    const sessionId = pending.sessionId || (state && state.sessionId) || null;
-    const restoredCount = sessionId ? restoreTheoryNumberCells(cardState as any, sessionId) : 0;
-
-    let row = Number(pending.row);
-    let col = Number(pending.col);
-    let markerId = pending.markerId || null;
+function findActiveTheoryMarkerForOwner(cardState: CardState, ownerKey: PlayerKey, deps: any): any {
     const getMarkers = deps && deps.getMarkers;
     const markers = typeof getMarkers === 'function' ? getMarkers(cardState) : ((cardState as any).markers || []);
-    let marker = markerId
-        ? markers.find((entry: any) => entry && entry.id === markerId)
-        : null;
-    if (!marker && Number.isFinite(row) && Number.isFinite(col)) {
-        marker = findTheoryMarker(cardState, row, col, ownerKey, deps);
-    }
-    if (marker) {
-        row = Number(marker.row);
-        col = Number(marker.col);
-        markerId = marker.id || markerId;
-    }
+    return markers.find((entry: any) => {
+        if (!entry || !entry.data) return false;
+        if (entry.owner !== ownerKey) return false;
+        if (String(entry.data.type || '').toUpperCase() !== THEORY_MARKER_TYPE) return false;
+        const remaining = Number(entry.data.remainingOwnerTurns);
+        return !Object.prototype.hasOwnProperty.call(entry.data, 'remainingOwnerTurns')
+            || (Number.isFinite(remaining) && remaining > 0);
+    }) || null;
+}
 
+function getTheoryStateForMarker(cardState: CardState, ownerKey: PlayerKey, marker: any): any {
+    const current = (cardState as any).theoryIncarnationStateByPlayer[ownerKey];
+    if (current && typeof current === 'object') return current;
+    return {
+        sessionId: marker && marker.data ? (marker.data.sessionId || null) : null,
+        ownerKey,
+        remainingSpawnCount: Number(marker && marker.data && marker.data.remainingOwnerTurns || THEORY_DURATION_OWNER_TURNS)
+    };
+}
+
+function expireTheoryIncarnationMarker(cardState: CardState, gameState: GameState, ownerKey: PlayerKey, marker: any, state: any, prng: any, deps: any): Record<string, any> | null {
+    if (!marker || !marker.data) return null;
+    const sessionId = (state && state.sessionId) || marker.data.sessionId || null;
+    const restoredCount = sessionId ? restoreTheoryNumberCells(cardState as any, sessionId) : 0;
+    const row = Number(marker.row);
+    const col = Number(marker.col);
+    const markerId = marker.id || null;
     let reverted = false;
     if (Number.isFinite(row) && Number.isFinite(col) && deps && typeof deps.revertSpecialStoneWithPresentation === 'function') {
         const revertRes = deps.revertSpecialStoneWithPresentation(
@@ -279,13 +226,93 @@ function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: CardState, ga
         deps.removeMarkerById(cardState, markerId);
     }
     (cardState as any).theoryIncarnationStateByPlayer[ownerKey] = null;
-
     return {
         row: Number.isFinite(row) ? row : null,
         col: Number.isFinite(col) ? col : null,
         owner: ownerKey,
         markerId: markerId || null,
         restoredCount
+    };
+}
+
+function decrementTheoryDuration(cardState: CardState, gameState: GameState, ownerKey: PlayerKey, marker: any, state: any, prng: any, deps: any): Record<string, any> {
+    const before = Number(marker && marker.data && marker.data.remainingOwnerTurns);
+    const safeBefore = Number.isFinite(before) ? Math.max(0, Math.trunc(before)) : THEORY_DURATION_OWNER_TURNS;
+    const after = Math.max(0, safeBefore - 1);
+    marker.data.remainingOwnerTurns = after;
+    if (state && typeof state === 'object') {
+        state.remainingSpawnCount = after;
+        (cardState as any).theoryIncarnationStateByPlayer[ownerKey] = state;
+    }
+    const expired = after <= 0
+        ? expireTheoryIncarnationMarker(cardState, gameState, ownerKey, marker, state, prng, deps)
+        : null;
+    return { before: safeBefore, after, expired };
+}
+
+function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, prng: any, deps: any): Record<string, any> {
+    const ownerKey = ownerKeyOf(playerKey);
+    ensureTheoryState(cardState as any);
+    const marker = findTheoryMarker(cardState, row, col, ownerKey, deps);
+    if (!marker || !marker.data) return { applied: false };
+    const state = getTheoryStateForMarker(cardState, ownerKey, marker);
+    (cardState as any).theoryIncarnationStateByPlayer[ownerKey] = state;
+    const remainingOwnerTurns = Number(marker.data.remainingOwnerTurns);
+    return {
+        applied: true,
+        spawned: null,
+        expired: null,
+        remainingOwnerTurns: Number.isFinite(remainingOwnerTurns) ? remainingOwnerTurns : null,
+        remainingSpawnCount: state.remainingSpawnCount
+    };
+}
+
+function processTheoryIncarnationMarkerAtPlacement(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> {
+    const ownerKey = ownerKeyOf(playerKey);
+    ensureTheoryState(cardState as any);
+    const state = (cardState as any).theoryIncarnationStateByPlayer[ownerKey];
+    if (!state || typeof state !== 'object') {
+        return { applied: false, spawned: null };
+    }
+    const spawned = spawnTheorySpecialStone(cardState as any, gameState, state, prng, deps);
+    return {
+        applied: !!spawned,
+        spawned
+    };
+}
+
+function processTheoryIncarnationMarkerAfterOwnerPlacement(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> {
+    const ownerKey = ownerKeyOf(playerKey);
+    ensureTheoryState(cardState as any);
+    const marker = findActiveTheoryMarkerForOwner(cardState, ownerKey, deps);
+    if (!marker || !marker.data) return { applied: false, spawned: null, expired: null };
+    const state = getTheoryStateForMarker(cardState, ownerKey, marker);
+    const remaining = Number(marker.data.remainingOwnerTurns);
+    const spawned = (!Number.isFinite(remaining) || remaining > 0)
+        ? spawnTheorySpecialStone(cardState as any, gameState, state, prng, deps)
+        : null;
+    const duration = decrementTheoryDuration(cardState, gameState, ownerKey, marker, state, prng, deps);
+    return {
+        applied: true,
+        spawned,
+        expired: duration.expired,
+        remainingOwnerTurns: duration.after,
+        remainingSpawnCount: state && typeof state === 'object' ? state.remainingSpawnCount : duration.after
+    };
+}
+
+function processTheoryIncarnationOwnerPass(cardState: CardState, gameState: GameState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> {
+    const ownerKey = ownerKeyOf(playerKey);
+    ensureTheoryState(cardState as any);
+    const marker = findActiveTheoryMarkerForOwner(cardState, ownerKey, deps);
+    if (!marker || !marker.data) return { applied: false, expired: null };
+    const state = getTheoryStateForMarker(cardState, ownerKey, marker);
+    const duration = decrementTheoryDuration(cardState, gameState, ownerKey, marker, state, prng, deps);
+    return {
+        applied: true,
+        expired: duration.expired,
+        remainingOwnerTurns: duration.after,
+        remainingSpawnCount: state && typeof state === 'object' ? state.remainingSpawnCount : duration.after
     };
 }
 
@@ -296,5 +323,6 @@ export = {
     applyTheoryIncarnationStoneReservation,
     processTheoryIncarnationMarkerAtPlacement,
     processTheoryIncarnationMarkerAtTurnStart,
-    finalizeTheoryIncarnationAutoTurnEndExpiration
+    processTheoryIncarnationMarkerAfterOwnerPlacement,
+    processTheoryIncarnationOwnerPass
 };

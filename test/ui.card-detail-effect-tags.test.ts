@@ -189,7 +189,7 @@ describe('card detail effect tags', () => {
       name: '理論の化身',
       type: 'THEORY_INCARNATION',
       cost: 0,
-      desc: '空きマスを理論数字マス化し、理論の化身を顕現。顕現中は理論数字マスから特殊石が現れ、自分のターンを終了する。'
+      desc: '空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -198,11 +198,12 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
-    expect(document.getElementById('card-detail-more').textContent).toContain('5T不可侵の顕現石');
-    expect(document.getElementById('card-detail-more').textContent).toContain('最大6回特殊石を出現できる');
+    expect(document.getElementById('card-detail-more').textContent).toContain('4T不可侵の顕現石');
+    expect(document.getElementById('card-detail-more').textContent).toContain('最大5回特殊石を出現できる');
+    expect(document.getElementById('card-detail-more').textContent).toContain('特殊石出現では布石を獲得しない');
   });
 
   test('BOARD_EXECUTOR shows usage condition before inviolable and duration tags', () => {

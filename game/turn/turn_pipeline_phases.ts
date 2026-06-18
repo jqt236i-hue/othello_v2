@@ -27,7 +27,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         './phase-presentation-finalizer': 'TurnPhasePresentationFinalizer',
         './turn-start/marker-phase': 'TurnStartMarkerPhase',
         './turn-start/post-processing': 'TurnStartPostProcessing',
-        './turn-start/timer-phase': 'TurnStartTimerPhase'
+        './turn-start/timer-phase': 'TurnStartTimerPhase',
+        './theory-spawn-resolution': 'TurnTheorySpawnResolution'
     });
 
     const TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS: Record<string, () => any> = Object.freeze({
@@ -53,7 +54,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         './phase-presentation-finalizer': () => require('./phase-presentation-finalizer'),
         './turn-start/marker-phase': () => require('./turn-start/marker-phase'),
         './turn-start/post-processing': () => require('./turn-start/post-processing'),
-        './turn-start/timer-phase': () => require('./turn-start/timer-phase')
+        './turn-start/timer-phase': () => require('./turn-start/timer-phase'),
+        './theory-spawn-resolution': () => require('./theory-spawn-resolution')
     });
 
     function getRuntimeModuleGlobal(globalKey: string): any {
@@ -414,6 +416,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const TurnStartMarkerPhaseModule = requireOptionalModule('./turn-start/marker-phase');
     const TurnStartPostProcessingModule = requireOptionalModule('./turn-start/post-processing');
     const TurnStartTimerPhaseModule = requireOptionalModule('./turn-start/timer-phase');
+    const TheorySpawnResolutionModule = requireOptionalModule('./theory-spawn-resolution');
 
     function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
         if (!(Core && typeof Core.applyPass === 'function')) {
@@ -1063,20 +1066,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
             delete cardState._frozenCellsActiveAtTurnStart;
 
-            const shouldAutoEndForTheory = processedTurnStartMarkers && processedTurnStartMarkers.theoryAutoTurnEnd === true;
-            if (shouldAutoEndForTheory) {
-                events.push({ type: 'theory_incarnation_auto_turn_end', player: playerKey });
-                if (typeof CardLogic.finalizeTheoryIncarnationAutoTurnEndExpiration === 'function') {
-                    const expired = CardLogic.finalizeTheoryIncarnationAutoTurnEndExpiration(cardState, gameState, playerKey, p);
-                    if (expired) {
-                        events.push({ type: 'theory_incarnation_marker_expired', detail: expired });
-                    }
-                }
-                applyNonPassTurnCompletion(CardLogic, Core, cardState, gameState, playerKey);
-                cardState.lastTurnStartedFor = null;
-                return { ok: true, events, stopAction: true };
-            }
-
         }
     }
 
@@ -1312,6 +1301,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (legalMoves.length > 0 && !placementLocked && !forcePass) {
                     throw new Error('Illegal pass: legal moves available');
                 }
+                if (
+                    CardLogic &&
+                    typeof CardLogic.processTheoryIncarnationOwnerPass === 'function' &&
+                    !isOthelloModeForTurnPipelinePhases()
+                ) {
+                    const theoryPassRes = CardLogic.processTheoryIncarnationOwnerPass(cardState, gameState, playerKey, p);
+                    if (theoryPassRes && theoryPassRes.expired) {
+                        events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
+                    }
+                }
                 // Pass policy: abandon any unresolved card effect for this turn.
                 applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events);
             } else if (action.type === 'use_card') {
@@ -1487,6 +1486,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const numberCellMultiplierConfig = placementResolution.numberCellMultiplierConfig || null;
             const boardBonusGained = Number(placementResolution.boardBonusGained || 0);
             const flipCount = Number(placementResolution.flipCount || 0);
+            const theoryManifestPlaced = placementResolution.theoryManifestPlaced === true;
 
             const effects = (ActionPhasePlacementEffectsModule && typeof ActionPhasePlacementEffectsModule.resolvePlacementEffects === 'function')
                 ? ActionPhasePlacementEffectsModule.resolvePlacementEffects({
@@ -1540,6 +1540,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         CardLogic.consumeGeneratedSpawnFlipResults(cardState)
                     );
                 }
+
+            if (
+                !theoryManifestPlaced &&
+                !othelloMode &&
+                CardLogic &&
+                typeof CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement === 'function'
+            ) {
+                const theoryPlacementRes = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, playerKey, p);
+                if (theoryPlacementRes && theoryPlacementRes.spawned) {
+                    if (!TheorySpawnResolutionModule || typeof TheorySpawnResolutionModule.resolveTheorySpawnTurnResult !== 'function') {
+                        throw new Error('TurnPipeline theory spawn resolution module unavailable');
+                    }
+                    TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        playerKey,
+                        events,
+                        spawned: theoryPlacementRes.spawned,
+                        prng: p,
+                        timing: 'after_owner_placement',
+                        awardBoardChargeGain
+                    });
+                }
+                if (theoryPlacementRes && theoryPlacementRes.expired) {
+                    events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPlacementRes.expired });
+                }
+            }
 
             if (ActionPhaseContinuationModule && typeof ActionPhaseContinuationModule.resolvePlacementContinuation === 'function') {
                 ActionPhaseContinuationModule.resolvePlacementContinuation({

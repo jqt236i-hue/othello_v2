@@ -28,6 +28,7 @@ type ResolvePlacementActionResult = {
     numberCellMultiplierConfig?: any;
     othelloMode?: boolean;
     preExtra?: number;
+    theoryManifestPlaced?: boolean;
     turnNumberBeforePlace?: number;
 };
 
@@ -100,6 +101,7 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     let flips: any[] = [];
     let tabooReverseApplied = false;
     let tabooReverseResult = null;
+    let theoryManifestPlaced = false;
 
     if (pendingType === 'TABOO_REVERSE_WILL' && typeof opts.CardLogic.pickTabooReverseFlips === 'function') {
         const normalFlips = opts.Core.getFlipsWithContext(opts.gameState, action.row, action.col, playerValue, ctx);
@@ -209,6 +211,7 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     if (opts.CardLogic && typeof opts.CardLogic.applyTheoryIncarnationStoneReservation === 'function') {
         const theoryStoneRes = opts.CardLogic.applyTheoryIncarnationStoneReservation(opts.cardState, opts.playerKey, action.row, action.col);
         if (theoryStoneRes && theoryStoneRes.applied) {
+            theoryManifestPlaced = true;
             opts.events.push({
                 type: 'theory_incarnation_marker_applied',
                 player: opts.playerKey,
@@ -359,7 +362,8 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
         turnNumberBeforePlace,
         othelloMode,
         boardBonusGained,
-        numberCellMultiplierConfig
+        numberCellMultiplierConfig,
+        theoryManifestPlaced
     };
 }
 

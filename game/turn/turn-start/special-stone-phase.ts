@@ -7,10 +7,7 @@ type TurnStartHyperAggregated = {
 
 type TurnStartSpecialStoneProcessingState = {
     hyperAggregated: TurnStartHyperAggregated;
-    theoryAutoTurnEnd?: boolean;
 };
-
-const TheorySpawnResolutionModule = require('../theory-spawn-resolution');
 
 type ProcessTurnStartSpecialStoneOptions = {
     CardLogic: any;
@@ -311,21 +308,6 @@ if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic
 
     if (typeKey === 'THEORY_INCARNATION' && owner === opts.playerKey && typeof opts.CardLogic.processTheoryIncarnationMarkerAtTurnStart === 'function') {
         const res = opts.CardLogic.processTheoryIncarnationMarkerAtTurnStart(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
-        if (res && res.spawned) {
-            TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
-                CardLogic: opts.CardLogic,
-                cardState: opts.cardState,
-                gameState: opts.gameState,
-                playerKey: opts.playerKey,
-                events: opts.events,
-                spawned: res.spawned,
-                prng: p,
-                awardBoardChargeGain: opts.awardBoardChargeGain
-            });
-        }
-        if (res && res.autoTurnEnd === true) {
-            processingState.theoryAutoTurnEnd = true;
-        }
         if (res && res.expired) {
             opts.events.push({ type: 'theory_incarnation_marker_expired', detail: res.expired });
         }

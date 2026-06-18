@@ -615,9 +615,9 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
         return {
             title: _formatManifestEffectTitleWithRemainingTurns('理論領域', active),
             lines: [
-                '所有者: 石配置・カード使用不可',
+                '所有者: カード使用不可',
                 '空きマスを理論数字マス化',
-                'ランダムで選ばれた理論数字マスと同コストの特殊石が出現'
+                '所有者の通常配置後に特殊石が出現'
             ],
             dynamicStartIndex: -1
         };

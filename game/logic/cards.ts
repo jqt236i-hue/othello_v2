@@ -1993,8 +1993,18 @@ const {
         );
     }
 
-    function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: any, gameState: any, playerKey: any, prng?: any) {
-        return CardTheoryIncarnationResolutionModule.finalizeTheoryIncarnationAutoTurnEndExpiration(
+    function processTheoryIncarnationMarkerAfterOwnerPlacement(cardState: any, gameState: any, playerKey: any, prng?: any) {
+        return CardTheoryIncarnationResolutionModule.processTheoryIncarnationMarkerAfterOwnerPlacement(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
+    function processTheoryIncarnationOwnerPass(cardState: any, gameState: any, playerKey: any, prng?: any) {
+        return CardTheoryIncarnationResolutionModule.processTheoryIncarnationOwnerPass(
             cardState,
             gameState,
             playerKey,
@@ -4392,7 +4402,8 @@ const cardsApi: any = {
         applyBoardExecutorStoneReservation,
         processTheoryIncarnationMarkerAtPlacement,
         processTheoryIncarnationMarkerAtTurnStart,
-        finalizeTheoryIncarnationAutoTurnEndExpiration,
+        processTheoryIncarnationMarkerAfterOwnerPlacement,
+        processTheoryIncarnationOwnerPass,
         addNumberCellCollectedTotal,
         canUseTheoryIncarnation,
         canUseBoardExecutor,
