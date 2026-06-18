@@ -295,12 +295,17 @@ describe('sound handler', () => {
     );
 
     const slider = document.getElementById('seVolSlider') as HTMLInputElement;
+    const volumeEvents: Array<{ masterVolume: number }> = [];
+    dom.window.addEventListener('sound:master-volume-changed', (event: Event) => {
+      volumeEvents.push((event as CustomEvent).detail);
+    });
     slider.value = '2';
     slider.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 
     expect(global.SoundEngine.setMasterVolume).toHaveBeenCalledWith('2');
     expect(global.SoundEngine.setVolume).not.toHaveBeenCalled();
     expect(global.SoundEngine.init).toHaveBeenCalledTimes(1);
+    expect(volumeEvents).toEqual([{ masterVolume: 2 }]);
 
     dom.window.close();
   });

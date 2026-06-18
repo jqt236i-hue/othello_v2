@@ -57,10 +57,12 @@ function requireMoveExecutorModuleOrNull(id: string): any {
 // Import event emitters from controller-events; fall back to global scope
 let emitBoardUpdate_local: any;
 let emitCardStateChange_local: any;
+let emitGameStateChange_local: any;
 const moveExecutorControllerEvents = requireMoveExecutorModuleOrNull('./controller-events');
 if (moveExecutorControllerEvents) {
     if (typeof moveExecutorControllerEvents.emitBoardUpdate === 'function') emitBoardUpdate_local = moveExecutorControllerEvents.emitBoardUpdate;
     if (typeof moveExecutorControllerEvents.emitCardStateChange === 'function') emitCardStateChange_local = moveExecutorControllerEvents.emitCardStateChange;
+    if (typeof moveExecutorControllerEvents.emitGameStateChange === 'function') emitGameStateChange_local = moveExecutorControllerEvents.emitGameStateChange;
 }
 // TimerService DI
 let moveExecutorTimerService: any = null;
@@ -313,6 +315,18 @@ function emitMoveExecutorCardStateChange() {
     return false;
 }
 
+function emitMoveExecutorGameStateChange() {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.emitGameStateChange === 'function') {
+            return __uiImpl_move_executor.emitGameStateChange() === true;
+        }
+        if (emitGameStateChange_local && typeof emitGameStateChange_local === 'function') {
+            return emitGameStateChange_local() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function syncMoveExecutorVisibleChargeDisplaysNow() {
     try {
         if (__uiImpl_move_executor && typeof __uiImpl_move_executor.syncVisibleChargeDisplaysNow === 'function') {
@@ -543,6 +557,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
             }
         }
     }
+    emitMoveExecutorGameStateChange();
 
     const safeIsProcessing = readMoveExecutorProcessing();
     const safeIsCardAnimating = readMoveExecutorCardAnimating();

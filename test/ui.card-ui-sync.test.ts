@@ -138,6 +138,23 @@ describe('ui card sync scheduler', () => {
     expect(windowRef.renderCardUI).toHaveBeenCalledTimes(1);
   });
 
+  test('refreshes card detail UI after GAME_STATE_CHANGED once playback ends', async () => {
+    windowRef.VisualPlaybackActive = true;
+
+    gameEvents.emit(windowRef.GameEvents.EVENT_TYPES.GAME_STATE_CHANGED);
+
+    await flushMicrotasks();
+
+    expect(windowRef.renderCardUI).not.toHaveBeenCalled();
+    expect(rafQueue.length).toBeGreaterThan(0);
+
+    windowRef.VisualPlaybackActive = false;
+    flushRafQueue();
+    await flushMicrotasks();
+
+    expect(windowRef.renderCardUI).toHaveBeenCalledTimes(1);
+  });
+
   test('updates visible charge display immediately even while playback is active', async () => {
     windowRef.VisualPlaybackActive = true;
 

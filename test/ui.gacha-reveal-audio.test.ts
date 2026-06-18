@@ -70,6 +70,40 @@ describe('gacha reveal audio session', () => {
     expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
+  test('applies quick master volume to active pull audio', async () => {
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    const audio = createAudioStub();
+    dom.window.SoundEngine = {
+      volume: 0.42,
+      masterVolume: 0.5,
+      bgm: { paused: true },
+      allowBgmPlay: false,
+      pauseBgm: jest.fn(),
+      playBgm: jest.fn()
+    };
+
+    const session = mod.createGachaRevealAudioSession({
+      root: dom.window,
+      createAudio: () => audio
+    });
+
+    expect(session.play()).toBe(true);
+    await Promise.resolve();
+
+    expect(audio.volume).toBeCloseTo(0.21);
+
+    dom.window.SoundEngine.masterVolume = 2;
+    dom.window.dispatchEvent(new dom.window.CustomEvent('sound:master-volume-changed', {
+      detail: { masterVolume: 2 }
+    }));
+
+    expect(audio.volume).toBeCloseTo(0.84);
+
+    session.destroy();
+    dom.window.close();
+  });
+
   test('destroy stops active pull audio and resumes paused BGM immediately', async () => {
     const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();

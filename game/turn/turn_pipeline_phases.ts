@@ -415,6 +415,31 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const TurnStartPostProcessingModule = requireOptionalModule('./turn-start/post-processing');
     const TurnStartTimerPhaseModule = requireOptionalModule('./turn-start/timer-phase');
 
+    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
+        if (!(Core && typeof Core.applyPass === 'function')) {
+            throw new Error('TurnPipeline pass completion requires Core.applyPass');
+        }
+        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        clearPendingForActionPhase(cardState, playerKey);
+        const newState = Core.applyPass(gameState);
+        Object.assign(gameState, newState);
+        const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
+            ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
+            : { consumed: false, remaining: 0, continueTurn: false };
+        if (timeStopPassRes.continueTurn === true) {
+            gameState.currentPlayer = playerValue;
+            gameState.consecutivePasses = 0;
+            if (cardState) {
+                cardState.lastTurnStartedFor = null;
+            }
+        }
+        const passEvent: any = { type: 'pass', player: playerKey };
+        const reasonKey = String(reason || '').trim();
+        if (reasonKey) passEvent.reason = reasonKey;
+        events.push(passEvent);
+        return timeStopPassRes;
+    }
+
     const FALLBACK_WORK_BUBBLE_SPEECH = Object.freeze({
         placeLines: Object.freeze(['ここで稼ぐ！']),
         lostLine: 'あああああああああああああ'
@@ -1000,29 +1025,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         events.push({ type: 'theory_incarnation_marker_expired', detail: expired });
                     }
                 }
-                if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function')) {
-                    throw new Error('TurnPipeline handoff module unavailable');
-                }
-                ActionPhaseTurnHandoffModule.handOffCompletedTurn({
-                    Core,
-                    CardLogic,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    turnNumberAfterCompletion: Number(gameState && gameState.turnNumber || 0) + 1,
-                    advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                        if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                            throw new Error('TurnPipeline round state module unavailable');
-                        }
-                        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                            Core: nextCore,
-                            gameState: nextGameState,
-                            playerKey: nextPlayerKey,
-                            options,
-                            normalizePlayerKey
-                        });
-                    }
-                });
+                applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, 'theory_incarnation_auto_turn_end');
                 cardState.lastTurnStartedFor = null;
                 return { ok: true, events, stopAction: true };
             }
@@ -1263,20 +1266,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     throw new Error('Illegal pass: legal moves available');
                 }
                 // Pass policy: abandon any unresolved card effect for this turn.
-                clearPendingForActionPhase(cardState, playerKey);
-                const newState = Core.applyPass(gameState);
-                Object.assign(gameState, newState);
-                const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
-                    ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
-                    : { consumed: false, remaining: 0, continueTurn: false };
-                if (timeStopPassRes.continueTurn === true) {
-                    gameState.currentPlayer = playerValue;
-                    gameState.consecutivePasses = 0;
-                    if (cardState) {
-                        cardState.lastTurnStartedFor = null;
-                    }
-                }
-                events.push({ type: 'pass', player: playerKey });
+                applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events);
             } else if (action.type === 'use_card') {
             events.push({ type: 'card_used_only', player: playerKey, cardId: action.useCardId || null });
             return;

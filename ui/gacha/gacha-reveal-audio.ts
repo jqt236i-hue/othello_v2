@@ -7,6 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const GACHA_PULL_AUDIO_PATH = 'assets/audio/other/gacha.mp3';
+const MASTER_VOLUME_CHANGED_EVENT = 'sound:master-volume-changed';
 
 function resolveSoundEngineAccessModule(rootRef: any): any {
   try {
@@ -47,6 +48,17 @@ function isBgmPlaying(engine: any, rootRef: any): boolean {
   return !!(engine && engine.allowBgmPlay === true && engine.bgm && engine.bgm.paused !== true);
 }
 
+function clampVolume(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function resolvePullAudioVolume(engine: any): number {
+  const baseVolume = Number.isFinite(Number(engine && engine.volume)) ? Number(engine.volume) : 1;
+  const masterVolume = Number.isFinite(Number(engine && engine.masterVolume)) ? Number(engine.masterVolume) : 1;
+  const muteScale = engine && engine.isMuted === true ? 0 : 1;
+  return clampVolume(Math.max(0, baseVolume) * Math.max(0, masterVolume) * muteScale);
+}
+
 function createPullAudioInstance(rootRef: any, options?: any): HTMLAudioElement | null {
   const opts = (options && typeof options === 'object') ? options : {};
   if (typeof opts.createAudio === 'function') {
@@ -72,6 +84,12 @@ function createGachaRevealAudioSession(options?: any): any {
   let activePullAudio: HTMLAudioElement | null = null;
   let activePullAudioCleanup: ((audioRef?: any) => void) | null = null;
   let shouldResumeBgmAfterAudio = false;
+
+  function updateActivePullAudioVolume(): void {
+    if (!activePullAudio) return;
+    const engine = resolveSoundEngine(rootRef);
+    try { activePullAudio.volume = resolvePullAudioVolume(engine); } catch (e) { /* ignore */ }
+  }
 
   function clearPullAudioBindings(audioRef?: any): void {
     if (!audioRef || typeof activePullAudioCleanup !== 'function') {
@@ -137,10 +155,17 @@ function createGachaRevealAudioSession(options?: any): any {
     if (typeof audio.addEventListener === 'function') {
       try { audio.addEventListener('ended', handleAudioFinished); } catch (e) { /* ignore */ }
       try { audio.addEventListener('error', handleAudioFinished); } catch (e) { /* ignore */ }
+      if (rootRef && typeof rootRef.addEventListener === 'function') {
+        try { rootRef.addEventListener(MASTER_VOLUME_CHANGED_EVENT, updateActivePullAudioVolume); } catch (e) { /* ignore */ }
+      }
       activePullAudioCleanup = function (audioRef?: any) {
-        if (!audioRef || typeof audioRef.removeEventListener !== 'function') return;
-        try { audioRef.removeEventListener('ended', handleAudioFinished); } catch (e) { /* ignore */ }
-        try { audioRef.removeEventListener('error', handleAudioFinished); } catch (e) { /* ignore */ }
+        if (audioRef && typeof audioRef.removeEventListener === 'function') {
+          try { audioRef.removeEventListener('ended', handleAudioFinished); } catch (e) { /* ignore */ }
+          try { audioRef.removeEventListener('error', handleAudioFinished); } catch (e) { /* ignore */ }
+        }
+        if (rootRef && typeof rootRef.removeEventListener === 'function') {
+          try { rootRef.removeEventListener(MASTER_VOLUME_CHANGED_EVENT, updateActivePullAudioVolume); } catch (e) { /* ignore */ }
+        }
       };
       return;
     }
@@ -163,9 +188,7 @@ function createGachaRevealAudioSession(options?: any): any {
     activePullAudio = audio;
     bindPullAudioLifecycle(audio);
 
-    if (engine && Number.isFinite(Number(engine.volume))) {
-      try { audio.volume = Math.max(0, Math.min(1, Number(engine.volume))); } catch (e) { /* ignore */ }
-    }
+    try { audio.volume = resolvePullAudioVolume(engine); } catch (e) { /* ignore */ }
 
     try {
       const playPromise = audio.play();
@@ -203,6 +226,7 @@ function createGachaRevealAudioSession(options?: any): any {
 
 const GachaRevealAudio = {
   GACHA_PULL_AUDIO_PATH,
+  MASTER_VOLUME_CHANGED_EVENT,
   createPullAudioInstance,
   createGachaRevealAudioSession
 };

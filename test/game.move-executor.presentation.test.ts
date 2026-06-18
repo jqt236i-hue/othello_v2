@@ -471,6 +471,48 @@ describe('move-executor presentation emission', () => {
         expect(global.onTurnStart).toHaveBeenCalledTimes(1);
     });
 
+    test('再生イベントありの通常着手でも game state change を通知して詳細UIを後続同期できる', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = {
+            currentPlayer: 1,
+            consecutivePasses: 1,
+            board: Array(8).fill(null).map(() => Array(8).fill(0))
+        };
+        global.onTurnStart = jest.fn(async () => ({ playbackEvents: [] }));
+        global.emitGameStateChange = jest.fn(() => true);
+        global.emitCardStateChange = jest.fn(() => true);
+        global.renderCardUI = jest.fn();
+
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            emitGameStateChange: () => global.emitGameStateChange(),
+            emitCardStateChange: () => global.emitCardStateChange()
+        });
+        const nextGameState = Object.assign({}, global.gameState, {
+            currentPlayer: -1,
+            consecutivePasses: 0,
+            turnNumber: 2
+        });
+        const fakeRes = {
+            ok: true,
+            nextGameState,
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'flip', phase: 1, targets: [{ row: 2, col: 3 }] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(global.emitGameStateChange).toHaveBeenCalledTimes(1);
+        expect(global.emitCardStateChange).not.toHaveBeenCalled();
+        expect(global.renderCardUI).not.toHaveBeenCalled();
+        expect(global.gameState.consecutivePasses).toBe(0);
+    });
+
     test('UIブリッジがない場合は global renderVisibleChargeDisplays を直接探索しない', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = {

@@ -407,6 +407,7 @@ if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEve
             renderBoard: true,
             updateStatus: true
         });
+        requestCardUiSync('event:game-state-changed');
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.CARD_STATE_CHANGED, () => {
         _syncVisibleChargeDisplaysNow();

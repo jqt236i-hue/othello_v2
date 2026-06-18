@@ -570,6 +570,12 @@ describe('理論の化身', () => {
     ]));
     expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
     expect(gameState.currentPlayer).toBe(Shared.WHITE);
+    expect(gameState.consecutivePasses).toBe(1);
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'pass',
+      player: 'black',
+      reason: 'theory_incarnation_auto_turn_end'
+    }));
   });
 
   test('理論召喚で出た配置直後効果持ち特殊石は即時効果を発動する', () => {

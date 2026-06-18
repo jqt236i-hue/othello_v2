@@ -179,6 +179,11 @@ function setupSoundControls(muteBtn: HTMLElement | null, seTypeSelect: HTMLSelec
       } else {
         engine.setVolume(nextValue);
       }
+      if (rootRef && typeof rootRef.dispatchEvent === 'function' && typeof rootRef.CustomEvent === 'function') {
+        rootRef.dispatchEvent(new rootRef.CustomEvent('sound:master-volume-changed', {
+          detail: { masterVolume: Number(nextValue) }
+        }));
+      }
       engine.init();
     });
   }
