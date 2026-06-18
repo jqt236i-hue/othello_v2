@@ -3,6 +3,7 @@ type PendingActionsConfig = {
     clearCpuPendingEffect: (playerKey: any) => any;
     cpuDebugLog: (...args: any[]) => void;
     emitCpuSelectionStateChange: () => any;
+    filterCloneTargetsForLv6: (playerKey: any, targets: any[]) => any[];
     getCardLogic: () => any;
     getCardState: () => any;
     getCpuRng: () => any;
@@ -456,6 +457,46 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectCloneWillWithPolicy(playerKey: any): Promise<any> {
+        const targets = getSelectableTargets(playerKey);
+        if (!targets.length) {
+            cfg.cpuDebugLog(`[CPU] ${playerKey}: 複製対象なし`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        const eligibleTargets = typeof cfg.filterCloneTargetsForLv6 === 'function'
+            ? cfg.filterCloneTargetsForLv6(playerKey, targets)
+            : targets;
+        if (!eligibleTargets.length) {
+            cfg.cpuDebugLog(`[CPU] ${playerKey}: 複製対象なし (通常石は除外)`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        const target = await cfg.choosePendingTargetWithPolicyAsync(playerKey, 'CLONE_WILL', eligibleTargets, null) || eligibleTargets[0];
+        cfg.cpuDebugLog(`[CPU] ${playerKey}: 複製ターゲット (${target.row}, ${target.col})`);
+
+        const pipelineResult = await cfg.runCpuPendingSelectionViaPipeline(
+            playerKey,
+            { cloneTarget: { row: target.row, col: target.col } },
+            'CLONE_WILL'
+        );
+        if (isPendingPipelineHandled(pipelineResult)) return;
+
+        const cardLogic = getCardLogic();
+        const applyFn = cardLogic && typeof cardLogic.applyCloneWill === 'function'
+            ? cardLogic.applyCloneWill
+            : null;
+        if (typeof applyFn === 'function') {
+            const res = applyFn(cfg.getCardState(), cfg.getGameState(), playerKey, target.row, target.col);
+            if (!res || !res.applied) {
+                cfg.clearCpuPendingEffect(playerKey);
+            }
+            cfg.emitCpuSelectionStateChange();
+        }
+    }
+
     async function cpuSelectObserverWillWithPolicy(playerKey: any): Promise<any> {
         const pending = cfg.readCpuPendingEffect(playerKey);
         const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
@@ -509,6 +550,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectBuoyancyWillWithPolicy,
         cpuSelectCaptureWillWithPolicy,
         cpuSelectCellTeleportWillWithPolicy,
+        cpuSelectCloneWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectFreezeWillWithPolicy,

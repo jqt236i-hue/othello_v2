@@ -3031,6 +3031,7 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
         clearCpuPendingEffect: (playerKey: any) => clearCpuPendingEffect(playerKey),
         cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
         emitCpuSelectionStateChange,
+        filterCloneTargetsForLv6: (playerKey: any, targets: any) => filterCloneSplitTargetsForLv6(playerKey, targets),
         getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuRng: () => cpuRng,
@@ -3562,40 +3563,7 @@ async function cpuSelectSeedWillWithPolicy(playerKey: any): Promise<any> {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectCloneWillWithPolicy(playerKey: any): Promise<any> {
-    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
-
-    if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 複製対象なし`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const eligibleTargets = filterCloneSplitTargetsForLv6(playerKey, targets);
-    if (!eligibleTargets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 複製対象なし (通常石は除外)`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'CLONE_WILL', eligibleTargets, null) || eligibleTargets[0];
-    cpuDebugLog(`[CPU] ${playerKey}: 複製ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = await runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { cloneTarget: { row: target.row, col: target.col } },
-        'CLONE_WILL'
-    );
-    if (isCpuPendingPipelineHandled(pipelineResult)) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyCloneWill === 'function') {
-        const res = CardLogic.applyCloneWill(cardState, gameState, playerKey, target.row, target.col);
-        if (!res || !res.applied) {
-            clearCpuPendingEffect(playerKey);
-        }
-        emitCpuSelectionStateChange();
-    }
+    return CpuDecisionPendingActions.cpuSelectCloneWillWithPolicy(playerKey);
 }
 
 /**
