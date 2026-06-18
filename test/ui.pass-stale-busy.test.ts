@@ -15,6 +15,9 @@ describe('pass fail-safe when no legal moves', () => {
         <button id="pass-btn">パス</button>
         <button id="reversi-pass-btn" hidden disabled>パス</button>
         <button id="board-frame-pass-btn" hidden disabled>パス</button>
+        <div id="consecutive-pass-status" hidden aria-hidden="true">
+          <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span>
+        </div>
         <button id="cancel-card-btn" style="display:none;">キャンセル</button>
         <div id="use-card-reason"></div>
       </body></html>
@@ -30,6 +33,7 @@ describe('pass fail-safe when no legal moves', () => {
 
     global.gameState = {
       currentPlayer: 1,
+      consecutivePasses: 0,
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
     };
     global.cardState = {
@@ -77,6 +81,47 @@ describe('pass fail-safe when no legal moves', () => {
     expect(passBtn.disabled).toBe(false);
     expect(framePassBtn.hidden).toBe(false);
     expect(framePassBtn.disabled).toBe(false);
+  });
+
+  test('shows consecutive pass zero when manual pass is available', () => {
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const status = document.getElementById('consecutive-pass-status');
+    const current = status.querySelector('[data-pass-streak-current="true"]');
+    expect(status.hidden).toBe(false);
+    expect(status.getAttribute('aria-hidden')).toBe('false');
+    expect(status.getAttribute('aria-label')).toBe('連続パス0/2');
+    expect(current.textContent).toBe('0');
+  });
+
+  test('keeps consecutive pass one visible even when legal moves exist', () => {
+    global.gameState.consecutivePasses = 1;
+    global.Core = { getLegalMoves: () => [{ row: 2, col: 3, flips: [[3, 3]] }] };
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const passBtn = document.getElementById('pass-btn');
+    const status = document.getElementById('consecutive-pass-status');
+    const current = status.querySelector('[data-pass-streak-current="true"]');
+    expect(passBtn.style.display).toBe('none');
+    expect(status.hidden).toBe(false);
+    expect(status.getAttribute('aria-label')).toBe('連続パス1/2');
+    expect(current.textContent).toBe('1');
+  });
+
+  test('hides consecutive pass status after count reset when pass is not available', () => {
+    global.gameState.consecutivePasses = 0;
+    global.Core = { getLegalMoves: () => [{ row: 2, col: 3, flips: [[3, 3]] }] };
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const status = document.getElementById('consecutive-pass-status');
+    expect(status.hidden).toBe(true);
+    expect(status.getAttribute('aria-hidden')).toBe('true');
   });
 
   test('manual pass clears stale busy flags and proceeds', () => {

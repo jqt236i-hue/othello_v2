@@ -748,6 +748,14 @@ function removeExistingResultOverlay(options: any = {}) {
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 }
 
+function hideConsecutivePassStatusForResultOverlay() {
+    if (typeof document === 'undefined') return;
+    const statusEl = document.getElementById('consecutive-pass-status') as HTMLElement | null;
+    if (!statusEl) return;
+    statusEl.hidden = true;
+    statusEl.setAttribute('aria-hidden', 'true');
+}
+
 function dismissResultOverlayIfPresent() {
     removeExistingResultOverlay();
 }
@@ -919,6 +927,7 @@ function showResultOverlay() {
     const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
     if (!othelloMode) submitSharedLeaderboardScore(scoreSummary, viewerKey);
 
+    hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });
 
     const overlay = document.createElement('div');

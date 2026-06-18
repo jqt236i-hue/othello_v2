@@ -80,6 +80,23 @@ describe('result overlay seat perspective', () => {
     expect(title && title.textContent).toBe('敗北...');
   });
 
+  test('result overlay hides consecutive pass status', () => {
+    document.body.innerHTML = `
+      <div id="consecutive-pass-status" aria-hidden="false">
+        <span data-pass-streak-current="true">2</span>
+      </div>
+    `;
+    global.gameState.consecutivePasses = 2;
+    global.countDiscs.mockReturnValue({ black: 32, white: 32 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    const status = document.getElementById('consecutive-pass-status');
+    expect(status.hidden).toBe(true);
+    expect(status.getAttribute('aria-hidden')).toBe('true');
+  });
+
   test('network座席の大文字と空白を正規化して白視点の勝敗を表示する', () => {
     window.NetworkMatchClient = { getSeatKey: () => ' WHITE ' };
     global.countDiscs.mockReturnValue({ black: 24, white: 40 });

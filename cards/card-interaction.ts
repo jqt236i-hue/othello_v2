@@ -681,6 +681,7 @@ const _cardInteractionDetailActions = (_cardInteractionDetailActionsModule && ty
             : null),
         getEffectiveCardCost: (cardId: any, ownerKey: any, handIndex?: any) => _getEffectiveCardCostForHandCard(cardId, ownerKey, handIndex),
         getCardStateValue: () => cardState,
+        getGameStateValue: () => gameState,
         isSelectedCardUsableNow: _isSelectedCardUsableNow,
         getLegalMovesForCurrentPlayer: _getLegalMovesForCurrentPlayer,
         isPlacementLockedForPlayer: _isPlacementLockedForPlayer,
