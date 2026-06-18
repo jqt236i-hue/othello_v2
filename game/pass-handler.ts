@@ -255,6 +255,11 @@ function isFreePlacementPendingActionForPassHandler(pending: any) {
         || pendingType === 'ULTIMATE_DESTROY_GOD';
 }
 
+function isPendingActionAvailableForPassHandler(pending: any) {
+    if (!pending || typeof pending !== 'object') return false;
+    return pending.stage === 'selectTarget' || isFreePlacementPendingActionForPassHandler(pending);
+}
+
 function resolvePlayerValue(playerKey: string, fallbackValue: any) {
     const normalized = normalizePlayerKey(playerKey, 'black');
     if (normalized === 'white') {
@@ -711,7 +716,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
     const pending = readPendingForPassHandler(playerKey);
 
     // Pending selections and free-placement continuations are still available actions.
-    if (pending && (pending.stage === 'selectTarget' || isFreePlacementPendingActionForPassHandler(pending))) return false;
+    if (isPendingActionAvailableForPassHandler(pending)) return false;
 
     const hasLegalPlacement = hasEffectiveLegalPlacementForPlayer(currentPlayer, playerKey);
     const hasCard = hasUsableCardFor(playerKey);
@@ -961,6 +966,10 @@ async function handleBlackPassWhenNoMoves() {
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
         const pending = readPendingForPassHandler(playerKey);
+        if (isPendingActionAvailableForPassHandler(pending)) {
+            setPassHandlerProcessing(false);
+            return;
+        }
         const passOptions = pending ? undefined : { autoNoActionPass: true };
         const result = applyPassViaPipeline(playerKey, passOptions);
         if (!result.ok) {

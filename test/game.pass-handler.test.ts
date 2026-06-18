@@ -374,6 +374,43 @@ describe('pass-handler flows', () => {
         }
     });
 
+    test('自由配置 pending が残る黒の遅延 no-move pass は実行しない', async () => {
+        jest.useFakeTimers();
+        delete require.cache[modPath];
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 22, consecutivePasses: 0 };
+        (global as any).cardState = {
+            turnIndex: 14,
+            turnCountByPlayer: { black: 7, white: 7 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: {
+                black: {
+                    type: 'FREE_PLACEMENT',
+                    cardId: 'free_01',
+                    pendingEffectId: 'pending_14_8',
+                    stage: null
+                },
+                white: null
+            }
+        };
+        (global as any).CardLogic = {
+            isFreePlacementPendingType: jest.fn((pendingType) => pendingType === 'FREE_PLACEMENT')
+        };
+        (global as any).TurnPipeline = makeTurnPipeline();
+        try {
+            const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
+
+            await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).CardLogic.isFreePlacementPendingType).toHaveBeenCalledWith('FREE_PLACEMENT');
+            expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
+    });
+
     test('pass rejected かつ未解決pendingがあれば終局救済しない', async () => {
         delete require.cache[modPath];
         (global as any).TurnPipeline = {
