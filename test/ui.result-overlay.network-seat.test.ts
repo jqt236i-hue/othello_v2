@@ -98,6 +98,40 @@ describe('result overlay seat perspective', () => {
     expect(status.getAttribute('aria-hidden')).toBe('true');
   });
 
+  test('リザルト表示後はターン表示位置にリザルト再表示ボタンを出す', () => {
+    document.body.innerHTML = '<div class="battle-status-turn">あなたのターン</div>';
+
+    const mod = require('../ui/result-overlay.js');
+    expect(document.getElementById('result-reopen-button')).toBeNull();
+
+    mod.showResultOverlay();
+
+    const button = document.getElementById('result-reopen-button') as HTMLButtonElement | null;
+    const turn = document.querySelector('.battle-status-turn');
+    expect(button).toBeTruthy();
+    expect(button && button.textContent).toBe('リザルト');
+    expect(button && button.hidden).toBe(false);
+    expect(button && button.parentElement).toBe(turn);
+  });
+
+  test('閉じた後のリザルト再表示ボタンで現在リザルトを開ける', () => {
+    document.body.innerHTML = '<div class="battle-status-turn">相手のターン</div>';
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    const closeBtn = document.querySelector('.result-btn-row .premium-btn.secondary') as HTMLButtonElement | null;
+    expect(closeBtn).toBeTruthy();
+    closeBtn && closeBtn.click();
+    expect(document.getElementById('result-overlay')).toBeNull();
+
+    const reopenBtn = document.getElementById('result-reopen-button') as HTMLButtonElement | null;
+    expect(reopenBtn).toBeTruthy();
+    reopenBtn && reopenBtn.click();
+
+    expect(document.getElementById('result-overlay')).not.toBeNull();
+  });
+
   test('network座席の大文字と空白を正規化して白視点の勝敗を表示する', () => {
     window.NetworkMatchClient = { getSeatKey: () => ' WHITE ' };
     global.countDiscs.mockReturnValue({ black: 24, white: 40 });
@@ -725,6 +759,29 @@ describe('result overlay seat perspective', () => {
 
     expect(shown).toBe(false);
     expect(document.getElementById('result-overlay')).toBeNull();
+  });
+
+  test('syncResultPresentationFromSnapshot は非終局 snapshot でリザルト再表示ボタンも消す', () => {
+    document.body.innerHTML = '<div class="battle-status-turn">あなたのターン</div>';
+    const mod = require('../ui/result-overlay.js');
+    global.isGameOver = jest.fn(() => false);
+    mod.showResultOverlay();
+    expect(document.getElementById('result-reopen-button')).toBeTruthy();
+
+    const shown = mod.syncResultPresentationFromSnapshot({
+      resultState: {
+        lastResultVersionShown: 20,
+        resultShownForUnversioned: true,
+        terminalResultShown: true
+      },
+      stateVersion: 21,
+      gameStateRef: global.gameState,
+      isGameOver: global.isGameOver,
+      showResult: jest.fn()
+    });
+
+    expect(shown).toBe(false);
+    expect(document.getElementById('result-reopen-button')).toBeNull();
   });
 
 });

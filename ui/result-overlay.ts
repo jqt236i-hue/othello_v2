@@ -30,6 +30,9 @@ const SCORE_CONFIG = Object.freeze({
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
 const _observationStoneRewardByToken = new Map();
+const RESULT_REOPEN_BUTTON_ID = 'result-reopen-button';
+const RESULT_REOPEN_BUTTON_CLASS = 'result-reopen-button';
+const RESULT_REOPEN_TURN_CLASS = 'has-result-reopen-button';
 
 // Module-level token: survives gameState replacement by network snapshots.
 // Updated each time showResult() is called so stale delayed callbacks can detect
@@ -83,6 +86,7 @@ function ensureResultPresentationState(resultState: any) {
 function resetResultPresentationRuntimeState() {
     _pendingResultToken = null;
     _resultPresentationActive = false;
+    removeResultReopenButton();
 }
 
 function resetResultPresentationState(resultState: any) {
@@ -774,6 +778,59 @@ function removeExistingResultOverlay(options: any = {}) {
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 }
 
+function removeResultReopenButton() {
+    const doc = (typeof document !== 'undefined') ? document : null;
+    if (!doc) return false;
+
+    const button = doc.getElementById(RESULT_REOPEN_BUTTON_ID);
+    if (button && button.parentNode) button.parentNode.removeChild(button);
+
+    try {
+        const turns = Array.from(doc.querySelectorAll(`.battle-status-turn.${RESULT_REOPEN_TURN_CLASS}`));
+        turns.forEach((turn: any) => {
+            if (turn && turn.classList) turn.classList.remove(RESULT_REOPEN_TURN_CLASS);
+        });
+    } catch (e: any) { /* ignore */ }
+
+    return !!button;
+}
+
+function ensureResultReopenButton() {
+    const doc = (typeof document !== 'undefined') ? document : null;
+    if (!doc) return null;
+
+    const target = doc.querySelector('.battle-status-turn') as HTMLElement | null;
+    if (!target) return null;
+
+    let button = doc.getElementById(RESULT_REOPEN_BUTTON_ID) as HTMLButtonElement | null;
+    if (button && button.parentElement !== target) {
+        if (button.parentNode) button.parentNode.removeChild(button);
+        button = null;
+    }
+
+    if (!button) {
+        button = doc.createElement('button');
+        button.id = RESULT_REOPEN_BUTTON_ID;
+        button.type = 'button';
+        button.className = RESULT_REOPEN_BUTTON_CLASS;
+        button.textContent = 'リザルト';
+        button.setAttribute('aria-label', 'リザルトを開く');
+        button.setAttribute('title', 'リザルトを開く');
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            showResultOverlay({ replay: true });
+        });
+        target.appendChild(button);
+    }
+
+    target.classList.add(RESULT_REOPEN_TURN_CLASS);
+    button.hidden = false;
+    button.removeAttribute('aria-hidden');
+    button.disabled = false;
+    return button;
+}
+
 function syncQuickResetButtonLabelForResultState(terminalValue?: boolean) {
     const doc = (typeof document !== 'undefined') ? document : null;
     if (!doc) return;
@@ -928,6 +985,7 @@ function showResult() {
     if (_resultPresentationActive) {
         if (gameState) gameState.__resultShown = true;
         syncQuickResetButtonLabelForResultState(true);
+        ensureResultReopenButton();
         return;
     }
     if (gameState && gameState.__resultShown) return;
@@ -967,7 +1025,8 @@ function showResult() {
  * 結果オーバーレイを表示
  * Create or show a result overlay in the center of the screen
  */
-function showResultOverlay() {
+function showResultOverlay(options?: any) {
+    const opts = (options && typeof options === 'object') ? options : {};
     const counts = countDiscs(gameState);
     const chargeTotals = getChargeTotals();
     const cardUseTotals = getCardUseTotals();
@@ -993,11 +1052,12 @@ function showResultOverlay() {
         cornerCaptureTotals
     });
     const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
-    if (!othelloMode) submitSharedLeaderboardScore(scoreSummary, viewerKey);
+    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardScore(scoreSummary, viewerKey);
 
     hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });
     syncQuickResetButtonLabelForResultState(true);
+    ensureResultReopenButton();
 
     const overlay = document.createElement('div');
     overlay.id = 'result-overlay';
