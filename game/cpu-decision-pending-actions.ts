@@ -1,5 +1,6 @@
 type PendingActionsConfig = {
     choosePendingTargetWithPolicyAsync: (playerKey: any, pendingType: any, targets: any, pending: any) => Promise<any>;
+    chooseTimeBombTargetWithPolicy: (playerKey: any, targets: any[]) => any;
     clearCpuPendingEffect: (playerKey: any) => any;
     cpuDebugLog: (...args: any[]) => void;
     emitCpuSelectionStateChange: () => any;
@@ -444,6 +445,43 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectTimeBombWithPolicy(playerKey: any): Promise<any> {
+        const targets = getTargetsByMethod(playerKey, 'getTimeBombTargets', false);
+        if (!targets.length) {
+            cfg.cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾対象なし`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        const target = typeof cfg.chooseTimeBombTargetWithPolicy === 'function'
+            ? cfg.chooseTimeBombTargetWithPolicy(playerKey, targets)
+            : targets[0];
+        if (!target) {
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+        cfg.cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾ターゲット (${target.row}, ${target.col})`);
+
+        const pipelineResult = await cfg.runCpuPendingSelectionViaPipeline(
+            playerKey,
+            { bombTarget: { row: target.row, col: target.col } },
+            'TIME_BOMB'
+        );
+        if (isPendingPipelineHandled(pipelineResult)) return;
+
+        const cardLogic = getCardLogic();
+        const applyFn = cardLogic && typeof cardLogic.applyTimeBombWill === 'function'
+            ? cardLogic.applyTimeBombWill
+            : null;
+        if (typeof applyFn === 'function') {
+            const res = applyFn(cfg.getCardState(), cfg.getGameState(), playerKey, target.row, target.col);
+            if (!res || !res.applied) {
+                cfg.clearCpuPendingEffect(playerKey);
+            }
+            cfg.emitCpuSelectionStateChange();
+        }
+    }
+
     async function cpuSelectCaptureWillWithPolicy(playerKey: any): Promise<any> {
         return runTargetAction({
             playerKey,
@@ -569,6 +607,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectSwapWithEnemyWithPolicy,
         cpuSelectTeleportWillWithPolicy,
         cpuSelectTemptWillWithPolicy,
+        cpuSelectTimeBombWithPolicy,
         cpuSelectTrapWillWithPolicy
     };
 }

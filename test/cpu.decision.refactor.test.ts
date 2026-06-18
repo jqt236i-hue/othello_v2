@@ -2827,6 +2827,34 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CardLogic.applyCloneWill).not.toHaveBeenCalled();
   });
 
+  test('cpuSelectTimeBombWithPolicy prefers pipeline adapter path', async () => {
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[3][3] = -1;
+    global.cardState.pendingEffectByPlayer.white = { type: 'TIME_BOMB', stage: 'selectTarget' };
+    global.CardLogic = {
+      getTimeBombTargets: () => [{ row: 3, col: 3 }],
+      applyTimeBombWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectTimeBombWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.bombTarget).toEqual({ row: 3, col: 3 });
+    expect(global.CardLogic.applyTimeBombWill).not.toHaveBeenCalled();
+  });
+
   test('cpuSelectSwapWithEnemyWithPolicy prefers pipeline adapter path', async () => {
     global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
     global.CardLogic = {

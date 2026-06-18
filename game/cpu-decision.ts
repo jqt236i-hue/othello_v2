@@ -3028,6 +3028,7 @@ async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: a
 const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof CpuDecisionPendingActionsModule.createCpuDecisionPendingActions === 'function')
     ? CpuDecisionPendingActionsModule.createCpuDecisionPendingActions({
         choosePendingTargetWithPolicyAsync,
+        chooseTimeBombTargetWithPolicy: (playerKey: any, targets: any) => chooseTimeBombTargetWithPolicy(playerKey, targets),
         clearCpuPendingEffect: (playerKey: any) => clearCpuPendingEffect(playerKey),
         cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
         emitCpuSelectionStateChange,
@@ -3477,37 +3478,7 @@ function chooseTimeBombTargetWithPolicy(playerKey: any, targets: any): any {
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectTimeBombWithPolicy(playerKey: any): Promise<any> {
-    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getTimeBombTargets === 'function')
-        ? CardLogic.getTimeBombTargets(cardState, gameState, playerKey)
-        : [];
-
-    if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾対象なし`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const target = chooseTimeBombTargetWithPolicy(playerKey, targets);
-    if (!target) {
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-    cpuDebugLog(`[CPU] ${playerKey}: 時限爆弾ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = await runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { bombTarget: { row: target.row, col: target.col } },
-        'TIME_BOMB'
-    );
-    if (isCpuPendingPipelineHandled(pipelineResult)) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyTimeBombWill === 'function') {
-        const res = CardLogic.applyTimeBombWill(cardState, gameState, playerKey, target.row, target.col);
-        if (!res || !res.applied) {
-            clearCpuPendingEffect(playerKey);
-        }
-        emitCpuSelectionStateChange();
-    }
+    return CpuDecisionPendingActions.cpuSelectTimeBombWithPolicy(playerKey);
 }
 
 /**
