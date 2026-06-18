@@ -76,6 +76,44 @@ describe('match worker api controller', () => {
     ]);
   });
 
+  test('match rematch-request を room durable object へ転送する', async () => {
+    const seen: Array<{ roomId: string; method: string; pathname: string; body: any }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+
+    const env = createEnv(async (roomId, request) => {
+      seen.push({
+        roomId,
+        method: request.method,
+        pathname: new URL(request.url).pathname,
+        body: JSON.parse(String(await request.text() || '{}'))
+      });
+      return jsonResponse(200, { ok: true, requestId: 'rematch_req_1' });
+    });
+
+    const response = await controller.handleMatchApi(new Request('https://worker/api/match/rematch-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: 'abc', seatKey: 'black', seatToken: 'token_black' })
+    }), env as any);
+
+    expect(response.status).toBe(200);
+    expect(seen).toEqual([
+      {
+        roomId: 'ABC',
+        method: 'POST',
+        pathname: '/api/match/rematch-request',
+        body: { roomId: 'ABC', seatKey: 'black', seatToken: 'token_black' }
+      }
+    ]);
+  });
+
   test('match state GET を room durable object へ転送し roomId を search に反映する', async () => {
     const seen: Array<{ roomId: string; url: string }> = [];
     const controller = createMatchWorkerApiController({

@@ -132,11 +132,12 @@ describe('match worker rematch publish', () => {
     expect(result.payload.rejectedReason).toBe('OUT_OF_TURN');
   });
 
-  test('盤面満杯だけではゲーム終了後 reset として手番外 publish を許可しない', () => {
+  test('終局前でも reset_game publish は手番外から許可する', () => {
     const result = runOutOfTurnPublishScenario('reset_game', 0);
 
-    expect(result.status).toBe(409);
-    expect(result.payload && result.payload.ok).toBe(false);
-    expect(result.payload.rejectedReason).toBe('OUT_OF_TURN');
+    expect(result.status).toBe(200);
+    expect(result.payload && result.payload.ok).toBe(true);
+    expect(result.payload.snapshot.gameState.currentPlayer).toBe(1);
+    expect(result.payload.snapshot.gameState.turnNumber).toBe(0);
   });
 });

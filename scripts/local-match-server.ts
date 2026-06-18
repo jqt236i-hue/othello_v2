@@ -122,6 +122,10 @@ function makeSpectatorId() {
     return `spec_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
 }
 
+function makeRematchRequestId() {
+    return `rematch_${Date.now()}_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12)}`;
+}
+
 function normalizeNetworkPlayerName(value: any) {
     return MatchAuthority.normalizeNetworkPlayerName(value);
 }
@@ -1087,6 +1091,8 @@ function buildPresencePayload(room: any, meta: any) {
         seatKey,
         playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
         rejoined: !!(meta && meta.rejoined),
+        requestId: meta && meta.requestId ? String(meta.requestId) : '',
+        accepted: !!(meta && meta.accepted),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -1817,7 +1823,7 @@ async function handlePublish(req: any, res: any) {
 
     const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
     if (playerKey !== expectedPlayerKey) {
-        const allowOutOfTurnRematch = isRematchResetAction && Core.isGameOver(room.snapshot && room.snapshot.gameState);
+        const allowOutOfTurnRematch = isRematchResetAction;
         const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
         const allowFateWillController = MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
         if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
@@ -1960,6 +1966,105 @@ async function handlePublish(req: any, res: any) {
     MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
     broadcastPreparedSnapshot(room, preparedSnapshot);
     writeJson(res, 200, responsePayload);
+}
+
+function validateRematchSeat(room: any, seatKey: any, seatToken: any) {
+    if (!room.seats[seatKey]) {
+        return { ok: false, status: 403, reason: 'SEAT_NOT_JOINED' };
+    }
+    if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
+        return { ok: false, status: 403, reason: 'SEAT_TOKEN_MISMATCH' };
+    }
+    return { ok: true, status: 200, reason: '' };
+}
+
+async function handleRematchRequest(req: any, res: any) {
+    const body = await parseBody(req);
+    const roomId = String(body.roomId || '').trim().toUpperCase();
+    const seatKey = normalizePlayerKey(body.seatKey);
+    const seatToken = String(body.seatToken || '').trim();
+    const room = rooms.get(roomId);
+    if (!room) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    const validation = validateRematchSeat(room, seatKey, seatToken);
+    if (!validation.ok) {
+        writeJson(res, validation.status, { ok: false, reason: validation.reason, seats: toPublicSeats(room) });
+        return;
+    }
+    if (!room.seats.black || !room.seats.white) {
+        writeJson(res, 409, { ok: false, reason: 'OPPONENT_REQUIRED', seats: toPublicSeats(room) });
+        return;
+    }
+
+    const requestId = makeRematchRequestId();
+    room.updatedAt = Date.now();
+    broadcastPresence(room, {
+        type: 'rematch_request',
+        seatKey,
+        requestId,
+        rejoined: false
+    });
+    writeJson(res, 200, withPublicSeatState(room, {
+        ok: true,
+        roomId: room.roomId,
+        seatKey,
+        requestId,
+        roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        turnTimer: toPublicTurnTimer(room, Date.now()),
+        serverTime: Date.now()
+    }));
+}
+
+async function handleRematchResponse(req: any, res: any) {
+    const body = await parseBody(req);
+    const roomId = String(body.roomId || '').trim().toUpperCase();
+    const seatKey = normalizePlayerKey(body.seatKey);
+    const seatToken = String(body.seatToken || '').trim();
+    const room = rooms.get(roomId);
+    if (!room) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    const validation = validateRematchSeat(room, seatKey, seatToken);
+    if (!validation.ok) {
+        writeJson(res, validation.status, { ok: false, reason: validation.reason, seats: toPublicSeats(room) });
+        return;
+    }
+
+    const requestId = String(body.requestId || '').trim();
+    const accepted = body.accepted === true;
+    room.updatedAt = Date.now();
+    broadcastPresence(room, {
+        type: 'rematch_response',
+        seatKey,
+        requestId,
+        accepted,
+        rejoined: false
+    });
+    writeJson(res, 200, withPublicSeatState(room, {
+        ok: true,
+        roomId: room.roomId,
+        seatKey,
+        requestId,
+        accepted,
+        roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        turnTimer: toPublicTurnTimer(room, Date.now()),
+        serverTime: Date.now()
+    }));
 }
 
 async function handleChat(req: any, res: any) {
@@ -2217,6 +2322,16 @@ function createLocalMatchServer() {
 
             if (req.method === 'POST' && pathname === '/api/match/chat') {
                 await handleChat(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/match/rematch-request') {
+                await handleRematchRequest(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/match/rematch-response') {
+                await handleRematchResponse(req, res);
                 return;
             }
 

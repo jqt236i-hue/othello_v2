@@ -52,6 +52,14 @@ function createNetworkRoomEventsController(config?: any): any {
     } catch (e) { /* ignore */ }
   }
 
+  function emitRematchRequestEvent(payload: any): void {
+    const state = readState();
+    if (typeof state.rematchRequestListener !== 'function') return;
+    try {
+      state.rematchRequestListener(payload);
+    } catch (e) { /* ignore */ }
+  }
+
   function handleChatPayload(payload: any): void {
     const state = readState();
     if (!payload || payload.ok !== true) return;
@@ -97,6 +105,48 @@ function createNetworkRoomEventsController(config?: any): any {
     }
 
     const type = String(payload.type || 'join');
+    if (type === 'rematch_request') {
+      const fromSeatKey = normalizePlayerKey(payload.seatKey);
+      if (fromSeatKey === state.seatKey) {
+        if (typeof cfg.emitStatusAndEffectLog === 'function') {
+          cfg.emitStatusAndEffectLog('ネット対戦: 再戦申請を送信しました', false);
+        }
+        return;
+      }
+      emitRematchRequestEvent({
+        type: 'request',
+        requestId: String(payload.requestId || ''),
+        fromSeatKey,
+        fromPlayerName: String(payload.playerName || ''),
+        serverTime: Number.isFinite(Number(payload.serverTime)) ? Number(payload.serverTime) : now()
+      });
+      return;
+    }
+
+    if (type === 'rematch_response') {
+      const fromSeatKey = normalizePlayerKey(payload.seatKey);
+      const accepted = payload.accepted === true;
+      if (fromSeatKey !== state.seatKey && typeof cfg.emitStatusAndEffectLog === 'function') {
+        const seatName = typeof cfg.getSeatDisplayName === 'function'
+          ? cfg.getSeatDisplayName(fromSeatKey)
+          : fromSeatKey;
+        cfg.emitStatusAndEffectLog(
+          accepted
+            ? 'ネット対戦: ' + seatName + 'が再戦申請を受理しました'
+            : 'ネット対戦: ' + seatName + 'が再戦申請を辞退しました',
+          false
+        );
+      }
+      emitRematchRequestEvent({
+        type: 'response',
+        requestId: String(payload.requestId || ''),
+        fromSeatKey,
+        accepted,
+        serverTime: Number.isFinite(Number(payload.serverTime)) ? Number(payload.serverTime) : now()
+      });
+      return;
+    }
+
     if (type !== 'join' && type !== 'leave') return;
 
     const joinedSeatKey = normalizePlayerKey(payload.seatKey);
@@ -147,6 +197,11 @@ function createNetworkRoomEventsController(config?: any): any {
     }
   }
 
+  function setRematchRequestListener(listener: any): void {
+    const state = readState();
+    state.rematchRequestListener = (typeof listener === 'function') ? listener : null;
+  }
+
   return {
     normalizeChatText,
     countTextChars,
@@ -154,7 +209,8 @@ function createNetworkRoomEventsController(config?: any): any {
     handleChatPayload,
     handlePresencePayload,
     handleTimeoutPassPayload,
-    setChatListener
+    setChatListener,
+    setRematchRequestListener
   };
 }
 

@@ -1764,6 +1764,67 @@ const MODE_OTHELLO = 'othello';
             });
         }
 
+        if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRematchRequestListener === 'function') {
+            root.NetworkMatchClient.setRematchRequestListener((payload: any) => {
+                if (!payload || payload.type !== 'request') return;
+                const doc = root.document || (typeof document !== 'undefined' ? document : null);
+                if (!doc) return;
+                const existing = doc.getElementById('network-rematch-request-dialog');
+                if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+                const overlay = doc.createElement('div');
+                overlay.id = 'network-rematch-request-dialog';
+                overlay.className = 'network-rematch-request-dialog';
+                overlay.setAttribute('role', 'dialog');
+                overlay.setAttribute('aria-modal', 'true');
+
+                const panel = doc.createElement('div');
+                panel.className = 'network-rematch-request-dialog__panel';
+                const title = doc.createElement('div');
+                title.className = 'network-rematch-request-dialog__title';
+                title.textContent = '再戦申請が来ています。';
+                const body = doc.createElement('div');
+                body.className = 'network-rematch-request-dialog__body';
+                body.textContent = '受理しますか？';
+                const actions = doc.createElement('div');
+                actions.className = 'network-rematch-request-dialog__actions';
+                const acceptBtn = doc.createElement('button');
+                acceptBtn.type = 'button';
+                acceptBtn.className = 'premium-btn primary';
+                acceptBtn.setAttribute('data-rematch-response', 'accept');
+                acceptBtn.textContent = 'はい';
+                const declineBtn = doc.createElement('button');
+                declineBtn.type = 'button';
+                declineBtn.className = 'premium-btn';
+                declineBtn.setAttribute('data-rematch-response', 'decline');
+                declineBtn.textContent = 'いいえ';
+
+                const close = () => {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                };
+                acceptBtn.addEventListener('click', () => {
+                    acceptBtn.disabled = true;
+                    declineBtn.disabled = true;
+                    Promise.resolve(root.NetworkMatchClient.acceptRematchRequest(payload.requestId))
+                        .finally(close);
+                });
+                declineBtn.addEventListener('click', () => {
+                    acceptBtn.disabled = true;
+                    declineBtn.disabled = true;
+                    Promise.resolve(root.NetworkMatchClient.declineRematchRequest(payload.requestId))
+                        .finally(close);
+                });
+
+                actions.appendChild(acceptBtn);
+                actions.appendChild(declineBtn);
+                panel.appendChild(title);
+                panel.appendChild(body);
+                panel.appendChild(actions);
+                overlay.appendChild(panel);
+                doc.body.appendChild(overlay);
+            });
+        }
+
         if (uiRefs.networkChatToggle) {
             uiRefs.networkChatToggle.addEventListener('click', () => {
                 if (!networkChatVisible || !uiRefs.networkChatPanel) return;

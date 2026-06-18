@@ -421,6 +421,10 @@ function makeSpectatorId(): string {
     return `spec_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
 }
 
+function makeRematchRequestId(): string {
+    return `rematch_${Date.now()}_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12)}`;
+}
+
 function getRuntimeGlobalScopes(): Record<string, unknown>[] {
     const scopes: Record<string, unknown>[] = [];
     if (typeof globalThis !== 'undefined' && globalThis) {
@@ -1799,6 +1803,8 @@ function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPrese
         seatKey,
         playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
         rejoined: !!metaRecord.rejoined,
+        requestId: metaRecord.requestId ? String(metaRecord.requestId) : '',
+        accepted: metaRecord.accepted === true,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -2959,6 +2965,94 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return this.getPublishController().handlePublish(body);
     }
 
+    async handleRematchRequest(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        const room = this.room;
+        if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
+        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
+        const seatToken = String(body.seatToken || '').trim();
+        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
+        if (!seatKey) {
+            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+        }
+        if (!asRecord(room.seats)[seatKey]) {
+            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        }
+        if (!asRecord(room.seats).black || !asRecord(room.seats).white) {
+            return jsonResponse(409, { ok: false, reason: 'OPPONENT_REQUIRED' });
+        }
+
+        const requestId = makeRematchRequestId();
+        await this.broadcastPresence({
+            type: 'rematch_request',
+            seatKey,
+            requestId,
+            rejoined: false
+        });
+
+        const serverTime = Date.now();
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+            ok: true,
+            seatKey,
+            requestId,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        }));
+    }
+
+    async handleRematchResponse(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        const room = this.room;
+        if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
+        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
+        const seatToken = String(body.seatToken || '').trim();
+        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
+        if (!seatKey) {
+            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+        }
+        if (!asRecord(room.seats)[seatKey]) {
+            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        }
+
+        const requestId = String(body.requestId || '').trim();
+        const accepted = body.accepted === true;
+        await this.broadcastPresence({
+            type: 'rematch_response',
+            seatKey,
+            requestId,
+            accepted,
+            rejoined: false
+        });
+
+        const serverTime = Date.now();
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+            ok: true,
+            seatKey,
+            requestId,
+            accepted,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        }));
+    }
+
     async handleState(urlObj: URL): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
@@ -3110,6 +3204,18 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
             return this.handleChat(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/rematch-request') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleRematchRequest(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/rematch-response') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleRematchResponse(parsed || {});
         }
 
         if (request.method === 'POST' && pathname === '/api/match/hand-skin') {

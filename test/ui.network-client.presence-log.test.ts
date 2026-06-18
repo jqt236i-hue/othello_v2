@@ -211,6 +211,56 @@ describe('NetworkMatchClient presence log', () => {
     expect(states[states.length - 1].hasTwoPlayers).toBe(true);
   });
 
+  test('相手からの再戦申請を再戦申請リスナーへ渡す', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const received = [];
+    client.setRematchRequestListener((payload) => {
+      received.push(payload);
+    });
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const stream = global.EventSource.instances[0];
+    expect(stream).toBeTruthy();
+
+    stream.emit('presence', {
+      ok: true,
+      type: 'rematch_request',
+      requestId: 'rematch_req_1',
+      seatKey: 'white',
+      playerName: 'しろ',
+      serverTime: 100
+    });
+
+    expect(received).toEqual([
+      {
+        type: 'request',
+        requestId: 'rematch_req_1',
+        fromSeatKey: 'white',
+        fromPlayerName: 'しろ',
+        serverTime: 100
+      }
+    ]);
+  });
+
+  test('ネット部屋作成後は常設ボタンを再戦表示へ同期する', async () => {
+    document.body.innerHTML = '<button id="resetBtn">リセット</button>';
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const resetBtn = document.getElementById('resetBtn');
+    expect(resetBtn?.textContent).toBe('再戦');
+    expect(resetBtn?.getAttribute('aria-label')).toBe('再戦');
+  });
+
   test('選択中の手スキンを create と update と presence で反映する', async () => {
     const storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.unlockHandSkinIds(window, ['gacha__n__hand-swap']);

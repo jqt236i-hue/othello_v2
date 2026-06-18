@@ -337,6 +337,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         statusWriter: null as any,
         roomStateListener: null as any,
         chatListener: null as any,
+        rematchRequestListener: null as any,
         chatHistory: [] as any[],
         publishChain: Promise.resolve() as any,
         publishTracker: {
@@ -1073,6 +1074,164 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
+    function sanitizeDiagnosticsValue(value: any, depth?: number): any {
+        const currentDepth = Number.isFinite(Number(depth)) ? Number(depth) : 0;
+        if (currentDepth > 8) return '[depth-limit]';
+        if (value === null || typeof value === 'undefined') return value;
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+        if (Array.isArray(value)) {
+            return value.map((entry) => sanitizeDiagnosticsValue(entry, currentDepth + 1));
+        }
+        if (typeof value !== 'object') return String(value);
+
+        const sanitized: any = {};
+        Object.keys(value).forEach((key) => {
+            const normalizedKey = String(key || '').toLowerCase();
+            if (
+                normalizedKey.indexOf('token') >= 0
+                || normalizedKey.indexOf('password') >= 0
+                || normalizedKey.indexOf('secret') >= 0
+                || normalizedKey.indexOf('authorization') >= 0
+            ) {
+                return;
+            }
+            sanitized[key] = sanitizeDiagnosticsValue(value[key], currentDepth + 1);
+        });
+        return sanitized;
+    }
+
+    function readMatchModeForDiagnostics() {
+        try {
+            if (root && typeof root.getCurrentMatchMode === 'function') {
+                return String(root.getCurrentMatchMode() || '').trim();
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (root && typeof root.MATCH_MODE !== 'undefined') return String(root.MATCH_MODE || '').trim();
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (root && typeof root.__MATCH_MODE !== 'undefined') return String(root.__MATCH_MODE || '').trim();
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).MATCH_MODE !== 'undefined') {
+                return String((globalThis as any).MATCH_MODE || '').trim();
+            }
+        } catch (e: any) { /* ignore */ }
+        return '';
+    }
+
+    function readGlobalValueForDiagnostics(name: string) {
+        try {
+            if (root && Object.prototype.hasOwnProperty.call(root, name)) return root[name];
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
+                return (globalThis as any)[name];
+            }
+        } catch (e: any) { /* ignore */ }
+        return null;
+    }
+
+    function normalizeDiagnosticsNumber(value: any) {
+        if (value === null || typeof value === 'undefined') return null;
+        if (typeof value === 'string' && value.trim() === '') return null;
+        return Number.isFinite(Number(value)) ? Number(value) : null;
+    }
+
+    function summarizeGameStateForDiagnostics(gameStateValue: any) {
+        const gameStateRecord = (gameStateValue && typeof gameStateValue === 'object') ? gameStateValue : {};
+        const board = Array.isArray(gameStateRecord.board) ? gameStateRecord.board : null;
+        const firstRow = board && Array.isArray(board[0]) ? board[0] : null;
+        return {
+            currentPlayer: normalizeDiagnosticsNumber(gameStateRecord.currentPlayer),
+            turnNumber: normalizeDiagnosticsNumber(gameStateRecord.turnNumber),
+            consecutivePasses: normalizeDiagnosticsNumber(gameStateRecord.consecutivePasses),
+            boardRows: board ? board.length : null,
+            boardCols: firstRow ? firstRow.length : null,
+            resultShown: gameStateRecord.__resultShown === true
+        };
+    }
+
+    function summarizeCardStateForDiagnostics(cardStateValue: any) {
+        const cardStateRecord = (cardStateValue && typeof cardStateValue === 'object') ? cardStateValue : {};
+        const hands = (cardStateRecord.hands && typeof cardStateRecord.hands === 'object') ? cardStateRecord.hands : {};
+        const blackHand = Array.isArray(hands.black) ? hands.black : [];
+        const whiteHand = Array.isArray(hands.white) ? hands.white : [];
+        return {
+            handCounts: {
+                black: blackHand.length,
+                white: whiteHand.length
+            },
+            charge: sanitizeDiagnosticsValue(cardStateRecord.charge || null),
+            selectedCardId: typeof cardStateRecord.selectedCardId === 'string' ? cardStateRecord.selectedCardId : null,
+            selectedCardOwnerKey: typeof cardStateRecord.selectedCardOwnerKey === 'string' ? cardStateRecord.selectedCardOwnerKey : null,
+            pendingEffectByPlayer: sanitizeDiagnosticsValue(cardStateRecord.pendingEffectByPlayer || null),
+            hasUsedCardThisTurnByPlayer: sanitizeDiagnosticsValue(cardStateRecord.hasUsedCardThisTurnByPlayer || null)
+        };
+    }
+
+    function buildNetworkDiagnosticsSnapshot(reason: any) {
+        const now = Date.now();
+        const readableState = getState();
+        const gameStateValue = readGlobalValueForDiagnostics('gameState');
+        const cardStateValue = readGlobalValueForDiagnostics('cardState');
+        const lastActivityAt = Number.isFinite(Number(state.lastStreamActivityAt))
+            ? Number(state.lastStreamActivityAt)
+            : 0;
+        return sanitizeDiagnosticsValue({
+            schemaVersion: 1,
+            reason: String(reason || 'manual'),
+            createdAt: new Date(now).toISOString(),
+            matchMode: readMatchModeForDiagnostics(),
+            active: isActive(),
+            viewerRole: isSpectator() ? 'spectator' : 'seat',
+            roomId: String(state.roomId || ''),
+            seatKey: normalizePlayerKey(state.seatKey),
+            spectatorId: isSpectator() ? String(state.spectatorId || '') : '',
+            spectatorName: isSpectator() ? String(state.spectatorName || '') : '',
+            stateVersion: normalizeDiagnosticsNumber(state.stateVersion),
+            appliedStateVersion: normalizeDiagnosticsNumber(state.appliedStateVersion),
+            networkDebugEnabled: state.networkDebugEnabled === true,
+            stream: {
+                connected: !!state.eventSource,
+                lastEventId: String(state.lastStreamEventId || ''),
+                lastActivityAgeMs: lastActivityAt > 0 ? Math.max(0, now - lastActivityAt) : null,
+                reconnectAttempt: normalizeDiagnosticsNumber(state.reconnectAttempt) || 0,
+                reconnectRecoveryPending: state.reconnectRecoveryPending === true,
+                heartbeatResyncInFlight: state.heartbeatResyncInFlight === true
+            },
+            room: {
+                seats: readableState.roomSeats,
+                seatNames: readableState.seatNames,
+                seatHandSkins: readableState.seatHandSkins,
+                roomBoardConfig: readableState.roomBoardConfig,
+                hasTwoPlayers: hasTwoPlayers()
+            },
+            turnTimer: sanitizeDiagnosticsValue(state.turnTimer || null),
+            publishTracker: sanitizeDiagnosticsValue(readableState.publishTracker || null),
+            networkTelemetry: getNetworkTelemetry(),
+            gameState: summarizeGameStateForDiagnostics(gameStateValue),
+            cardState: summarizeCardStateForDiagnostics(cardStateValue)
+        });
+    }
+
+    function dumpDiagnostics(reason?: any) {
+        const snapshot = buildNetworkDiagnosticsSnapshot(reason || 'manual');
+        const label = `[network-diagnostics] ${snapshot.reason} room=${snapshot.roomId || '-'} version=${snapshot.stateVersion === null ? '-' : snapshot.stateVersion}`;
+        try {
+            if (typeof console !== 'undefined' && console) {
+                if (typeof console.groupCollapsed === 'function') {
+                    console.groupCollapsed(label);
+                    if (typeof console.log === 'function') console.log(snapshot);
+                    if (typeof console.groupEnd === 'function') console.groupEnd();
+                } else if (typeof console.log === 'function') {
+                    console.log(label, snapshot);
+                }
+            }
+        } catch (e: any) { /* ignore */ }
+        return snapshot;
+    }
+
     function cloneReadableNetworkStateValue(value: any, fallbackValue: any) {
         if (typeof value === 'undefined') return fallbackValue;
         try {
@@ -1596,7 +1755,27 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
+    function syncQuickResetButtonForNetworkState() {
+        try {
+            const doc = root && root.document
+                ? root.document
+                : (typeof document !== 'undefined' ? document : null);
+            const resetBtn = doc && typeof doc.getElementById === 'function'
+                ? doc.getElementById('resetBtn')
+                : null;
+            if (!resetBtn) return;
+            const label = state.active === true && !isSpectator() ? '再戦' : 'リセット';
+            resetBtn.textContent = label;
+            resetBtn.setAttribute('aria-label', label);
+            resetBtn.setAttribute('data-rematch-state', label === '再戦' ? 'network' : 'local');
+            if ('disabled' in resetBtn) {
+                (resetBtn as HTMLButtonElement).disabled = false;
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+
     function emitRoomStateChanged() {
+        syncQuickResetButtonForNetworkState();
         invokeControllerMethod(getNetworkSessionSeatController, 'emitRoomStateChanged', arguments, undefined);
     }
 
@@ -1985,6 +2164,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const controller = getNetworkRoomEventsController();
         if (!controller || typeof controller.handlePresencePayload !== 'function') return;
         controller.handlePresencePayload(payload);
+        const type = payload && payload.type ? String(payload.type) : '';
+        if (type === 'rematch_response') {
+            syncQuickResetButtonForNetworkState();
+        }
     }
 
     function handleTimeoutPassPayload(payload: any) {
@@ -2257,30 +2440,30 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function createRoom(options: any) {
-        return invokeControllerMethod(
+        return Promise.resolve(invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'createRoom',
             arguments,
             () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
-        );
+        )).finally(syncQuickResetButtonForNetworkState);
     }
 
     function joinRoom(roomId: any, options: any) {
-        return invokeControllerMethod(
+        return Promise.resolve(invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'joinRoom',
             arguments,
             () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
-        );
+        )).finally(syncQuickResetButtonForNetworkState);
     }
 
     function spectateRoom(roomId: any, options: any) {
-        return invokeControllerMethod(
+        return Promise.resolve(invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'spectateRoom',
             arguments,
             () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
-        );
+        )).finally(syncQuickResetButtonForNetworkState);
     }
 
     function listRooms(options: any) {
@@ -2339,12 +2522,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function leaveRoom() {
-        return invokeControllerMethod(
+        return Promise.resolve(invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'leaveRoom',
             arguments,
             () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
-        );
+        )).finally(syncQuickResetButtonForNetworkState);
     }
 
     function getCurrentSnapshotForPublish() {
@@ -2368,7 +2551,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return publishSnapshot(meta);
     }
 
-    async function requestRematch() {
+    async function publishRematchReset() {
         if (!isActive()) return { ok: false, reason: 'INACTIVE' };
         clearBoardUpdateContext();
 
@@ -2407,6 +2590,69 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         } catch (e: any) {
             return { ok: false, reason: 'REMATCH_REQUEST_FAILED' };
         }
+    }
+
+    async function requestRematch() {
+        if (!isActive()) return { ok: false, reason: 'INACTIVE' };
+        if (isSpectator()) {
+            emitStatus('観戦中は操作できません', true);
+            return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
+        }
+        const payload = {
+            roomId: state.roomId,
+            seatKey: state.seatKey,
+            seatToken: state.seatToken
+        };
+        const res = await requestJson('POST', '/api/match/rematch-request', payload);
+        if (!res.ok || !res.data || res.data.ok !== true) {
+            const reason = (res.data && (res.data.reason || res.data.rejectedReason)) || 'REMATCH_REQUEST_FAILED';
+            applyPayloadSessionState(res.data);
+            emitStatus('ネット対戦: 再戦申請の送信に失敗しました', true);
+            return { ok: false, reason };
+        }
+        applyPayloadSessionState(res.data);
+        emitStatus('ネット対戦: 再戦申請を送信しました', false);
+        return {
+            ok: true,
+            requestId: res.data.requestId || ''
+        };
+    }
+
+    async function respondRematchRequest(requestId: any, accepted: any) {
+        if (!isActive()) return { ok: false, reason: 'INACTIVE' };
+        if (isSpectator()) {
+            emitStatus('観戦中は操作できません', true);
+            return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
+        }
+        const payload = {
+            roomId: state.roomId,
+            seatKey: state.seatKey,
+            seatToken: state.seatToken,
+            requestId: String(requestId || ''),
+            accepted: accepted === true
+        };
+        const res = await requestJson('POST', '/api/match/rematch-response', payload);
+        if (!res.ok || !res.data || res.data.ok !== true) {
+            const reason = (res.data && (res.data.reason || res.data.rejectedReason)) || 'REMATCH_RESPONSE_FAILED';
+            applyPayloadSessionState(res.data);
+            emitStatus('ネット対戦: 再戦申請への応答に失敗しました', true);
+            return { ok: false, reason };
+        }
+        applyPayloadSessionState(res.data);
+        if (accepted !== true) {
+            emitStatus('ネット対戦: 再戦申請を辞退しました', false);
+            return { ok: true, accepted: false };
+        }
+        emitStatus('ネット対戦: 再戦申請を受理しました', false);
+        return publishRematchReset();
+    }
+
+    function acceptRematchRequest(requestId: any) {
+        return respondRematchRequest(requestId, true);
+    }
+
+    function declineRematchRequest(requestId: any) {
+        return respondRematchRequest(requestId, false);
     }
 
     function getSeatKey() {
@@ -2482,8 +2728,28 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.setChatListener(listener);
     }
 
+    function setRematchRequestListener(listener: any) {
+        const controller = getNetworkRoomEventsController();
+        if (!controller || typeof controller.setRematchRequestListener !== 'function') return;
+        controller.setRematchRequestListener(listener);
+    }
+
     function getChatMaxLength() {
         return CHAT_MAX_LENGTH;
+    }
+
+    function isNetworkDiagnosticsShortcutEvent(event: any) {
+        if (!event || typeof event !== 'object') return false;
+        return event.key === 'F12'
+            || event.code === 'F12'
+            || event.keyCode === 123
+            || event.which === 123;
+    }
+
+    function shouldHandleNetworkDiagnosticsShortcut() {
+        if (isActive()) return true;
+        const matchMode = String(readMatchModeForDiagnostics() || '').trim().toLowerCase();
+        return matchMode === 'network';
     }
 
     async function sendChatMessage(text: any) {
@@ -2598,6 +2864,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getSeatHandSkins,
         hasTwoPlayers,
         setChatListener,
+        setRematchRequestListener,
         getChatMaxLength,
         sendChatMessage,
         updateHandSkin,
@@ -2611,6 +2878,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         publishCommand,
         publishSnapshot,
         requestRematch,
+        acceptRematchRequest,
+        declineRematchRequest,
         applySnapshot,
         isSpectator,
         getSeatKey,
@@ -2619,8 +2888,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getStateVersion,
         getRoomDeck,
         getRoomBoardConfig,
-        getNetworkTelemetry
+        getNetworkTelemetry,
+        dumpDiagnostics
     };
+    try {
+        const doc = root && root.document
+            ? root.document
+            : (typeof document !== 'undefined' ? document : null);
+        if (doc && typeof doc.addEventListener === 'function' && doc.__networkDiagnosticsF12Installed !== true) {
+            doc.__networkDiagnosticsF12Installed = true;
+            doc.addEventListener('keydown', (event: any) => {
+                if (!isNetworkDiagnosticsShortcutEvent(event)) return;
+                if (!shouldHandleNetworkDiagnosticsShortcut()) return;
+                try {
+                    if (api && typeof api.dumpDiagnostics === 'function') {
+                        api.dumpDiagnostics('F12');
+                    }
+                } catch (e: any) { /* ignore diagnostics errors */ }
+            });
+        }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof _require === 'function') {
             const selectionFlow = _require('../game/card-effects/selection-flow');

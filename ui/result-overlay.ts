@@ -324,6 +324,20 @@ function isNetworkMatchMode() {
     return resolveCurrentMatchMode() === 'network';
 }
 
+function isNetworkSessionActiveForQuickResetButton() {
+    try {
+        const globalRef: any = (typeof globalThis !== 'undefined') ? globalThis : null;
+        const windowRef: any = (typeof window !== 'undefined')
+            ? window
+            : (globalRef && globalRef.window ? globalRef.window : null);
+        const client = (windowRef && windowRef.NetworkMatchClient)
+            || (globalRef && globalRef.NetworkMatchClient);
+        return !!(client && typeof client.isActive === 'function' && client.isActive() === true);
+    } catch (e: any) {
+        return false;
+    }
+}
+
 function isObservationStoneRewardEligibleMatch() {
     return isCpuMatchMode() || isNetworkMatchMode();
 }
@@ -764,10 +778,10 @@ function syncQuickResetButtonLabelForResultState(terminalValue?: boolean) {
 
     const resetBtn = doc.getElementById('resetBtn');
     if (!resetBtn) return;
-    const label = terminal ? '再戦' : 'リセット';
+    const label = (resolveCurrentMatchMode() === 'network' || isNetworkSessionActiveForQuickResetButton()) ? '再戦' : 'リセット';
     resetBtn.textContent = label;
     resetBtn.setAttribute('aria-label', label);
-    resetBtn.setAttribute('data-rematch-state', terminal ? 'terminal' : 'active');
+    resetBtn.setAttribute('data-rematch-state', label === '再戦' ? 'network' : 'local');
     try {
         (resetBtn as HTMLButtonElement).disabled = false;
     } catch (e: any) { /* ignore */ }
@@ -1039,7 +1053,7 @@ function showResultOverlay() {
             stopResultBgmForDismissal();
             const idleLabel = restartBtn.textContent;
             restartBtn.disabled = true;
-            restartBtn.textContent = '再戦中...';
+            restartBtn.textContent = '申請中...';
             Promise.resolve(networkClient.requestRematch())
                 .then((result) => {
                     if (result && result.ok === true) return;

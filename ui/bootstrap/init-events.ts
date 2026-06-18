@@ -165,12 +165,12 @@ function wrapSpectatorReadOnly(root: any, action: () => void): () => void {
   };
 }
 
-function syncQuickResetButtonLabel(resetBtn: HTMLElement | null, terminal: boolean): void {
+function syncQuickResetButtonLabel(root: any, resetBtn: HTMLElement | null): void {
   if (!resetBtn) return;
-  const label = terminal ? '再戦' : 'リセット';
+  const label = isNetworkRematchButtonMode(root) ? '再戦' : 'リセット';
   resetBtn.textContent = label;
   resetBtn.setAttribute('aria-label', label);
-  resetBtn.setAttribute('data-rematch-state', terminal ? 'terminal' : 'active');
+  resetBtn.setAttribute('data-rematch-state', label === '再戦' ? 'network' : 'local');
   try {
     (resetBtn as HTMLButtonElement).disabled = false;
   } catch (e) { /* ignore */ }
@@ -232,9 +232,19 @@ function resolveNetworkMatchClient(root: any): any {
   return null;
 }
 
+function isNetworkRematchButtonMode(root: any): boolean {
+  if (resolveCurrentMatchMode(root) === 'network') return true;
+  const networkClient = resolveNetworkMatchClient(root);
+  if (!networkClient || typeof networkClient.isActive !== 'function') return false;
+  try {
+    return networkClient.isActive() === true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function canRequestNetworkRematchFromResetButton(root: any): boolean {
-  if (resolveCurrentMatchMode(root) !== 'network') return false;
-  if (!isCurrentGameTerminal(root)) return false;
+  if (!isNetworkRematchButtonMode(root)) return false;
   const networkClient = resolveNetworkMatchClient(root);
   if (!networkClient || typeof networkClient.requestRematch !== 'function') return false;
   if (typeof networkClient.isActive === 'function' && networkClient.isActive() !== true) return false;
@@ -246,8 +256,8 @@ function requestNetworkRematchFromResetButton(root: any, resetBtn: HTMLElement):
   const button = resetBtn as HTMLButtonElement;
   const idleLabel = resetBtn.textContent || '再戦';
   button.disabled = true;
-  resetBtn.textContent = '再戦中...';
-  resetBtn.setAttribute('aria-label', '再戦中');
+  resetBtn.textContent = '申請中...';
+  resetBtn.setAttribute('aria-label', '再戦申請中');
   Promise.resolve(networkClient.requestRematch())
     .then((result: any) => {
       if (result && result.ok === true) return;
@@ -284,13 +294,13 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   setupBattleLogToggle(refs.logToggleBtn, refs.logPanel);
 
   if (refs.resetBtn) {
-    syncQuickResetButtonLabel(refs.resetBtn, isCurrentGameTerminal(root));
+    syncQuickResetButtonLabel(root, refs.resetBtn);
     refs.resetBtn.addEventListener('click', () => {
       if (canRequestNetworkRematchFromResetButton(root)) {
         requestNetworkRematchFromResetButton(root, refs.resetBtn as HTMLElement);
       } else if (typeof resetGame === 'function') {
         try { resetGame(); } catch (e: unknown) { const err = e as Error; console.error('[init] resetGame threw', err && err.message); }
-        syncQuickResetButtonLabel(refs.resetBtn as HTMLElement, false);
+        syncQuickResetButtonLabel(root, refs.resetBtn as HTMLElement);
       } else {
         console.warn('[init] resetGame not available; skipping reset');
       }

@@ -203,6 +203,8 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             || pathname === '/api/match/publish'
             || pathname === '/api/match/chat'
             || pathname === '/api/match/hand-skin'
+            || pathname === '/api/match/rematch-request'
+            || pathname === '/api/match/rematch-response'
         )) {
             const parsed = await parsePostBody(request);
             if (!parsed.ok) return parsed.response;

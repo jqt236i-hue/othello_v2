@@ -155,7 +155,7 @@ function createMatchWorkerPublishController(config?: any): any {
 
     const expectedPlayerKey = cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState);
     if (playerKey !== expectedPlayerKey) {
-      const allowOutOfTurnRematch = isRematchResetAction && await cfg.isSnapshotGameOver(room.snapshot);
+      const allowOutOfTurnRematch = isRematchResetAction;
       const allowOutOfTurnNetworkDebug = isNetworkDebugAction && cfg.toPublicNetworkDebugEnabled(room);
       const allowFateWillController = cfg.MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
       if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {

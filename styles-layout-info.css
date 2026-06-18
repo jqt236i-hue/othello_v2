@@ -363,6 +363,46 @@
     color: var(--color-text-gold-light);
 }
 
+.network-rematch-request-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-network-chat) + 20);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(10, 14, 24, 0.58);
+}
+
+.network-rematch-request-dialog__panel {
+    width: min(360px, 92vw);
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    background: rgba(20, 26, 38, 0.96);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+    color: var(--color-text-bright);
+}
+
+.network-rematch-request-dialog__title {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.network-rematch-request-dialog__body {
+    margin-top: 10px;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+}
+
+.network-rematch-request-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+}
+
 #effect-live-panel,
 #manifest-effect-panel {
     --left-hud-text-title: #ffe27a;
