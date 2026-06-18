@@ -113,6 +113,22 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
   }
 
+  function isSpectatorState(state: any): boolean {
+    return String(state && state.viewerRole || '').trim().toLowerCase() === 'spectator';
+  }
+
+  function buildStatePath(state: any): string {
+    if (isSpectatorState(state)) {
+      return '/api/match/state?roomId=' + encodeURIComponent(state.roomId)
+        + '&viewerRole=spectator'
+        + '&spectatorId=' + encodeURIComponent(state.spectatorId || '')
+        + '&spectatorToken=' + encodeURIComponent(state.spectatorToken || '');
+    }
+    return '/api/match/state?roomId=' + encodeURIComponent(state.roomId)
+      + '&seatKey=' + encodeURIComponent(state.seatKey)
+      + '&seatToken=' + encodeURIComponent(state.seatToken || '');
+  }
+
   async function createRoom(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
     const currentState = readState();
@@ -262,13 +278,55 @@ function createNetworkSessionLifecycleController(config: any): any {
     };
   }
 
+  async function spectateRoom(roomId: any, options?: any): Promise<any> {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
+      cfg.setServerUrl(opts.serverUrl);
+    }
+
+    const entryPayload = MatchEntryPayload.buildSpectateRoomPayload(roomId, opts, createEntryPayloadHelpers());
+    if (!entryPayload.ok) {
+      return emitEntryPayloadFailure(entryPayload.reason);
+    }
+
+    const res = await cfg.requestJson('POST', '/api/match/spectate', entryPayload.payload);
+    if (!res.ok || !res.data || res.data.ok !== true) {
+      return handleRoomEntryFailure(res, {
+        fallbackReason: 'SPECTATE_FAILED',
+        fallbackMessage: '観戦参加に失敗しました'
+      });
+    }
+
+    if (typeof cfg.activateSpectatorSessionFromResponse === 'function') {
+      cfg.activateSpectatorSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), entryPayload.roomId);
+    }
+    if (typeof cfg.resetNetworkTelemetry === 'function') {
+      cfg.resetNetworkTelemetry();
+    }
+
+    openStream();
+
+    const state = readState();
+    const roomName = String(res.data.roomName || 'ルーム');
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus('ネット対戦: ルーム「' + roomName + '」を観戦中');
+    }
+
+    return {
+      ok: true,
+      roomId: state.roomId,
+      roomName,
+      viewerRole: 'spectator',
+      spectatorId: state.spectatorId,
+      spectatorName: state.spectatorName || entryPayload.playerName
+    };
+  }
+
   async function syncLatestState(): Promise<any> {
     const state = readState();
     if (!state.roomId) return { ok: false, reason: 'NO_ROOM' };
 
-    const path = '/api/match/state?roomId=' + encodeURIComponent(state.roomId)
-      + '&seatKey=' + encodeURIComponent(state.seatKey)
-      + '&seatToken=' + encodeURIComponent(state.seatToken || '');
+    const path = buildStatePath(state);
     const res = await cfg.requestJson('GET', path);
     if (!res.ok || !res.data || res.data.ok !== true) {
       return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
@@ -362,14 +420,23 @@ function createNetworkSessionLifecycleController(config: any): any {
     const roomId = state.roomId;
     const seatKey = state.seatKey;
     const seatToken = state.seatToken;
+    const spectatorId = state.spectatorId;
+    const spectatorToken = state.spectatorToken;
+    const spectatorSession = isSpectatorState(state);
     let leaveResponse: any = null;
 
     try {
-      leaveResponse = await cfg.requestJson('POST', '/api/match/leave', {
-        roomId: roomId,
-        seatKey: seatKey,
-        seatToken: seatToken
-      });
+      leaveResponse = spectatorSession
+        ? await cfg.requestJson('POST', '/api/match/spectator-leave', {
+          roomId: roomId,
+          spectatorId: spectatorId,
+          spectatorToken: spectatorToken
+        })
+        : await cfg.requestJson('POST', '/api/match/leave', {
+          roomId: roomId,
+          seatKey: seatKey,
+          seatToken: seatToken
+        });
     } catch (e) {
       if (typeof cfg.emitStatus === 'function') {
         cfg.emitStatus('ネット対戦: 部屋の退出に失敗しました');
@@ -404,7 +471,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (typeof cfg.teardownActionBridge === 'function') {
       cfg.teardownActionBridge();
     }
-    if (typeof cfg.clearSeatClaim === 'function') {
+    if (!spectatorSession && typeof cfg.clearSeatClaim === 'function') {
       cfg.clearSeatClaim(roomId);
     }
     if (typeof cfg.emitStatus === 'function') {
@@ -417,6 +484,7 @@ function createNetworkSessionLifecycleController(config: any): any {
   return {
     createRoom: createRoom,
     joinRoom: joinRoom,
+    spectateRoom: spectateRoom,
     listRooms: listRooms,
     syncLatestState: syncLatestState,
     leaveRoom: leaveRoom

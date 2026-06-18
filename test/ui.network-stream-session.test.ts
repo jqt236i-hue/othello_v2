@@ -75,6 +75,18 @@ describe('NetworkStreamSessionController', () => {
     );
   });
 
+  test('builds stream URL with spectator credentials for spectator sessions', () => {
+    stateObj.roomId = 'SPC';
+    stateObj.serverUrl = 'https://example.test';
+    stateObj.viewerRole = 'spectator';
+    stateObj.spectatorId = 'spec_12345678';
+    stateObj.spectatorToken = 'spec-token';
+
+    expect(controller.buildStreamUrl()).toBe(
+      'https://example.test/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spec-token'
+    );
+  });
+
   test('openStream creates EventSource and wires handlers', () => {
     controller.openStream({ reconnect: true });
 

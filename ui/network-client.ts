@@ -315,6 +315,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const state = {
         active: false,
         roomId: '',
+        viewerRole: 'seat',
+        spectatorId: '',
+        spectatorToken: '',
+        spectatorName: '',
         seatKey: 'black',
         seatToken: '',
         roomSeats: { black: false, white: false },
@@ -666,6 +670,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             clearSeatClaim,
             shouldRetryJoinWithoutStoredClaim,
             activateSessionFromResponse,
+            activateSpectatorSessionFromResponse,
             resetNetworkTelemetry,
             openStream,
             getKnownProjectedSnapshotHash,
@@ -1103,6 +1108,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return {
             active: state.active === true,
             roomId: String(state.roomId || ''),
+            viewerRole: isSpectator() ? 'spectator' : 'seat',
+            spectatorId: isSpectator() ? String(state.spectatorId || '') : '',
+            spectatorName: isSpectator() ? String(state.spectatorName || '') : '',
             seatKey: normalizePlayerKey(state.seatKey),
             roomSeats: cloneReadableNetworkStateValue(state.roomSeats || { black: false, white: false }, { black: false, white: false }),
             seatNames: cloneReadableNetworkStateValue(state.seatNames || { black: '', white: '' }, { black: '', white: '' }),
@@ -1928,10 +1936,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         invokeControllerMethod(getNetworkSessionSeatController, 'activateSessionFromResponse', arguments, undefined);
     }
 
+    function activateSpectatorSessionFromResponse(data: any, fallbackRoomId: any) {
+        invokeControllerMethod(getNetworkSessionSeatController, 'activateSpectatorSessionFromResponse', arguments, undefined);
+    }
+
     function resetSessionState() {
         invokeControllerMethod(getNetworkSessionSeatController, 'resetSessionState', arguments, () => {
             state.active = false;
             state.roomId = '';
+            state.viewerRole = 'seat';
+            state.spectatorId = '';
+            state.spectatorToken = '';
+            state.spectatorName = '';
             state.seatKey = 'black';
             state.seatToken = '';
             state.roomSeats = { black: false, white: false };
@@ -2136,6 +2152,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return state.active === true && !!state.roomId;
     }
 
+    function isSpectator() {
+        return isActive() && String(state.viewerRole || '').trim().toLowerCase() === 'spectator';
+    }
+
     function setStatusWriter(writer: any) {
         state.statusWriter = typeof writer === 'function' ? writer : null;
     }
@@ -2169,6 +2189,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'joinRoom',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
+        );
+    }
+
+    function spectateRoom(roomId: any, options: any) {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'spectateRoom',
             arguments,
             () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
         );
@@ -2234,6 +2263,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function publishSnapshot(meta: any) {
+        if (isSpectator()) {
+            emitStatus('観戦中は操作できません', true);
+            return Promise.resolve({ ok: false, reason: 'SPECTATOR_READ_ONLY' });
+        }
         const controller = getNetworkPublishFlowController();
         if (!controller || typeof controller.publishSnapshot !== 'function') {
             emitStatus('ネット対戦: 通信失敗 (PUBLISH_FLOW_UNAVAILABLE)', true);
@@ -2368,6 +2401,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!isActive()) {
             return { ok: false, reason: 'INACTIVE' };
         }
+        if (isSpectator()) {
+            emitStatus('観戦中はチャット送信できません', true);
+            return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
+        }
         if (!state.seatToken) {
             return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
         }
@@ -2422,6 +2459,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!isActive()) {
             return { ok: false, reason: 'INACTIVE' };
         }
+        if (isSpectator()) {
+            emitStatus('観戦中は操作できません', true);
+            return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
+        }
         if (!state.seatToken) {
             return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
         }
@@ -2473,6 +2514,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         updateHandSkin,
         createRoom,
         joinRoom,
+        spectateRoom,
         listRooms,
         leaveRoom,
         syncLatestState,
@@ -2480,6 +2522,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         publishSnapshot,
         requestRematch,
         applySnapshot,
+        isSpectator,
         getSeatKey,
         getRoomId,
         getState,
@@ -2538,10 +2581,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     publishSnapshot: (meta: any) => {
                         if (typeof api.publishSnapshot !== 'function') return undefined;
                         if (typeof api.isActive === 'function' && api.isActive() !== true) return undefined;
+                        if (typeof api.isSpectator === 'function' && api.isSpectator() === true) return undefined;
                         return api.publishSnapshot(meta);
                     },
                     isNetworkPublishActive: () => {
                         if (typeof api.publishSnapshot !== 'function') return false;
+                        if (typeof api.isSpectator === 'function' && api.isSpectator() === true) return false;
                         if (typeof api.isActive === 'function') return api.isActive() === true;
                         return true;
                     },

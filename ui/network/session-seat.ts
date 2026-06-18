@@ -231,6 +231,8 @@ function createNetworkSessionSeatController(config: any): any {
       state.roomStateListener({
         active,
         roomId: state.roomId,
+        viewerRole: String(state.viewerRole || 'seat').trim().toLowerCase() === 'spectator' ? 'spectator' : 'seat',
+        spectatorName: normalizePlayerName(state.spectatorName),
         seatKey: state.seatKey,
         seats: normalizeRoomSeats(state.roomSeats),
         seatNames: normalizeSeatNames(state.seatNames),
@@ -354,6 +356,10 @@ function createNetworkSessionSeatController(config: any): any {
 
     state.active = true;
     state.roomId = String(payload.roomId || fallbackRoomId || '').trim().toUpperCase();
+    state.viewerRole = 'seat';
+    state.spectatorId = '';
+    state.spectatorToken = '';
+    state.spectatorName = '';
     state.seatKey = normalizePlayerKey(payload.seatKey);
     state.seatToken = String(payload.seatToken || '').trim();
     state.stateVersion = Number.isFinite(Number(payload.stateVersion)) ? Number(payload.stateVersion) : null;
@@ -391,11 +397,54 @@ function createNetworkSessionSeatController(config: any): any {
     }
   }
 
+  function activateSpectatorSessionFromResponse(data: any, fallbackRoomId: any): void {
+    const payload = data || {};
+    const state = resolveState();
+
+    if (typeof cfg.prepareSessionActivation === 'function') {
+      cfg.prepareSessionActivation(payload);
+    }
+
+    state.active = true;
+    state.roomId = String(payload.roomId || fallbackRoomId || '').trim().toUpperCase();
+    state.viewerRole = 'spectator';
+    state.spectatorId = String(payload.spectatorId || '').trim();
+    state.spectatorToken = String(payload.spectatorToken || '').trim();
+    state.spectatorName = normalizePlayerName(payload.spectatorName || payload.playerName);
+    state.seatKey = normalizePlayerKey(payload.seatKey || state.seatKey || 'black');
+    state.seatToken = '';
+    state.stateVersion = Number.isFinite(Number(payload.stateVersion)) ? Number(payload.stateVersion) : null;
+    resetResultPresentationState(state);
+    state.chatHistory = [];
+    state.roomSeats = normalizeRoomSeats(payload.seats);
+    state.seatNames = normalizeSeatNames(payload.seatNames);
+    state.seatHandSkins = normalizeSeatHandSkins(payload.seatHandSkins);
+    state.roomDeck = normalizeRoomDeck(payload.roomDeck);
+    state.roomBoardConfig = normalizeRoomBoardConfig(payload.roomBoardConfig, {
+      snapshot: payload.snapshot,
+      payload
+    });
+    state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
+
+    if (typeof cfg.updateTurnTimerFromPayload === 'function') {
+      cfg.updateTurnTimerFromPayload(payload);
+    }
+    emitRoomStateChanged();
+
+    if (payload.snapshot && typeof cfg.applySnapshot === 'function') {
+      cfg.applySnapshot(payload.snapshot, { force: true });
+    }
+  }
+
   function resetSessionState(options?: any): void {
     const state = resolveState();
     const opts = (options && typeof options === 'object') ? options : {};
     state.active = false;
     state.roomId = '';
+    state.viewerRole = 'seat';
+    state.spectatorId = '';
+    state.spectatorToken = '';
+    state.spectatorName = '';
     state.seatKey = 'black';
     state.seatToken = '';
     state.roomSeats = { black: false, white: false };
@@ -432,6 +481,7 @@ function createNetworkSessionSeatController(config: any): any {
     writeSeatClaim,
     clearSeatClaim,
     activateSessionFromResponse,
+    activateSpectatorSessionFromResponse,
     resetSessionState
   };
 }

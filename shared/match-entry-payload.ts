@@ -232,6 +232,43 @@ function buildJoinRoomPayload(
   };
 }
 
+function buildSpectateRoomPayload(
+  roomId: unknown,
+  options?: MatchEntryPayloadOptions,
+  helpers?: MatchEntryPayloadHelpers
+): MatchEntryPayloadResult {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const h = resolveHelpers(helpers);
+  const spectatorName = normalizePlayerName(opts.playerName, h);
+  if (!spectatorName) {
+    return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
+  }
+
+  const normalizedRoomId = normalizeRoomId(roomId, h);
+  if (!normalizedRoomId) {
+    return { ok: false, reason: 'ROOM_ID_REQUIRED', playerName: spectatorName };
+  }
+  if (!testRoomIdPattern(getRoomIdPattern(h), normalizedRoomId)) {
+    return { ok: false, reason: 'ROOM_ID_INVALID', roomId: normalizedRoomId, playerName: spectatorName };
+  }
+
+  const payload: Record<string, unknown> = {
+    roomId: normalizedRoomId,
+    spectatorName
+  };
+  const roomPassword = normalizeRoomPassword(opts.roomPassword);
+  if (roomPassword) {
+    payload.roomPassword = roomPassword;
+  }
+
+  return {
+    ok: true,
+    payload,
+    roomId: normalizedRoomId,
+    playerName: spectatorName
+  };
+}
+
 function buildJoinRetryPayload(entry: MatchEntryPayloadResult | Record<string, unknown>): Record<string, unknown> {
   const payload = ((entry as MatchEntryPayloadResult).payload && typeof (entry as MatchEntryPayloadResult).payload === 'object')
     ? (entry as MatchEntryPayloadResult).payload as Record<string, unknown>
@@ -259,6 +296,7 @@ const MatchEntryPayload = {
   resolveDeckCode,
   buildCreateRoomPayload,
   buildJoinRoomPayload,
+  buildSpectateRoomPayload,
   buildJoinRetryPayload
 };
 

@@ -44,6 +44,14 @@ function createNetworkStreamSessionController(config?: any): any {
     const resumeQuery = resumeEventId
       ? '&lastEventId=' + encodeURIComponent(resumeEventId)
       : '';
+    if (String(state.viewerRole || '').trim().toLowerCase() === 'spectator') {
+      return withTrailingSlashRemoved(state.serverUrl)
+        + '/api/match/stream?roomId=' + encodeURIComponent(state.roomId)
+        + '&viewerRole=spectator'
+        + '&spectatorId=' + encodeURIComponent(state.spectatorId || '')
+        + '&spectatorToken=' + encodeURIComponent(state.spectatorToken || '')
+        + resumeQuery;
+    }
     return withTrailingSlashRemoved(state.serverUrl)
       + '/api/match/stream?roomId=' + encodeURIComponent(state.roomId)
       + '&seatKey=' + encodeURIComponent(state.seatKey)

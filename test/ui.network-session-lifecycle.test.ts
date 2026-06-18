@@ -38,6 +38,12 @@ describe('NetworkSessionLifecycleController', () => {
         stateObj.seatKey = data.seatKey;
         stateObj.seatToken = data.seatToken;
       }),
+      activateSpectatorSessionFromResponse: jest.fn((data) => {
+        stateObj.roomId = data.roomId;
+        stateObj.viewerRole = data.viewerRole;
+        stateObj.spectatorId = data.spectatorId;
+        stateObj.spectatorToken = data.spectatorToken;
+      }),
       resetNetworkTelemetry: jest.fn(),
       openStream: jest.fn(),
       closeStream: jest.fn(),
@@ -401,6 +407,56 @@ describe('NetworkSessionLifecycleController', () => {
     });
   });
 
+  describe('spectateRoom', () => {
+    test('観戦者セッションを有効化してstreamを開く', async () => {
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        roomId: 'SPC',
+        viewerRole: 'spectator',
+        spectatorId: 'spec_12345678',
+        spectatorToken: 'spectator-token',
+        spectatorName: '観戦',
+        stateVersion: 2,
+        snapshot: {
+          _meta: {
+            authority: 'server',
+            viewerRole: 'spectator'
+          }
+        }
+      }));
+
+      const result = await controller.spectateRoom('spc', { playerName: ' 観戦 ' });
+
+      expect(result).toEqual(expect.objectContaining({
+        ok: true,
+        roomId: 'SPC',
+        viewerRole: 'spectator',
+        spectatorId: 'spec_12345678',
+        spectatorName: '観戦'
+      }));
+      expect(mockConfig.requestJson).toHaveBeenCalledWith(
+        'POST',
+        '/api/match/spectate',
+        {
+          roomId: 'SPC',
+          spectatorName: '観戦'
+        }
+      );
+      expect(mockConfig.activateSpectatorSessionFromResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 'SPC',
+          viewerRole: 'spectator',
+          spectatorId: 'spec_12345678',
+          spectatorToken: 'spectator-token',
+          playerName: '観戦'
+        }),
+        'SPC'
+      );
+      expect(mockConfig.resetNetworkTelemetry).toHaveBeenCalled();
+      expect(mockConfig.openStream).toHaveBeenCalled();
+    });
+  });
+
   describe('syncLatestState - 基本機能', () => {
     test('状態を同期する', async () => {
       stateObj.roomId = 'ABC';
@@ -418,6 +474,26 @@ describe('NetworkSessionLifecycleController', () => {
       expect(result.appliedSnapshot).toBe(true);
       expect(mockConfig.applyPayloadSessionState).toHaveBeenCalled();
       expect(mockConfig.applySnapshotThroughCoordinator).toHaveBeenCalled();
+    });
+
+    test('観戦者セッションではspectator credentialsで状態を同期する', async () => {
+      stateObj.roomId = 'SPC';
+      stateObj.viewerRole = 'spectator';
+      stateObj.spectatorId = 'spec_12345678';
+      stateObj.spectatorToken = 'spectator-token';
+
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        snapshot: { stateVersion: 10 }
+      }));
+
+      const result = await controller.syncLatestState();
+
+      expect(result.ok).toBe(true);
+      expect(mockConfig.requestJson).toHaveBeenCalledWith(
+        'GET',
+        '/api/match/state?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token'
+      );
     });
 
     test('スナップショットがスキップされる場合', async () => {
@@ -498,6 +574,29 @@ describe('NetworkSessionLifecycleController', () => {
       expect(mockConfig.resetSessionState).toHaveBeenCalled();
       expect(mockConfig.closeStream).toHaveBeenCalled();
       expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
+    });
+
+    test('観戦者はspectator-leaveで退出する', async () => {
+      stateObj.roomId = 'SPC';
+      stateObj.viewerRole = 'spectator';
+      stateObj.spectatorId = 'spec_12345678';
+      stateObj.spectatorToken = 'spectator-token';
+
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, { ok: true }));
+
+      const result = await controller.leaveRoom();
+
+      expect(result.ok).toBe(true);
+      expect(mockConfig.requestJson).toHaveBeenCalledWith(
+        'POST',
+        '/api/match/spectator-leave',
+        {
+          roomId: 'SPC',
+          spectatorId: 'spec_12345678',
+          spectatorToken: 'spectator-token'
+        }
+      );
+      expect(mockConfig.clearSeatClaim).not.toHaveBeenCalled();
     });
 
     test('部屋に参加していない場合は即座に成功', async () => {

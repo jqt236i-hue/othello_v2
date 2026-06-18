@@ -183,6 +183,7 @@ function createNetworkSnapshotController(config: any): any {
         const inspection = snapshotCanonicalModule.inspectAuthoritativeSnapshot(snapshot, {
             force: opts && opts.force === true,
             localSeatKey: state && state.seatKey,
+            viewerRole: state && state.viewerRole,
             skipVersionChecks: true
         });
         if (inspection && inspection.ok === true) return false;

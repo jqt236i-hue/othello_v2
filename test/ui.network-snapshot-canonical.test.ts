@@ -44,6 +44,7 @@ describe('NetworkSnapshotCanonicalModule', () => {
         authority: 'server',
         version: 10,
         projectedForSeat: 'black',
+        viewerRole: null,
         turnStartReconciled: true,
         projectedSnapshotHash: 'abc123'
       });
@@ -154,6 +155,31 @@ describe('NetworkSnapshotCanonicalModule', () => {
 
       expect(result.ok).toBe(false);
       expect(result.rejectionType).toBe('own_hand_hidden');
+    });
+
+    test('観戦者snapshotではseat projection不一致とhidden handを拒否しない', () => {
+      const snapshot = {
+        _meta: {
+          authority: 'server',
+          version: 10,
+          projectedForSeat: 'white',
+          viewerRole: 'spectator'
+        },
+        cardState: {
+          hands: {
+            black: ['__hidden_hand__:black:0'],
+            white: ['__hidden_hand__:white:0']
+          }
+        }
+      };
+
+      const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
+        localSeatKey: 'black'
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.rejectionType).toBe(null);
+      expect(result.meta.viewerRole).toBe('spectator');
     });
 
     test('バージョンチェックをスキップ', () => {

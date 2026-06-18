@@ -24,6 +24,13 @@ function normalizeSeatKey(value: any): string | null {
   return null;
 }
 
+function normalizeViewerRole(value: any): string | null {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'spectator') return 'spectator';
+  if (normalized === 'seat') return 'seat';
+  return null;
+}
+
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 
 function isHiddenOwnHandToken(value: any, ownerKey: string): boolean {
@@ -47,6 +54,7 @@ interface SnapshotMeta {
   authority: string;
   version: number | null;
   projectedForSeat: string | null;
+  viewerRole: string | null;
   turnStartReconciled: boolean;
   projectedSnapshotHash: string | null;
 }
@@ -63,6 +71,7 @@ function getSnapshotMeta(snapshot: any): SnapshotMeta | null {
       ? null
       : (Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null),
     projectedForSeat: normalizeSeatKey(meta.projectedForSeat),
+    viewerRole: normalizeViewerRole(meta.viewerRole),
     turnStartReconciled: meta.turnStartReconciled !== false,
     projectedSnapshotHash: (typeof meta.projectedSnapshotHash === 'string' && meta.projectedSnapshotHash.trim())
       ? meta.projectedSnapshotHash.trim()
@@ -107,7 +116,9 @@ function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
   }
 
   const localSeatKey = normalizeSeatKey(opts.localSeatKey);
-  if (meta.projectedForSeat && localSeatKey && meta.projectedForSeat !== localSeatKey) {
+  const viewerRole = normalizeViewerRole(opts.viewerRole) || meta.viewerRole;
+  const spectatorView = viewerRole === 'spectator';
+  if (!spectatorView && meta.projectedForSeat && localSeatKey && meta.projectedForSeat !== localSeatKey) {
     return {
       ok: false,
       rejectionType: 'projection_mismatch',
@@ -121,7 +132,7 @@ function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
     };
   }
 
-  if (localSeatKey && hasHiddenOwnHand(snapshot, localSeatKey)) {
+  if (!spectatorView && localSeatKey && hasHiddenOwnHand(snapshot, localSeatKey)) {
     return {
       ok: false,
       rejectionType: 'own_hand_hidden',

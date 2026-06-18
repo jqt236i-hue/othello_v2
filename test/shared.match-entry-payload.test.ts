@@ -29,6 +29,7 @@ describe('MatchEntryPayload', () => {
     expect(result.invalidDeckCode).toBe(true);
     expect(result.payload).toEqual({
       playerName: 'テスト',
+      roomName: '無名部屋',
       networkDebugEnabled: true,
       roomBoardConfig: boardConfig,
       selectedHandSkinId: 'blue'
@@ -37,21 +38,31 @@ describe('MatchEntryPayload', () => {
     expect(result.payload.deckCode).toBeUndefined();
   });
 
-  test('create payload rejects empty player name before reading deck or skin state', () => {
-    const sanitizeDeckCode = jest.fn();
-    const readSelectedHandSkinId = jest.fn();
+  test('create payload generates fallback player name and keeps deck and skin state', () => {
+    const sanitizeDeckCode = jest.fn(() => ({ value: 'D1C1:A', invalid: false }));
+    const readSelectedHandSkinId = jest.fn(() => 'default');
     const result = MatchEntryPayload.buildCreateRoomPayload(
       { playerName: '', deckCode: 'D1C1:A' },
       {
-        normalizePlayerName: () => '',
+        normalizePlayerName: (value: any) => String(value || '').trim(),
+        createRandomPlayerName: () => 'ゲスト',
         sanitizeDeckCode,
         readSelectedHandSkinId
       }
     );
 
-    expect(result).toEqual({ ok: false, reason: 'PLAYER_NAME_REQUIRED' });
-    expect(sanitizeDeckCode).not.toHaveBeenCalled();
-    expect(readSelectedHandSkinId).not.toHaveBeenCalled();
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      playerName: 'ゲスト'
+    }));
+    expect(result.payload).toEqual(expect.objectContaining({
+      playerName: 'ゲスト',
+      roomName: '無名部屋',
+      selectedHandSkinId: 'default',
+      deckCode: 'D1C1:A'
+    }));
+    expect(sanitizeDeckCode).toHaveBeenCalledWith('D1C1:A');
+    expect(readSelectedHandSkinId).toHaveBeenCalled();
   });
 
   test('join payload validates room, adds default hand skin, and preserves stored seat claim', () => {
@@ -107,6 +118,31 @@ describe('MatchEntryPayload', () => {
       reason: 'ROOM_ID_INVALID',
       roomId: 'AB',
       playerName: 'テスト'
+    });
+  });
+
+  test('spectate payload validates room and builds spectator entry payload', () => {
+    const result = MatchEntryPayload.buildSpectateRoomPayload(
+      'abc',
+      {
+        playerName: ' 観戦者 ',
+        roomPassword: ' pass '
+      },
+      {
+        normalizePlayerName: (value: any) => String(value || '').trim(),
+        normalizeRoomId: (value: any) => String(value || '').trim().toUpperCase()
+      }
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'ABC',
+      playerName: '観戦者'
+    }));
+    expect(result.payload).toEqual({
+      roomId: 'ABC',
+      spectatorName: '観戦者',
+      roomPassword: 'pass'
     });
   });
 });
