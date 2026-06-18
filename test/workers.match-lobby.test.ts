@@ -190,7 +190,7 @@ function runWorkerLobbyExpiryScenario() {
 }
 
 describe('worker match lobby', () => {
-  test('作成したパスワード付きルームを一覧に出し、満室になったら消す', () => {
+  test('作成したパスワード付きルームを一覧に出し、満席でも観戦可能なら残す', () => {
     const result = runWorkerLobbyScenario();
 
     expect(result.createStatus).toBe(200);
@@ -205,6 +205,10 @@ describe('worker match lobby', () => {
         hostName: result.createPayload.playerName,
         seatCount: 1,
         maxSeats: 2,
+        spectatorCount: 0,
+        maxSpectators: 4,
+        canJoin: true,
+        canSpectate: true,
         hasPassword: true
       })
     ]);
@@ -215,7 +219,20 @@ describe('worker match lobby', () => {
     expect(result.joinStatus).toBe(200);
     expect(result.joinPayload.ok).toBe(true);
     expect(result.listAfterJoinStatus).toBe(200);
-    expect(result.listAfterJoinPayload.rooms).toEqual([]);
+    expect(result.listAfterJoinPayload.rooms).toEqual([
+      expect.objectContaining({
+        roomId: result.createPayload.roomId,
+        roomName: '無名部屋',
+        hostName: result.createPayload.playerName,
+        seatCount: 2,
+        maxSeats: 2,
+        spectatorCount: 0,
+        maxSpectators: 4,
+        canJoin: false,
+        canSpectate: true,
+        hasPassword: true
+      })
+    ]);
   });
 
   test('10分以上参加されない部屋は一覧から消え参加できない', () => {

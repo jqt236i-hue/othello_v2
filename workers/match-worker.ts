@@ -397,6 +397,14 @@ function makeSeatToken(): string {
     return MatchAuthority.makeSeatToken(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
 }
 
+function makeSpectatorToken(): string {
+    return makeSeatToken();
+}
+
+function makeSpectatorId(): string {
+    return `spec_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
+}
+
 function getRuntimeGlobalScopes(): Record<string, unknown>[] {
     const scopes: Record<string, unknown>[] = [];
     if (typeof globalThis !== 'undefined' && globalThis) {
@@ -1469,6 +1477,10 @@ function toPublicSnapshot(room: MatchWorkerRoomState | null | undefined, viewerS
     return MatchAuthority.buildPublicSnapshot(room, viewer) as MatchWorkerPublicSnapshot;
 }
 
+function toPublicSnapshotForViewer(room: MatchWorkerRoomState | null | undefined, viewerValue: unknown): MatchWorkerPublicSnapshot {
+    return MatchAuthority.buildPublicSnapshotForViewer(room, viewerValue) as MatchWorkerPublicSnapshot;
+}
+
 function buildPublicSeatState(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSeatState {
     return MatchAuthority.buildPublicSeatMetadata(room) as MatchWorkerPublicSeatState;
 }
@@ -2408,6 +2420,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             seatNames: { black: '', white: '' },
             seatHandSkins: { black: '', white: '' },
             seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
+            spectators: {},
+            maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
             turnTimer: {
                 limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
                 active: false,
@@ -2697,6 +2711,98 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return jsonResponse(200, responsePayload);
     }
 
+    async handleSpectate(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        const room = this.room;
+        if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireWaitingRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (!MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
+            return jsonResponse(403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
+        }
+
+        const result = MatchAuthority.addSpectatorToRoom(room, {
+            spectatorName: body.spectatorName || body.playerName,
+            makeSpectatorToken,
+            makeSpectatorId,
+            now: Date.now()
+        });
+        if (!result.ok) {
+            return jsonResponse(result.reason === 'SPECTATOR_FULL' ? 409 : 500, {
+                ok: false,
+                reason: result.reason
+            });
+        }
+
+        await this.saveRoom();
+        await this.broadcastPresence({
+            type: 'spectator_join',
+            spectatorId: result.spectatorId,
+            spectatorName: result.spectatorName,
+            rejoined: false
+        });
+
+        const viewer = { role: 'spectator', spectatorId: result.spectatorId };
+        const serverTime = Date.now();
+        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
+            ok: true,
+            viewerRole: 'spectator',
+            spectatorId: result.spectatorId,
+            spectatorToken: result.spectatorToken,
+            spectatorName: result.spectatorName,
+            spectatorCount: result.spectatorCount,
+            maxSpectators: result.maxSpectators,
+            stateVersion: room.stateVersion,
+            snapshot: toPublicSnapshotForViewer(room, viewer),
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        }), room);
+        return jsonResponse(200, responsePayload);
+    }
+
+    async handleSpectatorLeave(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        const room = this.room;
+        if (!room) {
+            return jsonResponse(200, { ok: true });
+        }
+
+        const result = MatchAuthority.removeSpectatorFromRoom(room, {
+            spectatorId: body.spectatorId,
+            spectatorToken: body.spectatorToken,
+            now: Date.now()
+        });
+        if (!result.ok) {
+            return jsonResponse(403, {
+                ok: false,
+                reason: result.reason
+            });
+        }
+
+        await this.broadcastPresence({
+            type: 'spectator_leave',
+            spectatorId: result.spectatorId,
+            spectatorName: result.spectatorName,
+            rejoined: false
+        });
+        await this.saveRoom();
+
+        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
+            ok: true,
+            viewerRole: 'spectator',
+            spectatorCount: result.spectatorCount,
+            maxSpectators: result.maxSpectators,
+            serverTime: Date.now()
+        }), room);
+        return jsonResponse(200, responsePayload);
+    }
+
     async handleHandSkin(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
@@ -2863,6 +2969,18 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
             return this.handleLeave(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/spectate') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleSpectate(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/spectator-leave') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleSpectatorLeave(parsed || {});
         }
 
         if (request.method === 'POST' && pathname === '/api/match/publish') {

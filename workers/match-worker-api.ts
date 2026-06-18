@@ -195,7 +195,15 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             return forwardGetToLobby(env, pathname, request.url);
         }
 
-        if (request.method === 'POST' && (pathname === '/api/match/join' || pathname === '/api/match/leave' || pathname === '/api/match/publish' || pathname === '/api/match/chat' || pathname === '/api/match/hand-skin')) {
+        if (request.method === 'POST' && (
+            pathname === '/api/match/join'
+            || pathname === '/api/match/leave'
+            || pathname === '/api/match/spectate'
+            || pathname === '/api/match/spectator-leave'
+            || pathname === '/api/match/publish'
+            || pathname === '/api/match/chat'
+            || pathname === '/api/match/hand-skin'
+        )) {
             const parsed = await parsePostBody(request);
             if (!parsed.ok) return parsed.response;
 

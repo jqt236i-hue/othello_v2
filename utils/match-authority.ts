@@ -33,6 +33,7 @@ import type {
     MatchAuthoritySnapshotPayloadFromRoomOptions,
     MatchAuthoritySpectatorJoinOptions,
     MatchAuthoritySpectatorJoinResult,
+    MatchAuthoritySpectatorLeaveResult,
     MatchAuthoritySpectators,
     MatchAuthoritySpectatorState,
     MatchAuthorityViewer
@@ -1356,6 +1357,39 @@ function addSpectatorToRoom(
     };
 }
 
+function removeSpectatorFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: Record<string, unknown> | null
+): MatchAuthoritySpectatorLeaveResult {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (!room) {
+        return { ok: true, spectatorId: '', spectatorName: '', spectatorCount: 0, maxSpectators: MAX_SPECTATORS };
+    }
+
+    const spectatorId = normalizeSpectatorId(opts.spectatorId);
+    const spectatorToken = String(opts.spectatorToken || '').trim();
+    const spectators = ensureSpectators(room);
+    const entry = spectatorId ? spectators[spectatorId] : null;
+    if (!entry || !spectatorToken || entry.token !== spectatorToken) {
+        return {
+            ok: false,
+            reason: spectatorToken ? 'SPECTATOR_TOKEN_MISMATCH' : 'SPECTATOR_TOKEN_REQUIRED'
+        };
+    }
+
+    const spectatorName = normalizeSpectatorName(entry.name) || '観戦者';
+    delete spectators[spectatorId];
+    room.updatedAt = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
+    return {
+        ok: true,
+        spectatorId,
+        spectatorName,
+        spectatorCount: getActiveSpectatorEntries(room).length,
+        maxSpectators: MAX_SPECTATORS
+    };
+}
+
 function resolveAuthenticatedViewer(
     roomValue: MatchAuthorityRoomState | null | undefined,
     options?: Record<string, unknown> | null
@@ -2178,6 +2212,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     makeHiddenHandToken,
     parseHiddenHandToken,
     addSpectatorToRoom,
+    removeSpectatorFromRoom,
     resolveAuthenticatedViewer,
     resolveAuthenticatedSeatKey,
     classifySeatTokenRejectionReason,

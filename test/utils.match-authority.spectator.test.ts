@@ -82,4 +82,34 @@ describe('match authority spectator helpers', () => {
     expect(shot.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
     expect(shot.cardState.hands.white).toEqual(['__hidden_hand__:white:0']);
   });
+
+  test('removes a spectator only with the matching token', () => {
+    const room = createRoom({
+      spectators: {
+        spec_test0001: { token: 'spec-token', name: '観戦1', joinedAt: 1000, lastSeenAt: 1000 }
+      }
+    });
+
+    expect(MatchAuthority.removeSpectatorFromRoom(room, {
+      spectatorId: 'spec_test0001',
+      spectatorToken: 'wrong-token',
+      now: 1500
+    })).toEqual({ ok: false, reason: 'SPECTATOR_TOKEN_MISMATCH' });
+
+    const result = MatchAuthority.removeSpectatorFromRoom(room, {
+      spectatorId: 'spec_test0001',
+      spectatorToken: 'spec-token',
+      now: 1600
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      spectatorId: 'spec_test0001',
+      spectatorName: '観戦1',
+      spectatorCount: 0,
+      maxSpectators: 4
+    });
+    expect(room.spectators).toEqual({});
+    expect(room.updatedAt).toBe(1600);
+  });
 });

@@ -20,6 +20,7 @@ const REQUIRED_MATCH_AUTHORITY_PUBLIC_FUNCTIONS: Array<keyof MatchAuthorityPubli
     'resolveSeatForJoin',
     'applySeatLeaveToRoom',
     'addSpectatorToRoom',
+    'removeSpectatorFromRoom',
     'resolveAuthenticatedViewer',
     'resolveAuthenticatedSeatKey',
     'classifySeatTokenRejectionReason',

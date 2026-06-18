@@ -60,6 +60,10 @@ export type MatchAuthoritySpectatorJoinResult =
     | { ok: true; spectatorId: string; spectatorToken: string; spectatorName: string; spectatorCount: number; maxSpectators: number }
     | { ok: false; reason: 'SPECTATOR_FULL' | 'SPECTATOR_ID_COLLISION' };
 
+export type MatchAuthoritySpectatorLeaveResult =
+    | { ok: true; spectatorId: string; spectatorName: string; spectatorCount: number; maxSpectators: number }
+    | { ok: false; reason: 'SPECTATOR_TOKEN_REQUIRED' | 'SPECTATOR_TOKEN_MISMATCH' };
+
 export interface MatchAuthorityAcceptedOperationEntry {
     operationId: string;
     stateVersion: number | null;
@@ -326,6 +330,7 @@ export interface MatchAuthorityPublicApi {
     resolveSeatForJoin(roomValue: MatchAuthorityRoomState | null | undefined, requestedSeatKey: unknown, providedToken: unknown): MatchAuthoritySeatKey | null;
     applySeatLeaveToRoom(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, options?: MatchAuthoritySeatLeaveOptions | null): MatchAuthoritySeatLeaveResult | null;
     addSpectatorToRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthoritySpectatorJoinOptions | null): MatchAuthoritySpectatorJoinResult;
+    removeSpectatorFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthoritySpectatorLeaveResult;
     resolveAuthenticatedViewer(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthorityViewer | null;
     resolveAuthenticatedSeatKey(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null;
     classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthoritySeatTokenRejectionReason;

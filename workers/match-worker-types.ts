@@ -323,6 +323,8 @@ export interface MatchRoomDurableObjectApi {
     handleInternalCreate(urlObj: URL, body: Record<string, unknown>): Promise<Response>;
     handleJoin(body: Record<string, unknown>): Promise<Response>;
     handleLeave(body: Record<string, unknown>): Promise<Response>;
+    handleSpectate(body: Record<string, unknown>): Promise<Response>;
+    handleSpectatorLeave(body: Record<string, unknown>): Promise<Response>;
     handleHandSkin(body: Record<string, unknown>): Promise<Response>;
     handlePublish(body: Record<string, unknown>): Promise<Response>;
     handleState(urlObj: URL): Promise<Response>;
