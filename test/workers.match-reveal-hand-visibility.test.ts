@@ -93,11 +93,11 @@ describe('match worker reveal-hand visibility projection', () => {
     expect(cardState._revealedHandCopyIdsByViewer).toBeUndefined();
   });
 
-  test('keeps both hands hidden for spectators even when a reveal effect is active', () => {
+  test('reveals both hands to spectators even when a reveal effect is active', () => {
     const cardState = getProjectedCardStateForViewer('spectator');
 
-    expect(cardState.hands.black.every((cardId) => String(cardId).startsWith('__hidden_hand__:black:'))).toBe(true);
-    expect(cardState.hands.white.every((cardId) => String(cardId).startsWith('__hidden_hand__:white:'))).toBe(true);
+    expect(cardState.hands.black).toEqual(['reveal_hand_01']);
+    expect(cardState.hands.white).toEqual(['gold_stone', 'silver_stone']);
     expect(cardState._nextCardCopySeq).toBeUndefined();
     expect(cardState._handCopyIdsByPlayer).toBeUndefined();
     expect(cardState._deckCopyIdsByPlayer).toBeUndefined();

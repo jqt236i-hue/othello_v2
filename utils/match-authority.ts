@@ -1657,6 +1657,7 @@ function projectSnapshotForViewer(
     if (!cardState) return shot;
 
     const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const spectatorView = String(meta.viewerRole || '').trim() === 'spectator';
     sanitizeOwnerOnlyTrapState(cardState, viewer);
     const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
     const sourceHands: Record<PlayerKey, unknown[]> = { black: [], white: [] };
@@ -1703,7 +1704,7 @@ function projectSnapshotForViewer(
         }
         observedHandSlotsByPlayer[ownerKey] = Array.from(observedSlots).sort((a, b) => a - b);
         let projectedOwnerHand: unknown[];
-        if (canViewerInspectOwnerHand(shot, viewer, ownerKey) || hasActiveObserverWillReveal(shot, viewer, ownerKey)) {
+        if (spectatorView || canViewerInspectOwnerHand(shot, viewer, ownerKey) || hasActiveObserverWillReveal(shot, viewer, ownerKey)) {
             projectedOwnerHand = ownerHand.slice();
         } else {
             projectedOwnerHand = ownerHand.map((cardId: unknown, handIndex: number) => {
@@ -1734,7 +1735,7 @@ function projectSnapshotForViewer(
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
     }
-    const canViewerInspectSelectedOwnerHand = canViewerInspectOwnerHand(shot, viewer, selectedOwnerKey);
+    const canViewerInspectSelectedOwnerHand = spectatorView || canViewerInspectOwnerHand(shot, viewer, selectedOwnerKey);
     if (canViewerInspectSelectedOwnerHand && isHiddenHandTokenLike(cardState.selectedCardId)) {
         cardState.selectedCardId = null;
         cardState.selectedCardOwnerKey = null;
@@ -1751,7 +1752,7 @@ function projectSnapshotForViewer(
             if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
             const opponentKey = getOpponentKey(ownerKey);
             const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
-            const revealToViewer = canViewerInspectOwnerHand(shot, viewer, ownerKey);
+            const revealToViewer = spectatorView || canViewerInspectOwnerHand(shot, viewer, ownerKey);
             pending.offers = pending.offers.map((offer: unknown, idx: number) => {
                 const offerRecord = asRecord(offer);
                 const parsedToken = offerRecord.cardId ? parseHiddenHandToken(offerRecord.cardId) : null;

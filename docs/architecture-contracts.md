@@ -424,7 +424,8 @@ Network spectators are authenticated read-only viewers, not player seats.
 
 - A spectator viewer may receive `/api/match/state` and `/api/match/stream`.
 - A spectator viewer must not be accepted by publish, hand-skin, or seat-leave authority paths.
-- Spectator snapshot projection is authoritative for spectators, but it is not entitled to either seat's hidden information.
+- Spectator snapshot projection is authoritative for spectators and reveals both seats' current hands as real card ids.
+- Spectator projection remains read-only and must not reveal non-hand owner-only hidden state such as hidden trap markers.
 - Buffered SSE replay must store or derive a spectator-safe payload separately from black/white payloads.
 
 ## 9. DI and bootstrap contracts

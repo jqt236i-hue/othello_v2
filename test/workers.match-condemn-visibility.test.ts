@@ -95,14 +95,14 @@ describe('match worker condemn visibility projection', () => {
     expect(offers[1].cardId).toBe('__hidden_hand__:white:1');
   });
 
-  test('keeps condemn target offers and both hands hidden for spectators', () => {
+  test('reveals condemn target offers and both hands for spectators', () => {
     const projected = getProjectedStateForViewer('spectator');
 
     expect(projected.meta).toEqual(expect.objectContaining({ viewerRole: 'spectator' }));
     expect(projected.offers).toHaveLength(2);
-    expect(projected.offers[0].cardId).toBe('__hidden_hand__:white:0');
-    expect(projected.offers[1].cardId).toBe('__hidden_hand__:white:1');
-    expect(projected.hands.black.every((cardId) => String(cardId).startsWith('__hidden_hand__:black:'))).toBe(true);
-    expect(projected.hands.white.every((cardId) => String(cardId).startsWith('__hidden_hand__:white:'))).toBe(true);
+    expect(projected.offers[0].cardId).toBe('gold_stone');
+    expect(projected.offers[1].cardId).toBe('silver_stone');
+    expect(projected.hands.black).toEqual(['condemn_will']);
+    expect(projected.hands.white).toEqual(['gold_stone', 'silver_stone']);
   });
 });

@@ -71,7 +71,7 @@ describe('match authority spectator helpers', () => {
     expect(room.spectators.spec_test0001.lastSeenAt).toBe(1500);
   });
 
-  test('spectator projection hides both hands', () => {
+  test('spectator projection reveals both hands', () => {
     const room = createRoom();
     const shot = MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: 'spec_test0001' });
     expect(shot._meta).toEqual(expect.objectContaining({
@@ -79,8 +79,8 @@ describe('match authority spectator helpers', () => {
       projectedForSeat: null,
       viewerRole: 'spectator'
     }));
-    expect(shot.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
-    expect(shot.cardState.hands.white).toEqual(['__hidden_hand__:white:0']);
+    expect(shot.cardState.hands.black).toEqual(['meteor_will']);
+    expect(shot.cardState.hands.white).toEqual(['guard_will']);
   });
 
   test('removes a spectator only with the matching token', () => {
