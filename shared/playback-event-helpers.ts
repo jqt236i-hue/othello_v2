@@ -1,14 +1,18 @@
 (function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let OwnerHelpers = null;
+        let PlaybackEventContract = null;
         try {
             OwnerHelpers = require('../utils/owner-helpers');
         } catch (e) { /* ignore */ }
-        module.exports = factory(OwnerHelpers);
+        try {
+            PlaybackEventContract = require('./playback-event-contract');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(OwnerHelpers, PlaybackEventContract);
     } else {
-        root.PlaybackEventHelpers = factory(root.OwnerHelpers || null);
+        root.PlaybackEventHelpers = factory(root.OwnerHelpers || null, root.PlaybackEventContract || null);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (OwnerHelpers: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (OwnerHelpers: unknown, PlaybackEventContract: unknown) {
     'use strict';
 
     interface PlaceEvent {
@@ -587,6 +591,23 @@
         };
     }
 
+    function appendNetworkReplayContractWarnings(diagnostics: AssemblyDiagnostics, playbackEvents: unknown[]): AssemblyDiagnostics {
+        if (!diagnostics || !Array.isArray(diagnostics.warnings)) return diagnostics;
+        try {
+            const validator = PlaybackEventContract && typeof (PlaybackEventContract as { validatePlaybackEventsForNetworkReplay?: unknown }).validatePlaybackEventsForNetworkReplay === 'function'
+                ? (PlaybackEventContract as { validatePlaybackEventsForNetworkReplay: (events: unknown[]) => unknown[] }).validatePlaybackEventsForNetworkReplay
+                : null;
+            if (!validator) return diagnostics;
+            const errors = validator(playbackEvents);
+            if (Array.isArray(errors) && errors.length > 0) {
+                diagnostics.warnings.push(`network_replay_contract:${JSON.stringify(errors)}`);
+            }
+        } catch (e) {
+            diagnostics.warnings.push('network_replay_contract:validator_failed');
+        }
+        return diagnostics;
+    }
+
     function resolvePlaybackAdapter(adapterValue: unknown): PlaybackAdapter | null {
         return (adapterValue && typeof adapterValue === 'object') ? adapterValue as PlaybackAdapter : null;
     }
@@ -720,7 +741,10 @@
             }
         }
 
-        const diagnostics = createAssemblyDiagnostics(rawEvents, playbackEvents);
+        const diagnostics = appendNetworkReplayContractWarnings(
+            createAssemblyDiagnostics(rawEvents, playbackEvents),
+            playbackEvents
+        );
         return {
             playbackEvents: cloneJsonSafe(playbackEvents),
             diagnostics: cloneJsonSafe(diagnostics)
