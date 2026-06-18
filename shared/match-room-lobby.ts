@@ -11,6 +11,10 @@ type RoomListEntry = {
   hostName: string;
   seatCount: number;
   maxSeats: number;
+  spectatorCount: number;
+  maxSpectators: number;
+  canJoin: boolean;
+  canSpectate: boolean;
   hasPassword: boolean;
   boardLabel: string;
   stateVersion: number;
@@ -93,6 +97,21 @@ function getActiveSeatCount(roomValue: unknown): number {
   return toFiniteInteger(room.seatCount, 0);
 }
 
+function getActiveSpectatorCount(roomValue: unknown): number {
+  const room = asRecord(roomValue);
+  const spectators = asRecord(room.spectators);
+  const activeCount = Object.keys(spectators)
+    .filter((id) => !!String(asRecord(spectators[id]).token || '').trim())
+    .length;
+  if (activeCount > 0) return activeCount;
+  return toFiniteInteger(room.spectatorCount, 0);
+}
+
+function getMaxSpectators(roomValue: unknown): number {
+  const room = asRecord(roomValue);
+  return Math.max(0, toFiniteInteger(room.maxSpectators, 4));
+}
+
 function readCreatedAt(roomValue: unknown): number {
   const room = asRecord(roomValue);
   return toFiniteInteger(room.createdAt, toFiniteInteger(room.updatedAt, 0));
@@ -127,7 +146,11 @@ function toPublicRoomListEntry(roomValue: unknown, options?: PublicRoomListEntry
 
   const maxSeats = toFiniteInteger(room.maxSeats, 2);
   const seatCount = getActiveSeatCount(room);
-  if (seatCount <= 0 || seatCount >= maxSeats) return null;
+  const spectatorCount = getActiveSpectatorCount(room);
+  const maxSpectators = getMaxSpectators(room);
+  const canJoin = seatCount > 0 && seatCount < maxSeats;
+  const canSpectate = seatCount > 0 && spectatorCount < maxSpectators;
+  if (!canJoin && !canSpectate) return null;
   const opts = asRecord(options);
   if (isWaitingRoomExpired(room, opts.nowMs)) return null;
 
@@ -150,6 +173,10 @@ function toPublicRoomListEntry(roomValue: unknown, options?: PublicRoomListEntry
     hostName,
     seatCount,
     maxSeats,
+    spectatorCount,
+    maxSpectators,
+    canJoin,
+    canSpectate,
     hasPassword: room.hasPassword === true || room.roomHasPassword === true || hasRoomPassword(room),
     boardLabel: formatBoardLabel(room),
     stateVersion: toFiniteInteger(room.stateVersion, 0),
@@ -183,6 +210,8 @@ const MatchRoomLobby = {
   hasRoomPassword,
   isJoinPasswordAccepted,
   getActiveSeatCount,
+  getActiveSpectatorCount,
+  getMaxSpectators,
   readCreatedAt,
   getWaitingRoomExpiresAt,
   isWaitingRoom,

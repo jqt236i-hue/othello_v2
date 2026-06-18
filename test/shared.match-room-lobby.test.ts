@@ -27,6 +27,10 @@ describe('shared match room lobby helpers', () => {
       hostName: 'くろ',
       seatCount: 1,
       maxSeats: 2,
+      spectatorCount: 0,
+      maxSpectators: 4,
+      canJoin: true,
+      canSpectate: true,
       hasPassword: true,
       boardLabel: '7x9',
       stateVersion: 0,
@@ -37,11 +41,12 @@ describe('shared match room lobby helpers', () => {
     expect(entry.roomPassword).toBeUndefined();
   });
 
-  test('満員または空の部屋は一覧に出さない', () => {
+  test('空の部屋と観戦不可の満員部屋は一覧に出さない', () => {
     expect(MatchRoomLobby.toPublicRoomListEntry({
       roomId: 'FULL',
       seats: { black: true, white: true },
-      seatNames: { black: 'くろ', white: 'しろ' }
+      seatNames: { black: 'くろ', white: 'しろ' },
+      maxSpectators: 0
     })).toBeNull();
 
     expect(MatchRoomLobby.toPublicRoomListEntry({
@@ -49,6 +54,51 @@ describe('shared match room lobby helpers', () => {
       seats: { black: false, white: false },
       seatNames: { black: '', white: '' }
     })).toBeNull();
+  });
+
+  test('public room list exposes spectator availability for full rooms', () => {
+    const entry = MatchRoomLobby.toPublicRoomListEntry({
+      roomId: 'FUL',
+      roomName: '満員部屋',
+      seats: { black: true, white: true },
+      seatNames: { black: '黒', white: '白' },
+      spectators: {
+        spec_a: { token: 'a', name: '観戦A', joinedAt: 1, lastSeenAt: 1 }
+      },
+      maxSpectators: 4,
+      stateVersion: 8,
+      createdAt: 100,
+      updatedAt: 200
+    });
+
+    expect(entry).toEqual(expect.objectContaining({
+      roomId: 'FUL',
+      seatCount: 2,
+      maxSeats: 2,
+      spectatorCount: 1,
+      maxSpectators: 4,
+      canJoin: false,
+      canSpectate: true
+    }));
+  });
+
+  test('public room list hides full rooms when spectator slots are full', () => {
+    const entry = MatchRoomLobby.toPublicRoomListEntry({
+      roomId: 'SFL',
+      seats: { black: true, white: true },
+      spectators: {
+        spec_a: { token: 'a' },
+        spec_b: { token: 'b' },
+        spec_c: { token: 'c' },
+        spec_d: { token: 'd' }
+      },
+      maxSpectators: 4,
+      stateVersion: 8,
+      createdAt: 100,
+      updatedAt: 200
+    });
+
+    expect(entry).toBeNull();
   });
 
   test('空のルーム名は無名部屋として公開する', () => {
