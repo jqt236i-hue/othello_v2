@@ -23,6 +23,7 @@ function createConfig(overrides: Record<string, any> = {}) {
       handleCpuTurnError: jest.fn(),
       isCpuDebugLogAvailable: jest.fn(() => false),
       isUiAnimationBusy: jest.fn(() => false),
+      readNowMs: jest.fn(() => 1000),
       resetPendingSelectRetryState: jest.fn(),
       resolveCpuCardLogic: jest.fn(() => ({
         hasUsableCard: jest.fn(() => true)
@@ -215,6 +216,35 @@ describe('cpu turn move phase no-legal card retry', () => {
 
     expect(executeMove).not.toHaveBeenCalled();
     expect(config.setCpuProcessing).toHaveBeenCalledWith(false);
+  });
+
+  test('uses injected clock for Lv6 minimum think delay when turnStartMs is absent', async () => {
+    const executeMove = jest.fn();
+    const nowValues = [1000, 1025];
+    const { config } = createConfig({
+      readNowMs: jest.fn(() => nowValues.shift() ?? 1025),
+      resolveGenerateMovesForPlayer: jest.fn(() => jest.fn(() => [{ row: 3, col: 4, flips: [{ row: 3, col: 3 }] }])),
+      resolveExecuteMoveFn: jest.fn(() => executeMove),
+      resolveLv6MinThinkMs: jest.fn(() => 50),
+      scheduleRetry: jest.fn(() => true),
+      selectCpuMoveSafe: jest.fn(() => ({ row: 3, col: 4, flips: [{ row: 3, col: 3 }] }))
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null
+    });
+
+    expect(result).toEqual({ status: 'handled' });
+    expect(config.readNowMs).toHaveBeenCalledTimes(2);
+    expect(config.scheduleRetry).toHaveBeenCalledWith(expect.any(Function), 25);
+    expect(executeMove).not.toHaveBeenCalled();
   });
 
   test('skips a delayed move commit when the runtime player changed on the same turn number', async () => {

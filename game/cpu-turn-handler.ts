@@ -56,6 +56,14 @@ function setCpuTurnTimerService(service: any): void { cpuTurnTimerService = serv
 function getCpuTurnTimerService() {
     return cpuTurnTimerService || null;
 }
+function readCpuTurnNowMs(): number {
+    const timerService = getCpuTurnTimerService();
+    if (timerService && typeof timerService.now === 'function') {
+        const value = Number(timerService.now());
+        if (Number.isFinite(value)) return value;
+    }
+    return Date.now();
+}
 
 // Timers abstraction (injected by UI)
 let timers: any = null;
@@ -1283,6 +1291,7 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
         handleCpuTurnError,
         isCpuDebugLogAvailable,
         isUiAnimationBusy,
+        readNowMs: () => readCpuTurnNowMs(),
         resetPendingSelectRetryState,
         resolveCpuCardLogic,
         resolveExecuteMoveFn,
@@ -1375,7 +1384,7 @@ function handleCpuTurnError(playerKey: PlayerKey, selfName: string, error: any, 
 }
 
 async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode?: boolean } = {}): Promise<void> {
-    const turnStartMs = Date.now();
+    const turnStartMs = readCpuTurnNowMs();
     const isWhite = playerKey === 'white';
     const selfColor = isWhite ? CONST_WHITE : CONST_BLACK;
     const selfName = isWhite ? '白' : '黒';

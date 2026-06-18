@@ -16,6 +16,7 @@ type CpuTurnMovePhaseConfig = {
     handleCpuTurnError: (playerKey: any, selfName: any, error: any, autoMode: any) => any;
     isCpuDebugLogAvailable: () => any;
     isUiAnimationBusy: () => any;
+    readNowMs: () => any;
     resetPendingSelectRetryState: (playerKey: any) => any;
     resolveCpuCardLogic: () => any;
     resolveExecuteMoveFn: () => any;
@@ -41,6 +42,14 @@ function normalizePlayerKeyFromValue(value: any, blackValue: any, whiteValue: an
 export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuTurnMovePhaseConfig;
 
+    function readNowMs(): number {
+        if (typeof cfg.readNowMs === 'function') {
+            const value = Number(cfg.readNowMs());
+            if (Number.isFinite(value)) return value;
+        }
+        return Date.now();
+    }
+
     async function runCpuTurnMovePhase(args: any): Promise<any> {
         const opts = (args && typeof args === 'object') ? args : {};
         const playerKey = opts.playerKey;
@@ -50,7 +59,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         const selfName = opts.selfName;
         const othelloMode = opts.othelloMode === true;
         const pending = opts.pending || null;
-        const turnStartMs = Number.isFinite(opts.turnStartMs) ? opts.turnStartMs : Date.now();
+        const turnStartMs = Number.isFinite(opts.turnStartMs) ? opts.turnStartMs : readNowMs();
         const expectedTurnNumber = cfg.getCurrentTurnNumberSafe();
 
         const invokeCpuPass = async (passFn: any, passOptions: any): Promise<any> => {
@@ -162,7 +171,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             });
         }
         const minThinkMs = cfg.resolveLv6MinThinkMs(playerKey, level, autoMode);
-        const thinkElapsedMs = Math.max(0, Date.now() - turnStartMs);
+        const thinkElapsedMs = Math.max(0, readNowMs() - turnStartMs);
         const extraDelayMs = Math.max(0, minThinkMs - thinkElapsedMs);
 
         const commitSelectedMove = async () => {
