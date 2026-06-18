@@ -71,6 +71,7 @@ let _config = {
     enableWebGpuExecution: false,
     readQuerySearch: null as any,
     readWebGpuEnabled: null as any,
+    nowMs: null as any,
     ortApi: null as any
 };
 const LATENCY_SAMPLE_LIMIT = 512;
@@ -107,6 +108,10 @@ function resetLatencyStats() {
 }
 
 function nowMs() {
+    if (typeof _config.nowMs === 'function') {
+        const value = Number(_config.nowMs());
+        if (Number.isFinite(value)) return value;
+    }
     try {
         if (typeof performance !== 'undefined' && performance && typeof performance.now === 'function') {
             return Number(performance.now());
@@ -196,6 +201,9 @@ function configure(config: any) {
     if (config.readQuerySearch === null) _config.readQuerySearch = null;
     if (typeof config.readWebGpuEnabled === 'function') _config.readWebGpuEnabled = config.readWebGpuEnabled;
     if (config.readWebGpuEnabled === null) _config.readWebGpuEnabled = null;
+    if (Object.prototype.hasOwnProperty.call(config, 'nowMs')) {
+        _config.nowMs = typeof config.nowMs === 'function' ? config.nowMs : null;
+    }
     if (Object.prototype.hasOwnProperty.call(config, 'ortApi')) {
         _config.ortApi = config.ortApi || null;
         applyOrtEnvLogLevel(_config.ortApi);

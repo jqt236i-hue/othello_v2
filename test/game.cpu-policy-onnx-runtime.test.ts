@@ -41,6 +41,7 @@ describe('policy-onnx-runtime', () => {
       enableWebGpuExecution: false,
       readQuerySearch: null,
       readWebGpuEnabled: null,
+      nowMs: null,
       ortApi: global.ort
     });
   });
@@ -516,6 +517,10 @@ describe('policy-onnx-runtime', () => {
   test('getStatus exposes latency summaries after ONNX calls', async () => {
     const scores = new Float32Array(64);
     scores[0] = 1.25;
+    const nowValues = [100, 112];
+    runtime.configure({
+      nowMs: jest.fn(() => nowValues.shift() ?? 112)
+    });
     runtime.__setLoadedForTest({
       run: jest.fn(async () => ({
         logits: { data: scores }
@@ -537,7 +542,8 @@ describe('policy-onnx-runtime', () => {
     const status = runtime.getStatus();
     expect(status.latency).toBeTruthy();
     expect(status.latency.overall.count).toBe(1);
+    expect(status.latency.overall.totalMs).toBe(12);
     expect(status.latency.perOperation.chooseMove.count).toBe(1);
-    expect(status.latency.perOperation.chooseMove.totalMs).toBeGreaterThanOrEqual(0);
+    expect(status.latency.perOperation.chooseMove.totalMs).toBe(12);
   });
 });

@@ -135,4 +135,55 @@ describe('othello-onnx-runtime', () => {
     expect(session.run).not.toHaveBeenCalled();
     expect(runtime.getStatus().inferenceCalls).toBe(0);
   });
+
+  test('configure nowMs controls ONNX inference latency status', async () => {
+    jest.resetModules();
+    const scores = new Float32Array(64);
+    scores[0] = 2;
+    const session = {
+      inputNames: ['obs'],
+      outputNames: ['logits', 'value'],
+      run: jest.fn(async () => ({
+        logits: { data: scores },
+        value: { data: new Float32Array([0]) }
+      }))
+    };
+    const InferenceSession = function InferenceSession() {} as any;
+    InferenceSession.create = jest.fn(async () => session);
+    (global as any).ort = {
+      Tensor: function Tensor(type, data, dims) {
+        this.type = type;
+        this.data = data;
+        this.dims = dims;
+      },
+      InferenceSession
+    };
+    jest.doMock('onnxruntime-web', () => (global as any).ort);
+    const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'othello-onnx-runtime.ts'));
+    runtime.clearModel();
+    const nowValues = [200, 234];
+    runtime.configure({
+      enabled: true,
+      minLevel: 6,
+      useValueRerank: false,
+      exactSolveEmpties: 0,
+      nowMs: jest.fn(() => nowValues.shift() ?? 234),
+      ortApi: (global as any).ort
+    });
+    const ok = await runtime.loadFromUrl('model.onnx', 'meta.json', jest.fn(async () => ({ ok: false })));
+    expect(ok).toBe(true);
+
+    const selected = await runtime.chooseMove([{ row: 0, col: 0, flips: [] }], {
+      board: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0)),
+      playerKey: 'white',
+      level: 6,
+      legalMovesCount: 1
+    });
+
+    expect(selected).toEqual({ row: 0, col: 0, flips: [] });
+    const status = runtime.getStatus();
+    expect(status.inferenceCalls).toBe(1);
+    expect(status.inferenceAverageMs).toBe(34);
+    expect(status.inferenceMaxMs).toBe(34);
+  });
 });

@@ -42,6 +42,7 @@ let _config = {
   exactSolveNodeBudget: 50000,
   exactSolveMaxMs: 250,
   exactSolveNowMs: null as any,
+  nowMs: null as any,
   ortApi: null as any
 };
 
@@ -60,10 +61,21 @@ function configure(config: any) {
   if (Object.prototype.hasOwnProperty.call(next, 'exactSolveNowMs')) {
     _config.exactSolveNowMs = typeof next.exactSolveNowMs === 'function' ? next.exactSolveNowMs : null;
   }
+  if (Object.prototype.hasOwnProperty.call(next, 'nowMs')) {
+    _config.nowMs = typeof next.nowMs === 'function' ? next.nowMs : null;
+  }
   if (typeof next.sourceUrl === 'string' && next.sourceUrl.trim()) _sourceUrl = next.sourceUrl.trim();
   if (typeof next.metaUrl === 'string' && next.metaUrl.trim()) _metaUrl = next.metaUrl.trim();
   if (Object.prototype.hasOwnProperty.call(next, 'ortApi')) _config.ortApi = next.ortApi || null;
   return getStatus();
+}
+
+function readNowMs(): number {
+  if (typeof _config.nowMs === 'function') {
+    const value = Number(_config.nowMs());
+    if (Number.isFinite(value)) return value;
+  }
+  return Date.now();
 }
 
 function resolveOrtApi(requireSession: boolean): any {
@@ -426,14 +438,14 @@ async function runInference(context: any) {
   if (!_session) return null;
   const ortApi = resolveOrtApi(false);
   if (!ortApi) return null;
-  const startedAt = Date.now();
+  const startedAt = readNowMs();
   const x = buildInputVector(context);
   const feeds: any = {};
   feeds[_inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
   try {
     return await _session.run(feeds);
   } finally {
-    const elapsed = Math.max(0, Date.now() - startedAt);
+    const elapsed = Math.max(0, readNowMs() - startedAt);
     _inferenceCalls += 1;
     _inferenceTotalMs += elapsed;
     if (elapsed > _inferenceMaxMs) _inferenceMaxMs = elapsed;
