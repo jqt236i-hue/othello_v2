@@ -20,6 +20,7 @@ type CardInteractionDetailActionsDeps = {
     isStaleVisualPlaybackLock: () => boolean;
     isReversiMode: () => boolean;
     getDocumentRef: () => Document | null;
+    getGameStateValue?: () => any;
     posToNotation: (row: any, col: any) => string;
 };
 
@@ -176,12 +177,60 @@ export function resolvePendingSelectionPromptText(
 
 export const getPendingSelectionPrompt = resolvePendingSelectionPromptText;
 
+type ConsecutivePassStatusModel = {
+    shouldShow: boolean;
+    count: number;
+    max: 2;
+    text: string;
+};
+
+function normalizeConsecutivePassDisplayCount(value: any): number {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(2, Math.trunc(numeric)));
+}
+
+export function resolveConsecutivePassStatusModel(input: any = {}): ConsecutivePassStatusModel {
+    const gameStateValue = input && input.gameState ? input.gameState : {};
+    const count = normalizeConsecutivePassDisplayCount(gameStateValue.consecutivePasses);
+    const resultShown = gameStateValue && gameStateValue.__resultShown === true;
+    const shouldShow = !resultShown && (count > 0 || input.canShowPass === true);
+    return {
+        shouldShow,
+        count,
+        max: 2,
+        text: shouldShow ? `連続パス${count}/2` : ''
+    };
+}
+
+export function syncConsecutivePassStatus(actionState: any, documentRef: Document | null): void {
+    if (!documentRef) return;
+    const statusEl = documentRef.getElementById('consecutive-pass-status') as HTMLElement | null;
+    if (!statusEl) return;
+    const model = actionState && actionState.consecutivePassStatus
+        ? actionState.consecutivePassStatus
+        : resolveConsecutivePassStatusModel({
+            gameState: {},
+            canShowPass: actionState && actionState.canShowPass
+        });
+    statusEl.hidden = !model.shouldShow;
+    statusEl.setAttribute('aria-hidden', model.shouldShow ? 'false' : 'true');
+    statusEl.setAttribute('aria-label', model.shouldShow ? model.text : '');
+    const currentEl = statusEl.querySelector('[data-pass-streak-current="true"]') as HTMLElement | null;
+    if (currentEl) {
+        currentEl.textContent = String(model.count);
+    } else {
+        statusEl.textContent = model.text;
+    }
+}
+
 export function createCardInteractionDetailActions(deps: CardInteractionDetailActionsDeps) {
     const cfg = (deps && typeof deps === 'object') ? deps : {} as CardInteractionDetailActionsDeps;
 
     function resolveCardDetailActionState(selectionContext: any) {
         const context = selectionContext || {};
         const cardStateValue = typeof cfg.getCardStateValue === 'function' ? (cfg.getCardStateValue() || {}) : {};
+        const gameStateValue = typeof cfg.getGameStateValue === 'function' ? (cfg.getGameStateValue() || {}) : {};
         const playerKey = context.playerKey;
         const isAutoMode = cfg.isAutoModeActive();
         const canActThisTurn = cfg.canInputPlayerActNow();
@@ -266,6 +315,10 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         const canShowPass = canActThisTurn && noLegalMoves && !isSelectingTarget;
         const canPassWhileBusy = !cfg.isVisualPlaybackRunningNow() || cfg.isStaleVisualPlaybackLock();
         const canPass = !selectionSettlementLocked && !isAutoMode && canShowPass && (canInteract || canPassWhileBusy);
+        const consecutivePassStatus = resolveConsecutivePassStatusModel({
+            gameState: gameStateValue,
+            canShowPass
+        });
 
         return {
             canActThisTurn,
@@ -281,6 +334,7 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
             canDestroy,
             canShowPass,
             canPass,
+            consecutivePassStatus,
             reason
         };
     }
@@ -301,6 +355,7 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         const canPass = !!(actionState && actionState.canPass);
         syncPassButtonVisibility(legacyPassBtn, cfg.isReversiMode() && canShowPass, canPass);
         syncPassButtonVisibility(framePassBtn, canShowPass, canPass);
+        syncConsecutivePassStatus(actionState, documentRef);
     }
 
     function getPendingSelectionPrompt(pending: any) {
@@ -312,6 +367,10 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
     return {
         resolveCardDetailActionState,
         syncReversiPassButton,
+        syncConsecutivePassStatus: (actionState: any) => {
+            const documentRef = typeof cfg.getDocumentRef === 'function' ? cfg.getDocumentRef() : null;
+            syncConsecutivePassStatus(actionState, documentRef);
+        },
         getPendingSelectionPrompt
     };
 }
@@ -320,5 +379,7 @@ module.exports = {
     createCardInteractionDetailActions,
     isCancellablePendingSelectionFallback,
     isHandOverlayPendingSelectionFallback,
+    resolveConsecutivePassStatusModel,
+    syncConsecutivePassStatus,
     getPendingSelectionPrompt
 };

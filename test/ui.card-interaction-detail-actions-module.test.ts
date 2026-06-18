@@ -2,7 +2,8 @@ import { JSDOM } from 'jsdom';
 import {
   createCardInteractionDetailActions,
   getPendingSelectionPrompt as getPendingSelectionPromptStatic,
-  isHandOverlayPendingSelectionFallback
+  isHandOverlayPendingSelectionFallback,
+  resolveConsecutivePassStatusModel
 } from '../cards/card-interaction-detail-actions';
 
 function createController(overrides?: Record<string, any>) {
@@ -11,11 +12,19 @@ function createController(overrides?: Record<string, any>) {
         <button id="reversi-pass-btn" hidden disabled>パス</button>
         <button id="board-frame-pass-btn" hidden disabled>パス</button>
         <button id="othello-pass-btn" hidden disabled>パス</button>
+        <div id="consecutive-pass-status" hidden aria-hidden="true">
+          <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span>
+        </div>
       </body></html>
   `);
   const cardState = {
     charge: { black: 10, white: 8 },
     pendingEffectByPlayer: { black: null, white: null }
+  } as any;
+  const gameState = {
+    currentPlayer: 1,
+    consecutivePasses: 0,
+    __resultShown: false
   } as any;
   const deps = {
     isAutoModeActive: jest.fn(() => false),
@@ -26,6 +35,7 @@ function createController(overrides?: Record<string, any>) {
     canInteractWithCardUi: jest.fn(() => true),
     getCardDef: jest.fn((cardId: any) => (cardId ? { id: cardId, cost: 3 } : null)),
     getCardStateValue: () => cardState,
+    getGameStateValue: () => gameState,
     isSelectedCardUsableNow: jest.fn(() => true),
     getLegalMovesForCurrentPlayer: jest.fn(() => []),
     isPlacementLockedForPlayer: jest.fn(() => false),
@@ -37,13 +47,85 @@ function createController(overrides?: Record<string, any>) {
   };
   if (overrides) {
     if (overrides.cardState) Object.assign(cardState, overrides.cardState);
+    if (overrides.gameState) Object.assign(gameState, overrides.gameState);
     Object.assign(deps, overrides.deps || {});
   }
   const controller = createCardInteractionDetailActions(deps as any);
-  return { controller, dom, cardState, deps };
+  return { controller, dom, cardState, gameState, deps };
 }
 
 describe('card interaction detail actions module', () => {
+  test('pass status model hides at zero when pass is not available', () => {
+    expect(resolveConsecutivePassStatusModel({
+      gameState: { consecutivePasses: 0 },
+      canShowPass: false
+    })).toEqual({
+      shouldShow: false,
+      count: 0,
+      max: 2,
+      text: ''
+    });
+  });
+
+  test('pass status model shows zero only when pass is currently available', () => {
+    expect(resolveConsecutivePassStatusModel({
+      gameState: { consecutivePasses: 0 },
+      canShowPass: true
+    })).toEqual({
+      shouldShow: true,
+      count: 0,
+      max: 2,
+      text: '連続パス0/2'
+    });
+  });
+
+  test('pass status model keeps one-pass warning even when current player can move', () => {
+    expect(resolveConsecutivePassStatusModel({
+      gameState: { consecutivePasses: 1 },
+      canShowPass: false
+    })).toEqual({
+      shouldShow: true,
+      count: 1,
+      max: 2,
+      text: '連続パス1/2'
+    });
+  });
+
+  test('pass status model hides while result is shown', () => {
+    expect(resolveConsecutivePassStatusModel({
+      gameState: { consecutivePasses: 2, __resultShown: true },
+      canShowPass: true
+    })).toEqual({
+      shouldShow: false,
+      count: 2,
+      max: 2,
+      text: ''
+    });
+  });
+
+  test('sync pass status element from action state', () => {
+    const ctx = createController({
+      gameState: { consecutivePasses: 1 },
+      deps: {
+        getLegalMovesForCurrentPlayer: jest.fn(() => [{ row: 2, col: 3, flips: [[3, 3]] }])
+      }
+    });
+
+    const actionState = ctx.controller.resolveCardDetailActionState({
+      playerKey: 'black',
+      hasSelection: false,
+      selectedId: null
+    });
+    ctx.controller.syncConsecutivePassStatus(actionState);
+
+    const status = ctx.dom.window.document.getElementById('consecutive-pass-status') as HTMLElement;
+    const current = status.querySelector('[data-pass-streak-current="true"]') as HTMLElement;
+    expect(status.hidden).toBe(false);
+    expect(status.getAttribute('aria-hidden')).toBe('false');
+    expect(status.getAttribute('aria-label')).toBe('連続パス1/2');
+    expect(current.textContent).toBe('1');
+  });
+
   test('resolve action state allows pass through stale playback lock', () => {
     const ctx = createController({
       deps: {
