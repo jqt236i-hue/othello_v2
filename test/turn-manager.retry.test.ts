@@ -252,6 +252,23 @@ describe('turn-manager scheduling', () => {
     );
   });
 
+  test('network spectator board click is read-only even when local player keys still point to black', () => {
+    global.MATCH_MODE = 'network';
+    global.NetworkMatchClient = {
+      getSeatKey: () => null,
+      isSpectator: () => true
+    };
+    global.LOCAL_PLAYER_KEY = 'black';
+    global.__LOCAL_PLAYER_KEY = 'black';
+    global.BOARD_VIEWER_KEY = 'black';
+
+    const rm = require('../game/turn-manager.js');
+    rm.handleCellClick(0, 0);
+
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
   test('handleCellClick routes pending GUARDIAN_GOD selection through shared guard dispatch', () => {
     global.cardState = {
       pendingEffectByPlayer: {

@@ -24,6 +24,7 @@ describe('UI bootstrap early CPU registration', () => {
     try { delete global.ActionManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.NetworkTurnHandoff; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.NetworkMatchClient; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.writeNetworkStatus; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {
@@ -458,6 +459,30 @@ describe('UI bootstrap early CPU registration', () => {
     expect(uiImpl).toBeTruthy();
     expect(uiImpl.getGamePrng()).toBe(prng);
     expect(global.getGamePrng).toHaveBeenCalledTimes(1);
+  });
+
+  test('installGameDI wires turn-manager spectator read-only helpers through UI bridge', () => {
+    const setUIImplMock = jest.fn();
+    jest.doMock('../game/turn-manager', () => ({ setUIImpl: setUIImplMock }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+
+    global.NetworkMatchClient = {
+      getSeatKey: jest.fn(() => null),
+      isSpectator: jest.fn(() => true)
+    };
+    global.writeNetworkStatus = jest.fn();
+
+    const uiBoot = require('../ui/bootstrap.js');
+    uiBoot.installGameDI();
+
+    const uiImpl = setUIImplMock.mock.calls
+      .map((args) => args && args[0])
+      .find((impl) => impl && typeof impl.isNetworkSpectator === 'function');
+
+    expect(uiImpl).toBeTruthy();
+    expect(uiImpl.isNetworkSpectator()).toBe(true);
+    expect(uiImpl.emitStatus('観戦中は操作できません', true)).toBe(true);
+    expect(global.writeNetworkStatus).toHaveBeenCalledWith('観戦中は操作できません', true);
   });
 
   test('resetTransientUIState aborts before clearing playback context and stays stable across repeated calls', () => {

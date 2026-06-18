@@ -833,6 +833,36 @@ function isNetworkModeForTurnManager() {
     return false;
 }
 
+function isNetworkSpectatorForTurnManager() {
+    try {
+        const impl = __uiImpl_turn_manager;
+        if (impl && typeof impl.isNetworkSpectator === 'function') return impl.isNetworkSpectator() === true;
+        if (impl && impl.isNetworkSpectator === true) return true;
+    } catch (e) { /* ignore */ }
+    try {
+        const client = readTurnManagerRuntimeValue('NetworkMatchClient');
+        if (client && typeof client.isSpectator === 'function') return client.isSpectator() === true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitSpectatorReadOnlyStatusForTurnManager() {
+    const message = '観戦中は操作できません';
+    try {
+        const impl = __uiImpl_turn_manager;
+        if (impl && typeof impl.emitStatus === 'function') {
+            impl.emitStatus(message, true);
+            return;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const root = getTurnManagerRuntimeRoot();
+        if (root && typeof root.writeNetworkStatus === 'function') {
+            root.writeNetworkStatus(message, true);
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function isOthelloModeForTurnManager() {
     const matchMode = readTurnManagerMatchMode();
     if (matchMode === 'reversi' || matchMode === 'othello') return true;
@@ -881,6 +911,11 @@ function resolveNetworkLocalPlayerKey() {
 
 function canLocalUserOperateCurrentTurn() {
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
+    const isNetworkMode = isNetworkModeForTurnManager();
+    if (isNetworkMode && isNetworkSpectatorForTurnManager()) {
+        emitSpectatorReadOnlyStatusForTurnManager();
+        return false;
+    }
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveNetworkInputPermissions === 'function') {
             return OwnerHelpersModule.resolveNetworkInputPermissions({
@@ -904,7 +939,6 @@ function canLocalUserOperateCurrentTurn() {
             return controllerKey === explicitLocalKey;
         }
     } catch (e) { /* ignore */ }
-    const isNetworkMode = isNetworkModeForTurnManager();
     const isHvH = isTurnManagerHumanVsHumanFlagEnabled();
     // FATE_WILL: if another player controls this turn, only the controller can operate.
     // Applies in network mode and in local non-HvH mode.

@@ -2230,6 +2230,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         } catch (e: any) { /* ignore */ }
                         return null;
                     },
+                    isNetworkSpectator: () => {
+                        try {
+                            if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
+                            return isNetworkMatchClientSpectator((globalThis as any).NetworkMatchClient);
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    },
+                    emitStatus: (message: any, isError?: any) => {
+                        try {
+                            const root = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+                            const writer = root && root.writeNetworkStatus;
+                            if (typeof writer !== 'function') return false;
+                            writer(String(message || ''), isError === true);
+                            return true;
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    },
                     publishNetworkSnapshot: (meta: any) => {
                         try {
                             if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
