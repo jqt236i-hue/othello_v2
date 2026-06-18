@@ -192,11 +192,6 @@ function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameSta
     const after = Number.isFinite(before) ? Math.max(0, Math.trunc(before) - 1) : 0;
     marker.data.remainingOwnerTurns = after;
 
-    if (!(cardState as any)._theoryIncarnationAutoTurnEndByPlayer || typeof (cardState as any)._theoryIncarnationAutoTurnEndByPlayer !== 'object') {
-        (cardState as any)._theoryIncarnationAutoTurnEndByPlayer = { black: false, white: false };
-    }
-    (cardState as any)._theoryIncarnationAutoTurnEndByPlayer[ownerKey] = true;
-
     if (after <= 0) {
         (cardState as any)._theoryIncarnationPendingAutoExpireByPlayer[ownerKey] = {
             row,
@@ -211,6 +206,7 @@ function processTheoryIncarnationMarkerAtTurnStart(cardState: CardState, gameSta
         applied: true,
         spawned,
         expired: null,
+        autoTurnEnd: true,
         remainingOwnerTurns: after,
         remainingSpawnCount: state.remainingSpawnCount
     };
@@ -293,14 +289,6 @@ function finalizeTheoryIncarnationAutoTurnEndExpiration(cardState: CardState, ga
     };
 }
 
-function consumeTheoryIncarnationAutoTurnEnd(cardState: CardState, playerKey: PlayerKey): boolean {
-    const ownerKey = ownerKeyOf(playerKey);
-    const flags = (cardState as any)._theoryIncarnationAutoTurnEndByPlayer;
-    if (!flags || flags[ownerKey] !== true) return false;
-    flags[ownerKey] = false;
-    return true;
-}
-
 export = {
     addNumberCellCollectedTotal,
     canUseTheoryIncarnation,
@@ -308,6 +296,5 @@ export = {
     applyTheoryIncarnationStoneReservation,
     processTheoryIncarnationMarkerAtPlacement,
     processTheoryIncarnationMarkerAtTurnStart,
-    finalizeTheoryIncarnationAutoTurnEndExpiration,
-    consumeTheoryIncarnationAutoTurnEnd
+    finalizeTheoryIncarnationAutoTurnEndExpiration
 };

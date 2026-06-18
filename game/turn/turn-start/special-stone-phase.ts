@@ -7,6 +7,7 @@ type TurnStartHyperAggregated = {
 
 type TurnStartSpecialStoneProcessingState = {
     hyperAggregated: TurnStartHyperAggregated;
+    theoryAutoTurnEnd?: boolean;
 };
 
 const TheorySpawnResolutionModule = require('../theory-spawn-resolution');
@@ -321,6 +322,9 @@ if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic
                 prng: p,
                 awardBoardChargeGain: opts.awardBoardChargeGain
             });
+        }
+        if (res && res.autoTurnEnd === true) {
+            processingState.theoryAutoTurnEnd = true;
         }
         if (res && res.expired) {
             opts.events.push({ type: 'theory_incarnation_marker_expired', detail: res.expired });

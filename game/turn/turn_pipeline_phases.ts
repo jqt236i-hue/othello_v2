@@ -428,7 +428,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             : { consumed: false, remaining: 0, continueTurn: false };
         if (timeStopPassRes.continueTurn === true) {
             gameState.currentPlayer = playerValue;
-            gameState.consecutivePasses = 0;
             if (cardState) {
                 cardState.lastTurnStartedFor = null;
             }
@@ -981,7 +980,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     playerKey,
                     events,
                     prng: p,
-                    processedTurnStartMarkers: { hyperAggregated },
+                    processedTurnStartMarkers,
                     workMarkersBeforeStart,
                     specialStoneSpeechBeforeStart,
                     eventStartIndex,
@@ -1013,11 +1012,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
             delete cardState._frozenCellsActiveAtTurnStart;
 
-            if (
-                CardLogic &&
-                typeof CardLogic.consumeTheoryIncarnationAutoTurnEnd === 'function' &&
-                CardLogic.consumeTheoryIncarnationAutoTurnEnd(cardState, playerKey) === true
-            ) {
+            const shouldAutoEndForTheory = processedTurnStartMarkers && processedTurnStartMarkers.theoryAutoTurnEnd === true;
+            if (shouldAutoEndForTheory) {
                 events.push({ type: 'theory_incarnation_auto_turn_end', player: playerKey });
                 if (typeof CardLogic.finalizeTheoryIncarnationAutoTurnEndExpiration === 'function') {
                     const expired = CardLogic.finalizeTheoryIncarnationAutoTurnEndExpiration(cardState, gameState, playerKey, p);

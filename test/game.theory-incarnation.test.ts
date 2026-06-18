@@ -36,6 +36,11 @@ function indexOfEventType(events: any[], type: string): number {
   return events.findIndex((event: any) => event && event.type === type);
 }
 
+function expectNoPendingTheoryAutoTurnEnd(cardState: any, playerKey: 'black' | 'white'): void {
+  const flags = cardState && cardState._theoryIncarnationAutoTurnEndByPlayer;
+  expect(!!(flags && flags[playerKey] === true)).toBe(false);
+}
+
 describe('理論の化身', () => {
   test('理論の化身は穴・封鎖・空凍結マスを理論数字マス化しない', () => {
     const prng = createPrng([0]);
@@ -580,6 +585,41 @@ describe('理論の化身', () => {
       player: 'black',
       reason: 'theory_incarnation_auto_turn_end'
     }));
+    expectNoPendingTheoryAutoTurnEnd(cardState, 'black');
+  });
+
+  test('理論の化身の自動終了は時間停止の連続手番中でもパス数を進める', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.consecutivePasses = 0;
+    cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 2, white: 0 };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_empty', ownerKey: 'black', remainingSpawnCount: 0 },
+      white: null
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_empty: { ownerKey: 'black', cells: {} }
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 5,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION',
+      sessionId: 'theory_black_empty'
+    });
+
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
+
+    expect(result.events).toContainEqual(expect.objectContaining({
+      type: 'pass',
+      player: 'black',
+      reason: 'theory_incarnation_auto_turn_end'
+    }));
+    expect(gameState.currentPlayer).toBe(Shared.BLACK);
+    expect(gameState.consecutivePasses).toBe(1);
+    expect(cardState.timeStopConsecutiveTurnsRemainingByPlayer.black).toBe(1);
   });
 
   test('理論召喚で出た配置直後効果持ち特殊石は即時効果を発動する', () => {

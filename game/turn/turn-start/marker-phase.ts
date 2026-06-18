@@ -68,7 +68,7 @@ function collectTurnStartMarkerAnchors(cardState: any, options: CollectTurnStart
         .sort((a: any, b: any) => (a.createdSeq || 0) - (b.createdSeq || 0));
 }
 
-function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): { hyperAggregated: any } {
+function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
     const opts = (options && typeof options === 'object') ? options : ({} as ProcessTurnStartMarkersOptions);
     const processingState = TurnStartSpecialStonePhaseModule.createTurnStartSpecialStoneProcessingState();
     const markers = Array.isArray(opts.markers) ? opts.markers : [];

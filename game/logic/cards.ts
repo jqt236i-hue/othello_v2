@@ -1999,10 +1999,6 @@ const {
         );
     }
 
-    function consumeTheoryIncarnationAutoTurnEnd(cardState: any, playerKey: any) {
-        return CardTheoryIncarnationResolutionModule.consumeTheoryIncarnationAutoTurnEnd(cardState, playerKey);
-    }
-
     /**
      * Draw a card
      * @param {Object} cardState 
@@ -4366,7 +4362,6 @@ const cardsApi: any = {
         processTheoryIncarnationMarkerAtPlacement,
         processTheoryIncarnationMarkerAtTurnStart,
         finalizeTheoryIncarnationAutoTurnEndExpiration,
-        consumeTheoryIncarnationAutoTurnEnd,
         addNumberCellCollectedTotal,
         canUseTheoryIncarnation,
         canUseBoardExecutor,
