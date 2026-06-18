@@ -16,6 +16,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const { MCTSNode } = _require('./mcts-core');
 
+type RandomSource = { random: () => number };
+
+function resolveRandomSource(candidate: any): RandomSource {
+  return candidate && typeof candidate.random === 'function'
+    ? candidate
+    : Math;
+}
+
+function readRandomUnit(rng: RandomSource): number {
+  const value = Number(rng.random());
+  if (!Number.isFinite(value)) return 0.5;
+  return Math.min(1 - 1e-8, Math.max(1e-8, value));
+}
+
 class GumbelMCTS {
   gameInterface: any;
   network: any;
@@ -24,6 +38,7 @@ class GumbelMCTS {
   c_visit: number;
   c_scale: number;
   nodeMap: Map<string, any>;
+  rng: RandomSource;
 
   constructor({
     gameInterface,
@@ -32,6 +47,7 @@ class GumbelMCTS {
     maxActions = 8,
     c_visit = 50.0,
     c_scale = 1.0,
+    rng = null,
   }: {
     gameInterface: any;
     network: any;
@@ -39,6 +55,7 @@ class GumbelMCTS {
     maxActions?: number;
     c_visit?: number;
     c_scale?: number;
+    rng?: RandomSource | null;
   }) {
     this.gameInterface = gameInterface;
     this.network = network;
@@ -46,14 +63,15 @@ class GumbelMCTS {
     this.maxActions = maxActions;
     this.c_visit = c_visit;
     this.c_scale = c_scale;
+    this.rng = resolveRandomSource(rng);
     this.nodeMap = new Map();
   }
 
   _sampleGumbel(n: number): Float32Array {
     const noise = new Float32Array(n);
     for (let i = 0; i < n; i++) {
-      const u = Math.random();
-      noise[i] = -Math.log(-Math.log(u + 1e-8) + 1e-8);
+      const u = readRandomUnit(this.rng);
+      noise[i] = -Math.log(-Math.log(u) + 1e-8);
     }
     return noise;
   }

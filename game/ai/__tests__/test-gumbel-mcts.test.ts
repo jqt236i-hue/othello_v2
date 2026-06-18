@@ -94,4 +94,26 @@ describe('GumbelMCTS', () => {
       expect(first).toHaveProperty('probability');
     }
   });
+
+  test('uses injected rng for gumbel noise', () => {
+    const values = [0.25, 0.5, 0.75];
+    const rng = { random: jest.fn(() => values.shift() ?? 0.5) };
+    const mathSpy = jest.spyOn(Math, 'random').mockReturnValue(0.123456);
+    try {
+      const mcts = new GumbelMCTS({
+        gameInterface: mockGameInterface,
+        network: mockNetwork,
+        numSimulations: 1,
+        rng,
+      });
+
+      const noise = mcts._sampleGumbel(3);
+
+      expect(noise).toHaveLength(3);
+      expect(rng.random).toHaveBeenCalledTimes(3);
+      expect(mathSpy).not.toHaveBeenCalled();
+    } finally {
+      mathSpy.mockRestore();
+    }
+  });
 });

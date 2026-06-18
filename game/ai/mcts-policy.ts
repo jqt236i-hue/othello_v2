@@ -373,6 +373,7 @@ async function searchWithMcts(state: any, cardState: any, playerKey: string, opt
                 network: _network,
                 numSimulations,
                 maxActions: Number.isFinite(options.maxActions) ? options.maxActions : 8,
+                rng: options.rng,
             });
             result = await tree.search(state, cardState, playerKey);
         } else {

@@ -4,6 +4,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+type RandomSource = { random: () => number };
+
+function resolveRandomSource(candidate: any): RandomSource {
+    return candidate && typeof candidate.random === 'function'
+        ? candidate
+        : Math;
+}
+
+function readRandomUnit(rng: RandomSource): number {
+    const value = Number(rng.random());
+    if (!Number.isFinite(value)) return 0.5;
+    return Math.min(1 - 1e-8, Math.max(0, value));
+}
+
 function computeTemperature(moveNumber: number, boardSize: number = 8, initialTemp: number = 0.8, finalTemp: number = 0.2): number {
     const halflife = boardSize;
     const decay = Math.pow(0.5, moveNumber / halflife);
@@ -38,25 +52,27 @@ class DiversityConfig {
     branchingMovesMax: number;
     temperatureSchedule: number[];
     temperatureProbs: number[];
+    rng: RandomSource;
 
-    constructor() {
+    constructor(options: any = {}) {
         this.gameBranchingRate = 0.05;
         this.positionBranchingRate = 0.025;
         this.branchingMovesMin = 3;
         this.branchingMovesMax = 10;
         this.temperatureSchedule = [1.0, 2.0, Infinity];
         this.temperatureProbs = [0.70, 0.25, 0.05];
+        this.rng = resolveRandomSource(options.rng);
     }
 
     maybeBranchGame(gameId: number): { branchPoint: number; numBranchMoves: number; temp: number } | null {
         const hash = Math.abs(Math.sin(gameId * 98765.4321));
         if (hash >= this.gameBranchingRate) return null;
 
-        const branchPoint = Math.floor(-Math.log(1 - Math.random()) * 20);
+        const branchPoint = Math.floor(-Math.log(1 - readRandomUnit(this.rng)) * 20);
         const numBranchMoves = this.branchingMovesMin +
-            Math.floor(Math.random() * (this.branchingMovesMax - this.branchingMovesMin + 1));
+            Math.floor(readRandomUnit(this.rng) * (this.branchingMovesMax - this.branchingMovesMin + 1));
 
-        const tempHash = Math.random();
+        const tempHash = readRandomUnit(this.rng);
         let temp = this.temperatureSchedule[0];
         let cumsum = 0;
         for (let i = 0; i < this.temperatureProbs.length; i++) {
@@ -84,6 +100,7 @@ class MCTSTemperatureManager {
     useDiversity: boolean;
     rpc: RPCConfig;
     diversity: DiversityConfig;
+    rng: RandomSource;
 
     constructor(options: any = {}) {
         this.boardSize = options.boardSize || 8;
@@ -91,8 +108,9 @@ class MCTSTemperatureManager {
         this.finalTemp = options.finalTemp || 0.2;
         this.useRPC = options.useRPC !== false;
         this.useDiversity = options.useDiversity !== false;
+        this.rng = resolveRandomSource(options.rng);
         this.rpc = new RPCConfig();
-        this.diversity = new DiversityConfig();
+        this.diversity = new DiversityConfig({ rng: this.rng });
     }
 
     getTemperature(moveNumber: number): number {
