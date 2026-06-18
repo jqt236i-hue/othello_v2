@@ -184,6 +184,8 @@ type ConsecutivePassStatusModel = {
     text: string;
 };
 
+const CONSECUTIVE_PASS_STATUS_SUFFIX = '(パスカウント2で終局)';
+
 function normalizeConsecutivePassDisplayCount(value: any): number {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0;
@@ -199,7 +201,7 @@ export function resolveConsecutivePassStatusModel(input: any = {}): ConsecutiveP
         shouldShow,
         count,
         max: 2,
-        text: shouldShow ? `連続パス${count}/2` : ''
+        text: shouldShow ? `連続パス${count}/2${CONSECUTIVE_PASS_STATUS_SUFFIX}` : ''
     };
 }
 
@@ -219,6 +221,10 @@ export function syncConsecutivePassStatus(actionState: any, documentRef: Documen
     const currentEl = statusEl.querySelector('[data-pass-streak-current="true"]') as HTMLElement | null;
     if (currentEl) {
         currentEl.textContent = String(model.count);
+        const noteEl = statusEl.querySelector('.pass-streak-note') as HTMLElement | null;
+        if (noteEl) {
+            noteEl.textContent = CONSECUTIVE_PASS_STATUS_SUFFIX;
+        }
     } else {
         statusEl.textContent = model.text;
     }

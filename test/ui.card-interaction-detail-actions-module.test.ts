@@ -13,7 +13,7 @@ function createController(overrides?: Record<string, any>) {
         <button id="board-frame-pass-btn" hidden disabled>パス</button>
         <button id="othello-pass-btn" hidden disabled>パス</button>
         <div id="consecutive-pass-status" hidden aria-hidden="true">
-          <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span>
+          <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span><span class="pass-streak-note">(パスカウント2で終局)</span>
         </div>
       </body></html>
   `);
@@ -75,7 +75,7 @@ describe('card interaction detail actions module', () => {
       shouldShow: true,
       count: 0,
       max: 2,
-      text: '連続パス0/2'
+      text: '連続パス0/2(パスカウント2で終局)'
     });
   });
 
@@ -87,7 +87,7 @@ describe('card interaction detail actions module', () => {
       shouldShow: true,
       count: 1,
       max: 2,
-      text: '連続パス1/2'
+      text: '連続パス1/2(パスカウント2で終局)'
     });
   });
 
@@ -122,7 +122,8 @@ describe('card interaction detail actions module', () => {
     const current = status.querySelector('[data-pass-streak-current="true"]') as HTMLElement;
     expect(status.hidden).toBe(false);
     expect(status.getAttribute('aria-hidden')).toBe('false');
-    expect(status.getAttribute('aria-label')).toBe('連続パス1/2');
+    expect(status.getAttribute('aria-label')).toBe('連続パス1/2(パスカウント2で終局)');
+    expect(status.textContent?.replace(/\s+/g, '')).toBe('連続パス1/2(パスカウント2で終局)');
     expect(current.textContent).toBe('1');
   });
 
