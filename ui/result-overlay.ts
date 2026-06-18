@@ -554,7 +554,7 @@ function createScoreMetaLine(scoreSummary: any, leaderboardState: any) {
     line.className = 'result-score-meta';
 
     if (!leaderboardState || leaderboardState.mode === 'network') {
-        line.textContent = '共有ランキング: MATCHのランキングボタンで確認（終局時に自動送信）';
+        line.textContent = 'スコアランキング: MATCHのランキングボタンで確認（終局時に自動送信）';
         return line;
     }
 

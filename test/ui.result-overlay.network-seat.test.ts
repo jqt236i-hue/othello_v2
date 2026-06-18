@@ -471,11 +471,11 @@ describe('result overlay seat perspective', () => {
     const metaText = (document.querySelector('.result-score-meta') || {}).textContent || '';
     const key = 'othello_cpu_leaderboard_v5';
 
-    expect(metaText).toContain('共有ランキング');
+    expect(metaText).toContain('スコアランキング');
     expect(localStorage.getItem(key)).toBeNull();
   });
 
-  test('終局時に共有ランキング送信を呼ぶ', () => {
+  test('終局時にスコアランキング送信を呼ぶ', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
@@ -489,7 +489,7 @@ describe('result overlay seat perspective', () => {
     expect(submitScore).toHaveBeenCalled();
   });
 
-  test('通常ローカル対戦では共有ランキングを自動送信しない', () => {
+  test('通常ローカル対戦ではスコアランキングを自動送信しない', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
