@@ -35,6 +35,7 @@ describe('NetworkPresentationTimeline', () => {
     const drained = await timeline.drainPlayableFrames({
       dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
         played.push(events[0].type);
+        return { started: true, method: 'test' };
       })
     });
 
@@ -60,6 +61,7 @@ describe('NetworkPresentationTimeline', () => {
     expect(await timeline.drainPlayableFrames({
       dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
         played.push(events[0].type);
+        return { started: true, method: 'test' };
       })
     })).toBe(0);
 
@@ -67,6 +69,7 @@ describe('NetworkPresentationTimeline', () => {
     expect(await timeline.drainPlayableFrames({
       dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
         played.push(events[0].type);
+        return { started: true, method: 'test' };
       })
     })).toBe(2);
     expect(played).toEqual(['event_1', 'event_2']);
@@ -87,6 +90,7 @@ describe('NetworkPresentationTimeline', () => {
     await timeline.drainPlayableFrames({
       dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
         played.push(events[0].type);
+        return { started: true, method: 'test' };
       })
     });
 
@@ -120,6 +124,50 @@ describe('NetworkPresentationTimeline', () => {
       pausedError: {
         visualSeq: 1,
         message: 'network_playback_watchdog'
+      }
+    });
+  });
+
+  test('pauses instead of committing when dispatcher is unavailable', async () => {
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'test' });
+
+    await expect(timeline.drainPlayableFrames(null)).resolves.toBe(0);
+
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 0,
+      visualVersion: 1,
+      pendingFrameCount: 1,
+      paused: true,
+      pausedError: {
+        visualSeq: 1,
+        message: 'network_playback_dispatcher_unavailable'
+      }
+    });
+  });
+
+  test('pauses instead of committing when dispatcher cannot start playback', async () => {
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'test' });
+
+    await expect(timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => ({ started: false, method: 'unavailable' }))
+    })).resolves.toBe(0);
+
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 0,
+      visualVersion: 1,
+      pendingFrameCount: 1,
+      paused: true,
+      pausedError: {
+        visualSeq: 1,
+        message: 'network_playback_dispatch_failed:unavailable'
       }
     });
   });

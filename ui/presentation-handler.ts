@@ -471,6 +471,15 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
   }
 
   const playbackDispatchDeps = getPlaybackDispatchDeps();
+  const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
+  const playbackEngineDeps = strictNetworkPlayback
+    ? Object.assign({}, playbackDispatchDeps, { strictNetworkPlayback: true })
+    : playbackDispatchDeps;
+  const playbackEventForDispatch = {
+    type: 'PLAYBACK_EVENTS',
+    events: payload,
+    meta: ev && ev.meta && typeof ev.meta === 'object' ? Object.assign({}, ev.meta) : undefined
+  };
   const playbackEngine = resolvePlaybackEngine();
   try {
     if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
@@ -481,10 +490,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
         hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
         animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
       });
-      await playbackEngine.dispatchPresentationEvent({
-        type: 'PLAYBACK_EVENTS',
-        events: payload
-      }, playbackDispatchDeps);
+      await playbackEngine.dispatchPresentationEvent(playbackEventForDispatch, playbackEngineDeps);
       emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
         payloadCount: payload.length,
         payloadTypes,
@@ -498,6 +504,9 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
       payloadTypes,
       error: e && (e as any).message ? String((e as any).message) : String(e || '')
     });
+    if (strictNetworkPlayback) {
+      throw e;
+    }
   }
 
   try {
@@ -508,7 +517,11 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
         payloadCount: payload.length,
         payloadTypes
       });
-      await animationEngine.play(payload);
+      if (strictNetworkPlayback) {
+        await animationEngine.play(payload, { strictNetworkPlayback: true });
+      } else {
+        await animationEngine.play(payload);
+      }
       emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
         payloadCount: payload.length,
         payloadTypes,
@@ -520,6 +533,9 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
       payloadCount: payload.length,
       payloadTypes
     });
+    if (strictNetworkPlayback) {
+      throw new Error('strict_network_playback_animation_engine_unavailable');
+    }
   } catch (e) {
     emitPresentationDebugConsole('playback_batch_failed', {
       payloadCount: payload.length,
@@ -527,6 +543,9 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
       error: e && (e as any).message ? String((e as any).message) : String(e || '')
     });
     try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
+    if (strictNetworkPlayback) {
+      throw e;
+    }
   }
 }
 

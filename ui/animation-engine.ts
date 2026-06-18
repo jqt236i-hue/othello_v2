@@ -1286,6 +1286,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         suppressBoardExpansionRevealSound: shouldSuppressBoardExpansionRevealSound === true
                     }
                     : null;
+                const strictNetworkPlaybackFailed = strictNetworkPlaybackThisRun
+                    && (!!playbackError || !!this._strictNetworkPlaybackError);
                 // Avoid leaking abort state into the next playback run.
                 if (isCurrentRun) {
                     this.isAborted = false;
@@ -1293,7 +1295,13 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 // After playback completes, request a final board diff render to ensure DOM matches state.
                 // This avoids stale visuals when diff rendering was suppressed during playback.
                 if (isCurrentRun && !runState.externallyAborted) {
-                    if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
+                    if (strictNetworkPlaybackFailed) {
+                        if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
+                            PlaybackState.abortPlayback({ boardElement: this.boardEl, strictNetworkPlayback: true });
+                        } else {
+                            this.setGlobalInteractionLock(false);
+                        }
+                    } else if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
                         PlaybackState.finalizePlayback({
                             boardElement: this.boardEl,
                             boardUpdateContext,

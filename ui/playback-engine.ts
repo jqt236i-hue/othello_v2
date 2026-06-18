@@ -12,7 +12,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 import type { CardState } from '../src/types';
 
 interface AnimationEngine {
-  play: (payload: PresentationEvent[]) => Promise<void>;
+  play: (payload: PresentationEvent[], options?: { strictNetworkPlayback?: boolean }) => Promise<void>;
 }
 
 interface PresentationEvent {
@@ -30,6 +30,7 @@ interface UIImplPlayback {
 
 interface PlaybackDeps {
   AnimationEngine?: AnimationEngine;
+  strictNetworkPlayback?: boolean;
   scheduleCpuTurnEvent?: (ev: PresentationEvent) => unknown;
   scheduleCpuTurn?: (delay: number, callback: () => void) => unknown;
   onSchedule?: (callback: (() => void) | null) => void;
@@ -75,14 +76,27 @@ function consumePresentationEventBuffer(cardState: CardState | null | undefined)
 async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps | null | undefined): Promise<void> {
   const payload = Array.isArray(events) ? events : [];
   if (!payload.length) return;
+  const config = (deps && typeof deps === 'object') ? deps : {};
+  const strictNetworkPlayback = config.strictNetworkPlayback === true;
+  const playbackOptions = strictNetworkPlayback ? { strictNetworkPlayback: true } : undefined;
   const AnimationEngine = resolveAnimationEngine(deps);
   if (AnimationEngine && typeof AnimationEngine.play === 'function') {
-    await AnimationEngine.play(payload);
+    if (playbackOptions) {
+      await AnimationEngine.play(payload, playbackOptions);
+    } else {
+      await AnimationEngine.play(payload);
+    }
     return;
   }
   if (typeof __uiImpl_playback.runMoveVisualSequence === 'function') {
+    if (strictNetworkPlayback) {
+      throw new Error('strict_network_playback_animation_engine_unavailable');
+    }
     await __uiImpl_playback.runMoveVisualSequence(payload);
     return;
+  }
+  if (strictNetworkPlayback) {
+    throw new Error('strict_network_playback_animation_engine_unavailable');
   }
   try {
     const isDebugLogAvailable = (typeof (globalThis as unknown as { isDebugLogAvailable?: () => boolean }).isDebugLogAvailable === 'function')

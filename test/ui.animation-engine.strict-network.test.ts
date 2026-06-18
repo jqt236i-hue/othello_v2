@@ -21,6 +21,8 @@ describe('AnimationEngine strict network playback', () => {
   });
 
   test('watchdog rejects strict network playback instead of reporting successful sync', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const AnimationEngine = require('../ui/animation-engine');
     const originalExecutePhase = AnimationEngine.executePhase;
     AnimationEngine.executePhase = jest.fn(() => new Promise(() => {}));
@@ -36,6 +38,42 @@ describe('AnimationEngine strict network playback', () => {
       await expect(playPromise).rejects.toThrow(/network_playback_watchdog/);
     } finally {
       AnimationEngine.executePhase = originalExecutePhase;
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('strict network playback failure does not emit final board sync', async () => {
+    const requestBoardUpdate = jest.fn();
+    const failure = new Error('strict_phase_failed');
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.doMock('../ui/animation-resolver', () => ({
+      getAnimationShared: () => null,
+      resolveModuleOrGlobal: (modulePath: string) => {
+        if (modulePath === './board-update-dispatch') {
+          return { requestBoardUpdate };
+        }
+        return null;
+      }
+    }));
+
+    try {
+      const AnimationEngine = require('../ui/animation-engine');
+      const originalExecutePhase = AnimationEngine.executePhase;
+      AnimationEngine.executePhase = jest.fn().mockRejectedValue(failure);
+
+      try {
+        await expect(AnimationEngine.play([
+          { type: 'flip', phase: 1, strictNetworkPlayback: true, targets: [] }
+        ], { strictNetworkPlayback: true })).rejects.toThrow(/strict_phase_failed/);
+
+        expect(requestBoardUpdate).not.toHaveBeenCalled();
+      } finally {
+        AnimationEngine.executePhase = originalExecutePhase;
+      }
+    } finally {
+      errorSpy.mockRestore();
+      jest.dontMock('../ui/animation-resolver');
     }
   });
 

@@ -76,14 +76,22 @@ function createNetworkPresentationTimeline(config?: any): any {
   }
 
   async function dispatchFrame(frame: any, dispatcher: any): Promise<void> {
-    if (!dispatcher || typeof dispatcher.dispatchNetworkPlaybackEvents !== 'function') return;
-    await dispatcher.dispatchNetworkPlaybackEvents(frame.playbackEvents, {
+    const playbackEvents = Array.isArray(frame && frame.playbackEvents) ? frame.playbackEvents : [];
+    if (playbackEvents.length <= 0) return;
+    if (!dispatcher || typeof dispatcher.dispatchNetworkPlaybackEvents !== 'function') {
+      throw new Error('network_playback_dispatcher_unavailable');
+    }
+    const result = await dispatcher.dispatchNetworkPlaybackEvents(playbackEvents, {
       source: 'network_timeline',
       visualSeq: frame.visualSeq,
       stateVersionFrom: frame.stateVersionFrom,
       stateVersionTo: frame.stateVersionTo,
       strictNetworkPlayback: true
     });
+    if (!result || result.started !== true) {
+      const method = result && result.method ? String(result.method) : 'unknown';
+      throw new Error(`network_playback_dispatch_failed:${method}`);
+    }
   }
 
   function commitFrame(frame: any): void {

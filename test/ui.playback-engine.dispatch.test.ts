@@ -52,4 +52,33 @@ describe('ui playback engine dispatch', () => {
     expect(animationEngine.play).toHaveBeenCalledWith([{ type: 'move', phase: 1 }]);
     expect(cardState.presentationEvents).toEqual([]);
   });
+
+  test('strict network playback passes strict option to AnimationEngine', async () => {
+    const playbackEngine = require('../ui/playback-engine.js');
+    const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };
+
+    await playbackEngine.dispatchPresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'flip', phase: 1 }]
+    }, {
+      AnimationEngine: animationEngine,
+      strictNetworkPlayback: true
+    });
+
+    expect(animationEngine.play).toHaveBeenCalledWith(
+      [{ type: 'flip', phase: 1 }],
+      { strictNetworkPlayback: true }
+    );
+  });
+
+  test('strict network playback rejects when no playback implementation is available', async () => {
+    const playbackEngine = require('../ui/playback-engine.js');
+
+    await expect(playbackEngine.dispatchPresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'flip', phase: 1 }]
+    }, {
+      strictNetworkPlayback: true
+    })).rejects.toThrow(/strict_network_playback_animation_engine_unavailable/);
+  });
 });
