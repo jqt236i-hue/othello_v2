@@ -578,6 +578,9 @@
                 <div id="charge-white" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
                 <div id="charge-delta-white-increase" class="charge-delta" aria-live="polite"></div>
                 <div id="charge-delta-white-decrease" class="charge-delta" aria-live="polite"></div>
+                <div id="consecutive-pass-status" class="pass-streak-status" hidden aria-hidden="true" aria-live="polite" aria-atomic="true">
+                    <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span><span class="pass-streak-note">(パスカウント2で終局)</span>
+                </div>
             </div>
         </div>
 
@@ -821,7 +824,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=75632181906525"></script>
+    <script src="public/module-registry.js?v=239763694965108"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=213110615082557"></script>

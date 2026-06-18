@@ -121,6 +121,102 @@
     transform: translateX(-50%);
 }
 
+.pass-streak-status {
+    position: absolute;
+    left: 50%;
+    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset) - (31px * var(--layout-stage-scale)));
+    transform: translateX(-50%);
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 0;
+    height: calc(29px * var(--layout-stage-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(2px * var(--layout-stage-scale));
+    padding:
+        calc(2px * var(--layout-stage-scale))
+        calc(8px * var(--layout-stage-scale))
+        calc(2px * var(--layout-stage-scale))
+        calc(32px * var(--layout-stage-scale));
+    border: max(1px, calc(1px * var(--layout-stage-scale))) solid rgba(128, 31, 32, 0.92);
+    border-top-color: rgba(190, 62, 55, 0.62);
+    border-bottom-color: rgba(155, 33, 42, 0.86);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(90, 18, 18, 0.98), rgba(32, 6, 8, 0.98) 55%, rgba(12, 4, 5, 0.98)),
+        linear-gradient(180deg, rgba(83, 20, 20, 0.98), rgba(13, 4, 5, 0.98));
+    color: #fff1e8;
+    font-family: var(--selected-app-font-readable-family);
+    font-size: calc(13px * var(--layout-stage-scale));
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    pointer-events: none;
+    z-index: var(--layout-z-charge-display);
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 153, 132, 0.16),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(255, 52, 69, 0.34);
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88);
+    white-space: nowrap;
+}
+
+.pass-streak-status::before {
+    content: "";
+    position: absolute;
+    left: calc(13px * var(--layout-stage-scale));
+    top: 50%;
+    width: calc(9px * var(--layout-stage-scale));
+    height: calc(21px * var(--layout-stage-scale));
+    transform: translateY(-50%);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 224, 215, 0.98), rgba(255, 104, 92, 0.94) 58%, rgba(118, 24, 30, 0.96));
+    box-shadow:
+        0 0 calc(9px * var(--layout-stage-scale)) rgba(255, 120, 105, 0.82),
+        inset calc(1px * var(--layout-stage-scale)) 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.72);
+}
+
+.pass-streak-status::after {
+    content: "";
+    position: absolute;
+    left: calc(28px * var(--layout-stage-scale));
+    right: calc(7px * var(--layout-stage-scale));
+    bottom: calc(-2px * var(--layout-stage-scale));
+    height: max(1px, calc(1px * var(--layout-stage-scale)));
+    background: linear-gradient(90deg, rgba(194, 46, 56, 0.88), rgba(111, 20, 29, 0.12));
+}
+
+.pass-streak-status[hidden] {
+    display: none !important;
+}
+
+.pass-streak-status .pass-streak-label {
+    color: rgba(255, 235, 226, 0.96);
+}
+
+.pass-streak-status .pass-streak-current {
+    color: #ffffff;
+    min-width: calc(8px * var(--layout-stage-scale));
+    text-align: right;
+}
+
+.pass-streak-status .pass-streak-separator,
+.pass-streak-status .pass-streak-max {
+    color: rgba(255, 226, 218, 0.88);
+}
+
+.pass-streak-status .pass-streak-note {
+    color: rgba(255, 199, 191, 0.78);
+    font-size: calc(11px * var(--layout-stage-scale));
+}
+
 .charge-delta {
     --charge-delta-core: rgba(154, 226, 255, 0.98);
     --charge-delta-flare: rgba(80, 170, 255, 0.42);
