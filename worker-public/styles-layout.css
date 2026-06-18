@@ -297,6 +297,7 @@ body.auto-mode-active #destroy-card-btn,
 body.auto-mode-active #use-card-btn,
 body.auto-mode-active #toggle-card-detail-btn,
 body.auto-mode-active #pass-btn,
+body.auto-mode-active #board-frame-pass-btn,
 body.auto-mode-active #cancel-card-btn {
     pointer-events: none;
     cursor: not-allowed;

@@ -103,6 +103,7 @@ interface InitDomElements {
   detailBtn: HTMLElement | null;
   passBtn: HTMLElement | null;
   reversiPassBtn: HTMLElement | null;
+  boardFramePassBtn: HTMLElement | null;
   othelloPassBtn: HTMLElement | null;
 }
 
@@ -147,7 +148,7 @@ function getInitDomElements(): InitDomElements {
     networkChatInput: $('networkChatInput') as HTMLInputElement | null, networkChatSendBtn: $('networkChatSendBtn'),
     sidePanel: $('side-panel'), sidePanelToggleBtn: $('sidePanelToggleBtn'),
     destroyBtn: $('destroy-card-btn'), useBtn: $('use-card-btn'),
-    detailBtn: $('toggle-card-detail-btn'), passBtn: $('pass-btn'), reversiPassBtn: $('reversi-pass-btn') || $('othello-pass-btn'), othelloPassBtn: $('othello-pass-btn')
+    detailBtn: $('toggle-card-detail-btn'), passBtn: $('pass-btn'), reversiPassBtn: $('reversi-pass-btn') || $('othello-pass-btn'), boardFramePassBtn: $('board-frame-pass-btn'), othelloPassBtn: $('othello-pass-btn')
   };
 }
 

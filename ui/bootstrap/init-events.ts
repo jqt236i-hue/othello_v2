@@ -106,6 +106,7 @@ interface InitDomElements {
   detailBtn: HTMLElement | null;
   passBtn: HTMLElement | null;
   reversiPassBtn: HTMLElement | null;
+  boardFramePassBtn: HTMLElement | null;
   othelloPassBtn: HTMLElement | null;
 }
 
@@ -241,9 +242,12 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (refs.passBtn && typeof passCurrentTurn === 'function') {
     refs.passBtn.addEventListener('click', passCurrentTurn);
   }
-  const reversiPassBtn = refs.reversiPassBtn || refs.othelloPassBtn;
-  if (reversiPassBtn && typeof passCurrentTurn === 'function') {
-    reversiPassBtn.addEventListener('click', passCurrentTurn);
+  const reversiPassButtons = [refs.reversiPassBtn || refs.othelloPassBtn, refs.boardFramePassBtn]
+    .filter((button, index, buttons): button is HTMLElement => !!button && buttons.indexOf(button) === index);
+  if (typeof passCurrentTurn === 'function') {
+    reversiPassButtons.forEach((button) => {
+      button.addEventListener('click', passCurrentTurn);
+    });
   }
 }
 

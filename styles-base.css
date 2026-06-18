@@ -121,6 +121,7 @@ body[data-font-skin-id="dot-gothic"] :is(
     #use-card-btn,
     #toggle-card-detail-btn,
     #pass-btn,
+    #board-frame-pass-btn,
     #cancel-card-btn,
     #log,
     #log .logEntry,

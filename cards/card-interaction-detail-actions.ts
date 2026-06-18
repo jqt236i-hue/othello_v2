@@ -285,15 +285,25 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         };
     }
 
+    function getReversiPassButtons(documentRef: Document): HTMLButtonElement[] {
+        const legacyPassBtn = (documentRef.getElementById('reversi-pass-btn') || documentRef.getElementById('othello-pass-btn')) as HTMLButtonElement | null;
+        const framePassBtn = documentRef.getElementById('board-frame-pass-btn') as HTMLButtonElement | null;
+        return [legacyPassBtn, framePassBtn].filter((button, index, buttons): button is HTMLButtonElement => (
+            !!button && buttons.indexOf(button) === index
+        ));
+    }
+
     function syncReversiPassButton(actionState: any) {
         const documentRef = typeof cfg.getDocumentRef === 'function' ? cfg.getDocumentRef() : null;
         if (!documentRef) return;
-        const passBtn = (documentRef.getElementById('reversi-pass-btn') || documentRef.getElementById('othello-pass-btn')) as HTMLButtonElement | null;
-        if (!passBtn) return;
+        const passButtons = getReversiPassButtons(documentRef);
+        if (!passButtons.length) return;
         const shouldShow = cfg.isReversiMode() && !!(actionState && actionState.canShowPass);
-        passBtn.hidden = !shouldShow;
-        passBtn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
-        passBtn.disabled = !shouldShow || !(actionState && actionState.canPass);
+        for (const passBtn of passButtons) {
+            passBtn.hidden = !shouldShow;
+            passBtn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+            passBtn.disabled = !shouldShow || !(actionState && actionState.canPass);
+        }
     }
 
     function getPendingSelectionPrompt(pending: any) {

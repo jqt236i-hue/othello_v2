@@ -7,10 +7,11 @@ import {
 
 function createController(overrides?: Record<string, any>) {
   const dom = new JSDOM(`
-    <!doctype html><html><body>
-      <button id="reversi-pass-btn" hidden disabled>パス</button>
-      <button id="othello-pass-btn" hidden disabled>パス</button>
-    </body></html>
+      <!doctype html><html><body>
+        <button id="reversi-pass-btn" hidden disabled>パス</button>
+        <button id="board-frame-pass-btn" hidden disabled>パス</button>
+        <button id="othello-pass-btn" hidden disabled>パス</button>
+      </body></html>
   `);
   const cardState = {
     charge: { black: 10, white: 8 },
@@ -110,7 +111,7 @@ describe('card interaction detail actions module', () => {
     expect(actionState.canAfford).toBe(true);
   });
 
-  test('sync reversi pass button mirrors show and disabled state', () => {
+  test('sync reversi pass buttons mirror show and disabled state', () => {
     const ctx = createController({
       deps: {
         isReversiMode: jest.fn(() => true)
@@ -123,9 +124,13 @@ describe('card interaction detail actions module', () => {
     });
 
     const passBtn = ctx.dom.window.document.getElementById('reversi-pass-btn') as HTMLButtonElement;
+    const framePassBtn = ctx.dom.window.document.getElementById('board-frame-pass-btn') as HTMLButtonElement;
     expect(passBtn.hidden).toBe(false);
     expect(passBtn.getAttribute('aria-hidden')).toBe('false');
     expect(passBtn.disabled).toBe(true);
+    expect(framePassBtn.hidden).toBe(false);
+    expect(framePassBtn.getAttribute('aria-hidden')).toBe('false');
+    expect(framePassBtn.disabled).toBe(true);
   });
 
   test('pending prompt formats multi-step selections', () => {
