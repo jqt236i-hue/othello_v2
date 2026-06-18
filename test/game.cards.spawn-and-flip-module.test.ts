@@ -100,6 +100,31 @@ describe('cards spawn-and-flip module', () => {
     expect(baseOptions.gameState.board[0][0]).toBe(1);
   });
 
+  test('spawnAndFlipPlacement fallback reports failed board writes accurately', () => {
+    const result = spawnAndFlipPlacement({
+      cardState: {},
+      gameState: { board: [[0, -1, 1]] },
+      playerKey: 'black',
+      playerValue: 1,
+      row: 4,
+      col: 4,
+      allowZeroFlips: true,
+      BoardOps: null,
+      getCardContext: () => ({}),
+      getFlipsWithContext: () => [[0, 1]],
+      spawnCause: 'SYSTEM',
+      spawnReason: 'standard_place',
+      flipCause: 'SYSTEM',
+      flipReason: 'standard_flip'
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      spawned: false,
+      attemptedFlips: [[0, 1]],
+      appliedFlips: []
+    }));
+  });
+
   test('preserves spawn bookkeeping and dedupes flipped output inside a spawn block', () => {
     const cardState = {
       markers: [

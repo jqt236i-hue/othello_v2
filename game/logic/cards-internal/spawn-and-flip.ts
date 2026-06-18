@@ -236,7 +236,7 @@ function spawnAndFlipPlacement(options: SpawnAndFlipPlacementOptions): any {
 
     const spawnRes = opts.BoardOps && typeof opts.BoardOps.spawnAt === 'function'
         ? opts.BoardOps.spawnAt(opts.cardState, opts.gameState, row, col, opts.playerKey, opts.spawnCause, opts.spawnReason, opts.spawnMeta || undefined)
-        : (setBoardCell(opts.gameState, row, col, opts.playerValue), { spawned: true });
+        : { spawned: setBoardCell(opts.gameState, row, col, opts.playerValue) };
     if (spawnRes && spawnRes.spawned === false) {
         return { spawned: false, attemptedFlips, appliedFlips: [], flipEvadeResult: null };
     }
@@ -253,7 +253,7 @@ function spawnAndFlipPlacement(options: SpawnAndFlipPlacementOptions): any {
     for (const [flipRow, flipCol] of remainingFlips) {
         const changeRes = opts.BoardOps && typeof opts.BoardOps.changeAt === 'function'
             ? opts.BoardOps.changeAt(opts.cardState, opts.gameState, flipRow, flipCol, opts.playerKey, opts.flipCause, opts.flipReason, opts.flipMeta || undefined)
-            : (setBoardCell(opts.gameState, flipRow, flipCol, opts.playerValue), { changed: true });
+            : { changed: setBoardCell(opts.gameState, flipRow, flipCol, opts.playerValue) };
         if (changeRes && changeRes.changed) {
             appliedFlips.push([flipRow, flipCol]);
         }
