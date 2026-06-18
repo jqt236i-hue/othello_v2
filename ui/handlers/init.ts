@@ -27,7 +27,7 @@ declare const SoundEngine: {
 } | undefined;
 declare const setupDebugControls: ((btn: HTMLElement | null, hvhhBtn: HTMLElement | null, vtBtn: HTMLElement | null) => void) | undefined;
 declare const setupAutoToggle: ((btn: HTMLElement | null, sb: HTMLSelectElement | null, sw: HTMLSelectElement | null) => void) | undefined;
-declare const setupMatchModeControls: ((opts: Record<string, HTMLElement | null>) => void) | undefined;
+declare const setupMatchModeControls: ((opts: Record<string, unknown>) => void) | undefined;
 declare const setupDeckBuilderControls: ((opts: Record<string, HTMLElement | null>) => unknown) | undefined;
 declare const setupSmartSelects: ((sb: HTMLSelectElement | null, sw: HTMLSelectElement | null) => void) | undefined;
 declare const setupSoundControls: ((muteBtn: HTMLElement | null, seType: HTMLSelectElement | null, seVol: HTMLInputElement | null) => void) | undefined;
@@ -35,6 +35,7 @@ declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLEle
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
+declare const restoreStoredNetworkSessionOnBoot: (() => Promise<unknown>) | undefined;
 declare const destroySelectedHandCard: (() => void) | undefined;
 declare const useSelectedCard: (() => void) | undefined;
 declare const toggleCardDetailExpanded: (() => void) | undefined;
@@ -229,6 +230,10 @@ async function initializeUI(): Promise<void> {
 
   if (typeof initGameSystems === 'function') {
     await initGameSystems();
+  }
+
+  if (typeof restoreStoredNetworkSessionOnBoot === 'function') {
+    await restoreStoredNetworkSessionOnBoot();
   }
 
   setUiInitializedFlag(true);

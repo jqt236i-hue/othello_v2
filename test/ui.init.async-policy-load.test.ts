@@ -35,6 +35,8 @@ describe('initializeUI async policy loading', () => {
     delete global.initPolicyOnnxModel;
     delete global.initPolicyTableModel;
     delete global.resetGame;
+    delete global.setupMatchModeControls;
+    delete global.restoreStoredNetworkSessionOnBoot;
   });
 
   test('resetGame waits for ONNX and policy-table initialization', async () => {
@@ -68,5 +70,33 @@ describe('initializeUI async policy loading', () => {
 
     expect(global.resetGame).toHaveBeenCalledTimes(1);
     expect(global.__uiInitialized).toBe(true);
+  });
+
+  test('saved network session restore runs after bootstrap reset', async () => {
+    const calls = [];
+    global.resetGame = jest.fn(() => {
+      calls.push('reset');
+    });
+    global.setupMatchModeControls = jest.fn((opts) => {
+      calls.push(`setup:${opts && opts.deferStoredSessionRestore === true ? 'defer' : 'immediate'}`);
+    });
+    global.restoreStoredNetworkSessionOnBoot = jest.fn(async () => {
+      calls.push('restore');
+    });
+
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({
+      installGameDI: jest.fn()
+    }), { virtual: false });
+
+    const initModule = require('../ui/handlers/init.js');
+    await initModule.initializeUI();
+
+    expect(global.setupMatchModeControls).toHaveBeenCalledWith(expect.objectContaining({
+      deferStoredSessionRestore: true
+    }));
+    expect(global.restoreStoredNetworkSessionOnBoot).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(expect.arrayContaining(['setup:defer', 'reset', 'restore']));
+    expect(calls.indexOf('reset')).toBeLessThan(calls.indexOf('restore'));
   });
 });

@@ -2084,10 +2084,13 @@ const MODE_OTHELLO = 'othello';
         measureBaseControlPanelHeight();
         scheduleControlPanelLayoutSync();
         setMode(MODE_CPU, { force: true, silentLog: true });
-        restoreStoredNetworkSessionOnBoot();
+        if (!(options && options.deferStoredSessionRestore === true)) {
+            restoreStoredNetworkSessionOnBoot();
+        }
     }
 export = {
         setupMatchModeControls,
+        restoreStoredNetworkSessionOnBoot,
         setMode,
         getCurrentMode,
         isLocalOrNetworkMode,
