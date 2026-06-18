@@ -257,14 +257,13 @@ function isCaptureTargetableMarkerForCard(cardUtils: any, marker: any): boolean 
     return ruleClass === 'true_special_stone';
 }
 
-function findMarkerAt(cardState: any, row: number, col: number): any | null {
+function getMarkersAtCell(cardState: any, row: number, col: number): any[] {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    return markers.find((marker: any) => (
+    return markers.filter((marker: any) => (
         marker &&
-        marker.kind === 'specialStone' &&
         marker.row === row &&
         marker.col === col
-    )) || null;
+    ));
 }
 
 function blocksTemptAt(cardUtils: any, cardState: any, row: number, col: number): boolean {
@@ -310,13 +309,13 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
     const CardUtils = getCardUtils();
     forEachBoardShapeCell(gameState, (r, c) => {
         if (blocksTemptAt(CardUtils, cardState, r, c)) return;
-        const markerEntry = CardUtils && typeof CardUtils.getSpecialMarkerAt === 'function'
-            ? CardUtils.getSpecialMarkerAt(cardState, r, c)
-            : null;
-        const marker = unwrapMarkerEntry(markerEntry) || findMarkerAt(cardState, r, c);
-        if (!marker) return;
-        if (!isTemptTargetableMarkerForCard(CardUtils, marker)) return;
-        if (marker.owner !== opponentKey) return;
+        const markersAtCell = getMarkersAtCell(cardState, r, c);
+        const targetMarker = markersAtCell.find((marker: any) => (
+            marker &&
+            marker.owner === opponentKey &&
+            isTemptTargetableMarkerForCard(CardUtils, marker)
+        )) || null;
+        if (!targetMarker) return;
         if (getCellValue(gameState, r, c) === P_EMPTY) return;
         res.push({ row: r, col: c });
     });

@@ -2684,6 +2684,7 @@ const {
             emitPresentationEvent,
             clearCardPendingEffect,
             getMarkers,
+            shouldTransferMarkerOwnership: isTemptTargetableMarker,
             MARKER_KINDS
         });
     }

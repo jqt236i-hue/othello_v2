@@ -233,6 +233,41 @@ describe('special stone visual rule', () => {
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 4)).toMatchObject({ applied: false, reason: 'not_special' });
   });
 
+  test('TEMPT_WILL は対象外マーカーと同居する誘惑可能マーカーを対象にし、対象外マーカーの所有者を変えない', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    gameState.board[3][2] = Shared.WHITE;
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+    cardState.markers.push(
+      {
+        id: 40,
+        kind: 'specialStone',
+        row: 3,
+        col: 2,
+        owner: 'white',
+        data: { type: 'HYPERACTIVE', instantPlacementOnly: true }
+      },
+      {
+        id: 41,
+        kind: 'specialStone',
+        row: 3,
+        col: 2,
+        owner: 'white',
+        data: { type: 'TIME_BOMB', category: 'bomb' }
+      }
+    );
+
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([{ row: 3, col: 2 }]);
+
+    const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 3, 2);
+    expect(res).toMatchObject({ applied: true });
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 40, owner: 'white', data: expect.objectContaining({ type: 'HYPERACTIVE', instantPlacementOnly: true }) }),
+      expect.objectContaining({ id: 41, owner: 'black', data: expect.objectContaining({ type: 'TIME_BOMB' }) })
+    ]));
+  });
+
   test('TEMPT_WILL は弱い石・強い石を特殊石対象にし、絶対保護石は対象一覧から除外する', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);

@@ -39,6 +39,7 @@ function transferCellMarkerOwnership(cardState: CardState, row: number, col: num
     if (typeof getMarkers !== 'function') {
         return { transferred: false, hadWork: false, reason: 'deps_missing' };
     }
+    const shouldTransferMarkerOwnership = deps && deps.shouldTransferMarkerOwnership;
 
     const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
     const playerValue = normalizedPlayerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
@@ -51,6 +52,12 @@ function transferCellMarkerOwnership(cardState: CardState, row: number, col: num
     let hadWork = false;
 
     for (const marker of markersAtCell) {
+        if (
+            typeof shouldTransferMarkerOwnership === 'function' &&
+            shouldTransferMarkerOwnership(marker) !== true
+        ) {
+            continue;
+        }
         transferred = true;
         marker.owner = normalizedPlayerKey;
         const markerData = (marker.data && typeof marker.data === 'object') ? marker.data : null;

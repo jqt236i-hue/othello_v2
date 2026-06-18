@@ -42,7 +42,7 @@ describe('tempt', () => {
         const callArg = mockExecutePendingSelection.mock.calls[0][0];
         expect(callArg.pendingType).toBe('TEMPT_WILL');
         expect(callArg.actionPayload).toEqual({ temptTarget: { row: 2, col: 4 } });
-        expect(callArg.invalidMessage()).toBe('対象の相手特殊石を選んでください');
+        expect(callArg.invalidMessage()).toBe('誘惑する相手の石効果を選んでください');
         expect(callArg.buildPlaybackMeta()).toEqual({ cause: 'TEMPT_WILL', target: { row: 2, col: 4 } });
         expect(global.emitLogAdded).toHaveBeenCalledWith('白が誘惑の意志で e3 の支配権を奪った');
     });
