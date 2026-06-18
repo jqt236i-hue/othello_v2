@@ -72,6 +72,10 @@ describe('local match server lobby', () => {
           hostName: 'くろ',
           seatCount: 1,
           maxSeats: 2,
+          spectatorCount: 0,
+          maxSpectators: 4,
+          canJoin: true,
+          canSpectate: true,
           hasPassword: true
         })
       ]);
@@ -94,7 +98,19 @@ describe('local match server lobby', () => {
 
       const listedAfterJoin = await requestJson(port, 'GET', '/api/match/list');
       expect(listedAfterJoin.status).toBe(200);
-      expect(listedAfterJoin.data.rooms).toEqual([]);
+      expect(listedAfterJoin.data.rooms).toEqual([
+        expect.objectContaining({
+          roomId: created.data.roomId,
+          hostName: 'くろ',
+          seatCount: 2,
+          maxSeats: 2,
+          spectatorCount: 0,
+          maxSpectators: 4,
+          canJoin: false,
+          canSpectate: true,
+          hasPassword: true
+        })
+      ]);
     } finally {
       await closeServer(server);
     }

@@ -84,6 +84,10 @@ function toPublicSnapshot(room: any, viewerSeatKey: any) {
     return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
 }
 
+function toPublicSnapshotForViewer(room: any, viewer: any) {
+    return MatchAuthority.buildPublicSnapshotForViewer(room, viewer);
+}
+
 function buildNetworkActionEffectLogs(action: any, playerKey: any, rawEvents: any, presentationEvents: any) {
     return MatchAuthority.buildNetworkActionEffectLogs(action, playerKey, CardLogic, rawEvents, presentationEvents, TurnPipelineUIAdapter);
 }
@@ -94,6 +98,14 @@ function makeRoomId() {
 
 function makeSeatToken() {
     return MatchAuthority.makeSeatToken();
+}
+
+function makeSpectatorToken() {
+    return makeSeatToken();
+}
+
+function makeSpectatorId() {
+    return `spec_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
 }
 
 function normalizeNetworkPlayerName(value: any) {
@@ -1115,6 +1127,8 @@ function makeRoom(options: any) {
         seatNames: { black: '', white: '' },
         seatHandSkins: { black: '', white: '' },
         seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
+        spectators: {},
+        maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
         roomName: MatchRoomLobby.resolveRoomName(opts.roomName),
         roomPassword: MatchRoomLobby.normalizeRoomPassword(opts.roomPassword),
         roomDeck: null,
@@ -1424,6 +1438,101 @@ async function handleLeave(req: any, res: any) {
         roomBoardConfig: toPublicRoomBoardConfig(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
+    }));
+}
+
+async function handleSpectate(req: any, res: any) {
+    const body = await parseBody(req);
+    const roomId = String(body.roomId || '').trim().toUpperCase();
+    const room = rooms.get(roomId);
+
+    if (!room) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (MatchRoomLobby.isWaitingRoomExpired(room, Date.now())) {
+        deleteRoom(roomId, room);
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (!MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
+        writeJson(res, 403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
+        return;
+    }
+
+    const result = MatchAuthority.addSpectatorToRoom(room, {
+        spectatorName: body.spectatorName || body.playerName,
+        makeSpectatorToken,
+        makeSpectatorId,
+        now: Date.now()
+    });
+    if (!result.ok) {
+        writeJson(res, result.reason === 'SPECTATOR_FULL' ? 409 : 500, {
+            ok: false,
+            reason: result.reason
+        });
+        return;
+    }
+
+    broadcastPresence(room, {
+        type: 'spectator_join',
+        spectatorId: result.spectatorId,
+        spectatorName: result.spectatorName,
+        rejoined: false
+    });
+
+    const serverTime = Date.now();
+    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        ok: true,
+        viewerRole: 'spectator',
+        spectatorId: result.spectatorId,
+        spectatorToken: result.spectatorToken,
+        spectatorName: result.spectatorName,
+        spectatorCount: result.spectatorCount,
+        maxSpectators: result.maxSpectators,
+        stateVersion: room.stateVersion,
+        snapshot: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: result.spectatorId }),
+        roomDeck: toPublicRoomDeck(room),
+        roomBoardConfig: toPublicRoomBoardConfig(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        turnTimer: toPublicTurnTimer(room, serverTime),
+        serverTime
+    }));
+}
+
+async function handleSpectatorLeave(req: any, res: any) {
+    const body = await parseBody(req);
+    const roomId = String(body.roomId || '').trim().toUpperCase();
+    const room = rooms.get(roomId);
+
+    if (!room) {
+        writeJson(res, 200, { ok: true });
+        return;
+    }
+
+    const result = MatchAuthority.removeSpectatorFromRoom(room, {
+        spectatorId: body.spectatorId,
+        spectatorToken: body.spectatorToken,
+        now: Date.now()
+    });
+    if (!result.ok) {
+        writeJson(res, 403, { ok: false, reason: result.reason });
+        return;
+    }
+
+    broadcastPresence(room, {
+        type: 'spectator_leave',
+        spectatorId: result.spectatorId,
+        spectatorName: result.spectatorName,
+        rejoined: false
+    });
+
+    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        ok: true,
+        viewerRole: 'spectator',
+        spectatorCount: result.spectatorCount,
+        maxSpectators: result.maxSpectators,
+        serverTime: Date.now()
     }));
 }
 
@@ -1958,6 +2067,16 @@ function createLocalMatchServer() {
 
             if (req.method === 'POST' && pathname === '/api/match/leave') {
                 await handleLeave(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/match/spectate') {
+                await handleSpectate(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/match/spectator-leave') {
+                await handleSpectatorLeave(req, res);
                 return;
             }
 
