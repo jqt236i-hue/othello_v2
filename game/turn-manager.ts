@@ -839,10 +839,6 @@ function isNetworkSpectatorForTurnManager() {
         if (impl && typeof impl.isNetworkSpectator === 'function') return impl.isNetworkSpectator() === true;
         if (impl && impl.isNetworkSpectator === true) return true;
     } catch (e) { /* ignore */ }
-    try {
-        const client = readTurnManagerRuntimeValue('NetworkMatchClient');
-        if (client && typeof client.isSpectator === 'function') return client.isSpectator() === true;
-    } catch (e) { /* ignore */ }
     return false;
 }
 
