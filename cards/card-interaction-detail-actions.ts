@@ -285,25 +285,22 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         };
     }
 
-    function getReversiPassButtons(documentRef: Document): HTMLButtonElement[] {
-        const legacyPassBtn = (documentRef.getElementById('reversi-pass-btn') || documentRef.getElementById('othello-pass-btn')) as HTMLButtonElement | null;
-        const framePassBtn = documentRef.getElementById('board-frame-pass-btn') as HTMLButtonElement | null;
-        return [legacyPassBtn, framePassBtn].filter((button, index, buttons): button is HTMLButtonElement => (
-            !!button && buttons.indexOf(button) === index
-        ));
+    function syncPassButtonVisibility(passBtn: HTMLButtonElement | null, shouldShow: boolean, canPass: boolean) {
+        if (!passBtn) return;
+        passBtn.hidden = !shouldShow;
+        passBtn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+        passBtn.disabled = !shouldShow || !canPass;
     }
 
     function syncReversiPassButton(actionState: any) {
         const documentRef = typeof cfg.getDocumentRef === 'function' ? cfg.getDocumentRef() : null;
         if (!documentRef) return;
-        const passButtons = getReversiPassButtons(documentRef);
-        if (!passButtons.length) return;
-        const shouldShow = cfg.isReversiMode() && !!(actionState && actionState.canShowPass);
-        for (const passBtn of passButtons) {
-            passBtn.hidden = !shouldShow;
-            passBtn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
-            passBtn.disabled = !shouldShow || !(actionState && actionState.canPass);
-        }
+        const legacyPassBtn = (documentRef.getElementById('reversi-pass-btn') || documentRef.getElementById('othello-pass-btn')) as HTMLButtonElement | null;
+        const framePassBtn = documentRef.getElementById('board-frame-pass-btn') as HTMLButtonElement | null;
+        const canShowPass = !!(actionState && actionState.canShowPass);
+        const canPass = !!(actionState && actionState.canPass);
+        syncPassButtonVisibility(legacyPassBtn, cfg.isReversiMode() && canShowPass, canPass);
+        syncPassButtonVisibility(framePassBtn, canShowPass, canPass);
     }
 
     function getPendingSelectionPrompt(pending: any) {

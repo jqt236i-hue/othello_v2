@@ -133,6 +133,27 @@ describe('card interaction detail actions module', () => {
     expect(framePassBtn.disabled).toBe(true);
   });
 
+  test('board frame pass button follows card pass visibility outside reversi mode', () => {
+    const ctx = createController({
+      deps: {
+        isReversiMode: jest.fn(() => false)
+      }
+    });
+
+    ctx.controller.syncReversiPassButton({
+      canShowPass: true,
+      canPass: true
+    });
+
+    const reversiPassBtn = ctx.dom.window.document.getElementById('reversi-pass-btn') as HTMLButtonElement;
+    const framePassBtn = ctx.dom.window.document.getElementById('board-frame-pass-btn') as HTMLButtonElement;
+    expect(reversiPassBtn.hidden).toBe(true);
+    expect(reversiPassBtn.disabled).toBe(true);
+    expect(framePassBtn.hidden).toBe(false);
+    expect(framePassBtn.getAttribute('aria-hidden')).toBe('false');
+    expect(framePassBtn.disabled).toBe(false);
+  });
+
   test('pending prompt formats multi-step selections', () => {
     const ctx = createController();
 

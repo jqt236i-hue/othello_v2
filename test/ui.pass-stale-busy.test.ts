@@ -14,6 +14,7 @@ describe('pass fail-safe when no legal moves', () => {
         <button id="toggle-card-detail-btn">詳細</button>
         <button id="pass-btn">パス</button>
         <button id="reversi-pass-btn" hidden disabled>パス</button>
+        <button id="board-frame-pass-btn" hidden disabled>パス</button>
         <button id="cancel-card-btn" style="display:none;">キャンセル</button>
         <div id="use-card-reason"></div>
       </body></html>
@@ -71,8 +72,11 @@ describe('pass fail-safe when no legal moves', () => {
     window.updateCardDetailPanel();
 
     const passBtn = document.getElementById('pass-btn');
+    const framePassBtn = document.getElementById('board-frame-pass-btn');
     expect(passBtn.style.display).toBe('inline-block');
     expect(passBtn.disabled).toBe(false);
+    expect(framePassBtn.hidden).toBe(false);
+    expect(framePassBtn.disabled).toBe(false);
   });
 
   test('manual pass clears stale busy flags and proceeds', () => {
