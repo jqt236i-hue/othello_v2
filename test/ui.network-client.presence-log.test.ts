@@ -109,6 +109,26 @@ describe('NetworkMatchClient presence log', () => {
         });
       }
 
+      if (path === '/api/match/deck') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ROOM1234',
+          seatKey: 'black',
+          seats: { black: true, white: false },
+          seatNames: { black: 'くろ', white: '' },
+          roomDeck: {
+            mode: 'perPlayer',
+            deckCode: '',
+            deckSize: null,
+            deckCodeByPlayer: { black: requestBody.deckCode || '', white: '' },
+            deckSizeByPlayer: { black: 30, white: null },
+            source: 'room'
+          },
+          turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },
+          serverTime: 1
+        });
+      }
+
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
   });
@@ -314,6 +334,28 @@ describe('NetworkMatchClient presence log', () => {
       black: 'gacha__n__小鬼の手',
       white: 'gacha__n__陽気な手'
     });
+  });
+
+  test('選択中の deckCode を room へ同期して roomDeck を更新する', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const updated = await client.updateDeckSelection('D1C1:chest_01*3');
+    expect(updated.ok).toBe(true);
+
+    const deckCall = global.fetch.mock.calls.find(([url]) => new URL(String(url), 'http://localhost/').pathname === '/api/match/deck');
+    expect(deckCall).toBeTruthy();
+    expect(JSON.parse(deckCall[1].body)).toEqual(expect.objectContaining({
+      roomId: 'ROOM1234',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      deckCode: 'D1C1:chest_01*3'
+    }));
+    expect(client.getRoomDeck().deckCodeByPlayer.black).toBe('D1C1:chest_01*3');
   });
 
   test('chatイベントを受信してチャットリスナーへ渡す', async () => {

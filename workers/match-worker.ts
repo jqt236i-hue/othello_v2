@@ -1705,14 +1705,18 @@ function getRoomInitialDeckSpecByPlayer(room: MatchWorkerRoomState | null | unde
     };
 }
 
-function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, seatKey: unknown, deckSelection: MatchWorkerDeckSelection | null | undefined): void {
-    if (!room || !deckSelection || deckSelection.hasCustomDeck !== true) return;
+function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, seatKey: unknown, deckSelection: MatchWorkerDeckSelection | null | undefined): boolean {
+    if (!room || !deckSelection || deckSelection.ok !== true) return false;
 
     const normalizedSeatKey = normalizePlayerKey(seatKey);
-    if (!normalizedSeatKey) return;
+    if (!normalizedSeatKey) return false;
     const initialDeckSpecByPlayer = getRoomInitialDeckSpecByPlayer(room);
-    initialDeckSpecByPlayer[normalizedSeatKey] = deepClone(deckSelection.deckSpec);
-    room.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
+    initialDeckSpecByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true
+        ? deepClone(deckSelection.deckSpec)
+        : null;
+    room.initialDeckSpecByPlayer = (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white)
+        ? initialDeckSpecByPlayer
+        : null;
     room.initialDeckSpec = null;
 
     const roomDeck: MatchWorkerRoomDeckMetadata = normalizeRoomDeckMetadata(room.roomDeck) || {
@@ -1730,10 +1734,15 @@ function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, 
     roomDeck.deckSize = null;
     roomDeck.deckCodeByPlayer = Object.assign({ black: '', white: '' }, roomDeck.deckCodeByPlayer || {});
     roomDeck.deckSizeByPlayer = Object.assign({ black: null, white: null }, roomDeck.deckSizeByPlayer || {});
-    roomDeck.deckCodeByPlayer[normalizedSeatKey] = String(deckSelection.deckCode || '').trim();
-    roomDeck.deckSizeByPlayer[normalizedSeatKey] = normalizeDeckSizeValue(deckSelection.deckSize);
+    roomDeck.deckCodeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true
+        ? String(deckSelection.deckCode || '').trim()
+        : '';
+    roomDeck.deckSizeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true
+        ? normalizeDeckSizeValue(deckSelection.deckSize)
+        : null;
 
     room.roomDeck = hasRoomDeckMetadataEntries(roomDeck) ? roomDeck : null;
+    return true;
 }
 
 function toPublicRoomDeck(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> | null {
@@ -3126,6 +3135,61 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
+    async handleDeck(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        const room = this.room;
+
+        if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
+        const deckSelection = await resolveDeckSelection(body.deckCode);
+        if (!deckSelection.ok) {
+            return jsonResponse(400, {
+                ok: false,
+                reason: deckSelection.reason || 'DECK_CODE_INVALID'
+            });
+        }
+
+        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
+        const seatToken = String(body.seatToken || '').trim();
+        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
+        if (!seatKey) {
+            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+        }
+        if (!asRecord(room.seats)[seatKey]) {
+            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        }
+
+        const previousRoomDeckJson = JSON.stringify(toPublicRoomDeck(room) || null);
+        assignRoomDeckSelection(room, seatKey, deckSelection);
+        const nextRoomDeck = toPublicRoomDeck(room);
+        room.updatedAt = Date.now();
+        await this.saveRoom();
+
+        if (previousRoomDeckJson !== JSON.stringify(nextRoomDeck || null)) {
+            await this.broadcastPresence({
+                type: 'deck',
+                seatKey,
+                rejoined: false
+            });
+        }
+
+        const serverTime = Date.now();
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+            ok: true,
+            seatKey,
+            roomDeck: nextRoomDeck,
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        }));
+    }
+
     async handlePublish(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         if (await this.expireRoomIfNeeded(Date.now())) {
@@ -3429,6 +3493,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
             return this.handleHandSkin(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/deck') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleDeck(parsed || {});
         }
 
         if (request.method === 'GET' && pathname === '/api/match/state') {

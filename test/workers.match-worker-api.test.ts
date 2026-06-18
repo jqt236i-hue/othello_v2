@@ -114,6 +114,44 @@ describe('match worker api controller', () => {
     ]);
   });
 
+  test('match deck を room durable object へ転送する', async () => {
+    const seen: Array<{ roomId: string; method: string; pathname: string; body: any }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+
+    const env = createEnv(async (roomId, request) => {
+      seen.push({
+        roomId,
+        method: request.method,
+        pathname: new URL(request.url).pathname,
+        body: JSON.parse(String(await request.text() || '{}'))
+      });
+      return jsonResponse(200, { ok: true });
+    });
+
+    const response = await controller.handleMatchApi(new Request('https://worker/api/match/deck', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: 'abc', seatKey: 'black', seatToken: 'token_black', deckCode: 'D1C1:chest_01*3' })
+    }), env as any);
+
+    expect(response.status).toBe(200);
+    expect(seen).toEqual([
+      {
+        roomId: 'ABC',
+        method: 'POST',
+        pathname: '/api/match/deck',
+        body: { roomId: 'ABC', seatKey: 'black', seatToken: 'token_black', deckCode: 'D1C1:chest_01*3' }
+      }
+    ]);
+  });
+
   test('match state GET を room durable object へ転送し roomId を search に反映する', async () => {
     const seen: Array<{ roomId: string; url: string }> = [];
     const controller = createMatchWorkerApiController({

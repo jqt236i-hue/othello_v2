@@ -331,6 +331,7 @@ export interface MatchRoomDurableObjectApi {
     handleSpectate(body: Record<string, unknown>): Promise<Response>;
     handleSpectatorLeave(body: Record<string, unknown>): Promise<Response>;
     handleHandSkin(body: Record<string, unknown>): Promise<Response>;
+    handleDeck(body: Record<string, unknown>): Promise<Response>;
     handlePublish(body: Record<string, unknown>): Promise<Response>;
     handleRematchRequest(body: Record<string, unknown>): Promise<Response>;
     handleRematchResponse(body: Record<string, unknown>): Promise<Response>;

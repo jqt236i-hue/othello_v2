@@ -3029,6 +3029,51 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
+    async function updateDeckSelection(deckCode: any) {
+        if (!isActive()) {
+            return { ok: false, reason: 'INACTIVE' };
+        }
+        if (isSpectator()) {
+            emitStatus('観戦中は操作できません', true);
+            return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
+        }
+        if (!state.seatToken) {
+            return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
+        }
+
+        const payload = {
+            roomId: state.roomId,
+            seatKey: state.seatKey,
+            seatToken: state.seatToken,
+            deckCode: String(deckCode || '').trim()
+        };
+
+        const res = await requestJson('POST', '/api/match/deck', payload);
+        if (!res.ok || !res.data || res.data.ok !== true) {
+            const reason = (res.data && res.data.reason) || 'DECK_UPDATE_FAILED';
+            applyPayloadSessionState(res.data);
+
+            if (isMatchApiMissing(res)) {
+                emitStatus('ネット対戦: デッキ同期API(/api/match/deck)が見つかりません', true);
+            } else if (reason === 'SEAT_NOT_JOINED') {
+                emitStatus('ネット対戦: 部屋参加後にデッキを同期できます', true);
+            } else if (reason === 'DECK_CODE_INVALID') {
+                emitStatus('ネット対戦: デッキコードが不正です', true);
+            } else {
+                emitStatus('ネット対戦: デッキの同期に失敗しました', true);
+            }
+
+            return { ok: false, reason };
+        }
+
+        applyPayloadSessionState(res.data);
+        emitStatus('ネット対戦: デッキを同期しました', false);
+        return {
+            ok: true,
+            roomDeck: getRoomDeck()
+        };
+    }
+
     async function updateHandSkin(selectedHandSkinId: any) {
         if (!isActive()) {
             return { ok: false, reason: 'INACTIVE' };
@@ -3086,6 +3131,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         setRematchRequestListener,
         getChatMaxLength,
         sendChatMessage,
+        updateDeckSelection,
         updateHandSkin,
         createRoom,
         joinRoom,

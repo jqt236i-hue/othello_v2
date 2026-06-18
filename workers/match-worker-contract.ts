@@ -9,6 +9,7 @@ const REQUIRED_ROOM_METHODS = [
     'handleJoin',
     'handleLeave',
     'handleHandSkin',
+    'handleDeck',
     'handlePublish',
     'handleRematchRequest',
     'handleRematchResponse',

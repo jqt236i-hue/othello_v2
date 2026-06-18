@@ -388,6 +388,9 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             }
 
             syncUrlFromLocalChoice();
+            if (optsLocal.syncNetworkDeck !== false) {
+                syncNetworkDeckSelection(choice);
+            }
         }
 
         function hydrateLocalChoiceFromStorage() {
@@ -445,6 +448,30 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             } catch (e: any) { /* ignore */ }
         }
 
+        function syncNetworkDeckSelection(choice: any) {
+            const networkClient = resolveNetworkMatchClientForDeckBuilder('updateDeckSelection');
+            if (!networkClient || typeof networkClient.updateDeckSelection !== 'function') return;
+            if (typeof networkClient.isSpectator === 'function' && networkClient.isSpectator()) return;
+
+            const deckCode = choice && choice.mode === 'custom'
+                ? String(choice.deckCode || '').trim()
+                : '';
+            Promise.resolve(networkClient.updateDeckSelection(deckCode))
+                .then((result: any) => {
+                    if (!result || result.ok !== true) {
+                        const reason = result && result.reason ? String(result.reason) : '';
+                        if (reason !== 'INACTIVE' && reason !== 'SPECTATOR_READ_ONLY') {
+                            emitNotice('ネット対戦: デッキ同期に失敗しました', true, true);
+                        }
+                    }
+                    render();
+                })
+                .catch(() => {
+                    emitNotice('ネット対戦: デッキ同期に失敗しました', true, true);
+                    render();
+                });
+        }
+
         function hydrateUrlChoice() {
             const rawDeckCode = readDeckParamFromLocation();
             if (!rawDeckCode) {
@@ -463,7 +490,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 return;
             }
 
-            setLocalActiveChoice(urlChoice, { persistActivePreset: false });
+            setLocalActiveChoice(urlChoice, { persistActivePreset: false, syncNetworkDeck: false });
             emitNotice('URL の deckCode を読み込みました', false, false);
         }
 
@@ -583,7 +610,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             return 'black';
         }
 
-        type NetworkMatchClientMethod = 'getRoomDeck' | 'getRoomBoardConfig' | 'getSeatKey';
+        type NetworkMatchClientMethod = 'getRoomDeck' | 'getRoomBoardConfig' | 'getSeatKey' | 'updateDeckSelection';
 
         function resolveNetworkMatchClientForDeckBuilder(requiredMethod?: NetworkMatchClientMethod) {
             const candidateRoots = [

@@ -656,6 +656,59 @@ describe('deck builder controller', () => {
     }
   });
 
+  test('ネット対戦中に保存プリセットを使用すると room の自席デッキへ同期する', () => {
+    const { deckCode } = createThirtyCardDeck(0);
+    const updateDeckSelection = jest.fn(() => Promise.resolve({ ok: true }));
+
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '保存デッキ', deckCode)));
+    window.NetworkMatchClient = {
+      isActive: () => true,
+      isSpectator: () => false,
+      getRoomDeck: () => null,
+      updateDeckSelection
+    };
+
+    try {
+      const controller = createController();
+      controller.open();
+
+      const presetUseButton = Array.from(document.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid .deck-builder-preset-card button'))
+        .find((button) => button.textContent === '使用');
+      expect(presetUseButton).toBeTruthy();
+      presetUseButton.click();
+
+      expect(updateDeckSelection).toHaveBeenCalledTimes(1);
+      expect(updateDeckSelection).toHaveBeenCalledWith(deckCode);
+    } finally {
+      delete window.NetworkMatchClient;
+    }
+  });
+
+  test('ネット対戦中にデフォルトデッキを使用すると room の自席デッキをデフォルトへ戻す', () => {
+    const updateDeckSelection = jest.fn(() => Promise.resolve({ ok: true }));
+
+    window.NetworkMatchClient = {
+      isActive: () => true,
+      isSpectator: () => false,
+      getRoomDeck: () => null,
+      updateDeckSelection
+    };
+
+    try {
+      const controller = createController();
+      controller.open();
+
+      const standardUseButton = document.querySelector('.deck-builder-standard-card button');
+      expect(standardUseButton).toBeTruthy();
+      standardUseButton.click();
+
+      expect(updateDeckSelection).toHaveBeenCalledTimes(1);
+      expect(updateDeckSelection).toHaveBeenCalledWith('');
+    } finally {
+      delete window.NetworkMatchClient;
+    }
+  });
+
   test('network room deck が player別なら黒白それぞれの初期デッキを返す', () => {
     const blackDeck = createThirtyCardDeck(0);
     const whiteDeck = createThirtyCardDeck(10);

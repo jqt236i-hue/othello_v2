@@ -60,15 +60,20 @@ function buildDistinctDeckCodes() {
     .map((card) => card.id);
   const blackEnabledIds = enabledIds.slice(0, 10);
   const whiteEnabledIds = enabledIds.slice(10, 20);
+  const updatedBlackEnabledIds = enabledIds.slice(20, 30);
   const blackDeckIds = blackEnabledIds.flatMap((cardId) => [cardId, cardId, cardId]);
   const whiteDeckIds = whiteEnabledIds.flatMap((cardId) => [cardId, cardId, cardId]);
+  const updatedBlackDeckIds = updatedBlackEnabledIds.flatMap((cardId) => [cardId, cardId, cardId]);
   const blackDeckSpec = DeckSpecHelpers.createDeckSpecFromCardIds(blackDeckIds);
   const whiteDeckSpec = DeckSpecHelpers.createDeckSpecFromCardIds(whiteDeckIds);
+  const updatedBlackDeckSpec = DeckSpecHelpers.createDeckSpecFromCardIds(updatedBlackDeckIds);
   return {
     blackDeckCode: DeckCodecModule.encodeDeckSpec(blackDeckSpec),
     whiteDeckCode: DeckCodecModule.encodeDeckSpec(whiteDeckSpec),
+    updatedBlackDeckCode: DeckCodecModule.encodeDeckSpec(updatedBlackDeckSpec),
     blackMarkerId: blackEnabledIds[0],
-    whiteMarkerId: whiteEnabledIds[0]
+    whiteMarkerId: whiteEnabledIds[0],
+    updatedBlackMarkerId: updatedBlackEnabledIds[0]
   };
 }
 
@@ -236,6 +241,92 @@ describe('local match server room deck', () => {
       expect(countPlayerCopies(internalCardState, 'white', deckInfo.blackMarkerId)).toBe(0);
       expect(countPlayerCopies(internalCardState, 'white', deckInfo.whiteMarkerId)).toBe(3);
       expect(countPlayerCopies(internalCardState, 'black', deckInfo.whiteMarkerId)).toBe(0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('デッキ変更後の再戦 reset_game は変更後の黒 deck を使う', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const deckInfo = buildDistinctDeckCodes();
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        deckCode: deckInfo.blackDeckCode
+      });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId,
+        playerName: 'しろ',
+        deckCode: deckInfo.whiteDeckCode
+      });
+      expect(created.status).toBe(200);
+      expect(joined.status).toBe(200);
+
+      const updated = await requestJson(port, 'POST', '/api/match/deck', {
+        roomId,
+        seatKey: 'black',
+        seatToken: blackSeatToken,
+        deckCode: deckInfo.updatedBlackDeckCode
+      });
+
+      expect(updated.status).toBe(200);
+      expect(updated.data.ok).toBe(true);
+      expect(updated.data.roomDeck.deckCodeByPlayer.black).toBe(deckInfo.updatedBlackDeckCode);
+      expect(updated.data.roomDeck.deckCodeByPlayer.white).toBe(deckInfo.whiteDeckCode);
+
+      const patched = patchRoomSnapshotForTests(roomId, (room) => {
+        room.stateVersion = 5;
+        room.snapshot = {
+          gameState: {
+            board: Array.from({ length: 8 }, () => Array(8).fill(1)),
+            currentPlayer: 1,
+            consecutivePasses: 0,
+            turnNumber: 60
+          },
+          cardState: {}
+        };
+        room.updatedAt = Date.now();
+      });
+      expect(patched).toBe(true);
+
+      const reset = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'white',
+        playerKey: 'white',
+        seatToken: joined.data.seatToken,
+        operationId: 'local-room-deck-update-reset',
+        baseVersion: 5,
+        actionType: 'reset_game',
+        snapshot: {
+          gameState: {
+            board: Array.from({ length: 8 }, () => Array(8).fill(-1)),
+            currentPlayer: 1,
+            consecutivePasses: 0,
+            turnNumber: 0
+          },
+          cardState: {}
+        }
+      });
+
+      let internalCardState = null;
+      const captured = patchRoomSnapshotForTests(roomId, (room) => {
+        internalCardState = JSON.parse(JSON.stringify(room && room.snapshot && room.snapshot.cardState ? room.snapshot.cardState : null));
+      });
+      expect(captured).toBe(true);
+      expect(reset.status).toBe(200);
+      expect(reset.data.ok).toBe(true);
+      expect(reset.data.roomDeck.deckCodeByPlayer.black).toBe(deckInfo.updatedBlackDeckCode);
+      expect(reset.data.roomDeck.deckCodeByPlayer.white).toBe(deckInfo.whiteDeckCode);
+      expect(reset.data.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);
+      expect(reset.data.snapshot.cardState.initialDeckSizeByPlayer.white).toBe(30);
+      expect(countPlayerCopies(internalCardState, 'black', deckInfo.updatedBlackMarkerId)).toBe(3);
+      expect(countPlayerCopies(internalCardState, 'black', deckInfo.blackMarkerId)).toBe(0);
+      expect(countPlayerCopies(internalCardState, 'white', deckInfo.whiteMarkerId)).toBe(3);
     } finally {
       await closeServer(server);
     }

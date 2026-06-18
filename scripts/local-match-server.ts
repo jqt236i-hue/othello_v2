@@ -264,12 +264,45 @@ function buildInitialDeckSnapshotOptions(room: any) {
     return options;
 }
 
-function assignRoomDeckSelection(room: any, seatKey: any, deckSelection: any) {
-    if (!room || !deckSelection || deckSelection.hasCustomDeck !== true) return;
-    if (!room.initialDeckSpecByPlayer) {
-        room.initialDeckSpecByPlayer = { black: null, white: null };
+function cloneInitialDeckSpecByPlayer(source: any) {
+    const byPlayer = (source && typeof source === 'object') ? source : {};
+    return {
+        black: byPlayer.black && typeof byPlayer.black === 'object' ? deepClone(byPlayer.black) : null,
+        white: byPlayer.white && typeof byPlayer.white === 'object' ? deepClone(byPlayer.white) : null
+    };
+}
+
+function getRoomInitialDeckSpecByPlayer(room: any) {
+    const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room && room.initialDeckSpecByPlayer);
+    if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
+        return initialDeckSpecByPlayer;
     }
-    room.initialDeckSpecByPlayer[seatKey] = deckSelection.deckSpec ? deepClone(deckSelection.deckSpec) : null;
+
+    const sharedDeckSpec = room && room.initialDeckSpec && typeof room.initialDeckSpec === 'object'
+        ? room.initialDeckSpec
+        : null;
+    if (!sharedDeckSpec) {
+        return { black: null, white: null };
+    }
+
+    return {
+        black: deepClone(sharedDeckSpec),
+        white: deepClone(sharedDeckSpec)
+    };
+}
+
+function assignRoomDeckSelection(room: any, seatKey: any, deckSelection: any) {
+    if (!room || !deckSelection || deckSelection.ok !== true) return false;
+    const normalizedSeatKey = normalizePlayerKey(seatKey);
+    if (!normalizedSeatKey) return false;
+    const initialDeckSpecByPlayer = getRoomInitialDeckSpecByPlayer(room);
+    (initialDeckSpecByPlayer as any)[normalizedSeatKey] = deckSelection.hasCustomDeck === true && deckSelection.deckSpec
+        ? deepClone(deckSelection.deckSpec)
+        : null;
+    room.initialDeckSpecByPlayer = (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white)
+        ? initialDeckSpecByPlayer
+        : null;
+    room.initialDeckSpec = null;
     if (!room.roomDeck) {
         room.roomDeck = {
             mode: 'perPlayer',
@@ -280,8 +313,24 @@ function assignRoomDeckSelection(room: any, seatKey: any, deckSelection: any) {
             source: 'room'
         };
     }
-    room.roomDeck.deckCodeByPlayer[seatKey] = deckSelection.deckCode || '';
-    room.roomDeck.deckSizeByPlayer[seatKey] = deckSelection.deckSize;
+    room.roomDeck.mode = 'perPlayer';
+    room.roomDeck.source = 'room';
+    room.roomDeck.deckCode = '';
+    room.roomDeck.deckSize = null;
+    room.roomDeck.deckCodeByPlayer = Object.assign({ black: '', white: '' }, room.roomDeck.deckCodeByPlayer || {});
+    room.roomDeck.deckSizeByPlayer = Object.assign({ black: null, white: null }, room.roomDeck.deckSizeByPlayer || {});
+    room.roomDeck.deckCodeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true ? (deckSelection.deckCode || '') : '';
+    room.roomDeck.deckSizeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true ? deckSelection.deckSize : null;
+    const hasRoomDeckEntry = !!(
+        room.roomDeck.deckCode
+        || room.roomDeck.deckSize !== null
+        || room.roomDeck.deckCodeByPlayer.black
+        || room.roomDeck.deckCodeByPlayer.white
+        || room.roomDeck.deckSizeByPlayer.black !== null
+        || room.roomDeck.deckSizeByPlayer.white !== null
+    );
+    if (!hasRoomDeckEntry) room.roomDeck = null;
+    return true;
 }
 
 function mergeWithDefaultShape(defaultValue: any, overrideValue: any) {
@@ -1744,6 +1793,66 @@ async function handleHandSkin(req: any, res: any) {
     }));
 }
 
+async function handleDeck(req: any, res: any) {
+    const body = await parseBody(req);
+    const roomId = String(body.roomId || '').trim().toUpperCase();
+    const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
+    const seatToken = String(body.seatToken || '').trim();
+    const room = rooms.get(roomId);
+
+    if (!room) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+
+    const deckSelection = resolveDeckSelection(body.deckCode);
+    if (!deckSelection.ok) {
+        writeJson(res, 400, {
+            ok: false,
+            reason: deckSelection.reason || 'DECK_CODE_INVALID'
+        });
+        return;
+    }
+
+    const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
+    if (!seatKey) {
+        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+        return;
+    }
+    if (!room.seats[seatKey]) {
+        writeJson(res, 409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        return;
+    }
+
+    const previousRoomDeckJson = JSON.stringify(toPublicRoomDeck(room) || null);
+    assignRoomDeckSelection(room, seatKey, deckSelection);
+    const nextRoomDeck = toPublicRoomDeck(room);
+    room.updatedAt = Date.now();
+
+    if (previousRoomDeckJson !== JSON.stringify(nextRoomDeck || null)) {
+        broadcastPresence(room, {
+            type: 'deck',
+            seatKey,
+            rejoined: false
+        });
+    }
+
+    const serverTime = Date.now();
+    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        ok: true,
+        seatKey,
+        roomDeck: nextRoomDeck,
+        roomBoardConfig: toPublicRoomBoardConfig(room),
+        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        turnTimer: toPublicTurnTimer(room, serverTime),
+        serverTime
+    }));
+}
+
 async function handlePublish(req: any, res: any) {
     const body = await parseBody(req);
     const roomId = String(body.roomId || '').trim().toUpperCase();
@@ -2453,6 +2562,11 @@ function createLocalMatchServer() {
 
             if (req.method === 'POST' && pathname === '/api/match/hand-skin') {
                 await handleHandSkin(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/match/deck') {
+                await handleDeck(req, res);
                 return;
             }
 
