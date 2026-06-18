@@ -3037,10 +3037,12 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
         emitCpuSelectionStateChange,
         filterCloneTargetsForLv6: (playerKey: any, targets: any) => filterCloneSplitTargetsForLv6(playerKey, targets),
         getActiveProtectionForPlayer: (playerValue: any) => ((typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(playerValue) : null),
+        getBoardCellValueSafe: (board: any, row: any, col: any) => getBoardCellValueSafe(board, row, col),
         getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuPolicyCore: () => CpuPolicyCore,
         getCpuRng: () => cpuRng,
+        getCurrentCpuBoard: () => getCurrentCpuBoard(),
         getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         getLegalMoves: (gameStateValue: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []),
@@ -3052,6 +3054,7 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        resolveSharedBoardUtilsModule: () => resolveSharedBoardUtilsModule(),
         runCpuPendingSelectionViaPipeline
     })
     : null;
@@ -3061,76 +3064,7 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
-    const level = resolveCpuDecisionLevelForPlayer(playerKey);
-    const board = getCurrentCpuBoard();
-    const cardLogicRef = (typeof CardLogic !== 'undefined') ? CardLogic : null;
-    const selectorTargets = (cardLogicRef && typeof cardLogicRef.getSelectableTargets === 'function')
-        ? cardLogicRef.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
-    let targets = Array.isArray(selectorTargets)
-        ? selectorTargets.filter((target) => {
-            if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return false;
-            const value = getBoardCellValueSafe(board, target.row, target.col);
-            return value !== null && value !== 0;
-        })
-        : [];
-    let resolvedDestroyTargets = false;
-    if (targets.length <= 0 && cardLogicRef && typeof cardLogicRef.getDestroyTargets === 'function') {
-        const destroyTargets = cardLogicRef.getDestroyTargets(cardState, gameState, playerKey);
-        resolvedDestroyTargets = true;
-        targets = Array.isArray(destroyTargets)
-            ? destroyTargets.filter((target) => {
-                if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return false;
-                const value = getBoardCellValueSafe(board, target.row, target.col);
-                return value !== null && value !== 0;
-            })
-            : [];
-    }
-    if (targets.length <= 0 && !resolvedDestroyTargets && Array.isArray(board)) {
-        const boardUtils = resolveSharedBoardUtilsModule();
-        if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
-            targets = boardUtils.collectBoardCoordinates(board)
-                .filter((cell: any) => getBoardCellValueSafe(board, cell.row, cell.col) !== 0);
-        } else {
-            targets = [];
-            for (let row = 0; row < board.length; row++) {
-                const line = Array.isArray(board[row]) ? board[row] : [];
-                for (let col = 0; col < line.length; col++) {
-                    if (line[col] === 0) continue;
-                    targets.push({ row, col });
-                }
-            }
-        }
-    }
-
-    if (targets.length === 0) {
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊対象なし`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'DESTROY_ONE_STONE', targets, null) || targets[0];
-
-    cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = await runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { destroyTarget: { row: target.row, col: target.col } },
-        'DESTROY_ONE_STONE'
-    );
-    if (isCpuPendingPipelineHandled(pipelineResult)) return;
-
-    // CPU must bypass UI lock-based handlers and apply effect directly.
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyDestroyEffect === 'function') {
-        const applied = !!CardLogic.applyDestroyEffect(cardState, gameState, playerKey, target.row, target.col);
-        if (!applied) {
-            clearCpuPendingEffect(playerKey);
-        }
-        emitCpuSelectionStateChange();
-        return;
-    }
-    clearCpuPendingEffect(playerKey);
-    emitCpuSelectionStateChange();
+    return CpuDecisionPendingActions.cpuSelectDestroyWithPolicy(playerKey);
 }
 
 /**

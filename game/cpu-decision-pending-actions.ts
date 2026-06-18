@@ -8,10 +8,12 @@ type PendingActionsConfig = {
     emitCpuSelectionStateChange: () => any;
     filterCloneTargetsForLv6: (playerKey: any, targets: any[]) => any[];
     getActiveProtectionForPlayer: (playerValue: any) => any;
+    getBoardCellValueSafe: (board: any, row: any, col: any) => any;
     getCardLogic: () => any;
     getCardState: () => any;
     getCpuPolicyCore: () => any;
     getCpuRng: () => any;
+    getCurrentCpuBoard: () => any;
     getFlipBlockers: () => any[];
     getGameState: () => any;
     getLegalMoves: (gameStateValue: any, protection: any, perma: any) => any[];
@@ -20,6 +22,7 @@ type PendingActionsConfig = {
     readCpuPendingEffect: (playerKey: any) => any;
     resolveCpuDecisionLevelForPlayer: (playerKey: any) => number;
     resolvePlayerValue: (playerKey: any) => any;
+    resolveSharedBoardUtilsModule: () => any;
     runCpuPendingSelectionViaPipeline: (playerKey: any, actionPayload: any, pendingType: any) => Promise<any>;
 };
 
@@ -91,6 +94,37 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             : [];
         const usableCards = getPlayerHand(playerKey);
         return cfg.buildCardUseDecisionContext(playerKey, level, legalMoves.length, legalMoves, usableCards);
+    }
+
+    function filterOccupiedDestroyTargets(board: any, targets: any[]): any[] {
+        return Array.isArray(targets)
+            ? targets.filter((target) => {
+                if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return false;
+                const value = cfg.getBoardCellValueSafe(board, target.row, target.col);
+                return value !== null && value !== 0;
+            })
+            : [];
+    }
+
+    function collectOccupiedDestroyTargetsFromBoard(board: any): any[] {
+        if (!Array.isArray(board)) return [];
+        const boardUtils = typeof cfg.resolveSharedBoardUtilsModule === 'function'
+            ? cfg.resolveSharedBoardUtilsModule()
+            : null;
+        if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
+            return boardUtils.collectBoardCoordinates(board)
+                .filter((cell: any) => cfg.getBoardCellValueSafe(board, cell.row, cell.col) !== 0);
+        }
+
+        const targets: any[] = [];
+        for (let row = 0; row < board.length; row++) {
+            const line = Array.isArray(board[row]) ? board[row] : [];
+            for (let col = 0; col < line.length; col++) {
+                if (line[col] === 0) continue;
+                targets.push({ row, col });
+            }
+        }
+        return targets;
     }
 
     async function runTargetAction(options: TargetActionOptions): Promise<any> {
@@ -473,6 +507,57 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
+        const level = cfg.resolveCpuDecisionLevelForPlayer(playerKey);
+        const board = cfg.getCurrentCpuBoard();
+        const cardLogic = getCardLogic();
+        const selectorTargets = (cardLogic && typeof cardLogic.getSelectableTargets === 'function')
+            ? cardLogic.getSelectableTargets(cfg.getCardState(), cfg.getGameState(), playerKey)
+            : [];
+        let targets = filterOccupiedDestroyTargets(board, selectorTargets);
+        let resolvedDestroyTargets = false;
+
+        if (targets.length <= 0 && cardLogic && typeof cardLogic.getDestroyTargets === 'function') {
+            const destroyTargets = cardLogic.getDestroyTargets(cfg.getCardState(), cfg.getGameState(), playerKey);
+            resolvedDestroyTargets = true;
+            targets = filterOccupiedDestroyTargets(board, destroyTargets);
+        }
+        if (targets.length <= 0 && !resolvedDestroyTargets && Array.isArray(board)) {
+            targets = collectOccupiedDestroyTargetsFromBoard(board);
+        }
+
+        if (targets.length === 0) {
+            cfg.cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊対象なし`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        const target = await cfg.choosePendingTargetWithPolicyAsync(playerKey, 'DESTROY_ONE_STONE', targets, null) || targets[0];
+
+        cfg.cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 破壊ターゲット (${target.row}, ${target.col})`);
+
+        const pipelineResult = await cfg.runCpuPendingSelectionViaPipeline(
+            playerKey,
+            { destroyTarget: { row: target.row, col: target.col } },
+            'DESTROY_ONE_STONE'
+        );
+        if (isPendingPipelineHandled(pipelineResult)) return;
+
+        const applyFn = cardLogic && typeof cardLogic.applyDestroyEffect === 'function'
+            ? cardLogic.applyDestroyEffect
+            : null;
+        if (typeof applyFn === 'function') {
+            const applied = !!applyFn(cfg.getCardState(), cfg.getGameState(), playerKey, target.row, target.col);
+            if (!applied) {
+                cfg.clearCpuPendingEffect(playerKey);
+            }
+            cfg.emitCpuSelectionStateChange();
+            return;
+        }
+        cfg.clearCpuPendingEffect(playerKey);
+        cfg.emitCpuSelectionStateChange();
+    }
+
     async function cpuSelectHeavenBlessingWithPolicy(playerKey: any): Promise<any> {
         const pending = cfg.readCpuPendingEffect(playerKey);
         const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
@@ -780,6 +865,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectCondemnWillWithPolicy,
         cpuSelectCloneWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,
+        cpuSelectDestroyWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectFreezeWillWithPolicy,
         cpuSelectGravityWillWithPolicy,
