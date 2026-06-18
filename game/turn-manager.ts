@@ -40,6 +40,10 @@ let CpuOpponentProfilesForTurnManager: any = null;
 try {
     CpuOpponentProfilesForTurnManager = _require('../shared/cpu-opponent-profiles');
 } catch (e) { /* ignore */ }
+let SeededPRNGForTurnManager: any = null;
+try {
+    SeededPRNGForTurnManager = _require('./schema/prng');
+} catch (e) { /* ignore */ }
 // Note: debugLog is a legacy function set by UI bootstrap; use with typeof guard
 
 /**
@@ -368,14 +372,70 @@ function updateCpuCharacterForTurnManager() {
     return false;
 }
 
+function isTurnManagerRandomSource(candidate: any): boolean {
+    return !!(candidate && typeof candidate.random === 'function');
+}
+
+function resolveTurnManagerSeededPRNGModule(): any {
+    if (SeededPRNGForTurnManager) return SeededPRNGForTurnManager;
+    const runtimeRoot = getTurnManagerRuntimeRoot();
+    try {
+        if (runtimeRoot && runtimeRoot.SeededPRNG) return runtimeRoot.SeededPRNG;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function restoreTurnManagerPrngFromState(prngState: any): any {
+    if (!prngState || typeof prngState !== 'object') return undefined;
+    const seededPrng = resolveTurnManagerSeededPRNGModule();
+    if (!seededPrng || typeof seededPrng !== 'object') return undefined;
+    try {
+        if (typeof seededPrng.fromState === 'function') {
+            const restored = seededPrng.fromState(prngState);
+            return isTurnManagerRandomSource(restored) ? restored : undefined;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof seededPrng.createPRNG === 'function') {
+            const seed = Object.prototype.hasOwnProperty.call(prngState, 'seed')
+                ? prngState.seed
+                : prngState._seed;
+            const restored = seededPrng.createPRNG(seed);
+            if (restored && typeof restored.restoreState === 'function') {
+                restored.restoreState({
+                    seed,
+                    calls: Number(prngState.calls || prngState._calls || 0)
+                });
+            }
+            return isTurnManagerRandomSource(restored) ? restored : undefined;
+        }
+    } catch (e) { /* ignore */ }
+    return undefined;
+}
+
 function getTurnManagerPrng() {
     const runtimePrngFn = resolveTurnManagerRuntimeFunction('getGamePrng');
     if (typeof runtimePrngFn === 'function') {
-        try { return runtimePrngFn(); } catch (e) { /* ignore */ }
+        try {
+            const candidate = runtimePrngFn();
+            if (isTurnManagerRandomSource(candidate)) return candidate;
+        } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof getGamePrng === 'function') return getGamePrng();
+        if (typeof getGamePrng === 'function') {
+            const candidate = getGamePrng();
+            if (isTurnManagerRandomSource(candidate)) return candidate;
+        }
     } catch (e) { /* ignore */ }
+    const cardStateRef = getTurnManagerCardStateRef();
+    if (isTurnManagerRandomSource(cardStateRef && cardStateRef._boardOpsRandomSource)) {
+        return cardStateRef._boardOpsRandomSource;
+    }
+    if (isTurnManagerRandomSource(cardStateRef && cardStateRef._defaultRandomSource)) {
+        return cardStateRef._defaultRandomSource;
+    }
+    const restored = restoreTurnManagerPrngFromState(cardStateRef && cardStateRef.prngState);
+    if (isTurnManagerRandomSource(restored)) return restored;
     return undefined;
 }
 
@@ -1394,6 +1454,11 @@ async function onTurnStart(player: number) {
         const runtimePrng = getTurnManagerPrng();
         logTurnManagerDebug('[onTurnStart] runtimePrng available:', 'debug', { available: !!runtimePrng });
         turnStartResult = TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
+        if (runtimePrng && typeof runtimePrng.getState === 'function') {
+            try {
+                cardState.prngState = runtimePrng.getState();
+            } catch (e) { /* ignore */ }
+        }
         // Convert any presentation events emitted during turn-start into PlaybackEvents
         const adapter = getTurnPipelineUIAdapter();
         if (adapter && typeof adapter.mapToPlaybackEvents === 'function'

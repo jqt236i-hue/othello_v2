@@ -189,6 +189,7 @@ describe('turn-manager scheduling', () => {
     delete global.emitLogAdded;
     delete global.emitBoardUpdate;
     delete global.emitGameStateChange;
+    delete global.getGamePrng;
     delete global.dealInitialCards;
     delete global.updateCpuCharacter;
     delete global.AnimationEngine;
@@ -921,6 +922,52 @@ describe('turn-manager scheduling', () => {
     expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
+  test('onTurnStart restores deterministic PRNG from cardState.prngState for gluttonous salvation revive', async () => {
+    const CardLogic = require('../game/logic/cards.js');
+    const SeededPRNG = require('../game/schema/prng.js');
+    const prng = SeededPRNG.createPRNG(123);
+    const cardState = CardLogic.createCardState(prng, {});
+    delete cardState._defaultRandomSource;
+    cardState.prngState = prng.getState();
+    cardState.deck = [];
+    cardState.discard = [];
+    cardState.hands.black = [];
+    cardState.hands.white = [];
+    cardState.presentationEvents = [];
+    cardState._presentationEventsPersist = [];
+
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[0][0] = global.BLACK;
+    board[3][3] = global.WHITE;
+    board[3][4] = global.BLACK;
+    cardState.markers.push(
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
+      { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'GLUTTONOUS', gluttonousMissStreak: 0 } }
+    );
+    global.cardState = cardState;
+    global.gameState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 11,
+      consecutivePasses: 0,
+      board
+    };
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.getGamePrng = undefined;
+
+    const rm = require('../game/turn-manager.js');
+
+    await rm.onTurnStart(global.WHITE);
+
+    const blackCells = global.gameState.board.flat().filter((cell) => cell === global.BLACK);
+    expect(global.gameState.board[3][4]).toBe(global.WHITE);
+    expect(blackCells).toHaveLength(2);
+    expect(global.cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
+    expect(global.cardState.prngState).toEqual(expect.objectContaining({ seed: 123, calls: expect.any(Number) }));
+    expect(global.cardState.prngState.calls).toBeGreaterThan(prng.getState().calls);
+  });
+
   test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {
     const adapter = require('../game/turn/pipeline_ui_adapter.js');
     const queuedBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -1005,6 +1052,45 @@ describe('turn-manager scheduling', () => {
     );
 
     expect(nextPlaceResult.playbackEvents.map((ev) => ev.type)).toEqual(['place_hand_animation']);
+  });
+
+  test('pipeline adapter restores deterministic PRNG from cardState.prngState without runtime bridge', () => {
+    const adapter = require('../game/turn/pipeline_ui_adapter.js');
+    const SeededPRNG = require('../game/schema/prng.js');
+    const prng = SeededPRNG.createPRNG(77);
+    const cardState = {
+      prngState: prng.getState(),
+      turnIndex: 0,
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+    let receivedPrng = null;
+    const pipeline = {
+      applyTurnSafe: jest.fn((cs, gs, playerKey, action, runtimePrng) => {
+        receivedPrng = runtimePrng;
+        runtimePrng.random();
+        return {
+          ok: true,
+          cardState: cs,
+          gameState: gs,
+          events: [],
+          presentationEvents: []
+        };
+      })
+    };
+    adapter.setPipelineUIAdapterRuntime({});
+
+    adapter.runTurnWithAdapter(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      pipeline
+    );
+
+    expect(receivedPrng).toEqual(expect.objectContaining({ random: expect.any(Function) }));
+    expect(receivedPrng.getState()).toEqual(expect.objectContaining({ seed: 77, calls: prng.getState().calls + 1 }));
   });
 
   test('network mode の resetGame は reset_game command publish を送る', async () => {

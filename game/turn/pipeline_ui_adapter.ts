@@ -44,6 +44,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         '../../shared/manifest-stone-registry': 'ManifestStoneRegistry',
         '../../shared/stone-status-snapshot': 'StoneStatusSnapshot',
         '../controller-events': 'ControllerEvents',
+        '../schema/prng': 'SeededPRNG',
         '../../shared/presentation-effect-profiles': 'PresentationEffectProfiles'
     });
 
@@ -78,6 +79,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const ManifestStoneRegistry = requireOptionalModule('../../shared/manifest-stone-registry');
     const StoneStatusSnapshot = requireOptionalModule('../../shared/stone-status-snapshot');
     const ControllerEvents = requireOptionalModule('../controller-events');
+    const SeededPRNG = requireOptionalModule('../schema/prng');
     const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || unwrapModule(readRuntimeGlobal('PresentationEffectProfiles'));
     const FALLBACK_MANIFEST_STONE_TYPES_FOR_PIPELINE_UI = Object.freeze([
         'THEORY_INCARNATION',
@@ -156,12 +158,57 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return pipelineUIAdapterRuntime;
     }
 
-    function resolvePipelineRuntimePrng() {
+    function isPipelineRandomSource(candidate: any): boolean {
+        return !!(candidate && typeof candidate.random === 'function');
+    }
+
+    function resolvePipelineSeededPRNGModule(): any {
+        return SeededPRNG || readRuntimeGlobal('SeededPRNG');
+    }
+
+    function restorePipelinePrngFromState(prngState: any): any {
+        if (!prngState || typeof prngState !== 'object') return undefined;
+        const seededPrng = resolvePipelineSeededPRNGModule();
+        if (!seededPrng || typeof seededPrng !== 'object') return undefined;
+        try {
+            if (typeof seededPrng.fromState === 'function') {
+                const restored = seededPrng.fromState(prngState);
+                return isPipelineRandomSource(restored) ? restored : undefined;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof seededPrng.createPRNG === 'function') {
+                const seed = Object.prototype.hasOwnProperty.call(prngState, 'seed')
+                    ? prngState.seed
+                    : prngState._seed;
+                const restored = seededPrng.createPRNG(seed);
+                if (restored && typeof restored.restoreState === 'function') {
+                    restored.restoreState({
+                        seed,
+                        calls: Number(prngState.calls || prngState._calls || 0)
+                    });
+                }
+                return isPipelineRandomSource(restored) ? restored : undefined;
+            }
+        } catch (e) { /* ignore */ }
+        return undefined;
+    }
+
+    function resolvePipelineRuntimePrng(cardState?: any) {
         if (pipelineUIAdapterRuntime && typeof pipelineUIAdapterRuntime.getGamePrng === 'function') {
             try {
-                return pipelineUIAdapterRuntime.getGamePrng();
+                const candidate = pipelineUIAdapterRuntime.getGamePrng();
+                if (isPipelineRandomSource(candidate)) return candidate;
             } catch (e) { /* ignore */ }
         }
+        if (isPipelineRandomSource(cardState && cardState._boardOpsRandomSource)) {
+            return cardState._boardOpsRandomSource;
+        }
+        if (isPipelineRandomSource(cardState && cardState._defaultRandomSource)) {
+            return cardState._defaultRandomSource;
+        }
+        const restored = restorePipelinePrngFromState(cardState && cardState.prngState);
+        if (isPipelineRandomSource(restored)) return restored;
         return undefined;
     }
 
@@ -1477,7 +1524,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
 
         // Attempt to pass the current game PRNG when injected by the UI runtime.
-        const runtimePrng = resolvePipelineRuntimePrng();
+        const runtimePrng = resolvePipelineRuntimePrng(cardState);
         const result = (typeof turnPipeline.applyTurnSafe === 'function')
             ? turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, runtimePrng, options)
             : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng, options);
