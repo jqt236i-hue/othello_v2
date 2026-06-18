@@ -456,6 +456,52 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectObserverWillWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
+        const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
+        if (!offers.length) {
+            cfg.cpuDebugLog(`[CPU] ${playerKey}: 観測者候補なし`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        const cardLogic = getCardLogic();
+        let target = offers[0];
+        let bestCost = Number.NEGATIVE_INFINITY;
+        for (const offer of offers) {
+            if (!offer || !offer.cardId) continue;
+            const cost = cardLogic && typeof cardLogic.getCardCost === 'function'
+                ? (cardLogic.getCardCost(offer.cardId) || 0)
+                : 0;
+            if (cost > bestCost) {
+                bestCost = cost;
+                target = offer;
+            }
+        }
+        if (!target || !Number.isInteger(target.handIndex)) {
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        const pipelineResult = await cfg.runCpuPendingSelectionViaPipeline(
+            playerKey,
+            { observerWillTargetIndex: target.handIndex },
+            'OBSERVER_WILL'
+        );
+        if (isPendingPipelineHandled(pipelineResult)) return;
+
+        const applyFn = cardLogic && typeof cardLogic.applyObserverWillChoice === 'function'
+            ? cardLogic.applyObserverWillChoice
+            : null;
+        if (typeof applyFn === 'function') {
+            const res = applyFn(cfg.getCardState(), cfg.getGameState(), playerKey, target.handIndex);
+            if (!res || !res.applied) {
+                cfg.clearCpuPendingEffect(playerKey);
+            }
+            cfg.emitCpuSelectionStateChange();
+        }
+    }
+
     return {
         cpuSelectBlockadeWillWithPolicy,
         cpuSelectBoardExpansionWillWithPolicy,
@@ -470,6 +516,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectGuardWillWithPolicy,
         cpuSelectLivingWillWithPolicy,
         cpuSelectMeteorWillWithPolicy,
+        cpuSelectObserverWillWithPolicy,
         cpuSelectPositionSwapWillWithPolicy,
         cpuSelectReverseWillWithPolicy,
         cpuSelectSeedWillWithPolicy,

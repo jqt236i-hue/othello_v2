@@ -3342,45 +3342,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 async function cpuSelectObserverWillWithPolicy(playerKey: any): Promise<any> {
-    const pending = readCpuPendingEffect(playerKey);
-    const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
-    if (!offers.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 観測者候補なし`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    let target = offers[0];
-    let bestCost = -Infinity;
-    for (const offer of offers) {
-        if (!offer || !offer.cardId) continue;
-        const cost = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardCost === 'function')
-            ? (CardLogic.getCardCost(offer.cardId) || 0)
-            : 0;
-        if (cost > bestCost) {
-            bestCost = cost;
-            target = offer;
-        }
-    }
-    if (!target || !Number.isInteger(target.handIndex)) {
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const pipelineResult = await runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { observerWillTargetIndex: target.handIndex },
-        'OBSERVER_WILL'
-    );
-    if (isCpuPendingPipelineHandled(pipelineResult)) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyObserverWillChoice === 'function') {
-        const res = CardLogic.applyObserverWillChoice(cardState, gameState, playerKey, target.handIndex);
-        if (!res || !res.applied) {
-            clearCpuPendingEffect(playerKey);
-        }
-        emitCpuSelectionStateChange();
-    }
+    return CpuDecisionPendingActions.cpuSelectObserverWillWithPolicy(playerKey);
 }
 
 /**

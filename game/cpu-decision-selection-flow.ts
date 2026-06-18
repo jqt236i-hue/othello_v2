@@ -93,6 +93,21 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
         return undefined;
     }
 
+    function isCpuSelectionNetworkPublishActive(): boolean {
+        const runtime = cfg.getRuntime();
+        if (runtime && typeof runtime.publishSnapshot === 'function') {
+            if (typeof runtime.isNetworkPublishActive === 'function') {
+                try {
+                    return runtime.isNetworkPublishActive() === true;
+                } catch (e) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     async function waitForCpuSelectionPlaybackIdle(playbackEvents: any): Promise<any> {
         const networkTurnHandoff = cfg.getNetworkTurnHandoff();
         if (networkTurnHandoff && typeof networkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
@@ -189,6 +204,8 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
                         publishMeta && publishMeta.playbackEvents
                     );
                 },
+                readMatchMode: () => readCpuDecisionMatchMode(),
+                isNetworkPublishActive: () => isCpuSelectionNetworkPublishActive(),
                 onSettled: () => {
                     emitBoardUpdateSafely();
                 }

@@ -48,6 +48,28 @@ function releaseSelectionBusyForPlaybackWait(deps: SelectionFlowNetworkHandoffDe
     if (clearCardAnimatingOnFinish) deps.setSelectionCardAnimating(false);
 }
 
+function readSelectionPublishMatchMode(opts: any, deps: SelectionFlowNetworkHandoffDeps) {
+    if (opts && typeof opts.readMatchMode === 'function') {
+        try {
+            const mode = opts.readMatchMode();
+            if (typeof mode !== 'undefined' && mode !== null) return mode;
+        } catch (e) { /* ignore and fall back to bridge */ }
+    }
+    return deps.readMatchMode();
+}
+
+function hasActiveSelectionPublishClient(opts: any, deps: SelectionFlowNetworkHandoffDeps) {
+    if (deps.hasActiveNetworkPublishClient()) return true;
+    if (opts && typeof opts.isNetworkPublishActive === 'function') {
+        try {
+            return opts.isNetworkPublishActive() === true;
+        } catch (e) {
+            return false;
+        }
+    }
+    return false;
+}
+
 async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNetworkHandoffDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const pendingType = deps.normalizePendingType(opts.pendingType);
@@ -86,13 +108,15 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
         skipNetworkPublish = true;
     }
 
+    const publishMatchMode = readSelectionPublishMatchMode(opts, deps);
+    const hasActivePublishClient = hasActiveSelectionPublishClient(opts, deps);
+
     if (contract && contract.turnOutcome === 'end_turn') {
         const networkTurnHandoff = deps.getNetworkTurnHandoff();
         let publishFailureHandled = false;
         const shouldPublishNetworkHandoff = !!(
             !skipNetworkPublish
-            && deps.readMatchMode() === 'network'
-            && deps.hasActiveNetworkPublishClient()
+            && hasActivePublishClient
         );
         if (!networkTurnHandoff || typeof networkTurnHandoff.finalizeNetworkTurnHandoff !== 'function') {
             deps.setSelectionProcessing(false);
@@ -103,7 +127,9 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
             return false;
         }
 
-        const shouldAwaitPublish = shouldPublishNetworkHandoff && contract.deferNetworkPublish === true;
+        const shouldAwaitPublish = shouldPublishNetworkHandoff
+            && publishMatchMode === 'network'
+            && contract.deferNetworkPublish === true;
         const handoffResult = await networkTurnHandoff.finalizeNetworkTurnHandoff({
             awaitPublishResult: shouldAwaitPublish,
             playerKey,
@@ -157,10 +183,10 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
     }
 
     const shouldDeferPlaybackWaitUntilAfterPublish = !!(
-        deps.readMatchMode() === 'network'
+        publishMatchMode === 'network'
         && contract
         && contract.deferNetworkPublish === true
-        && deps.hasActiveNetworkPublishClient()
+        && hasActivePublishClient
         && !skipNetworkPublish
     );
     if (contract && contract.waitForPlaybackIdle && !shouldDeferPlaybackWaitUntilAfterPublish) {

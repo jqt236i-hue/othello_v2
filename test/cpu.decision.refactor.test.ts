@@ -671,7 +671,7 @@ describe('cpu decision refactor helpers', () => {
       pendingEffectByPlayer: { white: null, black: null },
       hasUsedCardThisTurnByPlayer: { white: false, black: false },
       hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
-      boardBonusByCell: { '2,4': 3 },
+      boardBonusByCell: { '2,4': 8 },
       charge: { white: 8, black: 8 },
       turnIndex: 10
     };
@@ -958,6 +958,36 @@ describe('cpu decision refactor helpers', () => {
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.condemnTargetIndex).toBe(0);
+  });
+
+  test('cpuSelectObserverWillWithPolicy prefers highest-cost offer through pipeline', async () => {
+    global.cardState.pendingEffectByPlayer.white = {
+      type: 'OBSERVER_WILL',
+      stage: 'selectTarget',
+      offers: [
+        { handIndex: 0, cardId: 'cheap_card' },
+        { handIndex: 2, cardId: 'expensive_card' }
+      ]
+    };
+    global.CardLogic = {
+      getCardCost: jest.fn((id) => (id === 'expensive_card' ? 9 : 1)),
+      applyObserverWillChoice: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectObserverWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.observerWillTargetIndex).toBe(2);
+    expect(global.CardLogic.applyObserverWillChoice).not.toHaveBeenCalled();
   });
 
   test('Lv6 white relaxes high-confidence gate under hand and mobility pressure', () => {
