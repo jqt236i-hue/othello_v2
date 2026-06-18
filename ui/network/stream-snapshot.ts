@@ -36,10 +36,11 @@ function createNetworkStreamSnapshotController(config?: any): any {
     if (typeof cfg.applyPayloadSessionState === 'function') {
       cfg.applyPayloadSessionState(payload);
     }
+    const hasPresentationFrames = Array.isArray(payload.presentationFrames) && payload.presentationFrames.length > 0;
     const snapshot = payload.snapshot;
     const incomingPlaybackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
     const suppressReplayPlayback = shouldSuppressReplayPlayback(payload, incomingPlaybackEvents);
-    const playbackEvents = suppressReplayPlayback ? [] : incomingPlaybackEvents;
+    const playbackEvents = (suppressReplayPlayback || hasPresentationFrames) ? [] : incomingPlaybackEvents;
     const operationId = payload && payload.operationId ? String(payload.operationId) : '';
     const snapshotVersion = typeof cfg.getSnapshotStateVersion === 'function'
       ? cfg.getSnapshotStateVersion(snapshot)
@@ -66,6 +67,7 @@ function createNetworkStreamSnapshotController(config?: any): any {
         isTerminalResultSnapshot,
         playbackEventCount: incomingPlaybackEvents.length,
         appliedPlaybackEventCount: playbackEvents.length,
+        presentationFrameCount: hasPresentationFrames ? payload.presentationFrames.length : 0,
         shouldShadowStreamPlayback,
         suppressReplayPlayback
       });
@@ -132,6 +134,9 @@ function createNetworkStreamSnapshotController(config?: any): any {
     }
 
     if (applied) {
+      if (hasPresentationFrames && typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
+        cfg.enqueuePresentationFramesFromPayload(payload, { source: 'stream' });
+      }
       if (typeof cfg.consumePendingForceSyncPlaybackRecovery === 'function') {
         cfg.consumePendingForceSyncPlaybackRecovery(snapshotVersion);
       }

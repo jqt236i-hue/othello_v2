@@ -269,7 +269,10 @@ function createNetworkPublishFlowController(config?: any): any {
           const shouldSkipPublishResponse = (typeof cfg.shouldSkipPublishResponseSnapshot === 'function')
             ? cfg.shouldSkipPublishResponseSnapshot(trackedPublish, res.data.snapshot)
             : false;
-          const serverPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
+          const hasPresentationFrames = Array.isArray(res.data.presentationFrames) && res.data.presentationFrames.length > 0;
+          const serverPlaybackEvents = (!hasPresentationFrames && Array.isArray(res.data.playbackEvents))
+            ? res.data.playbackEvents
+            : [];
           const shouldShadowPlaybackResponse = (typeof cfg.shouldApplyPublishResponseAsShadowPlayback === 'function')
             ? cfg.shouldApplyPublishResponseAsShadowPlayback(trackedPublish, res.data.snapshot, serverPlaybackEvents)
             : false;
@@ -301,6 +304,9 @@ function createNetworkPublishFlowController(config?: any): any {
                 : false
             );
           if (applied) {
+            if (hasPresentationFrames && typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
+              cfg.enqueuePresentationFramesFromPayload(res.data, { source: 'publish_response' });
+            }
             if (typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
               cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, Object.assign({}, publishResponsePlaybackApplyOptions, {
                 source: 'publish_response',

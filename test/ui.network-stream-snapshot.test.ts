@@ -31,6 +31,7 @@ describe('NetworkStreamSnapshotController', () => {
       showAutoPassNoticeFromPayload: jest.fn(),
       markTrackedPublishSelfSnapshot: jest.fn(),
       handleTimeoutPassPayload: jest.fn(),
+      enqueuePresentationFramesFromPayload: jest.fn(),
       pruneTrackedPublishes: jest.fn()
     };
 
@@ -121,6 +122,43 @@ describe('NetworkStreamSnapshotController', () => {
         }
       })
     );
+  });
+
+  test('routes presentationFrames through the visual timeline and suppresses legacy playbackEvents', () => {
+    calls.findTrackedPublish.mockReturnValue(null);
+    calls.shouldApplyStreamSnapshotAsShadowPlayback.mockReturnValue(false);
+    calls.buildShadowAwarePlaybackApplyOptions.mockImplementation((events: any) => ({
+      playbackEvents: events,
+      shadowPlaybackEvents: []
+    }));
+
+    const payload = {
+      ok: true,
+      operationId: 'op_visual_1',
+      snapshot: { stateVersion: 15 },
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [
+        {
+          visualSeq: 1,
+          stateVersionFrom: 14,
+          stateVersionTo: 15,
+          playbackEvents: [{ type: 'strict_flip' }],
+          snapshotAfter: { stateVersion: 15 }
+        }
+      ]
+    };
+
+    controller.handleStreamSnapshotPayload(payload);
+
+    expect(calls.applySnapshotThroughCoordinator).toHaveBeenCalledWith(
+      { stateVersion: 15 },
+      expect.objectContaining({
+        applyOptions: expect.objectContaining({
+          playbackEvents: []
+        })
+      })
+    );
+    expect(calls.enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(payload, { source: 'stream' });
   });
 
   test('self reset_game stream snapshot does not skip result overlay sync', () => {

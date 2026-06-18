@@ -79,4 +79,78 @@ describe('NetworkPublishFlowController contract', () => {
       }
     }));
   });
+
+  test('accepted publish response with presentationFrames suppresses legacy playbackEvents', async () => {
+    const publishFlowModule = require('../ui/network/publish-flow');
+    const state = {
+      roomId: 'ABC',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      stateVersion: 1,
+      publishChain: Promise.resolve()
+    };
+    const applySnapshotThroughCoordinator = jest.fn(() => true);
+    const enqueuePresentationFramesFromPayload = jest.fn();
+    const responsePayload = {
+      ok: true,
+      operationId: 'op_visual',
+      actionType: 'place',
+      stateVersion: 2,
+      snapshot: { stateVersion: 2 },
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [
+        {
+          visualSeq: 1,
+          stateVersionFrom: 1,
+          stateVersionTo: 2,
+          playbackEvents: [{ type: 'strict_flip' }],
+          snapshotAfter: { stateVersion: 2 }
+        }
+      ]
+    };
+    const controller = publishFlowModule.createNetworkPublishFlowController({
+      getState: () => state,
+      isActive: () => true,
+      normalizePlayerKey: (value: any) => (value === 'white' ? 'white' : 'black'),
+      createOperationId: () => 'op_visual',
+      resolveNetworkPublishRequestModule: () => ({
+        buildPublishRequest: () => ({
+          commandPayload: { actor: 'black', params: {} },
+          requestPayload: { actionType: 'place' },
+          queuedActionType: 'place'
+        })
+      }),
+      getCurrentPublishTurnIndex: () => 5,
+      createTrackedPublish: () => ({ sequence: 1 }),
+      publishRequestWithRetry: jest.fn(async () => ({
+        ok: true,
+        data: responsePayload
+      })),
+      applySnapshotThroughCoordinator,
+      buildShadowAwarePlaybackApplyOptions: jest.fn((events: any[]) => ({
+        playbackEvents: events,
+        shadowPlaybackEvents: []
+      })),
+      getAppliedStateVersion: () => 1,
+      getSnapshotStateVersion: (snapshot: any) => snapshot && snapshot.stateVersion,
+      recordNetworkTelemetry: jest.fn(),
+      emitPayloadEffectLogs: jest.fn(),
+      showAutoPassNoticeFromPayload: jest.fn(),
+      pruneTrackedPublishes: jest.fn(),
+      enqueuePresentationFramesFromPayload
+    });
+
+    await expect(controller.publishSnapshot({ playerKey: 'black', actionType: 'place' }))
+      .resolves.toEqual({ ok: true });
+
+    expect(applySnapshotThroughCoordinator).toHaveBeenCalledWith(
+      { stateVersion: 2 },
+      expect.objectContaining({
+        applyOptions: expect.objectContaining({
+          playbackEvents: []
+        })
+      })
+    );
+    expect(enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(responsePayload, { source: 'publish_response' });
+  });
 });

@@ -857,6 +857,24 @@ function createNetworkSnapshotController(config: any): any {
         });
     }
 
+    function enqueuePresentationFramesFromOptions(options: any): number {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const frames = Array.isArray(opts.presentationFrames) ? opts.presentationFrames : [];
+        if (frames.length <= 0 || typeof cfg.enqueuePresentationFrames !== 'function') return 0;
+        try {
+            return cfg.enqueuePresentationFrames(frames, {
+                source: opts.presentationFrameSource || opts.source || 'network_snapshot'
+            });
+        } catch (e) {
+            emitTelemetry('snapshot_presentation_frame_enqueue_failed', {
+                source: opts.presentationFrameSource || opts.source || 'network_snapshot',
+                presentationFrameCount: frames.length,
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+        }
+        return 0;
+    }
+
     function finalizeSnapshotPresentation(nextVersion: any, options: any, context: any): void {
         const opts = options || {};
         const details = (context && typeof context === 'object') ? context : {};
@@ -1006,6 +1024,10 @@ function createNetworkSnapshotController(config: any): any {
         const opts = options || {};
         const state = resolveState();
         const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
+        const presentationFrames = Array.isArray(opts.presentationFrames) ? opts.presentationFrames : [];
+        const effectiveOptions = presentationFrames.length > 0
+            ? Object.assign({}, opts, { playbackEvents: [] })
+            : opts;
 
         if (!snapshot || typeof snapshot !== 'object') {
             emitTelemetry('snapshot_invalid_shape_rejected', { reason: 'invalid_snapshot' });
@@ -1067,8 +1089,11 @@ function createNetworkSnapshotController(config: any): any {
             return false;
         }
 
-        const applyContext = applyAuthoritativeSnapshotState(sanitizedSnapshot.snapshot, opts, nextVersion, snapshotMeta);
-        finalizeSnapshotPresentation(nextVersion, opts, applyContext);
+        const applyContext = applyAuthoritativeSnapshotState(sanitizedSnapshot.snapshot, effectiveOptions, nextVersion, snapshotMeta);
+        finalizeSnapshotPresentation(nextVersion, effectiveOptions, applyContext);
+        if (presentationFrames.length > 0) {
+            enqueuePresentationFramesFromOptions(opts);
+        }
         return true;
     }
 

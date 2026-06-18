@@ -364,6 +364,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         reconnectRecoveryTimerId: null as any,
         reconnectRecoveryPending: false,
         appliedStateVersion: null as any,
+        lastVisualSeq: 0,
+        lastVisualVersion: null as any,
         pendingForceSyncPlaybackVersion: null as any,
         pendingForceSyncPlaybackSource: '',
         pendingForceSyncPlaybackSignature: '',
@@ -410,6 +412,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkStreamSessionModule: any = null;
     let networkTransportModule: any = null;
     let networkTurnTimerModule: any = null;
+    let networkPresentationTimelineModule: any = null;
+    let networkPlaybackDispatcherModule: any = null;
     let animationFeedbackEventsModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
@@ -427,6 +431,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkTransportController: any = null;
     let networkTurnTimerController: any = null;
     let networkPublishFlowController: any = null;
+    let networkPresentationTimeline: any = null;
+    let networkPlaybackDispatcher: any = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
@@ -447,6 +453,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkStreamSessionModule = resolveNetworkClientModule('./network/stream-session', null);
     networkTransportModule = resolveNetworkClientModule('./network/transport', null);
     networkTurnTimerModule = resolveNetworkClientModule('./network/turn-timer', null);
+    networkPresentationTimelineModule = resolveNetworkClientModule('./network/presentation-timeline', null);
+    networkPlaybackDispatcherModule = resolveNetworkClientModule('./network/playback-dispatcher', null);
     animationFeedbackEventsModule = resolveNetworkClientModule('./animation-feedback-events', root.AnimationFeedbackEvents || null);
 
     function resolveNetworkCommentaryModule() {
@@ -600,6 +608,22 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return networkPublishFlowModule;
     }
 
+    function resolveNetworkPresentationTimelineModule() {
+        if (networkPresentationTimelineModule) return networkPresentationTimelineModule;
+
+        networkPresentationTimelineModule = resolveNetworkClientCandidate(() => _require('./network/presentation-timeline'))
+            || resolveNetworkClientGlobal('NetworkPresentationTimelineModule');
+        return networkPresentationTimelineModule;
+    }
+
+    function resolveNetworkPlaybackDispatcherModule() {
+        if (networkPlaybackDispatcherModule) return networkPlaybackDispatcherModule;
+
+        networkPlaybackDispatcherModule = resolveNetworkClientCandidate(() => _require('./network/playback-dispatcher'))
+            || resolveNetworkClientGlobal('NetworkPlaybackDispatcherModule');
+        return networkPlaybackDispatcherModule;
+    }
+
     function getNetworkCommentaryController() {
         if (networkCommentaryController) return networkCommentaryController;
         const mod = resolveNetworkCommentaryModule();
@@ -620,9 +644,58 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             root,
             getState: () => state,
             onTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details),
-            syncPendingSelectionActionCache
+            syncPendingSelectionActionCache,
+            enqueuePresentationFrames,
+            drainPresentationTimeline
         });
         return networkSnapshotController;
+    }
+
+    function getNetworkPlaybackDispatcher() {
+        if (networkPlaybackDispatcher) return networkPlaybackDispatcher;
+        const mod = resolveNetworkPlaybackDispatcherModule();
+        if (!mod || typeof mod.createNetworkPlaybackDispatcher !== 'function') return null;
+        networkPlaybackDispatcher = mod.createNetworkPlaybackDispatcher({
+            root,
+            getCardState: () => {
+                try { return root && root.cardState; } catch (e: any) { return null; }
+            },
+            recordNetworkTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details)
+        });
+        try {
+            root.NetworkPlaybackDispatcher = networkPlaybackDispatcher;
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined') {
+                (globalThis as any).NetworkPlaybackDispatcher = networkPlaybackDispatcher;
+            }
+        } catch (e: any) { /* ignore */ }
+        return networkPlaybackDispatcher;
+    }
+
+    function getNetworkPresentationTimeline() {
+        if (networkPresentationTimeline) return networkPresentationTimeline;
+        const mod = resolveNetworkPresentationTimelineModule();
+        if (!mod || typeof mod.createNetworkPresentationTimeline !== 'function') return null;
+        const initialVisualVersion = Number.isFinite(Number(state.lastVisualVersion))
+            ? state.lastVisualVersion
+            : (Number.isFinite(Number(state.appliedStateVersion))
+                ? state.appliedStateVersion
+                : (Number.isFinite(Number(state.stateVersion)) ? state.stateVersion : 0));
+        networkPresentationTimeline = mod.createNetworkPresentationTimeline({
+            initialVisualSeq: state.lastVisualSeq || 0,
+            initialVisualVersion,
+            playbackDispatcher: getNetworkPlaybackDispatcher()
+        });
+        try {
+            root.NetworkPresentationTimeline = networkPresentationTimeline;
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined') {
+                (globalThis as any).NetworkPresentationTimeline = networkPresentationTimeline;
+            }
+        } catch (e: any) { /* ignore */ }
+        return networkPresentationTimeline;
     }
 
     function getNetworkSessionSeatController() {
@@ -638,11 +711,25 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playerNameMax: PLAYER_NAME_MAX,
             prepareSessionActivation: (payload: any) => {
                 state.lastStreamEventId = '';
-                state.appliedStateVersion = getSnapshotStateVersion(payload && payload.snapshot);
+                const activationSnapshotVersion = getSnapshotStateVersion(payload && payload.snapshot);
+                state.appliedStateVersion = activationSnapshotVersion;
+                const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
+                    ? payload.presentationCursor
+                    : null;
+                state.lastVisualSeq = Number.isFinite(Number(cursor && cursor.visualSeq))
+                    ? Math.max(0, Math.trunc(Number(cursor.visualSeq)))
+                    : 0;
+                state.lastVisualVersion = Number.isFinite(Number(cursor && cursor.stateVersion))
+                    ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
+                    : (Number.isFinite(Number(activationSnapshotVersion)) ? activationSnapshotVersion : null);
+                networkPresentationTimeline = null;
                 clearPendingForceSyncPlaybackRecovery();
             },
             onResetSessionState: () => {
                 state.appliedStateVersion = null;
+                state.lastVisualSeq = 0;
+                state.lastVisualVersion = null;
+                networkPresentationTimeline = null;
                 state.lastStreamEventId = '';
                 state.authoritativeMatchState.gameState = null;
                 state.authoritativeMatchState.cardState = null;
@@ -841,7 +928,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             showAutoPassNoticeFromPayload,
             markTrackedPublishSelfSnapshot,
             handleTimeoutPassPayload,
-            pruneTrackedPublishes
+            pruneTrackedPublishes,
+            enqueuePresentationFramesFromPayload
         });
         return networkStreamSnapshotController;
     }
@@ -944,7 +1032,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             emitPayloadEffectLogs,
             showAutoPassNoticeFromPayload,
             pruneTrackedPublishes,
-            getSnapshotStateVersion
+            getSnapshotStateVersion,
+            enqueuePresentationFramesFromPayload
         });
         return networkPublishFlowController;
     }
@@ -1818,6 +1907,59 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return 'default';
     }
 
+    function syncVisualCursorFromTimeline() {
+        const timeline = getNetworkPresentationTimeline();
+        if (!timeline || typeof timeline.getDiagnostics !== 'function') return;
+        try {
+            const diagnostics = timeline.getDiagnostics();
+            if (diagnostics && Number.isFinite(Number(diagnostics.visualSeq))) {
+                state.lastVisualSeq = Math.max(0, Math.trunc(Number(diagnostics.visualSeq)));
+            }
+            if (diagnostics && Number.isFinite(Number(diagnostics.visualVersion))) {
+                state.lastVisualVersion = Math.max(0, Math.trunc(Number(diagnostics.visualVersion)));
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+
+    function drainPresentationTimeline() {
+        const timeline = getNetworkPresentationTimeline();
+        if (!timeline || typeof timeline.drainPlayableFrames !== 'function') {
+            return Promise.resolve(0);
+        }
+        return Promise.resolve()
+            .then(() => timeline.drainPlayableFrames(getNetworkPlaybackDispatcher()))
+            .then((drained: any) => {
+                syncVisualCursorFromTimeline();
+                return drained;
+            })
+            .catch((error: any) => {
+                syncVisualCursorFromTimeline();
+                recordNetworkTelemetry('network_presentation_timeline_drain_failed', {
+                    error: error && error.message ? String(error.message) : String(error || '')
+                });
+                return 0;
+            });
+    }
+
+    function enqueuePresentationFrames(frames: any, options?: any) {
+        if (!Array.isArray(frames) || frames.length <= 0) return 0;
+        const timeline = getNetworkPresentationTimeline();
+        if (!timeline || typeof timeline.enqueueFrames !== 'function') return 0;
+        const accepted = timeline.enqueueFrames(frames, options || { source: 'network_payload' });
+        if (accepted > 0) {
+            drainPresentationTimeline();
+        }
+        syncVisualCursorFromTimeline();
+        return accepted;
+    }
+
+    function enqueuePresentationFramesFromPayload(payload: any, options?: any) {
+        const frames = payload && Array.isArray(payload.presentationFrames)
+            ? payload.presentationFrames
+            : [];
+        return enqueuePresentationFrames(frames, options || { source: 'network_payload' });
+    }
+
     function applyPayloadSessionState(payload: any) {
         if (!payload || typeof payload !== 'object') return;
         updateTurnTimerFromPayload(payload);
@@ -2224,6 +2366,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.chatHistory = [];
             state.stateVersion = null;
             state.appliedStateVersion = null;
+            state.lastVisualSeq = 0;
+            state.lastVisualVersion = null;
+            networkPresentationTimeline = null;
             state.lastStateSyncRecoveredPlaybackSignature = '';
             state.lastStreamEventId = '';
             state.authoritativeMatchState.gameState = null;
