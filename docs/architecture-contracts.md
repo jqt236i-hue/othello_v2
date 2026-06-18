@@ -188,20 +188,18 @@ Those hints are not accepted pending state.
 - authoritative pending instances may carry opaque `pendingEffectId` values; final target-selection publish must bind to that specific pending instance when present
 - browser preview may help the player choose a target, but once authority accepts the publish, preview state must not write gameplay state back over the authoritative snapshot
 
-### 6.4 Snapshot and playback
+### 6.4 Snapshot, presentation journal, and visual timeline
 
-Network snapshot data is authoritative state transfer.
-Playback events are presentation-time replay instructions.
+Network snapshot data is authoritative state transfer. It updates the canonical client state as soon as the server version is accepted.
 
-Those two concepts may travel together, but they do not have the same role:
+Network presentation frames are ordered replay instructions. They are identified by `visualSeq` and represent one authoritative transition from `stateVersionFrom` to `stateVersionTo`.
 
-- snapshot decides the canonical current state
-- playback decides how the UI animates into that state
-- local busy / playback recovery decides only how pending presentation work settles; it never changes canonical state
+The browser keeps two state lanes:
 
-Self-originated preview / recovery paths may suppress playback, shadow playback, or preserve local settlement context for the same authoritative state.
-Those branches are compatibility behavior only.
-They must not overrule newer authoritative state.
+- canonical state: latest accepted server snapshot, used for authority, validation, result state, and reconnect truth
+- visual state: render-facing state, advanced only after each contiguous presentation frame finishes playback
+
+`ui/network/presentation-timeline.ts` owns visual cursor order. `ui/network/visual-state-store.ts` owns render-facing state selection. `ui/network/snapshot.ts` owns canonical snapshot application and must not directly skip strict network playback when presentation frames are available.
 
 ### 6.5 Board effect blocks
 
