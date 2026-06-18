@@ -12,9 +12,15 @@ function boardKeyForExact(board: any, playerKey: any, passCount: number): string
   return `${playerKey}|${passCount}|${rows}`;
 }
 
+function resolveExactSolveNowMs(config: any): () => number {
+  return config && typeof config.exactSolveNowMs === 'function'
+    ? config.exactSolveNowMs
+    : Date.now;
+}
+
 function solveExactValue(board: any, playerKey: any, passCount: number, state: any, helpers: any): number {
   state.nodes += 1;
-  if (state.nodes > state.nodeBudget || Date.now() > state.deadline) {
+  if (state.nodes > state.nodeBudget || state.readNowMs() > state.deadline) {
     state.aborted = true;
     return 0;
   }
@@ -52,10 +58,12 @@ function chooseExactEndgameMove(candidates: any[], context: any, config: any, he
   const empties = helpers.countEmptyCells(context.board);
   if (empties > config.exactSolveEmpties) return null;
   const playerKey = context.playerKey === 'black' ? 'black' : 'white';
+  const readNowMs = resolveExactSolveNowMs(config);
   const state = {
     nodes: 0,
     nodeBudget: config.exactSolveNodeBudget,
-    deadline: Date.now() + config.exactSolveMaxMs,
+    deadline: readNowMs() + config.exactSolveMaxMs,
+    readNowMs,
     aborted: false,
     cache: new Map()
   };

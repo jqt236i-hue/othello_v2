@@ -41,6 +41,7 @@ let _config = {
   exactSolveEmpties: 10,
   exactSolveNodeBudget: 50000,
   exactSolveMaxMs: 250,
+  exactSolveNowMs: null as any,
   ortApi: null as any
 };
 
@@ -56,6 +57,9 @@ function configure(config: any) {
   if (Number.isFinite(Number(next.exactSolveEmpties))) _config.exactSolveEmpties = Math.max(0, Math.floor(Number(next.exactSolveEmpties)));
   if (Number.isFinite(Number(next.exactSolveNodeBudget))) _config.exactSolveNodeBudget = Math.max(100, Math.floor(Number(next.exactSolveNodeBudget)));
   if (Number.isFinite(Number(next.exactSolveMaxMs))) _config.exactSolveMaxMs = Math.max(1, Math.floor(Number(next.exactSolveMaxMs)));
+  if (Object.prototype.hasOwnProperty.call(next, 'exactSolveNowMs')) {
+    _config.exactSolveNowMs = typeof next.exactSolveNowMs === 'function' ? next.exactSolveNowMs : null;
+  }
   if (typeof next.sourceUrl === 'string' && next.sourceUrl.trim()) _sourceUrl = next.sourceUrl.trim();
   if (typeof next.metaUrl === 'string' && next.metaUrl.trim()) _metaUrl = next.metaUrl.trim();
   if (Object.prototype.hasOwnProperty.call(next, 'ortApi')) _config.ortApi = next.ortApi || null;

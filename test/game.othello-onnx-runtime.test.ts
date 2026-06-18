@@ -102,10 +102,12 @@ describe('othello-onnx-runtime', () => {
     jest.doMock('onnxruntime-web', () => (global as any).ort);
     const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'othello-onnx-runtime.ts'));
     runtime.clearModel();
+    const exactSolveNowMs = jest.fn(() => 1000);
     runtime.configure({
       enabled: true,
       minLevel: 6,
       exactSolveEmpties: 1,
+      exactSolveNowMs,
       ortApi: (global as any).ort
     });
     const ok = await runtime.loadFromUrl('model.onnx', 'meta.json', jest.fn(async () => ({ ok: false })));
@@ -114,14 +116,22 @@ describe('othello-onnx-runtime', () => {
     const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => -1));
     board[7][6] = 1;
     board[7][7] = 0;
-    const selected = await runtime.chooseMove([{ row: 7, col: 7, flips: [{ row: 7, col: 6 }] }], {
-      board,
-      playerKey: 'white',
-      level: 6,
-      legalMovesCount: 1
-    });
+    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(9999);
+    let selected;
+    try {
+      selected = await runtime.chooseMove([{ row: 7, col: 7, flips: [{ row: 7, col: 6 }] }], {
+        board,
+        playerKey: 'white',
+        level: 6,
+        legalMovesCount: 1
+      });
+      expect(dateSpy).not.toHaveBeenCalled();
+    } finally {
+      dateSpy.mockRestore();
+    }
 
     expect(selected).toEqual({ row: 7, col: 7, flips: [{ row: 7, col: 6 }] });
+    expect(exactSolveNowMs).toHaveBeenCalled();
     expect(session.run).not.toHaveBeenCalled();
     expect(runtime.getStatus().inferenceCalls).toBe(0);
   });
