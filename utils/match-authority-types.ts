@@ -49,6 +49,42 @@ export interface MatchAuthoritySpectatorViewer {
 
 export type MatchAuthorityViewer = MatchAuthoritySeatViewer | MatchAuthoritySpectatorViewer;
 
+export type MatchAuthorityPresentationPayloadKey = MatchAuthoritySeatKey | 'spectator';
+
+export interface MatchAuthorityPresentationFramePayload {
+    playbackEvents?: unknown[];
+    effectLogs?: unknown[];
+    playbackDiagnostics?: unknown | null;
+}
+
+export interface MatchAuthorityPresentationJournalEntry {
+    visualSeq: number;
+    stateVersionFrom: number;
+    stateVersionTo: number;
+    operationId: string | null;
+    actorSeatKey: MatchAuthoritySeatKey | null;
+    actionType: string | null;
+    payloadByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, MatchAuthorityPresentationFramePayload>>;
+    snapshotAfterByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>>;
+    createdAt: number;
+}
+
+export interface MatchAuthorityPresentationFramePublic extends MatchAuthorityJsonObject {
+    roomId: string | null;
+    visualSeq: number;
+    stateVersionFrom: number;
+    stateVersionTo: number;
+    operationId: string | null;
+    actorSeatKey: MatchAuthoritySeatKey | null;
+    actionType: string | null;
+    playbackEvents: unknown[];
+    effectLogs: string[];
+    playbackDiagnostics?: unknown | null;
+    projectedSnapshotHash?: string | null;
+    snapshotAfter?: unknown | null;
+    createdAt: number;
+}
+
 export interface MatchAuthoritySpectatorJoinOptions {
     spectatorName?: unknown;
     makeSpectatorToken?: (() => string) | null;
@@ -95,6 +131,9 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     lastAcceptedOperationBySeat?: Partial<MatchAuthorityAcceptedOperationsBySeat> | null;
     acceptedOperationHistoryBySeat?: Partial<MatchAuthorityAcceptedOperationHistoryBySeat> | null;
     sseEventBuffer?: MatchAuthorityBufferedSseEventRecord[] | null;
+    visualSeq?: number | null;
+    presentationJournal?: MatchAuthorityPresentationJournalEntry[] | null;
+    initialSnapshotByViewer?: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> | null;
     authorityLog?: unknown[] | null;
     authoritativeStateHash?: unknown;
 }
@@ -152,6 +191,10 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     spectatorName?: unknown;
     spectatorCount?: unknown;
     maxSpectators?: unknown;
+    presentationCursor?: unknown;
+    presentationFrames?: unknown;
+    baseVisualSeq?: unknown;
+    baseSnapshot?: unknown;
 }
 
 export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
@@ -191,6 +234,10 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     spectatorName?: string;
     spectatorCount?: number;
     maxSpectators?: number;
+    presentationCursor?: unknown;
+    presentationFrames?: unknown;
+    baseVisualSeq?: number;
+    baseSnapshot?: unknown;
 }
 
 export interface MatchAuthorityPublishResponseOptions extends MatchAuthorityRoomPayloadOptions {
@@ -361,4 +408,19 @@ export interface MatchAuthorityPublicApi {
         stateVersionValue: unknown,
         viewerSeatKey: unknown
     ): unknown | null;
+    appendPresentationFrame(roomValue: MatchAuthorityRoomState | null | undefined, inputValue: unknown): MatchAuthorityPresentationJournalEntry | null;
+    getPresentationFramesAfter(
+        roomValue: MatchAuthorityRoomState | null | undefined,
+        afterVisualSeq: unknown,
+        viewerValue: unknown
+    ): MatchAuthorityPresentationFramePublic[];
+    buildPresentationJournalResponse(
+        roomValue: MatchAuthorityRoomState | null | undefined,
+        options?: Record<string, unknown> | null
+    ): Record<string, unknown>;
+    toPublicPresentationFrame(
+        entryValue: unknown,
+        viewerValue: unknown,
+        roomValue?: MatchAuthorityRoomState | null | undefined
+    ): MatchAuthorityPresentationFramePublic;
 }

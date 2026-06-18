@@ -16,6 +16,10 @@ import type {
     MatchAuthorityBufferedSseReplayEvent,
     MatchAuthorityHeartbeatPayloadFromRoomOptions,
     MatchAuthorityPresencePayloadFromRoomOptions,
+    MatchAuthorityPresentationFramePayload,
+    MatchAuthorityPresentationFramePublic,
+    MatchAuthorityPresentationJournalEntry,
+    MatchAuthorityPresentationPayloadKey,
     MatchAuthorityProjectionMetadata,
     MatchAuthorityPublicApi,
     MatchAuthorityPublicSnapshot,
@@ -521,6 +525,12 @@ function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptio
         const autoPassNotice = normalizeAutoPassNotice(opts.autoPassNotice);
         if (autoPassNotice) response.autoPassNotice = autoPassNotice;
     }
+    if (Object.prototype.hasOwnProperty.call(opts, 'presentationCursor')) {
+        response.presentationCursor = opts.presentationCursor || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'presentationFrames')) {
+        response.presentationFrames = Array.isArray(opts.presentationFrames) ? opts.presentationFrames : [];
+    }
     return response;
 }
 
@@ -852,7 +862,9 @@ function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptio
         errorMessage: opts.errorMessage,
         playbackDiagnostics: opts.playbackDiagnostics,
         projectedSnapshotHash: opts.projectedSnapshotHash,
-        autoPassNotice: opts.autoPassNotice
+        autoPassNotice: opts.autoPassNotice,
+        presentationCursor: opts.presentationCursor,
+        presentationFrames: opts.presentationFrames
     }, opts));
 
     const publishMeta = normalizePublishMeta(opts.publishMeta);
@@ -992,6 +1004,20 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
             ? Math.max(0, Math.trunc(Number(opts.maxSpectators)))
             : MAX_SPECTATORS;
     }
+    if (Object.prototype.hasOwnProperty.call(opts, 'presentationCursor')) {
+        payload.presentationCursor = opts.presentationCursor || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'presentationFrames')) {
+        payload.presentationFrames = Array.isArray(opts.presentationFrames) ? opts.presentationFrames : [];
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'baseVisualSeq')) {
+        payload.baseVisualSeq = Number.isFinite(Number(opts.baseVisualSeq))
+            ? Math.max(0, Math.trunc(Number(opts.baseVisualSeq)))
+            : 0;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'baseSnapshot')) {
+        payload.baseSnapshot = opts.baseSnapshot || null;
+    }
 
     return payload;
 }
@@ -1044,6 +1070,8 @@ function buildSnapshotPayloadFromRoom(
         effectLogs: opts.effectLogs,
         playbackDiagnostics: opts.playbackDiagnostics,
         autoPassNotice: opts.autoPassNotice,
+        presentationCursor: opts.presentationCursor,
+        presentationFrames: opts.presentationFrames,
         operationId: opts.operationId,
         playerKey: opts.playerKey,
         actionType: opts.actionType,
@@ -1111,6 +1139,8 @@ function buildPublishPayloadFromRoom(
         rejectedReason: opts.rejectedReason,
         idempotentReplay: opts.idempotentReplay === true,
         errorMessage: opts.errorMessage,
+        presentationCursor: opts.presentationCursor,
+        presentationFrames: opts.presentationFrames,
         publishMeta: opts.publishMeta || null
     }, opts));
 }
@@ -2184,6 +2214,186 @@ function getBufferedSseReplayEvents(
     return replayEvents;
 }
 
+function toPositiveInteger(value: unknown, fallback: number): number {
+    return Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : fallback;
+}
+
+function normalizePresentationPayload(value: unknown): MatchAuthorityPresentationFramePayload {
+    const source = asRecord(value);
+    return {
+        playbackEvents: Array.isArray(source.playbackEvents) ? deepClone(source.playbackEvents) as unknown[] : [],
+        effectLogs: normalizeEffectLogMessages(source.effectLogs),
+        playbackDiagnostics: source.playbackDiagnostics || null
+    };
+}
+
+function ensurePresentationJournal(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityPresentationJournalEntry[] {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : null;
+    if (!room) return [];
+    if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+    return room.presentationJournal;
+}
+
+function getPresentationPayloadKeyForViewer(viewer: MatchAuthorityViewer | null | undefined): MatchAuthorityPresentationPayloadKey {
+    return viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator';
+}
+
+function normalizePresentationViewer(viewerValue: unknown): MatchAuthorityViewer | null {
+    const viewer = normalizeViewerIdentity(viewerValue);
+    return viewer || null;
+}
+
+function appendPresentationFrame(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    inputValue: unknown
+): MatchAuthorityPresentationJournalEntry | null {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : null;
+    if (!room) return null;
+    const input = asRecord(inputValue);
+    const journal = ensurePresentationJournal(room);
+    const visualSeq = toPositiveInteger(room.visualSeq, 0) + 1;
+    const payloadByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, MatchAuthorityPresentationFramePayload>> = {};
+    const sourcePayloadByViewer = asRecord(input.payloadByViewer);
+    for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
+        if (Object.prototype.hasOwnProperty.call(sourcePayloadByViewer, key)) {
+            payloadByViewer[key] = normalizePresentationPayload(sourcePayloadByViewer[key]);
+        }
+    }
+
+    const snapshotAfterByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> = {};
+    const sourceSnapshotAfterByViewer = asRecord(input.snapshotAfterByViewer);
+    for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
+        if (Object.prototype.hasOwnProperty.call(sourceSnapshotAfterByViewer, key)) {
+            snapshotAfterByViewer[key] = deepClone(sourceSnapshotAfterByViewer[key]);
+        }
+    }
+
+    const entry: MatchAuthorityPresentationJournalEntry = {
+        visualSeq,
+        stateVersionFrom: toPositiveInteger(input.stateVersionFrom, 0),
+        stateVersionTo: toPositiveInteger(input.stateVersionTo, 0),
+        operationId: normalizeOperationId(input.operationId) || null,
+        actorSeatKey: parseSeatKeyOptional(input.actorSeatKey),
+        actionType: normalizePublishActionType(input.actionType),
+        payloadByViewer,
+        snapshotAfterByViewer,
+        createdAt: Number.isFinite(Number(input.createdAt)) ? Number(input.createdAt) : Date.now()
+    };
+
+    journal.push(entry);
+    room.visualSeq = visualSeq;
+    return entry;
+}
+
+function toPublicPresentationFrame(
+    entryValue: unknown,
+    viewerValue: unknown,
+    roomValue?: MatchAuthorityRoomState | null | undefined
+): MatchAuthorityPresentationFramePublic {
+    const entry = entryValue && typeof entryValue === 'object'
+        ? entryValue as MatchAuthorityPresentationJournalEntry
+        : {} as MatchAuthorityPresentationJournalEntry;
+    const viewer = normalizePresentationViewer(viewerValue);
+    const payloadKey = getPresentationPayloadKeyForViewer(viewer);
+    const payloadByViewer = entry.payloadByViewer && typeof entry.payloadByViewer === 'object' ? entry.payloadByViewer : {};
+    const payload = payloadByViewer[payloadKey] || payloadByViewer.spectator || {};
+    const snapshotAfterByViewer = entry.snapshotAfterByViewer && typeof entry.snapshotAfterByViewer === 'object' ? entry.snapshotAfterByViewer : {};
+    const snapshotAfter = snapshotAfterByViewer[payloadKey] || snapshotAfterByViewer.spectator || null;
+    const snapshotMeta = snapshotAfter && typeof snapshotAfter === 'object'
+        ? asRecord(asRecord(snapshotAfter)._meta)
+        : {};
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+
+    return {
+        roomId: room.roomId ? String(room.roomId).trim().toUpperCase() : null,
+        visualSeq: toPositiveInteger(entry.visualSeq, 0),
+        stateVersionFrom: toPositiveInteger(entry.stateVersionFrom, 0),
+        stateVersionTo: toPositiveInteger(entry.stateVersionTo, 0),
+        operationId: entry.operationId || null,
+        actorSeatKey: parseSeatKeyOptional(entry.actorSeatKey),
+        actionType: normalizePublishActionType(entry.actionType),
+        playbackEvents: Array.isArray(payload.playbackEvents) ? deepClone(payload.playbackEvents) as unknown[] : [],
+        effectLogs: normalizeEffectLogMessages(payload.effectLogs),
+        playbackDiagnostics: payload.playbackDiagnostics || null,
+        projectedSnapshotHash: snapshotMeta.projectedSnapshotHash ? String(snapshotMeta.projectedSnapshotHash) : null,
+        snapshotAfter: snapshotAfter ? deepClone(snapshotAfter) : null,
+        createdAt: Number.isFinite(Number(entry.createdAt)) ? Number(entry.createdAt) : Date.now()
+    };
+}
+
+function getPresentationFramesAfter(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    afterVisualSeq: unknown,
+    viewerValue: unknown
+): MatchAuthorityPresentationFramePublic[] {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+    const minSeq = toPositiveInteger(afterVisualSeq, 0);
+    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
+    return journal
+        .filter((entry) => entry && Number(entry.visualSeq) > minSeq)
+        .sort((a, b) => Number(a.visualSeq) - Number(b.visualSeq))
+        .map((entry) => toPublicPresentationFrame(entry, viewerValue, room));
+}
+
+function findBaseSnapshotForVisualSeq(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    afterVisualSeq: number,
+    viewerValue: unknown
+): unknown {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+    const viewer = normalizePresentationViewer(viewerValue);
+    const payloadKey = getPresentationPayloadKeyForViewer(viewer);
+    if (afterVisualSeq <= 0) {
+        const initial = room.initialSnapshotByViewer && room.initialSnapshotByViewer[payloadKey];
+        return initial || room.snapshot || null;
+    }
+    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
+    const entry = journal.find((item) => Number(item && item.visualSeq) === afterVisualSeq);
+    if (!entry) return null;
+    return (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer[payloadKey])
+        || (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer.spectator)
+        || null;
+}
+
+function buildPresentationJournalResponse(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: Record<string, unknown> | null
+): Record<string, unknown> {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+    const opts = asRecord(options);
+    const afterVisualSeq = toPositiveInteger(opts.afterVisualSeq, 0);
+    const currentVisualSeq = toPositiveInteger(room.visualSeq, 0);
+    const currentStateVersion = toPositiveInteger(room.stateVersion, 0);
+    const presentationCursor = { visualSeq: currentVisualSeq, stateVersion: currentStateVersion };
+    const baseSnapshot = findBaseSnapshotForVisualSeq(room, afterVisualSeq, opts.viewer);
+    const serverTime = Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now();
+    const roomId = room.roomId ? String(room.roomId).trim().toUpperCase() : null;
+
+    if (!baseSnapshot) {
+        return {
+            ok: false,
+            roomId,
+            reason: 'VISUAL_CURSOR_EXPIRED',
+            baseVisualSeq: afterVisualSeq,
+            baseSnapshot: null,
+            presentationCursor,
+            presentationFrames: [],
+            snapshot: room.snapshot || null,
+            serverTime
+        };
+    }
+
+    return {
+        ok: true,
+        roomId,
+        baseVisualSeq: afterVisualSeq,
+        baseSnapshot: deepClone(baseSnapshot),
+        presentationCursor,
+        presentationFrames: getPresentationFramesAfter(room, afterVisualSeq, opts.viewer),
+        serverTime
+    };
+}
+
 function resolveBufferedSnapshotPayloadForViewer(
     entry: MatchAuthorityBufferedSseEventRecord,
     viewerSeatKey: unknown
@@ -2325,7 +2535,11 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     createBufferedSseEventRecord,
     appendBufferedSseEvent,
     getBufferedSseReplayEvents,
-    getBufferedSnapshotPayloadForStateVersion
+    getBufferedSnapshotPayloadForStateVersion,
+    appendPresentationFrame,
+    getPresentationFramesAfter,
+    buildPresentationJournalResponse,
+    toPublicPresentationFrame
 });
 
 export = matchAuthority;
