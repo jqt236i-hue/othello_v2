@@ -129,6 +129,107 @@ function createNetworkSessionLifecycleController(config: any): any {
       + '&seatToken=' + encodeURIComponent(state.seatToken || '');
   }
 
+  function toIntegerOrNull(value: any): number | null {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return null;
+    return Math.trunc(numberValue);
+  }
+
+  function buildPresentationJournalPath(state: any, afterVisualSeq: any): string {
+    const seq = Math.max(0, toIntegerOrNull(afterVisualSeq) || 0);
+    if (isSpectatorState(state)) {
+      return '/api/match/presentation-journal?roomId=' + encodeURIComponent(state.roomId)
+        + '&viewerRole=spectator'
+        + '&spectatorId=' + encodeURIComponent(state.spectatorId || '')
+        + '&spectatorToken=' + encodeURIComponent(state.spectatorToken || '')
+        + '&afterVisualSeq=' + encodeURIComponent(String(seq));
+    }
+    return '/api/match/presentation-journal?roomId=' + encodeURIComponent(state.roomId)
+      + '&seatKey=' + encodeURIComponent(state.seatKey)
+      + '&seatToken=' + encodeURIComponent(state.seatToken || '')
+      + '&afterVisualSeq=' + encodeURIComponent(String(seq));
+  }
+
+  function getCanonicalStateVersion(state: any): number | null {
+    const direct = toIntegerOrNull(state && state.stateVersion);
+    if (direct !== null) return direct;
+    const applied = toIntegerOrNull(state && state.appliedStateVersion);
+    if (applied !== null) return applied;
+    return null;
+  }
+
+  function getStoredVisualSeq(stored: any, state: any): number {
+    const storedSeq = toIntegerOrNull(stored && stored.lastVisualSeq);
+    if (storedSeq !== null && storedSeq >= 0) return storedSeq;
+    const stateSeq = toIntegerOrNull(state && state.lastVisualSeq);
+    if (stateSeq !== null && stateSeq >= 0) return stateSeq;
+    return 0;
+  }
+
+  function getStoredVisualVersion(stored: any, state: any): number {
+    const storedVersion = toIntegerOrNull(stored && stored.lastVisualVersion);
+    if (storedVersion !== null && storedVersion >= 0) return storedVersion;
+    const stateVersion = toIntegerOrNull(state && state.lastVisualVersion);
+    if (stateVersion !== null && stateVersion >= 0) return stateVersion;
+    return 0;
+  }
+
+  function resolveVisualStateStore(): any {
+    if (cfg.visualStateStore && typeof cfg.visualStateStore === 'object') return cfg.visualStateStore;
+    if (typeof cfg.resolveVisualStateStore === 'function') {
+      try { return cfg.resolveVisualStateStore(); } catch (e) { /* ignore */ }
+    }
+    return null;
+  }
+
+  function setJournalBaseVisualSnapshot(payload: any): void {
+    const store = resolveVisualStateStore();
+    if (!store || typeof store.setBaseVisualSnapshot !== 'function') return;
+    if (!payload || !payload.baseSnapshot) return;
+    const baseVisualSeq = toIntegerOrNull(payload.baseVisualSeq);
+    const baseVersion = toIntegerOrNull(payload.baseSnapshot && payload.baseSnapshot.stateVersion)
+      || toIntegerOrNull(payload.baseVisualVersion);
+    store.setBaseVisualSnapshot(payload.baseSnapshot, {
+      visualSeq: baseVisualSeq !== null ? baseVisualSeq : 0,
+      visualVersion: baseVersion,
+      preserveExisting: true,
+      source: 'journal_recovery'
+    });
+  }
+
+  async function recoverPresentationJournalCatchup(stored: any): Promise<any> {
+    const state = readState();
+    const canonicalVersion = getCanonicalStateVersion(state);
+    if (canonicalVersion === null) return { recovered: false, reason: 'canonical_version_unavailable' };
+    const lastVisualVersion = getStoredVisualVersion(stored, state);
+    if (canonicalVersion <= lastVisualVersion) {
+      return { recovered: false, reason: 'visual_cursor_current' };
+    }
+    const afterVisualSeq = getStoredVisualSeq(stored, state);
+    const path = buildPresentationJournalPath(state, afterVisualSeq);
+    const res = await cfg.requestJson('GET', path);
+    if (!res.ok || !res.data || res.data.ok !== true) {
+      return { recovered: false, reason: (res.data && res.data.reason) || 'PRESENTATION_JOURNAL_FETCH_FAILED' };
+    }
+    setJournalBaseVisualSnapshot(res.data);
+    let enqueued = 0;
+    if (typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
+      enqueued = cfg.enqueuePresentationFramesFromPayload(res.data, { source: 'journal_recovery' }) || 0;
+    }
+    if (typeof cfg.drainPresentationTimeline === 'function') {
+      await cfg.drainPresentationTimeline();
+    }
+    if (typeof cfg.recordNetworkTelemetry === 'function') {
+      cfg.recordNetworkTelemetry('presentation_journal_recovered', {
+        afterVisualSeq,
+        canonicalVersion,
+        lastVisualVersion,
+        enqueued
+      });
+    }
+    return { recovered: true, enqueued };
+  }
+
   function isInvalidStoredSessionReason(reason: any): boolean {
     const normalized = String(reason || '').trim().toUpperCase();
     return normalized === 'ROOM_NOT_FOUND'
@@ -347,6 +448,10 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (typeof cfg.applyPayloadSessionState === 'function') {
       cfg.applyPayloadSessionState(res.data);
     }
+    const responseStateVersion = toIntegerOrNull(res.data.stateVersion);
+    if (responseStateVersion !== null) {
+      state.stateVersion = responseStateVersion;
+    }
 
     let appliedSnapshot = false;
     if (res.data.snapshot) {
@@ -356,15 +461,20 @@ function createNetworkSessionLifecycleController(config: any): any {
         })
         : false;
       if (!skipSnapshot) {
-        const playbackEvents = typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
+        const hasPresentationFrames = Array.isArray(res.data.presentationFrames) && res.data.presentationFrames.length > 0;
+        const playbackEvents = hasPresentationFrames
+          ? []
+          : (typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
           ? cfg.resolveStateSyncRecoveredPlaybackEvents(res.data)
-          : (Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : []);
+          : (Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : []));
         appliedSnapshot = typeof cfg.applySnapshotThroughCoordinator === 'function'
           ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
             source: 'state_sync',
             applyOptions: {
               force: true,
-              playbackEvents: playbackEvents
+              playbackEvents: playbackEvents,
+              presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
+              presentationFrameSource: 'state_sync'
             }
           })
           : false;
@@ -382,6 +492,7 @@ function createNetworkSessionLifecycleController(config: any): any {
               : null,
             force: true,
             playbackEventCount: playbackEvents.length,
+            presentationFrameCount: hasPresentationFrames ? res.data.presentationFrames.length : 0,
             usedRecoveredPlayback: playbackEvents.length > 0
           });
         }
@@ -435,6 +546,8 @@ function createNetworkSessionLifecycleController(config: any): any {
       }
       return { ok: false, reason };
     }
+
+    await recoverPresentationJournalCatchup(stored);
 
     openStream();
 

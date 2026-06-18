@@ -79,6 +79,11 @@ describe('NetworkSessionLifecycleController', () => {
       resolveStateSyncRecoveredPlaybackEvents: jest.fn((data) => Array.isArray(data?.playbackEvents) ? data.playbackEvents : []),
       recordNetworkTelemetry: jest.fn(),
       getSnapshotStateVersion: jest.fn((snapshot) => snapshot?.stateVersion || null),
+      visualStateStore: {
+        setBaseVisualSnapshot: jest.fn()
+      },
+      enqueuePresentationFramesFromPayload: jest.fn(() => 0),
+      drainPresentationTimeline: jest.fn(async () => 0),
       clearPlaybackStateForLeave: jest.fn(),
       clearPendingForceSyncPlaybackRecovery: jest.fn(),
       cloneData: jest.fn((value) => JSON.parse(JSON.stringify(value)))
@@ -613,6 +618,67 @@ describe('NetworkSessionLifecycleController', () => {
       );
       expect(mockConfig.openStream).toHaveBeenCalled();
       expect(mockConfig.clearStoredSession).not.toHaveBeenCalled();
+    });
+
+    test('保存済みvisual cursorが遅れている場合はpresentation journalで復旧する', async () => {
+      mockConfig.readStoredSession.mockReturnValue({
+        roomId: 'ABC',
+        viewerRole: 'seat',
+        seatKey: 'black',
+        seatToken: 'token_black',
+        lastVisualSeq: 1,
+        lastVisualVersion: 2
+      });
+      mockConfig.requestJson.mockImplementation(async (method, path) => {
+        if (method === 'GET' && path.startsWith('/api/match/state')) {
+          return jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            stateVersion: 4,
+            snapshot: { stateVersion: 4, gameState: { currentPlayer: 1 }, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 4 }
+          });
+        }
+        if (method === 'GET' && path.startsWith('/api/match/presentation-journal')) {
+          expect(path).toContain('roomId=ABC');
+          expect(path).toContain('seatKey=black');
+          expect(path).toContain('seatToken=token_black');
+          expect(path).toContain('afterVisualSeq=1');
+          return jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            baseVisualSeq: 1,
+            baseSnapshot: { stateVersion: 2, gameState: { currentPlayer: -1 }, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 4 },
+            presentationFrames: [
+              { visualSeq: 2, stateVersionFrom: 2, stateVersionTo: 3, playbackEvents: [{ type: 'event_2' }], snapshotAfter: { stateVersion: 3, gameState: {}, cardState: {} } },
+              { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }], snapshotAfter: { stateVersion: 4, gameState: {}, cardState: {} } }
+            ]
+          });
+        }
+        throw new Error(`unexpected request ${method} ${path}`);
+      });
+      mockConfig.enqueuePresentationFramesFromPayload.mockReturnValue(2);
+      mockConfig.drainPresentationTimeline.mockResolvedValue(2);
+
+      const result = await controller.restoreStoredSession();
+
+      expect(result).toEqual(expect.objectContaining({ ok: true, restored: true }));
+      expect(mockConfig.visualStateStore.setBaseVisualSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({ stateVersion: 2 }),
+        expect.objectContaining({ visualSeq: 1, visualVersion: 2, source: 'journal_recovery' })
+      );
+      expect(mockConfig.enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presentationFrames: expect.arrayContaining([
+            expect.objectContaining({ visualSeq: 2 }),
+            expect.objectContaining({ visualSeq: 3 })
+          ])
+        }),
+        { source: 'journal_recovery' }
+      );
+      expect(mockConfig.drainPresentationTimeline).toHaveBeenCalled();
+      expect(mockConfig.openStream).toHaveBeenCalled();
     });
   });
 

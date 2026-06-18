@@ -745,10 +745,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
                     ? payload.presentationCursor
                     : null;
-                state.lastVisualSeq = Number.isFinite(Number(cursor && cursor.visualSeq))
+                state.lastVisualSeq = cursor && Number.isFinite(Number(cursor.visualSeq))
                     ? Math.max(0, Math.trunc(Number(cursor.visualSeq)))
                     : 0;
-                state.lastVisualVersion = Number.isFinite(Number(cursor && cursor.stateVersion))
+                state.lastVisualVersion = cursor && Number.isFinite(Number(cursor.stateVersion))
                     ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
                     : (Number.isFinite(Number(activationSnapshotVersion)) ? activationSnapshotVersion : null);
                 networkPresentationTimeline = null;
@@ -822,6 +822,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             rememberPendingForceSyncPlaybackRecovery,
             recordNetworkTelemetry,
             getSnapshotStateVersion,
+            resolveVisualStateStore: () => getNetworkVisualStateStore(),
+            enqueuePresentationFramesFromPayload,
+            drainPresentationTimeline,
             clearPlaybackStateForLeave,
             clearPendingForceSyncPlaybackRecovery,
             resetSessionState,

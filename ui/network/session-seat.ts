@@ -375,6 +375,12 @@ function createNetworkSessionSeatController(config: any): any {
     if (!roomId) return null;
     const viewerRole = normalizeViewerRole(source.viewerRole);
     const serverUrl = String(source.serverUrl || '').trim();
+    const lastVisualSeq = Number.isFinite(Number(source.lastVisualSeq))
+      ? Math.max(0, Math.trunc(Number(source.lastVisualSeq)))
+      : 0;
+    const lastVisualVersion = Number.isFinite(Number(source.lastVisualVersion))
+      ? Math.max(0, Math.trunc(Number(source.lastVisualVersion)))
+      : null;
     if (viewerRole === 'spectator') {
       const spectatorId = String(source.spectatorId || '').trim();
       const spectatorToken = String(source.spectatorToken || '').trim();
@@ -386,6 +392,8 @@ function createNetworkSessionSeatController(config: any): any {
         spectatorId,
         spectatorToken,
         spectatorName: normalizePlayerName(source.spectatorName || source.playerName),
+        lastVisualSeq,
+        lastVisualVersion,
         serverUrl
       };
     }
@@ -399,6 +407,8 @@ function createNetworkSessionSeatController(config: any): any {
       seatKey: normalizePlayerKey(source.seatKey),
       seatToken,
       playerName: normalizePlayerName(source.playerName),
+      lastVisualSeq,
+      lastVisualVersion,
       serverUrl
     };
   }
@@ -434,6 +444,8 @@ function createNetworkSessionSeatController(config: any): any {
         spectatorId: state.spectatorId,
         spectatorToken: state.spectatorToken,
         spectatorName: state.spectatorName,
+        lastVisualSeq: state.lastVisualSeq,
+        lastVisualVersion: state.lastVisualVersion,
         serverUrl
       });
       return;
@@ -444,6 +456,8 @@ function createNetworkSessionSeatController(config: any): any {
       seatKey: state.seatKey,
       seatToken: state.seatToken,
       playerName: state.seatNames && state.seatNames[state.seatKey],
+      lastVisualSeq: state.lastVisualSeq,
+      lastVisualVersion: state.lastVisualVersion,
       serverUrl
     });
   }
@@ -469,6 +483,8 @@ function createNetworkSessionSeatController(config: any): any {
     state.roomId = stored.roomId;
     state.viewerRole = stored.viewerRole;
     state.stateVersion = null;
+    state.lastVisualSeq = Number.isFinite(Number(stored.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(stored.lastVisualSeq))) : 0;
+    state.lastVisualVersion = Number.isFinite(Number(stored.lastVisualVersion)) ? Math.max(0, Math.trunc(Number(stored.lastVisualVersion))) : null;
     resetResultPresentationState(state);
     state.chatHistory = [];
     state.roomSeats = { black: false, white: false };
