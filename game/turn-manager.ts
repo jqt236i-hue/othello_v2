@@ -1513,6 +1513,7 @@ async function onTurnStart(player: number) {
 
     const handSizeAfter = cardState.hands[playerKey].length;
     const newTurnCount = cardState.turnCountByPlayer[playerKey];
+    const turnStartStoppedAction = !!(turnStartResult && turnStartResult.stopAction === true);
 
     if (isTurnManagerDebugAvailable()) {
         logTurnManagerDebug(`[TURN-START] After turn-start phase: handAfter: ${handSizeAfter}, newTurnCount: ${newTurnCount}`, 'info');
@@ -1521,8 +1522,10 @@ async function onTurnStart(player: number) {
     logTurnManagerDebug('[DEBUG][onTurnStart] exit', 'debug', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing: readTurnManagerProcessing(), isCardAnimating: readTurnManagerCardAnimating(), pendingEffect: cardState.pendingEffectByPlayer });
 
     // 2. Log
-    const turnCount = gameState.turnNumber + 1;
-    emitLogAdded(`== ${getPlayerName(player)}のターン (${turnCount}手目) ==`, 'normal');
+    if (!turnStartStoppedAction) {
+        const turnCount = gameState.turnNumber + 1;
+        emitLogAdded(`== ${getPlayerName(player)}のターン (${turnCount}手目) ==`, 'normal');
+    }
 
     // 3. Draw Animation (if draw happened during the turn-start phase)
     if (handSizeAfter > handSizeBefore) {
@@ -1568,7 +1571,7 @@ async function onTurnStart(player: number) {
         // Ensure UI consumes the playback events
         requestUIRender();
     }
-    if (!othelloMode && !(turnStartResult && turnStartResult.stopAction === true)) {
+    if (!othelloMode && !turnStartStoppedAction) {
         await playTurnStartSpecialEffectsViaUI(player, _startEvents);
     }
 
@@ -1588,13 +1591,13 @@ async function onTurnStart(player: number) {
         setTurnManagerBusyState({ processing: false });
         return {
             playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : [],
-            stopAction: !!(turnStartResult && turnStartResult.stopAction === true)
+            stopAction: turnStartStoppedAction
         };
     }
 
     // Human-side safety: if no legal move and no usable card, force pass progression.
     // CPU side already has its own pass path, so limit this check to black / HvH.
-    if (player === BLACK || isHumanVsHumanModeEnabled()) {
+    if (!turnStartStoppedAction && (player === BLACK || isHumanVsHumanModeEnabled())) {
         try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }  // ensureCurrentPlayerCanActOrPass imported directly
     }
 
@@ -1615,7 +1618,7 @@ async function onTurnStart(player: number) {
 
     return {
         playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : [],
-        stopAction: !!(turnStartResult && turnStartResult.stopAction === true)
+        stopAction: turnStartStoppedAction
     };
 }
 

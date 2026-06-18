@@ -985,6 +985,89 @@ describe('turn-manager scheduling', () => {
     expect(global.cardState.prngState.calls).toBeGreaterThan(prng.getState().calls);
   });
 
+  test('onTurnStart stops after 理論の化身 auto turn end without scheduling a normal pass', async () => {
+    const CardLogic = require('../game/logic/cards.js');
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[0][0] = 0;
+    board[3][3] = global.WHITE;
+    board[3][4] = global.BLACK;
+    board[4][3] = global.BLACK;
+    board[4][4] = global.WHITE;
+
+    const cardState = CardLogic.createCardState({ random: () => 0, shuffle: (arr) => arr }, { plainReversi: true });
+    cardState.deck = [];
+    cardState.discard = [];
+    cardState.hands.black = [];
+    cardState.hands.white = [];
+    cardState.boardBonusByCell = { '0,0': 5 };
+    cardState.theoryNumberCellByCell = {
+      '0,0': { sessionId: 'theory_black_1', ownerKey: 'black' }
+    };
+    cardState.theoryNumberCellsBySession = {
+      theory_black_1: {
+        ownerKey: 'black',
+        cells: {
+          '0,0': {
+            row: 0,
+            col: 0,
+            value: 5,
+            originalValue: 0,
+            originalConsumed: false,
+            spawnType: 'GHOST',
+            sourceCardId: 'ghost_01',
+            sourceCardType: 'GHOST_WILL',
+            sourceCardCost: 5,
+            markerData: {
+              type: 'GHOST',
+              remainingOwnerTurns: 8,
+              sourceType: 'THEORY_INCARNATION',
+              sourceCardId: 'ghost_01',
+              sourceCardType: 'GHOST_WILL'
+            }
+          }
+        }
+      }
+    };
+    cardState.theoryIncarnationStateByPlayer = {
+      black: { sessionId: 'theory_black_1', ownerKey: 'black', remainingSpawnCount: 1 },
+      white: null
+    };
+    CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 1,
+      absoluteProtected: true,
+      sourceType: 'THEORY_INCARNATION',
+      sessionId: 'theory_black_1'
+    });
+
+    global.cardState = cardState;
+    global.gameState = {
+      currentPlayer: global.BLACK,
+      turnNumber: 11,
+      consecutivePasses: 1,
+      board
+    };
+    global.DEBUG_HUMAN_VS_HUMAN = true;
+    global.processPassTurn = jest.fn();
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      const rm = require('../game/turn-manager.js');
+      const result = await rm.onTurnStart(global.BLACK);
+
+      expect(result.stopAction).toBe(true);
+      expect(global.processPassTurn).not.toHaveBeenCalled();
+      expect(consoleLogSpy.mock.calls.some((args) => args.join(' ').includes('== 黒のターン'))).toBe(false);
+      expect(global.gameState.currentPlayer).toBe(global.WHITE);
+      expect(global.gameState.consecutivePasses).toBe(0);
+    } finally {
+      consoleLogSpy.mockRestore();
+    }
+  });
+
   test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {
     const adapter = require('../game/turn/pipeline_ui_adapter.js');
     const queuedBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
