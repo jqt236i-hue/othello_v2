@@ -2039,6 +2039,32 @@ function _getRunResultPublishPromise(runResult: any) {
         : null;
 }
 
+function _isFreePlacementPendingActionForCardUi(pending: any) {
+    if (!pending || typeof pending !== 'object') return false;
+    const pendingType = String(pending.type || '').trim().toUpperCase();
+    if (!pendingType) return false;
+    try {
+        if (
+            typeof CardLogic !== 'undefined'
+            && CardLogic
+            && typeof CardLogic.isFreePlacementPendingType === 'function'
+        ) {
+            return CardLogic.isFreePlacementPendingType(pendingType) === true;
+        }
+    } catch (e) { /* ignore */ }
+    return pendingType === 'FREE_PLACEMENT'
+        || pendingType === 'SNIPER_WILL'
+        || pendingType === 'LAST_RESORT'
+        || pendingType === 'ULTIMATE_REVERSE_DRAGON'
+        || pendingType === 'ULTIMATE_DESTROY_GOD';
+}
+
+function _isBoardPendingActionForCardUi(pending: any) {
+    if (!pending || typeof pending !== 'object') return false;
+    if (pending.stage === 'selectTarget' && !_isHandOverlayPendingTypeForCardUi(pending.type)) return true;
+    return _isFreePlacementPendingActionForCardUi(pending);
+}
+
 function _hasBoardPendingSelectionForOwner(ownerKey: any) {
     const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!normalizedOwnerKey) return false;
@@ -2060,11 +2086,7 @@ function _hasBoardPendingSelectionForOwner(ownerKey: any) {
         const pending = (stateRef && stateRef.pendingEffectByPlayer)
             ? stateRef.pendingEffectByPlayer[normalizedOwnerKey]
             : null;
-        return !!(
-            pending
-            && pending.stage === 'selectTarget'
-            && !_isHandOverlayPendingTypeForCardUi(pending.type)
-        );
+        return _isBoardPendingActionForCardUi(pending);
     });
 }
 

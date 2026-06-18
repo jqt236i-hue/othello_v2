@@ -481,6 +481,30 @@ describe('pass-handler flows', () => {
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
+    test('ensureCurrentPlayerCanActOrPass は自由配置 pending 中なら合法手0でも自動パスしない', () => {
+        delete require.cache[modPath];
+        (global as any).cardState = {
+            turnIndex: 0,
+            turnCountByPlayer: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            pendingEffectByPlayer: {
+                black: { type: 'FREE_PLACEMENT', stage: null },
+                white: null
+            }
+        };
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        (global as any).CardLogic = {
+            isFreePlacementPendingType: jest.fn((pendingType) => pendingType === 'FREE_PLACEMENT')
+        };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+        expect(handled).toBe(false);
+        expect((global as any).CardLogic.isFreePlacementPendingType).toHaveBeenCalledWith('FREE_PLACEMENT');
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+    });
+
     test('ensureCurrentPlayerCanActOrPass はCPUターンでは自動パスする', () => {
         delete require.cache[modPath];
         (global as any).gameState = { currentPlayer: (global as any).WHITE };

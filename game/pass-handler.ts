@@ -239,6 +239,22 @@ function readPendingForPassHandler(playerKey: string) {
         : null;
 }
 
+function isFreePlacementPendingActionForPassHandler(pending: any) {
+    if (!pending || typeof pending !== 'object') return false;
+    const pendingType = String(pending.type || '').trim().toUpperCase();
+    if (!pendingType) return false;
+    try {
+        if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.isFreePlacementPendingType === 'function') {
+            return CardLogic.isFreePlacementPendingType(pendingType) === true;
+        }
+    } catch (e) { /* ignore */ }
+    return pendingType === 'FREE_PLACEMENT'
+        || pendingType === 'SNIPER_WILL'
+        || pendingType === 'LAST_RESORT'
+        || pendingType === 'ULTIMATE_REVERSE_DRAGON'
+        || pendingType === 'ULTIMATE_DESTROY_GOD';
+}
+
 function resolvePlayerValue(playerKey: string, fallbackValue: any) {
     const normalized = normalizePlayerKey(playerKey, 'black');
     if (normalized === 'white') {
@@ -694,8 +710,8 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
     const playerKey = normalizePlayerKey(currentPlayer, 'black');
     const pending = readPendingForPassHandler(playerKey);
 
-    // Target selection is still an available action, so do not auto-pass.
-    if (pending && pending.stage === 'selectTarget') return false;
+    // Pending selections and free-placement continuations are still available actions.
+    if (pending && (pending.stage === 'selectTarget' || isFreePlacementPendingActionForPassHandler(pending))) return false;
 
     const hasLegalPlacement = hasEffectiveLegalPlacementForPlayer(currentPlayer, playerKey);
     const hasCard = hasUsableCardFor(playerKey);
