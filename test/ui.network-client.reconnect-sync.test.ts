@@ -713,6 +713,52 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(client.getNetworkTelemetry().counts.state_sync_recovered_playback_deduped).toBe(1);
   });
 
+  test('大量replayのstream snapshotは局面だけ追いつきplaybackを捨てる', async () => {
+    const replayPlayback = [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }];
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    const stream = eventSources[0];
+    const snapshotHandler = stream.listeners.snapshot;
+    expect(typeof snapshotHandler).toBe('function');
+
+    snapshotHandler({
+      lastEventId: 'ABC_2_2',
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        seats: { black: true, white: true },
+        stateVersion: 2,
+        snapshot: createSnapshot(2, { turnNumber: 2 }),
+        playbackEvents: replayPlayback,
+        sseReplay: {
+          replayed: true,
+          index: 1,
+          count: 12,
+          remaining: 11,
+          lastEventId: 'ABC_1_1'
+        }
+      })
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(client.getStateVersion()).toBe(2);
+    expect(global.gameState.turnNumber).toBe(2);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    expect(client.getNetworkTelemetry().counts.stream_replay_playback_suppressed).toBe(1);
+  });
+
   test('publish拒否でforce適用した同版snapshotでも後続stream playbackを回復する', async () => {
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {

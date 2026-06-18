@@ -1822,6 +1822,25 @@ function getPayloadKeyForViewer(viewerValue: unknown): MatchAuthoritySeatKey | '
     return viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator';
 }
 
+function withSseReplayMetadata(
+    payloadValue: unknown,
+    replayIndex: number,
+    replayCount: number,
+    lastEventId: string
+): unknown {
+    const payload = deepClone(payloadValue || {});
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+    return Object.assign(payload as Record<string, unknown>, {
+        sseReplay: {
+            replayed: true,
+            index: replayIndex,
+            count: replayCount,
+            remaining: Math.max(0, replayCount - replayIndex),
+            lastEventId
+        }
+    });
+}
+
 function buildPublicSnapshotForViewer(
     room: MatchAuthorityRoomState | null | undefined,
     viewerValue: unknown
@@ -2128,7 +2147,7 @@ function getBufferedSseReplayEvents(
     if (startIndex < 0) return null;
 
     const viewer = getPayloadKeyForViewer(viewerSeatKey);
-    const replayEvents: MatchAuthorityBufferedSseReplayEvent[] = [];
+    const replaySources: Array<{ eventId: string; eventName: string; payload: unknown }> = [];
     for (let index = startIndex + 1; index < buffer.length; index += 1) {
         const entry = buffer[index];
         if (!entry || typeof entry !== 'object') continue;
@@ -2143,12 +2162,25 @@ function getBufferedSseReplayEvents(
             continue;
         }
 
-        replayEvents.push({
+        replaySources.push({
             eventId: normalizeSseEventId(entry.id),
             eventName: String(entry.event || '').trim() || 'message',
-            payload: deepClone(payload || {})
+            payload
         });
     }
+
+    const replayCount = replaySources.length;
+    const replayEvents: MatchAuthorityBufferedSseReplayEvent[] = replaySources.map((entry, index) => {
+        const replayIndex = index + 1;
+        return {
+            eventId: entry.eventId,
+            eventName: entry.eventName,
+            payload: withSseReplayMetadata(entry.payload, replayIndex, replayCount, lastEventId),
+            replayIndex,
+            replayCount,
+            replayRemaining: Math.max(0, replayCount - replayIndex)
+        };
+    });
     return replayEvents;
 }
 

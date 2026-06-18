@@ -659,6 +659,13 @@ describe('match authority publish response payload', () => {
         payload: {
           roomId: 'ROOM',
           stateVersion: 2,
+          sseReplay: {
+            replayed: true,
+            index: 1,
+            count: 1,
+            remaining: 0,
+            lastEventId: 'ROOM_1_1'
+          },
           snapshot: {
             stateVersion: 2,
             cardState: {
@@ -668,7 +675,10 @@ describe('match authority publish response payload', () => {
               }
             }
           }
-        }
+        },
+        replayIndex: 1,
+        replayCount: 1,
+        replayRemaining: 0
       }
     ]);
   });

@@ -452,6 +452,7 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('event: snapshot');
     expect(result.firstChunk).toContain('id: SSE1_2_2');
     expect(result.firstChunk).toContain('"observer_bubble"');
+    expect(result.firstChunk).toContain('"sseReplay":{"replayed":true,"index":1,"count":1,"remaining":0');
     expect(result.firstChunk).toContain('"effectLogs":["白がカードを使用: 交換"]');
     expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
     expect(result.firstChunk).not.toContain('"type":"history"');

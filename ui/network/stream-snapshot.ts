@@ -17,6 +17,19 @@ function createNetworkStreamSnapshotController(config?: any): any {
     return actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
   }
 
+  function shouldSuppressReplayPlayback(payload: any, playbackEvents: any[]): boolean {
+    if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return false;
+    const replay = payload && payload.sseReplay && typeof payload.sseReplay === 'object'
+      ? payload.sseReplay
+      : null;
+    if (!replay || replay.replayed !== true) return false;
+    const replayCount = Number.isFinite(Number(replay.count)) ? Number(replay.count) : 0;
+    const threshold = Number.isFinite(Number(cfg.replayPlaybackSuppressThreshold))
+      ? Math.max(1, Math.trunc(Number(cfg.replayPlaybackSuppressThreshold)))
+      : 8;
+    return replayCount > threshold;
+  }
+
   function handleStreamSnapshotPayload(payload: any): void {
     if (!payload || payload.ok !== true) return;
     const state = readState();
@@ -24,7 +37,9 @@ function createNetworkStreamSnapshotController(config?: any): any {
       cfg.applyPayloadSessionState(payload);
     }
     const snapshot = payload.snapshot;
-    const playbackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
+    const incomingPlaybackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
+    const suppressReplayPlayback = shouldSuppressReplayPlayback(payload, incomingPlaybackEvents);
+    const playbackEvents = suppressReplayPlayback ? [] : incomingPlaybackEvents;
     const operationId = payload && payload.operationId ? String(payload.operationId) : '';
     const snapshotVersion = typeof cfg.getSnapshotStateVersion === 'function'
       ? cfg.getSnapshotStateVersion(snapshot)
@@ -49,9 +64,22 @@ function createNetworkStreamSnapshotController(config?: any): any {
         snapshotVersion,
         isSelfOperation,
         isTerminalResultSnapshot,
-        playbackEventCount: playbackEvents.length,
-        shouldShadowStreamPlayback
+        playbackEventCount: incomingPlaybackEvents.length,
+        appliedPlaybackEventCount: playbackEvents.length,
+        shouldShadowStreamPlayback,
+        suppressReplayPlayback
       });
+      if (suppressReplayPlayback) {
+        const replay = payload && payload.sseReplay && typeof payload.sseReplay === 'object' ? payload.sseReplay : {};
+        cfg.recordNetworkTelemetry('stream_replay_playback_suppressed', {
+          operationId,
+          snapshotVersion,
+          playbackEventCount: incomingPlaybackEvents.length,
+          replayIndex: Number.isFinite(Number(replay.index)) ? Number(replay.index) : null,
+          replayCount: Number.isFinite(Number(replay.count)) ? Number(replay.count) : null,
+          replayRemaining: Number.isFinite(Number(replay.remaining)) ? Number(replay.remaining) : null
+        });
+      }
     }
     const streamPlaybackApplyOptions = typeof cfg.buildShadowAwarePlaybackApplyOptions === 'function'
       ? cfg.buildShadowAwarePlaybackApplyOptions(
@@ -121,7 +149,7 @@ function createNetworkStreamSnapshotController(config?: any): any {
         ? cfg.emitPayloadEffectLogs(payload)
         : 0;
       if (emittedEffectLogCount === 0 && typeof cfg.emitSnapshotCommentary === 'function') {
-        cfg.emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
+        cfg.emitSnapshotCommentary(payload, snapshot, isSelfOperation, incomingPlaybackEvents);
       }
       if (typeof cfg.showAutoPassNoticeFromPayload === 'function') {
         cfg.showAutoPassNoticeFromPayload(payload);

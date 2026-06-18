@@ -303,6 +303,9 @@ export interface MatchAuthorityBufferedSseReplayEvent {
     eventId: string;
     eventName: string;
     payload: unknown;
+    replayIndex?: number;
+    replayCount?: number;
+    replayRemaining?: number;
 }
 
 export interface MatchAuthorityPublicApi {

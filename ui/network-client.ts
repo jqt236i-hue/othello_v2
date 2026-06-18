@@ -58,6 +58,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const REQUEST_TIMEOUT_MS = 10000;
     const STREAM_WATCHDOG_INTERVAL_MS = 5000;
     const STREAM_STALE_TIMEOUT_MS = 25000;
+    const STREAM_REPLAY_PLAYBACK_SUPPRESS_THRESHOLD = 8;
     const RECONNECT_STREAM_RECOVERY_WAIT_MS = 350;
     const PUBLISH_RETRY_MAX_ATTEMPTS = 3;
     const PUBLISH_RETRY_BASE_DELAY_MS = 400;
@@ -832,6 +833,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             applySnapshot,
             markTrackedPublishSnapshotApplied,
             recordNetworkTelemetry,
+            replayPlaybackSuppressThreshold: STREAM_REPLAY_PLAYBACK_SUPPRESS_THRESHOLD,
             consumePendingForceSyncPlaybackRecovery,
             markTrackedPublishResultPresented,
             emitPayloadEffectLogs,
