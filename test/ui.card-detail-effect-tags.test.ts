@@ -635,6 +635,47 @@ describe('card detail effect tags', () => {
     expect(popupEl.classList.contains('is-open')).toBe(false);
   });
 
+  test('effect tags and highlighted terms share the same popup descriptions', () => {
+    require('../cards/card-interaction.js');
+
+    const cardDef = {
+      id: 'board_shrink_01',
+      name: '盤面縮小',
+      type: 'BOARD_SHRINK_WILL',
+      cost: 5,
+      desc: '外周の連続した3マスを選び、石ごと穴マス化して盤面を縮小する。（絶対保護石だけ残る）。'
+    };
+    global.cardState.selectedCardId = cardDef.id;
+    global.cardState.hands.black = [cardDef.id];
+    global.CardLogic.getCardDef = () => cardDef;
+
+    window.updateCardDetailPanel();
+
+    const tagButton = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'))
+      .find((el) => el.textContent === '穴マス化') as HTMLElement;
+    const termButton = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button'))
+      .find((el) => el.textContent === '穴マス化') as HTMLElement;
+
+    expect(tagButton).toBeTruthy();
+    expect(termButton).toBeTruthy();
+
+    tagButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    const popupEl = document.getElementById('card-detail-tag-popover');
+    const bodyEl = document.getElementById('card-detail-tag-popover-body');
+    expect(popupEl).not.toBeNull();
+    expect(bodyEl).not.toBeNull();
+    const tagDescription = bodyEl.textContent;
+
+    tagButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(popupEl.classList.contains('is-open')).toBe(false);
+
+    termButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    const termDescription = bodyEl.textContent;
+
+    expect(termDescription).toBe(tagDescription);
+    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。');
+  });
+
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {
     global.CardInteractionEffects = {
       resolveCardDescriptionTexts: () => ({

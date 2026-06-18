@@ -11,25 +11,8 @@ declare var CARD_DEFS: any;
 
 'use strict';
 
-const RULES_HELP_EFFECT_GLOSSARY = Object.freeze([
-  Object.freeze({ label: '特殊石', description: '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。' }),
-  Object.freeze({ label: '穴マス化', description: 'マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。' }),
-  Object.freeze({ label: '不可侵', description: '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。' }),
-  Object.freeze({ label: '反転保護', description: '反転されない。挟める列ごと無効できる。' }),
-  Object.freeze({ label: '完全保護', description: '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。' }),
-  Object.freeze({ label: '反転回避', description: '相手に石を置かれて反転されるとき、元位置から最も近い有効な空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。' }),
-  Object.freeze({ label: '破壊回避', description: '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。' }),
-  Object.freeze({ label: '多動状態', description: '両者ターン開始時マス移動する、基本ランダム移動。' }),
-  Object.freeze({ label: '幽体', description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、交換以外の効果は通常どおり受ける。' }),
-  Object.freeze({ label: '絶対保護', description: 'テレポート・位置交換・マス破壊・意志の喪失を含む全ての効果を無効化。解除されない。' }),
-  Object.freeze({ label: 'マス破壊', description: 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。' }),
-  Object.freeze({ label: '破壊／爆発', description: '石を消滅させる。完全保護以外の保護を貫通できる。' }),
-  Object.freeze({ label: '連鎖反転', description: '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。' }),
-  Object.freeze({ label: '禁忌反転', description: '挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。' }),
-  Object.freeze({ label: '封鎖', description: '一時的にそのマスを塞ぐ。両者とも置けず、移動でも入れない。' }),
-  Object.freeze({ label: '凍結', description: 'そのマスと上の石の反転・破壊・持続減少を止める。' }),
-  Object.freeze({ label: '時間停止', description: '発動したプレイヤーが2ターン連続で行動する。' })
-]);
+const _sharedGameTermGlossaryModule = _require('../../shared/game-term-glossary');
+const RULES_HELP_EFFECT_GLOSSARY = _sharedGameTermGlossaryModule.getBaseGameTermGlossary();
 function _safeText(value: any, fallback: any): string {
   const text = String(value || '').trim();
   if (text) return text;

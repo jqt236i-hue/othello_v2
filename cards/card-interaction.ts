@@ -316,22 +316,9 @@ const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
 const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
 const LOCAL_PLAYBACK_SOUND_SKIP_MS = 5000;
 
-const CARD_DETAIL_TAG_MEANINGS = Object.freeze({
-    '多動状態': '両者ターン開始時マス移動する、基本ランダム移動。',
-    '反転回避': '相手に石を置かれて反転されるとき、元位置から最も近い有効な空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。',
-    '破壊回避': '破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。',
-    '特殊石': '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。',
-    '穴マス化': 'マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。',
-    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、誘惑・捕獲・入替など対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。',
-    '反転保護': '反転されない。挟める列ごと無効できる。',
-    '完全保護': '石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。',
-    '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
-    '不可侵': '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。',
-    '持続ターン': 'このカードや石状態が盤面で効果を持ち続けるターン数。',
-    'マス破壊': 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。',
-    '破壊／爆発': '石を消滅させる。完全保護以外の保護を貫通できる。',
-    '連鎖反転': '通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。',
-    '禁忌反転': '挟めなくても反転可能。最も反転枚数が多い列1方向のみ。'
+const _sharedGameTermGlossaryModule = _resolveCardInteractionModule({
+    requirePath: '../shared/game-term-glossary',
+    globalKey: 'GameTermGlossary'
 });
 
 const RIBO_WILL_UNLOCK_TURN_INDEX = 19;
@@ -1020,6 +1007,15 @@ function _resolveCardDetailTagMeaningKey(tag: any) {
     return key;
 }
 
+function _resolveCardDetailTagMeaningText(meaningKey: any, fallbackKey: any) {
+    const key = String(meaningKey || '').trim();
+    if (key && _sharedGameTermGlossaryModule && typeof _sharedGameTermGlossaryModule.resolveGameTermDescriptionByLabel === 'function') {
+        const sharedDescription = _sharedGameTermGlossaryModule.resolveGameTermDescriptionByLabel(key);
+        if (String(sharedDescription || '').trim()) return String(sharedDescription);
+    }
+    return `${String(fallbackKey || key || '').trim()}の説明は未登録です。`;
+}
+
 function _toggleCardDetailTagExplanation(tag: any) {
     const key = String(tag || '').trim();
     if (!key) return false;
@@ -1027,7 +1023,7 @@ function _toggleCardDetailTagExplanation(tag: any) {
         return _closeCardDetailTagPopover();
     }
     const meaningKey = _resolveCardDetailTagMeaningKey(key);
-    const meaning = CARD_DETAIL_TAG_MEANINGS[meaningKey as keyof typeof CARD_DETAIL_TAG_MEANINGS] || `${key}の説明は未登録です。`;
+    const meaning = _resolveCardDetailTagMeaningText(meaningKey, key);
     const selectedId = cardState ? cardState.selectedCardId : null;
     _closeCardDetailTagTabIfOpen();
     return _openCardDetailTagPopover(key, meaning, selectedId ? String(selectedId) : null);

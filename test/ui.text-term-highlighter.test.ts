@@ -21,6 +21,11 @@ describe('text term highlighter', () => {
     ]));
   });
 
+  test('shares effect tag descriptions with highlighted game terms', () => {
+    const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス化');
+    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。');
+  });
+
   test('catalogs free placement as a placement action term', () => {
     const glossaryEntry = getGameTermGlossary().find((entry) => entry.label === '自由配置');
     expect(glossaryEntry).toMatchObject({
