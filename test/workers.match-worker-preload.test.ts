@@ -24,6 +24,7 @@ function toRuntimePreloadImportPathFromPipelineUIAdapter(requirePath: string): s
   if (requirePath.startsWith('./pipeline-ui/')) return `../game/turn/pipeline-ui/${requirePath.slice('./pipeline-ui/'.length)}.js`;
   if (requirePath.startsWith('./')) return `../game/turn/${requirePath.slice('./'.length)}.js`;
   if (requirePath.startsWith('../logic/')) return `../game/logic/${requirePath.slice('../logic/'.length)}.js`;
+  if (requirePath.startsWith('../schema/')) return `../game/schema/${requirePath.slice('../schema/'.length)}.js`;
   if (requirePath === '../controller-events') return '../game/controller-events.js';
   if (requirePath.startsWith('../../shared/')) return `../shared/${requirePath.slice('../../shared/'.length)}.js`;
   if (requirePath.startsWith('../../utils/')) return `../utils/${requirePath.slice('../../utils/'.length)}.js`;
