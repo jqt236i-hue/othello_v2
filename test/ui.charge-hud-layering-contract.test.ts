@@ -6,6 +6,7 @@ describe('charge HUD layering contract', () => {
   test('charge HUD layer sits above hand areas while board frame stays lower', () => {
     const layoutCss = readLayoutCssSurface();
     const variablesCss = fs.readFileSync(path.resolve(__dirname, '../styles-variables.css'), 'utf8');
+    const animationsCss = fs.readFileSync(path.resolve(__dirname, '../styles-animations.css'), 'utf8');
     const indexHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
 
     expect(indexHtml).toMatch(/<div id="board-stack">[\s\S]*<div id="board-frame">[\s\S]*<div id="charge-hud-layer">/);
@@ -17,6 +18,7 @@ describe('charge HUD layering contract', () => {
     expect(variablesCss).toMatch(/--layout-z-player-area:\s*20/);
     expect(variablesCss).toMatch(/--layout-z-charge-hud:\s*30/);
     expect(variablesCss).toMatch(/--layout-z-charge-display:\s*1009/);
-    expect(variablesCss).toMatch(/--layout-z-charge-delta:\s*1010/);
+    expect(animationsCss).toMatch(/\.special-card-cinematic-overlay\s*\{[\s\S]*z-index:\s*24000/);
+    expect(variablesCss).toMatch(/--layout-z-charge-delta:\s*24020/);
   });
 });

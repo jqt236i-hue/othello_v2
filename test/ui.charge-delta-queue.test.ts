@@ -122,14 +122,14 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     stoneVisuals.showChargeDelta('white', 9);
     stoneVisuals.showChargeDelta('white', -4);
 
-    expect(blackIncreaseEl.style.left).toBe('136px');
+    expect(blackIncreaseEl.style.left).toBe('141px');
     expect(blackIncreaseEl.style.top).toBe('581px');
     expect(blackIncreaseEl.classList.contains('is-side-left')).toBe(true);
     expect(blackDecreaseEl.style.left).toBe('370px');
     expect(blackDecreaseEl.style.top).toBe('581px');
     expect(blackDecreaseEl.classList.contains('is-side-right')).toBe(true);
 
-    expect(whiteIncreaseEl.style.left).toBe('136px');
+    expect(whiteIncreaseEl.style.left).toBe('141px');
     expect(whiteIncreaseEl.style.top).toBe('33px');
     expect(whiteIncreaseEl.classList.contains('is-side-left')).toBe(true);
     expect(whiteDecreaseEl.style.left).toBe('370px');
@@ -150,7 +150,7 @@ describe('StoneVisuals.showChargeDelta immediate update', () => {
     flushChargeDeltaFrame();
     expect(increaseEl.classList.contains('is-visible')).toBe(true);
     expect(decreaseEl.classList.contains('is-visible')).toBe(true);
-    expect(increaseEl.style.left).toBe('136px');
+    expect(increaseEl.style.left).toBe('141px');
     expect(decreaseEl.style.left).toBe('370px');
     expect(increaseEl.classList.contains('is-side-left')).toBe(true);
     expect(decreaseEl.classList.contains('is-side-right')).toBe(true);

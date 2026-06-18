@@ -22,7 +22,7 @@ let latestBattleStatusEventText = '';
 let battleStatusNetworkTimerInfo: any = null;
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const TURN_ARRIVAL_TOAST_ID = 'turn-arrival-toast';
-const TURN_ARRIVAL_TOAST_VISIBLE_MS = 6000;
+const TURN_ARRIVAL_TOAST_VISIBLE_MS = 15000;
 const TURN_ARRIVAL_TOAST_FADE_OUT_MS = 360;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/HERO.png';
@@ -504,7 +504,7 @@ function positionTurnArrivalToast(): void {
     const toastWidth = Number.isFinite(Number(toast.offsetWidth)) ? Number(toast.offsetWidth) : 0;
     const measuredToastHeight = Number.isFinite(Number(toast.offsetHeight)) ? Number(toast.offsetHeight) : 0;
     const toastHeight = measuredToastHeight > 0 ? measuredToastHeight : Math.round(40 * scale);
-    const targetRight = Math.max(8, Math.min(Math.round(boardRect.right - (4 * scale)), viewportWidth - 8));
+    const targetRight = Math.max(8, Math.min(Math.round(boardRect.right + (6 * scale)), viewportWidth - 8));
     const left = Math.max(8, targetRight - toastWidth);
     const targetBottom = Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (15 * scale)), viewportHeight - 8));
     const top = Math.max(8, targetBottom - toastHeight);

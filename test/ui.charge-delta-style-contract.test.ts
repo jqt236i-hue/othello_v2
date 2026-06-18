@@ -22,6 +22,9 @@ describe('charge delta style contract', () => {
     expect(variablesCss).toMatch(/--layout-size-charge-delta-font:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-delta-height:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-delta-min-width:\s*calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-size-charge-delta-side-gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-size-charge-delta-increase-offset-x:\s*calc\(5px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-size-charge-delta-side-offset-y:\s*calc\(3px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*position:\s*absolute/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*display:\s*flex/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*height:\s*var\(--layout-size-charge-delta-height\)/);

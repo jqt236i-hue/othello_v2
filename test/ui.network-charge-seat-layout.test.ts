@@ -285,6 +285,29 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('keeps raw decrease fallback armed when a presentation-only drain runs first', () => {
+    const dom = createRendererContext({ includeNetworkClient: false, matchMode: 'cpu' });
+    const { window } = dom;
+
+    window.cardState.charge.black = 8;
+    window.cardState.turnIndex = 1;
+    window.renderCardUI();
+    window.StoneVisuals.showChargeDelta.mockClear();
+
+    window.cardState.charge.black = 4;
+    window.cardState.turnIndex = 1;
+    window.drainVisibleChargeDeltaPopups({ allowRawFallback: false });
+
+    expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
+
+    window.renderCardUI();
+
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(window.StoneVisuals.showChargeDelta).toHaveBeenCalledWith('black', -4);
+
+    dom.window.close();
+  });
+
   test('resets raw fallback baseline when turn index rewinds outside network mode', () => {
     const dom = createRendererContext({ includeNetworkClient: false, matchMode: 'cpu' });
     const { window } = dom;
@@ -399,6 +422,33 @@ describe('network charge seat layout', () => {
     window.StoneVisuals.showChargeDelta.mockClear();
     window.renderCardUI();
     expect(window.StoneVisuals.showChargeDelta).not.toHaveBeenCalled();
+
+    dom.window.close();
+  });
+
+  test('keeps charge delta events queued until the HUD popup handler is available', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    const showChargeDelta = window.StoneVisuals.showChargeDelta;
+    window.StoneVisuals.showChargeDelta = undefined;
+    window.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'white', delta: -5, reason: 'card_use_cost' }
+    ];
+
+    window.renderCardUI();
+
+    expect(window.cardState.chargeDeltaEvents).toEqual([
+      { seq: 1, player: 'white', delta: -5, reason: 'card_use_cost' }
+    ]);
+    expect(showChargeDelta).not.toHaveBeenCalled();
+
+    window.StoneVisuals.showChargeDelta = showChargeDelta;
+    window.renderCardUI();
+
+    expect(showChargeDelta).toHaveBeenCalledTimes(1);
+    expect(showChargeDelta).toHaveBeenCalledWith('black', -5);
+    expect(window.cardState.chargeDeltaEvents).toEqual([]);
 
     dom.window.close();
   });

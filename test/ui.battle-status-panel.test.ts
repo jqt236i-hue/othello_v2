@@ -161,7 +161,7 @@ describe('battle status panel', () => {
       expect(toast.classList.contains('is-black-turn')).toBe(false);
       expect(toast.classList.contains('is-visible')).toBe(true);
 
-      jest.advanceTimersByTime(6000);
+      jest.advanceTimersByTime(15000);
       expect(toast.classList.contains('is-hiding')).toBe(true);
 
       jest.advanceTimersByTime(360);

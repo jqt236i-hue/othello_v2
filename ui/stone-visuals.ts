@@ -402,6 +402,10 @@ function _resolveChargeDeltaSideGapPx(el: HTMLElement | null): number {
   );
 }
 
+function _resolveChargeDeltaIncreaseOffsetXPx(el: HTMLElement | null): number {
+  return _resolveChargeDeltaCssPx(el, '--layout-size-charge-delta-increase-offset-x', 5);
+}
+
 function _resolveChargeDeltaViewportHeight(): number {
   try {
     if (typeof window !== 'undefined' && Number.isFinite(window.innerHeight) && window.innerHeight > 0) {
@@ -489,7 +493,7 @@ function _positionChargeDeltaEl(key: string, delta: any, el: HTMLElement, option
   const anchorLeft = placeAbove
     ? (chargeRect.left + ((chargeWidth - deltaWidth) / 2))
     : (showOnLeft
-      ? (chargeRect.left - deltaWidth - gap)
+      ? (chargeRect.left - deltaWidth - gap + _resolveChargeDeltaIncreaseOffsetXPx(el))
       : (chargeRight + gap));
   const anchorTop = placeAbove
     ? (chargeRect.top - deltaHeight - gap)

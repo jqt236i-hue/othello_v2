@@ -1543,6 +1543,9 @@ function consumeChargeDeltaEventList(eventsSource: any, chargeDeltaHandler: any)
     if (!Array.isArray(eventsSource) || eventsSource.length === 0) {
         return false;
     }
+    if (!chargeDeltaHandler) {
+        return false;
+    }
     const events = eventsSource
         .filter((ev) => ev && Number.isFinite(Number(ev.delta)) && Number(ev.delta) !== 0)
         .sort((a, b) => {
@@ -1551,7 +1554,7 @@ function consumeChargeDeltaEventList(eventsSource: any, chargeDeltaHandler: any)
         return sa - sb;
     });
     eventsSource.length = 0;
-    if (!chargeDeltaHandler || events.length === 0)
+    if (events.length === 0)
         return events.length > 0;
     const hudEvents = events.filter((ev) => _shouldRenderChargeDeltaOnHud(ev));
     if (hudEvents.length === 0)
@@ -1671,7 +1674,13 @@ function _drainChargeDeltaPopups(cardState: any, options: any) {
         && !consumedChargeDeltaSources.consumedTransientQueue) {
         consumedRawFallback = _consumeRawChargeDeltaFallback(chargeSnapshot, chargeDeltaHandler);
     }
-    _rememberChargeDeltaSnapshot(chargeSnapshot);
+    const shouldRememberSnapshot = opts.allowRawFallback !== false
+        || consumedChargeDeltaSources.consumedAuthoritativeQueue
+        || consumedChargeDeltaSources.consumedTransientQueue
+        || consumedRawFallback;
+    if (shouldRememberSnapshot) {
+        _rememberChargeDeltaSnapshot(chargeSnapshot);
+    }
     return {
         consumedAuthoritativeQueue: consumedChargeDeltaSources.consumedAuthoritativeQueue,
         consumedTransientQueue: consumedChargeDeltaSources.consumedTransientQueue,

@@ -66,7 +66,7 @@
     --layout-z-player-area: 20;
     --layout-z-charge-hud: 30;
     --layout-z-charge-display: 1009;
-    --layout-z-charge-delta: 1010;
+    --layout-z-charge-delta: 24020;
     --z-board-fx: 30;
     --z-card-fx: 1025;
     --z-network-chat: 13000;
@@ -185,8 +185,9 @@
     --layout-size-charge-delta-radius: calc(16px * var(--layout-stage-scale));
     --layout-size-charge-delta-border: max(1px, calc(1px * var(--layout-stage-scale)));
     --layout-size-charge-delta-anchor-gap: calc(8px * var(--layout-stage-scale));
-    --layout-size-charge-delta-side-gap: calc(4px * var(--layout-stage-scale));
-    --layout-size-charge-delta-side-offset-y: calc(8px * var(--layout-stage-scale));
+    --layout-size-charge-delta-side-gap: calc(1px * var(--layout-stage-scale));
+    --layout-size-charge-delta-increase-offset-x: calc(5px * var(--layout-stage-scale));
+    --layout-size-charge-delta-side-offset-y: calc(3px * var(--layout-stage-scale));
     --layout-size-charge-delta-min-width: calc(48px * var(--layout-stage-scale));
     --layout-size-charge-delta-aura-width: calc(84px * var(--layout-stage-scale));
     --layout-size-charge-delta-aura-height: calc(34px * var(--layout-stage-scale));
