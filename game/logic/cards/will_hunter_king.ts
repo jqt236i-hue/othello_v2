@@ -161,6 +161,36 @@ function isManifestTarget(cardState: any, row: number, col: number): boolean {
     ));
 }
 
+function isAbsoluteProtectedTarget(cardState: any, row: number, col: number): boolean {
+    if (CardUtilsModule && typeof CardUtilsModule.isAbsoluteProtectedStoneAt === 'function') {
+        return CardUtilsModule.isAbsoluteProtectedStoneAt(cardState, row, col) === true;
+    }
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.some((marker: any) => {
+        if (!marker || marker.row !== row || marker.col !== col || !marker.data) return false;
+        const type = String(marker.data.type || '').toUpperCase();
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isAbsoluteProtectedSpecialType === 'function') {
+            return SpecialStoneRegistry.isAbsoluteProtectedSpecialType(type) === true;
+        }
+        return type === 'ABSOLUTE_PROTECTED';
+    });
+}
+
+function isGuardProtectedTarget(cardState: any, row: number, col: number): boolean {
+    if (CardUtilsModule && typeof CardUtilsModule.blocksTemptAt === 'function') {
+        return CardUtilsModule.blocksTemptAt(cardState, row, col) === true;
+    }
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.some((marker: any) => {
+        if (!marker || marker.row !== row || marker.col !== col || !marker.data) return false;
+        const type = String(marker.data.type || '').toUpperCase();
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.blocksTempt === 'function') {
+            return SpecialStoneRegistry.blocksTempt(type, marker.data) === true;
+        }
+        return type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
+    });
+}
+
 function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: number) {
     const specialTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
     const normalTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
@@ -170,6 +200,10 @@ function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: n
             if (gameState.board[row][col] !== enemyValue)
                 continue;
             if (isManifestTarget(cardState, row, col))
+                continue;
+            if (isAbsoluteProtectedTarget(cardState, row, col))
+                continue;
+            if (isGuardProtectedTarget(cardState, row, col))
                 continue;
             const isSpecial = hasVisibleNonNormalStoneAt(cardState, row, col);
             const target = { row, col, isSpecial };
@@ -184,6 +218,10 @@ function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: n
         if (!cell || cell.owner !== enemyValue)
             continue;
         if (isManifestTarget(cardState, cell.row, cell.col))
+            continue;
+        if (isAbsoluteProtectedTarget(cardState, cell.row, cell.col))
+            continue;
+        if (isGuardProtectedTarget(cardState, cell.row, cell.col))
             continue;
         const isSpecial = hasVisibleNonNormalStoneAt(cardState, cell.row, cell.col);
         const target = { row: cell.row, col: cell.col, isSpecial };

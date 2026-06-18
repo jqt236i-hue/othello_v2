@@ -204,6 +204,106 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(gameState.board[3][5]).toBe(Shared.BLACK);
   });
 
+  test('絶対保護石は破壊不能なので優先対象にせず破壊可能な敵石へ移動する', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][5] = Shared.WHITE;
+    gameState.board[5][3] = Shared.WHITE;
+
+    cardState.markers.push(
+      {
+        id: 8117,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        }
+      },
+      {
+        id: 8118,
+        kind: 'specialStone',
+        row: 5,
+        col: 3,
+        owner: 'white',
+        data: { type: 'ABSOLUTE_PROTECTED' }
+      }
+    );
+
+    const out = CardIogic.processWillHunterKingEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      createPrng(0)
+    );
+
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 3, col: 5, destroyedSpecial: false })]);
+    expect(out.moved).toEqual([expect.objectContaining({ to: { row: 3, col: 5 } })]);
+    expect(gameState.board[5][3]).toBe(Shared.WHITE);
+    expect(gameState.board[3][5]).toBe(Shared.BLACK);
+  });
+
+  test('完全保護付き特殊石は破壊不能なので優先対象にせず破壊可能な敵石へ移動する', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][5] = Shared.WHITE;
+    gameState.board[5][3] = Shared.WHITE;
+
+    cardState.markers.push(
+      {
+        id: 8119,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        }
+      },
+      {
+        id: 8120,
+        kind: 'specialStone',
+        row: 5,
+        col: 3,
+        owner: 'white',
+        data: { type: 'SNIPER', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 8121,
+        kind: 'specialStone',
+        row: 5,
+        col: 3,
+        owner: 'white',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      }
+    );
+
+    const out = CardIogic.processWillHunterKingEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      createPrng(0)
+    );
+
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 3, col: 5, destroyedSpecial: false })]);
+    expect(out.moved).toEqual([expect.objectContaining({ to: { row: 3, col: 5 } })]);
+    expect(gameState.board[5][3]).toBe(Shared.WHITE);
+    expect(gameState.board[3][5]).toBe(Shared.BLACK);
+  });
+
   test('特殊石優先は registry の willHunterPriority を使い hidden trap を優先しない', () => {
     const { cardState, gameState } = createState(0);
 
