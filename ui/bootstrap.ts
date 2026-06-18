@@ -679,6 +679,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         return null;
     }
 
+    function isNetworkMatchClientSpectator(client: any): boolean {
+        try {
+            return !!(client && typeof client.isSpectator === 'function' && client.isSpectator() === true);
+        } catch (e: any) {
+            return false;
+        }
+    }
+
     function buildPendingSelectionFlowBridge() {
         const runtimeResolvers = createBootstrapRuntimeResolvers();
         return {
@@ -910,6 +918,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     if (typeof (globalThis as any).NetworkMatchClient.isActive === 'function' && !(globalThis as any).NetworkMatchClient.isActive()) {
                         return undefined;
                     }
+                    if (isNetworkMatchClientSpectator((globalThis as any).NetworkMatchClient)) return undefined;
                     return (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
                 } catch (e: any) {
                     return undefined;
@@ -919,6 +928,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 try {
                     if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
                     if (typeof (globalThis as any).NetworkMatchClient.publishSnapshot !== 'function') return false;
+                    if (isNetworkMatchClientSpectator((globalThis as any).NetworkMatchClient)) return false;
                     if (typeof (globalThis as any).NetworkMatchClient.isActive === 'function') {
                         return (globalThis as any).NetworkMatchClient.isActive() === true;
                     }
@@ -1622,6 +1632,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             const client = (globalThis as any).NetworkMatchClient;
                             if (typeof client.publishSnapshot !== 'function') return undefined;
                             if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
+                            if (isNetworkMatchClientSpectator(client)) return undefined;
                             return client.publishSnapshot(meta);
                         } catch (e: any) {
                             return undefined;
@@ -1632,6 +1643,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
                             const client = (globalThis as any).NetworkMatchClient;
                             if (typeof client.publishSnapshot !== 'function') return false;
+                            if (isNetworkMatchClientSpectator(client)) return false;
                             if (typeof client.isActive === 'function') return client.isActive() === true;
                             return true;
                         } catch (e: any) {
@@ -1926,6 +1938,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     const client = (globalThis as any).NetworkMatchClient;
                     if (typeof client.publishSnapshot !== 'function') return undefined;
                     if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
+                    if (isNetworkMatchClientSpectator(client)) return undefined;
                     return client.publishSnapshot(meta);
                 } catch (e: any) {
                     return undefined;
@@ -1936,6 +1949,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
                     const client = (globalThis as any).NetworkMatchClient;
                     if (typeof client.publishSnapshot !== 'function') return false;
+                    if (isNetworkMatchClientSpectator(client)) return false;
                     if (typeof client.isActive === 'function') return client.isActive() === true;
                     return true;
                 } catch (e: any) {
@@ -2222,6 +2236,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             const client = (globalThis as any).NetworkMatchClient;
                             if (typeof client.publishSnapshot !== 'function') return undefined;
                             if (typeof client.isActive === 'function' && !client.isActive()) return undefined;
+                            if (isNetworkMatchClientSpectator(client)) return undefined;
                             return client.publishSnapshot(meta);
                         } catch (e: any) { /* ignore */ }
                         return undefined;
@@ -2231,6 +2246,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
                             const client = (globalThis as any).NetworkMatchClient;
                             if (typeof client.publishSnapshot !== 'function') return false;
+                            if (isNetworkMatchClientSpectator(client)) return false;
                             if (typeof client.isActive === 'function') return client.isActive() === true;
                             return true;
                         } catch (e: any) { /* ignore */ }

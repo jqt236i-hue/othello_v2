@@ -6,6 +6,14 @@ export type PassRuntimeWiringDeps = {
   registerUIGlobals: (globals: Record<string, any>) => any;
 };
 
+function isNetworkMatchClientSpectator(client: any): boolean {
+  try {
+    return !!(client && typeof client.isSpectator === 'function' && client.isSpectator() === true);
+  } catch (e: any) {
+    return false;
+  }
+}
+
 export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registeredGlobals: Record<string, any> } {
   const passHandler = deps.requireModule('../game/pass-handler');
   const passGlobals: Record<string, any> = {};
@@ -88,6 +96,7 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
             const client = (globalThis as any).NetworkMatchClient;
             if (typeof client.publishSnapshot !== 'function') return undefined;
             if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
+            if (isNetworkMatchClientSpectator(client)) return undefined;
             return client.publishSnapshot(meta);
           } catch (e: any) {
             return undefined;

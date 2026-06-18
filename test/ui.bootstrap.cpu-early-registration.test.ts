@@ -23,6 +23,7 @@ describe('UI bootstrap early CPU registration', () => {
     try { delete global.__runtimeOwnValueForTest; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.ActionManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.NetworkTurnHandoff; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.NetworkMatchClient; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {
@@ -140,6 +141,71 @@ describe('UI bootstrap early CPU registration', () => {
     expect(cpuRuntime.resolveRuntimeValue('__runtimeOwnValueForTest')).toEqual({ source: 'own' });
     expect(Object.prototype.hasOwnProperty.call(globalThis, 'toString')).toBe(false);
     expect(cpuRuntime.resolveRuntimeValue('toString')).toBeUndefined();
+  });
+
+  test('installGameDI treats spectator sessions as network publish inactive', () => {
+    const bridgeState = { bridge: null };
+    jest.doMock('../game/card-effects/selection-flow', () => ({
+      setSignalBridge: (bridge) => {
+        bridgeState.bridge = bridge;
+      }
+    }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+    jest.doMock('../game/pass-handler', () => ({
+      setPassHandlerRuntime: jest.fn(),
+      setPlaybackStateManager: jest.fn(),
+      setNetworkMatchClient: jest.fn()
+    }));
+    jest.doMock('../game/cpu-decision', () => ({
+      setCpuDecisionRuntime: jest.fn(),
+      selectMoveFromOnnxPolicyAsync: jest.fn()
+    }));
+    jest.doMock('../game/turn/turn_pipeline_phases', () => ({
+      setTurnPipelinePhasesRuntime: jest.fn()
+    }));
+    global.NetworkMatchClient = {
+      publishSnapshot: jest.fn(),
+      isActive: jest.fn(() => true),
+      isSpectator: jest.fn(() => true)
+    };
+
+    const uiBoot = require('../ui/bootstrap.ts');
+    uiBoot.installGameDI();
+
+    expect(bridgeState.bridge).toBeTruthy();
+    expect(bridgeState.bridge.isNetworkPublishActive()).toBe(false);
+    expect(bridgeState.bridge.publishSnapshot({ actionType: 'place' })).toBeUndefined();
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+  });
+
+  test('installGameDI does not let spectator sessions publish through pass runtime', () => {
+    const setPassHandlerRuntime = jest.fn();
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+    jest.doMock('../game/pass-handler', () => ({
+      setPassHandlerRuntime,
+      setPlaybackStateManager: jest.fn(),
+      setNetworkMatchClient: jest.fn()
+    }));
+    jest.doMock('../game/cpu-decision', () => ({
+      setCpuDecisionRuntime: jest.fn(),
+      selectMoveFromOnnxPolicyAsync: jest.fn()
+    }));
+    jest.doMock('../game/turn/turn_pipeline_phases', () => ({
+      setTurnPipelinePhasesRuntime: jest.fn()
+    }));
+    global.NetworkMatchClient = {
+      publishSnapshot: jest.fn(() => ({ ok: true })),
+      isActive: jest.fn(() => true),
+      isSpectator: jest.fn(() => true)
+    };
+
+    const uiBoot = require('../ui/bootstrap.ts');
+    uiBoot.installGameDI();
+
+    expect(setPassHandlerRuntime).toHaveBeenCalledTimes(1);
+    const passRuntime = setPassHandlerRuntime.mock.calls[0][0];
+    expect(passRuntime.publishSnapshot({ actionType: 'pass' })).toBeUndefined();
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
   });
 
   test('classic-script installGameDI wires pending selection bridge through globals when require is unavailable', () => {
