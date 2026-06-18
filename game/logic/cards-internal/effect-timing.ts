@@ -34,6 +34,8 @@ function getRuntimeGlobalValue(key: string): any {
 }
 
 const EvasionStatus = safeRequire('../../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
+const SpecialStoneMarkerFactory = safeRequire('../card-resolution/special-stone-marker-factory');
+const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
 
 interface Context {
     constants?: any;
@@ -803,6 +805,9 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         effects.freePlacementUsed = true;
     }
     const specialStoneKind = getSpecialStoneKind(constants);
+    const buildMarkerDataForCardType = SpecialStoneMarkerFactory && typeof SpecialStoneMarkerFactory.buildMarkerDataForCardType === 'function'
+        ? SpecialStoneMarkerFactory.buildMarkerDataForCardType
+        : null;
 
     let chargeGain = flipCount;
 
@@ -949,12 +954,17 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     }
 
     if (pending && pending.type === 'WILL_HUNTER_KING' && typeof helpers.addMarker === 'function') {
-        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+        const markerData = buildMarkerDataForCardType ? buildMarkerDataForCardType('WILL_HUNTER_KING', {
+            ownerKey: playerKey,
+            constants,
+            SpecialStoneRegistry
+        }) : {
             type: 'WILL_HUNTER_KING',
             remainingOwnerTurns: constants.WILL_HUNTER_KING_TURNS,
             flipEvadeRemaining: getFlipEvadeDefault('WILL_HUNTER_KING', 2),
             destroyEvadeRemaining: getDestroyEvadeDefault('WILL_HUNTER_KING', 2)
-        });
+        };
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, markerData);
         effects.willHunterKingPlaced = true;
     }
 
