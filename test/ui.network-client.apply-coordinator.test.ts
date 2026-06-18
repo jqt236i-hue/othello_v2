@@ -414,6 +414,51 @@ describe('NetworkMatchClient apply coordinator', () => {
     expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
+  test('publish response with autoPassNotice shows notice even when actionType is omitted', async () => {
+    const showAutoPassNotice = jest.fn();
+    jest.doMock('../ui/animation-feedback-events', () => ({
+      showAutoPassNotice
+    }));
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    responsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 11,
+      snapshot: createSnapshot(11),
+      playbackEvents: [],
+      autoPassNotice: {
+        playerKey: 'black',
+        reason: 'no_legal_moves_or_usable_cards'
+      }
+    };
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'pass',
+      action: {
+        type: 'pass',
+        playerKey: 'black',
+        turnIndex: 1,
+        autoNoActionPass: true
+      }
+    });
+
+    await Promise.resolve();
+    expect(publishPayloads).toHaveLength(1);
+    resolvePublishResponse();
+    await expect(publishPromise).resolves.toEqual({ ok: true });
+
+    expect(showAutoPassNotice).toHaveBeenCalledWith({
+      playerKey: 'black',
+      reason: 'no_legal_moves_or_usable_cards'
+    });
+  });
+
   test('shadow 済み publish response の同版 stream は playback recovery を二重発火しない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

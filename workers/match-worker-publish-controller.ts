@@ -13,6 +13,19 @@ function createMatchWorkerPublishController(config?: any): any {
     };
   }
 
+  function resolveAutoPassNoticeForPublishBody(actionType: unknown, bodyValue: unknown, playerKey: unknown) {
+    const source = cfg.asRecord(bodyValue);
+    const params = cfg.asRecord(source.params);
+    const action = cfg.asRecord(source.action);
+    const normalizedActionType = String(actionType || source.actionType || action.type || action.actionType || '').trim().toLowerCase();
+    const autoNoActionPass = params.autoNoActionPass === true || action.autoNoActionPass === true || source.autoNoActionPass === true;
+    if (normalizedActionType !== 'pass' || autoNoActionPass !== true) return null;
+    return {
+      playerKey: cfg.normalizePlayerKey(action.playerKey || source.playerKey || source.actor || playerKey),
+      reason: 'no_legal_moves_or_usable_cards'
+    };
+  }
+
   async function handlePublish(body: Record<string, unknown>): Promise<Response> {
     await cfg.loadRoom();
     const room = cfg.getRoom();
@@ -103,10 +116,12 @@ function createMatchWorkerPublishController(config?: any): any {
         stateHashBefore: room.authoritativeStateHash,
         dedupeOutcome: 'replay'
       }, undefined);
+      const autoPassNotice = resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
       return cfg.jsonResponse(200, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: true,
         idempotentReplay: true,
         serverTime,
+        autoPassNotice,
         publishKind: 'idempotent_replay',
         operationId,
         actionType,
@@ -251,7 +266,8 @@ function createMatchWorkerPublishController(config?: any): any {
     }
     await cfg.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
-    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey);
+    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
+      || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
     const meta = {
       playerKey,
       actionType: body.actionType ? String(body.actionType) : null,

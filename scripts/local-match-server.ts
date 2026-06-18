@@ -1054,6 +1054,19 @@ function resolveAutoPassNoticeForCommand(actionType: any, action: any, playerKey
     };
 }
 
+function resolveAutoPassNoticeForPublishBody(actionType: any, body: any, playerKey: any) {
+    const source: any = (body && typeof body === 'object') ? body : {};
+    const params: any = (source.params && typeof source.params === 'object') ? source.params : {};
+    const action: any = (source.action && typeof source.action === 'object') ? source.action : {};
+    const normalizedActionType = String(actionType || source.actionType || action.type || action.actionType || '').trim().toLowerCase();
+    const autoNoActionPass = params.autoNoActionPass === true || action.autoNoActionPass === true || source.autoNoActionPass === true;
+    if (normalizedActionType !== 'pass' || autoNoActionPass !== true) return null;
+    return {
+        playerKey: normalizePlayerKey(action.playerKey || source.playerKey || source.actor || playerKey),
+        reason: 'no_legal_moves_or_usable_cards'
+    };
+}
+
 function buildPresencePayload(room: any, meta: any) {
     const serverTime = Date.now();
     const seatKey = meta && meta.seatKey ? normalizePlayerKey(meta.seatKey) : 'black';
@@ -1718,10 +1731,12 @@ async function handlePublish(req: any, res: any) {
             stateHashBefore: room.authoritativeStateHash,
             dedupeOutcome: 'replay'
         });
+        const autoPassNotice = resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
         writeJson(res, 200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: true,
             serverTime,
             idempotentReplay: true,
+            autoPassNotice,
             publishKind: 'idempotent_replay',
             operationId,
             actionType,
@@ -1860,7 +1875,8 @@ async function handlePublish(req: any, res: any) {
 
     refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
-    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey);
+    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
+        || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
     const meta = {
         playerKey,
         actionType: body.actionType ? String(body.actionType) : null,

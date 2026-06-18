@@ -167,6 +167,80 @@ function runCommandPublishIdempotencyScenario() {
   return runScenario(runner);
 }
 
+function runAutoPassIdempotencyScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const gameState = Core.createGameState();",
+    "  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+    "  gameState.currentPlayer = 1;",
+    "  gameState.consecutivePasses = 0;",
+    "  const prng = SeededPRNG.createPRNG(17);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  cardState.turnIndex = 5;",
+    "  cardState.hands = { black: [], white: [] };",
+    "  cardState.decks = { black: [], white: [] };",
+    "  cardState.deck = [];",
+    "  cardState._deckCopyIdsByPlayer = { black: [], white: [] };",
+    "  cardState.charge = { black: 0, white: 0 };",
+    "  cardState.pendingEffectByPlayer = { black: null, white: null };",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'IDP4',",
+    "    playerName: 'くろ',",
+    "    seed: 17,",
+    "    snapshot: { gameState, cardState }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishBody = {",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_worker_auto_pass_replay_1',",
+    "    actionType: 'pass',",
+    "    actor: 'black',",
+    "    params: { autoNoActionPass: true },",
+    "    turnIndex: 5,",
+    "    action: {",
+    "      type: 'pass',",
+    "      playerKey: 'black',",
+    "      turnIndex: 5,",
+    "      autoNoActionPass: true",
+    "    }",
+    "  };",
+    "  const firstResponse = await durableObject.handlePublish(publishBody);",
+    "  const firstPayload = await firstResponse.json();",
+    "  const secondResponse = await durableObject.handlePublish(publishBody);",
+    "  const secondPayload = await secondResponse.json();",
+    "  process.stdout.write(JSON.stringify({",
+    "    first: { status: firstResponse.status, payload: firstPayload },",
+    "    second: { status: secondResponse.status, payload: secondPayload }",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 function runHistoricalReplayScenario() {
   const runner = [
     "(async () => {",
@@ -1057,6 +1131,25 @@ describe('match worker publish idempotency', () => {
     expect(result.finalStateVersion).toBe(1);
     expect(Array.isArray(result.finalBoard)).toBe(true);
     expect(result.finalBoard[2][3]).toBe(1);
+  });
+
+  test('auto pass idempotent replay response preserves auto pass notice metadata', () => {
+    const result = runAutoPassIdempotencyScenario();
+
+    expect(result.first.status).toBe(200);
+    expect(result.first.payload && result.first.payload.ok).toBe(true);
+    expect(result.first.payload.autoPassNotice).toEqual({
+      playerKey: 'black',
+      reason: 'no_legal_moves_or_usable_cards'
+    });
+
+    expect(result.second.status).toBe(200);
+    expect(result.second.payload && result.second.payload.ok).toBe(true);
+    expect(result.second.payload.idempotentReplay).toBe(true);
+    expect(result.second.payload.autoPassNotice).toEqual({
+      playerKey: 'black',
+      reason: 'no_legal_moves_or_usable_cards'
+    });
   });
 
   test('older accepted operationIdも履歴内ならidempotent replayとして扱う', () => {
