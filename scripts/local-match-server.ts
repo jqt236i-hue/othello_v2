@@ -981,8 +981,19 @@ function removeStream(room: any, streamId: any) {
     room.streams.delete(streamId);
     if (!room.seats.black && !room.seats.white && room.streams.size === 0) {
         rooms.delete(room.roomId);
+    } else if (room.streams.size === 0) {
+        MatchRoomLobby.markRoomInactive(room, Date.now());
     }
     stopHeartbeatLoopIfIdle();
+}
+
+function pruneClosedRoomStreams(room: any) {
+    if (!room || !room.streams) return;
+    for (const [streamId, streamInfo] of Array.from(room.streams.entries()) as any[]) {
+        const res = streamInfo && streamInfo.res;
+        if (res && !res.writableEnded && !res.destroyed) continue;
+        removeStream(room, streamId);
+    }
 }
 
 function safeWriteToStream(room: any, streamId: any, eventName: any, payload: any, eventId: any) {
@@ -1114,6 +1125,9 @@ function closeSeatStreams(room: any, seatKey: any) {
         room.streams.delete(streamId);
         try { streamInfo.res.end(); } catch (e) { /* ignore */ }
     }
+    if (room.streams.size === 0 && (room.seats.black || room.seats.white)) {
+        MatchRoomLobby.markRoomInactive(room, Date.now());
+    }
     stopHeartbeatLoopIfIdle();
 }
 
@@ -1131,10 +1145,27 @@ function deleteRoom(roomId: string, room: any) {
     rooms.delete(roomId);
 }
 
-function disposeExpiredWaitingRooms(nowMs = Date.now()) {
-    for (const [roomId, room] of Array.from(rooms.entries()) as any[]) {
-        if (!MatchRoomLobby.isWaitingRoomExpired(room, nowMs)) continue;
+function expireRoomIfNeeded(roomId: string, room: any, nowMs = Date.now()) {
+    if (!room) return true;
+    pruneClosedRoomStreams(room);
+    if (MatchRoomLobby.isWaitingRoomExpired(room, nowMs)) {
         deleteRoom(roomId, room);
+        return true;
+    }
+    if (room.streams && room.streams.size > 0) {
+        MatchRoomLobby.clearRoomInactive(room);
+        return false;
+    }
+    if (MatchRoomLobby.isInactiveRoomExpired(room, nowMs)) {
+        deleteRoom(roomId, room);
+        return true;
+    }
+    return false;
+}
+
+function disposeExpiredRooms(nowMs = Date.now()) {
+    for (const [roomId, room] of Array.from(rooms.entries()) as any[]) {
+        expireRoomIfNeeded(roomId, room, nowMs);
     }
 }
 
@@ -1346,8 +1377,7 @@ async function handleJoin(req: any, res: any) {
         return;
     }
     const existingRoom = rooms.get(roomId);
-    if (MatchRoomLobby.isWaitingRoomExpired(existingRoom, Date.now())) {
-        deleteRoom(roomId, existingRoom);
+    if (expireRoomIfNeeded(roomId, existingRoom, Date.now())) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
@@ -1439,7 +1469,7 @@ async function handleJoin(req: any, res: any) {
 
 function handleList(_req: any, res: any) {
     const nowMs = Date.now();
-    disposeExpiredWaitingRooms(nowMs);
+    disposeExpiredRooms(nowMs);
     const roomsList = MatchRoomLobby.sortRoomListEntries(
         Array.from(rooms.values())
             .map((room) => MatchRoomLobby.toPublicRoomListEntry(room, { nowMs }))
@@ -1456,6 +1486,10 @@ async function handleLeave(req: any, res: any) {
     const room = rooms.get(roomId);
 
     if (!room) {
+        writeJson(res, 200, { ok: true });
+        return;
+    }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
         writeJson(res, 200, { ok: true });
         return;
     }
@@ -1500,8 +1534,7 @@ async function handleSpectate(req: any, res: any) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
-    if (MatchRoomLobby.isWaitingRoomExpired(room, Date.now())) {
-        deleteRoom(roomId, room);
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
@@ -1559,6 +1592,10 @@ async function handleSpectatorLeave(req: any, res: any) {
         writeJson(res, 200, { ok: true });
         return;
     }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 200, { ok: true });
+        return;
+    }
 
     const result = MatchAuthority.removeSpectatorFromRoom(room, {
         spectatorId: body.spectatorId,
@@ -1595,6 +1632,10 @@ async function handleHandSkin(req: any, res: any) {
     const room = rooms.get(roomId);
 
     if (!room) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
@@ -1649,6 +1690,10 @@ async function handlePublish(req: any, res: any) {
 
     const room = rooms.get(roomId);
     if (!room) {
+        writeJson(res, 404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
         writeJson(res, 404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
         return;
     }
@@ -1928,6 +1973,10 @@ async function handleChat(req: any, res: any) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
     if (!room.seats[seatKey]) {
         writeJson(res, 403, { ok: false, reason: 'SEAT_NOT_JOINED', seats: toPublicSeats(room) });
         return;
@@ -1991,6 +2040,10 @@ function handleState(req: any, res: any, urlObj: any) {
         return;
     }
     const room = rooms.get(roomId);
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
     applyExpiredTurnTimeoutIfNeeded(room);
 
     const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
@@ -2042,6 +2095,10 @@ function handleStream(req: any, res: any, urlObj: any) {
     }
 
     const room = rooms.get(roomId);
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
     applyExpiredTurnTimeoutIfNeeded(room);
 
     const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
@@ -2069,7 +2126,11 @@ function handleStream(req: any, res: any, urlObj: any) {
 
     const streamId = MatchAuthority.makeSseStreamId(Date.now());
     room.streams.set(streamId, { res, viewer });
+    MatchRoomLobby.clearRoomInactive(room);
     ensureHeartbeatLoop();
+    const cleanupStream = () => {
+        removeStream(room, streamId);
+    };
 
     const lastEventId = String((req && req.headers && req.headers['last-event-id']) || resumeEventId).trim();
     const replayEvents = MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewer);
@@ -2083,9 +2144,8 @@ function handleStream(req: any, res: any, urlObj: any) {
             writeSse(res, 'heartbeat', buildHeartbeatPayload(room, Date.now()), null);
         }
 
-        req.on('close', () => {
-            removeStream(room, streamId);
-        });
+        req.on('close', cleanupStream);
+        res.on('close', cleanupStream);
         return;
     }
 
@@ -2105,9 +2165,8 @@ function handleStream(req: any, res: any, urlObj: any) {
         messages: toPublicChatMessages(room)
     }), nextSseEventId(room));
 
-    req.on('close', () => {
-        removeStream(room, streamId);
-    });
+    req.on('close', cleanupStream);
+    res.on('close', cleanupStream);
 }
 
 function createLocalMatchServer() {

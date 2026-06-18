@@ -26,6 +26,7 @@ type MatchWorkerStreamControllerConfig = {
     cryptoLike?: MatchWorkerCryptoLike | null;
     buildHeartbeatPayload: (room: MatchWorkerRoomState, serverTime: unknown) => Record<string, unknown>;
     saveRoom: () => Promise<void>;
+    onStreamCountChanged?: (streamCount: number) => Promise<void> | void;
     sseChunk: (eventName: unknown, payload: unknown, eventId?: unknown) => string;
     heartbeatIntervalMs: number;
     writeTimeoutMs: number;
@@ -82,9 +83,28 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
             cfg.setHeartbeatTimerId(null);
         }
         try {
-            await stream.writer.close();
+            const closePromise = stream.writer.close();
+            const closeTimeoutMs = cfg.writeTimeoutMs > 0 ? Math.min(cfg.writeTimeoutMs, 1000) : 0;
+            if (closeTimeoutMs > 0) {
+                let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+                try {
+                    await Promise.race([
+                        closePromise,
+                        new Promise((_, reject) => {
+                            timeoutHandle = setTimeout(() => reject(new Error('SSE_CLOSE_TIMEOUT')), closeTimeoutMs);
+                        })
+                    ]);
+                } finally {
+                    if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+                }
+            } else {
+                await closePromise;
+            }
         } catch (e) {
             try { stream.writer.releaseLock(); } catch (inner) { /* ignore */ }
+        }
+        if (typeof cfg.onStreamCountChanged === 'function') {
+            await cfg.onStreamCountChanged(streams.size);
         }
     }
 
@@ -107,16 +127,21 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
         const timeoutMs = Number.isFinite(Number(opts.timeoutMs))
             ? Math.max(0, Math.trunc(Number(opts.timeoutMs)))
             : cfg.writeTimeoutMs;
-        const chunk = cfg.sseChunk(eventName, payload, eventId);
+            const chunk = cfg.sseChunk(eventName, payload, eventId);
         try {
             const writePromise = stream.writer.write(cfg.encoder.encode(chunk));
             if (timeoutMs > 0) {
-                await Promise.race([
-                    writePromise,
-                    new Promise((_, reject) => {
-                        setTimeoutFn(() => reject(new Error('SSE_WRITE_TIMEOUT')), timeoutMs);
-                    })
-                ]);
+                let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+                try {
+                    await Promise.race([
+                        writePromise,
+                        new Promise((_, reject) => {
+                            timeoutHandle = setTimeoutFn(() => reject(new Error('SSE_WRITE_TIMEOUT')), timeoutMs);
+                        })
+                    ]);
+                } finally {
+                    if (timeoutHandle !== null) clearTimeoutFn(timeoutHandle);
+                }
             } else {
                 await writePromise;
             }

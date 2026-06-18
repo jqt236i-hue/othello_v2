@@ -2115,6 +2115,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 cryptoLike: crypto as unknown as MatchWorkerCryptoLike,
                 buildHeartbeatPayload,
                 saveRoom: () => this.saveRoom(),
+                onStreamCountChanged: async () => { await this.markRoomInactiveIfIdle(); },
                 sseChunk,
                 heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
                 writeTimeoutMs: SSE_WRITE_TIMEOUT_MS
@@ -2146,6 +2147,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 getStreams: () => this.streams,
                 getSseEventBuffer: () => this.sseEventBuffer,
                 loadRoom: () => this.loadRoom(),
+                expireRoomIfNeeded: (nowMs) => this.expireRoomIfNeeded(nowMs),
                 applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
                 parseSeatKeyOptional,
                 resolveAuthenticatedViewer,
@@ -2156,6 +2158,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 scheduleInitialStreamDelivery: (options) => this.getStreamSessionController().scheduleInitialStreamDelivery(options),
                 closeStream: (streamId) => this.closeStream(streamId),
                 ensureHeartbeatTimer: () => this.ensureHeartbeatTimer(),
+                onStreamOpened: async () => { await this.markRoomActiveFromStream(); },
                 jsonResponse,
                 corsHeaders: CORS_HEADERS,
                 cryptoLike: crypto as unknown as MatchWorkerCryptoLike
@@ -2269,9 +2272,13 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             try { clearTimeout(this.heartbeatTimerId); } catch (e) { /* ignore */ }
             this.heartbeatTimerId = null;
         }
-        await this.state.storage.delete(ROOM_STORAGE_KEY);
         if (this.state.storage && typeof this.state.storage.deleteAlarm === 'function') {
             await this.state.storage.deleteAlarm();
+        }
+        if (this.state.storage && typeof this.state.storage.deleteAll === 'function') {
+            await this.state.storage.deleteAll();
+        } else {
+            await this.state.storage.delete(ROOM_STORAGE_KEY);
         }
     }
 
@@ -2281,14 +2288,72 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return true;
     }
 
+    async expireInactiveRoomIfNeeded(nowMs = Date.now()): Promise<boolean> {
+        if (!this.room || !MatchRoomLobby.isInactiveRoomExpired(this.room, nowMs)) return false;
+        if (this.streams.size > 0) {
+            if (MatchRoomLobby.clearRoomInactive(this.room)) {
+                await this.saveRoom();
+            }
+            await this.syncTurnTimerAlarm();
+            return false;
+        }
+        await this.removeRoom();
+        return true;
+    }
+
+    async expireRoomIfNeeded(nowMs = Date.now()): Promise<boolean> {
+        if (await this.expireWaitingRoomIfNeeded(nowMs)) return true;
+        if (await this.expireInactiveRoomIfNeeded(nowMs)) return true;
+        return false;
+    }
+
     async syncWaitingRoomExpiryAlarm(nowMs = Date.now()): Promise<boolean> {
         if (!this.room || !MatchRoomLobby.isWaitingRoom(this.room)) return false;
-        if (await this.expireWaitingRoomIfNeeded(nowMs)) return true;
+        if (await this.expireRoomIfNeeded(nowMs)) return true;
         const expiresAt = MatchRoomLobby.getWaitingRoomExpiresAt(this.room);
         if (expiresAt > 0 && this.state.storage && typeof this.state.storage.setAlarm === 'function') {
             await this.state.storage.setAlarm(expiresAt);
         }
         return false;
+    }
+
+    async syncInactiveRoomExpiryAlarm(nowMs = Date.now()): Promise<boolean> {
+        if (!this.room) return false;
+        if (await this.expireRoomIfNeeded(nowMs)) return true;
+        const expiresAt = MatchRoomLobby.getInactiveRoomExpiresAt(this.room);
+        if (expiresAt > 0 && this.streams.size === 0 && this.state.storage && typeof this.state.storage.setAlarm === 'function') {
+            await this.state.storage.setAlarm(expiresAt);
+        }
+        return false;
+    }
+
+    async markRoomInactiveIfIdle(nowMs = Date.now()): Promise<boolean> {
+        if (!this.room || this.streams.size > 0) return false;
+        if (MatchAuthority.shouldDisposeRoom(this.room, this.streams.size)) {
+            await this.removeRoom();
+            return true;
+        }
+        const changed = MatchRoomLobby.markRoomInactive(this.room, nowMs);
+        const expired = await this.syncInactiveRoomExpiryAlarm(nowMs);
+        if (expired) return true;
+        if (changed) {
+            await this.saveRoom();
+        }
+        return changed;
+    }
+
+    async markRoomActiveFromStream(nowMs = Date.now()): Promise<boolean> {
+        if (!this.room) return false;
+        const changed = MatchRoomLobby.clearRoomInactive(this.room);
+        if (changed) {
+            await this.saveRoom();
+        }
+        if (MatchRoomLobby.isWaitingRoom(this.room)) {
+            await this.syncWaitingRoomExpiryAlarm(nowMs);
+        } else {
+            await this.syncTurnTimerAlarm();
+        }
+        return changed;
     }
 
     async readLobbyEntries(): Promise<Record<string, unknown>> {
@@ -2484,7 +2549,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         await this.loadRoom();
         if (!this.room) return;
         const nowMs = Date.now();
-        if (await this.expireWaitingRoomIfNeeded(nowMs)) return;
+        if (await this.expireRoomIfNeeded(nowMs)) return;
+        if (MatchRoomLobby.readInactiveSince(this.room) > 0 && this.streams.size === 0) {
+            await this.syncInactiveRoomExpiryAlarm(nowMs);
+            return;
+        }
         const result = await this.applyExpiredTurnTimeoutIfNeeded({ nowMs });
         if (!result || result.applied !== true) {
             const timerChanged = await this.refreshTurnTimer({ nowMs, forceRestart: false });
@@ -2497,6 +2566,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
     async handleInternalCreate(urlObj: URL, body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
+        await this.expireRoomIfNeeded(Date.now());
         if (this.room) {
             return jsonResponse(409, { ok: false, reason: 'ROOM_EXISTS' });
         }
@@ -2580,7 +2650,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!room) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
-        if (await this.expireWaitingRoomIfNeeded(Date.now())) {
+        if (await this.expireRoomIfNeeded(Date.now())) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
 
@@ -2691,6 +2761,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!room) {
             return jsonResponse(200, { ok: true });
         }
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(200, { ok: true });
+        }
 
         const seatKey = normalizePlayerKey(body.seatKey);
         const seatToken = String(body.seatToken || '').trim();
@@ -2738,7 +2811,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!room) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
-        if (await this.expireWaitingRoomIfNeeded(Date.now())) {
+        if (await this.expireRoomIfNeeded(Date.now())) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
         if (!MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
@@ -2793,6 +2866,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!room) {
             return jsonResponse(200, { ok: true });
         }
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(200, { ok: true });
+        }
 
         const result = MatchAuthority.removeSpectatorFromRoom(room, {
             spectatorId: body.spectatorId,
@@ -2829,6 +2905,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const room = this.room;
 
         if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(Date.now())) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
 
@@ -2871,6 +2950,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handlePublish(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
+        }
         return this.getPublishController().handlePublish(body);
     }
 
@@ -2878,6 +2961,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         await this.loadRoom();
         const room = this.room;
         if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(Date.now())) {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
 
@@ -3042,6 +3128,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleChat(body: Record<string, unknown>): Promise<Response> {
+        await this.loadRoom();
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
         return this.getChatController().handleChat(body);
     }
 }

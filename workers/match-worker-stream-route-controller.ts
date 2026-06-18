@@ -18,6 +18,7 @@ type MatchWorkerStreamRouteControllerConfig = {
     getStreams: () => Map<string, MatchWorkerSseStreamInfo>;
     getSseEventBuffer: () => unknown[];
     loadRoom: () => Promise<void>;
+    expireRoomIfNeeded?: (nowMs?: number) => Promise<boolean>;
     applyExpiredTurnTimeoutIfNeeded: () => Promise<unknown>;
     parseSeatKeyOptional: (value: unknown) => MatchAuthoritySeatKey | null;
     resolveAuthenticatedViewer: (
@@ -44,6 +45,7 @@ type MatchWorkerStreamRouteControllerConfig = {
     }) => void;
     closeStream: (streamId: string) => Promise<void>;
     ensureHeartbeatTimer: () => void;
+    onStreamOpened?: (streamId: string) => Promise<void> | void;
     jsonResponse: (statusCode: number, payload: unknown) => Response;
     corsHeaders: Record<string, string>;
     cryptoLike?: MatchWorkerCryptoLike | null;
@@ -58,6 +60,9 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
         await cfg.loadRoom();
         const room = cfg.getRoom();
         if (!room) {
+            return cfg.jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (typeof cfg.expireRoomIfNeeded === 'function' && await cfg.expireRoomIfNeeded(now())) {
             return cfg.jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
 
@@ -84,6 +89,9 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
 
         const streamId = cfg.makeSseStreamId(now(), cfg.cryptoLike || null);
         cfg.getStreams().set(streamId, { writer, viewer });
+        if (typeof cfg.onStreamOpened === 'function') {
+            await cfg.onStreamOpened(streamId);
+        }
         cfg.ensureHeartbeatTimer();
 
         const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();

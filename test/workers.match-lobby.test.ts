@@ -189,6 +189,97 @@ function runWorkerLobbyExpiryScenario() {
   return JSON.parse(output.slice(markerIndex + RESULT_MARKER.length));
 }
 
+function runWorkerInactiveRoomExpiryScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const workerModule = await import(modulePath);",
+    "  const worker = workerModule.default;",
+    "  const { MatchRoomDurableObject } = workerModule;",
+    "  let nowMs = 1700000000000;",
+    "  Date.now = () => nowMs;",
+    "",
+    "  function createStateStore() {",
+    "    const storage = new Map();",
+    "    let alarm = null;",
+    "    return {",
+    "      storage: {",
+    "        get: async (key) => storage.get(key),",
+    "        put: async (key, value) => storage.set(key, globalThis.structuredClone ? globalThis.structuredClone(value) : JSON.parse(JSON.stringify(value))),",
+    "        delete: async (key) => storage.delete(key),",
+    "        getAlarm: async () => alarm,",
+    "        setAlarm: async (value) => { alarm = value; },",
+    "        deleteAlarm: async () => { alarm = null; }",
+    "      }",
+    "    };",
+    "  }",
+    "",
+    "  const rooms = new Map();",
+    "  const env = {",
+    "    MATCH_ROOM: {",
+    "      idFromName: (roomId) => String(roomId || ''),",
+    "      get: (roomId) => {",
+    "        if (!rooms.has(roomId)) {",
+    "          rooms.set(roomId, new MatchRoomDurableObject(createStateStore()));",
+    "        }",
+    "        return { fetch: (request) => rooms.get(roomId).fetch(request) };",
+    "      }",
+    "    }",
+    "  };",
+    "",
+    "  const createResponse = await worker.fetch(new Request('https://worker/api/match/create', {",
+    "    method: 'POST',",
+    "    headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ playerName: 'くろ' })",
+    "  }), env);",
+    "  const createPayload = await createResponse.json();",
+    "  const joinResponse = await worker.fetch(new Request('https://worker/api/match/join', {",
+    "    method: 'POST',",
+    "    headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ roomId: createPayload.roomId, playerName: 'しろ' })",
+    "  }), env);",
+    "  const joinPayload = await joinResponse.json();",
+    "  const roomObject = rooms.get(createPayload.roomId);",
+    "",
+    "  roomObject.room.inactiveSince = nowMs;",
+    "  await roomObject.saveRoom();",
+    "",
+    "  nowMs += 15 * 60 * 1000 + 1;",
+    "  await roomObject.alarm();",
+    "",
+    "  const stateResponse = await worker.fetch(new Request('https://worker/api/match/state?roomId=' + encodeURIComponent(createPayload.roomId) + '&seatKey=black&seatToken=' + encodeURIComponent(createPayload.seatToken)), env);",
+    "  const statePayload = await stateResponse.json();",
+    "",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
+    "    createStatus: createResponse.status,",
+    "    createPayload,",
+    "    joinStatus: joinResponse.status,",
+    "    joinPayload,",
+    "    stateStatus: stateResponse.status,",
+    "    statePayload",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath], {
+    encoding: 'utf8'
+  });
+
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || 'worker inactive room expiry runner failed');
+  }
+
+  const output = String(result.stdout || '');
+  const markerIndex = output.lastIndexOf(RESULT_MARKER);
+  if (markerIndex < 0) {
+    throw new Error(output || 'worker inactive room expiry runner did not emit result marker');
+  }
+  return JSON.parse(output.slice(markerIndex + RESULT_MARKER.length));
+}
+
 describe('worker match lobby', () => {
   test('作成したパスワード付きルームを一覧に出し、満席でも観戦可能なら残す', () => {
     const result = runWorkerLobbyScenario();
@@ -244,5 +335,16 @@ describe('worker match lobby', () => {
     expect(result.listPayload.rooms).toEqual([]);
     expect(result.joinStatus).toBe(404);
     expect(result.joinPayload.reason).toBe('ROOM_NOT_FOUND');
+  });
+
+  test('streamがなくなった対局中ルームは15分後のalarmで削除される', () => {
+    const result = runWorkerInactiveRoomExpiryScenario();
+
+    expect(result.createStatus).toBe(200);
+    expect(result.createPayload.ok).toBe(true);
+    expect(result.joinStatus).toBe(200);
+    expect(result.joinPayload.ok).toBe(true);
+    expect(result.stateStatus).toBe(404);
+    expect(result.statePayload.reason).toBe('ROOM_NOT_FOUND');
   });
 });

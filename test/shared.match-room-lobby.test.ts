@@ -143,4 +143,29 @@ describe('shared match room lobby helpers', () => {
     expect(MatchRoomLobby.toPublicRoomListEntry(waitingRoom, { nowMs: createdAt + MatchRoomLobby.WAITING_ROOM_TTL_MS + 1 })).toBeNull();
     expect(MatchRoomLobby.isWaitingRoomExpired(joinedRoom, createdAt + MatchRoomLobby.WAITING_ROOM_TTL_MS + 1)).toBe(false);
   });
+
+  test('streamがない部屋は非アクティブ化から15分で期限切れとして扱う', () => {
+    const inactiveSince = 1_000_000;
+    const inactiveRoom = {
+      roomId: 'IDLE',
+      seats: { black: true, white: true },
+      stateVersion: 4,
+      createdAt: inactiveSince - 1000,
+      updatedAt: inactiveSince,
+      inactiveSince
+    };
+    const activeRoom = {
+      roomId: 'LIVE',
+      seats: { black: true, white: true },
+      stateVersion: 4,
+      createdAt: inactiveSince - 1000,
+      updatedAt: inactiveSince
+    };
+
+    expect(MatchRoomLobby.INACTIVE_ROOM_TTL_MS).toBe(15 * 60 * 1000);
+    expect(MatchRoomLobby.getInactiveRoomExpiresAt(inactiveRoom)).toBe(inactiveSince + MatchRoomLobby.INACTIVE_ROOM_TTL_MS);
+    expect(MatchRoomLobby.isInactiveRoomExpired(inactiveRoom, inactiveSince + MatchRoomLobby.INACTIVE_ROOM_TTL_MS - 1)).toBe(false);
+    expect(MatchRoomLobby.isInactiveRoomExpired(inactiveRoom, inactiveSince + MatchRoomLobby.INACTIVE_ROOM_TTL_MS + 1)).toBe(true);
+    expect(MatchRoomLobby.isInactiveRoomExpired(activeRoom, inactiveSince + MatchRoomLobby.INACTIVE_ROOM_TTL_MS + 1)).toBe(false);
+  });
 });

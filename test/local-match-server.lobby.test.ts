@@ -33,6 +33,42 @@ function requestJson(port, method, path, payload?) {
   });
 }
 
+function openSseStream(port, path) {
+  return new Promise<any>((resolve, reject) => {
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port,
+      path,
+      method: 'GET'
+    });
+    const timeout = setTimeout(() => {
+      req.destroy(new Error('SSE_OPEN_TIMEOUT'));
+    }, 1000);
+
+    req.on('response', (res) => {
+      res.setEncoding('utf8');
+      res.once('data', () => {
+        clearTimeout(timeout);
+        resolve({ req, res });
+      });
+      res.on('error', reject);
+    });
+    req.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    req.end();
+  });
+}
+
+async function closeSseStream(stream) {
+  if (!stream) return;
+  try { stream.res.socket?.destroy(); } catch (error) { /* ignore */ }
+  try { stream.res.destroy(); } catch (error) { /* ignore */ }
+  try { stream.req.destroy(); } catch (error) { /* ignore */ }
+  await new Promise<void>((resolve) => setTimeout(resolve, 10));
+}
+
 async function listen(server) {
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -168,6 +204,54 @@ describe('local match server lobby', () => {
       expect(joined.status).toBe(404);
       expect(joined.data.reason).toBe('ROOM_NOT_FOUND');
     } finally {
+      nowSpy.mockRestore();
+      await closeServer(server);
+    }
+  });
+
+  test('streamがなくなった対局中ルームは15分後に一覧から掃除される', async () => {
+    let nowMs = 1_700_000_000_000;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    let stream: any = null;
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ'
+      });
+      expect(created.status).toBe(200);
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'しろ'
+      });
+      expect(joined.status).toBe(200);
+
+      stream = await openSseStream(
+        port,
+        '/api/match/stream?roomId=' + encodeURIComponent(created.data.roomId)
+          + '&seatKey=black&seatToken=' + encodeURIComponent(created.data.seatToken)
+      );
+      await closeSseStream(stream);
+      stream = null;
+
+      nowMs += 15 * 60 * 1000 + 1;
+
+      const listed = await requestJson(port, 'GET', '/api/match/list');
+      expect(listed.status).toBe(200);
+      expect(listed.data.rooms).toEqual([]);
+
+      const state = await requestJson(
+        port,
+        'GET',
+        '/api/match/state?roomId=' + encodeURIComponent(created.data.roomId)
+          + '&seatKey=black&seatToken=' + encodeURIComponent(created.data.seatToken)
+      );
+      expect(state.status).toBe(404);
+      expect(state.data.reason).toBe('ROOM_NOT_FOUND');
+    } finally {
+      await closeSseStream(stream);
       nowSpy.mockRestore();
       await closeServer(server);
     }

@@ -4,6 +4,7 @@ const ROOM_PASSWORD_MAX_LENGTH = 20;
 const ROOM_NAME_MAX_LENGTH = 20;
 const DEFAULT_ROOM_NAME = '無名部屋';
 const WAITING_ROOM_TTL_MS = 10 * 60 * 1000;
+const INACTIVE_ROOM_TTL_MS = 15 * 60 * 1000;
 
 type RoomListEntry = {
   roomId: string;
@@ -122,6 +123,38 @@ function getWaitingRoomExpiresAt(roomValue: unknown): number {
   return createdAt > 0 ? createdAt + WAITING_ROOM_TTL_MS : 0;
 }
 
+function readInactiveSince(roomValue: unknown): number {
+  const room = asRecord(roomValue);
+  return toFiniteInteger(room.inactiveSince, 0);
+}
+
+function getInactiveRoomExpiresAt(roomValue: unknown): number {
+  const inactiveSince = readInactiveSince(roomValue);
+  return inactiveSince > 0 ? inactiveSince + INACTIVE_ROOM_TTL_MS : 0;
+}
+
+function isInactiveRoomExpired(roomValue: unknown, nowValue?: unknown): boolean {
+  const expiresAt = getInactiveRoomExpiresAt(roomValue);
+  if (expiresAt <= 0) return false;
+  const nowMs = toFiniteInteger(nowValue, Date.now());
+  return nowMs >= expiresAt;
+}
+
+function markRoomInactive(roomValue: unknown, nowValue?: unknown): boolean {
+  const room = asRecord(roomValue);
+  if (!room || !String(room.roomId || '').trim()) return false;
+  if (readInactiveSince(room) > 0) return false;
+  room.inactiveSince = toFiniteInteger(nowValue, Date.now());
+  return true;
+}
+
+function clearRoomInactive(roomValue: unknown): boolean {
+  const room = asRecord(roomValue);
+  if (!Object.prototype.hasOwnProperty.call(room, 'inactiveSince')) return false;
+  delete room.inactiveSince;
+  return true;
+}
+
 function isWaitingRoom(roomValue: unknown): boolean {
   const room = asRecord(roomValue);
   const maxSeats = toFiniteInteger(room.maxSeats, 2);
@@ -153,6 +186,7 @@ function toPublicRoomListEntry(roomValue: unknown, options?: PublicRoomListEntry
   if (!canJoin && !canSpectate) return null;
   const opts = asRecord(options);
   if (isWaitingRoomExpired(room, opts.nowMs)) return null;
+  if (isInactiveRoomExpired(room, opts.nowMs)) return null;
 
   const seats = asRecord(room.seats);
   const blackActive = readSeatActive(seats, 'black');
@@ -203,6 +237,7 @@ const MatchRoomLobby = {
   ROOM_NAME_MAX_LENGTH,
   DEFAULT_ROOM_NAME,
   WAITING_ROOM_TTL_MS,
+  INACTIVE_ROOM_TTL_MS,
   normalizeRoomPassword,
   normalizeRoomName,
   resolveRoomName,
@@ -214,8 +249,13 @@ const MatchRoomLobby = {
   getMaxSpectators,
   readCreatedAt,
   getWaitingRoomExpiresAt,
+  readInactiveSince,
+  getInactiveRoomExpiresAt,
   isWaitingRoom,
   isWaitingRoomExpired,
+  isInactiveRoomExpired,
+  markRoomInactive,
+  clearRoomInactive,
   toPublicRoomListEntry,
   sortRoomListEntries
 };
