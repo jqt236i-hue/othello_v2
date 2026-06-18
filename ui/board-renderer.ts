@@ -94,10 +94,110 @@ function _buildBoardHintProjectionForBoardRenderer(gameStateValue: any, cardStat
     });
 }
 
+function _resolveNetworkVisualStateStoreForBoardRenderer() {
+    try {
+        if (typeof window !== 'undefined' && (window as any).NetworkVisualStateStore) {
+            return (window as any).NetworkVisualStateStore;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkVisualStateStore) {
+            return (globalThis as any).NetworkVisualStateStore;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveNetworkPresentationTimelineForBoardRenderer() {
+    try {
+        if (typeof window !== 'undefined' && (window as any).NetworkPresentationTimeline) {
+            return (window as any).NetworkPresentationTimeline;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPresentationTimeline) {
+            return (globalThis as any).NetworkPresentationTimeline;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _isStrictNetworkVisualRenderActiveForBoardRenderer() {
+    const store = _resolveNetworkVisualStateStoreForBoardRenderer();
+    try {
+        const diagnostics = store && typeof store.getDiagnostics === 'function'
+            ? store.getDiagnostics()
+            : null;
+        if (diagnostics && diagnostics.lagging === true) return true;
+    } catch (e: any) { /* ignore */ }
+    const timeline = _resolveNetworkPresentationTimelineForBoardRenderer();
+    try {
+        const diagnostics = timeline && typeof timeline.getDiagnostics === 'function'
+            ? timeline.getDiagnostics()
+            : null;
+        return !!(
+            diagnostics &&
+            (
+                diagnostics.playing === true ||
+                diagnostics.paused === true ||
+                Number(diagnostics.pendingFrameCount) > 0
+            )
+        );
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
+function _resolveGlobalGameStateForBoardRenderer() {
+    try {
+        if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && (window as any).gameState && typeof (window as any).gameState === 'object') return (window as any).gameState;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') return (globalThis as any).gameState;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveGlobalCardStateForBoardRenderer() {
+    try {
+        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && (window as any).cardState && typeof (window as any).cardState === 'object') return (window as any).cardState;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') return (globalThis as any).cardState;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveBoardRenderStateForBoardRenderer() {
+    if (_isStrictNetworkVisualRenderActiveForBoardRenderer()) {
+        const store = _resolveNetworkVisualStateStoreForBoardRenderer();
+        try {
+            const snapshot = store && typeof store.getRenderSnapshot === 'function'
+                ? store.getRenderSnapshot()
+                : null;
+            if (snapshot && snapshot.gameState && snapshot.cardState) {
+                return {
+                    gameState: snapshot.gameState,
+                    cardState: snapshot.cardState,
+                    source: 'network_visual_state'
+                };
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+    return {
+        gameState: _resolveGlobalGameStateForBoardRenderer(),
+        cardState: _resolveGlobalCardStateForBoardRenderer(),
+        source: 'global'
+    };
+}
+
 function _getBoardShapeForBoardRenderer() {
-    const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
-        ? gameState
-        : ((typeof window !== 'undefined' && window.gameState && typeof window.gameState === 'object') ? window.gameState : null);
+    const state = _resolveBoardRenderStateForBoardRenderer().gameState;
     const board = state && Array.isArray(state.board) ? state.board : null;
     let rows = Array.isArray(board) ? board.length : 8;
     let cols = 0;
@@ -606,9 +706,7 @@ function _peekBoardUpdateSyncContextForBoardRenderer() {
 
 function _isTimeStopActiveForBoardRenderer() {
     try {
-        const state = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
-            ? cardState
-            : ((typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') ? window.cardState : null);
+        const state = _resolveBoardRenderStateForBoardRenderer().cardState;
         const remainingByPlayer = state && state.timeStopConsecutiveTurnsRemainingByPlayer;
         if (!remainingByPlayer || typeof remainingByPlayer !== 'object') return false;
         const blackRemaining = Number(remainingByPlayer.black);
@@ -952,11 +1050,14 @@ function renderBoard() {
     // Determine whether we are in a "target selection" card mode.
     // In selection mode, normal "placeable move" hints must not appear.
     try {
-        const player = gameState.currentPlayer;
+        const renderState = _resolveBoardRenderStateForBoardRenderer();
+        const renderGameState = renderState.gameState;
+        const renderCardState = renderState.cardState;
+        const player = renderGameState.currentPlayer;
         const playerKey = getPlayerKey(player);
-        const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+        const pending = renderCardState && renderCardState.pendingEffectByPlayer ? renderCardState.pendingEffectByPlayer[playerKey] : null;
         const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
-            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+            ? CardLogic.getSelectableTargets(renderCardState, renderGameState, playerKey)
             : [];
         const isSelectingTarget = !!(
             pending &&
@@ -1075,14 +1176,16 @@ function _resolveNetworkLocalPlayerKeyForBoard() {
     return 'black';
 }
 
-function _canLocalPlayerControlCurrentTurnForBoard() {
+function _canLocalPlayerControlCurrentTurnForBoard(gameStateValue?: any, cardStateValue?: any) {
+    const renderGameState = gameStateValue || _resolveBoardRenderStateForBoardRenderer().gameState;
+    const renderCardState = cardStateValue || _resolveBoardRenderStateForBoardRenderer().cardState;
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveNetworkInputPermissions === 'function') {
             return OwnerHelpersModule.resolveNetworkInputPermissions({
                 rootRef: typeof window !== 'undefined' ? window : null,
-                cardState: typeof cardState !== 'undefined' ? cardState : null,
-                gameState: typeof gameState !== 'undefined' ? gameState : null,
-                currentPlayer: gameState && gameState.currentPlayer,
+                cardState: renderCardState,
+                gameState: renderGameState,
+                currentPlayer: renderGameState && renderGameState.currentPlayer,
                 localPlayerKey: _resolveNetworkLocalPlayerKeyForBoard(),
                 debugHumanVsHuman: typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true
             }).canOperateBoard === true;
@@ -1102,12 +1205,12 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
             isNetworkMode = matchMode === 'network';
         }
     } catch (e: any) { /* ignore */ }
-    const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
+    const currentPlayerKey = renderGameState.currentPlayer === WHITE ? 'white' : 'black';
     const isHvH = !!(typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true);
     // FATE_WILL: if another player controls this turn, only the controller can operate.
     // Applies in network mode and in local non-HvH mode.
     if (isNetworkMode || !isHvH) {
-        const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+        const cs = renderCardState || null;
         const fwc = cs && cs.fateWillControllerByTurnOwner;
         const controller = fwc && fwc[currentPlayerKey];
         if (controller) {
@@ -1182,6 +1285,9 @@ function renderBoardFullLegacy() {
     if (_shouldSkipBoardRenderForPlayback()) {
         return;
     }
+    const renderState = _resolveBoardRenderStateForBoardRenderer();
+    const gameState = renderState.gameState;
+    const cardState = renderState.cardState;
     boardEl.innerHTML = '';
     const player = gameState.currentPlayer;
     const context = CardLogic.getCardContext(cardState);
@@ -1206,7 +1312,7 @@ function renderBoardFullLegacy() {
             : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network')));
     // FATE_WILL: show legal hints and allow interaction during the controlled (victim's) turn.
     const isFateWillControlledTurn = !!(cardState && cardState.fateWillControllerByTurnOwner && cardState.fateWillControllerByTurnOwner[playerKey]);
-    const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForBoard();
+    const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForBoard(gameState, cardState);
     const isHumanTurn = isNetworkMode
         ? canControlCurrentTurn
         : ((gameState.currentPlayer === BLACK) ||
@@ -1543,7 +1649,8 @@ function renderBoardFullLegacy() {
 // Keeping a second copy here risks load-order bugs (different class names / CSS wiring).
 
 function updateOccupancyUI() {
-    const counts = countDiscs(gameState);
+    const renderState = _resolveBoardRenderStateForBoardRenderer();
+    const counts = countDiscs(renderState.gameState);
     const total = counts.black + counts.white;
 
     let blackPct = 50, whitePct = 50;

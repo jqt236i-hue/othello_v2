@@ -1337,7 +1337,74 @@ function _hasPendingMoveSourceAtForDiff(row: any, col: any) {
     return keys.has(key);
 }
 
+function _resolveNetworkVisualStateStoreForDiff() {
+    try {
+        if (typeof window !== 'undefined' && (window as any).NetworkVisualStateStore) {
+            return (window as any).NetworkVisualStateStore;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkVisualStateStore) {
+            return (globalThis as any).NetworkVisualStateStore;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveNetworkPresentationTimelineForDiff() {
+    try {
+        if (typeof window !== 'undefined' && (window as any).NetworkPresentationTimeline) {
+            return (window as any).NetworkPresentationTimeline;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPresentationTimeline) {
+            return (globalThis as any).NetworkPresentationTimeline;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _isStrictNetworkVisualRenderActiveForDiff() {
+    const store = _resolveNetworkVisualStateStoreForDiff();
+    try {
+        const diagnostics = store && typeof store.getDiagnostics === 'function'
+            ? store.getDiagnostics()
+            : null;
+        if (diagnostics && diagnostics.lagging === true) return true;
+    } catch (e: any) { /* ignore */ }
+    const timeline = _resolveNetworkPresentationTimelineForDiff();
+    try {
+        const diagnostics = timeline && typeof timeline.getDiagnostics === 'function'
+            ? timeline.getDiagnostics()
+            : null;
+        return !!(
+            diagnostics &&
+            (
+                diagnostics.playing === true ||
+                diagnostics.paused === true ||
+                Number(diagnostics.pendingFrameCount) > 0
+            )
+        );
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
+function _resolveNetworkVisualRenderSnapshotForDiff() {
+    if (!_isStrictNetworkVisualRenderActiveForDiff()) return null;
+    const store = _resolveNetworkVisualStateStoreForDiff();
+    try {
+        const snapshot = store && typeof store.getRenderSnapshot === 'function'
+            ? store.getRenderSnapshot()
+            : null;
+        if (snapshot && snapshot.gameState && snapshot.cardState) return snapshot;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function _resolveGameStateForDiffRender() {
+    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
+    if (visualSnapshot && visualSnapshot.gameState) return visualSnapshot.gameState;
     try {
         if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
     } catch (e: any) { /* ignore */ }
@@ -1351,6 +1418,8 @@ function _resolveGameStateForDiffRender() {
 }
 
 function _resolveCardStateForDiffRender() {
+    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
+    if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
     } catch (e: any) { /* ignore */ }
@@ -3709,7 +3778,7 @@ function _syncSelectionModeForDiff(boardEl: any) {
  * @returns {number} 更新されたセル数
  */
 function renderBoardDiff(boardEl: any) {
-    const cardStateForManifestSync = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
+    const cardStateForManifestSync = _resolveCardStateForDiffRender();
     _syncManifestBgmForDiff(cardStateForManifestSync);
     _syncManifestWorldBackgroundForDiff(cardStateForManifestSync);
     _syncManifestEffectPanelForDiff(cardStateForManifestSync);
