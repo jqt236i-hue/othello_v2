@@ -2145,37 +2145,76 @@
     position: absolute;
     left: calc(16px * var(--layout-stage-scale));
     bottom: calc(3px * var(--layout-stage-scale));
-    min-width: calc(72px * var(--layout-stage-scale));
-    min-height: calc(22px * var(--layout-stage-scale));
-    padding: calc(3px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(224, 183, 92, 0.82);
-    border-radius: calc(4px * var(--layout-stage-scale));
+    min-width: calc(82px * var(--layout-stage-scale));
+    min-height: calc(26px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(148, 160, 158, 0.74);
+    border-radius: calc(6px * var(--layout-stage-scale));
     background:
-        linear-gradient(180deg, rgba(255, 232, 162, 0.18), rgba(255, 255, 255, 0) 46%),
-        linear-gradient(180deg, rgba(66, 52, 34, 0.98), rgba(20, 15, 10, 0.99));
-    color: #ffe6a9;
-    font-family: var(--selected-app-font-readable-family);
-    font-size: calc(11px * var(--layout-stage-scale));
-    font-weight: 900;
+        linear-gradient(90deg, rgba(143, 164, 160, 0.12), transparent 34%),
+        radial-gradient(circle at 9% 18%, rgba(238, 247, 244, 0.10), transparent 24%),
+        linear-gradient(180deg, rgba(15, 18, 18, 0.99), rgba(2, 3, 4, 0.97));
+    color: #f0f5f2;
+    font-family: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+    font-size: calc(13px * var(--layout-stage-scale));
+    font-weight: 400;
     line-height: 1;
-    letter-spacing: 0;
-    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88);
+    letter-spacing: calc(1px * var(--layout-stage-scale));
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.84);
     box-shadow:
-        0 calc(2px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 247, 214, 0.12),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(224, 183, 92, 0.48);
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54),
+        0 0 calc(11px * var(--layout-stage-scale)) rgba(109, 128, 126, 0.18),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(219, 232, 229, 0.08),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(126, 146, 142, 0.22);
+    clip-path: polygon(
+        0 0,
+        calc(100% - calc(10px * var(--layout-stage-scale))) 0,
+        100% 50%,
+        calc(100% - calc(10px * var(--layout-stage-scale))) 100%,
+        0 100%,
+        calc(5px * var(--layout-stage-scale)) 50%
+    );
+    -webkit-font-smoothing: none;
     cursor: pointer;
     z-index: 166;
 }
 
-#board-frame-pass-btn:hover:not(:disabled) {
-    border-color: rgba(255, 218, 128, 0.98);
-    filter: brightness(1.08);
+#board-frame-pass-btn::before,
+#board-frame-pass-btn::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+}
+
+#board-frame-pass-btn::before {
+    left: calc(10px * var(--layout-stage-scale));
+    top: calc(5px * var(--layout-stage-scale));
+    width: calc(5px * var(--layout-stage-scale));
+    height: calc(16px * var(--layout-stage-scale));
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, #e6f0ec, #7e918d 52%, #111516);
     box-shadow:
-        0 calc(3px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48),
-        0 0 calc(10px * var(--layout-stage-scale)) rgba(224, 183, 92, 0.26),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 247, 214, 0.16),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(255, 218, 128, 0.64);
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(148, 170, 166, 0.34),
+        inset 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.46);
+}
+
+#board-frame-pass-btn::after {
+    left: calc(22px * var(--layout-stage-scale));
+    right: calc(16px * var(--layout-stage-scale));
+    bottom: calc(4px * var(--layout-stage-scale));
+    height: calc(1px * var(--layout-stage-scale));
+    background: linear-gradient(90deg, transparent, rgba(219, 232, 229, 0.46), transparent);
+    box-shadow: 0 0 calc(6px * var(--layout-stage-scale)) rgba(148, 170, 166, 0.18);
+}
+
+#board-frame-pass-btn:hover:not(:disabled) {
+    border-color: rgba(182, 195, 196, 0.88);
+    filter: brightness(1.14);
+    box-shadow:
+        0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(148, 170, 166, 0.28),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(219, 232, 229, 0.12),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(154, 174, 170, 0.30);
 }
 
 #board-frame-pass-btn:disabled {
