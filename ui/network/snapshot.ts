@@ -122,6 +122,7 @@ function createNetworkSnapshotController(config: any): any {
 
     function armPlaybackLockForIncomingPlayback(): boolean {
         const playbackState = resolvePlaybackStateModule();
+        const startedAt = Date.now();
         if (playbackState && typeof playbackState.setBusyState === 'function') {
             playbackState.setBusyState({
                 processing: true,
@@ -129,16 +130,16 @@ function createNetworkSnapshotController(config: any): any {
                 playbackActive: true
             });
             if (typeof playbackState.setPlaybackStartedAt === 'function') {
-                playbackState.setPlaybackStartedAt(null);
+                playbackState.setPlaybackStartedAt(startedAt);
             } else {
-                setGlobalValue('__playbackActiveSince', null);
+                setGlobalValue('__playbackActiveSince', startedAt);
             }
             return true;
         }
         setGlobalFlag('isProcessing', true);
         setGlobalFlag('isCardAnimating', true);
         setGlobalFlag('VisualPlaybackActive', true);
-        setGlobalValue('__playbackActiveSince', null);
+        setGlobalValue('__playbackActiveSince', startedAt);
         return true;
     }
 
@@ -468,6 +469,7 @@ function createNetworkSnapshotController(config: any): any {
             meta: {
                 source,
                 suppressPlayback: opts.suppressPlayback === true,
+                strictNetworkPlayback: source === 'network_snapshot' && opts.suppressPlayback !== true,
                 networkPlaybackBatchId
             }
         };
@@ -746,12 +748,38 @@ function createNetworkSnapshotController(config: any): any {
         if (!playbackRequestStarted(request)) return false;
         const networkPlaybackBatchId = request.networkPlaybackBatchId || '';
         const playbackEventCount = request.playbackEventCount || 0;
+        const releaseSettledPlaybackLock = () => {
+            const cardStateRef = resolveGlobalObject('cardState');
+            const busyState = readBusyStateSnapshot();
+            const playbackRunning = isPlaybackEngineRunning();
+            const hasPendingEvents = hasPendingPresentationEvents(cardStateRef);
+            if (playbackRunning === true || hasPendingEvents === true) return false;
+            if (
+                busyState.processing !== true
+                && busyState.cardAnimating !== true
+                && busyState.playbackActive !== true
+            ) {
+                return false;
+            }
+            clearBusyStateAndPlaybackLock();
+            emitTelemetry('snapshot_playback_lock_released_after_settle', {
+                source,
+                networkPlaybackBatchId,
+                playbackEventCount,
+                playbackRunning,
+                hadProcessing: busyState.processing === true,
+                hadCardAnimating: busyState.cardAnimating === true,
+                hadPlaybackActive: busyState.playbackActive === true
+            });
+            return true;
+        };
         const runRefresh = () => {
             emitTelemetry('snapshot_playback_post_playback_refresh_requested', {
                 source,
                 networkPlaybackBatchId,
                 playbackEventCount
             });
+            releaseSettledPlaybackLock();
             refreshUi({
                 deferCardUiUntilPlaybackIdle: false
             });

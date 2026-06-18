@@ -819,6 +819,54 @@ describe('turn-manager scheduling', () => {
     expect(global.isProcessing).toBe(false);
   });
 
+  test('cancelPendingResetGame は未完了 reset の turn start を混ぜない', async () => {
+    let resolveDeal;
+    const deal = new Promise((resolve) => { resolveDeal = resolve; });
+
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest.fn(() => deal);
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    const onTurnStartSpy = jest.fn(() => Promise.resolve());
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn(),
+      onTurnStart: onTurnStartSpy
+    });
+
+    rm.resetGame();
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    rm.cancelPendingResetGame('network_snapshot:stream');
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+
+    resolveDeal();
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(onTurnStartSpy).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+  });
+
   test('resetGame は前ゲームの CPU retry latch をクリアして新規対局の再試行を許可する', async () => {
     const cpuTurnHandler = require('../game/cpu-turn-handler.js');
     const waitMs = jest.fn(() => new Promise(() => {}));

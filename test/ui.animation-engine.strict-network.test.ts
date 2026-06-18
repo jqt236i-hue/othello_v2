@@ -77,13 +77,23 @@ describe('AnimationEngine strict network playback', () => {
     }
   });
 
-  test('paused network presentation timeline keeps playback state busy', () => {
+  test('playing network presentation timeline keeps playback state busy', () => {
     (global as any).NetworkPresentationTimeline = {
-      getDiagnostics: () => ({ paused: true })
+      getDiagnostics: () => ({ playing: true, paused: false })
     };
     const PlaybackState = require('../ui/playback-state-manager');
 
     expect(PlaybackState.getPlaybackActive()).toBe(true);
     expect(PlaybackState.shouldDeferBoardUpdate({})).toBe(true);
+  });
+
+  test('paused network presentation timeline is diagnostic and does not keep input locked', () => {
+    (global as any).NetworkPresentationTimeline = {
+      getDiagnostics: () => ({ playing: false, paused: true })
+    };
+    const PlaybackState = require('../ui/playback-state-manager');
+
+    expect(PlaybackState.getPlaybackActive()).toBe(false);
+    expect(PlaybackState.shouldDeferBoardUpdate({})).toBe(false);
   });
 });

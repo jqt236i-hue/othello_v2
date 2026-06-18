@@ -119,21 +119,22 @@ describe('applySnapshot single-writer baseline', () => {
     if (dom) dom.window.close();
   });
 
-  function createController(stateObj) {
+  function createController(stateObj, playbackStateOverrides = {}) {
     const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
+    const playbackState = Object.assign({
+      setBusyState: (flags) => busyStateCalls.push(flags),
+      armBoardUpdateContext: jest.fn((context) => {
+        armBoardUpdateContextCalls.push(context);
+        return context;
+      })
+    }, playbackStateOverrides || {});
     return createNetworkSnapshotController({
       getState: () => stateObj,
       emitCardStateChange: global.emitCardStateChange,
       emitGameStateChange: global.emitGameStateChange,
       emitBoardUpdate: global.emitBoardUpdate,
       renderCardUI: global.renderCardUI,
-      playbackState: {
-        setBusyState: (flags) => busyStateCalls.push(flags),
-        armBoardUpdateContext: jest.fn((context) => {
-          armBoardUpdateContextCalls.push(context);
-          return context;
-        })
-      }
+      playbackState
     });
   }
 
@@ -151,6 +152,7 @@ describe('applySnapshot single-writer baseline', () => {
     expect(pbEvent.events).toBe(events);
     expect(pbEvent.meta.source).toBe('network_snapshot');
     expect(pbEvent.meta.suppressPlayback).not.toBe(true);
+    expect(pbEvent.meta.strictNetworkPlayback).toBe(true);
   });
 
   test('playbackEvents なしで shadow なしの場合 busy は false になる', () => {
@@ -288,6 +290,64 @@ describe('applySnapshot single-writer baseline', () => {
 
     expect(global.emitBoardUpdate).toHaveBeenCalled();
     expect(order).toEqual(['direct-playback', 'board-update']);
+  });
+
+  test('network playback 完了後に残った playback lock を snapshot 側で解除する', async () => {
+    const stateObj = { stateVersion: 10 };
+    let playbackActive = false;
+    let processing = false;
+    let cardAnimating = false;
+    const clearPlaybackLock = jest.fn(() => {
+      playbackActive = false;
+      processing = false;
+      cardAnimating = false;
+      global.VisualPlaybackActive = false;
+      global.isProcessing = false;
+      global.isCardAnimating = false;
+      global.__playbackActiveSince = null;
+    });
+    global.handlePresentationEvent = jest.fn(() => Promise.resolve());
+    global.emitBoardUpdate = jest.fn(() => true);
+    const ctrl = createController(stateObj, {
+      setBusyState: jest.fn((flags) => {
+        busyStateCalls.push(flags);
+        if (Object.prototype.hasOwnProperty.call(flags || {}, 'processing')) {
+          processing = flags.processing === true;
+          global.isProcessing = processing;
+        }
+        if (Object.prototype.hasOwnProperty.call(flags || {}, 'cardAnimating')) {
+          cardAnimating = flags.cardAnimating === true;
+          global.isCardAnimating = cardAnimating;
+        }
+        if (Object.prototype.hasOwnProperty.call(flags || {}, 'playbackActive')) {
+          playbackActive = flags.playbackActive === true;
+          global.VisualPlaybackActive = playbackActive;
+          global.__playbackActiveSince = playbackActive ? 123 : null;
+        }
+      }),
+      setPlaybackStartedAt: jest.fn((value) => {
+        global.__playbackActiveSince = Number.isFinite(Number(value)) ? Number(value) : null;
+      }),
+      getProcessing: jest.fn(() => processing),
+      getCardAnimating: jest.fn(() => cardAnimating),
+      getPlaybackActive: jest.fn(() => playbackActive),
+      clearPlaybackLock
+    });
+
+    ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }]
+    });
+
+    expect(playbackActive).toBe(true);
+    expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(clearPlaybackLock).toHaveBeenCalledTimes(1);
+    expect(playbackActive).toBe(false);
+    expect(global.VisualPlaybackActive).toBe(false);
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
   });
 
   test('BoardOps の enqueue が失敗しても direct queue fallback で network playback を再生する', async () => {

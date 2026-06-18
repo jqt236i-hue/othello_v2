@@ -2361,7 +2361,35 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.handleTimeoutPassPayload(payload);
     }
 
+    function cancelPendingLocalResetForNetworkSnapshot(source: any) {
+        let cancelFn = resolveNetworkClientCandidate(() => root && root.cancelPendingResetGame)
+            || resolveNetworkClientGlobal('cancelPendingResetGame');
+        if (typeof cancelFn !== 'function') {
+            const turnManager = resolveNetworkClientModule('../game/turn-manager', null);
+            cancelFn = turnManager && typeof turnManager.cancelPendingResetGame === 'function'
+                ? turnManager.cancelPendingResetGame
+                : null;
+        }
+        if (typeof cancelFn !== 'function') return false;
+        try {
+            cancelFn(`network_snapshot:${String(source || '')}`);
+            return true;
+        } catch (e: any) {
+            recordNetworkTelemetry('cancel_pending_local_reset_failed', {
+                source: String(source || ''),
+                error: e && e.message ? String(e.message) : String(e || '')
+            });
+        }
+        return false;
+    }
+
     function applySnapshot(snapshot: any, options: any) {
+        try {
+            const meta = getSnapshotMeta(snapshot);
+            if (meta && meta.authority === 'server') {
+                cancelPendingLocalResetForNetworkSnapshot(options && options.source);
+            }
+        } catch (e: any) { /* ignore cancel guard */ }
         if (shouldClearStaleBoardUpdateContext(options)) {
             clearBoardUpdateContext();
             recordNetworkTelemetry('force_snapshot_cleared_stale_board_update_context', {

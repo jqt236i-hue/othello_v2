@@ -60,33 +60,50 @@ function isSpecialOrBombMarkerForMoveGeneration(marker: any) {
     return marker.kind === 'specialStone';
 }
 
+function resolveGameStateForMoveGeneration(explicitState?: any) {
+    if (explicitState && typeof explicitState === 'object') return explicitState;
+    try {
+        if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveCardStateForMoveGeneration(explicitState?: any) {
+    if (explicitState && typeof explicitState === 'object') return explicitState;
+    try {
+        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 // ===== Move Generation & Legal Move Lookup =====
 
 /**
  * 合法手リストを取得
  */
-function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: any) {
+function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: any, cardStateValue?: any) {
+    const currentCardState = resolveCardStateForMoveGeneration(cardStateValue);
     // Use centralized safe context helper when available
     let context = null;
     try {
         const ctxHelper = requireMoveGeneratorModuleOrNull('./logic/context');
         if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
-            context = ctxHelper.getSafeCardContext(typeof cardState !== 'undefined' ? cardState : undefined, protectedStones, permaProtectedStones);
+            context = ctxHelper.getSafeCardContext(currentCardState || undefined, protectedStones, permaProtectedStones);
         }
     } catch (e) { /* ignore and fall back below */ }
 
     if (!context) {
         // Fallback to CardLogic if available, else construct a minimal safe context
         try {
-            if (typeof CardLogic !== 'undefined' && typeof CardLogic.getCardContext === 'function' && typeof cardState !== 'undefined') {
-                context = CardLogic.getCardContext(cardState);
+            if (typeof CardLogic !== 'undefined' && typeof CardLogic.getCardContext === 'function' && currentCardState) {
+                context = CardLogic.getCardContext(currentCardState);
             }
         } catch (e) { /* ignore */ }
     }
 
     if (!context) {
-        const bombMarkers = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function' && typeof cardState !== 'undefined')
-            ? MarkersAdapter.getBombMarkers(cardState).map((m: any) => ({
+        const bombMarkers = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function' && currentCardState)
+            ? MarkersAdapter.getBombMarkers(currentCardState).map((m: any) => ({
                 row: m.row,
                 col: m.col,
                 remainingTurns: m.data ? m.data.remainingTurns : undefined,
@@ -219,8 +236,11 @@ function isFreePlacementPendingTypeForMoveGeneration(pendingType: any) {
 /**
  * プレイヤーの手を生成（カード効果考慮）
  */
-function generateMovesForPlayer(player: any, pending: any, protection: any, perma: any) {
-    const legal = getLegalMoves(gameState, protection, perma);
+function generateMovesForPlayerInState(stateValue: any, cardStateValue: any, player: any, pending: any, protection: any, perma: any) {
+    const currentGameState = resolveGameStateForMoveGeneration(stateValue);
+    const currentCardState = resolveCardStateForMoveGeneration(cardStateValue);
+    if (!currentGameState || !Array.isArray(currentGameState.board)) return [];
+    const legal = getLegalMoves(currentGameState, protection, perma, currentCardState);
     if (!pending) {
         return legal.map((m: any) => ({ ...m, effectUsed: null, player, playerValue: player }));
     }
@@ -231,19 +251,26 @@ function generateMovesForPlayer(player: any, pending: any, protection: any, perm
         return [];
     }
     if (isFreePlacementPendingTypeForMoveGeneration(pendingType)) {
-        return generateFreePlacementMoves(player, protection, perma, pendingType);
+        return generateFreePlacementMoves(player, protection, perma, pendingType, currentGameState, currentCardState);
     }
     if (pendingType === 'TABOO_REVERSE_WILL') {
-        return generateTabooReverseMoves(player, legal);
+        return generateTabooReverseMoves(player, legal, currentGameState, currentCardState);
     }
     if (pendingType === 'SWAP_WITH_ENEMY') {
-        return generateSwapMoves(player, legal, protection, perma);
+        return generateSwapMoves(player, legal, protection, perma, currentGameState, currentCardState);
     }
 
     return legal.map((m: any) => ({ ...m, effectUsed: pendingType, player, playerValue: player }));
 }
 
-function generateTabooReverseMoves(player: any, legal: any) {
+function generateMovesForPlayer(player: any, pending: any, protection: any, perma: any) {
+    return generateMovesForPlayerInState(null, null, player, pending, protection, perma);
+}
+
+function generateTabooReverseMoves(player: any, legal: any, stateValue?: any, cardStateValue?: any) {
+    const currentGameState = resolveGameStateForMoveGeneration(stateValue);
+    const currentCardState = resolveCardStateForMoveGeneration(cardStateValue);
+    if (!currentGameState || !Array.isArray(currentGameState.board)) return [];
     const effectUsed = 'TABOO_REVERSE_WILL';
     const moveMap = new Map();
 
@@ -256,12 +283,11 @@ function generateTabooReverseMoves(player: any, legal: any) {
     if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getTabooReverseCandidates !== 'function') {
         return Array.from(moveMap.values());
     }
-    const currentCardState = (typeof cardState !== 'undefined') ? cardState : null;
     const playerKey = (player === 'white' || player === -1 || player === '-1') ? 'white' : 'black';
 
     const upsertMoveIfTabooValid = (row: number, col: number) => {
         const key = `${row},${col}`;
-        const candidates = CardLogic.getTabooReverseCandidates(currentCardState, gameState, playerKey, row, col);
+        const candidates = CardLogic.getTabooReverseCandidates(currentCardState, currentGameState, playerKey, row, col);
         if (!Array.isArray(candidates) || candidates.length === 0) return;
 
         const maxScore = candidates.reduce((max: number, one: any) => Math.max(max, Number(one && one.score) || 0), 0);
@@ -273,8 +299,8 @@ function generateTabooReverseMoves(player: any, legal: any) {
         moveMap.set(key, { row, col, flips, effectUsed, player, playerValue: player });
     };
 
-    for (let r = 0; r < gameState.board.length; r++) {
-        const boardRow = gameState.board[r];
+    for (let r = 0; r < currentGameState.board.length; r++) {
+        const boardRow = currentGameState.board[r];
         if (!Array.isArray(boardRow)) continue;
         for (let c = 0; c < boardRow.length; c++) {
             if (boardRow[c] !== EMPTY) continue;
@@ -282,7 +308,7 @@ function generateTabooReverseMoves(player: any, legal: any) {
         }
     }
 
-    const expansionCells = getExpansionCellsForMoveGeneration(gameState);
+    const expansionCells = getExpansionCellsForMoveGeneration(currentGameState);
     for (const expansion of expansionCells) {
         if (!expansion || Number(expansion.owner) !== EMPTY) continue;
         upsertMoveIfTabooValid(expansion.row, expansion.col);
@@ -294,30 +320,33 @@ function generateTabooReverseMoves(player: any, legal: any) {
 /**
  * 自由配置モードの手を生成
  */
-function generateFreePlacementMoves(player: any, protection: any, perma: any, effectType: any) {
+function generateFreePlacementMoves(player: any, protection: any, perma: any, effectType: any, stateValue?: any, cardStateValue?: any) {
+    const currentGameState = resolveGameStateForMoveGeneration(stateValue);
+    const currentCardState = resolveCardStateForMoveGeneration(cardStateValue);
+    if (!currentGameState || !Array.isArray(currentGameState.board)) return [];
     const effectUsed = effectType || 'FREE_PLACEMENT';
     const moves = [];
-    for (let r = 0; r < gameState.board.length; r++) {
-        const boardRow = gameState.board[r];
+    for (let r = 0; r < currentGameState.board.length; r++) {
+        const boardRow = currentGameState.board[r];
         if (!Array.isArray(boardRow)) continue;
         for (let c = 0; c < boardRow.length; c++) {
             if (boardRow[c] !== EMPTY) continue;
-            if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && typeof cardState !== 'undefined') {
-                if (CardLogic.isBlockedCell(cardState, r, c, gameState)) continue;
+            if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && currentCardState) {
+                if (CardLogic.isBlockedCell(currentCardState, r, c, currentGameState)) continue;
             }
-            const flips = getFlipsForMoveGeneration(gameState, r, c, player, protection, perma);
+            const flips = getFlipsForMoveGeneration(currentGameState, r, c, player, protection, perma);
             moves.push({ row: r, col: c, flips, effectUsed, player, playerValue: player });
         }
     }
-    const expansionCells = getExpansionCellsForMoveGeneration(gameState);
+    const expansionCells = getExpansionCellsForMoveGeneration(currentGameState);
     for (const expansion of expansionCells) {
         if (!expansion || Number(expansion.owner) !== EMPTY) continue;
-        if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && typeof cardState !== 'undefined') {
-            if (CardLogic.isBlockedCell(cardState, expansion.row, expansion.col, gameState)) {
+        if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && currentCardState) {
+            if (CardLogic.isBlockedCell(currentCardState, expansion.row, expansion.col, currentGameState)) {
                 continue;
             }
         }
-        const flips = getFlipsForMoveGeneration(gameState, expansion.row, expansion.col, player, protection, perma);
+        const flips = getFlipsForMoveGeneration(currentGameState, expansion.row, expansion.col, player, protection, perma);
         moves.push({ row: expansion.row, col: expansion.col, flips, effectUsed, player, playerValue: player });
     }
     return moves;
@@ -326,13 +355,16 @@ function generateFreePlacementMoves(player: any, protection: any, perma: any, ef
 /**
  * スワップモードの手を生成
  */
-function generateSwapMoves(player: any, legal: any, protection: any, perma: any) {
+function generateSwapMoves(player: any, legal: any, protection: any, perma: any, stateValue?: any, cardStateValue?: any) {
+    const currentGameState = resolveGameStateForMoveGeneration(stateValue);
+    const currentCardState = resolveCardStateForMoveGeneration(cardStateValue);
+    if (!currentGameState || !Array.isArray(currentGameState.board)) return [];
     const moves = [];
     const legalSet = new Set(legal.map((m: any) => m.row + ',' + m.col));
     const protectedCells = createProtectedCellSet(protection, perma);
-    const markers = (typeof cardState !== 'undefined' && cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    const markers = (currentCardState && Array.isArray(currentCardState.markers)) ? currentCardState.markers : [];
     const markerIndex = MoveGeneratorCardMarkers && typeof MoveGeneratorCardMarkers.createMarkerCellIndex === 'function'
-        ? MoveGeneratorCardMarkers.createMarkerCellIndex(cardState)
+        ? MoveGeneratorCardMarkers.createMarkerCellIndex(currentCardState)
         : null;
     const hasSpecialOrBombAt = (row: any, col: any) => markerIndex
         ? markerIndex.some(row, col, isSpecialOrBombMarkerForMoveGeneration)
@@ -340,8 +372,8 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
 
     const deepCloneState = (s: any) => (typeof structuredClone === 'function') ? structuredClone(s) : JSON.parse(JSON.stringify(s));
 
-    for (let r = 0; r < gameState.board.length; r++) {
-        const boardRow = gameState.board[r];
+    for (let r = 0; r < currentGameState.board.length; r++) {
+        const boardRow = currentGameState.board[r];
         if (!Array.isArray(boardRow)) continue;
         for (let c = 0; c < boardRow.length; c++) {
             const cellVal = boardRow[c];
@@ -350,7 +382,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
             if (cellVal === -player && !protectedCells.has(key)) {
                 const hasSpecialOrBomb = hasSpecialOrBombAt(r, c);
                 if (hasSpecialOrBomb) continue;
-                const clonedState = deepCloneState(gameState);
+                const clonedState = deepCloneState(currentGameState);
                 setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
                 const swapFlips = getFlipsForMoveGeneration(clonedState, r, c, player, protection, perma);
                 moves.push({ row: r, col: c, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
@@ -358,7 +390,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
         }
     }
 
-    const expansionCells = getExpansionCellsForMoveGeneration(gameState);
+    const expansionCells = getExpansionCellsForMoveGeneration(currentGameState);
     for (const expansion of expansionCells) {
         if (!expansion) continue;
         const key = expansion.row + ',' + expansion.col;
@@ -367,7 +399,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
         const hasSpecialOrBomb = hasSpecialOrBombAt(expansion.row, expansion.col);
         if (hasSpecialOrBomb) continue;
 
-        const clonedState = deepCloneState(gameState);
+        const clonedState = deepCloneState(currentGameState);
         if (!setCellValueForMoveGeneration(clonedState, expansion.row, expansion.col, EMPTY)) continue;
         const swapFlips = getFlipsForMoveGeneration(clonedState, expansion.row, expansion.col, player, protection, perma);
         moves.push({ row: expansion.row, col: expansion.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
@@ -381,6 +413,11 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
  */
 function findMoveForCell(player: any, row: number, col: number, pending: any, protection: any, perma: any) {
     const moves = generateMovesForPlayer(player, pending, protection, perma);
+    return moves.find((m: any) => m.row === row && m.col === col) || null;
+}
+
+function findMoveForCellInState(stateValue: any, cardStateValue: any, player: any, row: number, col: number, pending: any, protection: any, perma: any) {
+    const moves = generateMovesForPlayerInState(stateValue, cardStateValue, player, pending, protection, perma);
     return moves.find((m: any) => m.row === row && m.col === col) || null;
 }
 
@@ -427,6 +464,7 @@ export = {
     generateFreePlacementMoves,
     generateSwapMoves,
     findMoveForCell,
+    findMoveForCellInState,
     posToNotation,
     isCorner,
     isEdge

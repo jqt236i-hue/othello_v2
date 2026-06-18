@@ -566,6 +566,21 @@ function getTurnManagerGameStateRef(): any {
 let cpuSmartness = { black: 1, white: 1 }; // @compat - read by some modules through UI runtime, keep until Wave F
 var resetGameGeneration = 0;
 
+function cancelPendingResetGame(reason?: any) {
+    resetGameGeneration += 1;
+    lastFlagActiveTime = null;
+    setTurnManagerBusyState({
+        processing: false,
+        cardAnimating: false
+    });
+    if (isTurnManagerDebugAvailable()) {
+        logTurnManagerDebug('[resetGame] pending reset cancelled', 'debug', {
+            reason: reason ? String(reason) : ''
+        });
+    }
+    return resetGameGeneration;
+}
+
 // TimerService DI
 let turnManagerTimerService: any = null;
 function setTurnManagerTimerService(service: any) { turnManagerTimerService = service; }
@@ -693,8 +708,17 @@ function handleCellClick(row: number, col: number) {
 
     const protection = getActiveProtectionForPlayer(gameState.currentPlayer);
     const perma = getFlipBlockers();  // getFlipBlockers imported directly
+    const canUseStateAwareMoveLookup = !!(
+        isNetworkModeForTurnManager()
+        && gameState
+        && Array.isArray(gameState.board)
+        && MoveGeneratorModule
+        && typeof MoveGeneratorModule.findMoveForCellInState === 'function'
+    );
     const _findMoveForCell = readTurnManagerRuntimeFunction('findMoveForCell') || (MoveGeneratorModule && MoveGeneratorModule.findMoveForCell);
-    const move = _findMoveForCell ? _findMoveForCell(gameState.currentPlayer, row, col, pending, protection, perma) : null;
+    const move = canUseStateAwareMoveLookup
+        ? MoveGeneratorModule.findMoveForCellInState(gameState, cardState, gameState.currentPlayer, row, col, pending, protection, perma)
+        : (_findMoveForCell ? _findMoveForCell(gameState.currentPlayer, row, col, pending, protection, perma) : null);
     if (!move) {
         if (isTurnManagerDebugAvailable()) {
             logTurnManagerDebug(`[MOVE] Invalid move attempted at (${row},${col})`, 'warn', {
@@ -838,6 +862,11 @@ function isNetworkSpectatorForTurnManager() {
         const impl = __uiImpl_turn_manager;
         if (impl && typeof impl.isNetworkSpectator === 'function') return impl.isNetworkSpectator() === true;
         if (impl && impl.isNetworkSpectator === true) return true;
+    } catch (e) { /* ignore */ }
+    try {
+        const root = getTurnManagerRuntimeRoot();
+        const client = root && root.NetworkMatchClient;
+        if (client && typeof client.isSpectator === 'function') return client.isSpectator() === true;
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -1675,6 +1704,7 @@ if (typeof module !== 'undefined' && module.exports) {
         watchdogPing,
         canLocalUserOperateCurrentTurn,
         setTurnManagerTimerService,
+        cancelPendingResetGame,
         // Expose helper for testing / minimal UI integrations
         requestUIRender
     };
@@ -1683,7 +1713,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // @compat - legacy UI entry points are registered through UIBootstrap at the UI boundary.
 try {
     const uiBootstrap = _require('../shared/ui-bootstrap-shared');
-    if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ resetGame, handleCellClick });
+    if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ resetGame, handleCellClick, cancelPendingResetGame });
 } catch (e) { /* ignore */ }
 // Periodic ActionManager save: moved to UI. Expose start/stop functions so UI can opt-in.
 var _actionSaveIntervalId = null;
@@ -1707,5 +1737,6 @@ export = {
     watchdogPing,
     canLocalUserOperateCurrentTurn,
     setTurnManagerTimerService,
+    cancelPendingResetGame,
     requestUIRender
 };
