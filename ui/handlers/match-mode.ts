@@ -592,7 +592,7 @@ const MODE_OTHELLO = 'othello';
         const remainingSeconds = remainingMs === null ? limitSeconds : Math.max(0, Math.ceil(remainingMs / 1000));
         const turnSeatKey = timer.turnSeatKey === 'white' ? 'white' : 'black';
         const turnSeatLabel = turnSeatKey === 'white' ? '白' : '黒';
-        const ownTurnLabel = timer.isOwnTurn === true ? '（あなた）' : '';
+        const ownTurnLabel = timer.isOwnTurn === true && !isNetworkSpectatorActive() ? '（あなた）' : '';
         return `手番タイマー: ${turnSeatLabel}${ownTurnLabel} 残り ${remainingSeconds} 秒`;
     }
 

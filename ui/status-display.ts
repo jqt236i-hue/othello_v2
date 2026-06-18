@@ -120,6 +120,17 @@ function getOwnSeatKeyForLabels(): string {
     return 'black';
 }
 
+function isNetworkSpectatorActiveForLabels(): boolean {
+    try {
+        if (!isNetworkModeForLabels()) return false;
+        if (typeof window === 'undefined' || !window) return false;
+        const client = (window as any).NetworkMatchClient;
+        return !!(client && typeof client.isSpectator === 'function' && client.isSpectator() === true);
+    } catch (e) {
+        return false;
+    }
+}
+
 function resolveSpecialCpuPresentation(): any {
     return null;
 }
@@ -444,6 +455,7 @@ function getLocalPlayerKeyForBattleStatus(): PlayerKey {
 }
 
 function resolveBattleStatusTurnLabel(): string {
+    if (isNetworkSpectatorActiveForLabels()) return '観戦中';
     const state = getGameStateForStatusDisplay();
     const currentPlayer = normalizePlayerKeyForStatusDisplay(state && state.currentPlayer);
     const localPlayer = getLocalPlayerKeyForBattleStatus();
@@ -451,6 +463,7 @@ function resolveBattleStatusTurnLabel(): string {
 }
 
 function resolveTurnArrivalToastState(): { signature: string; kind: 'self' | 'enemy'; playerSide: PlayerKey; text: string } | null {
+    if (isNetworkSpectatorActiveForLabels()) return null;
     const state = getGameStateForStatusDisplay();
     if (!state || state.currentPlayer === null || state.currentPlayer === undefined) return null;
     const currentPlayer = normalizePlayerKeyForStatusDisplay(state.currentPlayer);

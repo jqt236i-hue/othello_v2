@@ -224,6 +224,22 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkChatMessages').textContent).toContain('白: 相手の発言');
   });
 
+  test('観戦中の手番タイマーは自席扱いの「あなた」を表示しない', async () => {
+    window.NetworkMatchClient.isSpectator.mockReturnValue(true);
+    await window.MatchMode.setMode('network', { silentLog: true });
+    const timerListener = window.NetworkMatchClient.setTurnTimerListener.mock.calls[0][0];
+
+    timerListener({
+      limitSeconds: 120,
+      active: true,
+      turnSeatKey: 'black',
+      remainingMs: 93000,
+      isOwnTurn: true
+    });
+
+    expect(document.getElementById('networkTimerStatus').textContent).toBe('手番タイマー: 黒 残り 93 秒');
+  });
+
   test('リバーシモードはカード系UIを隠しCPUレベル選択を残す', async () => {
     document.getElementById('modeReversiBtn').click();
     await Promise.resolve();

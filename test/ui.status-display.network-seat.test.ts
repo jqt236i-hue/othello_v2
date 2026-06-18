@@ -16,6 +16,18 @@ function loadStatusDisplayIntoWindow(window) {
 }
 
 describe('status-display network seat labels', () => {
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+    delete global.cpuSmartness;
+    delete global.CPU_LEVEL_NAMES;
+    delete global.getElement;
+    delete global.Image;
+    delete global.gameState;
+    delete global.BLACK;
+    delete global.WHITE;
+  });
+
   test('normalizes padded uppercase seat key before applying network labels', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
@@ -69,12 +81,6 @@ describe('status-display network seat labels', () => {
     expect(window.document.getElementById('cpu-character-img').alt).toBe('対戦相手の勇者');
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(true);
 
-    delete global.window;
-    delete global.document;
-    delete global.cpuSmartness;
-    delete global.CPU_LEVEL_NAMES;
-    delete global.getElement;
-    delete global.Image;
     dom.window.close();
   });
 
@@ -124,12 +130,46 @@ describe('status-display network seat labels', () => {
     expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('false');
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(false);
 
-    delete global.window;
-    delete global.document;
-    delete global.cpuSmartness;
-    delete global.CPU_LEVEL_NAMES;
-    delete global.getElement;
-    delete global.Image;
+    dom.window.close();
+  });
+
+  test('network spectator battle status uses observer label and suppresses turn toast', () => {
+    const dom = new JSDOM(
+      '<!doctype html><html><body>' +
+      '<div id="effect-live-panel"></div>' +
+      '<div id="board"></div>' +
+      '</body></html>',
+      { runScripts: 'outside-only', url: 'http://localhost/' }
+    );
+
+    const { window } = dom;
+    window.OwnerHelpers = require('../utils/owner-helpers');
+    window.MatchMode = { isNetworkModeActive: () => true };
+    window.NetworkMatchClient = {
+      getSeatKey: () => 'black',
+      isSpectator: () => true,
+      getSeatNames: () => ({ black: 'Alpha', white: 'Beta' })
+    };
+    window.gameState = {
+      currentPlayer: 1,
+      turnNumber: 3,
+      roundNumber: 1,
+      board: [[1, -1]]
+    };
+    window.BLACK = 1;
+    window.WHITE = -1;
+
+    global.window = window;
+    global.document = window.document;
+    global.gameState = window.gameState;
+    global.BLACK = 1;
+    global.WHITE = -1;
+
+    const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
+    statusDisplay.updateBattleStatusPanel();
+
+    expect(window.document.querySelector('.battle-status-turn')?.textContent).toBe('観戦中');
+    expect(window.document.getElementById('turn-arrival-toast')).toBeNull();
     dom.window.close();
   });
 });
