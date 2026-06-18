@@ -24,6 +24,42 @@ export interface MatchAuthoritySeatTokens {
     white?: string;
 }
 
+export type MatchAuthorityViewerRole = 'seat' | 'spectator';
+
+export interface MatchAuthoritySpectatorState {
+    token: string;
+    name: string;
+    joinedAt: number;
+    lastSeenAt: number;
+}
+
+export interface MatchAuthoritySpectators {
+    [spectatorId: string]: MatchAuthoritySpectatorState;
+}
+
+export interface MatchAuthoritySeatViewer {
+    role: 'seat';
+    seatKey: MatchAuthoritySeatKey;
+}
+
+export interface MatchAuthoritySpectatorViewer {
+    role: 'spectator';
+    spectatorId: string;
+}
+
+export type MatchAuthorityViewer = MatchAuthoritySeatViewer | MatchAuthoritySpectatorViewer;
+
+export interface MatchAuthoritySpectatorJoinOptions {
+    spectatorName?: unknown;
+    makeSpectatorToken?: (() => string) | null;
+    makeSpectatorId?: (() => string) | null;
+    now?: unknown;
+}
+
+export type MatchAuthoritySpectatorJoinResult =
+    | { ok: true; spectatorId: string; spectatorToken: string; spectatorName: string; spectatorCount: number; maxSpectators: number }
+    | { ok: false; reason: 'SPECTATOR_FULL' | 'SPECTATOR_ID_COLLISION' };
+
 export interface MatchAuthorityAcceptedOperationEntry {
     operationId: string;
     stateVersion: number | null;
@@ -51,6 +87,7 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     seatNames?: Partial<MatchAuthoritySeatNames> | null;
     seatHandSkins?: Partial<MatchAuthoritySeatHandSkins> | null;
     seatTokens?: MatchAuthoritySeatTokens | null;
+    spectators?: MatchAuthoritySpectators | null;
     lastAcceptedOperationBySeat?: Partial<MatchAuthorityAcceptedOperationsBySeat> | null;
     acceptedOperationHistoryBySeat?: Partial<MatchAuthorityAcceptedOperationHistoryBySeat> | null;
     sseEventBuffer?: MatchAuthorityBufferedSseEventRecord[] | null;
@@ -99,6 +136,12 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     selectedHandSkinId?: unknown;
     operationId?: unknown;
     actionType?: unknown;
+    viewerRole?: unknown;
+    spectatorId?: unknown;
+    spectatorToken?: unknown;
+    spectatorName?: unknown;
+    spectatorCount?: unknown;
+    maxSpectators?: unknown;
 }
 
 export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
@@ -131,6 +174,12 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     selectedHandSkinId?: string;
     operationId?: string | null;
     actionType?: string | null;
+    viewerRole?: MatchAuthorityViewerRole;
+    spectatorId?: string;
+    spectatorToken?: string;
+    spectatorName?: string;
+    spectatorCount?: number;
+    maxSpectators?: number;
 }
 
 export interface MatchAuthorityPublishResponseOptions extends MatchAuthorityRoomPayloadOptions {
@@ -199,6 +248,7 @@ export interface MatchAuthorityProjectionMetadata {
     stateVersion?: number | null;
     updatedAt?: number | null;
     projectedForSeat?: MatchAuthoritySeatKey | null;
+    viewerRole?: MatchAuthorityViewerRole | null;
     turnStartReconciled?: boolean;
 }
 
@@ -221,6 +271,7 @@ export type MatchAuthoritySeatTokenRejectionReason = 'SEAT_TOKEN_MISMATCH' | 'SE
 export interface MatchAuthorityBufferedSsePayloadByViewer {
     black?: unknown;
     white?: unknown;
+    spectator?: unknown;
 }
 
 export interface MatchAuthorityBufferedSseEventRecordInput {
@@ -270,9 +321,12 @@ export interface MatchAuthorityPublicApi {
     toDebugPlaybackDiagnostics(diagnostics: unknown, networkDebugEnabled: unknown): unknown | null;
     reportPlaybackAssemblyDiagnostics(context: unknown, diagnostics: unknown, options?: unknown): void;
     projectSnapshotForViewer(snapshotValue: unknown, viewerSeatKey: unknown, metadata?: MatchAuthorityProjectionMetadata): MatchAuthorityPublicSnapshot;
+    buildPublicSnapshotForViewer(roomValue: MatchAuthorityRoomState | null | undefined, viewerValue: unknown): MatchAuthorityPublicSnapshot;
     buildPublicSnapshot(roomValue: MatchAuthorityRoomState | null | undefined, viewerSeatKey: unknown): MatchAuthorityPublicSnapshot;
     resolveSeatForJoin(roomValue: MatchAuthorityRoomState | null | undefined, requestedSeatKey: unknown, providedToken: unknown): MatchAuthoritySeatKey | null;
     applySeatLeaveToRoom(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, options?: MatchAuthoritySeatLeaveOptions | null): MatchAuthoritySeatLeaveResult | null;
+    addSpectatorToRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthoritySpectatorJoinOptions | null): MatchAuthoritySpectatorJoinResult;
+    resolveAuthenticatedViewer(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthorityViewer | null;
     resolveAuthenticatedSeatKey(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null;
     classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthoritySeatTokenRejectionReason;
     createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRecordInput): MatchAuthorityBufferedSseEventRecord | null;

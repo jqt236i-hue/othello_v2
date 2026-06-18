@@ -30,7 +30,12 @@ import type {
     MatchAuthoritySeatLeaveOptions,
     MatchAuthoritySeatLeaveResult,
     MatchAuthoritySeatTokenRejectionReason,
-    MatchAuthoritySnapshotPayloadFromRoomOptions
+    MatchAuthoritySnapshotPayloadFromRoomOptions,
+    MatchAuthoritySpectatorJoinOptions,
+    MatchAuthoritySpectatorJoinResult,
+    MatchAuthoritySpectators,
+    MatchAuthoritySpectatorState,
+    MatchAuthorityViewer
 } from './match-authority-types';
 import { assertMatchAuthorityPublicApi } from './match-authority-contract';
 
@@ -96,6 +101,8 @@ const HAND_SKIN_ID_MAX_LENGTH = 128;
 const SSE_RESUME_BUFFER_LIMIT = 96;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
 const NETWORK_PLAYER_NAME_MAX = 7;
+const MAX_SPECTATORS = 4;
+const NETWORK_SPECTATOR_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
 const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 const AUTHORITY_LOG_LIMIT = 64;
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -104,6 +111,7 @@ const SEAT_TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01
 const SEAT_TOKEN_LENGTH = 24;
 const SSE_ID_SUFFIX_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const SSE_ID_SUFFIX_LENGTH = 6;
+const SPECTATOR_ID_RE = /^spec_[A-Za-z0-9_-]{8,40}$/;
 const VERSION_REJECTION_REASONS = Object.freeze({
     AHEAD: 'VERSION_AHEAD',
     BEHIND: 'VERSION_BEHIND',
@@ -219,6 +227,32 @@ function normalizeSeatHandSkins(value: unknown): { black: string; white: string 
 function normalizeNetworkPlayerName(value: unknown): string {
     const normalized = String(value || '').replace(/\s+/g, ' ').trim();
     return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
+}
+
+function normalizeSpectatorName(value: unknown): string {
+    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+    return Array.from(normalized).slice(0, NETWORK_SPECTATOR_NAME_MAX).join('');
+}
+
+function normalizeSpectatorId(value: unknown): string {
+    const raw = String(value || '').trim();
+    return SPECTATOR_ID_RE.test(raw) ? raw : '';
+}
+
+function ensureSpectators(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthoritySpectators {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    if (!room) return {};
+    if (!room.spectators || typeof room.spectators !== 'object') {
+        room.spectators = {};
+    }
+    return room.spectators;
+}
+
+function getActiveSpectatorEntries(roomValue: MatchAuthorityRoomState | null | undefined): Array<[string, MatchAuthoritySpectatorState]> {
+    const spectators = ensureSpectators(roomValue);
+    return Object.keys(spectators)
+        .map((id) => [id, spectators[id]] as [string, MatchAuthoritySpectatorState])
+        .filter(([, entry]) => !!(entry && typeof entry === 'object' && String(entry.token || '').trim()));
 }
 
 function normalizePublicSeats(value: unknown): { black: boolean; white: boolean } {
@@ -916,6 +950,28 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     if (Object.prototype.hasOwnProperty.call(opts, 'actionType')) {
         payload.actionType = opts.actionType ? String(opts.actionType) : null;
     }
+    if (Object.prototype.hasOwnProperty.call(opts, 'viewerRole')) {
+        payload.viewerRole = String(opts.viewerRole || '').trim() === 'spectator' ? 'spectator' : 'seat';
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorId')) {
+        payload.spectatorId = normalizeSpectatorId(opts.spectatorId);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorToken')) {
+        payload.spectatorToken = String(opts.spectatorToken || '').trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorName')) {
+        payload.spectatorName = normalizeSpectatorName(opts.spectatorName);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorCount')) {
+        payload.spectatorCount = Number.isFinite(Number(opts.spectatorCount))
+            ? Math.max(0, Math.trunc(Number(opts.spectatorCount)))
+            : 0;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'maxSpectators')) {
+        payload.maxSpectators = Number.isFinite(Number(opts.maxSpectators))
+            ? Math.max(0, Math.trunc(Number(opts.maxSpectators)))
+            : MAX_SPECTATORS;
+    }
 
     return payload;
 }
@@ -1244,6 +1300,82 @@ function resolveAuthenticatedSeatKey(
     if (room.seats.black === true && room.seatTokens.black === seatToken) return 'black';
     if (room.seats.white === true && room.seatTokens.white === seatToken) return 'white';
     return null;
+}
+
+function addSpectatorToRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthoritySpectatorJoinOptions | null
+): MatchAuthoritySpectatorJoinResult {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (!room) return { ok: false, reason: 'SPECTATOR_FULL' };
+
+    const spectators = ensureSpectators(room);
+    const activeCount = getActiveSpectatorEntries(room).length;
+    if (activeCount >= MAX_SPECTATORS) {
+        return { ok: false, reason: 'SPECTATOR_FULL' };
+    }
+
+    const makeId = typeof opts.makeSpectatorId === 'function'
+        ? opts.makeSpectatorId
+        : () => `spec_${randomFromChars(SEAT_TOKEN_CHARS, 12)}`;
+    const makeToken = typeof opts.makeSpectatorToken === 'function'
+        ? opts.makeSpectatorToken
+        : makeSeatToken;
+    const nowMs = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
+
+    let spectatorId = '';
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        const candidate = normalizeSpectatorId(makeId());
+        if (candidate && !spectators[candidate]) {
+            spectatorId = candidate;
+            break;
+        }
+    }
+    if (!spectatorId) {
+        return { ok: false, reason: 'SPECTATOR_ID_COLLISION' };
+    }
+
+    const spectatorToken = String(makeToken() || '').trim();
+    const spectatorName = normalizeSpectatorName(opts.spectatorName) || '観戦者';
+    spectators[spectatorId] = {
+        token: spectatorToken,
+        name: spectatorName,
+        joinedAt: nowMs,
+        lastSeenAt: nowMs
+    };
+    room.updatedAt = nowMs;
+
+    return {
+        ok: true,
+        spectatorId,
+        spectatorToken,
+        spectatorName,
+        spectatorCount: activeCount + 1,
+        maxSpectators: MAX_SPECTATORS
+    };
+}
+
+function resolveAuthenticatedViewer(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: Record<string, unknown> | null
+): MatchAuthorityViewer | null {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (!room) return null;
+
+    if (String(opts.viewerRole || '').trim().toLowerCase() === 'spectator') {
+        const spectatorId = normalizeSpectatorId(opts.spectatorId);
+        const spectatorToken = String(opts.spectatorToken || '').trim();
+        const spectators = ensureSpectators(room);
+        const entry = spectatorId ? spectators[spectatorId] : null;
+        if (!entry || !spectatorToken || entry.token !== spectatorToken) return null;
+        entry.lastSeenAt = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
+        return { role: 'spectator', spectatorId };
+    }
+
+    const seatKey = resolveAuthenticatedSeatKey(room, opts.seatKey, opts.seatToken);
+    return seatKey ? { role: 'seat', seatKey } : null;
 }
 
 function classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthoritySeatTokenRejectionReason {
@@ -1610,7 +1742,44 @@ function projectSnapshotForViewer(
         projectedForSeat,
         turnStartReconciled: meta.turnStartReconciled !== false
     };
+    if (meta.viewerRole === 'spectator') {
+        asRecord(shot._meta).viewerRole = 'spectator';
+    }
 
+    return shot;
+}
+
+function normalizeViewerIdentity(value: unknown): MatchAuthorityViewer | null {
+    const source = asRecord(value);
+    if (String(source.role || '').trim() === 'spectator') {
+        return {
+            role: 'spectator',
+            spectatorId: normalizeSpectatorId(source.spectatorId)
+        };
+    }
+    const seatKey = parseSeatKeyOptional(source.seatKey || value);
+    return seatKey ? { role: 'seat', seatKey } : null;
+}
+
+function buildPublicSnapshotForViewer(
+    room: MatchAuthorityRoomState | null | undefined,
+    viewerValue: unknown
+): MatchAuthorityPublicSnapshot {
+    const viewer = normalizeViewerIdentity(viewerValue);
+    const viewerSeatKey = viewer && viewer.role === 'seat' ? viewer.seatKey : null;
+    const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey, {
+        stateVersion: room ? room.stateVersion : 0,
+        updatedAt: room ? room.updatedAt : Date.now(),
+        projectedForSeat: viewerSeatKey,
+        viewerRole: viewer && viewer.role === 'spectator' ? 'spectator' : null,
+        turnStartReconciled: true
+    });
+    stripTransientPresentationState(shot);
+    const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
+    if (!shot._meta || typeof shot._meta !== 'object') {
+        shot._meta = {};
+    }
+    asRecord(shot._meta).projectedSnapshotHash = projectedSnapshotHash;
     return shot;
 }
 
@@ -1974,6 +2143,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
     NETWORK_PLAYER_NAME_MAX,
+    MAX_SPECTATORS,
     NETWORK_DEBUG_FILL_HAND_ACTION,
     ROOM_ID_CHARS,
     ROOM_ID_LENGTH,
@@ -1992,6 +2162,8 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     normalizeSeatHandSkinId,
     normalizeSeatHandSkins,
     normalizeNetworkPlayerName,
+    normalizeSpectatorName,
+    normalizeSpectatorId,
     normalizePublicSeats,
     buildPublicSeatMetadata,
     hasRequiredOperationId,
@@ -2005,6 +2177,8 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     buildVersionRejectedPublishResponseOptions,
     makeHiddenHandToken,
     parseHiddenHandToken,
+    addSpectatorToRoom,
+    resolveAuthenticatedViewer,
     resolveAuthenticatedSeatKey,
     classifySeatTokenRejectionReason,
     getFateWillControllerKey,
@@ -2048,6 +2222,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     stripTransientChargeDeltaState,
     restoreMissingChargeDeltaEvents,
     projectSnapshotForViewer,
+    buildPublicSnapshotForViewer,
     buildPublicSnapshot,
     validatePendingSelectionPublish,
     sanitizePendingSelectionActionForAuthority,
