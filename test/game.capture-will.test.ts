@@ -228,6 +228,41 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     expect(CardLogic.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([{ row: 1, col: 5 }]);
   });
 
+  test('CAPTURE_WILL は罠・時限爆弾・生きる意志を初回共通化では捕獲対象にしない', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[1][1] = -1;
+    gameState.board[1][2] = -1;
+    gameState.board[1][3] = -1;
+    cardState.markers.push(
+      {
+        id: 415,
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'white',
+        data: { type: 'TRAP', hidden: true }
+      },
+      {
+        id: 416,
+        kind: 'specialStone',
+        row: 1,
+        col: 2,
+        owner: 'white',
+        data: { type: 'TIME_BOMB', category: 'bomb' }
+      },
+      {
+        id: 417,
+        kind: 'specialStone',
+        row: 1,
+        col: 3,
+        owner: 'white',
+        data: { type: 'LIVING_WILL' }
+      }
+    );
+
+    expect(CardLogic.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([]);
+  });
+
   test('capture target list includes protected stones and excludes absolute protected stones', () => {
     const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
     const protectedDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'PROTECTED_NEXT_STONE');

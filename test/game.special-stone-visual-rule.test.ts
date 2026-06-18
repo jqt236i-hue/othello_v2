@@ -139,7 +139,7 @@ describe('special stone visual rule', () => {
     expect(CardUtils.isNormalStoneForPlayer(cardState, gameState, 'black', 3, 3)).toBe(true);
   });
 
-  test('TEMPT_WILL は hidden trap を特殊石対象として選べない', () => {
+  test('TEMPT_WILL は hidden trap を対象にでき、罠の所有者も変える', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -154,19 +154,24 @@ describe('special stone visual rule', () => {
       data: { type: 'TRAP', hidden: true }
     });
 
-    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([]);
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([{ row: 4, col: 4 }]);
 
     const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 4, 4);
-    expect(res).toMatchObject({ applied: false, reason: 'not_special' });
+    expect(res).toMatchObject({ applied: true });
+    expect(gameState.board[4][4]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 4, col: 4, owner: 'black', data: expect.objectContaining({ type: 'TRAP' }) })
+    ]));
   });
 
-  test('TEMPT_WILL は爆弾・石状態・配置時効果を特殊石本体対象として選べない', () => {
+  test('TEMPT_WILL は時限爆弾・生きる意志を対象にでき、完全保護と配置時効果は対象外にする', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = createGameState();
     gameState.board[2][2] = Shared.WHITE;
     gameState.board[2][3] = Shared.WHITE;
     gameState.board[2][4] = Shared.WHITE;
+    gameState.board[2][5] = Shared.WHITE;
     cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
     cardState.markers.push(
       {
@@ -192,12 +197,39 @@ describe('special stone visual rule', () => {
         col: 4,
         owner: 'white',
         data: { type: 'HYPERACTIVE', instantPlacementOnly: true }
+      },
+      {
+        id: 10,
+        kind: 'specialStone',
+        row: 2,
+        col: 5,
+        owner: 'white',
+        data: { type: 'LIVING_WILL', remainingOwnerTurns: 1 }
       }
     );
 
-    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([]);
-    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: false, reason: 'not_special' });
-    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 3)).toMatchObject({ applied: false, reason: 'not_special' });
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([
+      { row: 2, col: 2 },
+      { row: 2, col: 5 }
+    ]);
+
+    const bombRes = CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 2);
+    expect(bombRes).toMatchObject({ applied: true });
+    expect(gameState.board[2][2]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: 2, owner: 'black', data: expect.objectContaining({ type: 'TIME_BOMB' }) })
+    ]));
+
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+    const livingRes = CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 5);
+    expect(livingRes).toMatchObject({ applied: true });
+    expect(gameState.board[2][5]).toBe(Shared.BLACK);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: 5, owner: 'black', data: expect.objectContaining({ type: 'LIVING_WILL' }) })
+    ]));
+
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 3)).toMatchObject({ applied: false, reason: 'guarded' });
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 4)).toMatchObject({ applied: false, reason: 'not_special' });
   });
 

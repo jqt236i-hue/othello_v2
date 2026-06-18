@@ -180,6 +180,23 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'ABSOLUTE_PROTECTED')).toBe(true);
   });
 
+  test('LOSS_WILL keeps removing traps and bombs but not living will or guard', () => {
+    const { cardState, gameState } = makeState();
+    cardState.pendingEffectByPlayer.black = { type: 'LOSS_WILL', stage: null, cardId: 'loss_will_01' };
+    cardState.markers.push(
+      { id: 51, kind: 'specialStone', row: 2, col: 1, owner: 'white', data: { type: 'TRAP', hidden: true } },
+      { id: 52, kind: 'specialStone', row: 2, col: 2, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb' } },
+      { id: 53, kind: 'specialStone', row: 2, col: 3, owner: 'white', data: { type: 'LIVING_WILL' } },
+      { id: 54, kind: 'specialStone', row: 2, col: 4, owner: 'white', data: { type: 'GUARD' } }
+    );
+
+    const res = CardLogic.applyLossWill(cardState, gameState, 'black');
+
+    expect(res.removed.map((entry) => entry.type).sort()).toEqual(['TIME_BOMB', 'TRAP']);
+    expect(cardState.markers.some((marker) => marker.data && marker.data.type === 'LIVING_WILL')).toBe(true);
+    expect(cardState.markers.some((marker) => marker.data && marker.data.type === 'GUARD')).toBe(true);
+  });
+
   test('特殊石も爆弾もない場合は使用できない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01', 'gold_stone'];

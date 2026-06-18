@@ -73,10 +73,11 @@ function transferCellMarkerOwnership(cardState: CardState, row: number, col: num
 
 function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
-    const isTrueSpecialStoneAt = (deps && deps.isTrueSpecialStoneAt) || (deps && deps.isSpecialStoneAt);
-    const getTrueSpecialStoneOwnerAt = (deps && deps.getTrueSpecialStoneOwnerAt) || (deps && deps.getSpecialOwnerAt);
+    const isTemptTargetableMarker = deps && deps.isTemptTargetableMarker;
+    const blocksTemptAt = deps && deps.blocksTemptAt;
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
+    const getMarkers = deps && deps.getMarkers;
     const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
     const BoardOpsModule = deps && deps.BoardOpsModule;
     const setCellValueForCard = deps && deps.setCellValueForCard;
@@ -87,10 +88,11 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
 
     if (
         typeof readCardPendingEffect !== 'function' ||
-        typeof isTrueSpecialStoneAt !== 'function' ||
-        typeof getTrueSpecialStoneOwnerAt !== 'function' ||
+        typeof isTemptTargetableMarker !== 'function' ||
+        typeof blocksTemptAt !== 'function' ||
         typeof getCellValueForCard !== 'function' ||
         typeof getSpecialMarkers !== 'function' ||
+        typeof getMarkers !== 'function' ||
         typeof removeMarkersAt !== 'function' ||
         typeof emitPresentationEvent !== 'function' ||
         typeof clearCardPendingEffect !== 'function'
@@ -104,27 +106,23 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     }
 
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    const isOpponentTrueSpecial = isTrueSpecialStoneAt(cardState, row, col)
-        && getTrueSpecialStoneOwnerAt(cardState, row, col) === opponentKey;
-    const ghostMarker = findGhostMarkerAt(cardState, row, col, getSpecialMarkers);
-    const isOpponentGhost = !!(ghostMarker && ghostMarker.owner === opponentKey);
-    if (!isOpponentTrueSpecial && !isOpponentGhost) {
-        if (isTrueSpecialStoneAt(cardState, row, col) || (ghostMarker && ghostMarker.owner !== opponentKey)) {
-            return { applied: false, reason: 'not_opponent_special' };
-        }
-        return { applied: false, reason: 'not_special' };
-    }
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-    const guarded = getSpecialMarkers(cardState).some((m: any) => (
-        m &&
-        m.row === row &&
-        m.col === col &&
-        m.data &&
-        m.data.type === 'GUARD'
-    ));
-    if (guarded) return { applied: false, reason: 'guarded' };
     if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
         return { applied: false, reason: 'absolute_protected' };
+    }
+    if (blocksTemptAt(cardState, row, col)) {
+        return { applied: false, reason: 'guarded' };
+    }
+    const markersAtCell = getMarkers(cardState).filter((m: any) => m && m.row === row && m.col === col);
+    const targetMarker = markersAtCell.find((m: any) => (
+        m &&
+        m.owner === opponentKey &&
+        m.data &&
+        isTemptTargetableMarker(m)
+    )) || null;
+    if (!targetMarker) {
+        const hasOwnTargetable = markersAtCell.some((m: any) => m && m.owner !== opponentKey && isTemptTargetableMarker(m));
+        return { applied: false, reason: hasOwnTargetable ? 'not_opponent_special' : 'not_special' };
     }
 
     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {

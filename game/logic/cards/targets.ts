@@ -222,21 +222,42 @@ function isGhostStoneStatusMarker(cardUtils: any, markerEntry: any): boolean {
     return true;
 }
 
-function getCaptureMarkerAt(cardState: any, row: number, col: number): any | null {
-    const cardUtils = getCardUtils();
-    if (cardUtils && typeof cardUtils.getTrueSpecialStoneMarkerAt === 'function') {
-        const trueSpecial = cardUtils.getTrueSpecialStoneMarkerAt(cardState, row, col);
-        if (trueSpecial) return trueSpecial;
+function unwrapMarkerEntry(markerEntry: any): any | null {
+    return markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
+}
+
+function isFallbackTemptTargetableMarker(cardUtils: any, marker: any): boolean {
+    if (!marker || !marker.data) return false;
+    const type = normalizeMarkerType(marker);
+    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
+    const ruleClass = cardUtils && typeof cardUtils.getMarkerRuleClass === 'function'
+        ? cardUtils.getMarkerRuleClass(marker)
+        : null;
+    return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb' || type === 'LIVING_WILL';
+}
+
+function isTemptTargetableMarkerForCard(cardUtils: any, marker: any): boolean {
+    if (!marker) return false;
+    if (cardUtils && typeof cardUtils.isTemptTargetableMarker === 'function') {
+        return cardUtils.isTemptTargetableMarker(marker) === true;
     }
-    if (cardUtils && typeof cardUtils.getSpecialMarkerAt === 'function') {
-        const markerEntry = cardUtils.getSpecialMarkerAt(cardState, row, col);
-        const ruleClass = cardUtils && typeof cardUtils.getMarkerRuleClass === 'function'
-            ? cardUtils.getMarkerRuleClass(markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry)
-            : null;
-        if (ruleClass === 'true_special_stone') return markerEntry;
-        if (isGhostStoneStatusMarker(cardUtils, markerEntry)) return markerEntry;
-        return null;
+    return isFallbackTemptTargetableMarker(cardUtils, marker);
+}
+
+function isCaptureTargetableMarkerForCard(cardUtils: any, marker: any): boolean {
+    if (!marker) return false;
+    if (cardUtils && typeof cardUtils.isCaptureTargetableMarker === 'function') {
+        return cardUtils.isCaptureTargetableMarker(marker) === true;
     }
+    if (normalizeMarkerType(marker) === 'ABSOLUTE_PROTECTED') return false;
+    if (isGhostStoneStatusMarker(cardUtils, marker)) return true;
+    const ruleClass = cardUtils && typeof cardUtils.getMarkerRuleClass === 'function'
+        ? cardUtils.getMarkerRuleClass(marker)
+        : null;
+    return ruleClass === 'true_special_stone';
+}
+
+function findMarkerAt(cardState: any, row: number, col: number): any | null {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     return markers.find((marker: any) => (
         marker &&
@@ -246,77 +267,55 @@ function getCaptureMarkerAt(cardState: any, row: number, col: number): any | nul
     )) || null;
 }
 
+function blocksTemptAt(cardUtils: any, cardState: any, row: number, col: number): boolean {
+    if (cardUtils && typeof cardUtils.blocksTemptAt === 'function') {
+        return cardUtils.blocksTemptAt(cardState, row, col) === true;
+    }
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.some((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        marker.data &&
+        (marker.data.type === 'GUARD' || marker.data.type === 'ABSOLUTE_PROTECTED')
+    ));
+}
+
+function getCaptureMarkerAt(cardState: any, row: number, col: number): any | null {
+    const cardUtils = getCardUtils();
+    if (cardUtils && typeof cardUtils.getTrueSpecialStoneMarkerAt === 'function') {
+        const trueSpecial = cardUtils.getTrueSpecialStoneMarkerAt(cardState, row, col);
+        const marker = unwrapMarkerEntry(trueSpecial);
+        if (isCaptureTargetableMarkerForCard(cardUtils, marker)) return trueSpecial;
+    }
+    if (cardUtils && typeof cardUtils.getSpecialMarkerAt === 'function') {
+        const markerEntry = cardUtils.getSpecialMarkerAt(cardState, row, col);
+        const marker = unwrapMarkerEntry(markerEntry);
+        if (isCaptureTargetableMarkerForCard(cardUtils, marker)) return markerEntry;
+        return null;
+    }
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.find((marker: any) => (
+        marker &&
+        marker.kind === 'specialStone' &&
+        marker.row === row &&
+        marker.col === col &&
+        isCaptureTargetableMarkerForCard(cardUtils, marker)
+    )) || null;
+}
+
 function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const res: Array<{row: number; col: number}> = [];
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    const isGuarded = (r: number, c: number) => markers.some((m: any) =>
-        m &&
-        m.kind === 'specialStone' &&
-        m.row === r &&
-        m.col === c &&
-        m.data &&
-        m.data.type === 'GUARD'
-    );
     const CardUtils = getCardUtils();
-    const isAbsoluteProtected = (r: number, c: number) => {
-        if (CardUtils && typeof CardUtils.isAbsoluteProtectedStoneAt === 'function') {
-            return !!CardUtils.isAbsoluteProtectedStoneAt(cardState, r, c);
-        }
-        return markers.some((m: any) =>
-            m &&
-            m.kind === 'specialStone' &&
-            m.row === r &&
-            m.col === c &&
-            m.data &&
-            m.data.type === 'ABSOLUTE_PROTECTED'
-        );
-    };
     forEachBoardShapeCell(gameState, (r, c) => {
-        if (isGuarded(r, c)) return;
-        if (isAbsoluteProtected(r, c)) return;
-        if (CardUtils && typeof CardUtils.isTrueSpecialStoneAt === 'function') {
-            const isTrueSpecial = !!CardUtils.isTrueSpecialStoneAt(cardState, r, c);
-            const markerEntry = typeof CardUtils.getSpecialMarkerAt === 'function'
-                ? CardUtils.getSpecialMarkerAt(cardState, r, c)
-                : null;
-            const marker = markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
-            const isGhostStatus = isGhostStoneStatusMarker(CardUtils, marker);
-            if (!isTrueSpecial && !isGhostStatus) return;
-            if (isTrueSpecial) {
-                if (typeof CardUtils.getTrueSpecialStoneOwnerAt === 'function' && CardUtils.getTrueSpecialStoneOwnerAt(cardState, r, c) !== opponentKey) return;
-                if (typeof CardUtils.getTrueSpecialStoneOwnerAt !== 'function' && typeof CardUtils.getSpecialOwnerAt === 'function' && CardUtils.getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
-            } else {
-                const markerOwner = marker && marker.owner ? marker.owner : (typeof CardUtils.getSpecialOwnerAt === 'function' ? CardUtils.getSpecialOwnerAt(cardState, r, c) : null);
-                if (markerOwner !== opponentKey) return;
-            }
-            if (getCellValue(gameState, r, c) === P_EMPTY) return;
-            res.push({ row: r, col: c });
-            return;
-        }
-        if (CardUtils && typeof CardUtils.isSpecialStoneAt === 'function') {
-            const markerEntry = typeof CardUtils.getSpecialMarkerAt === 'function'
-                ? CardUtils.getSpecialMarkerAt(cardState, r, c)
-                : null;
-            const marker = markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
-            const ruleClass = CardUtils && typeof CardUtils.getMarkerRuleClass === 'function'
-                ? CardUtils.getMarkerRuleClass(marker)
-                : null;
-            const isGhostStatus = isGhostStoneStatusMarker(CardUtils, marker);
-            if (ruleClass !== 'true_special_stone' && !isGhostStatus) return;
-            if (CardUtils.getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
-            if (getCellValue(gameState, r, c) === P_EMPTY) return;
-            res.push({ row: r, col: c });
-            return;
-        }
-
-        const marker = (cardState.markers || []).find((m: any) => m.kind === 'specialStone' && m.row === r && m.col === c);
-        if (!marker) return;
-        const ruleClass = CardUtils && typeof CardUtils.getMarkerRuleClass === 'function'
-            ? CardUtils.getMarkerRuleClass(marker)
+        if (blocksTemptAt(CardUtils, cardState, r, c)) return;
+        const markerEntry = CardUtils && typeof CardUtils.getSpecialMarkerAt === 'function'
+            ? CardUtils.getSpecialMarkerAt(cardState, r, c)
             : null;
-        const isGhostStatus = isGhostStoneStatusMarker(CardUtils, marker);
-        if (ruleClass && ruleClass !== 'true_special_stone' && !isGhostStatus) return;
+        const marker = unwrapMarkerEntry(markerEntry) || findMarkerAt(cardState, r, c);
+        if (!marker) return;
+        if (!isTemptTargetableMarkerForCard(CardUtils, marker)) return;
         if (marker.owner !== opponentKey) return;
         if (getCellValue(gameState, r, c) === P_EMPTY) return;
         res.push({ row: r, col: c });

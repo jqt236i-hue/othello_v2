@@ -2455,6 +2455,18 @@ const {
         return requireCardMarkersMethod('isTrueSpecialStoneAt')(cardState, row, col);
     }
 
+    function isTemptTargetableMarker(marker: any) {
+        return requireCardMarkersMethod('isTemptTargetableMarker')(marker);
+    }
+
+    function isCaptureTargetableMarker(marker: any) {
+        return requireCardMarkersMethod('isCaptureTargetableMarker')(marker);
+    }
+
+    function blocksTemptAt(cardState: any, row: any, col: any) {
+        return requireCardMarkersMethod('blocksTemptAt')(cardState, row, col);
+    }
+
     function getTrueSpecialStoneOwnerAt(cardState: any, row: any, col: any) {
         return requireCardMarkersMethod('getTrueSpecialStoneOwnerAt')(cardState, row, col);
     }
@@ -2661,8 +2673,8 @@ const {
     function applyTemptWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardOwnershipEffectsModule.applyTemptWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
-            isTrueSpecialStoneAt,
-            getTrueSpecialStoneOwnerAt,
+            isTemptTargetableMarker,
+            blocksTemptAt,
             getCellValueForCard,
             getSpecialMarkers,
             isAbsoluteProtectedCell,
@@ -2685,6 +2697,7 @@ const {
             readCardPendingEffect,
             isTrueSpecialStoneAt,
             getTrueSpecialStoneOwnerAt,
+            isCaptureTargetableMarker,
             getCellValueForCard,
             getSpecialMarkers,
             isAbsoluteProtectedCell,
