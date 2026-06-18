@@ -1596,6 +1596,8 @@
 ### 12.11 リセット/再戦の初期化
 
 - `リセット` ボタンと `再戦` ボタンは、盤面再描画・演出キュー・一時UIを含めて F5 に近い初期化を行う
+- 終局後は、リザルトオーバーレイを閉じた後も右下操作の `リセット` ボタン表示を `再戦` に切り替える。新しい対局が始まったら `リセット` 表示へ戻す
+- 常設ボタンが `再戦` 表示のとき、ローカル対戦では通常の初期化を行い、ネット対戦では接続中の `NetworkMatchClient.requestRematch()` を優先してサーバー確定の再戦開始へ送る
 - リセット開始時に `presentationEvents` / `_presentationEventsPersist` をクリアする
 - リセット開始時に再生中フラグ（`VisualPlaybackActive`）と `playback-locked` を解除し、残留オーバーレイ（結果表示・吹き出し・石情報）を破棄する
 - 手札演出レイヤー（`handLayer` / `handWrapper` / `handImage` / `heldStone`）は非表示＋内容クリアまで実施する

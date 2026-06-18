@@ -748,6 +748,31 @@ function removeExistingResultOverlay(options: any = {}) {
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 }
 
+function syncQuickResetButtonLabelForResultState(terminalValue?: boolean) {
+    const doc = (typeof document !== 'undefined') ? document : null;
+    if (!doc) return;
+
+    let terminal = terminalValue === true;
+    if (typeof terminalValue === 'undefined') {
+        try {
+            const gameStateRef = (typeof gameState !== 'undefined') ? gameState : null;
+            terminal = !!(gameStateRef && typeof isGameOver === 'function' && isGameOver(gameStateRef));
+        } catch (e: any) {
+            terminal = false;
+        }
+    }
+
+    const resetBtn = doc.getElementById('resetBtn');
+    if (!resetBtn) return;
+    const label = terminal ? '再戦' : 'リセット';
+    resetBtn.textContent = label;
+    resetBtn.setAttribute('aria-label', label);
+    resetBtn.setAttribute('data-rematch-state', terminal ? 'terminal' : 'active');
+    try {
+        (resetBtn as HTMLButtonElement).disabled = false;
+    } catch (e: any) { /* ignore */ }
+}
+
 function hideConsecutivePassStatusForResultOverlay() {
     if (typeof document === 'undefined') return;
     const statusEl = document.getElementById('consecutive-pass-status') as HTMLElement | null;
@@ -758,6 +783,7 @@ function hideConsecutivePassStatusForResultOverlay() {
 
 function dismissResultOverlayIfPresent() {
     removeExistingResultOverlay();
+    syncQuickResetButtonLabelForResultState();
 }
 
 function syncResultPresentationFromSnapshot(options: any) {
@@ -788,8 +814,11 @@ function syncResultPresentationFromSnapshot(options: any) {
             resultState.resultShownForUnversioned = false;
         }
         dismissResultOverlayIfPresent();
+        syncQuickResetButtonLabelForResultState(false);
         return false;
     }
+
+    syncQuickResetButtonLabelForResultState(true);
 
     if (resultState) {
         if (stateVersion !== null) {
@@ -866,6 +895,7 @@ function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals:
 function showResult() {
     if (gameState && gameState.__resultShown) return;
     if (gameState) gameState.__resultShown = true;
+    syncQuickResetButtonLabelForResultState(true);
     const resultToken = Date.now();
     _pendingResultToken = resultToken;
     if (gameState) gameState.__resultToken = resultToken;
@@ -929,6 +959,7 @@ function showResultOverlay() {
 
     hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });
+    syncQuickResetButtonLabelForResultState(true);
 
     const overlay = document.createElement('div');
     overlay.id = 'result-overlay';
@@ -1217,7 +1248,8 @@ const ResultOverlay = {
     resolveObservationStoneRewardSummary,
     createObservationStoneLine,
     resolveCpuLevelForViewer,
-    resolveCurrentMatchMode
+    resolveCurrentMatchMode,
+    syncQuickResetButtonLabelForResultState
 };
 export = ResultOverlay;
 

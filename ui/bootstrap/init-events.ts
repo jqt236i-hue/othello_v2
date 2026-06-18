@@ -165,6 +165,103 @@ function wrapSpectatorReadOnly(root: any, action: () => void): () => void {
   };
 }
 
+function syncQuickResetButtonLabel(resetBtn: HTMLElement | null, terminal: boolean): void {
+  if (!resetBtn) return;
+  const label = terminal ? '再戦' : 'リセット';
+  resetBtn.textContent = label;
+  resetBtn.setAttribute('aria-label', label);
+  resetBtn.setAttribute('data-rematch-state', terminal ? 'terminal' : 'active');
+  try {
+    (resetBtn as HTMLButtonElement).disabled = false;
+  } catch (e) { /* ignore */ }
+}
+
+function resolveCurrentGameState(root: any): any {
+  if (root && root.gameState && typeof root.gameState === 'object') return root.gameState;
+  if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') {
+    return (globalThis as any).gameState;
+  }
+  return null;
+}
+
+function resolveIsGameOver(root: any): ((state: any) => boolean) | null {
+  if (root && typeof root.isGameOver === 'function') return root.isGameOver.bind(root);
+  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).isGameOver === 'function') {
+    return (globalThis as any).isGameOver.bind(globalThis);
+  }
+  return null;
+}
+
+function isCurrentGameTerminal(root: any): boolean {
+  const gameStateRef = resolveCurrentGameState(root);
+  const isGameOverFn = resolveIsGameOver(root);
+  if (!gameStateRef || !isGameOverFn) return false;
+  try {
+    return isGameOverFn(gameStateRef) === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function resolveCurrentMatchMode(root: any): string {
+  try {
+    if (root && typeof root.getCurrentMatchMode === 'function') {
+      return String(root.getCurrentMatchMode() || '').trim().toLowerCase();
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (root && root.MATCH_MODE) return String(root.MATCH_MODE || '').trim().toLowerCase();
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).MATCH_MODE) {
+      return String((globalThis as any).MATCH_MODE || '').trim().toLowerCase();
+    }
+  } catch (e) { /* ignore */ }
+  return '';
+}
+
+function resolveNetworkMatchClient(root: any): any {
+  try {
+    if (root && root.NetworkMatchClient) return root.NetworkMatchClient;
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient) {
+      return (globalThis as any).NetworkMatchClient;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function canRequestNetworkRematchFromResetButton(root: any): boolean {
+  if (resolveCurrentMatchMode(root) !== 'network') return false;
+  if (!isCurrentGameTerminal(root)) return false;
+  const networkClient = resolveNetworkMatchClient(root);
+  if (!networkClient || typeof networkClient.requestRematch !== 'function') return false;
+  if (typeof networkClient.isActive === 'function' && networkClient.isActive() !== true) return false;
+  return true;
+}
+
+function requestNetworkRematchFromResetButton(root: any, resetBtn: HTMLElement): void {
+  const networkClient = resolveNetworkMatchClient(root);
+  const button = resetBtn as HTMLButtonElement;
+  const idleLabel = resetBtn.textContent || '再戦';
+  button.disabled = true;
+  resetBtn.textContent = '再戦中...';
+  resetBtn.setAttribute('aria-label', '再戦中');
+  Promise.resolve(networkClient.requestRematch())
+    .then((result: any) => {
+      if (result && result.ok === true) return;
+      button.disabled = false;
+      resetBtn.textContent = idleLabel;
+      resetBtn.setAttribute('aria-label', idleLabel);
+    })
+    .catch(() => {
+      button.disabled = false;
+      resetBtn.textContent = idleLabel;
+      resetBtn.setAttribute('aria-label', idleLabel);
+    });
+}
+
 function setupBattleLogToggle(logToggleBtn: HTMLElement | null, logPanel: HTMLElement | null): void {
   const panel = logPanel || ((typeof document !== 'undefined') ? document.getElementById('log') : null);
   if (!logToggleBtn || !panel) return;
@@ -187,9 +284,13 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   setupBattleLogToggle(refs.logToggleBtn, refs.logPanel);
 
   if (refs.resetBtn) {
+    syncQuickResetButtonLabel(refs.resetBtn, isCurrentGameTerminal(root));
     refs.resetBtn.addEventListener('click', () => {
-      if (typeof resetGame === 'function') {
+      if (canRequestNetworkRematchFromResetButton(root)) {
+        requestNetworkRematchFromResetButton(root, refs.resetBtn as HTMLElement);
+      } else if (typeof resetGame === 'function') {
         try { resetGame(); } catch (e: unknown) { const err = e as Error; console.error('[init] resetGame threw', err && err.message); }
+        syncQuickResetButtonLabel(refs.resetBtn as HTMLElement, false);
       } else {
         console.warn('[init] resetGame not available; skipping reset');
       }

@@ -6,6 +6,7 @@ describe('initializeUI action button binding', () => {
     jest.resetModules();
 
     const dom = new JSDOM(`<!doctype html><html><body>
+      <button id="resetBtn">リセット</button>
       <button id="destroy-card-btn">破壊</button>
       <button id="use-card-btn">使用</button>
     </body></html>`);
@@ -42,6 +43,8 @@ describe('initializeUI action button binding', () => {
     delete global.CardLogic;
     delete global.SoundEngine;
     delete global.resetGame;
+    delete global.gameState;
+    delete global.isGameOver;
   });
 
   test('UI初期化時に効果音のユーザー操作アンロックを予約する', () => {
@@ -90,5 +93,49 @@ describe('initializeUI action button binding', () => {
     expect(global.SoundEngine.init).not.toHaveBeenCalled();
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('card_use_button');
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
+  });
+
+  test('ネット対戦の終局後は常設リセットボタンから requestRematch を呼ぶ', async () => {
+    window.MATCH_MODE = 'network';
+    global.gameState = { consecutivePasses: 2 };
+    global.isGameOver = jest.fn(() => true);
+    const requestRematch = jest.fn(() => Promise.resolve({ ok: true }));
+    window.NetworkMatchClient = {
+      isActive: () => true,
+      requestRematch
+    };
+
+    const initEvents = require('../ui/bootstrap/init-events.js');
+    initEvents.attachInitEventListeners({
+      resetBtn: document.getElementById('resetBtn')
+    }, false);
+
+    const resetBtn = document.getElementById('resetBtn');
+    resetBtn.click();
+    await Promise.resolve();
+
+    expect(requestRematch).toHaveBeenCalledTimes(1);
+    expect(global.resetGame).not.toHaveBeenCalled();
+    expect(resetBtn.textContent).toBe('再戦中...');
+    expect(resetBtn.disabled).toBe(true);
+  });
+
+  test('ローカル終局後の常設再戦ボタンは resetGame 後にリセット表示へ戻る', () => {
+    window.MATCH_MODE = 'cpu';
+    global.gameState = { consecutivePasses: 2 };
+    global.isGameOver = jest.fn(() => true);
+
+    const initEvents = require('../ui/bootstrap/init-events.js');
+    initEvents.attachInitEventListeners({
+      resetBtn: document.getElementById('resetBtn')
+    }, false);
+
+    const resetBtn = document.getElementById('resetBtn');
+    resetBtn.textContent = '再戦';
+    resetBtn.click();
+
+    expect(global.resetGame).toHaveBeenCalledTimes(1);
+    expect(resetBtn.textContent).toBe('リセット');
+    expect(resetBtn.getAttribute('aria-label')).toBe('リセット');
   });
 });

@@ -564,6 +564,45 @@ describe('result overlay seat perspective', () => {
     expect(document.getElementById('result-overlay')).toBeNull();
   });
 
+  test('終局リザルトを閉じた後は常設リセットボタンを再戦表示にする', () => {
+    document.body.innerHTML = '<button id="resetBtn">リセット</button>';
+    global.countDiscs.mockReturnValue({ black: 48, white: 16 });
+    global.isGameOver = jest.fn(() => true);
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    const closeBtn = document.querySelector('.result-btn-row .premium-btn.secondary');
+    expect(closeBtn).toBeTruthy();
+    closeBtn.click();
+
+    const resetBtn = document.getElementById('resetBtn');
+    expect(document.getElementById('result-overlay')).toBeNull();
+    expect(resetBtn && resetBtn.textContent).toBe('再戦');
+    expect(resetBtn && resetBtn.getAttribute('aria-label')).toBe('再戦');
+  });
+
+  test('非終局スナップショット反映では常設再戦ボタンをリセット表示へ戻す', () => {
+    document.body.innerHTML = '<button id="resetBtn">再戦</button><div id="result-overlay"></div>';
+    const resetButton = document.getElementById('resetBtn');
+    resetButton.disabled = true;
+    global.isGameOver = jest.fn(() => false);
+
+    const mod = require('../ui/result-overlay.js');
+    const resultState = mod.createEmptyResultPresentationState();
+    const applied = mod.syncResultPresentationFromSnapshot({
+      resultState,
+      gameStateRef: global.gameState,
+      isGameOver: global.isGameOver
+    });
+
+    expect(applied).toBe(false);
+    expect(document.getElementById('result-overlay')).toBeNull();
+    expect(resetButton && resetButton.textContent).toBe('リセット');
+    expect(resetButton && resetButton.getAttribute('aria-label')).toBe('リセット');
+    expect(resetButton && resetButton.disabled).toBe(false);
+  });
+
   test('syncResultPresentationFromSnapshot は stateVersion ごとに 1 回だけ結果表示する', () => {
     const mod = require('../ui/result-overlay.js');
     const showResult = jest.fn();
