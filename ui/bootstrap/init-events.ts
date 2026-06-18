@@ -129,6 +129,42 @@ declare const useSelectedCard: (() => void) | undefined;
 declare const toggleCardDetailExpanded: (() => void) | undefined;
 declare const passCurrentTurn: (() => void) | undefined;
 
+function isNetworkSpectatorActive(root: any): boolean {
+  const roots = [root, (typeof globalThis !== 'undefined' ? globalThis : null)];
+  for (const candidateRoot of roots) {
+    try {
+      const client = candidateRoot && (candidateRoot as any).NetworkMatchClient;
+      if (client && typeof client.isSpectator === 'function' && client.isSpectator() === true) return true;
+    } catch (e) { /* ignore */ }
+  }
+  return false;
+}
+
+function emitSpectatorReadOnlyStatus(root: any): void {
+  const roots = [root, (typeof globalThis !== 'undefined' ? globalThis : null)];
+  for (const candidateRoot of roots) {
+    try {
+      const writer = candidateRoot && (candidateRoot as any).writeNetworkStatus;
+      if (typeof writer !== 'function') continue;
+      writer('観戦中は操作できません', true);
+      return;
+    } catch (e) { /* ignore */ }
+  }
+}
+
+function guardSpectatorReadOnly(root: any): boolean {
+  if (!isNetworkSpectatorActive(root)) return false;
+  emitSpectatorReadOnlyStatus(root);
+  return true;
+}
+
+function wrapSpectatorReadOnly(root: any, action: () => void): () => void {
+  return () => {
+    if (guardSpectatorReadOnly(root)) return;
+    action();
+  };
+}
+
 function setupBattleLogToggle(logToggleBtn: HTMLElement | null, logPanel: HTMLElement | null): void {
   const panel = logPanel || ((typeof document !== 'undefined') ? document.getElementById('log') : null);
   if (!logToggleBtn || !panel) return;
@@ -231,22 +267,22 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   });
 
   if (refs.destroyBtn && typeof destroySelectedHandCard === 'function') {
-    refs.destroyBtn.addEventListener('click', () => destroySelectedHandCard());
+    refs.destroyBtn.addEventListener('click', wrapSpectatorReadOnly(root, () => destroySelectedHandCard()));
   }
   if (refs.useBtn && typeof useSelectedCard === 'function') {
-    refs.useBtn.addEventListener('click', () => useSelectedCard());
+    refs.useBtn.addEventListener('click', wrapSpectatorReadOnly(root, () => useSelectedCard()));
   }
   if (refs.detailBtn && typeof toggleCardDetailExpanded === 'function') {
     refs.detailBtn.addEventListener('click', toggleCardDetailExpanded);
   }
   if (refs.passBtn && typeof passCurrentTurn === 'function') {
-    refs.passBtn.addEventListener('click', passCurrentTurn);
+    refs.passBtn.addEventListener('click', wrapSpectatorReadOnly(root, passCurrentTurn));
   }
   const reversiPassButtons = [refs.reversiPassBtn || refs.othelloPassBtn, refs.boardFramePassBtn]
     .filter((button, index, buttons): button is HTMLElement => !!button && buttons.indexOf(button) === index);
   if (typeof passCurrentTurn === 'function') {
     reversiPassButtons.forEach((button) => {
-      button.addEventListener('click', passCurrentTurn);
+      button.addEventListener('click', wrapSpectatorReadOnly(root, passCurrentTurn));
     });
   }
 }

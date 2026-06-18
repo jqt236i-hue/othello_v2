@@ -121,6 +121,32 @@ describe('game keyboard shortcuts', () => {
     expect(destroyed).toEqual(['destroy']);
   });
 
+  test('spectator keyboard actions are read-only for board placement and card commands', () => {
+    const dom = buildDom();
+    (dom.window as any).NetworkMatchClient = {
+      isSpectator: jest.fn(() => true)
+    };
+    (dom.window as any).writeNetworkStatus = jest.fn();
+    const { placed, used, destroyed, clicks } = createController(dom);
+
+    key(dom, { code: 'KeyD', key: 'd' });
+    const place = key(dom, { code: 'Space', key: ' ' });
+    (dom.window.document.querySelector('[data-card-id="beta"]') as HTMLElement).classList.add('selected');
+    const enter = key(dom, { key: 'Enter' });
+    const shiftEnter = key(dom, { key: 'Enter', shiftKey: true });
+    const selectCard = key(dom, { code: 'KeyD', key: 'D', shiftKey: true });
+
+    expect(place.defaultPrevented).toBe(true);
+    expect(enter.defaultPrevented).toBe(true);
+    expect(shiftEnter.defaultPrevented).toBe(true);
+    expect(selectCard.defaultPrevented).toBe(true);
+    expect(placed).toEqual([]);
+    expect(used).toEqual([]);
+    expect(destroyed).toEqual([]);
+    expect(clicks).toEqual([]);
+    expect((dom.window as any).writeNetworkStatus).toHaveBeenCalledWith('観戦中は操作できません', true);
+  });
+
   test('shortcuts are ignored while typing or composing', () => {
     const dom = buildDom('<input id="typing" />');
     const { placed, used } = createController(dom);

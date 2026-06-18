@@ -12,6 +12,8 @@ interface GameKeyboardShortcutDeps {
     handleCellClick?: (row: number, col: number) => void;
     useSelectedCard?: () => void;
     destroySelectedHandCard?: () => void;
+    isNetworkSpectator?: () => boolean;
+    emitStatus?: (message: string, isError?: boolean) => void;
 }
 
 interface ShortcutState {
@@ -220,6 +222,44 @@ function isSpaceKey(event: KeyboardEvent): boolean {
     return event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar';
 }
 
+function isNetworkSpectatorActive(deps: GameKeyboardShortcutDeps): boolean {
+    try {
+        if (typeof deps.isNetworkSpectator === 'function') return deps.isNetworkSpectator() === true;
+    } catch (e) { /* ignore */ }
+    const root = getWindowFromDeps(deps);
+    const roots = [root, (typeof globalThis !== 'undefined' ? globalThis as any : null)];
+    for (const candidateRoot of roots) {
+        try {
+            const client = candidateRoot && candidateRoot.NetworkMatchClient;
+            if (client && typeof client.isSpectator === 'function' && client.isSpectator() === true) return true;
+        } catch (e) { /* ignore */ }
+    }
+    return false;
+}
+
+function emitSpectatorReadOnlyStatus(deps: GameKeyboardShortcutDeps): void {
+    try {
+        if (typeof deps.emitStatus === 'function') {
+            deps.emitStatus('観戦中は操作できません', true);
+            return;
+        }
+    } catch (e) { /* ignore */ }
+    const root = getWindowFromDeps(deps);
+    const roots = [root, (typeof globalThis !== 'undefined' ? globalThis as any : null)];
+    for (const candidateRoot of roots) {
+        try {
+            const writer = candidateRoot && candidateRoot.writeNetworkStatus;
+            if (typeof writer !== 'function') continue;
+            writer('観戦中は操作できません', true);
+            return;
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function isGameShortcutKey(event: KeyboardEvent, direction: string | null): boolean {
+    return !!direction || (isSpaceKey(event) && !event.shiftKey) || event.key === 'Enter';
+}
+
 function createGameKeyboardShortcutController(deps: GameKeyboardShortcutDeps = {}) {
     const state: ShortcutState = { legalCursorKey: null };
     let bound = false;
@@ -229,6 +269,11 @@ function createGameKeyboardShortcutController(deps: GameKeyboardShortcutDeps = {
         if (!doc || shouldIgnoreEvent(event, doc)) return;
 
         const direction = resolveDirection(event.code || '');
+        if (isGameShortcutKey(event, direction) && isNetworkSpectatorActive(deps)) {
+            emitSpectatorReadOnlyStatus(deps);
+            event.preventDefault();
+            return;
+        }
         if (direction) {
             if (event.shiftKey) {
                 if (direction !== 'left' && direction !== 'right') return;

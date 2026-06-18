@@ -1608,6 +1608,53 @@ function _isNetworkMode() {
     return _getCurrentMatchMode() === 'network';
 }
 
+function _isNetworkSpectatorActiveForCardUi() {
+    try {
+        const activeClient = _getActiveNetworkMatchClient();
+        if (activeClient && typeof activeClient.isSpectator === 'function' && activeClient.isSpectator() === true) return true;
+    } catch (e) { /* ignore */ }
+    try {
+        const networkRoot = _getNetworkMatchClientRoot();
+        const client = networkRoot && networkRoot.NetworkMatchClient;
+        if (client && typeof client.isSpectator === 'function' && client.isSpectator() === true) return true;
+    } catch (e) { /* ignore */ }
+    const roots = [
+        (typeof window !== 'undefined' ? window : null),
+        (typeof globalThis !== 'undefined' ? globalThis : null)
+    ];
+    for (const rootRef of roots) {
+        try {
+            const client = rootRef && (rootRef as any).NetworkMatchClient;
+            if (client && typeof client.isSpectator === 'function' && client.isSpectator() === true) return true;
+        } catch (e) { /* ignore */ }
+    }
+    return false;
+}
+
+function _emitSpectatorReadOnlyStatusForCardUi() {
+    const roots = [
+        (typeof window !== 'undefined' ? window : null),
+        (typeof globalThis !== 'undefined' ? globalThis : null)
+    ];
+    for (const rootRef of roots) {
+        try {
+            const writer = rootRef && (rootRef as any).writeNetworkStatus;
+            if (typeof writer !== 'function') continue;
+            writer('観戦中は操作できません', true);
+            return;
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof addLog === 'function') addLog('観戦中は操作できません');
+    } catch (e) { /* ignore */ }
+}
+
+function _guardSpectatorReadOnlyForCardUi() {
+    if (!_isNetworkSpectatorActiveForCardUi()) return false;
+    _emitSpectatorReadOnlyStatusForCardUi();
+    return true;
+}
+
 function _isReversiMode() {
     try {
         if (_ownerHelpersModule && typeof _ownerHelpersModule.isReversiMode === 'function') {
@@ -2660,6 +2707,7 @@ function onCardClick(cardId: any, ownerKey: any, handIndex?: any) {
     const isDebugUnlimited = _isDebugUnlimitedUsage();
     const isDebugHvH = _isDebugHvHMode();
     if (_isAutoModeActive()) return;
+    if (_guardSpectatorReadOnlyForCardUi()) return;
     if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
     const playerKey = _resolveInputPlayerKey();
     const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
@@ -2709,6 +2757,7 @@ function onCardClick(cardId: any, ownerKey: any, handIndex?: any) {
 }
 
 function destroySelectedHandCard() {
+    if (_guardSpectatorReadOnlyForCardUi()) return;
     const isDebugUnlimited = _isDebugUnlimitedUsage();
     const actionContext = _resolveSelectedHandCardActionContext({ isDebugUnlimited });
     if (!actionContext) return;
@@ -2739,6 +2788,7 @@ function destroySelectedHandCard() {
 }
 
 function useSelectedCard() {
+    if (_guardSpectatorReadOnlyForCardUi()) return;
     const isDebugUnlimited = _isDebugUnlimitedUsage();
     const actionContext = _resolveSelectedHandCardActionContext({ isDebugUnlimited });
     if (!actionContext) return;
@@ -2852,6 +2902,7 @@ function useSelectedCard() {
 function passCurrentTurn() {
     const isAutoMode = _isAutoModeActive();
     if (isAutoMode) return;
+    if (_guardSpectatorReadOnlyForCardUi()) return;
     if (!_canInputPlayerActNow()) return;
     if (_isSelectionSettlementLocked()) return;
 
@@ -2876,6 +2927,7 @@ function passCurrentTurn() {
 }
 
 function cancelPendingSelection(specificPlayerKey: any) {
+    if (_guardSpectatorReadOnlyForCardUi()) return;
     if (!_canInputPlayerActNow()) return;
     if (_isSelectionSettlementLocked()) return;
     const playerKey = specificPlayerKey || _resolveInputPlayerKey();
