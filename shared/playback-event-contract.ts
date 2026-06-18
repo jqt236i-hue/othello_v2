@@ -19,6 +19,13 @@ function normalizeOwner(value: any): string {
   return '';
 }
 
+function hasCoordinatePair(value: any): boolean {
+  const source = value && typeof value === 'object' ? value : {};
+  const row = source.r ?? source.row;
+  const col = source.col ?? source.c;
+  return hasFiniteCoordinate(row) && hasFiniteCoordinate(col);
+}
+
 function validatePlaybackEventsForNetworkReplay(events: unknown[]): any[] {
   const errors: any[] = [];
   const list = Array.isArray(events) ? events : [];
@@ -38,12 +45,14 @@ function validatePlaybackEventsForNetworkReplay(events: unknown[]): any[] {
     const targets = Array.isArray(eventValue.targets) ? eventValue.targets : [];
     targets.forEach((targetValue: any, targetIndex: number) => {
       const target = targetValue && typeof targetValue === 'object' ? targetValue : {};
-      const row = target.r ?? target.row;
-      const col = target.col ?? target.c;
-      if (!hasFiniteCoordinate(row) || !hasFiniteCoordinate(col)) {
+      if (type === 'move') {
+        if (!hasCoordinatePair(target.from) || !hasCoordinatePair(target.to)) {
+          errors.push({ code: 'target_move_coordinates_required', eventIndex, targetIndex, type });
+        }
+      } else if (!hasCoordinatePair(target)) {
         errors.push({ code: 'target_coordinates_required', eventIndex, targetIndex, type });
       }
-      const owner = normalizeOwner(target.owner ?? target.player);
+      const owner = normalizeOwner(target.owner ?? target.player ?? target.ownerAfter ?? target.ownerBefore);
       if (!owner) {
         errors.push({ code: 'target_owner_required', eventIndex, targetIndex, type });
       }

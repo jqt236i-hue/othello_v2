@@ -1752,7 +1752,11 @@ describe('network playback event assembly contract', () => {
     });
 
     expect(result.playbackEvents).toEqual([
-      { type: 'flip', phase: 2, targets: [{ r: 3, col: 4, ownerBefore: 'white', ownerAfter: 'black' }] }
+      {
+        type: 'flip',
+        phase: 2,
+        targets: [{ r: 3, col: 4, ownerBefore: 'white', ownerAfter: 'black', owner: 'black', player: 'black' }]
+      }
     ]);
     expect(result.diagnostics.warnings).toEqual([]);
   });

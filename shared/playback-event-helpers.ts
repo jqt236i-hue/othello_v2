@@ -562,6 +562,65 @@
         return JSON.stringify({ from, to, cause, reason });
     }
 
+    const NETWORK_REPLAY_BOARD_TARGET_EVENT_TYPES = new Set([
+        'flip',
+        'destroy',
+        'move',
+        'spawn',
+        'status_change',
+        'place_hand_animation'
+    ]);
+
+    function resolveNetworkReplayTargetOwner(target: Record<string, unknown>, event: Record<string, unknown>): string | null {
+        return parseSeatKeyOptional(target.owner)
+            || parseSeatKeyOptional(target.player)
+            || parseSeatKeyOptional(target.ownerAfter)
+            || parseSeatKeyOptional(target.ownerBefore)
+            || parseSeatKeyOptional(target.revivedOwner)
+            || parseSeatKeyOptional(target.destroyedOwner)
+            || parseSeatKeyOptional(event.ownerAfter)
+            || parseSeatKeyOptional(event.ownerBefore)
+            || parseSeatKeyOptional(event.owner)
+            || parseSeatKeyOptional(event.player);
+    }
+
+    function completeNetworkReplayPlaybackEvents(events: unknown[]): unknown[] {
+        if (!Array.isArray(events)) return [];
+        return events.map((eventValue) => {
+            const event = eventValue && typeof eventValue === 'object' ? eventValue as Record<string, unknown> : null;
+            if (!event) return eventValue;
+            const type = String(event.type || '').trim().toLowerCase();
+            if (!NETWORK_REPLAY_BOARD_TARGET_EVENT_TYPES.has(type) || !Array.isArray(event.targets)) {
+                return eventValue;
+            }
+
+            let changed = false;
+            const targets = event.targets.map((targetValue) => {
+                const target = targetValue && typeof targetValue === 'object' ? targetValue as Record<string, unknown> : null;
+                if (!target) return targetValue;
+                const owner = resolveNetworkReplayTargetOwner(target, event);
+                if (!owner) return targetValue;
+                const nextTarget = Object.assign({}, target);
+                let targetChanged = false;
+                if (!parseSeatKeyOptional(nextTarget.owner)) {
+                    nextTarget.owner = owner;
+                    targetChanged = true;
+                }
+                if (!parseSeatKeyOptional(nextTarget.player)) {
+                    nextTarget.player = owner;
+                    targetChanged = true;
+                }
+                if (targetChanged) {
+                    changed = true;
+                }
+                return targetChanged ? nextTarget : targetValue;
+            });
+
+            if (!changed) return eventValue;
+            return Object.assign({}, event, { targets });
+        });
+    }
+
     function playbackEventKey(event: unknown): string {
         try {
             return JSON.stringify(event);
@@ -740,6 +799,8 @@
                 playbackEvents = (rawPlacePlaybackEvents as unknown[]).concat(playbackEvents);
             }
         }
+
+        playbackEvents = completeNetworkReplayPlaybackEvents(playbackEvents);
 
         const diagnostics = appendNetworkReplayContractWarnings(
             createAssemblyDiagnostics(rawEvents, playbackEvents),
