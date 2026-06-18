@@ -165,6 +165,30 @@ describe('special card foundation marker metadata and locks', () => {
     expect(HandManager.getUsableCardIds(cardState, {}, 'black', context)).toEqual([]);
   });
 
+  test('hand manager excludes usable cards while theory incarnation stone placement is reserved', () => {
+    const HandManager = require('../game/logic/cards-internal/hand-manager.ts');
+    const context = {
+      constants: {
+        CARD_DEFS: [{ id: 'guard_01', name: 'guard', type: 'GUARD_WILL', cost: 0 }],
+        CARD_TYPE_BY_ID: { guard_01: 'GUARD_WILL' },
+        RIBO_WILL_UNLOCK_TURN_INDEX: 19
+      }
+    };
+    const cardState = {
+      hands: { black: ['guard_01'], white: ['guard_01'] },
+      charge: { black: 10, white: 10 },
+      markers: [],
+      nextTheoryIncarnationStoneByPlayer: {
+        black: { sourceType: 'THEORY_INCARNATION', sessionId: 'theory_black_1' },
+        white: null
+      }
+    };
+
+    expect(HandManager.canUseCard(cardState, 'black', 'guard_01', context)).toBe(false);
+    expect(HandManager.getUsableCardIds(cardState, {}, 'black', context)).toEqual([]);
+    expect(HandManager.canUseCard(cardState, 'white', 'guard_01', context)).toBe(true);
+  });
+
   test('placement resolver rejects placement while the player is placement locked', () => {
     const PlaceResolution = require('../game/turn/action-phase/place-resolution.ts');
     const options = {

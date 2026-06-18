@@ -357,8 +357,20 @@ function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number)
     ));
 }
 
+function isTheoryIncarnationStoneReservedForPlayer(cardState: CardState, playerKey: any): boolean {
+    const stateRef: any = cardState || {};
+    const reservations = stateRef.nextTheoryIncarnationStoneByPlayer;
+    if (!reservations || typeof reservations !== 'object') return false;
+    const ownerKey = normalizeMarkerOwnerKey(playerKey);
+    const reservation = reservations[ownerKey];
+    if (!reservation || typeof reservation !== 'object') return false;
+    const type = String(reservation.sourceType || reservation.type || '').trim().toUpperCase();
+    return type === 'THEORY_INCARNATION';
+}
+
 function isCardPlayLockedForPlayer(cardState: CardState, playerKey: PlayerKey): boolean {
     const ownerKey = normalizeMarkerOwnerKey(playerKey);
+    if (isTheoryIncarnationStoneReservedForPlayer(cardState, ownerKey)) return true;
     return getMarkers(cardState).some((marker: any) => {
         if (!isActiveManifestMarker(marker)) return false;
         const type = getNormalizedMarkerType(marker);
