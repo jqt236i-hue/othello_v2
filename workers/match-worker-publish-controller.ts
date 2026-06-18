@@ -248,6 +248,10 @@ function createMatchWorkerPublishController(config?: any): any {
       })));
     }
 
+    if (typeof cfg.ensureInitialPresentationSnapshots === 'function') {
+      cfg.ensureInitialPresentationSnapshots(room);
+    }
+    const previousStateVersion = room.stateVersion;
     room.stateVersion += 1;
     nextSnapshot.stateVersion = room.stateVersion;
     const snapshotUpdatedAt = Date.now();
@@ -268,6 +272,19 @@ function createMatchWorkerPublishController(config?: any): any {
 
     const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
       || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
+    const presentationFrameEntry = typeof cfg.appendPresentationFrameForAcceptedPublish === 'function'
+      ? cfg.appendPresentationFrameForAcceptedPublish(room, {
+        previousStateVersion,
+        nextStateVersion: room.stateVersion,
+        operationId,
+        actorSeatKey: playerKey,
+        actionType: body.actionType ? String(body.actionType) : actionType,
+        playbackEvents: serverPlaybackEvents,
+        effectLogs: serverEffectLogs,
+        playbackDiagnostics: serverPlaybackDiagnostics,
+        createdAt: room.updatedAt
+      })
+      : null;
     const meta = {
       playerKey,
       actionType: body.actionType ? String(body.actionType) : null,
@@ -275,7 +292,8 @@ function createMatchWorkerPublishController(config?: any): any {
       effectLogs: serverEffectLogs,
       playbackDiagnostics: serverPlaybackDiagnostics,
       autoPassNotice,
-      operationId: operationId || null
+      operationId: operationId || null,
+      presentationFrameEntry
     };
     const serverTime = Date.now();
     const preparedSnapshot = cfg.prepareSnapshotBroadcast(meta);
@@ -287,13 +305,14 @@ function createMatchWorkerPublishController(config?: any): any {
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
         autoPassNotice,
+        presentationFrameEntry,
         publishKind: 'accepted',
         operationId,
         actionType,
         receivedBaseVersion: baseVersion,
         authoritativeStateVersion: room.stateVersion
       }),
-      { previousSnapshotForChargeDelta }
+      { previousSnapshotForChargeDelta, presentationFrameEntry }
     ));
     cfg.MatchAuthority.appendAuthorityLog(room, {
       kind: 'publish_accepted',

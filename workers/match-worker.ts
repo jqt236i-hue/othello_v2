@@ -1145,6 +1145,8 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
+        presentationCursor: buildPresentationCursor(room),
+        presentationFrames: buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -1505,6 +1507,68 @@ function toPublicSnapshotForViewer(room: MatchWorkerRoomState | null | undefined
     return MatchAuthority.buildPublicSnapshotForViewer(room, viewerValue) as MatchWorkerPublicSnapshot;
 }
 
+function buildPresentationCursor(room: MatchWorkerRoomState | null | undefined): Record<string, number> {
+    return {
+        visualSeq: Number.isFinite(Number(room && room.visualSeq)) ? Math.max(0, Math.trunc(Number(room && room.visualSeq))) : 0,
+        stateVersion: Number.isFinite(Number(room && room.stateVersion)) ? Math.max(0, Math.trunc(Number(room && room.stateVersion))) : 0
+    };
+}
+
+function viewerFromSeatKey(viewerSeatKey: unknown): MatchAuthorityViewer {
+    const seatKey = parseSeatKeyOptional(viewerSeatKey);
+    return seatKey ? { role: 'seat', seatKey } : { role: 'spectator', spectatorId: '' };
+}
+
+function ensureInitialPresentationSnapshots(room: MatchWorkerRoomState | null | undefined): void {
+    if (!room || room.initialSnapshotByViewer) return;
+    room.initialSnapshotByViewer = {
+        black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+        white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+        spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+    };
+    if (!Number.isFinite(Number(room.visualSeq))) room.visualSeq = 0;
+    if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+}
+
+function appendPresentationFrameForAcceptedPublish(room: MatchWorkerRoomState | null | undefined, options: Record<string, unknown>): unknown {
+    if (!room) return null;
+    ensureInitialPresentationSnapshots(room);
+    const playbackEvents = Array.isArray(options.playbackEvents) ? options.playbackEvents : [];
+    const effectLogs = MatchAuthority.normalizeEffectLogMessages(options.effectLogs);
+    const playbackDiagnostics = options.playbackDiagnostics || null;
+    return MatchAuthority.appendPresentationFrame(room, {
+        stateVersionFrom: options.previousStateVersion,
+        stateVersionTo: options.nextStateVersion,
+        operationId: options.operationId,
+        actorSeatKey: options.actorSeatKey,
+        actionType: options.actionType,
+        payloadByViewer: {
+            black: { playbackEvents, effectLogs, playbackDiagnostics },
+            white: { playbackEvents, effectLogs, playbackDiagnostics },
+            spectator: { playbackEvents, effectLogs, playbackDiagnostics }
+        },
+        snapshotAfterByViewer: {
+            black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+            white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+            spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+        },
+        createdAt: options.createdAt
+    });
+}
+
+function buildPresentationFramesForViewer(
+    room: MatchWorkerRoomState | null | undefined,
+    viewerValue: unknown,
+    options: Record<string, unknown>
+): unknown[] {
+    if (Array.isArray(options.presentationFrames)) return options.presentationFrames;
+    const presentationFrameEntry = options.presentationFrameEntry;
+    if (presentationFrameEntry && typeof presentationFrameEntry === 'object') {
+        return [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewerValue, room)];
+    }
+    return [];
+}
+
 function buildPublicSeatState(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSeatState {
     return MatchAuthority.buildPublicSeatMetadata(room) as MatchWorkerPublicSeatState;
 }
@@ -1786,6 +1850,8 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
         effectLogs: MatchAuthority.normalizeEffectLogMessages(metaRecord.effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         autoPassNotice: metaRecord.autoPassNotice || null,
+        presentationCursor: buildPresentationCursor(room),
+        presentationFrames: buildPresentationFramesForViewer(room, viewer, metaRecord),
         operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
         playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
         actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
@@ -2240,6 +2306,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 isSnapshotGameOver: (snapshot: MatchWorkerPublicSnapshot | null | undefined) => this.isSnapshotGameOver(snapshot),
                 refreshTurnTimer: (options: MatchWorkerTurnTimerOptions | null | undefined) => this.refreshTurnTimer(options),
                 prepareSnapshotBroadcast: (meta: MatchWorkerSnapshotPayloadMeta | null | undefined) => this.prepareSnapshotBroadcast(meta),
+                ensureInitialPresentationSnapshots,
+                appendPresentationFrameForAcceptedPublish,
                 saveRoom: () => this.saveRoom(),
                 broadcastSnapshot: (meta: MatchWorkerSnapshotPayloadMeta | null | undefined) => this.broadcastSnapshot(meta),
                 jsonResponse
@@ -3099,11 +3167,45 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             playbackEvents: Array.isArray(recoveredMeta.playbackEvents) ? recoveredMeta.playbackEvents : [],
             effectLogs: MatchAuthority.normalizeEffectLogMessages(recoveredMeta.effectLogs),
             playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(recoveredMeta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+            presentationCursor: buildPresentationCursor(room),
             operationId: recoveredMeta.operationId ? String(recoveredMeta.operationId) : null,
             playerKey: recoveredMeta.playerKey ? normalizePlayerKey(recoveredMeta.playerKey) : null,
             actionType: recoveredMeta.actionType ? String(recoveredMeta.actionType) : null,
             serverTime
         }));
+    }
+
+    async handlePresentationJournal(request: Request): Promise<Response> {
+        await this.loadRoom();
+        const urlObj = new URL(request.url);
+        const room = this.room;
+        if (!room) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(Date.now())) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+
+        const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey'));
+        const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
+        const viewer = resolveAuthenticatedViewer(room, {
+            viewerRole: urlObj.searchParams.get('viewerRole') || '',
+            seatKey,
+            seatToken,
+            spectatorId: urlObj.searchParams.get('spectatorId') || '',
+            spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+            now: Date.now()
+        });
+        if (!viewer) {
+            return jsonResponse(403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
+        }
+
+        const payload = MatchAuthority.buildPresentationJournalResponse(room, {
+            afterVisualSeq: urlObj.searchParams.get('afterVisualSeq') || 0,
+            viewer,
+            serverTime: Date.now()
+        });
+        return jsonResponse(payload.ok === false ? 409 : 200, payload);
     }
 
     async handleStream(request: Request): Promise<Response> {
@@ -3226,6 +3328,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         if (request.method === 'GET' && pathname === '/api/match/state') {
             return this.handleState(urlObj);
+        }
+
+        if (request.method === 'GET' && pathname === '/api/match/presentation-journal') {
+            return this.handlePresentationJournal(request);
         }
 
         if (request.method === 'GET' && pathname === '/api/match/stream') {

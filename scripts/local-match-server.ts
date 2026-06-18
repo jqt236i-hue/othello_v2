@@ -102,6 +102,64 @@ function toPublicSnapshotForViewer(room: any, viewer: any) {
     return MatchAuthority.buildPublicSnapshotForViewer(room, viewer);
 }
 
+function buildPresentationCursor(room: any) {
+    return {
+        visualSeq: Number.isFinite(Number(room && room.visualSeq)) ? Math.max(0, Math.trunc(Number(room.visualSeq))) : 0,
+        stateVersion: Number.isFinite(Number(room && room.stateVersion)) ? Math.max(0, Math.trunc(Number(room.stateVersion))) : 0
+    };
+}
+
+function viewerFromSeatKey(viewerSeatKey: any) {
+    const seatKey = parseSeatKeyOptional(viewerSeatKey);
+    return seatKey ? { role: 'seat', seatKey } : { role: 'spectator', spectatorId: '' };
+}
+
+function ensureInitialPresentationSnapshots(room: any) {
+    if (!room || room.initialSnapshotByViewer) return;
+    room.initialSnapshotByViewer = {
+        black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+        white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+        spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+    };
+    if (!Number.isFinite(Number(room.visualSeq))) room.visualSeq = 0;
+    if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+}
+
+function appendPresentationFrameForAcceptedPublish(room: any, options: any) {
+    if (!room) return null;
+    ensureInitialPresentationSnapshots(room);
+    const playbackEvents = Array.isArray(options && options.playbackEvents) ? options.playbackEvents : [];
+    const effectLogs = MatchAuthority.normalizeEffectLogMessages(options && options.effectLogs);
+    const playbackDiagnostics = options && options.playbackDiagnostics ? options.playbackDiagnostics : null;
+    return MatchAuthority.appendPresentationFrame(room, {
+        stateVersionFrom: options && options.previousStateVersion,
+        stateVersionTo: options && options.nextStateVersion,
+        operationId: options && options.operationId,
+        actorSeatKey: options && options.actorSeatKey,
+        actionType: options && options.actionType,
+        payloadByViewer: {
+            black: { playbackEvents, effectLogs, playbackDiagnostics },
+            white: { playbackEvents, effectLogs, playbackDiagnostics },
+            spectator: { playbackEvents, effectLogs, playbackDiagnostics }
+        },
+        snapshotAfterByViewer: {
+            black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+            white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+            spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+        },
+        createdAt: options && options.createdAt
+    });
+}
+
+function buildPresentationFramesForViewer(room: any, viewer: any, options: any) {
+    if (Array.isArray(options && options.presentationFrames)) return options.presentationFrames;
+    const presentationFrameEntry = options && options.presentationFrameEntry;
+    if (presentationFrameEntry && typeof presentationFrameEntry === 'object') {
+        return [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewer, room)];
+    }
+    return [];
+}
+
 function buildNetworkActionEffectLogs(action: any, playerKey: any, rawEvents: any, presentationEvents: any) {
     return MatchAuthority.buildNetworkActionEffectLogs(action, playerKey, CardLogic, rawEvents, presentationEvents, TurnPipelineUIAdapter);
 }
@@ -349,6 +407,8 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
+        presentationCursor: buildPresentationCursor(room),
+        presentationFrames: buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -1052,6 +1112,8 @@ function buildSnapshotPayload(room: any, meta: any, viewer: any) {
         effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         autoPassNotice: meta && meta.autoPassNotice ? meta.autoPassNotice : null,
+        presentationCursor: buildPresentationCursor(room),
+        presentationFrames: buildPresentationFramesForViewer(room, viewer, meta || {}),
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
         actionType: meta && meta.actionType ? String(meta.actionType) : null,
@@ -1908,6 +1970,8 @@ async function handlePublish(req: any, res: any) {
 
     const previousSnapshotForChargeDelta = deepClone(room.snapshot);
 
+    ensureInitialPresentationSnapshots(room);
+    const previousStateVersion = room.stateVersion;
     room.stateVersion += 1;
     nextSnapshot.stateVersion = room.stateVersion;
     nextSnapshot.updatedAt = Date.now();
@@ -1928,6 +1992,17 @@ async function handlePublish(req: any, res: any) {
 
     const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
         || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
+    const presentationFrameEntry = appendPresentationFrameForAcceptedPublish(room, {
+        previousStateVersion,
+        nextStateVersion: room.stateVersion,
+        operationId,
+        actorSeatKey: playerKey,
+        actionType: body.actionType ? String(body.actionType) : actionType,
+        playbackEvents: serverPlaybackEvents,
+        effectLogs: serverEffectLogs,
+        playbackDiagnostics: serverPlaybackDiagnostics,
+        createdAt: room.updatedAt
+    });
     const meta = {
         playerKey,
         actionType: body.actionType ? String(body.actionType) : null,
@@ -1935,23 +2010,27 @@ async function handlePublish(req: any, res: any) {
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
         autoPassNotice,
-        operationId: operationId || null
+        operationId: operationId || null,
+        presentationFrameEntry
     };
     const serverTime = Date.now();
     const preparedSnapshot = prepareSnapshotBroadcast(room, meta);
-    const responsePayload = buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-        ok: true,
-        serverTime,
-        playbackEvents: serverPlaybackEvents,
-        effectLogs: serverEffectLogs,
-        playbackDiagnostics: serverPlaybackDiagnostics,
-        autoPassNotice,
-        publishKind: 'accepted',
-        operationId,
-        actionType,
-        receivedBaseVersion: baseVersion,
-        authoritativeStateVersion: room.stateVersion
-    }));
+    const responsePayload = buildPublishPayload(room, seatKey, Object.assign(
+        MatchAuthority.buildPublishResponseOptions({
+            ok: true,
+            serverTime,
+            playbackEvents: serverPlaybackEvents,
+            effectLogs: serverEffectLogs,
+            playbackDiagnostics: serverPlaybackDiagnostics,
+            autoPassNotice,
+            publishKind: 'accepted',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        }),
+        { presentationFrameEntry }
+    ));
     MatchAuthority.appendAuthorityLog(room, {
         kind: 'publish_accepted',
         operationId,
@@ -2185,11 +2264,48 @@ function handleState(req: any, res: any, urlObj: any) {
         playbackEvents: Array.isArray((recoveredMeta as any).playbackEvents) ? (recoveredMeta as any).playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages((recoveredMeta as any).effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics((recoveredMeta as any).playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        presentationCursor: buildPresentationCursor(room),
         operationId: (recoveredMeta as any).operationId ? String((recoveredMeta as any).operationId) : null,
         playerKey: (recoveredMeta as any).playerKey ? normalizePlayerKey((recoveredMeta as any).playerKey) : null,
         actionType: (recoveredMeta as any).actionType ? String((recoveredMeta as any).actionType) : null,
         serverTime
     }));
+}
+
+function handlePresentationJournal(req: any, res: any, urlObj: any) {
+    const roomId = String((urlObj.searchParams.get('roomId') || '')).trim().toUpperCase();
+    if (!roomId || !rooms.has(roomId)) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    const room = rooms.get(roomId);
+    if (expireRoomIfNeeded(roomId, room, Date.now())) {
+        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return;
+    }
+    applyExpiredTurnTimeoutIfNeeded(room);
+
+    const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
+    const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
+    const viewer = resolveAuthenticatedViewer(room, {
+        viewerRole: urlObj.searchParams.get('viewerRole') || '',
+        seatKey,
+        seatToken,
+        spectatorId: urlObj.searchParams.get('spectatorId') || '',
+        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+        now: Date.now()
+    });
+    if (!viewer) {
+        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
+        return;
+    }
+
+    const payload = MatchAuthority.buildPresentationJournalResponse(room, {
+        afterVisualSeq: urlObj.searchParams.get('afterVisualSeq') || 0,
+        viewer,
+        serverTime: Date.now()
+    });
+    writeJson(res, payload.ok === false ? 409 : 200, payload);
 }
 
 function handleStream(req: any, res: any, urlObj: any) {
@@ -2342,6 +2458,11 @@ function createLocalMatchServer() {
 
             if (req.method === 'GET' && pathname === '/api/match/state') {
                 handleState(req, res, urlObj);
+                return;
+            }
+
+            if (req.method === 'GET' && pathname === '/api/match/presentation-journal') {
+                handlePresentationJournal(req, res, urlObj);
                 return;
             }
 
