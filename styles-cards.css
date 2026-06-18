@@ -2144,7 +2144,7 @@
 #board-frame-pass-btn {
     position: absolute;
     left: calc(16px * var(--layout-stage-scale));
-    bottom: calc(-7px * var(--layout-stage-scale));
+    bottom: calc(-28px * var(--layout-stage-scale));
     min-width: calc(104px * var(--layout-stage-scale));
     min-height: calc(31px * var(--layout-stage-scale));
     padding: calc(7px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) calc(29px * var(--layout-stage-scale));
