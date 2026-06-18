@@ -69,6 +69,37 @@
         inviolable: boolean;
     }
 
+    type StoneEffectCategory =
+        | 'special_stone_body'
+        | 'trap'
+        | 'bomb'
+        | 'stone_status'
+        | 'manifest_stone'
+        | 'board_marker'
+        | 'placement_effect';
+
+    interface SpecialStoneCardDefinition {
+        cardId: string;
+        cardNameJa: string;
+        cardType: string;
+        markerType: string;
+        promotedMarkerType?: string;
+    }
+
+    interface StoneEffectRule {
+        markerType: string;
+        category: StoneEffectCategory;
+        countsAsSpecialStone: boolean;
+        temptTargetable: boolean;
+        captureTargetable: boolean;
+        lossWillRevertible: boolean;
+        willHunterPriority: boolean;
+        durationAffectable: boolean;
+        theorySpawnCandidate: boolean;
+        normalVisual: boolean;
+        blocksTempt: boolean;
+    }
+
     const SPECIAL_STONE_TYPE_ALIASES: Readonly<TypeAliases> = Object.freeze({
         EXTREME_HYPERACTIVE_WILL: 'EXTREME_HYPERACTIVE',
         TRAP_REVEAL: 'TRAP',
@@ -355,6 +386,34 @@
         })
     });
 
+    const SPECIAL_STONE_CARD_DEFINITIONS: Readonly<Record<string, Readonly<SpecialStoneCardDefinition>>> = Object.freeze({
+        PROTECTED_NEXT_STONE: Object.freeze({ cardId: 'hard_01', cardNameJa: '弱い意志', cardType: 'PROTECTED_NEXT_STONE', markerType: 'PROTECTED' }),
+        PERMA_PROTECT_NEXT_STONE: Object.freeze({ cardId: 'perma_01', cardNameJa: '強い意志', cardType: 'PERMA_PROTECT_NEXT_STONE', markerType: 'PERMA_PROTECTED', promotedMarkerType: 'ABSOLUTE_PROTECTED' }),
+        SNIPER_WILL: Object.freeze({ cardId: 'sniper_01', cardNameJa: '狙撃の意志', cardType: 'SNIPER_WILL', markerType: 'SNIPER' }),
+        GHOST_WILL: Object.freeze({ cardId: 'ghost_01', cardNameJa: '幽霊の意志', cardType: 'GHOST_WILL', markerType: 'GHOST' }),
+        AFTERIMAGE_WILL: Object.freeze({ cardId: 'afterimage_will_01', cardNameJa: '避ける意志', cardType: 'AFTERIMAGE_WILL', markerType: 'AFTERIMAGE_WILL' }),
+        TRAP_WILL: Object.freeze({ cardId: 'trap_01', cardNameJa: '罠の意志', cardType: 'TRAP_WILL', markerType: 'TRAP' }),
+        TIME_BOMB: Object.freeze({ cardId: 'bomb_01', cardNameJa: '時限爆弾', cardType: 'TIME_BOMB', markerType: 'TIME_BOMB' }),
+        TIME_STOP_GOD: Object.freeze({ cardId: 'time_stop_god_01', cardNameJa: '時間停石', cardType: 'TIME_STOP_GOD', markerType: 'TIME_STOP' }),
+        REGEN_WILL: Object.freeze({ cardId: 'regen_01', cardNameJa: '復活の意志', cardType: 'REGEN_WILL', markerType: 'REGEN' }),
+        ULTIMATE_REVERSE_DRAGON: Object.freeze({ cardId: 'udr_01', cardNameJa: '究極反転龍', cardType: 'ULTIMATE_REVERSE_DRAGON', markerType: 'DRAGON' }),
+        BREEDING_WILL: Object.freeze({ cardId: 'breeding_01', cardNameJa: '繁殖の意志', cardType: 'BREEDING_WILL', markerType: 'BREEDING' }),
+        PROLIFERATION_WILL: Object.freeze({ cardId: 'proliferation_01', cardNameJa: '増殖の意志', cardType: 'PROLIFERATION_WILL', markerType: 'PROLIFERATION' }),
+        HYPERACTIVE_WILL: Object.freeze({ cardId: 'hyperactive_01', cardNameJa: '多動の意志', cardType: 'HYPERACTIVE_WILL', markerType: 'HYPERACTIVE' }),
+        EXTREME_HYPERACTIVE_WILL: Object.freeze({ cardId: 'extreme_hyperactive_01', cardNameJa: '極悪多動魔', cardType: 'EXTREME_HYPERACTIVE_WILL', markerType: 'EXTREME_HYPERACTIVE' }),
+        ESCAPE_WILL: Object.freeze({ cardId: 'escape_01', cardNameJa: '逃げる意志', cardType: 'ESCAPE_WILL', markerType: 'ESCAPE_HYPERACTIVE' }),
+        ROBOT_VACUUM_WILL: Object.freeze({ cardId: 'robot_vacuum_01', cardNameJa: 'ロボット掃除機', cardType: 'ROBOT_VACUUM_WILL', markerType: 'ROBOT_VACUUM' }),
+        GLUTTONOUS_WILL: Object.freeze({ cardId: 'gluttonous_will_01', cardNameJa: '悪食の意志', cardType: 'GLUTTONOUS_WILL', markerType: 'GLUTTONOUS' }),
+        WILL_HUNTER_KING: Object.freeze({ cardId: 'will_hunter_king_01', cardNameJa: '意志狩りの王', cardType: 'WILL_HUNTER_KING', markerType: 'WILL_HUNTER_KING' }),
+        WORK_WILL: Object.freeze({ cardId: 'work_01', cardNameJa: '出稼ぎの意志', cardType: 'WORK_WILL', markerType: 'WORK' }),
+        STONE_SALVATION_GOD: Object.freeze({ cardId: 'stone_salvation_god_01', cardNameJa: '救済神', cardType: 'STONE_SALVATION_GOD', markerType: 'STONE_SALVATION_GOD' }),
+        DESTROY_DRAGON_WILL: Object.freeze({ cardId: 'destroy_dragon_01', cardNameJa: '破壊龍', cardType: 'DESTROY_DRAGON_WILL', markerType: 'DESTROY_DRAGON' }),
+        LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '落雷', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
+        ULTIMATE_DESTROY_GOD: Object.freeze({ cardId: 'udg_01', cardNameJa: '究極破壊神', cardType: 'ULTIMATE_DESTROY_GOD', markerType: 'ULTIMATE_DESTROY_GOD' }),
+        ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極多動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
+        METEOR_GOD: Object.freeze({ cardId: 'meteor_god_01', cardNameJa: '因果抹消神', cardType: 'METEOR_GOD', markerType: 'METEOR_GOD' })
+    });
+
     const STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
         'GUARD',
         'LIVING_WILL'
@@ -386,12 +445,132 @@
         'OBSERVER_WILL'
     ]);
 
+    function makeStoneEffectRule(markerType: string, overrides: Partial<StoneEffectRule>): Readonly<StoneEffectRule> {
+        const category = overrides.category || 'special_stone_body';
+        const countsAsSpecialStone = overrides.countsAsSpecialStone !== undefined
+            ? overrides.countsAsSpecialStone
+            : (category === 'special_stone_body' || category === 'trap' || category === 'bomb');
+        return Object.freeze({
+            markerType,
+            category,
+            countsAsSpecialStone,
+            temptTargetable: overrides.temptTargetable !== undefined ? overrides.temptTargetable : countsAsSpecialStone,
+            captureTargetable: overrides.captureTargetable !== undefined ? overrides.captureTargetable : category === 'special_stone_body',
+            lossWillRevertible: overrides.lossWillRevertible !== undefined ? overrides.lossWillRevertible : countsAsSpecialStone,
+            willHunterPriority: overrides.willHunterPriority !== undefined ? overrides.willHunterPriority : countsAsSpecialStone,
+            durationAffectable: overrides.durationAffectable !== undefined ? overrides.durationAffectable : category === 'special_stone_body' || category === 'stone_status',
+            theorySpawnCandidate: overrides.theorySpawnCandidate !== undefined ? overrides.theorySpawnCandidate : category === 'special_stone_body',
+            normalVisual: overrides.normalVisual !== undefined ? overrides.normalVisual : false,
+            blocksTempt: overrides.blocksTempt === true
+        });
+    }
+
+    function buildStoneEffectRules(): Readonly<Record<string, Readonly<StoneEffectRule>>> {
+        const out: Record<string, Readonly<StoneEffectRule>> = {};
+        for (const definition of Object.values(SPECIAL_STONE_CARD_DEFINITIONS)) {
+            if (definition && definition.markerType && !out[definition.markerType]) {
+                out[definition.markerType] = makeStoneEffectRule(definition.markerType, {});
+            }
+            if (definition && definition.promotedMarkerType && !out[definition.promotedMarkerType]) {
+                out[definition.promotedMarkerType] = makeStoneEffectRule(definition.promotedMarkerType, {});
+            }
+        }
+
+        out.ABSOLUTE_PROTECTED = makeStoneEffectRule('ABSOLUTE_PROTECTED', {
+            temptTargetable: false,
+            captureTargetable: false,
+            lossWillRevertible: false,
+            theorySpawnCandidate: false,
+            blocksTempt: true
+        });
+        out.TRAP = makeStoneEffectRule('TRAP', {
+            category: 'trap',
+            captureTargetable: false,
+            theorySpawnCandidate: false,
+            normalVisual: true,
+            willHunterPriority: false
+        });
+        out.TIME_BOMB = makeStoneEffectRule('TIME_BOMB', {
+            category: 'bomb',
+            captureTargetable: false,
+            theorySpawnCandidate: false
+        });
+        out.GUARD = makeStoneEffectRule('GUARD', {
+            category: 'stone_status',
+            countsAsSpecialStone: false,
+            temptTargetable: false,
+            captureTargetable: false,
+            lossWillRevertible: false,
+            theorySpawnCandidate: false,
+            normalVisual: true,
+            willHunterPriority: false,
+            blocksTempt: true
+        });
+        out.LIVING_WILL = makeStoneEffectRule('LIVING_WILL', {
+            category: 'stone_status',
+            countsAsSpecialStone: false,
+            temptTargetable: true,
+            captureTargetable: false,
+            lossWillRevertible: false,
+            theorySpawnCandidate: false,
+            normalVisual: true,
+            willHunterPriority: false
+        });
+
+        for (const type of BOARD_MARKER_TYPES) {
+            out[type] = makeStoneEffectRule(type, {
+                category: 'board_marker',
+                countsAsSpecialStone: false,
+                temptTargetable: false,
+                captureTargetable: false,
+                lossWillRevertible: false,
+                willHunterPriority: false,
+                durationAffectable: false,
+                theorySpawnCandidate: false,
+                normalVisual: true
+            });
+        }
+        for (const type of PLACEMENT_EFFECT_TYPES) {
+            out[type] = makeStoneEffectRule(type, {
+                category: 'placement_effect',
+                countsAsSpecialStone: false,
+                temptTargetable: false,
+                captureTargetable: false,
+                lossWillRevertible: false,
+                willHunterPriority: false,
+                durationAffectable: false,
+                theorySpawnCandidate: false
+            });
+        }
+        for (const type of INVIOLABLE_MANIFEST_STONE_TYPES) {
+            out[type] = makeStoneEffectRule(type, {
+                category: 'manifest_stone',
+                countsAsSpecialStone: false,
+                temptTargetable: false,
+                captureTargetable: false,
+                lossWillRevertible: false,
+                willHunterPriority: false,
+                durationAffectable: false,
+                theorySpawnCandidate: false
+            });
+        }
+        return Object.freeze(out);
+    }
+
+    const STONE_EFFECT_RULES: Readonly<Record<string, Readonly<StoneEffectRule>>> = buildStoneEffectRules();
+
     function normalizeSpecialStoneType(rawType: unknown): string | null {
         if (rawType === null || typeof rawType === 'undefined') return null;
         const asString = String(rawType).trim();
         if (!asString) return null;
         const upper = asString.toUpperCase();
         return SPECIAL_STONE_TYPE_ALIASES[upper] || upper;
+    }
+
+    function normalizeSpecialStoneCardType(rawCardType: unknown): string | null {
+        if (rawCardType === null || typeof rawCardType === 'undefined') return null;
+        const asString = String(rawCardType).trim();
+        return asString ? asString.toUpperCase() : null;
     }
 
     function hydrateEvasionDefaults(type: string, info: Readonly<SpecialStoneInfo> | null): Readonly<SpecialStoneInfo> | null {
@@ -463,6 +642,74 @@
         return !!(info && info.overlayOnlyVisual === true);
     }
 
+    function getSpecialStoneCardDefinition(rawCardType: unknown): Readonly<SpecialStoneCardDefinition> | null {
+        const cardType = normalizeSpecialStoneCardType(rawCardType);
+        if (!cardType) return null;
+        return SPECIAL_STONE_CARD_DEFINITIONS[cardType] || null;
+    }
+
+    function getMarkerTypeForSpecialStoneCard(rawCardType: unknown): string | null {
+        const def = getSpecialStoneCardDefinition(rawCardType);
+        return def ? def.markerType : null;
+    }
+
+    function getStoneEffectRule(rawType: unknown, markerData?: any): Readonly<StoneEffectRule> | null {
+        const type = normalizeSpecialStoneType(rawType);
+        const data = (markerData && typeof markerData === 'object') ? markerData : null;
+        const category = String(data && data.category ? data.category : '').toLowerCase();
+        if (!type) return null;
+        if (category === 'bomb' && type !== 'TIME_BOMB') {
+            return makeStoneEffectRule(type, {
+                category: 'bomb',
+                captureTargetable: false,
+                theorySpawnCandidate: false
+            });
+        }
+        if (type === 'HYPERACTIVE' && !!(data && data.instantPlacementOnly)) {
+            return makeStoneEffectRule('HYPERACTIVE', {
+                category: 'placement_effect',
+                countsAsSpecialStone: false,
+                temptTargetable: false,
+                captureTargetable: false,
+                lossWillRevertible: false,
+                willHunterPriority: false,
+                durationAffectable: false,
+                theorySpawnCandidate: false
+            });
+        }
+        return STONE_EFFECT_RULES[type] || null;
+    }
+
+    function ruleCategoryToLegacyRuleClass(category: StoneEffectCategory): SpecialStoneRuleClass {
+        if (category === 'special_stone_body') return 'true_special_stone';
+        return category;
+    }
+
+    function isTemptTargetableStoneEffect(rawType: unknown, markerData?: any): boolean {
+        const rule = getStoneEffectRule(rawType, markerData);
+        return !!(rule && rule.temptTargetable);
+    }
+
+    function isCaptureTargetableStoneEffect(rawType: unknown, markerData?: any): boolean {
+        const rule = getStoneEffectRule(rawType, markerData);
+        return !!(rule && rule.captureTargetable);
+    }
+
+    function isWillHunterPriorityTarget(rawType: unknown, markerData?: any): boolean {
+        const rule = getStoneEffectRule(rawType, markerData);
+        return !!(rule && rule.willHunterPriority && !rule.normalVisual);
+    }
+
+    function isNormalVisualStoneEffect(rawType: unknown, markerData?: any): boolean {
+        const rule = getStoneEffectRule(rawType, markerData);
+        return !!(rule && rule.normalVisual);
+    }
+
+    function blocksTempt(rawType: unknown, markerData?: any): boolean {
+        const rule = getStoneEffectRule(rawType, markerData);
+        return !!(rule && rule.blocksTempt);
+    }
+
     function classifySpecialStoneRuleClass(rawType: unknown, markerData?: any): SpecialStoneRuleClass | null {
         const type = normalizeSpecialStoneType(rawType);
         const data = (markerData && typeof markerData === 'object') ? markerData : null;
@@ -482,35 +729,28 @@
         if (INVIOLABLE_MANIFEST_STONE_TYPES.has(type)) {
             return 'manifest_stone';
         }
-        if (type === 'HYPERACTIVE' && !!(data && data.instantPlacementOnly)) {
-            return 'placement_effect';
-        }
-        if (PLACEMENT_EFFECT_TYPES.has(type)) {
-            return 'placement_effect';
-        }
-        if (BOARD_MARKER_TYPES.has(type)) {
-            return 'board_marker';
-        }
-        if (STONE_STATUS_TYPES.has(type)) {
-            return 'stone_status';
-        }
-        return 'true_special_stone';
+        const rule = getStoneEffectRule(type, data);
+        return rule ? ruleCategoryToLegacyRuleClass(rule.category) : 'true_special_stone';
     }
 
     function getStoneEffectTraits(rawType: unknown, markerData?: any): Readonly<StoneEffectTraits> | null {
         const type = normalizeSpecialStoneType(rawType);
         if (!type) return null;
-        const category = classifySpecialStoneRuleClass(type, markerData);
+        const data = (markerData && typeof markerData === 'object') ? markerData : null;
+        const category = classifySpecialStoneRuleClass(type, data);
         if (!category) return null;
-        const countsAsSpecialStone = category === 'true_special_stone' || category === 'trap' || category === 'bomb';
+        const rule = getStoneEffectRule(type, data);
+        const countsAsSpecialStone = rule
+            ? rule.countsAsSpecialStone
+            : category === 'true_special_stone' || category === 'trap' || category === 'bomb';
         const inviolable = category === 'manifest_stone' || INVIOLABLE_MANIFEST_STONE_TYPES.has(type);
         const targetableAsSpecialStone = countsAsSpecialStone && !inviolable;
         return Object.freeze({
             category,
             countsAsSpecialStone,
             targetableAsSpecialStone,
-            revertibleByLossWill: targetableAsSpecialStone && type !== 'ABSOLUTE_PROTECTED',
-            spawnableByTheoryIncarnation: category === 'true_special_stone' && !THEORY_INCARNATION_SPAWN_EXCLUDED_TYPES.has(type),
+            revertibleByLossWill: rule ? rule.lossWillRevertible : targetableAsSpecialStone && type !== 'ABSOLUTE_PROTECTED',
+            spawnableByTheoryIncarnation: rule ? rule.theorySpawnCandidate : category === 'true_special_stone' && !THEORY_INCARNATION_SPAWN_EXCLUDED_TYPES.has(type),
             inviolable
         });
     }
@@ -579,6 +819,8 @@
     }
 
     function isDurationAffectableMarker(marker: any): boolean {
+        const rule = getStoneEffectRule(marker && marker.data && marker.data.type, marker && marker.data);
+        if (rule) return rule.durationAffectable;
         const ruleClass = classifyMarkerRuleClass(marker);
         return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
     }
@@ -587,6 +829,8 @@
         SPECIAL_STONE_REGISTRY,
         SPECIAL_STONE_TYPE_ALIASES,
         SPECIAL_CARD_MARKER_METADATA,
+        SPECIAL_STONE_CARD_DEFINITIONS,
+        STONE_EFFECT_RULES,
         STONE_STATUS_TYPES,
         BOARD_MARKER_TYPES,
         PLACEMENT_EFFECT_TYPES,
@@ -598,6 +842,14 @@
         isAbsoluteProtectedSpecialType,
         getSpecialStoneTimerClass,
         isOverlayOnlySpecialStoneType,
+        getSpecialStoneCardDefinition,
+        getMarkerTypeForSpecialStoneCard,
+        getStoneEffectRule,
+        isTemptTargetableStoneEffect,
+        isCaptureTargetableStoneEffect,
+        isWillHunterPriorityTarget,
+        isNormalVisualStoneEffect,
+        blocksTempt,
         getStoneEffectTraits,
         countsAsSpecialStone,
         isTargetableSpecialStone,

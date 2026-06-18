@@ -115,6 +115,77 @@ describe('special stone registry rule classification', () => {
     );
   });
 
+  test('exposes canonical special-stone card mappings', () => {
+    const expected = [
+      ['hard_01', 'PROTECTED_NEXT_STONE', 'PROTECTED'],
+      ['perma_01', 'PERMA_PROTECT_NEXT_STONE', 'PERMA_PROTECTED'],
+      ['sniper_01', 'SNIPER_WILL', 'SNIPER'],
+      ['ghost_01', 'GHOST_WILL', 'GHOST'],
+      ['afterimage_will_01', 'AFTERIMAGE_WILL', 'AFTERIMAGE_WILL'],
+      ['trap_01', 'TRAP_WILL', 'TRAP'],
+      ['bomb_01', 'TIME_BOMB', 'TIME_BOMB'],
+      ['time_stop_god_01', 'TIME_STOP_GOD', 'TIME_STOP'],
+      ['regen_01', 'REGEN_WILL', 'REGEN'],
+      ['udr_01', 'ULTIMATE_REVERSE_DRAGON', 'DRAGON'],
+      ['breeding_01', 'BREEDING_WILL', 'BREEDING'],
+      ['proliferation_01', 'PROLIFERATION_WILL', 'PROLIFERATION'],
+      ['hyperactive_01', 'HYPERACTIVE_WILL', 'HYPERACTIVE'],
+      ['extreme_hyperactive_01', 'EXTREME_HYPERACTIVE_WILL', 'EXTREME_HYPERACTIVE'],
+      ['escape_01', 'ESCAPE_WILL', 'ESCAPE_HYPERACTIVE'],
+      ['robot_vacuum_01', 'ROBOT_VACUUM_WILL', 'ROBOT_VACUUM'],
+      ['gluttonous_will_01', 'GLUTTONOUS_WILL', 'GLUTTONOUS'],
+      ['will_hunter_king_01', 'WILL_HUNTER_KING', 'WILL_HUNTER_KING'],
+      ['work_01', 'WORK_WILL', 'WORK'],
+      ['stone_salvation_god_01', 'STONE_SALVATION_GOD', 'STONE_SALVATION_GOD'],
+      ['destroy_dragon_01', 'DESTROY_DRAGON_WILL', 'DESTROY_DRAGON'],
+      ['lightning_01', 'LIGHTNING_WILL', 'LIGHTNING'],
+      ['udg_01', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_DESTROY_GOD'],
+      ['ultimate_hyperactive_01', 'ULTIMATE_HYPERACTIVE_GOD', 'ULTIMATE_HYPERACTIVE'],
+      ['meteor_god_01', 'METEOR_GOD', 'METEOR_GOD']
+    ];
+
+    for (const [cardId, cardType, markerType] of expected) {
+      expect(SpecialStoneRegistry.getSpecialStoneCardDefinition(cardType)).toEqual(
+        expect.objectContaining({ cardId, cardType, markerType })
+      );
+      expect(SpecialStoneRegistry.getMarkerTypeForSpecialStoneCard(cardType)).toBe(markerType);
+    }
+
+    expect(SpecialStoneRegistry.getSpecialStoneCardDefinition('PERMA_PROTECT_NEXT_STONE')).toEqual(
+      expect.objectContaining({ promotedMarkerType: 'ABSOLUTE_PROTECTED' })
+    );
+  });
+
+  test('exposes purpose-specific special-stone targeting traits', () => {
+    for (const type of ['PROTECTED', 'PERMA_PROTECTED', 'GHOST', 'AFTERIMAGE_WILL', 'REGEN', 'WILL_HUNTER_KING']) {
+      expect(SpecialStoneRegistry.isTemptTargetableStoneEffect(type)).toBe(true);
+      expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect(type)).toBe(true);
+      expect(SpecialStoneRegistry.canLossWillRevert(type)).toBe(true);
+    }
+
+    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('TRAP')).toBe(true);
+    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('TIME_BOMB')).toBe(true);
+    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('LIVING_WILL')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('TRAP')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('TIME_BOMB')).toBe(true);
+
+    expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('TRAP')).toBe(false);
+    expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('TIME_BOMB')).toBe(false);
+    expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('LIVING_WILL')).toBe(false);
+    expect(SpecialStoneRegistry.canLossWillRevert('LIVING_WILL')).toBe(false);
+
+    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('GUARD')).toBe(false);
+    expect(SpecialStoneRegistry.blocksTempt('GUARD')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('GUARD')).toBe(false);
+    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('ABSOLUTE_PROTECTED')).toBe(false);
+    expect(SpecialStoneRegistry.blocksTempt('ABSOLUTE_PROTECTED')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('ABSOLUTE_PROTECTED')).toBe(false);
+
+    for (const type of ['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL', 'BLOCKADE', 'FREEZE', 'SEED', 'GOLD', 'SILVER', 'RAINBOW']) {
+      expect(SpecialStoneRegistry.isTemptTargetableStoneEffect(type)).toBe(false);
+    }
+  });
+
   test('late-bound global EvasionStatus still supplies evade defaults', () => {
     const previous = (globalThis as any).EvasionStatus;
     try {
