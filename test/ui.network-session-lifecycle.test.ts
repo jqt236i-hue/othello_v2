@@ -56,7 +56,19 @@ describe('NetworkSessionLifecycleController', () => {
       resetTurnTimerState: jest.fn(),
       readSelectedHandSkinId: jest.fn(() => 'default'),
       readSeatClaim: jest.fn(),
+      readStoredSession: jest.fn(),
       clearSeatClaim: jest.fn(),
+      clearStoredSession: jest.fn(),
+      activateStoredSession: jest.fn((session) => {
+        stateObj.roomId = session.roomId;
+        stateObj.viewerRole = session.viewerRole || 'seat';
+        stateObj.seatKey = session.seatKey || 'black';
+        stateObj.seatToken = session.seatToken || '';
+        stateObj.spectatorId = session.spectatorId || '';
+        stateObj.spectatorToken = session.spectatorToken || '';
+        stateObj.spectatorName = session.spectatorName || '';
+        return true;
+      }),
       shouldRetryJoinWithoutStoredClaim: jest.fn(),
       isMatchApiMissing: jest.fn(() => false),
       getKnownProjectedSnapshotHash: jest.fn(),
@@ -557,6 +569,50 @@ describe('NetworkSessionLifecycleController', () => {
 
       expect(result.ok).toBe(false);
       expect(result.reason).toBe('SERVER_ERROR');
+    });
+  });
+
+  describe('restoreStoredSession', () => {
+    test('保存済み観戦者セッションを復帰して状態同期後にstreamを開く', async () => {
+      mockConfig.readStoredSession.mockReturnValue({
+        roomId: 'SPC',
+        viewerRole: 'spectator',
+        spectatorId: 'spec_12345678',
+        spectatorToken: 'spectator-token',
+        spectatorName: '観戦'
+      });
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        snapshot: {
+          stateVersion: 12,
+          _meta: {
+            authority: 'server',
+            viewerRole: 'spectator'
+          }
+        }
+      }));
+
+      const result = await controller.restoreStoredSession();
+
+      expect(result).toEqual(expect.objectContaining({
+        ok: true,
+        restored: true,
+        roomId: 'SPC',
+        viewerRole: 'spectator',
+        spectatorId: 'spec_12345678',
+        spectatorName: '観戦'
+      }));
+      expect(mockConfig.activateStoredSession).toHaveBeenCalledWith(expect.objectContaining({
+        roomId: 'SPC',
+        viewerRole: 'spectator',
+        spectatorToken: 'spectator-token'
+      }));
+      expect(mockConfig.requestJson).toHaveBeenCalledWith(
+        'GET',
+        '/api/match/state?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token'
+      );
+      expect(mockConfig.openStream).toHaveBeenCalled();
+      expect(mockConfig.clearStoredSession).not.toHaveBeenCalled();
     });
   });
 

@@ -131,6 +131,7 @@ describe('match-mode network button behavior', () => {
       spectateRoom,
       leaveRoom,
       listRooms,
+      restoreStoredSession: jest.fn(async () => ({ ok: false, reason: 'NO_STORED_SESSION' })),
       setStatusWriter: jest.fn(),
       setRoomStateListener: jest.fn(),
       setTurnTimerListener: jest.fn((listener) => {
@@ -238,6 +239,24 @@ describe('match-mode network button behavior', () => {
     });
 
     expect(document.getElementById('networkTimerStatus').textContent).toBe('手番タイマー: 黒 残り 93 秒');
+  });
+
+  test('起動時に保存済み観戦セッションを復帰してネット対戦モードへ戻す', async () => {
+    window.NetworkMatchClient.restoreStoredSession.mockResolvedValueOnce({
+      ok: true,
+      restored: true,
+      roomId: 'SPC',
+      viewerRole: 'spectator'
+    });
+
+    window.setupMatchModeControls(buildUiRefs());
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(window.NetworkMatchClient.restoreStoredSession).toHaveBeenCalled();
+    expect(window.MatchMode.getCurrentMode()).toBe('network');
+    expect(document.getElementById('networkStatusText').textContent).toContain('復帰');
+    expect(document.getElementById('networkTimerStatus').style.display).toBe('block');
   });
 
   test('リバーシモードはカード系UIを隠しCPUレベル選択を残す', async () => {

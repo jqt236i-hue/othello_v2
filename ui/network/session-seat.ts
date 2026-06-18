@@ -9,6 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 function createNetworkSessionSeatController(config: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const rootRef = cfg.root || (typeof globalThis !== 'undefined' ? globalThis : null);
+  const STORED_SESSION_KEY = 'network_match_last_session';
 
   function resolveGachaHandCatalogSharedModule(): any {
     try {
@@ -58,6 +59,10 @@ function createNetworkSessionSeatController(config: any): any {
       return cfg.normalizeRoomId(value);
     }
     return String(value || '').trim().toUpperCase();
+  }
+
+  function normalizeViewerRole(value: any): 'seat' | 'spectator' {
+    return String(value || '').trim().toLowerCase() === 'spectator' ? 'spectator' : 'seat';
   }
 
   function normalizePlayerName(value: any): string {
@@ -310,10 +315,21 @@ function createNetworkSessionSeatController(config: any): any {
     return `network_match_seat_${normalizeRoomId(roomId)}`;
   }
 
+  function getStorage(): any {
+    try {
+      if (rootRef && rootRef.localStorage) return rootRef.localStorage;
+    } catch (e) { /* ignore */ }
+    try {
+      if (typeof localStorage !== 'undefined') return localStorage;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
   function readSeatClaim(roomId: any): any {
     try {
-      if (typeof localStorage === 'undefined') return null;
-      const raw = localStorage.getItem(getSeatStorageKey(roomId));
+      const storage = getStorage();
+      if (!storage) return null;
+      const raw = storage.getItem(getSeatStorageKey(roomId));
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return null;
@@ -328,9 +344,10 @@ function createNetworkSessionSeatController(config: any): any {
 
   function writeSeatClaim(roomId: any, seatKey: any, seatToken: any): void {
     try {
-      if (typeof localStorage === 'undefined') return;
+      const storage = getStorage();
+      if (!storage) return;
       if (!roomId || !seatToken) return;
-      localStorage.setItem(getSeatStorageKey(roomId), JSON.stringify({
+      storage.setItem(getSeatStorageKey(roomId), JSON.stringify({
         roomId: normalizeRoomId(roomId),
         seatKey: normalizePlayerKey(seatKey),
         seatToken: String(seatToken)
@@ -340,10 +357,149 @@ function createNetworkSessionSeatController(config: any): any {
 
   function clearSeatClaim(roomId: any): void {
     try {
-      if (typeof localStorage === 'undefined') return;
+      const storage = getStorage();
+      if (!storage) return;
       if (!roomId) return;
-      localStorage.removeItem(getSeatStorageKey(roomId));
+      storage.removeItem(getSeatStorageKey(roomId));
+      const stored = readStoredSession();
+      if (stored && stored.viewerRole === 'seat' && stored.roomId === normalizeRoomId(roomId)) {
+        clearStoredSession();
+      }
     } catch (e) { /* ignore */ }
+  }
+
+  function normalizeStoredSession(value: any): any {
+    const source = (value && typeof value === 'object') ? value : null;
+    if (!source) return null;
+    const roomId = normalizeRoomId(source.roomId);
+    if (!roomId) return null;
+    const viewerRole = normalizeViewerRole(source.viewerRole);
+    const serverUrl = String(source.serverUrl || '').trim();
+    if (viewerRole === 'spectator') {
+      const spectatorId = String(source.spectatorId || '').trim();
+      const spectatorToken = String(source.spectatorToken || '').trim();
+      if (!spectatorId || !spectatorToken) return null;
+      return {
+        version: 1,
+        roomId,
+        viewerRole: 'spectator',
+        spectatorId,
+        spectatorToken,
+        spectatorName: normalizePlayerName(source.spectatorName || source.playerName),
+        serverUrl
+      };
+    }
+
+    const seatToken = String(source.seatToken || '').trim();
+    if (!seatToken) return null;
+    return {
+      version: 1,
+      roomId,
+      viewerRole: 'seat',
+      seatKey: normalizePlayerKey(source.seatKey),
+      seatToken,
+      playerName: normalizePlayerName(source.playerName),
+      serverUrl
+    };
+  }
+
+  function readStoredSession(): any {
+    try {
+      const storage = getStorage();
+      if (!storage) return null;
+      const raw = storage.getItem(STORED_SESSION_KEY);
+      if (!raw) return null;
+      return normalizeStoredSession(JSON.parse(raw));
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function writeStoredSession(session: any): void {
+    try {
+      const storage = getStorage();
+      if (!storage) return;
+      const normalized = normalizeStoredSession(session);
+      if (!normalized) return;
+      storage.setItem(STORED_SESSION_KEY, JSON.stringify(normalized));
+    } catch (e) { /* ignore */ }
+  }
+
+  function writeStoredSessionFromState(): void {
+    const state = resolveState();
+    const serverUrl = typeof cfg.getServerUrl === 'function' ? cfg.getServerUrl() : '';
+    if (normalizeViewerRole(state.viewerRole) === 'spectator') {
+      writeStoredSession({
+        roomId: state.roomId,
+        viewerRole: 'spectator',
+        spectatorId: state.spectatorId,
+        spectatorToken: state.spectatorToken,
+        spectatorName: state.spectatorName,
+        serverUrl
+      });
+      return;
+    }
+    writeStoredSession({
+      roomId: state.roomId,
+      viewerRole: 'seat',
+      seatKey: state.seatKey,
+      seatToken: state.seatToken,
+      playerName: state.seatNames && state.seatNames[state.seatKey],
+      serverUrl
+    });
+  }
+
+  function clearStoredSession(): void {
+    try {
+      const storage = getStorage();
+      if (!storage) return;
+      storage.removeItem(STORED_SESSION_KEY);
+    } catch (e) { /* ignore */ }
+  }
+
+  function activateStoredSession(session: any): boolean {
+    const stored = normalizeStoredSession(session);
+    if (!stored) return false;
+    const state = resolveState();
+
+    if (typeof cfg.prepareSessionActivation === 'function') {
+      cfg.prepareSessionActivation(stored);
+    }
+
+    state.active = true;
+    state.roomId = stored.roomId;
+    state.viewerRole = stored.viewerRole;
+    state.stateVersion = null;
+    resetResultPresentationState(state);
+    state.chatHistory = [];
+    state.roomSeats = { black: false, white: false };
+    state.seatNames = { black: '', white: '' };
+    state.seatHandSkins = { black: '', white: '' };
+    state.roomDeck = null;
+    state.roomBoardConfig = null;
+    state.networkDebugEnabled = false;
+
+    if (stored.viewerRole === 'spectator') {
+      state.spectatorId = stored.spectatorId;
+      state.spectatorToken = stored.spectatorToken;
+      state.spectatorName = normalizePlayerName(stored.spectatorName);
+      state.seatKey = normalizePlayerKey(state.seatKey || 'black');
+      state.seatToken = '';
+    } else {
+      state.viewerRole = 'seat';
+      state.spectatorId = '';
+      state.spectatorToken = '';
+      state.spectatorName = '';
+      state.seatKey = normalizePlayerKey(stored.seatKey);
+      state.seatToken = String(stored.seatToken || '').trim();
+      ensureOwnSeatJoined();
+      setSeatGlobals(state.seatKey);
+      if (typeof cfg.ensureActionBridge === 'function') {
+        cfg.ensureActionBridge();
+      }
+    }
+
+    emitRoomStateChanged();
+    return true;
   }
 
   function activateSessionFromResponse(data: any, fallbackRoomId: any): void {
@@ -390,6 +546,7 @@ function createNetworkSessionSeatController(config: any): any {
       cfg.ensureActionBridge();
     }
     writeSeatClaim(state.roomId, state.seatKey, state.seatToken);
+    writeStoredSessionFromState();
     emitRoomStateChanged();
 
     if (payload.snapshot && typeof cfg.applySnapshot === 'function') {
@@ -429,6 +586,7 @@ function createNetworkSessionSeatController(config: any): any {
     if (typeof cfg.updateTurnTimerFromPayload === 'function') {
       cfg.updateTurnTimerFromPayload(payload);
     }
+    writeStoredSessionFromState();
     emitRoomStateChanged();
 
     if (payload.snapshot && typeof cfg.applySnapshot === 'function') {
@@ -460,6 +618,9 @@ function createNetworkSessionSeatController(config: any): any {
     if (typeof cfg.onResetSessionState === 'function') {
       cfg.onResetSessionState(state, opts);
     }
+    if (opts.preserveStoredSession !== true) {
+      clearStoredSession();
+    }
     if (opts.emit !== false) {
       emitRoomStateChanged();
     }
@@ -480,6 +641,10 @@ function createNetworkSessionSeatController(config: any): any {
     readSeatClaim,
     writeSeatClaim,
     clearSeatClaim,
+    readStoredSession,
+    writeStoredSession,
+    clearStoredSession,
+    activateStoredSession,
     activateSessionFromResponse,
     activateSpectatorSessionFromResponse,
     resetSessionState

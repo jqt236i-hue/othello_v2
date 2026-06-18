@@ -1602,18 +1602,24 @@ const MODE_OTHELLO = 'othello';
             disableAutoModeForHumanPlay();
         }
 
-        if (currentMode === MODE_NETWORK) {
-            writeNetworkStatus('ネット対戦: 部屋作成か部屋参加を選んでください', false);
-        } else if (currentMode === MODE_REVERSI) {
-            writeNetworkStatus('リバーシモード', false);
-        } else {
-            writeNetworkStatus('CPU対戦モード', false);
+        if (opts.suppressStatus !== true) {
+            if (currentMode === MODE_NETWORK) {
+                writeNetworkStatus('ネット対戦: 部屋作成か部屋参加を選んでください', false);
+            } else if (currentMode === MODE_REVERSI) {
+                writeNetworkStatus('リバーシモード', false);
+            } else {
+                writeNetworkStatus('CPU対戦モード', false);
+                setNetworkOverlayVisible(false);
+            }
+        } else if (currentMode !== MODE_NETWORK) {
             setNetworkOverlayVisible(false);
         }
 
         applyNetworkDebugModeAccess();
 
-        resetGameForReversiModeSwitch(prevMode, currentMode);
+        if (opts.skipReset !== true) {
+            resetGameForReversiModeSwitch(prevMode, currentMode);
+        }
         refreshModeButtons();
         refreshBoardUi();
         try {
@@ -1627,6 +1633,26 @@ const MODE_OTHELLO = 'othello';
             if (currentMode === MODE_REVERSI) addLog('モード: リバーシ');
             if (currentMode === MODE_NETWORK) addLog('モード: ネット対戦');
         }
+    }
+
+    async function restoreStoredNetworkSessionOnBoot() {
+        try {
+            if (!root.NetworkMatchClient || typeof root.NetworkMatchClient.restoreStoredSession !== 'function') return;
+            const result = await root.NetworkMatchClient.restoreStoredSession();
+            if (!result || result.ok !== true) return;
+            await setMode(MODE_NETWORK, {
+                silentLog: true,
+                skipReset: true,
+                suppressStatus: true
+            });
+            const role = String(result.viewerRole || '').trim().toLowerCase();
+            writeNetworkStatus(role === 'spectator'
+                ? 'ネット対戦: 観戦セッションへ復帰しました'
+                : 'ネット対戦: 対戦セッションへ復帰しました', false);
+            setNetworkOverlayVisible(false);
+            renderNetworkTimerStatus();
+            refreshNetworkChatVisibility();
+        } catch (e) { /* ignore restore failure; normal CPU boot remains available */ }
     }
 
     function bindNetworkButtons() {
@@ -2058,6 +2084,7 @@ const MODE_OTHELLO = 'othello';
         measureBaseControlPanelHeight();
         scheduleControlPanelLayoutSync();
         setMode(MODE_CPU, { force: true, silentLog: true });
+        restoreStoredNetworkSessionOnBoot();
     }
 export = {
         setupMatchModeControls,

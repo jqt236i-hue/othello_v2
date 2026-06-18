@@ -644,7 +644,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             updateTurnTimerFromPayload: (payload: any) => updateTurnTimerFromPayload(payload),
             ensureActionBridge: () => ensureActionBridge(),
             applySnapshot: (snapshot: any, options: any) => applySnapshot(snapshot, options),
-            resetResultPresentationState: (resultState: any) => resetNetworkResultPresentationState(resultState)
+            resetResultPresentationState: (resultState: any) => resetNetworkResultPresentationState(resultState),
+            getServerUrl
         });
         return networkSessionSeatController;
     }
@@ -667,7 +668,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             isMatchApiMissing,
             emitStatus,
             readSeatClaim,
+            readStoredSession,
             clearSeatClaim,
+            clearStoredSession,
+            activateStoredSession,
             shouldRetryJoinWithoutStoredClaim,
             activateSessionFromResponse,
             activateSpectatorSessionFromResponse,
@@ -1367,6 +1371,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function clearSeatClaim(roomId: any) {
         invokeControllerMethod(getNetworkSessionSeatController, 'clearSeatClaim', arguments, undefined);
+    }
+
+    function readStoredSession() {
+        return invokeControllerMethod(getNetworkSessionSeatController, 'readStoredSession', arguments, null);
+    }
+
+    function clearStoredSession() {
+        invokeControllerMethod(getNetworkSessionSeatController, 'clearStoredSession', arguments, undefined);
+    }
+
+    function activateStoredSession(session: any) {
+        return invokeControllerMethod(getNetworkSessionSeatController, 'activateStoredSession', arguments, false);
     }
 
     function emitStatus(text: any, isError: any) {
@@ -2221,6 +2237,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
+    function restoreStoredSession(options?: any) {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'restoreStoredSession',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
+        );
+    }
+
     function getCurrentAppliedGameState() {
         try {
             if (root && root.gameState && typeof root.gameState === 'object') return root.gameState;
@@ -2518,6 +2543,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         listRooms,
         leaveRoom,
         syncLatestState,
+        restoreStoredSession,
         publishCommand,
         publishSnapshot,
         requestRematch,

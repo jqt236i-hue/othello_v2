@@ -96,6 +96,17 @@ describe('NetworkMatchClient spectator session', () => {
         });
       }
 
+      if (path === '/api/match/state') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: parsedUrl.searchParams.get('roomId'),
+          viewerRole: parsedUrl.searchParams.get('viewerRole') || 'seat',
+          spectatorId: parsedUrl.searchParams.get('spectatorId') || '',
+          spectatorName: '観戦',
+          snapshot: createSnapshot(4)
+        });
+      }
+
       return jsonResponse(500, { ok: false, reason: 'UNEXPECTED_REQUEST' });
     });
 
@@ -167,5 +178,41 @@ describe('NetworkMatchClient spectator session', () => {
     expect(global.fetch).not.toHaveBeenCalled();
     expect(statusWriter).toHaveBeenCalledWith('観戦中は操作できません', true);
     expect(statusWriter).toHaveBeenCalledWith('観戦中はチャット送信できません', true);
+  });
+
+  test('restoreStoredSession resumes spectator session after reload', async () => {
+    global.localStorage.setItem('network_match_last_session', JSON.stringify({
+      version: 1,
+      roomId: 'SPC',
+      viewerRole: 'spectator',
+      spectatorId: 'spec_12345678',
+      spectatorToken: 'spectator-token',
+      spectatorName: '観戦',
+      serverUrl: 'http://localhost:8787'
+    }));
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    client.setStatusWriter(statusWriter);
+
+    const result = await client.restoreStoredSession();
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      restored: true,
+      roomId: 'SPC',
+      viewerRole: 'spectator',
+      spectatorId: 'spec_12345678',
+      spectatorName: '観戦'
+    }));
+    expect(client.isSpectator()).toBe(true);
+    expect(eventSources).toHaveLength(1);
+    expect(eventSources[0].url).toBe(
+      'http://localhost:8787/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token'
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://localhost:8787/api/match/state?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token',
+      expect.objectContaining({ method: 'GET' })
+    );
   });
 });

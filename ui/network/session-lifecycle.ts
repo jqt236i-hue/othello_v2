@@ -129,6 +129,15 @@ function createNetworkSessionLifecycleController(config: any): any {
       + '&seatToken=' + encodeURIComponent(state.seatToken || '');
   }
 
+  function isInvalidStoredSessionReason(reason: any): boolean {
+    const normalized = String(reason || '').trim().toUpperCase();
+    return normalized === 'ROOM_NOT_FOUND'
+      || normalized === 'SPECTATOR_NOT_FOUND'
+      || normalized === 'SPECTATOR_TOKEN_INVALID'
+      || normalized === 'SEAT_TOKEN_INVALID'
+      || normalized === 'SEAT_NOT_FOUND';
+  }
+
   async function createRoom(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
     const currentState = readState();
@@ -389,6 +398,66 @@ function createNetworkSessionLifecycleController(config: any): any {
     return { ok: true, appliedSnapshot: appliedSnapshot };
   }
 
+  async function restoreStoredSession(options?: any): Promise<any> {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const state = readState();
+    if (state.roomId) {
+      return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: state.roomId };
+    }
+    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
+      cfg.setServerUrl(opts.serverUrl);
+    }
+
+    const stored = typeof cfg.readStoredSession === 'function' ? cfg.readStoredSession() : null;
+    if (!stored || typeof stored !== 'object') {
+      return { ok: false, reason: 'NO_STORED_SESSION' };
+    }
+    if (stored.serverUrl && typeof cfg.setServerUrl === 'function') {
+      cfg.setServerUrl(stored.serverUrl);
+    }
+    if (typeof cfg.activateStoredSession !== 'function' || cfg.activateStoredSession(stored) !== true) {
+      if (typeof cfg.clearStoredSession === 'function') cfg.clearStoredSession();
+      return { ok: false, reason: 'STORED_SESSION_INVALID' };
+    }
+
+    if (typeof cfg.resetNetworkTelemetry === 'function') {
+      cfg.resetNetworkTelemetry();
+    }
+
+    const syncResult = await syncLatestState();
+    if (!syncResult || syncResult.ok !== true) {
+      const reason = syncResult && syncResult.reason ? syncResult.reason : 'STATE_FETCH_FAILED';
+      if (isInvalidStoredSessionReason(reason) && typeof cfg.clearStoredSession === 'function') {
+        cfg.clearStoredSession();
+      }
+      if (typeof cfg.resetSessionState === 'function') {
+        cfg.resetSessionState();
+      }
+      return { ok: false, reason };
+    }
+
+    openStream();
+
+    const restoredState = readState();
+    const viewerRole = isSpectatorState(restoredState) ? 'spectator' : 'seat';
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus(viewerRole === 'spectator'
+        ? 'ネット対戦: 観戦セッションへ復帰しました'
+        : 'ネット対戦: 対戦セッションへ復帰しました');
+    }
+
+    return {
+      ok: true,
+      restored: true,
+      roomId: restoredState.roomId,
+      viewerRole,
+      seatKey: viewerRole === 'seat' ? restoredState.seatKey : undefined,
+      spectatorId: viewerRole === 'spectator' ? restoredState.spectatorId : undefined,
+      spectatorName: viewerRole === 'spectator' ? restoredState.spectatorName : undefined,
+      appliedSnapshot: syncResult.appliedSnapshot === true
+    };
+  }
+
   async function leaveRoom(): Promise<any> {
     if (typeof cfg.clearPlaybackStateForLeave === 'function') {
       cfg.clearPlaybackStateForLeave();
@@ -487,6 +556,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     spectateRoom: spectateRoom,
     listRooms: listRooms,
     syncLatestState: syncLatestState,
+    restoreStoredSession: restoreStoredSession,
     leaveRoom: leaveRoom
   };
 }
