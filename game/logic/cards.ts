@@ -66,6 +66,7 @@ const CardSpawnAndFlipModule = resolveCardLogicModuleOrGlobal('./cards-internal/
 const CardRiboTimeStopModule = resolveCardLogicModuleOrGlobal('./cards-internal/ribo-time-stop', 'CardRiboTimeStop');
 const CardTargetAccessModule = resolveCardLogicModuleOrGlobal('./cards-internal/target-access', 'CardTargetAccess');
 const CardContextBuildersModule = resolveCardLogicModuleOrGlobal('./cards-internal/context-builders', 'CardContextBuilders');
+const CardTheoryIncarnationBindings = resolveCardLogicModuleOrGlobal('./cards-internal/theory-incarnation-bindings', 'CardTheoryIncarnationBindings');
 const CardDeckSetupModule = resolveCardLogicModuleOrGlobal('./cards-internal/deck-setup', 'CardDeckSetup');
 const CardHandAccessModule = resolveCardLogicModuleOrGlobal('./cards-internal/hand-access', 'CardHandAccess');
 const CardAvailabilityModule = resolveCardLogicModuleOrGlobal('./cards-internal/card-availability', 'CardAvailability');
@@ -1825,7 +1826,10 @@ const {
     }
 
     function getTheoryIncarnationResolutionDeps() {
-        return {
+        if (!CardTheoryIncarnationBindings || typeof CardTheoryIncarnationBindings.buildTheoryIncarnationResolutionDeps !== 'function') {
+            throw new Error('CardTheoryIncarnationBindings not loaded');
+        }
+        return CardTheoryIncarnationBindings.buildTheoryIncarnationResolutionDeps({
             MARKER_KINDS,
             BLACK,
             WHITE,
@@ -1869,7 +1873,7 @@ const {
             spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
                 ? BoardOpsModule.spawnAt
                 : null
-        };
+        });
     }
 
     function getBoardExecutorResolutionDeps() {
