@@ -109,6 +109,11 @@ export interface MatchAuthorityPublishMeta {
     rejectedReason: string | null;
 }
 
+export interface MatchAuthorityAutoPassNotice {
+    playerKey: MatchAuthoritySeatKey;
+    reason: string;
+}
+
 export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObject {
     ok?: boolean;
     roomId?: unknown;
@@ -131,6 +136,7 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     errorMessage?: unknown;
     playbackDiagnostics?: unknown;
     projectedSnapshotHash?: unknown;
+    autoPassNotice?: unknown;
     type?: unknown;
     seatKey?: unknown;
     playerKey?: unknown;
@@ -169,6 +175,7 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     errorMessage?: unknown;
     playbackDiagnostics?: unknown | null;
     projectedSnapshotHash?: unknown | null;
+    autoPassNotice?: MatchAuthorityAutoPassNotice;
     type?: string | null;
     seatKey?: MatchAuthoritySeatKey | null;
     playerKey?: MatchAuthoritySeatKey | null;

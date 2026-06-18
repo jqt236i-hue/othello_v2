@@ -21,6 +21,14 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
   if (passHandler && typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function') {
     passGlobals.ensureCurrentPlayerCanActOrPass = passHandler.ensureCurrentPlayerCanActOrPass;
   }
+  let showAutoPassNoticeFn: any = null;
+  try {
+    const feedbackEvents = deps.requireModule('./animation-feedback-events');
+    if (feedbackEvents && typeof feedbackEvents.showAutoPassNotice === 'function') {
+      showAutoPassNoticeFn = feedbackEvents.showAutoPassNotice;
+      passGlobals.showAutoPassNotice = showAutoPassNoticeFn;
+    }
+  } catch (e: any) { /* ignore */ }
   if (!passHandler) return { registeredGlobals: passGlobals };
 
   if (typeof passHandler.setPassHandlerTimerService === 'function') {
@@ -56,6 +64,17 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
             const fn = typeof globalThis !== 'undefined' ? (globalThis as any).showResult : null;
             if (typeof fn !== 'function') return false;
             fn();
+            return true;
+          } catch (e: any) {
+            return false;
+          }
+        },
+        showAutoPassNotice: (notice: any) => {
+          try {
+            const fn = showAutoPassNoticeFn
+              || (typeof globalThis !== 'undefined' ? (globalThis as any).showAutoPassNotice : null);
+            if (typeof fn !== 'function') return false;
+            fn(notice);
             return true;
           } catch (e: any) {
             return false;

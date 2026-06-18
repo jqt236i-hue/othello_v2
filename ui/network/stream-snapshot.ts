@@ -115,6 +115,9 @@ function createNetworkStreamSnapshotController(config?: any): any {
       if (emittedEffectLogCount === 0 && typeof cfg.emitSnapshotCommentary === 'function') {
         cfg.emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
       }
+      if (typeof cfg.showAutoPassNoticeFromPayload === 'function') {
+        cfg.showAutoPassNoticeFromPayload(payload);
+      }
     }
 
     if (isSelfOperation && typeof cfg.markTrackedPublishSelfSnapshot === 'function') {

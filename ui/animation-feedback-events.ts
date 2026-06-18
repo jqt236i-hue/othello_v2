@@ -276,6 +276,98 @@ function showManifestSummaryPopup(target: any, deps: AnimationFeedbackEventDeps 
         popup.classList.add('is-visible');
     }
 
+    if (deps.isNoAnim && deps.isNoAnim()) {
+        fadeTimer = setTimeout(() => {
+            try { if (popup.parentElement) popup.parentElement.removeChild(popup); } catch (e: any) { /* ignore */ }
+        }, 3000);
+        return;
+    }
+    fadeTimer = setTimeout(dismiss, 3000);
+}
+
+function resolveAutoPassNoticePlayerKey(value: any): string {
+    const normalized = normalizePlayerKey(value);
+    return normalized === 'white' ? 'white' : 'black';
+}
+
+function resolveAutoPassNotice(input: any) {
+    const source = (input && typeof input === 'object') ? input : {};
+    const playerKey = resolveAutoPassNoticePlayerKey(source.playerKey || source.player || source.owner);
+    const playerLabel = playerKey === 'white' ? '白' : '黒';
+    const reasonText = String(source.reasonText || source.message || '').trim()
+        || '合法手と使用可能カードがありません。';
+    return {
+        playerKey,
+        playerLabel,
+        reasonText
+    };
+}
+
+function showAutoPassNotice(input: any, deps: AnimationFeedbackEventDeps = {}) {
+    const notice = resolveAutoPassNotice(input);
+    const documentRef = getDocumentRef();
+    if (!documentRef || !documentRef.body) return;
+
+    const existing = Array.from(documentRef.querySelectorAll('.auto-pass-notice-popup')) as any[];
+    for (const node of existing) {
+        try { if (node && node.parentElement) node.parentElement.removeChild(node); } catch (e: any) { /* ignore */ }
+    }
+
+    const popup = documentRef.createElement('div');
+    popup.className = 'auto-pass-notice-popup';
+    popup.dataset.playerKey = notice.playerKey;
+    popup.setAttribute('role', 'status');
+    popup.setAttribute('aria-live', 'polite');
+    popup.setAttribute('aria-atomic', 'true');
+
+    const shell = documentRef.createElement('div');
+    shell.className = 'auto-pass-notice-popup-shell';
+
+    const titleEl = documentRef.createElement('div');
+    titleEl.className = 'auto-pass-notice-popup-title';
+    titleEl.textContent = `${notice.playerLabel} : 自動パス`;
+
+    const reasonEl = documentRef.createElement('div');
+    reasonEl.className = 'auto-pass-notice-popup-reason';
+    reasonEl.textContent = notice.reasonText;
+
+    shell.appendChild(titleEl);
+    shell.appendChild(reasonEl);
+    popup.appendChild(shell);
+
+    let dismissed = false;
+    let fadeTimer: any = null;
+    let removeTimer: any = null;
+    const clearTimers = () => {
+        try { if (fadeTimer !== null) clearTimeout(fadeTimer); } catch (e: any) { /* ignore */ }
+        try { if (removeTimer !== null) clearTimeout(removeTimer); } catch (e: any) { /* ignore */ }
+        fadeTimer = null;
+        removeTimer = null;
+    };
+    const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        clearTimers();
+        try {
+            popup.classList.remove('is-visible');
+            popup.classList.add('is-leaving');
+        } catch (e: any) { /* ignore */ }
+        removeTimer = setTimeout(() => {
+            try { if (popup.parentElement) popup.parentElement.removeChild(popup); } catch (e: any) { /* ignore */ }
+        }, 500);
+    };
+
+    popup.addEventListener('click', dismiss);
+    popup.addEventListener('pointerdown', dismiss);
+
+    documentRef.body.appendChild(popup);
+    try {
+        void popup.offsetWidth;
+        popup.classList.add('is-visible');
+    } catch (e: any) {
+        popup.classList.add('is-visible');
+    }
+
     if (deps.isNoAnim && deps.isNoAnim()) return;
     fadeTimer = setTimeout(dismiss, 3000);
 }
@@ -637,5 +729,6 @@ module.exports = {
     handleRoundBonusBannerEvent,
     handleSpecialCardCinematicEvent,
     showManifestSummaryPopup,
+    showAutoPassNotice,
     handleSoundEffectEvent
 };

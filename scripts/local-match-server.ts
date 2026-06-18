@@ -358,6 +358,9 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
     if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
         payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
     }
+    if (Object.prototype.hasOwnProperty.call(options, 'autoPassNotice')) {
+        payloadOptions.autoPassNotice = options.autoPassNotice || null;
+    }
     return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
 }
 
@@ -1033,11 +1036,22 @@ function buildSnapshotPayload(room: any, meta: any, viewer: any) {
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        autoPassNotice: meta && meta.autoPassNotice ? meta.autoPassNotice : null,
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
         actionType: meta && meta.actionType ? String(meta.actionType) : null,
         serverTime
     });
+}
+
+function resolveAutoPassNoticeForCommand(actionType: any, action: any, playerKey: any) {
+    const actionRecord: any = (action && typeof action === 'object') ? action : {};
+    const normalizedActionType = String(actionType || actionRecord.type || '').trim().toLowerCase();
+    if (normalizedActionType !== 'pass' || actionRecord.autoNoActionPass !== true) return null;
+    return {
+        playerKey: normalizePlayerKey(actionRecord.playerKey || playerKey),
+        reason: 'no_legal_moves_or_usable_cards'
+    };
 }
 
 function buildPresencePayload(room: any, meta: any) {
@@ -1846,12 +1860,14 @@ async function handlePublish(req: any, res: any) {
 
     refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
+    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey);
     const meta = {
         playerKey,
         actionType: body.actionType ? String(body.actionType) : null,
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
+        autoPassNotice,
         operationId: operationId || null
     };
     const serverTime = Date.now();
@@ -1862,6 +1878,7 @@ async function handlePublish(req: any, res: any) {
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
+        autoPassNotice,
         publishKind: 'accepted',
         operationId,
         actionType,

@@ -28,6 +28,7 @@ describe('NetworkStreamSnapshotController', () => {
       markTrackedPublishResultPresented: jest.fn(),
       emitPayloadEffectLogs: jest.fn(() => 0),
       emitSnapshotCommentary: jest.fn(),
+      showAutoPassNoticeFromPayload: jest.fn(),
       markTrackedPublishSelfSnapshot: jest.fn(),
       handleTimeoutPassPayload: jest.fn(),
       pruneTrackedPublishes: jest.fn()
@@ -91,6 +92,34 @@ describe('NetworkStreamSnapshotController', () => {
     expect(calls.recordNetworkTelemetry).toHaveBeenCalledWith(
       'stream_playback_recovered_after_force_sync',
       expect.objectContaining({ snapshotVersion: 9, playbackEventCount: 1, recoverySource: 'state_sync' })
+    );
+  });
+
+  test('shows auto pass notice after applying an auto no-action pass snapshot', () => {
+    calls.findTrackedPublish.mockReturnValue(null);
+
+    controller.handleStreamSnapshotPayload({
+      ok: true,
+      operationId: 'op_auto_pass',
+      playerKey: 'black',
+      actionType: 'pass',
+      autoPassNotice: {
+        playerKey: 'black',
+        reason: 'no_legal_moves_or_usable_cards'
+      },
+      snapshot: { stateVersion: 14 },
+      playbackEvents: []
+    });
+
+    expect(calls.applySnapshotThroughCoordinator).toHaveBeenCalled();
+    expect(calls.showAutoPassNoticeFromPayload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'pass',
+        autoPassNotice: {
+          playerKey: 'black',
+          reason: 'no_legal_moves_or_usable_cards'
+        }
+      })
     );
   });
 });

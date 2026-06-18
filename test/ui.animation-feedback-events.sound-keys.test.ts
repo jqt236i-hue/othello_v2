@@ -403,4 +403,33 @@ describe('animation feedback sound key coverage', () => {
     jest.runAllTimers();
     jest.useRealTimers();
   });
+
+  test('auto pass notice shows player and reason for three seconds before fading out', async () => {
+    jest.useFakeTimers();
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+
+    AnimationFeedbackEvents.showAutoPassNotice({
+      playerKey: 'black'
+    }, { isNoAnim: () => false });
+
+    const popup = document.querySelector('.auto-pass-notice-popup') as HTMLElement;
+    expect(popup).toBeTruthy();
+    expect(popup.getAttribute('role')).toBe('status');
+    expect(popup.textContent).toContain('黒 : 自動パス');
+    expect(popup.textContent).toContain('合法手と使用可能カードがありません。');
+    expect(popup.classList.contains('is-visible')).toBe(true);
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 3000);
+
+    jest.advanceTimersByTime(3000);
+    expect(popup.classList.contains('is-leaving')).toBe(true);
+    jest.advanceTimersByTime(500);
+    expect(document.querySelector('.auto-pass-notice-popup')).toBeNull();
+
+    setTimeoutSpy.mockRestore();
+    jest.useRealTimers();
+  });
 });

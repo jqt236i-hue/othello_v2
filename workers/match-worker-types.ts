@@ -239,12 +239,14 @@ export interface MatchWorkerPublishPayloadOptions extends Record<string, unknown
     rejectedReason?: unknown;
     errorMessage?: unknown;
     playbackDiagnostics?: unknown;
+    autoPassNotice?: unknown;
 }
 
 export interface MatchWorkerSnapshotPayloadMeta extends Record<string, unknown> {
     playbackEvents?: unknown;
     effectLogs?: unknown;
     playbackDiagnostics?: unknown;
+    autoPassNotice?: unknown;
     operationId?: unknown;
     playerKey?: unknown;
     actionType?: unknown;

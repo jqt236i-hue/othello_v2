@@ -3,6 +3,16 @@
 function createMatchWorkerPublishController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
 
+  function resolveAutoPassNoticeForCommand(actionType: unknown, actionValue: unknown, playerKey: unknown) {
+    const action = cfg.asRecord(actionValue);
+    const normalizedActionType = String(actionType || action.type || '').trim().toLowerCase();
+    if (normalizedActionType !== 'pass' || action.autoNoActionPass !== true) return null;
+    return {
+      playerKey: cfg.normalizePlayerKey(action.playerKey || playerKey),
+      reason: 'no_legal_moves_or_usable_cards'
+    };
+  }
+
   async function handlePublish(body: Record<string, unknown>): Promise<Response> {
     await cfg.loadRoom();
     const room = cfg.getRoom();
@@ -241,12 +251,14 @@ function createMatchWorkerPublishController(config?: any): any {
     }
     await cfg.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
+    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey);
     const meta = {
       playerKey,
       actionType: body.actionType ? String(body.actionType) : null,
       playbackEvents: serverPlaybackEvents,
       effectLogs: serverEffectLogs,
       playbackDiagnostics: serverPlaybackDiagnostics,
+      autoPassNotice,
       operationId: operationId || null
     };
     const serverTime = Date.now();
@@ -258,6 +270,7 @@ function createMatchWorkerPublishController(config?: any): any {
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
+        autoPassNotice,
         publishKind: 'accepted',
         operationId,
         actionType,

@@ -244,6 +244,23 @@ describe('match authority publish response payload', () => {
     }));
   });
 
+  test('buildSnapshotPayloadFromRoom preserves auto pass notice metadata', () => {
+    const payload = MatchAuthority.buildSnapshotPayloadFromRoom({
+      roomId: 'ABC',
+      stateVersion: 4
+    }, {
+      autoPassNotice: {
+        playerKey: 'black',
+        reason: 'no_legal_moves_or_usable_cards'
+      }
+    });
+
+    expect(payload.autoPassNotice).toEqual({
+      playerKey: 'black',
+      reason: 'no_legal_moves_or_usable_cards'
+    });
+  });
+
   test('sanitizePendingSelectionActionForAuthority strips redundant use-card fields once authority already committed the card', () => {
     const action = {
       type: 'place',

@@ -1152,6 +1152,9 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
     if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
         payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled) as MatchWorkerPlaybackDiagnostics | null;
     }
+    if (Object.prototype.hasOwnProperty.call(options, 'autoPassNotice')) {
+        payloadOptions.autoPassNotice = options.autoPassNotice || null;
+    }
     return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
 }
 
@@ -1776,6 +1779,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
         playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(metaRecord.effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        autoPassNotice: metaRecord.autoPassNotice || null,
         operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
         playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
         actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,

@@ -65,6 +65,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
+    const AUTO_PASS_NOTICE_REASON = 'no_legal_moves_or_usable_cards';
     const PlaybackStateModule = resolveNetworkClientModule('./playback-state-manager', root.PlaybackStateManager || null);
     const NetworkGameContractAdapterModule = resolveNetworkClientModule('./network/game-contract-adapter', root.NetworkGameContractAdapter || null);
     const ResultOverlayModule = resolveNetworkClientModule('./result-overlay', root || null);
@@ -384,7 +385,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         networkTelemetry: {
             counts: {} as any,
             recentEvents: [] as any[]
-        }
+        },
+        lastAutoPassNoticeSignature: ''
     };
 
     let networkCommentaryModule: any = null;
@@ -406,6 +408,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkStreamSessionModule: any = null;
     let networkTransportModule: any = null;
     let networkTurnTimerModule: any = null;
+    let animationFeedbackEventsModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
     let networkSnapshotController: any = null;
@@ -442,6 +445,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkStreamSessionModule = resolveNetworkClientModule('./network/stream-session', null);
     networkTransportModule = resolveNetworkClientModule('./network/transport', null);
     networkTurnTimerModule = resolveNetworkClientModule('./network/turn-timer', null);
+    animationFeedbackEventsModule = resolveNetworkClientModule('./animation-feedback-events', root.AnimationFeedbackEvents || null);
 
     function resolveNetworkCommentaryModule() {
         if (networkCommentaryModule) return networkCommentaryModule;
@@ -569,6 +573,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             || resolveNetworkClientCandidate(() => root && root.CardLogic)
             || resolveNetworkClientCandidate(() => (typeof globalThis !== 'undefined' ? (globalThis as any).CardLogic : null));
         return cardLogicModule;
+    }
+
+    function resolveAnimationFeedbackEventsModule() {
+        if (animationFeedbackEventsModule) return animationFeedbackEventsModule;
+
+        animationFeedbackEventsModule = resolveNetworkClientCandidate(() => _require('./animation-feedback-events'))
+            || resolveNetworkClientGlobal('AnimationFeedbackEvents');
+        return animationFeedbackEventsModule;
     }
 
     function resolveNetworkPublishRequestModule() {
@@ -823,6 +835,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             markTrackedPublishResultPresented,
             emitPayloadEffectLogs,
             emitSnapshotCommentary,
+            showAutoPassNoticeFromPayload,
             markTrackedPublishSelfSnapshot,
             handleTimeoutPassPayload,
             pruneTrackedPublishes
@@ -926,6 +939,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             buildShadowAwarePlaybackApplyOptions,
             hasTrackedPublishPresentedResult,
             emitPayloadEffectLogs,
+            showAutoPassNoticeFromPayload,
             pruneTrackedPublishes,
             getSnapshotStateVersion
         });
@@ -1476,6 +1490,56 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function emitSnapshotCommentary(payload: any, snapshot: any, isSelfOperation: any, playbackEvents: any) {
         invokeControllerMethod(getNetworkCommentaryController, 'emitSnapshotCommentary', arguments, undefined);
+    }
+
+    function readAutoPassNoticeFromPayload(payload: any) {
+        if (!payload || typeof payload !== 'object') return null;
+        const noticeSource = payload.autoPassNotice && typeof payload.autoPassNotice === 'object'
+            ? payload.autoPassNotice
+            : null;
+        const actionType = String(payload.actionType || '').trim().toLowerCase();
+        if (!noticeSource || actionType !== 'pass') return null;
+        return {
+            playerKey: normalizePlayerKey(noticeSource.playerKey || payload.playerKey),
+            reason: String(noticeSource.reason || '').trim() || AUTO_PASS_NOTICE_REASON
+        };
+    }
+
+    function buildAutoPassNoticeSignature(payload: any, notice: any) {
+        const snapshotVersion = getSnapshotStateVersion(payload && payload.snapshot);
+        const payloadVersion = Number.isFinite(Number(payload && payload.stateVersion))
+            ? Number(payload.stateVersion)
+            : null;
+        const versionPart = snapshotVersion !== null
+            ? String(snapshotVersion)
+            : (payloadVersion !== null ? String(payloadVersion) : '');
+        const operationId = String((payload && payload.operationId) || '').trim();
+        if (!operationId && !versionPart) return '';
+        return [
+            operationId,
+            versionPart,
+            notice && notice.playerKey ? notice.playerKey : '',
+            notice && notice.reason ? notice.reason : ''
+        ].join('|');
+    }
+
+    function showAutoPassNoticeFromPayload(payload: any) {
+        const notice = readAutoPassNoticeFromPayload(payload);
+        if (!notice) return false;
+        const signature = buildAutoPassNoticeSignature(payload, notice);
+        if (signature && state.lastAutoPassNoticeSignature === signature) return false;
+
+        const feedbackEvents = resolveAnimationFeedbackEventsModule();
+        const fn = feedbackEvents && typeof feedbackEvents.showAutoPassNotice === 'function'
+            ? feedbackEvents.showAutoPassNotice
+            : (root && typeof root.showAutoPassNotice === 'function' ? root.showAutoPassNotice : null);
+        if (typeof fn !== 'function') return false;
+        try {
+            fn(notice);
+            if (signature) state.lastAutoPassNoticeSignature = signature;
+            return true;
+        } catch (e: any) { /* ignore */ }
+        return false;
     }
 
     function getSeatDisplayName(seatKey: any) {

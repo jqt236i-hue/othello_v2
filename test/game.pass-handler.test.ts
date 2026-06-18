@@ -533,6 +533,23 @@ describe('pass-handler flows', () => {
         );
     });
 
+    test('ensureCurrentPlayerCanActOrPass はローカル自動パス時に中央通知を出す', () => {
+        delete require.cache[modPath];
+        (global as any).showAutoPassNotice = jest.fn();
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: false });
+
+        expect(handled).toBe(true);
+        expect((global as any).showAutoPassNotice).toHaveBeenCalledWith(expect.objectContaining({
+            playerKey: 'black',
+            reason: 'no_legal_moves_or_usable_cards'
+        }));
+    });
+
     test('ensureCurrentPlayerCanActOrPass は white CPU が black 手番を代理操作中なら owner-keyed に自動パスする', () => {
         delete require.cache[modPath];
         (global as any).gameState = { currentPlayer: (global as any).BLACK };

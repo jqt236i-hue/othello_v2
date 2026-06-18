@@ -308,6 +308,9 @@ function createNetworkPublishFlowController(config?: any): any {
               }));
             }
             if (typeof cfg.emitPayloadEffectLogs === 'function') cfg.emitPayloadEffectLogs(res.data);
+            if (typeof cfg.showAutoPassNoticeFromPayload === 'function') {
+              cfg.showAutoPassNoticeFromPayload(res.data);
+            }
             if (typeof cfg.recordNetworkTelemetry === 'function') {
               cfg.recordNetworkTelemetry('publish_response_snapshot_applied', {
                 operationId,

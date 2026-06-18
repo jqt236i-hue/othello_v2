@@ -22,6 +22,7 @@ declare const BLACK_PASS_DELAY_MS: any;
 declare const DOUBLE_PLACE_PASS_DELAY_MS: any;
 
 const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
+const AUTO_PASS_NOTICE_REASON = 'no_legal_moves_or_usable_cards';
 
 // TimerService DI
 let passHandlerTimerService: any = null;
@@ -527,6 +528,19 @@ function isPlacementLockedForPlayerKey(playerKey: string) {
     return false;
 }
 
+function showAutoPassNoticeForPlayer(playerKey: any) {
+    const showNoticeFn = resolvePassHandlerRuntimeFunction('showAutoPassNotice');
+    if (typeof showNoticeFn !== 'function') return false;
+    try {
+        showNoticeFn({
+            playerKey: normalizePlayerKey(playerKey, 'black'),
+            reason: AUTO_PASS_NOTICE_REASON
+        });
+        return true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function resolveCoreApi() {
     if (typeof Core !== 'undefined' && Core && typeof Core.getLegalMoves === 'function') return Core;
     if (typeof CoreLogic !== 'undefined' && CoreLogic && typeof CoreLogic.getLegalMoves === 'function') return CoreLogic;
@@ -937,6 +951,9 @@ async function handleBlackPassWhenNoMoves() {
             return handleRejectedPass();
         }
         syncPassPipelineState(result);
+        if (passOptions && passOptions.autoNoActionPass === true) {
+            showAutoPassNoticeForPlayer(playerKey);
+        }
 
         await _postApplyPassCommon(playerKey, passOptions);
     }, true);
@@ -961,6 +978,9 @@ async function processPassTurn(playerKey: string, autoMode?: boolean | { autoMod
         return handleRejectedPass();
     }
     syncPassPipelineState(result);
+    if (passOptions && passOptions.autoNoActionPass === true) {
+        showAutoPassNoticeForPlayer(passedPlayerKey);
+    }
 
     return _postApplyPassCommon(passedPlayerKey, passOptions);
 }

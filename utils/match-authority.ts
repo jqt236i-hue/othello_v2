@@ -9,6 +9,7 @@ import type {
     MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityAcceptedOperationHistoryBySeat,
     MatchAuthorityAcceptedOperationsBySeat,
+    MatchAuthorityAutoPassNotice,
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityBufferedSsePayloadByViewer,
@@ -471,6 +472,15 @@ function normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta {
     return normalized;
 }
 
+function normalizeAutoPassNotice(value: unknown): MatchAuthorityAutoPassNotice | null {
+    if (!value || typeof value !== 'object') return null;
+    const source = asRecord(value);
+    return {
+        playerKey: normalizePlayerKey(source.playerKey || source.player || source.owner),
+        reason: String(source.reason || '').trim() || 'no_legal_moves_or_usable_cards'
+    };
+}
+
 function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptionInput | null | undefined): MatchAuthorityPublishResponseOptions {
     const opts = asRecord(options);
     const response: MatchAuthorityPublishResponseOptions = {
@@ -506,6 +516,10 @@ function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptio
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
         response.playbackDiagnostics = opts.playbackDiagnostics || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'autoPassNotice')) {
+        const autoPassNotice = normalizeAutoPassNotice(opts.autoPassNotice);
+        if (autoPassNotice) response.autoPassNotice = autoPassNotice;
     }
     return response;
 }
@@ -837,7 +851,8 @@ function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptio
         idempotentReplay: opts.idempotentReplay === true,
         errorMessage: opts.errorMessage,
         playbackDiagnostics: opts.playbackDiagnostics,
-        projectedSnapshotHash: opts.projectedSnapshotHash
+        projectedSnapshotHash: opts.projectedSnapshotHash,
+        autoPassNotice: opts.autoPassNotice
     }, opts));
 
     const publishMeta = normalizePublishMeta(opts.publishMeta);
@@ -923,6 +938,10 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'projectedSnapshotHash')) {
         payload.projectedSnapshotHash = opts.projectedSnapshotHash || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'autoPassNotice')) {
+        const autoPassNotice = normalizeAutoPassNotice(opts.autoPassNotice);
+        if (autoPassNotice) payload.autoPassNotice = autoPassNotice;
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'type')) {
         payload.type = String(opts.type || '').trim() || null;
@@ -1024,6 +1043,7 @@ function buildSnapshotPayloadFromRoom(
         playbackEvents: opts.playbackEvents,
         effectLogs: opts.effectLogs,
         playbackDiagnostics: opts.playbackDiagnostics,
+        autoPassNotice: opts.autoPassNotice,
         operationId: opts.operationId,
         playerKey: opts.playerKey,
         actionType: opts.actionType,
@@ -1086,6 +1106,7 @@ function buildPublishPayloadFromRoom(
         playbackEvents: opts.playbackEvents,
         effectLogs: opts.effectLogs,
         playbackDiagnostics: opts.playbackDiagnostics,
+        autoPassNotice: opts.autoPassNotice,
         serverTime: opts.serverTime,
         rejectedReason: opts.rejectedReason,
         idempotentReplay: opts.idempotentReplay === true,
