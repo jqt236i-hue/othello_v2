@@ -363,7 +363,7 @@ describe('result overlay seat perspective', () => {
     expect(title && title.textContent).toBe('完全敗北...');
   });
 
-  test('理論値条件で最終スコア11000を表示する', () => {
+  test('理論値条件で最終スコア12000を表示する', () => {
     global.countDiscs.mockReturnValue({ black: 76, white: 0 });
     global.cardState.chargeGainedTotal = { black: 800, white: 0 };
     global.cardState.totalFlipCountByPlayer = { black: 150, white: 0 };
@@ -379,9 +379,9 @@ describe('result overlay seat perspective', () => {
     const breakdownText = (document.querySelector('.result-score-breakdown') || {}).textContent || '';
     const supportDetailText = (document.querySelector('.result-support-breakdown') || {}).textContent || '';
 
-    expect(totalScore && totalScore.textContent).toBe('11000');
+    expect(totalScore && totalScore.textContent).toBe('12000');
     expect(breakdownText).toContain('勝敗ボーナス5000');
-    expect(breakdownText).toContain('速攻ボーナス1500');
+    expect(breakdownText).toContain('速攻ボーナス2500');
     expect(breakdownText).toContain('黒一色ボーナス1500');
     expect(breakdownText).toContain('補助ボーナス3000');
     expect(supportDetailText).toContain('反転1500');
@@ -400,7 +400,7 @@ describe('result overlay seat perspective', () => {
     mod.showResultOverlay();
 
     const breakdownText = (document.querySelector('.result-score-breakdown') || {}).textContent || '';
-    expect(breakdownText).toContain('速攻ボーナス915');
+    expect(breakdownText).toContain('速攻ボーナス1525');
   });
 
   test('補助ボーナスが上限へ張り付きにくい配点で計算される', () => {
@@ -456,7 +456,7 @@ describe('result overlay seat perspective', () => {
     const saved = JSON.parse(localStorage.getItem(key) || '{}');
     expect(saved.cpu).toBeTruthy();
     expect(saved.cpu['4']).toBeTruthy();
-    expect(saved.cpu['4'].bestScore).toBe(11000);
+    expect(saved.cpu['4'].bestScore).toBe(12000);
   });
 
   test('ネット対戦時はスコア表示してもランキングへ保存しない', () => {

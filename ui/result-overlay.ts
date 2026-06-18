@@ -16,7 +16,7 @@ const SCORE_CONFIG = Object.freeze({
     winBase: 5000,
     drawBase: 2000,
     loseBase: 0,
-    speedBase: 1500,
+    speedBase: 2500,
     speedStartTurn: 0,
     speedZeroTurn: 100,
     monoBonus: 1500,
@@ -25,7 +25,7 @@ const SCORE_CONFIG = Object.freeze({
     supportFlipTargetCount: 150,
     supportOwnDiscMax: 1500,
     supportOwnDiscTargetCount: 76,
-    theoreticalMax: 11000
+    theoreticalMax: 12000
 });
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
