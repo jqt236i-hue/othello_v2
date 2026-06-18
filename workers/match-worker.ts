@@ -2043,6 +2043,16 @@ function buildLobbyEntryFromPayload(payloadValue: unknown, fallbackRoomId: strin
     return entry;
 }
 
+function buildLobbyEntryFromRoom(roomValue: unknown, fallbackRoomId: string, nowMs = Date.now()): unknown | null {
+    const room = asRecord(roomValue);
+    const roomId = normalizeRoomId(room.roomId || fallbackRoomId);
+    if (!roomId) return null;
+    return MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, room, {
+        roomId,
+        roomHasPassword: MatchRoomLobby.hasRoomPassword(room)
+    }), { nowMs });
+}
+
 async function postLobbyUpdate(env: MatchWorkerEnv, pathname: string, body: unknown): Promise<void> {
     try {
         const stub = getRoomStub(env, MATCH_LOBBY_ROOM_ID);
@@ -2087,6 +2097,7 @@ function handleLeaderboardApi(request: Request, env: MatchWorkerEnv): Promise<Re
 
 export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     state: DurableObjectStateLike;
+    env: MatchWorkerEnv | null;
     room: MatchWorkerRoomState | null;
     roomLoaded: boolean;
     streams: Map<string, MatchWorkerSseStreamInfo>;
@@ -2103,8 +2114,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     timeoutController: ReturnType<typeof createMatchWorkerTimeoutController> | null;
     publishController: ReturnType<typeof createMatchWorkerPublishController> | null;
 
-    constructor(state: DurableObjectStateLike) {
+    constructor(state: DurableObjectStateLike, env?: MatchWorkerEnv | null) {
         this.state = state;
+        this.env = env && typeof env === 'object' ? env : null;
         this.room = null;
         this.roomLoaded = false;
         this.streams = new Map();
@@ -2341,7 +2353,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         await this.state.storage.put(ROOM_STORAGE_KEY, deepClone(this.room));
     }
 
-    async removeRoom(): Promise<void> {
+    async removeLobbyEntryForRoom(roomIdValue: unknown): Promise<void> {
+        const roomId = normalizeRoomId(roomIdValue);
+        if (!roomId || roomId === MATCH_LOBBY_ROOM_ID || !this.env || !this.env.MATCH_ROOM) return;
+        await postLobbyUpdate(this.env, '/internal/lobby/remove', { roomId });
+    }
+
+    async removeRoom(options?: { syncLobby?: boolean } | null): Promise<void> {
+        const removedRoomId = normalizeRoomId(this.room && this.room.roomId);
         this.room = null;
         this.sseEventBuffer = [];
         if (this.heartbeatTimerId !== null) {
@@ -2356,15 +2375,18 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         } else {
             await this.state.storage.delete(ROOM_STORAGE_KEY);
         }
+        if (!options || options.syncLobby !== false) {
+            await this.removeLobbyEntryForRoom(removedRoomId);
+        }
     }
 
-    async expireWaitingRoomIfNeeded(nowMs = Date.now()): Promise<boolean> {
+    async expireWaitingRoomIfNeeded(nowMs = Date.now(), options?: { syncLobby?: boolean } | null): Promise<boolean> {
         if (!this.room || !MatchRoomLobby.isWaitingRoomExpired(this.room, nowMs)) return false;
-        await this.removeRoom();
+        await this.removeRoom(options);
         return true;
     }
 
-    async expireInactiveRoomIfNeeded(nowMs = Date.now()): Promise<boolean> {
+    async expireInactiveRoomIfNeeded(nowMs = Date.now(), options?: { syncLobby?: boolean } | null): Promise<boolean> {
         if (!this.room || !MatchRoomLobby.isInactiveRoomExpired(this.room, nowMs)) return false;
         if (this.streams.size > 0) {
             if (MatchRoomLobby.clearRoomInactive(this.room)) {
@@ -2373,13 +2395,42 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             await this.syncTurnTimerAlarm();
             return false;
         }
-        await this.removeRoom();
+        await this.removeRoom(options);
         return true;
     }
 
-    async expireRoomIfNeeded(nowMs = Date.now()): Promise<boolean> {
-        if (await this.expireWaitingRoomIfNeeded(nowMs)) return true;
-        if (await this.expireInactiveRoomIfNeeded(nowMs)) return true;
+    async markStoredIdleRoomInactiveIfNeeded(nowMs = Date.now(), options?: { syncLobby?: boolean } | null): Promise<boolean> {
+        if (!this.room || this.streams.size > 0 || MatchRoomLobby.readInactiveSince(this.room) > 0) return false;
+        if (MatchRoomLobby.isWaitingRoom(this.room)) return false;
+        if (MatchAuthority.shouldDisposeRoom(this.room, this.streams.size)) {
+            await this.removeRoom(options);
+            return true;
+        }
+
+        const roomRecord = asRecord(this.room);
+        const updatedAt = Number.isFinite(Number(roomRecord.updatedAt)) ? Math.trunc(Number(roomRecord.updatedAt)) : 0;
+        const createdAt = MatchRoomLobby.readCreatedAt(this.room);
+        const inactiveStartMs = Math.min(
+            updatedAt > 0 ? updatedAt : (createdAt > 0 ? createdAt : nowMs),
+            nowMs
+        );
+        MatchRoomLobby.markRoomInactive(this.room, inactiveStartMs);
+        if (MatchRoomLobby.isInactiveRoomExpired(this.room, nowMs)) {
+            await this.removeRoom(options);
+            return true;
+        }
+        await this.saveRoom();
+        const expiresAt = MatchRoomLobby.getInactiveRoomExpiresAt(this.room);
+        if (expiresAt > 0 && this.state.storage && typeof this.state.storage.setAlarm === 'function') {
+            await this.state.storage.setAlarm(expiresAt);
+        }
+        return false;
+    }
+
+    async expireRoomIfNeeded(nowMs = Date.now(), options?: { syncLobby?: boolean } | null): Promise<boolean> {
+        if (await this.expireWaitingRoomIfNeeded(nowMs, options)) return true;
+        if (await this.markStoredIdleRoomInactiveIfNeeded(nowMs, options)) return true;
+        if (await this.expireInactiveRoomIfNeeded(nowMs, options)) return true;
         return false;
     }
 
@@ -2471,15 +2522,47 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return jsonResponse(200, { ok: true });
     }
 
+    async readAuthoritativeLobbyEntry(roomIdValue: unknown, nowMs = Date.now()): Promise<unknown | null | undefined> {
+        const roomId = normalizeRoomId(roomIdValue);
+        if (!roomId || roomId === MATCH_LOBBY_ROOM_ID || !this.env || !this.env.MATCH_ROOM) return undefined;
+        try {
+            const stub = getRoomStub(this.env, roomId);
+            const response = await stub.fetch(new Request(
+                'https://room/internal/lobby-entry?roomId=' + encodeURIComponent(roomId)
+                    + '&nowMs=' + encodeURIComponent(String(nowMs)),
+                { method: 'GET' }
+            ));
+            if (response.status === 404) return null;
+            if (response.status < 200 || response.status >= 300) return undefined;
+            const payload = await response.json();
+            const entry = asRecord(payload).entry;
+            return entry && typeof entry === 'object' ? entry : null;
+        } catch (e) {
+            return undefined;
+        }
+    }
+
     async handleLobbyList(): Promise<Response> {
         const nowMs = Date.now();
         const rooms = await this.readLobbyEntries();
         const nextRooms: Record<string, unknown> = {};
         let changed = false;
         for (const [roomId, entry] of Object.entries(rooms)) {
-            const publicEntry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, asRecord(entry), { roomId }), { nowMs });
+            const authoritativeEntry = await this.readAuthoritativeLobbyEntry(roomId, nowMs);
+            if (authoritativeEntry === null) {
+                changed = true;
+                continue;
+            }
+            const entrySource = authoritativeEntry === undefined ? entry : authoritativeEntry;
+            const publicEntry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, asRecord(entrySource), { roomId }), { nowMs });
             if (publicEntry) {
                 nextRooms[roomId] = publicEntry;
+                if (
+                    authoritativeEntry !== undefined
+                    && JSON.stringify(asRecord(entry)) !== JSON.stringify(publicEntry)
+                ) {
+                    changed = true;
+                }
             } else {
                 changed = true;
             }
@@ -2491,6 +2574,24 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             ok: true,
             rooms: MatchRoomLobby.sortRoomListEntries(Object.values(nextRooms))
         });
+    }
+
+    async handleInternalLobbyEntry(urlObj: URL): Promise<Response> {
+        const requestedRoomId = normalizeRoomId(urlObj.searchParams.get('roomId'));
+        const nowMs = Number.isFinite(Number(urlObj.searchParams.get('nowMs')))
+            ? Math.trunc(Number(urlObj.searchParams.get('nowMs')))
+            : Date.now();
+        await this.loadRoom();
+        const roomId = normalizeRoomId(this.room && this.room.roomId);
+        if (!this.room || !roomId || (requestedRoomId && requestedRoomId !== roomId)) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        if (await this.expireRoomIfNeeded(nowMs, { syncLobby: false })) {
+            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        }
+        const entry = buildLobbyEntryFromRoom(this.room, roomId, nowMs);
+        if (!entry) return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        return jsonResponse(200, { ok: true, entry });
     }
 
     nextSseEventId(): string {
@@ -3266,6 +3367,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
             return this.handleLobbyRemove(parsed || {});
+        }
+
+        if (request.method === 'GET' && pathname === '/internal/lobby-entry') {
+            return this.handleInternalLobbyEntry(urlObj);
         }
 
         if (request.method === 'GET' && pathname === '/api/match/list') {
