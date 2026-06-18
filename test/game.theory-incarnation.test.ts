@@ -129,7 +129,7 @@ describe('理論の化身', () => {
       SpecialStoneRegistry,
       ownerKey: 'black',
       constants: {
-        STRONG_WILL_PROMOTION_OWNER_TURNS: 10,
+        STRONG_WILL_PROMOTION_OWNER_TURNS: 20,
         ULTIMATE_DESTROY_GOD_TURNS: 6,
         ULTIMATE_HYPERACTIVE_TURNS: 12,
         STONE_SALVATION_GOD_TURNS: 12,
@@ -146,7 +146,7 @@ describe('理論の化身', () => {
       expect.objectContaining({
         cardType: 'PERMA_PROTECT_NEXT_STONE',
         cardCost: 16,
-        markerData: expect.objectContaining({ type: 'PERMA_PROTECTED', strongWillPromotionThreshold: 10 })
+        markerData: expect.objectContaining({ type: 'PERMA_PROTECTED', strongWillPromotionThreshold: 20 })
       }),
       expect.objectContaining({
         cardType: 'DESTROY_DRAGON_WILL',

@@ -458,7 +458,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const thresholdFallback = Number(SharedConstantsModule && SharedConstantsModule.STRONG_WILL_PROMOTION_OWNER_TURNS);
         const threshold = Number.isFinite(rawThreshold)
             ? Math.max(1, Math.trunc(rawThreshold))
-            : (Number.isFinite(thresholdFallback) ? Math.max(1, Math.trunc(thresholdFallback)) : 10);
+            : (Number.isFinite(thresholdFallback) ? Math.max(1, Math.trunc(thresholdFallback)) : 20);
         const rawProgress = Number(markerData.strongWillPromotionOwnerTurnStarts);
         const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
         return Math.max(0, threshold - progress);

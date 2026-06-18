@@ -172,8 +172,8 @@ describe('CardEffectTiming module', () => {
         owner: 'black',
         data: {
           type: 'PERMA_PROTECTED',
-          strongWillPromotionOwnerTurnStarts: 9,
-          strongWillPromotionThreshold: 10
+          strongWillPromotionOwnerTurnStarts: 19,
+          strongWillPromotionThreshold: 20
         }
       }
     ];
@@ -198,7 +198,7 @@ describe('CardEffectTiming module', () => {
         EMPTY: 0,
         DRAW_INTERVAL: 1,
         MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
-        STRONG_WILL_PROMOTION_OWNER_TURNS: 10
+        STRONG_WILL_PROMOTION_OWNER_TURNS: 20
       },
       helpers: {
         ensureHandDestroyFlags: jest.fn(),

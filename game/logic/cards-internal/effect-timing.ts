@@ -363,7 +363,7 @@ function getSpecialStoneKind(constants: Constants): string {
 
 function getStrongWillPromotionOwnerTurns(constants: Constants): number {
     const raw = Number(constants && constants.STRONG_WILL_PROMOTION_OWNER_TURNS);
-    return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 10;
+    return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 20;
 }
 
 function getProliferationOwnerTurns(constants: Constants): number {

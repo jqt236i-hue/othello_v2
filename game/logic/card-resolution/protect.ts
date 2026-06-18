@@ -8,7 +8,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE } = SharedConstants || {};
 
-const DEFAULT_STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
+const DEFAULT_STRONG_WILL_PROMOTION_OWNER_TURNS = 20;
 const DEFAULT_GUARD_WILL_TURNS = 3;
 const DEFAULT_GUARDIAN_GOD_TURNS = 10;
 

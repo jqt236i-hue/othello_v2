@@ -166,7 +166,7 @@ export const TIME_BOMB_TURNS = 3;
 export const TIME_STOP_GOD_TURNS = 5;
 export const TIME_STOP_GOD_CONSECUTIVE_TURNS = 2;
 export const TIME_STOP_GOD_SELF_DESTROY_COUNT = 3;
-export const STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
+export const STRONG_WILL_PROMOTION_OWNER_TURNS = 20;
 
 // Destroy fade duration (ms)
 // Used by UI animation utilities to align JS waiting with CSS animation time

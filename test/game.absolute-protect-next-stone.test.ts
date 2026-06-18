@@ -52,8 +52,8 @@ describe('ABSOLUTE_PROTECTED（最強の意志の昇格後状態）', () => {
       owner: 'black',
       data: {
         type: 'PERMA_PROTECTED',
-        strongWillPromotionOwnerTurnStarts: 9,
-        strongWillPromotionThreshold: 10
+        strongWillPromotionOwnerTurnStarts: 19,
+        strongWillPromotionThreshold: 20
       }
     });
 

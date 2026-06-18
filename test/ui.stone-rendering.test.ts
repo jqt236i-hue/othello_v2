@@ -172,7 +172,7 @@ describe('UI stone rendering', () => {
       { id: 9, kind: 'specialStone', row: 1, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 } },
       { id: 11, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2, flipEvadeRemaining: 0 } },
       { id: 12, kind: 'specialStone', row: 1, col: 2, owner: 'black', data: { type: 'REGEN', regenRemaining: 3, remainingOwnerTurns: 3 } },
-      { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 10 } },
+      { id: 13, kind: 'specialStone', row: 1, col: 3, owner: 'black', data: { type: 'PERMA_PROTECTED', strongWillPromotionOwnerTurnStarts: 4, strongWillPromotionThreshold: 20 } },
       { id: 14, kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 } }
     ];
 
@@ -208,7 +208,7 @@ describe('UI stone rendering', () => {
     assert.strictEqual(boardEl.querySelector('.cell[data-row="1"][data-col="2"]').classList.contains('has-regen-badge'), true);
 
     const strongWillDisc = boardEl.querySelector('.cell[data-row="1"][data-col="3"] .disc');
-    assert.strictEqual(strongWillDisc.querySelector('.countdown-timer').textContent, '6');
+    assert.strictEqual(strongWillDisc.querySelector('.countdown-timer').textContent, '16');
     assert.strictEqual(strongWillDisc.querySelector('.special-timer'), null);
 
     const extremeDisc = boardEl.querySelector('.cell[data-row="1"][data-col="4"] .disc');
