@@ -15,6 +15,28 @@ describe('ULTIMATE_DESTROY_GOD duration', () => {
     expect(CardLogic.ULTIMATE_DESTROY_GOD_TURNS).toBe(6);
   });
 
+  test('legacy PRNG plus options call keeps immediate anchor from decrementing duration', () => {
+    const { cardState, gameState } = makeStates();
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    gameState.board[4][4] = 1;
+    cardState.markers.push({
+      id: 9002,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'ULTIMATE_DESTROY_GOD', remainingOwnerTurns: 5 }
+    });
+
+    CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng, {
+      decrementRemainingOwnerTurns: false
+    });
+
+    const marker = cardState.markers.find((m) => m && m.id === 9002);
+    expect(marker).toBeTruthy();
+    expect(marker.data.remainingOwnerTurns).toBe(5);
+  });
+
   test('placement applies UDG marker with 6 remaining turns', () => {
     const { cardState, gameState } = makeStates();
     gameState.board[3][3] = 1;

@@ -3704,8 +3704,9 @@ const {
      * Immediate placement-turn activation for UDG anchor.
      * Delegates to cards/udg.js module.
      */
-    function processUltimateDestroyGodEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
-        const deps = normalizeAnchorEffectOptions(opts, [
+    function processUltimateDestroyGodEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}, maybeOpts?: any) {
+        const mergedOpts = mergeAnchorEffectOptions(opts, maybeOpts);
+        const deps = normalizeAnchorEffectOptions(mergedOpts, [
             'decrementRemainingOwnerTurns',
             'destroyAt',
             'BoardOps',
@@ -3725,8 +3726,9 @@ const {
         );
     }
 
-    function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
-        const deps = normalizeAnchorEffectOptions(opts, [
+    function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}, maybeOpts?: any) {
+        const mergedOpts = mergeAnchorEffectOptions(opts, maybeOpts);
+        const deps = normalizeAnchorEffectOptions(mergedOpts, [
             'decrementRemainingOwnerTurns',
             'destroyAt',
             'BoardOps',
@@ -3792,6 +3794,29 @@ const {
             random: randomSource,
             randomSource: hasExplicitRandom ? randomSource : sourceOptions.randomSource
         });
+    }
+
+    function mergeAnchorEffectOptions(prngOrOpts: any, maybeOpts: any) {
+        if (maybeOpts === undefined) return prngOrOpts;
+        const optionOverrides = (maybeOpts && typeof maybeOpts === 'object') ? maybeOpts : {};
+        const isRandomLike = (
+            (prngOrOpts && typeof prngOrOpts.random === 'function') ||
+            typeof prngOrOpts === 'function'
+        );
+        if (isRandomLike) {
+            const merged = Object.assign({}, optionOverrides);
+            if (!Object.prototype.hasOwnProperty.call(merged, 'random')) {
+                merged.random = prngOrOpts;
+            }
+            if (!Object.prototype.hasOwnProperty.call(merged, 'randomSource')) {
+                merged.randomSource = prngOrOpts;
+            }
+            return merged;
+        }
+        if (prngOrOpts && typeof prngOrOpts === 'object') {
+            return Object.assign({}, prngOrOpts, optionOverrides);
+        }
+        return optionOverrides;
     }
 
     function processSniperWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
