@@ -1,17 +1,25 @@
 type PendingActionsConfig = {
+    buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => any;
     choosePendingTargetWithPolicyAsync: (playerKey: any, pendingType: any, targets: any, pending: any) => Promise<any>;
     chooseTimeBombTargetWithPolicy: (playerKey: any, targets: any[]) => any;
     clearCpuPendingEffect: (playerKey: any) => any;
     cpuDebugLog: (...args: any[]) => void;
+    emitCpuEffectLog: (message: any) => any;
     emitCpuSelectionStateChange: () => any;
     filterCloneTargetsForLv6: (playerKey: any, targets: any[]) => any[];
+    getActiveProtectionForPlayer: (playerValue: any) => any;
     getCardLogic: () => any;
     getCardState: () => any;
+    getCpuPolicyCore: () => any;
     getCpuRng: () => any;
+    getFlipBlockers: () => any[];
     getGameState: () => any;
+    getLegalMoves: (gameStateValue: any, protection: any, perma: any) => any[];
     handOffSelectionTurnInGameState: (playerKey: any) => any;
     maybeContinueCpuSelectionTurnHandoff: (playerKey: any, pendingType: any, playbackEvents: any, action?: any) => any;
     readCpuPendingEffect: (playerKey: any) => any;
+    resolveCpuDecisionLevelForPlayer: (playerKey: any) => number;
+    resolvePlayerValue: (playerKey: any) => any;
     runCpuPendingSelectionViaPipeline: (playerKey: any, actionPayload: any, pendingType: any) => Promise<any>;
 };
 
@@ -63,6 +71,26 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             return cardLogic[methodName](cfg.getCardState(), cfg.getGameState(), playerKey);
         }
         return fallbackToSelectable ? getSelectableTargets(playerKey) : [];
+    }
+
+    function getPlayerHand(playerKey: any): any[] {
+        const state = cfg.getCardState();
+        return (state && state.hands && Array.isArray(state.hands[playerKey]))
+            ? state.hands[playerKey].slice()
+            : [];
+    }
+
+    function buildOfferDecisionContext(playerKey: any, level: any): any {
+        const playerValue = cfg.resolvePlayerValue(playerKey);
+        const protection = typeof cfg.getActiveProtectionForPlayer === 'function'
+            ? cfg.getActiveProtectionForPlayer(playerValue)
+            : null;
+        const perma = typeof cfg.getFlipBlockers === 'function' ? cfg.getFlipBlockers() : [];
+        const legalMoves = typeof cfg.getLegalMoves === 'function'
+            ? (cfg.getLegalMoves(cfg.getGameState(), protection, perma) || [])
+            : [];
+        const usableCards = getPlayerHand(playerKey);
+        return cfg.buildCardUseDecisionContext(playerKey, level, legalMoves.length, legalMoves, usableCards);
     }
 
     async function runTargetAction(options: TargetActionOptions): Promise<any> {
@@ -445,6 +473,167 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectHeavenBlessingWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
+        const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
+        if (!offers.length) {
+            cfg.cpuDebugLog(`[CPU] ${playerKey}: 天の恵み候補なし`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        let targetCardId = offers[0];
+        let bestCost = -Infinity;
+        let bestScore = Number.NEGATIVE_INFINITY;
+        const level = cfg.resolveCpuDecisionLevelForPlayer(playerKey);
+        const cardLogic = getCardLogic();
+        const policyCore = typeof cfg.getCpuPolicyCore === 'function' ? cfg.getCpuPolicyCore() : null;
+        const decisionContext = buildOfferDecisionContext(playerKey, level);
+
+        for (const cardId of offers) {
+            const cost = (cardLogic && typeof cardLogic.getCardCost === 'function')
+                ? (cardLogic.getCardCost(cardId) || 0)
+                : 0;
+            let score = cost * 0.35;
+            if (
+                policyCore &&
+                typeof policyCore.scoreCardUseDecision === 'function' &&
+                cardLogic &&
+                typeof cardLogic.getCardDef === 'function' &&
+                typeof cardLogic.getCardCost === 'function'
+            ) {
+                const useDecision = policyCore.scoreCardUseDecision(
+                    cardId,
+                    cardLogic.getCardCost,
+                    cardLogic.getCardDef,
+                    decisionContext
+                );
+                const retention = (typeof policyCore.scoreCardRetentionPriority === 'function')
+                    ? policyCore.scoreCardRetentionPriority(
+                        cardId,
+                        cardLogic.getCardCost,
+                        cardLogic.getCardDef,
+                        decisionContext
+                    )
+                    : null;
+                if (useDecision && Number.isFinite(useDecision.score)) {
+                    score += Number(useDecision.score) * 0.95;
+                    if (useDecision.shouldUse === true) score += 18;
+                }
+                if (retention && Number.isFinite(retention.score)) score += Number(retention.score) * 0.8;
+            }
+            if (score > bestScore || (score === bestScore && cost > bestCost)) {
+                bestScore = score;
+                bestCost = cost;
+                targetCardId = cardId;
+            }
+        }
+        cfg.cpuDebugLog(`[CPU] ${playerKey}: 天の恵み選択 ${targetCardId} (score=${bestScore.toFixed(1)} cost=${bestCost})`);
+
+        const pipelineResult = await cfg.runCpuPendingSelectionViaPipeline(
+            playerKey,
+            { heavenBlessingCardId: targetCardId },
+            'HEAVEN_BLESSING'
+        );
+        if (isPendingPipelineHandled(pipelineResult)) return;
+
+        const applyFn = cardLogic && typeof cardLogic.applyHeavenBlessingChoice === 'function'
+            ? cardLogic.applyHeavenBlessingChoice
+            : null;
+        if (typeof applyFn === 'function') {
+            const res = applyFn(cfg.getCardState(), playerKey, targetCardId);
+            if (!res || !res.applied) {
+                cfg.clearCpuPendingEffect(playerKey);
+            } else {
+                const actor = playerKey === 'black' ? '黒' : '白';
+                cfg.emitCpuEffectLog(`${actor}: 天の恵みでカード獲得`);
+            }
+            cfg.emitCpuSelectionStateChange();
+        }
+    }
+
+    async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
+        const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
+        if (!offers.length) {
+            cfg.cpuDebugLog(`[CPU] ${playerKey}: 断罪候補なし`);
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+
+        let target = offers[0];
+        let bestCost = -Infinity;
+        let bestScore = Number.NEGATIVE_INFINITY;
+        const level = cfg.resolveCpuDecisionLevelForPlayer(playerKey);
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        const cardLogic = getCardLogic();
+        const policyCore = typeof cfg.getCpuPolicyCore === 'function' ? cfg.getCpuPolicyCore() : null;
+        const opponentContext = buildOfferDecisionContext(opponentKey, level);
+
+        for (const offer of offers) {
+            if (!offer || !offer.cardId) continue;
+            const cost = (cardLogic && typeof cardLogic.getCardCost === 'function')
+                ? (cardLogic.getCardCost(offer.cardId) || 0)
+                : 0;
+            let score = cost * 0.45;
+            if (
+                policyCore &&
+                typeof policyCore.scoreCardRetentionPriority === 'function' &&
+                cardLogic &&
+                typeof cardLogic.getCardDef === 'function' &&
+                typeof cardLogic.getCardCost === 'function'
+            ) {
+                const retention = policyCore.scoreCardRetentionPriority(
+                    offer.cardId,
+                    cardLogic.getCardCost,
+                    cardLogic.getCardDef,
+                    opponentContext
+                );
+                const useDecision = (typeof policyCore.scoreCardUseDecision === 'function')
+                    ? policyCore.scoreCardUseDecision(
+                        offer.cardId,
+                        cardLogic.getCardCost,
+                        cardLogic.getCardDef,
+                        opponentContext
+                    )
+                    : null;
+                if (retention && Number.isFinite(retention.score)) score += Number(retention.score) * 0.9;
+                if (useDecision && Number.isFinite(useDecision.score)) {
+                    score += Number(useDecision.score) * 0.75;
+                    if (useDecision.shouldUse === true) score += 16;
+                }
+            }
+            if (score > bestScore || (score === bestScore && cost > bestCost)) {
+                bestScore = score;
+                bestCost = cost;
+                target = offer;
+            }
+        }
+        if (!target || !Number.isInteger(target.handIndex)) {
+            cfg.clearCpuPendingEffect(playerKey);
+            return;
+        }
+        cfg.cpuDebugLog(`[CPU] ${playerKey}: 断罪選択 index=${target.handIndex} card=${target.cardId} (score=${bestScore.toFixed(1)} cost=${bestCost})`);
+
+        const pipelineResult = await cfg.runCpuPendingSelectionViaPipeline(
+            playerKey,
+            { condemnTargetIndex: target.handIndex },
+            'CONDEMN_WILL'
+        );
+        if (isPendingPipelineHandled(pipelineResult)) return;
+
+        const applyFn = cardLogic && typeof cardLogic.applyCondemnWill === 'function'
+            ? cardLogic.applyCondemnWill
+            : null;
+        if (typeof applyFn === 'function') {
+            const res = applyFn(cfg.getCardState(), playerKey, target.handIndex);
+            if (!res || !res.applied) {
+                cfg.clearCpuPendingEffect(playerKey);
+            }
+            cfg.emitCpuSelectionStateChange();
+        }
+    }
+
     async function cpuSelectTimeBombWithPolicy(playerKey: any): Promise<any> {
         const targets = getTargetsByMethod(playerKey, 'getTimeBombTargets', false);
         if (!targets.length) {
@@ -588,12 +777,14 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectBuoyancyWillWithPolicy,
         cpuSelectCaptureWillWithPolicy,
         cpuSelectCellTeleportWillWithPolicy,
+        cpuSelectCondemnWillWithPolicy,
         cpuSelectCloneWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectFreezeWillWithPolicy,
         cpuSelectGravityWillWithPolicy,
         cpuSelectGuardWillWithPolicy,
+        cpuSelectHeavenBlessingWithPolicy,
         cpuSelectLivingWillWithPolicy,
         cpuSelectMeteorWillWithPolicy,
         cpuSelectObserverWillWithPolicy,
