@@ -166,6 +166,8 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('TRAP')).toBe(true);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('TIME_BOMB')).toBe(true);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('LIVING_WILL')).toBe(true);
+    expect(SpecialStoneRegistry.isNormalVisualStoneEffect('TRAP')).toBe(true);
+    expect(SpecialStoneRegistry.isNormalVisualStoneEffect('LIVING_WILL')).toBe(true);
     expect(SpecialStoneRegistry.canLossWillRevert('TRAP')).toBe(true);
     expect(SpecialStoneRegistry.canLossWillRevert('TIME_BOMB')).toBe(true);
 
@@ -176,6 +178,7 @@ describe('special stone registry rule classification', () => {
 
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.blocksTempt('GUARD')).toBe(true);
+    expect(SpecialStoneRegistry.isNormalVisualStoneEffect('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.canLossWillRevert('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('ABSOLUTE_PROTECTED')).toBe(false);
     expect(SpecialStoneRegistry.blocksTempt('ABSOLUTE_PROTECTED')).toBe(true);

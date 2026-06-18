@@ -502,7 +502,6 @@
             captureTargetable: false,
             lossWillRevertible: false,
             theorySpawnCandidate: false,
-            normalVisual: true,
             willHunterPriority: false,
             blocksTempt: true
         });

@@ -211,7 +211,18 @@ function isHiddenTrapMarker(marker: any): boolean {
 
 function isNormalVisualSpecialMarker(marker: any): boolean {
     const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
-    return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'TRAP' || isHiddenTrapMarker(marker);
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isNormalVisualStoneEffect === 'function') {
+        return SpecialStoneRegistry.isNormalVisualStoneEffect(type, marker && marker.data) === true;
+    }
+    return (
+        type === 'BLOCKADE' ||
+        type === 'METEOR_HOLE' ||
+        type === 'FREEZE' ||
+        type === 'SEED' ||
+        type === 'LIVING_WILL' ||
+        type === 'TRAP' ||
+        isHiddenTrapMarker(marker)
+    );
 }
 
 function getMarkerRuleClass(marker: any): string | null {
@@ -236,6 +247,38 @@ function isTrueSpecialStoneMarker(marker: any): boolean {
     return getMarkerRuleClass(marker) === 'true_special_stone';
 }
 
+function isTemptTargetableMarker(marker: any): boolean {
+    if (!marker || !marker.data) return false;
+    const type = String(marker.data.type || '').toUpperCase();
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isTemptTargetableStoneEffect === 'function') {
+        return SpecialStoneRegistry.isTemptTargetableStoneEffect(type, marker.data) === true;
+    }
+    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
+    const ruleClass = getMarkerRuleClass(marker);
+    return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb' || type === 'LIVING_WILL';
+}
+
+function isCaptureTargetableMarker(marker: any): boolean {
+    if (!marker || !marker.data) return false;
+    const type = String(marker.data.type || '').toUpperCase();
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isCaptureTargetableStoneEffect === 'function') {
+        return SpecialStoneRegistry.isCaptureTargetableStoneEffect(type, marker.data) === true;
+    }
+    if (type === 'ABSOLUTE_PROTECTED') return false;
+    return getMarkerRuleClass(marker) === 'true_special_stone';
+}
+
+function blocksTemptAt(cardState: any, row: number, col: number): boolean {
+    return getMarkers(cardState).some((marker: any) => {
+        if (!marker || marker.row !== row || marker.col !== col || !marker.data) return false;
+        const type = String(marker.data.type || '').toUpperCase();
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.blocksTempt === 'function') {
+            return SpecialStoneRegistry.blocksTempt(type, marker.data) === true;
+        }
+        return type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
+    });
+}
+
 function canLossWillRevertMarker(marker: any): boolean {
     if (!marker || typeof marker !== 'object') return false;
     if (isManifestStoneMarker(marker)) return false;
@@ -250,6 +293,11 @@ function canLossWillRevertMarker(marker: any): boolean {
 
 function isDurationAffectableMarker(marker: any): boolean {
     if (isManifestStoneMarker(marker)) return false;
+    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getStoneEffectRule === 'function') {
+        const rule = SpecialStoneRegistry.getStoneEffectRule(type, marker && marker.data);
+        if (rule) return rule.durationAffectable === true;
+    }
     const ruleClass = getMarkerRuleClass(marker);
     return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
 }
@@ -341,6 +389,9 @@ const utils = {
     getMarkerRuleClass,
     isManifestStoneMarker,
     isTrueSpecialStoneMarker,
+    isTemptTargetableMarker,
+    isCaptureTargetableMarker,
+    blocksTemptAt,
     canLossWillRevertMarker,
     isDurationAffectableMarker,
     getManifestStoneMarkerAt,
