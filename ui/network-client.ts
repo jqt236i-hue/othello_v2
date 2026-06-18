@@ -414,6 +414,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkTurnTimerModule: any = null;
     let networkPresentationTimelineModule: any = null;
     let networkPlaybackDispatcherModule: any = null;
+    let networkVisualStateStoreModule: any = null;
     let animationFeedbackEventsModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
@@ -433,6 +434,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPublishFlowController: any = null;
     let networkPresentationTimeline: any = null;
     let networkPlaybackDispatcher: any = null;
+    let networkVisualStateStore: any = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
@@ -455,6 +457,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkTurnTimerModule = resolveNetworkClientModule('./network/turn-timer', null);
     networkPresentationTimelineModule = resolveNetworkClientModule('./network/presentation-timeline', null);
     networkPlaybackDispatcherModule = resolveNetworkClientModule('./network/playback-dispatcher', null);
+    networkVisualStateStoreModule = resolveNetworkClientModule('./network/visual-state-store', null);
     animationFeedbackEventsModule = resolveNetworkClientModule('./animation-feedback-events', root.AnimationFeedbackEvents || null);
 
     function resolveNetworkCommentaryModule() {
@@ -624,6 +627,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return networkPlaybackDispatcherModule;
     }
 
+    function resolveNetworkVisualStateStoreModule() {
+        if (networkVisualStateStoreModule) return networkVisualStateStoreModule;
+
+        networkVisualStateStoreModule = resolveNetworkClientCandidate(() => _require('./network/visual-state-store'))
+            || resolveNetworkClientGlobal('NetworkVisualStateStoreModule');
+        return networkVisualStateStoreModule;
+    }
+
     function getNetworkCommentaryController() {
         if (networkCommentaryController) return networkCommentaryController;
         const mod = resolveNetworkCommentaryModule();
@@ -646,9 +657,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             onTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details),
             syncPendingSelectionActionCache,
             enqueuePresentationFrames,
-            drainPresentationTimeline
+            drainPresentationTimeline,
+            visualStateStore: getNetworkVisualStateStore()
         });
         return networkSnapshotController;
+    }
+
+    function getNetworkVisualStateStore() {
+        if (networkVisualStateStore) return networkVisualStateStore;
+        const mod = resolveNetworkVisualStateStoreModule();
+        if (!mod || typeof mod.createNetworkVisualStateStore !== 'function') return null;
+        networkVisualStateStore = mod.createNetworkVisualStateStore();
+        try {
+            root.NetworkVisualStateStore = networkVisualStateStore;
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined') {
+                (globalThis as any).NetworkVisualStateStore = networkVisualStateStore;
+            }
+        } catch (e: any) { /* ignore */ }
+        return networkVisualStateStore;
     }
 
     function getNetworkPlaybackDispatcher() {
@@ -685,7 +713,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         networkPresentationTimeline = mod.createNetworkPresentationTimeline({
             initialVisualSeq: state.lastVisualSeq || 0,
             initialVisualVersion,
-            playbackDispatcher: getNetworkPlaybackDispatcher()
+            playbackDispatcher: getNetworkPlaybackDispatcher(),
+            visualStateStore: getNetworkVisualStateStore()
         });
         try {
             root.NetworkPresentationTimeline = networkPresentationTimeline;
@@ -723,6 +752,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
                     : (Number.isFinite(Number(activationSnapshotVersion)) ? activationSnapshotVersion : null);
                 networkPresentationTimeline = null;
+                const visualStore = getNetworkVisualStateStore();
+                if (visualStore && typeof visualStore.clearVisualSnapshot === 'function') {
+                    visualStore.clearVisualSnapshot();
+                }
                 clearPendingForceSyncPlaybackRecovery();
             },
             onResetSessionState: () => {
@@ -730,6 +763,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 state.lastVisualSeq = 0;
                 state.lastVisualVersion = null;
                 networkPresentationTimeline = null;
+                if (networkVisualStateStore && typeof networkVisualStateStore.clearVisualSnapshot === 'function') {
+                    networkVisualStateStore.clearVisualSnapshot();
+                }
                 state.lastStreamEventId = '';
                 state.authoritativeMatchState.gameState = null;
                 state.authoritativeMatchState.cardState = null;
@@ -2369,6 +2405,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.lastVisualSeq = 0;
             state.lastVisualVersion = null;
             networkPresentationTimeline = null;
+            if (networkVisualStateStore && typeof networkVisualStateStore.clearVisualSnapshot === 'function') {
+                networkVisualStateStore.clearVisualSnapshot();
+            }
             state.lastStateSyncRecoveredPlaybackSignature = '';
             state.lastStreamEventId = '';
             state.authoritativeMatchState.gameState = null;

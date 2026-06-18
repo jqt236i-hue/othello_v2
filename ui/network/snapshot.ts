@@ -875,6 +875,78 @@ function createNetworkSnapshotController(config: any): any {
         return 0;
     }
 
+    function resolveVisualStateStore(): any {
+        return cfg.visualStateStore && typeof cfg.visualStateStore === 'object'
+            ? cfg.visualStateStore
+            : null;
+    }
+
+    function readFirstPresentationFrame(options: any): any {
+        const frames = Array.isArray(options && options.presentationFrames) ? options.presentationFrames : [];
+        if (frames.length <= 0) return null;
+        return frames
+            .slice()
+            .sort((a: any, b: any) => Number(a && a.visualSeq) - Number(b && b.visualSeq))[0] || null;
+    }
+
+    function buildSnapshotEnvelope(snapshot: any, stateVersion: any): any {
+        const envelope = cloneData(snapshot || {});
+        if (Number.isFinite(Number(stateVersion))) {
+            envelope.stateVersion = Math.trunc(Number(stateVersion));
+        }
+        return envelope;
+    }
+
+    function setBaseVisualSnapshotBeforeStrictPlayback(previousGameState: any, previousCardState: any, options: any, state: any): void {
+        const store = resolveVisualStateStore();
+        if (!store || typeof store.setBaseVisualSnapshot !== 'function') return;
+        const firstFrame = readFirstPresentationFrame(options);
+        if (!firstFrame) return;
+        const stateVersionFrom = Number.isFinite(Number(firstFrame.stateVersionFrom))
+            ? Math.trunc(Number(firstFrame.stateVersionFrom))
+            : (Number.isFinite(Number(state && state.lastVisualVersion))
+                ? Math.trunc(Number(state.lastVisualVersion))
+                : (Number.isFinite(Number(state && state.appliedStateVersion))
+                    ? Math.trunc(Number(state.appliedStateVersion))
+                    : null));
+        const visualSeqBefore = Number.isFinite(Number(state && state.lastVisualSeq))
+            ? Math.max(0, Math.trunc(Number(state.lastVisualSeq)))
+            : Math.max(0, Math.trunc(Number(firstFrame.visualSeq || 1)) - 1);
+        try {
+            store.setBaseVisualSnapshot({
+                stateVersion: stateVersionFrom,
+                gameState: previousGameState,
+                cardState: previousCardState
+            }, {
+                visualSeq: visualSeqBefore,
+                visualVersion: stateVersionFrom,
+                preserveExisting: true,
+                source: 'network_snapshot_base'
+            });
+        } catch (e) {
+            emitTelemetry('snapshot_visual_base_store_failed', {
+                visualSeq: firstFrame.visualSeq,
+                stateVersionFrom,
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+        }
+    }
+
+    function setCanonicalVisualSnapshot(snapshot: any, nextVersion: any): void {
+        const store = resolveVisualStateStore();
+        if (!store || typeof store.setCanonicalSnapshot !== 'function') return;
+        try {
+            store.setCanonicalSnapshot(buildSnapshotEnvelope(snapshot, nextVersion), {
+                stateVersion: nextVersion
+            });
+        } catch (e) {
+            emitTelemetry('snapshot_visual_canonical_store_failed', {
+                stateVersion: nextVersion,
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+        }
+    }
+
     function finalizeSnapshotPresentation(nextVersion: any, options: any, context: any): void {
         const opts = options || {};
         const details = (context && typeof context === 'object') ? context : {};
@@ -961,6 +1033,7 @@ function createNetworkSnapshotController(config: any): any {
         const busyStateBeforeSnapshot = readBusyStateSnapshot();
         const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
 
+        setBaseVisualSnapshotBeforeStrictPlayback(previousGameState, previousCardState, opts, state);
         replaceObjectState('gameState', snapshot.gameState);
         replaceObjectState('cardState', snapshot.cardState);
         try {
@@ -1010,6 +1083,7 @@ function createNetworkSnapshotController(config: any): any {
             state.authoritativeMatchState.projectedSnapshotHash = snapshotMeta ? (snapshotMeta.projectedSnapshotHash || null) : null;
             state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = snapshotMeta ? (snapshotMeta.projectedSnapshotHash || null) : null;
         }
+        setCanonicalVisualSnapshot(snapshot, nextVersion);
 
         return {
             presentationState,
