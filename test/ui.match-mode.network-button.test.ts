@@ -420,6 +420,68 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkStatusText').textContent).toContain('標準デッキで続行します');
   });
 
+  test('ルーム一覧から参加すると開いたままの一覧人数を更新する', async () => {
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    listRooms
+      .mockResolvedValueOnce({
+        ok: true,
+        rooms: [{
+          roomId: 'A1B',
+          roomName: '無名部屋',
+          hostName: 'くろ',
+          boardLabel: '8x8',
+          seatCount: 1,
+          maxSeats: 2,
+          spectatorCount: 0,
+          maxSpectators: 4,
+          canJoin: true,
+          canSpectate: true,
+          hasPassword: false
+        }]
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        rooms: [{
+          roomId: 'A1B',
+          roomName: '無名部屋',
+          hostName: 'くろ',
+          boardLabel: '8x8',
+          seatCount: 2,
+          maxSeats: 2,
+          spectatorCount: 0,
+          maxSpectators: 4,
+          canJoin: false,
+          canSpectate: true,
+          hasPassword: false
+        }]
+      });
+
+    playerInput.value = 'しろ';
+    networkBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const list = document.getElementById('networkRoomList');
+    expect(list.textContent).toContain('1/2');
+
+    const joinEntryBtn = document.querySelector('.network-room-entry-join');
+    expect(joinEntryBtn).toBeTruthy();
+    joinEntryBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(joinRoom).toHaveBeenCalledWith('A1B', expect.objectContaining({
+      playerName: 'しろ'
+    }));
+    expect(listRooms).toHaveBeenCalledTimes(2);
+    expect(list.textContent).toContain('2/2');
+  });
+
   test('満席でも観戦可能なルームは観戦ボタンから参加できる', async () => {
     const playerInput = document.getElementById('networkPlayerNameInput');
     const networkBtn = document.getElementById('modeNetworkBtn');

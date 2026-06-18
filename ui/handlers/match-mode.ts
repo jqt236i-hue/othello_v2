@@ -1978,6 +1978,9 @@ const MODE_OTHELLO = 'othello';
                     }
                     refreshNetworkChatVisibility();
                     renderNetworkDeckInfo();
+                    if (result && result.ok) {
+                        await refreshNetworkRoomList({ silentStatus: true });
+                    }
                     refreshBoardUi();
                 } catch (e) {
                     writeNetworkStatus('部屋参加に失敗しました', true);
