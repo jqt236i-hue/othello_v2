@@ -3705,31 +3705,44 @@ const {
      * Delegates to cards/udg.js module.
      */
     function processUltimateDestroyGodEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
-        // Delegate to module
-        const deps = Object.assign({
+        const deps = normalizeAnchorEffectOptions(opts, [
+            'decrementRemainingOwnerTurns',
+            'destroyAt',
+            'BoardOps',
+            'isManifestStoneAt',
+            'selectRandomEmptyBoardShapeDestination',
+            'moveCoexistingSpecialMarkers'
+        ], {
             destroyAt,
             BoardOps: BoardOpsModule,
             isManifestStoneAt,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
-        }, opts);
+        }, 'CardLogic.processUltimateDestroyGodEffectsAtAnchor');
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardUdgModule.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
-            { randomSource: deps.random || opts.randomSource || opts.random }
+            { randomSource: deps.randomSource }
         );
     }
 
     function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
-        const deps = Object.assign({
+        const deps = normalizeAnchorEffectOptions(opts, [
+            'decrementRemainingOwnerTurns',
+            'destroyAt',
+            'BoardOps',
+            'isManifestStoneAt',
+            'selectRandomEmptyBoardShapeDestination',
+            'moveCoexistingSpecialMarkers'
+        ], {
             destroyAt,
             BoardOps: BoardOpsModule,
             isManifestStoneAt,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
-        }, opts);
+        }, 'CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor');
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-            { randomSource: deps.random || opts.randomSource || opts.random }
+            { randomSource: deps.randomSource }
         );
     }
 
@@ -3748,30 +3761,53 @@ const {
         return extraKeys.some((key) => Object.prototype.hasOwnProperty.call(prngOrOpts, key));
     }
 
-    function processSniperWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = hasTurnStartRandomOptionOverrides(
-            prngOrOpts,
-            ['decrementRemainingOwnerTurns', 'destroyAt', 'BoardOps']
+    function normalizeAnchorEffectOptions(prngOrOpts: any, extraKeys: string[], defaults: any, label: string) {
+        const optionKeys = Array.isArray(extraKeys)
+            ? extraKeys.concat(['random', 'randomSource'])
+            : ['random', 'randomSource'];
+        const hasOptionShape = hasTurnStartRandomOptionOverrides(prngOrOpts, optionKeys);
+        const sourceOptions = hasOptionShape ? (prngOrOpts || {}) : {};
+        const defaultOptions = defaults || {};
+        const hasRandomSource = Object.prototype.hasOwnProperty.call(sourceOptions, 'randomSource');
+        const hasRandom = Object.prototype.hasOwnProperty.call(sourceOptions, 'random');
+        const hasDirectRandomArgument = !hasOptionShape && (
+            (prngOrOpts && typeof prngOrOpts.random === 'function') ||
+            typeof prngOrOpts === 'function'
         );
-        const deps = hasOptionShape
-            ? Object.assign({ destroyAt, BoardOps: BoardOpsModule, random: defaultPrng }, prngOrOpts)
-            : { destroyAt, BoardOps: BoardOpsModule, random: prngOrOpts || defaultPrng };
-        const randomCandidate = (
-            hasOptionShape &&
-            prngOrOpts &&
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random')
-        )
-            ? prngOrOpts.random
-            : prngOrOpts;
-        deps.random = resolveDeterministicRandomSource(
+        const hasExplicitRandom = hasRandomSource || hasRandom || hasDirectRandomArgument;
+        const randomCandidate = hasRandomSource
+            ? sourceOptions.randomSource
+            : (hasRandom ? sourceOptions.random : prngOrOpts);
+        const fallbackCandidate = (hasRandom ? sourceOptions.random : null)
+            || (hasRandomSource ? sourceOptions.randomSource : null)
+            || defaultOptions.random
+            || defaultOptions.randomSource
+            || defaultPrng;
+        const randomSource = resolveDeterministicRandomSource(
             randomCandidate,
-            deps.random,
-            'CardLogic.processSniperWillEffectsAtTurnStartAnchor'
+            fallbackCandidate,
+            label
         );
+        return Object.assign({}, defaultOptions, sourceOptions, {
+            random: randomSource,
+            randomSource: hasExplicitRandom ? randomSource : sourceOptions.randomSource
+        });
+    }
+
+    function processSniperWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'destroyAt',
+            'BoardOps'
+        ], {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            random: defaultPrng
+        }, 'CardLogic.processSniperWillEffectsAtTurnStartAnchor');
 
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardSniperModule.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-            { randomSource: deps.random }
+            { randomSource: deps.randomSource }
         );
     }
     function processLightningWillEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
@@ -3783,29 +3819,19 @@ const {
     }
 
     function processLightningWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = hasTurnStartRandomOptionOverrides(
-            prngOrOpts,
-            ['decrementRemainingOwnerTurns', 'destroyAt', 'BoardOps']
-        );
-        const deps = hasOptionShape
-            ? Object.assign({ destroyAt, BoardOps: BoardOpsModule, random: defaultPrng }, prngOrOpts)
-            : { destroyAt, BoardOps: BoardOpsModule, random: prngOrOpts || defaultPrng };
-        const randomCandidate = (
-            hasOptionShape &&
-            prngOrOpts &&
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random')
-        )
-            ? prngOrOpts.random
-            : prngOrOpts;
-        deps.random = resolveDeterministicRandomSource(
-            randomCandidate,
-            deps.random,
-            'CardLogic.processLightningWillEffectsAtAnchor'
-        );
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'destroyAt',
+            'BoardOps'
+        ], {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            random: defaultPrng
+        }, 'CardLogic.processLightningWillEffectsAtAnchor');
 
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardLightningModule.processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
-            { randomSource: deps.random }
+            { randomSource: deps.randomSource }
         );
     }
 
@@ -3827,43 +3853,21 @@ const {
     }
 
     function processMeteorGodEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = hasTurnStartRandomOptionOverrides(
-            prngOrOpts,
-            ['decrementRemainingOwnerTurns', 'BoardOps', 'applyCellRemovalAt', 'runCellRemovalBlock']
-        );
-        const deps = hasOptionShape
-            ? Object.assign({
-                BoardOps: BoardOpsModule,
-                applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
-                    ? BoardOpsModule.applyCellRemovalAt
-                    : null,
-                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
-                    ? BoardOpsModule.runCellRemovalBlock
-                    : null,
-                random: defaultPrng
-            }, prngOrOpts)
-            : {
-                BoardOps: BoardOpsModule,
-                applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
-                    ? BoardOpsModule.applyCellRemovalAt
-                    : null,
-                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
-                    ? BoardOpsModule.runCellRemovalBlock
-                    : null,
-                random: prngOrOpts || defaultPrng
-            };
-        const randomCandidate = (
-            hasOptionShape &&
-            prngOrOpts &&
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random')
-        )
-            ? prngOrOpts.random
-            : prngOrOpts;
-        deps.random = resolveDeterministicRandomSource(
-            randomCandidate,
-            deps.random,
-            'CardLogic.processMeteorGodEffectsAtAnchor'
-        );
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'BoardOps',
+            'applyCellRemovalAt',
+            'runCellRemovalBlock'
+        ], {
+            BoardOps: BoardOpsModule,
+            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
+                ? BoardOpsModule.applyCellRemovalAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
+                : null,
+            random: defaultPrng
+        }, 'CardLogic.processMeteorGodEffectsAtAnchor');
 
         return CardMeteorGodModule.processMeteorGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
     }
@@ -3873,32 +3877,21 @@ const {
     }
 
     function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = hasTurnStartRandomOptionOverrides(
-            prngOrOpts,
-            ['decrementRemainingOwnerTurns', 'BoardOps']
-        );
-        const deps = hasOptionShape
-            ? Object.assign({ BoardOps: BoardOpsModule, random: defaultPrng, decrementRemainingOwnerTurns: true }, prngOrOpts)
-            : { BoardOps: BoardOpsModule, random: prngOrOpts || defaultPrng, decrementRemainingOwnerTurns: true };
-        const randomCandidate = (
-            hasOptionShape &&
-            prngOrOpts &&
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random')
-        )
-            ? prngOrOpts.random
-            : prngOrOpts;
-        deps.random = resolveDeterministicRandomSource(
-            randomCandidate,
-            deps.random,
-            'CardLogic.processWillHunterKingEffectsAtTurnStartAnchor'
-        );
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'BoardOps'
+        ], {
+            BoardOps: BoardOpsModule,
+            random: defaultPrng,
+            decrementRemainingOwnerTurns: true
+        }, 'CardLogic.processWillHunterKingEffectsAtTurnStartAnchor');
 
         if (BoardOpsModule && typeof BoardOpsModule.runEffectBlock === 'function') {
             return CardWillHunterKingModule.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardWillHunterKingModule.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-            { randomSource: deps.random }
+            { randomSource: deps.randomSource }
         );
     }
 
@@ -3911,14 +3904,18 @@ const {
     }
 
     function processDestroyDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
-        const deps = Object.assign({
+        const deps = normalizeAnchorEffectOptions(opts, [
+            'decrementRemainingOwnerTurns',
+            'destroyAt',
+            'BoardOps'
+        ], {
             destroyAt,
             BoardOps: BoardOpsModule,
             random: defaultPrng
-        }, opts || {});
+        }, 'CardLogic.processDestroyDragonEffectsAtAnchor');
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
-            { randomSource: deps.random || opts.randomSource || opts.random }
+            { randomSource: deps.randomSource }
         );
     }
 
