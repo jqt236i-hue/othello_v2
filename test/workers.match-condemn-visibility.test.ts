@@ -4,11 +4,12 @@ import { spawnSync } from 'child_process';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 
-function getProjectedOffersForSeat(seatKey) {
+function getProjectedStateForViewer(viewerKey) {
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
-    "  const seatKey = process.argv[2];",
+    "  const viewerKey = process.argv[2];",
+    "  const seatKey = viewerKey === 'spectator' ? '' : viewerKey;",
     "  const seatToken = seatKey === 'black' ? 'token_black' : 'token_white';",
     "  const { MatchRoomDurableObject } = await import(modulePath);",
     "  const room = {",
@@ -17,6 +18,7 @@ function getProjectedOffersForSeat(seatKey) {
     "    updatedAt: Date.now(),",
     "    seats: { black: true, white: true },",
     "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    spectators: { spec_visibility: { token: 'spec-token', name: '観戦', joinedAt: 1000, lastSeenAt: 1000 } },",
     "    snapshot: {",
     "      gameState: { currentPlayer: 1, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
     "      cardState: {",
@@ -45,17 +47,23 @@ function getProjectedOffersForSeat(seatKey) {
     "    }",
     "  };",
     "  const durableObject = new MatchRoomDurableObject(state);",
-    "  const response = await durableObject.handleState(new URL(`https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`));",
+    "  const stateUrl = viewerKey === 'spectator'",
+    "    ? 'https://room/api/match/state?viewerRole=spectator&spectatorId=spec_visibility&spectatorToken=spec-token'",
+    "    : `https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`;",
+    "  const response = await durableObject.handleState(new URL(stateUrl));",
     "  const payload = await response.json();",
-    "  const offers = payload.snapshot.cardState.pendingEffectByPlayer.black.offers;",
-    "  process.stdout.write(JSON.stringify(offers));",
+    "  process.stdout.write(JSON.stringify({",
+    "    offers: payload.snapshot.cardState.pendingEffectByPlayer.black.offers,",
+    "    hands: payload.snapshot.cardState.hands,",
+    "    meta: payload.snapshot._meta",
+    "  }));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
     "});"
   ].join('\n');
 
-  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, seatKey], {
+  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, viewerKey], {
     encoding: 'utf8'
   });
 
@@ -63,7 +71,11 @@ function getProjectedOffersForSeat(seatKey) {
     throw new Error(result.stderr || result.stdout || 'worker projection check failed');
   }
 
-  return JSON.parse(String(result.stdout || '[]'));
+  return JSON.parse(String(result.stdout || '{}'));
+}
+
+function getProjectedOffersForSeat(seatKey) {
+  return getProjectedStateForViewer(seatKey).offers;
 }
 
 describe('match worker condemn visibility projection', () => {
@@ -81,5 +93,16 @@ describe('match worker condemn visibility projection', () => {
     expect(offers).toHaveLength(2);
     expect(offers[0].cardId).toBe('__hidden_hand__:white:0');
     expect(offers[1].cardId).toBe('__hidden_hand__:white:1');
+  });
+
+  test('keeps condemn target offers and both hands hidden for spectators', () => {
+    const projected = getProjectedStateForViewer('spectator');
+
+    expect(projected.meta).toEqual(expect.objectContaining({ viewerRole: 'spectator' }));
+    expect(projected.offers).toHaveLength(2);
+    expect(projected.offers[0].cardId).toBe('__hidden_hand__:white:0');
+    expect(projected.offers[1].cardId).toBe('__hidden_hand__:white:1');
+    expect(projected.hands.black.every((cardId) => String(cardId).startsWith('__hidden_hand__:black:'))).toBe(true);
+    expect(projected.hands.white.every((cardId) => String(cardId).startsWith('__hidden_hand__:white:'))).toBe(true);
   });
 });

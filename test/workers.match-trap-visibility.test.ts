@@ -4,11 +4,12 @@ import { spawnSync } from 'child_process';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 
-function getProjectedTrapStateForSeat(seatKey: 'black' | 'white') {
+function getProjectedTrapStateForViewer(viewerKey: 'black' | 'white' | 'spectator') {
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
-    "  const seatKey = process.argv[2];",
+    "  const viewerKey = process.argv[2];",
+    "  const seatKey = viewerKey === 'spectator' ? '' : viewerKey;",
     "  const seatToken = seatKey === 'black' ? 'token_black' : 'token_white';",
     "  const { MatchRoomDurableObject } = await import(modulePath);",
     "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
@@ -17,6 +18,7 @@ function getProjectedTrapStateForSeat(seatKey: 'black' | 'white') {
     "    roomId: 'TRAP1', stateVersion: 4, updatedAt: Date.now(),",
     "    seats: { black: true, white: true },",
     "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    spectators: { spec_visibility: { token: 'spec-token', name: '観戦', joinedAt: 1000, lastSeenAt: 1000 } },",
     "    snapshot: {",
     "      gameState: { currentPlayer: -1, board, turnNumber: 6 },",
     "      cardState: {",
@@ -36,7 +38,10 @@ function getProjectedTrapStateForSeat(seatKey: 'black' | 'white') {
     "    get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value),",
     "    delete: async (key) => storage.delete(key)",
     "  } });",
-    "  const response = await durableObject.handleState(new URL(`https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`));",
+    "  const stateUrl = viewerKey === 'spectator'",
+    "    ? 'https://room/api/match/state?viewerRole=spectator&spectatorId=spec_visibility&spectatorToken=spec-token'",
+    "    : `https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`;",
+    "  const response = await durableObject.handleState(new URL(stateUrl));",
     "  const payload = await response.json();",
     "  process.stdout.write(JSON.stringify({",
     "    markers: payload.snapshot.cardState.markers || [],",
@@ -46,7 +51,7 @@ function getProjectedTrapStateForSeat(seatKey: 'black' | 'white') {
     "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
   ].join('\n');
 
-  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, seatKey], {
+  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, viewerKey], {
     encoding: 'utf8'
   });
 
@@ -55,6 +60,10 @@ function getProjectedTrapStateForSeat(seatKey: 'black' | 'white') {
   }
 
   return JSON.parse(String(result.stdout || '{}'));
+}
+
+function getProjectedTrapStateForSeat(seatKey: 'black' | 'white') {
+  return getProjectedTrapStateForViewer(seatKey);
 }
 
 describe('match worker trap visibility projection', () => {
@@ -77,6 +86,14 @@ describe('match worker trap visibility projection', () => {
 
   test('hides hidden trap marker details from the opposing seat', () => {
     const projected = getProjectedTrapStateForSeat('white');
+
+    expect(projected.boardValue).toBe(1);
+    expect(projected.markers).toEqual([]);
+    expect(projected.specialStones).toEqual([]);
+  });
+
+  test('hides hidden trap marker details from spectators', () => {
+    const projected = getProjectedTrapStateForViewer('spectator');
 
     expect(projected.boardValue).toBe(1);
     expect(projected.markers).toEqual([]);

@@ -112,5 +112,13 @@ describe('match worker spectator API', () => {
     ].join('\n'));
 
     expect(result.status).toBe(403);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: false,
+      rejectedReason: expect.stringMatching(/TOKEN|READ_ONLY|SEAT/)
+    }));
+    expect(result.payload.publishMeta).toEqual(expect.objectContaining({
+      kind: 'rejected',
+      rejectedReason: expect.stringMatching(/TOKEN|READ_ONLY|SEAT/)
+    }));
   });
 });

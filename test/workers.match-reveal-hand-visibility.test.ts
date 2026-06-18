@@ -4,11 +4,12 @@ import { spawnSync } from 'child_process';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 
-function getProjectedCardStateForSeat(seatKey) {
+function getProjectedCardStateForViewer(viewerKey) {
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
-    "  const seatKey = process.argv[2];",
+    "  const viewerKey = process.argv[2];",
+    "  const seatKey = viewerKey === 'spectator' ? '' : viewerKey;",
     "  const seatToken = seatKey === 'black' ? 'token_black' : 'token_white';",
     "  const { MatchRoomDurableObject } = await import(modulePath);",
     "  const room = {",
@@ -17,6 +18,7 @@ function getProjectedCardStateForSeat(seatKey) {
     "    updatedAt: Date.now(),",
     "    seats: { black: true, white: true },",
     "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    spectators: { spec_visibility: { token: 'spec-token', name: '観戦', joinedAt: 1000, lastSeenAt: 1000 } },",
     "    snapshot: {",
     "      gameState: { currentPlayer: 1, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },",
     "      cardState: {",
@@ -41,7 +43,10 @@ function getProjectedCardStateForSeat(seatKey) {
     "    }",
     "  };",
     "  const durableObject = new MatchRoomDurableObject(state);",
-    "  const response = await durableObject.handleState(new URL(`https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`));",
+    "  const stateUrl = viewerKey === 'spectator'",
+    "    ? 'https://room/api/match/state?viewerRole=spectator&spectatorId=spec_visibility&spectatorToken=spec-token'",
+    "    : `https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`;",
+    "  const response = await durableObject.handleState(new URL(stateUrl));",
     "  const payload = await response.json();",
     "  process.stdout.write(JSON.stringify(payload.snapshot.cardState));",
     "})().catch((error) => {",
@@ -50,7 +55,7 @@ function getProjectedCardStateForSeat(seatKey) {
     "});"
   ].join('\n');
 
-  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, seatKey], {
+  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath, viewerKey], {
     encoding: 'utf8'
   });
 
@@ -59,6 +64,10 @@ function getProjectedCardStateForSeat(seatKey) {
   }
 
   return JSON.parse(String(result.stdout || '{}'));
+}
+
+function getProjectedCardStateForSeat(seatKey) {
+  return getProjectedCardStateForViewer(seatKey);
 }
 
 describe('match worker reveal-hand visibility projection', () => {
@@ -77,6 +86,18 @@ describe('match worker reveal-hand visibility projection', () => {
     const cardState = getProjectedCardStateForSeat('white');
 
     expect(cardState.hands.white).toEqual(['gold_stone', 'silver_stone']);
+    expect(cardState._nextCardCopySeq).toBeUndefined();
+    expect(cardState._handCopyIdsByPlayer).toBeUndefined();
+    expect(cardState._deckCopyIdsByPlayer).toBeUndefined();
+    expect(cardState._discardCopyIds).toBeUndefined();
+    expect(cardState._revealedHandCopyIdsByViewer).toBeUndefined();
+  });
+
+  test('keeps both hands hidden for spectators even when a reveal effect is active', () => {
+    const cardState = getProjectedCardStateForViewer('spectator');
+
+    expect(cardState.hands.black.every((cardId) => String(cardId).startsWith('__hidden_hand__:black:'))).toBe(true);
+    expect(cardState.hands.white.every((cardId) => String(cardId).startsWith('__hidden_hand__:white:'))).toBe(true);
     expect(cardState._nextCardCopySeq).toBeUndefined();
     expect(cardState._handCopyIdsByPlayer).toBeUndefined();
     expect(cardState._deckCopyIdsByPlayer).toBeUndefined();
