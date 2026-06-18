@@ -99,8 +99,8 @@ describe('round bonus', () => {
       })
     ]));
     expect(gameState.pendingRoundBonus).toBeNull();
-    expect(CardLogic.onTurnStart).toHaveBeenCalledWith(cardState, 'black', gameState, undefined, {
+    expect(CardLogic.onTurnStart).toHaveBeenCalledWith(cardState, 'black', gameState, undefined, expect.objectContaining({
       skipStoneSalvationGodRevives: true
-    });
+    }));
   });
 });

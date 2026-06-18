@@ -3366,12 +3366,25 @@ const {
         }
         ensureGeneratedSpawnFlipResolver(cardState);
         const opts = (options && typeof options === 'object') ? options : {};
+        const timingContext = Object.assign({}, getCardEffectTimingContext(), opts);
         return CardTimingProcessorModule.onTurnStart(
             cardState,
             playerKey,
             gameState,
             prng,
-            getCardEffectTimingContext()
+            timingContext
+        );
+    }
+
+    function flushDeferredTurnStartStatusExpirations(cardState: any, gameState: any, options?: any) {
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.flushDeferredTurnStartStatusExpirations !== 'function') {
+            return [];
+        }
+        const opts = (options && typeof options === 'object') ? options : {};
+        return CardTimingProcessorModule.flushDeferredTurnStartStatusExpirations(
+            cardState,
+            gameState,
+            Object.assign({}, getCardEffectTimingContext(), opts)
         );
     }
 
@@ -4416,6 +4429,7 @@ const cardsApi: any = {
 
         // Game flow
         onTurnStart,
+        flushDeferredTurnStartStatusExpirations,
         consumeStoneSalvationGodRevives,
         consumeGeneratedSpawnFlipResults,
         spawnAndFlipPlacement,

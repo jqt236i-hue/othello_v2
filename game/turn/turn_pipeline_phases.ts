@@ -861,9 +861,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 : new Map();
 
             const othelloMode = isOthelloModeForTurnPipelinePhases();
-            const turnStartOptions = roundBonusSummary
-                ? { skipStoneSalvationGodRevives: true }
-                : undefined;
+            const turnStartOptions: any = {
+                deferGuardDurationEndUntilAfterTurnStartMarkers: true
+            };
+            if (roundBonusSummary) {
+                turnStartOptions.skipStoneSalvationGodRevives = true;
+            }
             const turnStartSummary = othelloMode
                 ? null
                 : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartOptions) || null);
@@ -962,6 +965,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     hyperAggregated: { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } }
                 };
             const hyperAggregated = processedTurnStartMarkers.hyperAggregated;
+            if (CardLogic && typeof CardLogic.flushDeferredTurnStartStatusExpirations === 'function') {
+                CardLogic.flushDeferredTurnStartStatusExpirations(cardState, gameState, {
+                    deferGuardDurationEndUntilAfterTurnStartMarkers: true
+                });
+            }
             if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
                 applyGeneratedSpawnFlipResultsTurnStart(
                     CardLogic,

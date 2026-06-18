@@ -502,6 +502,77 @@ function emitDurationEndStatusRemoved(cardState: any, helpers: any, marker: any,
     });
 }
 
+const DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY = '_deferredTurnStartStatusExpirations';
+
+function queueDeferredTurnStartStatusExpiration(cardState: any, marker: any): void {
+    if (!cardState || !marker) return;
+    const state = cardState as any;
+    if (!Array.isArray(state[DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY])) {
+        state[DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY] = [];
+    }
+    state[DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY].push({
+        id: marker.id,
+        row: marker.row,
+        col: marker.col,
+        owner: marker.owner,
+        kind: marker.kind,
+        type: marker.data && marker.data.type
+    });
+}
+
+function findDeferredStatusMarker(cardState: any, entry: any): any {
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    if (!entry) return null;
+    if (entry.id !== undefined && entry.id !== null) {
+        const byId = markers.find((marker: any) => marker && marker.id === entry.id);
+        if (byId) return byId;
+    }
+    return markers.find((marker: any) => (
+        marker &&
+        marker.row === entry.row &&
+        marker.col === entry.col &&
+        marker.owner === entry.owner &&
+        marker.kind === entry.kind &&
+        marker.data &&
+        String(marker.data.type || '').toUpperCase() === String(entry.type || '').toUpperCase()
+    )) || null;
+}
+
+function flushDeferredTurnStartStatusExpirations(cardState: any, gameState: any, context: Context): any[] {
+    const state = cardState as any;
+    const queue = state && Array.isArray(state[DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY])
+        ? state[DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY].splice(0)
+        : [];
+    if (state) delete state[DEFERRED_TURN_START_STATUS_EXPIRATIONS_KEY];
+    if (!queue.length) return [];
+
+    const helpers = getHelpers(context);
+    const constants = getConstants(context);
+    const specialStoneKind = getSpecialStoneKind(constants);
+    const expired: any[] = [];
+
+    for (const entry of queue) {
+        const marker = findDeferredStatusMarker(cardState, entry);
+        const data = marker && marker.data ? marker.data : null;
+        if (!marker || !data) continue;
+        if (String(data.type || '').toUpperCase() !== 'GUARD') continue;
+        if (typeof data.remainingOwnerTurns === 'number' && data.remainingOwnerTurns > 0) continue;
+        if (typeof helpers.removeMarkersAt !== 'function') continue;
+
+        emitDurationEndStatusRemoved(cardState, helpers, marker, data);
+        const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
+        helpers.removeMarkersAt(cardState, marker.row, marker.col, {
+            kind: specialStoneKind,
+            type: data.type,
+            owner: marker.owner
+        });
+        restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
+        expired.push({ row: marker.row, col: marker.col, owner: marker.owner, type: data.type });
+    }
+
+    return expired;
+}
+
 function processStrongWillPromotionOnTurnStart(cardState: any, playerKey: string, specialMarkers: any[], helpers: any, constants: Constants): void {
     const markers = Array.isArray(cardState && cardState.markers)
         ? cardState.markers
@@ -681,6 +752,10 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
         if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
+                if (dataType === 'GUARD' && context && (context as any).deferGuardDurationEndUntilAfterTurnStartMarkers === true) {
+                    queueDeferredTurnStartStatusExpiration(cardState, marker);
+                    continue;
+                }
                 if (dataType === 'GHOST') {
                     if (BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
                         const revertRes = BoardOpsModule.revertSpecialStoneAt(
@@ -1191,5 +1266,6 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
 
 export = {
     onTurnStart,
+    flushDeferredTurnStartStatusExpirations,
     applyPlacementEffects
 };

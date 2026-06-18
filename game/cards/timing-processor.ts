@@ -120,6 +120,14 @@ function onTurnStart(cardState: CardState, playerKey: string, gameState: GameSta
     return CardEffectTimingModule.onTurnStart(cardState, playerKey, gameState, prng, effectTimingContext);
 }
 
+function flushDeferredTurnStartStatusExpirations(cardState: CardState, gameState: GameState, effectTimingContext: any) {
+    const CardEffectTimingModule = getCardEffectTimingModule();
+    if (!CardEffectTimingModule || typeof CardEffectTimingModule.flushDeferredTurnStartStatusExpirations !== 'function') {
+        return [];
+    }
+    return CardEffectTimingModule.flushDeferredTurnStartStatusExpirations(cardState, gameState, effectTimingContext);
+}
+
 function onTurnEnd(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
     const { readCardPendingEffect, clearCardPendingEffect, isChainWillCardType } = deps || {};
     const cs = cardState as any;
@@ -204,6 +212,7 @@ function processHyperactiveMoves(cardState: CardState, gameState: GameState, prn
 
 export = {
     onTurnStart,
+    flushDeferredTurnStartStatusExpirations,
     onTurnEnd,
     applyPlacementEffects,
     tickBombs,

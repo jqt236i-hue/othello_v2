@@ -196,6 +196,56 @@ describe('ROBOT_VACUUM_WILL（ロボット掃除機）', () => {
     expect(marker.data.remainingOwnerTurns).toBe(5);
   });
 
+  test('所有者ターン開始で期限切れになる完全保護も同じターン開始中の吸い込みを防ぐ', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][5] = Shared.WHITE;
+    cardState.markers.push(
+      {
+        id: 1801,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'ROBOT_VACUUM', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 1802,
+        kind: 'specialStone',
+        row: 3,
+        col: 5,
+        owner: 'white',
+        createdSeq: 2,
+        data: { type: 'GUARD', remainingOwnerTurns: 1 }
+      }
+    );
+
+    const events = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'white',
+      events,
+      createPrng(0)
+    );
+
+    expect(gameState.board[3][5]).toBe(Shared.WHITE);
+    expect(events.some((ev) => ev && ev.type === 'robot_vacuum_sucked_start')).toBe(false);
+    expect((cardState.presentationEvents || []).some((ev) => (
+      ev && ev.type === 'DESTROY' && ev.cause === 'ROBOT_VACUUM' && ev.row === 3 && ev.col === 5
+    ))).toBe(false);
+    expect((cardState.markers || []).some((m) => (
+      m && m.row === 3 && m.col === 5 && m.data && m.data.type === 'GUARD'
+    ))).toBe(false);
+    expect((cardState.presentationEvents || []).some((ev) => (
+      ev && ev.type === 'STATUS_REMOVED' && ev.row === 3 && ev.col === 5 && ev.meta && ev.meta.special === 'GUARD'
+    ))).toBe(true);
+  });
+
   test('救済神があるターン開始吸い込み破壊でも phase PRNG だけで復活できる', () => {
     const { cardState, gameState } = createState(0);
     delete cardState._defaultRandomSource;
