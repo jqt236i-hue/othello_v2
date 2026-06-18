@@ -1,3 +1,5 @@
+const ImmediateEffectDispatcher = require('../immediate-effect-dispatcher');
+
 type ResolvePlacementImmediateEffectsOptions = {
     CardLogic: any;
     cardState: any;
@@ -85,108 +87,33 @@ function resolvePlacementImmediateEffects(options: ResolvePlacementImmediateEffe
         );
     }
 
-    if (effects && effects.dragonPlaced && typeof opts.CardLogic.processDragonEffectsAtAnchor === 'function') {
-        const dragonNow = opts.CardLogic.processDragonEffectsAtAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col);
-        if (dragonNow.converted && dragonNow.converted.length) {
-            opts.awardBoardChargeGain(opts.CardLogic, opts.cardState, opts.playerKey, dragonNow.converted.length, {
-                anchorRow: action.row,
-                anchorCol: action.col,
-                moved: dragonNow.moved,
-                sourceType: 'dragon_immediate'
-            });
-            opts.events.push({ type: 'dragon_converted_immediate', details: dragonNow.converted });
-        }
-    }
+    const immediateTypes = [
+        effects && effects.dragonPlaced ? 'DRAGON' : null,
+        effects && effects.breedingPlaced ? 'BREEDING' : null,
+        effects && effects.ultimateDestroyGodPlaced ? 'ULTIMATE_DESTROY_GOD' : null,
+        effects && effects.destroyDragonPlaced ? 'DESTROY_DRAGON' : null,
+        effects && effects.sniperPlaced ? 'SNIPER' : null,
+        effects && effects.lightningPlaced ? 'LIGHTNING' : null,
+        effects && effects.meteorGodPlaced ? 'METEOR_GOD' : null,
+        effects && effects.willHunterKingPlaced ? 'WILL_HUNTER_KING' : null
+    ].filter(Boolean);
 
-    if (effects && effects.breedingPlaced && typeof opts.CardLogic.processBreedingEffectsAtAnchor === 'function') {
-        const breedingNow = opts.CardLogic.processBreedingEffectsAtAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, p);
-        if (breedingNow.spawned && breedingNow.spawned.length) {
-            opts.events.push({ type: 'breeding_spawned_immediate', details: breedingNow.spawned });
-        }
-        if (breedingNow.flipped && breedingNow.flipped.length) {
-            opts.awardBoardChargeGain(opts.CardLogic, opts.cardState, opts.playerKey, breedingNow.flipped.length, {
-                anchorRow: action.row,
-                anchorCol: action.col,
-                sourceType: 'breeding_immediate'
-            });
-            opts.events.push({ type: 'breeding_flipped_immediate', details: breedingNow.flipped });
-        }
-    }
-
-    if (effects && effects.ultimateDestroyGodPlaced && typeof opts.CardLogic.processUltimateDestroyGodEffectsAtAnchor === 'function') {
-        const udgNow = opts.CardLogic.processUltimateDestroyGodEffectsAtAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, { decrementRemainingOwnerTurns: false });
-        if (udgNow.destroyed && udgNow.destroyed.length) {
-            opts.events.push({ type: 'udg_destroyed_immediate', details: udgNow.destroyed });
-        }
-    }
-
-    if (effects && effects.destroyDragonPlaced && typeof opts.CardLogic.processDestroyDragonEffectsAtAnchor === 'function') {
-        const destroyDragonNow = opts.CardLogic.processDestroyDragonEffectsAtAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
-            decrementRemainingOwnerTurns: false,
-            random: p
+    for (const typeKey of immediateTypes) {
+        ImmediateEffectDispatcher.resolveImmediateEffects({
+            CardLogic: opts.CardLogic,
+            cardState: opts.cardState,
+            gameState: opts.gameState,
+            playerKey: opts.playerKey,
+            events: opts.events,
+            row: action.row,
+            col: action.col,
+            typeKey,
+            randomSource: p,
+            source: 'placement',
+            awardBoardChargeGain: opts.awardBoardChargeGain
         });
-        if (destroyDragonNow && destroyDragonNow.destroyed && destroyDragonNow.destroyed.length) {
-            opts.events.push({ type: 'destroy_dragon_destroyed_immediate', details: destroyDragonNow.destroyed });
-        }
-        if (destroyDragonNow && destroyDragonNow.expired && destroyDragonNow.expired.length) {
-            opts.events.push({ type: 'destroy_dragon_expired_immediate', details: destroyDragonNow.expired });
-        }
     }
 
-    if (effects && effects.sniperPlaced && typeof opts.CardLogic.processSniperWillEffectsAtTurnStartAnchor === 'function') {
-        const sniperNow = opts.CardLogic.processSniperWillEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
-            decrementRemainingOwnerTurns: false,
-            random: p
-        });
-        if (sniperNow && sniperNow.destroyed && sniperNow.destroyed.length) {
-            opts.events.push({ type: 'sniper_destroyed_immediate', details: sniperNow.destroyed });
-        }
-        if (sniperNow && sniperNow.expired && sniperNow.expired.length) {
-            opts.events.push({ type: 'sniper_expired_immediate', details: sniperNow.expired });
-        }
-    }
-
-    if (effects && effects.lightningPlaced && typeof opts.CardLogic.processLightningWillEffectsAtTurnStartAnchor === 'function') {
-        const lightningNow = opts.CardLogic.processLightningWillEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
-            decrementRemainingOwnerTurns: false,
-            random: p
-        });
-        if (lightningNow && lightningNow.destroyed && lightningNow.destroyed.length) {
-            opts.events.push({ type: 'lightning_destroyed_immediate', details: lightningNow.destroyed });
-        }
-        if (lightningNow && lightningNow.expired && lightningNow.expired.length) {
-            opts.events.push({ type: 'lightning_expired_immediate', details: lightningNow.expired });
-        }
-    }
-
-    if (effects && effects.meteorGodPlaced && typeof opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor === 'function') {
-        const meteorGodNow = opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
-            decrementRemainingOwnerTurns: false,
-            random: p
-        });
-        if (meteorGodNow && meteorGodNow.destroyed && meteorGodNow.destroyed.length) {
-            opts.events.push({ type: 'meteor_god_destroyed_immediate', details: meteorGodNow.destroyed });
-        }
-        if (meteorGodNow && meteorGodNow.expired && meteorGodNow.expired.length) {
-            opts.events.push({ type: 'meteor_god_expired_immediate', details: meteorGodNow.expired });
-        }
-    }
-
-    if (effects && effects.willHunterKingPlaced && typeof opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
-        const willHunterKingNow = opts.CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col, {
-            decrementRemainingOwnerTurns: false,
-            random: p
-        });
-        if (willHunterKingNow && willHunterKingNow.destroyed && willHunterKingNow.destroyed.length) {
-            opts.events.push({ type: 'will_hunter_king_destroyed_immediate', details: willHunterKingNow.destroyed });
-        }
-        if (willHunterKingNow && willHunterKingNow.moved && willHunterKingNow.moved.length) {
-            opts.events.push({ type: 'will_hunter_king_moved_immediate', details: willHunterKingNow.moved });
-        }
-        if (willHunterKingNow && willHunterKingNow.expired && willHunterKingNow.expired.length) {
-            opts.events.push({ type: 'will_hunter_king_expired_immediate', details: willHunterKingNow.expired });
-        }
-    }
     if (effects && effects.workPlaced) {
         const line = opts.pickRandomLine(opts.workPlaceLines, p);
         if (line) {
