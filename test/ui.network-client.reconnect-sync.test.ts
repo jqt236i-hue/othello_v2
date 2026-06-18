@@ -1352,6 +1352,78 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(publishBodies[0].action).toEqual({ type: 'reset_game', playerKey: 'white' });
   });
 
+  test('requestRematch の self stream snapshot は非終局なら result overlay を閉じる', async () => {
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1, { currentPlayer: -1, turnNumber: 60, consecutivePasses: 2 })
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(String(init.body || '{}'));
+        publishBodies.push(body);
+        const snapshot = createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 });
+        const stream = eventSources[0];
+        const snapshotHandler = stream && stream.listeners ? stream.listeners.snapshot : null;
+        if (typeof snapshotHandler === 'function') {
+          snapshotHandler({
+            data: JSON.stringify({
+              ok: true,
+              operationId: body.operationId,
+              actionType: 'reset_game',
+              stateVersion: 2,
+              snapshot,
+              playbackEvents: []
+            })
+          });
+        }
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 2,
+          snapshot,
+          playbackEvents: []
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    document.body.innerHTML = '<button id="resetBtn">再戦</button><div id="result-overlay"><button>再戦中...</button></div>';
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+    expect(typeof eventSources[0].listeners.snapshot).toBe('function');
+
+    document.body.innerHTML = '<button id="resetBtn">再戦</button><div id="result-overlay"><button>再戦中...</button></div>';
+
+    const result = await client.requestRematch();
+    expect(result && result.ok).toBe(true);
+
+    expect(publishBodies).toHaveLength(1);
+    expect(publishBodies[0].actionType).toBe('reset_game');
+    expect(document.getElementById('result-overlay')).toBeNull();
+    expect(document.getElementById('resetBtn')?.textContent).toBe('リセット');
+    expect(global.gameState.currentPlayer).toBe(1);
+    expect(global.gameState.consecutivePasses).toBe(0);
+  });
+
   test('非終局スナップショットの適用時に result overlay を自動で閉じる', async () => {
     document.body.innerHTML = '<div id="result-overlay"></div>';
 

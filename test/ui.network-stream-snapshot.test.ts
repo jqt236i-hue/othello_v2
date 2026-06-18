@@ -122,4 +122,34 @@ describe('NetworkStreamSnapshotController', () => {
       })
     );
   });
+
+  test('self reset_game stream snapshot does not skip result overlay sync', () => {
+    calls.shouldApplyStreamSnapshotAsShadowPlayback.mockReturnValue(false);
+
+    controller.handleStreamSnapshotPayload({
+      ok: true,
+      operationId: 'op_rematch',
+      actionType: 'reset_game',
+      snapshot: {
+        stateVersion: 22,
+        gameState: {
+          currentPlayer: 1,
+          turnNumber: 0,
+          consecutivePasses: 0
+        }
+      },
+      playbackEvents: []
+    });
+
+    expect(calls.applySnapshotThroughCoordinator).toHaveBeenCalledWith(
+      expect.objectContaining({ stateVersion: 22 }),
+      expect.objectContaining({
+        source: 'stream',
+        applyOptions: expect.objectContaining({
+          force: false,
+          skipResultOverlay: false
+        })
+      })
+    );
+  });
 });

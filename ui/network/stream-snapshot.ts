@@ -12,6 +12,11 @@ function createNetworkStreamSnapshotController(config?: any): any {
     return state;
   }
 
+  function isRematchResetActionType(value: any): boolean {
+    const actionType = String(value || '').trim().toLowerCase();
+    return actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
+  }
+
   function handleStreamSnapshotPayload(payload: any): void {
     if (!payload || payload.ok !== true) return;
     const state = readState();
@@ -31,6 +36,9 @@ function createNetworkStreamSnapshotController(config?: any): any {
     const isTerminalResultSnapshot = typeof cfg.isTerminalSnapshotForResult === 'function'
       ? cfg.isTerminalSnapshotForResult(snapshot)
       : false;
+    const actionType = payload && payload.actionType ? String(payload.actionType) : '';
+    const isRematchResetAction = isRematchResetActionType(actionType);
+    const shouldSkipResultOverlay = isSelfOperation && !isTerminalResultSnapshot && !isRematchResetAction;
 
     const shouldShadowStreamPlayback = isSelfOperation
       && typeof cfg.shouldApplyStreamSnapshotAsShadowPlayback === 'function'
@@ -63,7 +71,7 @@ function createNetworkStreamSnapshotController(config?: any): any {
         trackedPublish,
         applyOptions: Object.assign({}, streamPlaybackApplyOptions, {
           force: false,
-          skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
+          skipResultOverlay: shouldSkipResultOverlay
         })
       })
       : false;
@@ -73,7 +81,7 @@ function createNetworkStreamSnapshotController(config?: any): any {
       && typeof cfg.applySnapshot === 'function'
       ? cfg.applySnapshot(snapshot, Object.assign({}, streamPlaybackApplyOptions, {
         force: true,
-        skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
+        skipResultOverlay: shouldSkipResultOverlay
       }))
       : false;
 
