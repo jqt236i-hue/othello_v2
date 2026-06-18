@@ -65,6 +65,49 @@ describe('cards spawn-and-flip module', () => {
     expect(gameState.board[0]).toEqual([1, 1, 1]);
   });
 
+  test('spawnAndFlipPlacement can use explicit attemptedFlips without recomputing context flips', () => {
+    const gameState = { board: [[0, -1, 1]] };
+    const BoardOps = {
+      spawnAt: jest.fn((cs, gs, row, col) => {
+        gs.board[row][col] = 1;
+        return { spawned: true };
+      }),
+      changeAt: jest.fn((cs, gs, row, col) => {
+        gs.board[row][col] = 1;
+        return { changed: true };
+      })
+    };
+    const getFlipsWithContext = jest.fn(() => {
+      throw new Error('getFlipsWithContext should not be called when attemptedFlips is supplied');
+    });
+
+    const result = spawnAndFlipPlacement({
+      cardState: {},
+      gameState,
+      playerKey: 'black',
+      playerValue: 1,
+      row: 0,
+      col: 0,
+      allowZeroFlips: false,
+      BoardOps,
+      getCardContext: () => ({ protectedStones: [] }),
+      getFlipsWithContext,
+      attemptedFlips: [[0, 1]],
+      spawnCause: 'SYSTEM',
+      spawnReason: 'standard_place',
+      flipCause: 'SYSTEM',
+      flipReason: 'standard_flip'
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      spawned: true,
+      attemptedFlips: [[0, 1]],
+      appliedFlips: [[0, 1]]
+    }));
+    expect(getFlipsWithContext).not.toHaveBeenCalled();
+    expect(gameState.board[0]).toEqual([1, 1, 1]);
+  });
+
   test('spawnAndFlipPlacement rejects zero flips unless allowZeroFlips is true', () => {
     const baseOptions = {
       cardState: {},

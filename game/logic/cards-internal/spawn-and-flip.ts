@@ -80,6 +80,7 @@ type SpawnAndFlipPlacementOptions = {
     BoardOps?: SpawnAndFlipBoardOps | null;
     getCardContext?: (cardState: SpawnAndFlipCardState) => SpawnAndFlipContext;
     getFlipsWithContext?: (gameState: SpawnAndFlipGameState, row: number, col: number, playerValue: any, context: SpawnAndFlipContext) => Array<[number, number]>;
+    attemptedFlips?: Array<[number, number]>;
     resolveFlipEvasion?: (flips: Array<[number, number]>) => { remainingFlips?: Array<[number, number]> } | null;
     clearBombAt?: (cardState: SpawnAndFlipCardState, row: number, col: number) => void;
     clearHyperactiveAtPositions?: (cardState: SpawnAndFlipCardState, positions: SpawnAndFlipPosition[]) => void;
@@ -229,7 +230,9 @@ function spawnAndFlipPlacement(options: SpawnAndFlipPlacementOptions): any {
     const getCardContext = opts.getCardContext || (() => ({ protectedStones: [], permaProtectedStones: [] }));
     const getFlipsWithContext = opts.getFlipsWithContext || (() => []);
     const context = getCardContext(opts.cardState);
-    const attemptedFlips = getFlipsWithContext(opts.gameState, row, col, opts.playerValue, context);
+    const attemptedFlips = Array.isArray(opts.attemptedFlips)
+        ? opts.attemptedFlips.slice()
+        : getFlipsWithContext(opts.gameState, row, col, opts.playerValue, context);
     if ((!Array.isArray(attemptedFlips) || attemptedFlips.length === 0) && !opts.allowZeroFlips) {
         throw new Error('Illegal move: no flips and zero-flip placement is not allowed');
     }

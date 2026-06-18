@@ -159,7 +159,8 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
         allowZeroFlips: freePlacement,
         BoardOps: opts.BoardOps,
         getCardContext: () => ctx,
-        getFlipsWithContext: () => flips,
+        getFlipsWithContext: opts.Core.getFlipsWithContext,
+        attemptedFlips: flips,
         resolveFlipEvasion: (candidateFlips: any[]) => (
             candidateFlips.length > 0 && typeof opts.CardLogic.resolveHyperactiveFlipEvasion === 'function'
                 ? opts.CardLogic.resolveHyperactiveFlipEvasion(opts.cardState, opts.gameState, candidateFlips, opts.playerKey, p)
