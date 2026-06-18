@@ -30,6 +30,10 @@ const CardUtilsModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('./utils')
     : null) || (typeof self !== 'undefined' ? (self as any).CardUtils : null);
 
+const SpecialStoneRegistry = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/special-stone-registry')
+    : null) || (typeof self !== 'undefined' ? (self as any).SpecialStoneRegistry : null);
+
 const BoardOpsModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../board_ops')
     : null) || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
@@ -126,15 +130,21 @@ function resolveRandomSource(randomLike: any) {
 }
 
 function hasVisibleNonNormalStoneAt(cardState: any, row: number, col: number): boolean {
-    if (!CardUtilsModule)
-        return false;
-    if (typeof CardUtilsModule.isNonNormalStoneVisualAt === 'function') {
-        return CardUtilsModule.isNonNormalStoneVisualAt(cardState, row, col);
-    }
-    if (typeof CardUtilsModule.isSpecialStoneAt === 'function') {
-        return CardUtilsModule.isSpecialStoneAt(cardState, row, col);
-    }
-    return false;
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.some((marker: any) => {
+        if (!marker || marker.row !== row || marker.col !== col || !marker.data) return false;
+        const type = String(marker.data.type || '').toUpperCase();
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isWillHunterPriorityTarget === 'function') {
+            return SpecialStoneRegistry.isWillHunterPriorityTarget(type, marker.data) === true;
+        }
+        if (CardUtilsModule && typeof CardUtilsModule.isNonNormalStoneVisualAt === 'function') {
+            return CardUtilsModule.isNonNormalStoneVisualAt(cardState, row, col);
+        }
+        if (CardUtilsModule && typeof CardUtilsModule.isSpecialStoneAt === 'function') {
+            return CardUtilsModule.isSpecialStoneAt(cardState, row, col);
+        }
+        return marker.kind === 'specialStone' && type !== 'TRAP';
+    });
 }
 
 function isManifestTarget(cardState: any, row: number, col: number): boolean {

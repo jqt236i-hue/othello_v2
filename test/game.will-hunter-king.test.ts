@@ -158,7 +158,7 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(gameState.board[3][5]).toBe(Shared.WHITE);
   });
 
-  test('特殊石優先は visual-effects-map 未登録でも盤上特殊石なら優先する', () => {
+  test('特殊石優先は registry で対象外の GUARD を優先しない', () => {
     const { cardState, gameState } = createState(0);
 
     gameState.board[3][3] = Shared.BLACK;
@@ -198,10 +198,62 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
       createPrng(0)
     );
 
-    expect(out.destroyed).toHaveLength(0);
-    expect(out.moved).toHaveLength(0);
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 3, col: 5, destroyedSpecial: false })]);
+    expect(out.moved).toEqual([expect.objectContaining({ to: { row: 3, col: 5 } })]);
     expect(gameState.board[5][3]).toBe(Shared.WHITE);
-    expect(gameState.board[3][5]).toBe(Shared.WHITE);
+    expect(gameState.board[3][5]).toBe(Shared.BLACK);
+  });
+
+  test('特殊石優先は registry の willHunterPriority を使い hidden trap を優先しない', () => {
+    const { cardState, gameState } = createState(0);
+
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][4] = Shared.WHITE;
+    gameState.board[3][5] = Shared.WHITE;
+
+    cardState.markers.push(
+      {
+        id: 9101,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: {
+          type: 'WILL_HUNTER_KING',
+          remainingOwnerTurns: 8,
+          flipEvadeRemaining: 2,
+          destroyEvadeRemaining: 2
+        }
+      },
+      {
+        id: 9102,
+        kind: 'specialStone',
+        row: 3,
+        col: 4,
+        owner: 'white',
+        data: { type: 'TRAP', hidden: true }
+      },
+      {
+        id: 9103,
+        kind: 'specialStone',
+        row: 3,
+        col: 5,
+        owner: 'white',
+        data: { type: 'TIME_BOMB', category: 'bomb' }
+      }
+    );
+
+    const out = CardIogic.processWillHunterKingEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      3,
+      3,
+      createPrng(0)
+    );
+
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 3, col: 5, destroyedSpecial: true })]);
+    expect(gameState.board[3][4]).toBe(Shared.WHITE);
   });
 
   test('上側拡張セルの敵石も破壊してそのマスへ移動できる', () => {
