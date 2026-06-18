@@ -45,7 +45,8 @@ import type {
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityRoomState,
-    MatchAuthoritySeatKey
+    MatchAuthoritySeatKey,
+    MatchAuthorityViewer
 } from '../utils/match-authority-types';
 import type { GameState } from '../src/types';
 import {
@@ -367,8 +368,22 @@ function resolveAuthenticatedSeatKey(room: unknown, seatKeyValue: unknown, seatT
     return MatchAuthority.resolveAuthenticatedSeatKey(room as never, seatKeyValue, seatTokenValue);
 }
 
+function resolveAuthenticatedViewer(room: unknown, options: Record<string, unknown> | null | undefined): MatchAuthorityViewer | null {
+    return MatchAuthority.resolveAuthenticatedViewer(room as never, options);
+}
+
 function classifySeatTokenRejectionReason(seatTokenValue: unknown): string {
     return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
+}
+
+function classifyViewerTokenRejectionReason(searchParams: URLSearchParams): string {
+    const viewerRole = String(searchParams.get('viewerRole') || '').trim().toLowerCase();
+    if (viewerRole === 'spectator') {
+        return String(searchParams.get('spectatorToken') || '').trim()
+            ? 'SPECTATOR_TOKEN_MISMATCH'
+            : 'SPECTATOR_TOKEN_REQUIRED';
+    }
+    return classifySeatTokenRejectionReason(searchParams.get('seatToken') || '');
 }
 
 function buildNetworkActionEffectLogs(
@@ -1747,11 +1762,13 @@ function toPublicTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs:
     return MatchWorkerTurnTimerHelpers.toPublicTurnTimer(room, nowMs);
 }
 
-function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnapshotPayloadMeta | null | undefined, viewerSeatKey: unknown): Record<string, unknown> {
+function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnapshotPayloadMeta | null | undefined, viewer: MatchAuthorityViewer): Record<string, unknown> {
     const serverTime = Date.now();
     const metaRecord = asRecord(meta);
+    const viewerRole = viewer && viewer.role === 'spectator' ? 'spectator' : 'seat';
     return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
-        snapshot: toPublicSnapshot(room, viewerSeatKey),
+        viewerRole,
+        snapshot: toPublicSnapshotForViewer(room, viewer),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -2127,8 +2144,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 loadRoom: () => this.loadRoom(),
                 applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
                 parseSeatKeyOptional,
-                resolveAuthenticatedSeatKey,
-                classifySeatTokenRejectionReason,
+                resolveAuthenticatedViewer,
+                classifyViewerTokenRejectionReason,
                 getBufferedSseReplayEvents: MatchAuthority.getBufferedSseReplayEvents,
                 makeSseStreamId: MatchAuthority.makeSseStreamId,
                 buildSnapshotPayload,
@@ -2341,7 +2358,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
     buildBufferedSnapshotEvent(meta: MatchWorkerSnapshotPayloadMeta | null | undefined, eventId: string): {
         record: MatchAuthorityBufferedSseEventRecordInput;
-        payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
+        payloadByViewer: Partial<Record<MatchAuthoritySeatKey | 'spectator', unknown>>;
     } {
         return this.getBroadcastController().buildBufferedSnapshotEvent(meta, eventId);
     }
@@ -2864,26 +2881,34 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         const seatKey = parseSeatKeyOptional(urlObj && urlObj.searchParams ? urlObj.searchParams.get('seatKey') : null);
         const seatToken = String(urlObj && urlObj.searchParams ? (urlObj.searchParams.get('seatToken') || '') : '').trim();
-        const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-        if (!viewerSeatKey) {
-            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+        const viewer = resolveAuthenticatedViewer(room, {
+            viewerRole: urlObj.searchParams.get('viewerRole') || '',
+            seatKey,
+            seatToken,
+            spectatorId: urlObj.searchParams.get('spectatorId') || '',
+            spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+            now: Date.now()
+        });
+        if (!viewer) {
+            return jsonResponse(403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
         }
 
         const serverTime = Date.now();
         const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
             room.sseEventBuffer,
             room.stateVersion,
-            viewerSeatKey
+            viewer
         );
         const recoveredMeta = asRecord(recoveredPayload);
 
         return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             stateVersion: room.stateVersion,
+            viewerRole: viewer.role,
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            snapshot: toPublicSnapshot(room, viewerSeatKey),
+            snapshot: toPublicSnapshotForViewer(room, viewer),
             turnTimer: toPublicTurnTimer(room, serverTime),
             playbackEvents: Array.isArray(recoveredMeta.playbackEvents) ? recoveredMeta.playbackEvents : [],
             effectLogs: MatchAuthority.normalizeEffectLogMessages(recoveredMeta.effectLogs),

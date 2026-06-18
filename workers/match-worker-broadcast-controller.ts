@@ -7,7 +7,8 @@ import type {
 } from './match-worker-types';
 import type {
     MatchAuthorityBufferedSseEventRecordInput,
-    MatchAuthoritySeatKey
+    MatchAuthoritySeatKey,
+    MatchAuthorityViewer
 } from '../utils/match-authority-types';
 
 type MatchWorkerBroadcastControllerConfig = {
@@ -20,7 +21,7 @@ type MatchWorkerBroadcastControllerConfig = {
     buildSnapshotPayload: (
         room: MatchWorkerRoomState,
         meta: MatchWorkerSnapshotPayloadMeta | null | undefined,
-        viewerSeatKey: MatchAuthoritySeatKey | null
+        viewer: MatchAuthorityViewer
     ) => Record<string, unknown>;
     buildPresencePayload: (
         room: MatchWorkerRoomState,
@@ -32,6 +33,24 @@ function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
 
+function normalizeStreamViewer(streamInfo: MatchWorkerSseStreamInfo | null | undefined): MatchAuthorityViewer {
+    const source = asRecord(streamInfo);
+    const viewer = asRecord(source.viewer);
+    const viewerSeatKey = viewer.seatKey === 'black' || viewer.seatKey === 'white' ? viewer.seatKey : null;
+    if (viewer.role === 'seat' && viewerSeatKey) {
+        return { role: 'seat', seatKey: viewerSeatKey };
+    }
+    if (viewer.role === 'spectator') {
+        return { role: 'spectator', spectatorId: String(viewer.spectatorId || '').trim() };
+    }
+    const legacySeatKey = source.seatKey === 'black' || source.seatKey === 'white' ? source.seatKey : null;
+    return legacySeatKey ? { role: 'seat', seatKey: legacySeatKey } : { role: 'spectator', spectatorId: '' };
+}
+
+function getPayloadKeyForViewer(viewer: MatchAuthorityViewer): MatchAuthoritySeatKey | 'spectator' {
+    return viewer.role === 'seat' ? viewer.seatKey : 'spectator';
+}
+
 export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcastControllerConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as MatchWorkerBroadcastControllerConfig;
 
@@ -40,7 +59,7 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
         eventId: string
     ): {
         record: MatchAuthorityBufferedSseEventRecordInput;
-        payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
+        payloadByViewer: Partial<Record<MatchAuthoritySeatKey | 'spectator', unknown>>;
     } {
         const room = cfg.getRoom();
         if (!room) {
@@ -50,8 +69,9 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
             };
         }
         const payloadByViewer = {
-            black: cfg.buildSnapshotPayload(room, meta, 'black'),
-            white: cfg.buildSnapshotPayload(room, meta, 'white')
+            black: cfg.buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'black' }),
+            white: cfg.buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'white' }),
+            spectator: cfg.buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' })
         };
         return {
             record: {
@@ -71,7 +91,7 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
             eventId,
             record,
             payloadByViewer,
-            fallbackPayload: room ? cfg.buildSnapshotPayload(room, meta, null) : {}
+            fallbackPayload: room ? cfg.buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' }) : {}
         };
     }
 
@@ -82,9 +102,10 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
         const streamEntries = Array.from(cfg.getStreams().entries());
         if (streamEntries.length === 0) return;
         await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
-            const viewerSeatKey = streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null;
-            const payload = (viewerSeatKey && preparedSnapshot.payloadByViewer[viewerSeatKey])
-                ? preparedSnapshot.payloadByViewer[viewerSeatKey]
+            const viewer = normalizeStreamViewer(streamInfo);
+            const payloadKey = getPayloadKeyForViewer(viewer);
+            const payload = preparedSnapshot.payloadByViewer[payloadKey]
+                ? preparedSnapshot.payloadByViewer[payloadKey]
                 : preparedSnapshot.fallbackPayload;
             return cfg.sendSse(streamId, 'snapshot', payload, { eventId: preparedSnapshot.eventId });
         }));

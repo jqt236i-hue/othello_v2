@@ -44,21 +44,21 @@ function createController(room: any) {
       return null;
     },
     parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? value : null) as any,
-    resolveAuthenticatedSeatKey: (currentRoom, seatKey, seatToken) => (
-      seatKey && currentRoom.seatTokens && currentRoom.seatTokens[seatKey as string] === seatToken
-        ? seatKey as any
+    resolveAuthenticatedViewer: (currentRoom, options) => (
+      options.seatKey && currentRoom.seatTokens && currentRoom.seatTokens[options.seatKey as string] === options.seatToken
+        ? { role: 'seat', seatKey: options.seatKey as any }
         : null
     ),
-    classifySeatTokenRejectionReason: (seatToken) => (seatToken ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED'),
-    getBufferedSseReplayEvents: (buffer, lastEventId, viewerSeatKey) => [{
+    classifyViewerTokenRejectionReason: (searchParams) => (searchParams.get('seatToken') ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED'),
+    getBufferedSseReplayEvents: (buffer, lastEventId, viewer) => [{
       eventId: String(lastEventId || 'none'),
       eventName: 'snapshot',
-      payload: { buffer, viewerSeatKey }
+      payload: { buffer, viewer }
     }],
     makeSseStreamId: () => 'stream-1',
-    buildSnapshotPayload: (_currentRoom, meta, viewerSeatKey) => ({
+    buildSnapshotPayload: (_currentRoom, meta, viewer) => ({
       ok: true,
-      viewerSeatKey,
+      viewer,
       playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : null
     }),
     scheduleInitialStreamDelivery: (options) => {
@@ -88,6 +88,82 @@ function createController(room: any) {
 }
 
 describe('match worker stream route controller', () => {
+  test('registers an authenticated spectator SSE stream with spectator viewer identity', async () => {
+    const room = createRoom({
+      spectators: {
+        spec_test0001: { token: 'token', name: '観戦', joinedAt: 1000, lastSeenAt: 1000 }
+      }
+    });
+    const streams = new Map<string, any>();
+    const deliveries: any[] = [];
+    const controller = createMatchWorkerStreamRouteController({
+      getRoom: () => room,
+      getStreams: () => streams,
+      getSseEventBuffer: () => [],
+      loadRoom: async () => {},
+      applyExpiredTurnTimeoutIfNeeded: async () => null,
+      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? value : null) as any,
+      resolveAuthenticatedSeatKey: () => null,
+      resolveAuthenticatedViewer: (_currentRoom, options) => {
+        expect(options).toEqual(expect.objectContaining({
+          viewerRole: 'spectator',
+          spectatorId: 'spec_test0001',
+          spectatorToken: 'token',
+          now: 1234
+        }));
+        return { role: 'spectator', spectatorId: 'spec_test0001' };
+      },
+      classifySeatTokenRejectionReason: (seatToken) => (seatToken ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED'),
+      classifyViewerTokenRejectionReason: () => 'SPECTATOR_TOKEN_MISMATCH',
+      getBufferedSseReplayEvents: (buffer, lastEventId, viewer) => [{
+        eventId: String(lastEventId || 'none'),
+        eventName: 'snapshot',
+        payload: { buffer, viewer }
+      }],
+      makeSseStreamId: () => 'stream-1',
+      buildSnapshotPayload: (_currentRoom, meta, viewer) => ({
+        ok: true,
+        viewer,
+        playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : null
+      }),
+      scheduleInitialStreamDelivery: (options) => {
+        deliveries.push(options);
+      },
+      closeStream: async () => {},
+      ensureHeartbeatTimer: () => {},
+      jsonResponse: createJsonResponse,
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      cryptoLike: { getRandomValues: (array) => array },
+      now: () => 1234
+    } as any);
+
+    const response = await controller.handleStream(
+      new Request('https://room/api/match/stream?viewerRole=spectator&spectatorId=spec_test0001&spectatorToken=token&lastEventId=SSE1_2_1')
+    );
+
+    expect(response.status).toBe(200);
+    expect(streams.get('stream-1')).toMatchObject({
+      viewer: { role: 'spectator', spectatorId: 'spec_test0001' }
+    });
+    expect(deliveries[0]).toMatchObject({
+      initialPayload: {
+        ok: true,
+        viewer: { role: 'spectator', spectatorId: 'spec_test0001' },
+        playbackEvents: []
+      },
+      replayEvents: [{
+        eventId: 'SSE1_2_1',
+        eventName: 'snapshot',
+        payload: {
+          buffer: room.sseEventBuffer,
+          viewer: { role: 'spectator', spectatorId: 'spec_test0001' }
+        }
+      }]
+    });
+
+    await response.body?.cancel();
+  });
+
   test('rejects missing room and unauthenticated stream requests', async () => {
     const missingRoom = createController(null);
     const missingResponse = await missingRoom.controller.handleStream(
@@ -125,14 +201,14 @@ describe('match worker stream route controller', () => {
     expect(ctx.getLoadCount()).toBe(1);
     expect(ctx.getTimeoutChecks()).toBe(1);
     expect(ctx.getHeartbeatEnsures()).toBe(1);
-    expect(ctx.streams.get('stream-1')).toMatchObject({ seatKey: 'black' });
+    expect(ctx.streams.get('stream-1')).toMatchObject({ viewer: { role: 'seat', seatKey: 'black' } });
     expect(ctx.deliveries).toHaveLength(1);
     expect(ctx.deliveries[0]).toMatchObject({
       room,
       streamId: 'stream-1',
       initialPayload: {
         ok: true,
-        viewerSeatKey: 'black',
+        viewer: { role: 'seat', seatKey: 'black' },
         playbackEvents: []
       },
       replayEvents: [{
@@ -140,7 +216,7 @@ describe('match worker stream route controller', () => {
         eventName: 'snapshot',
         payload: {
           buffer: room.sseEventBuffer,
-          viewerSeatKey: 'black'
+          viewer: { role: 'seat', seatKey: 'black' }
         }
       }]
     });

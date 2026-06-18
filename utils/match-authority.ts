@@ -1795,6 +1795,11 @@ function normalizeViewerIdentity(value: unknown): MatchAuthorityViewer | null {
     return seatKey ? { role: 'seat', seatKey } : null;
 }
 
+function getPayloadKeyForViewer(viewerValue: unknown): MatchAuthoritySeatKey | 'spectator' {
+    const viewer = normalizeViewerIdentity(viewerValue);
+    return viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator';
+}
+
 function buildPublicSnapshotForViewer(
     room: MatchAuthorityRoomState | null | undefined,
     viewerValue: unknown
@@ -2046,7 +2051,7 @@ function createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRec
     if (sourcePayloadByViewer) {
         const payloadByViewer: MatchAuthorityBufferedSsePayloadByViewer = {};
         for (const [viewerKey, viewerPayload] of Object.entries(sourcePayloadByViewer)) {
-            const normalizedViewer = parseSeatKeyOptional(viewerKey);
+            const normalizedViewer = viewerKey === 'spectator' ? 'spectator' : parseSeatKeyOptional(viewerKey);
             if (!normalizedViewer) continue;
             payloadByViewer[normalizedViewer] = deepClone(viewerPayload || {});
         }
@@ -2100,7 +2105,7 @@ function getBufferedSseReplayEvents(
     }
     if (startIndex < 0) return null;
 
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const viewer = getPayloadKeyForViewer(viewerSeatKey);
     const replayEvents: MatchAuthorityBufferedSseReplayEvent[] = [];
     for (let index = startIndex + 1; index < buffer.length; index += 1) {
         const entry = buffer[index];
@@ -2108,7 +2113,7 @@ function getBufferedSseReplayEvents(
 
         let payload;
         if (entry.payloadByViewer && typeof entry.payloadByViewer === 'object') {
-            if (!viewer || !Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) continue;
+            if (!Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) continue;
             payload = entry.payloadByViewer[viewer];
         } else if (Object.prototype.hasOwnProperty.call(entry, 'payload')) {
             payload = entry.payload;
@@ -2132,9 +2137,9 @@ function resolveBufferedSnapshotPayloadForViewer(
     if (!entry || typeof entry !== 'object') return null;
     if (String(entry.event || '').trim() !== 'snapshot') return null;
 
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
+    const viewer = getPayloadKeyForViewer(viewerSeatKey);
     if (entry.payloadByViewer && typeof entry.payloadByViewer === 'object') {
-        if (!viewer || !Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) return null;
+        if (!Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) return null;
         return entry.payloadByViewer[viewer] || null;
     }
     return Object.prototype.hasOwnProperty.call(entry, 'payload') ? (entry.payload || null) : null;
@@ -2214,6 +2219,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     addSpectatorToRoom,
     removeSpectatorFromRoom,
     resolveAuthenticatedViewer,
+    getPayloadKeyForViewer,
     resolveAuthenticatedSeatKey,
     classifySeatTokenRejectionReason,
     getFateWillControllerKey,

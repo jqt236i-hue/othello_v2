@@ -22,6 +22,7 @@ const REQUIRED_MATCH_AUTHORITY_PUBLIC_FUNCTIONS: Array<keyof MatchAuthorityPubli
     'addSpectatorToRoom',
     'removeSpectatorFromRoom',
     'resolveAuthenticatedViewer',
+    'getPayloadKeyForViewer',
     'resolveAuthenticatedSeatKey',
     'classifySeatTokenRejectionReason',
     'createBufferedSseEventRecord',

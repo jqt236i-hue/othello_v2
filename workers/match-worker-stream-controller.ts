@@ -92,7 +92,7 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
         const streams = cfg.getStreams();
         if (!seatKey || !streams || streams.size === 0) return;
         for (const [streamId, stream] of Array.from(streams.entries())) {
-            if (!stream || stream.seatKey !== seatKey) continue;
+            if (!stream || !stream.viewer || stream.viewer.role !== 'seat' || stream.viewer.seatKey !== seatKey) continue;
             await closeStream(streamId);
         }
     }

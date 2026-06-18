@@ -1,6 +1,7 @@
 import type {
     MatchAuthorityBufferedSseReplayEvent,
-    MatchAuthoritySeatKey
+    MatchAuthoritySeatKey,
+    MatchAuthorityViewer
 } from '../utils/match-authority-types';
 import type {
     MatchWorkerRoomState,
@@ -19,22 +20,21 @@ type MatchWorkerStreamRouteControllerConfig = {
     loadRoom: () => Promise<void>;
     applyExpiredTurnTimeoutIfNeeded: () => Promise<unknown>;
     parseSeatKeyOptional: (value: unknown) => MatchAuthoritySeatKey | null;
-    resolveAuthenticatedSeatKey: (
+    resolveAuthenticatedViewer: (
         room: MatchWorkerRoomState,
-        seatKeyValue: unknown,
-        seatTokenValue: unknown
-    ) => MatchAuthoritySeatKey | null;
-    classifySeatTokenRejectionReason: (seatTokenValue: unknown) => string;
+        options: Record<string, unknown>
+    ) => MatchAuthorityViewer | null;
+    classifyViewerTokenRejectionReason: (searchParams: URLSearchParams) => string;
     getBufferedSseReplayEvents: (
         replayBuffer: unknown,
         lastEventId: unknown,
-        viewerSeatKey: unknown
+        viewer: MatchAuthorityViewer
     ) => MatchAuthorityBufferedSseReplayEvent[] | null;
     makeSseStreamId: (nowValue: unknown, explicitCrypto?: MatchWorkerCryptoLike | null) => string;
     buildSnapshotPayload: (
         room: MatchWorkerRoomState,
         meta: MatchWorkerSnapshotPayloadMeta | null | undefined,
-        viewerSeatKey: unknown
+        viewer: MatchAuthorityViewer
     ) => Record<string, unknown>;
     scheduleInitialStreamDelivery: (options: {
         room: MatchWorkerRoomState;
@@ -67,21 +67,28 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
         const seatKey = cfg.parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
         const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
         const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
-        const viewerSeatKey = cfg.resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-        if (!viewerSeatKey) {
-            return cfg.jsonResponse(403, { ok: false, reason: cfg.classifySeatTokenRejectionReason(seatToken) });
+        const viewer = cfg.resolveAuthenticatedViewer(room, {
+            viewerRole: urlObj.searchParams.get('viewerRole') || '',
+            seatKey,
+            seatToken,
+            spectatorId: urlObj.searchParams.get('spectatorId') || '',
+            spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+            now: now()
+        });
+        if (!viewer) {
+            return cfg.jsonResponse(403, { ok: false, reason: cfg.classifyViewerTokenRejectionReason(urlObj.searchParams) });
         }
 
         const { readable, writable } = new TransformStream<Uint8Array>();
         const writer = writable.getWriter();
 
         const streamId = cfg.makeSseStreamId(now(), cfg.cryptoLike || null);
-        cfg.getStreams().set(streamId, { writer, seatKey: viewerSeatKey });
+        cfg.getStreams().set(streamId, { writer, viewer });
         cfg.ensureHeartbeatTimer();
 
         const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();
         const replayBuffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : cfg.getSseEventBuffer();
-        const replayEvents = cfg.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewerSeatKey);
+        const replayEvents = cfg.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewer);
 
         const onAbort = () => {
             cfg.closeStream(streamId).catch(() => {});
@@ -93,7 +100,7 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
             }
         } catch (e) { /* ignore */ }
 
-        const initialPayload = cfg.buildSnapshotPayload(room, { playbackEvents: [] }, viewerSeatKey);
+        const initialPayload = cfg.buildSnapshotPayload(room, { playbackEvents: [] }, viewer);
         cfg.scheduleInitialStreamDelivery({
             room,
             replayEvents,

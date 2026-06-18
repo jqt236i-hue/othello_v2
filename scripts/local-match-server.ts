@@ -76,8 +76,22 @@ function resolveAuthenticatedSeatKey(room: any, seatKeyValue: any, seatTokenValu
     return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
 }
 
+function resolveAuthenticatedViewer(room: any, options: any) {
+    return MatchAuthority.resolveAuthenticatedViewer(room, options);
+}
+
 function classifySeatTokenRejectionReason(seatTokenValue: any) {
     return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
+}
+
+function classifyViewerTokenRejectionReason(searchParams: URLSearchParams) {
+    const viewerRole = String(searchParams.get('viewerRole') || '').trim().toLowerCase();
+    if (viewerRole === 'spectator') {
+        return String(searchParams.get('spectatorToken') || '').trim()
+            ? 'SPECTATOR_TOKEN_MISMATCH'
+            : 'SPECTATOR_TOKEN_REQUIRED';
+    }
+    return classifySeatTokenRejectionReason(searchParams.get('seatToken') || '');
 }
 
 function toPublicSnapshot(room: any, viewerSeatKey: any) {
@@ -904,8 +918,9 @@ function rememberBufferedRoomEvent(room: any, record: any) {
 
 function buildBufferedSnapshotRecord(room: any, meta: any, eventId: any) {
     const payloadByViewer = {
-        black: buildSnapshotPayload(room, meta, 'black'),
-        white: buildSnapshotPayload(room, meta, 'white')
+        black: buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'black' }),
+        white: buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'white' }),
+        spectator: buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' })
     };
     return {
         record: {
@@ -924,7 +939,7 @@ function prepareSnapshotBroadcast(room: any, meta: any) {
         eventId,
         record,
         payloadByViewer,
-        fallbackPayload: buildSnapshotPayload(room, meta, null)
+        fallbackPayload: buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' })
     };
 }
 
@@ -933,9 +948,12 @@ function broadcastPreparedSnapshot(room: any, preparedSnapshot: any) {
     rememberBufferedRoomEvent(room, preparedSnapshot.record);
     if (!room.streams || room.streams.size === 0) return;
     for (const [streamId, streamInfo] of room.streams.entries()) {
-        const viewerSeatKey = streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null;
-        const payload = (viewerSeatKey && preparedSnapshot.payloadByViewer[viewerSeatKey])
-            ? preparedSnapshot.payloadByViewer[viewerSeatKey]
+        const viewer = streamInfo && streamInfo.viewer
+            ? streamInfo.viewer
+            : (streamInfo && streamInfo.seatKey ? { role: 'seat', seatKey: streamInfo.seatKey } : { role: 'spectator', spectatorId: '' });
+        const payloadKey = MatchAuthority.getPayloadKeyForViewer(viewer);
+        const payload = preparedSnapshot.payloadByViewer[payloadKey]
+            ? preparedSnapshot.payloadByViewer[payloadKey]
             : preparedSnapshot.fallbackPayload;
         safeWriteToStream(room, streamId, 'snapshot', payload, preparedSnapshot.eventId);
     }
@@ -1002,10 +1020,12 @@ function ensureHeartbeatLoop() {
     }
 }
 
-function buildSnapshotPayload(room: any, meta: any, viewerSeatKey: any) {
+function buildSnapshotPayload(room: any, meta: any, viewer: any) {
     const serverTime = Date.now();
+    const viewerRole = viewer && viewer.role === 'spectator' ? 'spectator' : 'seat';
     return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
-        snapshot: toPublicSnapshot(room, viewerSeatKey),
+        viewerRole,
+        snapshot: toPublicSnapshotForViewer(room, viewer),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -1060,7 +1080,10 @@ function broadcastPresence(room: any, meta: any) {
 function closeSeatStreams(room: any, seatKey: any) {
     if (!room || !room.streams || !seatKey) return;
     for (const [streamId, streamInfo] of Array.from(room.streams.entries()) as any[]) {
-        if (!streamInfo || streamInfo.seatKey !== seatKey) continue;
+        const viewer = streamInfo && streamInfo.viewer
+            ? streamInfo.viewer
+            : (streamInfo && streamInfo.seatKey ? { role: 'seat', seatKey: streamInfo.seatKey } : null);
+        if (!viewer || viewer.role !== 'seat' || viewer.seatKey !== seatKey) continue;
         room.streams.delete(streamId);
         try { streamInfo.res.end(); } catch (e) { /* ignore */ }
     }
@@ -1939,9 +1962,16 @@ function handleState(req: any, res: any, urlObj: any) {
 
     const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
     const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-    const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-    if (!viewerSeatKey) {
-        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+    const viewer = resolveAuthenticatedViewer(room, {
+        viewerRole: urlObj.searchParams.get('viewerRole') || '',
+        seatKey,
+        seatToken,
+        spectatorId: urlObj.searchParams.get('spectatorId') || '',
+        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+        now: Date.now()
+    });
+    if (!viewer) {
+        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
         return;
     }
 
@@ -1949,16 +1979,17 @@ function handleState(req: any, res: any, urlObj: any) {
     const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
         room.sseEventBuffer,
         room.stateVersion,
-        viewerSeatKey
+        viewer
     );
     const recoveredMeta = (recoveredPayload && typeof recoveredPayload === 'object') ? recoveredPayload : {};
     writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
         ok: true,
         stateVersion: room.stateVersion,
+        viewerRole: viewer.role,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        snapshot: toPublicSnapshot(room, viewerSeatKey),
+        snapshot: toPublicSnapshotForViewer(room, viewer),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray((recoveredMeta as any).playbackEvents) ? (recoveredMeta as any).playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages((recoveredMeta as any).effectLogs),
@@ -1983,9 +2014,16 @@ function handleStream(req: any, res: any, urlObj: any) {
     const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
     const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
     const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
-    const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-    if (!viewerSeatKey) {
-        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
+    const viewer = resolveAuthenticatedViewer(room, {
+        viewerRole: urlObj.searchParams.get('viewerRole') || '',
+        seatKey,
+        seatToken,
+        spectatorId: urlObj.searchParams.get('spectatorId') || '',
+        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
+        now: Date.now()
+    });
+    if (!viewer) {
+        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
         return;
     }
 
@@ -1997,11 +2035,11 @@ function handleStream(req: any, res: any, urlObj: any) {
     });
 
     const streamId = MatchAuthority.makeSseStreamId(Date.now());
-    room.streams.set(streamId, { res, seatKey: viewerSeatKey });
+    room.streams.set(streamId, { res, viewer });
     ensureHeartbeatLoop();
 
     const lastEventId = String((req && req.headers && req.headers['last-event-id']) || resumeEventId).trim();
-    const replayEvents = MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewerSeatKey);
+    const replayEvents = MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewer);
 
     if (Array.isArray(replayEvents)) {
         if (replayEvents.length > 0) {
@@ -2023,7 +2061,7 @@ function handleStream(req: any, res: any, urlObj: any) {
         operationId: null,
         playerKey: null,
         actionType: null
-    }, viewerSeatKey), nextSseEventId(room));
+    }, viewer), nextSseEventId(room));
 
     writeSse(res, 'chat', withPublicSeatState(room, {
         ok: true,

@@ -6,7 +6,8 @@ import type {
     MatchAuthoritySeatHandSkins,
     MatchAuthoritySeatNames,
     MatchAuthorityRoomState,
-    MatchAuthoritySeatKey
+    MatchAuthoritySeatKey,
+    MatchAuthorityViewer
 } from '../utils/match-authority-types';
 
 export interface MatchWorkerEnv {
@@ -41,7 +42,7 @@ export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
 
 export interface MatchWorkerSseStreamInfo {
     writer: WritableStreamDefaultWriter<Uint8Array>;
-    seatKey: MatchAuthoritySeatKey;
+    viewer: MatchAuthorityViewer;
 }
 
 export interface MatchWorkerPublicSeatState {
@@ -53,7 +54,7 @@ export interface MatchWorkerPublicSeatState {
 export interface MatchWorkerPreparedSnapshotBroadcast {
     eventId: string;
     record: MatchAuthorityBufferedSseEventRecordInput;
-    payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
+    payloadByViewer: Partial<Record<MatchAuthoritySeatKey | 'spectator', unknown>>;
     fallbackPayload: unknown;
 }
 

@@ -39,9 +39,9 @@ function createController() {
         options: options || null
       });
     },
-    buildSnapshotPayload: (_room, meta, viewerSeatKey) => ({
+    buildSnapshotPayload: (_room, meta, viewer) => ({
       ok: true,
-      viewerSeatKey,
+      viewer,
       operationId: meta && (meta as any).operationId ? (meta as any).operationId : null
     }),
     buildPresencePayload: (_room, meta) => ({
@@ -60,6 +60,41 @@ function createController() {
 }
 
 describe('match worker broadcast controller', () => {
+  test('snapshot broadcasts use spectator-safe payload for spectator streams', async () => {
+    const sends: Array<Record<string, unknown>> = [];
+    const streams = new Map<string, any>([
+      ['seat-black', { writer: {}, viewer: { role: 'seat', seatKey: 'black' } }],
+      ['spec-one', { writer: {}, viewer: { role: 'spectator', spectatorId: 'spec_test0001' } }]
+    ]);
+    const controller = createMatchWorkerBroadcastController({
+      getRoom: () => ({ roomId: 'SPC' }) as any,
+      getStreams: () => streams,
+      nextSseEventId: () => 'evt_1',
+      rememberBufferedSseEvent: jest.fn(),
+      saveRoom: jest.fn(),
+      sendSse: async (streamId, eventName, payload) => {
+        sends.push({ streamId, eventName, payload });
+      },
+      buildSnapshotPayload: (_room, _meta, viewer) => ({ viewer }),
+      buildPresencePayload: () => ({ ok: true })
+    });
+
+    const prepared = controller.prepareSnapshotBroadcast({ playbackEvents: [] } as any);
+    expect(prepared.record.payloadByViewer).toEqual(expect.objectContaining({
+      black: { viewer: { role: 'seat', seatKey: 'black' } },
+      white: { viewer: { role: 'seat', seatKey: 'white' } },
+      spectator: { viewer: { role: 'spectator', spectatorId: '' } }
+    }));
+
+    await controller.broadcastPreparedSnapshot(prepared);
+
+    expect(sends).toContainEqual(expect.objectContaining({
+      streamId: 'spec-one',
+      eventName: 'snapshot',
+      payload: { viewer: { role: 'spectator', spectatorId: '' } }
+    }));
+  });
+
   test('broadcastPreparedSnapshot buffers, saves, and fan-outs viewer-specific payloads', async () => {
     const ctx = createController();
     const prepared = ctx.controller.prepareSnapshotBroadcast({ operationId: 'op_1' });
@@ -77,19 +112,19 @@ describe('match worker broadcast controller', () => {
       {
         streamId: 'black-stream',
         eventName: 'snapshot',
-        payload: { ok: true, viewerSeatKey: 'black', operationId: 'op_1' },
+        payload: { ok: true, viewer: { role: 'seat', seatKey: 'black' }, operationId: 'op_1' },
         options: { eventId: 'SSE1_2_1' }
       },
       {
         streamId: 'white-stream',
         eventName: 'snapshot',
-        payload: { ok: true, viewerSeatKey: 'white', operationId: 'op_1' },
+        payload: { ok: true, viewer: { role: 'seat', seatKey: 'white' }, operationId: 'op_1' },
         options: { eventId: 'SSE1_2_1' }
       },
       {
         streamId: 'fallback-stream',
         eventName: 'snapshot',
-        payload: { ok: true, viewerSeatKey: null, operationId: 'op_1' },
+        payload: { ok: true, viewer: { role: 'spectator', spectatorId: '' }, operationId: 'op_1' },
         options: { eventId: 'SSE1_2_1' }
       }
     ]);
