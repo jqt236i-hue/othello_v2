@@ -319,6 +319,28 @@ describe('cpu commentary runtime', () => {
     expect(hit).toMatch(CPU_CARD_HIT_PREFIX_BY_LEVEL[level]);
   });
 
+  test('fixed commentary engine uses injected random source for line selection', () => {
+    const randomSource = { random: jest.fn(() => 0) };
+    engine.resetState();
+    engine.setConfig({ maxChars: 200, regularTurnInterval: 1, randomSource });
+
+    const text = engine._buildCommentaryForTest({
+      eventType: 'card_used',
+      playerKey: 'white',
+      phase: 'middle',
+      advantage: 'even',
+      turnNumber: 12,
+      counts: { black: 16, white: 16 },
+      corners: { own: 0, opp: 0 },
+      cardType: 'SWAP_WITH_ENEMY',
+      level: 4
+    });
+
+    expect(typeof text).toBe('string');
+    expect(text.length).toBeGreaterThan(0);
+    expect(randomSource.random).toHaveBeenCalled();
+  });
+
   test('all catalog card types have commentary labels and summaries', () => {
     const catalogTypes = getCatalogCardTypes();
     expect(catalogTypes.length).toBeGreaterThan(0);

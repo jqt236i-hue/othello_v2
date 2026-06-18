@@ -468,6 +468,15 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         }
     }
 
+    function readRandomUnit() {
+        const randomSource = config && config.randomSource;
+        if (randomSource && typeof randomSource.random === 'function') {
+            const value = Number(randomSource.random());
+            if (Number.isFinite(value)) return Math.max(0, Math.min(0.999999999999, value));
+        }
+        return Math.random();
+    }
+
     function pickRandomLine(playerState: any, lines: any) {
         const pool = (Array.isArray(lines) ? lines : []).filter((line) => typeof line === 'string' && line.trim());
         if (!pool.length) return '';
@@ -475,7 +484,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         const recentSet = new Set(playerState.recent || []);
         const filtered = pool.filter((line) => !recentSet.has(line));
         const source = filtered.length > 0 ? filtered : pool;
-        const idx = Math.floor(Math.random() * source.length);
+        const idx = Math.floor(readRandomUnit() * source.length);
         const line = source[Math.max(0, Math.min(source.length - 1, idx))] || source[0] || '';
         if (line) pushRecent(playerState, line);
         return line;
@@ -498,7 +507,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         const sourcePools = freshPools.length ? freshPools : allPools;
         if (!sourcePools.length) return '';
 
-        const poolIdx = Math.floor(Math.random() * sourcePools.length);
+        const poolIdx = Math.floor(readRandomUnit() * sourcePools.length);
         const selected = sourcePools[Math.max(0, Math.min(sourcePools.length - 1, poolIdx))] || sourcePools[0] || [];
         return pickRandomLine(playerState, selected);
     }
