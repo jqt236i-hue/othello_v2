@@ -125,6 +125,8 @@ type StoneEffectRule = {
 
 今回の初回実装では挙動を変えない。`captureTargetable` を新設して、現行の捕獲可能な特殊石本体だけを true にする。罠、時限爆弾、`LIVING_WILL` を捕獲対象に広げるかは別の仕様判断に分ける。
 
+`01-rulebook.md` の `CAPTURE_WILL` 文言は、対象を「`TEMPT_WILL` と同じ」と書かない形へ直す。誘惑だけ対象を広げるため、捕獲は `captureTargetable` に基づく別の用途別判定として固定する。
+
 ### 意志の喪失
 
 既存挙動を維持する。`lossWillRevertible` は `special_stone_body`、`TRAP`、`TIME_BOMB` を true にし、`ABSOLUTE_PROTECTED`、`GUARD`、`LIVING_WILL`、顕現石、盤面マーカー、配置時効果は false にする。
@@ -139,8 +141,8 @@ type StoneEffectRule = {
 
 ## 変更対象
 
-- `01-rulebook.md`: 誘惑の意志と特殊石分類の記述を更新する。
-- `正本/カード仕様正本.md`: 誘惑の意志の行と分類記述を更新する。
+- `01-rulebook.md`: 誘惑の意志、捕獲の意志、特殊石分類の記述を更新する。
+- `正本/カード仕様正本.md`: 誘惑の意志、捕獲の意志の行と分類記述を更新する。
 - `shared/special-stone-registry.ts`: 正本辞書と用途別 predicate を追加する。
 - `game/logic/cards/utils.ts`: 既存 helper を registry 由来へ寄せる。
 - `game/logic/cards/markers.ts`: 既存 helper を registry 由来へ寄せる。
@@ -160,6 +162,8 @@ type StoneEffectRule = {
 - `test/game.special-stone-visual-rule.test.ts`
   - `TEMPT_WILL` が `TRAP`、`TIME_BOMB`、`LIVING_WILL` を対象に含めることを確認する。
   - `TEMPT_WILL` が `GUARD`、`ABSOLUTE_PROTECTED`、顕現石、盤面マーカー、配置時効果を対象外にすることを確認する。
+- `test/game.capture-will.test.ts`
+  - `CAPTURE_WILL` が罠、時限爆弾、`LIVING_WILL` を捕獲対象にしないことを確認する。
 - `test/game.will-hunter-king.test.ts`
   - 既存の特殊石優先挙動が辞書化後も変わらないことを確認する。
 - `test/game.loss-will.test.ts`
@@ -167,7 +171,7 @@ type StoneEffectRule = {
 
 ## 実行順
 
-1. 仕様正本を更新する。
+1. 仕様正本を更新し、`TEMPT_WILL` と `CAPTURE_WILL` の対象文言を分離する。
 2. registry の characterization tests を追加する。
 3. registry に辞書と用途別 predicate を追加する。
 4. `utils.ts` / `markers.ts` を registry 由来へ寄せる。

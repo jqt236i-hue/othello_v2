@@ -13,9 +13,9 @@
 ## File Structure
 
 - Modify: `01-rulebook.md`
-  - Update special-stone classification and `TEMPT_WILL` text before behavior changes.
+  - Update special-stone classification, `TEMPT_WILL` text, and `CAPTURE_WILL` target wording before behavior changes.
 - Modify: `正本/カード仕様正本.md`
-  - Keep card behavior notes aligned with `01-rulebook.md`.
+  - Keep temptation and capture behavior notes aligned with `01-rulebook.md`.
 - Modify: `shared/special-stone-registry.ts`
   - Add canonical card definitions, marker rules, and purpose-specific predicates.
 - Modify: `game/logic/cards/utils.ts`
@@ -36,6 +36,8 @@
   - Lock down `TEMPT_WILL` target behavior.
 - Test: `test/game.will-hunter-king.test.ts`
   - Keep will-hunter priority behavior stable.
+- Test: `test/game.capture-will.test.ts`
+  - Keep capture-will behavior stable after temptation is expanded.
 - Test: `test/game.loss-will.test.ts`
   - Keep loss-will behavior stable.
 
@@ -46,15 +48,17 @@
 **Files:**
 - Modify: `01-rulebook.md:264`
 - Modify: `01-rulebook.md:474`
+- Modify: `01-rulebook.md:485`
 - Modify: `正本/カード仕様正本.md:35`
+- Modify: `正本/カード仕様正本.md:36`
 
 - [ ] **Step 1: Update `01-rulebook.md` special-stone classification**
 
-Replace the `### 6.8 特殊石分類` bullets with text that keeps the existing categories and adds the temptation-specific rule:
+Do not replace the whole `### 6.8 特殊石分類` section. That section currently also contains the `顕現石` rules and special-card presentation rules, and those must be preserved.
+
+Replace only the opening `特殊石` classification bullet and adjust the existing `石状態` / `爆弾` / `隠し罠` / `盤面マーカー` / `配置時効果` bullets. The following is the logical classification content, not an instruction to move or delete the existing `顕現石` / presentation bullets that are currently interleaved in this section:
 
 ```markdown
-### 6.8 特殊石分類
-
 - `特殊石本体` は、通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石を指す。`弱い石（PROTECTED）`、`強い石（PERMA_PROTECTED）`、`絶対保護石（ABSOLUTE_PROTECTED）`、`幽体石（GHOST）`、`残像石（AFTERIMAGE_WILL）`、`復活石（REGEN）`、`狙撃石（SNIPER）`、`龍系`、`多動系`、`意志狩りの王（WILL_HUNTER_KING）`、`救済神（STONE_SALVATION_GOD）` などを含める。
 - `特殊石扱い` は、特殊石本体に加えて、`罠石（TRAP）` と `時限爆弾（TIME_BOMB）` を含む効果対象用の分類とする。
 - `石状態` は、石に重なる継続状態を指す。完全保護（GUARD）、生きる意志（LIVING_WILL）などが含まれる。幽体石・残像石・復活石は石状態ではなく特殊石本体として扱う。
@@ -64,7 +68,10 @@ Replace the `### 6.8 特殊石分類` bullets with text that keeps the existing 
 - `盤面マーカー` は `BLOCKADE` / `METEOR_HOLE` / `FREEZE` / `SEED` のようなマス効果。
 - `配置時効果` は、次に置く石に1回だけ効果を付けるものを指す。`瞬間多動` / `十字爆弾` / `クロス爆弾` / `金` / `銀` / `虹` が含まれる。
 - `配置時効果` は配置解決中に完結し、特殊石の持続ターン管理、ターン開始ライフサイクル、誘惑、捕獲、延命、腐食、意志の喪失の対象に含めない。
+- `意志の喪失（LOSS_WILL）` は、特殊石本体、罠石、時限爆弾を通常石へ戻す。`ABSOLUTE_PROTECTED` は特殊石本体だが絶対保護により通常石化しない。顕現石、石状態、盤面マーカー、配置時効果は対象外。
 ```
+
+Keep the existing `顕現石` bullets and all special-card display / background / panel bullets in the section.
 
 - [ ] **Step 2: Update `01-rulebook.md` `TEMPT_WILL` section**
 
@@ -82,15 +89,31 @@ Change the `TEMPT_WILL` bullets to:
 - 幽体（GHOST）にも通常どおり成立する。
 ```
 
-- [ ] **Step 3: Update `正本/カード仕様正本.md`**
+- [ ] **Step 3: Update `01-rulebook.md` `CAPTURE_WILL` section**
 
-Replace the `誘惑の意志` row with:
+Change the `CAPTURE_WILL` bullets so capture no longer says its target is "same as `TEMPT_WILL`":
+
+```markdown
+- 相手の捕獲可能な特殊石本体1つを捕獲し、盤面から除去して自分の手札に加える。
+- 捕獲可能な特殊石本体には、`弱い石（PROTECTED）`、`強い石（PERMA_PROTECTED）`、`幽体石（GHOST）` などを含める。
+- 罠石（TRAP）、時限爆弾（TIME_BOMB）、生きる意志（LIVING_WILL）は捕獲対象外。
+- 完全保護中の石は対象外。
+- `絶対保護石（ABSOLUTE_PROTECTED）` は特殊石本体だが、絶対保護で対象効果を受けない。
+- 顕現石、盤面マーカー、配置時効果は対象外。
+- 幽体（GHOST）にも通常どおり成立し、捕獲すると `ghost_01` として手札に加わる。
+- 捕獲した特殊石は、元になったカードとして手札に戻る。
+```
+
+- [ ] **Step 4: Update `正本/カード仕様正本.md`**
+
+Replace the `誘惑の意志` and `捕獲の意志` rows with:
 
 ```markdown
 | 誘惑の意志 | 執行 | 34 | 通常 | 相手の誘惑可能な石効果1つを選び、自分側へ変える。誘惑可能な石効果には、特殊石本体、罠石、時限爆弾、生きる意志を含める。完全保護中の石、絶対保護石、顕現石、盤面マーカー、配置時効果は対象外。弱い石・強い石・幽体石は対象に含まれる。残りターンなどの付帯状態は維持する。この色変更は反転枚数に数えない。 |
+| 捕獲の意志 | 執行 | 20 | 通常 | 相手の捕獲可能な特殊石本体1つを盤面から取り除き、元カードとして自分の手札に加える。弱い石・強い石・幽体石は対象に含まれる。罠石、時限爆弾、生きる意志、完全保護中の石、絶対保護石、顕現石、盤面マーカー、配置時効果は対象外。幽体石にも通常どおり成立し、捕獲すると幽霊の意志として手札に加わる。 |
 ```
 
-- [ ] **Step 4: Review spec diff**
+- [ ] **Step 5: Review spec diff**
 
 Run:
 
@@ -98,9 +121,9 @@ Run:
 git diff -- 01-rulebook.md 正本/カード仕様正本.md
 ```
 
-Expected: only `TEMPT_WILL` and special-stone classification wording changed.
+Expected: only special-stone classification, `TEMPT_WILL`, and `CAPTURE_WILL` wording changed. `CAPTURE_WILL` behavior stays the same; only the wording is decoupled from `TEMPT_WILL`.
 
-- [ ] **Step 5: Commit spec update**
+- [ ] **Step 6: Commit spec update**
 
 Run:
 
@@ -174,21 +197,26 @@ Append this test in the same `describe` block:
     for (const type of ['PROTECTED', 'PERMA_PROTECTED', 'GHOST', 'AFTERIMAGE_WILL', 'REGEN', 'WILL_HUNTER_KING']) {
       expect(SpecialStoneRegistry.isTemptTargetableStoneEffect(type)).toBe(true);
       expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect(type)).toBe(true);
-      expect(SpecialStoneRegistry.canLossWillRevert(type)).toBe(type !== 'ABSOLUTE_PROTECTED');
+      expect(SpecialStoneRegistry.canLossWillRevert(type)).toBe(true);
     }
 
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('TRAP')).toBe(true);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('TIME_BOMB')).toBe(true);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('LIVING_WILL')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('TRAP')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('TIME_BOMB')).toBe(true);
 
     expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('TRAP')).toBe(false);
     expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('TIME_BOMB')).toBe(false);
     expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('LIVING_WILL')).toBe(false);
+    expect(SpecialStoneRegistry.canLossWillRevert('LIVING_WILL')).toBe(false);
 
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.blocksTempt('GUARD')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('ABSOLUTE_PROTECTED')).toBe(false);
     expect(SpecialStoneRegistry.blocksTempt('ABSOLUTE_PROTECTED')).toBe(true);
+    expect(SpecialStoneRegistry.canLossWillRevert('ABSOLUTE_PROTECTED')).toBe(false);
 
     for (const type of ['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL', 'BLOCKADE', 'FREEZE', 'SEED', 'GOLD', 'SILVER', 'RAINBOW']) {
       expect(SpecialStoneRegistry.isTemptTargetableStoneEffect(type)).toBe(false);
@@ -485,6 +513,32 @@ Then use:
     }
 ```
 
+Preserve `getStoneEffectTraits()` as the legacy compatibility shape. Do not redefine `isTargetableSpecialStone()` to mean temptation or capture targetability:
+
+```ts
+    function getStoneEffectTraits(rawType: unknown, markerData?: any): Readonly<StoneEffectTraits> | null {
+        const type = normalizeSpecialStoneType(rawType);
+        const data = (markerData && typeof markerData === 'object') ? markerData : null;
+        if (!type) return null;
+        const category = classifySpecialStoneRuleClass(type, data);
+        if (!category) return null;
+        const rule = getStoneEffectRule(type, data);
+        const countsAsSpecialStone = rule ? rule.countsAsSpecialStone : category === 'true_special_stone';
+        const inviolable = category === 'manifest_stone' || INVIOLABLE_MANIFEST_STONE_TYPES.has(type);
+        const targetableAsSpecialStone = countsAsSpecialStone && !inviolable;
+        return Object.freeze({
+            category,
+            countsAsSpecialStone,
+            targetableAsSpecialStone,
+            revertibleByLossWill: rule ? rule.lossWillRevertible : targetableAsSpecialStone && type !== 'ABSOLUTE_PROTECTED',
+            spawnableByTheoryIncarnation: rule ? rule.theorySpawnCandidate : category === 'true_special_stone' && !THEORY_INCARNATION_SPAWN_EXCLUDED_TYPES.has(type),
+            inviolable
+        });
+    }
+```
+
+Use the new `isTemptTargetableStoneEffect()` and `isCaptureTargetableStoneEffect()` for card targeting. Keep `isTargetableSpecialStone()` as legacy broad targetability to avoid breaking unrelated callers.
+
 - [ ] **Step 7: Export new registry values**
 
 Add these entries to the returned object:
@@ -547,7 +601,7 @@ function isNormalVisualSpecialMarker(marker: any): boolean {
 }
 ```
 
-- [ ] **Step 2: Add `isTemptTargetableMarker()` wrappers**
+- [ ] **Step 2: Add targetable marker wrappers**
 
 In both helper files, add:
 
@@ -558,12 +612,24 @@ function isTemptTargetableMarker(marker: any): boolean {
     if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isTemptTargetableStoneEffect === 'function') {
         return SpecialStoneRegistry.isTemptTargetableStoneEffect(type, marker.data);
     }
+    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
     const ruleClass = getMarkerRuleClass(marker);
     return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb' || type === 'LIVING_WILL';
 }
+
+function isCaptureTargetableMarker(marker: any): boolean {
+    if (!marker || !marker.data) return false;
+    const type = String(marker.data.type || '').toUpperCase();
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isCaptureTargetableStoneEffect === 'function') {
+        return SpecialStoneRegistry.isCaptureTargetableStoneEffect(type, marker.data);
+    }
+    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
+    const ruleClass = getMarkerRuleClass(marker);
+    return ruleClass === 'true_special_stone';
+}
 ```
 
-Export `isTemptTargetableMarker` from both files.
+Export `isTemptTargetableMarker` and `isCaptureTargetableMarker` from both files. Capture remains behaviorally unchanged, but the predicate must exist so capture does not inherit the broader temptation target set later.
 
 - [ ] **Step 3: Add `blocksTemptAt()` wrappers**
 
@@ -666,7 +732,14 @@ In `game/logic/cards/targets.ts`, replace the true-special-only filtering block 
         if (!fallbackMarker) return;
         const isTemptTargetable = CardUtils && typeof CardUtils.isTemptTargetableMarker === 'function'
             ? CardUtils.isTemptTargetableMarker(fallbackMarker)
-            : true;
+            : (() => {
+                const type = String(fallbackMarker && fallbackMarker.data && fallbackMarker.data.type ? fallbackMarker.data.type : '').toUpperCase();
+                if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
+                const ruleClass = CardUtils && typeof CardUtils.getMarkerRuleClass === 'function'
+                    ? CardUtils.getMarkerRuleClass(fallbackMarker)
+                    : null;
+                return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb' || type === 'LIVING_WILL';
+            })();
         if (!isTemptTargetable) return;
         if (CardUtils && typeof CardUtils.blocksTemptAt === 'function' && CardUtils.blocksTemptAt(cardState, r, c)) return;
         const markerOwner = fallbackMarker.owner || (typeof CardUtils.getSpecialOwnerAt === 'function' ? CardUtils.getSpecialOwnerAt(cardState, r, c) : null);
@@ -679,17 +752,25 @@ Keep the existing `isGuarded()` and `isAbsoluteProtected()` checks until `blocks
 
 - [ ] **Step 4: Update `applyTemptWill()` validation**
 
-In `game/logic/card-resolution/ownership.ts`, replace the `isOpponentTrueSpecial` / `isOpponentGhost` check with:
+In `game/logic/card-resolution/ownership.ts`, add `isTemptTargetableMarker` and `blocksTemptAt` to the dependency reads and required dependency guard, then replace the `isOpponentTrueSpecial` / `isOpponentGhost` check with:
 
 ```ts
+    const isTemptTargetableMarker = deps && deps.isTemptTargetableMarker;
+    const blocksTemptAt = deps && deps.blocksTemptAt;
+    if (typeof isTemptTargetableMarker !== 'function' || typeof blocksTemptAt !== 'function') {
+        return { applied: false, reason: 'deps_missing' };
+    }
+    if (blocksTemptAt(cardState, row, col)) {
+        return { applied: false, reason: 'guarded' };
+    }
     const markersAtCell = getSpecialMarkers(cardState).filter((m: any) => m && m.row === row && m.col === col);
     const targetMarker = markersAtCell.find((m: any) => {
         if (!m || m.owner !== opponentKey || !m.data) return false;
-        if (deps && deps.isTemptTargetableMarker && !deps.isTemptTargetableMarker(m)) return false;
+        if (!isTemptTargetableMarker(m)) return false;
         return true;
     }) || null;
     if (!targetMarker) {
-        const hasOwnTargetable = markersAtCell.some((m: any) => m && m.owner !== opponentKey && deps && deps.isTemptTargetableMarker && deps.isTemptTargetableMarker(m));
+        const hasOwnTargetable = markersAtCell.some((m: any) => m && m.owner !== opponentKey && isTemptTargetableMarker(m));
         return { applied: false, reason: hasOwnTargetable ? 'not_opponent_special' : 'not_special' };
     }
 ```
@@ -779,7 +860,20 @@ Add this test to `test/game.loss-will.test.ts`:
   });
 ```
 
-- [ ] **Step 3: Run stability tests**
+- [ ] **Step 3: Wire capture selection to the capture predicate**
+
+Change `getCaptureMarkerAt()` in `game/logic/cards/targets.ts` to gate the selected marker through `isCaptureTargetableMarker()`:
+
+```ts
+        const marker = markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
+        if (CardUtils && typeof CardUtils.isCaptureTargetableMarker === 'function') {
+            return CardUtils.isCaptureTargetableMarker(marker) ? markerEntry : null;
+        }
+```
+
+This is not conditional on test failure. The point is to prevent `CAPTURE_WILL` from accidentally inheriting the broader `TEMPT_WILL` target set. Keep `applyCaptureWill()` behavior unchanged unless a focused test exposes a mismatch between selector and resolver.
+
+- [ ] **Step 4: Run stability tests**
 
 Run:
 
@@ -789,29 +883,16 @@ npx jest test/game.capture-will.test.ts test/game.loss-will.test.ts --runInBand
 
 Expected: PASS after registry predicates are wired.
 
-- [ ] **Step 4: Update implementation only if tests expose drift**
-
-If `CAPTURE_WILL` starts returning trap, bomb, or `LIVING_WILL`, change `getCaptureMarkerAt()` in `game/logic/cards/targets.ts` to use:
-
-```ts
-        const marker = markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
-        if (CardUtils && typeof CardUtils.isCaptureTargetableMarker === 'function') {
-            return CardUtils.isCaptureTargetableMarker(marker) ? markerEntry : null;
-        }
-```
-
-Add `isCaptureTargetableMarker()` to `utils.ts` and `markers.ts` using `SpecialStoneRegistry.isCaptureTargetableStoneEffect()`.
-
 - [ ] **Step 5: Commit capture/loss stability**
 
 Run:
 
 ```powershell
-git add -- test/game.capture-will.test.ts test/game.loss-will.test.ts game/logic/cards/targets.ts game/logic/cards/utils.ts game/logic/cards/markers.ts game/logic/cards-internal/effect-target-counts.ts
+git add -- test/game.capture-will.test.ts test/game.loss-will.test.ts game/logic/cards/targets.ts game/logic/cards-internal/effect-target-counts.ts
 git commit -m "test: preserve capture and loss special targeting"
 ```
 
-Expected: commit succeeds. If no production files changed, stage only the two test files.
+Expected: commit succeeds. If `game/logic/cards-internal/effect-target-counts.ts` did not need a change, leave it unstaged.
 
 ---
 
