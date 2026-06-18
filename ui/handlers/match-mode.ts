@@ -745,6 +745,8 @@ const MODE_OTHELLO = 'othello';
             const boardLabel = String(entry.boardLabel || '8x8');
             const seatCount = Number.isFinite(Number(entry.seatCount)) ? Number(entry.seatCount) : 1;
             const maxSeats = Number.isFinite(Number(entry.maxSeats)) ? Number(entry.maxSeats) : 2;
+            const spectatorCount = Number.isFinite(Number(entry.spectatorCount)) ? Number(entry.spectatorCount) : 0;
+            const maxSpectators = Number.isFinite(Number(entry.maxSpectators)) ? Number(entry.maxSpectators) : 4;
             const body = document.createElement('div');
             body.className = 'network-room-entry-body';
             const main = document.createElement('span');
@@ -773,8 +775,11 @@ const MODE_OTHELLO = 'othello';
             hostEl.textContent = `ホスト ${host}`;
             const boardEl = document.createElement('span');
             boardEl.textContent = `盤面 ${boardLabel}`;
+            const spectatorEl = document.createElement('span');
+            spectatorEl.textContent = `観戦 ${spectatorCount}/${maxSpectators}`;
             meta.appendChild(hostEl);
             meta.appendChild(boardEl);
+            meta.appendChild(spectatorEl);
 
             body.appendChild(main);
             body.appendChild(meta);
@@ -783,6 +788,7 @@ const MODE_OTHELLO = 'othello';
             joinButton.type = 'button';
             joinButton.className = 'btn-small network-room-entry-join';
             joinButton.textContent = '参加';
+            joinButton.disabled = entry.canJoin === false;
             joinButton.setAttribute(
                 'aria-label',
                 `${roomName}に参加。ホスト ${host}、盤面 ${boardLabel}、${seatCount}/${maxSeats}${entry.hasPassword === true ? '、パスワードあり' : ''}`
@@ -790,8 +796,21 @@ const MODE_OTHELLO = 'othello';
             joinButton.addEventListener('click', () => {
                 joinRoomFromList(roomId, roomName, entry.hasPassword === true);
             });
+            const spectateButton = document.createElement('button');
+            spectateButton.type = 'button';
+            spectateButton.className = 'btn-small network-room-entry-spectate';
+            spectateButton.textContent = '観戦';
+            spectateButton.disabled = entry.canSpectate === false;
+            spectateButton.setAttribute(
+                'aria-label',
+                `${roomName}を観戦。観戦 ${spectatorCount}/${maxSpectators}${entry.hasPassword === true ? '、パスワードあり' : ''}`
+            );
+            spectateButton.addEventListener('click', () => {
+                spectateRoomFromList(roomId, roomName, entry.hasPassword === true);
+            });
             item.appendChild(body);
             item.appendChild(joinButton);
+            item.appendChild(spectateButton);
             uiRefs.networkRoomList.appendChild(item);
         });
     }
@@ -834,6 +853,52 @@ const MODE_OTHELLO = 'othello';
         }
         if (uiRefs.networkJoinBtn && typeof uiRefs.networkJoinBtn.click === 'function') {
             uiRefs.networkJoinBtn.click();
+        }
+    }
+
+    async function spectateRoomFromList(roomId: string, roomName: string, hasPassword: boolean) {
+        selectedNetworkRoomId = roomId;
+        if (uiRefs.networkRoomInput) {
+            uiRefs.networkRoomInput.value = roomName || '無名部屋';
+        }
+        if (hasPassword && !readNetworkRoomPassword()) {
+            writeNetworkStatus('パスワードを入力してください', true);
+            if (uiRefs.networkRoomPasswordInput && typeof uiRefs.networkRoomPasswordInput.focus === 'function') {
+                uiRefs.networkRoomPasswordInput.focus();
+            }
+            return;
+        }
+        if (!root.NetworkMatchClient || typeof root.NetworkMatchClient.spectateRoom !== 'function') {
+            writeNetworkStatus('観戦機能を利用できません', true);
+            return;
+        }
+
+        const playerName = resolveRequiredNetworkPlayerName();
+        if (!playerName) return;
+
+        await setMode(MODE_NETWORK, { silentLog: true });
+        const roomPassword = readNetworkRoomPassword();
+        const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
+        try {
+            if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
+                root.NetworkMatchClient.setServerUrl(serverUrl);
+            }
+            const result = await root.NetworkMatchClient.spectateRoom(roomId, {
+                playerName,
+                roomPassword,
+                serverUrl
+            });
+            if (result && result.ok) {
+                setNetworkOverlayVisible(false);
+                writeNetworkStatus('観戦中', false);
+                refreshNetworkChatVisibility();
+                renderNetworkDeckInfo();
+                refreshBoardUi();
+                return;
+            }
+            writeNetworkStatus('観戦参加に失敗しました', true);
+        } catch (e) {
+            writeNetworkStatus('観戦参加に失敗しました', true);
         }
     }
 
@@ -1247,14 +1312,26 @@ const MODE_OTHELLO = 'othello';
         }
     }
 
+    function isNetworkSpectatorActive(roomState?: any) {
+        if (roomState && String(roomState.viewerRole || '').trim().toLowerCase() === 'spectator') {
+            return true;
+        }
+        return !!(
+            root.NetworkMatchClient
+            && typeof root.NetworkMatchClient.isSpectator === 'function'
+            && root.NetworkMatchClient.isSpectator()
+        );
+    }
+
     function refreshNetworkChatVisibility() {
         const isNetworkMode = currentMode === MODE_NETWORK;
+        const spectatorActive = isNetworkSpectatorActive();
         const hasTwoPlayers = !!(
             root.NetworkMatchClient
             && typeof root.NetworkMatchClient.hasTwoPlayers === 'function'
             && root.NetworkMatchClient.hasTwoPlayers()
         );
-        setNetworkChatVisible(isNetworkMode && hasTwoPlayers);
+        setNetworkChatVisible(isNetworkMode && hasTwoPlayers && !spectatorActive);
     }
 
     function clearControlPanelConstraints() {
@@ -1617,10 +1694,16 @@ const MODE_OTHELLO = 'othello';
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRoomStateListener === 'function') {
             root.NetworkMatchClient.setRoomStateListener((roomState: any) => {
+                const spectatorActive = isNetworkSpectatorActive(roomState);
                 updateNetworkDebugEnabledFromRoomState(roomState);
                 applyNetworkDebugModeAccess();
                 refreshNetworkChatVisibility();
                 renderNetworkDeckInfo(roomState);
+                if (uiRefs.networkCreateBtn) uiRefs.networkCreateBtn.disabled = spectatorActive;
+                if (uiRefs.networkJoinBtn) uiRefs.networkJoinBtn.disabled = spectatorActive;
+                if (spectatorActive) {
+                    writeNetworkStatus('観戦中', false);
+                }
                 try {
                     if (typeof root.updateCpuCharacter === 'function') {
                         root.updateCpuCharacter();

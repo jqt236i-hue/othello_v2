@@ -6,6 +6,7 @@ describe('match-mode network button behavior', () => {
   let joinRoom;
   let leaveRoom;
   let listRooms;
+  let spectateRoom;
 
   function dispatchWheel(target, props) {
     const ev = new dom.window.Event('wheel', { bubbles: true, cancelable: true });
@@ -123,9 +124,11 @@ describe('match-mode network button behavior', () => {
     joinRoom = jest.fn(async () => ({ ok: true, roomId: 'A1B', networkDebugEnabled: false }));
     leaveRoom = jest.fn(async () => ({ ok: true }));
     listRooms = jest.fn(async () => ({ ok: true, rooms: [] }));
+    spectateRoom = jest.fn(async () => ({ ok: true, roomId: 'SPC', viewerRole: 'spectator' }));
     window.NetworkMatchClient = {
       createRoom,
       joinRoom,
+      spectateRoom,
       leaveRoom,
       listRooms,
       setStatusWriter: jest.fn(),
@@ -141,6 +144,7 @@ describe('match-mode network button behavior', () => {
         });
       }),
       setChatListener: jest.fn(),
+      isSpectator: jest.fn(() => false),
       hasTwoPlayers: jest.fn(() => false),
       getSeatNames: jest.fn(() => ({ black: '', white: '' })),
       getSeatKey: jest.fn(() => 'black')
@@ -379,6 +383,52 @@ describe('match-mode network button behavior', () => {
       deckCode: ''
     }));
     expect(document.getElementById('networkStatusText').textContent).toContain('標準デッキで続行します');
+  });
+
+  test('満席でも観戦可能なルームは観戦ボタンから参加できる', async () => {
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    listRooms.mockResolvedValue({
+      ok: true,
+      rooms: [{
+        roomId: 'SPC',
+        roomName: '観戦部屋',
+        hostName: '黒',
+        seatCount: 2,
+        maxSeats: 2,
+        spectatorCount: 1,
+        maxSpectators: 4,
+        canJoin: false,
+        canSpectate: true,
+        hasPassword: false,
+        boardLabel: '8x8'
+      }]
+    });
+
+    playerInput.value = 'みる';
+    networkBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const spectateEntryBtn = buttons.find((button) => /観戦部屋を観戦/.test(button.getAttribute('aria-label') || ''));
+    expect(spectateEntryBtn).toBeTruthy();
+    expect(document.getElementById('networkRoomList').textContent).toContain('観戦 1/4');
+
+    spectateEntryBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(spectateRoom).toHaveBeenCalledWith('SPC', expect.objectContaining({
+      playerName: 'みる',
+      roomPassword: '',
+      serverUrl: ''
+    }));
+    expect(joinRoom).not.toHaveBeenCalled();
+    expect(document.getElementById('networkOverlay').classList.contains('is-open')).toBe(false);
+    expect(document.getElementById('networkStatusText').textContent).toContain('観戦中');
   });
 
   test('ネット対戦モーダルの盤面サイズ入力はホイールで 10x10 まで増減できる', async () => {
