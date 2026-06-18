@@ -215,6 +215,15 @@ Board-changing card effects should execute inside an explicit effect block when 
 - `effectBlockId` is presentation metadata, not game authority state.
 - `game/` remains headless: effect blocks may emit presentation events, but must not introduce DOM, sound, timer, or network dependencies.
 
+### 6.6 Immediate effect dispatch
+
+Placement-time and theory-spawn immediate special-stone effects share `game/turn/immediate-effect-dispatcher.ts`.
+
+- Normal placement and `THEORY_INCARNATION` spawned stones must call `ImmediateEffectDispatcher.resolveImmediateEffects()` instead of keeping parallel per-card branches.
+- The phase PRNG must be passed as `randomSource`; the dispatcher adapts it to both `randomSource` and legacy `random` option shapes when calling `CardLogic`.
+- Immediate placement-style anchor effects must not decrement owner-turn counters; the dispatcher owns the shared `decrementRemainingOwnerTurns: false` option.
+- The dispatcher is a headless turn-layer bridge only: it may call public `CardLogic` APIs and append ordered `events[]`, but must not touch DOM, sound, timers, or network clients.
+
 ## 7. Primary flow contracts
 
 ### 7.1 Card use to placement flow
