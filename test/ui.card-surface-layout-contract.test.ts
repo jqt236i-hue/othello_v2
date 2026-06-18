@@ -103,6 +103,7 @@ describe('card surface layout contract', () => {
       'stone',
       'protection',
       'cell',
+      'placement',
       'resource',
       'unique'
     ];
@@ -112,6 +113,7 @@ describe('card surface layout contract', () => {
       'stone',
       'protection',
       'cell',
+      'placement',
       'resource'
     ];
 

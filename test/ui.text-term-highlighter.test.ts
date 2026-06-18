@@ -16,8 +16,23 @@ describe('text term highlighter', () => {
       '通常石',
       '反転保護',
       '完全保護',
-      '絶対保護'
+      '絶対保護',
+      '自由配置'
     ]));
+  });
+
+  test('catalogs free placement as a placement action term', () => {
+    const glossaryEntry = getGameTermGlossary().find((entry) => entry.label === '自由配置');
+    expect(glossaryEntry).toMatchObject({
+      id: 'free-placement',
+      category: 'placement'
+    });
+    expect(glossaryEntry?.description).toContain('空きマス');
+
+    const matches = findGameTermMatches('空きマスに自由配置できる。');
+    expect(matches.map((match) => [match.text, match.category])).toEqual([
+      ['自由配置', 'placement']
+    ]);
   });
 
   test('uses longest-match terms before shorter terms', () => {

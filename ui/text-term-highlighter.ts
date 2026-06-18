@@ -1,6 +1,6 @@
 import CardCatalog = require('../cards/catalog');
 
-export type GameTermCategory = 'flip' | 'destroy' | 'stone' | 'protection' | 'cell' | 'resource' | 'unique';
+export type GameTermCategory = 'flip' | 'destroy' | 'stone' | 'protection' | 'cell' | 'placement' | 'resource' | 'unique';
 export type GameTermTone = Exclude<GameTermCategory, 'unique'>;
 
 export type GameTermGlossaryEntry = Readonly<{
@@ -67,6 +67,7 @@ const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freeze(
   Object.freeze({ id: 'hole-cell', label: '穴マス化', category: 'cell', description: 'マスを永続の穴にする処理。', aliases: Object.freeze(['穴化', '穴マス']) }),
   Object.freeze({ id: 'blockade', label: '封鎖', category: 'cell', description: '一時的にそのマスを塞ぐ状態。' }),
   Object.freeze({ id: 'freeze', label: '凍結', category: 'cell', description: 'そのマスと上の石の反転・破壊・持続減少を止める状態。' }),
+  Object.freeze({ id: 'free-placement', label: '自由配置', category: 'placement', description: '通常の挟み条件に関係なく、効果が許す空きマスへ石を置ける配置。穴マスや封鎖マスなど配置不可マスには置けない。' }),
   Object.freeze({ id: 'charge', label: '布石', category: 'resource', description: 'カード使用に使うリソース。' }),
   Object.freeze({ id: 'cost', label: 'コスト', category: 'resource', description: 'カード使用に必要な布石量。' }),
   Object.freeze({ id: 'duration-turn', label: '持続ターン', category: 'resource', description: 'カードや石状態が効果を持ち続けるターン数。' }),
@@ -112,6 +113,7 @@ function inferUniqueTermTone(label: string, description: string, displayType: st
   if (/(反転|連鎖|禁忌反転|龍)/.test(label)) return 'flip';
   if (/(保護|守|回避|幽体|残像|復活|救済|罠|生きる)/.test(label)) return 'protection';
   if (/(穴|封鎖|凍結|盤界|盤面縮小|盤面拡張|マステレポート)/.test(label)) return 'cell';
+  if (/(自由配置|通常配置|追加配置|配置|合法手)/.test(label)) return 'placement';
   if (/(布石|コスト|持続|ターン|時間|ドロー|手札|理論|観測|延命|腐食|採掘)/.test(label)) return 'resource';
   if (/(石|顕現|化身|執行者)/.test(label)) return 'stone';
 
@@ -120,6 +122,7 @@ function inferUniqueTermTone(label: string, description: string, displayType: st
   if (/(反転|連鎖|禁忌反転|龍)/.test(source)) return 'flip';
   if (/(保護|守|回避|幽体|残像|復活|救済|罠|生きる)/.test(source)) return 'protection';
   if (/(穴|封鎖|凍結|盤界|盤面縮小|盤面拡張|マステレポート)/.test(source)) return 'cell';
+  if (/(自由配置|通常配置|追加配置|配置|合法手)/.test(source)) return 'placement';
   if (/(布石|コスト|持続|ターン|時間|ドロー|手札|理論|観測|延命|腐食|採掘)/.test(source)) return 'resource';
   if (/(石|顕現|化身|執行者)/.test(source)) return 'stone';
   if (/戦闘/.test(displayType)) return 'destroy';

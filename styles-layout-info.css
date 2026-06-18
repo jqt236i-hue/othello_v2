@@ -211,6 +211,11 @@
     background: rgba(132, 112, 180, 0.15);
 }
 
+.game-term-highlight--placement {
+    color: #c9d19a;
+    background: rgba(130, 146, 82, 0.14);
+}
+
 .game-term-highlight--resource {
     color: #dfbfe5;
     background: rgba(178, 115, 190, 0.13);
@@ -239,6 +244,10 @@
 
 .game-term-highlight--unique.game-term-highlight--tone-cell {
     box-shadow: inset 0 -0.16em 0 rgba(132, 112, 180, 0.32);
+}
+
+.game-term-highlight--unique.game-term-highlight--tone-placement {
+    box-shadow: inset 0 -0.16em 0 rgba(130, 146, 82, 0.30);
 }
 
 .game-term-highlight--unique.game-term-highlight--tone-resource {
