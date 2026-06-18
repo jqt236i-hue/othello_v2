@@ -418,6 +418,15 @@ Projection is authoritative for the viewer who receives it, but projection-speci
 - transport-visible snapshot integrity, when exposed, must be projection-safe (`projectedSnapshotHash` over the viewer's projected snapshot) rather than a hash over hidden canonical state
 - internal authority diagnostics may keep a stronger `authoritativeStateHash`, but that value is server-side only and must not weaken hidden-information projection
 
+### 8.8 Spectator projection
+
+Network spectators are authenticated read-only viewers, not player seats.
+
+- A spectator viewer may receive `/api/match/state` and `/api/match/stream`.
+- A spectator viewer must not be accepted by publish, hand-skin, or seat-leave authority paths.
+- Spectator snapshot projection is authoritative for spectators, but it is not entitled to either seat's hidden information.
+- Buffered SSE replay must store or derive a spectator-safe payload separately from black/white payloads.
+
 ## 9. DI and bootstrap contracts
 
 ### 9.1 Bootstrap ownership
