@@ -144,13 +144,18 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
   });
 
-  test('card faces do not keep overridden animation declarations', () => {
+  test('card faces keep decorative animations removed without blocking draw fade-in', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
     const animationsCss = readRepoTextFile('styles-animations.css');
 
-    expect(cardsCss).toMatch(/\.card-item,[\s\S]*\.card-item \*::after\s*\{[\s\S]*animation:\s*none\s*!important/);
+    expect(animationsCss).toMatch(/@keyframes\s+card-fade-in\b/);
+    expectCssBlockToContain(animationsCss, '.card-fade-in', /animation:\s*card-fade-in\s+var\(--card-fade-in-duration,\s*0\.5s\)\s+ease-out\s+forwards/);
+    expect(cardsCss).not.toMatch(/\.card-item,[\s\S]*\.card-item \*::after\s*\{[\s\S]*animation:\s*none\s*!important/);
+    expectCssBlockNotToContain(cardsCss, ':is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected)', /animation:\s*none/);
+    expectCssBlockNotToContain(cardsCss, ':is(#hand-black, #hand-white) .card-item.selected', /animation:\s*none/);
     expect(cardsCss).not.toMatch(/animation:\s*(?:foil-sweep|card-shimmer|card-selected-shine|card-usable-pulse)/);
     expect(animationsCss).not.toMatch(/@keyframes\s+(?:foil-sweep|card-shimmer|card-selected-shine|card-usable-pulse)\b/);
+    expect(animationsCss).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.card-item\.card-fade-in[\s\S]*animation:\s*none\s*!important/);
   });
 
   test('hand affordable and usable cards use one final non-selected state block', () => {
@@ -163,7 +168,7 @@ describe('card surface layout contract', () => {
     expectCssBlockToContain(cardsCss, finalStateSelector, /transform:\s*none/);
     expectCssBlockToContain(cardsCss, finalStateSelector, /overflow:\s*visible/);
     expectCssBlockToContain(cardsCss, finalStateSelector, /filter:\s*drop-shadow\(var\(--ui-drop-shadow-panel\)\)/);
-    expectCssBlockToContain(cardsCss, finalStateSelector, /animation:\s*none/);
+    expectCssBlockNotToContain(cardsCss, finalStateSelector, /animation:\s*none/);
     expectCssBlockToContain(cardsCss, finalHoverSelector, /transform:\s*translateY\(-3px\)/);
     expectCssBlockToContain(cardsCss, finalHoverSelector, /filter:\s*drop-shadow\(var\(--ui-drop-shadow-panel\)\)/);
 
@@ -234,7 +239,7 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.selected:is\(\.affordable,\s*\.usable\)\s*\{[\s\S]*overflow:\s*visible/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*overflow:\s*visible/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*filter:\s*drop-shadow\(var\(--ui-drop-shadow-panel\)\)/);
-    expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)[\s\S]*animation:\s*none/);
+    expect(cardsCss).not.toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)\s*\{[^}]*animation:\s*none/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\)::before[\s\S]*border-color:\s*var\(--card-tier-inner-border/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\) \.card-name[\s\S]*border-color:\s*var\(--card-tier-name-plate-border/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:is\(\.affordable,\s*\.usable\):not\(\.selected\) \.card-cost-badge[\s\S]*border-color:\s*var\(--card-tier-badge-border/);

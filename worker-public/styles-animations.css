@@ -432,10 +432,15 @@ the fade-in starts. */
 @media (prefers-reduced-motion: reduce) {
     .card-item.visible.cost-tier-gold,
     .card-item.visible.cost-tier-special,
+    .card-item.card-fade-in,
     .card-item.affordable,
     .card-item.usable,
     .card-item.selected {
         animation: none !important;
+    }
+    .card-item.card-fade-in {
+        opacity: 1 !important;
+        transform: none !important;
     }
     .card-item.visible.cost-tier-gold::before,
     .card-item.visible.cost-tier-special::before,

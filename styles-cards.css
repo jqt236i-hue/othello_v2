@@ -1224,24 +1224,13 @@
     0 18px 34px rgba(0, 0, 0, 0.54);
 }
 
-/* Hand hot path: keep cues readable without perpetual shimmer/pulse/shine during play. */
-:is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"]),
+/* Hand hot path: keep high-tier overlays static during play. */
 :is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"])::before {
     animation: none;
 }
 
 :is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"])::before {
     background-position: 50% 50%;
-}
-
-/* Keep card faces static across all card display contexts to reduce paint cost on mobile. */
-.card-item,
-.card-item::before,
-.card-item::after,
-.card-item *,
-.card-item *::before,
-.card-item *::after {
-    animation: none !important;
 }
 
 :is(#hand-black, #hand-white) .card-item.visible.clickable {
@@ -1261,7 +1250,6 @@
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 239, 170, 0.96),
         0 12px 24px rgba(0, 0, 0, 0.46);
     transform: translateY(-5px);
-    animation: none;
 }
 
 :is(#hand-black, #hand-white) .card-item.selected::before {
@@ -1315,7 +1303,6 @@
     filter: drop-shadow(var(--ui-drop-shadow-panel));
     -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel));
     overflow: visible;
-    animation: none;
 }
 
 :is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected)::before {
