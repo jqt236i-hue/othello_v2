@@ -1,6 +1,45 @@
 import * as SpecialStoneMarkerFactory from '../game/logic/card-resolution/special-stone-marker-factory';
+import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 
 describe('special stone marker factory', () => {
+  test('special-stone marker factory follows registry card mappings', () => {
+    const expectedTypes = [
+      'PROTECTED_NEXT_STONE',
+      'PERMA_PROTECT_NEXT_STONE',
+      'GHOST_WILL',
+      'AFTERIMAGE_WILL',
+      'REGEN_WILL',
+      'BREEDING_WILL',
+      'PROLIFERATION_WILL',
+      'ULTIMATE_REVERSE_DRAGON',
+      'ULTIMATE_DESTROY_GOD',
+      'STONE_SALVATION_GOD',
+      'SNIPER_WILL',
+      'DESTROY_DRAGON_WILL',
+      'LIGHTNING_WILL',
+      'METEOR_GOD',
+      'TIME_STOP_GOD',
+      'WILL_HUNTER_KING',
+      'HYPERACTIVE_WILL',
+      'EXTREME_HYPERACTIVE_WILL',
+      'ESCAPE_WILL',
+      'ROBOT_VACUUM_WILL',
+      'GLUTTONOUS_WILL',
+      'ULTIMATE_HYPERACTIVE_GOD',
+      'WORK_WILL'
+    ];
+
+    for (const cardType of expectedTypes) {
+      const markerData = SpecialStoneMarkerFactory.buildMarkerDataForCardType(cardType, {
+        constants: {},
+        SpecialStoneRegistry
+      });
+      expect(markerData).toEqual(expect.objectContaining({
+        type: SpecialStoneRegistry.getMarkerTypeForSpecialStoneCard(cardType)
+      }));
+    }
+  });
+
   test('builds WILL_HUNTER_KING marker data with visible evasion counters', () => {
     const markerData = SpecialStoneMarkerFactory.buildMarkerDataForCardType('WILL_HUNTER_KING', {
       constants: { WILL_HUNTER_KING_TURNS: 8 },

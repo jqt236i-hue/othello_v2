@@ -41,18 +41,25 @@ function readSpecialStoneInfoInt(deps: any, type: string, key: string, fallback:
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
+function readRegistryMarkerType(cardType: string, deps: any): string | null {
+    const registry = deps && deps.SpecialStoneRegistry;
+    return registry && typeof registry.getMarkerTypeForSpecialStoneCard === 'function'
+        ? registry.getMarkerTypeForSpecialStoneCard(cardType)
+        : null;
+}
+
 function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
     const type = normalizeType(cardType);
     const constants = deps && deps.constants ? deps.constants : {};
     switch (type) {
         case 'PROTECTED_NEXT_STONE':
             return {
-                type: 'PROTECTED',
+                type: readRegistryMarkerType(type, deps) || 'PROTECTED',
                 expiresForPlayer: deps && deps.ownerKey ? deps.ownerKey : null
             };
         case 'PERMA_PROTECT_NEXT_STONE':
             return {
-                type: 'PERMA_PROTECTED',
+                type: readRegistryMarkerType(type, deps) || 'PERMA_PROTECTED',
                 strongWillPromotionOwnerTurnStarts: 0,
                 strongWillPromotionThreshold: readPositiveInt(
                     constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
@@ -61,115 +68,115 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
             };
         case 'GHOST_WILL':
             return {
-                type: 'GHOST',
+                type: readRegistryMarkerType(type, deps) || 'GHOST',
                 remainingOwnerTurns: readPositiveInt(constants.GHOST_WILL_TURNS, FALLBACK_TURNS.GHOST_WILL)
             };
         case 'AFTERIMAGE_WILL':
             return {
-                type: 'AFTERIMAGE_WILL',
+                type: readRegistryMarkerType(type, deps) || 'AFTERIMAGE_WILL',
                 flipEvadeRemaining: readPositiveInt(constants.AFTERIMAGE_WILL_FLIP_EVADE_LIMIT, 1),
                 destroyEvadeRemaining: readPositiveInt(constants.AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT, 1)
             };
         case 'REGEN_WILL':
             return {
-                type: 'REGEN',
+                type: readRegistryMarkerType(type, deps) || 'REGEN',
                 regenRemaining: 3
             };
         case 'BREEDING_WILL':
             return {
-                type: 'BREEDING',
+                type: readRegistryMarkerType(type, deps) || 'BREEDING',
                 remainingOwnerTurns: readPositiveInt(constants.BREEDING_WILL_TURNS, FALLBACK_TURNS.BREEDING_WILL)
             };
         case 'PROLIFERATION_WILL':
             return {
-                type: 'PROLIFERATION',
+                type: readRegistryMarkerType(type, deps) || 'PROLIFERATION',
                 remainingOwnerTurns: readPositiveInt(constants.PROLIFERATION_WILL_TURNS, FALLBACK_TURNS.PROLIFERATION_WILL)
             };
         case 'ULTIMATE_REVERSE_DRAGON':
             return {
-                type: 'DRAGON',
+                type: readRegistryMarkerType(type, deps) || 'DRAGON',
                 remainingOwnerTurns: readPositiveInt(constants.ULTIMATE_DRAGON_TURNS, FALLBACK_TURNS.ULTIMATE_REVERSE_DRAGON)
             };
         case 'ULTIMATE_DESTROY_GOD':
             return {
-                type: 'ULTIMATE_DESTROY_GOD',
+                type: readRegistryMarkerType(type, deps) || 'ULTIMATE_DESTROY_GOD',
                 remainingOwnerTurns: readPositiveInt(constants.ULTIMATE_DESTROY_GOD_TURNS, FALLBACK_TURNS.ULTIMATE_DESTROY_GOD)
             };
         case 'STONE_SALVATION_GOD':
             return {
-                type: 'STONE_SALVATION_GOD',
+                type: readRegistryMarkerType(type, deps) || 'STONE_SALVATION_GOD',
                 remainingOwnerTurns: readPositiveInt(constants.STONE_SALVATION_GOD_TURNS, FALLBACK_TURNS.STONE_SALVATION_GOD)
             };
         case 'SNIPER_WILL':
             return {
-                type: 'SNIPER',
+                type: readRegistryMarkerType(type, deps) || 'SNIPER',
                 remainingOwnerTurns: readPositiveInt(constants.SNIPER_WILL_TURNS, FALLBACK_TURNS.SNIPER_WILL)
             };
         case 'DESTROY_DRAGON':
         case 'DESTROY_DRAGON_WILL':
             return {
-                type: 'DESTROY_DRAGON',
+                type: readRegistryMarkerType(type, deps) || 'DESTROY_DRAGON',
                 remainingOwnerTurns: readPositiveInt(constants.DESTROY_DRAGON_TURNS, FALLBACK_TURNS.DESTROY_DRAGON_WILL)
             };
         case 'LIGHTNING_WILL':
             return {
-                type: 'LIGHTNING',
+                type: readRegistryMarkerType(type, deps) || 'LIGHTNING',
                 remainingOwnerTurns: readPositiveInt(constants.LIGHTNING_WILL_TURNS, FALLBACK_TURNS.LIGHTNING_WILL)
             };
         case 'METEOR_GOD':
             return {
-                type: 'METEOR_GOD',
+                type: readRegistryMarkerType(type, deps) || 'METEOR_GOD',
                 remainingOwnerTurns: readPositiveInt(constants.METEOR_GOD_TURNS, FALLBACK_TURNS.METEOR_GOD)
             };
         case 'TIME_STOP_GOD':
             return {
-                type: 'TIME_STOP',
+                type: readRegistryMarkerType(type, deps) || 'TIME_STOP',
                 remainingOwnerTurns: readPositiveInt(constants.TIME_STOP_GOD_TURNS, FALLBACK_TURNS.TIME_STOP_GOD)
             };
         case 'WILL_HUNTER_KING':
             return {
-                type: 'WILL_HUNTER_KING',
+                type: readRegistryMarkerType(type, deps) || 'WILL_HUNTER_KING',
                 remainingOwnerTurns: readPositiveInt(constants.WILL_HUNTER_KING_TURNS, FALLBACK_TURNS.WILL_HUNTER_KING),
                 flipEvadeRemaining: readSpecialStoneInfoInt(deps, 'WILL_HUNTER_KING', 'tagFlipEvadeDefault', 2),
                 destroyEvadeRemaining: readSpecialStoneInfoInt(deps, 'WILL_HUNTER_KING', 'tagDestroyEvadeDefault', 2)
             };
         case 'HYPERACTIVE_WILL':
             return {
-                type: 'HYPERACTIVE',
+                type: readRegistryMarkerType(type, deps) || 'HYPERACTIVE',
                 flipEvadeRemaining: readPositiveInt(constants.HYPERACTIVE_FLIP_EVADE_LIMIT, 1)
             };
         case 'EXTREME_HYPERACTIVE_WILL':
             return {
-                type: 'EXTREME_HYPERACTIVE',
+                type: readRegistryMarkerType(type, deps) || 'EXTREME_HYPERACTIVE',
                 flipEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT, 5),
                 destroyEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT, 5)
             };
         case 'ESCAPE_WILL':
             return {
-                type: 'ESCAPE_HYPERACTIVE',
+                type: readRegistryMarkerType(type, deps) || 'ESCAPE_HYPERACTIVE',
                 flipEvadeRemaining: readPositiveInt(constants.ESCAPE_HYPERACTIVE_FLIP_EVADE_LIMIT, 1)
             };
         case 'ROBOT_VACUUM':
         case 'ROBOT_VACUUM_WILL':
             return {
-                type: 'ROBOT_VACUUM',
+                type: readRegistryMarkerType(type, deps) || 'ROBOT_VACUUM',
                 remainingOwnerTurns: readPositiveInt(constants.ROBOT_VACUUM_TURNS, FALLBACK_TURNS.ROBOT_VACUUM_WILL)
             };
         case 'GLUTTONOUS_WILL':
             return {
-                type: 'GLUTTONOUS',
+                type: readRegistryMarkerType(type, deps) || 'GLUTTONOUS',
                 gluttonousMissStreak: 0
             };
         case 'ULTIMATE_HYPERACTIVE_GOD':
             return {
-                type: 'ULTIMATE_HYPERACTIVE',
+                type: readRegistryMarkerType(type, deps) || 'ULTIMATE_HYPERACTIVE',
                 remainingOwnerTurns: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_TURNS, FALLBACK_TURNS.ULTIMATE_HYPERACTIVE_GOD),
                 flipEvadeRemaining: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT, 5),
                 destroyEvadeRemaining: readPositiveInt(constants.ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT, 2)
             };
         case 'WORK_WILL':
             return {
-                type: 'WORK',
+                type: readRegistryMarkerType(type, deps) || 'WORK',
                 ownerColor: deps && deps.ownerKey ? deps.ownerKey : null,
                 workStage: 0,
                 remainingOwnerTurns: readPositiveInt(constants.WORK_WILL_TURNS, FALLBACK_TURNS.WORK_WILL)
