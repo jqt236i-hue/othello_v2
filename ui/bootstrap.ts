@@ -1120,12 +1120,63 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
     }
 
+    function resolveResultOverlayModuleForReset(root: any) {
+        try {
+            if (typeof _require === 'function') {
+                const resultOverlayModule = _require('./result-overlay');
+                if (resultOverlayModule && typeof resultOverlayModule === 'object') {
+                    return resultOverlayModule;
+                }
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (root && root.ResultOverlayModule && typeof root.ResultOverlayModule === 'object') {
+                return root.ResultOverlayModule;
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && (globalThis as any).ResultOverlayModule) {
+                const resultOverlayModule = (globalThis as any).ResultOverlayModule;
+                if (resultOverlayModule && typeof resultOverlayModule === 'object') {
+                    return resultOverlayModule;
+                }
+            }
+        } catch (e: any) { /* ignore */ }
+        return null;
+    }
+
+    function resetResultPresentationModuleStateForReset(root: any) {
+        try {
+            const resultOverlayModule = resolveResultOverlayModuleForReset(root);
+            if (resultOverlayModule && typeof resultOverlayModule.resetResultPresentationState === 'function') {
+                resultOverlayModule.resetResultPresentationState(null);
+                return true;
+            }
+        } catch (e: any) { /* ignore */ }
+        return false;
+    }
+
+    function clearResultPresentationDomForReset(doc: any) {
+        removeElementByIdForReset(doc, 'result-overlay');
+        removeElementByIdForReset(doc, 'result-reopen-button');
+        try {
+            doc.querySelectorAll('.battle-status-turn.has-result-reopen-button').forEach((el: any) => {
+                try { if (el && el.classList) el.classList.remove('has-result-reopen-button'); } catch (e: any) { /* ignore */ }
+            });
+        } catch (e: any) { /* ignore */ }
+    }
+
+    function resetResultPresentationForTransientUIReset(doc: any, root: any) {
+        resetResultPresentationModuleStateForReset(root);
+        clearResultPresentationDomForReset(doc);
+    }
+
     function closeTransientPanelsForReset() {
         const doc = getTransientUIResetDocument();
         const root = getTransientUIResetRoot();
         if (!doc) return;
 
-        removeElementByIdForReset(doc, 'result-overlay');
+        resetResultPresentationForTransientUIReset(doc, root);
 
         try {
             const infoPanel = doc.getElementById('stone-info-panel');

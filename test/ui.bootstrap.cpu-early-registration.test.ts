@@ -436,6 +436,50 @@ describe('UI bootstrap early CPU registration', () => {
     expect(global.resetRenderStats).toHaveBeenCalledTimes(1);
   });
 
+  test('resetTransientUIState resets result presentation state before clearing stale result UI', () => {
+    const dom = new JSDOM(`<!doctype html><html><body>
+      <div id="result-overlay"></div>
+      <div class="battle-status-turn has-result-reopen-button">
+        <button id="result-reopen-button" type="button">リザルト</button>
+      </div>
+    </body></html>`);
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.resetRenderStats = jest.fn();
+    global.hideCpuSpeechBubble = jest.fn();
+
+    const resetResultPresentationState = jest.fn(() => {
+      document.getElementById('result-overlay')?.remove();
+      document.getElementById('result-reopen-button')?.remove();
+      document.querySelectorAll('.battle-status-turn.has-result-reopen-button').forEach((el) => {
+        el.classList.remove('has-result-reopen-button');
+      });
+      return { terminalResultShown: false };
+    });
+
+    const setUIImplMock = jest.fn();
+    jest.doMock('../ui/result-overlay', () => ({ resetResultPresentationState }));
+    jest.doMock('../game/turn-manager', () => ({ setUIImpl: setUIImplMock }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+
+    const uiBoot = require('../ui/bootstrap.js');
+    uiBoot.installGameDI();
+
+    const uiImpl = setUIImplMock.mock.calls
+      .map((args) => args && args[0])
+      .find((impl) => impl && typeof impl.resetTransientUIState === 'function');
+
+    expect(typeof uiImpl.resetTransientUIState).toBe('function');
+
+    uiImpl.resetTransientUIState();
+
+    expect(resetResultPresentationState).toHaveBeenCalledTimes(1);
+    expect(resetResultPresentationState).toHaveBeenCalledWith(null);
+    expect(document.getElementById('result-overlay')).toBeNull();
+    expect(document.getElementById('result-reopen-button')).toBeNull();
+    expect(document.querySelector('.battle-status-turn')?.classList.contains('has-result-reopen-button')).toBe(false);
+  });
+
   test('installGameDI wires turn-manager PRNG through UI bridge', () => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.window = dom.window;
