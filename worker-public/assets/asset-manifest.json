@@ -283,6 +283,10 @@
       "sha256": "807ced21d44fd9f0589dcaf7550e11061865a1ea49721400a7c53d0670ea71a4"
     },
     {
+      "path": "assets/images/other/gacha-crystal-cluster-v1.png",
+      "sha256": "23b940c64abf3c86e2e2f31fea7b673dbd440e50dfc74ac5b11b60f415502546"
+    },
+    {
       "path": "assets/images/other/gacha-reference-banner.png",
       "sha256": "99db26258b865dfb2561115134e6f3e758b143fc6f6d21db475fa9f69e5d9464"
     },
