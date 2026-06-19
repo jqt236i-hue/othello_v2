@@ -3707,12 +3707,12 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 #gachaBalanceSummary {
     min-width: calc(334px * var(--gacha-reference-scale));
     min-height: calc(64px * var(--gacha-reference-scale));
-    padding: calc(7px * var(--gacha-reference-scale)) calc(24px * var(--gacha-reference-scale));
+    padding: calc(5px * var(--gacha-reference-scale)) calc(22px * var(--gacha-reference-scale));
     gap: calc(18px * var(--gacha-reference-scale));
 }
 
 #gachaBalanceSummary .observation-stone-icon {
-    width: calc(64px * var(--gacha-reference-scale));
+    width: calc(54px * var(--gacha-reference-scale));
 }
 
 .gacha-balance-label {
