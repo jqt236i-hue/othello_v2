@@ -27,7 +27,6 @@ import type {
     MatchWorkerTurnPipelinePhasesModule,
     MatchWorkerTurnPipelineModule,
     MatchWorkerTurnPipelineModules,
-    MatchWorkerTurnPipelineSafeResult,
     MatchWorkerSnapshotPayloadMeta,
     MatchWorkerTurnTimeoutResult,
     MatchWorkerTurnTimerOptions,
@@ -39,6 +38,7 @@ import type {
 
 const ModuleExportUtils = require('../shared/module-export-utils');
 const MatchRoomLobby = require('../shared/match-room-lobby');
+const TurnPipelineFactory = require('../game/turn/turn_pipeline_factory');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
     MatchAuthorityAcceptedOperationEntry,
@@ -691,204 +691,17 @@ export function createWorkerTurnPipelineModule(
     TurnPipelinePhases: MatchWorkerTurnPipelinePhasesModule,
     BoardOps: MatchWorkerRuntimeModule
 ): MatchWorkerTurnPipelineModule {
-    function applyTurn(cardState: unknown, gameState: unknown, playerKey: unknown, action: unknown, prng?: unknown, options?: Record<string, unknown> | null) {
-        const events: unknown[] = [];
-        const p = asRecord(prng);
-        const prngValue = typeof p.random === 'function' ? p : undefined;
-        const opts = asRecord(options);
-        const normalizedPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, playerKey) || playerKey;
-        const cardStateRecord = asRecord(cardState);
-        const actionRecord = asRecord(action);
-        const previousBoardOpsRandomSource = cardStateRecord._boardOpsRandomSource;
-        if (cardState && prngValue) {
-            cardStateRecord._boardOpsRandomSource = prngValue;
-        }
-        try {
-            const applyTurnStartPhase = TurnPipelinePhases.applyTurnStartPhase;
-            const SubPlacementContinuation = getSubPlacementContinuationModule();
-            const skipTurnStartForSubPlacement = (
-                SubPlacementContinuation &&
-                typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
-                SubPlacementContinuation.isSubPlacementTurnActive(cardState, normalizedPlayerKey)
-            );
-            if (opts.skipTurnStart !== true && skipTurnStartForSubPlacement !== true) {
-                if (typeof applyTurnStartPhase !== 'function') {
-                    throw new Error('TurnPipelinePhases.applyTurnStartPhase is required');
-                }
-                const turnStartResult = applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, prngValue) as unknown;
-                if (turnStartResult && asRecord(turnStartResult).stopAction === true) {
-                    const queuedPresentationEvents = (cardState && Array.isArray(cardStateRecord.presentationEvents))
-                        ? cardStateRecord.presentationEvents.slice()
-                        : [];
-                    const flushedPresentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
-                        ? CardLogic.flushPresentationEvents(cardState)
-                        : queuedPresentationEvents;
-                    const presentationEvents = Array.isArray(flushedPresentationEvents)
-                        ? flushedPresentationEvents
-                        : queuedPresentationEvents;
-                    return { gameState, cardState, events, presentationEvents };
-                }
-            }
-            const applyCardUsagePhase = TurnPipelinePhases.applyCardUsagePhase;
-            if (typeof applyCardUsagePhase !== 'function') {
-                throw new Error('TurnPipelinePhases.applyCardUsagePhase is required');
-            }
-            applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, prngValue);
-            const actionMeta = {
-                actionId: actionRecord.actionId || null,
-                turnIndex: cardStateRecord.turnIndex || 0,
-                plyIndex: 0,
-                randomSource: prngValue || null
-            };
-            if (cardState && BoardOps && typeof BoardOps.setActionContext === 'function') {
-                BoardOps.setActionContext(cardState, actionMeta);
-            } else if (cardState) {
-                cardStateRecord._currentActionMeta = actionMeta;
-            }
-            try {
-                const applyActionPhase = TurnPipelinePhases.applyActionPhase;
-                if (typeof applyActionPhase !== 'function') {
-                    throw new Error('TurnPipelinePhases.applyActionPhase is required');
-                }
-                applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, prngValue, BoardOps);
-            } finally {
-                if (cardState && BoardOps && typeof BoardOps.clearActionContext === 'function') {
-                    BoardOps.clearActionContext(cardState);
-                } else if (cardState) {
-                    delete cardStateRecord._currentActionMeta;
-                }
-            }
-            const queuedPresentationEvents = (cardState && Array.isArray(cardStateRecord.presentationEvents))
-                ? cardStateRecord.presentationEvents.slice()
-                : [];
-            const flushedPresentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
-                ? CardLogic.flushPresentationEvents(cardState)
-                : queuedPresentationEvents;
-            let presentationEvents = Array.isArray(flushedPresentationEvents)
-                ? flushedPresentationEvents
-                : [];
-            if (presentationEvents.length === 0 && queuedPresentationEvents.length > 0) {
-                presentationEvents = queuedPresentationEvents;
-            }
-            if (
-                presentationEvents.length === 0
-                && cardState
-                && Array.isArray(cardStateRecord._presentationEventsPersist)
-                && cardStateRecord._presentationEventsPersist.length > 0
-            ) {
-                presentationEvents = cardStateRecord._presentationEventsPersist.slice();
-            }
-            return { gameState, cardState, events, presentationEvents };
-        } finally {
-            if (cardState) {
-                if (previousBoardOpsRandomSource && typeof asRecord(previousBoardOpsRandomSource).random === 'function') {
-                    cardStateRecord._boardOpsRandomSource = previousBoardOpsRandomSource;
-                } else {
-                    delete cardStateRecord._boardOpsRandomSource;
-                }
-            }
-        }
-    }
-
-    function applyTurnSafe(cardState: unknown, gameState: unknown, playerKey: unknown, action: unknown, prng?: unknown, options?: Record<string, unknown> | null): MatchWorkerTurnPipelineSafeResult {
-        const cs = deepClone(cardState) as Record<string, unknown>;
-        const gs = deepClone(gameState) as Record<string, unknown>;
-        const actionRecord = asRecord(action);
-        const opts = asRecord(options);
-        const actionPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, playerKey);
-        const currentPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, gs.currentPlayer);
-        const currentVersion = (typeof opts.currentStateVersion === 'number')
-            ? opts.currentStateVersion
-            : 0;
-        let effectivePipelinePlayerKey = actionPlayerKey;
-
-        if (actionPlayerKey && currentPlayerKey && actionPlayerKey !== currentPlayerKey) {
-            const fateWillController = asRecord(cs.fateWillControllerByTurnOwner)[currentPlayerKey];
-            if (fateWillController === actionPlayerKey) {
-                effectivePipelinePlayerKey = currentPlayerKey;
-            } else {
-                return {
-                    ok: false,
-                    gameState: gs,
-                    cardState: cs,
-                    events: [{ type: 'action_rejected', player: playerKey, reason: 'OUT_OF_TURN', message: 'playerKey does not match gameState.currentPlayer' }],
-                    nextStateVersion: currentVersion,
-                    rejectedReason: 'OUT_OF_TURN'
-                };
-            }
-        }
-
-        if (actionRecord.actionId && Array.isArray(opts.previousActionIds) && opts.previousActionIds.includes(actionRecord.actionId)) {
-            return {
-                ok: false,
-                gameState: gs,
-                cardState: cs,
-                events: [{ type: 'action_rejected', player: playerKey, reason: 'DUPLICATE_ACTION', message: 'actionId already seen' }],
-                nextStateVersion: currentVersion,
-                rejectedReason: 'DUPLICATE_ACTION'
-            };
-        }
-
-        if (typeof actionRecord.turnIndex === 'number' && typeof opts.currentStateVersion === 'number' && actionRecord.turnIndex !== opts.currentStateVersion) {
-            return {
-                ok: false,
-                gameState: gs,
-                cardState: cs,
-                events: [{ type: 'action_rejected', player: playerKey, reason: 'OUT_OF_ORDER', message: 'action.turnIndex does not match currentStateVersion' }],
-                nextStateVersion: currentVersion,
-                rejectedReason: 'OUT_OF_ORDER'
-            };
-        }
-
-        try {
-            const result = applyTurn(cs, gs, effectivePipelinePlayerKey || playerKey, action, prng, options);
-            const resultCardState = asRecord(result.cardState);
-            const prngRecord = asRecord(prng);
-            const getPrngState = prngRecord.getState;
-            const prngState = (typeof getPrngState === 'function')
-                ? getPrngState.call(prng)
-                : (opts.prngState !== undefined ? opts.prngState : (prngRecord._seed ? { _seed: prngRecord._seed } : null));
-            resultCardState.prngState = prngState;
-            const stateHash = (MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function')
-                ? MatchAuthority.computeAuthoritativeStateHash({
-                    gameState: result.gameState,
-                    cardState: result.cardState
-                })
-                : null;
-            return {
-                ok: true,
-                gameState: result.gameState,
-                cardState: result.cardState,
-                events: result.events,
-                presentationEvents: result.presentationEvents || [],
-                nextStateVersion: currentVersion + 1,
-                stateHash
-            };
-        } catch (error) {
-            const errorRecord = asRecord(error);
-            const rawMsg = errorRecord.message ? String(errorRecord.message) : 'unknown_error';
-            let reason = 'UNKNOWN';
-            if (rawMsg.includes('Illegal pass')) reason = 'ILLEGAL_PASS';
-            else if (rawMsg.includes('Illegal move')) reason = 'ILLEGAL_MOVE';
-            else if (rawMsg.includes('applyCardUsage failed')) reason = 'CARD_USE_FAILED';
-            else if (rawMsg.includes('requires')) reason = 'MISSING_REQUIRED_TARGET';
-            else if (rawMsg.includes('Unknown action.type')) reason = 'UNKNOWN_ACTION_TYPE';
-            return {
-                ok: false,
-                gameState: gs,
-                cardState: cs,
-                events: [{ type: 'action_rejected', player: playerKey, reason, message: rawMsg }],
-                nextStateVersion: currentVersion,
-                rejectedReason: reason,
-                errorMessage: rawMsg
-            };
-        }
-    }
-
-    return {
-        applyTurn,
-        applyTurnSafe
-    };
+    return TurnPipelineFactory.createTurnPipelineModule({
+        CardLogic,
+        Core,
+        TurnPipelinePhases,
+        BoardOps,
+        SubPlacementContinuation: getSubPlacementContinuationModule(),
+        deepClone,
+        normalizePlayerKey: (player: unknown, runtimeCore: MatchWorkerCoreModule) => (
+            normalizeWorkerTurnPipelinePlayer(runtimeCore || Core, player)
+        )
+    }) as MatchWorkerTurnPipelineModule;
 }
 
 function loadCoreLogicModule(): Promise<MatchWorkerCoreModule> {

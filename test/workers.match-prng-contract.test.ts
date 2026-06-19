@@ -49,3 +49,32 @@ test('worker TurnPipeline applyTurnSafe persists next prngState and returns a st
   expect(result.stateHash).toEqual(expect.any(String));
   expect(result.stateHash).not.toBe('');
 });
+
+test('worker TurnPipeline applyTurnSafe shares root expectedStateVersion rejection guard', () => {
+  const CardLogic = {
+    flushPresentationEvents: jest.fn(() => [])
+  };
+  const Core = {
+    BLACK: 1,
+    WHITE: -1
+  };
+  const TurnPipelinePhases = {
+    applyTurnStartPhase: jest.fn(),
+    applyCardUsagePhase: jest.fn(),
+    applyActionPhase: jest.fn()
+  };
+
+  const TurnPipeline = createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, {});
+  const result = TurnPipeline.applyTurnSafe(
+    { markers: [], presentationEvents: [] },
+    { currentPlayer: 1, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },
+    'black',
+    { type: 'pass', actionId: 'op_2' },
+    null,
+    { currentStateVersion: 4, expectedStateVersion: 3 }
+  );
+
+  expect(result.ok).toBe(false);
+  expect(result.rejectedReason).toBe('VERSION_MISMATCH');
+  expect(TurnPipelinePhases.applyActionPhase).not.toHaveBeenCalled();
+});
