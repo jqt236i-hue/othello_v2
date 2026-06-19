@@ -3872,3 +3872,52 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     height: calc(58px * var(--gacha-reference-scale));
     margin-bottom: calc(14px * var(--gacha-reference-scale));
 }
+
+/* Observation gacha fidelity pass: compact result bay and rarity capsules. */
+#gachaModal .gacha-reference-shell {
+    grid-template-rows:
+        calc(52px * var(--gacha-reference-scale))
+        calc(248px * var(--gacha-reference-scale))
+        calc(340px * var(--gacha-reference-scale))
+        calc(138px * var(--gacha-reference-scale));
+    align-content: start;
+}
+
+#gachaModal #gachaResults {
+    min-height: calc(138px * var(--gacha-reference-scale));
+}
+
+#gachaModal .gacha-results-empty {
+    min-height: calc(108px * var(--gacha-reference-scale));
+}
+
+#gachaModal .gacha-results-empty::before {
+    width: calc(52px * var(--gacha-reference-scale));
+    height: calc(52px * var(--gacha-reference-scale));
+    margin-bottom: calc(10px * var(--gacha-reference-scale));
+}
+
+#gachaModal .gacha-rate-rarity {
+    position: relative;
+    width: calc(190px * var(--gacha-reference-scale));
+    margin-left: calc(-18px * var(--gacha-reference-scale));
+    padding-left: calc(34px * var(--gacha-reference-scale));
+    clip-path: polygon(
+        calc(10px * var(--gacha-reference-scale)) 0,
+        100% 0,
+        calc(100% - calc(12px * var(--gacha-reference-scale))) 50%,
+        100% 100%,
+        calc(10px * var(--gacha-reference-scale)) 100%,
+        0 50%
+    );
+    background:
+        linear-gradient(90deg, color-mix(in srgb, currentColor 30%, transparent), rgba(255, 255, 255, 0.03) 68%, transparent),
+        rgba(0, 0, 0, 0.38);
+    box-shadow:
+        inset calc(2px * var(--gacha-reference-scale)) 0 0 currentColor,
+        inset 0 0 0 calc(1px * var(--gacha-reference-scale)) color-mix(in srgb, currentColor 54%, transparent);
+}
+
+#gachaModal .gacha-rate-probability {
+    padding-left: calc(14px * var(--gacha-reference-scale));
+}
