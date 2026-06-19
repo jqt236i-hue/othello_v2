@@ -58,6 +58,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             noticeIsError: false,
             presetState: DeckPresetStorage.loadState(),
             activeLocalChoice: null as any,
+            networkDeckSyncChain: Promise.resolve({ ok: true, skipped: true }) as any,
+            networkDeckSyncBusy: false,
+            networkDeckSyncLatestDeckCode: null as any,
+            networkDeckSyncLatestPromise: null as any,
             localBoardConfig: SharedBoardUtils.buildBoardConfig(),
             editor: {
                 presetId: '',
@@ -448,28 +452,64 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             } catch (e: any) { /* ignore */ }
         }
 
-        function syncNetworkDeckSelection(choice: any) {
-            const networkClient = resolveNetworkMatchClientForDeckBuilder('updateDeckSelection');
-            if (!networkClient || typeof networkClient.updateDeckSelection !== 'function') return;
-            if (typeof networkClient.isSpectator === 'function' && networkClient.isSpectator()) return;
-
-            const deckCode = choice && choice.mode === 'custom'
+        function getNetworkDeckCodeForChoice(choice: any) {
+            return choice && choice.mode === 'custom'
                 ? String(choice.deckCode || '').trim()
                 : '';
-            Promise.resolve(networkClient.updateDeckSelection(deckCode))
-                .then((result: any) => {
-                    if (!result || result.ok !== true) {
-                        const reason = result && result.reason ? String(result.reason) : '';
-                        if (reason !== 'INACTIVE' && reason !== 'SPECTATOR_READ_ONLY') {
-                            emitNotice('ネット対戦: デッキ同期に失敗しました', true, true);
+        }
+
+        function syncNetworkDeckSelection(choice: any) {
+            const networkClient = resolveNetworkMatchClientForDeckBuilder('updateDeckSelection');
+            if (!networkClient || typeof networkClient.updateDeckSelection !== 'function') {
+                return Promise.resolve({ ok: true, skipped: true, reason: 'NO_NETWORK_CLIENT' });
+            }
+            if (typeof networkClient.isSpectator === 'function' && networkClient.isSpectator()) {
+                return Promise.resolve({ ok: false, reason: 'SPECTATOR_READ_ONLY' });
+            }
+
+            const deckCode = getNetworkDeckCodeForChoice(choice);
+            if (state.networkDeckSyncLatestDeckCode === deckCode && state.networkDeckSyncLatestPromise) {
+                return state.networkDeckSyncLatestPromise;
+            }
+
+            const performSync = () => {
+                state.networkDeckSyncBusy = true;
+                return Promise.resolve(networkClient.updateDeckSelection(deckCode))
+                    .then((result: any) => {
+                        if (!result || result.ok !== true) {
+                            const reason = result && result.reason ? String(result.reason) : '';
+                            if (reason !== 'INACTIVE' && reason !== 'SPECTATOR_READ_ONLY') {
+                                emitNotice('ネット対戦: デッキ同期に失敗しました', true, true);
+                            }
                         }
-                    }
-                    render();
-                })
-                .catch(() => {
-                    emitNotice('ネット対戦: デッキ同期に失敗しました', true, true);
-                    render();
-                });
+                        render();
+                        return result || { ok: false, reason: 'DECK_SYNC_FAILED' };
+                    })
+                    .catch(() => {
+                        emitNotice('ネット対戦: デッキ同期に失敗しました', true, true);
+                        render();
+                        return { ok: false, reason: 'DECK_SYNC_FAILED' };
+                    });
+            };
+            const queued = state.networkDeckSyncBusy
+                ? Promise.resolve(state.networkDeckSyncChain).catch(() => null).then(performSync)
+                : performSync();
+            state.networkDeckSyncLatestDeckCode = deckCode;
+            state.networkDeckSyncLatestPromise = queued;
+            state.networkDeckSyncChain = queued;
+            queued.finally(() => {
+                if (state.networkDeckSyncChain === queued) {
+                    state.networkDeckSyncBusy = false;
+                }
+                if (state.networkDeckSyncLatestPromise === queued) {
+                    state.networkDeckSyncLatestPromise = null;
+                }
+            }).catch(() => null);
+            return queued;
+        }
+
+        function syncActiveNetworkDeckSelection() {
+            return syncNetworkDeckSelection(state.activeLocalChoice || createStandardChoice({ source: 'standard' }));
         }
 
         function hydrateUrlChoice() {
@@ -1404,6 +1444,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             render,
             buildCardInitOptions,
             readActiveDeckSpec,
+            syncActiveNetworkDeckSelection,
             readBoardConfig,
             getLocalBoardConfig,
             setLocalBoardConfig: updateLocalBoardConfig,

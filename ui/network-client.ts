@@ -1948,6 +1948,43 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return 'default';
     }
 
+    function resolveDeckBuilderControllerForNetworkClient() {
+        const candidates = [
+            () => root && root.DeckBuilderController,
+            () => root && root.window && root.window.DeckBuilderController,
+            () => root && root.document && root.document.defaultView && root.document.defaultView.DeckBuilderController,
+            () => (typeof document !== 'undefined' && document.defaultView)
+                ? (document.defaultView as any).DeckBuilderController
+                : null,
+            () => (typeof globalThis !== 'undefined')
+                ? (globalThis as any).DeckBuilderController
+                : null
+        ];
+        for (const readCandidate of candidates) {
+            const candidate = resolveNetworkClientCandidate(readCandidate);
+            if (candidate) return candidate;
+        }
+        return null;
+    }
+
+    async function syncActiveDeckSelectionBeforeRematch() {
+        const controller = resolveDeckBuilderControllerForNetworkClient();
+        if (!controller || typeof controller.syncActiveNetworkDeckSelection !== 'function') {
+            return { ok: true, skipped: true };
+        }
+        try {
+            const result = await Promise.resolve(controller.syncActiveNetworkDeckSelection());
+            if (!result || result.ok !== false) {
+                return result || { ok: true };
+            }
+            const reason = result.reason ? String(result.reason) : 'DECK_SYNC_FAILED';
+            return { ok: false, reason };
+        } catch (e: any) {
+            emitStatus('ネット対戦: デッキ同期に失敗しました', true);
+            return { ok: false, reason: 'DECK_SYNC_FAILED' };
+        }
+    }
+
     function syncVisualCursorFromTimeline() {
         const timeline = getNetworkPresentationTimeline();
         if (!timeline || typeof timeline.getDiagnostics !== 'function') return;
@@ -2770,8 +2807,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return publishSnapshot(meta);
     }
 
-    async function publishRematchReset() {
+    async function publishRematchReset(options?: any) {
         if (!isActive()) return { ok: false, reason: 'INACTIVE' };
+        if (!options || options.skipDeckSync !== true) {
+            const deckSyncResult = await syncActiveDeckSelectionBeforeRematch();
+            if (!deckSyncResult || deckSyncResult.ok === false) {
+                return {
+                    ok: false,
+                    reason: deckSyncResult && deckSyncResult.reason ? deckSyncResult.reason : 'DECK_SYNC_FAILED'
+                };
+            }
+        }
         clearBoardUpdateContext();
 
         const makeRequest = () => publishSnapshot({
@@ -2817,6 +2863,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             emitStatus('観戦中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
+        const deckSyncResult = await syncActiveDeckSelectionBeforeRematch();
+        if (!deckSyncResult || deckSyncResult.ok === false) {
+            return {
+                ok: false,
+                reason: deckSyncResult && deckSyncResult.reason ? deckSyncResult.reason : 'DECK_SYNC_FAILED'
+            };
+        }
         const payload = {
             roomId: state.roomId,
             seatKey: state.seatKey,
@@ -2843,6 +2896,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             emitStatus('観戦中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
+        if (accepted === true) {
+            const deckSyncResult = await syncActiveDeckSelectionBeforeRematch();
+            if (!deckSyncResult || deckSyncResult.ok === false) {
+                return {
+                    ok: false,
+                    reason: deckSyncResult && deckSyncResult.reason ? deckSyncResult.reason : 'DECK_SYNC_FAILED'
+                };
+            }
+        }
         const payload = {
             roomId: state.roomId,
             seatKey: state.seatKey,
@@ -2863,7 +2925,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             return { ok: true, accepted: false };
         }
         emitStatus('ネット対戦: 再戦申請を受理しました', false);
-        return publishRematchReset();
+        return publishRematchReset({ skipDeckSync: true });
     }
 
     function acceptRematchRequest(requestId: any) {

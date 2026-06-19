@@ -709,6 +709,70 @@ describe('deck builder controller', () => {
     }
   });
 
+  test('ネット対戦中のデッキ同期は直列化し、明示同期は最新選択の完了を待つ', async () => {
+    const firstDeck = createThirtyCardDeck(0);
+    const secondDeck = createThirtyCardDeck(10);
+    let resolveFirstSync;
+    const updateDeckSelection = jest.fn((deckCode) => {
+      if (deckCode === firstDeck.deckCode) {
+        return new Promise((resolve) => {
+          resolveFirstSync = () => resolve({ ok: true });
+        });
+      }
+      return Promise.resolve({ ok: true });
+    });
+
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify({
+      version: 1,
+      activePresetId: '',
+      presets: [
+        { id: 'preset_1', name: '先のデッキ', deckCode: firstDeck.deckCode, updatedAt: 1 },
+        { id: 'preset_2', name: '後のデッキ', deckCode: secondDeck.deckCode, updatedAt: 2 },
+        { id: 'preset_3', name: '', deckCode: '', updatedAt: 3 },
+        { id: 'preset_4', name: '', deckCode: '', updatedAt: 4 },
+        { id: 'preset_5', name: '', deckCode: '', updatedAt: 5 },
+        { id: 'preset_6', name: '', deckCode: '', updatedAt: 6 }
+      ]
+    }));
+    window.NetworkMatchClient = {
+      isActive: () => true,
+      isSpectator: () => false,
+      getRoomDeck: () => null,
+      updateDeckSelection
+    };
+
+    try {
+      const controller = createController();
+      controller.open();
+
+      const useButtons = Array.from(document.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid .deck-builder-preset-card button'))
+        .filter((button) => button.textContent === '使用' && !button.disabled);
+      expect(useButtons).toHaveLength(2);
+
+      useButtons[0].click();
+      useButtons[1].click();
+
+      expect(updateDeckSelection).toHaveBeenCalledTimes(1);
+      expect(updateDeckSelection).toHaveBeenCalledWith(firstDeck.deckCode);
+
+      const flushPromise = controller.syncActiveNetworkDeckSelection();
+      await Promise.resolve();
+      expect(updateDeckSelection).toHaveBeenCalledTimes(1);
+
+      expect(typeof resolveFirstSync).toBe('function');
+      resolveFirstSync();
+      const flushResult = await flushPromise;
+
+      expect(flushResult.ok).toBe(true);
+      expect(updateDeckSelection.mock.calls.map((call) => call[0])).toEqual([
+        firstDeck.deckCode,
+        secondDeck.deckCode
+      ]);
+    } finally {
+      delete window.NetworkMatchClient;
+    }
+  });
+
   test('network room deck が player別なら黒白それぞれの初期デッキを返す', () => {
     const blackDeck = createThirtyCardDeck(0);
     const whiteDeck = createThirtyCardDeck(10);

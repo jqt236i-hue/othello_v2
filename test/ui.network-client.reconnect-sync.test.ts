@@ -1365,6 +1365,148 @@ describe('NetworkMatchClient reconnect and resync', () => {
     }));
   });
 
+  test('requestRematch は最新デッキ同期の完了後に再戦申請を送る', async () => {
+    let resolveDeckSync;
+    const syncActiveNetworkDeckSelection = jest.fn(() => new Promise((resolve) => {
+      resolveDeckSync = () => resolve({ ok: true });
+    }));
+    window.DeckBuilderController = { syncActiveNetworkDeckSelection };
+
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1)
+        });
+      }
+
+      if (path === '/api/match/rematch-request') {
+        const body = JSON.parse(String(init.body || '{}'));
+        publishBodies.push(body);
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          requestId: 'rematch_req_1',
+          stateVersion: 1
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    const resultPromise = client.requestRematch();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(syncActiveNetworkDeckSelection).toHaveBeenCalledTimes(1);
+    expect(publishBodies).toHaveLength(0);
+
+    expect(typeof resolveDeckSync).toBe('function');
+    resolveDeckSync();
+    const result = await resultPromise;
+
+    expect(result && result.ok).toBe(true);
+    expect(publishBodies).toHaveLength(1);
+    expect(publishBodies[0]).toEqual(expect.objectContaining({
+      roomId: 'ABC',
+      seatKey: 'white',
+      seatToken: 'token_white'
+    }));
+  });
+
+  test('acceptRematchRequest は最新デッキ同期の完了後に応答と reset_game を送る', async () => {
+    let resolveDeckSync;
+    const syncActiveNetworkDeckSelection = jest.fn(() => new Promise((resolve) => {
+      resolveDeckSync = () => resolve({ ok: true });
+    }));
+    const requestPaths = [];
+    window.DeckBuilderController = { syncActiveNetworkDeckSelection };
+
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1, { currentPlayer: -1, turnNumber: 60, consecutivePasses: 2 })
+        });
+      }
+
+      if (path === '/api/match/rematch-response') {
+        requestPaths.push(path);
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          requestId: 'rematch_req_1',
+          accepted: true,
+          stateVersion: 1
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        requestPaths.push(path);
+        const body = JSON.parse(String(init.body || '{}'));
+        publishBodies.push(body);
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 2,
+          snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 })
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    const resultPromise = client.acceptRematchRequest('rematch_req_1');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(syncActiveNetworkDeckSelection).toHaveBeenCalledTimes(1);
+    expect(requestPaths).toEqual([]);
+    expect(publishBodies).toHaveLength(0);
+
+    expect(typeof resolveDeckSync).toBe('function');
+    resolveDeckSync();
+    const result = await resultPromise;
+
+    expect(result && result.ok).toBe(true);
+    expect(requestPaths).toEqual(['/api/match/rematch-response', '/api/match/publish']);
+    expect(publishBodies).toHaveLength(1);
+    expect(publishBodies[0].actionType).toBe('reset_game');
+  });
+
   test('acceptRematchRequest は VERSION_AHEAD 後に再戦済みの最新局面へ同期したら再送しない', async () => {
     let publishAttempt = 0;
     global.fetch = jest.fn(async (url, init = {}) => {
