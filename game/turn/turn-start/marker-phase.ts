@@ -55,6 +55,7 @@ type ProcessTurnStartMarkersOptions = {
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
     flushPostFlipRevivesForAnchor?: (flippedByOwner: Record<string, any[]>) => void;
     emitTimerStatusTickForAnchor?: (marker: any) => void;
+    applyGeneratedSpawnFlipResultsForAnchor?: (results: any[]) => void;
     debugLog?: (...args: any[]) => void;
 };
 
@@ -194,6 +195,7 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
             markerAnchor: currentMarkerAnchor,
             isFrozenCell: opts.isFrozenCell,
             awardBoardChargeGain: opts.awardBoardChargeGain,
+            applyGeneratedSpawnFlipResultsForAnchor: opts.applyGeneratedSpawnFlipResultsForAnchor,
             debugLog: opts.debugLog,
             processingState
         });

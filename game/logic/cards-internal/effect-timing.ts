@@ -574,6 +574,7 @@ function flushDeferredTurnStartStatusExpirations(cardState: any, gameState: any,
 }
 
 const ANCHOR_SCOPED_STATUS_DURATION_TYPES = new Set([
+    'SEED',
     'GUARD',
     'BLOCKADE',
     'FREEZE',
@@ -617,6 +618,19 @@ function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, play
     }
 
     const specialStoneKind = getSpecialStoneKind(constants);
+    if (dataType === 'SEED') {
+        const seedExpiration = resolveSeedExpiration(cardState, gameState, marker, helpers, BoardOpsModule, constants, specialStoneKind, context);
+        expired.push({ row: marker.row, col: marker.col, owner: marker.owner, type: data.type });
+        const generatedSpawnFlipResults = (seedExpiration && seedExpiration.sprouted && seedExpiration.flipBatch)
+            ? [Object.assign({
+                ownerKey: normalizeMarkerOwnerKey(marker.owner),
+                cause: 'SEED_WILL',
+                reason: 'seed_sprout'
+            }, seedExpiration.flipBatch)]
+            : [];
+        return { processed: true, expired, generatedSpawnFlipResults };
+    }
+
     if (dataType === 'GHOST') {
         if (BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
             const revertRes = BoardOpsModule.revertSpecialStoneAt(

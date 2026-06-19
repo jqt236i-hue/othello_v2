@@ -19,6 +19,7 @@ type ProcessTurnStartSpecialStoneOptions = {
     markerAnchor: any;
     isFrozenCell: (cardState: any, row: any, col: any) => boolean;
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
+    applyGeneratedSpawnFlipResultsForAnchor?: (results: any[]) => void;
     debugLog?: (...args: any[]) => void;
     processingState: TurnStartSpecialStoneProcessingState;
 };
@@ -371,6 +372,14 @@ if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic
             { randomSource: p }
         );
         pushTurnStartDetailsEvent(opts.events, 'status_duration_expired_start', res && res.expired);
+        if (
+            res &&
+            Array.isArray(res.generatedSpawnFlipResults) &&
+            res.generatedSpawnFlipResults.length &&
+            typeof opts.applyGeneratedSpawnFlipResultsForAnchor === 'function'
+        ) {
+            opts.applyGeneratedSpawnFlipResultsForAnchor(res.generatedSpawnFlipResults);
+        }
     }
 
     return processingState;

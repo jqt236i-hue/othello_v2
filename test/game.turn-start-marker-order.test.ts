@@ -550,6 +550,127 @@ describe('turn-start marker ordering', () => {
     expect(cardState.markers.some((marker: any) => marker && marker.data && marker.data.type === 'GUARD')).toBe(false);
   });
 
+  test('applies seed generated flips inside the seed anchor before the next anchor', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'dragon-A',
+        markerId: 'dragon-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'seed-B',
+        markerId: 'seed-B',
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'SEED', remainingOwnerTurns: 1 }
+      },
+      {
+        id: 'dragon-C',
+        markerId: 'dragon-C',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 30,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStartBeforeAnchors: jest.fn((_cardState, _playerKey, _gameState, _prng, options) => {
+        if (!(options && options.deferStatusDurationUntilTurnStartMarkers === true)) {
+          order.push('seed-before-anchors');
+        }
+        return null;
+      }),
+      drawForTurnStart: jest.fn(),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((_cardState, _gameState, playerKey, row, col) => {
+        order.push(`dragon:${row},${col}`);
+        return {
+          destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }]
+        };
+      }),
+      processTurnStartStatusMarkerAnchor: jest.fn((_cardState, _gameState, _playerKey, marker) => {
+        if (marker && marker.data && marker.data.type === 'SEED') {
+          order.push(`seed:${marker.row},${marker.col}`);
+          return {
+            processed: true,
+            generatedSpawnFlipResults: [{
+              ownerKey: 'black',
+              cause: 'SEED_WILL',
+              reason: 'seed_sprout',
+              flipped: [{ row: marker.row, col: marker.col + 1, owner: 'black' }]
+            }]
+          };
+        }
+        return { processed: false };
+      }),
+      applyRegenAfterFlips: jest.fn(() => ({ regened: [], captureFlips: [] })),
+      applyLivingWillAfterFlips: jest.fn((_cardState, _gameState, flips) => {
+        const first = Array.isArray(flips) ? flips[0] : null;
+        order.push(`seed-flip-revive:${first ? `${first.row},${first.col}` : 'none'}`);
+        return { restored: [] };
+      }),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual([
+      'dragon:1,1',
+      'seed:2,2',
+      'seed-flip-revive:2,3',
+      'dragon:3,3'
+    ]);
+  });
+
+  test('real CardLogic processes seed duration as a turn-start anchor', () => {
+    const RuntimeCardLogic = require('../game/logic/cards.js');
+    const cardState = createTurnStartCardState([
+      {
+        id: 'seed-anchor',
+        markerId: 'seed-anchor',
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'SEED', remainingOwnerTurns: 1 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+
+    const result = RuntimeCardLogic.processTurnStartStatusMarkerAnchor(
+      cardState,
+      gameState,
+      'black',
+      cardState.markers[0],
+      {}
+    );
+
+    expect(result.processed).toBe(true);
+    expect(cardState.markers.some((marker: any) => marker && marker.data && marker.data.type === 'SEED')).toBe(false);
+    expect(gameState.board[2][2]).toBe(Shared.BLACK);
+  });
+
   test('skips a queued marker that was deleted by an earlier anchor', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([

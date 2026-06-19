@@ -1032,6 +1032,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     });
                 })
                 : undefined;
+            const applyGeneratedSpawnFlipResultsForAnchor = (results: any[]) => {
+                applyGeneratedSpawnFlipResultsTurnStart(
+                    CardLogic,
+                    cardState,
+                    gameState,
+                    events,
+                    results
+                );
+            };
             const processedTurnStartMarkers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.processTurnStartMarkers === 'function')
                 ? TurnStartMarkerPhaseModule.processTurnStartMarkers({
                     CardLogic,
@@ -1045,6 +1054,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     awardBoardChargeGain,
                     flushPostFlipRevivesForAnchor,
                     emitTimerStatusTickForAnchor,
+                    applyGeneratedSpawnFlipResultsForAnchor,
                     debugLog: logTurnPipelinePhasesDebug
                 })
                 : {
