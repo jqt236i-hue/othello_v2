@@ -3951,7 +3951,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 .gacha-rate-row {
     min-height: calc(40px * var(--gacha-reference-scale));
-    grid-template-columns: minmax(calc(210px * var(--gacha-reference-scale)), auto) minmax(calc(140px * var(--gacha-reference-scale)), 1fr) auto;
+    grid-template-columns: minmax(calc(226px * var(--gacha-reference-scale)), auto) minmax(calc(140px * var(--gacha-reference-scale)), 1fr) auto;
     padding: 0 calc(18px * var(--gacha-reference-scale));
 }
 
@@ -4040,7 +4040,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaModal .gacha-rate-rarity {
     position: relative;
-    width: calc(184px * var(--gacha-reference-scale));
+    width: calc(194px * var(--gacha-reference-scale));
     margin-left: calc(-18px * var(--gacha-reference-scale));
     padding-left: calc(34px * var(--gacha-reference-scale));
     clip-path: polygon(
@@ -4090,7 +4090,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 #gachaModal .gacha-rate-probability {
-    padding-left: calc(14px * var(--gacha-reference-scale));
+    padding-left: calc(18px * var(--gacha-reference-scale));
 }
 
 /* Observation gacha fidelity pass: denser ten-pull banner lighting and crystal cluster. */
