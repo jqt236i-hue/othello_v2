@@ -136,7 +136,7 @@ describe('pass fail-safe when no legal moves', () => {
     expect(global.window.isProcessing).toBe(false);
   });
 
-  test('manual pass proceeds when theory placement lock makes normal legal moves unusable', () => {
+  test('manual pass proceeds when placement lock makes normal legal moves unusable', () => {
     global.Core = { getLegalMoves: () => [{ row: 2, col: 3, flips: [[3, 3]] }] };
     global.CardLogic = {
       getCardDef: () => null,

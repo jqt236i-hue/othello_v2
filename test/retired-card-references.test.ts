@@ -32,6 +32,44 @@ describe('retired card source references', () => {
     expect(violations).toEqual([]);
   });
 
+  test('legacy theory auto-end wording does not remain in active docs and focused tests', () => {
+    const retiredTokens = [
+      'theory_auto_end',
+      'theory_incarnation_auto_turn_end',
+      '_theoryIncarnationAutoTurnEndByPlayer',
+      '_theoryIncarnationPendingAutoExpireByPlayer',
+      'finalizeTheoryIncarnationAutoTurnEndExpiration',
+      'consumeTheoryIncarnationAutoTurnEnd',
+      '自ターン開始時に理論数字',
+      'ターン開始時に理論数字',
+      '所有者ターン開始時の出現',
+      'そのままターンを終了する',
+      'カード使用も石配置もできない',
+      'theory placement lock'
+    ];
+    const scanTargets = [
+      '01-rulebook.md',
+      'docs/Card_Strategy_Full_Catalog.md',
+      '正本/カード仕様正本.md',
+      '正本/演出正本.md',
+      '正本/効果音対応表.md',
+      'cards/card-interaction-effects.ts',
+      'test/game.network-turn-handoff.test.ts',
+      'test/ui.pass-stale-busy.test.ts',
+      'test/cpu.turn-handler.programmed-card-policy.test.ts'
+    ];
+
+    const violations = scanTargets.flatMap((relativePath) => {
+      const absolutePath = path.join(repoRoot, relativePath);
+      const text = fs.readFileSync(absolutePath, 'utf8');
+      return retiredTokens
+        .filter((token) => text.includes(token))
+        .map((token) => `${relativePath}: ${token}`);
+    });
+
+    expect(violations).toEqual([]);
+  });
+
   test('hyperactive inherit identifiers do not remain in active source and specs', () => {
     const retiredTokens = [
       'hyperactive_inherit_01',

@@ -236,7 +236,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('CPU turn places normally while 理論の化身 only locks card play', async () => {
+    test('CPU turn places normally while 理論の化身 leaves placement unlocked', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
         global.cpuSmartness = { white: 7, black: 1 };
         global.cardState = {
@@ -261,7 +261,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
             getUsableCardIds: () => ['some_card'],
             hasUsableCard: () => true,
             getCardDef: (id: string) => ({ id }),
-            isPlacementLockedForPlayer: jest.fn(() => true)
+            isPlacementLockedForPlayer: jest.fn(() => false)
         };
         global.generateMovesForPlayer = jest.fn(() => [move]);
         global.selectCpuMoveWithPolicy = jest.fn(() => move);

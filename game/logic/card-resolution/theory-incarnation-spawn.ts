@@ -59,10 +59,6 @@ function getTheorySpawnNumberValue(cardState: any, key: string, cell: any): numb
     return Number.isFinite(sourceCost) && sourceCost > 0 ? Math.floor(sourceCost) : 0;
 }
 
-function awardTheorySpawnCharge(cardState: any, ownerKey: PlayerKey, row: number, col: number, numberValue: number, flipCount: number, deps: any): number {
-    return 0;
-}
-
 function prepareSpawnMarkerData(cardState: any, markerData: any, ownerKey: PlayerKey): any {
     const data = markerData && typeof markerData === 'object' ? { ...markerData } : {};
     const type = String(data.type || '').toUpperCase();
@@ -175,15 +171,8 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         ? boardPlacement.appliedFlips.slice()
         : [];
     const theoryNumberValue = getTheorySpawnNumberValue(cardState, picked.key, picked.cell);
-    const chargeGained = awardTheorySpawnCharge(
-        cardState,
-        ownerKey,
-        Number(picked.cell.row),
-        Number(picked.cell.col),
-        theoryNumberValue,
-        appliedFlips.length,
-        deps
-    );
+    // Theory spawns keep the number value for presentation/tests but never grant charge.
+    const chargeGained = 0;
     const markerKinds = deps && deps.MARKER_KINDS;
     const specialKind = markerKinds && markerKinds.SPECIAL_STONE ? markerKinds.SPECIAL_STONE : 'specialStone';
     const marker = deps.addMarker(cardState, specialKind, picked.cell.row, picked.cell.col, ownerKey, {
@@ -212,7 +201,6 @@ export = {
     isCellAvailableForTheorySpawn,
     markTheoryCellConsumed,
     getTheorySpawnNumberValue,
-    awardTheorySpawnCharge,
     prepareSpawnMarkerData,
     createTheorySpawnRoulettePayload,
     spawnTheorySpecialStone

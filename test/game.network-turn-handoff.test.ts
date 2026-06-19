@@ -65,7 +65,7 @@ describe('network-turn-handoff', () => {
         global.gameState.currentPlayer = 'white';
         return {
           stopAction: true,
-          playbackEvents: [{ type: 'theory_auto_end', phase: 1 }]
+          playbackEvents: [{ type: 'turn_start_auto_end', phase: 1 }]
         };
       }
       return {
@@ -89,7 +89,7 @@ describe('network-turn-handoff', () => {
     expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
       playbackEvents: [
         { type: 'flip', phase: 1 },
-        { type: 'theory_auto_end', phase: 2 },
+        { type: 'turn_start_auto_end', phase: 2 },
         { type: 'white_turn_start', phase: 3 }
       ]
     }));
