@@ -3693,6 +3693,18 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     max-height: calc(100dvh - calc(38px * var(--gacha-reference-scale)));
     border-width: calc(2px * var(--gacha-reference-scale));
     border-radius: calc(6px * var(--gacha-reference-scale));
+    background:
+        linear-gradient(90deg, rgba(111, 249, 246, 0.68), rgba(111, 249, 246, 0.20)) left calc(18px * var(--gacha-reference-scale)) top calc(9px * var(--gacha-reference-scale)) / calc(86px * var(--gacha-reference-scale)) calc(1px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(180deg, rgba(111, 249, 246, 0.68), rgba(111, 249, 246, 0.20)) left calc(9px * var(--gacha-reference-scale)) top calc(18px * var(--gacha-reference-scale)) / calc(1px * var(--gacha-reference-scale)) calc(86px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(270deg, rgba(111, 249, 246, 0.68), rgba(111, 249, 246, 0.20)) right calc(18px * var(--gacha-reference-scale)) top calc(9px * var(--gacha-reference-scale)) / calc(86px * var(--gacha-reference-scale)) calc(1px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(180deg, rgba(111, 249, 246, 0.68), rgba(111, 249, 246, 0.20)) right calc(9px * var(--gacha-reference-scale)) top calc(18px * var(--gacha-reference-scale)) / calc(1px * var(--gacha-reference-scale)) calc(86px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(90deg, rgba(111, 249, 246, 0.20), rgba(111, 249, 246, 0.68)) left calc(18px * var(--gacha-reference-scale)) bottom calc(9px * var(--gacha-reference-scale)) / calc(86px * var(--gacha-reference-scale)) calc(1px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(0deg, rgba(111, 249, 246, 0.68), rgba(111, 249, 246, 0.20)) left calc(9px * var(--gacha-reference-scale)) bottom calc(18px * var(--gacha-reference-scale)) / calc(1px * var(--gacha-reference-scale)) calc(86px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(270deg, rgba(111, 249, 246, 0.20), rgba(111, 249, 246, 0.68)) right calc(18px * var(--gacha-reference-scale)) bottom calc(9px * var(--gacha-reference-scale)) / calc(86px * var(--gacha-reference-scale)) calc(1px * var(--gacha-reference-scale)) no-repeat,
+        linear-gradient(0deg, rgba(111, 249, 246, 0.68), rgba(111, 249, 246, 0.20)) right calc(9px * var(--gacha-reference-scale)) bottom calc(18px * var(--gacha-reference-scale)) / calc(1px * var(--gacha-reference-scale)) calc(86px * var(--gacha-reference-scale)) no-repeat,
+        radial-gradient(42% 34% at 86% 7%, rgba(217, 168, 65, 0.08), transparent 64%),
+        radial-gradient(52% 42% at 47% 28%, rgba(83, 214, 209, 0.14), transparent 70%),
+        linear-gradient(180deg, rgba(8, 26, 30, 0.985), rgba(1, 9, 12, 0.988) 46%, rgba(0, 12, 14, 0.985));
 }
 
 #gachaModalHeader {
