@@ -1197,23 +1197,33 @@ function buildPresencePayload(room: any, meta: any) {
     const serverTime = Date.now();
     const seatKey = meta && meta.seatKey ? normalizePlayerKey(meta.seatKey) : 'black';
     const publicSeatState = buildPublicSeatState(room);
-    return MatchAuthority.buildPresencePayloadFromRoom(room, {
-        type: meta && meta.type ? String(meta.type) : 'join',
+    const metaRecord = meta && typeof meta === 'object' ? meta : {};
+    const payloadOptions: Record<string, unknown> = {
+        type: metaRecord && metaRecord.type ? String(metaRecord.type) : 'join',
         seatKey,
         playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
-        rejoined: !!(meta && meta.rejoined),
-        spectatorId: meta && meta.spectatorId,
-        spectatorName: meta && meta.spectatorName,
-        spectatorCount: meta && meta.spectatorCount,
-        maxSpectators: meta && meta.maxSpectators,
-        requestId: meta && meta.requestId ? String(meta.requestId) : '',
-        accepted: !!(meta && meta.accepted),
+        rejoined: !!(metaRecord && metaRecord.rejoined),
+        requestId: metaRecord && metaRecord.requestId ? String(metaRecord.requestId) : '',
+        accepted: !!(metaRecord && metaRecord.accepted),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
-    });
+    };
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorId')) {
+        payloadOptions.spectatorId = metaRecord.spectatorId;
+    }
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorName')) {
+        payloadOptions.spectatorName = metaRecord.spectatorName;
+    }
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorCount')) {
+        payloadOptions.spectatorCount = metaRecord.spectatorCount;
+    }
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'maxSpectators')) {
+        payloadOptions.maxSpectators = metaRecord.maxSpectators;
+    }
+    return MatchAuthority.buildPresencePayloadFromRoom(room, payloadOptions);
 }
 
 function broadcastSnapshot(room: any, meta: any) {

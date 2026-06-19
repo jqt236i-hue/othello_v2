@@ -130,4 +130,26 @@ describe('match authority spectator helpers', () => {
       spectatorName: '観戦通知'
     }));
   });
+
+  test('seat presence payload does not include spectator identity fields', () => {
+    const room = createRoom();
+
+    const payload = MatchAuthority.buildPresencePayloadFromRoom(room, {
+      type: 'join',
+      seatKey: 'white',
+      playerName: '白主',
+      serverTime: 2600
+    });
+
+    expect(payload).toEqual(expect.objectContaining({
+      ok: true,
+      type: 'join',
+      seatKey: 'white',
+      playerName: '白主'
+    }));
+    expect(payload).not.toHaveProperty('spectatorId');
+    expect(payload).not.toHaveProperty('spectatorName');
+    expect(payload).not.toHaveProperty('spectatorCount');
+    expect(payload).not.toHaveProperty('maxSpectators');
+  });
 });

@@ -1085,7 +1085,7 @@ function buildPresencePayloadFromRoom(
 ): MatchAuthorityRoomPayload {
     const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
     const opts: MatchAuthorityPresencePayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
-    return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
+    const payloadOptions: MatchAuthorityPresencePayloadFromRoomOptions = {
         ok: true,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
@@ -1094,12 +1094,21 @@ function buildPresencePayloadFromRoom(
         seatKey: opts.seatKey,
         playerName: opts.playerName,
         rejoined: opts.rejoined,
-        spectatorId: opts.spectatorId,
-        spectatorName: opts.spectatorName,
-        spectatorCount: opts.spectatorCount,
-        maxSpectators: opts.maxSpectators,
         serverTime: opts.serverTime
-    }, opts));
+    };
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorId')) {
+        payloadOptions.spectatorId = opts.spectatorId;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorName')) {
+        payloadOptions.spectatorName = opts.spectatorName;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'spectatorCount')) {
+        payloadOptions.spectatorCount = opts.spectatorCount;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'maxSpectators')) {
+        payloadOptions.maxSpectators = opts.maxSpectators;
+    }
+    return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig(payloadOptions, opts));
 }
 
 function buildHeartbeatPayloadFromRoom(

@@ -1873,15 +1873,11 @@ function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPrese
     const metaRecord = asRecord(meta);
     const seatKey = metaRecord.seatKey ? normalizePlayerKey(metaRecord.seatKey) : 'black';
     const publicSeatState = buildPublicSeatState(room);
-    return MatchAuthority.buildPresencePayloadFromRoom(room, {
+    const payloadOptions: Record<string, unknown> = {
         type: metaRecord.type ? String(metaRecord.type) : 'join',
         seatKey,
         playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
         rejoined: !!metaRecord.rejoined,
-        spectatorId: metaRecord.spectatorId,
-        spectatorName: metaRecord.spectatorName,
-        spectatorCount: metaRecord.spectatorCount,
-        maxSpectators: metaRecord.maxSpectators,
         requestId: metaRecord.requestId ? String(metaRecord.requestId) : '',
         accepted: metaRecord.accepted === true,
         roomDeck: toPublicRoomDeck(room),
@@ -1889,7 +1885,20 @@ function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPrese
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
-    });
+    };
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorId')) {
+        payloadOptions.spectatorId = metaRecord.spectatorId;
+    }
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorName')) {
+        payloadOptions.spectatorName = metaRecord.spectatorName;
+    }
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorCount')) {
+        payloadOptions.spectatorCount = metaRecord.spectatorCount;
+    }
+    if (Object.prototype.hasOwnProperty.call(metaRecord, 'maxSpectators')) {
+        payloadOptions.maxSpectators = metaRecord.maxSpectators;
+    }
+    return MatchAuthority.buildPresencePayloadFromRoom(room, payloadOptions);
 }
 
 function buildHeartbeatPayload(room: MatchWorkerRoomState, serverTime: unknown): Record<string, unknown> {
