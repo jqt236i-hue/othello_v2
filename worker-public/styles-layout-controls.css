@@ -488,6 +488,83 @@
     word-break: break-word;
 }
 
+/* Temporary startup maintenance notice. Toggle data-maintenance-notice-enabled on #maintenanceNotice. */
+#maintenanceNotice {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: calc(18px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.66);
+    z-index: var(--z-modal-maintenance);
+}
+
+#maintenanceNotice.is-open {
+    display: flex;
+}
+
+#maintenanceNotice[data-maintenance-notice-enabled="false"] {
+    display: none !important;
+}
+
+#maintenanceNoticeDialog {
+    width: min(calc(440px * var(--layout-stage-scale)), calc(100vw - calc(36px * var(--layout-stage-scale))));
+    box-sizing: border-box;
+    padding: calc(22px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 132, 0.34);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(48, 37, 26, 0.98), rgba(15, 16, 16, 0.98));
+    box-shadow:
+        0 calc(24px * var(--layout-stage-scale)) calc(58px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72),
+        inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.50);
+    color: #f3ead8;
+    text-align: center;
+}
+
+.maintenance-notice-title {
+    margin: 0;
+    color: #ffe7a8;
+    font-size: max(18px, calc(22px * var(--layout-stage-scale)));
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.maintenance-notice-message {
+    margin: calc(12px * var(--layout-stage-scale)) 0 0;
+    color: rgba(243, 234, 216, 0.90);
+    font-size: max(14px, calc(15px * var(--layout-stage-scale)));
+    font-weight: 700;
+    line-height: 1.65;
+}
+
+#maintenanceNoticeCloseBtn {
+    min-width: calc(112px * var(--layout-stage-scale));
+    min-height: calc(36px * var(--layout-stage-scale));
+    margin-top: calc(18px * var(--layout-stage-scale));
+    padding: calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.72);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(242, 201, 95, 0.30), rgba(242, 201, 95, 0.08) 48%),
+        linear-gradient(180deg, rgba(40, 37, 34, 0.98), rgba(17, 18, 18, 0.98));
+    color: #fff6d2;
+    font-family: inherit;
+    font-size: max(14px, calc(14px * var(--layout-stage-scale)));
+    font-weight: 900;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+#maintenanceNoticeCloseBtn:hover,
+#maintenanceNoticeCloseBtn:focus-visible {
+    border-color: #ffe7a8;
+    outline: none;
+    filter: brightness(1.08);
+}
+
 #networkOverlay {
     position: fixed;
     inset: 0;

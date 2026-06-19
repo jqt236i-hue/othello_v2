@@ -9,11 +9,17 @@ type EmitTurnStartTimerStatusTicksOptions = TurnStartTimerPhaseMarkerSourceOptio
     CardLogic: any;
     cardState: any;
     timerSnapshot: Map<string, any>;
+    emittedTimerTickKeys?: Set<string>;
+};
+
+type EmitTurnStartTimerStatusTickForMarkerOptions = EmitTurnStartTimerStatusTicksOptions & {
+    marker: any;
 };
 
 function buildTurnStartTimerMarkerKey(marker: any): string {
-    return (marker && marker.id !== undefined && marker.id !== null)
-        ? `${marker.kind}:${marker.id}`
+    const markerId = marker && (marker.markerId ?? marker.id);
+    return (markerId !== undefined && markerId !== null)
+        ? `${marker.kind}:${markerId}`
         : `${marker && marker.kind}:${marker && marker.row},${marker && marker.col}:${marker && marker.owner}:${(marker && marker.createdSeq) || 0}`;
 }
 
@@ -26,85 +32,90 @@ function readTurnStartTimerPhaseMarkers(cardState: any, options: TurnStartTimerP
     return Array.isArray(markers) ? markers : [];
 }
 
+function readTurnStartTimerEntry(marker: any, options: TurnStartTimerPhaseMarkerSourceOptions): any | null {
+    const opts = (options && typeof options === 'object') ? options : ({} as TurnStartTimerPhaseMarkerSourceOptions);
+    if (!marker || !marker.data) return null;
+    if (typeof opts.isBombCategoryMarker === 'function' && opts.isBombCategoryMarker(marker)) {
+        if (typeof marker.data.remainingTurns !== 'number') return null;
+        return {
+            timer: marker.data.remainingTurns,
+            special: 'TIME_BOMB',
+            owner: marker.owner,
+            row: marker.row,
+            col: marker.col,
+            kind: marker.kind
+        };
+    }
+    const specialStoneKind = opts.specialStoneKind || 'specialStone';
+    if (marker.kind !== specialStoneKind) return null;
+    if (typeof opts.resolveSpecialStatusTimer !== 'function') return null;
+    const timerValue = opts.resolveSpecialStatusTimer(marker.data);
+    if (timerValue === undefined) return null;
+    return {
+        timer: timerValue,
+        special: marker.data.type || null,
+        owner: marker.owner,
+        row: marker.row,
+        col: marker.col,
+        kind: marker.kind
+    };
+}
+
 function snapshotTurnStartTimers(cardState: any, options: TurnStartTimerPhaseMarkerSourceOptions): Map<string, any> {
     const opts = (options && typeof options === 'object') ? options : ({} as TurnStartTimerPhaseMarkerSourceOptions);
     const timerSnapshot = new Map();
-    const specialStoneKind = opts.specialStoneKind || 'specialStone';
     try {
         const sourceMarkers = readTurnStartTimerPhaseMarkers(cardState, opts);
         for (let index = 0; index < sourceMarkers.length; index += 1) {
             const marker = sourceMarkers[index];
-            if (!marker || !marker.data) continue;
+            const timerEntry = readTurnStartTimerEntry(marker, opts);
+            if (!timerEntry) continue;
             const key = buildTurnStartTimerMarkerKey(marker);
-            if (opts.isBombCategoryMarker(marker)) {
-                if (typeof marker.data.remainingTurns === 'number') {
-                    timerSnapshot.set(key, {
-                        timer: marker.data.remainingTurns,
-                        special: 'TIME_BOMB',
-                        owner: marker.owner,
-                        row: marker.row,
-                        col: marker.col,
-                        kind: marker.kind
-                    });
-                }
-                continue;
-            }
-            if (marker.kind !== specialStoneKind) continue;
-            const timerValue = opts.resolveSpecialStatusTimer(marker.data);
-            if (timerValue === undefined) continue;
-            timerSnapshot.set(key, {
-                timer: timerValue,
-                special: marker.data.type || null,
-                owner: marker.owner,
-                row: marker.row,
-                col: marker.col,
-                kind: marker.kind
-            });
+            timerSnapshot.set(key, timerEntry);
         }
     } catch (e) { /* ignore snapshot failures */ }
     return timerSnapshot;
 }
 
+function emitTurnStartTimerStatusTickForMarker(options: EmitTurnStartTimerStatusTickForMarkerOptions): void {
+    const opts = (options && typeof options === 'object') ? options : ({} as EmitTurnStartTimerStatusTickForMarkerOptions);
+    if (!opts.CardLogic || typeof opts.CardLogic.emitPresentationEvent !== 'function') return;
+    try {
+        const marker = opts.marker;
+        const key = buildTurnStartTimerMarkerKey(marker);
+        if (opts.emittedTimerTickKeys && opts.emittedTimerTickKeys.has(key)) return;
+        const timerEntry = readTurnStartTimerEntry(marker, opts);
+        if (!timerEntry) return;
+        const before = opts.timerSnapshot.get(key);
+        if (!before || before.timer !== timerEntry.timer) {
+            opts.CardLogic.emitPresentationEvent(opts.cardState, {
+                type: 'STATUS_TICK',
+                row: timerEntry.row,
+                col: timerEntry.col,
+                meta: { special: timerEntry.special, timer: timerEntry.timer, owner: timerEntry.owner }
+            });
+            if (opts.emittedTimerTickKeys) {
+                opts.emittedTimerTickKeys.add(key);
+            }
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function emitTurnStartTimerStatusTicks(options: EmitTurnStartTimerStatusTicksOptions): void {
     const opts = (options && typeof options === 'object') ? options : ({} as EmitTurnStartTimerStatusTicksOptions);
-    const specialStoneKind = opts.specialStoneKind || 'specialStone';
     if (!opts.CardLogic || typeof opts.CardLogic.emitPresentationEvent !== 'function') return;
     try {
         const afterMarkers = readTurnStartTimerPhaseMarkers(opts.cardState, opts);
         for (let index = 0; index < afterMarkers.length; index += 1) {
             const marker = afterMarkers[index];
-            if (!marker || !marker.data) continue;
-            const key = buildTurnStartTimerMarkerKey(marker);
-            const before = opts.timerSnapshot.get(key);
-            if (opts.isBombCategoryMarker(marker)) {
-                if (typeof marker.data.remainingTurns !== 'number') continue;
-                if (!before || before.timer !== marker.data.remainingTurns) {
-                    opts.CardLogic.emitPresentationEvent(opts.cardState, {
-                        type: 'STATUS_TICK',
-                        row: marker.row,
-                        col: marker.col,
-                        meta: { special: 'TIME_BOMB', timer: marker.data.remainingTurns, owner: marker.owner }
-                    });
-                }
-                continue;
-            }
-            if (marker.kind !== specialStoneKind) continue;
-            const timerValue = opts.resolveSpecialStatusTimer(marker.data);
-            if (timerValue === undefined) continue;
-            if (!before || before.timer !== timerValue) {
-                opts.CardLogic.emitPresentationEvent(opts.cardState, {
-                    type: 'STATUS_TICK',
-                    row: marker.row,
-                    col: marker.col,
-                    meta: { special: marker.data.type || null, timer: timerValue, owner: marker.owner }
-                });
-            }
+            emitTurnStartTimerStatusTickForMarker(Object.assign({}, opts, { marker }));
         }
     } catch (e) { /* ignore */ }
 }
 
 const TurnStartTimerPhaseModule = {
     snapshotTurnStartTimers,
+    emitTurnStartTimerStatusTickForMarker,
     emitTurnStartTimerStatusTicks
 };
 

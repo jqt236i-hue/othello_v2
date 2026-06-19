@@ -905,6 +905,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
                 })
                 : new Map();
+            const turnStartTimerTickEmittedKeys = new Set<string>();
 
             const othelloMode = isOthelloModeForTurnPipelinePhases();
             const turnStartMarkerAnchors = (!othelloMode && TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors === 'function')
@@ -1013,6 +1014,23 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     });
                 })
                 : undefined;
+            const emitTimerStatusTickForAnchor = (TurnStartTimerPhaseModule && typeof TurnStartTimerPhaseModule.emitTurnStartTimerStatusTickForMarker === 'function')
+                ? ((marker: any) => {
+                    TurnStartTimerPhaseModule.emitTurnStartTimerStatusTickForMarker({
+                        CardLogic,
+                        cardState,
+                        timerSnapshot,
+                        marker,
+                        emittedTimerTickKeys: turnStartTimerTickEmittedKeys,
+                        getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
+                            ? MarkersAdapter.getMarkers(nextCardState)
+                            : (nextCardState.markers || []),
+                        isBombCategoryMarker,
+                        resolveSpecialStatusTimer,
+                        specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
+                    });
+                })
+                : undefined;
             const processedTurnStartMarkers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.processTurnStartMarkers === 'function')
                 ? TurnStartMarkerPhaseModule.processTurnStartMarkers({
                     CardLogic,
@@ -1025,6 +1043,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     isFrozenCell,
                     awardBoardChargeGain,
                     flushPostFlipRevivesForAnchor,
+                    emitTimerStatusTickForAnchor,
                     debugLog: logTurnPipelinePhasesDebug
                 })
                 : {
@@ -1075,6 +1094,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     CardLogic,
                     cardState,
                     timerSnapshot,
+                    emittedTimerTickKeys: turnStartTimerTickEmittedKeys,
                     getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
                         ? MarkersAdapter.getMarkers(nextCardState)
                         : (nextCardState.markers || []),

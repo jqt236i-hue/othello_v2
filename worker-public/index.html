@@ -50,6 +50,38 @@
 </head>
 
 <body>
+    <!-- Temporary maintenance notice: set data-maintenance-notice-enabled="false" to hide it. -->
+    <div id="maintenanceNotice" class="is-open" data-maintenance-notice-enabled="true" aria-hidden="false">
+        <div id="maintenanceNoticeDialog" role="dialog" aria-modal="true" aria-labelledby="maintenanceNoticeTitle" aria-describedby="maintenanceNoticeMessage">
+            <p id="maintenanceNoticeTitle" class="maintenance-notice-title">メンテナンス中です。</p>
+            <p id="maintenanceNoticeMessage" class="maintenance-notice-message">ゲームが正常にプレイできない可能性があります。</p>
+            <button id="maintenanceNoticeCloseBtn" type="button">閉じる</button>
+        </div>
+    </div>
+    <script id="maintenanceNoticeScript">
+        (() => {
+            const notice = document.getElementById('maintenanceNotice');
+            if (!notice) return;
+            const closeButton = document.getElementById('maintenanceNoticeCloseBtn');
+            const enabled = notice.getAttribute('data-maintenance-notice-enabled') === 'true';
+            const closeNotice = () => {
+                notice.classList.remove('is-open');
+                notice.setAttribute('aria-hidden', 'true');
+            };
+            if (!enabled) {
+                closeNotice();
+                return;
+            }
+            if (closeButton) {
+                closeButton.addEventListener('click', closeNotice);
+                try { closeButton.focus({ preventScroll: true }); } catch { closeButton.focus(); }
+            }
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && notice.classList.contains('is-open')) closeNotice();
+            });
+        })();
+    </script>
+
     <!-- Top-Left Info Panel -->
     <div id="info-panel">
         <h1 class="brand-wordmark" aria-label="Card Reversi">

@@ -79,6 +79,7 @@
     --z-floating-control: 13025;
     --z-floating-overlay-control: 13026;
     --z-modal-result: 13030;
+    --z-modal-maintenance: 26000;
 
     /* Shared surfaces and motion */
     --surface-overlay: rgba(0, 0, 0, 0.56);

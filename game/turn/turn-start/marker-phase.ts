@@ -54,6 +54,7 @@ type ProcessTurnStartMarkersOptions = {
     isFrozenCell: (cardState: any, row: any, col: any) => boolean;
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
     flushPostFlipRevivesForAnchor?: (flippedByOwner: Record<string, any[]>) => void;
+    emitTimerStatusTickForAnchor?: (marker: any) => void;
     debugLog?: (...args: any[]) => void;
 };
 
@@ -131,6 +132,13 @@ function removeFlippedByOwnerDeltaFromAggregate(processingState: any, beforeCoun
     }
 }
 
+function emitTimerStatusTickForCurrentAnchor(options: ProcessTurnStartMarkersOptions, anchor: TurnStartMarkerAnchor): void {
+    if (!options || typeof options.emitTimerStatusTickForAnchor !== 'function') return;
+    const markerAfterAnchor = resolveSameCanonicalMarker(anchor, options.cardState);
+    if (!markerAfterAnchor) return;
+    options.emitTimerStatusTickForAnchor(markerAfterAnchor);
+}
+
 function collectTurnStartMarkerAnchors(cardState: any, options: CollectTurnStartMarkerAnchorsOptions): TurnStartMarkerAnchor[] {
     const opts = (options && typeof options === 'object') ? options : ({} as CollectTurnStartMarkerAnchorsOptions);
     const getMarkers = typeof opts.getMarkers === 'function'
@@ -172,6 +180,7 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
                 markerAnchor: currentMarkerAnchor,
                 isFrozenCell: opts.isFrozenCell
             });
+            emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
             continue;
         }
         const flippedCountsBeforeAnchor = snapshotFlippedByOwnerCounts(processingState);
@@ -195,6 +204,7 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
                 removeFlippedByOwnerDeltaFromAggregate(processingState, flippedCountsBeforeAnchor);
             }
         }
+        emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
     }
 
     return processingState;

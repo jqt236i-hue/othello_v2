@@ -393,6 +393,65 @@ describe('turn-start marker ordering', () => {
     expect(fakeCardLogic.applyLivingWillAfterFlips).toHaveBeenCalledTimes(2);
   });
 
+  test('emits status timer ticks inside each anchor lifecycle before the next anchor', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'hyper-A',
+        markerId: 'hyper-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'HYPERACTIVE', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'hyper-B',
+        markerId: 'hyper-B',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'HYPERACTIVE', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStart: jest.fn(() => null),
+      processHyperactiveMoveAtAnchor: jest.fn((nextCardState, _gameState, _owner, row, col) => {
+        order.push(`anchor:${row},${col}`);
+        const marker = nextCardState.markers.find((entry: any) => entry.row === row && entry.col === col);
+        marker.data.remainingOwnerTurns -= 1;
+        return { moved: [], destroyed: [], flipped: [] };
+      }),
+      clearHyperactiveAtPositions: jest.fn(),
+      emitPresentationEvent: jest.fn((nextCardState, event) => {
+        order.push(`tick:${event.row},${event.col}:${event.meta.timer}`);
+        nextCardState.presentationEvents.push(event);
+      })
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual([
+      'anchor:1,1',
+      'tick:1,1:2',
+      'anchor:3,3',
+      'tick:3,3:2'
+    ]);
+  });
+
   test('skips a queued marker that was deleted by an earlier anchor', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([
