@@ -2,6 +2,7 @@ import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 import * as Core from '../game/logic/core.js';
+import * as BoardOps from '../game/logic/board_ops.js';
 
 function createPrng() {
   return {
@@ -791,6 +792,60 @@ describe('turn-start marker ordering', () => {
     expect(cardState.markers.map((marker: any) => marker.markerId)).toContain('replacement-C');
   });
 
+  test('skips a queued marker if its broad start category changed before its slot', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'anchor-A',
+        markerId: 'anchor-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'anchor-B',
+        markerId: 'anchor-B',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const processedSources: string[] = [];
+    const fakeCardLogic = {
+      onTurnStart: jest.fn(() => null),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((nextCardState, _gameState, playerKey, row, col) => {
+        processedSources.push(`${row},${col}`);
+        if (row === 1 && col === 1) {
+          const nextMarker = nextCardState.markers.find((marker: any) => marker.markerId === 'anchor-B');
+          nextMarker.data = { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1 };
+        }
+        return { destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }] };
+      }),
+      tickBombAt: jest.fn(() => ({ exploded: [{ row: 3, col: 3, owner: 'black' }] })),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(processedSources).toEqual(['1,1']);
+    expect(fakeCardLogic.tickBombAt).not.toHaveBeenCalled();
+  });
+
   test('uses canonical source order when createdSeq is missing or tied', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([
@@ -847,6 +902,81 @@ describe('turn-start marker ordering', () => {
     );
 
     expect(processedSources).toEqual(['first-source', 'second-source', 'third-source']);
+  });
+
+  test('tags turn-start anchor presentation events with deterministic action metadata', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'anchor-A',
+        markerId: 'anchor-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'anchor-B',
+        markerId: 'anchor-B',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      }
+    ]);
+    cardState.turnIndex = 7;
+    const gameState = createEmptyGameState();
+    const fakeCardLogic = {
+      onTurnStart: jest.fn(() => null),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((nextCardState, _gameState, playerKey, row, col) => {
+        BoardOps.emitPresentationEvent(nextCardState, {
+          type: 'ANCHOR_TEST',
+          row,
+          col,
+          player: playerKey,
+          meta: { order: `${row},${col}` }
+        });
+        if (row === 1 && col === 1) {
+          BoardOps.emitPresentationEvent(nextCardState, {
+            type: 'ANCHOR_TEST',
+            row,
+            col: col + 1,
+            player: playerKey,
+            meta: { order: `${row},${col + 1}` }
+          });
+        }
+        return { destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }] };
+      }),
+      emitPresentationEvent: BoardOps.emitPresentationEvent
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng,
+      BoardOps
+    );
+
+    const anchorEvents = cardState.presentationEvents.filter((event: any) => event.type === 'ANCHOR_TEST');
+    expect(anchorEvents.map((event: any) => event.actionId)).toEqual([
+      'turn-start:7:anchor:0:anchor-A',
+      'turn-start:7:anchor:0:anchor-A',
+      'turn-start:7:anchor:1:anchor-B'
+    ]);
+    expect(anchorEvents.map((event: any) => event.effectBlockId)).toEqual([
+      'turn-start:7:anchor:0:anchor-A:effect:destroy_dragon',
+      'turn-start:7:anchor:0:anchor-A:effect:destroy_dragon',
+      'turn-start:7:anchor:1:anchor-B:effect:destroy_dragon'
+    ]);
+    expect(anchorEvents.map((event: any) => event.sequenceIndex)).toEqual([0, 1, 2]);
   });
 
   test('does not interleave another anchor inside ultimate hyperactive processing', () => {

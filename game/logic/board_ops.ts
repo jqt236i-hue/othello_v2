@@ -1573,6 +1573,20 @@ function _populateSpecialVisualMeta(cardState: any, row: number, col: number, me
     return metaOut;
 }
 
+function setPresentationSequenceIndex(cardState: any, value: number): void {
+    if (!cardState || typeof cardState !== 'object') return;
+    try {
+        Object.defineProperty(cardState, '_nextPresentationSequenceIndex', {
+            value,
+            writable: true,
+            configurable: true,
+            enumerable: false
+        });
+    } catch (e) {
+        cardState._nextPresentationSequenceIndex = value;
+    }
+}
+
 function emitPresentationEvent(cardState: any, ev: any): void {
     _ensureCardState(cardState);
     const metaSource = cardState._currentActionMeta || {};
@@ -1583,6 +1597,19 @@ function emitPresentationEvent(cardState: any, ev: any): void {
     const effectBlockId = (ev.effectBlockId !== undefined && ev.effectBlockId !== null) ? ev.effectBlockId : (metaEffectBlockId || metaSource.effectBlockId || null);
     const turnIndex = (ev.turnIndex !== undefined && ev.turnIndex !== null) ? ev.turnIndex : (typeof metaSource.turnIndex === 'number' ? metaSource.turnIndex : (cardState.turnIndex || 0));
     const plyIndex = (ev.plyIndex !== undefined && ev.plyIndex !== null) ? ev.plyIndex : (typeof metaSource.plyIndex === 'number' ? metaSource.plyIndex : null);
+    if (!Number.isFinite(Number(cardState._nextPresentationSequenceIndex))) {
+        setPresentationSequenceIndex(
+            cardState,
+            Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0
+        );
+    }
+    const nextSequenceIndex = Number(cardState._nextPresentationSequenceIndex);
+    const sequenceIndex = (ev.sequenceIndex !== undefined && ev.sequenceIndex !== null)
+        ? ev.sequenceIndex
+        : nextSequenceIndex;
+    if (ev.sequenceIndex === undefined || ev.sequenceIndex === null) {
+        setPresentationSequenceIndex(cardState, nextSequenceIndex + 1);
+    }
 
     const outMeta = (ev.meta && typeof ev.meta === 'object') ? Object.assign({}, ev.meta) : ev.meta;
     if (effectBlockId && outMeta && typeof outMeta === 'object' && outMeta.effectBlockId === undefined) {
@@ -1591,7 +1618,7 @@ function emitPresentationEvent(cardState: any, ev: any): void {
     if (metaSource.effectKind && outMeta && typeof outMeta === 'object' && outMeta.effectKind === undefined) {
         outMeta.effectKind = metaSource.effectKind;
     }
-    const out = Object.assign({}, ev, { meta: outMeta, actionId, effectBlockId, turnIndex, plyIndex });
+    const out = Object.assign({}, ev, { meta: outMeta, actionId, effectBlockId, turnIndex, plyIndex, sequenceIndex });
     cardState.presentationEvents.push(out);
     if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
     cardState._presentationEventsPersist.push(out);

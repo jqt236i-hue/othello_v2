@@ -842,7 +842,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         );
     }
 
-    function applyTurnStartPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any, prng: any) {
+    function applyTurnStartPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any, prng: any, BoardOps?: any) {
         const p = prng || undefined;
 
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
@@ -1044,12 +1044,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const processedTurnStartMarkers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.processTurnStartMarkers === 'function')
                 ? TurnStartMarkerPhaseModule.processTurnStartMarkers({
                     CardLogic,
+                    BoardOps,
                     cardState,
                     gameState,
                     playerKey,
                     events,
                     prng: p,
                     markers: turnStartMarkerAnchors,
+                    isBombCategoryMarker,
                     isFrozenCell,
                     awardBoardChargeGain,
                     flushPostFlipRevivesForAnchor,

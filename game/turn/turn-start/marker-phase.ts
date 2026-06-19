@@ -45,12 +45,14 @@ type CollectTurnStartMarkerAnchorsOptions = {
 
 type ProcessTurnStartMarkersOptions = {
     CardLogic: any;
+    BoardOps?: any;
     cardState: any;
     gameState: any;
     playerKey: any;
     events: any[];
     prng: any;
     markers: TurnStartMarkerAnchor[];
+    isBombCategoryMarker?: (marker: any) => boolean;
     isFrozenCell: (cardState: any, row: any, col: any) => boolean;
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
     flushPostFlipRevivesForAnchor?: (flippedByOwner: Record<string, any[]>) => void;
@@ -81,6 +83,17 @@ function compareTurnStartAnchors(a: TurnStartMarkerAnchor, b: TurnStartMarkerAnc
     if (aId < bId) return -1;
     if (aId > bId) return 1;
     return 0;
+}
+
+function buildTurnStartActionId(turnIndex: any, queueIndex: number, anchor: TurnStartMarkerAnchor): string {
+    const normalizedTurnIndex = Number.isFinite(Number(turnIndex)) ? Math.trunc(Number(turnIndex)) : 0;
+    const idPart = anchor && anchor.markerId ? String(anchor.markerId) : `source-${anchor && Number.isFinite(Number(anchor.sourceIndex)) ? Math.trunc(Number(anchor.sourceIndex)) : queueIndex}`;
+    return `turn-start:${normalizedTurnIndex}:anchor:${queueIndex}:${idPart}`;
+}
+
+function buildTurnStartEffectBlockId(actionId: string, kind: string): string {
+    const normalizedKind = String(kind || 'effect').trim().toLowerCase() || 'effect';
+    return `${actionId}:effect:${normalizedKind}`;
 }
 
 function getCurrentMarkers(cardState: any): any[] {
@@ -133,6 +146,44 @@ function removeFlippedByOwnerDeltaFromAggregate(processingState: any, beforeCoun
     }
 }
 
+function readCurrentActionMeta(cardState: any): { hasValue: boolean; value: any } {
+    if (!cardState || typeof cardState !== 'object') return { hasValue: false, value: undefined };
+    return {
+        hasValue: Object.prototype.hasOwnProperty.call(cardState, '_currentActionMeta'),
+        value: cardState._currentActionMeta
+    };
+}
+
+function setActionContextForAnchor(options: ProcessTurnStartMarkersOptions, actionMeta: any): void {
+    if (options.BoardOps && typeof options.BoardOps.setActionContext === 'function') {
+        options.BoardOps.setActionContext(options.cardState, actionMeta);
+        return;
+    }
+    if (options.cardState && typeof options.cardState === 'object') {
+        options.cardState._currentActionMeta = actionMeta;
+    }
+}
+
+function restoreActionContextForAnchor(options: ProcessTurnStartMarkersOptions, previous: { hasValue: boolean; value: any }): void {
+    if (previous && previous.hasValue) {
+        if (options.BoardOps && typeof options.BoardOps.setActionContext === 'function') {
+            options.BoardOps.setActionContext(options.cardState, previous.value);
+            return;
+        }
+        if (options.cardState && typeof options.cardState === 'object') {
+            options.cardState._currentActionMeta = previous.value;
+        }
+        return;
+    }
+    if (options.BoardOps && typeof options.BoardOps.clearActionContext === 'function') {
+        options.BoardOps.clearActionContext(options.cardState);
+        return;
+    }
+    if (options.cardState && typeof options.cardState === 'object') {
+        delete options.cardState._currentActionMeta;
+    }
+}
+
 function emitTimerStatusTickForCurrentAnchor(options: ProcessTurnStartMarkersOptions, anchor: TurnStartMarkerAnchor): void {
     if (!options || typeof options.emitTimerStatusTickForAnchor !== 'function') return;
     const markerAfterAnchor = resolveSameCanonicalMarker(anchor, options.cardState);
@@ -170,43 +221,64 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
         if (!markerAnchor) continue;
         const currentMarker = resolveSameCanonicalMarker(markerAnchor, opts.cardState);
         if (!currentMarker) continue;
+        if (typeof opts.isBombCategoryMarker === 'function') {
+            const currentIsBomb = opts.isBombCategoryMarker(currentMarker);
+            if (markerAnchor.isBomb !== currentIsBomb) continue;
+        }
         const currentMarkerAnchor = Object.assign({}, markerAnchor, { marker: currentMarker });
-        if (markerAnchor.isBomb) {
-            TurnStartBombPhaseModule.processTurnStartBombMarker({
+        const turnIndex = opts.cardState && Number.isFinite(Number(opts.cardState.turnIndex))
+            ? Math.trunc(Number(opts.cardState.turnIndex))
+            : (opts.gameState && Number.isFinite(Number(opts.gameState.turnNumber)) ? Math.trunc(Number(opts.gameState.turnNumber)) : 0);
+        const actionId = buildTurnStartActionId(turnIndex, index, currentMarkerAnchor);
+        const effectKind = markerAnchor.isBomb ? 'bomb' : (currentMarkerAnchor.startType || 'special');
+        const previousActionMeta = readCurrentActionMeta(opts.cardState);
+        setActionContextForAnchor(opts, {
+            actionId,
+            effectBlockId: buildTurnStartEffectBlockId(actionId, effectKind),
+            turnIndex,
+            plyIndex: 0,
+            randomSource: opts.prng || null
+        });
+        try {
+            if (markerAnchor.isBomb) {
+                TurnStartBombPhaseModule.processTurnStartBombMarker({
+                    CardLogic: opts.CardLogic,
+                    cardState: opts.cardState,
+                    gameState: opts.gameState,
+                    playerKey: opts.playerKey,
+                    events: opts.events,
+                    markerAnchor: currentMarkerAnchor,
+                    isFrozenCell: opts.isFrozenCell
+                });
+                emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
+                continue;
+            }
+            const flippedCountsBeforeAnchor = snapshotFlippedByOwnerCounts(processingState);
+            TurnStartSpecialStonePhaseModule.processTurnStartSpecialStone({
                 CardLogic: opts.CardLogic,
                 cardState: opts.cardState,
                 gameState: opts.gameState,
                 playerKey: opts.playerKey,
                 events: opts.events,
+                prng: opts.prng,
                 markerAnchor: currentMarkerAnchor,
-                isFrozenCell: opts.isFrozenCell
+                isFrozenCell: opts.isFrozenCell,
+                awardBoardChargeGain: opts.awardBoardChargeGain,
+                applyGeneratedSpawnFlipResultsForAnchor: opts.applyGeneratedSpawnFlipResultsForAnchor,
+                debugLog: opts.debugLog,
+                processingState
             });
-            emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
-            continue;
-        }
-        const flippedCountsBeforeAnchor = snapshotFlippedByOwnerCounts(processingState);
-        TurnStartSpecialStonePhaseModule.processTurnStartSpecialStone({
-            CardLogic: opts.CardLogic,
-            cardState: opts.cardState,
-            gameState: opts.gameState,
-            playerKey: opts.playerKey,
-            events: opts.events,
-            prng: opts.prng,
-            markerAnchor: currentMarkerAnchor,
-            isFrozenCell: opts.isFrozenCell,
-            awardBoardChargeGain: opts.awardBoardChargeGain,
-            applyGeneratedSpawnFlipResultsForAnchor: opts.applyGeneratedSpawnFlipResultsForAnchor,
-            debugLog: opts.debugLog,
-            processingState
-        });
-        if (typeof opts.flushPostFlipRevivesForAnchor === 'function') {
-            const flippedByOwnerDelta = collectFlippedByOwnerDelta(processingState, flippedCountsBeforeAnchor);
-            if (hasFlippedByOwnerDelta(flippedByOwnerDelta)) {
-                opts.flushPostFlipRevivesForAnchor(flippedByOwnerDelta);
-                removeFlippedByOwnerDeltaFromAggregate(processingState, flippedCountsBeforeAnchor);
+            if (typeof opts.flushPostFlipRevivesForAnchor === 'function') {
+                const flippedByOwnerDelta = collectFlippedByOwnerDelta(processingState, flippedCountsBeforeAnchor);
+                if (hasFlippedByOwnerDelta(flippedByOwnerDelta)) {
+                    opts.flushPostFlipRevivesForAnchor(flippedByOwnerDelta);
+                    removeFlippedByOwnerDeltaFromAggregate(processingState, flippedCountsBeforeAnchor);
+                }
             }
+            emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
+        } finally {
+            restoreActionContextForAnchor(opts, previousActionMeta);
         }
-        emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
     }
 
     return processingState;
@@ -214,7 +286,9 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
 
 const TurnStartMarkerPhaseModule = {
     collectTurnStartMarkerAnchors,
-    processTurnStartMarkers
+    processTurnStartMarkers,
+    buildTurnStartActionId,
+    buildTurnStartEffectBlockId
 };
 
 export = TurnStartMarkerPhaseModule;

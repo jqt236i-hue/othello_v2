@@ -126,7 +126,8 @@ function createTurnPipelineModule(deps: TurnPipelineDeps): any {
           gameState,
           normalizedPlayerKey,
           events,
-          p
+          p,
+          BoardOps
         );
         if (turnStartResult && turnStartResult.stopAction === true) {
           return { gameState, cardState, events, presentationEvents: flushPresentationEvents(cardState) };
