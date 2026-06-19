@@ -180,7 +180,7 @@ describe('NetworkMatchClient presence log', () => {
     expect(global.addLog).toHaveBeenCalledWith('ネット対戦: 白が接続しました');
   });
 
-  test('相手席の入退室を中央ポップアップで約2秒表示する', async () => {
+  test('相手席の入退室を中央ポップアップで約4秒表示する', async () => {
     jest.useFakeTimers();
 
     try {
@@ -211,7 +211,7 @@ describe('NetworkMatchClient presence log', () => {
       expect(toast.classList.contains('is-hiding')).toBe(false);
       expect(toast.getAttribute('aria-hidden')).toBe('false');
 
-      jest.advanceTimersByTime(1999);
+      jest.advanceTimersByTime(3999);
       expect(toast.classList.contains('is-hiding')).toBe(false);
 
       jest.advanceTimersByTime(1);

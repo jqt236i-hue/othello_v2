@@ -1182,11 +1182,11 @@
     display: none;
     align-items: center;
     justify-content: center;
-    gap: calc(9px * var(--layout-stage-scale));
+    gap: calc(14px * var(--layout-stage-scale));
     box-sizing: border-box;
-    max-width: min(calc(420px * var(--layout-stage-scale)), calc(100vw - calc(32px * var(--layout-stage-scale))));
-    min-height: calc(44px * var(--layout-stage-scale));
-    padding: calc(8px * var(--layout-stage-scale)) calc(19px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+    max-width: min(calc(600px * var(--layout-stage-scale)), calc(100vw - calc(32px * var(--layout-stage-scale))));
+    min-height: calc(72px * var(--layout-stage-scale));
+    padding: calc(14px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.66);
     border-radius: calc(8px * var(--layout-stage-scale));
     background:
@@ -1200,7 +1200,7 @@
         inset calc(4px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28);
     color: #fff1bd;
     font-family: var(--selected-app-font-readable-family);
-    font-size: max(calc(15px * var(--layout-stage-scale)), 13px);
+    font-size: max(calc(20px * var(--layout-stage-scale)), 16px);
     font-weight: 850;
     line-height: 1.25;
     letter-spacing: 0;
@@ -1252,8 +1252,8 @@
     position: relative;
     z-index: 1;
     flex: 0 0 auto;
-    width: calc(5px * var(--layout-stage-scale));
-    height: calc(23px * var(--layout-stage-scale));
+    width: calc(7px * var(--layout-stage-scale));
+    height: calc(36px * var(--layout-stage-scale));
     border-radius: calc(999px * var(--layout-stage-scale));
     background: linear-gradient(180deg, #fff1aa, #e0a939 52%, #7d5815);
     box-shadow:

@@ -110,8 +110,13 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*top:\s*calc\(50%\s*\+\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(varsCss).toMatch(/--z-modal-network:\s*13010/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*z-index:\s*calc\(var\(--z-modal-network\)\s*\+\s*1\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*max-width:\s*min\(calc\(600px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(100vw\s*-\s*calc\(32px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*min-height:\s*calc\(72px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*padding:\s*calc\(14px\s*\*\s*var\(--layout-stage-scale\)\)\s*calc\(34px\s*\*\s*var\(--layout-stage-scale\)\)\s*calc\(14px\s*\*\s*var\(--layout-stage-scale\)\)\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*font-size:\s*max\(calc\(20px\s*\*\s*var\(--layout-stage-scale\)\),\s*16px\)/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*rgba\(242,\s*201,\s*95,\s*0\.16\)/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*border-radius:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast__rail[\s\S]*width:\s*calc\(7px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*height:\s*calc\(36px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/\.network-presence-toast__rail[\s\S]*background:\s*linear-gradient\(180deg,\s*#fff1aa,\s*#e0a939/);
     expect(layoutCss).toMatch(/@keyframes\s+network-presence-toast-enter/);
     expect(layoutCss).toMatch(/@keyframes\s+network-presence-toast-leave/);
