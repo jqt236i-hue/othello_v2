@@ -3849,7 +3849,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 .gacha-pull-label,
 #gachaTenPullBtn .gacha-pull-label {
-    font-size: calc(50px * var(--gacha-reference-scale));
+    font-size: calc(46px * var(--gacha-reference-scale));
 }
 
 .gacha-pull-side .gacha-pull-label {
@@ -3862,7 +3862,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 #gachaTenPullBtn .gacha-pull-cost {
-    font-size: calc(39px * var(--gacha-reference-scale));
+    font-size: calc(37px * var(--gacha-reference-scale));
 }
 
 .gacha-pull-cost .observation-stone-icon {
