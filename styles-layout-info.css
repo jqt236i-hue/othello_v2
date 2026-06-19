@@ -4127,6 +4127,27 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaModal .gacha-detail-link {
     z-index: 4;
+    border: calc(1px * var(--gacha-reference-scale)) solid rgba(107, 237, 234, 0.46);
+    clip-path: polygon(
+        calc(8px * var(--gacha-reference-scale)) 0,
+        calc(100% - calc(8px * var(--gacha-reference-scale))) 0,
+        100% calc(8px * var(--gacha-reference-scale)),
+        100% calc(100% - calc(8px * var(--gacha-reference-scale))),
+        calc(100% - calc(8px * var(--gacha-reference-scale))) 100%,
+        calc(8px * var(--gacha-reference-scale)) 100%,
+        0 calc(100% - calc(8px * var(--gacha-reference-scale))),
+        0 calc(8px * var(--gacha-reference-scale))
+    );
+    background:
+        linear-gradient(180deg, rgba(48, 92, 98, 0.48), rgba(2, 13, 16, 0.92));
+    box-shadow:
+        inset calc(2px * var(--gacha-reference-scale)) 0 0 rgba(107, 237, 234, 0.18),
+        0 0 calc(10px * var(--gacha-reference-scale)) rgba(83, 214, 209, 0.10);
+}
+
+#gachaModal .gacha-detail-link::after {
+    font-size: calc(24px * var(--gacha-reference-scale));
+    font-weight: 400;
 }
 
 #gachaModal .gacha-pull-main {
