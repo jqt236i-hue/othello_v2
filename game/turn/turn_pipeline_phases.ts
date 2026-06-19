@@ -907,6 +907,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 : new Map();
 
             const othelloMode = isOthelloModeForTurnPipelinePhases();
+            const turnStartMarkerAnchors = (!othelloMode && TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors === 'function')
+                ? TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors(cardState, {
+                    getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
+                        ? MarkersAdapter.getMarkers(nextCardState)
+                        : (nextCardState.markers || []),
+                    isBombCategoryMarker
+                })
+                : [];
             const turnStartOptions: any = {
                 deferGuardDurationEndUntilAfterTurnStartMarkers: true
             };
@@ -986,14 +994,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
 
             // Start-of-turn effects: process all markers (bombs & special stones) in creation order.
-            const markers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors === 'function')
-                ? TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors(cardState, {
-                    getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-                        ? MarkersAdapter.getMarkers(nextCardState)
-                        : (nextCardState.markers || []),
-                    isBombCategoryMarker
-                })
-                : [];
             const processedTurnStartMarkers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.processTurnStartMarkers === 'function')
                 ? TurnStartMarkerPhaseModule.processTurnStartMarkers({
                     CardLogic,
@@ -1002,7 +1002,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     playerKey,
                     events,
                     prng: p,
-                    markers,
+                    markers: turnStartMarkerAnchors,
                     isFrozenCell,
                     awardBoardChargeGain,
                     debugLog: logTurnPipelinePhasesDebug

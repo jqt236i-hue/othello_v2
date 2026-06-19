@@ -685,7 +685,7 @@ function normalizeWorkerTurnPipelinePlayer(Core: MatchWorkerRuntimeModule | null
     return null;
 }
 
-function createWorkerTurnPipelineModule(
+export function createWorkerTurnPipelineModule(
     CardLogic: MatchWorkerCardLogicModule,
     Core: MatchWorkerCoreModule,
     TurnPipelinePhases: MatchWorkerTurnPipelinePhasesModule,
@@ -842,6 +842,19 @@ function createWorkerTurnPipelineModule(
 
         try {
             const result = applyTurn(cs, gs, effectivePipelinePlayerKey || playerKey, action, prng, options);
+            const resultCardState = asRecord(result.cardState);
+            const prngRecord = asRecord(prng);
+            const getPrngState = prngRecord.getState;
+            const prngState = (typeof getPrngState === 'function')
+                ? getPrngState.call(prng)
+                : (opts.prngState !== undefined ? opts.prngState : (prngRecord._seed ? { _seed: prngRecord._seed } : null));
+            resultCardState.prngState = prngState;
+            const stateHash = (MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function')
+                ? MatchAuthority.computeAuthoritativeStateHash({
+                    gameState: result.gameState,
+                    cardState: result.cardState
+                })
+                : null;
             return {
                 ok: true,
                 gameState: result.gameState,
@@ -849,7 +862,7 @@ function createWorkerTurnPipelineModule(
                 events: result.events,
                 presentationEvents: result.presentationEvents || [],
                 nextStateVersion: currentVersion + 1,
-                stateHash: null
+                stateHash
             };
         } catch (error) {
             const errorRecord = asRecord(error);

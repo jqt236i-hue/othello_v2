@@ -20,6 +20,51 @@ describe('pipeline_ui_adapter destroy phase mapping', () => {
     expect(out[0].targets[0].cause).toBe('TIME_BOMB');
   });
 
+  test('separate TIME_BOMB actions do not merge into one phase', () => {
+    const pres = [
+      {
+        type: 'DESTROY',
+        row: 2,
+        col: 2,
+        stoneId: 's1',
+        ownerBefore: 'black',
+        cause: 'TIME_BOMB',
+        actionId: 'turn-7:bomb-A',
+        effectBlockId: 'turn-7:bomb-A:explode'
+      },
+      {
+        type: 'DESTROY',
+        row: 2,
+        col: 3,
+        stoneId: 's2',
+        ownerBefore: 'white',
+        cause: 'TIME_BOMB',
+        actionId: 'turn-7:bomb-A',
+        effectBlockId: 'turn-7:bomb-A:explode'
+      },
+      {
+        type: 'DESTROY',
+        row: 5,
+        col: 5,
+        stoneId: 's3',
+        ownerBefore: 'black',
+        cause: 'TIME_BOMB',
+        actionId: 'turn-7:bomb-B',
+        effectBlockId: 'turn-7:bomb-B:explode'
+      }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(out).toHaveLength(3);
+    expect(out[0].phase).toBe(out[1].phase);
+    expect(out[2].phase).toBeGreaterThan(out[1].phase);
+  });
+
   test('ULTIMATE_DESTROY_GOD destroys stay in one phase for simultaneous playback', () => {
     const pres = [
       { type: 'DESTROY', row: 4, col: 4, stoneId: 's1', ownerBefore: 'black', cause: 'ULTIMATE_DESTROY_GOD' },

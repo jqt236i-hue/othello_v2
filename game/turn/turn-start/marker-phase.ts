@@ -31,7 +31,11 @@ const TurnStartSpecialStonePhaseModule = requireTurnStartModule('./special-stone
 type TurnStartMarkerAnchor = {
     isBomb: boolean;
     marker: any;
-    createdSeq: number;
+    markerId: string | null;
+    createdSeq: number | null;
+    sourceIndex: number;
+    startKind: string | null;
+    startType: string | null;
 };
 
 type CollectTurnStartMarkerAnchorsOptions = {
@@ -52,6 +56,43 @@ type ProcessTurnStartMarkersOptions = {
     debugLog?: (...args: any[]) => void;
 };
 
+function getMarkerIdentity(marker: any): string | null {
+    if (!marker || typeof marker !== 'object') return null;
+    const direct = marker.markerId ?? marker.id;
+    if (direct === undefined || direct === null || direct === '') return null;
+    return String(direct);
+}
+
+function normalizeCreatedSeq(value: any): number {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function compareTurnStartAnchors(a: TurnStartMarkerAnchor, b: TurnStartMarkerAnchor): number {
+    const seqDiff = normalizeCreatedSeq(a && a.createdSeq) - normalizeCreatedSeq(b && b.createdSeq);
+    if (seqDiff !== 0) return seqDiff;
+    const sourceDiff = Number(a && a.sourceIndex || 0) - Number(b && b.sourceIndex || 0);
+    if (sourceDiff !== 0) return sourceDiff;
+    const aId = a && a.markerId !== null && a.markerId !== undefined ? String(a.markerId) : '';
+    const bId = b && b.markerId !== null && b.markerId !== undefined ? String(b.markerId) : '';
+    if (aId < bId) return -1;
+    if (aId > bId) return 1;
+    return 0;
+}
+
+function getCurrentMarkers(cardState: any): any[] {
+    return (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+}
+
+function resolveSameCanonicalMarker(anchor: TurnStartMarkerAnchor, cardState: any): any | null {
+    if (!anchor) return null;
+    const currentMarkers = getCurrentMarkers(cardState);
+    if (anchor.markerId) {
+        return currentMarkers.find((marker: any) => getMarkerIdentity(marker) === anchor.markerId) || null;
+    }
+    return currentMarkers.includes(anchor.marker) ? anchor.marker : null;
+}
+
 function collectTurnStartMarkerAnchors(cardState: any, options: CollectTurnStartMarkerAnchorsOptions): TurnStartMarkerAnchor[] {
     const opts = (options && typeof options === 'object') ? options : ({} as CollectTurnStartMarkerAnchorsOptions);
     const getMarkers = typeof opts.getMarkers === 'function'
@@ -60,12 +101,16 @@ function collectTurnStartMarkerAnchors(cardState: any, options: CollectTurnStart
     const isBombCategoryMarker = opts.isBombCategoryMarker;
     const sourceMarkers = getMarkers(cardState) || [];
     return sourceMarkers
-        .map((marker: any) => ({
+        .map((marker: any, sourceIndex: number) => ({
             isBomb: typeof isBombCategoryMarker === 'function' && isBombCategoryMarker(marker),
             marker,
-            createdSeq: (marker && marker.createdSeq) || 0
+            markerId: getMarkerIdentity(marker),
+            createdSeq: marker && marker.createdSeq !== undefined && marker.createdSeq !== null ? Number(marker.createdSeq) : null,
+            sourceIndex,
+            startKind: marker && marker.kind ? String(marker.kind) : null,
+            startType: marker && marker.data && marker.data.type ? String(marker.data.type) : null
         }))
-        .sort((a: any, b: any) => (a.createdSeq || 0) - (b.createdSeq || 0));
+        .sort(compareTurnStartAnchors);
 }
 
 function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
@@ -76,6 +121,9 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
     for (let index = 0; index < markers.length; index += 1) {
         const markerAnchor = markers[index];
         if (!markerAnchor) continue;
+        const currentMarker = resolveSameCanonicalMarker(markerAnchor, opts.cardState);
+        if (!currentMarker) continue;
+        const currentMarkerAnchor = Object.assign({}, markerAnchor, { marker: currentMarker });
         if (markerAnchor.isBomb) {
             TurnStartBombPhaseModule.processTurnStartBombMarker({
                 CardLogic: opts.CardLogic,
@@ -83,7 +131,7 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
                 gameState: opts.gameState,
                 playerKey: opts.playerKey,
                 events: opts.events,
-                markerAnchor,
+                markerAnchor: currentMarkerAnchor,
                 isFrozenCell: opts.isFrozenCell
             });
             continue;
@@ -95,7 +143,7 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
             playerKey: opts.playerKey,
             events: opts.events,
             prng: opts.prng,
-            markerAnchor,
+            markerAnchor: currentMarkerAnchor,
             isFrozenCell: opts.isFrozenCell,
             awardBoardChargeGain: opts.awardBoardChargeGain,
             debugLog: opts.debugLog,

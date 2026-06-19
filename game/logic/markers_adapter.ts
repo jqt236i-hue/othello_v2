@@ -6,6 +6,7 @@
 
 interface Marker {
     id?: number;
+    markerId?: string;
     row: number;
     col: number;
     kind: string;
@@ -65,6 +66,51 @@ const MARKER_KINDS: MarkerKinds = {
 const MARKER_CATEGORIES: MarkerCategories = {
     BOMB: 'bomb'
 };
+
+function normalizeMarkerId(value: unknown): string | null {
+    if (value === undefined || value === null || value === '') return null;
+    return String(value);
+}
+
+function readPositiveInteger(value: unknown): number | null {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    const integer = Math.trunc(n);
+    return integer >= 1 ? integer : null;
+}
+
+function reserveMarkerId(cardState: CardState, id: number | null): void {
+    if (!cardState || id === null) return;
+    const next = readPositiveInteger(cardState._nextMarkerId) || 1;
+    if (id >= next) cardState._nextMarkerId = id + 1;
+}
+
+function assignMarkerIdentity(cardState: CardState, marker: Marker): Marker {
+    if (!marker || typeof marker !== 'object') return marker;
+
+    const existing = normalizeMarkerId((marker as any).markerId);
+    if (existing) {
+        marker.markerId = existing;
+        const numericExisting = readPositiveInteger(existing);
+        if (marker.id === undefined && numericExisting !== null) marker.id = numericExisting;
+        reserveMarkerId(cardState, readPositiveInteger(marker.id));
+        reserveMarkerId(cardState, numericExisting);
+        return marker;
+    }
+
+    const legacy = normalizeMarkerId(marker.id);
+    if (legacy) {
+        marker.markerId = legacy;
+        reserveMarkerId(cardState, readPositiveInteger(marker.id));
+        return marker;
+    }
+
+    const nextId = readPositiveInteger(cardState && cardState._nextMarkerId) || 1;
+    marker.id = nextId;
+    marker.markerId = String(nextId);
+    cardState._nextMarkerId = nextId + 1;
+    return marker;
+}
 
 const DEFAULT_BOMB_TYPE = 'TIME_BOMB';
 const LEGACY_BOMB_KIND = 'bomb';
@@ -180,6 +226,7 @@ function fromSpecialStone(stone: SpecialStone, id: number): Marker {
     });
     return {
         id,
+        markerId: String(id),
         row: stone.row,
         col: stone.col,
         kind: normalized.kind,
@@ -198,6 +245,7 @@ function fromBomb(bomb: Bomb, id: number): Marker {
     });
     return {
         id,
+        markerId: String(id),
         row: bomb.row,
         col: bomb.col,
         kind: normalized.kind,
@@ -295,6 +343,9 @@ function ensureMarkers(cardState: any): void {
     if (!cardState) return;
     if (!Array.isArray(cardState.markers)) cardState.markers = [];
     if (typeof cardState._nextMarkerId !== 'number') cardState._nextMarkerId = 1;
+    for (const marker of cardState.markers) {
+        assignMarkerIdentity(cardState, marker);
+    }
 }
 
 function getMarkers(cardState: any): Marker[] {
@@ -373,6 +424,8 @@ function removeMarkersAt(cardState: any, row: number, col: number, options?: Rem
 export = {
     MARKER_KINDS,
     MARKER_CATEGORIES,
+    normalizeMarkerId,
+    assignMarkerIdentity,
     fromSpecialStone,
     fromBomb,
     toSpecialStone,

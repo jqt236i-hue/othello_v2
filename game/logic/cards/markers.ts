@@ -765,8 +765,10 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
     const createdSeq = (cardState as any)._nextCreatedSeq++;
 
     const normalized = normalizeMarkerInput(kind, data);
+    const markerId = String(id);
     const marker = {
         id,
+        markerId,
         row,
         col,
         kind: normalized.kind,

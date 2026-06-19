@@ -25,6 +25,7 @@ function createPlaybackPhaseState() {
         prevWasChainFlip: false,
         prevChainFlipLink: null,
         prevDestroyCause: null,
+        prevBatchDestroyKey: null,
         durationEndRevertPhase: null,
         superCrushPhase: null,
         superCrushActionId: null,
@@ -64,6 +65,7 @@ function clearChainFlipPhaseState(phaseState: any) {
 function preparePassivePlaybackPhaseState(phaseState: any, options?: any) {
     clearChainFlipPhaseState(phaseState);
     phaseState.prevDestroyCause = null;
+    phaseState.prevBatchDestroyKey = null;
     if (!options || options.clearWillHunter !== false) {
         phaseState.willHunterKingSlashPhase = null;
     }
@@ -103,6 +105,20 @@ function assignActionScopedPhase(phaseState: any, phaseField: any, actionIdField
     }
     phaseState[actionIdField] = actionId;
     return phaseState[phaseField];
+}
+
+function getPresentationActionId(ev: any): string | null {
+    const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
+    const raw = ev && ev.actionId ? ev.actionId : (meta && meta.actionId ? meta.actionId : null);
+    const actionId = String(raw || '').trim();
+    return actionId ? actionId : null;
+}
+
+function getPresentationEffectBlockId(ev: any): string | null {
+    const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
+    const raw = ev && ev.effectBlockId ? ev.effectBlockId : (meta && meta.effectBlockId ? meta.effectBlockId : null);
+    const effectBlockId = String(raw || '').trim();
+    return effectBlockId ? effectBlockId : null;
 }
 
 function isProliferationSpawnPresentationEvent(ev: any) {
@@ -441,6 +457,7 @@ function getGhostBlockedOverlapReturnSpec(ev: any, destroyMeta: any, destroyOutc
 function planSpawnPlayback(phaseState: any, ev: any, playbackBase: any, followsProliferationDestroy: any, deps: BoardEventPlaybackDeps) {
     clearChainFlipPhaseState(phaseState);
     phaseState.prevDestroyCause = null;
+    phaseState.prevBatchDestroyKey = null;
     phaseState.durationEndRevertPhase = null;
     phaseState.willHunterKingSlashPhase = null;
 
@@ -570,12 +587,19 @@ function planDestroyPlayback(phaseState: any, ev: any, destroyMeta: any, playbac
         phase = phaseState.willHunterKingSlashPhase;
     } else if (deps.batchDestroyCauses.has(destroyCauseUpper)) {
         clearGroupedDestroyPhaseState(phaseState);
-        if (phaseState.prevDestroyCause !== destroyCauseUpper) {
+        const actionId = getPresentationActionId(ev);
+        const effectBlockId = getPresentationEffectBlockId(ev);
+        const batchDestroyKey = (actionId || effectBlockId)
+            ? [destroyCauseUpper, actionId || '', effectBlockId || ''].join('|')
+            : destroyCauseUpper;
+        if (phaseState.prevBatchDestroyKey !== batchDestroyKey) {
             phaseState.currentPhase++;
         }
+        phaseState.prevBatchDestroyKey = batchDestroyKey;
         phase = phaseState.currentPhase;
     } else {
         clearGroupedDestroyPhaseState(phaseState);
+        phaseState.prevBatchDestroyKey = null;
         phaseState.currentPhase++;
         phase = phaseState.currentPhase;
     }
@@ -601,6 +625,7 @@ function planDestroyPlayback(phaseState: any, ev: any, destroyMeta: any, playbac
 function planChangePlaybackPhase(phaseState: any, ev: any, deps: BoardEventPlaybackDeps) {
     phaseState.durationEndRevertPhase = null;
     phaseState.prevDestroyCause = null;
+    phaseState.prevBatchDestroyKey = null;
     phaseState.willHunterKingSlashPhase = null;
     const isChainFlip = deps.isChainFlipPresentationEvent(ev);
     const chainFlipLink = isChainFlip ? deps.getChainFlipLink(ev) : null;
@@ -629,6 +654,7 @@ function planMovePlaybackPhase(phaseState: any, ev: any, deps: BoardEventPlaybac
     clearChainFlipPhaseState(phaseState);
     phaseState.durationEndRevertPhase = null;
     phaseState.prevDestroyCause = null;
+    phaseState.prevBatchDestroyKey = null;
     const moveActionId = ev && ev.actionId ? ev.actionId : null;
     const isSuperCrushActionMatched =
         phaseState.superCrushActionId === null ||
