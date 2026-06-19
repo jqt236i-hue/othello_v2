@@ -202,7 +202,7 @@ describe('diff renderer manifestation world background sync', () => {
     renderOnce([[1]]);
     expect(syncManifestBgmOverride).toHaveBeenLastCalledWith(
       'observer_will_path',
-      expect.objectContaining({ file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav' })
+      expect.objectContaining({ file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3' })
     );
     syncManifestBgmOverride.mockClear();
 

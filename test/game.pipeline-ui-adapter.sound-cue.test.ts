@@ -1289,7 +1289,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       manifestBackgroundImage: 'assets/images/background/manifest-worlds/観測の世界.png',
       manifestBgmKey: 'observer_will_path',
       manifestBgmTrack: expect.objectContaining({
-        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav'
+        file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3'
       }),
       durationMs: 3000
     });
@@ -1367,7 +1367,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       manifestBgmKey: 'board_executor_path',
       manifestBgmTrack: expect.objectContaining({
         name: '執行の道',
-        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.wav'
+        file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3'
       }),
       durationMs: 3000
     });

@@ -30,7 +30,7 @@
             manifestBgmKey: 'theory_incarnation_path',
             manifestBgmTrack: Object.freeze({
                 name: '理論の道',
-                file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.wav',
+                file: 'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3',
                 loopStart: 0,
                 loopEnd: 28.444444
             })
@@ -51,7 +51,7 @@
             manifestBgmKey: 'board_executor_path',
             manifestBgmTrack: Object.freeze({
                 name: '執行の道',
-                file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.wav',
+                file: 'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3',
                 loopStart: 0,
                 loopEnd: 51.2
             })
@@ -72,7 +72,7 @@
             manifestBgmKey: 'observer_will_path',
             manifestBgmTrack: Object.freeze({
                 name: '観測の道',
-                file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.wav',
+                file: 'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
                 loopStart: 9.6,
                 loopEnd: 62.4
             })
