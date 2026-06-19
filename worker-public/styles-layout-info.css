@@ -3708,6 +3708,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 #gachaModal .gacha-title {
     font-size: calc(40px * var(--gacha-reference-scale));
     line-height: 1.08;
+    transform: translateY(calc(-10px * var(--gacha-reference-scale)));
 }
 
 #gachaBalanceSummary {
