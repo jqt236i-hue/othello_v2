@@ -3221,14 +3221,39 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaModal::after {
     background:
-        linear-gradient(90deg, rgba(111, 249, 246, 0.05) 1px, transparent 1px),
-        linear-gradient(180deg, rgba(111, 249, 246, 0.035) 1px, transparent 1px),
+        repeating-conic-gradient(from -12deg at 86% 13%, rgba(107, 237, 234, 0.12) 0deg 2deg, transparent 2deg 14deg),
+        radial-gradient(circle at 86% 13%, transparent 0 calc(62px * var(--gacha-reference-scale)), rgba(107, 237, 234, 0.13) calc(63px * var(--gacha-reference-scale)) calc(64px * var(--gacha-reference-scale)), transparent calc(65px * var(--gacha-reference-scale)) calc(92px * var(--gacha-reference-scale)), rgba(242, 201, 95, 0.09) calc(93px * var(--gacha-reference-scale)) calc(94px * var(--gacha-reference-scale)), transparent calc(95px * var(--gacha-reference-scale))),
+        radial-gradient(circle at 86% 13%, rgba(107, 237, 234, 0.11), transparent 38%),
+        linear-gradient(90deg, rgba(111, 249, 246, 0.055) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(111, 249, 246, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, transparent 0 24%, rgba(111, 249, 246, 0.045) 25%, transparent 26% 49%, rgba(111, 249, 246, 0.035) 50%, transparent 51% 74%, rgba(111, 249, 246, 0.04) 75%, transparent 76%),
         radial-gradient(circle at 78% 12%, rgba(244, 201, 95, 0.10), transparent 22%);
     background-size:
-        calc(48px * var(--layout-stage-scale)) calc(48px * var(--layout-stage-scale)),
-        calc(48px * var(--layout-stage-scale)) calc(48px * var(--layout-stage-scale)),
+        calc(220px * var(--gacha-reference-scale)) calc(220px * var(--gacha-reference-scale)),
+        calc(220px * var(--gacha-reference-scale)) calc(220px * var(--gacha-reference-scale)),
+        calc(220px * var(--gacha-reference-scale)) calc(220px * var(--gacha-reference-scale)),
+        calc(52px * var(--gacha-reference-scale)) calc(52px * var(--gacha-reference-scale)),
+        calc(52px * var(--gacha-reference-scale)) calc(52px * var(--gacha-reference-scale)),
+        100% 100%,
         auto;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.58), transparent 76%);
+    background-position:
+        right calc(96px * var(--gacha-reference-scale)) top calc(22px * var(--gacha-reference-scale)),
+        right calc(96px * var(--gacha-reference-scale)) top calc(22px * var(--gacha-reference-scale)),
+        right calc(96px * var(--gacha-reference-scale)) top calc(22px * var(--gacha-reference-scale)),
+        0 0,
+        0 0,
+        0 0,
+        0 0;
+    background-repeat:
+        no-repeat,
+        no-repeat,
+        no-repeat,
+        repeat,
+        repeat,
+        no-repeat,
+        no-repeat;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.48) 34%, transparent 78%);
+    opacity: 0.92;
 }
 
 #gachaModalHeader {
