@@ -78,12 +78,44 @@ function createPullAudioInstance(rootRef: any, options?: any): HTMLAudioElement 
   }
 }
 
+function isJsdomRuntime(rootRef: any): boolean {
+  try {
+    return /jsdom/i.test(String(rootRef && rootRef.navigator && rootRef.navigator.userAgent || ''));
+  } catch (e) {
+    return false;
+  }
+}
+
+function preparePullAudioForFastStart(audio: HTMLAudioElement | null, rootRef?: any): HTMLAudioElement | null {
+  if (!audio) return null;
+  try { audio.preload = 'auto'; } catch (e) { /* ignore */ }
+  try {
+    if (!isJsdomRuntime(rootRef) && typeof audio.load === 'function') audio.load();
+  } catch (e) { /* ignore */ }
+  return audio;
+}
+
 function createGachaRevealAudioSession(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootRef = opts.root || (typeof window !== 'undefined' ? window : null);
   let activePullAudio: HTMLAudioElement | null = null;
   let activePullAudioCleanup: ((audioRef?: any) => void) | null = null;
+  let primedPullAudio: HTMLAudioElement | null = null;
   let shouldResumeBgmAfterAudio = false;
+
+  function primeNextPullAudio(): HTMLAudioElement | null {
+    if (primedPullAudio) return primedPullAudio;
+    primedPullAudio = preparePullAudioForFastStart(createPullAudioInstance(rootRef, { createAudio: opts.createAudio }), rootRef);
+    return primedPullAudio;
+  }
+
+  function consumePrimedPullAudio(): HTMLAudioElement | null {
+    const audio = primedPullAudio;
+    primedPullAudio = null;
+    if (!audio) return null;
+    try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+    return audio;
+  }
 
   function updateActivePullAudioVolume(): void {
     if (!activePullAudio) return;
@@ -174,7 +206,8 @@ function createGachaRevealAudioSession(options?: any): any {
 
   function play(): boolean {
     const engine = resolveSoundEngine(rootRef);
-    const audio = createPullAudioInstance(rootRef, { createAudio: opts.createAudio });
+    const audio = consumePrimedPullAudio()
+      || preparePullAudioForFastStart(createPullAudioInstance(rootRef, { createAudio: opts.createAudio }), rootRef);
     if (!audio || typeof audio.play !== 'function') return false;
 
     if (activePullAudio && activePullAudio !== audio) {
@@ -192,6 +225,7 @@ function createGachaRevealAudioSession(options?: any): any {
 
     try {
       const playPromise = audio.play();
+      primeNextPullAudio();
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch(function () {
           releaseActivePullAudio(audio);
@@ -215,6 +249,8 @@ function createGachaRevealAudioSession(options?: any): any {
     resumeBgmIfNeeded();
   }
 
+  primeNextPullAudio();
+
   return {
     play,
     destroy,
@@ -228,6 +264,7 @@ const GachaRevealAudio = {
   GACHA_PULL_AUDIO_PATH,
   MASTER_VOLUME_CHANGED_EVENT,
   createPullAudioInstance,
+  preparePullAudioForFastStart,
   createGachaRevealAudioSession
 };
 

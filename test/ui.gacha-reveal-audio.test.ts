@@ -8,6 +8,7 @@ describe('gacha reveal audio session', () => {
     return {
       play: jest.fn(() => Promise.resolve()),
       pause: jest.fn(),
+      load: jest.fn(),
       addEventListener: jest.fn((name, handler) => {
         handlers[name] = handler;
       }),
@@ -68,6 +69,41 @@ describe('gacha reveal audio session', () => {
 
     session.destroy();
     expect(root.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
+  });
+
+  test('preloads pull audio when the reveal session is created and plays the warmed instance on click', async () => {
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
+    const audio = createAudioStub();
+    const nextAudio = createAudioStub();
+    const createAudio = jest
+      .fn()
+      .mockReturnValueOnce(audio)
+      .mockReturnValueOnce(nextAudio);
+    const root = {
+      SoundEngine: {
+        volume: 0.5,
+        bgm: { paused: true },
+        allowBgmPlay: false,
+        pauseBgm: jest.fn(),
+        playBgm: jest.fn()
+      }
+    };
+
+    const session = mod.createGachaRevealAudioSession({
+      root,
+      createAudio
+    });
+
+    expect(createAudio).toHaveBeenCalledTimes(1);
+    expect(audio.preload).toBe('auto');
+    expect(audio.load).toHaveBeenCalledTimes(1);
+
+    expect(session.play()).toBe(true);
+    await Promise.resolve();
+
+    expect(createAudio).toHaveBeenCalledTimes(2);
+    expect(audio.play).toHaveBeenCalledTimes(1);
+    expect(nextAudio.load).toHaveBeenCalledTimes(1);
   });
 
   test('applies quick master volume to active pull audio', async () => {
