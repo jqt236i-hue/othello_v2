@@ -116,13 +116,14 @@ describe('gacha handler', () => {
     });
   });
 
-  test('refreshes the loaded asset manifest before performing a pull when bootstrap helper exists', async () => {
+  test('starts a pull without waiting for the loaded asset manifest refresh', async () => {
     jest.resetModules();
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.awardObservationStones(window, 250);
     const mod = require('../ui/handlers/gacha.js');
-    const refreshLoadedAssetManifest = jest.fn().mockResolvedValue({ status: 'ok' });
+    const deferred = createDeferred();
+    const refreshLoadedAssetManifest = jest.fn(() => deferred.promise);
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
@@ -138,8 +139,12 @@ describe('gacha handler', () => {
       }
     });
 
-    await api.performPull(1);
+    const pending = api.performPull(1);
     expect(refreshLoadedAssetManifest).toHaveBeenCalledWith({ root: window });
+    expect(fakeRevealPlayer.play).toHaveBeenCalled();
+
+    deferred.resolve({ status: 'ok' });
+    await pending;
   });
 
   test('locks close, detail, and pull buttons while reveal is playing', async () => {

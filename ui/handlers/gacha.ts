@@ -124,10 +124,8 @@ function performPullWithLatestManifest(controller: any, rootRef: any, uiBootstra
   if (!canRefreshLoadedAssetManifest(rootRef, uiBootstrap)) {
     return controller.performPull(pullCount);
   }
-  return (async function () {
-    await refreshLoadedAssetManifest(rootRef, uiBootstrap);
-    return controller.performPull(pullCount);
-  }());
+  void refreshLoadedAssetManifest(rootRef, uiBootstrap);
+  return controller.performPull(pullCount);
 }
 
 function setupGachaControls(options?: any): any {
