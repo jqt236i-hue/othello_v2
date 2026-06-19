@@ -3708,9 +3708,9 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 #gachaModalHeader {
-    flex: 0 0 calc(190px * var(--gacha-reference-scale));
-    min-height: calc(190px * var(--gacha-reference-scale));
-    padding: calc(46px * var(--gacha-reference-scale)) calc(42px * var(--gacha-reference-scale)) calc(18px * var(--gacha-reference-scale)) calc(50px * var(--gacha-reference-scale));
+    flex: 0 0 calc(172px * var(--gacha-reference-scale));
+    min-height: calc(172px * var(--gacha-reference-scale));
+    padding: calc(55px * var(--gacha-reference-scale)) calc(42px * var(--gacha-reference-scale)) calc(18px * var(--gacha-reference-scale)) calc(50px * var(--gacha-reference-scale));
 }
 
 #gachaModal .gacha-title-wrap {
