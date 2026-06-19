@@ -249,6 +249,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#gachaModal[\s\S]*height:\s*min\(calc\(1088px\s*\*\s*var\(--gacha-reference-scale\)\)/);
     expect(layoutCss).toMatch(/\.gacha-reference-shell[\s\S]*grid-template-rows:\s*calc\(52px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(248px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(340px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(138px\s*\*\s*var\(--gacha-reference-scale\)\)/);
     expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-rate-rarity[\s\S]*clip-path:\s*polygon\(/);
+    expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-pull-showcase::after[\s\S]*clip-path:\s*polygon\(/);
+    expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-pull-main::before[\s\S]*radial-gradient\(circle at 50% 50%,\s*rgba\(255,\s*232,\s*146/);
     expect(layoutCss).toMatch(/\.gacha-pull-showcase[\s\S]*grid-template-columns:/);
     expect(layoutCss).toMatch(/\.gacha-rate-row\[data-gacha-rarity="exr"\]/);
     expect(layoutCss).toMatch(/\.gacha-result-rarity[\s\S]*font-size:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
