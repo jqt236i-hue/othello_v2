@@ -3176,8 +3176,8 @@
 /* Observation gacha reference skin. */
 #gachaOverlay {
     background:
-        radial-gradient(82% 72% at 50% 36%, rgba(29, 126, 132, 0.20), transparent 58%),
-        rgba(0, 0, 0, 0.76);
+        radial-gradient(82% 72% at 50% 36%, rgba(29, 126, 132, 0.12), transparent 58%),
+        rgba(0, 0, 0, 0.94);
 }
 
 body:has(#gachaOverlay.is-open) #control-panel,
