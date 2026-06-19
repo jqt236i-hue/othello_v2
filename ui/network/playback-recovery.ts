@@ -1,5 +1,24 @@
 'use strict';
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
+let playbackDigestModule: any = null;
+
+function resolvePlaybackDigestModule(): any {
+  if (playbackDigestModule) return playbackDigestModule;
+  try {
+    playbackDigestModule = _require('../../shared/playback-digest');
+  } catch (e) { /* ignore */ }
+  if (!playbackDigestModule && typeof globalThis !== 'undefined' && (globalThis as any).PlaybackDigest) {
+    playbackDigestModule = (globalThis as any).PlaybackDigest;
+  }
+  return playbackDigestModule;
+}
+
 function createNetworkPlaybackRecoveryController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const getState = typeof cfg.getState === 'function' ? cfg.getState : function () { return null; };
@@ -40,6 +59,30 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
     return computeForceSyncPlaybackRecoverySignature(currentSnapshot);
   }
 
+  function computePlaybackDigest(playbackEvents: any): string {
+    if (typeof cfg.computePlaybackDigest === 'function') {
+      try {
+        const digest = cfg.computePlaybackDigest(playbackEvents);
+        return typeof digest === 'string' ? digest : '';
+      } catch (e) {
+        return '';
+      }
+    }
+    const digestModule = resolvePlaybackDigestModule();
+    if (!digestModule || typeof digestModule.computePlaybackDigest !== 'function') return '';
+    try {
+      return digestModule.computePlaybackDigest(Array.isArray(playbackEvents) ? playbackEvents : []);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function playbackDigestsMatch(requestedPlaybackEvents: any, authoritativePlaybackEvents: any): boolean {
+    const requestedDigest = computePlaybackDigest(requestedPlaybackEvents);
+    const authoritativeDigest = computePlaybackDigest(authoritativePlaybackEvents);
+    return !!requestedDigest && requestedDigest === authoritativeDigest;
+  }
+
   function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any): boolean {
     if (!trackedPublish || typeof trackedPublish !== 'object') return false;
     if (!trackedPublish.requestMeta) return false;
@@ -48,6 +91,7 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
       : [];
     if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
     if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+    if (!playbackDigestsMatch(requestedPlaybackEvents, playbackEvents)) return false;
     const snapshotSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
     if (!snapshotSignature) return false;
     const currentSignature = computeCurrentPlaybackRecoverySignature();
@@ -85,6 +129,7 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
       : [];
     if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
     if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+    if (!playbackDigestsMatch(requestedPlaybackEvents, playbackEvents)) return false;
     return true;
   }
 
@@ -172,6 +217,7 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
   return {
     computeForceSyncPlaybackRecoverySignature,
     computeCurrentPlaybackRecoverySignature,
+    computePlaybackDigest,
     shouldApplyPublishResponseAsShadowPlayback,
     shouldSkipPublishResponseSnapshot,
     shouldApplyStreamSnapshotAsShadowPlayback,

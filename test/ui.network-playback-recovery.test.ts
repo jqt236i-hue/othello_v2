@@ -10,7 +10,7 @@ describe('NetworkPlaybackRecoveryController', () => {
       pendingForceSyncPlaybackSignature: ''
     };
 
-    const { createNetworkPlaybackRecoveryController } = require('../ui/network/playback-recovery.js');
+    const { createNetworkPlaybackRecoveryController } = require('../ui/network/playback-recovery.ts');
     controller = createNetworkPlaybackRecoveryController({
       getState: () => stateObj,
       cloneData: (value: any) => JSON.parse(JSON.stringify(value)),
@@ -45,7 +45,7 @@ describe('NetworkPlaybackRecoveryController', () => {
   test('publish response shadow playback requires requested events and matching current signature', () => {
     const trackedPublish = {
       requestMeta: {
-        playbackEvents: [{ type: 'flip' }]
+        playbackEvents: [{ type: 'flip', phase: 1, targets: [{ r: 1, col: 1 }] }]
       }
     };
     const shouldShadow = controller.shouldApplyPublishResponseAsShadowPlayback(
@@ -54,10 +54,47 @@ describe('NetworkPlaybackRecoveryController', () => {
         gameState: { turnNumber: 2 },
         cardState: { turnIndex: 2, markers: [] }
       },
-      [{ type: 'flip' }]
+      [{ type: 'flip', phase: 1, targets: [{ r: 1, col: 1 }] }]
     );
 
     expect(shouldShadow).toBe(true);
+  });
+
+  test('publish response shadow playback rejects matching snapshot with different playback digest', () => {
+    const trackedPublish = {
+      requestMeta: {
+        playbackEvents: [
+          { type: 'destroy', phase: 1, actionId: 'a', targets: [{ r: 1, col: 1 }] },
+          { type: 'destroy', phase: 2, actionId: 'b', targets: [{ r: 2, col: 2 }] }
+        ]
+      }
+    };
+    const shouldShadow = controller.shouldApplyPublishResponseAsShadowPlayback(
+      trackedPublish,
+      {
+        gameState: { turnNumber: 2 },
+        cardState: { turnIndex: 2, markers: [] }
+      },
+      [
+        { type: 'destroy', phase: 1, actionId: 'b', targets: [{ r: 2, col: 2 }] },
+        { type: 'destroy', phase: 2, actionId: 'a', targets: [{ r: 1, col: 1 }] }
+      ]
+    );
+
+    expect(shouldShadow).toBe(false);
+  });
+
+  test('stream shadow playback rejects different authoritative playback digest', () => {
+    const trackedPublish = {
+      requestMeta: {
+        playbackEvents: [{ type: 'destroy', phase: 1, actionId: 'local-a', targets: [{ r: 1, col: 1 }] }]
+      }
+    };
+
+    expect(controller.shouldApplyStreamSnapshotAsShadowPlayback(
+      trackedPublish,
+      [{ type: 'destroy', phase: 1, actionId: 'server-b', targets: [{ r: 1, col: 1 }] }]
+    )).toBe(false);
   });
 
   test('remember and consume pending force sync recovery track matching version', () => {
