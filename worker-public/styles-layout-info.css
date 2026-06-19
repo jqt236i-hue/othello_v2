@@ -3688,7 +3688,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 /* Reference-size observation gacha pass: keep the modal independent from board scale. */
 #gachaModal {
-    --gacha-reference-scale: clamp(0.64, calc(var(--layout-stage-scale) * 0.90), 0.72);
+    --gacha-reference-scale: clamp(0.56, calc(var(--layout-stage-scale) * 0.80), 0.64);
     display: flex;
     flex-direction: column;
     width: min(calc(1500px * var(--gacha-reference-scale)), calc(100vw - calc(96px * var(--gacha-reference-scale))));
