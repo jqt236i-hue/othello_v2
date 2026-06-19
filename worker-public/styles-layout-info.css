@@ -3176,10 +3176,11 @@
 /* Observation gacha reference skin. */
 #gachaOverlay {
     background:
-        radial-gradient(82% 72% at 50% 36%, rgba(29, 126, 132, 0.12), transparent 58%),
-        rgba(0, 0, 0, 0.94);
+        radial-gradient(82% 72% at 50% 36%, rgba(29, 126, 132, 0.08), transparent 58%),
+        rgba(0, 0, 0, 0.975);
 }
 
+body:has(#gachaOverlay.is-open) #leftActionButtons,
 body:has(#gachaOverlay.is-open) #control-panel,
 body:has(#gachaOverlay.is-open) #quick-controls-bar {
     display: none;
