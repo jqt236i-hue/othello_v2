@@ -740,7 +740,7 @@
     flex: 0 0 auto;
     width: calc(18px * var(--layout-stage-scale));
     aspect-ratio: 1 / 1;
-    background-image: url("assets/images/other/gacha-observation-stone-v1.png");
+    background-image: url("assets/images/other/観測石.png");
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;

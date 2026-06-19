@@ -239,7 +239,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/--layout-stage-offset-x/);
     expect(layoutCss).toMatch(/--layout-stage-offset-y/);
     expect(layoutCss).toMatch(/#side-panel[\s\S]*--layout-stage-bottom-safe-shift/);
-    expect(layoutCss).toMatch(/\.observation-stone-icon[\s\S]*gacha-observation-stone-v1\.png/);
+    expect(layoutCss).toMatch(/\.observation-stone-icon[\s\S]*assets\/images\/other\/観測石\.png/);
+    expect(layoutCss).not.toMatch(/gacha-observation-stone-v1\.png/);
     expect(layoutCss).toMatch(/\.result-observation-stone-text/);
     expect(html).toMatch(/class="gacha-reference-shell"/);
     expect(html).toMatch(/class="gacha-pull-showcase"/);
