@@ -123,26 +123,17 @@ Expected after the fix: the full `NetworkStreamSnapshotController` test file pas
 
 ---
 
-### Task 3: Add End-To-End Client Regression Coverage
+### Task 3: Add Client Regression Coverage
 
 **Files:**
 - Modify: `test/ui.network-client.reconnect-sync.test.ts`
 
 - [ ] **Step 1: Add a test that models the reported symptom at client level**
 
-Add a test near the existing `requestRematch` and result overlay tests. Use the existing helpers in that file (`jsonResponse`, `createSnapshot`, `publishBodies`, etc.) and shape it like this:
+Add a test near the existing `requestRematch` and result overlay tests. Use the existing helpers and `MockEventSource`/`eventSources` setup already defined by this file's `beforeEach`.
 
 ```ts
   test('requestRematch の self stream snapshot は非終局なら result overlay を閉じる', async () => {
-    let streamListener: any = null;
-    const originalEventSource = global.EventSource;
-    global.EventSource = jest.fn(function MockEventSource(this: any) {
-      this.addEventListener = jest.fn((type: string, listener: any) => {
-        if (type === 'snapshot') streamListener = listener;
-      });
-      this.close = jest.fn();
-    }) as any;
-
     global.fetch = jest.fn(async (url, init = {}) => {
       const parsedUrl = new URL(String(url));
       const path = parsedUrl.pathname;
@@ -163,8 +154,10 @@ Add a test near the existing `requestRematch` and result overlay tests. Use the 
         const body = JSON.parse(String(init.body || '{}'));
         publishBodies.push(body);
         const snapshot = createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 });
-        if (streamListener) {
-          streamListener({
+        const stream = eventSources[0];
+        const snapshotHandler = stream && stream.listeners ? stream.listeners.snapshot : null;
+        if (typeof snapshotHandler === 'function') {
+          snapshotHandler({
             data: JSON.stringify({
               ok: true,
               operationId: body.operationId,
@@ -196,6 +189,8 @@ Add a test near the existing `requestRematch` and result overlay tests. Use the 
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
     expect(joined.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+    expect(typeof eventSources[0].listeners.snapshot).toBe('function');
 
     document.body.innerHTML = '<button id="resetBtn">再戦</button><div id="result-overlay"><button>再戦中...</button></div>';
 
@@ -208,12 +203,8 @@ Add a test near the existing `requestRematch` and result overlay tests. Use the 
     expect(document.getElementById('resetBtn')?.textContent).toBe('リセット');
     expect(global.gameState.currentPlayer).toBe(1);
     expect(global.gameState.consecutivePasses).toBe(0);
-
-    global.EventSource = originalEventSource;
   });
 ```
-
-If the file already has an EventSource mock pattern, adapt the setup to that local pattern and keep the assertions unchanged.
 
 - [ ] **Step 2: Run the client regression test**
 
@@ -254,28 +245,117 @@ Expected: all suites pass.
 
 - [ ] **Step 3: Manually reproduce the previous failure with Playwright**
 
-Use the same browser-smoke shape from the investigation:
-- start the static server from `test/e2e/e2e-runtime-helpers.js`
-- start the local match server from `test/e2e/e2e-runtime-helpers.js`
-- open two Chromium pages
-- set `window.MATCH_MODE`, `window.__MATCH_MODE`, and `window.getCurrentMatchMode = () => 'network'`
-- create a room on black, join on white
-- on black, force a terminal-looking local state and show `ResultOverlayModule.showResultOverlay()`
-- click `#result-overlay .result-btn-row .premium-btn.primary`
+Run this one-off smoke from the repository root:
 
-Final assertions:
+```powershell
+@'
+const { chromium } = require('playwright');
+const { startStaticServer, startLocalMatchServer, stopStaticServer, stopPlaywrightBrowser } = require('./test/e2e/e2e-runtime-helpers.js');
 
-```js
-{
-  requestCalls: 1,
-  resetCalls: 0,
-  requestResultOk: true,
-  overlayPresent: false,
-  currentPlayer: 1,
-  turnNumber: 0,
-  consecutivePasses: 0,
-  resetButtonText: 'リセット'
+function waitListen(server) {
+  return new Promise((resolve) => {
+    if (server.address()) return resolve(server.address().port);
+    server.on('listening', () => resolve(server.address().port));
+  });
 }
+
+(async () => {
+  const staticServer = startStaticServer(0);
+  const matchServer = startLocalMatchServer(0);
+  const staticPort = await waitListen(staticServer);
+  const matchPort = await waitListen(matchServer);
+  const browser = await chromium.launch();
+  const black = await browser.newPage();
+  const white = await browser.newPage();
+
+  try {
+    const appUrl = `http://127.0.0.1:${staticPort}/`;
+    const matchUrl = `http://127.0.0.1:${matchPort}`;
+
+    for (const page of [black, white]) {
+      await page.goto(appUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForSelector('#board .cell', { timeout: 15000 });
+      await page.waitForFunction(() => window.NetworkMatchClient && window.ResultOverlayModule, { timeout: 15000 });
+      await page.evaluate((url) => {
+        window.MATCH_MODE = 'network';
+        window.__MATCH_MODE = 'network';
+        window.getCurrentMatchMode = () => 'network';
+        window.NetworkMatchClient.setServerUrl(url);
+      }, matchUrl);
+    }
+
+    const created = await black.evaluate((url) => {
+      return window.NetworkMatchClient.createRoom({ serverUrl: url, playerName: 'くろ' });
+    }, matchUrl);
+    if (!created || created.ok !== true) throw new Error(`createRoom failed: ${JSON.stringify(created)}`);
+
+    const joined = await white.evaluate(({ url, roomId }) => {
+      return window.NetworkMatchClient.joinRoom(roomId, { serverUrl: url, playerName: 'しろ' });
+    }, { url: matchUrl, roomId: created.roomId });
+    if (!joined || joined.ok !== true) throw new Error(`joinRoom failed: ${JSON.stringify(joined)}`);
+
+    await black.waitForFunction(() => window.NetworkMatchClient.getStateVersion() >= 1, { timeout: 10000 });
+
+    await black.evaluate(() => {
+      window.__rematchProbe = { requestCalls: 0, resetCalls: 0, requestResults: [] };
+      const originalRequest = window.NetworkMatchClient.requestRematch.bind(window.NetworkMatchClient);
+      window.NetworkMatchClient.requestRematch = async function () {
+        window.__rematchProbe.requestCalls += 1;
+        const result = await originalRequest();
+        window.__rematchProbe.requestResults.push(result);
+        return result;
+      };
+      const originalReset = window.resetGame;
+      window.resetGame = function () {
+        window.__rematchProbe.resetCalls += 1;
+        return originalReset.apply(this, arguments);
+      };
+      window.getCurrentMatchMode = () => 'network';
+      window.gameState.currentPlayer = -1;
+      window.gameState.consecutivePasses = 2;
+      window.gameState.__resultShown = false;
+      window.ResultOverlayModule.showResultOverlay();
+    });
+
+    await black.click('#result-overlay .result-btn-row .premium-btn.primary');
+    await black.waitForFunction(() => !document.getElementById('result-overlay'), { timeout: 10000 });
+
+    const finalState = await black.evaluate(() => ({
+      requestCalls: window.__rematchProbe.requestCalls,
+      resetCalls: window.__rematchProbe.resetCalls,
+      requestResultOk: !!(window.__rematchProbe.requestResults[0] && window.__rematchProbe.requestResults[0].ok),
+      overlayPresent: !!document.getElementById('result-overlay'),
+      currentPlayer: window.gameState && window.gameState.currentPlayer,
+      turnNumber: window.gameState && window.gameState.turnNumber,
+      consecutivePasses: window.gameState && window.gameState.consecutivePasses,
+      resetButtonText: document.getElementById('resetBtn') && document.getElementById('resetBtn').textContent
+    }));
+
+    console.log(JSON.stringify(finalState, null, 2));
+    if (
+      finalState.requestCalls !== 1 ||
+      finalState.resetCalls !== 0 ||
+      finalState.requestResultOk !== true ||
+      finalState.overlayPresent !== false ||
+      finalState.currentPlayer !== 1 ||
+      finalState.turnNumber !== 0 ||
+      finalState.consecutivePasses !== 0 ||
+      finalState.resetButtonText !== 'リセット'
+    ) {
+      throw new Error(`network rematch result overlay smoke failed: ${JSON.stringify(finalState)}`);
+    }
+  } finally {
+    await black.close().catch(() => {});
+    await white.close().catch(() => {});
+    await stopPlaywrightBrowser(browser, 10000);
+    await stopStaticServer(staticServer);
+    await stopStaticServer(matchServer);
+  }
+})().catch((error) => {
+  console.error(error && error.stack ? error.stack : error);
+  process.exit(1);
+});
+'@ | node -
 ```
 
 Expected: overlay is gone and the reset button returns to `リセット`. This is the direct regression check for the user-reported symptom.
@@ -327,7 +407,9 @@ Spec coverage:
 - The server reset path already has coverage in `test/workers.match-rematch-publish.test.ts`; this plan keeps that path unchanged.
 
 Placeholder scan:
-- No task relies on undefined "appropriate tests" or unspecified implementation.
+- No task relies on undefined test work or unspecified implementation.
+- The client-level test uses the existing `eventSources` test harness instead of introducing a second EventSource mock.
+- The Playwright smoke includes a complete one-off script rather than referring back to investigation notes.
 - All commands and expected outcomes are explicit.
 
 Type consistency:
