@@ -921,9 +921,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             if (roundBonusSummary) {
                 turnStartOptions.skipStoneSalvationGodRevives = true;
             }
+            const hasSplitTurnStartHooks = !othelloMode
+                && CardLogic
+                && typeof CardLogic.onTurnStartBeforeAnchors === 'function'
+                && typeof CardLogic.drawForTurnStart === 'function';
             const turnStartSummary = othelloMode
                 ? null
-                : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartOptions) || null);
+                : (hasSplitTurnStartHooks
+                    ? (CardLogic.onTurnStartBeforeAnchors(cardState, playerKey, gameState, p, turnStartOptions) || null)
+                    : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartOptions) || null));
             events.push({ type: 'turn_start', player: playerKey });
             if (turnStartSummary && turnStartSummary.ribo && Array.isArray(turnStartSummary.ribo.entries)) {
                 for (const entry of turnStartSummary.ribo.entries) {
@@ -1062,6 +1068,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     resolveSpecialStatusTimer,
                     specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
                 });
+            }
+
+            if (hasSplitTurnStartHooks) {
+                CardLogic.drawForTurnStart(cardState, playerKey, p, turnStartOptions);
             }
 
             delete cardState._frozenCellsActiveAtTurnStart;

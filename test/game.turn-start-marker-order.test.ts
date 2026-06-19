@@ -252,6 +252,54 @@ describe('turn-start marker ordering', () => {
     expect(cardState.markers.some((m: any) => m.markerId === 'born-during-on-turn-start')).toBe(true);
   });
 
+  test('uses split turn-start hooks to draw after fixed marker anchors', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'anchor-A',
+        markerId: 'anchor-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStartBeforeAnchors: jest.fn(() => {
+        order.push('beforeAnchors');
+        return null;
+      }),
+      drawForTurnStart: jest.fn(() => {
+        order.push('draw');
+      }),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((_cardState, _gameState, playerKey, row, col) => {
+        order.push('anchor');
+        return {
+          destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }]
+        };
+      }),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual(['beforeAnchors', 'anchor', 'draw']);
+    expect(fakeCardLogic.onTurnStartBeforeAnchors).toHaveBeenCalledTimes(1);
+    expect(fakeCardLogic.drawForTurnStart).toHaveBeenCalledTimes(1);
+  });
+
   test('skips a queued marker that was deleted by an earlier anchor', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([

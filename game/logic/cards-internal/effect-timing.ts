@@ -615,7 +615,22 @@ function processStrongWillPromotionOnTurnStart(cardState: any, playerKey: string
     }
 }
 
-function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: any, context: Context): TurnStartSummary {
+function drawForTurnStart(cardState: any, playerKey: string, prng: any, context: Context): void {
+    const helpers = getHelpers(context);
+    const constants = getConstants(context);
+    const p = prng || (context && context.defaultPrng);
+    const turnCount = cardState
+        && cardState.turnCountByPlayer
+        ? Number(cardState.turnCountByPlayer[playerKey])
+        : NaN;
+    if (cardState && (cardState as any).debugNoDraw !== true && Number.isFinite(turnCount) && turnCount % constants.DRAW_INTERVAL === 0) {
+        if (typeof helpers.commitDraw === 'function') {
+            helpers.commitDraw(cardState, playerKey, p);
+        }
+    }
+}
+
+function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: any, prng: any, context: Context): TurnStartSummary {
     const helpers = getHelpers(context);
     const constants = getConstants(context);
     const BoardOpsModule = getBoardOps(context);
@@ -672,12 +687,6 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
     }
     if (typeof helpers.processBoardExecutorHandTaxAtTurnStart === 'function') {
         summary.boardExecutor = helpers.processBoardExecutorHandTaxAtTurnStart(cardState, gameState, playerKey, p);
-    }
-
-    if ((cardState as any).debugNoDraw !== true && (cardState as any).turnCountByPlayer[playerKey] % constants.DRAW_INTERVAL === 0) {
-        if (typeof helpers.commitDraw === 'function') {
-            helpers.commitDraw(cardState, playerKey, p);
-        }
     }
 
     const specialMarkers = typeof helpers.getSpecialMarkers === 'function'
@@ -867,6 +876,12 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
         }
     }
 
+    return summary;
+}
+
+function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: any, context: Context): TurnStartSummary {
+    const summary = onTurnStartBeforeAnchors(cardState, playerKey, gameState, prng, context);
+    drawForTurnStart(cardState, playerKey, prng, context);
     return summary;
 }
 
@@ -1266,6 +1281,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
 
 export = {
     onTurnStart,
+    onTurnStartBeforeAnchors,
+    drawForTurnStart,
     flushDeferredTurnStartStatusExpirations,
     applyPlacementEffects
 };
