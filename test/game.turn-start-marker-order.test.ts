@@ -300,6 +300,71 @@ describe('turn-start marker ordering', () => {
     expect(fakeCardLogic.drawForTurnStart).toHaveBeenCalledTimes(1);
   });
 
+  test('applies post-flip revives after each hyperactive anchor before the next anchor', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'hyper-A',
+        markerId: 'hyper-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'HYPERACTIVE', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'hyper-B',
+        markerId: 'hyper-B',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'HYPERACTIVE', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStart: jest.fn(() => null),
+      processHyperactiveMoveAtAnchor: jest.fn((_cardState, _gameState, owner, row, col) => {
+        order.push(`anchor:${row},${col}`);
+        return {
+          moved: [],
+          destroyed: [],
+          flipped: [{ row, col: col + 1, owner }]
+        };
+      }),
+      applyRegenAfterFlips: jest.fn(() => ({ regened: [], captureFlips: [] })),
+      applyLivingWillAfterFlips: jest.fn((_cardState, _gameState, flips) => {
+        const first = Array.isArray(flips) ? flips[0] : null;
+        order.push(`living:${first ? `${first.row},${first.col}` : 'none'}`);
+        return { restored: [] };
+      }),
+      clearHyperactiveAtPositions: jest.fn(),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual([
+      'anchor:1,1',
+      'living:1,2',
+      'anchor:3,3',
+      'living:3,4'
+    ]);
+    expect(fakeCardLogic.applyLivingWillAfterFlips).toHaveBeenCalledTimes(2);
+  });
+
   test('skips a queued marker that was deleted by an earlier anchor', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([

@@ -53,6 +53,7 @@ type ProcessTurnStartMarkersOptions = {
     markers: TurnStartMarkerAnchor[];
     isFrozenCell: (cardState: any, row: any, col: any) => boolean;
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
+    flushPostFlipRevivesForAnchor?: (flippedByOwner: Record<string, any[]>) => void;
     debugLog?: (...args: any[]) => void;
 };
 
@@ -91,6 +92,43 @@ function resolveSameCanonicalMarker(anchor: TurnStartMarkerAnchor, cardState: an
         return currentMarkers.find((marker: any) => getMarkerIdentity(marker) === anchor.markerId) || null;
     }
     return currentMarkers.includes(anchor.marker) ? anchor.marker : null;
+}
+
+function snapshotFlippedByOwnerCounts(processingState: any): Record<string, number> {
+    const byOwner = processingState && processingState.hyperAggregated && processingState.hyperAggregated.flippedByOwner;
+    return {
+        black: Array.isArray(byOwner && byOwner.black) ? byOwner.black.length : 0,
+        white: Array.isArray(byOwner && byOwner.white) ? byOwner.white.length : 0
+    };
+}
+
+function collectFlippedByOwnerDelta(processingState: any, beforeCounts: Record<string, number>): Record<string, any[]> {
+    const byOwner = processingState && processingState.hyperAggregated && processingState.hyperAggregated.flippedByOwner;
+    const delta: Record<string, any[]> = { black: [], white: [] };
+    for (const ownerKey of ['black', 'white']) {
+        const current = Array.isArray(byOwner && byOwner[ownerKey]) ? byOwner[ownerKey] : [];
+        const before = Math.max(0, Number(beforeCounts && beforeCounts[ownerKey]) || 0);
+        if (current.length > before) {
+            delta[ownerKey] = current.slice(before);
+        }
+    }
+    return delta;
+}
+
+function hasFlippedByOwnerDelta(delta: Record<string, any[]>): boolean {
+    return !!(delta && ((Array.isArray(delta.black) && delta.black.length) || (Array.isArray(delta.white) && delta.white.length)));
+}
+
+function removeFlippedByOwnerDeltaFromAggregate(processingState: any, beforeCounts: Record<string, number>): void {
+    const byOwner = processingState && processingState.hyperAggregated && processingState.hyperAggregated.flippedByOwner;
+    if (!byOwner || typeof byOwner !== 'object') return;
+    for (const ownerKey of ['black', 'white']) {
+        if (!Array.isArray(byOwner[ownerKey])) continue;
+        const before = Math.max(0, Number(beforeCounts && beforeCounts[ownerKey]) || 0);
+        if (byOwner[ownerKey].length > before) {
+            byOwner[ownerKey].splice(before);
+        }
+    }
 }
 
 function collectTurnStartMarkerAnchors(cardState: any, options: CollectTurnStartMarkerAnchorsOptions): TurnStartMarkerAnchor[] {
@@ -136,6 +174,7 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
             });
             continue;
         }
+        const flippedCountsBeforeAnchor = snapshotFlippedByOwnerCounts(processingState);
         TurnStartSpecialStonePhaseModule.processTurnStartSpecialStone({
             CardLogic: opts.CardLogic,
             cardState: opts.cardState,
@@ -149,6 +188,13 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
             debugLog: opts.debugLog,
             processingState
         });
+        if (typeof opts.flushPostFlipRevivesForAnchor === 'function') {
+            const flippedByOwnerDelta = collectFlippedByOwnerDelta(processingState, flippedCountsBeforeAnchor);
+            if (hasFlippedByOwnerDelta(flippedByOwnerDelta)) {
+                opts.flushPostFlipRevivesForAnchor(flippedByOwnerDelta);
+                removeFlippedByOwnerDeltaFromAggregate(processingState, flippedCountsBeforeAnchor);
+            }
+        }
     }
 
     return processingState;

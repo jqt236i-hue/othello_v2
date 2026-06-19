@@ -1000,6 +1000,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
 
             // Start-of-turn effects: process all markers (bombs & special stones) in creation order.
+            const flushPostFlipRevivesForAnchor = (TurnStartPostProcessingModule && typeof TurnStartPostProcessingModule.flushTurnStartPostFlipRevives === 'function')
+                ? ((flippedByOwner: any) => {
+                    TurnStartPostProcessingModule.flushTurnStartPostFlipRevives({
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        events,
+                        flippedByOwner,
+                        applyPostFlipRevives,
+                        awardBoardChargeGain
+                    });
+                })
+                : undefined;
             const processedTurnStartMarkers = (TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.processTurnStartMarkers === 'function')
                 ? TurnStartMarkerPhaseModule.processTurnStartMarkers({
                     CardLogic,
@@ -1011,6 +1024,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     markers: turnStartMarkerAnchors,
                     isFrozenCell,
                     awardBoardChargeGain,
+                    flushPostFlipRevivesForAnchor,
                     debugLog: logTurnPipelinePhasesDebug
                 })
                 : {

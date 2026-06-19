@@ -20,6 +20,16 @@ type FinalizeTurnStartMarkerProcessingOptions = {
     emitSpecialStoneBubblesFromPhase: (CardLogic: any, cardState: any, options: any) => void;
 };
 
+type FlushTurnStartPostFlipRevivesOptions = {
+    CardLogic: any;
+    cardState: any;
+    gameState: any;
+    events: any[];
+    flippedByOwner: Record<string, any[]>;
+    applyPostFlipRevives: (CardLogic: any, cardState: any, gameState: any, flips: any, ownerKey: any) => any;
+    awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, payload: any) => void;
+};
+
 function createEmptyProcessedTurnStartMarkers(): any {
     return {
         hyperAggregated: {
@@ -34,19 +44,16 @@ function createEmptyProcessedTurnStartMarkers(): any {
     };
 }
 
-function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProcessingOptions): any {
-    const opts = (options && typeof options === 'object') ? options : ({} as FinalizeTurnStartMarkerProcessingOptions);
-    const processed = opts.processedTurnStartMarkers || createEmptyProcessedTurnStartMarkers();
-    const hyperAggregated = processed.hyperAggregated || createEmptyProcessedTurnStartMarkers().hyperAggregated;
-
-    const hyperByOwner = hyperAggregated.flippedByOwner || {};
+function flushTurnStartPostFlipRevives(options: FlushTurnStartPostFlipRevivesOptions): any {
+    const opts = (options && typeof options === 'object') ? options : ({} as FlushTurnStartPostFlipRevivesOptions);
+    const flippedByOwner = opts.flippedByOwner || {};
     const regenTriggered: any[] = [];
     const regenCaptureFlips: any[] = [];
     const livingWillTriggered: any[] = [];
     const regenCaptureByOwner: Record<string, any[]> = { black: [], white: [] };
 
     for (const ownerKey of ['black', 'white']) {
-        const flips = hyperByOwner[ownerKey] || [];
+        const flips = flippedByOwner[ownerKey] || [];
         if (!flips.length) continue;
         const reviveRes = opts.applyPostFlipRevives(opts.CardLogic, opts.cardState, opts.gameState, flips, ownerKey);
         const regenRes = reviveRes && reviveRes.regenRes;
@@ -84,6 +91,30 @@ function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProce
         }
         opts.events.push({ type: 'regen_capture_flipped_start', details: regenCaptureFlips });
     }
+
+    return {
+        regenTriggered,
+        regenCaptureFlips,
+        livingWillTriggered,
+        regenCaptureByOwner
+    };
+}
+
+function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProcessingOptions): any {
+    const opts = (options && typeof options === 'object') ? options : ({} as FinalizeTurnStartMarkerProcessingOptions);
+    const processed = opts.processedTurnStartMarkers || createEmptyProcessedTurnStartMarkers();
+    const hyperAggregated = processed.hyperAggregated || createEmptyProcessedTurnStartMarkers().hyperAggregated;
+
+    const hyperByOwner = hyperAggregated.flippedByOwner || {};
+    flushTurnStartPostFlipRevives({
+        CardLogic: opts.CardLogic,
+        cardState: opts.cardState,
+        gameState: opts.gameState,
+        events: opts.events,
+        flippedByOwner: hyperByOwner,
+        applyPostFlipRevives: opts.applyPostFlipRevives,
+        awardBoardChargeGain: opts.awardBoardChargeGain
+    });
 
     if (typeof opts.CardLogic.processTrapEffects === 'function') {
         const trapRes = opts.CardLogic.processTrapEffects(opts.cardState, opts.gameState, opts.playerKey, {
@@ -131,6 +162,7 @@ function finalizeTurnStartMarkerProcessing(options: FinalizeTurnStartMarkerProce
 }
 
 const TurnStartPostProcessingModule = {
+    flushTurnStartPostFlipRevives,
     finalizeTurnStartMarkerProcessing
 };
 
