@@ -92,9 +92,16 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
-- Do not add new tests by default for every implementation. Add or update tests when the change alters gameplay rules, shared logic, network contracts, bug-prone turn flow, public APIs, or fixes a regression that should stay fixed.
-- For trivial text-only, style-only, docs-only, generated-manifest, or narrowly scoped config changes, prefer source/diff inspection and the smallest relevant existing check over creating new test files.
+- Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; verification is required, but adding new tests is not the default outcome.
+- Use this verification scale before deciding whether to add tests:
+
+| Level | Typical changes | Appropriate verification | New test guidance |
+| --- | --- | --- | --- |
+| 0 | Docs, comments, typo fixes, trivial text, tiny CSS-only tweaks, generated-manifest/reference-only updates | `git diff`, `git diff --check`, source inspection, targeted file/path checks | Do not add tests. |
+| 1 | Localized UI display adjustments, narrow config changes, small helper edits with obvious existing coverage | Smallest relevant existing check, focused typecheck/build/preflight, or browser/manual inspection when visual | Usually do not add tests. |
+| 2 | Gameplay rules, card logic, turn flow, owner/player normalization, CPU decisions, shared helpers, public APIs, confirmed regressions | Focused Jest or existing contract tests for the touched behavior | Add or update tests when focused coverage is missing or a regression should stay fixed. |
+| 3 | Worker/local/browser/headless contract changes, network publish/snapshot/reconnect, authority boundaries, root-to-worker mirror impact | Contract/parity/e2e checks such as `npm run test:network:parity`; use `npm run worker:prepare` for mirror impact | Add or update tests for durable cross-runtime contracts or uncovered failure modes. |
+
 - If existing focused coverage already proves the changed behavior, run that coverage instead of adding duplicate tests. If no practical automated check exists, state the manual/source inspection performed and the residual risk.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
