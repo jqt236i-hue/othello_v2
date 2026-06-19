@@ -3706,7 +3706,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
         radial-gradient(42% 34% at 86% 7%, rgba(217, 168, 65, 0.08), transparent 64%),
         radial-gradient(52% 42% at 47% 28%, rgba(83, 214, 209, 0.14), transparent 70%),
         linear-gradient(180deg, rgba(8, 26, 30, 0.985), rgba(1, 9, 12, 0.988) 46%, rgba(0, 12, 14, 0.985));
-    font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+    font-family: var(--selected-app-font-family);
 }
 
 #gachaModal button:not(#gachaCloseBtn) {
@@ -4248,11 +4248,59 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     opacity: 0.88;
 }
 
+/* Network lobby font skin fidelity pass. */
+#networkModal {
+    --network-lobby-display-font: var(--selected-app-font-family);
+    --network-lobby-body-font: var(--selected-app-font-readable-family);
+    --network-lobby-number-font: var(--selected-app-font-accent-family);
+    font-family: var(--network-lobby-body-font);
+}
+
+#networkModal :is(
+    .network-title,
+    .network-section-title,
+    .network-room-list-title,
+    .network-room-entry-name,
+    .network-room-entry-versus,
+    .network-room-list-entry > .btn-small,
+    .network-room-list-empty,
+    #networkBoardSizeTitle
+) {
+    font-family: var(--network-lobby-display-font);
+}
+
+#networkModal :is(
+    #networkPanel,
+    #networkAdvancedSettings > summary,
+    .network-field-label,
+    .network-field-optional,
+    .network-field-required,
+    .board-size-editor-label,
+    .board-size-editor-note,
+    #networkBoardSizeNote,
+    #networkStatusText,
+    #networkDeckInfo,
+    input,
+    button,
+    summary
+) {
+    font-family: var(--network-lobby-body-font);
+}
+
+#networkModal :is(
+    #networkBoardSizeSummary,
+    #networkBoardSizeRowsInput,
+    #networkBoardSizeColsInput,
+    .network-room-entry-count-value
+) {
+    font-family: var(--network-lobby-number-font);
+}
+
 /* Observation gacha typography fidelity pass. */
 #gachaModal {
-    --gacha-display-font: "CR-Kaisei Tokumin", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "MS Mincho", serif;
-    --gacha-body-font: "CR-Shippori Mincho", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "MS Mincho", serif;
-    --gacha-number-font: "CR-Cinzel", Georgia, "Times New Roman", serif;
+    --gacha-display-font: var(--selected-app-font-family);
+    --gacha-body-font: var(--selected-app-font-readable-family);
+    --gacha-number-font: var(--selected-app-font-accent-family);
     --gacha-gold-light: #fff9de;
     --gacha-gold-core: #ffe596;
     --gacha-gold-deep: #b87b25;
