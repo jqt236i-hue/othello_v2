@@ -92,7 +92,10 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- Choose verification by blast radius. Prefer focused tests/preflights first; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
+- Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
+- Do not add new tests by default for every implementation. Add or update tests when the change alters gameplay rules, shared logic, network contracts, bug-prone turn flow, public APIs, or fixes a regression that should stay fixed.
+- For trivial text-only, style-only, docs-only, generated-manifest, or narrowly scoped config changes, prefer source/diff inspection and the smallest relevant existing check over creating new test files.
+- If existing focused coverage already proves the changed behavior, run that coverage instead of adding duplicate tests. If no practical automated check exists, state the manual/source inspection performed and the residual risk.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
 ## IMPLEMENTATION QUALITY
@@ -146,6 +149,7 @@ othello_v2/
 - Do not include unrelated user changes, generated artifacts, mirror files, deleted assets, or work-in-progress changes unless they are required for the current task and were intentionally produced as part of it.
 - Keep commit messages short and concrete, in Japanese or English, so the completed work unit is clear from `git log`.
 - If tests or checks were run, report the commands and results in the final response.
+- Verification appropriate to a unit does not automatically mean adding new tests; follow the blast-radius guidance in WORK RULES.
 - If the change set is large, mixes unrelated edits, requires a product/rules decision, cannot be separated safely, or verification failed in a way that should block landing, do not commit; report the exact reason and ask how to proceed.
 
 ## ANTI-PATTERNS (THIS PROJECT)
