@@ -4248,6 +4248,138 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     opacity: 0.88;
 }
 
+/* Observation gacha typography fidelity pass. */
+#gachaModal {
+    --gacha-display-font: "CR-Kaisei Tokumin", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+    --gacha-body-font: "CR-Shippori Mincho", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+    --gacha-number-font: "CR-Cinzel", Georgia, "Times New Roman", serif;
+    --gacha-gold-light: #fff9de;
+    --gacha-gold-core: #ffe596;
+    --gacha-gold-deep: #b87b25;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+#gachaModal .gacha-title {
+    font-family: var(--gacha-display-font);
+    color: #fffdf4;
+    font-weight: 800;
+    letter-spacing: 0;
+    -webkit-text-stroke: calc(0.45px * var(--gacha-reference-scale)) rgba(255, 255, 255, 0.30);
+    paint-order: stroke fill;
+    filter: drop-shadow(0 0 calc(5px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.92));
+    text-shadow:
+        0 calc(2px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.96),
+        0 0 calc(9px * var(--gacha-reference-scale)) rgba(225, 255, 252, 0.38),
+        0 0 calc(18px * var(--gacha-reference-scale)) rgba(109, 238, 236, 0.18);
+}
+
+#gachaStatusText,
+.gacha-details-copy,
+.gacha-rate-summary,
+.gacha-results-empty {
+    font-family: var(--gacha-body-font);
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.gacha-balance-label,
+.gacha-detail-link {
+    font-family: var(--gacha-body-font);
+    font-weight: 800;
+    letter-spacing: 0;
+    text-shadow:
+        0 calc(1px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.88),
+        0 0 calc(7px * var(--gacha-reference-scale)) rgba(212, 255, 252, 0.18);
+}
+
+#gachaBalanceValue,
+.gacha-pull-cost,
+.gacha-rate-probability,
+.gacha-rate-count {
+    font-family: var(--gacha-number-font);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums lining-nums;
+    color: #fff2ba;
+    text-shadow:
+        0 calc(2px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.94),
+        0 0 calc(7px * var(--gacha-reference-scale)) rgba(255, 226, 145, 0.32);
+}
+
+.gacha-pull-label {
+    font-family: var(--gacha-display-font);
+    font-weight: 800;
+    letter-spacing: 0;
+    -webkit-text-stroke: calc(0.35px * var(--gacha-reference-scale)) rgba(255, 255, 255, 0.24);
+    paint-order: stroke fill;
+}
+
+#gachaTenPullBtn .gacha-pull-label {
+    color: transparent;
+    background: linear-gradient(180deg, #fffdf0 0%, var(--gacha-gold-light) 20%, var(--gacha-gold-core) 54%, var(--gacha-gold-deep) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-stroke: calc(0.72px * var(--gacha-reference-scale)) rgba(255, 247, 215, 0.74);
+    filter:
+        drop-shadow(0 calc(2px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.94))
+        drop-shadow(0 0 calc(6px * var(--gacha-reference-scale)) rgba(255, 238, 178, 0.40));
+    text-shadow:
+        0 0 calc(10px * var(--gacha-reference-scale)) rgba(255, 222, 137, 0.42),
+        0 0 calc(18px * var(--gacha-reference-scale)) rgba(255, 190, 83, 0.18);
+}
+
+.gacha-pull-side .gacha-pull-label {
+    color: #fffdf4;
+    text-shadow:
+        0 calc(2px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.94),
+        0 0 calc(8px * var(--gacha-reference-scale)) rgba(223, 255, 252, 0.24);
+}
+
+#gachaTenPullBtn .gacha-pull-cost {
+    color: var(--gacha-gold-light);
+    filter: drop-shadow(0 0 calc(5px * var(--gacha-reference-scale)) rgba(255, 224, 138, 0.24));
+}
+
+#gachaModal .gacha-rate-heading {
+    font-family: var(--gacha-display-font);
+    font-weight: 800;
+    color: #67fff7;
+    letter-spacing: 0;
+    text-shadow:
+        0 calc(1px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.94),
+        0 0 calc(10px * var(--gacha-reference-scale)) rgba(90, 255, 247, 0.50);
+}
+
+#gachaModal .gacha-rate-rarity {
+    font-family: var(--gacha-number-font);
+    font-weight: 900;
+    color: var(--gacha-rate-color, #f6ead0);
+    text-shadow:
+        0 calc(1px * var(--gacha-reference-scale)) calc(2px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.94),
+        0 0 calc(8px * var(--gacha-reference-scale)) var(--gacha-type-glow, rgba(244, 234, 216, 0.16));
+}
+
+#gachaModal .gacha-rate-row[data-gacha-rarity="exr"] {
+    --gacha-type-glow: rgba(255, 226, 120, 0.54);
+}
+
+#gachaModal .gacha-rate-row[data-gacha-rarity="ur"] {
+    --gacha-type-glow: rgba(255, 142, 74, 0.44);
+}
+
+#gachaModal .gacha-rate-row[data-gacha-rarity="ssr"] {
+    --gacha-type-glow: rgba(207, 127, 255, 0.46);
+}
+
+#gachaModal .gacha-rate-row[data-gacha-rarity="sr"] {
+    --gacha-type-glow: rgba(105, 202, 255, 0.44);
+}
+
+#gachaModal .gacha-rate-row[data-gacha-rarity="r"],
+#gachaModal .gacha-rate-row[data-gacha-rarity="n"] {
+    --gacha-type-glow: rgba(214, 246, 246, 0.18);
+}
+
 @media (max-width: 56.25em) and (min-width: 50em) {
     #gachaModal {
         --gacha-reference-scale: 0.5 !important;
