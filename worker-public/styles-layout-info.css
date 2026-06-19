@@ -3391,15 +3391,21 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     min-height: calc(122px * var(--layout-stage-scale));
     padding: calc(10px * var(--layout-stage-scale));
     background-image:
-        linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.02) 45%, rgba(0, 0, 0, 0.12)),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.14), transparent 18%, rgba(0, 0, 0, 0.24) 100%),
+        radial-gradient(66% 100% at 50% 54%, rgba(255, 216, 111, 0.16), transparent 42%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.01) 45%, rgba(0, 0, 0, 0.08)),
         url("assets/images/other/gacha-reference-banner.png");
     background-size: cover;
     background-position: center;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(111, 249, 246, 0.72);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(111, 249, 246, 0.82);
     clip-path: polygon(calc(14px * var(--layout-stage-scale)) 0, calc(100% - calc(14px * var(--layout-stage-scale))) 0, 100% calc(14px * var(--layout-stage-scale)), 100% calc(100% - calc(14px * var(--layout-stage-scale))), calc(100% - calc(14px * var(--layout-stage-scale))) 100%, calc(14px * var(--layout-stage-scale)) 100%, 0 calc(100% - calc(14px * var(--layout-stage-scale))), 0 calc(14px * var(--layout-stage-scale)));
     box-shadow:
-        0 0 calc(18px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.28),
-        inset 0 0 calc(16px * var(--layout-stage-scale)) rgba(255, 234, 162, 0.12);
+        0 0 calc(20px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.34),
+        0 0 calc(9px * var(--layout-stage-scale)) rgba(255, 218, 115, 0.20),
+        inset 0 0 0 calc(2px * var(--layout-stage-scale)) rgba(6, 20, 22, 0.78),
+        inset 0 calc(3px * var(--layout-stage-scale)) 0 rgba(255, 237, 158, 0.44),
+        inset 0 calc(-3px * var(--layout-stage-scale)) 0 rgba(117, 255, 252, 0.34),
+        inset 0 0 calc(16px * var(--layout-stage-scale)) rgba(255, 234, 162, 0.10);
 }
 
 .gacha-recommend-badge {
@@ -3965,9 +3971,10 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 #gachaModal .gacha-pull-main::before {
     z-index: 0;
     background:
-        radial-gradient(circle at 50% 50%, rgba(255, 232, 146, 0.42), rgba(255, 201, 72, 0.16) 18%, transparent 46%),
-        repeating-conic-gradient(from -8deg at 50% 50%, rgba(255, 214, 111, 0.20) 0deg 2deg, transparent 2deg 11deg),
-        linear-gradient(90deg, transparent 0 7%, rgba(109, 251, 255, 0.34) 8%, transparent 13% 82%, rgba(109, 251, 255, 0.30) 88%, transparent 94%);
+        radial-gradient(circle at 50% 50%, rgba(255, 232, 146, 0.34), rgba(255, 201, 72, 0.12) 18%, transparent 46%),
+        repeating-conic-gradient(from -8deg at 50% 50%, rgba(255, 214, 111, 0.18) 0deg 2deg, transparent 2deg 11deg),
+        linear-gradient(90deg, transparent 0 7%, rgba(109, 251, 255, 0.42) 8%, transparent 13% 82%, rgba(109, 251, 255, 0.36) 88%, transparent 94%),
+        linear-gradient(180deg, rgba(117, 255, 252, 0.42) 0, transparent 3%, transparent 96%, rgba(117, 255, 252, 0.34) 100%);
     mix-blend-mode: screen;
 }
 
