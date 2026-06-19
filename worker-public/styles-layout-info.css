@@ -4070,6 +4070,15 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
         drop-shadow(calc(-20px * var(--gacha-reference-scale)) calc(14px * var(--gacha-reference-scale)) calc(30px * var(--gacha-reference-scale)) rgba(18, 228, 255, 0.54));
     opacity: 0.92;
 }
+@media (max-width: 1000px) {
+    #gachaModal .gacha-pull-showcase::after {
+        right: calc(74px * var(--gacha-reference-scale));
+        top: calc(42px * var(--gacha-reference-scale));
+        width: calc(198px * var(--gacha-reference-scale));
+        height: calc(182px * var(--gacha-reference-scale));
+        opacity: 0.88;
+    }
+}
 
 #gachaModal .gacha-detail-link {
     z-index: 4;
