@@ -3180,6 +3180,11 @@
         rgba(0, 0, 0, 0.76);
 }
 
+body:has(#gachaOverlay.is-open) #control-panel,
+body:has(#gachaOverlay.is-open) #quick-controls-bar {
+    display: none;
+}
+
 #gachaModal {
     width: min(calc(960px * var(--layout-stage-scale)), calc(100vw - calc(36px * var(--layout-stage-scale))));
     max-height: min(92dvh, 720px);
@@ -3631,4 +3636,239 @@
     background: transparent;
     color: rgba(244, 234, 216, 0.78);
     font-size: calc(17px * var(--layout-stage-scale));
+}
+
+/* Reference-size observation gacha pass: keep the modal independent from board scale. */
+#gachaModal {
+    --gacha-reference-scale: clamp(0.86, calc(var(--layout-stage-scale) * 1.25), 1);
+    display: flex;
+    flex-direction: column;
+    width: min(calc(1500px * var(--gacha-reference-scale)), calc(100vw - calc(36px * var(--gacha-reference-scale))));
+    height: min(calc(1088px * var(--gacha-reference-scale)), calc(100dvh - calc(38px * var(--gacha-reference-scale))));
+    max-height: calc(100dvh - calc(38px * var(--gacha-reference-scale)));
+    border-width: calc(2px * var(--gacha-reference-scale));
+    border-radius: calc(6px * var(--gacha-reference-scale));
+}
+
+#gachaModalHeader {
+    flex: 0 0 calc(170px * var(--gacha-reference-scale));
+    min-height: calc(170px * var(--gacha-reference-scale));
+    padding: calc(30px * var(--gacha-reference-scale)) calc(42px * var(--gacha-reference-scale)) calc(18px * var(--gacha-reference-scale));
+}
+
+#gachaModal .gacha-title-wrap {
+    gap: calc(16px * var(--gacha-reference-scale));
+}
+
+#gachaModal .gacha-title {
+    font-size: calc(40px * var(--gacha-reference-scale));
+    line-height: 1.08;
+}
+
+#gachaBalanceSummary {
+    min-width: calc(334px * var(--gacha-reference-scale));
+    min-height: calc(64px * var(--gacha-reference-scale));
+    padding: calc(7px * var(--gacha-reference-scale)) calc(24px * var(--gacha-reference-scale));
+    gap: calc(18px * var(--gacha-reference-scale));
+}
+
+#gachaBalanceSummary .observation-stone-icon {
+    width: calc(52px * var(--gacha-reference-scale));
+}
+
+.gacha-balance-label {
+    font-size: calc(24px * var(--gacha-reference-scale));
+}
+
+#gachaBalanceValue {
+    font-size: calc(34px * var(--gacha-reference-scale));
+}
+
+#gachaCloseBtn {
+    position: absolute;
+    top: calc(30px * var(--gacha-reference-scale));
+    right: calc(42px * var(--gacha-reference-scale));
+    width: calc(64px * var(--gacha-reference-scale));
+    min-width: calc(64px * var(--gacha-reference-scale));
+    height: calc(64px * var(--gacha-reference-scale));
+    font-size: calc(42px * var(--gacha-reference-scale));
+}
+
+#gachaModalBody {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: calc(12px * var(--gacha-reference-scale)) calc(34px * var(--gacha-reference-scale)) calc(30px * var(--gacha-reference-scale));
+    overflow: hidden;
+}
+
+.gacha-reference-shell {
+    display: grid;
+    grid-template-rows:
+        calc(52px * var(--gacha-reference-scale))
+        calc(248px * var(--gacha-reference-scale))
+        calc(340px * var(--gacha-reference-scale))
+        minmax(calc(138px * var(--gacha-reference-scale)), 1fr);
+    gap: calc(16px * var(--gacha-reference-scale));
+    height: 100%;
+}
+
+#gachaStatusText {
+    min-height: 0;
+    height: 100%;
+    padding: 0 calc(20px * var(--gacha-reference-scale));
+    font-size: calc(21px * var(--gacha-reference-scale));
+}
+
+#gachaStatusText::before {
+    width: calc(31px * var(--gacha-reference-scale));
+    height: calc(31px * var(--gacha-reference-scale));
+    margin-right: calc(16px * var(--gacha-reference-scale));
+    font-size: calc(20px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-showcase {
+    grid-template-columns:
+        minmax(calc(286px * var(--gacha-reference-scale)), 0.78fr)
+        minmax(calc(680px * var(--gacha-reference-scale)), 1.82fr)
+        minmax(calc(134px * var(--gacha-reference-scale)), 0.36fr);
+    gap: calc(44px * var(--gacha-reference-scale));
+    min-height: 0;
+    height: 100%;
+    padding: calc(28px * var(--gacha-reference-scale)) calc(58px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-side {
+    min-height: calc(136px * var(--gacha-reference-scale));
+    padding: calc(18px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-main {
+    min-height: calc(206px * var(--gacha-reference-scale));
+    padding: calc(12px * var(--gacha-reference-scale));
+}
+
+.gacha-recommend-badge {
+    left: calc(18px * var(--gacha-reference-scale));
+    top: calc(-18px * var(--gacha-reference-scale));
+    padding: calc(5px * var(--gacha-reference-scale)) calc(16px * var(--gacha-reference-scale));
+    font-size: calc(17px * var(--gacha-reference-scale));
+}
+
+#gachaTenPullBtn {
+    min-height: calc(178px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-label,
+#gachaTenPullBtn .gacha-pull-label {
+    font-size: calc(54px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-side .gacha-pull-label {
+    font-size: calc(34px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-cost {
+    font-size: calc(30px * var(--gacha-reference-scale));
+    gap: calc(10px * var(--gacha-reference-scale));
+}
+
+#gachaTenPullBtn .gacha-pull-cost {
+    font-size: calc(42px * var(--gacha-reference-scale));
+}
+
+.gacha-pull-cost .observation-stone-icon {
+    width: calc(30px * var(--gacha-reference-scale));
+}
+
+#gachaTenPullBtn .gacha-pull-cost .observation-stone-icon {
+    width: calc(44px * var(--gacha-reference-scale));
+}
+
+.gacha-detail-link {
+    display: inline-flex;
+    min-height: calc(58px * var(--gacha-reference-scale));
+    padding: 0 calc(24px * var(--gacha-reference-scale));
+    font-size: calc(22px * var(--gacha-reference-scale));
+    gap: calc(16px * var(--gacha-reference-scale));
+}
+
+.gacha-detail-link::after {
+    margin-left: 0;
+}
+
+#gachaDetailsPanel {
+    height: 100%;
+    min-height: 0;
+    padding: calc(16px * var(--gacha-reference-scale)) calc(24px * var(--gacha-reference-scale));
+    gap: calc(12px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-header {
+    gap: calc(28px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-heading {
+    font-size: calc(28px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-summary {
+    font-size: calc(18px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-list {
+    gap: calc(4px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-row {
+    min-height: calc(40px * var(--gacha-reference-scale));
+    grid-template-columns: minmax(calc(210px * var(--gacha-reference-scale)), auto) minmax(calc(140px * var(--gacha-reference-scale)), 1fr) auto;
+    padding: 0 calc(18px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-rarity {
+    min-height: calc(38px * var(--gacha-reference-scale));
+    gap: calc(12px * var(--gacha-reference-scale));
+    padding-left: calc(12px * var(--gacha-reference-scale));
+    font-size: calc(29px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-mark {
+    width: calc(20px * var(--gacha-reference-scale));
+    height: calc(20px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-probability,
+.gacha-rate-count {
+    font-size: calc(22px * var(--gacha-reference-scale));
+}
+
+.gacha-rate-count {
+    min-width: calc(62px * var(--gacha-reference-scale));
+}
+
+.gacha-results-frame {
+    min-height: 0;
+}
+
+.gacha-results-heading {
+    display: none;
+}
+
+#gachaResults {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    padding: calc(14px * var(--gacha-reference-scale));
+    border-radius: calc(8px * var(--gacha-reference-scale));
+}
+
+.gacha-results-empty {
+    min-height: 100%;
+    font-size: calc(23px * var(--gacha-reference-scale));
+}
+
+.gacha-results-empty::before {
+    width: calc(58px * var(--gacha-reference-scale));
+    height: calc(58px * var(--gacha-reference-scale));
+    margin-bottom: calc(14px * var(--gacha-reference-scale));
 }
