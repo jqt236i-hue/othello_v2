@@ -3937,7 +3937,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     min-height: calc(38px * var(--gacha-reference-scale));
     gap: calc(12px * var(--gacha-reference-scale));
     padding-left: calc(12px * var(--gacha-reference-scale));
-    font-size: calc(29px * var(--gacha-reference-scale));
+    font-size: calc(27px * var(--gacha-reference-scale));
 }
 
 .gacha-rate-mark {
@@ -3947,7 +3947,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 .gacha-rate-probability,
 .gacha-rate-count {
-    font-size: calc(22px * var(--gacha-reference-scale));
+    font-size: calc(21px * var(--gacha-reference-scale));
 }
 
 .gacha-rate-count {
@@ -4007,7 +4007,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaModal .gacha-rate-rarity {
     position: relative;
-    width: calc(190px * var(--gacha-reference-scale));
+    width: calc(184px * var(--gacha-reference-scale));
     margin-left: calc(-18px * var(--gacha-reference-scale));
     padding-left: calc(34px * var(--gacha-reference-scale));
     clip-path: polygon(
