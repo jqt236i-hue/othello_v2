@@ -180,6 +180,61 @@ describe('NetworkMatchClient presence log', () => {
     expect(global.addLog).toHaveBeenCalledWith('ネット対戦: 白が接続しました');
   });
 
+  test('相手席の入退室を中央ポップアップで約2秒表示する', async () => {
+    jest.useFakeTimers();
+
+    try {
+      require('../ui/network-client.js');
+      const client = window.NetworkMatchClient;
+      expect(client).toBeTruthy();
+
+      const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+      expect(created.ok).toBe(true);
+
+      const stream = global.EventSource.instances[0];
+      expect(stream).toBeTruthy();
+
+      stream.emit('presence', {
+        ok: true,
+        type: 'join',
+        seatKey: 'white',
+        playerName: 'しろ',
+        rejoined: false,
+        seats: { black: true, white: true },
+        seatNames: { black: 'くろ', white: 'しろ' }
+      });
+
+      const toast = document.getElementById('network-presence-toast');
+      expect(toast).not.toBeNull();
+      expect(toast.textContent.trim()).toBe('しろさんが入室しました');
+      expect(toast.classList.contains('is-visible')).toBe(true);
+      expect(toast.classList.contains('is-hiding')).toBe(false);
+      expect(toast.getAttribute('aria-hidden')).toBe('false');
+
+      jest.advanceTimersByTime(1999);
+      expect(toast.classList.contains('is-hiding')).toBe(false);
+
+      jest.advanceTimersByTime(1);
+      expect(toast.classList.contains('is-hiding')).toBe(true);
+
+      stream.emit('presence', {
+        ok: true,
+        type: 'leave',
+        seatKey: 'white',
+        playerName: '',
+        seats: { black: true, white: false },
+        seatNames: { black: 'くろ', white: '' }
+      });
+
+      expect(toast.textContent.trim()).toBe('しろさんが退出しました');
+      expect(toast.classList.contains('is-visible')).toBe(true);
+      expect(toast.classList.contains('is-hiding')).toBe(false);
+      expect(toast.getAttribute('aria-hidden')).toBe('false');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('自席の参加通知は効果ログへ出さない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
@@ -201,6 +256,7 @@ describe('NetworkMatchClient presence log', () => {
     });
 
     expect(global.addLog).not.toHaveBeenCalled();
+    expect(document.getElementById('network-presence-toast')).toBeNull();
   });
 
   test('2人そろうと在室状態リスナーへ通知する', async () => {

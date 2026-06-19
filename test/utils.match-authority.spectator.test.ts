@@ -112,4 +112,22 @@ describe('match authority spectator helpers', () => {
     expect(room.spectators).toEqual({});
     expect(room.updatedAt).toBe(1600);
   });
+
+  test('presence payload preserves spectator identity for join and leave notices', () => {
+    const room = createRoom();
+
+    const payload = MatchAuthority.buildPresencePayloadFromRoom(room, {
+      type: 'spectator_join',
+      spectatorId: 'spec_notice001',
+      spectatorName: '観戦通知',
+      serverTime: 2500
+    });
+
+    expect(payload).toEqual(expect.objectContaining({
+      ok: true,
+      type: 'spectator_join',
+      spectatorId: 'spec_notice001',
+      spectatorName: '観戦通知'
+    }));
+  });
 });

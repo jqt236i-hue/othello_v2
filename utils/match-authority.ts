@@ -1094,6 +1094,10 @@ function buildPresencePayloadFromRoom(
         seatKey: opts.seatKey,
         playerName: opts.playerName,
         rejoined: opts.rejoined,
+        spectatorId: opts.spectatorId,
+        spectatorName: opts.spectatorName,
+        spectatorCount: opts.spectatorCount,
+        maxSpectators: opts.maxSpectators,
         serverTime: opts.serverTime
     }, opts));
 }

@@ -67,6 +67,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const AUTO_PASS_NOTICE_REASON = 'no_legal_moves_or_usable_cards';
+    const NETWORK_PRESENCE_TOAST_ID = 'network-presence-toast';
+    const NETWORK_PRESENCE_TOAST_VISIBLE_MS = 2000;
+    const NETWORK_PRESENCE_TOAST_FADE_MS = 360;
     const PlaybackStateModule = resolveNetworkClientModule('./playback-state-manager', root.PlaybackStateManager || null);
     const NetworkGameContractAdapterModule = resolveNetworkClientModule('./network/game-contract-adapter', root.NetworkGameContractAdapter || null);
     const ResultOverlayModule = resolveNetworkClientModule('./result-overlay', root || null);
@@ -394,6 +397,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         },
         lastAutoPassNoticeSignature: ''
     };
+    let networkPresenceToastHideTimer: any = 0;
+    let networkPresenceToastClearTimer: any = 0;
 
     let networkCommentaryModule: any = null;
     let networkActionSchemaModule: any = null;
@@ -1779,6 +1784,161 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
+    function getNetworkPresenceToastDocument() {
+        try {
+            const doc = root && root.document
+                ? root.document
+                : (typeof document !== 'undefined' ? document : null);
+            return doc && doc.body ? doc : null;
+        } catch (e: any) { /* ignore */ }
+        return null;
+    }
+
+    function getNetworkPresenceToastElement() {
+        const doc = getNetworkPresenceToastDocument();
+        if (!doc || typeof doc.getElementById !== 'function') return null;
+        return doc.getElementById(NETWORK_PRESENCE_TOAST_ID);
+    }
+
+    function ensureNetworkPresenceToastElement() {
+        const doc = getNetworkPresenceToastDocument();
+        if (!doc || !doc.body || typeof doc.createElement !== 'function') return null;
+
+        let toast = getNetworkPresenceToastElement();
+        if (toast) return toast;
+
+        toast = doc.createElement('div');
+        toast.id = NETWORK_PRESENCE_TOAST_ID;
+        toast.className = 'network-presence-toast';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.setAttribute('aria-hidden', 'true');
+
+        const rail = doc.createElement('span');
+        rail.className = 'network-presence-toast__rail';
+        rail.setAttribute('aria-hidden', 'true');
+        toast.appendChild(rail);
+
+        const text = doc.createElement('span');
+        text.className = 'network-presence-toast__text';
+        toast.appendChild(text);
+
+        doc.body.appendChild(toast);
+        return toast;
+    }
+
+    function clearNetworkPresenceToastTimers() {
+        if (networkPresenceToastHideTimer) {
+            clearScheduledTimeout(networkPresenceToastHideTimer);
+            networkPresenceToastHideTimer = 0;
+        }
+        if (networkPresenceToastClearTimer) {
+            clearScheduledTimeout(networkPresenceToastClearTimer);
+            networkPresenceToastClearTimer = 0;
+        }
+    }
+
+    function hideNetworkPresenceToast() {
+        networkPresenceToastHideTimer = 0;
+        const toast = getNetworkPresenceToastElement();
+        if (!toast) return;
+        toast.classList.add('is-hiding');
+        networkPresenceToastClearTimer = scheduleTimeout(() => {
+            networkPresenceToastClearTimer = 0;
+            const currentToast = getNetworkPresenceToastElement();
+            if (!currentToast) return;
+            currentToast.classList.remove('is-visible', 'is-hiding', 'is-join', 'is-leave');
+            currentToast.setAttribute('aria-hidden', 'true');
+        }, NETWORK_PRESENCE_TOAST_FADE_MS);
+    }
+
+    function showNetworkPresenceToast(message: any, kind: any) {
+        const textValue = String(message || '').trim();
+        if (!textValue) return false;
+
+        const toast = ensureNetworkPresenceToastElement();
+        if (!toast) return false;
+
+        clearNetworkPresenceToastTimers();
+        const textEl = typeof toast.querySelector === 'function'
+            ? toast.querySelector('.network-presence-toast__text')
+            : null;
+        if (textEl) textEl.textContent = textValue;
+        else toast.textContent = textValue;
+
+        toast.classList.remove('is-visible', 'is-hiding', 'is-join', 'is-leave');
+        toast.classList.add(String(kind || '') === 'leave' ? 'is-leave' : 'is-join');
+        toast.setAttribute('aria-hidden', 'false');
+        try { void toast.offsetWidth; } catch (e: any) { /* ignore */ }
+        toast.classList.add('is-visible');
+
+        networkPresenceToastHideTimer = scheduleTimeout(() => {
+            hideNetworkPresenceToast();
+        }, NETWORK_PRESENCE_TOAST_VISIBLE_MS);
+        return true;
+    }
+
+    function readPresenceSeatName(payload: any, seatKey: any) {
+        const normalizedSeatKey = normalizePlayerKey(seatKey);
+        const seatNameKey = normalizedSeatKey === 'white' ? 'white' : 'black';
+        const payloadNames = payload && payload.seatNames && typeof payload.seatNames === 'object'
+            ? payload.seatNames
+            : null;
+        if (payloadNames && Object.prototype.hasOwnProperty.call(payloadNames, seatNameKey)) {
+            const fromPayload = normalizePlayerName(payloadNames[seatNameKey]);
+            if (fromPayload) return fromPayload;
+        }
+
+        const stateNames = state.seatNames && typeof state.seatNames === 'object'
+            ? state.seatNames
+            : null;
+        if (stateNames && Object.prototype.hasOwnProperty.call(stateNames, seatNameKey)) {
+            const fromState = normalizePlayerName(stateNames[seatNameKey]);
+            if (fromState) return fromState;
+        }
+
+        const fromSeat = normalizePlayerName(getSeatDisplayName(normalizedSeatKey));
+        if (fromSeat) return fromSeat;
+        return normalizedSeatKey === 'white' ? '白' : '黒';
+    }
+
+    function resolveNetworkPresenceDisplayName(payload: any, seatKey: any) {
+        const fromPayload = normalizePlayerName(payload && payload.playerName);
+        if (fromPayload) return fromPayload;
+        return readPresenceSeatName(payload, seatKey);
+    }
+
+    function resolveNetworkPresenceSpectatorName(payload: any) {
+        return normalizePlayerName(payload && (payload.spectatorName || payload.playerName)) || '観戦者';
+    }
+
+    function showNetworkPresenceToastFromPayload(payload: any) {
+        if (!payload || payload.ok !== true) return false;
+
+        const type = String(payload.type || 'join').trim();
+        if (type === 'join' || type === 'leave') {
+            const seatKey = normalizePlayerKey(payload.seatKey);
+            if (!isSpectator() && seatKey === normalizePlayerKey(state.seatKey)) return false;
+            const playerName = resolveNetworkPresenceDisplayName(payload, seatKey);
+            const actionText = type === 'leave' ? '退出' : '入室';
+            return showNetworkPresenceToast(playerName + 'さんが' + actionText + 'しました', type);
+        }
+
+        if (type === 'spectator_join' || type === 'spectator_leave') {
+            const spectatorId = String(payload.spectatorId || '').trim();
+            if (isSpectator() && spectatorId && spectatorId === String(state.spectatorId || '').trim()) {
+                return false;
+            }
+            const spectatorName = resolveNetworkPresenceSpectatorName(payload);
+            const kind = type === 'spectator_leave' ? 'leave' : 'join';
+            const actionText = kind === 'leave' ? '退出' : '入室';
+            return showNetworkPresenceToast(spectatorName + 'さんが' + actionText + 'しました', kind);
+        }
+
+        return false;
+    }
+
     function emitSnapshotCommentary(payload: any, snapshot: any, isSelfOperation: any, playbackEvents: any) {
         invokeControllerMethod(getNetworkCommentaryController, 'emitSnapshotCommentary', arguments, undefined);
     }
@@ -2383,6 +2543,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function handlePresencePayload(payload: any) {
+        showNetworkPresenceToastFromPayload(payload);
         const controller = getNetworkRoomEventsController();
         if (!controller || typeof controller.handlePresencePayload !== 'function') return;
         controller.handlePresencePayload(payload);

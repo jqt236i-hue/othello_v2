@@ -267,6 +267,10 @@ export interface MatchAuthorityPresencePayloadFromRoomOptions extends MatchAutho
     seatKey?: unknown;
     playerName?: unknown;
     rejoined?: unknown;
+    spectatorId?: unknown;
+    spectatorName?: unknown;
+    spectatorCount?: unknown;
+    maxSpectators?: unknown;
 }
 
 export interface MatchAuthorityHeartbeatPayloadFromRoomOptions extends MatchAuthorityRoomPayloadOptions {

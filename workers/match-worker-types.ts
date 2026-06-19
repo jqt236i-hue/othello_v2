@@ -258,6 +258,10 @@ export interface MatchWorkerPresencePayloadMeta extends Record<string, unknown> 
     type?: unknown;
     seatKey?: unknown;
     rejoined?: unknown;
+    spectatorId?: unknown;
+    spectatorName?: unknown;
+    spectatorCount?: unknown;
+    maxSpectators?: unknown;
 }
 
 export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {

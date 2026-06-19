@@ -100,4 +100,20 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/\.logEntry[\s\S]*font-weight:\s*700/);
     expect(layoutCss).toMatch(/#log \.logEntry::before[\s\S]*background:\s*rgba\(213,\s*177,\s*105,\s*0\.62\)/);
   });
+
+  test('network presence toast uses centered compact HUD styling', () => {
+    const layoutCss = readLayoutCssSurface();
+
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*position:\s*fixed/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*left:\s*50%/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*top:\s*50%/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*z-index:\s*11994/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*rgba\(242,\s*201,\s*95,\s*0\.16\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*border-radius:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/\.network-presence-toast__rail[\s\S]*background:\s*linear-gradient\(180deg,\s*#fff1aa,\s*#e0a939/);
+    expect(layoutCss).toMatch(/@keyframes\s+network-presence-toast-enter/);
+    expect(layoutCss).toMatch(/@keyframes\s+network-presence-toast-leave/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\.is-visible\s*\{[\s\S]*animation:\s*network-presence-toast-enter\s+280ms/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\.is-visible\.is-hiding\s*\{[\s\S]*animation:\s*network-presence-toast-leave\s+360ms/);
+  });
 });
