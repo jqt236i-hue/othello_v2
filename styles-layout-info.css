@@ -3767,9 +3767,9 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 .gacha-pull-showcase {
     grid-template-columns:
-        minmax(calc(286px * var(--gacha-reference-scale)), 0.78fr)
-        minmax(calc(680px * var(--gacha-reference-scale)), 1.82fr)
-        minmax(calc(134px * var(--gacha-reference-scale)), 0.36fr);
+        calc(286px * var(--gacha-reference-scale))
+        minmax(0, calc(680px * var(--gacha-reference-scale)))
+        minmax(calc(134px * var(--gacha-reference-scale)), 1fr);
     gap: calc(44px * var(--gacha-reference-scale));
     min-height: 0;
     height: 100%;
@@ -3825,6 +3825,8 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 .gacha-detail-link {
     display: inline-flex;
+    justify-self: center;
+    width: calc(134px * var(--gacha-reference-scale));
     min-height: calc(58px * var(--gacha-reference-scale));
     padding: 0 calc(24px * var(--gacha-reference-scale));
     font-size: calc(22px * var(--gacha-reference-scale));
@@ -4012,6 +4014,10 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
         drop-shadow(0 0 calc(13px * var(--gacha-reference-scale)) rgba(105, 248, 255, 0.92))
         drop-shadow(calc(-20px * var(--gacha-reference-scale)) calc(14px * var(--gacha-reference-scale)) calc(30px * var(--gacha-reference-scale)) rgba(18, 228, 255, 0.54));
     opacity: 0.92;
+}
+
+#gachaModal .gacha-detail-link {
+    z-index: 4;
 }
 
 #gachaModal .gacha-pull-main {
