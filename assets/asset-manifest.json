@@ -1,6 +1,6 @@
 {
   "version": "2026-06-19",
-  "generatedAt": "2026-06-19T15:47:38.996Z",
+  "generatedAt": "2026-06-19T15:51:02.859Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -280,23 +280,23 @@
     },
     {
       "path": "assets/images/other/bud.png",
-      "sha256": "19e0a32d22b73ee75f01853faed04fdf6b016b0a77a1ce60c7f4a2583d417fd4"
+      "sha256": "807ced21d44fd9f0589dcaf7550e11061865a1ea49721400a7c53d0670ea71a4"
     },
     {
       "path": "assets/images/other/ICE.png",
-      "sha256": "312480508df6093420625da7aa6eb3bfa9d8f19b53a475c4d597f6431de46cf4"
+      "sha256": "7ae7b73fb94e20fdd970a1cabaeb0a71883d3d8d830eae31ecfe6e93401ceca3"
     },
     {
       "path": "assets/images/other/seed.png",
-      "sha256": "1860a550483fc73443299d8a1483212c130b5f192d8acf74fd8017951ffcb0bf"
+      "sha256": "5c07335dedd6edb52c630fb27e26091f0bffb2728eb4c18d7b89c5bff6b77c27"
     },
     {
       "path": "assets/images/other/X.png",
-      "sha256": "c3644e92ccc11fbb3488547e11807d47db62e379192d94f78dfcb508c4dfcb0f"
+      "sha256": "984e56327216631c8dbcc0c825b10825abedd94f43f78399bfab0f6b480ce21a"
     },
     {
       "path": "assets/images/other/観測石.png",
-      "sha256": "2ecd16bbbbe9664cf3190619a89492c2a2c085889ca0475c157dc865c5af6b29"
+      "sha256": "4334cb8986c72b2b24c3aad73680f6e7e93a428234a490dc97da800b0de07a07"
     },
     {
       "path": "assets/images/special-cards/characters/board_executor.png",
