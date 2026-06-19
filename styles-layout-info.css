@@ -3725,7 +3725,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaCloseBtn {
     position: absolute;
-    top: calc(48px * var(--gacha-reference-scale));
+    top: calc(28px * var(--gacha-reference-scale));
     right: calc(42px * var(--gacha-reference-scale));
     width: calc(64px * var(--gacha-reference-scale));
     min-width: calc(64px * var(--gacha-reference-scale));
