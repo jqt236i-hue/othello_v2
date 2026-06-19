@@ -3993,16 +3993,27 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaModal #gachaResults {
     min-height: calc(138px * var(--gacha-reference-scale));
+    border-color: rgba(107, 237, 234, 0.36);
+    background:
+        radial-gradient(circle at 50% 28%, rgba(83, 214, 209, 0.045), transparent 38%),
+        rgba(0, 8, 10, 0.34);
 }
 
 #gachaModal .gacha-results-empty {
     min-height: calc(108px * var(--gacha-reference-scale));
+    color: rgba(244, 234, 216, 0.70);
+    font-weight: 700;
+    text-shadow: 0 0 calc(8px * var(--gacha-reference-scale)) rgba(244, 234, 216, 0.08);
 }
 
 #gachaModal .gacha-results-empty::before {
     width: calc(52px * var(--gacha-reference-scale));
     height: calc(52px * var(--gacha-reference-scale));
     margin-bottom: calc(10px * var(--gacha-reference-scale));
+    filter:
+        drop-shadow(0 0 calc(7px * var(--gacha-reference-scale)) rgba(105, 248, 255, 0.44))
+        drop-shadow(0 calc(5px * var(--gacha-reference-scale)) calc(10px * var(--gacha-reference-scale)) rgba(0, 0, 0, 0.46));
+    opacity: 0.88;
 }
 
 #gachaModal .gacha-rate-rarity {
