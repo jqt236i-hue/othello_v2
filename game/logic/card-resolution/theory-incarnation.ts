@@ -159,30 +159,43 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
     return TheoryIncarnationSpawn.spawnTheorySpecialStone(cardState, gameState, state, prng, deps);
 }
 
+function isTheoryMarkerForOwner(marker: any, ownerKey: PlayerKey): boolean {
+    return !!(
+        marker &&
+        marker.owner === ownerKey &&
+        marker.data &&
+        String(marker.data.type || '').toUpperCase() === THEORY_MARKER_TYPE
+    );
+}
+
+function isTheoryMarkerAt(marker: any, row: number, col: number, ownerKey: PlayerKey): boolean {
+    return !!(
+        isTheoryMarkerForOwner(marker, ownerKey) &&
+        marker.row === row &&
+        marker.col === col
+    );
+}
+
+function hasActiveOwnerTurns(marker: any): boolean {
+    if (!marker || !marker.data) return false;
+    const remaining = Number(marker.data.remainingOwnerTurns);
+    return !Object.prototype.hasOwnProperty.call(marker.data, 'remainingOwnerTurns')
+        || (Number.isFinite(remaining) && remaining > 0);
+}
+
 function findTheoryMarker(cardState: CardState, row: number, col: number, ownerKey: PlayerKey, deps: any): any {
     const getMarkers = deps && deps.getMarkers;
     const markers = typeof getMarkers === 'function' ? getMarkers(cardState) : ((cardState as any).markers || []);
-    return markers.find((entry: any) => (
-        entry &&
-        entry.row === row &&
-        entry.col === col &&
-        entry.owner === ownerKey &&
-        entry.data &&
-        String(entry.data.type || '').toUpperCase() === THEORY_MARKER_TYPE
-    )) || null;
+    return markers.find((entry: any) => isTheoryMarkerAt(entry, row, col, ownerKey)) || null;
 }
 
 function findActiveTheoryMarkerForOwner(cardState: CardState, ownerKey: PlayerKey, deps: any): any {
     const getMarkers = deps && deps.getMarkers;
     const markers = typeof getMarkers === 'function' ? getMarkers(cardState) : ((cardState as any).markers || []);
-    return markers.find((entry: any) => {
-        if (!entry || !entry.data) return false;
-        if (entry.owner !== ownerKey) return false;
-        if (String(entry.data.type || '').toUpperCase() !== THEORY_MARKER_TYPE) return false;
-        const remaining = Number(entry.data.remainingOwnerTurns);
-        return !Object.prototype.hasOwnProperty.call(entry.data, 'remainingOwnerTurns')
-            || (Number.isFinite(remaining) && remaining > 0);
-    }) || null;
+    return markers.find((entry: any) => (
+        isTheoryMarkerForOwner(entry, ownerKey) &&
+        hasActiveOwnerTurns(entry)
+    )) || null;
 }
 
 function getTheoryStateForMarker(cardState: CardState, ownerKey: PlayerKey, marker: any): any {
