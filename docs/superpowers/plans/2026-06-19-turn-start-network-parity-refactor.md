@@ -21,13 +21,20 @@
 
 ## Current Evidence Summary
 
+> Status update after implementation through commit `afe53d2a`:
+>
+> - Phase 1 root-bug fixes are implemented and committed: canonical marker identity/backfill, anchor snapshot before turn-start mutation, markerId/object-identity resolution, deleted-anchor skip, same-coordinate replacement protection, broad category-change skip, deterministic turn-start `actionId`/`effectBlockId`, presentation `sequenceIndex`, time-bomb phase separation, Worker/root PRNG persistence and non-null state hash via shared turn-pipeline factory.
+> - Phase 2 lifecycle work is partially implemented and committed: split `onTurnStartBeforeAnchors()`/`drawForTurnStart()`, draw after fixed anchors, post-flip revives per anchor, timer/status tick emission per anchor, status duration anchors, SEED sprout generated-flip handling inside the seed anchor, trap cleanup characterization after all anchors, and ultimate-hyperactive non-interleaving tests. Remaining Phase 2 audit work is card-by-card lifecycle consolidation for any behavior still intentionally left in global post-processing, especially WORK/REGEN/trap policies if their source-of-truth rules are changed later.
+> - Phase 3 runtime/playback parity is implemented as a shared-core design rather than deleting every Worker wrapper: `workers/match-worker.ts` still exposes `createWorkerTurnPipelineModule()`, but it delegates to `game/turn/turn_pipeline_factory.ts`; Worker/local/root now share the same turn driver contract. Shared playback planner/digest and authority publish/SSE digest contracts are in place, and local-preview shadowing requires digest agreement.
+> - Phase 4 local verification is partially complete: `npm run typecheck`, `npm run build:ts`, focused turn-start/playback/network suites, `npm run check:window`, and `npm run test:network:parity` pass. `npm run checkall` is currently blocked by pre-existing `.wrangler/codex-head-deploy` JS inventory entries, not by the source files changed for this plan. `npm run worker:prepare`, deployment, and public two-browser smoke are blocked until unrelated dirty generated/mirror files are either committed/stashed/reverted by their owner or explicitly approved for overwrite.
+
 - `README_LIGHTWEIGHT.md` is absent in this checkout. Treat that as repository state, not a game bug.
 - `01-rulebook.md` and `正本/ターン進行正本.md` require turn-start effects before draw, createdSeq-based turn-start order, no same-turn activation for newly born turn-start objects, and one-by-one special stone/bomb processing.
-- `game/turn/turn_pipeline_phases.ts` currently calls `CardLogic.onTurnStart()` before `TurnStartMarkerPhase.collectTurnStartMarkerAnchors()`.
-- `game/logic/cards-internal/effect-timing.ts` currently performs draw inside `onTurnStart()` before later special-marker processing.
-- `game/turn/turn-start/marker-phase.ts` currently stores marker object references and sorts only by `createdSeq || 0`.
-- `game/turn/pipeline-ui/board-event-playback.ts` currently groups batch destroy phases by cause, which can merge separate time bombs.
-- `workers/match-worker.ts` has a Worker-local TurnPipeline copy whose `applyTurnSafe()` returns `stateHash: null` and does not mirror root `prngState` persistence in the same place.
+- Initial audit found `game/turn/turn_pipeline_phases.ts` collected anchors too late; this is fixed by collecting turn-start marker anchors before `CardLogic.onTurnStartBeforeAnchors()`/compat `onTurnStart()`.
+- Initial audit found `game/logic/cards-internal/effect-timing.ts` drew inside `onTurnStart()`; this is fixed for the turn pipeline by split hooks and `drawForTurnStart()` after marker anchors.
+- Initial audit found `game/turn/turn-start/marker-phase.ts` relied on marker object refs and loose createdSeq sorting; this is fixed with explicit anchor tokens, `markerId`, `sourceIndex`, same-identity resolution, and skip-on-missing/current-category-change behavior.
+- Initial audit found `game/turn/pipeline-ui/board-event-playback.ts` could group batch destroys by cause; this is fixed for action/effect scoped batches while keeping legacy no-id batching conservative.
+- Initial audit found Worker-local TurnPipeline drift risk; this is fixed by routing Worker construction through the shared `game/turn/turn_pipeline_factory.ts` and preserving Worker-specific code as an adapter boundary.
 
 ## Target File Map
 
@@ -1348,6 +1355,14 @@ If any item is still unresolved and not explicitly out-of-scope in docs, stop an
 3. Phase 2: Lifecycle refactor: split `onTurnStart()`, move draw, move immediate reactions and normal-stone/revert events into anchor scope.
 4. Phase 3: Runtime parity: shared playback planner, playback digest, authority bundle, Worker root TurnPipeline sharing or extracted shared turn pipeline core.
 5. Phase 4: Local and deployed verification.
+
+Current completion state:
+
+- Phase 0: Complete.
+- Phase 1: Complete through source implementation, focused tests, typecheck, build, and network parity. Mirror preparation remains blocked by unrelated dirty generated/mirror files.
+- Phase 2: Complete for the high-risk ordering bugs and tested lifecycle moves listed in the status update. Not a full card-by-card lifecycle rewrite; remaining global post-processing policies must stay unchanged unless a new source-of-truth decision explicitly moves them.
+- Phase 3: Complete as shared factory/planner/digest contracts. The Worker still has an adapter wrapper, but no longer owns a separate turn-pipeline algorithm.
+- Phase 4: Local automated verification is partially complete. Public deployment and live two-client verification are not complete in this checkout because `worker:prepare`/deploy would overwrite unrelated dirty generated/mirror files.
 
 Do not merge Phase 2 before Phase 1 tests are green. Do not merge Phase 3 before Phase 2 lifecycle tests are green. Do not deploy before Phase 4 local network verification passes.
 
