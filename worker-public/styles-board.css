@@ -46,6 +46,7 @@
     background-image: var(--board-cell-base-image);
     background-size: var(--board-cell-base-size);
     isolation: isolate;
+    z-index: 1;
     overflow: visible;
 }
 
