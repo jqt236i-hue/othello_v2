@@ -44,7 +44,6 @@ const BROWSER_MODULE_PREFIXES = [
     'othello-ai/eval/',
     'othello-ai/runtime/',
     'othello-ai/search/',
-    'story/',
     'shared/',
     'ui/',
     'utils/'

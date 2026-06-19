@@ -1,13 +1,5 @@
 /* ===== Global Reset, Base Typography, Body, H1, and Status Styling ===== */
 
-@font-face {
-    font-family: "DotGothic16";
-    src: url("assets/story/fonts/DotGothic16-Regular.ttf") format("truetype");
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
 * {
     box-sizing: border-box;
     margin: 0;

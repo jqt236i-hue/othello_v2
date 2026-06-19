@@ -116,7 +116,6 @@ const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'data/models/policy-value.onnx.meta.json',
     'data/models/policy-table.json',
     'data/models/othello/policy-value.onnx.meta.json',
-    'story/ui/story.css',
     'node_modules/onnxruntime-web/dist/ort.min.js',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',

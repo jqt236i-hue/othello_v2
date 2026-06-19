@@ -36,7 +36,6 @@
       "shared/**/*",
       "workers/**/*",
       "scripts/**/*",
-      "story/**/*",
       "cards/**/*",
       "cpu/**/*.ts",
       "src/**/*",

@@ -10,7 +10,6 @@
     "constants/**/*.ts",
     "workers/**/*.ts",
     "scripts/**/*.ts",
-    "story/**/*.ts",
     "cards/**/*.ts",
     "cpu/**/*.ts",
     "src/**/*.ts",

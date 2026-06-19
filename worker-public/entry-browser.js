@@ -2015,15 +2015,6 @@ if (typeof _mod94 !== "undefined" && _mod94) window.AnimationUtils = _mod94;
 if (typeof _mod136 !== "undefined" && _mod136) window.HandAnimationUtilsModule = _mod136;
 
 try {
-  window.StoryModeModule = window.StoryModeModule || require("./dist/story/bridge/story-mode-controller");
-  if (window.StoryModeModule && typeof window.StoryModeModule.initStoryModeBrowser === "function") {
-    window.StoryModeModule.initStoryModeBrowser(document);
-  }
-} catch (e) {
-  console.warn("[boot] skip story mode init: " + (e && e.message ? e.message : e));
-}
-
-try {
   window.setTimeout(function() {
     try {
       Object.defineProperty(window, "cpuSmartness", {
