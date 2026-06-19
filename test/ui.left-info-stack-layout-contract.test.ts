@@ -103,11 +103,13 @@ describe('left info stack layout contract', () => {
 
   test('network presence toast uses lower-center compact HUD styling', () => {
     const layoutCss = readLayoutCssSurface();
+    const varsCss = readRepoTextFile('styles-variables.css');
 
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*left:\s*50%/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*top:\s*calc\(50%\s*\+\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
-    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*z-index:\s*11994/);
+    expect(varsCss).toMatch(/--z-modal-network:\s*13010/);
+    expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*z-index:\s*calc\(var\(--z-modal-network\)\s*\+\s*1\)/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*rgba\(242,\s*201,\s*95,\s*0\.16\)/);
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*border-radius:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/\.network-presence-toast__rail[\s\S]*background:\s*linear-gradient\(180deg,\s*#fff1aa,\s*#e0a939/);

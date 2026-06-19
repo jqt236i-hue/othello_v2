@@ -1178,7 +1178,7 @@
     position: fixed;
     left: 50%;
     top: calc(50% + calc(96px * var(--layout-stage-scale)));
-    z-index: 11994;
+    z-index: calc(var(--z-modal-network) + 1);
     display: none;
     align-items: center;
     justify-content: center;
