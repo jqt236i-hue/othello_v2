@@ -175,7 +175,7 @@ function createGachaOverlayController(options?: any): any {
 
   function initialize(): void {
     view.renderPullResults([], []);
-    view.setDetailsVisible(false);
+    view.setDetailsVisible(true);
     refresh();
     setOverlayVisible(false, { force: true });
   }

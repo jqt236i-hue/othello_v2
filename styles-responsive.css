@@ -37,6 +37,59 @@
         grid-template-columns: 1fr;
     }
 
+    .gacha-pull-showcase {
+        grid-template-columns: 1fr;
+        gap: calc(12px * var(--layout-stage-scale));
+        min-height: 0;
+        padding: calc(18px * var(--layout-stage-scale));
+    }
+
+    .gacha-pull-main,
+    .gacha-pull-side {
+        min-height: calc(92px * var(--layout-stage-scale));
+    }
+
+    .gacha-detail-link {
+        min-height: calc(40px * var(--layout-stage-scale));
+    }
+
+    .gacha-rate-header {
+        grid-template-columns: 1fr;
+        gap: calc(5px * var(--layout-stage-scale));
+    }
+
+    #gachaModalBody {
+        padding: calc(10px * var(--layout-stage-scale));
+    }
+
+    .gacha-reference-shell {
+        gap: calc(8px * var(--layout-stage-scale));
+    }
+
+    #gachaTenPullBtn .gacha-pull-label {
+        font-size: clamp(25px, calc(38px * var(--layout-stage-scale)), 42px);
+    }
+
+    #gachaTenPullBtn .gacha-pull-cost {
+        font-size: calc(26px * var(--layout-stage-scale));
+    }
+
+    .gacha-rate-row {
+        grid-template-columns: minmax(calc(56px * var(--layout-stage-scale)), auto) minmax(0, 1fr) auto;
+        padding: 0 calc(6px * var(--layout-stage-scale));
+    }
+
+    .gacha-rate-rarity {
+        gap: calc(5px * var(--layout-stage-scale));
+        padding-left: 0;
+        font-size: calc(15px * var(--layout-stage-scale));
+    }
+
+    .gacha-rate-probability,
+    .gacha-rate-count {
+        font-size: calc(12px * var(--layout-stage-scale));
+    }
+
     #gachaModal {
         width: min(360px, calc(100vw - 20px));
         max-height: min(88dvh, 620px);

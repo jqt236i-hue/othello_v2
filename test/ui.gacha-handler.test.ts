@@ -49,7 +49,7 @@ describe('gacha handler', () => {
     delete global.CustomEvent;
   });
 
-  test('opens modal, shows details, and performs a deterministic new pull', () => {
+  test('opens modal with details visible and performs a deterministic new pull', () => {
     jest.resetModules();
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
@@ -70,7 +70,6 @@ describe('gacha handler', () => {
     expect(document.getElementById('gachaOverlay').classList.contains('is-open')).toBe(true);
     expect(document.getElementById('gachaBalanceValue').textContent).toBe('250');
 
-    document.getElementById('gachaDetailToggleBtn').click();
     expect(document.getElementById('gachaDetailsPanel').hidden).toBe(false);
     expect(document.getElementById('gachaDetailsPanel').textContent).toContain('EXR');
     expect(document.getElementById('gachaDetailsPanel').textContent).not.toContain('未登録 rarity');

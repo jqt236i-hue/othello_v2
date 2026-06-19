@@ -160,6 +160,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     const varsPath = path.join(__dirname, '..', 'styles-variables.css');
     const varsCss = fs.readFileSync(varsPath, 'utf8');
     const layoutCss = readLayoutCssSurface();
+    const html = readRepoTextFile('index.html');
 
     expect(stageJs).toMatch(/layout-stage-enabled/);
     expect(stageJs).toMatch(/layout-profile-16x9/);
@@ -240,6 +241,12 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#side-panel[\s\S]*--layout-stage-bottom-safe-shift/);
     expect(layoutCss).toMatch(/\.observation-stone-icon[\s\S]*観測石\.png/);
     expect(layoutCss).toMatch(/\.result-observation-stone-text/);
+    expect(html).toMatch(/class="gacha-reference-shell"/);
+    expect(html).toMatch(/class="gacha-pull-showcase"/);
+    expect(html).toMatch(/class="gacha-pull-main gacha-pull-main-ten"/);
+    expect(layoutCss).toMatch(/#gachaModal[\s\S]*width:\s*min\(calc\(960px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/\.gacha-pull-showcase[\s\S]*grid-template-columns:/);
+    expect(layoutCss).toMatch(/\.gacha-rate-row\[data-gacha-rarity="exr"\]/);
     expect(layoutCss).toMatch(/\.gacha-result-rarity[\s\S]*font-size:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#gachaOverlay\.is-revealing\s+#gachaModal/);
     expect(layoutCss).toMatch(/#gachaRevealStage[\s\S]*position:\s*absolute/);

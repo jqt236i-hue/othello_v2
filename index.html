@@ -800,15 +800,35 @@
                 <button id="gachaCloseBtn" class="btn-small" type="button" aria-label="観測ガチャを閉じる">×</button>
             </div>
             <div id="gachaModalBody">
-                <div id="gachaStatusText">観測石を集めて手の見た目や配置音や背景を解放できます</div>
-                <div id="gachaActionRow">
-                    <button id="gachaDetailToggleBtn" class="btn-small" type="button" aria-expanded="false"
-                        aria-controls="gachaDetailsPanel">詳細</button>
-                    <button id="gachaSinglePullBtn" class="btn-small" type="button">1回ガチャ</button>
-                    <button id="gachaTenPullBtn" class="btn-small" type="button">10連ガチャ</button>
+                <div class="gacha-reference-shell">
+                    <div id="gachaStatusText">観測石を集めて手の見た目や配置音や背景を解放できます</div>
+                    <div class="gacha-pull-showcase" aria-label="観測ガチャ実行">
+                        <button id="gachaSinglePullBtn" class="btn-small gacha-pull-side" type="button">
+                            <span class="gacha-pull-label">1回ガチャ</span>
+                            <span class="gacha-pull-cost">
+                                <span class="observation-stone-icon" aria-hidden="true"></span>
+                                <span>100</span>
+                            </span>
+                        </button>
+                        <div class="gacha-pull-main gacha-pull-main-ten">
+                            <div class="gacha-recommend-badge">おすすめ</div>
+                            <button id="gachaTenPullBtn" class="btn-small" type="button">
+                                <span class="gacha-pull-label">10連ガチャ</span>
+                                <span class="gacha-pull-cost">
+                                    <span class="observation-stone-icon" aria-hidden="true"></span>
+                                    <span>1000</span>
+                                </span>
+                            </button>
+                        </div>
+                        <button id="gachaDetailToggleBtn" class="btn-small gacha-detail-link" type="button" aria-expanded="false"
+                            aria-controls="gachaDetailsPanel">詳細</button>
+                    </div>
+                    <div id="gachaDetailsPanel" hidden></div>
+                    <div class="gacha-results-frame">
+                        <div class="gacha-results-heading">最新結果</div>
+                        <div id="gachaResults" aria-live="polite"></div>
+                    </div>
                 </div>
-                <div id="gachaDetailsPanel" hidden></div>
-                <div id="gachaResults" aria-live="polite"></div>
             </div>
         </div>
     </div>

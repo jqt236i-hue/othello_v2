@@ -64,11 +64,19 @@ function writeStatus(statusEl: HTMLElement | null, text: string, isError?: boole
 function createRarityRow(docRef: Document, rateInfo: any, helpersModule: any): HTMLElement {
   const row = docRef.createElement('div');
   row.className = 'gacha-rate-row';
+  row.setAttribute('data-gacha-rarity', String(rateInfo.rarity || '').trim().toLowerCase());
   if (!rateInfo.available) row.classList.add('is-unavailable');
 
   const rarity = docRef.createElement('span');
   rarity.className = 'gacha-rate-rarity';
-  rarity.textContent = rateInfo.rarity;
+  const rarityMark = docRef.createElement('span');
+  rarityMark.className = 'gacha-rate-mark';
+  rarityMark.setAttribute('aria-hidden', 'true');
+  rarity.appendChild(rarityMark);
+  const rarityText = docRef.createElement('span');
+  rarityText.className = 'gacha-rate-rarity-text';
+  rarityText.textContent = rateInfo.rarity;
+  rarity.appendChild(rarityText);
 
   const probability = docRef.createElement('span');
   probability.className = 'gacha-rate-probability';
@@ -109,10 +117,17 @@ function renderDetails(detailsPanel: HTMLElement | null, catalogItems: any[], he
   const handCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'hand_skin').length;
   const backgroundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'background_skin').length;
   const soundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'placement_sound').length;
+  const rateHeader = docRef.createElement('div');
+  rateHeader.className = 'gacha-rate-header';
+  const rateHeading = docRef.createElement('div');
+  rateHeading.className = 'gacha-rate-heading';
+  rateHeading.textContent = '排出率';
+  rateHeader.appendChild(rateHeading);
   const kindSummary = docRef.createElement('div');
-  kindSummary.className = 'gacha-details-note';
-  kindSummary.textContent = `排出内容: 手の見た目 ${handCount}種 / 背景 ${backgroundCount}種 / 配置音 ${soundCount}種`;
-  detailsPanel.appendChild(kindSummary);
+  kindSummary.className = 'gacha-rate-summary';
+  kindSummary.textContent = `手の見た目 ${handCount}種 / 背景 ${backgroundCount}種 / 配置音 ${soundCount}種`;
+  rateHeader.appendChild(kindSummary);
+  detailsPanel.appendChild(rateHeader);
 
   const rateList = docRef.createElement('div');
   rateList.className = 'gacha-rate-list';
@@ -202,7 +217,7 @@ function setDetailsVisible(refs: any, visible: boolean): void {
   const open = visible === true;
   refs.detailsPanel.hidden = !open;
   refs.detailToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  refs.detailToggleBtn.textContent = open ? '詳細を閉じる' : '詳細';
+  refs.detailToggleBtn.textContent = '詳細';
 }
 
 function setOverlayVisible(refs: any, visible: boolean): void {
