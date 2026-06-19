@@ -300,6 +300,34 @@ describe('turn-start marker ordering', () => {
     expect(fakeCardLogic.drawForTurnStart).toHaveBeenCalledTimes(1);
   });
 
+  test('real CardLogic exposes and uses split turn-start hooks in the turn pipeline', () => {
+    const RuntimeCardLogic = require('../game/logic/cards.js');
+    const prng = createPrng();
+    const cardState = RuntimeCardLogic.createCardState(prng);
+    const gameState = createEmptyGameState();
+    const beforeSpy = jest.spyOn(RuntimeCardLogic, 'onTurnStartBeforeAnchors');
+    const drawSpy = jest.spyOn(RuntimeCardLogic, 'drawForTurnStart');
+
+    try {
+      TurnPipelinePhases.applyTurnStartPhase(
+        RuntimeCardLogic,
+        Core,
+        cardState,
+        gameState,
+        'black',
+        [],
+        prng
+      );
+
+      expect(beforeSpy).toHaveBeenCalledTimes(1);
+      expect(drawSpy).toHaveBeenCalledTimes(1);
+      expect(beforeSpy.mock.invocationCallOrder[0]).toBeLessThan(drawSpy.mock.invocationCallOrder[0]);
+    } finally {
+      beforeSpy.mockRestore();
+      drawSpy.mockRestore();
+    }
+  });
+
   test('applies post-flip revives after each hyperactive anchor before the next anchor', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([

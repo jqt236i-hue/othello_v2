@@ -120,6 +120,22 @@ function onTurnStart(cardState: CardState, playerKey: string, gameState: GameSta
     return CardEffectTimingModule.onTurnStart(cardState, playerKey, gameState, prng, effectTimingContext);
 }
 
+function onTurnStartBeforeAnchors(cardState: CardState, playerKey: string, gameState: GameState, prng: any, effectTimingContext: any) {
+    const CardEffectTimingModule = getCardEffectTimingModule();
+    if (!CardEffectTimingModule || typeof CardEffectTimingModule.onTurnStartBeforeAnchors !== 'function') {
+        throw new Error('[timing-processor.ts] CardEffectTiming.onTurnStartBeforeAnchors not available');
+    }
+    return CardEffectTimingModule.onTurnStartBeforeAnchors(cardState, playerKey, gameState, prng, effectTimingContext);
+}
+
+function drawForTurnStart(cardState: CardState, playerKey: string, prng: any, effectTimingContext: any) {
+    const CardEffectTimingModule = getCardEffectTimingModule();
+    if (!CardEffectTimingModule || typeof CardEffectTimingModule.drawForTurnStart !== 'function') {
+        throw new Error('[timing-processor.ts] CardEffectTiming.drawForTurnStart not available');
+    }
+    return CardEffectTimingModule.drawForTurnStart(cardState, playerKey, prng, effectTimingContext);
+}
+
 function flushDeferredTurnStartStatusExpirations(cardState: CardState, gameState: GameState, effectTimingContext: any) {
     const CardEffectTimingModule = getCardEffectTimingModule();
     if (!CardEffectTimingModule || typeof CardEffectTimingModule.flushDeferredTurnStartStatusExpirations !== 'function') {
@@ -212,6 +228,8 @@ function processHyperactiveMoves(cardState: CardState, gameState: GameState, prn
 
 export = {
     onTurnStart,
+    onTurnStartBeforeAnchors,
+    drawForTurnStart,
     flushDeferredTurnStartStatusExpirations,
     onTurnEnd,
     applyPlacementEffects,

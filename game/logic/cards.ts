@@ -3400,6 +3400,36 @@ const {
         );
     }
 
+    function onTurnStartBeforeAnchors(cardState: any, playerKey: any, gameState: any, prng: any, options?: any) {
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.onTurnStartBeforeAnchors !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.onTurnStartBeforeAnchors not available');
+        }
+        ensureGeneratedSpawnFlipResolver(cardState);
+        const opts = (options && typeof options === 'object') ? options : {};
+        const timingContext = Object.assign({}, getCardEffectTimingContext(), opts);
+        return CardTimingProcessorModule.onTurnStartBeforeAnchors(
+            cardState,
+            playerKey,
+            gameState,
+            prng,
+            timingContext
+        );
+    }
+
+    function drawForTurnStart(cardState: any, playerKey: any, prng: any, options?: any) {
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.drawForTurnStart !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.drawForTurnStart not available');
+        }
+        const opts = (options && typeof options === 'object') ? options : {};
+        const timingContext = Object.assign({}, getCardEffectTimingContext(), opts);
+        return CardTimingProcessorModule.drawForTurnStart(
+            cardState,
+            playerKey,
+            prng,
+            timingContext
+        );
+    }
+
     function flushDeferredTurnStartStatusExpirations(cardState: any, gameState: any, options?: any) {
         if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.flushDeferredTurnStartStatusExpirations !== 'function') {
             return [];
@@ -4454,6 +4484,8 @@ const cardsApi: any = {
 
         // Game flow
         onTurnStart,
+        onTurnStartBeforeAnchors,
+        drawForTurnStart,
         flushDeferredTurnStartStatusExpirations,
         consumeStoneSalvationGodRevives,
         consumeGeneratedSpawnFlipResults,
