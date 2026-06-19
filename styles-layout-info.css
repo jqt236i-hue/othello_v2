@@ -3651,9 +3651,9 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 #gachaModalHeader {
-    flex: 0 0 calc(170px * var(--gacha-reference-scale));
-    min-height: calc(170px * var(--gacha-reference-scale));
-    padding: calc(30px * var(--gacha-reference-scale)) calc(42px * var(--gacha-reference-scale)) calc(18px * var(--gacha-reference-scale));
+    flex: 0 0 calc(190px * var(--gacha-reference-scale));
+    min-height: calc(190px * var(--gacha-reference-scale));
+    padding: calc(54px * var(--gacha-reference-scale)) calc(42px * var(--gacha-reference-scale)) calc(18px * var(--gacha-reference-scale));
 }
 
 #gachaModal .gacha-title-wrap {
@@ -3686,7 +3686,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 
 #gachaCloseBtn {
     position: absolute;
-    top: calc(30px * var(--gacha-reference-scale));
+    top: calc(48px * var(--gacha-reference-scale));
     right: calc(42px * var(--gacha-reference-scale));
     width: calc(64px * var(--gacha-reference-scale));
     min-width: calc(64px * var(--gacha-reference-scale));
