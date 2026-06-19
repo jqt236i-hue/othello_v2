@@ -29,6 +29,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         '../logic/markers_adapter': 'MarkersAdapter',
         '../../utils/owner-helpers': 'OwnerHelpers',
         '../../shared/shared-board-utils': 'SharedBoardUtils',
+        '../../shared/playback-planner': 'PlaybackPlanner',
         '../../shared/playback-event-helpers': 'PlaybackEventHelpers',
         './turn_pipeline_phase_helpers': 'TurnPipelinePhaseHelpers',
         './pipeline-ui/board-event-playback': 'PipelineUIBoardEventPlayback',
@@ -64,6 +65,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
     const OwnerHelpersModule = requireOptionalModule('../../utils/owner-helpers');
     const SharedBoardUtils = requireOptionalModule('../../shared/shared-board-utils');
+    const PlaybackPlanner = requireOptionalModule('../../shared/playback-planner');
     const PlaybackEventHelpers = requireOptionalModule('../../shared/playback-event-helpers');
     const TurnPipelinePhaseHelpers = requireOptionalModule('./turn_pipeline_phase_helpers');
     const PipelineUIBoardEventPlaybackModule = requireOptionalModule('./pipeline-ui/board-event-playback');
@@ -1080,61 +1082,26 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
      * This expects events to be JSON-safe presentationEvents as emitted by BoardOps.
      */
     function mapToPlaybackEvents(presEvents: any, finalCardState: any, finalGameState: any) {
-        const playbackEvents = [];
-        const phaseState = _createPlaybackPhaseState();
-
-        const presentationEvents = _orderDeferredSpawnsForPlayback(presEvents);
-        const consumedPresentationIndexes = new Set();
-        for (let presIndex = 0; presIndex < presentationEvents.length; presIndex += 1) {
-            if (consumedPresentationIndexes.has(presIndex)) continue;
-            const ev = presentationEvents[presIndex];
-            const followsProliferationDestroy = phaseState.prevWasProliferationDestroy;
-            phaseState.prevWasProliferationDestroy = false;
-            const trailingPlaybackEvents: any[] = [];
-            const playbackBase = _createPlaybackEventBase(ev, finalCardState);
-            const pEvent = _createPlaybackEvent(playbackBase, null, phaseState.currentPhase, []);
-
-            if (!_mapPassivePresentationEvent({
-                ev,
-                phaseState,
-                pEvent,
-                playbackBase,
-                playbackEvents,
-                presentationEvents
-            })) {
-                const boardEventResult = _mapBoardPresentationEvent({
-                    ev,
-                    phaseState,
-                    pEvent,
-                    playbackBase,
-                    presentationEvents,
-                    presIndex,
-                    playbackEvents,
-                    trailingPlaybackEvents,
-                    consumedPresentationIndexes,
-                    followsProliferationDestroy
-                });
-                if (boardEventResult && boardEventResult.skip) {
-                    continue;
-                }
-            }
-
-            if (ev.type !== 'DESTROY' && ev.type !== 'MOVE' && !_isDeferredSpawnPresentationEvent(ev)) {
-                phaseState.superCrushPhase = null;
-                phaseState.superCrushActionId = null;
-            }
-
+        if (!(PlaybackPlanner && typeof PlaybackPlanner.planPlaybackEvents === 'function')) {
+            throw new Error('PipelineUIAdapter playback planner module unavailable');
+        }
+        return PlaybackPlanner.planPlaybackEvents(presEvents, finalCardState, finalGameState, {
+            createPlaybackPhaseState: _createPlaybackPhaseState,
+            orderDeferredSpawnsForPlayback: _orderDeferredSpawnsForPlayback,
+            createPlaybackEventBase: _createPlaybackEventBase,
+            createPlaybackEvent: _createPlaybackEvent,
+            mapPassivePresentationEvent: _mapPassivePresentationEvent,
+            mapBoardPresentationEvent: _mapBoardPresentationEvent,
+            isDeferredSpawnPresentationEvent: _isDeferredSpawnPresentationEvent,
             // NOTE: Do not populate 'after' using a final snapshot. Adapter remains a thin transform.
             // The after-state module derives minimal per-target visual state from the event payload
             // and final visual markers only when status events need that lookup.
-            _populatePlaybackEventAfterState(pEvent, ev, finalCardState, finalGameState);
-
-            if (pEvent.type) playbackEvents.push(pEvent);
-            if (trailingPlaybackEvents.length) playbackEvents.push(...trailingPlaybackEvents);
-        }
-
-        const generatedThrowChainSplit = _extractGeneratedThrowChainPlayback(playbackEvents);
-        return _appendGeneratedThrowChainPlayback(generatedThrowChainSplit.immediateEvents, generatedThrowChainSplit.deferredEvents);
+            populatePlaybackEventAfterState: _populatePlaybackEventAfterState,
+            postProcessPlaybackEvents: (playbackEvents: any[]) => {
+                const generatedThrowChainSplit = _extractGeneratedThrowChainPlayback(playbackEvents);
+                return _appendGeneratedThrowChainPlayback(generatedThrowChainSplit.immediateEvents, generatedThrowChainSplit.deferredEvents);
+            }
+        });
     }
 
     function getPipelineUIPlaybackUtilsOptions() {

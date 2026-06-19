@@ -154,6 +154,7 @@ installRuntimeModule('CardTimingProcessor', () => require('../game/cards/timing-
 installRuntimeModule('CardTargetResolver', () => require('../game/cards/target-resolver.js'));
 installRuntimeModule('MarkersAdapter', () => require('../game/logic/markers_adapter.js'));
 installRuntimeModule('OwnerHelpers', () => require('../utils/owner-helpers.js'));
+installRuntimeModule('PlaybackPlanner', () => require('../shared/playback-planner.js'));
 installRuntimeModule('TurnPipelinePhaseHelpers', () => require('../game/turn/turn_pipeline_phase_helpers.js'));
 installRuntimeModule('TurnPendingCoordinator', () => require('../game/turn/pending-coordinator.js'));
 installRuntimeModule('TurnSubPlacementContinuation', () => require('../game/turn/sub-placement-continuation.js'));

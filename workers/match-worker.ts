@@ -121,6 +121,7 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../shared/special-stone-registry.js': () => require('../shared/special-stone-registry.js'),
     '../shared/presentation-effect-profiles.js': () => require('../shared/presentation-effect-profiles.js'),
     '../shared/network-action-schema.js': () => require('../shared/network-action-schema.js'),
+    '../shared/playback-planner.js': () => require('../shared/playback-planner.js'),
     '../shared/playback-event-helpers.js': () => require('../shared/playback-event-helpers.js'),
     '../game/logic/cards-internal/random-source.js': () => require('../game/logic/cards-internal/random-source.js'),
     '../game/logic/cards-internal/evasion-destination.js': () => require('../game/logic/cards-internal/evasion-destination.js'),
@@ -654,6 +655,7 @@ function ensureWorkerTurnPipelinePhaseGlobals(): Promise<unknown> {
 function ensureWorkerPipelineUIAdapterGlobals(): Promise<unknown> {
     if (!workerPipelineUIAdapterGlobalsPromise) {
         const requiredGlobals: Array<[string, string]> = [
+            ['../shared/playback-planner.js', 'PlaybackPlanner'],
             ['../game/turn/pipeline-ui/playback-utils.js', 'PipelineUIPlaybackUtils'],
             ['../game/turn/pipeline-ui/board-event-playback.js', 'PipelineUIBoardEventPlayback'],
             ['../game/turn/pipeline-ui/board-event-mapper.js', 'PipelineUIBoardEventMapper'],
