@@ -11,7 +11,6 @@ describe('initializeUI gacha wiring', () => {
       </div>
       <button id="gachaCloseBtn" type="button"></button>
       <span id="gachaBalanceValue">0</span>
-      <button id="gachaDetailToggleBtn" aria-expanded="false"></button>
       <div id="gachaDetailsPanel" hidden></div>
       <button id="gachaSinglePullBtn" type="button"></button>
       <button id="gachaTenPullBtn" type="button"></button>

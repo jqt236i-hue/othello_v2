@@ -195,10 +195,12 @@ function setupGachaControls(options?: any): any {
     controller.closeOverlay();
   });
 
-  view.refs.detailToggleBtn.addEventListener('click', function (event: Event) {
-    if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();
-    controller.toggleDetails();
-  });
+  if (view.refs.detailToggleBtn) {
+    view.refs.detailToggleBtn.addEventListener('click', function (event: Event) {
+      if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();
+      controller.toggleDetails();
+    });
+  }
 
   view.refs.singlePullBtn.addEventListener('click', function (event: Event) {
     if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();

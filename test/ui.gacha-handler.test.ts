@@ -21,7 +21,6 @@ describe('gacha handler', () => {
         <div id="gachaModal">
           <button id="gachaCloseBtn" type="button"></button>
           <span id="gachaBalanceValue">0</span>
-          <button id="gachaDetailToggleBtn" type="button" aria-expanded="false"></button>
           <div id="gachaDetailsPanel" hidden></div>
           <button id="gachaSinglePullBtn" type="button"></button>
           <button id="gachaTenPullBtn" type="button"></button>
@@ -147,7 +146,7 @@ describe('gacha handler', () => {
     await pending;
   });
 
-  test('locks close, detail, and pull buttons while reveal is playing', async () => {
+  test('locks close and pull buttons while reveal is playing', async () => {
     jest.resetModules();
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
@@ -169,7 +168,6 @@ describe('gacha handler', () => {
     expect(api.isAnimating()).toBe(true);
     expect(document.getElementById('gachaOverlay').classList.contains('is-revealing')).toBe(true);
     expect(document.getElementById('gachaCloseBtn').disabled).toBe(true);
-    expect(document.getElementById('gachaDetailToggleBtn').disabled).toBe(true);
     expect(document.getElementById('gachaSinglePullBtn').disabled).toBe(true);
     expect(document.getElementById('gachaTenPullBtn').disabled).toBe(true);
 
@@ -179,7 +177,6 @@ describe('gacha handler', () => {
     expect(api.isAnimating()).toBe(false);
     expect(document.getElementById('gachaOverlay').classList.contains('is-revealing')).toBe(false);
     expect(document.getElementById('gachaCloseBtn').disabled).toBe(false);
-    expect(document.getElementById('gachaDetailToggleBtn').disabled).toBe(false);
     expect(document.getElementById('gachaSinglePullBtn').disabled).toBe(false);
   });
 });

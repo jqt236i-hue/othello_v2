@@ -49,7 +49,7 @@ function resolveRefs(docRef: Document, options?: any): any {
     statusText: opts.statusText || docRef.getElementById('gachaStatusText'),
     results: opts.results || docRef.getElementById('gachaResults')
   };
-  if (!refs.openBtn || !refs.overlay || !refs.modal || !refs.closeBtn || !refs.balanceValue || !refs.detailToggleBtn || !refs.detailsPanel || !refs.singlePullBtn || !refs.tenPullBtn || !refs.statusText || !refs.results) {
+  if (!refs.openBtn || !refs.overlay || !refs.modal || !refs.closeBtn || !refs.balanceValue || !refs.detailsPanel || !refs.singlePullBtn || !refs.tenPullBtn || !refs.statusText || !refs.results) {
     return null;
   }
   return refs;
@@ -216,8 +216,10 @@ function renderPullResults(resultsEl: HTMLElement | null, pulls: any[], newlyUnl
 function setDetailsVisible(refs: any, visible: boolean): void {
   const open = visible === true;
   refs.detailsPanel.hidden = !open;
-  refs.detailToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  refs.detailToggleBtn.textContent = '詳細';
+  if (refs.detailToggleBtn) {
+    refs.detailToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    refs.detailToggleBtn.textContent = '詳細';
+  }
 }
 
 function setOverlayVisible(refs: any, visible: boolean): void {
@@ -250,7 +252,7 @@ function syncBalanceAndButtons(refs: any, options?: any): void {
 
   refs.balanceValue.textContent = String(balance);
   refs.closeBtn.disabled = isAnimating;
-  refs.detailToggleBtn.disabled = isAnimating;
+  if (refs.detailToggleBtn) refs.detailToggleBtn.disabled = isAnimating;
   refs.singlePullBtn.disabled = isAnimating || !hasCatalog || balance < singlePullCost;
   refs.tenPullBtn.disabled = isAnimating || !hasCatalog || balance < tenPullCost;
 }
