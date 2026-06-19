@@ -3837,8 +3837,14 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 .gacha-recommend-badge {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     left: calc(18px * var(--gacha-reference-scale));
     top: calc(-18px * var(--gacha-reference-scale));
+    right: auto;
+    width: max-content;
     padding: calc(5px * var(--gacha-reference-scale)) calc(16px * var(--gacha-reference-scale));
     font-size: calc(17px * var(--gacha-reference-scale));
 }
