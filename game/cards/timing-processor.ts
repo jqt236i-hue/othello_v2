@@ -144,6 +144,14 @@ function flushDeferredTurnStartStatusExpirations(cardState: CardState, gameState
     return CardEffectTimingModule.flushDeferredTurnStartStatusExpirations(cardState, gameState, effectTimingContext);
 }
 
+function processTurnStartStatusMarkerAnchor(cardState: CardState, gameState: GameState, playerKey: string, marker: any, effectTimingContext: any) {
+    const CardEffectTimingModule = getCardEffectTimingModule();
+    if (!CardEffectTimingModule || typeof CardEffectTimingModule.processTurnStartStatusMarkerAnchor !== 'function') {
+        return { processed: false, expired: [] };
+    }
+    return CardEffectTimingModule.processTurnStartStatusMarkerAnchor(cardState, gameState, playerKey, marker, effectTimingContext);
+}
+
 function onTurnEnd(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
     const { readCardPendingEffect, clearCardPendingEffect, isChainWillCardType } = deps || {};
     const cs = cardState as any;
@@ -231,6 +239,7 @@ export = {
     onTurnStartBeforeAnchors,
     drawForTurnStart,
     flushDeferredTurnStartStatusExpirations,
+    processTurnStartStatusMarkerAnchor,
     onTurnEnd,
     applyPlacementEffects,
     tickBombs,

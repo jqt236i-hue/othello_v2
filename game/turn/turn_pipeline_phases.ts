@@ -917,7 +917,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 })
                 : [];
             const turnStartOptions: any = {
-                deferGuardDurationEndUntilAfterTurnStartMarkers: true
+                deferGuardDurationEndUntilAfterTurnStartMarkers: true,
+                deferStatusDurationUntilTurnStartMarkers: true
             };
             if (roundBonusSummary) {
                 turnStartOptions.skipStoneSalvationGodRevives = true;

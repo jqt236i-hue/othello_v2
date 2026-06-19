@@ -3442,6 +3442,20 @@ const {
         );
     }
 
+    function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, playerKey: any, marker: any, options?: any) {
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.processTurnStartStatusMarkerAnchor !== 'function') {
+            return { processed: false, expired: [] };
+        }
+        const opts = (options && typeof options === 'object') ? options : {};
+        return CardTimingProcessorModule.processTurnStartStatusMarkerAnchor(
+            cardState,
+            gameState,
+            playerKey,
+            marker,
+            Object.assign({}, getCardEffectTimingContext(), opts)
+        );
+    }
+
     function consumeStoneSalvationGodRevives(cardState: any, gameState: any, playerKey: any, meta?: any) {
         if (!BoardOpsModule || typeof BoardOpsModule.consumeStoneSalvationGodRevives !== 'function') {
             return { revived: [], failed: [], requestedCount: 0, revivedCount: 0 };
@@ -4487,6 +4501,7 @@ const cardsApi: any = {
         onTurnStartBeforeAnchors,
         drawForTurnStart,
         flushDeferredTurnStartStatusExpirations,
+        processTurnStartStatusMarkerAnchor,
         consumeStoneSalvationGodRevives,
         consumeGeneratedSpawnFlipResults,
         spawnAndFlipPlacement,

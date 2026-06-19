@@ -359,6 +359,18 @@ if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic
             currentTurnPlayerKey: opts.playerKey
         });
         pushUltimateHyperactiveTurnStartEvents(opts, owner, row, col, res);
+        return processingState;
+    }
+
+    if (typeof opts.CardLogic.processTurnStartStatusMarkerAnchor === 'function') {
+        const res = opts.CardLogic.processTurnStartStatusMarkerAnchor(
+            opts.cardState,
+            opts.gameState,
+            opts.playerKey,
+            marker,
+            { randomSource: p }
+        );
+        pushTurnStartDetailsEvent(opts.events, 'status_duration_expired_start', res && res.expired);
     }
 
     return processingState;

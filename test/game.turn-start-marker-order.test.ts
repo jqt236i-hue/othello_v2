@@ -452,6 +452,104 @@ describe('turn-start marker ordering', () => {
     ]);
   });
 
+  test('defers status duration expiration to createdSeq anchor order', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'dragon-A',
+        markerId: 'dragon-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'guard-B',
+        markerId: 'guard-B',
+        kind: 'specialStone',
+        row: 1,
+        col: 2,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'GUARD', remainingOwnerTurns: 1 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStartBeforeAnchors: jest.fn((_cardState, _playerKey, _gameState, _prng, options) => {
+        if (!(options && options.deferStatusDurationUntilTurnStartMarkers === true)) {
+          order.push('status-before-anchors');
+        }
+        return null;
+      }),
+      drawForTurnStart: jest.fn(),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((_cardState, _gameState, playerKey, row, col) => {
+        order.push(`dragon:${row},${col}`);
+        return {
+          destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }]
+        };
+      }),
+      processTurnStartStatusMarkerAnchor: jest.fn((_cardState, _gameState, _playerKey, marker) => {
+        if (marker && marker.data && marker.data.type === 'GUARD') {
+          order.push(`status:${marker.row},${marker.col}`);
+          marker.data.remainingOwnerTurns = 0;
+          return { processed: true, expired: [{ row: marker.row, col: marker.col, type: 'GUARD' }] };
+        }
+        return { processed: false };
+      }),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual([
+      'dragon:1,1',
+      'status:1,2'
+    ]);
+  });
+
+  test('real CardLogic exposes turn-start status marker anchor processing', () => {
+    const RuntimeCardLogic = require('../game/logic/cards.js');
+    const cardState = createTurnStartCardState([
+      {
+        id: 'guard-anchor',
+        markerId: 'guard-anchor',
+        kind: 'specialStone',
+        row: 1,
+        col: 2,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'GUARD', remainingOwnerTurns: 1 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    gameState.board[1][2] = Shared.BLACK;
+
+    expect(typeof RuntimeCardLogic.processTurnStartStatusMarkerAnchor).toBe('function');
+
+    const result = RuntimeCardLogic.processTurnStartStatusMarkerAnchor(
+      cardState,
+      gameState,
+      'black',
+      cardState.markers[0],
+      {}
+    );
+
+    expect(result.expired).toEqual([{ row: 1, col: 2, owner: 'black', type: 'GUARD' }]);
+    expect(cardState.markers.some((marker: any) => marker && marker.data && marker.data.type === 'GUARD')).toBe(false);
+  });
+
   test('skips a queued marker that was deleted by an earlier anchor', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([

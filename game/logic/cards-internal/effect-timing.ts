@@ -573,6 +573,108 @@ function flushDeferredTurnStartStatusExpirations(cardState: any, gameState: any,
     return expired;
 }
 
+const ANCHOR_SCOPED_STATUS_DURATION_TYPES = new Set([
+    'GUARD',
+    'BLOCKADE',
+    'FREEZE',
+    'GHOST',
+    'PROLIFERATION',
+    'STONE_SALVATION_GOD'
+]);
+
+function isAnchorScopedStatusDurationType(dataType: any): boolean {
+    return ANCHOR_SCOPED_STATUS_DURATION_TYPES.has(String(dataType || '').toUpperCase());
+}
+
+function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, playerKey: string, marker: any, context: Context): any {
+    const helpers = getHelpers(context);
+    const constants = getConstants(context);
+    const BoardOpsModule = getBoardOps(context);
+    const data = marker && marker.data ? marker.data : null;
+    const dataType = String(data && data.type ? data.type : '').toUpperCase();
+    const expired: any[] = [];
+
+    if (!marker || !data || !isAnchorScopedStatusDurationType(dataType)) {
+        return { processed: false, expired };
+    }
+    if (marker.owner !== playerKey || typeof data.remainingOwnerTurns !== 'number') {
+        return { processed: false, expired };
+    }
+
+    const frozenCellsActiveAtTurnStart = (cardState as any)._frozenCellsActiveAtTurnStart;
+    if (
+        dataType !== 'FREEZE' &&
+        frozenCellsActiveAtTurnStart &&
+        typeof frozenCellsActiveAtTurnStart.has === 'function' &&
+        frozenCellsActiveAtTurnStart.has(`${marker.row},${marker.col}`)
+    ) {
+        return { processed: false, skipped: 'frozen', expired };
+    }
+
+    data.remainingOwnerTurns -= 1;
+    if (data.remainingOwnerTurns > 0 || typeof helpers.removeMarkersAt !== 'function') {
+        return { processed: true, expired };
+    }
+
+    const specialStoneKind = getSpecialStoneKind(constants);
+    if (dataType === 'GHOST') {
+        if (BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
+            const revertRes = BoardOpsModule.revertSpecialStoneAt(
+                cardState,
+                gameState,
+                marker.row,
+                marker.col,
+                'GHOST',
+                marker.owner,
+                'SYSTEM',
+                'duration_end',
+                {
+                    special: data.type,
+                    owner: marker.owner,
+                    timer: 0
+                }
+            );
+            if (revertRes && revertRes.reverted) {
+                expired.push({ row: marker.row, col: marker.col, owner: marker.owner, type: data.type });
+                return { processed: true, expired };
+            }
+        }
+    }
+
+    if (dataType === 'STONE_SALVATION_GOD' && BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
+        const revertRes = BoardOpsModule.revertSpecialStoneAt(
+            cardState,
+            gameState,
+            marker.row,
+            marker.col,
+            'STONE_SALVATION_GOD',
+            marker.owner,
+            'SYSTEM',
+            'duration_end',
+            {
+                special: data.type,
+                owner: marker.owner,
+                timer: 0
+            }
+        );
+        if (revertRes && revertRes.reverted) {
+            expired.push({ row: marker.row, col: marker.col, owner: marker.owner, type: data.type });
+            return { processed: true, expired };
+        }
+    }
+
+    emitDurationEndStatusRemoved(cardState, helpers, marker, data);
+    const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
+    helpers.removeMarkersAt(cardState, marker.row, marker.col, {
+        kind: specialStoneKind,
+        type: data.type,
+        owner: marker.owner
+    });
+    restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
+    expired.push({ row: marker.row, col: marker.col, owner: marker.owner, type: data.type });
+    return { processed: true, expired };
+}
+
 function processStrongWillPromotionOnTurnStart(cardState: any, playerKey: string, specialMarkers: any[], helpers: any, constants: Constants): void {
     const markers = Array.isArray(cardState && cardState.markers)
         ? cardState.markers
@@ -705,6 +807,15 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
     for (const marker of specialMarkers) {
         const data = marker.data || {};
         const dataType = String(data.type || '').toUpperCase();
+        if (
+            context &&
+            (context as any).deferStatusDurationUntilTurnStartMarkers === true &&
+            marker.owner === playerKey &&
+            typeof data.remainingOwnerTurns === 'number' &&
+            isAnchorScopedStatusDurationType(dataType)
+        ) {
+            continue;
+        }
         if (data.expiresForPlayer === playerKey) {
             if (dataType === 'GOLD' || dataType === 'SILVER') {
                 if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
@@ -1284,5 +1395,6 @@ export = {
     onTurnStartBeforeAnchors,
     drawForTurnStart,
     flushDeferredTurnStartStatusExpirations,
+    processTurnStartStatusMarkerAnchor,
     applyPlacementEffects
 };
