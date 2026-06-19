@@ -3846,8 +3846,43 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 #gachaDetailsPanel {
     height: 100%;
     min-height: 0;
+    position: relative;
     padding: calc(16px * var(--gacha-reference-scale)) calc(24px * var(--gacha-reference-scale));
     gap: calc(12px * var(--gacha-reference-scale));
+}
+.gacha-details-copy {
+    position: absolute;
+    right: calc(24px * var(--gacha-reference-scale));
+    top: calc(22px * var(--gacha-reference-scale));
+    display: inline-flex;
+    align-items: center;
+    gap: calc(14px * var(--gacha-reference-scale));
+    max-width: calc(360px * var(--gacha-reference-scale));
+    overflow: hidden;
+    color: rgba(244, 234, 216, 0.80);
+    font-size: 0;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.gacha-details-copy::before {
+    content: "※観測石100で1回、1000で10連。";
+    font-size: calc(18px * var(--gacha-reference-scale));
+}
+
+.gacha-details-copy::after {
+    content: "?";
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: calc(28px * var(--gacha-reference-scale));
+    height: calc(28px * var(--gacha-reference-scale));
+    border: calc(2px * var(--gacha-reference-scale)) solid rgba(244, 234, 216, 0.70);
+    border-radius: 50%;
+    color: rgba(244, 234, 216, 0.86);
+    font-size: calc(19px * var(--gacha-reference-scale));
+    font-weight: 900;
 }
 
 .gacha-rate-header {
