@@ -1,6 +1,6 @@
 {
   "version": "2026-06-19",
-  "generatedAt": "2026-06-19T15:27:06.810Z",
+  "generatedAt": "2026-06-19T15:47:38.996Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -300,19 +300,19 @@
     },
     {
       "path": "assets/images/special-cards/characters/board_executor.png",
-      "sha256": "96678e11ac06aa5649f8c1ea783c1e8a2ec9601dd1abe20d309a8e51981f4b14"
+      "sha256": "041a57ebb4e0283b5aded706c5536d415d319a23befb56633b918e31c256a812"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will.png",
-      "sha256": "c9a0dccc58462aad180f2ffe7ff7830a014e16fc2c77d9d612d98a26fa7db739"
+      "sha256": "d546380525b748e920016111130432153ed1a86ba340af15e59208b16b8dfb5b"
     },
     {
       "path": "assets/images/special-cards/characters/theory_incarnation.png",
-      "sha256": "cb1a46607d8a2e11eb65830c29362f9fc13b918ce6c0e31bc364f40e1e58fd4e"
+      "sha256": "a2b8f024e2090700fea2ec881b7a204e7ec9c1055e507e61308b4cb2ac742837"
     },
     {
       "path": "assets/images/special-cards/characters/終焉の冥灰.png",
-      "sha256": "fce96e0d9e8380002a1d4e90cf07a09d901542ef8c39b6e8a236f9d11459afef"
+      "sha256": "7d9ee00146a0955813bbddad71bf7601898860d4eb5b8f5a7493ad5b00e04b6b"
     },
     {
       "path": "assets/images/background/1.png",
@@ -356,23 +356,23 @@
     },
     {
       "path": "assets/images/hand-skin/lv1-2.png",
-      "sha256": "610b5ac7f026c7a0345f3c7894ac37027b891e820825b44bbb6f46a67a67bf3b"
+      "sha256": "0199d23e0f1dff638fd205c9a382da636f3d4cf92dc48056ea575b1fa09a7dab"
     },
     {
       "path": "assets/images/hand-skin/lv3-5.png",
-      "sha256": "01b294fbe6220b47e6a26a0ebbf3f6fe953b67920eb48709439a845d948ad419"
+      "sha256": "82980f0be150ac2007e4570a7bc98c960a70321ea2bd08303b8f9d8c8bf83dcb"
     },
     {
       "path": "assets/images/hand-skin/lv4.png",
-      "sha256": "9782e236b3f2632360cccfbd69bc9ccabf137d3fbc3af0ca3156efc22b92435c"
+      "sha256": "8ad467b4f1b7f50221f45bfd4fa350b446cf652430c9c3633145ba8215714b69"
     },
     {
       "path": "assets/images/hand-skin/lv6.png",
-      "sha256": "1b9c8d559901613145cc22852bcaa45ab7b12be99467d967f1a260fe1ed54d78"
+      "sha256": "86980cf47d314f90cd1169d83bade5bb2bab9c80c3b64dadeed95eaf18adf23d"
     },
     {
       "path": "assets/images/hand-skin/勇者の手.png",
-      "sha256": "31dbec8c481d7c27d4e6206159d12cd0ae82e8b65263b5dad89a5ad15662af6e"
+      "sha256": "74ee91b5a5cacc167e07758c218ad2da750e2255a3e20d5966a21093aec19d3d"
     },
     {
       "path": "assets/images/Gacha/EXR/background/観測の意志.png",
