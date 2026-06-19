@@ -848,4 +848,130 @@ describe('turn-start marker ordering', () => {
 
     expect(processedSources).toEqual(['first-source', 'second-source', 'third-source']);
   });
+
+  test('does not interleave another anchor inside ultimate hyperactive processing', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'ultimate-A',
+        markerId: 'ultimate-A',
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'dragon-B',
+        markerId: 'dragon-B',
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStart: jest.fn(() => null),
+      processUltimateHyperactiveMoveAtAnchor: jest.fn(() => {
+        order.push('ultimate:start');
+        order.push('ultimate:move1');
+        order.push('ultimate:flip1');
+        order.push('ultimate:move2');
+        order.push('ultimate:flip2');
+        order.push('ultimate:end');
+        return {
+          moved: [
+            { fromRow: 2, fromCol: 2, row: 2, col: 3, specialType: 'ULTIMATE_HYPERACTIVE' },
+            { fromRow: 2, fromCol: 3, row: 2, col: 4, specialType: 'ULTIMATE_HYPERACTIVE' }
+          ],
+          flipped: [{ row: 2, col: 5, owner: 'black' }],
+          destroyed: []
+        };
+      }),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((_cardState, _gameState, playerKey, row, col) => {
+        order.push(`dragon:${row},${col}`);
+        return { destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }] };
+      }),
+      applyRegenAfterFlips: jest.fn(() => ({ regened: [], captureFlips: [] })),
+      applyLivingWillAfterFlips: jest.fn(() => ({ restored: [] })),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual([
+      'ultimate:start',
+      'ultimate:move1',
+      'ultimate:flip1',
+      'ultimate:move2',
+      'ultimate:flip2',
+      'ultimate:end',
+      'dragon:4,4'
+    ]);
+  });
+
+  test('keeps trap turn-start cleanup after all marker anchors', () => {
+    const prng = createPrng();
+    const cardState = createTurnStartCardState([
+      {
+        id: 'dragon-A',
+        markerId: 'dragon-A',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 10,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 'dragon-B',
+        markerId: 'dragon-B',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 20,
+        data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 }
+      }
+    ]);
+    const gameState = createEmptyGameState();
+    const order: string[] = [];
+    const fakeCardLogic = {
+      onTurnStart: jest.fn(() => null),
+      processDestroyDragonEffectsAtTurnStartAnchor: jest.fn((_cardState, _gameState, playerKey, row, col) => {
+        order.push(`dragon:${row},${col}`);
+        return { destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }] };
+      }),
+      processTrapEffects: jest.fn(() => {
+        order.push('trap');
+        return { triggered: [], expired: [], disarmed: [] };
+      }),
+      emitPresentationEvent: jest.fn()
+    };
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      fakeCardLogic,
+      {},
+      cardState,
+      gameState,
+      'black',
+      [],
+      prng
+    );
+
+    expect(order).toEqual(['dragon:1,1', 'dragon:3,3', 'trap']);
+  });
 });
