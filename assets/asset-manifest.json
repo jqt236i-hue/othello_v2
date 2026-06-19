@@ -287,6 +287,10 @@
       "sha256": "23b940c64abf3c86e2e2f31fea7b673dbd440e50dfc74ac5b11b60f415502546"
     },
     {
+      "path": "assets/images/other/gacha-observation-bg-v1.png",
+      "sha256": "5056c90694ad337a0d816e40c600a8c25ddd8109a2c3aa40ba76809c0c65ce03"
+    },
+    {
       "path": "assets/images/other/gacha-reference-banner.png",
       "sha256": "99db26258b865dfb2561115134e6f3e758b143fc6f6d21db475fa9f69e5d9464"
     },
