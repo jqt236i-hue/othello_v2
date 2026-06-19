@@ -3705,6 +3705,15 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
         radial-gradient(42% 34% at 86% 7%, rgba(217, 168, 65, 0.08), transparent 64%),
         radial-gradient(52% 42% at 47% 28%, rgba(83, 214, 209, 0.14), transparent 70%),
         linear-gradient(180deg, rgba(8, 26, 30, 0.985), rgba(1, 9, 12, 0.988) 46%, rgba(0, 12, 14, 0.985));
+    font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+}
+
+#gachaModal button:not(#gachaCloseBtn) {
+    font-family: inherit;
+}
+
+#gachaCloseBtn {
+    font-family: "Segoe UI", sans-serif;
 }
 
 #gachaModalHeader {
@@ -3960,6 +3969,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
     gap: calc(12px * var(--gacha-reference-scale));
     padding-left: calc(12px * var(--gacha-reference-scale));
     font-size: calc(27px * var(--gacha-reference-scale));
+    line-height: 1;
 }
 
 .gacha-rate-mark {
@@ -3970,6 +3980,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 .gacha-rate-probability,
 .gacha-rate-count {
     font-size: calc(21px * var(--gacha-reference-scale));
+    line-height: 1;
 }
 
 .gacha-rate-count {
