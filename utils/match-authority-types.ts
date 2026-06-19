@@ -53,6 +53,7 @@ export type MatchAuthorityPresentationPayloadKey = MatchAuthoritySeatKey | 'spec
 
 export interface MatchAuthorityPresentationFramePayload {
     playbackEvents?: unknown[];
+    playbackDigest?: string;
     effectLogs?: unknown[];
     playbackDiagnostics?: unknown | null;
 }
@@ -78,6 +79,7 @@ export interface MatchAuthorityPresentationFramePublic extends MatchAuthorityJso
     actorSeatKey: MatchAuthoritySeatKey | null;
     actionType: string | null;
     playbackEvents: unknown[];
+    playbackDigest: string;
     effectLogs: string[];
     playbackDiagnostics?: unknown | null;
     projectedSnapshotHash?: string | null;
@@ -169,6 +171,7 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     networkDebugEnabled?: unknown;
     turnTimer?: unknown;
     playbackEvents?: unknown;
+    playbackDigest?: unknown;
     effectLogs?: unknown;
     rejectedReason?: unknown;
     idempotentReplay?: unknown;
@@ -212,6 +215,7 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     networkDebugEnabled?: boolean;
     turnTimer?: unknown | null;
     playbackEvents?: unknown[];
+    playbackDigest?: string;
     effectLogs?: string[];
     rejectedReason?: string | null;
     idempotentReplay?: true;
@@ -252,6 +256,7 @@ export interface MatchAuthoritySnapshotPayloadFromRoomOptions extends MatchAutho
     networkDebugEnabled?: unknown;
     turnTimer?: unknown;
     playbackEvents?: unknown;
+    playbackDigest?: unknown;
     effectLogs?: unknown;
     playbackDiagnostics?: unknown;
     operationId?: unknown;
@@ -285,6 +290,7 @@ export interface MatchAuthorityPublishPayloadFromRoomOptions extends MatchAuthor
     networkDebugEnabled?: unknown;
     turnTimer?: unknown;
     playbackEvents?: unknown;
+    playbackDigest?: unknown;
     effectLogs?: unknown;
     playbackDiagnostics?: unknown;
     rejectedReason?: unknown;

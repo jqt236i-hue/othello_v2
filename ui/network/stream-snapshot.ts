@@ -58,7 +58,7 @@ function createNetworkStreamSnapshotController(config?: any): any {
 
     const shouldShadowStreamPlayback = isSelfOperation
       && typeof cfg.shouldApplyStreamSnapshotAsShadowPlayback === 'function'
-      && cfg.shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
+      && cfg.shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents, payload.playbackDigest);
     if (typeof cfg.recordNetworkTelemetry === 'function') {
       cfg.recordNetworkTelemetry('stream_snapshot_playback_decision', {
         operationId,

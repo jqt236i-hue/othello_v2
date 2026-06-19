@@ -274,7 +274,12 @@ function createNetworkPublishFlowController(config?: any): any {
             ? res.data.playbackEvents
             : [];
           const shouldShadowPlaybackResponse = (typeof cfg.shouldApplyPublishResponseAsShadowPlayback === 'function')
-            ? cfg.shouldApplyPublishResponseAsShadowPlayback(trackedPublish, res.data.snapshot, serverPlaybackEvents)
+            ? cfg.shouldApplyPublishResponseAsShadowPlayback(
+              trackedPublish,
+              res.data.snapshot,
+              serverPlaybackEvents,
+              res.data.playbackDigest
+            )
             : false;
           const publishResponsePlaybackApplyOptions = (typeof cfg.buildShadowAwarePlaybackApplyOptions === 'function')
             ? cfg.buildShadowAwarePlaybackApplyOptions(

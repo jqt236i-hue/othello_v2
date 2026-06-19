@@ -1,4 +1,5 @@
 import * as MatchAuthority from '../utils/match-authority.js';
+const PlaybackDigest = require('../shared/playback-digest');
 
 describe('match authority publish response payload', () => {
   test('normalizes playback diagnostics warnings for network debug payloads', () => {
@@ -94,6 +95,23 @@ describe('match authority publish response payload', () => {
         rejectedReason: 'VERSION_MISMATCH'
       }
     }));
+    expect(payload.playbackDigest).toBe(PlaybackDigest.computePlaybackDigest(playbackEvents));
+  });
+
+  test('buildPublishResponsePayload preserves an explicit authoritative playback digest', () => {
+    const playbackEvents = [{ type: 'flip', phase: 1, actionId: 'turn_1_anchor_0' }];
+    const payload = MatchAuthority.buildPublishResponsePayload({
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 3,
+      snapshot: { stateVersion: 3, gameState: {}, cardState: {} },
+      playbackEvents,
+      playbackDigest: 'fnv1a32:explicit_authority_digest',
+      serverTime: 10
+    });
+
+    expect(payload.playbackEvents).toEqual(playbackEvents);
+    expect(payload.playbackDigest).toBe('fnv1a32:explicit_authority_digest');
   });
 
   test('omits empty publishMeta payloads', () => {
@@ -242,6 +260,9 @@ describe('match authority publish response payload', () => {
       playerKey: 'white',
       serverTime: 321
     }));
+    expect(payload.playbackDigest).toBe(PlaybackDigest.computePlaybackDigest([
+      { type: 'observer_bubble', phase: 1 }
+    ]));
   });
 
   test('buildSnapshotPayloadFromRoom preserves auto pass notice metadata', () => {

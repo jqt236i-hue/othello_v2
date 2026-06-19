@@ -1521,10 +1521,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return controller.computeCurrentPlaybackRecoverySignature();
     }
 
-    function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any) {
+    function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any, playbackDigest?: any) {
         const controller = getNetworkPlaybackRecoveryController();
         if (!controller || typeof controller.shouldApplyPublishResponseAsShadowPlayback !== 'function') return false;
-        return controller.shouldApplyPublishResponseAsShadowPlayback(trackedPublish, snapshot, playbackEvents);
+        return controller.shouldApplyPublishResponseAsShadowPlayback(trackedPublish, snapshot, playbackEvents, playbackDigest);
     }
 
     function shouldSkipPublishResponseSnapshot(trackedPublish: any, snapshot: any) {
@@ -1533,10 +1533,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return controller.shouldSkipPublishResponseSnapshot(trackedPublish, snapshot);
     }
 
-    function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any) {
+    function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any, playbackDigest?: any) {
         const controller = getNetworkPlaybackRecoveryController();
         if (!controller || typeof controller.shouldApplyStreamSnapshotAsShadowPlayback !== 'function') return false;
-        return controller.shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
+        return controller.shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents, playbackDigest);
     }
 
     function buildShadowAwarePlaybackApplyOptions(playbackEvents: any, shouldShadowPlayback: any, shadowPlaybackSource: any) {

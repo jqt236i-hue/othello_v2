@@ -1,3 +1,5 @@
+const PlaybackDigest = require('./playback-digest');
+
 interface NetworkPresentationFrame {
   roomId: string | null;
   visualSeq: number;
@@ -7,6 +9,7 @@ interface NetworkPresentationFrame {
   actorSeatKey: 'black' | 'white' | null;
   actionType: string | null;
   playbackEvents: unknown[];
+  playbackDigest: string;
   effectLogs: string[];
   playbackDiagnostics: unknown | null;
   projectedSnapshotHash: string | null;
@@ -33,6 +36,20 @@ function normalizeStringOrNull(value: unknown): string | null {
   return text ? text : null;
 }
 
+function normalizePlaybackDigest(value: unknown): string {
+  return value ? String(value).trim() : '';
+}
+
+function computePlaybackDigest(playbackEvents: unknown[]): string {
+  if (!PlaybackDigest || typeof PlaybackDigest.computePlaybackDigest !== 'function') return '';
+  try {
+    const digest = PlaybackDigest.computePlaybackDigest(playbackEvents);
+    return typeof digest === 'string' ? digest : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function normalizePresentationFrame(value: unknown): NetworkPresentationFrame {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const visualSeq = toFiniteInteger(source.visualSeq, 'visualSeq');
@@ -41,6 +58,8 @@ function normalizePresentationFrame(value: unknown): NetworkPresentationFrame {
   if (stateVersionTo <= stateVersionFrom) {
     throw new Error('stateVersionTo_must_advance');
   }
+  const playbackEvents = Array.isArray(source.playbackEvents) ? source.playbackEvents.slice() : [];
+  const explicitPlaybackDigest = normalizePlaybackDigest(source.playbackDigest);
   return {
     roomId: normalizeStringOrNull(source.roomId),
     visualSeq,
@@ -49,7 +68,8 @@ function normalizePresentationFrame(value: unknown): NetworkPresentationFrame {
     operationId: normalizeStringOrNull(source.operationId),
     actorSeatKey: normalizeSeatKey(source.actorSeatKey),
     actionType: normalizeStringOrNull(source.actionType),
-    playbackEvents: Array.isArray(source.playbackEvents) ? source.playbackEvents.slice() : [],
+    playbackEvents,
+    playbackDigest: explicitPlaybackDigest || computePlaybackDigest(playbackEvents),
     effectLogs: Array.isArray(source.effectLogs) ? source.effectLogs.map((item) => String(item)) : [],
     playbackDiagnostics: source.playbackDiagnostics || null,
     projectedSnapshotHash: normalizeStringOrNull(source.projectedSnapshotHash),

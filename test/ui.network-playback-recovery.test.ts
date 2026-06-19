@@ -60,6 +60,27 @@ describe('NetworkPlaybackRecoveryController', () => {
     expect(shouldShadow).toBe(true);
   });
 
+  test('publish response shadow playback accepts a matching authoritative playback digest', () => {
+    const requestedPlaybackEvents = [{ type: 'flip', phase: 1, targets: [{ r: 1, col: 1 }] }];
+    const trackedPublish = {
+      requestMeta: {
+        playbackEvents: requestedPlaybackEvents
+      }
+    };
+    const authoritativeDigest = controller.computePlaybackDigest(requestedPlaybackEvents);
+    const shouldShadow = controller.shouldApplyPublishResponseAsShadowPlayback(
+      trackedPublish,
+      {
+        gameState: { turnNumber: 2 },
+        cardState: { turnIndex: 2, markers: [] }
+      },
+      [{ type: 'flip', phase: 9, targets: [{ r: 9, col: 9 }] }],
+      authoritativeDigest
+    );
+
+    expect(shouldShadow).toBe(true);
+  });
+
   test('publish response shadow playback rejects matching snapshot with different playback digest', () => {
     const trackedPublish = {
       requestMeta: {
@@ -94,6 +115,20 @@ describe('NetworkPlaybackRecoveryController', () => {
     expect(controller.shouldApplyStreamSnapshotAsShadowPlayback(
       trackedPublish,
       [{ type: 'destroy', phase: 1, actionId: 'server-b', targets: [{ r: 1, col: 1 }] }]
+    )).toBe(false);
+  });
+
+  test('stream shadow playback rejects a mismatched server-provided digest', () => {
+    const trackedPublish = {
+      requestMeta: {
+        playbackEvents: [{ type: 'destroy', phase: 1, actionId: 'local-a', targets: [{ r: 1, col: 1 }] }]
+      }
+    };
+
+    expect(controller.shouldApplyStreamSnapshotAsShadowPlayback(
+      trackedPublish,
+      [{ type: 'destroy', phase: 1, actionId: 'local-a', targets: [{ r: 1, col: 1 }] }],
+      'fnv1a32:different_server_digest'
     )).toBe(false);
   });
 

@@ -66,6 +66,11 @@ interface MatchAuthorityStateHash {
     computeStableHash?: (value: unknown) => string;
 }
 
+interface MatchAuthorityPlaybackDigest {
+    [key: string]: unknown;
+    computePlaybackDigest?: (playbackEvents: unknown[]) => string;
+}
+
 interface MatchAuthorityManifestStoneRegistry {
     [key: string]: unknown;
     isManifestStoneMarker?: (marker: unknown) => boolean;
@@ -96,6 +101,7 @@ function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | n
 const SharedBoardUtils = loadOptionalCommonJsModule<MatchAuthoritySharedBoardUtils>('../shared/shared-board-utils');
 const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHandCatalogShared>('../shared/gacha-hand-catalog-shared.js');
 const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
+const PlaybackDigest = loadOptionalCommonJsModule<MatchAuthorityPlaybackDigest>('../shared/playback-digest');
 const ManifestStoneRegistry = loadOptionalCommonJsModule<MatchAuthorityManifestStoneRegistry>('../shared/manifest-stone-registry');
 
 
@@ -485,6 +491,28 @@ function normalizeAutoPassNotice(value: unknown): MatchAuthorityAutoPassNotice |
     };
 }
 
+function normalizePlaybackDigestValue(value: unknown): string {
+    return value ? String(value).trim() : '';
+}
+
+function computeAuthoritativePlaybackDigest(playbackEventsValue: unknown): string {
+    const playbackEvents = Array.isArray(playbackEventsValue) ? playbackEventsValue : [];
+    if (PlaybackDigest && typeof PlaybackDigest.computePlaybackDigest === 'function') {
+        const digest = PlaybackDigest.computePlaybackDigest(playbackEvents);
+        return typeof digest === 'string' ? digest : '';
+    }
+    if (StateHash && typeof StateHash.computeStableHash === 'function') {
+        return StateHash.computeStableHash(playbackEvents);
+    }
+    return '';
+}
+
+function resolvePlaybackDigest(playbackEventsValue: unknown, explicitDigestValue?: unknown): string {
+    const explicitDigest = normalizePlaybackDigestValue(explicitDigestValue);
+    if (explicitDigest) return explicitDigest;
+    return computeAuthoritativePlaybackDigest(playbackEventsValue);
+}
+
 function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptionInput | null | undefined): MatchAuthorityPublishResponseOptions {
     const opts = asRecord(options);
     const response: MatchAuthorityPublishResponseOptions = {
@@ -514,6 +542,9 @@ function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptio
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'playbackEvents')) {
         response.playbackEvents = opts.playbackEvents;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDigest')) {
+        response.playbackDigest = opts.playbackDigest;
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'effectLogs')) {
         response.effectLogs = opts.effectLogs;
@@ -855,6 +886,7 @@ function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptio
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
         playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
+        playbackDigest: opts.playbackDigest,
         effectLogs: normalizeEffectLogMessages(opts.effectLogs),
         serverTime: opts.serverTime,
         rejectedReason: opts.rejectedReason,
@@ -932,6 +964,9 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'playbackEvents')) {
         payload.playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+        payload.playbackDigest = resolvePlaybackDigest(payload.playbackEvents, opts.playbackDigest);
+    } else if (Object.prototype.hasOwnProperty.call(opts, 'playbackDigest')) {
+        payload.playbackDigest = normalizePlaybackDigestValue(opts.playbackDigest);
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'effectLogs')) {
         payload.effectLogs = normalizeEffectLogMessages(opts.effectLogs);
@@ -1067,6 +1102,7 @@ function buildSnapshotPayloadFromRoom(
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: opts.turnTimer,
         playbackEvents: opts.playbackEvents,
+        playbackDigest: opts.playbackDigest,
         effectLogs: opts.effectLogs,
         playbackDiagnostics: opts.playbackDiagnostics,
         autoPassNotice: opts.autoPassNotice,
@@ -1145,6 +1181,7 @@ function buildPublishPayloadFromRoom(
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: opts.turnTimer,
         playbackEvents: opts.playbackEvents,
+        playbackDigest: opts.playbackDigest,
         effectLogs: opts.effectLogs,
         playbackDiagnostics: opts.playbackDiagnostics,
         autoPassNotice: opts.autoPassNotice,
@@ -2233,8 +2270,10 @@ function toPositiveInteger(value: unknown, fallback: number): number {
 
 function normalizePresentationPayload(value: unknown): MatchAuthorityPresentationFramePayload {
     const source = asRecord(value);
+    const playbackEvents = Array.isArray(source.playbackEvents) ? deepClone(source.playbackEvents) as unknown[] : [];
     return {
-        playbackEvents: Array.isArray(source.playbackEvents) ? deepClone(source.playbackEvents) as unknown[] : [],
+        playbackEvents,
+        playbackDigest: resolvePlaybackDigest(playbackEvents, source.playbackDigest),
         effectLogs: normalizeEffectLogMessages(source.effectLogs),
         playbackDiagnostics: source.playbackDiagnostics || null
     };
@@ -2316,6 +2355,7 @@ function toPublicPresentationFrame(
         ? asRecord(asRecord(snapshotAfter)._meta)
         : {};
     const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+    const playbackEvents = Array.isArray(payload.playbackEvents) ? deepClone(payload.playbackEvents) as unknown[] : [];
 
     return {
         roomId: room.roomId ? String(room.roomId).trim().toUpperCase() : null,
@@ -2325,7 +2365,8 @@ function toPublicPresentationFrame(
         operationId: entry.operationId || null,
         actorSeatKey: parseSeatKeyOptional(entry.actorSeatKey),
         actionType: normalizePublishActionType(entry.actionType),
-        playbackEvents: Array.isArray(payload.playbackEvents) ? deepClone(payload.playbackEvents) as unknown[] : [],
+        playbackEvents,
+        playbackDigest: resolvePlaybackDigest(playbackEvents, payload.playbackDigest),
         effectLogs: normalizeEffectLogMessages(payload.effectLogs),
         playbackDiagnostics: payload.playbackDiagnostics || null,
         projectedSnapshotHash: snapshotMeta.projectedSnapshotHash ? String(snapshotMeta.projectedSnapshotHash) : null,

@@ -77,13 +77,22 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
     }
   }
 
-  function playbackDigestsMatch(requestedPlaybackEvents: any, authoritativePlaybackEvents: any): boolean {
+  function normalizePlaybackDigest(value: any): string {
+    return value ? String(value).trim() : '';
+  }
+
+  function resolveAuthoritativePlaybackDigest(authoritativePlaybackEvents: any, authoritativePlaybackDigest?: any): string {
+    const digest = normalizePlaybackDigest(authoritativePlaybackDigest);
+    return digest || computePlaybackDigest(authoritativePlaybackEvents);
+  }
+
+  function playbackDigestsMatch(requestedPlaybackEvents: any, authoritativePlaybackEvents: any, authoritativePlaybackDigest?: any): boolean {
     const requestedDigest = computePlaybackDigest(requestedPlaybackEvents);
-    const authoritativeDigest = computePlaybackDigest(authoritativePlaybackEvents);
+    const authoritativeDigest = resolveAuthoritativePlaybackDigest(authoritativePlaybackEvents, authoritativePlaybackDigest);
     return !!requestedDigest && requestedDigest === authoritativeDigest;
   }
 
-  function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any): boolean {
+  function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any, playbackDigest?: any): boolean {
     if (!trackedPublish || typeof trackedPublish !== 'object') return false;
     if (!trackedPublish.requestMeta) return false;
     const requestedPlaybackEvents = typeof cfg.getTrackedPublishRequestedPlaybackEvents === 'function'
@@ -91,7 +100,7 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
       : [];
     if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
     if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-    if (!playbackDigestsMatch(requestedPlaybackEvents, playbackEvents)) return false;
+    if (!playbackDigestsMatch(requestedPlaybackEvents, playbackEvents, playbackDigest)) return false;
     const snapshotSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
     if (!snapshotSignature) return false;
     const currentSignature = computeCurrentPlaybackRecoverySignature();
@@ -121,7 +130,7 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
     return !!currentSignature && currentSignature === snapshotSignature;
   }
 
-  function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any): boolean {
+  function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any, playbackDigest?: any): boolean {
     if (!trackedPublish || typeof trackedPublish !== 'object') return false;
     if (!trackedPublish.requestMeta) return false;
     const requestedPlaybackEvents = typeof cfg.getTrackedPublishRequestedPlaybackEvents === 'function'
@@ -129,7 +138,7 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
       : [];
     if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
     if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-    if (!playbackDigestsMatch(requestedPlaybackEvents, playbackEvents)) return false;
+    if (!playbackDigestsMatch(requestedPlaybackEvents, playbackEvents, playbackDigest)) return false;
     return true;
   }
 

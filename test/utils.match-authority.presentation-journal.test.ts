@@ -1,4 +1,5 @@
 const MatchAuthority = require('../utils/match-authority');
+const PlaybackDigest = require('../shared/playback-digest');
 
 function createRoom() {
   const initialSnapshot = {
@@ -78,6 +79,9 @@ describe('match authority presentation journal', () => {
       effectLogs: ['black redacted'],
       projectedSnapshotHash: 'black_hash_2'
     });
+    expect(frames[0].playbackDigest).toBe(PlaybackDigest.computePlaybackDigest([
+      { type: 'observer_bubble' }
+    ]));
   });
 
   test('buildPresentationJournalResponse returns base snapshot and contiguous frames', () => {
