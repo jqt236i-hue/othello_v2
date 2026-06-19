@@ -3080,11 +3080,11 @@
     width: calc(20px * var(--layout-stage-scale));
     aspect-ratio: 1 / 1;
     margin-bottom: calc(6px * var(--layout-stage-scale));
-    background-image: url("assets/images/other/観測石.png");
+    background-image: url("assets/images/other/gacha-observation-stone-v1.png");
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
-    filter: saturate(0.78) opacity(0.62) drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.18));
+    filter: saturate(1.08) opacity(0.72) drop-shadow(0 0 calc(9px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.28));
 }
 
 .gacha-result-card {
@@ -3673,7 +3673,7 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 #gachaBalanceSummary .observation-stone-icon {
-    width: calc(52px * var(--gacha-reference-scale));
+    width: calc(64px * var(--gacha-reference-scale));
 }
 
 .gacha-balance-label {
@@ -3777,11 +3777,11 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 .gacha-pull-cost .observation-stone-icon {
-    width: calc(30px * var(--gacha-reference-scale));
+    width: calc(36px * var(--gacha-reference-scale));
 }
 
 #gachaTenPullBtn .gacha-pull-cost .observation-stone-icon {
-    width: calc(44px * var(--gacha-reference-scale));
+    width: calc(54px * var(--gacha-reference-scale));
 }
 
 .gacha-detail-link {
