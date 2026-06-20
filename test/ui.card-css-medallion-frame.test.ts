@@ -29,10 +29,12 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockToContain(cardsCss, '.card-item', /--card-frame-pentagon:\s*polygon\(50% 0,\s*93% 0,\s*100% 7%/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible', /--card-tier-rune-ring/);
     expectCssBlockToContain(cardsCss, '.card-item.visible::before', /clip-path:\s*polygon\(/);
-    expectCssBlockToContain(cardsCss, '.card-item.visible::before', /linear-gradient\(90deg,\s*transparent 0 10%,\s*rgba\(255,\s*255,\s*255,\s*0\.1\) 10% 22%/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible::before', /linear-gradient\(90deg,\s*transparent 0 10%,\s*rgba\(255,\s*255,\s*255,\s*0\.07\) 10% 22%/);
     expectCssBlockToContain(cardsCss, '.card-item.visible::before', /inset 0 0 0 calc\(3px \* var\(--layout-stage-scale\)\) var\(--card-tier-inner-border/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible::before', /opacity:\s*0\.76/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible::after', /radial-gradient\(ellipse/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible::after', /conic-gradient/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible::after', /opacity:\s*0\.58/);
     expectCssBlockToContain(cardsCss, '.card-name', /clip-path:\s*polygon\(8% 0/);
     expectCssBlockToContain(cardsCss, ':is(#hand-black, #hand-white) .card-item.selected', /box-shadow:[\s\S]*var\(--card-selected-aura/);
   });
@@ -53,6 +55,7 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--special-card-stone-shape:\s*polygon\(/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /clip-path:\s*var\(--special-card-stone-shape\)/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--card-tier-border:\s*#b9c4b7/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face::before', /opacity:\s*0\.78/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face .special-card-sigil', /display:\s*none/);
   });
 });

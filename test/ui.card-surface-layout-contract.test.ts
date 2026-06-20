@@ -237,7 +237,7 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*height:\s*calc\(var\(--hand-glow-height,\s*var\(--layout-size-card-height\)\)\s*\+\s*\(23px \* var\(--layout-stage-scale\)\)\)/);
     expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*background:[\s\S]*radial-gradient[\s\S]*var\(--card-available-drop-core\) 0%[\s\S]*var\(--card-available-core\) 30%[\s\S]*var\(--card-available-outer\) 58%[\s\S]*transparent 88%/);
     expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*filter:\s*blur\(calc\(4\.2px \* var\(--layout-stage-scale\)\)\)/);
-    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*opacity:\s*0\.66/);
+    expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*opacity:\s*0\.48/);
     expect(cardsCss).toMatch(/\.hand-availability-glow\s*\{[\s\S]*calc\(var\(--hand-glow-x,\s*0px\)\s*-\s*\(9px \* var\(--layout-stage-scale\)\)\)/);
     expect(cardsCss).toMatch(/\.hand-availability-glow\.cost-tier-gold[\s\S]*--card-available-core:\s*rgba\(241,\s*210,\s*122,\s*0\.94\)/);
     expect(cardsCss).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item\.selected:is\(\.affordable,\s*\.usable\)\s*\{[\s\S]*overflow:\s*visible/);
