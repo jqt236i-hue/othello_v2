@@ -451,10 +451,6 @@
 .card-item.visible {
     --card-type-field: radial-gradient(100% 90% at 50% 42%, rgba(255, 255, 255, 0.06), transparent 62%);
     --card-face-rune-pattern: repeating-linear-gradient(135deg, transparent 0 8px, rgba(255, 255, 255, 0.018) 8px 9px);
-    --card-tier-rune-ring-color: rgba(255, 236, 172, 0.42);
-    --card-tier-rune-ring:
-        radial-gradient(ellipse at 50% 41%, transparent 0 42%, var(--card-tier-rune-ring-color) 43% 44%, transparent 45% 50%, var(--card-tier-rune-ring-color) 51% 52%, transparent 53%),
-        conic-gradient(from -8deg at 50% 41%, transparent 0 4%, var(--card-tier-rune-ring-color) 5% 5.8%, transparent 6.8% 13%, var(--card-tier-rune-ring-color) 14% 14.8%, transparent 15.8% 21%, var(--card-tier-rune-ring-color) 22% 22.8%, transparent 23.8% 30%, var(--card-tier-rune-ring-color) 31% 31.8%, transparent 32.8% 100%);
     --card-art-vignette-top: rgba(255, 255, 255, 0.08);
     --card-art-vignette-bottom: rgba(0, 0, 0, 0.68);
     --card-edge-glow: rgba(255, 226, 156, 0.34);
@@ -515,14 +511,12 @@
     position: absolute;
     inset: 0;
     background:
-        var(--card-tier-rune-ring),
         linear-gradient(115deg, transparent 0%, transparent 38%, rgba(255, 255, 255, 0.08) 45%, transparent 54%, transparent 100%),
-        radial-gradient(ellipse at 50% 28%, rgba(255, 255, 255, 0.08), transparent 48%),
         var(--card-face-rune-pattern),
         linear-gradient(90deg, var(--card-edge-glow, rgba(255, 245, 200, 0.08)), transparent 14%, transparent 86%, rgba(0, 0, 0, 0.22)),
         linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, transparent 52%, rgba(0, 0, 0, 0.42) 100%);
-    background-size: 100% 100%, 260% 260%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-    background-position: center, 18% 18%, center, center, center, center;
+    background-size: 260% 260%, 100% 100%, 100% 100%, 100% 100%;
+    background-position: 18% 18%, center, center, center;
     opacity: 0.94;
     pointer-events: none;
     z-index: 2;
@@ -706,7 +700,6 @@
     --card-tier-name-color: #fff8ec;
     --card-tier-texture: repeating-linear-gradient(135deg, transparent 0px, transparent 6px, rgba(255, 255, 255, 0.025) 6px, rgba(255, 255, 255, 0.025) 7px);
     --card-edge-glow: rgba(176, 190, 210, 0.2);
-    --card-tier-rune-ring-color: rgba(198, 210, 226, 0.30);
     --card-tier-hover-glow: rgba(180, 195, 220, 0.18);
     --card-available-outline: rgba(190, 202, 218, 0.92);
     --card-available-ring: rgba(190, 202, 218, 0.34);
@@ -734,7 +727,6 @@
     --card-tier-name-plate-bg-b: rgba(49, 61, 79, 0.95);
     --card-tier-name-plate-border: rgba(233, 244, 255, 0.42);
     --card-edge-glow: rgba(238, 246, 255, 0.36);
-    --card-tier-rune-ring-color: rgba(238, 246, 255, 0.34);
     --card-tier-hover-glow: rgba(218, 232, 255, 0.24);
     --card-available-outline: rgba(246, 250, 255, 0.95);
     --card-available-ring: rgba(246, 250, 255, 0.36);
@@ -765,7 +757,6 @@
     --card-tier-symbol: '✦';
     --card-tier-symbol-color: rgba(180, 255, 200, 0.06);
     --card-edge-glow: rgba(75, 235, 116, 0.58);
-    --card-tier-rune-ring-color: rgba(102, 240, 126, 0.5);
     --card-tier-hover-glow: rgba(84, 236, 124, 0.36);
     --card-available-outline: rgba(130, 225, 155, 0.92);
     --card-available-ring: rgba(130, 225, 155, 0.34);
@@ -796,7 +787,6 @@
     --card-tier-symbol: '◇';
     --card-tier-symbol-color: rgba(180, 220, 255, 0.06);
     --card-edge-glow: rgba(45, 170, 255, 0.68);
-    --card-tier-rune-ring-color: rgba(64, 178, 255, 0.52);
     --card-tier-hover-glow: rgba(36, 153, 255, 0.42);
     --card-available-outline: rgba(135, 190, 255, 0.92);
     --card-available-ring: rgba(135, 190, 255, 0.34);
@@ -829,7 +819,6 @@
     --card-tier-symbol: '♛';
     --card-tier-symbol-color: rgba(220, 190, 255, 0.07);
     --card-edge-glow: rgba(174, 92, 255, 0.64);
-    --card-tier-rune-ring-color: rgba(185, 112, 255, 0.54);
     --card-tier-hover-glow: rgba(174, 92, 255, 0.4);
     --card-available-outline: rgba(202, 164, 255, 0.92);
     --card-available-ring: rgba(202, 164, 255, 0.36);
@@ -871,7 +860,6 @@
     --card-tier-symbol: '✧';
     --card-tier-symbol-color: rgba(255, 215, 0, 0.08);
     --card-edge-glow: rgba(255, 190, 45, 0.68);
-    --card-tier-rune-ring-color: rgba(255, 206, 78, 0.54);
     --card-tier-hover-glow: rgba(255, 190, 45, 0.42);
     --card-available-outline: rgba(241, 210, 122, 0.94);
     --card-available-ring: rgba(241, 210, 122, 0.38);
@@ -911,7 +899,6 @@
     --card-tier-symbol: '☠';
     --card-tier-symbol-color: rgba(255, 100, 120, 0.08);
     --card-edge-glow: rgba(255, 91, 56, 0.68);
-    --card-tier-rune-ring-color: rgba(255, 118, 68, 0.56);
     --card-tier-hover-glow: rgba(255, 91, 56, 0.42);
     --card-available-outline: rgba(155, 49, 71, 0.92);
     --card-available-ring: rgba(155, 49, 71, 0.36);

@@ -16,13 +16,14 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockNotToContain(cardsCss, '.card-cost-badge::before', /--card-tier-cost-glyph/);
   });
 
-  test('visible card face uses arcane ring and hard corner frame layers', () => {
+  test('visible card face uses hard corner frame layers without inner circular ornaments', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
     expectCssBlockToContain(cardsCss, '.card-item', /--card-frame-pentagon:\s*polygon\(50% 0,\s*93% 0,\s*100% 7%/);
-    expectCssBlockToContain(cardsCss, '.card-item.visible', /--card-tier-rune-ring:/);
+    expectCssBlockNotToContain(cardsCss, '.card-item.visible', /--card-tier-rune-ring/);
     expectCssBlockToContain(cardsCss, '.card-item.visible::before', /clip-path:\s*polygon\(/);
-    expectCssBlockToContain(cardsCss, '.card-item.visible::after', /--card-tier-rune-ring/);
+    expectCssBlockNotToContain(cardsCss, '.card-item.visible::after', /radial-gradient\(ellipse/);
+    expectCssBlockNotToContain(cardsCss, '.card-item.visible::after', /conic-gradient/);
     expectCssBlockToContain(cardsCss, '.card-name', /clip-path:\s*polygon\(8% 0/);
     expectCssBlockToContain(cardsCss, ':is(#hand-black, #hand-white) .card-item.selected', /box-shadow:[\s\S]*var\(--card-selected-aura/);
   });
