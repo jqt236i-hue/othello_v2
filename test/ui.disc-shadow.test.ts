@@ -28,8 +28,8 @@ describe('stone shadow styles', () => {
         const discEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled .disc::before');
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.cell\.has-disc::before/);
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.disc::before/);
-        expect(cellEnabledShadowBlock).toMatch(/opacity:\s*0\.96/);
-        expect(discEnabledShadowBlock).toMatch(/opacity:\s*1/);
+        expect(cellEnabledShadowBlock).toMatch(/opacity:\s*0\.78/);
+        expect(discEnabledShadowBlock).toMatch(/opacity:\s*0\.86/);
         expect(css).not.toMatch(/:has\(/);
         expect(css).not.toMatch(/\.disc::after/);
         expect(css).not.toMatch(/special-stone-img/);
