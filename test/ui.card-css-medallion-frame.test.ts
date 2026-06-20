@@ -19,10 +19,28 @@ describe('card CSS medallion frame treatment', () => {
   test('visible card face uses arcane ring and hard corner frame layers', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
+    expectCssBlockToContain(cardsCss, '.card-item', /--card-frame-pentagon:\s*polygon\(50% 0,\s*93% 0,\s*100% 7%/);
     expectCssBlockToContain(cardsCss, '.card-item.visible', /--card-tier-rune-ring:/);
     expectCssBlockToContain(cardsCss, '.card-item.visible::before', /clip-path:\s*polygon\(/);
     expectCssBlockToContain(cardsCss, '.card-item.visible::after', /--card-tier-rune-ring/);
     expectCssBlockToContain(cardsCss, '.card-name', /clip-path:\s*polygon\(8% 0/);
     expectCssBlockToContain(cardsCss, ':is(#hand-black, #hand-white) .card-item.selected', /box-shadow:[\s\S]*var\(--card-selected-aura/);
+  });
+
+  test('cost tiers expose saturated shared frame palettes', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-blue', /--card-tier-bg-a:\s*#073b7a/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-red', /--card-tier-bg-a:\s*#0b5e30/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-special', /--card-tier-bg-a:\s*#7a1f12/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-purple', /--card-tier-bg-a:\s*#43156f/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-gold', /--card-tier-bg-a:\s*#6d4708/);
+  });
+
+  test('special card face keeps a distinct premium treatment', () => {
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--card-special-art-opacity:\s*0\.98/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--card-tier-border:\s*#f4d06f/);
   });
 });
