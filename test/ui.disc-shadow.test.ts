@@ -39,6 +39,7 @@ describe('stone shadow styles', () => {
     test('styles-board.css contains board depth shadow, contact shadow, and disc skeleton', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
         const discRootBlock = css.match(/\.disc\s*\{[^}]*\}/);
+        const blackDiscBlock = extractRuleBody(css, '.disc.black');
         const cellContactShadowBlock = extractRuleBody(css, '.cell.has-disc::before');
         const discShadowBlock = extractRuleBody(css, '.disc::before');
         expect(css).toMatch(/#board[\s\S]*box-shadow:[\s\S]*var\(--board-shadow-outer\)/);
@@ -74,5 +75,8 @@ describe('stone shadow styles', () => {
         expect(discShadowBlock).toMatch(/inset:\s*38%\s+-8%\s+-18%\s+34%/);
         expect(discShadowBlock).toMatch(/ellipse at 36% 34%/);
         expect(discShadowBlock).toMatch(/translate\(var\(--stone-shadow-offset-x\),\s*var\(--stone-shadow-offset-y\)\)\s*scale\(1\.18,\s*0\.82\)/);
+        expect(blackDiscBlock).toMatch(/--stone-keyline-width:\s*max\(1px,\s*calc\(1px \* var\(--layout-stage-scale\)\)\)/);
+        expect(blackDiscBlock).toMatch(/--stone-keyline-color:\s*rgba\(174,\s*224,\s*176,\s*0\.48\)/);
+        expect(blackDiscBlock).toMatch(/--stone-keyline-inner-shade:\s*rgba\(0,\s*0,\s*0,\s*0\.22\)/);
     });
 });

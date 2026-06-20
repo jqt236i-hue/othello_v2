@@ -948,6 +948,12 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
     left: var(--board-disc-inset);
 }
 
+.disc.black {
+    --stone-keyline-width: max(1px, calc(1px * var(--layout-stage-scale)));
+    --stone-keyline-color: rgba(174, 224, 176, 0.48);
+    --stone-keyline-inner-shade: rgba(0, 0, 0, 0.22);
+}
+
 .disc__face {
     position: absolute;
     inset: 0;
