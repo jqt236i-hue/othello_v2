@@ -40,6 +40,7 @@ describe('stone shadow styles', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
         const discRootBlock = css.match(/\.disc\s*\{[^}]*\}/);
         const blackDiscBlock = extractRuleBody(css, '.disc.black');
+        const whiteDiscBlock = extractRuleBody(css, '.disc.white');
         const cellContactShadowBlock = extractRuleBody(css, '.cell.has-disc::before');
         const discShadowBlock = extractRuleBody(css, '.disc::before');
         expect(css).toMatch(/#board[\s\S]*box-shadow:[\s\S]*var\(--board-shadow-outer\)/);
@@ -79,5 +80,8 @@ describe('stone shadow styles', () => {
         expect(blackDiscBlock).toMatch(/--stone-keyline-color:\s*rgba\(255,\s*255,\s*244,\s*0\.16\)/);
         expect(blackDiscBlock).toMatch(/--stone-keyline-inner-shade:\s*rgba\(0,\s*0,\s*0,\s*0\.46\)/);
         expect(blackDiscBlock).not.toMatch(/rgba\(174,\s*224,\s*176/);
+        expect(whiteDiscBlock).toMatch(/--stone-keyline-width:\s*max\(1px,\s*calc\(1px \* var\(--layout-stage-scale\)\)\)/);
+        expect(whiteDiscBlock).toMatch(/--stone-keyline-color:\s*rgba\(255,\s*255,\s*244,\s*0\.16\)/);
+        expect(whiteDiscBlock).toMatch(/--stone-keyline-inner-shade:\s*rgba\(0,\s*0,\s*0,\s*0\.46\)/);
     });
 });
