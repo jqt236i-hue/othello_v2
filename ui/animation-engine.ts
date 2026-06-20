@@ -1182,14 +1182,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 }
             }
 
-            if (shouldSuppressNextDiffFlip && PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
-                PlaybackState.armBoardUpdateContext({
-                    source: 'animation-engine',
-                    reason: 'playback_start',
-                    suppressFallbackFlip: true
-                });
-            }
-
             const runId = this._playbackRunSequence + 1;
             this._playbackRunSequence = runId;
             this._activePlaybackRunId = runId;
