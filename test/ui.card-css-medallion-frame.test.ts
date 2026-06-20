@@ -22,6 +22,8 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockToContain(cardsCss, '.card-item', /--card-frame-pentagon:\s*polygon\(50% 0,\s*93% 0,\s*100% 7%/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible', /--card-tier-rune-ring/);
     expectCssBlockToContain(cardsCss, '.card-item.visible::before', /clip-path:\s*polygon\(/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible::before', /linear-gradient\(90deg,\s*transparent 0 10%,\s*rgba\(255,\s*255,\s*255,\s*0\.1\) 10% 22%/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible::before', /inset 0 0 0 calc\(3px \* var\(--layout-stage-scale\)\) var\(--card-tier-inner-border/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible::after', /radial-gradient\(ellipse/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible::after', /conic-gradient/);
     expectCssBlockToContain(cardsCss, '.card-name', /clip-path:\s*polygon\(8% 0/);
