@@ -76,7 +76,8 @@ describe('stone shadow styles', () => {
         expect(discShadowBlock).toMatch(/ellipse at 36% 34%/);
         expect(discShadowBlock).toMatch(/translate\(var\(--stone-shadow-offset-x\),\s*var\(--stone-shadow-offset-y\)\)\s*scale\(1\.18,\s*0\.82\)/);
         expect(blackDiscBlock).toMatch(/--stone-keyline-width:\s*max\(1px,\s*calc\(1px \* var\(--layout-stage-scale\)\)\)/);
-        expect(blackDiscBlock).toMatch(/--stone-keyline-color:\s*rgba\(174,\s*224,\s*176,\s*0\.48\)/);
-        expect(blackDiscBlock).toMatch(/--stone-keyline-inner-shade:\s*rgba\(0,\s*0,\s*0,\s*0\.22\)/);
+        expect(blackDiscBlock).toMatch(/--stone-keyline-color:\s*rgba\(255,\s*255,\s*244,\s*0\.16\)/);
+        expect(blackDiscBlock).toMatch(/--stone-keyline-inner-shade:\s*rgba\(0,\s*0,\s*0,\s*0\.46\)/);
+        expect(blackDiscBlock).not.toMatch(/rgba\(174,\s*224,\s*176/);
     });
 });
