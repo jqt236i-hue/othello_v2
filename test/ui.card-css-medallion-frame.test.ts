@@ -11,8 +11,13 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockToContain(cardsCss, '.card-cost-badge', /aspect-ratio:\s*1\s*\/\s*1/);
     expectCssBlockToContain(cardsCss, '.card-cost-badge', /border-radius:\s*50%/);
     expectCssBlockToContain(cardsCss, '.card-cost-badge', /align-items:\s*center/);
+    expectCssBlockToContain(cardsCss, '.card-cost-badge', /var\(--card-tier-badge-shade,\s*linear-gradient\(180deg,\s*transparent,\s*transparent\)\)/);
     expectCssBlockToContain(cardsCss, '.card-cost-badge::before', /content:\s*''/);
     expectCssBlockToContain(cardsCss, '.card-cost-badge .cost-label', /display:\s*none/);
+    expectCssBlockToContain(cardsCss, '.card-cost-badge .cost-value', /text-shadow:/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:not(.cost-tier-white)', /--card-tier-badge-specular:\s*rgba\(255,\s*255,\s*255,\s*0\.34\)/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:not(.cost-tier-white)', /--card-tier-badge-shade:\s*linear-gradient\(180deg,\s*rgba\(3,\s*4,\s*8,\s*0\.06\)\s*0%,\s*rgba\(3,\s*4,\s*8,\s*0\.28\)\s*100%\)/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-white', /--card-tier-badge-hi:\s*rgba\(255,\s*255,\s*255,\s*0\.56\)/);
     expectCssBlockNotToContain(cardsCss, '.card-cost-badge::before', /--card-tier-cost-glyph/);
   });
 
