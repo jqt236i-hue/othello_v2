@@ -476,6 +476,38 @@ function computeSupportBreakdown(localDiscCount: any, localFlipCount: any) {
     };
 }
 
+function readResultDebugFlag(rootRef: any, key: string): boolean {
+    try {
+        if (rootRef && rootRef[key] === true) return true;
+        if (rootRef && rootRef.__uiImpl && rootRef.__uiImpl[key] === true) return true;
+        if (rootRef && rootRef.__uiImpl_turn_manager && rootRef.__uiImpl_turn_manager[key] === true) return true;
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
+function isDebugScoreSuppressed(): boolean {
+    try {
+        const roots = [
+            typeof window !== 'undefined' ? window : null,
+            typeof globalThis !== 'undefined' ? globalThis : null
+        ];
+        for (const rootRef of roots) {
+            if (readResultDebugFlag(rootRef, 'DEBUG_UNLIMITED_USAGE')) return true;
+            if (readResultDebugFlag(rootRef, 'DEBUG_HUMAN_VS_HUMAN')) return true;
+        }
+    } catch (e: any) { /* ignore */ }
+
+    try {
+        const doc = typeof document !== 'undefined' ? document : null;
+        const debugModeBtn = doc ? doc.getElementById('debugModeBtn') : null;
+        if (!debugModeBtn) return false;
+        if (debugModeBtn.getAttribute('aria-pressed') === 'true') return true;
+        if ((debugModeBtn as HTMLElement).dataset && (debugModeBtn as HTMLElement).dataset.active === 'true') return true;
+        if (String(debugModeBtn.textContent || '').indexOf('ON') >= 0) return true;
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
 function computeScoreSummaryForViewer(options: any) {
     const opts = options || {};
     const counts = opts.counts || { black: 0, white: 0 };
@@ -492,7 +524,8 @@ function computeScoreSummaryForViewer(options: any) {
     let supportBonus = 0;
     let supportBreakdown = { flipBonus: 0, ownDiscBonus: 0, total: 0 };
 
-    if (localOutcomeKey === 'win') {
+    const debugScoreSuppressed = isDebugScoreSuppressed();
+    if (!debugScoreSuppressed && localOutcomeKey === 'win') {
         speedBonus = computeSpeedBonus(turnCount);
         monoBonus = localCounts.opponentCount === 0 ? SCORE_CONFIG.monoBonus : 0;
 
@@ -501,11 +534,11 @@ function computeScoreSummaryForViewer(options: any) {
         supportBonus = supportBreakdown.total;
     }
 
-    const total = baseBonus + speedBonus + monoBonus + supportBonus;
+    const total = debugScoreSuppressed ? 0 : (baseBonus + speedBonus + monoBonus + supportBonus);
     return {
         version: SCORE_CONFIG.version,
         total,
-        baseBonus,
+        baseBonus: debugScoreSuppressed ? 0 : baseBonus,
         speedBonus,
         monoBonus,
         supportBonus,

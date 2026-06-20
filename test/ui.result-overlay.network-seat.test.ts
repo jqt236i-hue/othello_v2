@@ -426,6 +426,28 @@ describe('result overlay seat perspective', () => {
     expect(supportDetailText).not.toContain('/ 角');
   });
 
+  test('デバッグモードONでは最終スコアとランキング送信スコアが0になる', () => {
+    window.DEBUG_UNLIMITED_USAGE = true;
+    const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: false, rank: null }));
+    window.LeaderboardClient = {
+      submitScore,
+      resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
+    };
+    global.countDiscs.mockReturnValue({ black: 76, white: 0 });
+    global.cardState.totalFlipCountByPlayer = { black: 150, white: 0 };
+    global.cardState.turnCountByPlayer = { black: 0, white: 0 };
+    global.cardState.turnIndex = 0;
+    global.gameState.turnNumber = -1;
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    const totalScore = document.querySelector('.result-total-score-value');
+    expect(totalScore && totalScore.textContent).toBe('0');
+    expect(submitScore).toHaveBeenCalled();
+    expect(submitScore.mock.calls[0][0].total).toBe(0);
+  });
+
   test('39手終局では速攻ボーナスが減点される', () => {
     global.countDiscs.mockReturnValue({ black: 35, white: 0 });
     global.cardState.totalFlipCountByPlayer = { black: 44, white: 0 };
