@@ -18,8 +18,51 @@ function getDocumentRef(): any {
     return (typeof document !== 'undefined') ? document : null;
 }
 
+function getFlipTargetKey(target: any) {
+    if (!target || typeof target !== 'object') return null;
+    const row = Object.prototype.hasOwnProperty.call(target, 'r') ? target.r : target.row;
+    const col = Object.prototype.hasOwnProperty.call(target, 'col')
+        ? target.col
+        : (Object.prototype.hasOwnProperty.call(target, 'c') ? target.c : target.column);
+    if (!Number.isInteger(Number(row)) || !Number.isInteger(Number(col))) return null;
+    return `${Number(row)},${Number(col)}`;
+}
+
+function mergeDuplicateFlipTarget(previous: any, next: any) {
+    const merged = Object.assign({}, previous || {}, next || {});
+    if (previous && typeof previous === 'object') {
+        if (typeof merged.ownerBefore === 'undefined') merged.ownerBefore = previous.ownerBefore;
+        if (typeof merged.specialBefore === 'undefined') merged.specialBefore = previous.specialBefore;
+        if (typeof merged.timerBefore === 'undefined') merged.timerBefore = previous.timerBefore;
+    }
+    if (previous && previous.meta && next && next.meta) {
+        merged.meta = Object.assign({}, previous.meta, next.meta);
+    }
+    return merged;
+}
+
+function dedupeFlipTargets(targets: any[]) {
+    const deduped: any[] = [];
+    const indexByKey = new Map();
+    for (const target of targets) {
+        const key = getFlipTargetKey(target);
+        if (!key) {
+            deduped.push(target);
+            continue;
+        }
+        if (!indexByKey.has(key)) {
+            indexByKey.set(key, deduped.length);
+            deduped.push(target);
+            continue;
+        }
+        const index = indexByKey.get(key);
+        deduped[index] = mergeDuplicateFlipTarget(deduped[index], target);
+    }
+    return deduped;
+}
+
 async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
-    const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+    const targets = dedupeFlipTargets(Array.isArray(ev && ev.targets) ? ev.targets : []);
     const promises = targets.map(async (target: any) => {
         const cell = deps.getCellEl(target.r, target.col);
         if (!cell) return;
@@ -89,5 +132,6 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
 }
 
 module.exports = {
+    dedupeFlipTargets,
     handleFlipEvent
 };
