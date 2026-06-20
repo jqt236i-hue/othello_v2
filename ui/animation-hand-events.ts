@@ -85,8 +85,6 @@ function handlePlaceHandAnimationEvent(ev: any, deps: AnimationHandEventDeps) {
     if (typeof handAnimationFn !== 'function') return Promise.resolve();
     return new Promise<void>((resolve) => {
         let finished = false;
-        let waitForAnimationResult = false;
-        let callbackCompleted = false;
         const finish = () => {
             if (finished) return;
             finished = true;
@@ -100,19 +98,7 @@ function handlePlaceHandAnimationEvent(ev: any, deps: AnimationHandEventDeps) {
             finish();
         };
         try {
-            const callbackDone = () => {
-                callbackCompleted = true;
-                Promise.resolve().then(() => {
-                    if (!waitForAnimationResult) done();
-                });
-            };
-            const result = handAnimationFn(deps.resolvePlayerValue(descriptor.playerKey), descriptor.r, descriptor.col, callbackDone);
-            if (result && typeof result.then === 'function') {
-                waitForAnimationResult = true;
-                result.then(done, done);
-            } else if (callbackCompleted) {
-                done();
-            }
+            handAnimationFn(deps.resolvePlayerValue(descriptor.playerKey), descriptor.r, descriptor.col, done);
         } catch (e: any) {
             done();
         }
