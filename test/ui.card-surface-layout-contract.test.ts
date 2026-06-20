@@ -202,8 +202,8 @@ describe('card surface layout contract', () => {
     expectCssBlockToContain(cardsCss, '.card-item.visible', /clip-path:\s*var\(--card-frame-pentagon\)/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible.cost-tier-special', /clip-path:/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible[data-card-id="rainbow_stone"]', /clip-path:/);
-    expectCssBlockNotToContain(cardsCss, '.card-item.visible.special-card-face', /clip-path:/);
-    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face::after', /clip-path:\s*var\(--card-frame-pentagon\)/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /clip-path:\s*var\(--special-card-stone-shape\)/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face::after', /clip-path:\s*var\(--special-card-inner-stone-shape\)/);
     expectCssBlockToContain(cardsCss, '.card-item.hidden', /clip-path:\s*var\(--card-frame-pentagon\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-gray[\s\S]*--card-tier-border:\s*#9aa4b2/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-white[\s\S]*--card-tier-border:\s*#f3f7ff/);

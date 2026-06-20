@@ -38,10 +38,12 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-gold', /--card-tier-bg-a:\s*#6d4708/);
   });
 
-  test('special card face keeps a distinct premium treatment', () => {
+  test('special card face uses a distinct stone slab treatment', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
-    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--card-special-art-opacity:\s*0\.98/);
-    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--card-tier-border:\s*#f4d06f/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--special-card-stone-shape:\s*polygon\(/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /clip-path:\s*var\(--special-card-stone-shape\)/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /--card-tier-border:\s*#b9c4b7/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face .special-card-sigil', /display:\s*none/);
   });
 });
