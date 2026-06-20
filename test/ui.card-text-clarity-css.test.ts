@@ -46,12 +46,15 @@ describe('card text clarity css', () => {
     expect(block).toContain('font-weight: 800;');
   });
 
-  test('hand normal cards raise title size without changing special title rules', () => {
+  test('hand normal cards use more of the title plate without changing special title rules', () => {
     const cssPath = path.join(__dirname, '..', 'styles-cards.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
-    expect(css).toMatch(/#hand-black \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.72em/);
-    expect(css).toMatch(/#hand-white \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.9em/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*width:\s*calc\(100%\s*-\s*\(4px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*bottom:\s*calc\(3px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*white-space:\s*normal/);
+    expect(css).toMatch(/#hand-black \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.86em/);
+    expect(css).toMatch(/#hand-white \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*1\.02em/);
     expect(readCardNameBlock(css, '.card-item.visible.special-card-face .card-name')).toContain('font-size: 0.82em;');
   });
 });
