@@ -4058,11 +4058,100 @@ body:has(#gachaOverlay.is-open) #quick-controls-bar {
 }
 
 #gachaModal #gachaResults {
+    grid-template-columns: repeat(auto-fit, minmax(max(calc(230px * var(--gacha-reference-scale)), 170px), 1fr));
+    grid-auto-rows: minmax(max(calc(64px * var(--gacha-reference-scale)), 44px), auto);
+    align-content: start;
     min-height: calc(138px * var(--gacha-reference-scale));
+    gap: calc(8px * var(--gacha-reference-scale)) calc(10px * var(--gacha-reference-scale));
     border-color: rgba(107, 237, 234, 0.36);
     background:
         radial-gradient(circle at 50% 28%, rgba(83, 214, 209, 0.045), transparent 38%),
         rgba(0, 8, 10, 0.18);
+}
+
+#gachaModal .gacha-result-card {
+    display: grid;
+    grid-template-columns:
+        max(calc(58px * var(--gacha-reference-scale)), 42px)
+        max(calc(40px * var(--gacha-reference-scale)), 28px)
+        minmax(0, 1fr)
+        auto;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: max(calc(8px * var(--gacha-reference-scale)), 5px);
+    row-gap: calc(2px * var(--gacha-reference-scale));
+    min-height: max(calc(64px * var(--gacha-reference-scale)), 44px);
+    padding: max(calc(7px * var(--gacha-reference-scale)), 5px) max(calc(10px * var(--gacha-reference-scale)), 7px);
+    border-radius: calc(8px * var(--gacha-reference-scale));
+    box-sizing: border-box;
+}
+
+#gachaModal .gacha-result-rarity {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: center;
+    min-width: max(calc(48px * var(--gacha-reference-scale)), 34px);
+    min-height: max(calc(24px * var(--gacha-reference-scale)), 18px);
+    padding: calc(2px * var(--gacha-reference-scale)) calc(8px * var(--gacha-reference-scale));
+    font-size: max(calc(13px * var(--gacha-reference-scale)), 11px);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+#gachaModal .gacha-result-image,
+#gachaModal .gacha-result-fallback {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: center;
+    width: max(calc(36px * var(--gacha-reference-scale)), 26px);
+    height: max(calc(36px * var(--gacha-reference-scale)), 26px);
+    min-width: max(calc(36px * var(--gacha-reference-scale)), 26px);
+    min-height: max(calc(36px * var(--gacha-reference-scale)), 26px);
+    aspect-ratio: 1 / 1;
+}
+
+#gachaModal .gacha-result-name {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: max(calc(15px * var(--gacha-reference-scale)), 11px);
+    line-height: 1.15;
+}
+
+#gachaModal .gacha-result-kind {
+    grid-column: 3;
+    grid-row: 2;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: max(calc(12px * var(--gacha-reference-scale)), 10px);
+    line-height: 1.1;
+}
+
+#gachaModal .gacha-result-status {
+    grid-column: 4;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: end;
+    white-space: nowrap;
+    font-size: max(calc(11px * var(--gacha-reference-scale)), 9px);
+    line-height: 1;
+}
+
+#gachaModal .gacha-item-fallback-icon {
+    font-size: max(calc(11px * var(--gacha-reference-scale)), 8px);
+    letter-spacing: 0.04em;
+}
+
+#gachaModal .gacha-item-fallback-note {
+    display: none;
 }
 
 #gachaModal .gacha-results-empty {
