@@ -217,7 +217,7 @@
         linear-gradient(90deg, transparent 0%, rgba(255, 236, 172, 0.18) 10%, transparent 20%, transparent 80%, rgba(255, 236, 172, 0.14) 90%, transparent 100%),
         linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(0, 0, 0, 0.2) 100%),
         linear-gradient(145deg, var(--card-tier-name-plate-bg-a, rgba(54, 40, 28, 0.96)) 0%, var(--card-tier-name-plate-bg-b, rgba(22, 15, 10, 0.94)) 100%);
-    clip-path: polygon(0 28%, 7% 0, 93% 0, 100% 28%, 100% 72%, 93% 100%, 7% 100%, 0 72%);
+    clip-path: polygon(8% 0, 92% 0, 100% 30%, 97% 100%, 3% 100%, 0 30%);
     border: var(--layout-size-border-thin) solid var(--card-tier-name-plate-border, rgba(228, 197, 124, 0.42));
     border-radius: calc(6px * var(--layout-stage-scale));
     color: var(--card-tier-name-color, inherit);
@@ -253,22 +253,26 @@
     top: calc(var(--layout-size-card-badge-offset) - (1px * var(--layout-stage-scale)));
     left: calc(var(--layout-size-card-badge-offset) - (1px * var(--layout-stage-scale)));
     display: inline-flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
-    gap: calc(2px * var(--layout-stage-scale));
+    gap: 0;
+    width: calc(29px * var(--layout-stage-scale));
+    height: calc(29px * var(--layout-stage-scale));
     min-width: calc(29px * var(--layout-stage-scale));
-    min-height: calc(25px * var(--layout-stage-scale));
+    min-height: calc(29px * var(--layout-stage-scale));
+    aspect-ratio: 1 / 1;
     background:
         radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.68) 0%, transparent 38%),
         radial-gradient(circle at 50% 48%, rgba(255, 232, 162, 0.16) 0%, transparent 58%),
+        conic-gradient(from 24deg, var(--card-tier-badge-border, rgba(255, 215, 0, 0.78)) 0 5%, transparent 7% 20%, var(--card-tier-badge-border, rgba(255, 215, 0, 0.78)) 22% 27%, transparent 29% 45%, var(--card-tier-badge-border, rgba(255, 215, 0, 0.78)) 47% 52%, transparent 54% 70%, var(--card-tier-badge-border, rgba(255, 215, 0, 0.78)) 72% 77%, transparent 79% 100%),
         radial-gradient(circle at 74% 78%, rgba(0, 0, 0, 0.24), transparent 42%),
         linear-gradient(180deg, var(--card-tier-badge-hi, rgba(255, 255, 255, 0.28)) 0%, transparent 48%),
         linear-gradient(145deg, var(--card-tier-badge-bg-a, rgba(140, 128, 92, 0.97)) 0%, var(--card-tier-badge-bg-b, rgba(88, 80, 56, 0.96)) 100%);
     color: var(--card-tier-badge-text, #fff0c8);
     font-size: var(--layout-size-card-badge-font);
     font-weight: 700;
-    padding: calc(var(--layout-size-card-badge-pad-y) + (1px * var(--layout-stage-scale))) calc(var(--layout-size-card-badge-pad-x) + (1px * var(--layout-stage-scale)));
-    border-radius: calc(999px * var(--layout-stage-scale));
+    padding: 0;
+    border-radius: 50%;
     border: var(--layout-size-border-thin) solid var(--card-tier-badge-border, rgba(255, 215, 0, 0.78));
     box-shadow:
         0 0 0 calc(1px * var(--layout-stage-scale)) rgba(28, 16, 9, 0.48),
@@ -284,26 +288,28 @@
 }
 
 .card-cost-badge::before {
-    content: var(--card-tier-cost-glyph, '◈');
-    font-size: 0.82em;
-    line-height: 1;
-    opacity: 0.9;
-    margin-right: calc(1px * var(--layout-stage-scale));
-    color: var(--card-tier-cost-glyph-color, rgba(255, 248, 220, 0.92));
-    text-shadow:
-        0 1px 1px rgba(0, 0, 0, 0.45);
+    content: '';
+    position: absolute;
+    inset: calc(3px * var(--layout-stage-scale));
+    border-radius: 50%;
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.22);
+    background:
+        radial-gradient(circle at 35% 26%, rgba(255, 255, 255, 0.26), transparent 34%),
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.12), transparent 62%);
+    pointer-events: none;
 }
 
 .card-cost-badge::after {
     content: '';
     position: absolute;
     inset: calc(3px * var(--layout-stage-scale));
-    border-radius: inherit;
+    border-radius: 50%;
     border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.18);
     pointer-events: none;
 }
 
 .card-cost-badge .cost-label {
+    display: none;
     font-size: 0.74em;
     opacity: 0.74;
     margin-left: calc(1px * var(--layout-stage-scale));
@@ -314,9 +320,11 @@
 }
 
 .card-cost-badge .cost-value {
-    font-size: 1.7em;
+    position: relative;
+    z-index: 1;
+    font-size: 1.58em;
     font-weight: 900;
-    line-height: 0.92;
+    line-height: 1;
     letter-spacing: 0;
     font-variant-numeric: tabular-nums;
 }
@@ -442,9 +450,15 @@
 .card-item.visible {
     --card-type-field: radial-gradient(100% 90% at 50% 42%, rgba(255, 255, 255, 0.08), transparent 62%);
     --card-face-rune-pattern: repeating-linear-gradient(135deg, transparent 0 8px, rgba(255, 255, 255, 0.025) 8px 9px);
+    --card-tier-rune-ring-color: rgba(255, 236, 172, 0.32);
+    --card-tier-rune-ring:
+        radial-gradient(ellipse at 50% 42%, transparent 0 39%, var(--card-tier-rune-ring-color) 40% 41%, transparent 42% 47%, var(--card-tier-rune-ring-color) 48% 49%, transparent 50%),
+        conic-gradient(from -8deg at 50% 42%, transparent 0 4%, var(--card-tier-rune-ring-color) 5% 5.8%, transparent 6.8% 13%, var(--card-tier-rune-ring-color) 14% 14.8%, transparent 15.8% 21%, var(--card-tier-rune-ring-color) 22% 22.8%, transparent 23.8% 100%);
     --card-art-vignette-top: rgba(255, 255, 255, 0.18);
     --card-art-vignette-bottom: rgba(0, 0, 0, 0.54);
     --card-edge-glow: rgba(255, 226, 156, 0.2);
+    --card-corner-bracket: linear-gradient(90deg, var(--card-tier-border, rgba(217, 183, 102, 0.84)) 0 38%, transparent 39% 61%, var(--card-tier-border, rgba(217, 183, 102, 0.84)) 62% 100%);
+    --card-selected-aura: rgba(255, 239, 170, 0.96);
     --card-available-outline: rgba(255, 232, 150, 0.92);
     --card-available-ring: rgba(255, 226, 130, 0.34);
     --card-available-core: rgba(255, 218, 96, 0.82);
@@ -479,7 +493,10 @@
     inset: calc(4px * var(--layout-stage-scale));
     border-radius: calc(4px * var(--layout-stage-scale));
     border: var(--layout-size-border-thin) solid var(--card-tier-inner-border, rgba(255, 215, 0, 0.18));
+    clip-path: polygon(5% 0, 95% 0, 100% 7%, 100% 93%, 95% 100%, 5% 100%, 0 93%, 0 7%);
     background:
+        linear-gradient(90deg, var(--card-tier-border, rgba(217, 183, 102, 0.64)) 0 calc(8px * var(--layout-stage-scale)), transparent calc(8px * var(--layout-stage-scale)) calc(100% - calc(8px * var(--layout-stage-scale))), var(--card-tier-border, rgba(217, 183, 102, 0.64)) calc(100% - calc(8px * var(--layout-stage-scale))) 100%),
+        linear-gradient(0deg, var(--card-tier-border, rgba(217, 183, 102, 0.58)) 0 calc(8px * var(--layout-stage-scale)), transparent calc(8px * var(--layout-stage-scale)) calc(100% - calc(8px * var(--layout-stage-scale))), var(--card-tier-border, rgba(217, 183, 102, 0.58)) calc(100% - calc(8px * var(--layout-stage-scale))) 100%),
         linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, transparent 18%, transparent 74%, rgba(0, 0, 0, 0.18) 100%),
         linear-gradient(90deg, var(--card-edge-glow) 0%, transparent 20%, transparent 80%, var(--card-edge-glow) 100%);
     box-shadow:
@@ -497,13 +514,14 @@
     position: absolute;
     inset: 0;
     background:
+        var(--card-tier-rune-ring),
         linear-gradient(115deg, transparent 0%, transparent 36%, rgba(255, 255, 255, 0.16) 44%, transparent 54%, transparent 100%),
         radial-gradient(ellipse at 50% 28%, rgba(255, 255, 255, 0.18), transparent 48%),
         var(--card-face-rune-pattern),
         linear-gradient(90deg, rgba(255, 245, 200, 0.07), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.18)),
         linear-gradient(180deg, transparent 0%, transparent 62%, rgba(0, 0, 0, 0.36) 100%);
-    background-size: 260% 260%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-    background-position: 18% 18%, center, center, center, center;
+    background-size: 100% 100%, 260% 260%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    background-position: center, 18% 18%, center, center, center, center;
     opacity: 0.86;
     pointer-events: none;
     z-index: 2;
@@ -687,6 +705,7 @@
     --card-tier-name-color: #fff8ec;
     --card-tier-texture: repeating-linear-gradient(135deg, transparent 0px, transparent 6px, rgba(255, 255, 255, 0.025) 6px, rgba(255, 255, 255, 0.025) 7px);
     --card-edge-glow: rgba(176, 190, 210, 0.2);
+    --card-tier-rune-ring-color: rgba(198, 210, 226, 0.30);
     --card-tier-hover-glow: rgba(180, 195, 220, 0.18);
     --card-available-outline: rgba(190, 202, 218, 0.92);
     --card-available-ring: rgba(190, 202, 218, 0.34);
@@ -714,6 +733,7 @@
     --card-tier-name-plate-bg-b: rgba(49, 61, 79, 0.95);
     --card-tier-name-plate-border: rgba(233, 244, 255, 0.42);
     --card-edge-glow: rgba(238, 246, 255, 0.36);
+    --card-tier-rune-ring-color: rgba(238, 246, 255, 0.34);
     --card-tier-hover-glow: rgba(218, 232, 255, 0.24);
     --card-available-outline: rgba(246, 250, 255, 0.95);
     --card-available-ring: rgba(246, 250, 255, 0.36);
@@ -741,6 +761,7 @@
     --card-tier-symbol: '✦';
     --card-tier-symbol-color: rgba(180, 255, 200, 0.06);
     --card-edge-glow: rgba(112, 226, 150, 0.28);
+    --card-tier-rune-ring-color: rgba(130, 225, 155, 0.36);
     --card-tier-hover-glow: rgba(100, 220, 140, 0.26);
     --card-available-outline: rgba(130, 225, 155, 0.92);
     --card-available-ring: rgba(130, 225, 155, 0.34);
@@ -770,6 +791,7 @@
     --card-tier-symbol: '◇';
     --card-tier-symbol-color: rgba(180, 220, 255, 0.06);
     --card-edge-glow: rgba(104, 176, 255, 0.32);
+    --card-tier-rune-ring-color: rgba(135, 190, 255, 0.38);
     --card-tier-hover-glow: rgba(100, 172, 255, 0.28);
     --card-available-outline: rgba(135, 190, 255, 0.92);
     --card-available-ring: rgba(135, 190, 255, 0.34);
@@ -801,6 +823,7 @@
     --card-tier-symbol: '♛';
     --card-tier-symbol-color: rgba(220, 190, 255, 0.07);
     --card-edge-glow: rgba(192, 146, 255, 0.38);
+    --card-tier-rune-ring-color: rgba(202, 164, 255, 0.40);
     --card-tier-hover-glow: rgba(172, 122, 236, 0.32);
     --card-available-outline: rgba(202, 164, 255, 0.92);
     --card-available-ring: rgba(202, 164, 255, 0.36);
@@ -841,6 +864,7 @@
     --card-tier-symbol: '✧';
     --card-tier-symbol-color: rgba(255, 215, 0, 0.08);
     --card-edge-glow: rgba(255, 218, 90, 0.44);
+    --card-tier-rune-ring-color: rgba(241, 210, 122, 0.42);
     --card-tier-hover-glow: rgba(255, 215, 0, 0.36);
     --card-available-outline: rgba(241, 210, 122, 0.94);
     --card-available-ring: rgba(241, 210, 122, 0.38);
@@ -879,6 +903,7 @@
     --card-tier-symbol: '☠';
     --card-tier-symbol-color: rgba(255, 100, 120, 0.08);
     --card-edge-glow: rgba(255, 82, 112, 0.42);
+    --card-tier-rune-ring-color: rgba(255, 94, 120, 0.38);
     --card-tier-hover-glow: rgba(230, 68, 96, 0.34);
     --card-available-outline: rgba(155, 49, 71, 0.92);
     --card-available-ring: rgba(155, 49, 71, 0.36);
@@ -1091,6 +1116,7 @@
     box-shadow:
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 239, 170, 0.98),
         0 0 0 calc(5px * var(--layout-stage-scale)) rgba(255, 215, 0, 0.18),
+        0 0 calc(16px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) var(--card-selected-aura, rgba(255, 239, 170, 0.96)),
         0 0 24px 8px rgba(255, 215, 0, 0.9),
         0 0 44px 16px rgba(255, 215, 0, 0.36),
         0 18px 32px rgba(0, 0, 0, 0.52);
@@ -1248,6 +1274,8 @@
 :is(#hand-black, #hand-white) .card-item.selected {
     box-shadow:
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 239, 170, 0.96),
+        0 0 calc(14px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) var(--card-selected-aura, rgba(255, 239, 170, 0.96)),
+        0 0 calc(30px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) var(--card-tier-hover-glow, rgba(255, 215, 0, 0.32)),
         0 12px 24px rgba(0, 0, 0, 0.46);
     transform: translateY(-5px);
 }
@@ -1277,6 +1305,8 @@
     transform: translateY(-5px);
     box-shadow:
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 239, 170, 0.96),
+        0 0 calc(16px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--card-selected-aura, rgba(255, 239, 170, 0.96)),
+        0 0 calc(34px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) var(--card-tier-hover-glow, rgba(255, 215, 0, 0.34)),
         0 14px 26px rgba(0, 0, 0, 0.48);
 }
 
@@ -1390,7 +1420,11 @@
     font-size: var(--layout-size-card-badge-large-font);
     top: var(--layout-size-card-badge-large-offset);
     left: var(--layout-size-card-badge-large-offset);
-    padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
+    width: calc(35px * var(--layout-stage-scale));
+    height: calc(35px * var(--layout-stage-scale));
+    min-width: calc(35px * var(--layout-stage-scale));
+    min-height: calc(35px * var(--layout-stage-scale));
+    padding: 0;
 }
 
 #hand-black .card-item .card-name {
