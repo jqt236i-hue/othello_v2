@@ -58,6 +58,36 @@ const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
     imagePath: 'assets/images/background/デフォルト3.png'
   }),
   Object.freeze({
+    id: 'default-4',
+    label: 'デフォルト4',
+    note: '初期所持',
+    imagePath: 'assets/images/background/デフォルト4.png'
+  }),
+  Object.freeze({
+    id: 'default-5',
+    label: 'デフォルト5',
+    note: '初期所持',
+    imagePath: 'assets/images/background/デフォルト5.png'
+  }),
+  Object.freeze({
+    id: 'default-6',
+    label: 'デフォルト6',
+    note: '初期所持',
+    imagePath: 'assets/images/background/デフォルト6.png'
+  }),
+  Object.freeze({
+    id: 'default-7',
+    label: 'デフォルト7',
+    note: '初期所持',
+    imagePath: 'assets/images/background/デフォルト7.png'
+  }),
+  Object.freeze({
+    id: 'default-8',
+    label: 'デフォルト8',
+    note: '初期所持',
+    imagePath: 'assets/images/background/デフォルト8.png'
+  }),
+  Object.freeze({
     id: 'observation-desk',
     label: '観測の机',
     note: '初期所持',

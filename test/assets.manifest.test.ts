@@ -60,6 +60,11 @@ describe('assets manifest', () => {
     );
     [
       'assets/images/background/default.png',
+      'assets/images/background/デフォルト4.png',
+      'assets/images/background/デフォルト5.png',
+      'assets/images/background/デフォルト6.png',
+      'assets/images/background/デフォルト7.png',
+      'assets/images/background/デフォルト8.png',
       'assets/images/background-skin/観測の机.png',
       'assets/images/hand-skin/lv1-2.png',
       'assets/images/hand-skin/lv3-5.png',

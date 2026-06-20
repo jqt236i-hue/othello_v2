@@ -1,5 +1,17 @@
 import { JSDOM } from 'jsdom';
 
+const DEFAULT_BACKGROUND_SKIN_IDS = [
+  'default',
+  'default-2',
+  'default-3',
+  'default-4',
+  'default-5',
+  'default-6',
+  'default-7',
+  'default-8',
+  'unobserved-night'
+];
+
 describe('gacha progress storage', () => {
   let dom;
 
@@ -27,7 +39,7 @@ describe('gacha progress storage', () => {
     expect(state.observationStones).toBe(0);
     expect(state.version).toBe(3);
     expect(mod.listOwnedHandSkinIds(window).sort()).toEqual(['default']);
-    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual(['default', 'default-2', 'default-3', 'unobserved-night']);
+    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual(DEFAULT_BACKGROUND_SKIN_IDS);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual(['default']);
   });
 
@@ -55,11 +67,9 @@ describe('gacha progress storage', () => {
       'gacha__n__小鬼の手'
     ]);
     expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual([
-      'default',
-      'default-2',
-      'default-3',
+      ...DEFAULT_BACKGROUND_SKIN_IDS.slice(0, -1),
       'gacha__n__background_skin__観測できなかった夜',
-      'unobserved-night'
+      DEFAULT_BACKGROUND_SKIN_IDS[DEFAULT_BACKGROUND_SKIN_IDS.length - 1]
     ]);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual([
       'default',
