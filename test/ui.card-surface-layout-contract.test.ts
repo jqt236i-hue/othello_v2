@@ -217,7 +217,8 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-background-art[\s\S]*saturate\(1\.18\)[\s\S]*contrast\(1\.08\)/);
     expect(cardsCss).toMatch(/\.card-background-art[\s\S]*z-index:\s*0/);
     expect(cardsCss).toMatch(/\.card-name[\s\S]*backdrop-filter:\s*blur/);
-    expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*rgba\(255,\s*232,\s*162,\s*0\.16\)/);
+    expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*var\(--card-tier-badge-specular/);
+    expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*var\(--card-tier-badge-top-sheen/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-gray[\s\S]*--card-available-core:\s*rgba\(190,\s*202,\s*218,\s*0\.78\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-white[\s\S]*--card-available-core:\s*rgba\(246,\s*250,\s*255,\s*0\.86\)/);
     expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-red[\s\S]*--card-available-core:\s*rgba\(130,\s*225,\s*155,\s*0\.78\)/);
