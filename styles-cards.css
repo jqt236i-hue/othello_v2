@@ -2181,19 +2181,19 @@
 #board-frame-pass-btn {
     position: absolute;
     left: calc(16px * var(--layout-stage-scale));
-    bottom: calc(-33px * var(--layout-stage-scale));
-    min-width: calc(154px * var(--layout-stage-scale));
-    min-height: calc(40px * var(--layout-stage-scale));
-    padding: calc(9px * var(--layout-stage-scale)) calc(37px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) calc(48px * var(--layout-stage-scale));
+    bottom: calc(-29px * var(--layout-stage-scale));
+    min-width: calc(108px * var(--layout-stage-scale));
+    min-height: calc(31px * var(--layout-stage-scale));
+    padding: calc(7px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale));
     border: calc(2px * var(--layout-stage-scale)) solid rgba(229, 96, 88, 0.92);
-    border-radius: calc(9px * var(--layout-stage-scale));
+    border-radius: calc(3px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(226, 72, 58, 0.3), transparent 42%),
         radial-gradient(circle at 17% 18%, rgba(255, 237, 210, 0.23), transparent 28%),
         linear-gradient(180deg, rgba(83, 17, 18, 0.99), rgba(22, 4, 6, 0.99));
     color: #fff3e8;
     font-family: var(--selected-app-font-readable-family);
-    font-size: calc(17px * var(--layout-stage-scale));
+    font-size: calc(15px * var(--layout-stage-scale));
     font-weight: 800;
     line-height: 1;
     letter-spacing: calc(1.5px * var(--layout-stage-scale));
@@ -2205,14 +2205,7 @@
         0 0 calc(18px * var(--layout-stage-scale)) rgba(207, 58, 48, 0.34),
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 225, 212, 0.2),
         inset 0 calc(-2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
-    clip-path: polygon(
-        0 0,
-        calc(100% - calc(12px * var(--layout-stage-scale))) 0,
-        100% 50%,
-        calc(100% - calc(12px * var(--layout-stage-scale))) 100%,
-        0 100%,
-        calc(7px * var(--layout-stage-scale)) 50%
-    );
+    clip-path: none;
     -webkit-font-smoothing: antialiased;
     cursor: pointer;
     z-index: 166;
@@ -2226,23 +2219,23 @@
 }
 
 #board-frame-pass-btn::before {
-    content: '>';
-    left: calc(10px * var(--layout-stage-scale));
+    content: '>>';
+    left: calc(8px * var(--layout-stage-scale));
     top: 50%;
-    width: calc(31px * var(--layout-stage-scale));
-    height: calc(19px * var(--layout-stage-scale));
+    width: calc(18px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
     display: flex;
     align-items: center;
     justify-content: center;
     transform: translateY(-50%);
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 201, 144, 0.48);
-    border-radius: calc(999px * var(--layout-stage-scale));
+    border-radius: calc(2px * var(--layout-stage-scale));
     background:
         linear-gradient(180deg, rgba(255, 203, 132, 0.2), rgba(142, 34, 28, 0.54)),
         linear-gradient(180deg, #4d1010, #160304);
     color: rgba(255, 236, 204, 0.92);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(13px * var(--layout-stage-scale));
+    font-size: calc(8px * var(--layout-stage-scale));
     font-weight: 800;
     letter-spacing: calc(0.4px * var(--layout-stage-scale));
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.8);
@@ -2252,14 +2245,12 @@
 }
 
 #board-frame-pass-btn::after {
-    right: calc(16px * var(--layout-stage-scale));
-    top: 50%;
-    width: calc(10px * var(--layout-stage-scale));
-    height: calc(10px * var(--layout-stage-scale));
-    border-top: calc(2px * var(--layout-stage-scale)) solid rgba(255, 220, 188, 0.86);
-    border-right: calc(2px * var(--layout-stage-scale)) solid rgba(255, 220, 188, 0.86);
-    transform: translateY(-50%) rotate(45deg);
-    filter: drop-shadow(0 0 calc(4px * var(--layout-stage-scale)) rgba(255, 107, 88, 0.44));
+    left: calc(30px * var(--layout-stage-scale));
+    top: calc(6px * var(--layout-stage-scale));
+    bottom: calc(6px * var(--layout-stage-scale));
+    width: calc(1px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, transparent, rgba(255, 220, 188, 0.52), transparent);
+    filter: drop-shadow(0 0 calc(4px * var(--layout-stage-scale)) rgba(255, 107, 88, 0.34));
 }
 
 #board-frame-pass-btn:hover:not(:disabled) {
