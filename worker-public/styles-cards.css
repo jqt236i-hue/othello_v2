@@ -1452,24 +1452,27 @@
 }
 
 :is(#hand-black, #hand-white) .card-item:not(.visible.cost-tier-special):not(.visible[data-card-id="rainbow_stone"]):not(.visible.special-card-face) .card-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: calc(100% - (2px * var(--layout-stage-scale)));
     max-width: calc(100% - (2px * var(--layout-stage-scale)));
-    min-height: calc(36px * var(--layout-stage-scale));
-    padding: calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
-    bottom: calc(2px * var(--layout-stage-scale));
+    min-height: calc(34px * var(--layout-stage-scale));
+    padding: calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale));
+    bottom: calc(1px * var(--layout-stage-scale));
     font-weight: 800;
-    line-height: 1.02;
+    line-height: 0.98;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: normal;
 }
 
 #hand-black .card-item:not(.visible.cost-tier-special):not(.visible[data-card-id="rainbow_stone"]):not(.visible.special-card-face) .card-name {
-    font-size: 0.94em;
+    font-size: 0.98em;
 }
 
 #hand-white .card-item:not(.visible.cost-tier-special):not(.visible[data-card-id="rainbow_stone"]):not(.visible.special-card-face) .card-name {
-    font-size: 1.1em;
+    font-size: 1.14em;
 }
 
 #hand-black .card-item.visible.special-card-face .card-special-art {

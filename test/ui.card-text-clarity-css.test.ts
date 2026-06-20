@@ -51,11 +51,14 @@ describe('card text clarity css', () => {
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*width:\s*calc\(100%\s*-\s*\(2px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
-    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*min-height:\s*calc\(36px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*bottom:\s*calc\(2px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*display:\s*flex/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*align-items:\s*center/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*justify-content:\s*center/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*min-height:\s*calc\(34px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*bottom:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/:is\(#hand-black,\s*#hand-white\) \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*white-space:\s*normal/);
-    expect(css).toMatch(/#hand-black \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.94em/);
-    expect(css).toMatch(/#hand-white \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*1\.1em/);
+    expect(css).toMatch(/#hand-black \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.98em/);
+    expect(css).toMatch(/#hand-white \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*1\.14em/);
     expect(readCardNameBlock(css, '.card-item.visible.special-card-face .card-name')).toContain('font-size: 0.82em;');
   });
 });
