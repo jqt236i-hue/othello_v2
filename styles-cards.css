@@ -2181,10 +2181,10 @@
 #board-frame-pass-btn {
     position: absolute;
     left: calc(16px * var(--layout-stage-scale));
-    bottom: calc(-31px * var(--layout-stage-scale));
-    min-width: calc(126px * var(--layout-stage-scale));
-    min-height: calc(36px * var(--layout-stage-scale));
-    padding: calc(8px * var(--layout-stage-scale)) calc(35px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(48px * var(--layout-stage-scale));
+    bottom: calc(-33px * var(--layout-stage-scale));
+    min-width: calc(154px * var(--layout-stage-scale));
+    min-height: calc(40px * var(--layout-stage-scale));
+    padding: calc(9px * var(--layout-stage-scale)) calc(37px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) calc(48px * var(--layout-stage-scale));
     border: calc(2px * var(--layout-stage-scale)) solid rgba(229, 96, 88, 0.92);
     border-radius: calc(9px * var(--layout-stage-scale));
     background:
@@ -2193,7 +2193,7 @@
         linear-gradient(180deg, rgba(83, 17, 18, 0.99), rgba(22, 4, 6, 0.99));
     color: #fff3e8;
     font-family: var(--selected-app-font-readable-family);
-    font-size: calc(15px * var(--layout-stage-scale));
+    font-size: calc(17px * var(--layout-stage-scale));
     font-weight: 800;
     line-height: 1;
     letter-spacing: calc(1.5px * var(--layout-stage-scale));
@@ -2226,7 +2226,7 @@
 }
 
 #board-frame-pass-btn::before {
-    content: 'PASS';
+    content: '>';
     left: calc(10px * var(--layout-stage-scale));
     top: 50%;
     width: calc(31px * var(--layout-stage-scale));
@@ -2242,7 +2242,7 @@
         linear-gradient(180deg, #4d1010, #160304);
     color: rgba(255, 236, 204, 0.92);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(7px * var(--layout-stage-scale));
+    font-size: calc(13px * var(--layout-stage-scale));
     font-weight: 800;
     letter-spacing: calc(0.4px * var(--layout-stage-scale));
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.8);
