@@ -36,4 +36,21 @@ describe('background skin catalog', () => {
       })
     ]));
   });
+
+  test('includes デフォルト3 as an initially owned background skin', () => {
+    const storage = require('../ui/storage/gacha-progress.ts');
+    (window as any).GachaProgressStorage = storage;
+    (window as any).GachaProgressStorageModule = storage;
+    const catalog = require('../ui/background-skin/catalog.ts');
+
+    expect(catalog.isBackgroundSkinOwned(window, 'default-3')).toBe(true);
+    expect(catalog.getOwnedBackgroundSkins(window)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'default-3',
+        label: 'デフォルト3',
+        note: '初期所持',
+        imagePath: 'assets/images/background/デフォルト3.png'
+      })
+    ]));
+  });
 });

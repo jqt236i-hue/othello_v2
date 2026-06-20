@@ -1439,7 +1439,7 @@
 - 手置き演出と通常ドロー演出の手本体は `assets/images/hand-skin/` 配下の画像を正本にする
 - `HELP` ボタンの下にある `SKIN` ボタンから、自分側の手の見た目スキン・背景画像・文字フォント・通常石スキンを切り替えられる
 - 手の見た目スキンの初期所持は `勇者の手` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
-- 背景画像の初期所持は `既定背景` (`assets/images/background/default.png`) と `デフォルト2` (`assets/images/background/デフォルト2.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、選択は次回起動後も保持してよい
+- 背景画像の初期所持は `既定背景` (`assets/images/background/default.png`) と `デフォルト2` (`assets/images/background/デフォルト2.png`) と `デフォルト3` (`assets/images/background/デフォルト3.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、選択は次回起動後も保持してよい
 - 文字フォントの初期所持は `既定フォント` と `DotGothic16` とし、選択は次回起動後も保持してよい
 - 通常石スキンの初期所持は `既定石` (`assets/images/stones/normal_stone-black.png` / `assets/images/stones/normal_stone-white.png`) と `O石` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) とし、選択は次回起動後も保持してよい
 - `DotGothic16` を選んだ場合でも、カード説明・戦況パネル・詳細本文・小型ボタンなど小さく潰れやすい文字面と、画数が多く詰まりやすいカード名は、可読性優先で通常ゴシックへ自動フォールバックしてよい

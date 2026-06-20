@@ -351,6 +351,10 @@
       "sha256": "5d372be012fd5b8f72d86afa3356da0e914d5fdb77503d5d704cf79a50d70d68"
     },
     {
+      "path": "assets/images/background/デフォルト3.png",
+      "sha256": "60688dde506ebe5c18a8e23f79ec1e430de42eeaa34ccf2b7782d65da70dfaca"
+    },
+    {
       "path": "assets/images/background/宇宙の観測.png",
       "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
     },
