@@ -45,4 +45,13 @@ describe('card text clarity css', () => {
     expect(block).toContain('letter-spacing: 0;');
     expect(block).toContain('font-weight: 800;');
   });
+
+  test('hand normal cards raise title size without changing special title rules', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-cards.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    expect(css).toMatch(/#hand-black \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.72em/);
+    expect(css).toMatch(/#hand-white \.card-item:not\(\.visible\.cost-tier-special\):not\(\.visible\[data-card-id="rainbow_stone"\]\):not\(\.visible\.special-card-face\) \.card-name\s*\{[\s\S]*font-size:\s*0\.9em/);
+    expect(readCardNameBlock(css, '.card-item.visible.special-card-face .card-name')).toContain('font-size: 0.82em;');
+  });
 });
