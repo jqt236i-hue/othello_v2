@@ -865,11 +865,6 @@ function isNetworkSpectatorForTurnManager() {
         if (impl && typeof impl.isNetworkSpectator === 'function') return impl.isNetworkSpectator() === true;
         if (impl && impl.isNetworkSpectator === true) return true;
     } catch (e) { /* ignore */ }
-    try {
-        const root = getTurnManagerRuntimeRoot();
-        const client = root && root.NetworkMatchClient;
-        if (client && typeof client.isSpectator === 'function') return client.isSpectator() === true;
-    } catch (e) { /* ignore */ }
     return false;
 }
 
@@ -904,33 +899,37 @@ function isOthelloModeForTurnManager() {
     return false;
 }
 
+function normalizeTurnManagerPlayerKeyOptional(value: any): 'black' | 'white' | null {
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
+            const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(value);
+            if (normalized === 'white' || normalized === 'black') return normalized;
+        }
+    } catch (e) { /* ignore */ }
+    return value === 'white' ? 'white' : (value === 'black' ? 'black' : null);
+}
+
 function resolveNetworkLocalPlayerKey() {
     try {
-        const impl = __uiImpl_turn_manager;
-        if (impl && typeof impl.readNetworkSeatKey === 'function') {
-            const seatKey = impl.readNetworkSeatKey();
-            if (seatKey === 'white' || seatKey === 'black') return seatKey;
-        }
+        const seatKey = normalizeTurnManagerPlayerKeyOptional(callTurnManagerRuntimeFunction('readNetworkSeatKey'));
+        if (seatKey) return seatKey;
         const runtimeKeys = [
             readTurnManagerRuntimeValue('LOCAL_PLAYER_KEY'),
             readTurnManagerRuntimeValue('__LOCAL_PLAYER_KEY'),
             readTurnManagerRuntimeValue('BOARD_VIEWER_KEY')
         ];
         for (const key of runtimeKeys) {
-            if (key === 'white' || key === 'black') return key;
+            const normalized = normalizeTurnManagerPlayerKeyOptional(key);
+            if (normalized) return normalized;
         }
         // LOCAL_PLAYER_KEY / BOARD_VIEWER_KEY via DI (setUIImpl)
         const directImpl = __uiImpl_turn_manager;
         if (directImpl) {
             const directKeys = [directImpl.LOCAL_PLAYER_KEY, directImpl.__LOCAL_PLAYER_KEY, directImpl.BOARD_VIEWER_KEY];
             for (const key of directKeys) {
-                if (key === 'white' || key === 'black') return key;
+                const normalized = normalizeTurnManagerPlayerKeyOptional(key);
+                if (normalized) return normalized;
             }
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
-            return OwnerHelpersModule.resolveLocalPlayerKey(getTurnManagerRuntimeRoot());
         }
     } catch (e) { /* ignore */ }
     return 'black';
@@ -946,7 +945,7 @@ function canLocalUserOperateCurrentTurn() {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveNetworkInputPermissions === 'function') {
             return OwnerHelpersModule.resolveNetworkInputPermissions({
-                rootRef: getTurnManagerRuntimeRoot(),
+                rootRef: {},
                 cardState,
                 gameState,
                 currentPlayer: gameState.currentPlayer,

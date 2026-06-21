@@ -255,16 +255,22 @@ describe('turn-manager scheduling', () => {
   test('network spectator board click is read-only even when local player keys still point to black', () => {
     global.MATCH_MODE = 'network';
     global.NetworkMatchClient = {
-      getSeatKey: () => null,
-      isSpectator: () => true
+      getSeatKey: jest.fn(() => null),
+      isSpectator: jest.fn(() => true)
     };
     global.LOCAL_PLAYER_KEY = 'black';
     global.__LOCAL_PLAYER_KEY = 'black';
     global.BOARD_VIEWER_KEY = 'black';
 
     const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      ...buildTurnManagerUIBridge(),
+      isNetworkSpectator: () => true
+    });
     rm.handleCellClick(0, 0);
 
+    expect(global.NetworkMatchClient.getSeatKey).not.toHaveBeenCalled();
+    expect(global.NetworkMatchClient.isSpectator).not.toHaveBeenCalled();
     expect(global.findMoveForCell).not.toHaveBeenCalled();
     expect(global.executeMove).not.toHaveBeenCalled();
   });
