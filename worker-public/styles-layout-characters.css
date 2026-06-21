@@ -27,7 +27,7 @@
     gap: calc(1px * var(--layout-stage-scale));
     z-index: 100;
     pointer-events: none;
-    transform: translateY(calc(0px * var(--layout-stage-scale)));
+    transform: translateY(calc(20px * var(--layout-stage-scale)));
 }
 
 #cpu-character-img {
