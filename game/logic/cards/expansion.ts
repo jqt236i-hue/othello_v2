@@ -211,6 +211,84 @@ function getOpeningHighBonusRestrictedCellKeys(boardOrConfig: any): Set<string> 
     return out;
 }
 
+function cellKeyOfBoardBonusCell(row: number, col: number): string {
+    return `${row},${col}`;
+}
+
+function buildBoardBonusCellKeySet(cells: Array<{ row: number; col: number }>): Set<string> {
+    const out = new Set<string>();
+    for (const cell of cells) {
+        if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+        out.add(cellKeyOfBoardBonusCell(cell.row, cell.col));
+    }
+    return out;
+}
+
+function addCornerRiskBoardBonusCandidate(
+    out: Array<{ row: number; col: number }>,
+    seen: Set<string>,
+    config: BoardConfig,
+    allowedKeys: Set<string> | null,
+    row: number,
+    col: number
+): void {
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+    if (!isMainBoardCellForCard(row, col, config)) return;
+    const key = cellKeyOfBoardBonusCell(row, col);
+    if (allowedKeys && !allowedKeys.has(key)) return;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ row, col });
+}
+
+function collectCornerRiskBoardBonusCandidates(
+    boardOrConfig: any,
+    allowedKeys?: Set<string>
+): Array<{ row: number; col: number }> {
+    const config = resolveCardBoardConfig(boardOrConfig);
+    const out: Array<{ row: number; col: number }> = [];
+    const seen = new Set<string>();
+    const allowed = allowedKeys instanceof Set ? allowedKeys : null;
+    const maxRow = config.baseBounds.maxRow;
+    const maxCol = config.baseBounds.maxCol;
+
+    if (config.rows >= 3 && config.cols >= 3) {
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, 1, 1);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, 1, maxCol - 1);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, maxRow - 1, 1);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, maxRow - 1, maxCol - 1);
+    }
+
+    if (config.rows >= 2 && config.cols >= 2) {
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, 0, 1);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, 1, 0);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, 0, maxCol - 1);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, 1, maxCol);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, maxRow - 1, 0);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, maxRow, 1);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, maxRow - 1, maxCol);
+        addCornerRiskBoardBonusCandidate(out, seen, config, allowed, maxRow, maxCol - 1);
+    }
+
+    return out;
+}
+
+function findBoardBonusCellIndexByKey(
+    cells: Array<{ row: number; col: number }>,
+    preferredKeys: Set<string>,
+    blockedKeys?: Set<string> | null
+): number | null {
+    for (let index = 0; index < cells.length; index += 1) {
+        const cell = cells[index];
+        if (!cell) continue;
+        const key = cellKeyOfBoardBonusCell(cell.row, cell.col);
+        if (!preferredKeys.has(key)) continue;
+        if (blockedKeys && blockedKeys.has(key)) continue;
+        return index;
+    }
+    return null;
+}
+
 interface DistributionEntry {
     value: number;
     count: number;
@@ -221,15 +299,15 @@ function getNormalizedInitialBonusDistribution(): DistributionEntry[] {
     const source = Array.isArray(INITIAL_BOARD_BONUS_DISTRIBUTION) && INITIAL_BOARD_BONUS_DISTRIBUTION.length > 0
         ? INITIAL_BOARD_BONUS_DISTRIBUTION
         : [
-            { value: 1, count: 9 },
-            { value: 2, count: 8 },
-            { value: 3, count: 6 },
-            { value: 4, count: 5 },
-            { value: 5, count: 4 },
-            { value: 6, count: 3 },
-            { value: 7, count: 2 },
-            { value: 8, count: 1 },
-            { value: 9, count: 1 },
+            { value: 1, count: 7 },
+            { value: 2, count: 7 },
+            { value: 3, count: 5 },
+            { value: 4, count: 4 },
+            { value: 5, count: 5 },
+            { value: 6, count: 4 },
+            { value: 7, count: 3 },
+            { value: 8, count: 2 },
+            { value: 9, count: 2 },
             { value: 10, count: 1 }
         ];
     return source.reduce((out: DistributionEntry[], entry: any, index: number) => {
@@ -591,24 +669,47 @@ function buildInitialBoardBonusMap(prng: any, boardOrConfig: any): Record<string
     }
 
     const cells = candidates.slice();
-    const values = bonusValues.slice();
+    const highNumberValues = bonusValues.filter((value) => value >= 8);
+    const regularValues = bonusValues.filter((value) => value < 8);
     if (prng && typeof prng.shuffle === 'function') {
         prng.shuffle(cells);
-        prng.shuffle(values);
+        prng.shuffle(highNumberValues);
+        prng.shuffle(regularValues);
     }
+    const values = highNumberValues.concat(regularValues);
 
     const out: Record<string, number> = {};
     const assignCount = Math.min(cells.length, values.length);
     const highBonusRestrictedCellKeys = getOpeningHighBonusRestrictedCellKeys(boardOrConfig);
     const useHighBonusRestriction = highBonusRestrictedCellKeys.size > 0;
+    const candidateCellKeys = buildBoardBonusCellKeySet(candidates);
+    const highNumberPreferredCellKeys = buildBoardBonusCellKeySet(
+        collectCornerRiskBoardBonusCandidates(boardOrConfig, candidateCellKeys)
+    );
+
     for (let i = 0; i < assignCount; i++) {
-        let cellIndex = 0;
-        if (useHighBonusRestriction && values[i] >= 6) {
-            const unrestrictedIndex = cells.findIndex((cell) => cell && !highBonusRestrictedCellKeys.has(`${cell.row},${cell.col}`));
+        const value = values[i];
+        const avoidOpeningHighBonusZone = useHighBonusRestriction && value >= 6;
+        let cellIndex: number | null = null;
+
+        if (value >= 8 && highNumberPreferredCellKeys.size > 0) {
+            cellIndex = findBoardBonusCellIndexByKey(
+                cells,
+                highNumberPreferredCellKeys,
+                avoidOpeningHighBonusZone ? highBonusRestrictedCellKeys : null
+            );
+        }
+
+        if (cellIndex === null && avoidOpeningHighBonusZone) {
+            const unrestrictedIndex = cells.findIndex((cell) => {
+                if (!cell) return false;
+                return !highBonusRestrictedCellKeys.has(cellKeyOfBoardBonusCell(cell.row, cell.col));
+            });
             if (unrestrictedIndex >= 0) cellIndex = unrestrictedIndex;
         }
-        const cell = cells.splice(cellIndex, 1)[0];
-        out[`${cell.row},${cell.col}`] = values[i];
+
+        const cell = cells.splice(cellIndex === null ? 0 : cellIndex, 1)[0];
+        out[cellKeyOfBoardBonusCell(cell.row, cell.col)] = value;
     }
     return out;
 }

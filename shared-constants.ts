@@ -51,15 +51,15 @@ export const CHARGE_MAX = 99;
 export const DRAW_PERIOD = 1; // number of cards drawn per draw action
 
 export const INITIAL_BOARD_BONUS_DISTRIBUTION = [
-    { value: 1, count: 9 },
-    { value: 2, count: 8 },
-    { value: 3, count: 6 },
-    { value: 4, count: 5 },
-    { value: 5, count: 4 },
-    { value: 6, count: 3 },
-    { value: 7, count: 2 },
-    { value: 8, count: 1 },
-    { value: 9, count: 1 },
+    { value: 1, count: 7 },
+    { value: 2, count: 7 },
+    { value: 3, count: 5 },
+    { value: 4, count: 4 },
+    { value: 5, count: 5 },
+    { value: 6, count: 4 },
+    { value: 7, count: 3 },
+    { value: 8, count: 2 },
+    { value: 9, count: 2 },
     { value: 10, count: 1 }
 ] as const;
 

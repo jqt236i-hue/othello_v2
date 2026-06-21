@@ -28,6 +28,38 @@ function createDeterministicPrng() {
 
 const centralOpeningZoneKeys = ['2,2', '2,3', '2,4', '2,5', '3,2', '3,3', '3,4', '3,5', '4,2', '4,3', '4,4', '4,5', '5,2', '5,3', '5,4', '5,5'];
 
+function addRiskKey(out, row, col, rows, cols) {
+  if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+  if (row < 0 || row >= rows || col < 0 || col >= cols) return;
+  out.add(`${row},${col}`);
+}
+
+function createCornerRiskKeySet(rows, cols) {
+  const out = new Set();
+  const maxRow = rows - 1;
+  const maxCol = cols - 1;
+
+  if (rows >= 3 && cols >= 3) {
+    addRiskKey(out, 1, 1, rows, cols);
+    addRiskKey(out, 1, maxCol - 1, rows, cols);
+    addRiskKey(out, maxRow - 1, 1, rows, cols);
+    addRiskKey(out, maxRow - 1, maxCol - 1, rows, cols);
+  }
+
+  if (rows >= 2 && cols >= 2) {
+    addRiskKey(out, 0, 1, rows, cols);
+    addRiskKey(out, 1, 0, rows, cols);
+    addRiskKey(out, 0, maxCol - 1, rows, cols);
+    addRiskKey(out, 1, maxCol, rows, cols);
+    addRiskKey(out, maxRow - 1, 0, rows, cols);
+    addRiskKey(out, maxRow, 1, rows, cols);
+    addRiskKey(out, maxRow - 1, maxCol, rows, cols);
+    addRiskKey(out, maxRow, maxCol - 1, rows, cols);
+  }
+
+  return out;
+}
+
 function createHighBonusPressurePrng() {
   const centralOpeningZone = new Set(centralOpeningZoneKeys);
   return {
@@ -74,17 +106,30 @@ describe('数字マス（初期配置・配置報酬）', () => {
       counts[value] += 1;
     }
 
-    expect(counts[1]).toBe(9);
-    expect(counts[2]).toBe(8);
-    expect(counts[3]).toBe(6);
-    expect(counts[4]).toBe(5);
-    expect(counts[5]).toBe(4);
-    expect(counts[6]).toBe(3);
-    expect(counts[7]).toBe(2);
-    expect(counts[8]).toBe(1);
-    expect(counts[9]).toBe(1);
+    expect(counts[1]).toBe(7);
+    expect(counts[2]).toBe(7);
+    expect(counts[3]).toBe(5);
+    expect(counts[4]).toBe(4);
+    expect(counts[5]).toBe(5);
+    expect(counts[6]).toBe(4);
+    expect(counts[7]).toBe(3);
+    expect(counts[8]).toBe(2);
+    expect(counts[9]).toBe(2);
     expect(counts[10]).toBe(1);
     expect(Object.keys(cardState.boardBonusConsumedByCell || {})).toHaveLength(0);
+  });
+
+  test('8以上の数字マスは8x8でXマスまたはCマスにだけ配置される', () => {
+    const cardState = CardLogic.createCardState(createDeterministicPrng());
+    const bonus = cardState.boardBonusByCell || {};
+    const riskKeys = createCornerRiskKeySet(8, 8);
+    const highEntries = Object.entries(bonus).filter(([, value]) => Number(value) >= 8);
+
+    expect(highEntries).toHaveLength(5);
+    for (const [key, value] of highEntries) {
+      expect(Number(value)).toBeGreaterThanOrEqual(8);
+      expect(riskKeys.has(key)).toBe(true);
+    }
   });
 
   test('数字マスは配置時に1回だけ加算され、空きに戻っても復活しない', () => {
@@ -158,6 +203,21 @@ describe('数字マス（初期配置・配置報酬）', () => {
       .filter((value) => value >= 6);
 
     expect(centralHighBonus.length).toBeGreaterThan(0);
+  });
+
+  test('対応盤面サイズの8以上数字マスはX/C候補に優先配置される', () => {
+    for (let rows = 4; rows <= 10; rows += 1) {
+      for (let cols = 4; cols <= 10; cols += 1) {
+        const bonus = CardExpansion.buildInitialBoardBonusMap(createHighBonusPressurePrng(), { rows, cols });
+        const riskKeys = createCornerRiskKeySet(rows, cols);
+        const highEntries = Object.entries(bonus).filter(([, value]) => Number(value) >= 8);
+
+        for (const [key, value] of highEntries) {
+          expect(Number(value)).toBeGreaterThanOrEqual(8);
+          expect(riskKeys.has(key)).toBe(true);
+        }
+      }
+    }
   });
 
   test('リバーシモードの初期状態では数字マスを生成しない', () => {
