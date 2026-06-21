@@ -53,6 +53,31 @@ describe('ui playback engine dispatch', () => {
     expect(cardState.presentationEvents).toEqual([]);
   });
 
+  test('playPresentationEvents removes duplicate persistent playback after dispatch', async () => {
+    const playbackEngine = require('../ui/playback-engine.js');
+    const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };
+    const playbackEvent = {
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'card_use_animation', phase: 1 }]
+    };
+    const persistedOnlyEvent = {
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'move', phase: 2 }]
+    };
+    const cardState = {
+      presentationEvents: [playbackEvent],
+      _presentationEventsPersist: [playbackEvent, persistedOnlyEvent]
+    };
+
+    await playbackEngine.playPresentationEvents(cardState, {
+      AnimationEngine: animationEngine
+    });
+
+    expect(animationEngine.play).toHaveBeenCalledWith([{ type: 'card_use_animation', phase: 1 }]);
+    expect(cardState.presentationEvents).toEqual([]);
+    expect(cardState._presentationEventsPersist).toEqual([persistedOnlyEvent]);
+  });
+
   test('strict network playback passes strict option to AnimationEngine', async () => {
     const playbackEngine = require('../ui/playback-engine.js');
     const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };
