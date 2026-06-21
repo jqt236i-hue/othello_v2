@@ -327,6 +327,23 @@ function emitMoveExecutorGameStateChange() {
     return false;
 }
 
+function emitMoveExecutorPlaybackHandoffBeforeStateChange(playbackEvents: any, meta: any): boolean {
+    const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+    const hasPlaybackEvents = events.length > 0;
+    if (hasPlaybackEvents) {
+        emitPresentationEventViaBoardOps({
+            type: 'PLAYBACK_EVENTS',
+            events,
+            meta: (meta && typeof meta === 'object') ? meta : {}
+        });
+    }
+    emitMoveExecutorGameStateChange();
+    if (hasPlaybackEvents) {
+        emitMoveExecutorBoardUpdate();
+    }
+    return hasPlaybackEvents;
+}
+
 function syncMoveExecutorVisibleChargeDisplaysNow() {
     try {
         if (__uiImpl_move_executor && typeof __uiImpl_move_executor.syncVisibleChargeDisplaysNow === 'function') {
@@ -557,7 +574,6 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
             }
         }
     }
-    emitMoveExecutorGameStateChange();
 
     const safeIsProcessing = readMoveExecutorProcessing();
     const safeIsCardAnimating = readMoveExecutorCardAnimating();
@@ -567,15 +583,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     const effects = res.placementEffects || {};
     const immediate = res.immediate || {};
 
-    // Request UI-side playback by emitting a presentation event (Playback should be performed by UI's PlaybackEngine)
-    if (res.playbackEvents && res.playbackEvents.length) {
-        emitPresentationEventViaBoardOps({ type: 'PLAYBACK_EVENTS', events: res.playbackEvents, meta: { move, phases, effects, immediate } });
-        // Ensure UI has a chance to consume and start playback BEFORE we advance the turn.
-        // Otherwise, onTurnStart may flush/transform the buffer and the move playback gets lost.
-        emitMoveExecutorBoardUpdate();
-    } else {
-        // No playback events produced; nothing for the UI to play
-    }
+    emitMoveExecutorPlaybackHandoffBeforeStateChange(res.playbackEvents, { move, phases, effects, immediate });
 
     const humanMode = isHumanVsHumanModeEnabled();
     const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;

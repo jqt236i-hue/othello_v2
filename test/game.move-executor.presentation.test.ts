@@ -513,6 +513,67 @@ describe('move-executor presentation emission', () => {
         expect(global.gameState.consecutivePasses).toBe(0);
     });
 
+    test('game state change sees PLAYBACK_EVENTS before board render can consume final board state', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            turnIndex: 0,
+            presentationEvents: [],
+            _presentationEventsPersist: []
+        };
+        global.gameState = {
+            currentPlayer: 1,
+            board: Array(8).fill(null).map(() => Array(8).fill(0))
+        };
+        global.onTurnStart = jest.fn(async () => ({ playbackEvents: [] }));
+
+        const observedDuringGameStateChange: any[] = [];
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            getNetworkTurnHandoff: () => ({}),
+            emitPresentationEvent: (ev: any) => {
+                if (!Array.isArray(global.cardState.presentationEvents)) global.cardState.presentationEvents = [];
+                if (!Array.isArray(global.cardState._presentationEventsPersist)) global.cardState._presentationEventsPersist = [];
+                global.cardState.presentationEvents.push(ev);
+                global.cardState._presentationEventsPersist.push(ev);
+                return true;
+            },
+            emitGameStateChange: () => {
+                observedDuringGameStateChange.push({
+                    live: (global.cardState.presentationEvents || []).map((ev: any) => ev && ev.type),
+                    persist: (global.cardState._presentationEventsPersist || []).map((ev: any) => ev && ev.type)
+                });
+                return true;
+            }
+        });
+        const nextCardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            turnIndex: 1,
+            presentationEvents: [],
+            _presentationEventsPersist: [{ type: 'DESTROY', row: 3, col: 3 }]
+        };
+        const nextGameState = {
+            currentPlayer: -1,
+            board: Array(8).fill(null).map(() => Array(8).fill(0))
+        };
+        const fakeRes = {
+            ok: true,
+            nextGameState,
+            nextCardState,
+            playbackEvents: [{ type: 'destroy', phase: 2, targets: [{ r: 3, col: 3 }] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(observedDuringGameStateChange).toHaveLength(1);
+        expect(observedDuringGameStateChange[0].live).toContain('PLAYBACK_EVENTS');
+        expect(observedDuringGameStateChange[0].persist).toContain('PLAYBACK_EVENTS');
+    });
+
     test('UIブリッジがない場合は global renderVisibleChargeDisplays を直接探索しない', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = {
