@@ -492,7 +492,7 @@ describe('card detail effect tags', () => {
       id: 'reinforcement_01',
       name: '増援の意志',
       type: 'REINFORCEMENT_WILL',
-      cost: 6,
+      cost: 4,
       desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。'
     };
 
