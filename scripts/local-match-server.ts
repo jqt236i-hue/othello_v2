@@ -38,11 +38,11 @@ const PORT = Number.isFinite(parsedArgPort)
     ? parsedArgPort
     : (Number.isFinite(parsedEnvPort) ? parsedEnvPort : 8787);
 
-const CHAT_MAX_LENGTH = 20;
-const CHAT_HISTORY_LIMIT = 40;
-const NETWORK_TURN_LIMIT_SECONDS = 120;
-const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
-const SSE_HEARTBEAT_INTERVAL_MS = 10000;
+const CHAT_MAX_LENGTH = Number(MatchAuthority.CHAT_MAX_LENGTH);
+const CHAT_HISTORY_LIMIT = Number(MatchAuthority.CHAT_HISTORY_LIMIT);
+const NETWORK_TURN_LIMIT_SECONDS = Number(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS);
+const NETWORK_TURN_LIMIT_MS = Number(MatchAuthority.NETWORK_TURN_LIMIT_MS);
+const SSE_HEARTBEAT_INTERVAL_MS = Number(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS);
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 
 const rooms = new Map();

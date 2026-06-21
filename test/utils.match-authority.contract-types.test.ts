@@ -16,6 +16,14 @@ import type {
 const MatchAuthority: MatchAuthorityPublicApi = require('../utils/match-authority');
 
 describe('match-authority public contract types', () => {
+  test('exports shared network room constants used by worker and local server', () => {
+    expect(MatchAuthority.CHAT_MAX_LENGTH).toBe(20);
+    expect(MatchAuthority.CHAT_HISTORY_LIMIT).toBe(40);
+    expect(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS).toBe(120);
+    expect(MatchAuthority.NETWORK_TURN_LIMIT_MS).toBe(120000);
+    expect(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS).toBe(10000);
+  });
+
   test('publish response exposes typed authority metadata', () => {
     const payload: MatchAuthorityPublishResponsePayload = MatchAuthority.buildPublishResponsePayload({
       ok: false,

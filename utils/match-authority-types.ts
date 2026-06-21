@@ -373,6 +373,11 @@ export interface MatchAuthorityBufferedSseReplayEvent {
 }
 
 export interface MatchAuthorityPublicApi {
+    CHAT_MAX_LENGTH: number;
+    CHAT_HISTORY_LIMIT: number;
+    NETWORK_TURN_LIMIT_SECONDS: number;
+    NETWORK_TURN_LIMIT_MS: number;
+    SSE_HEARTBEAT_INTERVAL_MS: number;
     normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta;
     ensureAcceptedOperationsBySeat(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat;
     ensureAcceptedOperationHistoryBySeat(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationHistoryBySeat;

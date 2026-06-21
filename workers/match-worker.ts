@@ -74,8 +74,8 @@ type MatchWorkerCryptoLike = {
 };
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const LOBBY_STORAGE_KEY = 'match_room_lobby_v1';
-const CHAT_MAX_LENGTH = 20;
-const CHAT_HISTORY_LIMIT = 40;
+const CHAT_MAX_LENGTH = Number(MatchAuthority.CHAT_MAX_LENGTH);
+const CHAT_HISTORY_LIMIT = Number(MatchAuthority.CHAT_HISTORY_LIMIT);
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
     ? Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX)
     : 7;
@@ -89,9 +89,9 @@ const LEADERBOARD_DEFAULT_LIMIT = 10;
 const LEADERBOARD_MAX_LIMIT = 100;
 const LEADERBOARD_MAX_STORED_PLAYERS = 200;
 const LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
-const NETWORK_TURN_LIMIT_SECONDS = 120;
-const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
-const SSE_HEARTBEAT_INTERVAL_MS = 10000;
+const NETWORK_TURN_LIMIT_SECONDS = Number(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS);
+const NETWORK_TURN_LIMIT_MS = Number(MatchAuthority.NETWORK_TURN_LIMIT_MS);
+const SSE_HEARTBEAT_INTERVAL_MS = Number(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS);
 const SSE_WRITE_TIMEOUT_MS = 10000;
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 let coreLogicModulePromise: Promise<MatchWorkerCoreModule> | null = null;
