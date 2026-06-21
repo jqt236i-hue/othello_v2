@@ -109,7 +109,7 @@
 
 #charge-white {
     left: 50%;
-    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 14px);
+    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 19px);
     transform: translateX(-50%);
 }
 
