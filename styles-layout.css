@@ -49,6 +49,7 @@
         inset 0 calc(-2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78);
     --board-frame-image: url("assets/images/board/board-frame-black-gold-lacquer-v1.png");
     --board-frame-art-overhang: calc(34px * var(--layout-stage-scale));
+    --board-frame-art-offset-y: 0px;
     position: relative;
     z-index: var(--layout-z-board-frame);
     width: var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + var(--board-frame-padding-left) + var(--board-frame-padding-right)));
@@ -79,16 +80,17 @@
 
 #board-frame[data-board-frame-skin-id^="compact-"] {
     --board-frame-padding-top: calc(18px * var(--layout-stage-scale));
+    --board-frame-art-offset-y: calc(5px * var(--layout-stage-scale));
 }
 
 /* Frame bevel details */
 #board-frame::before {
     content: "";
     position: absolute;
-    top: calc(-1 * var(--board-frame-art-overhang));
+    top: calc(-1 * var(--board-frame-art-overhang) + var(--board-frame-art-offset-y));
     left: calc(-1 * var(--board-frame-art-overhang));
     right: calc(-1 * var(--board-frame-art-overhang));
-    bottom: calc(-1 * var(--board-frame-art-overhang));
+    bottom: calc(-1 * var(--board-frame-art-overhang) - var(--board-frame-art-offset-y));
     border-radius: calc(16px * var(--layout-stage-scale));
     pointer-events: none;
     box-shadow: none;
