@@ -246,16 +246,16 @@
         var(--layout-size-ui-gap) +
         calc(22px * var(--layout-stage-scale))
     );
-    --card-area-panel-height: max(calc(var(--layout-size-hand-min-height-top) + calc(76px * var(--layout-stage-scale))), 20vh);
+    --card-area-panel-height: max(calc(var(--layout-size-hand-min-height-top) + calc(128px * var(--layout-stage-scale))), 34vh);
     left: calc((var(--card-area-panel-deck-width) + var(--layout-size-ui-gap) + calc(11px * var(--layout-stage-scale))) * -1);
     top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)));
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
     background-image:
-        url("assets/images/ui/card-area-table-opponent-v5.png"),
+        url("assets/images/ui/card-area-table-opponent-v6.png"),
         linear-gradient(180deg, rgba(12, 10, 9, 0.90), rgba(21, 18, 17, 0.88) 52%, rgba(9, 8, 7, 0.92));
     background-position: bottom center, center;
-    background-size: 100% auto, 100% 100%;
+    background-size: 100% 100%, 100% 100%;
     background-repeat: no-repeat, repeat;
     opacity: 0.76;
 }
@@ -274,7 +274,7 @@
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
     background-image:
-        url("assets/images/ui/card-area-table-player-v5.png"),
+        url("assets/images/ui/card-area-table-player-v6.png"),
         linear-gradient(180deg, rgba(20, 17, 16, 0.91), rgba(13, 11, 10, 0.93));
     background-position: top center, center;
     background-size: 100% auto, 100% 100%;
