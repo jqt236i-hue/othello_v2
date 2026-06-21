@@ -149,6 +149,15 @@ function getActiveNetworkMatchClient() {
     return networkClient;
 }
 
+function isNetworkSpectatorActive(): boolean {
+    const networkClient = getActiveNetworkMatchClient();
+    try {
+        return !!(networkClient && typeof networkClient.isSpectator === 'function' && networkClient.isSpectator() === true);
+    } catch (e) {
+        return false;
+    }
+}
+
 function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetworkDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const networkClient = getActiveNetworkMatchClient();
@@ -233,5 +242,6 @@ module.exports = {
     clearOrphanNetworkPlaybackQueues,
     getNetworkMatchClientRoot,
     getActiveNetworkMatchClient,
+    isNetworkSpectatorActive,
     startNetworkOnlyPendingSelectionPublish
 };

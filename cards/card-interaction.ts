@@ -1606,24 +1606,13 @@ function _isNetworkMode() {
 
 function _isNetworkSpectatorActiveForCardUi() {
     try {
-        const activeClient = _getActiveNetworkMatchClient();
-        if (activeClient && typeof activeClient.isSpectator === 'function' && activeClient.isSpectator() === true) return true;
+        if (
+            _cardInteractionPendingNetworkModule
+            && typeof _cardInteractionPendingNetworkModule.isNetworkSpectatorActive === 'function'
+        ) {
+            return _cardInteractionPendingNetworkModule.isNetworkSpectatorActive() === true;
+        }
     } catch (e) { /* ignore */ }
-    try {
-        const networkRoot = _getNetworkMatchClientRoot();
-        const client = networkRoot && networkRoot.NetworkMatchClient;
-        if (client && typeof client.isSpectator === 'function' && client.isSpectator() === true) return true;
-    } catch (e) { /* ignore */ }
-    const roots = [
-        (typeof window !== 'undefined' ? window : null),
-        (typeof globalThis !== 'undefined' ? globalThis : null)
-    ];
-    for (const rootRef of roots) {
-        try {
-            const client = rootRef && (rootRef as any).NetworkMatchClient;
-            if (client && typeof client.isSpectator === 'function' && client.isSpectator() === true) return true;
-        } catch (e) { /* ignore */ }
-    }
     return false;
 }
 
