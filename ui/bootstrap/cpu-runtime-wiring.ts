@@ -7,6 +7,62 @@ export type CpuRuntimeWiringDeps = {
   registerUIGlobals: (globals: Record<string, any>) => any;
 };
 
+type RuntimeFunction = (...args: any[]) => any;
+type CpuRuntimeGlobals = Record<string, any>;
+
+const DELEGATED_CPU_RUNTIME_FUNCTIONS = [
+  'executeMove',
+  'processPassTurn'
+] as const;
+
+function readGlobalRuntimeFunction(name: string): RuntimeFunction | null {
+  try {
+    const candidate = typeof globalThis !== 'undefined' ? (globalThis as any)[name] : null;
+    return typeof candidate === 'function' ? candidate : null;
+  } catch (e: any) {
+    return null;
+  }
+}
+
+function createGlobalFunctionDelegate(name: string, fallback?: any): RuntimeFunction {
+  const capturedGlobal = readGlobalRuntimeFunction(name);
+  const delegate = (...args: any[]) => {
+    const current = readGlobalRuntimeFunction(name);
+    if (current && current !== delegate) {
+      return current(...args);
+    }
+    if (capturedGlobal) return capturedGlobal(...args);
+    if (typeof fallback === 'function') return fallback(...args);
+    return undefined;
+  };
+  return delegate;
+}
+
+function registerDirectRuntimeFunction(target: CpuRuntimeGlobals, name: string, source: any): void {
+  if (source && typeof source[name] === 'function') {
+    target[name] = source[name];
+  }
+}
+
+function registerCpuRuntimeGlobals(cpu: any, cpuDecision: any, moveGenerator: any): CpuRuntimeGlobals {
+  const cpuGlobals: CpuRuntimeGlobals = {};
+  registerDirectRuntimeFunction(cpuGlobals, 'processCpuTurn', cpu);
+  registerDirectRuntimeFunction(cpuGlobals, 'processAutoBlackTurn', cpu);
+  registerDirectRuntimeFunction(cpuGlobals, 'selectMoveFromOnnxPolicyAsync', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'selectCpuMoveWithPolicy', cpuDecision);
+
+  if (moveGenerator && typeof moveGenerator.generateMovesForPlayer === 'function') {
+    cpuGlobals.generateMovesForPlayer = createGlobalFunctionDelegate(
+      'generateMovesForPlayer',
+      moveGenerator.generateMovesForPlayer
+    );
+  }
+  DELEGATED_CPU_RUNTIME_FUNCTIONS.forEach((name) => {
+    cpuGlobals[name] = createGlobalFunctionDelegate(name);
+  });
+  return cpuGlobals;
+}
+
 export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registeredGlobals: Record<string, any> } {
   const cpu = deps.requireModule('../game/cpu-turn-handler');
   let cpuDecision: any = null;
@@ -14,47 +70,7 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
   let moveGenerator: any = null;
   try { moveGenerator = deps.requireModule('../game/move-generator'); } catch (e: any) { /* ignore */ }
 
-  const createGlobalFunctionDelegate = (name: string, fallback?: any) => {
-    const capturedGlobal = (() => {
-      try {
-        return typeof globalThis !== 'undefined' && typeof (globalThis as any)[name] === 'function'
-          ? (globalThis as any)[name]
-          : null;
-      } catch (e: any) {
-        return null;
-      }
-    })();
-    const delegate = (...args: any[]) => {
-      try {
-        const current = typeof globalThis !== 'undefined' ? (globalThis as any)[name] : null;
-        if (typeof current === 'function' && current !== delegate) {
-          return current(...args);
-        }
-      } catch (e: any) { /* fall back below */ }
-      if (typeof capturedGlobal === 'function') return capturedGlobal(...args);
-      if (typeof fallback === 'function') return fallback(...args);
-      return undefined;
-    };
-    return delegate;
-  };
-
-  const cpuGlobals: Record<string, any> = {};
-  if (cpu && typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
-  if (cpu && typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
-  if (cpuDecision && typeof cpuDecision.selectMoveFromOnnxPolicyAsync === 'function') {
-    cpuGlobals.selectMoveFromOnnxPolicyAsync = cpuDecision.selectMoveFromOnnxPolicyAsync;
-  }
-  if (cpuDecision && typeof cpuDecision.selectCpuMoveWithPolicy === 'function') {
-    cpuGlobals.selectCpuMoveWithPolicy = cpuDecision.selectCpuMoveWithPolicy;
-  }
-  if (moveGenerator && typeof moveGenerator.generateMovesForPlayer === 'function') {
-    cpuGlobals.generateMovesForPlayer = createGlobalFunctionDelegate(
-      'generateMovesForPlayer',
-      moveGenerator.generateMovesForPlayer
-    );
-  }
-  cpuGlobals.executeMove = createGlobalFunctionDelegate('executeMove');
-  cpuGlobals.processPassTurn = createGlobalFunctionDelegate('processPassTurn');
+  const cpuGlobals = registerCpuRuntimeGlobals(cpu, cpuDecision, moveGenerator);
   if (!cpu) return { registeredGlobals: cpuGlobals };
 
   if (typeof cpu.setCpuTurnTimerService === 'function') {

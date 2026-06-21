@@ -20,6 +20,9 @@ describe('UI bootstrap early CPU registration', () => {
     try { delete global.MATCH_MODE; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.getCurrentMatchMode; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.customRuntimeFn; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.executeMove; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.processPassTurn; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.generateMovesForPlayer; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.__runtimeOwnValueForTest; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.ActionManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.NetworkTurnHandoff; } catch (e) { /* Intentionally empty: test cleanup guard */ }
@@ -99,6 +102,52 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof setTurnPipelinePhasesRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     // Also mirrors to globalThis for legacy fallback
     expect(typeof global.processCpuTurn === 'function' || typeof globalThis.processCpuTurn === 'function').toBe(true);
+  });
+
+  test('installGameDI CPU runtime delegates resolve latest global move helpers', () => {
+    const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuUIImpl: jest.fn() };
+    const generateMovesForPlayer = jest.fn(() => ['fallback-move']);
+    jest.doMock('../game/cpu-turn-handler', () => mockCpu);
+    jest.doMock('../game/pass-handler', () => ({
+      setPassHandlerRuntime: jest.fn(),
+      setPlaybackStateManager: jest.fn(),
+      setNetworkMatchClient: jest.fn()
+    }));
+    jest.doMock('../game/cpu-decision', () => ({
+      setCpuDecisionRuntime: jest.fn(),
+      selectMoveFromOnnxPolicyAsync: jest.fn()
+    }));
+    jest.doMock('../game/move-generator', () => ({
+      generateMovesForPlayer
+    }));
+    jest.doMock('../game/turn/turn_pipeline_phases', () => ({
+      setTurnPipelinePhasesRuntime: jest.fn()
+    }));
+
+    const uiBoot = require('../ui/bootstrap.js');
+    uiBoot.installGameDI();
+
+    const cpuRuntime = mockCpu.setCpuUIImpl.mock.calls[0][0];
+    const generateMovesDelegate = cpuRuntime.resolveRuntimeFunction('generateMovesForPlayer');
+    const executeMoveDelegate = cpuRuntime.resolveRuntimeFunction('executeMove');
+    const processPassTurnDelegate = cpuRuntime.resolveRuntimeFunction('processPassTurn');
+
+    expect(typeof generateMovesDelegate).toBe('function');
+    expect(typeof executeMoveDelegate).toBe('function');
+    expect(typeof processPassTurnDelegate).toBe('function');
+
+    global.generateMovesForPlayer = jest.fn(() => ['global-move']);
+    global.executeMove = jest.fn((move) => ({ executed: move }));
+    global.processPassTurn = jest.fn(() => ({ passed: true }));
+
+    expect(generateMovesDelegate('white')).toEqual(['global-move']);
+    expect(global.generateMovesForPlayer).toHaveBeenCalledWith('white');
+    expect(executeMoveDelegate({ row: 2, col: 4 })).toEqual({ executed: { row: 2, col: 4 } });
+    expect(processPassTurnDelegate()).toEqual({ passed: true });
+
+    delete global.generateMovesForPlayer;
+    expect(generateMovesDelegate('black')).toEqual(['fallback-move']);
+    expect(generateMovesForPlayer).toHaveBeenCalledWith('black');
   });
 
   test('installGameDI tolerates missing optional CPU and pass modules', () => {
