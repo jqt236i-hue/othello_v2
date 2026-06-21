@@ -1656,18 +1656,6 @@ function _getNetworkLocalPlayerKey() {
             return _ownerHelpersModule.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null);
         }
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined') {
-            if (window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
-                const seatKey = window.NetworkMatchClient.getSeatKey();
-                if (seatKey === 'white' || seatKey === 'black') return seatKey;
-            }
-            const directKeys = [window.LOCAL_PLAYER_KEY, window.__LOCAL_PLAYER_KEY, window.BOARD_VIEWER_KEY];
-            for (const key of directKeys) {
-                if (key === 'white' || key === 'black') return key;
-            }
-        }
-    } catch (e) { /* ignore */ }
     return 'black';
 }
 
