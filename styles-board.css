@@ -1283,13 +1283,13 @@ html.stone-images-loaded .disc.white {
     right: auto;
     top: 50%;
     transform: translateY(-50%);
-    width: calc(22px * var(--layout-stage-scale));
-    height: calc(22px * var(--layout-stage-scale));
+    width: calc(20px * var(--layout-stage-scale));
+    height: calc(20px * var(--layout-stage-scale));
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff7fb;
-    font-size: calc(10px * var(--layout-stage-scale));
+    font-size: calc(9px * var(--layout-stage-scale));
     line-height: 1;
     font-weight: 900;
     background: transparent;
@@ -1302,12 +1302,12 @@ html.stone-images-loaded .disc.white {
 .stone-regen-badge::before {
     content: '♥';
     position: absolute;
-    inset: calc(-1px * var(--layout-stage-scale));
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ff3f98;
-    font-size: calc(26px * var(--layout-stage-scale));
+    font-size: calc(21px * var(--layout-stage-scale));
     line-height: 1;
     text-shadow:
         0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.88),
@@ -1331,7 +1331,7 @@ html.stone-images-loaded .disc.white {
 }
 
 .stone-regen-badge.timer-double-digit {
-    font-size: calc(8px * var(--layout-stage-scale));
+    font-size: calc(7px * var(--layout-stage-scale));
 }
 
 .stone-timer.flip-evade-timer,
