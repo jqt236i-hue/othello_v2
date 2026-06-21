@@ -189,6 +189,8 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     rejoined?: unknown;
     selectedHandSkinId?: unknown;
     operationId?: unknown;
+    requestId?: unknown;
+    accepted?: unknown;
     actionType?: unknown;
     viewerRole?: unknown;
     spectatorId?: unknown;
@@ -234,6 +236,8 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     rejoined?: boolean;
     selectedHandSkinId?: string;
     operationId?: string | null;
+    requestId?: string;
+    accepted?: boolean;
     actionType?: string | null;
     viewerRole?: MatchAuthorityViewerRole;
     spectatorId?: string;
@@ -281,6 +285,8 @@ export interface MatchAuthorityPresencePayloadFromRoomOptions extends MatchAutho
     spectatorName?: unknown;
     spectatorCount?: unknown;
     maxSpectators?: unknown;
+    requestId?: unknown;
+    accepted?: unknown;
 }
 
 export interface MatchAuthorityHeartbeatPayloadFromRoomOptions extends MatchAuthorityRoomPayloadOptions {

@@ -322,6 +322,43 @@ describe('match authority publish response payload', () => {
     }));
   });
 
+  test('buildPresencePayloadFromRoom preserves rematch metadata for room events', () => {
+    const room = {
+      roomId: 'RM01',
+      stateVersion: 7,
+      seats: { black: true, white: true },
+      seatNames: { black: '黒', white: '白' }
+    };
+
+    expect(MatchAuthority.buildPresencePayloadFromRoom(room, {
+      type: 'rematch_request',
+      seatKey: 'black',
+      requestId: 'rematch_req_1'
+    })).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'RM01',
+      stateVersion: 7,
+      type: 'rematch_request',
+      seatKey: 'black',
+      requestId: 'rematch_req_1'
+    }));
+
+    expect(MatchAuthority.buildPresencePayloadFromRoom(room, {
+      type: 'rematch_response',
+      seatKey: 'white',
+      requestId: 'rematch_req_1',
+      accepted: true
+    })).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'RM01',
+      stateVersion: 7,
+      type: 'rematch_response',
+      seatKey: 'white',
+      requestId: 'rematch_req_1',
+      accepted: true
+    }));
+  });
+
   test('sanitizePendingSelectionActionForAuthority strips redundant use-card fields once authority already committed the card', () => {
     const action = {
       type: 'place',

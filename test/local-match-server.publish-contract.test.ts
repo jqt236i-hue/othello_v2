@@ -1483,6 +1483,70 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('rematch presence buffer preserves requestId and accepted metadata', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
+      expect(joined.status).toBe(200);
+      const whiteSeatToken = joined.data.seatToken;
+
+      const requestResult = await requestJson(port, 'POST', '/api/match/rematch-request', {
+        roomId,
+        seatKey: 'black',
+        seatToken: blackSeatToken
+      });
+      expect(requestResult.status).toBe(200);
+      expect(requestResult.data.requestId).toMatch(/^rematch_/);
+
+      let requestPayload: any = null;
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        const buffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : [];
+        const record = buffer[buffer.length - 1] || null;
+        requestPayload = record && record.payload;
+      })).toBe(true);
+
+      const responseResult = await requestJson(port, 'POST', '/api/match/rematch-response', {
+        roomId,
+        seatKey: 'white',
+        seatToken: whiteSeatToken,
+        requestId: requestResult.data.requestId,
+        accepted: true
+      });
+      expect(responseResult.status).toBe(200);
+
+      let responsePayload: any = null;
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        const buffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : [];
+        const record = buffer[buffer.length - 1] || null;
+        responsePayload = record && record.payload;
+      })).toBe(true);
+
+      expect(requestPayload).toEqual(expect.objectContaining({
+        ok: true,
+        roomId,
+        type: 'rematch_request',
+        seatKey: 'black',
+        requestId: requestResult.data.requestId
+      }));
+      expect(responsePayload).toEqual(expect.objectContaining({
+        ok: true,
+        roomId,
+        type: 'rematch_response',
+        seatKey: 'white',
+        requestId: requestResult.data.requestId,
+        accepted: true
+      }));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('non-controller out-of-turn publish is still rejected with OUT_OF_TURN', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

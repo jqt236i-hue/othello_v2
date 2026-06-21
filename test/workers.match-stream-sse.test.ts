@@ -428,6 +428,63 @@ function runRejectedStreamScenario(streamPath) {
   return JSON.parse(String(result.stdout || '{}'));
 }
 
+function runRematchPresenceBufferScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const storage = new Map();",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+    "  board[3][3] = -1;",
+    "  board[3][4] = 1;",
+    "  board[4][3] = 1;",
+    "  board[4][4] = -1;",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'RMS1',",
+    "    playerName: 'くろ',",
+    "    seed: 1,",
+    "    snapshot: {",
+    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 0 },",
+    "      cardState: {}",
+    "    }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const joinResponse = await durableObject.handleJoin({ seatKey: 'white', playerName: 'しろ' });",
+    "  const joinPayload = await joinResponse.json();",
+    "  await durableObject.handleRematchRequest({",
+    "    seatKey: 'black',",
+    "    seatToken: createPayload.seatToken",
+    "  });",
+    "  const requestRecord = durableObject.sseEventBuffer[durableObject.sseEventBuffer.length - 1];",
+    "  const requestId = requestRecord && requestRecord.payload ? requestRecord.payload.requestId : '';",
+    "  await durableObject.handleRematchResponse({",
+    "    seatKey: 'white',",
+    "    seatToken: joinPayload.seatToken,",
+    "    requestId,",
+    "    accepted: true",
+    "  });",
+    "  const responseRecord = durableObject.sseEventBuffer[durableObject.sseEventBuffer.length - 1];",
+    "  process.stdout.write(JSON.stringify({",
+    "    requestPayload: requestRecord && requestRecord.payload,",
+    "    responsePayload: responseRecord && responseRecord.payload",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker stream SSE', () => {
   test('初回snapshotイベントにSSE event idを付与する', () => {
     const result = runStreamScenario();
@@ -528,5 +585,25 @@ describe('match worker stream SSE', () => {
       reason: 'SEAT_TOKEN_MISMATCH'
     }));
     expect(result.createPayload.ok).toBe(true);
+  });
+
+  test('rematch presence buffer preserves requestId and accepted metadata', () => {
+    const result = runRematchPresenceBufferScenario();
+
+    expect(result.requestPayload).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'RMS1',
+      type: 'rematch_request',
+      seatKey: 'black'
+    }));
+    expect(result.requestPayload.requestId).toMatch(/^rematch_/);
+    expect(result.responsePayload).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'RMS1',
+      type: 'rematch_response',
+      seatKey: 'white',
+      requestId: result.requestPayload.requestId,
+      accepted: true
+    }));
   });
 });

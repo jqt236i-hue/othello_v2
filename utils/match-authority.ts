@@ -1038,6 +1038,12 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     if (Object.prototype.hasOwnProperty.call(opts, 'operationId')) {
         payload.operationId = normalizeOperationId(opts.operationId) || null;
     }
+    if (Object.prototype.hasOwnProperty.call(opts, 'requestId')) {
+        payload.requestId = String(opts.requestId || '').trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'accepted')) {
+        payload.accepted = opts.accepted === true;
+    }
     if (Object.prototype.hasOwnProperty.call(opts, 'actionType')) {
         payload.actionType = opts.actionType ? String(opts.actionType) : null;
     }
@@ -1180,6 +1186,12 @@ function buildPresencePayloadFromRoom(
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'maxSpectators')) {
         payloadOptions.maxSpectators = opts.maxSpectators;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'requestId')) {
+        payloadOptions.requestId = opts.requestId;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'accepted')) {
+        payloadOptions.accepted = opts.accepted;
     }
     return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig(payloadOptions, opts));
 }
