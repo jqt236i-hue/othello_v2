@@ -1325,6 +1325,21 @@ function _hasPendingPlaybackEvents() {
     return false;
 }
 
+function _hasClaimedVisualPlaybackForDiff() {
+    if (PlaybackStateModule && typeof PlaybackStateModule.hasClaimedVisualPlayback === 'function') {
+        try {
+            return PlaybackStateModule.hasClaimedVisualPlayback() === true;
+        } catch (e: any) { /* ignore */ }
+    }
+    try {
+        if (typeof window !== 'undefined' && (window as any).__visualPlaybackClaimActive === true) return true;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).__visualPlaybackClaimActive === true) return true;
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
 function _getPendingPlaybackQueueEntriesForDiff() {
     const state = _getCardStateForDiffPlayback();
     if (PlaybackStateModule && typeof PlaybackStateModule.getPresentationQueueEntries === 'function') {
@@ -3907,9 +3922,10 @@ function renderBoardDiff(boardEl: any) {
         && PlaybackStateModule.shouldDeferBoardUpdate({ cardState: _getCardStateForDiffPlayback() }) === true
     );
     const hasPendingPlaybackEvents = _hasPendingPlaybackEvents();
+    const hasClaimedVisualPlayback = _hasClaimedVisualPlaybackForDiff();
     const visualPlaybackActive = _isVisualPlaybackActiveForDiff();
     const boardHasPlaybackLock = !!(boardEl && boardEl.classList && boardEl.classList.contains('playback-locked'));
-    if ((hasPendingPlaybackEvents || (visualPlaybackActive && boardHasPlaybackLock)) && shouldDeferBoardUpdate && !allowBoardUpdateDuringPlayback) {
+    if ((hasPendingPlaybackEvents || hasClaimedVisualPlayback || (visualPlaybackActive && boardHasPlaybackLock)) && shouldDeferBoardUpdate && !allowBoardUpdateDuringPlayback) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('renderBoardDiff called during active VisualPlayback (dev fail-fast)');
         } else {

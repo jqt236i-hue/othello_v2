@@ -220,6 +220,118 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.hasSelectionSettlementLock()).toBe(false);
   });
 
+  test('visual playback claim defers board and UI sync after queues are drained', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const emptyCardState = {
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+
+    const claim = manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy'],
+      eventCount: 1
+    });
+
+    expect(claim).toEqual(expect.objectContaining({
+      id: expect.any(Number),
+      meta: expect.objectContaining({
+        source: 'unit-test'
+      })
+    }));
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+    expect(manager.shouldDeferBoardUpdate({ cardState: emptyCardState })).toBe(true);
+    expect(manager.shouldDeferUiSync({ cardState: emptyCardState })).toBe(true);
+    expect(global.window.__visualPlaybackClaimActive).toBe(true);
+    expect(global.window.__visualPlaybackClaimCount).toBe(1);
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    expect(manager.hasClaimedVisualPlayback()).toBe(false);
+    expect(manager.shouldDeferBoardUpdate({ cardState: emptyCardState })).toBe(false);
+    expect(manager.shouldDeferUiSync({ cardState: emptyCardState })).toBe(false);
+    expect(global.window.__visualPlaybackClaimActive).toBe(false);
+    expect(global.window.__visualPlaybackClaimCount).toBe(0);
+  });
+
+  test('beginPlayback keeps a drain-level visual playback claim until explicit release', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const board = document.getElementById('board');
+
+    const claim = manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy'],
+      scope: 'presentation_drain'
+    });
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+
+    const started = manager.beginPlayback({ boardElement: board, startedAt: 1234 });
+
+    expect(started.playbackActive).toBe(true);
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+    expect(manager.getPlaybackActive()).toBe(true);
+    expect(global.window.VisualPlaybackActive).toBe(true);
+    expect(global.window.__visualPlaybackClaimActive).toBe(true);
+    expect(board.classList.contains('playback-locked')).toBe(true);
+
+    manager.finalizePlayback({ boardElement: board, clearBoardUpdateContext: true });
+
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+    expect(manager.shouldDeferBoardUpdate({ cardState: { presentationEvents: [], _presentationEventsPersist: [] } })).toBe(true);
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    expect(manager.getPlaybackActive()).toBe(false);
+    expect(global.window.VisualPlaybackActive).toBe(false);
+    expect(board.classList.contains('playback-locked')).toBe(false);
+  });
+
+  test('waitForVisualPlaybackDrain waits while a visual playback claim exists', async () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const emptyCardState = {
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    const claim = manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy'],
+      scope: 'presentation_drain'
+    });
+    let resolved = false;
+
+    const drainPromise = manager.waitForVisualPlaybackDrain({
+      cardState: emptyCardState,
+      timeoutMs: 5000
+    }).then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(16);
+    await Promise.resolve();
+
+    expect(resolved).toBe(false);
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    jest.advanceTimersByTime(16);
+    await drainPromise;
+
+    expect(resolved).toBe(true);
+  });
+
+  test('clearPlaybackLock clears stale visual playback claims', () => {
+    const manager = require('../ui/playback-state-manager.js');
+
+    manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy']
+    });
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+
+    manager.clearPlaybackLock();
+
+    expect(manager.hasClaimedVisualPlayback()).toBe(false);
+    expect(global.window.__visualPlaybackClaimActive).toBe(false);
+    expect(global.window.__visualPlaybackClaimCount).toBe(0);
+  });
+
   test('abortPlayback clears playback timing and busy flags together', () => {
     const manager = require('../ui/playback-state-manager.js');
     manager.setInteractionLock(true);

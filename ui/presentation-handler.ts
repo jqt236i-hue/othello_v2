@@ -442,6 +442,71 @@ function getPlaybackDispatchDeps(): any {
   return deps;
 }
 
+function resolvePlaybackStateManagerForPresentation(): any {
+  const globalManager = resolveFromGlobal('PlaybackStateManager');
+  if (globalManager && typeof globalManager === 'object') return globalManager;
+  try {
+    const manager = _require('./playback-state-manager');
+    if (manager && typeof manager === 'object') return manager;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function collectPlaybackEventTypesForClaim(payload: any[]): string[] {
+  const seen = new Set<string>();
+  for (const item of payload) {
+    const type = String(item && item.type ? item.type : '').trim();
+    if (type) seen.add(type);
+  }
+  return Array.from(seen);
+}
+
+function getPlaybackEventsFromPresentationEventForClaim(ev: any): any[] {
+  if (!ev || typeof ev !== 'object') return [];
+  if (ev.type !== 'PLAYBACK_EVENTS') return [];
+  if (ev.meta && ev.meta.suppressPlayback === true) return [];
+  return normalizePlaybackEventsForUi(Array.isArray(ev.events) ? ev.events : []);
+}
+
+function claimPlaybackBatchForPresentation(ev: any, payload: any[]): any {
+  const manager = resolvePlaybackStateManagerForPresentation();
+  if (!manager || typeof manager.claimVisualPlayback !== 'function') return null;
+  const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : {};
+  return manager.claimVisualPlayback({
+    source: typeof meta.source === 'string' && meta.source.trim() ? meta.source.trim() : 'presentation_handler',
+    reason: 'playback_batch_dispatch',
+    scope: 'batch_handoff',
+    eventCount: Array.isArray(payload) ? payload.length : 0,
+    eventTypes: collectPlaybackEventTypesForClaim(payload),
+    strictNetworkPlayback: meta.strictNetworkPlayback === true
+  });
+}
+
+function claimPresentationDrainForEvents(events: any[]): any {
+  const list = Array.isArray(events) ? events : [];
+  const playbackPayloads = list
+    .map(getPlaybackEventsFromPresentationEventForClaim)
+    .filter((payload) => payload.length > 0);
+  if (!playbackPayloads.length) return null;
+  const mergedPayload = ([] as any[]).concat(...playbackPayloads);
+  const manager = resolvePlaybackStateManagerForPresentation();
+  if (!manager || typeof manager.claimVisualPlayback !== 'function') return null;
+  return manager.claimVisualPlayback({
+    source: 'presentation_handler',
+    reason: 'presentation_queue_drain',
+    scope: 'presentation_drain',
+    eventCount: mergedPayload.length,
+    eventTypes: collectPlaybackEventTypesForClaim(mergedPayload)
+  });
+}
+
+function releasePlaybackClaimForPresentation(claim: any): boolean {
+  if (!claim) return false;
+  const manager = resolvePlaybackStateManagerForPresentation();
+  if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') return false;
+  return manager.releaseVisualPlaybackClaim(claim);
+}
+
 async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
   const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
   if (!payload.length) return;
@@ -470,82 +535,87 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
     return;
   }
 
-  const playbackDispatchDeps = getPlaybackDispatchDeps();
-  const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
-  const playbackEngineDeps = strictNetworkPlayback
-    ? Object.assign({}, playbackDispatchDeps, { strictNetworkPlayback: true })
-    : playbackDispatchDeps;
-  const playbackEventForDispatch = {
-    type: 'PLAYBACK_EVENTS',
-    events: payload,
-    meta: ev && ev.meta && typeof ev.meta === 'object' ? Object.assign({}, ev.meta) : undefined
-  };
-  const playbackEngine = resolvePlaybackEngine();
+  const playbackClaim = claimPlaybackBatchForPresentation(ev, payload);
   try {
-    if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
-      const startedAt = Date.now();
-      emitPresentationDebugConsole('playback_batch_dispatch_engine', {
+    const playbackDispatchDeps = getPlaybackDispatchDeps();
+    const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
+    const playbackEngineDeps = strictNetworkPlayback
+      ? Object.assign({}, playbackDispatchDeps, { strictNetworkPlayback: true })
+      : playbackDispatchDeps;
+    const playbackEventForDispatch = {
+      type: 'PLAYBACK_EVENTS',
+      events: payload,
+      meta: ev && ev.meta && typeof ev.meta === 'object' ? Object.assign({}, ev.meta) : undefined
+    };
+    const playbackEngine = resolvePlaybackEngine();
+    try {
+      if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
+        const startedAt = Date.now();
+        emitPresentationDebugConsole('playback_batch_dispatch_engine', {
+          payloadCount: payload.length,
+          payloadTypes,
+          hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
+          animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
+        });
+        await playbackEngine.dispatchPresentationEvent(playbackEventForDispatch, playbackEngineDeps);
+        emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
+          payloadCount: payload.length,
+          payloadTypes,
+          elapsedMs: Date.now() - startedAt
+        });
+        return;
+      }
+    } catch (e) {
+      emitPresentationDebugConsole('playback_batch_dispatch_engine_failed', {
         payloadCount: payload.length,
         payloadTypes,
-        hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
-        animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
+        error: e && (e as any).message ? String((e as any).message) : String(e || '')
       });
-      await playbackEngine.dispatchPresentationEvent(playbackEventForDispatch, playbackEngineDeps);
-      emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
-        payloadCount: payload.length,
-        payloadTypes,
-        elapsedMs: Date.now() - startedAt
-      });
-      return;
+      if (strictNetworkPlayback) {
+        throw e;
+      }
     }
-  } catch (e) {
-    emitPresentationDebugConsole('playback_batch_dispatch_engine_failed', {
-      payloadCount: payload.length,
-      payloadTypes,
-      error: e && (e as any).message ? String((e as any).message) : String(e || '')
-    });
-    if (strictNetworkPlayback) {
-      throw e;
-    }
-  }
 
-  try {
-    const animationEngine = playbackDispatchDeps.AnimationEngine;
-    if (animationEngine && typeof animationEngine.play === 'function') {
-      const startedAt = Date.now();
-      emitPresentationDebugConsole('playback_batch_animation_engine', {
+    try {
+      const animationEngine = playbackDispatchDeps.AnimationEngine;
+      if (animationEngine && typeof animationEngine.play === 'function') {
+        const startedAt = Date.now();
+        emitPresentationDebugConsole('playback_batch_animation_engine', {
+          payloadCount: payload.length,
+          payloadTypes
+        });
+        if (strictNetworkPlayback) {
+          await animationEngine.play(payload, { strictNetworkPlayback: true });
+        } else {
+          await animationEngine.play(payload);
+        }
+        emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
+          payloadCount: payload.length,
+          payloadTypes,
+          elapsedMs: Date.now() - startedAt
+        });
+        return;
+      }
+      emitPresentationDebugConsole('playback_batch_no_animation_engine', {
         payloadCount: payload.length,
         payloadTypes
       });
       if (strictNetworkPlayback) {
-        await animationEngine.play(payload, { strictNetworkPlayback: true });
-      } else {
-        await animationEngine.play(payload);
+        throw new Error('strict_network_playback_animation_engine_unavailable');
       }
-      emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
+    } catch (e) {
+      emitPresentationDebugConsole('playback_batch_failed', {
         payloadCount: payload.length,
         payloadTypes,
-        elapsedMs: Date.now() - startedAt
+        error: e && (e as any).message ? String((e as any).message) : String(e || '')
       });
-      return;
+      try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
+      if (strictNetworkPlayback) {
+        throw e;
+      }
     }
-    emitPresentationDebugConsole('playback_batch_no_animation_engine', {
-      payloadCount: payload.length,
-      payloadTypes
-    });
-    if (strictNetworkPlayback) {
-      throw new Error('strict_network_playback_animation_engine_unavailable');
-    }
-  } catch (e) {
-    emitPresentationDebugConsole('playback_batch_failed', {
-      payloadCount: payload.length,
-      payloadTypes,
-      error: e && (e as any).message ? String((e as any).message) : String(e || '')
-    });
-    try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
-    if (strictNetworkPlayback) {
-      throw e;
-    }
+  } finally {
+    releasePlaybackClaimForPresentation(playbackClaim);
   }
 }
 
@@ -661,8 +731,10 @@ function flushPendingPresentationEvents(): any[] {
 }
 
 async function flushBoardPresentationEvents(): Promise<void> {
+  let drainClaim: any = null;
   try {
     const events = flushPendingPresentationEvents();
+    drainClaim = claimPresentationDrainForEvents(events);
     emitPresentationDebugConsole('board_updated_flush', {
       eventCount: Array.isArray(events) ? events.length : 0,
       eventTypes: Array.isArray(events)
@@ -683,6 +755,8 @@ async function flushBoardPresentationEvents(): Promise<void> {
 
   } catch (e) {
     console.error('[PresentationHandler] onBoardUpdated error', e);
+  } finally {
+    releasePlaybackClaimForPresentation(drainClaim);
   }
 }
 

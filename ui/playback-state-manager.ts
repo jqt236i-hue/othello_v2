@@ -88,12 +88,79 @@ function getAnimationEngine(options?: any): any {
 let activePlaybackAbortHandle: any = null;
 let nextSelectionSettlementLockId = 1;
 const selectionSettlementLockIds = new Set<number>();
+let nextVisualPlaybackClaimId = 1;
+const visualPlaybackClaimIds = new Map<number, any>();
 
 function syncSelectionSettlementLockMirror(): number {
   const count = selectionSettlementLockIds.size;
   setMirroredValue('__selectionSettlementLockCount', count);
   setMirroredValue('__selectionSettlementLockActive', count > 0);
   return count;
+}
+
+function normalizeVisualPlaybackClaimMeta(meta?: any): any {
+  const source = String(meta && meta.source ? meta.source : 'unknown').trim() || 'unknown';
+  const rawScope = String(meta && meta.scope ? meta.scope : '').trim().toLowerCase();
+  const scope = rawScope === 'presentation_drain' || rawScope === 'batch_handoff'
+    ? rawScope
+    : 'generic';
+  const eventCount = Number(meta && meta.eventCount);
+  const eventTypes = Array.isArray(meta && meta.eventTypes)
+    ? meta.eventTypes.map((value: any) => String(value || '').trim()).filter((value: string) => !!value)
+    : [];
+  const normalized: any = { source, scope };
+  if (Number.isFinite(eventCount) && eventCount >= 0) normalized.eventCount = Math.trunc(eventCount);
+  if (eventTypes.length > 0) normalized.eventTypes = eventTypes;
+  if (typeof meta !== 'undefined' && meta !== null && typeof meta === 'object') {
+    if (typeof meta.reason === 'string' && meta.reason.trim()) normalized.reason = meta.reason.trim();
+    if (typeof meta.strictNetworkPlayback !== 'undefined') normalized.strictNetworkPlayback = meta.strictNetworkPlayback === true;
+  }
+  return normalized;
+}
+
+function syncVisualPlaybackClaimMirror(): number {
+  const count = visualPlaybackClaimIds.size;
+  setMirroredValue('__visualPlaybackClaimCount', count);
+  setMirroredValue('__visualPlaybackClaimActive', count > 0);
+  return count;
+}
+
+function hasClaimedVisualPlayback(): boolean {
+  if (visualPlaybackClaimIds.size > 0) return true;
+  return readMirroredValue('__visualPlaybackClaimActive') === true;
+}
+
+function claimVisualPlayback(meta?: any): any {
+  const token = {
+    id: nextVisualPlaybackClaimId++,
+    meta: normalizeVisualPlaybackClaimMeta(meta)
+  };
+  visualPlaybackClaimIds.set(token.id, token);
+  syncVisualPlaybackClaimMirror();
+  setProcessing(true);
+  setCardAnimating(true);
+  setBoardLockActive(true);
+  return token;
+}
+
+function releaseVisualPlaybackClaim(token?: any): boolean {
+  const tokenId = Number(token && token.id);
+  const removed = Number.isFinite(tokenId) && visualPlaybackClaimIds.delete(tokenId);
+  syncVisualPlaybackClaimMirror();
+  if (!getPlaybackActive()) {
+    setProcessing(false);
+    setCardAnimating(false);
+    setBoardLockActive(false);
+  } else {
+    setBoardLockActive(true);
+  }
+  return removed === true;
+}
+
+function clearVisualPlaybackClaims(): boolean {
+  visualPlaybackClaimIds.clear();
+  syncVisualPlaybackClaimMirror();
+  return true;
 }
 
 function hasSelectionSettlementLock(): boolean {
@@ -158,6 +225,7 @@ function isNetworkPresentationTimelinePlaying(): boolean {
 
 function getPlaybackActive(): boolean {
   return readMirroredValue('VisualPlaybackActive') === true
+    || hasClaimedVisualPlayback() === true
     || hasSelectionSettlementLock()
     || isNetworkPresentationTimelinePlaying();
 }
@@ -352,6 +420,7 @@ function getVisualPlaybackDrainTimeoutMs(options?: any): number {
 
 function isVisualPlaybackDrainComplete(options?: any): boolean {
   return readMirroredValue('VisualPlaybackActive') !== true
+    && hasClaimedVisualPlayback() !== true
     && hasPendingVisualPlayback(resolveVisualPlaybackDrainCardState(options)) !== true;
 }
 
@@ -569,6 +638,7 @@ function shouldDeferBoardUpdate(options?: any): boolean {
     return false;
   }
   return getPlaybackActive() === true
+    || hasClaimedVisualPlayback() === true
     || hasPendingVisualPlayback(opts.cardState)
     || isNetworkPresentationTimelinePlaying();
 }
@@ -579,6 +649,7 @@ function shouldDeferUiSync(options?: any): boolean {
     return false;
   }
   return getPlaybackActive() === true
+    || hasClaimedVisualPlayback() === true
     || hasPendingPresentationEvents(opts.cardState)
     || isNetworkPresentationTimelinePlaying();
 }
@@ -681,6 +752,7 @@ function finalizePlayback(options?: any): any {
 
 function clearPlaybackLock(options?: any): boolean {
   const opts = (options && typeof options === 'object') ? options : {};
+  clearVisualPlaybackClaims();
   clearBoardUpdateContext();
   clearSelectionEntryPlaybackContext();
   if (opts.preserveSelectionSettlementLock !== true) {
@@ -736,6 +808,10 @@ function getRuntimePlaybackState(): any {
     setProcessing,
     setBusyState,
     setInteractionLock,
+    claimVisualPlayback,
+    releaseVisualPlaybackClaim,
+    clearVisualPlaybackClaims,
+    hasClaimedVisualPlayback,
     acquireSelectionSettlementLock,
     releaseSelectionSettlementLock,
     clearSelectionSettlementLocks,
@@ -812,6 +888,10 @@ const PlaybackStateManager = {
   setProcessing,
   setBusyState,
   setInteractionLock,
+  claimVisualPlayback,
+  releaseVisualPlaybackClaim,
+  clearVisualPlaybackClaims,
+  hasClaimedVisualPlayback,
   acquireSelectionSettlementLock,
   releaseSelectionSettlementLock,
   clearSelectionSettlementLocks,

@@ -290,6 +290,8 @@ The existing contract is visible in code:
 
 Any new board-writing path must preserve that contract rather than bypass it.
 
+For board updates that contain `PLAYBACK_EVENTS`, draining the presentation queue and handing board ownership to `AnimationEngine` are one visual transaction. `DiffRenderer` / board render must not draw the final canonical board between those steps; final board sync happens after playback completion emits the follow-up board update.
+
 #### 7.3.1 Snapshot / playback / busy ownership
 
 Network playback must keep these ownership boundaries explicit:

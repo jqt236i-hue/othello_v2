@@ -66,6 +66,38 @@ describe('PlaybackStateManager visual playback drain', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 
+  test('waits for visual playback claims to release before authoritative settlement', async () => {
+    jest.useFakeTimers();
+    const claim = playbackStateManager.claimVisualPlayback({
+      source: 'unit_test',
+      scope: 'presentation_drain',
+      eventTypes: ['destroy']
+    });
+    let resolved = false;
+
+    const drainPromise = playbackStateManager.waitForVisualPlaybackDrain({
+      cardState: {
+        presentationEvents: [],
+        _presentationEventsPersist: []
+      },
+      timeoutMs: 100
+    }).then(() => {
+      resolved = true;
+    });
+    await flushPromises();
+    jest.advanceTimersByTime(16);
+    await flushPromises();
+
+    expect(resolved).toBe(false);
+
+    expect(playbackStateManager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    jest.advanceTimersByTime(16);
+    await drainPromise;
+
+    expect(resolved).toBe(true);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
   test('clears pending timers when drain resolves by timeout', async () => {
     jest.useFakeTimers();
     playbackStateManager.setPlaybackActive(true);
