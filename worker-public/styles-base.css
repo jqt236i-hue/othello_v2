@@ -1,5 +1,101 @@
 /* ===== Global Reset, Base Typography, Body, H1, and Status Styling ===== */
 
+@font-face {
+    font-family: "CR-Cinzel";
+    src: url("assets/fonts/cinzel-400.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Cinzel";
+    src: url("assets/fonts/cinzel-700.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Cinzel";
+    src: url("assets/fonts/cinzel-900.ttf") format("truetype");
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Shippori Mincho";
+    src: url("assets/fonts/shippori-mincho-400.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Shippori Mincho";
+    src: url("assets/fonts/shippori-mincho-700.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Shippori Mincho";
+    src: url("assets/fonts/shippori-mincho-800.ttf") format("truetype");
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Kaisei Tokumin";
+    src: url("assets/fonts/kaisei-tokumin-400.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Kaisei Tokumin";
+    src: url("assets/fonts/kaisei-tokumin-700.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Kaisei Tokumin";
+    src: url("assets/fonts/kaisei-tokumin-800.ttf") format("truetype");
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Zen Antique Soft";
+    src: url("assets/fonts/zen-antique-soft-400.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-Yusei Magic";
+    src: url("assets/fonts/yusei-magic-400.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "CR-RocknRoll One";
+    src: url("assets/fonts/rocknroll-one-400.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -8,9 +104,9 @@
 
 body {
     --app-background-image: url("assets/images/background/default.png");
-    --selected-app-font-family: "Segoe UI", serif;
-    --selected-app-font-accent-family: "Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif;
-    --selected-app-font-readable-family: "Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif;
+    --selected-app-font-family: "CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
+    --selected-app-font-accent-family: "CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
+    --selected-app-font-readable-family: "CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
     font-family: var(--selected-app-font-family);
     min-height: 100vh;
     margin: 0;
@@ -102,8 +198,13 @@ body[data-font-skin-id="dot-gothic"] :is(
     .appearance-panel-tab,
     .hand-skin-option,
     .background-skin-option,
+    .board-skin-option,
+    .board-frame-skin-option,
     .font-skin-option,
     .stone-skin-option,
+    .appearance-preset-apply,
+    .appearance-preset-delete,
+    #appearancePresetNameInput,
     #card-detail-desc,
     #card-detail-live-state,
     #card-detail-more,
@@ -145,12 +246,110 @@ body[data-font-skin-id="dot-gothic"] :is(
     .rules-help-counter-meaning,
     .font-skin-option-copy,
     .font-skin-option-note,
+    .board-skin-option-copy,
+    .board-skin-option-note,
+    .board-frame-skin-option-copy,
+    .board-frame-skin-option-note,
     .stone-skin-option-copy,
     .stone-skin-option-note,
+    .appearance-preset-empty,
     .held-use-card-name,
     .held-use-card-cost
 ) {
     font-family: var(--selected-app-font-readable-family);
+}
+
+#appearancePresetSavePanel {
+    display: grid;
+    gap: calc(8px * var(--layout-stage-scale));
+    padding: calc(10px * var(--layout-stage-scale));
+    margin-bottom: calc(10px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(124, 225, 219, 0.26);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background: rgba(3, 24, 29, 0.66);
+}
+
+#appearancePresetSaveTitle {
+    font-size: calc(13px * var(--layout-stage-scale));
+    font-weight: 800;
+    color: #e7fff8;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
+}
+
+#appearancePresetSaveRow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+#appearancePresetNameLabel {
+    white-space: nowrap;
+    font-size: calc(12px * var(--layout-stage-scale));
+    color: rgba(226, 248, 241, 0.88);
+}
+
+#appearancePresetNameInput {
+    min-width: 0;
+    min-height: calc(30px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(112, 213, 207, 0.36);
+    border-radius: calc(4px * var(--layout-stage-scale));
+    background: rgba(4, 19, 23, 0.88);
+    color: #f0fff8;
+    outline: none;
+}
+
+#appearancePresetNameInput:focus {
+    border-color: rgba(104, 242, 235, 0.78);
+    box-shadow: 0 0 calc(12px * var(--layout-stage-scale)) rgba(87, 225, 220, 0.22);
+}
+
+#appearancePresetList {
+    display: grid;
+    gap: calc(7px * var(--layout-stage-scale));
+}
+
+.appearance-preset-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: calc(8px * var(--layout-stage-scale));
+    align-items: center;
+}
+
+.appearance-preset-apply,
+.appearance-preset-delete {
+    min-height: calc(32px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(116, 220, 214, 0.26);
+    border-radius: calc(4px * var(--layout-stage-scale));
+    background: rgba(6, 28, 34, 0.88);
+    color: #eefdf8;
+    cursor: pointer;
+}
+
+.appearance-preset-apply {
+    text-align: left;
+    padding: calc(6px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.appearance-preset-delete {
+    padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    color: #ffd3c7;
+    border-color: rgba(255, 151, 126, 0.32);
+}
+
+.appearance-preset-apply:hover,
+.appearance-preset-delete:hover {
+    filter: brightness(1.16);
+}
+
+.appearance-preset-empty {
+    padding: calc(10px * var(--layout-stage-scale));
+    color: rgba(221, 242, 236, 0.68);
+    font-size: calc(12px * var(--layout-stage-scale));
 }
 
 body[data-font-skin-id="dot-gothic"] :is(

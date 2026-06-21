@@ -24,6 +24,7 @@ const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const TURN_ARRIVAL_TOAST_ID = 'turn-arrival-toast';
 const TURN_ARRIVAL_TOAST_VISIBLE_MS = 15000;
 const TURN_ARRIVAL_TOAST_FADE_OUT_MS = 360;
+const TURN_ARRIVAL_TOAST_REFERENCE_WIDTH = 164;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/HERO.png';
 const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
@@ -455,7 +456,7 @@ function getLocalPlayerKeyForBattleStatus(): PlayerKey {
 }
 
 function resolveBattleStatusTurnLabel(): string {
-    if (isNetworkSpectatorActiveForLabels()) return '観戦中';
+    if (isNetworkSpectatorActiveForLabels()) return '観測中';
     const state = getGameStateForStatusDisplay();
     const currentPlayer = normalizePlayerKeyForStatusDisplay(state && state.currentPlayer);
     const localPlayer = getLocalPlayerKeyForBattleStatus();
@@ -518,7 +519,11 @@ function positionTurnArrivalToast(): void {
     const measuredToastHeight = Number.isFinite(Number(toast.offsetHeight)) ? Number(toast.offsetHeight) : 0;
     const toastHeight = measuredToastHeight > 0 ? measuredToastHeight : Math.round(40 * scale);
     const targetRight = Math.max(8, Math.min(Math.round(boardRect.right + (6 * scale)), viewportWidth - 8));
-    const left = Math.max(8, targetRight - toastWidth);
+    const referenceWidth = Math.round(TURN_ARRIVAL_TOAST_REFERENCE_WIDTH * scale);
+    const anchoredWidth = toastWidth > 0 ? Math.min(toastWidth, referenceWidth) : referenceWidth;
+    const desiredLeft = targetRight - anchoredWidth;
+    const maxLeft = Math.max(8, viewportWidth - toastWidth - 8);
+    const left = Math.max(8, Math.min(desiredLeft, maxLeft));
     const targetBottom = Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (15 * scale)), viewportHeight - 8));
     const top = Math.max(8, targetBottom - toastHeight);
     toast.style.left = `${left}px`;
@@ -1095,7 +1100,7 @@ function applyCpuCharacterLevelScale(charImg: any, level: any): void {
 
     const levelNumber = Number(level);
     const normalizedLevel = Number.isFinite(levelNumber)
-        ? Math.min(6, Math.max(1, Math.round(levelNumber)))
+        ? Math.min(9, Math.max(1, Math.round(levelNumber)))
         : 1;
     const CPU_BASE_VISUAL_SCALE = 0.88;
     const levelScale = CPU_BASE_VISUAL_SCALE * (1 + ((normalizedLevel - 1) * 0.1));

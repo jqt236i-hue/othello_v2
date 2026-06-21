@@ -21,7 +21,7 @@ Player-visible rule text remains owned by `01-rulebook.md`. The stable architect
 
 ## Charge Gain
 
-Theory-spawned cells award charge as a place-like gain: selected theory-number cell value plus the number of stones actually flipped by that spawn.
+Theory-spawned cells no longer award the selected theory-number cell value as charge. They award charge only for the number of stones actually flipped by that spawn.
 
 ## Current Evidence
 
@@ -86,7 +86,7 @@ The returned `appliedFlips` becomes the existing `flips` value used by subsequen
 
 If the selected cell brackets opponent stones, those stones flip. If it brackets nothing, the special stone still appears.
 
-The theory path then awards charge equal to `selected theory-number value + applied flip count`, adds the special marker using the prepared marker data, marks the theory number cell consumed, and returns the spawned payload. The payload should include `flips` and `chargeGained` so tests and logs can assert the board mutation without inspecting presentation internals.
+The theory path then awards charge equal to `applied flip count`, adds the special marker using the prepared marker data, marks the theory number cell consumed, and returns the spawned payload. The selected theory-number value remains available for presentation/tests but does not grant charge. The payload should include `flips` and `chargeGained` so tests and logs can assert the board mutation without inspecting presentation internals.
 
 ## Marker Data
 
@@ -105,7 +105,7 @@ Implementation must update `01-rulebook.md` under `THEORY_INCARNATION` to state:
 - theory-spawned special stones use ordinary placement flip judgment at the selected cell
 - if the selected cell brackets opponent stones, those stones flip
 - if the selected cell does not bracket any stones, the special stone still appears
-- theory spawn grants charge equal to the selected theory-number cell value plus the number of stones actually flipped by that spawn
+- theory spawn does not grant the selected theory-number cell value as charge, but grants charge equal to the number of stones actually flipped by that spawn
 
 Implementation must also update the relevant `正本/` note because this is player-visible card behavior and playback-visible board mutation.
 
@@ -115,7 +115,7 @@ Use focused tests before implementation:
 
 - theory spawn on a bracketed line flips the bracketed stone
 - theory spawn on a zero-flip cell still appears
-- theory spawn awards selected theory-number cell value plus actual flip count
+- theory spawn ignores the selected theory-number cell value for charge and awards actual flip count
 - theory-spawned `意志狩りの王` still carries duration, flip-evade, and destroy-evade counters
 - existing roulette metadata and immediate-effect tests still pass
 - normal placement tests still pass to prove the extraction preserved behavior

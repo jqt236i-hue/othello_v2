@@ -60,7 +60,7 @@ describe('card detail effect tags', () => {
         desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。8ターン持続。反転保護を持つ特殊石。'
       }),
       getSalvationWillTargetCount: () => 0,
-      getEqualityWillBoardCounts: () => ({ black: 0, white: 0 })
+      getEqualityWillChargeState: () => ({ own: 0, opponent: 0 })
     };
 
     global.renderCardUI = jest.fn();
@@ -139,7 +139,7 @@ describe('card detail effect tags', () => {
       name: '守る意志',
       type: 'GUARD_WILL',
       cost: 1,
-      desc: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。'
+      desc: '自石を1つ選び、完全保護を付与。穴マス以外の全ての効果を無効化する。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -203,10 +203,11 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('4T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大5回特殊石を出現できる');
-    expect(document.getElementById('card-detail-more').textContent).toContain('特殊石出現では布石を獲得しない');
+    expect(document.getElementById('card-detail-more').textContent).toContain('特殊石出現では理論数字マス値の布石を獲得しない');
+    expect(document.getElementById('card-detail-more').textContent).toContain('出現時に反転した枚数ぶんの布石は獲得する');
   });
 
-  test('BOARD_EXECUTOR shows usage condition before inviolable and duration tags', () => {
+  test('BOARD_EXECUTOR shows usage condition, hole-cell, absolute execution, inviolable, and duration tags', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -214,7 +215,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
+      desc: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -223,13 +224,12 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '不可侵', '4ターン持続']);
-    expect(getTagLabels()).not.toContain('穴マス化');
+    expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
     expect(getTagLabels()).not.toContain('絶対保護');
-    expect(document.getElementById('card-detail-desc').textContent).toContain('すべての特殊石を絶対保護ごと穴');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('すべての特殊石を絶対執行');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('場合のみ使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
-    expect(document.getElementById('card-detail-more').textContent).toContain('絶対保護も貫通');
+    expect(document.getElementById('card-detail-more').textContent).toContain('全ての保護を貫通');
   });
 
   test('AFTERIMAGE_WILL shows flip and destroy evasion tags without count-specific labels', () => {
@@ -279,7 +279,7 @@ describe('card detail effect tags', () => {
     expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
   });
 
-  test('METEOR_WILL shows hole-cell tags and BOARD_EXECUTOR omits them', () => {
+  test('METEOR_WILL shows hole-cell tags and BOARD_EXECUTOR shows absolute execution tags', () => {
     require('../cards/card-interaction.js');
 
     const meteorDef = {
@@ -287,29 +287,71 @@ describe('card detail effect tags', () => {
       name: '因果抹消',
       type: 'METEOR_WILL',
       cost: 10,
-      desc: 'マス1つを選び石ごと完全消滅させて永続の穴にする。'
+      desc: 'マスを1つ選んで石ごと抹消し、穴マスにする。'
     };
     global.cardState.selectedCardId = meteorDef.id;
     global.cardState.hands.black = [meteorDef.id];
     global.CardLogic.getCardDef = () => meteorDef;
 
     window.updateCardDetailPanel();
-    expect(getTagLabels()).toEqual(['穴マス化']);
+    expect(document.getElementById('card-detail-desc').textContent).toBe('マスを1つ選んで石ごと抹消し、穴マスにする。');
+    expect(getTagLabels()).toEqual(['穴マス', '抹消']);
+    const termLabels = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button'))
+      .map((el) => el.getAttribute('data-term-label') || el.textContent);
+    expect(termLabels).toEqual(expect.arrayContaining(['抹消', '穴マス']));
+    const eraseTermButton = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button'))
+      .find((el) => el.getAttribute('data-term-label') === '抹消') as HTMLElement;
+    expect(eraseTermButton).toBeTruthy();
+    eraseTermButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('石やマス状態ごと対象マスを取り除き');
+    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('絶対保護以外の保護を貫通できる');
 
     const boardExecutorDef = {
       id: 'board_executor_01',
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。'
+      desc: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。'
     };
     global.cardState.selectedCardId = boardExecutorDef.id;
     global.cardState.hands.black = [boardExecutorDef.id];
     global.CardLogic.getCardDef = () => boardExecutorDef;
 
     window.updateCardDetailPanel();
-    expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '不可侵', '4ターン持続']);
-    expect(getTagLabels()).not.toContain('穴マス化');
+    expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+  });
+
+  test('hole-cell board shrink cards use concise erase wording in the detail summary', () => {
+    require('../cards/card-interaction.js');
+
+    const cases = [
+      {
+        id: 'board_shrink_01',
+        name: '盤面縮小',
+        type: 'BOARD_SHRINK_WILL',
+        desc: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。'
+      },
+      {
+        id: 'board_shrink_god_01',
+        name: '盤面縮小神',
+        type: 'BOARD_SHRINK_GOD',
+        desc: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。'
+      }
+    ];
+
+    cases.forEach((cardDef) => {
+      global.cardState.selectedCardId = cardDef.id;
+      global.cardState.hands.black = [cardDef.id];
+      global.CardLogic.getCardDef = () => cardDef;
+
+      window.updateCardDetailPanel();
+
+      expect(document.getElementById('card-detail-desc').textContent).toBe(cardDef.desc);
+      expect(getTagLabels()).toEqual(['穴マス', '抹消']);
+      const termLabels = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button'))
+        .map((el) => el.getAttribute('data-term-label') || el.textContent);
+      expect(termLabels).toEqual(expect.arrayContaining(['抹消', '穴マス']));
+    });
   });
 
   test('TRAP_WILL keeps opponent-turn wording in text and shows the special stone tag', () => {
@@ -419,27 +461,27 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-more').textContent).toContain('自ターン開始ごとに4布石を返済する');
   });
 
-  test('EQUALITY_WILL detail panel shows current board counts as live state', () => {
+  test('EQUALITY_WILL detail panel shows current charge counts as live state', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
       id: 'equality_will_01',
       name: '平等の意志',
       type: 'EQUALITY_WILL',
-      cost: 8,
-      desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。'
+      cost: 0,
+      desc: '相手の布石を最大10奪う。自分の布石が0のときに使用可能。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
     global.cardState.hands.black = [cardDef.id];
     global.CardLogic.getCardDef = () => cardDef;
-    global.CardLogic.getEqualityWillBoardCounts = () => ({ black: 36, white: 21 });
+    global.CardLogic.getEqualityWillChargeState = () => ({ own: 0, opponent: 25 });
 
     window.updateCardDetailPanel();
 
     const stateEl = document.getElementById('card-detail-live-state');
     expect(stateEl).not.toBeNull();
-    expect(stateEl.textContent).toBe('（黒36／白21）');
+    expect(stateEl.textContent).toBe('（自分布石0／相手布石25）');
     expect(stateEl.style.display).toBe('block');
   });
 
@@ -617,7 +659,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
+      desc: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
     };
     global.cardState.selectedCardId = cardDef.id;
     global.cardState.hands.black = [cardDef.id];
@@ -655,7 +697,7 @@ describe('card detail effect tags', () => {
       name: '盤面縮小',
       type: 'BOARD_SHRINK_WILL',
       cost: 5,
-      desc: '外周の連続した3マスを選び、石ごと穴マス化して盤面を縮小する。（絶対保護石だけ残る）。'
+      desc: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。'
     };
     global.cardState.selectedCardId = cardDef.id;
     global.cardState.hands.black = [cardDef.id];
@@ -664,9 +706,9 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     const tagButton = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'))
-      .find((el) => el.textContent === '穴マス化') as HTMLElement;
+      .find((el) => el.textContent === '穴マス') as HTMLElement;
     const termButton = Array.from(document.querySelectorAll('#card-detail-desc .game-term-highlight-button'))
-      .find((el) => el.textContent === '穴マス化') as HTMLElement;
+      .find((el) => el.getAttribute('data-term-label') === '穴マス') as HTMLElement;
 
     expect(tagButton).toBeTruthy();
     expect(termButton).toBeTruthy();
@@ -685,7 +727,7 @@ describe('card detail effect tags', () => {
     const termDescription = bodyEl.textContent;
 
     expect(termDescription).toBe(tagDescription);
-    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マス化できる。');
+    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。');
   });
 
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {

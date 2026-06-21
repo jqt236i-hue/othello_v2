@@ -53,7 +53,7 @@
 - `game/logic/cards-internal/effect-timing.js` は placement-time hook の既存入口であり、`強い意志` と `最強の意志` の両方をここで特殊石化している。
 - `game/logic/cards.js` の `isAbsoluteProtectedCell(...)` と `game/logic/board_ops.js` の `_isAbsoluteProtectedCell(...)` は、絶対保護石への破壊・移動・状態変更を拒否する既存経路を持っている。
 - `game/visual-effects-map.js` は pending type と marker type の両面で `absoluteProtectedStone` を解決できる。
-- `assets/images/stones/absolute_protect_next_stone-black.png` / `absolute_protect_next_stone-white.png` はすでに存在する。
+- `assets/images/special-stones/absolute_protect_next_stone-black.png` / `absolute_protect_next_stone-white.png` はすでに存在する。
 
 ### 1.4 追随確認が必要な面
 

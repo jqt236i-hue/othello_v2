@@ -50,9 +50,33 @@ function createNetworkPresentationTimeline(config?: any): any {
     return FrameContract.collectFramesAfter(values, visualSeq);
   }
 
+  function maybeAlignBaseCursorForIncomingFrames(frames: any[], options?: any): void {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (opts.allowBaseCursorAdvance !== true) return;
+    if (!Array.isArray(frames) || frames.length <= 0) return;
+    const isJournalRecovery = String(opts.source || '').trim() === 'journal_recovery';
+    if (lastPlayedFrame || (!isJournalRecovery && pendingFrames.size > 0)) return;
+
+    const firstFrame = frames[0];
+    const firstVisualSeq = toIntegerOrNull(firstFrame && firstFrame.visualSeq);
+    const firstStateVersionFrom = toIntegerOrNull(firstFrame && firstFrame.stateVersionFrom);
+    if (firstVisualSeq === null || firstStateVersionFrom === null) return;
+    if (firstVisualSeq <= visualSeq) return;
+
+    const expectedSeq = visualSeq + 1;
+    const hasVisualSeqGap = firstVisualSeq > expectedSeq;
+    const hasVersionGap = firstVisualSeq === expectedSeq && firstStateVersionFrom !== visualVersion;
+    if (!hasVisualSeqGap && !hasVersionGap) return;
+
+    visualSeq = Math.max(0, firstVisualSeq - 1);
+    visualVersion = Math.max(0, firstStateVersionFrom);
+    pausedError = null;
+  }
+
   function enqueueFrames(values: any, options?: any): number {
     const opts = (options && typeof options === 'object') ? options : {};
     const frames = normalizeFrameList(values);
+    maybeAlignBaseCursorForIncomingFrames(frames, opts);
     let accepted = 0;
     for (const frame of frames) {
       if (!frame || !Number.isFinite(Number(frame.visualSeq))) continue;
@@ -94,19 +118,33 @@ function createNetworkPresentationTimeline(config?: any): any {
     }
   }
 
-  function commitFrame(frame: any): void {
+  async function notifyFrameCommitted(frame: any, meta: any): Promise<void> {
+    if (typeof cfg.onFrameCommitted !== 'function') return;
+    try {
+      await cfg.onFrameCommitted(frame, meta);
+    } catch (e) { /* ignore */ }
+  }
+
+  function applyFrameCommit(frame: any): any {
+    const commitMeta = {
+      visualSeq: frame.visualSeq,
+      visualVersion: frame.stateVersionTo,
+      source: sourceBySeq.get(frame.visualSeq) || 'network_timeline'
+    };
     const store = resolveVisualStateStore();
     if (store && typeof store.commitFrame === 'function') {
-      store.commitFrame(frame, {
-        visualSeq: frame.visualSeq,
-        visualVersion: frame.stateVersionTo,
-        source: sourceBySeq.get(frame.visualSeq) || 'network_timeline'
-      });
+      store.commitFrame(frame, commitMeta);
     }
     visualSeq = frame.visualSeq;
     visualVersion = frame.stateVersionTo;
     lastPlayedFrame = frame;
     sourceBySeq.delete(frame.visualSeq);
+    return commitMeta;
+  }
+
+  async function commitFrame(frame: any): Promise<void> {
+    const commitMeta = applyFrameCommit(frame);
+    await notifyFrameCommitted(frame, commitMeta);
   }
 
   async function drainPlayableFrames(dispatcherCandidate?: any): Promise<number> {
@@ -131,7 +169,7 @@ function createNetworkPresentationTimeline(config?: any): any {
           break;
         }
         pendingFrames.delete(nextSeq);
-        commitFrame(frame);
+        await commitFrame(frame);
         drained += 1;
       }
     } finally {
@@ -150,7 +188,8 @@ function createNetworkPresentationTimeline(config?: any): any {
       : pendingFrames.get(seq);
     if (!frame || frame.visualSeq !== visualSeq + 1 || frame.stateVersionFrom !== visualVersion) return false;
     pendingFrames.delete(frame.visualSeq);
-    commitFrame(frame);
+    const commitMeta = applyFrameCommit(frame);
+    notifyFrameCommitted(frame, commitMeta).catch(() => {});
     return true;
   }
 
@@ -187,11 +226,23 @@ function createNetworkPresentationTimeline(config?: any): any {
 
   function getDiagnostics(): any {
     const pendingVisualSeqs = Array.from(pendingFrames.keys()).sort((a, b) => a - b);
+    const pendingFrameSummaries = pendingVisualSeqs.slice(0, 8).map((seq) => {
+      const frame = pendingFrames.get(seq);
+      return {
+        visualSeq: seq,
+        stateVersionFrom: toIntegerOrNull(frame && frame.stateVersionFrom),
+        stateVersionTo: toIntegerOrNull(frame && frame.stateVersionTo),
+        playbackEventCount: Array.isArray(frame && frame.playbackEvents) ? frame.playbackEvents.length : 0,
+        operationId: frame && frame.operationId ? String(frame.operationId) : null,
+        actionType: frame && frame.actionType ? String(frame.actionType) : null
+      };
+    });
     return {
       visualSeq,
       visualVersion,
       pendingFrameCount: pendingVisualSeqs.length,
       pendingVisualSeqs,
+      pendingFrameSummaries,
       nextExpectedVisualSeq: visualSeq + 1,
       playing,
       paused: !!pausedError,

@@ -64,8 +64,14 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     global.emitGameStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
+    (global as any).GameEvents = {
+      gameEvents: {
+        on: jest.fn()
+      }
+    };
     window.addLog = global.addLog;
     window.emitLogAdded = global.emitLogAdded;
+    (window as any).GameEvents = (global as any).GameEvents;
 
     global.EventSource = class MockEventSource {
       constructor() {
@@ -137,6 +143,7 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete (global as any).GameEvents;
     delete global.EventSource;
     delete global.fetch;
   });

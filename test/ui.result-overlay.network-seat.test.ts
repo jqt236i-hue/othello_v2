@@ -98,8 +98,8 @@ describe('result overlay seat perspective', () => {
     expect(status.getAttribute('aria-hidden')).toBe('true');
   });
 
-  test('リザルト表示後はターン表示位置にリザルト再表示ボタンを出す', () => {
-    document.body.innerHTML = '<div class="battle-status-turn">あなたのターン</div>';
+  test('リザルト表示後は自分の手札の上にリザルト再表示ボタンを重ねる', () => {
+    document.body.innerHTML = '<div class="battle-status-turn">あなたのターン</div><div id="hand-black" class="hand-container"></div>';
 
     const mod = require('../ui/result-overlay.js');
     expect(document.getElementById('result-reopen-button')).toBeNull();
@@ -107,15 +107,30 @@ describe('result overlay seat perspective', () => {
     mod.showResultOverlay();
 
     const button = document.getElementById('result-reopen-button') as HTMLButtonElement | null;
-    const turn = document.querySelector('.battle-status-turn');
+    const hand = document.getElementById('hand-black');
     expect(button).toBeTruthy();
     expect(button && button.textContent).toBe('リザルト');
     expect(button && button.hidden).toBe(false);
-    expect(button && button.parentElement).toBe(turn);
+    expect(button && button.parentElement).toBe(hand);
+    expect(hand && hand.classList.contains('has-result-reopen-button')).toBe(true);
+    expect(document.querySelector('.battle-status-turn #result-reopen-button')).toBeNull();
+  });
+
+  test('白席では白側の手札の上にリザルト再表示ボタンを重ねる', () => {
+    document.body.innerHTML = '<div id="hand-white" class="hand-container"></div><div id="hand-black" class="hand-container"></div>';
+    window.NetworkMatchClient = { getSeatKey: () => 'white' };
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    const button = document.getElementById('result-reopen-button') as HTMLButtonElement | null;
+    const whiteHand = document.getElementById('hand-white');
+    expect(button).toBeTruthy();
+    expect(button && button.parentElement).toBe(whiteHand);
   });
 
   test('閉じた後のリザルト再表示ボタンで現在リザルトを開ける', () => {
-    document.body.innerHTML = '<div class="battle-status-turn">相手のターン</div>';
+    document.body.innerHTML = '<div id="hand-black" class="hand-container"></div>';
 
     const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
@@ -426,7 +441,7 @@ describe('result overlay seat perspective', () => {
     expect(supportDetailText).not.toContain('/ 角');
   });
 
-  test('デバッグモードONでは最終スコアとランキング送信スコアが0になる', () => {
+  test('デバッグモードONでは最終スコア0を表示しランキング送信しない', () => {
     window.DEBUG_UNLIMITED_USAGE = true;
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: false, rank: null }));
     window.LeaderboardClient = {
@@ -444,8 +459,8 @@ describe('result overlay seat perspective', () => {
 
     const totalScore = document.querySelector('.result-total-score-value');
     expect(totalScore && totalScore.textContent).toBe('0');
-    expect(submitScore).toHaveBeenCalled();
-    expect(submitScore.mock.calls[0][0].total).toBe(0);
+    expect(submitScore).not.toHaveBeenCalled();
+    expect(localStorage.getItem('othello_cpu_leaderboard_v5')).toBeNull();
   });
 
   test('39手終局では速攻ボーナスが減点される', () => {
@@ -535,16 +550,126 @@ describe('result overlay seat perspective', () => {
 
   test('終局時にスコアランキング送信を呼ぶ', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
+      submitTimeAttack,
+      resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
+    };
+    global.gameState.boardConfig = { rows: 8, cols: 8, standard8x8: true };
+    global.countDiscs.mockReturnValue({ black: 44, white: 20 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.markTimeAttackStarted(1000);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(183340);
+    mod.showResultOverlay();
+
+    expect(submitScore).toHaveBeenCalled();
+    expect(submitTimeAttack).toHaveBeenCalledWith(expect.objectContaining({
+      elapsedMs: 182340
+    }), expect.objectContaining({
+      mode: 'cpu',
+      cpuLevel: 1,
+      limit: 10,
+      boardConfig: expect.objectContaining({ rows: 8, cols: 8, standard8x8: true })
+    }));
+    expect((document.querySelector('.result-time-attack') || {}).textContent || '').toContain('速攻 03:02.34');
+    nowSpy.mockRestore();
+  });
+
+  test('8x8以外の盤面ではスコアと速攻をランキング送信しない', () => {
+    const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    window.LeaderboardClient = {
+      submitScore,
+      submitTimeAttack,
+      resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
+    };
+    global.gameState.board = Array.from({ length: 6 }, () => Array(6).fill(0));
+    global.gameState.boardConfig = { rows: 6, cols: 6, standard8x8: false };
+    global.countDiscs.mockReturnValue({ black: 30, white: 6 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.markTimeAttackStarted(1000);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(61000);
+    mod.showResultOverlay();
+
+    expect(submitScore).not.toHaveBeenCalled();
+    expect(submitTimeAttack).not.toHaveBeenCalled();
+    expect(localStorage.getItem('othello_cpu_leaderboard_v5')).toBeNull();
+    nowSpy.mockRestore();
+  });
+
+  test('Lv9 CPU対戦はLv9としてランキング送信する', () => {
+    window.MATCH_MODE = 'cpu';
+    global.cpuSmartness.white = 9;
+    const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    window.LeaderboardClient = {
+      submitScore,
+      submitTimeAttack,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
     global.countDiscs.mockReturnValue({ black: 44, white: 20 });
 
     const mod = require('../ui/result-overlay.js');
+    mod.markTimeAttackStarted(1000);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(61000);
+    mod.showResultOverlay();
+
+    expect(submitScore).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+      mode: 'cpu',
+      cpuLevel: 9
+    }));
+    expect(submitTimeAttack).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+      mode: 'cpu',
+      cpuLevel: 9
+    }));
+    nowSpy.mockRestore();
+  });
+
+  test('ネット対戦では速攻ランキングを送信しない', () => {
+    window.MATCH_MODE = 'network';
+    window.NetworkMatchClient = { getSeatKey: () => 'black' };
+    const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    window.LeaderboardClient = {
+      submitScore,
+      submitTimeAttack,
+      resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
+    };
+    global.countDiscs.mockReturnValue({ black: 44, white: 20 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.markTimeAttackStarted(1000);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(61000);
     mod.showResultOverlay();
 
     expect(submitScore).toHaveBeenCalled();
+    expect(submitTimeAttack).not.toHaveBeenCalled();
+    nowSpy.mockRestore();
+  });
+
+  test('900秒超過の速攻記録は表示のみ対象外で送信しない', () => {
+    const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    window.LeaderboardClient = {
+      submitScore,
+      submitTimeAttack,
+      resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
+    };
+    global.countDiscs.mockReturnValue({ black: 44, white: 20 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.markTimeAttackStarted(1000);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(901001);
+    mod.showResultOverlay();
+
+    const text = (document.querySelector('.result-time-attack') || {}).textContent || '';
+    expect(text).toContain('速攻 --');
+    expect(text).toContain('15:00超過');
+    expect(submitTimeAttack).not.toHaveBeenCalled();
+    nowSpy.mockRestore();
   });
 
   test('通常ローカル対戦ではスコアランキングを自動送信しない', () => {
@@ -784,7 +909,7 @@ describe('result overlay seat perspective', () => {
   });
 
   test('syncResultPresentationFromSnapshot は非終局 snapshot でリザルト再表示ボタンも消す', () => {
-    document.body.innerHTML = '<div class="battle-status-turn">あなたのターン</div>';
+    document.body.innerHTML = '<div id="hand-black" class="hand-container"></div>';
     const mod = require('../ui/result-overlay.js');
     global.isGameOver = jest.fn(() => false);
     mod.showResultOverlay();

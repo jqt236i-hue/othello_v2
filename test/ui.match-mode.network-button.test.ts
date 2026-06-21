@@ -32,6 +32,9 @@ describe('match-mode network button behavior', () => {
       networkBoardSizeNote: document.getElementById('networkBoardSizeNote'),
       networkEnableDebugCheckbox: document.getElementById('networkEnableDebugCheckbox'),
       networkCopyRoomBtn: document.getElementById('networkCopyRoomBtn'),
+      networkRoomSettingsBtn: document.getElementById('networkRoomSettingsBtn'),
+      networkRoomSettingsPopup: document.getElementById('networkRoomSettingsPopup'),
+      networkRoomSettingsCloseBtn: document.getElementById('networkRoomSettingsCloseBtn'),
       networkCreateBtn: document.getElementById('networkCreateBtn'),
       networkJoinBtn: document.getElementById('networkJoinBtn'),
       networkLeaveBtn: document.getElementById('networkLeaveBtn'),
@@ -76,6 +79,9 @@ describe('match-mode network button behavior', () => {
       '</div>' +
       '<input id="networkEnableDebugCheckbox" type="checkbox" />' +
       '<button id="networkCopyRoomBtn">部屋番号コピー</button>' +
+      '<button id="networkRoomSettingsBtn" aria-controls="networkRoomSettingsPopup" aria-expanded="false">設定</button>' +
+      '<div id="networkRoomSettingsPopup" aria-hidden="true"></div>' +
+      '<button id="networkRoomSettingsCloseBtn">閉じる</button>' +
       '<button id="networkCreateBtn">部屋作成</button>' +
       '<button id="networkJoinBtn">参加</button>' +
       '<button id="networkLeaveBtn">退出</button>' +
@@ -194,6 +200,34 @@ describe('match-mode network button behavior', () => {
     expect(leaveRoom).not.toHaveBeenCalled();
   });
 
+  test('部屋作成設定ボタンは空のポップアップを開閉する', () => {
+    const settingsBtn = document.getElementById('networkRoomSettingsBtn');
+    const settingsPopup = document.getElementById('networkRoomSettingsPopup');
+    const settingsCloseBtn = document.getElementById('networkRoomSettingsCloseBtn');
+    const networkCloseBtn = document.getElementById('networkCloseBtn');
+
+    expect(settingsPopup.classList.contains('is-open')).toBe(false);
+    expect(settingsPopup.getAttribute('aria-hidden')).toBe('true');
+    expect(settingsBtn.getAttribute('aria-expanded')).toBe('false');
+
+    settingsBtn.click();
+    expect(settingsPopup.classList.contains('is-open')).toBe(true);
+    expect(settingsPopup.getAttribute('aria-hidden')).toBe('false');
+    expect(settingsBtn.getAttribute('aria-expanded')).toBe('true');
+
+    settingsCloseBtn.click();
+    expect(settingsPopup.classList.contains('is-open')).toBe(false);
+    expect(settingsPopup.getAttribute('aria-hidden')).toBe('true');
+    expect(settingsBtn.getAttribute('aria-expanded')).toBe('false');
+
+    settingsBtn.click();
+    expect(settingsPopup.classList.contains('is-open')).toBe(true);
+    networkCloseBtn.click();
+    expect(settingsPopup.classList.contains('is-open')).toBe(false);
+    expect(settingsPopup.getAttribute('aria-hidden')).toBe('true');
+    expect(settingsBtn.getAttribute('aria-expanded')).toBe('false');
+  });
+
   test('初期化直後に部屋盤面情報が未確定でも 8x8 表示へ安全にフォールバックする', () => {
     expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルトデッキ / 作成時に送る盤面: 8x8');
   });
@@ -225,7 +259,7 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkChatMessages').textContent).toContain('白: 相手の発言');
   });
 
-  test('観戦中の手番タイマーは自席扱いの「あなた」を表示しない', async () => {
+  test('観測中の手番タイマーは自席扱いの「あなた」を表示しない', async () => {
     window.NetworkMatchClient.isSpectator.mockReturnValue(true);
     await window.MatchMode.setMode('network', { silentLog: true });
     const timerListener = window.NetworkMatchClient.setTurnTimerListener.mock.calls[0][0];
@@ -482,7 +516,104 @@ describe('match-mode network button behavior', () => {
     expect(list.textContent).toContain('2/2');
   });
 
-  test('満席でも観戦可能なルームは観戦ボタンから参加できる', async () => {
+  test('ネット対戦ロビーはルーム一覧を専用viewportでラップする', async () => {
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    listRooms.mockResolvedValue({ ok: true, rooms: [] });
+
+    networkBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const viewport = document.getElementById('networkRoomListViewport');
+    const list = document.getElementById('networkRoomList');
+    expect(viewport).toBeTruthy();
+    expect(list).toBeTruthy();
+    expect(viewport.contains(list)).toBe(true);
+    expect(list.parentElement).toBe(viewport);
+  });
+
+  test('参加中ルームのカードは退出ボタンを表示して既存退出処理を使う', async () => {
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    window.NetworkMatchClient.getRoomId = jest.fn(() => 'A1B');
+    listRooms.mockResolvedValue({
+      ok: true,
+      rooms: [{
+        roomId: 'A1B',
+        roomName: '参加中部屋',
+        hostName: 'くろ',
+        boardLabel: '8x8',
+        seatCount: 2,
+        maxSeats: 2,
+        spectatorCount: 0,
+        maxSpectators: 4,
+        canJoin: false,
+        canSpectate: true,
+        hasPassword: false
+      }]
+    });
+
+    networkBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const currentEntry = document.querySelector('.network-room-list-entry.is-current-room');
+    expect(currentEntry).toBeTruthy();
+    expect(currentEntry.textContent).toContain('参加済み');
+    expect(currentEntry.querySelector('.network-room-entry-versus').textContent.replace(/\s+/g, '')).toBe('くろVS参加者');
+    const leaveEntryBtn = currentEntry.querySelector('.network-room-entry-leave');
+    expect(leaveEntryBtn).toBeTruthy();
+    expect(leaveEntryBtn.textContent).toBe('退出');
+    expect(leaveEntryBtn.getAttribute('aria-label')).toBe('参加中部屋から退出');
+
+    const leaveCallsBeforeClick = leaveRoom.mock.calls.length;
+    leaveEntryBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(leaveRoom).toHaveBeenCalledTimes(leaveCallsBeforeClick + 1);
+    expect(window.MatchMode.getCurrentMode()).toBe('cpu');
+  });
+
+  test('ルーム一覧のVS表示は参加者の設定名を使う', async () => {
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    listRooms.mockResolvedValue({
+      ok: true,
+      rooms: [{
+        roomId: 'NAM',
+        roomName: '名前部屋',
+        hostName: '長名前先手七字',
+        blackPlayerName: '長名前先手七字',
+        whitePlayerName: '挑戦者白七文字',
+        seatNames: { black: '長名前先手七字', white: '挑戦者白七文字' },
+        boardLabel: '8x8',
+        seatCount: 2,
+        maxSeats: 2,
+        spectatorCount: 0,
+        maxSpectators: 4,
+        canJoin: false,
+        canSpectate: true,
+        hasPassword: false
+      }]
+    });
+
+    networkBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const entry = document.querySelector('.network-room-list-entry');
+    expect(entry).toBeTruthy();
+    expect(entry.querySelector('.network-room-entry-versus').textContent.replace(/\s+/g, '')).toBe('長名前先手七字VS挑戦者白七文字');
+    expect(Array.from(entry.querySelectorAll('.network-room-entry-mark')).every((mark) => mark.classList.contains('is-long-name'))).toBe(true);
+    expect(entry.querySelector('.network-room-entry-versus').textContent).not.toContain('参加者');
+  });
+
+  test('満席でも観戦可能なルームは観測ボタンから参加できる', async () => {
     const playerInput = document.getElementById('networkPlayerNameInput');
     const networkBtn = document.getElementById('modeNetworkBtn');
     listRooms.mockResolvedValue({
@@ -510,9 +641,9 @@ describe('match-mode network button behavior', () => {
     await Promise.resolve();
 
     const buttons = Array.from(document.querySelectorAll('button'));
-    const spectateEntryBtn = buttons.find((button) => /観戦部屋を観戦/.test(button.getAttribute('aria-label') || ''));
+    const spectateEntryBtn = buttons.find((button) => /観戦部屋を観測/.test(button.getAttribute('aria-label') || ''));
     expect(spectateEntryBtn).toBeTruthy();
-    expect(document.getElementById('networkRoomList').textContent).toContain('観戦 1/4');
+    expect(document.getElementById('networkRoomList').textContent).toContain('観測 1/4');
 
     spectateEntryBtn.click();
     await Promise.resolve();
@@ -525,7 +656,7 @@ describe('match-mode network button behavior', () => {
     }));
     expect(joinRoom).not.toHaveBeenCalled();
     expect(document.getElementById('networkOverlay').classList.contains('is-open')).toBe(false);
-    expect(document.getElementById('networkStatusText').textContent).toContain('観戦中');
+    expect(document.getElementById('networkStatusText').textContent).toContain('観測中');
   });
 
   test('ネット対戦モーダルの盤面サイズ入力はホイールで 10x10 まで増減できる', async () => {

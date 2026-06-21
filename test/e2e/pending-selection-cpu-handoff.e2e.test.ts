@@ -11,7 +11,8 @@ const {
   startStaticServer,
   stopStaticServer,
   stopPlaywrightBrowser,
-  stopPlaywrightPage
+  stopPlaywrightPage,
+  closeMaintenanceNoticeIfPresent
 } = require('./e2e-runtime-helpers.js');
 
 const BLACK = 1;
@@ -31,6 +32,7 @@ async function openDebugPage(browser: any, port: number) {
     waitUntil: 'domcontentloaded',
     timeout: 10000
   });
+  await closeMaintenanceNoticeIfPresent(page);
   await page.waitForFunction(
     () => !!(window.gameState && window.cardState && typeof window.useSelectedCard === 'function'),
     null,

@@ -245,7 +245,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/class="gacha-reference-shell"/);
     expect(html).toMatch(/class="gacha-pull-showcase"/);
     expect(html).toMatch(/class="gacha-pull-main gacha-pull-main-ten"/);
-    expect(layoutCss).toMatch(/#gachaModal[\s\S]*--gacha-reference-scale:\s*clamp\(0\.72,\s*calc\(var\(--layout-stage-scale\)\s*\*\s*1\.02\),\s*0\.82\)/);
+    expect(layoutCss).toMatch(/#gachaModal[\s\S]*--gacha-reference-scale:\s*clamp\(0\.56,\s*calc\(var\(--layout-stage-scale\)\s*\*\s*0\.80\),\s*0\.64\)/);
     expect(layoutCss).toMatch(/#gachaModal[\s\S]*width:\s*min\(calc\(1500px\s*\*\s*var\(--gacha-reference-scale\)\)/);
     expect(layoutCss).toMatch(/#gachaModal[\s\S]*height:\s*min\(calc\(1088px\s*\*\s*var\(--gacha-reference-scale\)\)/);
     expect(layoutCss).toMatch(/\.gacha-reference-shell[\s\S]*grid-template-rows:\s*calc\(52px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(248px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(340px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(138px\s*\*\s*var\(--gacha-reference-scale\)\)/);

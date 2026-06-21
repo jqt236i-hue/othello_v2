@@ -75,14 +75,23 @@ function getNormalStoneImageVariableName(owner: unknown): string {
     : '--normal-stone-black-image';
 }
 
-function getDefaultNormalStoneImagePath(owner: unknown): string {
-  return normalizeNormalStoneOwner(owner) === 'white'
-    ? 'assets/images/stones/normal_stone-white.png'
-    : 'assets/images/stones/normal_stone-black.png';
+function getDefaultNormalStoneImagePath(owner: unknown, rootRef?: Window | null): string {
+  const normalizedOwner = normalizeNormalStoneOwner(owner);
+  const fallbackPath = normalizedOwner === 'white'
+    ? 'assets/images/stone-skin/default/white.png'
+    : 'assets/images/stone-skin/default/black.png';
+  const catalogModule = resolveCatalogModule(rootRef);
+  if (!catalogModule || typeof catalogModule.getStoneSkinDefinition !== 'function') return fallbackPath;
+  const defaultSkinId = String(catalogModule.DEFAULT_STONE_SKIN_ID || '').trim() || 'default';
+  const definition = catalogModule.getStoneSkinDefinition(defaultSkinId, resolveRootRef(rootRef) as Window);
+  if (!definition) return fallbackPath;
+  return normalizedOwner === 'white'
+    ? String(definition.whiteImagePath || '').trim() || fallbackPath
+    : String(definition.blackImagePath || '').trim() || fallbackPath;
 }
 
 function resolveNormalStoneBackgroundImage(owner: unknown, rootRef?: Window | null): string {
-  const fallbackValue = cssUrl(getDefaultNormalStoneImagePath(owner));
+  const fallbackValue = cssUrl(getDefaultNormalStoneImagePath(owner, rootRef));
   try {
     const docRef = resolveDocument(rootRef);
     const rootEl = docRef && docRef.documentElement ? docRef.documentElement : null;

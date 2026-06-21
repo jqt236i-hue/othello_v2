@@ -97,6 +97,60 @@ function createNetworkPlaybackDispatcher(config?: any): any {
     return true;
   }
 
+  function removePlaybackPresentationEventByBatchId(cardStateRef: any, batchId: any): any {
+    const normalizedBatchId = String(batchId || '').trim();
+    if (!normalizedBatchId || !cardStateRef || typeof cardStateRef !== 'object') {
+      return {
+        removedPresentationEvents: 0,
+        removedPersistentEvents: 0
+      };
+    }
+    const removeFromQueue = (queue: any) => {
+      if (!Array.isArray(queue)) return 0;
+      const before = queue.length;
+      for (let index = queue.length - 1; index >= 0; index -= 1) {
+        const entry = queue[index];
+        const meta = entry && entry.meta && typeof entry.meta === 'object' ? entry.meta : null;
+        if (meta && String(meta.networkPlaybackBatchId || '') === normalizedBatchId) {
+          queue.splice(index, 1);
+        }
+      }
+      return before - queue.length;
+    };
+    return {
+      removedPresentationEvents: removeFromQueue(cardStateRef.presentationEvents),
+      removedPersistentEvents: removeFromQueue(cardStateRef._presentationEventsPersist)
+    };
+  }
+
+  function removePlaybackPresentationEventFromKnownCardStates(primaryCardStateRef: any, batchId: any): any {
+    const candidates: any[] = [];
+    const seen = new Set<any>();
+    const pushCandidate = (candidate: any) => {
+      if (!candidate || typeof candidate !== 'object' || seen.has(candidate)) return;
+      seen.add(candidate);
+      candidates.push(candidate);
+    };
+    pushCandidate(primaryCardStateRef);
+    pushCandidate(resolveCardState());
+    const root = resolveRoot();
+    try { pushCandidate(root && root.cardState); } catch (e) { /* ignore */ }
+    try {
+      if (typeof globalThis !== 'undefined') pushCandidate((globalThis as any).cardState);
+    } catch (e) { /* ignore */ }
+
+    const total = {
+      removedPresentationEvents: 0,
+      removedPersistentEvents: 0
+    };
+    for (const candidate of candidates) {
+      const removed = removePlaybackPresentationEventByBatchId(candidate, batchId);
+      total.removedPresentationEvents += removed.removedPresentationEvents;
+      total.removedPersistentEvents += removed.removedPersistentEvents;
+    }
+    return total;
+  }
+
   function createPlaybackEvent(playbackEvents: any[], options?: any): any {
     const opts = (options && typeof options === 'object') ? options : {};
     const source = String(opts.source || 'network_timeline');
@@ -127,6 +181,16 @@ function createNetworkPlaybackDispatcher(config?: any): any {
     if (typeof handler === 'function') {
       const result = handler(event);
       if (result && typeof result.then === 'function') await result;
+      const drain = resolveBoardDrain();
+      if (typeof drain === 'function') {
+        const drainResult = drain({
+          source: event.meta.source,
+          reason: 'network_playback_dispatch',
+          visualSeq: event.meta.visualSeq,
+          networkPlaybackBatchId: event.meta.networkPlaybackBatchId
+        });
+        if (drainResult && typeof drainResult.then === 'function') await drainResult;
+      }
       recordTelemetry('network_playback_dispatcher_direct', {
         source: event.meta.source,
         visualSeq: event.meta.visualSeq,
@@ -163,6 +227,10 @@ function createNetworkPlaybackDispatcher(config?: any): any {
     }
 
     const drain = resolveBoardDrain();
+    let removedAfterDrain = {
+      removedPresentationEvents: 0,
+      removedPersistentEvents: 0
+    };
     if (typeof drain === 'function') {
       const drainResult = drain({
         source: event.meta.source,
@@ -171,12 +239,18 @@ function createNetworkPlaybackDispatcher(config?: any): any {
         networkPlaybackBatchId: event.meta.networkPlaybackBatchId
       });
       if (drainResult && typeof drainResult.then === 'function') await drainResult;
+      removedAfterDrain = removePlaybackPresentationEventFromKnownCardStates(
+        cardStateRef,
+        event.meta.networkPlaybackBatchId
+      );
     }
     recordTelemetry('network_playback_dispatcher_queued', {
       source: event.meta.source,
       visualSeq: event.meta.visualSeq,
       playbackEventCount: playbackEvents.length,
-      method
+      method,
+      removedPresentationEvents: removedAfterDrain.removedPresentationEvents,
+      removedPersistentEvents: removedAfterDrain.removedPersistentEvents
     });
     return { started: true, method, event };
   }

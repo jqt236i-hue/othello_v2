@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 function startServer(port = 0) {
   return startStaticServer(port);
@@ -31,6 +31,7 @@ describe('Multi-turn progression E2E', () => {
     });
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for board initialised
     await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });

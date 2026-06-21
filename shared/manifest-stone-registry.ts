@@ -20,8 +20,8 @@
             absoluteProtected: true,
             visualEffectKey: 'theoryIncarnationStone',
             imagePathByOwner: Object.freeze({
-                black: 'assets/images/stones/theory_incarnation-black.png',
-                white: 'assets/images/stones/theory_incarnation-white.png'
+                black: 'assets/images/special-stones/theory_incarnation-black.png',
+                white: 'assets/images/special-stones/theory_incarnation-white.png'
             })
         }),
         BOARD_EXECUTOR: Object.freeze({
@@ -33,8 +33,8 @@
             absoluteProtected: true,
             visualEffectKey: 'boardExecutorStone',
             imagePathByOwner: Object.freeze({
-                black: 'assets/images/stones/board_executor-black.png',
-                white: 'assets/images/stones/board_executor-white.png'
+                black: 'assets/images/special-stones/board_executor-black.png',
+                white: 'assets/images/special-stones/board_executor-white.png'
             })
         }),
         OBSERVER_WILL: Object.freeze({
@@ -46,8 +46,8 @@
             absoluteProtected: true,
             visualEffectKey: 'observerWillStone',
             imagePathByOwner: Object.freeze({
-                black: 'assets/images/stones/OBSERVER_WILL-black.png',
-                white: 'assets/images/stones/OBSERVER_WILL-white.png'
+                black: 'assets/images/special-stones/OBSERVER_WILL-black.png',
+                white: 'assets/images/special-stones/OBSERVER_WILL-white.png'
             })
         })
     });

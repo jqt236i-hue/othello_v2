@@ -99,6 +99,11 @@
     "testPathIgnorePatterns": [
       "<rootDir>/dist/",
       "<rootDir>/01-CARD-OTHELLO/",
+      "<rootDir>/.wrangler/",
+      "<rootDir>/worker-public/"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/.wrangler/",
       "<rootDir>/worker-public/"
     ],
     "moduleFileExtensions": [

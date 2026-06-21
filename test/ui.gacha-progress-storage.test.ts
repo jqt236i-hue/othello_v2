@@ -2,6 +2,10 @@ import { JSDOM } from 'jsdom';
 
 const DEFAULT_BACKGROUND_SKIN_IDS = [
   'default',
+  'default-10',
+  'default-11',
+  'default-12',
+  'default-13',
   'default-2',
   'default-3',
   'default-4',
@@ -9,6 +13,7 @@ const DEFAULT_BACKGROUND_SKIN_IDS = [
   'default-6',
   'default-7',
   'default-8',
+  'default-9',
   'unobserved-night'
 ];
 

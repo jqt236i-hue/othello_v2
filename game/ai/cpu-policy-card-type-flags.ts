@@ -114,6 +114,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         );
         const isChargeSwingCard = (
             cardType === 'PLUNDER_WILL' ||
+            cardType === 'EQUALITY_WILL' ||
             cardType === 'GOLD_STONE' ||
             cardType === 'CRYSTAL_STONE' ||
             cardType === 'RAINBOW_STONE' ||

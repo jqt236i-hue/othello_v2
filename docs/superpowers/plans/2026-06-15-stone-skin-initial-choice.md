@@ -44,7 +44,7 @@ Expected: FAIL because `ui/stone-skin/catalog.ts` does not exist.
 
 - [ ] **Step 3: Implement catalog and wrapper**
 
-Create a two-item catalog with `default` and `o-stone`; all entries are initial owned items. The default image paths must remain `assets/images/stones/normal_stone-black.png` and `assets/images/stones/normal_stone-white.png`.
+Create a two-item catalog with `default` and `o-stone`; all entries are initial owned items. The default image paths must remain `assets/images/stone-skin/default/black.png` and `assets/images/stone-skin/default/white.png`.
 
 - [ ] **Step 4: Write failing selection tests**
 

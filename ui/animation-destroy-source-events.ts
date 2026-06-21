@@ -82,8 +82,8 @@ function resolveNormalStoneBackgroundImage(owner: 'black' | 'white'): string {
         return runtimeModule.resolveNormalStoneBackgroundImage(owner);
     }
     return owner === 'white'
-        ? 'url("assets/images/stones/normal_stone-white.png")'
-        : 'url("assets/images/stones/normal_stone-black.png")';
+        ? 'url("assets/images/stone-skin/default/white.png")'
+        : 'url("assets/images/stone-skin/default/black.png")';
 }
 
 async function animateSniperProjectile(target: any, deps: DestroySourceAnimationDeps) {

@@ -1094,8 +1094,17 @@ describe('local match server publish contract', () => {
         }),
         networkDebugEnabled: false,
         snapshot: expect.any(Object),
-        playbackEvents: [],
-        effectLogs: [],
+        playbackEvents: first.data.playbackEvents,
+        playbackDigest: first.data.playbackDigest,
+        presentationFrames: expect.arrayContaining([
+          expect.objectContaining({
+            playbackDigest: first.data.playbackDigest,
+            playbackEvents: first.data.playbackEvents,
+            operationId: 'op_place_1',
+            actionType: 'place'
+          })
+        ]),
+        effectLogs: first.data.effectLogs,
         seats: { black: true, white: false },
         seatNames: { black: 'くろ', white: '' },
         seatHandSkins: { black: '', white: '' },

@@ -1636,12 +1636,12 @@ function _emitSpectatorReadOnlyStatusForCardUi() {
         try {
             const writer = rootRef && (rootRef as any).writeNetworkStatus;
             if (typeof writer !== 'function') continue;
-            writer('観戦中は操作できません', true);
+            writer('観測中は操作できません', true);
             return;
         } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof addLog === 'function') addLog('観戦中は操作できません');
+        if (typeof addLog === 'function') addLog('観測中は操作できません');
     } catch (e) { /* ignore */ }
 }
 

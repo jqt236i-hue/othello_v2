@@ -780,6 +780,11 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
         if (!def) continue;
         const type = def.type;
 
+        if (type === 'EQUALITY_WILL') {
+            if (typeof helpers.canUseEqualityWillForPlayer !== 'function') continue;
+            if (!helpers.canUseEqualityWillForPlayer(cardState, gameState, playerKey)) continue;
+        }
+
         if (type === 'CONDEMN_WILL') {
             const opponentKey = playerKey === 'black' ? 'white' : 'black';
             const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey]))
@@ -822,11 +827,6 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'LAST_RESORT') {
                 if (typeof helpers.canUseLastResortForPlayer !== 'function') continue;
                 if (!helpers.canUseLastResortForPlayer(cardState, gameState, playerKey)) continue;
-            }
-
-            if (type === 'EQUALITY_WILL') {
-                if (typeof helpers.canUseEqualityWillForPlayer !== 'function') continue;
-                if (!helpers.canUseEqualityWillForPlayer(cardState, gameState, playerKey)) continue;
             }
 
             if (type === 'REINFORCEMENT_WILL') {

@@ -179,6 +179,32 @@ describe('UI bootstrap early CPU registration', () => {
     expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
   });
 
+  test('installGameDI wires current cardState into destroy selection handlers', () => {
+    const destroySetUIImpl = jest.fn();
+    jest.doMock('../game/card-effects/destroy', () => ({
+      setUIImpl: destroySetUIImpl
+    }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+
+    const currentCardState = {
+      pendingEffectByPlayer: {
+        black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.cardState = currentCardState;
+
+    const uiBoot = require('../ui/bootstrap.ts');
+    uiBoot.installGameDI();
+
+    const destroyImpl = destroySetUIImpl.mock.calls
+      .map((args) => args && args[0])
+      .find((impl) => impl && typeof impl.getCardState === 'function');
+
+    expect(destroyImpl).toBeTruthy();
+    expect(destroyImpl.getCardState()).toBe(currentCardState);
+  });
+
   test('installGameDI does not let spectator sessions publish through pass runtime', () => {
     const setPassHandlerRuntime = jest.fn();
     jest.doMock('../game/cpu-turn-handler', () => ({}));
@@ -525,8 +551,8 @@ describe('UI bootstrap early CPU registration', () => {
 
     expect(uiImpl).toBeTruthy();
     expect(uiImpl.isNetworkSpectator()).toBe(true);
-    expect(uiImpl.emitStatus('観戦中は操作できません', true)).toBe(true);
-    expect(global.writeNetworkStatus).toHaveBeenCalledWith('観戦中は操作できません', true);
+    expect(uiImpl.emitStatus('観測中は操作できません', true)).toBe(true);
+    expect(global.writeNetworkStatus).toHaveBeenCalledWith('観測中は操作できません', true);
   });
 
   test('resetTransientUIState aborts before clearing playback context and stays stable across repeated calls', () => {

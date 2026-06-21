@@ -7,7 +7,7 @@ describe('match worker sub-placement turn-start guard', () => {
 
     expect(source).toContain("require('../game/turn/sub-placement-continuation.js')");
     expect(source).toContain('SubPlacementContinuation.isSubPlacementTurnActive(currentCardState, playerKey)');
-    expect(source).toContain('const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForTeleportSelection');
+    expect(source).toContain('const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForPendingSelection');
     expect(source).toContain('skipTurnStart: skipCommandTurnStart');
   });
 });

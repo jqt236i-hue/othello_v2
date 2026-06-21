@@ -59,6 +59,36 @@ function _hasPendingPresentationEvents(): boolean {
   }
 }
 
+function _isNetworkModeActiveForAuto(): boolean {
+  try {
+    const root = (typeof window !== 'undefined') ? (window as any) : (globalThis as any);
+    if (root.MatchMode && typeof root.MatchMode.isNetworkModeActive === 'function') {
+      return root.MatchMode.isNetworkModeActive() === true;
+    }
+    if (typeof root.isNetworkModeActive === 'function') {
+      return root.isNetworkModeActive() === true;
+    }
+    return String(root.MATCH_MODE || root.__MATCH_MODE || '').trim().toLowerCase() === 'network';
+  } catch (e) {
+    return false;
+  }
+}
+
+function _tickNetworkAutoIfNeeded(): boolean {
+  if (!_isNetworkModeActiveForAuto()) return false;
+  try {
+    const root = (typeof window !== 'undefined') ? (window as any) : (globalThis as any);
+    const moduleRef = _require('../network/auto-play');
+    const controller = moduleRef && typeof moduleRef.getOrCreateNetworkAutoPlayController === 'function'
+      ? moduleRef.getOrCreateNetworkAutoPlayController(root)
+      : root.NetworkAutoPlay;
+    if (controller && typeof controller.tick === 'function') {
+      Promise.resolve(controller.tick()).catch(() => { /* ignore network auto tick errors */ });
+    }
+  } catch (e) { /* consume network auto in network mode */ }
+  return true;
+}
+
 function _setUiAutoActive(enabled: boolean): void {
   try {
     if (typeof window !== 'undefined') (window as any).AUTO_MODE_ACTIVE = !!enabled;
@@ -114,6 +144,13 @@ function _uiAutoTick(): void {
     } else if (turnNum !== null) {
       _stallTickCount = 0;
       _lastTurnNumber = turnNum;
+    }
+
+    if (_tickNetworkAutoIfNeeded()) {
+      const delay = Math.max(_uiAutoIntervalMs, _MIN_AUTO_INTERVAL_MS);
+      _autoTickCount++;
+      _uiAutoTimer = setTimeout(_uiAutoTick, delay);
+      return;
     }
 
     if (state && state.currentPlayer === blackValue) {

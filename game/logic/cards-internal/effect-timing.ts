@@ -227,8 +227,14 @@ function getSpawnAndFlipModule(context: Context): any {
 }
 
 function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
+    const helpers = getHelpers(context);
     return {
         BoardOps: getBoardOps(context),
+        getCardContext: helpers.getCardContext,
+        getOccupiedOriginFlipsWithContext: helpers.getOccupiedOriginFlipsWithContext,
+        clearBombAt: helpers.clearBombAt,
+        clearHyperactiveAtPositions: helpers.clearHyperactiveAtPositions,
+        addChargeWithTotal: helpers.addChargeWithTotal,
         random: context && context.defaultPrng,
         defaults: {
             regenReviveLimit: 3,

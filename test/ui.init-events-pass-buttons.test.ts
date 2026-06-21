@@ -80,7 +80,7 @@ describe('init event pass buttons', () => {
     expect(useSelectedCard).not.toHaveBeenCalled();
     expect(destroySelectedHandCard).not.toHaveBeenCalled();
     expect(passCurrentTurn).not.toHaveBeenCalled();
-    expect((dom.window as any).writeNetworkStatus).toHaveBeenCalledWith('観戦中は操作できません', true);
+    expect((dom.window as any).writeNetworkStatus).toHaveBeenCalledWith('観測中は操作できません', true);
     expect((dom.window as any).writeNetworkStatus).toHaveBeenCalledTimes(4);
     dom.window.close();
   });

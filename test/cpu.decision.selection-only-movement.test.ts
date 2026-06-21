@@ -1,6 +1,7 @@
 import * as path from 'path';
 
 const cpuDecision = require(path.resolve(__dirname, '..', 'game', 'cpu-decision.js'));
+const selectionFlow = require(path.resolve(__dirname, '..', 'game', 'card-effects', 'selection-flow.js'));
 
 const CASES = [
   {
@@ -45,12 +46,18 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
       getSelectableTargets: () => [{ row: 2, col: 3 }]
     };
     global.waitForPlaybackIdle = jest.fn(async () => {});
+    globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
     global.onTurnStart = jest.fn(async () => ({ playbackEvents: [{ type: 'turn_start_dummy' }] }));
     const publishSnapshot = jest.fn();
     global.NetworkMatchClient = {
       isActive: jest.fn(() => true),
       publishSnapshot
     };
+    selectionFlow.setSignalBridge({
+      waitForPlaybackIdle: global.waitForPlaybackIdle,
+      publishSnapshot,
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive()
+    });
     global.TurnPipeline = {};
     runTurnMock = jest.fn(() => ({
         ok: true,
@@ -82,6 +89,7 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     cpuDecision.setCpuDecisionRuntime({
       readMatchMode: () => 'cpu',
       readHumanVsHumanMode: () => false,
+      waitForPlaybackIdle: global.waitForPlaybackIdle,
       isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
       publishSnapshot,
       processCpuTurn: global.processCpuTurn,
@@ -93,6 +101,11 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {
       cpuDecision.setCpuDecisionRuntime(null);
     }
+    if (typeof selectionFlow.clearSignalBridge === 'function') {
+      selectionFlow.clearSignalBridge();
+    } else {
+      selectionFlow.setSignalBridge(null);
+    }
     delete global.BLACK;
     delete global.WHITE;
     delete global.cpuSmartness;
@@ -100,6 +113,7 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     delete global.cardState;
     delete global.CardLogic;
     delete global.waitForPlaybackIdle;
+    delete globalThis.waitForPlaybackIdle;
     delete global.onTurnStart;
     delete global.NetworkMatchClient;
     delete global.TurnPipeline;
@@ -127,11 +141,11 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     expect(action.deferNetworkPublish).toBe(true);
 
     expect(global.waitForPlaybackIdle).toHaveBeenCalled();
-    expect(global.onTurnStart).toHaveBeenCalledWith(global.BLACK);
+    expect(global.onTurnStart).not.toHaveBeenCalled();
     expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
       playerKey: 'white',
       actionType: 'place',
-      playbackEvents: [{ type: 'dummy' }, expect.objectContaining({ type: 'turn_start_dummy' })]
+      playbackEvents: [{ type: 'dummy' }]
     }));
     expect(global.NetworkMatchClient.publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
   });

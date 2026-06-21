@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: 'マステレポート',
   type: 'CELL_TELEPORT_WILL',
   cost: 18,
-  desc_ja: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。',
+  desc_ja: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。',
   display_type_ja: '執行'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: 'マステレポート',
-  desc: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。'
+  desc: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。'
 });
 
-const EXPECTED_QUICK_TEXT = 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。';
-const EXPECTED_DETAIL_TEXT = '現在の盤面上に存在する石のあるマスを1つ選ぶ。\n選ばれた石を、盤面拡張・盤面拡張神で追加可能な外側マスのうち空いている1マスへランダムにテレポートさせる。\n移動先が未生成ならその拡張マスを作ってから移動し、元マスをセル消滅で永続の穴にする。\n元マスの穴化は石破壊ではなく、生きる意志・復活の意志・破壊回避では残らない。\n対象は敵味方・通常石・特殊石・爆弾を問わない。';
+const EXPECTED_QUICK_TEXT = 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。';
+const EXPECTED_DETAIL_TEXT = '現在の盤面上に存在する石のあるマスを1つ選ぶ。\n選ばれた石を、盤面拡張・盤面拡張神で追加可能な外側マスのうち空いている1マスへランダムにテレポートさせる。\n移動先が未生成ならその拡張マスを作ってから移動し、元マスをセル消滅で永続の穴マスにする。\n元マスが穴マスになる処理は石破壊ではなく、生きる意志・復活の意志・破壊回避では残らない。\n対象は敵味方・通常石・特殊石・爆弾を問わない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

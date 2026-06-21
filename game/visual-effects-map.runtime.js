@@ -11,15 +11,17 @@
 // wrap everything in an IIFE and only export via module.exports (CommonJS).
 (function () {
 const TIME_STOP_STONE_IMAGE_BY_OWNER = {
-    '1': 'assets/images/stones/TIME_STOP-black.png',
-    '-1': 'assets/images/stones/TIME_STOP-white.png'
+    '1': 'assets/images/special-stones/TIME_STOP-black.png',
+    '-1': 'assets/images/special-stones/TIME_STOP-white.png'
 };
 const DEFAULT_CARD_VISUAL_SIDE = '1';
 const NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
     'normal_stone-black.png',
     'normal_stone-white.png',
     'normal-stone-black.png',
-    'normal-stone-white.png'
+    'normal-stone-white.png',
+    'assets/images/stone-skin/default/black.png',
+    'assets/images/stone-skin/default/white.png'
 ]);
 
 /**
@@ -39,28 +41,28 @@ const GAME_STONE_VISUAL_EFFECTS = {
     goldStone: {
         cssClass: 'gold-stone',
         cssMethod: 'background',
-        imagePath: 'assets/images/stones/gold_stone.png',
+        imagePath: 'assets/images/special-stones/gold_stone.png',
         dataAttributes: {}
     },
 
     silverStone: {
         cssClass: 'silver-stone',
         cssMethod: 'background',
-        imagePath: 'assets/images/stones/silver.stone.png',
+        imagePath: 'assets/images/special-stones/silver.stone.png',
         dataAttributes: {}
     },
 
     rainbowStone: {
         cssClass: 'rainbow-stone',
         cssMethod: 'background',
-        imagePath: 'assets/images/stones/rainbow_stone.png',
+        imagePath: 'assets/images/special-stones/rainbow_stone.png',
         dataAttributes: {}
     },
 
     crystalStone: {
         cssClass: 'crystal-stone',
         cssMethod: 'background',
-        imagePath: 'assets/images/stones/crystal_stone.png',
+        imagePath: 'assets/images/special-stones/crystal_stone.png',
         dataAttributes: {}
     },
     // 永久保護（強い意志）
@@ -68,8 +70,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'protected-stone',
         cssMethod: 'background',
         imagePathByOwner: {
-            '1': 'assets/images/stones/perma_protect_next_stone-black.png',    // BLACK owner
-            '-1': 'assets/images/stones/perma_protect_next_stone-white.png'   // WHITE owner
+            '1': 'assets/images/special-stones/perma_protect_next_stone-black.png',    // BLACK owner
+            '-1': 'assets/images/special-stones/perma_protect_next_stone-white.png'   // WHITE owner
         },
         // 表示上のサイズ調整（通常石と同じサイズに合わせる）
         backgroundSize: '100% 100%',
@@ -83,8 +85,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'absolute-protected-stone',
         cssMethod: 'background',
         imagePathByOwner: {
-            '1': 'assets/images/stones/absolute_protect_next_stone-black.png',   // BLACK owner
-            '-1': 'assets/images/stones/absolute_protect_next_stone-white.png'   // WHITE owner
+            '1': 'assets/images/special-stones/absolute_protect_next_stone-black.png',   // BLACK owner
+            '-1': 'assets/images/special-stones/absolute_protect_next_stone-white.png'   // WHITE owner
         },
         backgroundSize: '100% 100%',
         dataAttributes: {},
@@ -96,8 +98,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/theory_incarnation-black.png',
-            '-1': 'assets/images/stones/theory_incarnation-white.png'
+            '1': 'assets/images/special-stones/theory_incarnation-black.png',
+            '-1': 'assets/images/special-stones/theory_incarnation-white.png'
         },
         dataAttributes: {}
     },
@@ -105,8 +107,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/board_executor-black.png',
-            '-1': 'assets/images/stones/board_executor-white.png'
+            '1': 'assets/images/special-stones/board_executor-black.png',
+            '-1': 'assets/images/special-stones/board_executor-white.png'
         },
         dataAttributes: {}
     },
@@ -114,8 +116,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/OBSERVER_WILL-black.png',
-            '-1': 'assets/images/stones/OBSERVER_WILL-white.png'
+            '1': 'assets/images/special-stones/OBSERVER_WILL-black.png',
+            '-1': 'assets/images/special-stones/OBSERVER_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -123,7 +125,7 @@ const GAME_STONE_VISUAL_EFFECTS = {
     protectedStoneTemporary: {
         cssClass: 'protected-gray',
         cssMethod: 'background',
-        imagePath: 'assets/images/stones/protected_next_stone.png',
+        imagePath: 'assets/images/special-stones/protected_next_stone.png',
         // 短期保護も通常石と同じサイズに合わせる
         backgroundSize: '100% 100%',
         dataAttributes: {},
@@ -135,8 +137,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'ultimate-dragon',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/ultimate_reverse_dragon-black.png',    // BLACK owner → black dragon
-            '-1': 'assets/images/stones/ultimate_reverse_dragon-white.png'     // WHITE owner → white dragon
+            '1': 'assets/images/special-stones/ultimate_reverse_dragon-black.png',    // BLACK owner → black dragon
+            '-1': 'assets/images/special-stones/ultimate_reverse_dragon-white.png'     // WHITE owner → white dragon
         },
         dataAttributes: {} // data-ud は renderBoard 内で owner に応じて付与
     },
@@ -144,8 +146,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'breeding-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/BREEDING_WILL-black.png',    // BLACK owner → black breeding
-            '-1': 'assets/images/stones/BREEDING_WILL-white.png'     // WHITE owner → white breeding
+            '1': 'assets/images/special-stones/BREEDING_WILL-black.png',    // BLACK owner → black breeding
+            '-1': 'assets/images/special-stones/BREEDING_WILL-white.png'     // WHITE owner → white breeding
         },
         dataAttributes: {} // data-breeding は renderBoard 内で owner に応じて付与
     },
@@ -153,8 +155,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'breeding-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/PROLIFERATION_WILL-black.png',
-            '-1': 'assets/images/stones/PROLIFERATION_WILL-white.png'
+            '1': 'assets/images/special-stones/PROLIFERATION_WILL-black.png',
+            '-1': 'assets/images/special-stones/PROLIFERATION_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -162,8 +164,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'ultimate-destroy-god',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/ULTIMATE_DESTROY_GOD-black.png',
-            '-1': 'assets/images/stones/ULTIMATE_DESTROY_GOD-white.png'
+            '1': 'assets/images/special-stones/ULTIMATE_DESTROY_GOD-black.png',
+            '-1': 'assets/images/special-stones/ULTIMATE_DESTROY_GOD-white.png'
         },
         dataAttributes: {}
     },
@@ -171,8 +173,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'stone-salvation-god',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/STONE_SALVATION_GOD-black.png',
-            '-1': 'assets/images/stones/STONE_SALVATION_GOD-white.png'
+            '1': 'assets/images/special-stones/STONE_SALVATION_GOD-black.png',
+            '-1': 'assets/images/special-stones/STONE_SALVATION_GOD-white.png'
         },
         dataAttributes: {}
     },
@@ -180,8 +182,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'sniper-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/sna-black.png',
-            '-1': 'assets/images/stones/sna-white.png'
+            '1': 'assets/images/special-stones/sna-black.png',
+            '-1': 'assets/images/special-stones/sna-white.png'
         },
         dataAttributes: {}
     },
@@ -189,8 +191,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'lightning-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/rakurai-black.png',
-            '-1': 'assets/images/stones/rakurai-white.png'
+            '1': 'assets/images/special-stones/rakurai-black.png',
+            '-1': 'assets/images/special-stones/rakurai-white.png'
         },
         dataAttributes: {}
     },
@@ -198,8 +200,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/METEOR_GOD-black.png',
-            '-1': 'assets/images/stones/METEOR_GOD-white.png'
+            '1': 'assets/images/special-stones/METEOR_GOD-black.png',
+            '-1': 'assets/images/special-stones/METEOR_GOD-white.png'
         },
         dataAttributes: {}
     },
@@ -207,8 +209,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/GHOST_WILL-black.png',
-            '-1': 'assets/images/stones/GHOST_WILL-white.png'
+            '1': 'assets/images/special-stones/GHOST_WILL-black.png',
+            '-1': 'assets/images/special-stones/GHOST_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -216,8 +218,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/ZAN-BLACK.png',
-            '-1': 'assets/images/stones/ZAN-WHITE.png'
+            '1': 'assets/images/special-stones/ZAN-BLACK.png',
+            '-1': 'assets/images/special-stones/ZAN-WHITE.png'
         },
         dataAttributes: {}
     },
@@ -225,8 +227,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/WILL_HUNTER_KING-black.png',
-            '-1': 'assets/images/stones/WILL_HUNTER_KING-white.png'
+            '1': 'assets/images/special-stones/WILL_HUNTER_KING-black.png',
+            '-1': 'assets/images/special-stones/WILL_HUNTER_KING-white.png'
         },
         dataAttributes: {}
     },
@@ -234,8 +236,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'ultimate-dragon',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/DESTROY_DRAGON-black.png',
-            '-1': 'assets/images/stones/DESTROY_DRAGON-white.png'
+            '1': 'assets/images/special-stones/DESTROY_DRAGON-black.png',
+            '-1': 'assets/images/special-stones/DESTROY_DRAGON-white.png'
         },
         dataAttributes: {}
     },
@@ -243,8 +245,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/HYPERACTIVE_WILL-black.png',
-            '-1': 'assets/images/stones/HYPERACTIVE_WILL-white.png'
+            '1': 'assets/images/special-stones/HYPERACTIVE_WILL-black.png',
+            '-1': 'assets/images/special-stones/HYPERACTIVE_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -252,8 +254,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/ESCAPE_WILL-black.png',
-            '-1': 'assets/images/stones/ESCAPE_WILL-white.png'
+            '1': 'assets/images/special-stones/ESCAPE_WILL-black.png',
+            '-1': 'assets/images/special-stones/ESCAPE_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -261,8 +263,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/EXTREME_HYPERACTIVE_WILL-black.png',
-            '-1': 'assets/images/stones/EXTREME_HYPERACTIVE_WILL-white.png'
+            '1': 'assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-black.png',
+            '-1': 'assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -270,8 +272,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/ROBOT_VACUUM_WILL-black.png',
-            '-1': 'assets/images/stones/ROBOT_VACUUM_WILL-white.png'
+            '1': 'assets/images/special-stones/ROBOT_VACUUM_WILL-black.png',
+            '-1': 'assets/images/special-stones/ROBOT_VACUUM_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -279,8 +281,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/GLUTTONOUS_WILL-black.png',
-            '-1': 'assets/images/stones/GLUTTONOUS_WILL-white.png'
+            '1': 'assets/images/special-stones/GLUTTONOUS_WILL-black.png',
+            '-1': 'assets/images/special-stones/GLUTTONOUS_WILL-white.png'
         },
         dataAttributes: {}
     },
@@ -288,8 +290,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-black.png',
-            '-1': 'assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-white.png'
+            '1': 'assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-black.png',
+            '-1': 'assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-white.png'
         },
         dataAttributes: {}
     },
@@ -297,8 +299,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'regen-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/regen_stone-black.png',
-            '-1': 'assets/images/stones/regen_stone-white.png'
+            '1': 'assets/images/special-stones/regen_stone-black.png',
+            '-1': 'assets/images/special-stones/regen_stone-white.png'
         },
         dataAttributes: {}
     },
@@ -306,8 +308,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'work-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/work_stone-black.png',
-            '-1': 'assets/images/stones/work_stone-white.png'
+            '1': 'assets/images/special-stones/work_stone-black.png',
+            '-1': 'assets/images/special-stones/work_stone-white.png'
         },
         // Use full-size overlay
         backgroundSize: '100% 100%',
@@ -317,8 +319,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'time-bomb-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/TIME_BOMB-black.png',
-            '-1': 'assets/images/stones/TIME_BOMB-white.png'
+            '1': 'assets/images/special-stones/TIME_BOMB-black.png',
+            '-1': 'assets/images/special-stones/TIME_BOMB-white.png'
         },
         dataAttributes: {}
     },
@@ -332,8 +334,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'cross-bomb-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/X_BOMB-black.png',
-            '-1': 'assets/images/stones/X_BOMB-white.png'
+            '1': 'assets/images/special-stones/X_BOMB-black.png',
+            '-1': 'assets/images/special-stones/X_BOMB-white.png'
         },
         dataAttributes: {}
     },
@@ -341,8 +343,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'cross-bomb-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/CROSS_BOMB-black.png',
-            '-1': 'assets/images/stones/CROSS_BOMB-white.png'
+            '1': 'assets/images/special-stones/CROSS_BOMB-black.png',
+            '-1': 'assets/images/special-stones/CROSS_BOMB-white.png'
         },
         dataAttributes: {}
     },
@@ -350,8 +352,8 @@ const GAME_STONE_VISUAL_EFFECTS = {
         cssClass: 'trap-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
-            '1': 'assets/images/stones/trap_stone-black.png',
-            '-1': 'assets/images/stones/trap_stone-white.png'
+            '1': 'assets/images/special-stones/trap_stone-black.png',
+            '-1': 'assets/images/special-stones/trap_stone-white.png'
         },
         dataAttributes: {}
     }
@@ -716,7 +718,7 @@ function setSpecialStoneScale(scale) {
  *   iceShield: {
  *       cssClass: 'ice-shield',
  *       cssMethod: 'background',
- *       imagePath: 'assets/images/stones/ice-shield.png',
+ *       imagePath: 'assets/images/special-stones/ice-shield.png',
  *       dataAttributes: {}
  *   }
  * 
@@ -726,8 +728,8 @@ function setSpecialStoneScale(scale) {
  *       cssClass: 'flame-orb',
  *       cssMethod: 'pseudoElement',
  *       imagePathByOwner: {
- *           1: 'assets/images/stones/flame-orb-white.png',    // BLACK owner
- *           '-1': 'assets/images/stones/flame-orb-black.png'   // WHITE owner
+ *           1: 'assets/images/special-stones/flame-orb-black.png',
+ *           '-1': 'assets/images/special-stones/flame-orb-white.png'
  *       },
  *       dataAttributes: { 'data-flame': 'active' }
  *   }
@@ -746,7 +748,7 @@ function setSpecialStoneScale(scale) {
  * 
  *   // iceShield の場合（背景画像）
  *   .disc.ice-shield {
- *       background-image: url('assets/images/stones/ice-shield.png') !important;
+ *       background-image: url('assets/images/special-stones/ice-shield.png') !important;
  *       background-size: 100% 100% !important;
  *       border: none !important;
  *   }

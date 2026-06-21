@@ -92,7 +92,8 @@ function generateManifest(options: GenerateManifestOptions = {}): GenerateManife
     const projectRoot = options.root || path.resolve(__dirname, '..');
     const assetsRoot = path.join(projectRoot, 'assets');
     const assetDirs = [
-        'images/stones',
+        'images/special-stones',
+        'images/stone-skin',
         'images/other',
         'images/special-cards',
         'images/background',

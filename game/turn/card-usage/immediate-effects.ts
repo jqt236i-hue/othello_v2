@@ -100,22 +100,22 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
 
     if (pendingType === 'EQUALITY_WILL') {
         const res = (typeof opts.CardLogic.resolveEqualityWillUsage === 'function')
-            ? opts.CardLogic.resolveEqualityWillUsage(opts.cardState, opts.gameState, opts.playerKey, p)
+            ? opts.CardLogic.resolveEqualityWillUsage(opts.cardState, opts.gameState, opts.playerKey)
             : null;
         if (!res || res.applied !== true) {
             throw new Error('EQUALITY_WILL resolve failed');
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
-        applyImmediateFlipResolutionFollowups(opts, res, 'equality_will_immediate');
-        resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
             type: 'equality_will_resolved',
-            player: opts.playerKey,
-            requestedCount: Number(res.requestedCount) || 0,
-            spawnedCount: Number(res.spawnedCount) || 0,
-            spawned: Array.isArray(res.spawned) ? res.spawned.slice() : [],
-            flippedCount: Number(res.flippedCount) || 0,
-            flipped: Array.isArray(res.flipped) ? res.flipped.slice() : []
+            player: res.player || opts.playerKey,
+            opponent: res.opponent || (opts.playerKey === 'white' ? 'black' : 'white'),
+            requestedAmount: Number(res.requestedAmount) || 0,
+            stolenAmount: Number(res.stolenAmount) || 0,
+            playerChargeBefore: Number(res.playerChargeBefore) || 0,
+            playerChargeAfter: Number(res.playerChargeAfter) || 0,
+            opponentChargeBefore: Number(res.opponentChargeBefore) || 0,
+            opponentChargeAfter: Number(res.opponentChargeAfter) || 0
         });
     }
 

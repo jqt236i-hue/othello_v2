@@ -515,7 +515,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(9);
   });
 
-  test('breeding spawn を保ちつつ Equality Will の各 spawn phase に breeding_spawn を重ねる', () => {
+  test('breeding spawn を保ちつつ Equality Will の旧 spawn phase には breeding_spawn を重ねない', () => {
     const base = [
       {
         type: 'spawn',
@@ -546,10 +546,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       .map((ev) => ({ phase: ev.phase, sourceType: ev.meta && ev.meta.sourceType }));
 
     expect(breedingCues).toEqual([
-      { phase: 2, sourceType: 'breeding_spawned' },
-      { phase: 4, sourceType: 'equality_will_spawn' },
-      { phase: 5, sourceType: 'equality_will_spawn' },
-      { phase: 6, sourceType: 'equality_will_spawn' }
+      { phase: 2, sourceType: 'breeding_spawned' }
     ]);
   });
 
@@ -964,7 +961,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(4);
   });
 
-  test('card effect driven flip phases は taboo/regen/swap/equality/salvation/breeding/hyperactive 系でも card_effect_flip を再生する', () => {
+  test('card effect driven flip phases は taboo/regen/swap/salvation/breeding/hyperactive 系でも card_effect_flip を再生する', () => {
     const base = [
       {
         type: 'flip',
@@ -985,11 +982,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
         type: 'flip',
         phase: 8,
         targets: [{ r: 4, col: 4, ownerBefore: 'white', ownerAfter: 'black', cause: 'SWAP', reason: 'swap_with_enemy_capture' }]
-      },
-      {
-        type: 'flip',
-        phase: 9,
-        targets: [{ r: 5, col: 3, ownerBefore: 'white', ownerAfter: 'black', cause: 'EQUALITY_WILL', reason: 'equality_will_flip' }]
       },
       {
         type: 'flip',
@@ -1054,7 +1046,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_effect_flip')
       .map((ev) => ev.phase);
 
-    expect(cues).toEqual([5, 6, 7, 8, 9, 10, 10.5, 11, 12, 13, 14, 15, 16, 17, 18]);
+    expect(cues).toEqual([5, 6, 7, 8, 10, 10.5, 11, 12, 13, 14, 15, 16, 17, 18]);
   });
 
   test('Stone Salvation God revive uses the positive spawn sound cue', () => {
@@ -1548,61 +1540,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
     expect(cue).toBeUndefined();
     expect(resetStatus).toBeUndefined();
-  });
-
-  test('equality_will_resolved は最初の spawn と breeding_spawn を card_use_animation の消失時へ寄せる', () => {
-    const base = [
-      {
-        type: 'card_use_animation',
-        phase: 5,
-        targets: [{ cardId: 'equality_will_01', owner: 'black' }]
-      },
-      {
-        type: 'spawn',
-        phase: 5,
-        targets: [{ r: 2, col: 2, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
-      },
-      {
-        type: 'spawn',
-        phase: 6,
-        targets: [{ r: 2, col: 3, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
-      },
-      {
-        type: 'spawn',
-        phase: 7,
-        targets: [{ r: 2, col: 4, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
-      }
-    ];
-    const raw = [{ type: 'equality_will_resolved', player: 'black', spawnedCount: 3 }];
-    const pres = [{ type: 'CARD_USED', player: 'black', cardId: 'equality_will_01' }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
-    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
-    const disappearEvents = cardUseEv && cardUseEv.targets && cardUseEv.targets[0]
-      ? cardUseEv.targets[0].disappearPlaybackEvents
-      : null;
-    const topLevelEqualitySpawns = out.filter((ev) => ev && ev.type === 'spawn' && ev.targets && ev.targets[0] && ev.targets[0].cause === 'EQUALITY_WILL');
-    const topLevelEqualityCues = out.filter((ev) => (
-      ev &&
-      ev.type === 'sound_effect' &&
-      ev.meta &&
-      ev.meta.sourceType === 'equality_will_spawn'
-    ));
-
-    expect(cardUseEv).toBeTruthy();
-    expect(disappearEvents).toEqual([
-      expect.objectContaining({
-        type: 'spawn',
-        targets: [expect.objectContaining({ cause: 'EQUALITY_WILL', reason: 'equality_will_spawn', r: 2, col: 2 })]
-      }),
-      expect.objectContaining({
-        type: 'sound_effect',
-        targets: [expect.objectContaining({ soundKey: 'breeding_spawn' })],
-        meta: expect.objectContaining({ sourceType: 'equality_will_spawn' })
-      })
-    ]);
-    expect(topLevelEqualitySpawns.map((ev) => ev.phase)).toEqual([6, 7]);
-    expect(topLevelEqualityCues.map((ev) => ev.phase)).toEqual([6, 7]);
   });
 
   test('reinforcement_will_resolved は最初の spawn と breeding_spawn を card_use_animation の消失時へ寄せる', () => {

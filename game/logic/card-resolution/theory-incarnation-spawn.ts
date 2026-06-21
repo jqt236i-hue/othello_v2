@@ -176,8 +176,15 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         ? boardPlacement.appliedFlips.slice()
         : [];
     const theoryNumberValue = getTheorySpawnNumberValue(cardState, picked.key, picked.cell);
-    // Theory spawns keep the number value for presentation/tests but never grant charge.
-    const chargeGained = 0;
+    // Theory spawns ignore the selected theory number value, but real flips still grant normal flip charge.
+    const chargeGained = appliedFlips.length > 0 && typeof deps.addChargeWithTotal === 'function'
+        ? deps.addChargeWithTotal(cardState, ownerKey, appliedFlips.length, {
+            popupKind: 'board',
+            anchorRow: picked.cell.row,
+            anchorCol: picked.cell.col,
+            sourceType: 'theory_incarnation_flip_gain'
+        })
+        : 0;
     const markerKinds = deps && deps.MARKER_KINDS;
     const specialKind = markerKinds && markerKinds.SPECIAL_STONE ? markerKinds.SPECIAL_STONE : 'specialStone';
     const marker = deps.addMarker(cardState, specialKind, picked.cell.row, picked.cell.col, ownerKey, {

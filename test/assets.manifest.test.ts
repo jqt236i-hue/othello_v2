@@ -21,7 +21,7 @@ describe('assets manifest', () => {
   test('preserves metadata and avoids rewriting when asset content is unchanged', () => {
     const tmpRoot = fs.mkdtempSync(path.join(require('os').tmpdir(), 'asset-manifest-stable-'));
     try {
-      const assetDir = path.join(tmpRoot, 'assets', 'images', 'stones');
+      const assetDir = path.join(tmpRoot, 'assets', 'images', 'special-stones');
       fs.mkdirSync(assetDir, { recursive: true });
       fs.writeFileSync(path.join(assetDir, 'sample.png'), 'sample');
       const manifestDir = path.join(tmpRoot, 'assets');
@@ -31,7 +31,7 @@ describe('assets manifest', () => {
         generatedAt: '2000-01-01T00:00:00.000Z',
         files: [
           {
-            path: 'assets/images/stones/sample.png',
+            path: 'assets/images/special-stones/sample.png',
             sha256: require('crypto').createHash('sha256').update('sample').digest('hex')
           }
         ]
@@ -65,6 +65,11 @@ describe('assets manifest', () => {
       'assets/images/background/デフォルト6.png',
       'assets/images/background/デフォルト7.png',
       'assets/images/background/デフォルト8.png',
+      'assets/images/background/デフォルト9.png',
+      'assets/images/background/デフォルト10.png',
+      'assets/images/background/デフォルト11.png',
+      'assets/images/background/デフォルト12.png',
+      'assets/images/background/デフォルト13.png',
       'assets/images/background-skin/観測の机.png',
       'assets/images/hand-skin/lv1-2.png',
       'assets/images/hand-skin/lv3-5.png',
@@ -97,12 +102,12 @@ describe('assets manifest', () => {
       );
     });
     [
-      'assets/images/stones/OBSERVER_WILL-black.png',
-      'assets/images/stones/OBSERVER_WILL-white.png',
-      'assets/images/stones/theory_incarnation-black.png',
-      'assets/images/stones/theory_incarnation-white.png',
-      'assets/images/stones/board_executor-black.png',
-      'assets/images/stones/board_executor-white.png'
+      'assets/images/special-stones/OBSERVER_WILL-black.png',
+      'assets/images/special-stones/OBSERVER_WILL-white.png',
+      'assets/images/special-stones/theory_incarnation-black.png',
+      'assets/images/special-stones/theory_incarnation-white.png',
+      'assets/images/special-stones/board_executor-black.png',
+      'assets/images/special-stones/board_executor-white.png'
     ].forEach((assetPath) => {
       assert.ok(fs.existsSync(path.resolve(repoRoot, assetPath)), `special foundation stone image ${assetPath} should stay on disk`);
       assert.ok(

@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import type { Browser, ConsoleMessage } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 declare const describe: any;
 declare const beforeAll: any;
@@ -39,6 +39,7 @@ describe('CPU auto-response E2E', () => {
     });
 
     await page.goto(`http://127.0.0.1:${serverPort}/`);
+    await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for board initialised
     await page.waitForFunction(() => {

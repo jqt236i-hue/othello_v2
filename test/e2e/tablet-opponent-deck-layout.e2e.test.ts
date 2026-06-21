@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 describe('tablet opponent deck layout', () => {
   let serverProc: any;
@@ -30,6 +30,7 @@ describe('tablet opponent deck layout', () => {
       waitUntil: 'domcontentloaded',
       timeout: 30000
     });
+    await closeMaintenanceNoticeIfPresent(page);
     await page.waitForFunction(() => document.documentElement.classList.contains('layout-profile-tablet-4x3'), {
       timeout: 10000
     });

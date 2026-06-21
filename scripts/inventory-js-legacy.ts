@@ -6,6 +6,7 @@ const TARGET_DIRS = ['.', 'game', 'ui', 'shared', 'scripts', 'cards', 'src', 'ut
 const SKIP_DIRS = new Set([
   '.git',
   '.sisyphus',
+  '.wrangler',
   '.venv',
   'assets',
   'coverage',

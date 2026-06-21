@@ -11,7 +11,7 @@ declare const emitBoardUpdate: any;
 declare const renderBoard: any;
 declare const preloadWorkStoneImages: any;
 declare const ensureWorkVisualsApplied: any;
-const { startStaticServer, stopStaticServer, stopPlaywrightBrowser } = require('./e2e-runtime-helpers.js');
+const { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } = require('./e2e-runtime-helpers.js');
 function startServer(port = 0) {
   return startStaticServer(port);
 }
@@ -38,6 +38,7 @@ describe('Special effects E2E', () => {
     const page = await browser.newPage();
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
     await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
     await page.click('button:has-text("DEBUG: OFF")');
 

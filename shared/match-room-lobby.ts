@@ -10,6 +10,12 @@ type RoomListEntry = {
   roomId: string;
   roomName: string;
   hostName: string;
+  blackPlayerName: string;
+  whitePlayerName: string;
+  seatNames: {
+    black: string;
+    white: string;
+  };
   seatCount: number;
   maxSeats: number;
   spectatorCount: number;
@@ -192,9 +198,11 @@ function toPublicRoomListEntry(roomValue: unknown, options?: PublicRoomListEntry
   const blackActive = readSeatActive(seats, 'black');
   const whiteActive = readSeatActive(seats, 'white');
   const seatNames = asRecord(room.seatNames);
+  const blackPlayerName = String(blackActive ? seatNames.black || '' : '').trim();
+  const whitePlayerName = String(whiteActive ? seatNames.white || '' : '').trim();
   const hostName = String(
-    (blackActive ? seatNames.black : '')
-    || (whiteActive ? seatNames.white : '')
+    blackPlayerName
+    || whitePlayerName
     || room.hostName
     || seatNames.black
     || seatNames.white
@@ -205,6 +213,12 @@ function toPublicRoomListEntry(roomValue: unknown, options?: PublicRoomListEntry
     roomId,
     roomName: resolveRoomName(room.roomName),
     hostName,
+    blackPlayerName,
+    whitePlayerName,
+    seatNames: {
+      black: blackPlayerName,
+      white: whitePlayerName
+    },
     seatCount,
     maxSeats,
     spectatorCount,

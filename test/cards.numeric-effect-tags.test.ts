@@ -66,16 +66,16 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護']);
     expect(getEffectTagLabels('DESTROY_DRAGON_WILL')).toEqual(['特殊石', '3ターン持続', '反転保護']);
     expect(getEffectTagLabels('LIGHTNING_WILL')).toEqual(['特殊石', '6ターン持続', '反転保護']);
-    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス化']);
+    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス', '抹消']);
   });
 
   test('hole-cell tag audit covers cards that make permanent hole cells', () => {
-    expect(getEffectTagLabels('CELL_TELEPORT_WILL')).toEqual(['穴マス化']);
-    expect(getEffectTagLabels('METEOR_WILL')).toEqual(['穴マス化']);
-    expect(getEffectTagLabels('BOARD_SHRINK_WILL')).toEqual(['穴マス化']);
-    expect(getEffectTagLabels('BOARD_SHRINK_GOD')).toEqual(['穴マス化']);
-    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['自特殊石存在時使用可能', '不可侵', '4ターン持続']);
-    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス化']);
+    expect(getEffectTagLabels('CELL_TELEPORT_WILL')).toEqual(['穴マス']);
+    expect(getEffectTagLabels('METEOR_WILL')).toEqual(['穴マス', '抹消']);
+    expect(getEffectTagLabels('BOARD_SHRINK_WILL')).toEqual(['穴マス', '抹消']);
+    expect(getEffectTagLabels('BOARD_SHRINK_GOD')).toEqual(['穴マス', '抹消']);
+    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['自特殊石存在時使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+    expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス', '抹消']);
   });
 
   test('numeric tag resolver stays numeric-only even after protection tags are added', () => {

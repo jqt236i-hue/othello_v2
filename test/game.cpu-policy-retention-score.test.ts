@@ -1,15 +1,15 @@
 import { createCpuPolicyRetentionScore } from '../game/ai/cpu-policy-retention-score';
 
 describe('cpu-policy retention score module', () => {
-  test('devalues equality when the 10-disc gap is inactive', () => {
+  test('keeps equality when own charge is zero', () => {
     const helpers = createCpuPolicyRetentionScore();
     const baseParams = {
       ctx: {
-        discDiff: -4,
+        discDiff: 0,
         empties: 18,
         legalMovesCount: 3,
         handSize: 3,
-        ownCharge: 20
+        ownCharge: 12
       },
       state: {
         ownCorners: 1,
@@ -90,19 +90,19 @@ describe('cpu-policy retention score module', () => {
         isDefensiveCard: false,
         isHighVarianceCard: false
       },
-      cardCost: 8
+      cardCost: 0
     } as const;
 
-    const inactive = helpers.computeCpuPolicyCardRetentionScore(baseParams as any);
-    const active = helpers.computeCpuPolicyCardRetentionScore({
+    const hasCharge = helpers.computeCpuPolicyCardRetentionScore(baseParams as any);
+    const emptyCharge = helpers.computeCpuPolicyCardRetentionScore({
       ...baseParams,
       ctx: {
         ...baseParams.ctx,
-        discDiff: -12
+        ownCharge: 0
       }
     } as any);
 
-    expect(active).toBeGreaterThan(inactive);
+    expect(emptyCharge).toBeGreaterThan(hasCharge);
   });
 
   test('keeps teleport more strongly during corner emergency', () => {

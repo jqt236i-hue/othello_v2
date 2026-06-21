@@ -115,6 +115,27 @@ describe('DiffRenderer flip fallback', () => {
 		expect(disc.classList.contains('flip')).toBe(true);
 	});
 
+	test('keeps pending playback flip targets for AnimationEngine instead of diff fallback', () => {
+		gameState.board[0][0] = BLACK;
+		diffRenderer.renderBoardDiff(boardEl);
+
+		cardState._presentationEventsPersist = [{
+			type: 'CHANGE',
+			row: 0,
+			col: 0,
+			ownerBefore: 'black',
+			ownerAfter: 'white'
+		}];
+		gameState.board[0][0] = WHITE;
+		diffRenderer.renderBoardDiff(boardEl);
+
+		const disc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc');
+		expect(disc).toBeTruthy();
+		expect(disc.classList.contains('black')).toBe(true);
+		expect(disc.classList.contains('white')).toBe(false);
+		expect(disc.classList.contains('flip')).toBe(false);
+	});
+
 	test('does not add flip class for newly placed stones', () => {
 		gameState.board[0][0] = BLACK;
 		diffRenderer.renderBoardDiff(boardEl);

@@ -25,7 +25,7 @@ describe('card availability module', () => {
     })).toEqual({ black: 4, white: 3 });
   });
 
-  test('applies last resort and equality thresholds with injected helpers', () => {
+  test('applies last resort threshold and equality charge condition with injected helpers', () => {
     const availability = createCardAvailability({
       constants: { BLACK: 1, WHITE: 2 },
       hasStandardLegalMoveForPlayer: jest.fn((_cardState, _gameState, playerKey) => playerKey === 'white')
@@ -39,15 +39,9 @@ describe('card availability module', () => {
 
     expect(availability.canUseLastResortForPlayer({}, gameState, 'black')).toBe(true);
     expect(availability.canUseLastResortForPlayer({}, gameState, 'white')).toBe(false);
-    expect(availability.canUseEqualityWillForPlayer({}, gameState, 'black')).toBe(false);
-    expect(availability.canUseEqualityWillForPlayer({}, {
-      board: [
-        [1, 0, 0, 0],
-        [2, 2, 2, 2],
-        [2, 2, 2, 2],
-        [2, 2, 2, 2]
-      ]
-    }, 'black')).toBe(true);
+    expect(availability.canUseEqualityWillForPlayer({ charge: { black: 1, white: 25 } }, gameState, 'black')).toBe(false);
+    expect(availability.canUseEqualityWillForPlayer({ charge: { black: 0, white: 25 } }, gameState, 'black')).toBe(true);
+    expect(availability.getEqualityWillChargeState({ charge: { black: 0, white: 25 } }, 'black')).toEqual({ own: 0, opponent: 25 });
   });
 
   test('forwards reinforcement-like target counts and disc disadvantage helpers', () => {

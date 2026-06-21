@@ -28,6 +28,8 @@ const timeStopStoneName = getSpecialStoneDisplayName('TIME_STOP', '時間停石'
 const CARD_EFFECT_TAG_KIND = Object.freeze({
   SPECIAL_STONE: 'special-stone',
   HOLE_CELL: 'hole-cell',
+  ERASURE: 'erasure',
+  ABSOLUTE_EXECUTION: 'absolute-execution',
   FLIP_PROTECTION: 'flip-protection',
   FULL_PROTECTION: 'full-protection',
   ABSOLUTE_PROTECTION: 'absolute-protection',
@@ -62,7 +64,13 @@ function buildCardEffectTag(kind: string, value?: number) {
     return Object.freeze({ kind: normalizedKind, label: '特殊石' });
   }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.HOLE_CELL) {
-    return Object.freeze({ kind: normalizedKind, label: '穴マス化' });
+    return Object.freeze({ kind: normalizedKind, label: '穴マス' });
+  }
+  if (normalizedKind === CARD_EFFECT_TAG_KIND.ERASURE) {
+    return Object.freeze({ kind: normalizedKind, label: '抹消' });
+  }
+  if (normalizedKind === CARD_EFFECT_TAG_KIND.ABSOLUTE_EXECUTION) {
+    return Object.freeze({ kind: normalizedKind, label: '絶対執行' });
   }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.FULL_PROTECTION) {
     return Object.freeze({ kind: normalizedKind, label: '完全保護' });
@@ -105,6 +113,8 @@ function buildCardNumericTag(kind: string, value?: number) {
 const flipProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_PROTECTION);
 const specialStoneTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.SPECIAL_STONE);
 const holeCellTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.HOLE_CELL);
+const erasureTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ERASURE);
+const absoluteExecutionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_EXECUTION);
 const fullProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FULL_PROTECTION);
 const absoluteProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_PROTECTION);
 const inviolableTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.INVIOLABLE);
@@ -142,7 +152,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   SUPER_GRAVITY_WILL: '石1つを下端まで落下させ、進路上の石を破壊',
   SUPER_ATTRACTION_WILL: '石1つを任意マスまで引き寄せ、経路上の石を破壊',
   TELEPORT_WILL: '石1つをランダムな空きマスへ移動',
-  CELL_TELEPORT_WILL: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。',
+  CELL_TELEPORT_WILL: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。',
   TRAP_WILL: '自分石1つを罠化してターン終了。次の相手ターンに反転されると相手の布石を最大10奪う+手札全破壊。',
   TEMPT_WILL: '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。',
   CAPTURE_WILL: '相手の特殊石1つを捕獲して手札にする。弱い石・強い石・幽体石も対象。',
@@ -171,9 +181,9 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   WILL_HUNTER_KING: '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。',
   INSTANT_HYPERACTIVE_WILL: '次に置く石へ瞬間多動の配置時効果を付け、3マス分移動して通常石に戻す。',
   BLOCKADE_WILL: '空きマス1つを封鎖（配置・移動不可）',
-  METEOR_WILL: 'マス1つを選び、石ごと穴マス化させる。',
-  BOARD_SHRINK_WILL: '外周の連続した3マスを選び、石ごと穴マス化して盤面を縮小する。（絶対保護石だけ残る）。',
-  BOARD_SHRINK_GOD: '角を含む辺1列を選び全て石ごと穴マス化して盤面を縮小する。（絶対保護石だけ残る）。',
+  METEOR_WILL: 'マスを1つ選んで石ごと抹消し、穴マスにする。',
+  BOARD_SHRINK_WILL: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。',
+  BOARD_SHRINK_GOD: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。',
   FREEZE_WILL: 'マス1つを凍結し、反転・破壊と持続減少を止める',
   REBUILD_WILL: '特殊カード以外の手札を破壊し、新たに3枚ドローする',
   PLUNDER_WILL: '次の反転枚数ぶん相手布石を吸収',
@@ -186,7 +196,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   HEAVEN_BLESSING: '候補5枚から1枚を選んで獲得',
   REVEAL_HAND_WILL: '現在の相手手札をすべて表にする',
   THEORY_INCARNATION: '空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる。',
-  BOARD_EXECUTOR: '盤面上のすべての特殊石を絶対保護ごと穴にし、盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。',
+  BOARD_EXECUTOR: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。',
   OBSERVER_WILL: '相手手札を1つ奪って0コスト化し、観測者を顕現させる。ターン持続中は常時相手の手札を観測でき、観測した手札のコスト＋5。終了後観測の代償を支払う。',
   CONDEMN_WILL: '相手手札を見て1枚破壊',
   EXECUTION_WILL: '直前の相手ターンで自分石が破壊されていれば、相手手札をランダムで最大3枚破壊。',
@@ -197,17 +207,17 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   EXTEND_LIFE_WILL: '自分の特殊石または石状態1つの持続ターンを2倍にする',
   EXTEND_LIFE_GOD: '自分の特殊石または石状態1つの持続ターンを4倍にする',
   CORROSION_WILL: '盤面上の特殊石または石状態1つを選び、持続ターンを半減させる',
-  GUARD_WILL: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
-  GUARDIAN_GOD: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
+  GUARD_WILL: '完全保護中の石は反転・破壊・移動・誘惑・捕獲などの対象効果を受けない。\n保護は3ターン持続する。\n因果抹消や盤面縮小のセル消滅だけは防げない。',
+  GUARDIAN_GOD: '完全保護中の石は反転・破壊・移動・誘惑・捕獲などの対象効果を受けない。\n守護神の保護は10ターン持続する。\n因果抹消や盤面縮小のセル消滅だけは防げない。',
   DESTROY_DRAGON_WILL: '次に置く石を破壊龍化。配置時+自ターン開始時に周囲1マスの敵石をランダム1個破壊',
   LIGHTNING_WILL: '次に置く石を落雷石化。配置時+自ターン開始時に盤面上の敵石をランダム1個破壊',
-  METEOR_GOD: '次に置く石を因果抹消神石化。配置時+自ターン開始時に盤面上の敵石をランダム1個、石ごと穴マス化する。',
+  METEOR_GOD: '次に置く石を因果抹消神石化。配置時+自ターン開始時に盤面上の敵石をランダム1個、石ごと抹消して穴マスにする。',
   ULTIMATE_DESTROY_GOD: '次に置く石を究極破壊神化。自由配置でき、周囲1マスの敵石を破壊する',
   ULTIMATE_HYPERACTIVE_GOD: '次に置く石を究極多動神化。毎ターン直線移動を2回行う',
   BOARD_EXPANSION_WILL: '盤面の左右どちらか外側に1マスを追加する',
   BOARD_EXPANSION_GOD: '初期8x8の角を選び、外側3マスを同時に盤面拡張',
   LIVING_WILL: '自分の石1つに生きる意志を付与。失われる時に1回だけ復活',
-  EQUALITY_WILL: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。',
+  EQUALITY_WILL: '相手の布石を最大10奪う。自分の布石が0のときに使用可能。',
   REINFORCEMENT_WILL: '既存石の近くの空きマスに、自分の通常石を1個ランダム配置(反転可)',
   SUPPORT_TROOPS_WILL: '既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)',
   RIBO_WILL: '布石を30得る。その後9ターンの間4返済。足りない場合は自石4個を消滅させる。',
@@ -236,7 +246,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   SUPER_GRAVITY_WILL: '盤面上の石を1つ選び、下方向へ限界まで移動させる。\n移動経路にある石は衝突時にすべて破壊する。\n封鎖マス・穴マスには入れない。',
   SUPER_ATTRACTION_WILL: '盤面上の石を1つ選び、盤面上の別マス1つまで引き寄せる。\n移動は縦・横・斜め45度を組み合わせた最短経路で行い、最短経路が複数ある場合はどちらか1つをランダムに選ぶ。\n移動経路と指定マスにある石は衝突時にすべて破壊する。\n封鎖マス・穴マス・完全保護石は貫通できない。',
   TELEPORT_WILL: '対象は敵味方・通常石・特殊石・爆弾を問わない。',
-  CELL_TELEPORT_WILL: '現在の盤面上に存在する石のあるマスを1つ選ぶ。\n選ばれた石を、盤面拡張・盤面拡張神で追加可能な外側マスのうち空いている1マスへランダムにテレポートさせる。\n移動先が未生成ならその拡張マスを作ってから移動し、元マスをセル消滅で永続の穴にする。\n元マスの穴化は石破壊ではなく、生きる意志・復活の意志・破壊回避では残らない。\n対象は敵味方・通常石・特殊石・爆弾を問わない。',
+  CELL_TELEPORT_WILL: '現在の盤面上に存在する石のあるマスを1つ選ぶ。\n選ばれた石を、盤面拡張・盤面拡張神で追加可能な外側マスのうち空いている1マスへランダムにテレポートさせる。\n移動先が未生成ならその拡張マスを作ってから移動し、元マスをセル消滅で永続の穴マスにする。\n元マスが穴マスになる処理は石破壊ではなく、生きる意志・復活の意志・破壊回避では残らない。\n対象は敵味方・通常石・特殊石・爆弾を問わない。',
   TRAP_WILL: 'そのターンは石を置かない。\n次の相手ターン中に反転されると、相手の布石を最大10奪い相手手札を全破壊する。\n反転されなければ不発で終了する。',
   TEMPT_WILL: '対象は相手の誘惑可能な石効果。\n特殊石、罠石、時限爆弾、生きる意志を対象に含む。\n弱い石・強い石・幽体石は特殊石として対象に含まれる。\n完全保護中の石と絶対保護石は対象効果を受けない。\n顕現石・盤面マーカー・配置時効果は対象外。\n残りターンなどの状態を維持したまま自分側になる。',
   CAPTURE_WILL: '盤面から取り除き、その特殊石の元になったカードとして自分の手札へ加える。\n弱い石・強い石・幽体石は対象に含まれる。\n完全保護が付いた相手特殊石と絶対保護石は対象効果を受けない。\n幽体石にも通常どおり成立する。',
@@ -266,9 +276,9 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   WILL_HUNTER_KING: '次に置く石を意志狩りの王石化する。\n自ターン開始時、敵石を1つ選んでそのマスへ移動しながら破壊する。\n敵の特殊石があればそちらを優先して狙う。\n反転回避2回と破壊回避2回を持ち、回避時は盤面上の最も近い有効な空きマスへ移動する。',
   BLOCKADE_WILL: '封鎖したマスには両者とも配置・移動で入れない。\n持続終了時に解除される。',
   SEED_WILL: '種マスは通常どおり配置・移動に使える。\n石が置かれた時点で種は消える。\n所有者ターン開始時だけ残り回数が減る。\n5回目の所有者ターン開始で芽生えた石は、そのマスを起点に通常の挟み反転を行う。\n封鎖の意志・凍結の意志では種マスを選べない。',
-  METEOR_WILL: 'マス1つを選び、石ごと穴マス化させる。',
-  BOARD_SHRINK_WILL: '外周の連続した3マスを選び、石ごと穴マス化して盤面を縮小する。（絶対保護石だけ残る）。',
-  BOARD_SHRINK_GOD: '角を含む辺1列を選び全て石ごと穴マス化して盤面を縮小する。（絶対保護石だけ残る）。',
+  METEOR_WILL: 'マスを1つ選んで石ごと抹消し、穴マスにする。',
+  BOARD_SHRINK_WILL: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。',
+  BOARD_SHRINK_GOD: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。',
   FREEZE_WILL: '凍結マスと、そのマス上の石は反転・破壊されない。\n凍結中の特殊石は持続ターンが減らず、解除後に再び減り始める。',
   REBUILD_WILL: '使用カードと特殊カード以外の手札をすべて先に破壊してから引き直す。\n山札が足りない場合は引ける枚数だけ補充する。',
   PLUNDER_WILL: '相手から減らしたぶんをそのまま自分へ加算する。',
@@ -284,8 +294,8 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   INFINITE_PLACE: '合法手がなくなった時点でそのまま終了する。',
   HEAVEN_BLESSING: '選ばなかった候補は消える。',
   REVEAL_HAND_WILL: '使用時点の相手手札をすべて公開する。\n使用後に相手が引いたカードは公開しない。\n一度公開した同じカードは、手札を離れて後で戻っても表のまま。',
-  THEORY_INCARNATION: '演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を4T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカードを使用できないが、合法手があれば通常通り石を置ける。\n次の自分ターン以降、合法手があれば通常配置後に理論数字マスから対応コストの特殊石がランダムで1体現れる。合法手がない場合は通常のパスを選ぶ。\n理論の化身による特殊石出現では布石を獲得しない。\n配置直後の出現は4Tぶんの出現回数を消費しないため、最大5回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
-  BOARD_EXECUTOR: '使用時、盤面上のすべての特殊石を穴マスにする。絶対保護も貫通し、罠石と時限爆弾も対象に含む。\n顕現石・石状態・盤面マーカー・配置時効果は穴化対象に含まれない。\n使用後、次に置く自石として盤界の執行者を4T不可侵の顕現石として出す。\n盤界の執行者が盤上にいる間、両者は手札からカードを使用できない。\n両者ターン開始時、その手番プレイヤーはドロー前の所持カード枚数に応じて布石を失う。',
+  THEORY_INCARNATION: '演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を4T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカードを使用できないが、合法手があれば通常通り石を置ける。\n次の自分ターン以降、合法手があれば通常配置後に理論数字マスから対応コストの特殊石がランダムで1体現れる。合法手がない場合は通常のパスを選ぶ。\n理論の化身による特殊石出現では理論数字マス値の布石を獲得しないが、出現時に反転した枚数ぶんの布石は獲得する。\n配置直後の出現は4Tぶんの出現回数を消費しないため、最大5回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
+  BOARD_EXECUTOR: '使用時、盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。罠石と時限爆弾も対象に含む。\n顕現石・石状態・盤面マーカー・配置時効果は対象に含まれない。\n使用後、次に置く自石として盤界の執行者を4T不可侵の顕現石として出す。\n盤界の執行者が盤上にいる間、両者は手札からカードを使用できない。\n両者ターン開始時、その手番プレイヤーはドロー前の所持カード枚数に応じて布石を失う。',
   OBSERVER_WILL: '盤面に顕現石が存在する間は使用できない。\n使用時に相手手札を公開して1枚選ぶ。選んだカードは自分の手札に加わり0コストになる。\n観測済みになった相手手札はカードcopyごとに1回だけコスト+5になる。奪ったカードは0コストになり、盤理の観測者による+5は残らない。特殊カードは観測で表表示にはなるが、コスト+5は受けない。\n選択後、次に置く自石として盤理の観測者を5T不可侵の顕現石として出す。盤理の観測者が盤上にいる間、相手手札は常に表表示。\n一度観測した相手手札は観測済みとなり、盤理の観測者が消滅した後も表表示のまま残る。盤理の観測者が盤上にいる間に相手が新たに引いた手札も観測済みになる。観測済みカードには双方にタグを表示する。\n盤理の観測者が消滅した後、観測の代償として奪ったカードの元コスト20%を自ターン開始時に最大9回返済する。布石不足時は自石4個をランダム破壊する。',
   CONDEMN_WILL: '公開された手札から1枚を選んで破壊する。',
   EXECUTION_WILL: '使用条件は、直前に終了した相手ターン中に自分の石が1つ以上破壊されていること。\n使用時、相手の現在の手札からランダムに最大3枚を破壊する。\n相手手札が3枚未満なら、存在する枚数ぶんだけ破壊する。',
@@ -296,17 +306,17 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   EXTEND_LIFE_WILL: '対象は盤面上の自分の特殊石または石状態。\n完全保護中の自分特殊石・石状態にも使える。\n現在の持続ターン値を2倍に延長する。',
   EXTEND_LIFE_GOD: '対象は盤面上の自分の特殊石または石状態。\n完全保護中の自分特殊石・石状態にも使える。\n現在の持続ターン値を4倍に延長する。',
   CORROSION_WILL: '選んだ特殊石または石状態の残り持続ターンを半減する。\n小数は切り捨て、最小値は1。\n爆弾・罠・盤面マーカー・配置時効果・完全保護中の対象は選べない。\n対象がない場合は使用できない。',
-  GUARD_WILL: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
-  GUARDIAN_GOD: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
+  GUARD_WILL: '自石を1つ選び、完全保護を付与。穴マス以外の全ての効果を無効化する。',
+  GUARDIAN_GOD: '自石を1つ選び、完全保護を付与。穴マス以外の全ての効果を無効化する。',
   DESTROY_DRAGON_WILL: '反転保護を持つ特殊石として扱う。',
   LIGHTNING_WILL: '配置ターン即時も発動回数に含まれるが、その時点では持続ターンは減らない。\n反転保護を持つ特殊石として扱う。',
-  METEOR_GOD: '配置ターン即時も発動回数に含まれるが、その時点では持続ターンは減らない。\n選ばれた敵石のマスを石ごと穴マス化する。穴マス化できない場合は不発となり、再抽選しない。\nセル消滅として扱い、生きる意志・復活の意志・破壊回避では残らない。\n反転保護を持つ特殊石として扱う。',
+  METEOR_GOD: '配置ターン即時も発動回数に含まれるが、その時点では持続ターンは減らない。\n選ばれた敵石のマスを石ごと抹消し、穴マスにする。穴マスにできない場合は不発となり、再抽選しない。\nセル消滅として扱い、生きる意志・復活の意志・破壊回避では残らない。\n反転保護を持つ特殊石として扱う。',
   ULTIMATE_DESTROY_GOD: '空きマスに自由配置できる。\n配置時と自ターン開始時に周囲1マスの敵石を破壊する。\n自ターン開始時はランダムな空きマスへ移動してから破壊し、移動先が無いときはその場で破壊する。',
   ULTIMATE_HYPERACTIVE_GOD: '両者ターン開始時に直線1〜5マス移動を2回行い、2マス以上は途中の石を飛び越える。\n移動後に挟めば反転する。\nターン開始移動で移動先が無い場合は同色の通常石に戻る。\n反転対象時は最大5回、破壊対象時は2回だけ、盤面上の最も近い有効な空きマスへ移動して回避する。\n有効な空きマスが1つも無い場合だけ回避不成立となり、回数は消費しない。',
   BOARD_EXPANSION_WILL: '追加位置は左右端マスから選び、1対局で1回のみ使える。',
   BOARD_EXPANSION_GOD: '3マスのうち1つでも既存拡張セルと重なる角は選べない。',
-  LIVING_WILL: '対象は自分の通常石・特殊石。\n失われる時に1回だけ、付与時点の石状態で復活する。\n後から追加された別効果は復元しない。\n元マスが使えない時は別の空きマスへ復活し、空きが無い時は復活しない。\n捕獲の意志は無効化してその場に残る。\n因果抹消・盤面縮小・盤面縮小神・マステレポートのセル消滅では復活しない。',
-  EQUALITY_WILL: '相手の石数が自分より10個以上多い時のみ使用できる。\n使用時、盤面の空きマスからランダムに最大3マスへ、自分色の通常石を1個ずつ生成する。\n各生成石は、そのマスを起点に通常の挟み反転を行う。\n空きマスが3未満なら、存在する空きマス数ぶんだけ生成する。',
+  LIVING_WILL: '対象は自分の通常石・特殊石。\n失われる時に1回だけ、付与時点の石状態で復活する。\n後から追加された別効果は復元しない。\n元マスが使えない時は別の空きマスへ復活し、空きが無い時は復活しない。\n復活した石で挟める列があれば通常反転する。\n捕獲の意志は無効化してその場に残る。\n因果抹消・盤面縮小・盤面縮小神・マステレポートのセル消滅では復活しない。',
+  EQUALITY_WILL: '自分の布石が0の時のみ使用できる。\n使用時、相手の布石を最大10奪い、奪った分を自分へ加算する。\n相手の布石が10未満なら、存在する布石数ぶんだけ奪う。\n相手の布石が0でも使用条件を満たしていれば使用でき、奪取量0として解決する。',
   REINFORCEMENT_WILL: '使用時、盤面の角と辺を除く空きマスのうち、いずれかの石に隣接1マス（周囲8マス）で接している候補だけを集める。\n候補からランダム1マスを選び、自分色の通常石を1個配置する。\n候補条件に通常反転の可否は含めず、配置後は通常配置と同じ反転処理を行う。\n候補が無い局面では使用できない。',
   SUPPORT_TROOPS_WILL: '使用時、盤面の角と辺を除く空きマスのうち、いずれかの石に隣接1マス（周囲8マス）で接している候補だけを集める。\n候補からランダムに最大3マスを選び、自分色の通常石を1個ずつ配置する。\n候補条件に通常反転の可否は含めず、各配置後は通常配置と同じ反転処理を行う。\n候補が1〜2マスしか無い場合は、その数だけ配置する。',
   RIBO_WILL: '使用時に布石を30得る。\nその後9回の自ターン開始ごとに4布石を返済する。\n返済に必要な布石が足りない場合は、自石をランダム4個消滅させる。',
@@ -342,15 +352,15 @@ const cardEffectTagsByType = Object.freeze({
   GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
   THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(4)]),
-  BOARD_EXECUTOR: freezeCardEffectTags([usageConditionTag('自特殊石存在時使用可能'), inviolableTag(), durationTurnsTag(4)]),
+  BOARD_EXECUTOR: freezeCardEffectTags([usageConditionTag('自特殊石存在時使用可能'), holeCellTag(), absoluteExecutionTag(), inviolableTag(), durationTurnsTag(4)]),
   OBSERVER_WILL: freezeCardEffectTags([usageConditionTag('18手後使用可能'), inviolableTag(), durationTurnsTag(5)]),
   ULTIMATE_DESTROY_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
   DESTROY_DRAGON_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(3), flipProtectionTag()]),
   LIGHTNING_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
-  METEOR_WILL: freezeCardEffectTags([holeCellTag()]),
-  BOARD_SHRINK_WILL: freezeCardEffectTags([holeCellTag()]),
-  BOARD_SHRINK_GOD: freezeCardEffectTags([holeCellTag()]),
-  METEOR_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag(), holeCellTag()]),
+  METEOR_WILL: freezeCardEffectTags([holeCellTag(), erasureTag()]),
+  BOARD_SHRINK_WILL: freezeCardEffectTags([holeCellTag(), erasureTag()]),
+  BOARD_SHRINK_GOD: freezeCardEffectTags([holeCellTag(), erasureTag()]),
+  METEOR_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag(), holeCellTag(), erasureTag()]),
   STONE_SALVATION_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(12), flipProtectionTag()]),
   ULTIMATE_HYPERACTIVE_GOD: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(5), destroyEvasionTag(2), durationTurnsTag(12)]),
   BLOCKADE_WILL: freezeCardEffectTags([durationTurnsTag(3)]),

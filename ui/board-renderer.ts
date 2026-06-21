@@ -367,6 +367,7 @@ function _clearBoardPixelSizingVars(boardElement: any) {
         boardElement.style.removeProperty('--board-disc-inset-px');
         boardElement.style.removeProperty('--board-disc-size-px');
     }
+    _clearBoardExpansionLayerGeometry(boardElement);
     const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
     _clearBoardFramePixelSizingVars(frameElement);
     _setBoardOversizeLayoutState(frameElement, false);
@@ -382,6 +383,99 @@ function _getBoardFrameElementForPixelSizing(boardElement: any) {
         return document.getElementById('board-frame');
     }
     return null;
+}
+
+function resolveBoardExpansionLayerElement(boardElement: any, createIfMissing?: any) {
+    if (typeof document === 'undefined' || !document) return null;
+    const boardFrame = _getBoardFrameElementForPixelSizing(boardElement);
+    const boardStack = boardFrame && boardFrame.parentElement
+        ? boardFrame.parentElement
+        : (boardElement && boardElement.parentElement ? boardElement.parentElement : null);
+    if (!boardStack) return null;
+
+    let layer = null;
+    if (typeof boardStack.querySelector === 'function') {
+        layer = boardStack.querySelector('#board-expansion-layer');
+    }
+    if (layer || !createIfMissing || typeof document.createElement !== 'function') {
+        return layer;
+    }
+
+    layer = document.createElement('div');
+    layer.id = 'board-expansion-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    const chargeHudLayer = typeof boardStack.querySelector === 'function'
+        ? boardStack.querySelector('#charge-hud-layer')
+        : null;
+    if (chargeHudLayer && chargeHudLayer.parentNode === boardStack) {
+        boardStack.insertBefore(layer, chargeHudLayer);
+    } else if (boardFrame && boardFrame.parentNode === boardStack) {
+        boardStack.insertBefore(layer, boardFrame.nextSibling);
+    } else {
+        boardStack.appendChild(layer);
+    }
+    return layer;
+}
+
+function _clearBoardExpansionLayerGeometry(boardElement: any) {
+    const expansionLayer = resolveBoardExpansionLayerElement(boardElement, false);
+    if (!expansionLayer || !expansionLayer.style) return;
+    expansionLayer.style.removeProperty('left');
+    expansionLayer.style.removeProperty('top');
+    expansionLayer.style.removeProperty('width');
+    expansionLayer.style.removeProperty('height');
+    expansionLayer.style.removeProperty('--board-rows');
+    expansionLayer.style.removeProperty('--board-cols');
+}
+
+function syncBoardExpansionLayerGeometry(boardElement: any, shapeInput?: any) {
+    const expansionLayer = resolveBoardExpansionLayerElement(boardElement, true);
+    const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
+    if (!expansionLayer || !expansionLayer.style) return shape;
+
+    expansionLayer.style.setProperty('--board-rows', String(shape.rows));
+    expansionLayer.style.setProperty('--board-cols', String(shape.cols));
+
+    if (!boardElement) return shape;
+
+    let width = 0;
+    let height = 0;
+    let left = 0;
+    let top = 0;
+
+    if (typeof boardElement.getBoundingClientRect === 'function') {
+        const boardRect = boardElement.getBoundingClientRect();
+        width = Number.isFinite(boardRect.width) ? boardRect.width : 0;
+        height = Number.isFinite(boardRect.height) ? boardRect.height : 0;
+        const offsetParent = expansionLayer.offsetParent || expansionLayer.parentElement;
+        if (offsetParent && typeof offsetParent.getBoundingClientRect === 'function') {
+            const offsetRect = offsetParent.getBoundingClientRect();
+            left = Number.isFinite(boardRect.left) && Number.isFinite(offsetRect.left) ? boardRect.left - offsetRect.left : 0;
+            top = Number.isFinite(boardRect.top) && Number.isFinite(offsetRect.top) ? boardRect.top - offsetRect.top : 0;
+        }
+    }
+
+    if (!(width > 0)) {
+        const styleWidth = Number.parseFloat(boardElement.style && boardElement.style.width ? boardElement.style.width : '0');
+        width = Number.isFinite(styleWidth) ? styleWidth : 0;
+    }
+    if (!(height > 0)) {
+        const styleHeight = Number.parseFloat(boardElement.style && boardElement.style.height ? boardElement.style.height : '0');
+        height = Number.isFinite(styleHeight) ? styleHeight : 0;
+    }
+    if (!Number.isFinite(left) || !Number.isFinite(top)) {
+        left = 0;
+        top = 0;
+    }
+
+    expansionLayer.style.left = `${left}px`;
+    expansionLayer.style.top = `${top}px`;
+    if (width > 0) expansionLayer.style.width = `${width}px`;
+    else expansionLayer.style.removeProperty('width');
+    if (height > 0) expansionLayer.style.height = `${height}px`;
+    else expansionLayer.style.removeProperty('height');
+
+    return shape;
 }
 
 function _clearBoardFramePixelSizingVars(frameElement: any) {
@@ -621,6 +715,7 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
             boardElement.style.top = `${snapY}px`;
         }
     }
+    syncBoardExpansionLayerGeometry(boardElement, shape);
     return shape;
 }
 
@@ -1259,7 +1354,12 @@ function _resolveBoardDiffResetDelegate() {
 function renderBoardFull() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
-    if (_shouldSkipBoardRenderForPlayback()) {
+    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
+    const allowBoardUpdateDuringPlayback = !!(
+        boardUpdateSyncContext
+        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
+    );
+    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
         return;
     }
     const fullRender = _resolveBoardFullRenderDelegate();
@@ -1282,7 +1382,12 @@ function renderBoardFull() {
 function renderBoardFullLegacy() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
-    if (_shouldSkipBoardRenderForPlayback()) {
+    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
+    const allowBoardUpdateDuringPlayback = !!(
+        boardUpdateSyncContext
+        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
+    );
+    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
         return;
     }
     const renderState = _resolveBoardRenderStateForBoardRenderer();
@@ -1841,7 +1946,9 @@ const BoardRenderer = {
             getDiscHudRoot,
             applyDiscRenderState,
             setDiscStoneImage,
-            syncBoardPixelSizing
+            syncBoardPixelSizing,
+            syncBoardExpansionLayerGeometry,
+            resolveBoardExpansionLayerElement
         };
 export = BoardRenderer;
 if (typeof window !== 'undefined') {
@@ -1855,4 +1962,6 @@ if (typeof window !== 'undefined') {
     window.applyDiscRenderState = window.applyDiscRenderState || applyDiscRenderState;
     window.setDiscStoneImage = window.setDiscStoneImage || setDiscStoneImage;
     window.syncBoardPixelSizing = window.syncBoardPixelSizing || syncBoardPixelSizing;
+    window.syncBoardExpansionLayerGeometry = window.syncBoardExpansionLayerGeometry || syncBoardExpansionLayerGeometry;
+    window.resolveBoardExpansionLayerElement = window.resolveBoardExpansionLayerElement || resolveBoardExpansionLayerElement;
 }

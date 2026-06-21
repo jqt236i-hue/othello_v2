@@ -55,6 +55,19 @@ function runAcceptedPublishJournalScenario() {
     "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }",
     "  });",
     "  const publishPayload = await publishResponse.json();",
+    "  const replayResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_journal_place_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: 1,",
+    "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }",
+    "  });",
+    "  const replayPayload = await replayResponse.json();",
     "  const stateResponse = await durableObject.fetch(new Request(`https://room/api/match/state?roomId=JRN1&seatKey=black&seatToken=${createPayload.seatToken}`));",
     "  const statePayload = await stateResponse.json();",
     "  const recoveryResponse = await durableObject.fetch(new Request(`https://room/api/match/presentation-journal?roomId=JRN1&seatKey=black&seatToken=${createPayload.seatToken}&afterVisualSeq=0`));",
@@ -63,6 +76,8 @@ function runAcceptedPublishJournalScenario() {
     "    createPayload,",
     "    publishStatus: publishResponse.status,",
     "    publishPayload,",
+    "    replayStatus: replayResponse.status,",
+    "    replayPayload,",
     "    stateStatus: stateResponse.status,",
     "    statePayload,",
     "    recoveryStatus: recoveryResponse.status,",
@@ -97,6 +112,24 @@ describe('worker presentation journal', () => {
     expect(result.publishPayload.presentationFrames[0].snapshotAfter).toBeTruthy();
     expect(result.stateStatus).toBe(200);
     expect(result.statePayload.presentationCursor).toMatchObject({ visualSeq: 1, stateVersion: result.publishPayload.stateVersion });
+    expect(result.statePayload.presentationFrames).toHaveLength(1);
+    expect(result.statePayload.presentationFrames[0].playbackDigest).toBe(result.publishPayload.presentationFrames[0].playbackDigest);
+    expect(result.statePayload.presentationFrames[0].playbackEvents).toEqual(result.publishPayload.playbackEvents);
+  });
+
+  test('idempotent replay response returns the original presentation frame bundle', () => {
+    const result = runAcceptedPublishJournalScenario();
+    expect(result.replayStatus).toBe(200);
+    expect(result.replayPayload).toMatchObject({
+      ok: true,
+      idempotentReplay: true,
+      stateVersion: result.publishPayload.stateVersion,
+      presentationCursor: { visualSeq: 1, stateVersion: result.publishPayload.stateVersion }
+    });
+    expect(result.replayPayload.playbackEvents).toEqual(result.publishPayload.playbackEvents);
+    expect(result.replayPayload.playbackDigest).toBe(result.publishPayload.playbackDigest);
+    expect(result.replayPayload.presentationFrames).toHaveLength(1);
+    expect(result.replayPayload.presentationFrames[0].playbackDigest).toBe(result.publishPayload.presentationFrames[0].playbackDigest);
   });
 
   test('presentation journal recovery returns base snapshot and frames after cursor', () => {

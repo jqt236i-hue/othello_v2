@@ -92,7 +92,7 @@ describe('cpu turn handler FATE_WILL turn ownership', () => {
     await cpuHandler.processCpuTurn();
 
     expect(global.generateMovesForPlayer).toHaveBeenCalledWith(1, null, [], []);
-    expect(global.processPassTurn).toHaveBeenCalledWith('black', false);
+    expect(global.processPassTurn).toHaveBeenCalledWith('black', { autoMode: false, autoNoActionPass: true });
     expect(global.isProcessing).toBe(true);
   });
 });

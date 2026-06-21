@@ -7,6 +7,7 @@
     'use strict';
 
     var registry = {};
+    var aliases = {};
     var cache = {};
     var currentDir = '';
 
@@ -41,7 +42,7 @@
         if (builtins.hasOwnProperty(id)) return builtins[id];
 
         var base = typeof dir === 'string' ? dir : currentDir;
-        var resolved = resolveDistPath(id, base);
+        var resolved = resolveModuleAlias(resolveDistPath(id, base));
 
         if (cache.hasOwnProperty(resolved)) return cache[resolved];
 
@@ -73,6 +74,10 @@
         // `const require = (this && this.require || ...)` in TS-compiled modules.
         // Module code resolves require() and __non_webpack_require__ through globals.
         registry[key] = new Function('module', 'exports', '__dirname', '__filename', sourceCode);
+    };
+    window.__cjsAlias = function (aliasKey, targetKey) {
+        if (!aliasKey || !targetKey) return;
+        aliases[String(aliasKey)] = String(targetKey);
     };
     window.__non_webpack_require__ = window.require;
 
@@ -111,6 +116,16 @@
             return baseParts.join('/');
         }
         return id;
+    }
+
+    function resolveModuleAlias(key) {
+        var current = String(key || '');
+        var seen = {};
+        while (aliases.hasOwnProperty(current) && !seen[current]) {
+            seen[current] = true;
+            current = aliases[current];
+        }
+        return current;
     }
 
     function dirName(p) { var i = p.lastIndexOf('/'); return i >= 0 ? p.substring(0, i) : ''; }

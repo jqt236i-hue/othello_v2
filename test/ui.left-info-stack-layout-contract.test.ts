@@ -20,6 +20,7 @@ describe('left info stack layout contract', () => {
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*#manifest-effect-panel\.is-visible/);
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top/);
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top:\s*188px/);
+    expect(varsCss).toMatch(/--profile-left-info-stack-left:\s*max\(var\(--profile-stone-info-safe-left\),\s*calc\(var\(--profile-stone-info-left\)\s*-\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
   });
 
   test('responsive left info stack overrides stay explicit', () => {
@@ -27,6 +28,7 @@ describe('left info stack layout contract', () => {
 
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#manifest-effect-panel/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#left-info-stack[\s\S]*display:\s*flex/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#left-info-stack[\s\S]*left:\s*var\(--profile-left-info-stack-left\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#left-info-stack\s*>\s*#stone-info-panel,[\s\S]*#left-info-stack\s*>\s*#effect-live-panel,[\s\S]*#left-info-stack\s*>\s*#manifest-effect-panel[\s\S]*position:\s*static/);
     expect(responsiveCss).not.toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*position:\s*fixed/);
     expect(responsiveCss).not.toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*top:\s*calc\(var\(--profile-effect-top\)\s*\+\s*var\(--profile-effect-min-height\)\s*\+\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
@@ -85,6 +87,15 @@ describe('left info stack layout contract', () => {
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*--left-hud-text-label/);
     expect(boardCss).toMatch(/\.stone-info-panel::before[\s\S]*content:\s*''/);
     expect(boardCss).toMatch(/\.stone-info-name[\s\S]*color:\s*var\(--left-hud-text-title\)/);
+  });
+
+  test('turn arrival art follows both local perspective and actual turn color', () => {
+    const layoutCss = readLayoutCssSurface();
+
+    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-self\.is-black-turn[\s\S]*turn-banner-your-v1\.png/);
+    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-self\.is-white-turn[\s\S]*turn-banner-your-white-v1\.png/);
+    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-enemy\.is-white-turn[\s\S]*turn-banner-enemy-v1\.png/);
+    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-enemy\.is-black-turn[\s\S]*turn-banner-enemy-black-v1\.png/);
   });
 
   test('persistent game log uses themed readable panel treatment', () => {

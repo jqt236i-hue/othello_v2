@@ -86,6 +86,22 @@ function resolveFontControllerModule(rootRef: any): any {
   return null;
 }
 
+function resolveBoardControllerModule(rootRef: any): any {
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  if (ctx && ctx.BoardSkinControllerModule) return ctx.BoardSkinControllerModule;
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).BoardSkinControllerModule) {
+      return (globalThis as any).BoardSkinControllerModule;
+    }
+  } catch (e) { /* ignore */ }
+  if (typeof _require === 'function') {
+    try {
+      return _require('../board-skin/controller.js');
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 function resolveStoneControllerModule(rootRef: any): any {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
   if (ctx && ctx.StoneSkinControllerModule) return ctx.StoneSkinControllerModule;
@@ -189,6 +205,7 @@ function createOptionButton(docRef: Document, skin: any): HTMLButtonElement {
 }
 
 const HandAnimationPreferencesModule = resolveHandAnimationPreferencesModule();
+const APPEARANCE_PRESET_STORAGE_KEY = 'reversi.appearancePresets';
 
 function readHandAnimationPreference(rootRef: any, key: 'draw' | 'place'): boolean {
   if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.readHandAnimationPreference === 'function') {
@@ -247,6 +264,46 @@ function ensureHandAnimationControls(docRef: Document, rootRef: any, handSection
   syncHandAnimationFlags(rootRef);
 }
 
+function canUseStorage(rootRef: any): boolean {
+  try { return !!(rootRef && rootRef.localStorage); } catch (e) { return false; }
+}
+
+function readAppearancePresetState(rootRef: any): any {
+  if (!canUseStorage(rootRef)) return { presets: [] };
+  try {
+    const parsed = JSON.parse(rootRef.localStorage.getItem(APPEARANCE_PRESET_STORAGE_KEY) || '{}');
+    return {
+      presets: Array.isArray(parsed && parsed.presets) ? parsed.presets.filter((preset: any) => preset && typeof preset === 'object') : []
+    };
+  } catch (e) {
+    return { presets: [] };
+  }
+}
+
+function writeAppearancePresetState(rootRef: any, state: any): boolean {
+  if (!canUseStorage(rootRef)) return false;
+  try {
+    rootRef.localStorage.setItem(APPEARANCE_PRESET_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      presets: Array.isArray(state && state.presets) ? state.presets : []
+    }));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function createDefaultPresetName(presets: any[]): string {
+  const usedNumbers = new Set<number>();
+  (Array.isArray(presets) ? presets : []).forEach((preset: any) => {
+    const match = String((preset && preset.name) || '').trim().match(/^プリセット(\d+)$/);
+    if (match) usedNumbers.add(Number(match[1]));
+  });
+  let index = 1;
+  while (usedNumbers.has(index)) index += 1;
+  return `プリセット${index}`;
+}
+
 function setupHandSkinControls(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootRef = opts.root || (typeof window !== 'undefined' ? window : null);
@@ -259,6 +316,7 @@ function setupHandSkinControls(options?: any): any {
   const selectionModule = resolveSelectionModule(rootRef);
   const runtimeModule = resolveRuntimeModule(rootRef);
   const backgroundControllerModule = resolveBackgroundControllerModule(rootRef);
+  const boardControllerModule = resolveBoardControllerModule(rootRef);
   const fontControllerModule = resolveFontControllerModule(rootRef);
   const stoneControllerModule = resolveStoneControllerModule(rootRef);
   if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
@@ -269,12 +327,21 @@ function setupHandSkinControls(options?: any): any {
   const optionsEl = opts.optionsEl || docRef.getElementById('handSkinOptions');
   const handSection = opts.handSection || docRef.getElementById('handSkinSection');
   const backgroundSection = opts.backgroundSection || docRef.getElementById('backgroundSkinSection');
+  const boardSection = opts.boardSection || docRef.getElementById('boardSkinSection');
+  const boardFrameSection = opts.boardFrameSection || docRef.getElementById('boardFrameSkinSection');
   const fontSection = opts.fontSection || docRef.getElementById('fontSkinSection');
   const stoneSection = opts.stoneSection || docRef.getElementById('stoneSkinSection');
+  const presetSection = opts.presetSection || docRef.getElementById('appearancePresetSection');
   const handTabBtn = opts.handTabBtn || docRef.getElementById('appearanceTabHand');
   const backgroundTabBtn = opts.backgroundTabBtn || docRef.getElementById('appearanceTabBackground');
+  const boardTabBtn = opts.boardTabBtn || docRef.getElementById('appearanceTabBoard');
+  const boardFrameTabBtn = opts.boardFrameTabBtn || docRef.getElementById('appearanceTabBoardFrame');
   const fontTabBtn = opts.fontTabBtn || docRef.getElementById('appearanceTabFont');
   const stoneTabBtn = opts.stoneTabBtn || docRef.getElementById('appearanceTabStone');
+  const presetTabBtn = opts.presetTabBtn || docRef.getElementById('appearanceTabPreset');
+  const presetNameInput = opts.presetNameInput || docRef.getElementById('appearancePresetNameInput');
+  const presetSaveBtn = opts.presetSaveBtn || docRef.getElementById('appearancePresetSaveBtn');
+  const presetListEl = opts.presetListEl || docRef.getElementById('appearancePresetList');
   const handImageEl = opts.handImage || docRef.getElementById('handImage');
   if (!button || !panel || !optionsEl || !handImageEl) return null;
 
@@ -283,6 +350,12 @@ function setupHandSkinControls(options?: any): any {
   let activeTab = 'hand';
   const backgroundControllerApi = backgroundControllerModule && typeof backgroundControllerModule.setupBackgroundSkinControls === 'function'
     ? backgroundControllerModule.setupBackgroundSkinControls({
+      root: rootRef,
+      document: docRef
+    })
+    : null;
+  const boardControllerApi = boardControllerModule && typeof boardControllerModule.setupBoardSkinControls === 'function'
+    ? boardControllerModule.setupBoardSkinControls({
       root: rootRef,
       document: docRef
     })
@@ -300,6 +373,108 @@ function setupHandSkinControls(options?: any): any {
     })
     : null;
   ensureHandAnimationControls(docRef, rootRef, handSection, optionsEl);
+
+  function collectCurrentAppearance(): any {
+    return {
+      handSkinId: selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_HAND_SKIN_ID,
+      backgroundSkinId: backgroundControllerApi && typeof backgroundControllerApi.getSelectedSkinId === 'function'
+        ? backgroundControllerApi.getSelectedSkinId()
+        : null,
+      boardSkinId: boardControllerApi && typeof boardControllerApi.getSelectedSkinId === 'function'
+        ? boardControllerApi.getSelectedSkinId()
+        : null,
+      boardFrameSkinId: boardControllerApi && typeof boardControllerApi.getSelectedFrameSkinId === 'function'
+        ? boardControllerApi.getSelectedFrameSkinId()
+        : null,
+      fontSkinId: fontControllerApi && typeof fontControllerApi.getSelectedSkinId === 'function'
+        ? fontControllerApi.getSelectedSkinId()
+        : null,
+      stoneSkinId: stoneControllerApi && typeof stoneControllerApi.getSelectedSkinId === 'function'
+        ? stoneControllerApi.getSelectedSkinId()
+        : null
+    };
+  }
+
+  function applyAppearancePreset(preset: any): void {
+    const appearance = preset && preset.appearance ? preset.appearance : {};
+    if (appearance.handSkinId) applySelection(appearance.handSkinId, true);
+    if (appearance.backgroundSkinId && backgroundControllerApi && typeof backgroundControllerApi.selectSkin === 'function') {
+      backgroundControllerApi.selectSkin(appearance.backgroundSkinId);
+    }
+    if (appearance.boardSkinId && boardControllerApi && typeof boardControllerApi.selectSkin === 'function') {
+      boardControllerApi.selectSkin(appearance.boardSkinId);
+    }
+    if (appearance.boardFrameSkinId && boardControllerApi && typeof boardControllerApi.selectFrameSkin === 'function') {
+      boardControllerApi.selectFrameSkin(appearance.boardFrameSkinId);
+    }
+    if (appearance.fontSkinId && fontControllerApi && typeof fontControllerApi.selectSkin === 'function') {
+      fontControllerApi.selectSkin(appearance.fontSkinId);
+    }
+    if (appearance.stoneSkinId && stoneControllerApi && typeof stoneControllerApi.selectSkin === 'function') {
+      stoneControllerApi.selectSkin(appearance.stoneSkinId);
+    }
+  }
+
+  function renderAppearancePresetList(): void {
+    if (!presetListEl) return;
+    const state = readAppearancePresetState(rootRef);
+    presetListEl.innerHTML = '';
+    if (!state.presets.length) {
+      const emptyEl = docRef.createElement('div');
+      emptyEl.className = 'appearance-preset-empty';
+      emptyEl.textContent = '保存済みプリセットなし';
+      presetListEl.appendChild(emptyEl);
+      return;
+    }
+    state.presets.forEach((preset: any) => {
+      const row = docRef.createElement('div');
+      row.className = 'appearance-preset-row';
+
+      const applyBtn = docRef.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'appearance-preset-apply';
+      applyBtn.textContent = String(preset.name || '').trim() || 'プリセット';
+      applyBtn.addEventListener('click', function (event: any) {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        applyAppearancePreset(preset);
+        renderAppearancePresetList();
+      });
+      row.appendChild(applyBtn);
+
+      const deleteBtn = docRef.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'appearance-preset-delete';
+      deleteBtn.textContent = '削除';
+      deleteBtn.setAttribute('aria-label', `${applyBtn.textContent}を削除`);
+      deleteBtn.addEventListener('click', function (event: any) {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+        const nextState = readAppearancePresetState(rootRef);
+        nextState.presets = nextState.presets.filter((entry: any) => String(entry.id || '') !== String(preset.id || ''));
+        writeAppearancePresetState(rootRef, nextState);
+        renderAppearancePresetList();
+      });
+      row.appendChild(deleteBtn);
+      presetListEl.appendChild(row);
+    });
+  }
+
+  function saveCurrentAppearancePreset(): void {
+    const state = readAppearancePresetState(rootRef);
+    const rawName = presetNameInput ? String(presetNameInput.value || '').trim() : '';
+    const name = rawName || createDefaultPresetName(state.presets);
+    const now = new Date().toISOString();
+    state.presets.push({
+      id: `appearance_preset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      appearance: collectCurrentAppearance(),
+      createdAt: now,
+      updatedAt: now
+    });
+    writeAppearancePresetState(rootRef, state);
+    if (presetNameInput) presetNameInput.value = '';
+    renderAppearancePresetList();
+  }
 
   function syncButtonLabel(): void {
     const label = selectedSkin
@@ -383,25 +558,41 @@ function setupHandSkinControls(options?: any): any {
 
   function setActiveTab(nextTab: string): void {
     const hasBackgroundTab = !!(backgroundControllerApi && backgroundSection && backgroundTabBtn);
+    const hasBoardTab = !!(boardControllerApi && boardSection && boardTabBtn);
+    const hasBoardFrameTab = !!(boardControllerApi && boardFrameSection && boardFrameTabBtn);
     const hasFontTab = !!(fontControllerApi && fontSection && fontTabBtn);
     const hasStoneTab = !!(stoneControllerApi && stoneSection && stoneTabBtn);
+    const hasPresetTab = !!(presetSection && presetTabBtn && presetListEl && presetSaveBtn);
     if (nextTab === 'background' && hasBackgroundTab) {
       activeTab = 'background';
+    } else if (nextTab === 'board' && hasBoardTab) {
+      activeTab = 'board';
+    } else if (nextTab === 'board-frame' && hasBoardFrameTab) {
+      activeTab = 'board-frame';
     } else if (nextTab === 'font' && hasFontTab) {
       activeTab = 'font';
     } else if (nextTab === 'stone' && hasStoneTab) {
       activeTab = 'stone';
+    } else if (nextTab === 'preset' && hasPresetTab) {
+      activeTab = 'preset';
     } else {
       activeTab = 'hand';
     }
     if (handSection) handSection.hidden = activeTab !== 'hand';
     if (backgroundSection) backgroundSection.hidden = activeTab !== 'background';
+    if (boardSection) boardSection.hidden = activeTab !== 'board';
+    if (boardFrameSection) boardFrameSection.hidden = activeTab !== 'board-frame';
     if (fontSection) fontSection.hidden = activeTab !== 'font';
     if (stoneSection) stoneSection.hidden = activeTab !== 'stone';
+    if (presetSection) presetSection.hidden = activeTab !== 'preset';
     syncTabButtonState(handTabBtn, 'hand', true);
     syncTabButtonState(backgroundTabBtn, 'background', hasBackgroundTab);
+    syncTabButtonState(boardTabBtn, 'board', hasBoardTab);
+    syncTabButtonState(boardFrameTabBtn, 'board-frame', hasBoardFrameTab);
     syncTabButtonState(fontTabBtn, 'font', hasFontTab);
     syncTabButtonState(stoneTabBtn, 'stone', hasStoneTab);
+    syncTabButtonState(presetTabBtn, 'preset', hasPresetTab);
+    if (activeTab === 'preset') renderAppearancePresetList();
   }
 
   function openPanel(): void {
@@ -409,12 +600,19 @@ function setupHandSkinControls(options?: any): any {
     if (backgroundControllerApi && typeof backgroundControllerApi.refreshOptions === 'function') {
       backgroundControllerApi.refreshOptions();
     }
+    if (boardControllerApi && typeof boardControllerApi.refreshOptions === 'function') {
+      boardControllerApi.refreshOptions();
+    }
+    if (boardControllerApi && typeof boardControllerApi.refreshFrameOptions === 'function') {
+      boardControllerApi.refreshFrameOptions();
+    }
     if (fontControllerApi && typeof fontControllerApi.refreshOptions === 'function') {
       fontControllerApi.refreshOptions();
     }
     if (stoneControllerApi && typeof stoneControllerApi.refreshOptions === 'function') {
       stoneControllerApi.refreshOptions();
     }
+    renderAppearancePresetList();
     setActiveTab(activeTab);
     isOpen = true;
     panel.classList.add('is-open');
@@ -459,6 +657,20 @@ function setupHandSkinControls(options?: any): any {
     });
   }
 
+  if (boardTabBtn) {
+    boardTabBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setActiveTab('board');
+    });
+  }
+
+  if (boardFrameTabBtn) {
+    boardFrameTabBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setActiveTab('board-frame');
+    });
+  }
+
   if (fontTabBtn) {
     fontTabBtn.addEventListener('click', function (event: any) {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -470,6 +682,20 @@ function setupHandSkinControls(options?: any): any {
     stoneTabBtn.addEventListener('click', function (event: any) {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setActiveTab('stone');
+    });
+  }
+
+  if (presetTabBtn) {
+    presetTabBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setActiveTab('preset');
+    });
+  }
+
+  if (presetSaveBtn) {
+    presetSaveBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      saveCurrentAppearancePreset();
     });
   }
 

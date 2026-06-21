@@ -620,12 +620,13 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
   const tagFilterSortOrder = new Map<string, number>([
     ['特殊石', 10],
-    ['穴マス化', 20],
-    ['不可侵', 30],
-    ['反転保護', 40],
-    ['完全保護', 50],
-    ['反転回避', 60],
-    ['破壊回避', 70]
+    ['穴マス', 20],
+    ['絶対執行', 30],
+    ['不可侵', 40],
+    ['反転保護', 50],
+    ['完全保護', 60],
+    ['反転回避', 70],
+    ['破壊回避', 80]
   ]);
 
   function getTagFilterSortRank(label: string): number {

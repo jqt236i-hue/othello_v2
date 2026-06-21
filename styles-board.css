@@ -1,6 +1,7 @@
 /* ===== Board Grid, Cells, Discs (Stones), Flip Animations ===== */
 
-#board {
+#board,
+#board-expansion-layer {
     --board-rows: 8;
     --board-cols: 8;
     --board-max-grid: max(var(--board-rows), var(--board-cols));
@@ -13,18 +14,27 @@
     --board-layer-cell: 1;
     --board-layer-occupied-cell: 4;
     --board-layer-expanded-cell: 8;
-    --board-surface-base-color: #1f4738;
+    --board-bonus-number-font-family: var(--selected-app-font-accent-family, var(--selected-app-font-family));
+    --board-bonus-number-color: rgba(206, 235, 214, 0.60);
+    --board-bonus-number-highlight: rgba(238, 255, 236, 0.24);
+    --board-bonus-number-shadow: rgba(0, 0, 0, 0.74);
+    --board-bonus-number-glow: rgba(112, 212, 184, 0.24);
+    --board-surface-base-color: #07110f;
+    --board-surface-texture-image: url("assets/images/board/board-surface-woven-felt-v1.png");
     --board-surface-base-image:
-        radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.04), transparent 24%),
-        radial-gradient(circle at 78% 72%, rgba(255, 235, 188, 0.02), transparent 28%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.11)),
-        linear-gradient(135deg, #173b2d 0%, #285f4a 46%, #194131 100%);
+        var(--board-surface-texture-image),
+        linear-gradient(180deg, rgba(9, 18, 16, 0.98), rgba(3, 8, 8, 0.98));
     --board-surface-base-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    --board-cell-base-color: var(--board-surface-base-color);
+    --board-cell-base-image: var(--board-surface-base-image);
+    --board-cell-base-size: var(--board-surface-base-size);
     --board-surface-overlay:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 14%, transparent 72%, rgba(0, 0, 0, 0.22) 100%),
-        radial-gradient(circle at 50% 50%, rgba(224, 190, 110, 0.04), transparent 38%),
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px calc(14px * var(--layout-stage-scale))),
-        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px calc(14px * var(--layout-stage-scale)));
+        linear-gradient(180deg, rgba(255, 248, 218, 0.035), transparent 14%, transparent 70%, rgba(0, 0, 0, 0.30) 100%),
+        radial-gradient(circle at 50% 44%, rgba(104, 255, 229, 0.055), transparent 42%),
+        radial-gradient(circle at 50% 50%, rgba(224, 190, 110, 0.032), transparent 46%);
+}
+
+#board {
     display: grid;
     grid-template-columns: repeat(var(--board-cols), minmax(0, 1fr));
     grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr));
@@ -32,9 +42,6 @@
     height: calc(var(--board-max-size) * (var(--board-rows) / var(--board-max-grid)));
     max-width: none;
     max-height: none;
-    --board-cell-base-color: var(--board-surface-base-color);
-    --board-cell-base-image: var(--board-surface-base-image);
-    --board-cell-base-size: var(--board-surface-base-size);
     background-color: var(--board-cell-base-color);
     border: calc(3px * var(--layout-stage-scale)) solid #09110d;
     box-shadow:
@@ -48,6 +55,17 @@
     isolation: isolate;
     z-index: 1;
     overflow: visible;
+}
+
+#board-expansion-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--board-max-size) * (var(--board-cols) / var(--board-max-grid)));
+    height: calc(var(--board-max-size) * (var(--board-rows) / var(--board-max-grid)));
+    pointer-events: none;
+    overflow: visible;
+    z-index: var(--layout-z-board-expansion-layer);
 }
 
 #board::before {
@@ -85,12 +103,12 @@
     width: 100%;
     height: 100%;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.095)),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.008), transparent 44%);
-    border-top: var(--layout-size-border-thin) solid rgba(7, 20, 14, 0.34);
-    border-left: var(--layout-size-border-thin) solid rgba(8, 22, 16, 0.36);
-    border-right: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.06);
-    border-bottom: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.045);
+        linear-gradient(180deg, rgba(255, 247, 206, 0.022), rgba(0, 0, 0, 0.065)),
+        linear-gradient(135deg, rgba(255, 232, 154, 0.014), transparent 42%);
+    border-top: var(--layout-size-border-thin) solid rgba(4, 12, 12, 0.54);
+    border-left: var(--layout-size-border-thin) solid rgba(4, 12, 12, 0.58);
+    border-right: var(--layout-size-border-thin) solid rgba(230, 187, 104, 0.18);
+    border-bottom: var(--layout-size-border-thin) solid rgba(230, 187, 104, 0.14);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -98,8 +116,8 @@
     position: relative;
     z-index: var(--board-layer-cell);
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.02),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.12);
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 231, 160, 0.025),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
 }
 
 .cell.has-disc {
@@ -110,46 +128,47 @@
     z-index: calc(var(--board-layer-expanded-cell) + 12);
 }
 
-#board .cell-expanded {
+#board-expansion-layer .cell-expanded {
     position: absolute;
     width: var(--board-cell-width-percent);
     height: var(--board-cell-height-percent);
     background-color: var(--board-cell-base-color);
     background-image:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.095)),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.008), transparent 44%),
+        linear-gradient(180deg, rgba(255, 247, 206, 0.022), rgba(0, 0, 0, 0.065)),
+        linear-gradient(135deg, rgba(255, 232, 154, 0.014), transparent 42%),
         var(--board-cell-base-image);
     background-size: var(--board-cell-base-size);
-    border-top: var(--layout-size-border-thin) solid rgba(7, 20, 14, 0.34);
-    border-left: var(--layout-size-border-thin) solid rgba(8, 22, 16, 0.36);
-    border-right: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.06);
-    border-bottom: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.045);
+    border-top: var(--layout-size-border-thin) solid rgba(4, 12, 12, 0.54);
+    border-left: var(--layout-size-border-thin) solid rgba(4, 12, 12, 0.58);
+    border-right: var(--layout-size-border-thin) solid rgba(230, 187, 104, 0.18);
+    border-bottom: var(--layout-size-border-thin) solid rgba(230, 187, 104, 0.14);
     z-index: var(--board-layer-expanded-cell);
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.02),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.12);
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 231, 160, 0.025),
+        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
+    pointer-events: auto;
 }
 
-#board .cell-expanded-reveal {
+#board-expansion-layer .cell-expanded-reveal {
     animation: boardExpansionCellReveal 260ms ease-out forwards;
 }
 
-#board .cell-expanded-left {
+#board-expansion-layer .cell-expanded-left {
     left: calc(-1 * var(--board-cell-width-percent));
     border-right-color: transparent;
 }
 
-#board .cell-expanded-right {
+#board-expansion-layer .cell-expanded-right {
     left: 100%;
     border-left-color: transparent;
 }
 
-#board .cell-expanded-top {
+#board-expansion-layer .cell-expanded-top {
     top: calc(-1 * var(--board-cell-height-percent));
     border-bottom-color: transparent;
 }
 
-#board .cell-expanded-bottom {
+#board-expansion-layer .cell-expanded-bottom {
     top: 100%;
     border-top-color: transparent;
 }
@@ -217,31 +236,83 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
-    font-weight: 400;
+    font-family: var(--board-bonus-number-font-family);
+    font-weight: 500;
     font-size: clamp(16px, 2.5vmin, 24px);
-    color: rgba(214, 206, 184, 0.34);
+    line-height: 1;
+    color: var(--board-bonus-number-color);
+    font-variant-numeric: tabular-nums;
     text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.05),
-        0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
+        0 calc(-1px * var(--layout-stage-scale)) 0 var(--board-bonus-number-highlight),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) var(--board-bonus-number-shadow),
+        0 0 calc(5px * var(--layout-stage-scale)) var(--board-bonus-number-glow),
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+    opacity: 1;
+    mix-blend-mode: normal;
     pointer-events: none;
     user-select: none;
     z-index: 6;
 }
 
 .cell.has-theory-number-cell {
+    overflow: hidden;
     box-shadow:
-        inset 0 0 0 1px rgba(238, 210, 121, 0.35),
-        inset 0 0 18px rgba(92, 55, 175, 0.34),
-        0 0 14px rgba(236, 193, 92, 0.18);
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 224, 128, 0.58),
+        inset 0 0 0 calc(2px * var(--layout-stage-scale)) rgba(91, 56, 178, 0.46),
+        inset 0 0 calc(18px * var(--layout-stage-scale)) rgba(76, 42, 154, 0.42),
+        inset 0 0 calc(32px * var(--layout-stage-scale)) rgba(236, 193, 92, 0.10),
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(121, 75, 255, 0.26),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(236, 193, 92, 0.16);
+}
+
+.cell.has-theory-number-cell::before {
+    content: "";
+    position: absolute;
+    inset: calc(4px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 228, 137, 0.36);
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background:
+        radial-gradient(circle at 50% 48%, rgba(255, 221, 128, 0.16), transparent 34%),
+        radial-gradient(circle at 50% 50%, rgba(104, 72, 224, 0.26), transparent 68%);
+    box-shadow:
+        inset 0 0 calc(10px * var(--layout-stage-scale)) rgba(35, 14, 64, 0.48),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(236, 193, 92, 0.18);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.cell.has-theory-number-cell::after {
+    content: "";
+    position: absolute;
+    inset: calc(9px * var(--layout-stage-scale));
+    border-radius: 50%;
+    background:
+        conic-gradient(from 45deg,
+            transparent 0deg,
+            rgba(255, 230, 142, 0.0) 42deg,
+            rgba(255, 230, 142, 0.34) 48deg,
+            rgba(133, 91, 255, 0.18) 56deg,
+            transparent 66deg,
+            transparent 180deg,
+            rgba(255, 230, 142, 0.0) 222deg,
+            rgba(255, 230, 142, 0.28) 228deg,
+            rgba(133, 91, 255, 0.16) 236deg,
+            transparent 246deg);
+    filter: drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) rgba(255, 224, 128, 0.30));
+    pointer-events: none;
+    z-index: 3;
 }
 
 .cell.has-theory-number-cell .board-bonus-number {
-    color: rgba(255, 235, 169, 0.82);
+    color: rgba(255, 244, 196, 0.98);
+    font-weight: 800;
     text-shadow:
-        0 0 7px rgba(255, 235, 169, 0.86),
-        0 0 18px rgba(124, 82, 255, 0.58),
-        0 1px 3px rgba(0, 0, 0, 0.62);
+        0 calc(-1px * var(--layout-stage-scale)) 0 rgba(255, 255, 232, 0.54),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.86),
+        0 0 calc(7px * var(--layout-stage-scale)) rgba(255, 224, 128, 0.82),
+        0 0 calc(16px * var(--layout-stage-scale)) rgba(124, 82, 255, 0.72),
+        0 0 calc(28px * var(--layout-stage-scale)) rgba(58, 32, 138, 0.62);
+    z-index: 7;
 }
 
 .cell.theory-spawn-roulette-active {
@@ -416,20 +487,20 @@
 .cell.has-disc::before {
     content: "";
     position: absolute;
-    left: 11%;
-    right: 7%;
-    bottom: 11%;
-    height: 24%;
+    left: 6%;
+    right: 2%;
+    bottom: 7%;
+    height: 31%;
     border-radius: 50%;
     background: radial-gradient(
-        ellipse at 42% 46%,
+        ellipse at 44% 44%,
         color-mix(in srgb, var(--cell-contact-shadow-color) 100%, transparent) 0%,
-        color-mix(in srgb, var(--cell-contact-shadow-color) 72%, transparent) 42%,
-        color-mix(in srgb, var(--cell-contact-shadow-color) 28%, transparent) 72%,
-        transparent 88%
+        color-mix(in srgb, var(--cell-contact-shadow-color) 80%, transparent) 44%,
+        color-mix(in srgb, var(--cell-contact-shadow-color) 34%, transparent) 76%,
+        transparent 90%
     );
     filter: blur(var(--cell-contact-shadow-blur));
-    transform: translate(var(--cell-contact-shadow-offset-x), var(--cell-contact-shadow-offset-y)) scale(1.06, 0.92);
+    transform: translate(var(--cell-contact-shadow-offset-x), var(--cell-contact-shadow-offset-y)) scale(1.14, 0.96);
     box-shadow: 0 -1px 2px var(--cell-contact-shadow-highlight);
     opacity: 0;
     pointer-events: none;
@@ -446,38 +517,28 @@
         inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48);
 }
 
-#board .cell-expanded.selectable-friendly {
-    background:
-        linear-gradient(180deg, rgba(121, 246, 224, 0.08), rgba(0, 0, 0, 0.04)),
-        linear-gradient(135deg, rgba(14, 126, 111, 0.86), rgba(7, 90, 79, 0.82));
-    box-shadow:
-        inset 0 0 calc(14px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.08),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(224, 255, 249, 0.06),
-        inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48);
-}
-
 .cell.legal,
 .cell.legal-free {
     background:
-        linear-gradient(180deg, rgba(142, 255, 229, 0.12), rgba(0, 0, 0, 0.03)),
-        linear-gradient(135deg, rgba(16, 138, 121, 0.88), rgba(7, 98, 85, 0.84));
+        linear-gradient(180deg, rgba(120, 232, 214, 0.07), rgba(0, 0, 0, 0.04)),
+        linear-gradient(135deg, rgba(13, 108, 96, 0.72), rgba(7, 76, 68, 0.68));
     box-shadow:
-        inset 0 0 calc(15px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.12),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(160, 255, 226, 0.10),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(224, 255, 249, 0.09),
-        inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46);
+        inset 0 0 calc(13px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.06),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(160, 255, 226, 0.05),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(224, 255, 249, 0.05),
+        inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48);
 }
 
-#board .cell-expanded.legal,
-#board .cell-expanded.legal-free {
+#board-expansion-layer .cell-expanded.legal,
+#board-expansion-layer .cell-expanded.legal-free,
+#board-expansion-layer .cell-expanded.selectable-friendly {
     background:
-        linear-gradient(180deg, rgba(142, 255, 229, 0.12), rgba(0, 0, 0, 0.03)),
-        linear-gradient(135deg, rgba(16, 138, 121, 0.88), rgba(7, 98, 85, 0.84));
+        linear-gradient(180deg, rgba(114, 230, 212, 0.06), rgba(0, 0, 0, 0.04)),
+        linear-gradient(135deg, rgba(11, 102, 91, 0.70), rgba(6, 72, 64, 0.66));
     box-shadow:
-        inset 0 0 calc(15px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.12),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(160, 255, 226, 0.10),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(224, 255, 249, 0.09),
-        inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46);
+        inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.05),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(224, 255, 249, 0.06),
+        inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48);
 }
 
 .cell.legal.has-board-bonus .board-bonus-number,
@@ -849,18 +910,18 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
 .disc::before {
     content: "";
     position: absolute;
-    inset: 38% -8% -18% 34%;
+    inset: 30% -14% -26% 20%;
     border-radius: 50%;
     background:
         radial-gradient(
-            ellipse at 36% 34%,
+            ellipse at 40% 34%,
             color-mix(in srgb, var(--stone-shadow-color) 100%, transparent) 0%,
-            color-mix(in srgb, var(--stone-shadow-color) 76%, transparent) 36%,
-            color-mix(in srgb, var(--stone-shadow-color) 32%, transparent) 70%,
-            transparent 88%
+            color-mix(in srgb, var(--stone-shadow-color) 82%, transparent) 38%,
+            color-mix(in srgb, var(--stone-shadow-color) 38%, transparent) 72%,
+            transparent 90%
         );
     filter: blur(var(--stone-shadow-blur));
-    transform: translate(var(--stone-shadow-offset-x), var(--stone-shadow-offset-y)) scale(1.18, 0.82);
+    transform: translate(var(--stone-shadow-offset-x), var(--stone-shadow-offset-y)) scale(1.30, 0.78);
     transform-origin: center;
     opacity: 0;
     pointer-events: none;
@@ -1123,11 +1184,11 @@ html.stone-images-loaded .disc.white {
 }
 
 .disc.bomb.bomb-black {
-    --special-stone-image: url('assets/images/stones/TIME_BOMB-black.png');
+    --special-stone-image: url('assets/images/special-stones/TIME_BOMB-black.png');
 }
 
 .disc.bomb.bomb-white {
-    --special-stone-image: url('assets/images/stones/TIME_BOMB-white.png');
+    --special-stone-image: url('assets/images/special-stones/TIME_BOMB-white.png');
 }
 
 .disc.time-bomb-stone {
@@ -1414,12 +1475,12 @@ html.stone-images-loaded .disc.white {
 @keyframes fadeOutStone {
     0% {
         opacity: 1;
-        background-image: url('assets/images/stones/protected_next_stone.png') !important;
+        background-image: url('assets/images/special-stones/protected_next_stone.png') !important;
     }
 
     50% {
         opacity: 0.5;
-        background-image: url('assets/images/stones/protected_next_stone.png') !important;
+        background-image: url('assets/images/special-stones/protected_next_stone.png') !important;
     }
 
     100% {
@@ -1490,12 +1551,12 @@ body.othello-mode-active :is(
 
 .disc.ultimate-dragon.ud-black,
 .disc.ultimate-dragon[data-ud="black"] {
-    --special-stone-image: var(--dragon-image-path, url('assets/images/stones/ultimate_reverse_dragon-black.png'));
+    --special-stone-image: var(--dragon-image-path, url('assets/images/special-stones/ultimate_reverse_dragon-black.png'));
 }
 
 .disc.ultimate-dragon.ud-white,
 .disc.ultimate-dragon[data-ud="white"] {
-    --special-stone-image: var(--dragon-image-path, url('assets/images/stones/ultimate_reverse_dragon-white.png'));
+    --special-stone-image: var(--dragon-image-path, url('assets/images/special-stones/ultimate_reverse_dragon-white.png'));
 }
 
 .disc.ultimate-dragon.ud-black {
@@ -1555,11 +1616,11 @@ body.othello-mode-active :is(
 }
 
 .disc.breeding-stone[data-breeding="black"] {
-    --special-stone-image: var(--breeding-image-path, url('assets/images/stones/BREEDING_WILL-black.png'));
+    --special-stone-image: var(--breeding-image-path, url('assets/images/special-stones/BREEDING_WILL-black.png'));
 }
 
 .disc.breeding-stone[data-breeding="white"] {
-    --special-stone-image: var(--breeding-image-path, url('assets/images/stones/BREEDING_WILL-white.png'));
+    --special-stone-image: var(--breeding-image-path, url('assets/images/special-stones/BREEDING_WILL-white.png'));
 }
 
 .disc.ultimate-destroy-god {
@@ -1568,12 +1629,12 @@ body.othello-mode-active :is(
 
 .disc.ultimate-destroy-god.ud-black,
 .disc.ultimate-destroy-god[data-ud="black"] {
-    --special-stone-image: url('assets/images/stones/ULTIMATE_DESTROY_GOD-black.png');
+    --special-stone-image: url('assets/images/special-stones/ULTIMATE_DESTROY_GOD-black.png');
 }
 
 .disc.ultimate-destroy-god.ud-white,
 .disc.ultimate-destroy-god[data-ud="white"] {
-    --special-stone-image: url('assets/images/stones/ULTIMATE_DESTROY_GOD-white.png');
+    --special-stone-image: url('assets/images/special-stones/ULTIMATE_DESTROY_GOD-white.png');
 }
 
 /* Breeding spawn animation removed to avoid opacity fades */
@@ -1587,7 +1648,7 @@ body.othello-mode-active :is(
 .no-anim #board .disc__base-image,
 .no-anim #board .disc__overlay-image,
 .no-anim .stone-fade-overlay,
-.no-anim #board .cell-expanded-reveal {
+.no-anim #board-expansion-layer .cell-expanded-reveal {
     transition: none !important;
     animation: none !important;
     opacity: 1 !important;
@@ -1636,12 +1697,12 @@ body.othello-mode-active :is(
 
 .disc.hyperactive-stone.ud-black,
 .disc.hyperactive-stone[data-ud="black"] {
-    --special-stone-image: url('assets/images/stones/HYPERACTIVE_WILL-black.png');
+    --special-stone-image: url('assets/images/special-stones/HYPERACTIVE_WILL-black.png');
 }
 
 .disc.hyperactive-stone.ud-white,
 .disc.hyperactive-stone[data-ud="white"] {
-    --special-stone-image: url('assets/images/stones/HYPERACTIVE_WILL-white.png');
+    --special-stone-image: url('assets/images/special-stones/HYPERACTIVE_WILL-white.png');
 }
 
 .disc.sniper-stone {
@@ -1649,12 +1710,12 @@ body.othello-mode-active :is(
 
 .disc.sniper-stone.ud-black,
 .disc.sniper-stone[data-ud="black"] {
-    --special-stone-image: url('assets/images/stones/sna-black.png');
+    --special-stone-image: url('assets/images/special-stones/sna-black.png');
 }
 
 .disc.sniper-stone.ud-white,
 .disc.sniper-stone[data-ud="white"] {
-    --special-stone-image: url('assets/images/stones/sna-white.png');
+    --special-stone-image: url('assets/images/special-stones/sna-white.png');
 }
 
 .disc.trap-stone {
@@ -1695,12 +1756,12 @@ body.othello-mode-active :is(
 
 .disc.regen-stone.ud-black,
 .disc.regen-stone[data-ud="black"] {
-    --special-stone-image: url('assets/images/stones/regen_stone-black.png');
+    --special-stone-image: url('assets/images/special-stones/regen_stone-black.png');
 }
 
 .disc.regen-stone.ud-white,
 .disc.regen-stone[data-ud="white"] {
-    --special-stone-image: url('assets/images/stones/regen_stone-white.png');
+    --special-stone-image: url('assets/images/special-stones/regen_stone-white.png');
 }
 
 

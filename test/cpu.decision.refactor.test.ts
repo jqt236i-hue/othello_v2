@@ -210,7 +210,7 @@ describe('cpu decision refactor helpers', () => {
       boardBonusByCell: {},
       boardBonusConsumedByCell: {}
     };
-    global.cpuSmartness.white = '8-ending-ash';
+    global.cpuSmartness.white = '9-ending-ash';
     global.AISystem = null;
     jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockReturnValue(candidateMoves[1]);
     jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves) => moves[0]);
@@ -223,7 +223,7 @@ describe('cpu decision refactor helpers', () => {
     }));
   });
 
-  test('selectCpuMoveWithPolicy resolves numeric Lv8 selection to Lv6 shared placement logic', () => {
+  test('selectCpuMoveWithPolicy resolves numeric Lv9 selection to Lv6 shared placement logic', () => {
     const candidateMoves = [
       { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
       { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }

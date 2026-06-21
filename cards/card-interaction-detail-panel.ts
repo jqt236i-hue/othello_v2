@@ -228,14 +228,14 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         return count <= 0 ? '救済不可能' : `${count}個救済可能`;
     }
 
-    function getEqualityWillLiveStateText() {
+    function getEqualityWillLiveStateText(ownerKey: any) {
         const cardLogic = cfg.getCardLogic();
-        const gameStateValue = cfg.getGameStateValue();
-        if (!cardLogic || typeof cardLogic.getEqualityWillBoardCounts !== 'function') return '';
-        const counts = cardLogic.getEqualityWillBoardCounts(gameStateValue);
-        const black = Math.max(0, Number(counts && counts.black) || 0);
-        const white = Math.max(0, Number(counts && counts.white) || 0);
-        return `（黒${black}／白${white}）`;
+        const cardStateValue = cfg.getCardStateValue();
+        if (!ownerKey || !cardLogic || typeof cardLogic.getEqualityWillChargeState !== 'function') return '';
+        const counts = cardLogic.getEqualityWillChargeState(cardStateValue, ownerKey);
+        const own = Math.max(0, Number(counts && counts.own) || 0);
+        const opponent = Math.max(0, Number(counts && counts.opponent) || 0);
+        return `（自分布石${own}／相手布石${opponent}）`;
     }
 
     function getReinforcementWillLiveStateText(ownerKey: any) {
@@ -275,7 +275,7 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
             return getSupportTroopsWillLiveStateText(ownerKey);
         }
         if (cardDef.type === 'EQUALITY_WILL') {
-            return getEqualityWillLiveStateText();
+            return getEqualityWillLiveStateText(ownerKey);
         }
         if (cardDef.type === 'RIBO_WILL') {
             const cardStateValue = cfg.getCardStateValue();

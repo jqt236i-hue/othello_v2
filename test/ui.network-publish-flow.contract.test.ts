@@ -147,10 +147,12 @@ describe('NetworkPublishFlowController contract', () => {
       { stateVersion: 2 },
       expect.objectContaining({
         applyOptions: expect.objectContaining({
-          playbackEvents: []
+          playbackEvents: [],
+          presentationFrames: responsePayload.presentationFrames,
+          presentationFrameSource: 'publish_response'
         })
       })
     );
-    expect(enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(responsePayload, { source: 'publish_response' });
+    expect(enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
   });
 });

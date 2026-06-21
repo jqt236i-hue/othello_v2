@@ -173,9 +173,15 @@ function pushGluttonousTurnStartEvents(options: ProcessTurnStartSpecialStoneOpti
 }
 
 function pushUltimateHyperactiveTurnStartEvents(options: ProcessTurnStartSpecialStoneOptions, ownerKey: any, row: any, col: any, res: any): void {
+    const hyperAggregated = options.processingState.hyperAggregated;
     pushTurnStartDetailsEvent(options.events, 'ultimate_hyperactive_moved_start', res && res.moved);
+    if (res && res.moved && res.moved.length) {
+        hyperAggregated.moved.push(...res.moved);
+    }
     if (res && res.flipped && res.flipped.length) {
         options.events.push({ type: 'ultimate_hyperactive_flipped_start', details: res.flipped });
+        hyperAggregated.flipped.push(...res.flipped);
+        ensureHyperAggregatedOwnerBucket(hyperAggregated, ownerKey).push(...res.flipped);
         options.awardBoardChargeGain(options.CardLogic, options.cardState, ownerKey, res.flipped.length, {
             anchorRow: row,
             anchorCol: col,
@@ -184,6 +190,9 @@ function pushUltimateHyperactiveTurnStartEvents(options: ProcessTurnStartSpecial
         });
     }
     pushTurnStartDetailsEvent(options.events, 'ultimate_hyperactive_destroyed_start', res && res.destroyed);
+    if (res && res.destroyed && res.destroyed.length) {
+        hyperAggregated.destroyed.push(...res.destroyed);
+    }
 }
 
 function pushObserverWillRepaymentTurnStartEvent(events: any[], playerKey: any, repayment: any): void {

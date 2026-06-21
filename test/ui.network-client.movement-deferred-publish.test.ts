@@ -335,6 +335,8 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
+      row: 6,
+      col: 8,
       [actionField]: { row: 6, col: 8 },
       pendingSelectionState: {
         type: pendingType,

@@ -10,8 +10,8 @@ function setupStatusDisplayDom(gameStateOverride) {
     '<img id="cpu-character-img" />' +
     '<div id="cpu-level-label"></div>' +
     '<img id="hero-character-img" src="assets/images/hero/HERO.png" />' +
-    '<select id="smartWhite"><option value="1">1</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option><option value="8-ending-ash">Lv8: 終焉の冥灰</option></select>' +
-    '<select id="smartBlack"><option value="1">1</option><option value="6">Lv6: 盤理の観測者</option><option value="6-board-executor">Lv6: 盤界の執行者</option><option value="7-theory-incarnation">Lv7: 理論の化身</option><option value="8-ending-ash">Lv8: 終焉の冥灰</option></select>' +
+    '<select id="smartWhite"><option value="1">1</option><option value="7-board-executor">Lv7: 盤界の執行者</option><option value="8-theory-incarnation">Lv8: 理論の化身</option><option value="9-ending-ash">Lv9: 終焉の冥灰</option></select>' +
+    '<select id="smartBlack"><option value="1">1</option><option value="6">Lv6: 盤理の観測者</option><option value="7-board-executor">Lv7: 盤界の執行者</option><option value="8-theory-incarnation">Lv8: 理論の化身</option><option value="9-ending-ash">Lv9: 終焉の冥灰</option></select>' +
     '<div id="hero-label"></div>' +
     '</body></html>',
     { runScripts: 'outside-only', url: 'http://localhost/' }
@@ -145,10 +145,10 @@ describe('status-display round bonus surface', () => {
     teardownStatusDisplayDom(dom);
   });
 
-  test('uses board executor portrait and label for the board executor Lv6 profile', () => {
+  test('uses board executor portrait and label for the board executor Lv7 profile', () => {
     const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
     const smartWhite = window.document.getElementById('smartWhite') as HTMLSelectElement;
-    smartWhite.value = '6-board-executor';
+    smartWhite.value = '7-board-executor';
     window.CPU_LEVEL_NAMES[6] = '盤理の観測者';
 
     window.updateStatus();
@@ -157,15 +157,15 @@ describe('status-display round bonus surface', () => {
     const label = window.document.getElementById('cpu-level-label') as HTMLElement;
     expect(img.src).toContain('assets/images/special-cards/characters/board_executor.png');
     expect(img.alt).toBe('盤界の執行者');
-    expect(label.textContent).toBe('Lv6 盤界の執行者');
+    expect(label.textContent).toBe('Lv7 盤界の執行者');
 
     teardownStatusDisplayDom(dom);
   });
 
-  test('uses theory incarnation portrait and label for the theory Lv7 profile', () => {
+  test('uses theory incarnation portrait and label for the theory Lv8 profile', () => {
     const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
     const smartWhite = window.document.getElementById('smartWhite') as HTMLSelectElement;
-    smartWhite.value = '7-theory-incarnation';
+    smartWhite.value = '8-theory-incarnation';
 
     window.updateStatus();
 
@@ -173,15 +173,15 @@ describe('status-display round bonus surface', () => {
     const label = window.document.getElementById('cpu-level-label') as HTMLElement;
     expect(img.src).toContain('assets/images/special-cards/characters/theory_incarnation.png');
     expect(img.alt).toBe('理論の化身');
-    expect(label.textContent).toBe('Lv7 理論の化身');
+    expect(label.textContent).toBe('Lv8 理論の化身');
 
     teardownStatusDisplayDom(dom);
   });
 
-  test('uses ending ash portrait and label for the ending ash Lv8 profile', () => {
+  test('uses ending ash portrait and label for the ending ash Lv9 profile', () => {
     const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
     const smartWhite = window.document.getElementById('smartWhite') as HTMLSelectElement;
-    smartWhite.value = '8-ending-ash';
+    smartWhite.value = '9-ending-ash';
 
     window.updateStatus();
 
@@ -189,7 +189,7 @@ describe('status-display round bonus surface', () => {
     const label = window.document.getElementById('cpu-level-label') as HTMLElement;
     expect(decodeURIComponent(img.src)).toContain('assets/images/special-cards/characters/終焉の冥灰.png');
     expect(img.alt).toBe('終焉の冥灰');
-    expect(label.textContent).toBe('Lv8 終焉の冥灰');
+    expect(label.textContent).toBe('Lv9 終焉の冥灰');
 
     teardownStatusDisplayDom(dom);
   });
@@ -197,7 +197,7 @@ describe('status-display round bonus surface', () => {
   test('uses selected black CPU profile portrait for the hero side in auto mode', () => {
     const { dom, window } = setupStatusDisplayDom({ turnNumber: 1, roundNumber: 1 });
     const smartBlack = window.document.getElementById('smartBlack') as HTMLSelectElement;
-    smartBlack.value = '6-board-executor';
+    smartBlack.value = '7-board-executor';
 
     window.updateStatus();
 

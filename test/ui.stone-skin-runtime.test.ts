@@ -21,32 +21,32 @@ describe('stone skin runtime', () => {
   test('applies selected normal stone image variables to the document root', () => {
     const runtime = require('../ui/stone-skin/runtime.ts');
 
-    const applied = runtime.syncDisplayedStoneSkin(window, 'o-stone');
+    const applied = runtime.syncDisplayedStoneSkin(window, 'jade-rim');
 
-    expect(applied.id).toBe('o-stone');
-    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
-    expect(document.documentElement.style.getPropertyValue('--normal-stone-black-image')).toBe('url("assets/images/stone-skin/o-stone/black.png")');
-    expect(document.documentElement.style.getPropertyValue('--normal-stone-white-image')).toBe('url("assets/images/stone-skin/o-stone/white.png")');
+    expect(applied.id).toBe('jade-rim');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('jade-rim');
+    expect(document.documentElement.style.getPropertyValue('--normal-stone-black-image')).toBe('url("assets/images/stone-skin/jade-rim/black.png")');
+    expect(document.documentElement.style.getPropertyValue('--normal-stone-white-image')).toBe('url("assets/images/stone-skin/jade-rim/white.png")');
   });
 
   test('resolves selected normal stone background images from the shared variables', () => {
     const runtime = require('../ui/stone-skin/runtime.ts');
 
-    runtime.syncDisplayedStoneSkin(window, 'o-stone');
+    runtime.syncDisplayedStoneSkin(window, 'jade-rim');
 
     expect(runtime.getNormalStoneImageVariableName('black')).toBe('--normal-stone-black-image');
     expect(runtime.getNormalStoneImageVariableName('white')).toBe('--normal-stone-white-image');
-    expect(runtime.resolveNormalStoneBackgroundImage('black', window)).toContain('assets/images/stone-skin/o-stone/black.png');
-    expect(runtime.resolveNormalStoneBackgroundImage('white', window)).toContain('assets/images/stone-skin/o-stone/white.png');
+    expect(runtime.resolveNormalStoneBackgroundImage('black', window)).toContain('assets/images/stone-skin/jade-rim/black.png');
+    expect(runtime.resolveNormalStoneBackgroundImage('white', window)).toContain('assets/images/stone-skin/jade-rim/white.png');
   });
 
-  test('falls back to default normal stone images when no document root is available', () => {
+  test('falls back to the configured default stone skin images when no document root is available', () => {
     const runtime = require('../ui/stone-skin/runtime.ts');
 
     delete (global as any).window;
     delete (global as any).document;
 
-    expect(runtime.resolveNormalStoneBackgroundImage('black', null)).toBe('url("assets/images/stones/normal_stone-black.png")');
-    expect(runtime.resolveNormalStoneBackgroundImage('white', null)).toBe('url("assets/images/stones/normal_stone-white.png")');
+    expect(runtime.resolveNormalStoneBackgroundImage('black', null)).toBe('url("assets/images/stone-skin/jade-rim/black.png")');
+    expect(runtime.resolveNormalStoneBackgroundImage('white', null)).toBe('url("assets/images/stone-skin/jade-rim/white.png")');
   });
 });

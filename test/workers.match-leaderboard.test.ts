@@ -44,9 +44,13 @@ function runLeaderboardFlow() {
     "  await submit({ playerId: 'player_alpha_0001', playerName: 'アルファ', score: 6800, mode: 'network' });",
     "  await submit({ playerId: 'player_beta_0002', playerName: 'ベータ', score: 8100, mode: 'network' });",
     "",
-    "  const listResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10'));",
-    "  const listPayload = await listResponse.json();",
-    "  process.stdout.write(JSON.stringify(listPayload));",
+    "  const allResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10'));",
+    "  const networkResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=network'));",
+    "  const cpuResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=cpu'));",
+    "  const allPayload = await allResponse.json();",
+    "  const networkPayload = await networkResponse.json();",
+    "  const cpuPayload = await cpuResponse.json();",
+    "  process.stdout.write(JSON.stringify({ allPayload, networkPayload, cpuPayload }));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
@@ -87,21 +91,45 @@ function runInvalidSubmit() {
 }
 
 describe('match worker shared leaderboard', () => {
-  test('playerごとの自己ベストを保持して降順で返す', () => {
+  test('総合とモード別で自己ベストを分けて降順で返す', () => {
     const payload = runLeaderboardFlow();
-    expect(payload && payload.ok).toBe(true);
-    expect(Array.isArray(payload.entries)).toBe(true);
-    expect(payload.entries).toHaveLength(2);
+    expect(payload && payload.allPayload && payload.allPayload.ok).toBe(true);
+    expect(Array.isArray(payload.allPayload.entries)).toBe(true);
+    expect(payload.allPayload.entries).toHaveLength(2);
 
-    expect(payload.entries[0].playerName).toBe('ベータ');
-    expect(payload.entries[0].bestScore).toBe(8100);
-    expect(payload.entries[0].rank).toBe(1);
+    expect(payload.allPayload.entries[0].playerName).toBe('ベータ');
+    expect(payload.allPayload.entries[0].bestScore).toBe(8100);
+    expect(payload.allPayload.entries[0].rank).toBe(1);
 
-    expect(payload.entries[1].playerName).toBe('アルファ');
-    expect(payload.entries[1].bestScore).toBe(7200);
-    expect(payload.entries[1].rank).toBe(2);
-    expect(payload.entries[1].mode).toBe('cpu');
-    expect(payload.entries[1].cpuLevel).toBe(3);
+    expect(payload.allPayload.entries[1].playerName).toBe('アルファ');
+    expect(payload.allPayload.entries[1].bestScore).toBe(7200);
+    expect(payload.allPayload.entries[1].rank).toBe(2);
+    expect(payload.allPayload.entries[1].mode).toBe('cpu');
+    expect(payload.allPayload.entries[1].cpuLevel).toBe(3);
+
+    expect(payload.networkPayload.entries).toHaveLength(2);
+    expect(payload.networkPayload.entries[0]).toMatchObject({
+      playerName: 'ベータ',
+      bestScore: 8100,
+      rank: 1,
+      mode: 'network'
+    });
+    expect(payload.networkPayload.entries[1]).toMatchObject({
+      playerName: 'アルファ',
+      bestScore: 6800,
+      rank: 2,
+      mode: 'network',
+      cpuLevel: null
+    });
+
+    expect(payload.cpuPayload.entries).toHaveLength(1);
+    expect(payload.cpuPayload.entries[0]).toMatchObject({
+      playerName: 'アルファ',
+      bestScore: 7200,
+      rank: 1,
+      mode: 'cpu',
+      cpuLevel: 3
+    });
   });
 
   test('playerId未指定の送信は400で拒否する', () => {

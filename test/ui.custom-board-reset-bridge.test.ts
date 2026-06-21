@@ -22,7 +22,7 @@ describe('custom board reset bridge', () => {
       <select id="smartBlack"><option value="1" selected>1</option></select>
       <select id="smartWhite">
         <option value="1">1</option>
-        <option value="7-theory-incarnation">Lv7: 理論の化身</option>
+        <option value="8-theory-incarnation">Lv8: 理論の化身</option>
       </select>
     </body></html>`, { url: 'http://localhost/' });
 
@@ -140,10 +140,10 @@ describe('custom board reset bridge', () => {
     });
   });
 
-  test('resetGame applies Lv7 theory incarnation initial white charge from the CPU selector', () => {
+  test('resetGame applies Lv8 theory incarnation initial white charge from the CPU selector', () => {
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const smartWhite = document.getElementById('smartWhite') as HTMLSelectElement;
-    smartWhite.value = '7-theory-incarnation';
+    smartWhite.value = '8-theory-incarnation';
 
     createDeckBuilderController({
       root: window,

@@ -80,6 +80,7 @@ const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PL
     ? Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX)
     : 7;
 const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v3';
+const TIME_ATTACK_LEADERBOARD_STORAGE_KEY = 'global_time_attack_leaderboard_v1';
 const LEADERBOARD_STORAGE_VERSION = 3;
 const MATCH_LOBBY_ROOM_ID = '__match_lobby__';
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
@@ -958,6 +959,7 @@ function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, play
 function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown, options: MatchWorkerPublishPayloadOptions = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
+    const networkAutoEnabled = toPublicNetworkAutoEnabled(room);
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
         ? options.snapshot
         : toPublicSnapshot(room, viewerSeatKey);
@@ -970,6 +972,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled,
+        networkAutoEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
@@ -1634,6 +1637,10 @@ function toPublicNetworkDebugEnabled(room: MatchWorkerRoomState | null | undefin
     return !!(room && room.networkDebugEnabled === true);
 }
 
+function toPublicNetworkAutoEnabled(room: MatchWorkerRoomState | null | undefined): boolean {
+    return !!(room && room.networkAutoEnabled === true);
+}
+
 function toPublicChatMessages(room: MatchWorkerRoomState | null | undefined): Array<Record<string, unknown>> {
     const messages: unknown[] = Array.isArray(room?.chatMessages) ? room.chatMessages : [];
     return messages.map((entry) => {
@@ -1682,6 +1689,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(metaRecord.effectLogs),
@@ -1711,6 +1719,7 @@ function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPrese
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     };
@@ -1734,6 +1743,7 @@ function buildHeartbeatPayload(room: MatchWorkerRoomState, serverTime: unknown):
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     });
@@ -1793,6 +1803,7 @@ async function resolveDeckSelection(rawDeckCodeValue: unknown): Promise<MatchWor
 async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Response> {
     const opts = asRecord(options);
     const networkDebugEnabled = opts.networkDebugEnabled === true;
+    const networkAutoEnabled = opts.networkAutoEnabled === true;
     const playerName = normalizeNetworkPlayerName(opts.playerName) || MatchRoomLobby.createRandomPlayerName();
     const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(opts.roomPassword);
@@ -1843,6 +1854,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 playerName,
                 selectedHandSkinId: opts.selectedHandSkinId,
                 networkDebugEnabled,
+                networkAutoEnabled,
                 roomName,
                 roomPassword,
                 initialDeckSpecByPlayer,
@@ -1989,6 +2001,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             this.leaderboardRoomController = createMatchWorkerLeaderboardRoomController({
                 storage: this.state.storage,
                 storageKey: LEADERBOARD_STORAGE_KEY,
+                timeAttackStorageKey: TIME_ATTACK_LEADERBOARD_STORAGE_KEY,
                 defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
                 helpers: MatchWorkerLeaderboardHelpers,
                 jsonResponse
@@ -2515,6 +2528,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = opts.networkDebugEnabled === true;
+        const networkAutoEnabled = opts.networkAutoEnabled === true;
         const nowMs = Date.now();
         return {
             roomId,
@@ -2528,6 +2542,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomPassword,
             roomBoardConfig,
             networkDebugEnabled,
+            networkAutoEnabled,
             stateVersion: 0,
             seats: { black: false, white: false },
             seatNames: { black: '', white: '' },
@@ -2577,17 +2592,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!this.room) return;
         const nowMs = Date.now();
         if (await this.expireRoomIfNeeded(nowMs)) return;
+        const result = await this.applyExpiredTurnTimeoutIfNeeded({ nowMs });
+        if (result && result.applied === true) return;
         if (MatchRoomLobby.readInactiveSince(this.room) > 0 && this.streams.size === 0) {
             await this.syncInactiveRoomExpiryAlarm(nowMs);
             return;
         }
-        const result = await this.applyExpiredTurnTimeoutIfNeeded({ nowMs });
-        if (!result || result.applied !== true) {
-            const timerChanged = await this.refreshTurnTimer({ nowMs, forceRestart: false });
-            if (timerChanged) {
-                this.room.updatedAt = nowMs;
-                await this.saveRoom();
-            }
+        const timerChanged = await this.refreshTurnTimer({ nowMs, forceRestart: false });
+        if (timerChanged) {
+            this.room.updatedAt = nowMs;
+            await this.saveRoom();
         }
     }
 
@@ -2619,6 +2633,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = payload.networkDebugEnabled === true;
+        const networkAutoEnabled = payload.networkAutoEnabled === true;
         const roomName = MatchRoomLobby.resolveRoomName(payload.roomName);
         const roomPassword = MatchRoomLobby.normalizeRoomPassword(payload.roomPassword);
 
@@ -2636,6 +2651,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck,
             roomBoardConfig,
             networkDebugEnabled,
+            networkAutoEnabled,
             roomName,
             roomPassword
         });
@@ -2663,6 +2679,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             stateVersion: room.stateVersion,
             snapshot: toPublicSnapshot(room, 'black'),
             turnTimer: toPublicTurnTimer(room, serverTime),
@@ -2774,6 +2791,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             stateVersion: room.stateVersion,
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
@@ -2881,6 +2899,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         }), room);
@@ -2971,6 +2990,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         }));
@@ -3026,6 +3046,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: nextRoomDeck,
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         }));
@@ -3078,6 +3099,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         }));
@@ -3122,6 +3144,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         }));
@@ -3168,12 +3191,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
             snapshot: toPublicSnapshotForViewer(room, viewer),
             turnTimer: toPublicTurnTimer(room, serverTime),
             playbackEvents: Array.isArray(recoveredMeta.playbackEvents) ? recoveredMeta.playbackEvents : [],
             effectLogs: MatchAuthority.normalizeEffectLogMessages(recoveredMeta.effectLogs),
             playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(recoveredMeta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
             presentationCursor: buildPresentationCursor(room),
+            presentationFrames: Array.isArray(recoveredMeta.presentationFrames) ? recoveredMeta.presentationFrames : [],
             operationId: recoveredMeta.operationId ? String(recoveredMeta.operationId) : null,
             playerKey: recoveredMeta.playerKey ? normalizePlayerKey(recoveredMeta.playerKey) : null,
             actionType: recoveredMeta.actionType ? String(recoveredMeta.actionType) : null,
@@ -3226,8 +3251,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         await this.getLeaderboardRoomController().saveLeaderboardStore(store);
     }
 
-    listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown): Array<Record<string, unknown>> {
-        return this.getLeaderboardRoomController().listLeaderboardEntries(store, limit);
+    listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown, mode?: unknown, cpuLevel?: unknown, category?: unknown): Array<Record<string, unknown>> {
+        return this.getLeaderboardRoomController().listLeaderboardEntries(store, limit, mode, cpuLevel, category);
     }
 
     async handleLeaderboardSubmit(body: Record<string, unknown>): Promise<Response> {

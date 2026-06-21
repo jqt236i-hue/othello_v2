@@ -15,16 +15,16 @@ describe('cpu opponent profiles', () => {
       { value: '4', label: 'Lv4: 盤面支配者' },
       { value: '5', label: 'Lv5: 終局を告げる者' },
       { value: '6', label: 'Lv6: 盤理の観測者' },
-      { value: '6-board-executor', label: 'Lv6: 盤界の執行者' },
-      { value: '7-theory-incarnation', label: 'Lv7: 理論の化身' },
-      { value: '8-ending-ash', label: 'Lv8: 終焉の冥灰' }
+      { value: '7-board-executor', label: 'Lv7: 盤界の執行者' },
+      { value: '8-theory-incarnation', label: 'Lv8: 理論の化身' },
+      { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' }
     ]);
   });
 
-  test('keeps board executor as a Lv6 opponent profile with its own presentation and deck profile', () => {
-    expect(CpuOpponentProfiles.getCpuOpponentProfile('6-board-executor')).toEqual(expect.objectContaining({
-      id: '6-board-executor',
-      level: 6,
+  test('keeps board executor as a Lv7 opponent profile with its own presentation and deck profile', () => {
+    expect(CpuOpponentProfiles.getCpuOpponentProfile('7-board-executor')).toEqual(expect.objectContaining({
+      id: '7-board-executor',
+      level: 7,
       name: '盤界の執行者',
       portraitSrc: 'assets/images/special-cards/characters/board_executor.png',
       deckProfile: 'lv6-board-executor'
@@ -42,20 +42,29 @@ describe('cpu opponent profiles', () => {
   });
 
   test('normalizes profile ids and numeric levels for runtime CPU strength', () => {
-    expect(CpuOpponentProfiles.getCpuOpponentLevel('6-board-executor')).toBe(6);
-    expect(CpuOpponentProfiles.getCpuOpponentLevel('7-theory-incarnation')).toBe(7);
-    expect(CpuOpponentProfiles.getCpuOpponentLevel('8-ending-ash')).toBe(8);
+    expect(CpuOpponentProfiles.getCpuOpponentLevel('7-board-executor')).toBe(7);
+    expect(CpuOpponentProfiles.getCpuOpponentLevel('8-theory-incarnation')).toBe(8);
+    expect(CpuOpponentProfiles.getCpuOpponentLevel('9-ending-ash')).toBe(9);
     expect(CpuOpponentProfiles.getCpuOpponentLevel('4')).toBe(4);
-    expect(CpuOpponentProfiles.getCpuOpponentProfileId('6-board-executor')).toBe('6-board-executor');
-    expect(CpuOpponentProfiles.getCpuOpponentProfileId(7)).toBe('7-theory-incarnation');
-    expect(CpuOpponentProfiles.getCpuOpponentProfileId(8)).toBe('8-ending-ash');
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId('7-board-executor')).toBe('7-board-executor');
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId(7)).toBe('7-board-executor');
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId(8)).toBe('8-theory-incarnation');
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId(9)).toBe('9-ending-ash');
     expect(CpuOpponentProfiles.getCpuOpponentProfileId('bad-value')).toBe('1');
   });
 
-  test('keeps theory incarnation as a Lv7 opponent profile that reuses Lv6 decisions with a handicap', () => {
-    expect(CpuOpponentProfiles.getCpuOpponentProfile('7-theory-incarnation')).toEqual(expect.objectContaining({
-      id: '7-theory-incarnation',
-      level: 7,
+  test('maps legacy profile ids onto the new Lv7-Lv9 profile ids', () => {
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId('6-board-executor')).toBe('7-board-executor');
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId('7-theory-incarnation')).toBe('8-theory-incarnation');
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId('8-ending-ash')).toBe('9-ending-ash');
+    expect(CpuOpponentProfiles.isCpuOpponentProfile('6-board-executor', '7-board-executor')).toBe(true);
+    expect(CpuOpponentProfiles.isCpuOpponentProfile('8-ending-ash', '9-ending-ash')).toBe(true);
+  });
+
+  test('keeps theory incarnation as a Lv8 opponent profile that reuses Lv6 decisions with a handicap', () => {
+    expect(CpuOpponentProfiles.getCpuOpponentProfile('8-theory-incarnation')).toEqual(expect.objectContaining({
+      id: '8-theory-incarnation',
+      level: 8,
       decisionLevel: 6,
       name: '理論の化身',
       portraitSrc: 'assets/images/special-cards/characters/theory_incarnation.png',
@@ -63,14 +72,14 @@ describe('cpu opponent profiles', () => {
       initialChargeByPlayer: { white: 50 },
       cardUseUnlockTurnNumber: 8
     }));
-    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel('7-theory-incarnation')).toBe(6);
-    expect(CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber(7)).toBe(8);
+    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel('8-theory-incarnation')).toBe(6);
+    expect(CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber(8)).toBe(8);
   });
 
-  test('keeps ending ash as a Lv8 opponent profile that reuses Lv6 decisions with a stronger handicap', () => {
-    expect(CpuOpponentProfiles.getCpuOpponentProfile('8-ending-ash')).toEqual(expect.objectContaining({
-      id: '8-ending-ash',
-      level: 8,
+  test('keeps ending ash as a Lv9 opponent profile that reuses Lv6 decisions with a stronger handicap', () => {
+    expect(CpuOpponentProfiles.getCpuOpponentProfile('9-ending-ash')).toEqual(expect.objectContaining({
+      id: '9-ending-ash',
+      level: 9,
       decisionLevel: 6,
       name: '終焉の冥灰',
       portraitSrc: 'assets/images/special-cards/characters/終焉の冥灰.png',
@@ -79,49 +88,49 @@ describe('cpu opponent profiles', () => {
       initialChargeByPlayer: { black: 99, white: 99 },
       cardUseUnlockTurnNumber: 6
     }));
-    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel('8-ending-ash')).toBe(6);
-    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(8)).toBe(6);
-    expect(CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber(8)).toBe(6);
+    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel('9-ending-ash')).toBe(6);
+    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(9)).toBe(6);
+    expect(CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber(9)).toBe(6);
   });
 
   test('resolves runtime CPU selection from one profile source for numeric and id values', () => {
-    expect(CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection(8)).toEqual(expect.objectContaining({
-      profileId: '8-ending-ash',
-      level: 8,
+    expect(CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection(9)).toEqual(expect.objectContaining({
+      profileId: '9-ending-ash',
+      level: 9,
       decisionLevel: 6,
       cardUseUnlockTurnNumber: 6
     }));
-    expect(CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection('8-ending-ash')).toEqual(expect.objectContaining({
-      profileId: '8-ending-ash',
-      level: 8,
+    expect(CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection('9-ending-ash')).toEqual(expect.objectContaining({
+      profileId: '9-ending-ash',
+      level: 9,
       decisionLevel: 6,
       cardUseUnlockTurnNumber: 6
     }));
-    expect(CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection('7-theory-incarnation')).toEqual(expect.objectContaining({
-      profileId: '7-theory-incarnation',
-      level: 7,
+    expect(CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection('8-theory-incarnation')).toEqual(expect.objectContaining({
+      profileId: '8-theory-incarnation',
+      level: 8,
       decisionLevel: 6,
       cardUseUnlockTurnNumber: 8
     }));
   });
 
   test('resolves CPU card phase unlock from shared profile data', () => {
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('8-ending-ash', 5)).toBe(true);
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('8-ending-ash', 6)).toBe(false);
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase(8, 5)).toBe(true);
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase(8, 6)).toBe(false);
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('7-theory-incarnation', 7)).toBe(true);
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('7-theory-incarnation', 8)).toBe(false);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('9-ending-ash', 5)).toBe(true);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('9-ending-ash', 6)).toBe(false);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase(9, 5)).toBe(true);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase(9, 6)).toBe(false);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('8-theory-incarnation', 7)).toBe(true);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('8-theory-incarnation', 8)).toBe(false);
     expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('6', 1)).toBe(false);
-    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('8-ending-ash', 'not-a-turn')).toBe(false);
+    expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('9-ending-ash', 'not-a-turn')).toBe(false);
   });
 
   test('resolves dedicated CPU deck codes from opponent profiles', () => {
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('1')).toBeNull();
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6')).toBe(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6-board-executor')).toBe(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('7-theory-incarnation')).toBe(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('8-ending-ash')).toBe(DeckSpecHelpers.getCpuLv8EndingAshDeckCode());
+    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('7-board-executor')).toBe(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
+    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('8-theory-incarnation')).toBe(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode());
+    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('9-ending-ash')).toBe(DeckSpecHelpers.getCpuLv8EndingAshDeckCode());
   });
 
   test('exposes the dedicated CPU decks as built-in deck presets', () => {
@@ -149,7 +158,7 @@ describe('cpu opponent profiles', () => {
     ]);
   });
 
-  test('keeps Lv7 theory incarnation on the configured fixed deck code', () => {
+  test('keeps Lv8 theory incarnation on the configured fixed deck code', () => {
     expect(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode()).toBe(EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE);
 
     const deckSpec = DeckCodecModule.decodeDeckCode(EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE);
@@ -157,7 +166,7 @@ describe('cpu opponent profiles', () => {
     expect(deckSpec.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
   });
 
-  test('keeps Lv8 ending ash on the configured fixed deck code', () => {
+  test('keeps Lv9 ending ash on the configured fixed deck code', () => {
     expect(DeckSpecHelpers.getCpuLv8EndingAshDeckCode()).toBe(EXPECTED_LV8_ENDING_ASH_DECK_CODE);
 
     const deckSpec = DeckCodecModule.decodeDeckCode(EXPECTED_LV8_ENDING_ASH_DECK_CODE);
@@ -169,30 +178,30 @@ describe('cpu opponent profiles', () => {
     });
   });
 
-  test('resolves startup options for Lv7 handicap and normal levels', () => {
-    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('7-theory-incarnation', 'black')).toEqual({
-      profileId: '7-theory-incarnation',
+  test('resolves startup options for Lv8 handicap and normal levels', () => {
+    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'black')).toEqual({
+      profileId: '8-theory-incarnation',
       deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
       initialCharge: 50,
       cardUseUnlockTurnNumber: 8,
       hasStartupOptions: true
     });
-    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('7-theory-incarnation', 'white')).toEqual({
-      profileId: '7-theory-incarnation',
+    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'white')).toEqual({
+      profileId: '8-theory-incarnation',
       deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
       initialCharge: 50,
       cardUseUnlockTurnNumber: 8,
       hasStartupOptions: true
     });
-    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-ending-ash', 'black')).toEqual({
-      profileId: '8-ending-ash',
+    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('9-ending-ash', 'black')).toEqual({
+      profileId: '9-ending-ash',
       deckCode: DeckSpecHelpers.getCpuLv8EndingAshDeckCode(),
       initialCharge: 99,
       cardUseUnlockTurnNumber: 6,
       hasStartupOptions: true
     });
-    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-ending-ash', 'white')).toEqual({
-      profileId: '8-ending-ash',
+    expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('9-ending-ash', 'white')).toEqual({
+      profileId: '9-ending-ash',
       deckCode: DeckSpecHelpers.getCpuLv8EndingAshDeckCode(),
       initialCharge: 99,
       cardUseUnlockTurnNumber: 6,
@@ -212,18 +221,18 @@ describe('cpu opponent profiles', () => {
       matchMode: 'cpu',
       turnNumber: 0,
       previousProfileValue: '1',
-      nextProfileValue: '7-theory-incarnation'
+      nextProfileValue: '8-theory-incarnation'
     })).toBe(true);
     expect(CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange({
       matchMode: 'cpu',
       turnNumber: 0,
       previousProfileValue: '1',
-      nextProfileValue: '8-ending-ash'
+      nextProfileValue: '9-ending-ash'
     })).toBe(true);
     expect(CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange({
       matchMode: 'cpu',
       turnNumber: 1,
-      previousProfileValue: '7-theory-incarnation',
+      previousProfileValue: '8-theory-incarnation',
       nextProfileValue: '1'
     })).toBe(true);
     expect(CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange({
@@ -235,14 +244,14 @@ describe('cpu opponent profiles', () => {
     expect(CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange({
       matchMode: 'cpu',
       turnNumber: 2,
-      previousProfileValue: '7-theory-incarnation',
+      previousProfileValue: '8-theory-incarnation',
       nextProfileValue: '1'
     })).toBe(false);
     expect(CpuOpponentStartupOptions.shouldResetOpeningCpuProfileChange({
       matchMode: 'network',
       turnNumber: 0,
       previousProfileValue: '1',
-      nextProfileValue: '7-theory-incarnation'
+      nextProfileValue: '8-theory-incarnation'
     })).toBe(false);
   });
 });

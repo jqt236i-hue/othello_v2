@@ -176,8 +176,8 @@ describe('NetworkMatchClient spectator session', () => {
     expect(chatResult).toEqual({ ok: false, reason: 'SPECTATOR_READ_ONLY' });
     expect(skinResult).toEqual({ ok: false, reason: 'SPECTATOR_READ_ONLY' });
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(statusWriter).toHaveBeenCalledWith('観戦中は操作できません', true);
-    expect(statusWriter).toHaveBeenCalledWith('観戦中はチャット送信できません', true);
+    expect(statusWriter).toHaveBeenCalledWith('観測中は操作できません', true);
+    expect(statusWriter).toHaveBeenCalledWith('観測中はチャット送信できません', true);
   });
 
   test('restoreStoredSession resumes spectator session after reload', async () => {

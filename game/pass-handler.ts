@@ -744,9 +744,14 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
  * Helper to apply pass via TurnPipeline with safe fallback.
  */
 function applyPassViaPipeline(playerKey: string, options?: any) {
-    const turnPipeline = (typeof TurnPipeline !== 'undefined')
-        ? TurnPipeline
-        : passHandlerTurnPipelineModule;
+    const globalTurnPipeline = (typeof TurnPipeline !== 'undefined') ? TurnPipeline : null;
+    const hasTurnPipelineApi = (candidate: any) => !!candidate
+        && (typeof candidate.applyTurnSafe === 'function' || typeof candidate.applyTurn === 'function');
+    const turnPipeline = hasTurnPipelineApi(globalTurnPipeline)
+        ? globalTurnPipeline
+        : hasTurnPipelineApi(passHandlerTurnPipelineModule)
+            ? passHandlerTurnPipelineModule
+            : null;
     if (!turnPipeline) {
         throw new Error('TurnPipeline is not available - cannot process pass');
     }

@@ -292,6 +292,12 @@ function createNetworkPublishFlowController(config?: any): any {
               shadowPlaybackEvents: [],
               shadowPlaybackSource: null
             };
+          const presentationFrameApplyOptions = hasPresentationFrames
+            ? {
+              presentationFrames: res.data.presentationFrames,
+              presentationFrameSource: 'publish_response'
+            }
+            : {};
           const applied = shouldSkipPublishResponse
             ? false
             : (
@@ -299,7 +305,7 @@ function createNetworkPublishFlowController(config?: any): any {
                 ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
                   source: 'publish_response',
                   trackedPublish,
-                  applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, {
+                  applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, presentationFrameApplyOptions, {
                     force: true,
                     skipResultOverlay: (typeof cfg.hasTrackedPublishPresentedResult === 'function')
                       ? cfg.hasTrackedPublishPresentedResult(trackedPublish)
@@ -309,9 +315,6 @@ function createNetworkPublishFlowController(config?: any): any {
                 : false
             );
           if (applied) {
-            if (hasPresentationFrames && typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
-              cfg.enqueuePresentationFramesFromPayload(res.data, { source: 'publish_response' });
-            }
             if (typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
               cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, Object.assign({}, publishResponsePlaybackApplyOptions, {
                 source: 'publish_response',

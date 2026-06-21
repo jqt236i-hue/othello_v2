@@ -94,12 +94,18 @@ function createNetworkStreamSnapshotController(config?: any): any {
         shadowPlaybackEvents: [],
         shadowPlaybackSource: undefined
       };
+    const presentationFrameApplyOptions = hasPresentationFrames
+      ? {
+        presentationFrames: payload.presentationFrames,
+        presentationFrameSource: 'stream'
+      }
+      : {};
 
     let applied = typeof cfg.applySnapshotThroughCoordinator === 'function'
       ? cfg.applySnapshotThroughCoordinator(snapshot, {
         source: 'stream',
         trackedPublish,
-        applyOptions: Object.assign({}, streamPlaybackApplyOptions, {
+        applyOptions: Object.assign({}, streamPlaybackApplyOptions, presentationFrameApplyOptions, {
           force: false,
           skipResultOverlay: shouldSkipResultOverlay
         })
@@ -109,7 +115,7 @@ function createNetworkStreamSnapshotController(config?: any): any {
       && typeof cfg.shouldRecoverForceSyncedStreamPlayback === 'function'
       && cfg.shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
       && typeof cfg.applySnapshot === 'function'
-      ? cfg.applySnapshot(snapshot, Object.assign({}, streamPlaybackApplyOptions, {
+      ? cfg.applySnapshot(snapshot, Object.assign({}, streamPlaybackApplyOptions, presentationFrameApplyOptions, {
         force: true,
         skipResultOverlay: shouldSkipResultOverlay
       }))
@@ -134,8 +140,29 @@ function createNetworkStreamSnapshotController(config?: any): any {
     }
 
     if (applied) {
-      if (hasPresentationFrames && typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
-        cfg.enqueuePresentationFramesFromPayload(payload, { source: 'stream' });
+      if (
+        !hasPresentationFrames
+        && (
+        playbackEvents.length <= 0
+        && typeof cfg.syncVisualCursorForSnapshotNoPlayback === 'function'
+        )
+      ) {
+        const visualCursorSynced = cfg.syncVisualCursorForSnapshotNoPlayback(payload, snapshotVersion);
+        if (visualCursorSynced && typeof cfg.requestNetworkTimelineBoardRefresh === 'function') {
+          const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
+            ? payload.presentationCursor
+            : null;
+          cfg.requestNetworkTimelineBoardRefresh(null, {
+            reason: 'snapshot_no_playback_visual_sync',
+            visualSeq: cursor && Number.isFinite(Number(cursor.visualSeq))
+              ? Math.max(0, Math.trunc(Number(cursor.visualSeq)))
+              : null,
+            visualVersion: cursor && Number.isFinite(Number(cursor.stateVersion))
+              ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
+              : snapshotVersion,
+            source: 'network_timeline'
+          });
+        }
       }
       if (typeof cfg.consumePendingForceSyncPlaybackRecovery === 'function') {
         cfg.consumePendingForceSyncPlaybackRecovery(snapshotVersion);

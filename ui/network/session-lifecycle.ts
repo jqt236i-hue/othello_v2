@@ -130,6 +130,8 @@ function createNetworkSessionLifecycleController(config: any): any {
   }
 
   function toIntegerOrNull(value: any): number | null {
+    if (value === null || typeof value === 'undefined') return null;
+    if (typeof value === 'string' && value.trim() === '') return null;
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) return null;
     return Math.trunc(numberValue);
@@ -182,19 +184,51 @@ function createNetworkSessionLifecycleController(config: any): any {
     return null;
   }
 
-  function setJournalBaseVisualSnapshot(payload: any): void {
+  function setJournalBaseVisualSnapshot(payload: any, source?: any): void {
     const store = resolveVisualStateStore();
     if (!store || typeof store.setBaseVisualSnapshot !== 'function') return;
     if (!payload || !payload.baseSnapshot) return;
     const baseVisualSeq = toIntegerOrNull(payload.baseVisualSeq);
-    const baseVersion = toIntegerOrNull(payload.baseSnapshot && payload.baseSnapshot.stateVersion)
+    const frames = Array.isArray(payload.presentationFrames) ? payload.presentationFrames : [];
+    const firstFrame = frames
+      .slice()
+      .sort((a: any, b: any) => Number(a && a.visualSeq) - Number(b && b.visualSeq))[0] || null;
+    const baseVersion = toIntegerOrNull(firstFrame && firstFrame.stateVersionFrom)
+      || toIntegerOrNull(payload.baseSnapshot && payload.baseSnapshot.stateVersion)
       || toIntegerOrNull(payload.baseVisualVersion);
     store.setBaseVisualSnapshot(payload.baseSnapshot, {
       visualSeq: baseVisualSeq !== null ? baseVisualSeq : 0,
       visualVersion: baseVersion,
       preserveExisting: true,
-      source: 'journal_recovery'
+      source: String(source || 'journal_recovery')
     });
+  }
+
+  async function fetchAndApplyPresentationJournal(afterVisualSeq: any, canonicalVersion: any, source?: any, lastVisualVersion?: any): Promise<any> {
+    const state = readState();
+    const normalizedSource = String(source || 'journal_recovery');
+    const path = buildPresentationJournalPath(state, afterVisualSeq);
+    const res = await cfg.requestJson('GET', path);
+    if (!res.ok || !res.data || res.data.ok !== true) {
+      return { recovered: false, reason: (res.data && res.data.reason) || 'PRESENTATION_JOURNAL_FETCH_FAILED' };
+    }
+    setJournalBaseVisualSnapshot(res.data, normalizedSource);
+    let enqueued = 0;
+    if (typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
+      enqueued = cfg.enqueuePresentationFramesFromPayload(res.data, { source: normalizedSource }) || 0;
+    }
+    if (typeof cfg.drainPresentationTimeline === 'function') {
+      await cfg.drainPresentationTimeline();
+    }
+    if (typeof cfg.recordNetworkTelemetry === 'function') {
+      cfg.recordNetworkTelemetry(normalizedSource === 'state_sync' ? 'state_sync_presentation_journal_recovered' : 'presentation_journal_recovered', {
+        afterVisualSeq,
+        canonicalVersion,
+        lastVisualVersion,
+        enqueued
+      });
+    }
+    return { recovered: true, enqueued };
   }
 
   async function recoverPresentationJournalCatchup(stored: any): Promise<any> {
@@ -206,28 +240,7 @@ function createNetworkSessionLifecycleController(config: any): any {
       return { recovered: false, reason: 'visual_cursor_current' };
     }
     const afterVisualSeq = getStoredVisualSeq(stored, state);
-    const path = buildPresentationJournalPath(state, afterVisualSeq);
-    const res = await cfg.requestJson('GET', path);
-    if (!res.ok || !res.data || res.data.ok !== true) {
-      return { recovered: false, reason: (res.data && res.data.reason) || 'PRESENTATION_JOURNAL_FETCH_FAILED' };
-    }
-    setJournalBaseVisualSnapshot(res.data);
-    let enqueued = 0;
-    if (typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
-      enqueued = cfg.enqueuePresentationFramesFromPayload(res.data, { source: 'journal_recovery' }) || 0;
-    }
-    if (typeof cfg.drainPresentationTimeline === 'function') {
-      await cfg.drainPresentationTimeline();
-    }
-    if (typeof cfg.recordNetworkTelemetry === 'function') {
-      cfg.recordNetworkTelemetry('presentation_journal_recovered', {
-        afterVisualSeq,
-        canonicalVersion,
-        lastVisualVersion,
-        enqueued
-      });
-    }
-    return { recovered: true, enqueued };
+    return fetchAndApplyPresentationJournal(afterVisualSeq, canonicalVersion, 'journal_recovery', lastVisualVersion);
   }
 
   function isInvalidStoredSessionReason(reason: any): boolean {
@@ -300,7 +313,8 @@ function createNetworkSessionLifecycleController(config: any): any {
       roomName,
       seatKey: state.seatKey,
       playerName: entryPayload.playerName,
-      networkDebugEnabled: state.networkDebugEnabled === true
+      networkDebugEnabled: state.networkDebugEnabled === true,
+      networkAutoEnabled: state.networkAutoEnabled === true
     };
   }
 
@@ -384,7 +398,8 @@ function createNetworkSessionLifecycleController(config: any): any {
       roomName,
       seatKey: state.seatKey,
       playerName: entryPayload.playerName,
-      networkDebugEnabled: state.networkDebugEnabled === true
+      networkDebugEnabled: state.networkDebugEnabled === true,
+      networkAutoEnabled: state.networkAutoEnabled === true
     };
   }
 
@@ -403,7 +418,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (!res.ok || !res.data || res.data.ok !== true) {
       return handleRoomEntryFailure(res, {
         fallbackReason: 'SPECTATE_FAILED',
-        fallbackMessage: '観戦参加に失敗しました'
+        fallbackMessage: '観測への参加に失敗しました'
       });
     }
 
@@ -419,7 +434,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     const state = readState();
     const roomName = String(res.data.roomName || 'ルーム');
     if (typeof cfg.emitStatus === 'function') {
-      cfg.emitStatus('ネット対戦: ルーム「' + roomName + '」を観戦中');
+      cfg.emitStatus('ネット対戦: ルーム「' + roomName + '」を観測中');
     }
 
     return {
@@ -428,11 +443,13 @@ function createNetworkSessionLifecycleController(config: any): any {
       roomName,
       viewerRole: 'spectator',
       spectatorId: state.spectatorId,
-      spectatorName: state.spectatorName || entryPayload.playerName
+      spectatorName: state.spectatorName || entryPayload.playerName,
+      networkAutoEnabled: state.networkAutoEnabled === true
     };
   }
 
-  async function syncLatestState(): Promise<any> {
+  async function syncLatestState(options?: any): Promise<any> {
+    const opts = (options && typeof options === 'object') ? options : {};
     const state = readState();
     if (!state.roomId) return { ok: false, reason: 'NO_ROOM' };
 
@@ -442,6 +459,8 @@ function createNetworkSessionLifecycleController(config: any): any {
       return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
     }
 
+    const visualSeqBeforeStateSync = getStoredVisualSeq(null, state);
+    const visualVersionBeforeStateSync = getStoredVisualVersion(null, state);
     const localProjectedSnapshotHashBefore = typeof cfg.getKnownProjectedSnapshotHash === 'function'
       ? cfg.getKnownProjectedSnapshotHash()
       : null;
@@ -454,6 +473,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
 
     let appliedSnapshot = false;
+    let stateSyncPresentationFrameCount = 0;
     if (res.data.snapshot) {
       const skipSnapshot = typeof cfg.shouldSkipForceSyncSnapshot === 'function'
         ? cfg.shouldSkipForceSyncSnapshot(res.data.snapshot, {
@@ -462,6 +482,7 @@ function createNetworkSessionLifecycleController(config: any): any {
         : false;
       if (!skipSnapshot) {
         const hasPresentationFrames = Array.isArray(res.data.presentationFrames) && res.data.presentationFrames.length > 0;
+        stateSyncPresentationFrameCount = hasPresentationFrames ? res.data.presentationFrames.length : 0;
         const playbackEvents = hasPresentationFrames
           ? []
           : (typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
@@ -496,6 +517,17 @@ function createNetworkSessionLifecycleController(config: any): any {
             usedRecoveredPlayback: playbackEvents.length > 0
           });
         }
+        if (
+          opts.syncVisualCursorForSnapshotNoPlayback === true &&
+          typeof cfg.syncVisualCursorForSnapshotNoPlayback === 'function'
+        ) {
+          cfg.syncVisualCursorForSnapshotNoPlayback(
+            res.data,
+            typeof cfg.getSnapshotStateVersion === 'function'
+              ? cfg.getSnapshotStateVersion(res.data.snapshot)
+              : responseStateVersion
+          );
+        }
       } else if (typeof cfg.recordNetworkTelemetry === 'function') {
         cfg.recordNetworkTelemetry('state_sync_snapshot_skipped', {
           snapshotVersion: typeof cfg.getSnapshotStateVersion === 'function'
@@ -504,6 +536,26 @@ function createNetworkSessionLifecycleController(config: any): any {
           localVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null
         });
       }
+    }
+
+    const cursor = res.data && res.data.presentationCursor && typeof res.data.presentationCursor === 'object'
+      ? res.data.presentationCursor
+      : null;
+    const cursorVisualSeq = toIntegerOrNull(cursor && cursor.visualSeq);
+    const cursorStateVersion = toIntegerOrNull(cursor && cursor.stateVersion);
+    if (
+      appliedSnapshot &&
+      opts.suppressPresentationJournalCatchup !== true &&
+      cursorVisualSeq !== null &&
+      cursorVisualSeq > visualSeqBeforeStateSync + stateSyncPresentationFrameCount &&
+      typeof cfg.enqueuePresentationFramesFromPayload === 'function'
+    ) {
+      await fetchAndApplyPresentationJournal(
+        visualSeqBeforeStateSync,
+        cursorStateVersion !== null ? cursorStateVersion : responseStateVersion,
+        'state_sync',
+        visualVersionBeforeStateSync
+      );
     }
 
     return { ok: true, appliedSnapshot: appliedSnapshot };
@@ -535,7 +587,10 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.resetNetworkTelemetry();
     }
 
-    const syncResult = await syncLatestState();
+    const syncResult = await syncLatestState({
+      suppressPresentationJournalCatchup: true,
+      syncVisualCursorForSnapshotNoPlayback: true
+    });
     if (!syncResult || syncResult.ok !== true) {
       const reason = syncResult && syncResult.reason ? syncResult.reason : 'STATE_FETCH_FAILED';
       if (isInvalidStoredSessionReason(reason) && typeof cfg.clearStoredSession === 'function') {
@@ -547,15 +602,13 @@ function createNetworkSessionLifecycleController(config: any): any {
       return { ok: false, reason };
     }
 
-    await recoverPresentationJournalCatchup(stored);
-
     openStream();
 
     const restoredState = readState();
     const viewerRole = isSpectatorState(restoredState) ? 'spectator' : 'seat';
     if (typeof cfg.emitStatus === 'function') {
       cfg.emitStatus(viewerRole === 'spectator'
-        ? 'ネット対戦: 観戦セッションへ復帰しました'
+        ? 'ネット対戦: 観測セッションへ復帰しました'
         : 'ネット対戦: 対戦セッションへ復帰しました');
     }
 

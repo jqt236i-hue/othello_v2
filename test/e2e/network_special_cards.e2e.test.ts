@@ -10,7 +10,8 @@ const {
   startLocalMatchServer,
   stopStaticServer,
   stopPlaywrightBrowser,
-  stopPlaywrightPage
+  stopPlaywrightPage,
+  closeMaintenanceNoticeIfPresent
 } = require('./e2e-runtime-helpers.js');
 
 function wait(ms: number) {
@@ -43,8 +44,31 @@ async function createDebugRoom(page: any, playerName: string) {
     { timeout: 15000 }
   );
   await page.getByPlaceholder('名前を入力してください', { exact: true }).fill(playerName);
-  await page.getByRole('checkbox', { name: '部屋作成時にデバッグモードを有効化' }).check();
-  await page.getByRole('button', { name: '部屋作成' }).click();
+  const debugCheckbox = page.locator('#networkEnableDebugCheckbox');
+  if (!(await debugCheckbox.isVisible())) {
+    await page.locator('#networkRoomSettingsBtn').click();
+    await page.waitForSelector('#networkRoomSettingsPopup.is-open', { timeout: 5000, state: 'visible' });
+  }
+  expect(await debugCheckbox.isVisible()).toBe(true);
+  expect(await debugCheckbox.isEnabled()).toBe(true);
+  try {
+    await debugCheckbox.setChecked(true, { force: true, timeout: 3000 });
+  } catch (_error) {
+    await debugCheckbox.evaluate((element: HTMLInputElement) => {
+      element.checked = true;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  expect(await debugCheckbox.isChecked()).toBe(true);
+  if (await page.locator('#networkRoomSettingsPopup.is-open').isVisible()) {
+    await page.locator('#networkRoomSettingsCloseBtn').click();
+    await page.waitForFunction(
+      () => !document.querySelector('#networkRoomSettingsPopup.is-open'),
+      { timeout: 5000 }
+    );
+  }
+  await page.locator('#networkCreateBtn').click();
   await page.waitForFunction(
     () => {
       const input = document.querySelector('input[placeholder="部屋番号（3桁）"]') as HTMLInputElement | null;
@@ -211,6 +235,7 @@ async function fillDebugHandForSeat(page: any, seatKey: 'black' | 'white') {
 
 async function usePlacementCard(page: any, cardId: string, row: number, col: number) {
   await useCard(page, 'black', cardId);
+  await waitForTurnManagerInputIdle(page);
   await page.click(`.cell[data-row="${row}"][data-col="${col}"]`);
 }
 
@@ -221,6 +246,64 @@ async function useCard(page: any, seatKey: 'black' | 'white', cardId: string) {
     if (typeof window.renderCardUI === 'function') window.renderCardUI();
     if (typeof window.useSelectedCard === 'function') window.useSelectedCard();
   }, { selectedCardId: cardId, playerKey: seatKey });
+}
+
+async function waitForTurnManagerInputIdle(page: any, timeoutMs = 15000) {
+  try {
+    await page.waitForFunction(() => {
+    const root = window as any;
+    let animationLocked = false;
+    try {
+      const turnManager = typeof root.require === 'function'
+        ? root.require('game/turn-manager.js')
+        : null;
+      if (turnManager && typeof turnManager.isAnimationInProgress === 'function') {
+        animationLocked = turnManager.isAnimationInProgress() === true;
+      } else if (typeof root.isAnimationInProgress === 'function') {
+        animationLocked = root.isAnimationInProgress() === true;
+      }
+    } catch (_error) {
+      animationLocked = true;
+    }
+    return !animationLocked
+      && root.isProcessing !== true
+      && root.isCardAnimating !== true
+      && root.VisualPlaybackActive !== true
+      && !(root.AnimationEngine && root.AnimationEngine.isPlaying === true)
+      && (() => {
+        const timeline = root.NetworkPresentationTimeline;
+        if (!timeline || typeof timeline.getDiagnostics !== 'function') return true;
+        const diagnostics = timeline.getDiagnostics();
+        return diagnostics
+          && diagnostics.playing !== true
+          && diagnostics.paused !== true
+          && Number(diagnostics.pendingFrameCount || 0) === 0;
+      })();
+    }, { timeout: timeoutMs });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => {
+      const root = window as any;
+      let timeline: any = null;
+      try {
+        timeline = root.NetworkPresentationTimeline && typeof root.NetworkPresentationTimeline.getDiagnostics === 'function'
+          ? root.NetworkPresentationTimeline.getDiagnostics()
+          : null;
+      } catch (_error) {
+        timeline = { error: 'timeline_diagnostics_failed' };
+      }
+      return {
+        isProcessing: root.isProcessing === true,
+        isCardAnimating: root.isCardAnimating === true,
+        visualPlaybackActive: root.VisualPlaybackActive === true,
+        animationEnginePlaying: !!(root.AnimationEngine && root.AnimationEngine.isPlaying === true),
+        timeline,
+        networkTelemetry: root.NetworkMatchClient && typeof root.NetworkMatchClient.getNetworkTelemetry === 'function'
+          ? root.NetworkMatchClient.getNetworkTelemetry()
+          : null
+      };
+    }).catch((diagError: any) => ({ diagnosticError: String(diagError) }));
+    throw new Error(`waitForTurnManagerInputIdle timeout: ${JSON.stringify(diagnostics)}`);
+  }
 }
 
 async function readCellState(page: any, row: number, col: number) {
@@ -249,12 +332,14 @@ async function readCellState(page: any, row: number, col: number) {
 
 async function getFirstLegalMove(page: any) {
   return page.evaluate(() => {
-    const hintedCell = document.querySelector('.cell.legal');
-    const hintedMove = hintedCell
-      ? {
-          row: Number(hintedCell.getAttribute('data-row')),
-          col: Number(hintedCell.getAttribute('data-col'))
-        }
+    const hintedCells = Array.from(document.querySelectorAll('.cell.legal'));
+    const hintedMoves = hintedCells.map((cell) => ({
+      row: Number(cell.getAttribute('data-row')),
+      col: Number(cell.getAttribute('data-col')),
+      value: Number(cell.getAttribute('data-value') || '0')
+    })).filter((move) => Number.isInteger(move.row) && Number.isInteger(move.col));
+    const hintedMove = hintedMoves.length > 0
+      ? { row: hintedMoves[0].row, col: hintedMoves[0].col }
       : null;
     const context = (
       window.CardLogic
@@ -268,6 +353,10 @@ async function getFirstLegalMove(page: any) {
     const firstLogicMove = Array.isArray(logicMoves) && logicMoves.length > 0
       ? { row: Number(logicMoves[0].row), col: Number(logicMoves[0].col) }
       : null;
+    const logicMoveList = Array.isArray(logicMoves)
+      ? logicMoves.map((move) => ({ row: Number(move.row), col: Number(move.col) }))
+        .filter((move) => Number.isInteger(move.row) && Number.isInteger(move.col))
+      : [];
     return {
       hintedMove: hintedMove && Number.isInteger(hintedMove.row) && Number.isInteger(hintedMove.col)
         ? hintedMove
@@ -275,9 +364,85 @@ async function getFirstLegalMove(page: any) {
       firstLogicMove: firstLogicMove && Number.isInteger(firstLogicMove.row) && Number.isInteger(firstLogicMove.col)
         ? firstLogicMove
         : null,
-      logicMoveCount: Array.isArray(logicMoves) ? logicMoves.length : 0
+      hintedMoves,
+      logicMoves: logicMoveList,
+      logicMoveCount: logicMoveList.length
     };
   });
+}
+
+async function waitForLegalHintsSynced(page: any, timeoutMs = 15000) {
+  await waitForTurnManagerInputIdle(page, timeoutMs);
+  try {
+    await page.waitForFunction(() => {
+    const context = (
+      window.CardLogic
+      && typeof window.CardLogic.getCardContext === 'function'
+    )
+      ? window.CardLogic.getCardContext(window.cardState)
+      : { protectedStones: [], permaProtectedStones: [] };
+    const logicMoves = typeof window.getLegalMoves === 'function'
+      ? window.getLegalMoves(window.gameState, context.protectedStones, context.permaProtectedStones)
+      : [];
+    const logicKeys = Array.isArray(logicMoves)
+      ? logicMoves.map((move) => `${Number(move.row)},${Number(move.col)}`).sort()
+      : [];
+    const hintMoves = Array.from(document.querySelectorAll('.cell.legal')).map((cell) => ({
+      row: Number(cell.getAttribute('data-row')),
+      col: Number(cell.getAttribute('data-col')),
+      value: Number(cell.getAttribute('data-value') || '0')
+    })).filter((move) => Number.isInteger(move.row) && Number.isInteger(move.col));
+    const hintKeys = hintMoves.map((move) => `${move.row},${move.col}`).sort();
+    return logicKeys.length > 0
+      && hintKeys.length === logicKeys.length
+      && hintMoves.every((move) => move.value === 0)
+      && logicKeys.every((key, index) => key === hintKeys[index]);
+    }, { timeout: timeoutMs });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => {
+      const context = (
+        window.CardLogic
+        && typeof window.CardLogic.getCardContext === 'function'
+      )
+        ? window.CardLogic.getCardContext(window.cardState)
+        : { protectedStones: [], permaProtectedStones: [] };
+      const logicMoves = typeof window.getLegalMoves === 'function'
+        ? window.getLegalMoves(window.gameState, context.protectedStones, context.permaProtectedStones)
+        : [];
+      const hintMoves = Array.from(document.querySelectorAll('.cell.legal')).map((cell) => ({
+        row: Number(cell.getAttribute('data-row')),
+        col: Number(cell.getAttribute('data-col')),
+        value: Number(cell.getAttribute('data-value') || '0')
+      })).filter((move) => Number.isInteger(move.row) && Number.isInteger(move.col));
+      return {
+        currentPlayer: window.gameState ? window.gameState.currentPlayer : null,
+        turnNumber: window.gameState ? window.gameState.turnNumber : null,
+        logicMoves: Array.isArray(logicMoves)
+          ? logicMoves.map((move) => ({ row: Number(move.row), col: Number(move.col) }))
+          : [],
+        hintMoves,
+        visualStore: window.NetworkVisualStateStore && typeof window.NetworkVisualStateStore.getDiagnostics === 'function'
+          ? window.NetworkVisualStateStore.getDiagnostics()
+          : null,
+        renderSnapshot: window.NetworkVisualStateStore && typeof window.NetworkVisualStateStore.getRenderSnapshot === 'function'
+          ? (() => {
+              const snapshot = window.NetworkVisualStateStore.getRenderSnapshot();
+              return snapshot ? {
+                stateVersion: snapshot.stateVersion,
+                currentPlayer: snapshot.gameState ? snapshot.gameState.currentPlayer : null,
+                turnNumber: snapshot.gameState ? snapshot.gameState.turnNumber : null,
+                firstBoardRow: snapshot.gameState && Array.isArray(snapshot.gameState.board) ? snapshot.gameState.board[0] : null
+              } : null;
+            })()
+          : null,
+        timeline: window.NetworkPresentationTimeline && typeof window.NetworkPresentationTimeline.getDiagnostics === 'function'
+          ? window.NetworkPresentationTimeline.getDiagnostics()
+          : null
+      };
+    }).catch((diagError: any) => ({ diagnosticError: String(diagError) }));
+    throw new Error(`waitForLegalHintsSynced timeout: ${JSON.stringify(diagnostics)}`);
+  }
+  return getFirstLegalMove(page);
 }
 
 async function readProliferationState(page: any) {
@@ -315,6 +480,115 @@ async function readProliferationState(page: any) {
       }))
     };
   });
+}
+
+async function readNetworkCanonicalState(page: any) {
+  return page.evaluate(() => {
+    const root = window as any;
+    const board = Array.isArray(root.gameState && root.gameState.board)
+      ? root.gameState.board.map((row: any) => Array.isArray(row) ? row.slice() : row)
+      : [];
+    const normalizeData = (data: any) => {
+      const normalized: any = {};
+      if (!data || typeof data !== 'object') return normalized;
+      Object.keys(data).sort().forEach((key) => {
+        const value = data[key];
+        if (
+          value === null
+          || typeof value === 'string'
+          || typeof value === 'number'
+          || typeof value === 'boolean'
+        ) {
+          normalized[key] = value;
+        }
+      });
+      return normalized;
+    };
+    const normalizePointList = (points: any) => Array.isArray(points)
+      ? points.map((point: any) => ({
+          row: Number(point && point.row),
+          col: Number(point && point.col)
+        }))
+        .filter((point: any) => Number.isFinite(point.row) && Number.isFinite(point.col))
+        .sort((a: any, b: any) => a.row - b.row || a.col - b.col)
+      : [];
+    const normalizePointBuckets = (source: any) => {
+      const normalized: any = {};
+      if (!source || typeof source !== 'object') return normalized;
+      Object.keys(source).sort().forEach((key) => {
+        normalized[key] = normalizePointList(source[key]);
+      });
+      return normalized;
+    };
+    const markers = Array.isArray(root.cardState && root.cardState.markers)
+      ? root.cardState.markers.map((marker: any) => ({
+          id: marker && (marker.markerId || marker.id || null),
+          kind: marker && marker.kind || null,
+          row: Number(marker && marker.row),
+          col: Number(marker && marker.col),
+          owner: marker && marker.owner || null,
+          data: normalizeData(marker && marker.data)
+        }))
+        .filter((marker: any) => Number.isFinite(marker.row) && Number.isFinite(marker.col))
+        .sort((a: any, b: any) => (
+          String(a.kind || '').localeCompare(String(b.kind || ''))
+          || String(a.data && a.data.type || '').localeCompare(String(b.data && b.data.type || ''))
+          || String(a.owner || '').localeCompare(String(b.owner || ''))
+          || a.row - b.row
+          || a.col - b.col
+          || String(a.id || '').localeCompare(String(b.id || ''))
+        ))
+      : [];
+    const renderSnapshot = root.NetworkVisualStateStore && typeof root.NetworkVisualStateStore.getRenderSnapshot === 'function'
+      ? root.NetworkVisualStateStore.getRenderSnapshot()
+      : null;
+    return {
+      stateVersion: root.NetworkMatchClient && typeof root.NetworkMatchClient.getStateVersion === 'function'
+        ? root.NetworkMatchClient.getStateVersion()
+        : null,
+      renderStateVersion: renderSnapshot && Number.isFinite(Number(renderSnapshot.stateVersion))
+        ? Number(renderSnapshot.stateVersion)
+        : null,
+      currentPlayer: root.gameState ? root.gameState.currentPlayer : null,
+      turnNumber: root.gameState ? root.gameState.turnNumber : null,
+      board,
+      markers,
+      breedingSproutByOwner: normalizePointBuckets(root.cardState && root.cardState.breedingSproutByOwner),
+      breedingFrontierByAnchorId: normalizePointBuckets(root.cardState && root.cardState.breedingFrontierByAnchorId),
+      busy: {
+        processing: !!root.isProcessing,
+        cardAnimating: !!root.isCardAnimating,
+        playback: !!root.VisualPlaybackActive
+      }
+    };
+  });
+}
+
+function expectNetworkCanonicalStatesEqual(hostState: any, guestState: any) {
+  expect(guestState.stateVersion).toBe(hostState.stateVersion);
+  expect(guestState.renderStateVersion).toBe(hostState.renderStateVersion);
+  expect(guestState.currentPlayer).toBe(hostState.currentPlayer);
+  expect(guestState.turnNumber).toBe(hostState.turnNumber);
+  expect(guestState.board).toEqual(hostState.board);
+  expect(guestState.markers).toEqual(hostState.markers);
+  expect(guestState.breedingSproutByOwner).toEqual(hostState.breedingSproutByOwner);
+  expect(guestState.breedingFrontierByAnchorId).toEqual(hostState.breedingFrontierByAnchorId);
+}
+
+function collectBoardValueKeys(board: any, value: number) {
+  const keys = new Set<string>();
+  if (!Array.isArray(board)) return keys;
+  board.forEach((row: any, rowIndex: number) => {
+    if (!Array.isArray(row)) return;
+    row.forEach((cellValue: any, colIndex: number) => {
+      if (cellValue === value) keys.add(`${rowIndex},${colIndex}`);
+    });
+  });
+  return keys;
+}
+
+function pointKey(point: any) {
+  return `${Number(point && point.row)},${Number(point && point.col)}`;
 }
 
 async function installPlaybackProbe(page: any, seatKey: 'black' | 'white') {
@@ -436,6 +710,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -522,6 +798,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -538,13 +816,14 @@ describe('Network special cards E2E', () => {
 
       await installPlaybackProbe(hostPage, 'black');
       await installPlaybackProbe(guestPage, 'white');
-      const legalMove = await getFirstLegalMove(hostPage);
+      const legalMove = await waitForLegalHintsSynced(hostPage);
       const moveToPlay = legalMove.hintedMove || legalMove.firstLogicMove;
       expect(moveToPlay).toEqual(expect.objectContaining({
         row: expect.any(Number),
         col: expect.any(Number)
       }));
       await useCard(hostPage, 'black', 'meteor_god_01');
+      await waitForTurnManagerInputIdle(hostPage);
       await hostPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
 
       const hasMeteorGodSettled = (move: any) => !!(
@@ -680,6 +959,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -836,6 +1117,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -902,7 +1185,7 @@ describe('Network special cards E2E', () => {
         { timeout: 20000 }
       );
 
-      const firstLegalMove = await getFirstLegalMove(hostPage);
+      const firstLegalMove = await waitForLegalHintsSynced(hostPage);
       expect(firstLegalMove.firstLogicMove).toEqual(expect.objectContaining({
         row: expect.any(Number),
         col: expect.any(Number)
@@ -949,6 +1232,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -1022,6 +1307,7 @@ describe('Network special cards E2E', () => {
         ),
         { timeout: 20000 }
       );
+      await waitForTurnManagerInputIdle(guestPage);
       await guestPage.click('.cell[data-row="2"][data-col="3"]');
 
       await hostPage.waitForFunction(
@@ -1093,7 +1379,7 @@ describe('Network special cards E2E', () => {
       expect(guestState.boardByMarker.every((entry: any) => entry.boardValue === 1)).toBe(true);
       expect(guestState.turnNumber).toBe(hostState.turnNumber);
 
-      const whiteMoveInfo = await getFirstLegalMove(guestPage);
+      const whiteMoveInfo = await waitForLegalHintsSynced(guestPage);
       const whiteMove = whiteMoveInfo.hintedMove || whiteMoveInfo.firstLogicMove;
       expect(whiteMove).toEqual(expect.objectContaining({
         row: expect.any(Number),
@@ -1146,6 +1432,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -1185,9 +1473,20 @@ describe('Network special cards E2E', () => {
         { timeout: 20000 }
       );
 
+      const hostInitialBreedingState = await readNetworkCanonicalState(hostPage);
+      const guestInitialBreedingState = await readNetworkCanonicalState(guestPage);
+      expectNetworkCanonicalStatesEqual(hostInitialBreedingState, guestInitialBreedingState);
+      const initialBlackCellKeys = collectBoardValueKeys(hostInitialBreedingState.board, 1);
+      expect(hostInitialBreedingState.markers.some((marker: any) => (
+        marker
+        && marker.owner === 'black'
+        && marker.data
+        && marker.data.type === 'BREEDING'
+      ))).toBe(true);
+
       await clearPlaybackProbe(hostPage);
       await clearPlaybackProbe(guestPage);
-      const guestMove = await getFirstLegalMove(guestPage);
+      const guestMove = await waitForLegalHintsSynced(guestPage);
       const moveToPlay = guestMove.hintedMove || guestMove.firstLogicMove;
       await guestPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
 
@@ -1212,8 +1511,34 @@ describe('Network special cards E2E', () => {
         { timeout: 20000 }
       );
 
+      const hostBreedingState = await readNetworkCanonicalState(hostPage);
+      const guestBreedingState = await readNetworkCanonicalState(guestPage);
       const hostProbe = await readPlaybackProbe(hostPage);
       const guestProbe = await readPlaybackProbe(guestPage);
+
+      expectNetworkCanonicalStatesEqual(hostBreedingState, guestBreedingState);
+      expect(hostBreedingState.currentPlayer).toBe(1);
+      expect(hostBreedingState.busy).toEqual({
+        processing: false,
+        cardAnimating: false,
+        playback: false
+      });
+      expect(Number(hostBreedingState.stateVersion)).toBeGreaterThan(Number(hostInitialBreedingState.stateVersion));
+      const breedingMarkers = hostBreedingState.markers.filter((marker: any) => (
+        marker
+        && marker.owner === 'black'
+        && marker.data
+        && marker.data.type === 'BREEDING'
+      ));
+      const breedingSprouts = (hostBreedingState.breedingSproutByOwner.black || []);
+      expect(breedingMarkers.length).toBeGreaterThanOrEqual(1);
+      expect(breedingSprouts.length).toBeGreaterThanOrEqual(1);
+      expect(breedingSprouts.every((point: any) => (
+        hostBreedingState.board
+        && hostBreedingState.board[point.row]
+        && hostBreedingState.board[point.row][point.col] === 1
+      ))).toBe(true);
+      expect(breedingSprouts.some((point: any) => !initialBlackCellKeys.has(pointKey(point)))).toBe(true);
 
       expect(hostProbe.sounds).toContain('breeding_spawn');
       expect(hostProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight-positive'))).toBe(true);
@@ -1237,6 +1562,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -1301,6 +1628,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -1365,6 +1694,8 @@ describe('Network special cards E2E', () => {
     try {
       await hostPage.goto(appUrl);
       await guestPage.goto(appUrl);
+      await closeMaintenanceNoticeIfPresent(hostPage);
+      await closeMaintenanceNoticeIfPresent(guestPage);
       await waitForBootstrap(hostPage);
       await waitForBootstrap(guestPage);
 
@@ -1404,9 +1735,21 @@ describe('Network special cards E2E', () => {
         { timeout: 20000 }
       );
 
+      const hostInitialEscapeState = await readNetworkCanonicalState(hostPage);
+      const guestInitialEscapeState = await readNetworkCanonicalState(guestPage);
+      expectNetworkCanonicalStatesEqual(hostInitialEscapeState, guestInitialEscapeState);
+      const initialEscapeMarker = hostInitialEscapeState.markers.find((marker: any) => (
+        marker
+        && marker.owner === 'black'
+        && marker.data
+        && marker.data.type === 'ESCAPE_HYPERACTIVE'
+      ));
+      expect(initialEscapeMarker).toEqual(expect.objectContaining({ owner: 'black' }));
+      expect(hostInitialEscapeState.board[initialEscapeMarker.row][initialEscapeMarker.col]).toBe(1);
+
       await clearPlaybackProbe(hostPage);
       await clearPlaybackProbe(guestPage);
-      const guestMove = await getFirstLegalMove(guestPage);
+      const guestMove = await waitForLegalHintsSynced(guestPage);
       const moveToPlay = guestMove.hintedMove || guestMove.firstLogicMove;
       await guestPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
 
@@ -1431,8 +1774,36 @@ describe('Network special cards E2E', () => {
         { timeout: 20000 }
       );
 
+      const hostEscapeState = await readNetworkCanonicalState(hostPage);
+      const guestEscapeState = await readNetworkCanonicalState(guestPage);
       const hostProbe = await readPlaybackProbe(hostPage);
       const guestProbe = await readPlaybackProbe(guestPage);
+
+      expectNetworkCanonicalStatesEqual(hostEscapeState, guestEscapeState);
+      expect(hostEscapeState.currentPlayer).toBe(1);
+      expect(hostEscapeState.busy).toEqual({
+        processing: false,
+        cardAnimating: false,
+        playback: false
+      });
+      expect(Number(hostEscapeState.stateVersion)).toBeGreaterThan(Number(hostInitialEscapeState.stateVersion));
+      const finalEscapeMarker = hostEscapeState.markers.find((marker: any) => (
+        marker
+        && marker.owner === 'black'
+        && marker.data
+        && marker.data.type === 'ESCAPE_HYPERACTIVE'
+      ));
+      expect(finalEscapeMarker).toBeTruthy();
+      expect(pointKey(finalEscapeMarker)).not.toBe(pointKey(initialEscapeMarker));
+      expect(hostEscapeState.board[finalEscapeMarker.row][finalEscapeMarker.col]).toBe(1);
+      expect(hostEscapeState.markers.some((marker: any) => (
+        marker
+        && marker.owner === 'black'
+        && marker.data
+        && marker.data.type === 'ESCAPE_HYPERACTIVE'
+        && marker.row === initialEscapeMarker.row
+        && marker.col === initialEscapeMarker.col
+      ))).toBe(false);
 
       expect(hostProbe.sounds).toContain('hyperactive_move');
       expect(hostProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight-positive'))).toBe(true);

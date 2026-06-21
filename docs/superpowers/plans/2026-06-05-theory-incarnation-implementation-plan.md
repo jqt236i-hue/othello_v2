@@ -23,8 +23,8 @@
 - Dedicated assets already exist and should be used:
   - `assets/images/special-cards/characters/theory_incarnation.png`
   - `assets/images/background/manifest-worlds/理論の世界.png`
-  - `assets/images/stones/theory_incarnation-black.png`
-  - `assets/images/stones/theory_incarnation-white.png`
+  - `assets/images/special-stones/theory_incarnation-black.png`
+  - `assets/images/special-stones/theory_incarnation-white.png`
 - Theory number cells use a dedicated visual style, not the ordinary number-cell look.
 - Theory number cells are restored when the theory manifestation ends, but only if they are still unused and still belong to the same theory session.
 - Spawn candidates come from `SpecialStoneRegistry.getTheoryIncarnationSpawnCandidates()` and exclude `TRAP`, `TIME_BOMB`, manifest stones, status attachments, board markers, and placement-only effects.

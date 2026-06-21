@@ -28,7 +28,7 @@ describe('asset preloader', () => {
       });
     };
 
-    const manifest = { files: [ { path: 'assets/images/stones/normal_stone-black.png' }, { path: 'assets/images/stones/normal_stone-white.png' } ] };
+    const manifest = { files: [ { path: 'assets/images/stone-skin/default/black.png' }, { path: 'assets/images/stone-skin/default/white.png' } ] };
     const res = await bootstrap.preloadAssets(manifest, { timeoutMs: 1000 });
     assert.ok(res.success, 'preload should succeed');
     assert.ok(document.documentElement.classList.added['stone-images-loaded'], 'class should be set');
@@ -69,7 +69,7 @@ describe('asset preloader', () => {
       });
     };
 
-    const manifest = { files: [ { path: 'assets/images/stones/normal_stone-black.png' } ] };
+    const manifest = { files: [ { path: 'assets/images/stone-skin/default/black.png' } ] };
     const res = await bootstrap.preloadAssets(manifest, { timeoutMs: 1000 });
     assert.ok(!res.success, 'preload should fail');
     assert.ok(!document.documentElement.classList.added['stone-images-loaded'], 'class should not be set');

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Card Reversi</title>
-    <link rel="icon" type="image/png" href="assets/images/stones/normal_stone-black.png">
+    <link rel="icon" type="image/png" href="assets/images/stone-skin/default/black.png">
     <script>
         (() => {
             try {
@@ -174,8 +174,16 @@
                         <dd>通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。</dd>
                     </div>
                     <div class="rules-help-effect-item">
-                        <dt>穴マス化</dt>
+                        <dt>穴マス</dt>
                         <dd>マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>抹消</dt>
+                        <dd>石やマス状態ごと対象マスを取り除き、穴マスにする処理。通常の石破壊とは別扱い。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>絶対執行</dt>
+                        <dd>盤界の執行者専用の抹消。全ての保護を貫通して特殊石を穴マスにする。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>反転保護</dt>
@@ -552,8 +560,11 @@
         <div id="appearancePanelTabs" role="tablist" aria-label="見た目種別">
             <button id="appearanceTabHand" class="appearance-panel-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="handSkinSection">手</button>
             <button id="appearanceTabBackground" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="backgroundSkinSection">背景</button>
+            <button id="appearanceTabBoard" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardSkinSection">盤面デザイン</button>
+            <button id="appearanceTabBoardFrame" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardFrameSkinSection">盤面フレーム</button>
             <button id="appearanceTabFont" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="fontSkinSection">フォント</button>
             <button id="appearanceTabStone" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="stoneSkinSection">石</button>
+            <button id="appearanceTabPreset" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="appearancePresetSection">プリセット</button>
         </div>
         <div id="handSkinSection" class="appearance-panel-section" data-appearance-section="hand">
             <div id="handSkinOptions" role="radiogroup" aria-label="手の見た目スキン"></div>
@@ -561,11 +572,28 @@
         <div id="backgroundSkinSection" class="appearance-panel-section" data-appearance-section="background" hidden>
             <div id="backgroundSkinOptions" role="radiogroup" aria-label="背景画像"></div>
         </div>
+        <div id="boardSkinSection" class="appearance-panel-section" data-appearance-section="board" hidden>
+            <div id="boardSkinOptions" role="radiogroup" aria-label="盤面デザイン"></div>
+        </div>
+        <div id="boardFrameSkinSection" class="appearance-panel-section" data-appearance-section="board-frame" hidden>
+            <div id="boardFrameSkinOptions" role="radiogroup" aria-label="盤面フレーム"></div>
+        </div>
         <div id="fontSkinSection" class="appearance-panel-section" data-appearance-section="font" hidden>
             <div id="fontSkinOptions" role="radiogroup" aria-label="文字フォント"></div>
         </div>
         <div id="stoneSkinSection" class="appearance-panel-section" data-appearance-section="stone" hidden>
             <div id="stoneSkinOptions" role="radiogroup" aria-label="通常石スキン"></div>
+        </div>
+        <div id="appearancePresetSection" class="appearance-panel-section" data-appearance-section="preset" hidden>
+            <div id="appearancePresetSavePanel">
+                <div id="appearancePresetSaveTitle">今の状態で保存</div>
+                <div id="appearancePresetSaveRow">
+                    <label id="appearancePresetNameLabel" for="appearancePresetNameInput">名前(任意)</label>
+                    <input id="appearancePresetNameInput" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+                    <button id="appearancePresetSaveBtn" class="btn-small" type="button">保存</button>
+                </div>
+            </div>
+            <div id="appearancePresetList" aria-label="見た目プリセット一覧"></div>
         </div>
     </div>
 
@@ -601,6 +629,7 @@
                 <!-- Card Animation FX Layer -->
                 <div id="card-fx-layer"></div>
             </div>
+            <div id="board-expansion-layer" aria-hidden="true"></div>
             <!-- Charge UI -->
             <div id="charge-hud-layer">
                 <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
@@ -717,17 +746,17 @@
                         <input id="networkServerInput" type="text" value="" placeholder="接続先URL（空欄でこのサイト）"
                             />
                     </details>
-                    <section class="network-section" aria-label="作成設定">
-                        <div class="network-section-title">作成設定</div>
+                    <section class="network-section" aria-label="部屋を作成する">
+                        <div class="network-section-title">部屋を作成する</div>
                         <div class="network-create-fields">
                             <label class="network-field" for="networkPlayerNameInput">
-                                <span class="network-field-label">名前</span>
-                                <input id="networkPlayerNameInput" type="text" placeholder="未入力でゲスト名" maxlength="7" autocomplete="off" spellcheck="false"
+                                <span class="network-field-label">名前 <span class="network-field-required">※必須</span></span>
+                                <input id="networkPlayerNameInput" type="text" placeholder="名前を入力してください" maxlength="7" autocomplete="off" spellcheck="false"
                                     />
                             </label>
                             <label class="network-field" for="networkRoomIdInput">
                                 <span class="network-field-label">ルーム名 <span class="network-field-optional">任意</span></span>
-                                <input id="networkRoomIdInput" type="text" placeholder="空欄で無名部屋" maxlength="20" autocomplete="off" spellcheck="false"
+                                <input id="networkRoomIdInput" type="text" placeholder="ルーム名を入力してください" maxlength="20" autocomplete="off" spellcheck="false"
                                     />
                             </label>
                             <label class="network-field" for="networkRoomPasswordInput">
@@ -737,26 +766,36 @@
                             </label>
                         </div>
                     </section>
-                    <div id="networkBoardSizeRow">
-                        <div id="networkBoardSizeHeader">
-                            <span id="networkBoardSizeTitle">盤面サイズ</span>
-                            <span id="networkBoardSizeSummary" class="board-size-control-summary">8x8</span>
-                        </div>
-                        <div id="networkBoardSizeInputs">
-                            <label class="board-size-editor-label" for="networkBoardSizeRowsInput">縦</label>
-                            <input id="networkBoardSizeRowsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
-                            <span class="board-size-editor-separator">x</span>
-                            <label class="board-size-editor-label" for="networkBoardSizeColsInput">横</label>
-                            <input id="networkBoardSizeColsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
-                        </div>
-                        <div id="networkBoardSizeNote" class="board-size-editor-note">部屋作成前に変更できます</div>
-                    </div>
-                    <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
-                        <input id="networkEnableDebugCheckbox" type="checkbox" />
-                        部屋作成時にデバッグモードを有効化
-                    </label>
                     <div id="networkActionRow" aria-label="ネット対戦操作">
+                        <button id="networkRoomSettingsBtn" class="btn-small" type="button" aria-label="部屋作成設定" aria-controls="networkRoomSettingsPopup" aria-expanded="false">⚙</button>
                         <button id="networkCreateBtn" class="btn-small" type="button">部屋作成</button>
+                        <div id="networkRoomSettingsBackdrop" aria-hidden="true"></div>
+                        <div id="networkRoomSettingsPopup" role="dialog" aria-modal="true" aria-label="部屋作成設定" aria-hidden="true">
+                            <div id="networkRoomSettingsPopupTitle">設定</div>
+                            <button id="networkRoomSettingsCloseBtn" class="btn-small" type="button" aria-label="部屋作成設定を閉じる">×</button>
+                            <div id="networkBoardSizeRow">
+                                <div id="networkBoardSizeHeader">
+                                    <span id="networkBoardSizeTitle">盤面サイズ</span>
+                                    <span id="networkBoardSizeSummary" class="board-size-control-summary">8x8</span>
+                                </div>
+                                <div id="networkBoardSizeInputs">
+                                    <label class="board-size-editor-label" for="networkBoardSizeRowsInput">縦</label>
+                                    <input id="networkBoardSizeRowsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
+                                    <span class="board-size-editor-separator">x</span>
+                                    <label class="board-size-editor-label" for="networkBoardSizeColsInput">横</label>
+                                    <input id="networkBoardSizeColsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
+                                </div>
+                                <div id="networkBoardSizeNote" class="board-size-editor-note">部屋作成前に変更できます</div>
+                            </div>
+                            <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
+                                <input id="networkEnableDebugCheckbox" type="checkbox" />
+                                デバッグモードを有効化
+                            </label>
+                            <label id="networkAutoOptionRow" for="networkEnableAutoCheckbox">
+                                <input id="networkEnableAutoCheckbox" type="checkbox" />
+                                オートプレイを許可
+                            </label>
+                        </div>
                     </div>
                     <button id="networkJoinBtn" class="btn-small network-hidden-control" type="button" hidden>参加</button>
                     <button id="networkLeaveBtn" class="btn-small network-hidden-control" type="button" hidden>退出</button>
@@ -811,7 +850,6 @@
                             </span>
                         </button>
                         <div class="gacha-pull-main gacha-pull-main-ten">
-                            <div class="gacha-recommend-badge">おすすめ</div>
                             <button id="gachaTenPullBtn" class="btn-small" type="button">
                                 <span class="gacha-pull-label">10連ガチャ</span>
                                 <span class="gacha-pull-cost">
@@ -870,8 +908,8 @@
 
 
     <!-- Scripts -->
-    <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=232766671116541"></script>
+    <script src="public/runtime.js?v=10249323031789"></script>
+    <script src="public/module-registry.js?v=195019714384878"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=246637970322792"></script>

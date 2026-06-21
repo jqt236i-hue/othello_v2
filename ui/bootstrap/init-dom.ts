@@ -74,7 +74,12 @@ interface InitDomElements {
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
+  networkEnableAutoCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
+  networkRoomSettingsBtn: HTMLElement | null;
+  networkRoomSettingsBackdrop: HTMLElement | null;
+  networkRoomSettingsPopup: HTMLElement | null;
+  networkRoomSettingsCloseBtn: HTMLElement | null;
   networkCreateBtn: HTMLElement | null;
   networkJoinBtn: HTMLElement | null;
   networkLeaveBtn: HTMLElement | null;
@@ -135,7 +140,10 @@ function getInitDomElements(): InitDomElements {
     networkRoomIdInput: $('networkRoomIdInput') as HTMLInputElement | null, networkBoardSizeRowsInput: $('networkBoardSizeRowsInput') as HTMLInputElement | null,
     networkBoardSizeColsInput: $('networkBoardSizeColsInput') as HTMLInputElement | null, networkBoardSizeSummary: $('networkBoardSizeSummary'),
     networkBoardSizeNote: $('networkBoardSizeNote'), networkEnableDebugCheckbox: $('networkEnableDebugCheckbox') as HTMLInputElement | null,
-    networkCopyRoomBtn: $('networkCopyRoomBtn'), networkCreateBtn: $('networkCreateBtn'),
+    networkEnableAutoCheckbox: $('networkEnableAutoCheckbox') as HTMLInputElement | null,
+    networkCopyRoomBtn: $('networkCopyRoomBtn'), networkRoomSettingsBtn: $('networkRoomSettingsBtn'),
+    networkRoomSettingsBackdrop: $('networkRoomSettingsBackdrop'), networkRoomSettingsPopup: $('networkRoomSettingsPopup'), networkRoomSettingsCloseBtn: $('networkRoomSettingsCloseBtn'),
+    networkCreateBtn: $('networkCreateBtn'),
     networkJoinBtn: $('networkJoinBtn'), networkLeaveBtn: $('networkLeaveBtn'),
     networkStatusText: $('networkStatusText'), networkDeckInfo: $('networkDeckInfo'),
     networkTimerStatus: $('networkTimerStatus'), networkOverlay: $('networkOverlay'),

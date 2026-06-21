@@ -221,6 +221,10 @@ function createNetworkSessionSeatController(config: any): any {
     return value === true;
   }
 
+  function normalizeNetworkAutoEnabled(value: any): boolean {
+    return value === true;
+  }
+
   function getSeatDisplayName(seatKey: any): string {
     return normalizePlayerKey(seatKey) === 'white' ? '白' : '黒';
   }
@@ -247,6 +251,7 @@ function createNetworkSessionSeatController(config: any): any {
         roomDeck: normalizeRoomDeck(state.roomDeck),
         roomBoardConfig: active ? normalizeRoomBoardConfig(state.roomBoardConfig) : null,
         networkDebugEnabled: normalizeNetworkDebugEnabled(state.networkDebugEnabled),
+        networkAutoEnabled: normalizeNetworkAutoEnabled(state.networkAutoEnabled),
         hasTwoPlayers: hasTwoPlayers()
       });
     } catch (e) { /* ignore */ }
@@ -282,6 +287,10 @@ function createNetworkSessionSeatController(config: any): any {
     }
     if (Object.prototype.hasOwnProperty.call(payload, 'networkDebugEnabled')) {
       state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
+      changed = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'networkAutoEnabled')) {
+      state.networkAutoEnabled = normalizeNetworkAutoEnabled(payload.networkAutoEnabled);
       changed = true;
     }
 
@@ -495,6 +504,7 @@ function createNetworkSessionSeatController(config: any): any {
     state.roomDeck = null;
     state.roomBoardConfig = null;
     state.networkDebugEnabled = false;
+    state.networkAutoEnabled = false;
 
     if (stored.viewerRole === 'spectator') {
       state.spectatorId = stored.spectatorId;
@@ -548,6 +558,7 @@ function createNetworkSessionSeatController(config: any): any {
       payload
     });
     state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
+    state.networkAutoEnabled = normalizeNetworkAutoEnabled(payload.networkAutoEnabled);
 
     const ownName = normalizePlayerName(payload.playerName);
     if (ownName) {
@@ -600,6 +611,7 @@ function createNetworkSessionSeatController(config: any): any {
       payload
     });
     state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
+    state.networkAutoEnabled = normalizeNetworkAutoEnabled(payload.networkAutoEnabled);
 
     if (typeof cfg.updateTurnTimerFromPayload === 'function') {
       cfg.updateTurnTimerFromPayload(payload);
@@ -629,6 +641,7 @@ function createNetworkSessionSeatController(config: any): any {
     state.roomDeck = null;
     state.roomBoardConfig = null;
     state.networkDebugEnabled = false;
+    state.networkAutoEnabled = false;
     state.chatHistory = [];
     state.stateVersion = null;
     resetResultPresentationState(state);

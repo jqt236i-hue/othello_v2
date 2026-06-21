@@ -126,7 +126,7 @@ describe('TurnPipeline destroy_hand_card', () => {
     cardState.turnCountByPlayer.black = 0;
     cardState.hands.black = [permaCardId];
     cardState.decks.black = ['draw_should_not_happen'];
-    cardState.charge.black = 15;
+    cardState.charge.black = 16;
     cardState.hasUsedCardThisTurnByPlayer.black = false;
 
     const res = TurnPipeline.applyTurn(

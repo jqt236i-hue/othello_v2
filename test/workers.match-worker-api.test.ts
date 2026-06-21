@@ -181,6 +181,37 @@ describe('match worker api controller', () => {
     expect(seen[0].url).toContain('seatKey=white');
   });
 
+  test('match presentation-journal GET を room durable object へ転送する', async () => {
+    const seen: Array<{ roomId: string; url: string }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+
+    const env = createEnv((roomId, request) => {
+      seen.push({ roomId, url: request.url });
+      return jsonResponse(200, { ok: true, presentationFrames: [] });
+    });
+
+    const response = await controller.handleMatchApi(
+      new Request('https://worker/api/match/presentation-journal?roomId=abc&seatKey=white&seatToken=tok&afterVisualSeq=2', { method: 'GET' }),
+      env as any
+    );
+
+    expect(response.status).toBe(200);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].roomId).toBe('ABC');
+    expect(seen[0].url).toContain('/api/match/presentation-journal?');
+    expect(seen[0].url).toContain('roomId=ABC');
+    expect(seen[0].url).toContain('seatKey=white');
+    expect(seen[0].url).toContain('seatToken=tok');
+    expect(seen[0].url).toContain('afterVisualSeq=2');
+  });
+
   test('match list GET は lobby durable object へ転送する', async () => {
     const seen: Array<{ roomId: string; url: string }> = [];
     const controller = createMatchWorkerApiController({

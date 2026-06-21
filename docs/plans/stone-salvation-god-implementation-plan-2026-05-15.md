@@ -101,7 +101,7 @@
 ### 5.5 画像・表示
 
 - 既存 assets は `assets/images/stones/<effect>-black.png` / `...-white.png` 形式が多い。
-- 新規画像は正式名として `assets/images/stones/STONE_SALVATION_GOD-black.png` と `assets/images/stones/STONE_SALVATION_GOD-white.png` を候補にする。
+- 新規画像は正式名として `assets/images/special-stones/STONE_SALVATION_GOD-black.png` と `assets/images/special-stones/STONE_SALVATION_GOD-white.png` を候補にする。
 - `game/visual-effects-map.runtime.js` へ `stoneSalvationGod` effect key と `PENDING_TYPE_TO_EFFECT_KEY` / special type resolution を追加する。
 - 既存 `kyuusai-black.png` / `kyuusai-white.png` は名前上 `救済の意志` 系の可能性があるため、上書き・流用せず、用途を確認してから扱う。
 
@@ -140,8 +140,8 @@
 
 更新対象:
 
-- `assets/images/stones/STONE_SALVATION_GOD-black.png`
-- `assets/images/stones/STONE_SALVATION_GOD-white.png`
+- `assets/images/special-stones/STONE_SALVATION_GOD-black.png`
+- `assets/images/special-stones/STONE_SALVATION_GOD-white.png`
 - `game/visual-effects-map.runtime.js`
 - `test/ui.visual-effects-map.shared.test.ts`
 - 必要に応じて `test/ui.card-renderer-hand-inspect.test.ts`

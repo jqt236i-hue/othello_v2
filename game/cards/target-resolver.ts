@@ -1181,9 +1181,10 @@ const Flips = CardFlips || {};
     }
 
     function getEqualityTargets(cardState: any, gameState: any, playerKey: any) {
-        // EQUALITY_WILL spawns on empty cells; return all empty spawnable cells.
-        return getEmptyBoardShapeCells(cardState, gameState)
-            .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col));
+        void cardState;
+        void gameState;
+        void playerKey;
+        return [];
     }
 
     function getLastResortTargets(cardState: any, gameState: any, playerKey: any) {

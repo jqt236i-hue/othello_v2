@@ -100,27 +100,14 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
                 return;
             }
 
-            try {
-                if (target.ownerBefore === 'black' || target.ownerBefore === 'white') {
-                    const before = {
-                        color: (target.ownerBefore === 'black') ? 1 : -1,
-                        special: target.specialBefore || null,
-                        timer: target.timerBefore || null
-                    };
-                    deps.syncDiscVisual(disc, before);
-                }
-            } catch (e: any) { /* ignore */ }
-
+            deps.syncDiscVisual(disc, after);
             try {
                 if (deps.animationShared && typeof deps.animationShared.triggerFlip === 'function') {
                     deps.animationShared.triggerFlip(disc);
                 }
             } catch (e: any) { /* ignore */ }
 
-            await deps.sleep(Number(deps.flipMs) / 2);
-            deps.syncDiscVisual(disc, after);
-
-            await deps.sleep(Number(deps.flipMs) / 2);
+            await deps.sleep(Number(deps.flipMs));
             try {
                 if (deps.animationShared && typeof deps.animationShared.removeFlip === 'function') {
                     deps.animationShared.removeFlip(disc);

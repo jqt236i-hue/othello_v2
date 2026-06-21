@@ -32,6 +32,8 @@ describe('NetworkStreamSnapshotController', () => {
       markTrackedPublishSelfSnapshot: jest.fn(),
       handleTimeoutPassPayload: jest.fn(),
       enqueuePresentationFramesFromPayload: jest.fn(),
+      syncVisualCursorForSnapshotNoPlayback: jest.fn(),
+      requestNetworkTimelineBoardRefresh: jest.fn(),
       pruneTrackedPublishes: jest.fn()
     };
 
@@ -75,6 +77,71 @@ describe('NetworkStreamSnapshotController', () => {
     );
     expect(calls.markTrackedPublishSelfSnapshot).toHaveBeenCalled();
     expect(calls.pruneTrackedPublishes).toHaveBeenCalled();
+  });
+
+  test('advances visual cursor for an applied stream snapshot with no playback frames', () => {
+    calls.findTrackedPublish.mockReturnValue(null);
+    calls.shouldApplyStreamSnapshotAsShadowPlayback.mockReturnValue(false);
+    calls.syncVisualCursorForSnapshotNoPlayback.mockReturnValue(true);
+    calls.buildShadowAwarePlaybackApplyOptions.mockImplementation((events: any) => ({
+      playbackEvents: events,
+      shadowPlaybackEvents: []
+    }));
+
+    const payload = {
+      ok: true,
+      operationId: 'op_no_visual',
+      snapshot: { stateVersion: 13 },
+      presentationCursor: { visualSeq: 2, stateVersion: 13 },
+      playbackEvents: []
+    };
+
+    controller.handleStreamSnapshotPayload(payload);
+
+    expect(calls.syncVisualCursorForSnapshotNoPlayback).toHaveBeenCalledWith(payload, 13);
+    expect(calls.requestNetworkTimelineBoardRefresh).toHaveBeenCalledWith(null, expect.objectContaining({
+      reason: 'snapshot_no_playback_visual_sync',
+      visualSeq: 2,
+      visualVersion: 13,
+      source: 'network_timeline'
+    }));
+  });
+
+  test('advances visual cursor when replay playback is suppressed', () => {
+    calls.findTrackedPublish.mockReturnValue(null);
+    calls.shouldApplyStreamSnapshotAsShadowPlayback.mockReturnValue(false);
+    calls.syncVisualCursorForSnapshotNoPlayback.mockReturnValue(true);
+    calls.buildShadowAwarePlaybackApplyOptions.mockImplementation((events: any) => ({
+      playbackEvents: events,
+      shadowPlaybackEvents: []
+    }));
+
+    const payload = {
+      ok: true,
+      operationId: 'op_suppressed_replay',
+      snapshot: { stateVersion: 21 },
+      presentationCursor: { visualSeq: 9, stateVersion: 21 },
+      sseReplay: { replayed: true, count: 12, index: 12, remaining: 0 },
+      playbackEvents: [{ type: 'old_replay_event' }]
+    };
+
+    controller.handleStreamSnapshotPayload(payload);
+
+    expect(calls.applySnapshotThroughCoordinator).toHaveBeenCalledWith(
+      { stateVersion: 21 },
+      expect.objectContaining({
+        applyOptions: expect.objectContaining({
+          playbackEvents: []
+        })
+      })
+    );
+    expect(calls.syncVisualCursorForSnapshotNoPlayback).toHaveBeenCalledWith(payload, 21);
+    expect(calls.requestNetworkTimelineBoardRefresh).toHaveBeenCalledWith(null, expect.objectContaining({
+      reason: 'snapshot_no_playback_visual_sync',
+      visualSeq: 9,
+      visualVersion: 21,
+      source: 'network_timeline'
+    }));
   });
 
   test('force recovery updates applied version and marks recovery telemetry', () => {
@@ -154,11 +221,14 @@ describe('NetworkStreamSnapshotController', () => {
       { stateVersion: 15 },
       expect.objectContaining({
         applyOptions: expect.objectContaining({
-          playbackEvents: []
+          playbackEvents: [],
+          presentationFrames: payload.presentationFrames,
+          presentationFrameSource: 'stream'
         })
       })
     );
-    expect(calls.enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(payload, { source: 'stream' });
+    expect(calls.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
+    expect(calls.syncVisualCursorForSnapshotNoPlayback).not.toHaveBeenCalled();
   });
 
   test('self reset_game stream snapshot does not skip result overlay sync', () => {

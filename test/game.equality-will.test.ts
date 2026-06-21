@@ -16,83 +16,30 @@ function createPrng(sequence = [0.5]) {
   };
 }
 
-function createGameState(board) {
+function createGameState() {
   return {
-    board,
+    board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
     currentPlayer: Shared.BLACK,
     turnNumber: 1,
-    consecutivePasses: 0
+    consecutivePasses: 2
   };
 }
 
-function createSparseGameState(blackPositions, whitePositions) {
-  const board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
-  for (const [row, col] of blackPositions || []) board[row][col] = Shared.BLACK;
-  for (const [row, col] of whitePositions || []) board[row][col] = Shared.WHITE;
-  return createGameState(board);
-}
-
-function createDenseGameState(emptyPositions, blackCount, whiteCount) {
-  const board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
-  const emptySet = new Set((emptyPositions || []).map(([row, col]) => `${row},${col}`));
-  const totalFilled = Number(blackCount) + Number(whiteCount);
-  if (totalFilled !== (64 - emptySet.size)) {
-    throw new Error('blackCount + whiteCount must match the non-empty cell count');
-  }
-
-  let remainingWhite = Number(whiteCount);
-  let remainingBlack = Number(blackCount);
-  for (let row = 0; row < 8; row += 1) {
-    for (let col = 0; col < 8; col += 1) {
-      if (emptySet.has(`${row},${col}`)) continue;
-      if (remainingWhite > 0) {
-        board[row][col] = Shared.WHITE;
-        remainingWhite -= 1;
-        continue;
-      }
-      if (remainingBlack > 0) {
-        board[row][col] = Shared.BLACK;
-        remainingBlack -= 1;
-        continue;
-      }
-    }
-  }
-
-  if (remainingWhite !== 0 || remainingBlack !== 0) {
-    throw new Error('failed to allocate the requested disc counts');
-  }
-
-  return createGameState(board);
-}
-
-function createCardState(prng, cardId, cost) {
+function createCardState(prng, cardId, chargeByPlayer = { black: 0, white: 25 }) {
   const cardState = CardLogic.createCardState(prng);
   cardState.debugNoDraw = true;
   cardState.hands.black = [cardId];
-  cardState.charge.black = Math.max(99, Number(cost) || 0);
+  cardState.charge.black = Number(chargeByPlayer.black) || 0;
+  cardState.charge.white = Number(chargeByPlayer.white) || 0;
+  cardState.chargeGainedTotal.black = 0;
+  cardState.chargeGainedTotal.white = 0;
+  cardState.chargeDeltaEvents = [];
+  cardState._nextChargeDeltaSeq = 1;
   return cardState;
 }
 
 function getEqualityWillDef() {
   return (Shared.CARD_DEFS || []).find((card) => card && card.type === 'EQUALITY_WILL');
-}
-
-function getEqualitySpawnEvents(result) {
-  return (result.presentationEvents || []).filter((event) => (
-    event &&
-    event.type === 'SPAWN' &&
-    event.cause === 'EQUALITY_WILL' &&
-    event.reason === 'equality_will_spawn'
-  ));
-}
-
-function getEqualityFlipEvents(result) {
-  return (result.presentationEvents || []).filter((event) => (
-    event &&
-    event.type === 'CHANGE' &&
-    event.cause === 'EQUALITY_WILL' &&
-    event.reason === 'equality_will_flip'
-  ));
 }
 
 function getLatestEqualityResolvedEvent(result) {
@@ -103,39 +50,12 @@ function getLatestEqualityResolvedEvent(result) {
 describe('EQUALITY_WILL（平等の意志）', () => {
   const equalityWillDef = getEqualityWillDef();
 
-  test('盤面石数 helper は比較条件と同じ黒白カウントを返す', () => {
-    const gameState = createSparseGameState(
-      [[7, 7], [7, 6]],
-      [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1]]
-    );
-
-    expect(CardLogic.getEqualityWillBoardCounts(gameState)).toEqual({ black: 2, white: 11 });
-  });
-
-  test('10個差未満では使用できない', () => {
+  test('自分の布石が0なら使用可能', () => {
     expect(equalityWillDef).toBeTruthy();
 
-    const prng = createPrng([0]);
-    const cardState = createCardState(prng, equalityWillDef.id, equalityWillDef.cost);
-    const gameState = createSparseGameState(
-      [[7, 7]],
-      [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0]]
-    );
-
-    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([]);
-    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', equalityWillDef.id)).toBe(false);
-    expect(cardState.pendingEffectByPlayer.black).toBeNull();
-  });
-
-  test('ちょうど10個差なら使用できる', () => {
-    expect(equalityWillDef).toBeTruthy();
-
-    const prng = createPrng([0]);
-    const cardState = createCardState(prng, equalityWillDef.id, equalityWillDef.cost);
-    const gameState = createSparseGameState(
-      [[7, 7]],
-      [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1]]
-    );
+    const prng = createPrng();
+    const cardState = createCardState(prng, equalityWillDef.id, { black: 0, white: 25 });
+    const gameState = createGameState();
 
     expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([equalityWillDef.id]);
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', equalityWillDef.id)).toBe(true);
@@ -146,19 +66,50 @@ describe('EQUALITY_WILL（平等の意志）', () => {
     }));
   });
 
-  test('use_cardで即時解決し、固定PRNGで生成位置・メタデータが決まり、生成石から通常反転する', () => {
+  test('自分の布石が1以上なら使用不可', () => {
     expect(equalityWillDef).toBeTruthy();
 
-    const prng = createPrng([0, 0, 0]);
-    const cardState = createCardState(prng, equalityWillDef.id, equalityWillDef.cost);
-    const gameState = createSparseGameState(
-      [[0, 0]],
-      [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7]]
-    );
+    const prng = createPrng();
+    const cardState = createCardState(prng, equalityWillDef.id, { black: 1, white: 25 });
+    const gameState = createGameState();
 
-    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([equalityWillDef.id]);
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([]);
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', equalityWillDef.id)).toBe(false);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
 
+  test('直接解決でも自分の布石が1以上なら奪取しない', () => {
+    expect(equalityWillDef).toBeTruthy();
+
+    const prng = createPrng();
+    const cardState = createCardState(prng, equalityWillDef.id, { black: 1, white: 25 });
+    const gameState = createGameState();
+
+    const result = CardLogic.resolveEqualityWillUsage(cardState, gameState, 'black');
+
+    expect(result).toEqual(expect.objectContaining({
+      applied: false,
+      reason: 'own_charge_not_zero',
+      requestedAmount: 10,
+      stolenAmount: 0,
+      playerChargeBefore: 1,
+      playerChargeAfter: 1,
+      opponentChargeBefore: 25,
+      opponentChargeAfter: 25
+    }));
+    expect(cardState.charge.black).toBe(1);
+    expect(cardState.charge.white).toBe(25);
+    expect(cardState.chargeDeltaEvents).toEqual([]);
+  });
+
+  test('相手布石25なら10奪い、自分10・相手15になる', () => {
+    expect(equalityWillDef).toBeTruthy();
+
+    const prng = createPrng();
+    const cardState = createCardState(prng, equalityWillDef.id, { black: 0, white: 25 });
+    const gameState = createGameState();
     const spawnSpy = jest.spyOn(BoardOps, 'spawnAt');
+
     try {
       const result = TurnPipeline.applyTurn(
         cardState,
@@ -169,78 +120,44 @@ describe('EQUALITY_WILL（平等の意志）', () => {
       );
 
       const resolveEvent = getLatestEqualityResolvedEvent(result);
-      const spawnEvents = getEqualitySpawnEvents(result);
-      const flipEvents = getEqualityFlipEvents(result);
 
       expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
+      expect(result.cardState.charge.black).toBe(10);
+      expect(result.cardState.charge.white).toBe(15);
+      expect(result.cardState.chargeGainedTotal.black).toBe(10);
       expect(resolveEvent).toMatchObject({
         type: 'equality_will_resolved',
         player: 'black',
-        requestedCount: 3,
-        spawnedCount: 3
+        opponent: 'white',
+        requestedAmount: 10,
+        stolenAmount: 10,
+        playerChargeBefore: 0,
+        playerChargeAfter: 10,
+        opponentChargeBefore: 25,
+        opponentChargeAfter: 15
       });
-      expect((resolveEvent.spawned || []).map((entry) => [entry.row, entry.col])).toEqual([
-        [0, 4],
-        [0, 5],
-        [0, 6]
-      ]);
-      expect(Number(resolveEvent.flippedCount) || 0).toBe(flipEvents.length);
-      expect((resolveEvent.flipped || []).map((entry) => [entry.row, entry.col])).toEqual(
-        flipEvents.map((event) => [event.row, event.col])
-      );
-
-      expect(spawnSpy).toHaveBeenCalledTimes(3);
-      expect(spawnSpy.mock.calls.map((call) => [call[2], call[3]])).toEqual([
-        [0, 4],
-        [0, 5],
-        [0, 6]
-      ]);
-      for (const call of spawnSpy.mock.calls) {
-        expect(call[4]).toBe('black');
-        expect(call[5]).toBe('EQUALITY_WILL');
-        expect(call[6]).toBe('equality_will_spawn');
-        expect(call[7]).toEqual(expect.objectContaining({
-          owner: 'black',
-          requestedCount: 3
-        }));
-      }
-
-      expect(spawnEvents).toHaveLength(3);
-      expect(spawnEvents.map((event) => [event.row, event.col])).toEqual([
-        [0, 4],
-        [0, 5],
-        [0, 6]
-      ]);
-      expect(spawnEvents.map((event) => event.meta && event.meta.spawnIndex)).toEqual([1, 2, 3]);
-      for (const event of spawnEvents) {
-        expect(event.meta).toEqual(expect.objectContaining({
-          owner: 'black',
-          requestedCount: 3
-        }));
-      }
-
-      if (flipEvents.length > 0) {
-        expect(flipEvents.map((event) => [event.row, event.col])).toEqual([
-          [0, 3],
-          [0, 2],
-          [0, 1]
-        ]);
-      }
-      expect(gameState.board[0][4]).toBe(Shared.BLACK);
-      expect(gameState.board[0][5]).toBe(Shared.BLACK);
-      expect(gameState.board[0][6]).toBe(Shared.BLACK);
-      expect(result.cardState.totalFlipCountByPlayer.black).toBe(Number(resolveEvent.flippedCount) || 0);
+      expect(result.presentationEvents || []).toEqual(expect.not.arrayContaining([
+        expect.objectContaining({ cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }),
+        expect.objectContaining({ cause: 'EQUALITY_WILL', reason: 'equality_will_flip' })
+      ]));
+      expect((result.events || []).some((event) => event && (event.type === 'spawn' || event.type === 'flip'))).toBe(false);
+      expect(spawnSpy).not.toHaveBeenCalled();
+      expect(gameState.consecutivePasses).toBe(2);
+      expect(result.cardState.chargeDeltaEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({ player: 'black', delta: 10, before: 0, after: 10, reason: 'equality_will_gain' }),
+        expect.objectContaining({ player: 'white', delta: -10, before: 25, after: 15, reason: 'equality_will_loss' })
+      ]));
     } finally {
       spawnSpy.mockRestore();
     }
   });
 
-  test('空きマスが3未満なら存在する数だけ生成する', () => {
+  test('相手布石7なら7奪い、自分7・相手0になる', () => {
     expect(equalityWillDef).toBeTruthy();
 
-    const prng = createPrng([0, 0, 0]);
-    const cardState = createCardState(prng, equalityWillDef.id, equalityWillDef.cost);
-    const gameState = createDenseGameState([[7, 6], [7, 7]], 26, 36);
+    const prng = createPrng();
+    const cardState = createCardState(prng, equalityWillDef.id, { black: 0, white: 7 });
+    const gameState = createGameState();
 
     const result = TurnPipeline.applyTurn(
       cardState,
@@ -250,28 +167,51 @@ describe('EQUALITY_WILL（平等の意志）', () => {
       prng
     );
 
-    const resolveEvent = getLatestEqualityResolvedEvent(result);
-    const spawnEvents = getEqualitySpawnEvents(result);
-
-    expect(result.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(resolveEvent).toMatchObject({
-      type: 'equality_will_resolved',
-      player: 'black',
-      requestedCount: 3,
-      spawnedCount: 2
+    expect(result.cardState.charge.black).toBe(7);
+    expect(result.cardState.charge.white).toBe(0);
+    expect(getLatestEqualityResolvedEvent(result)).toMatchObject({
+      requestedAmount: 10,
+      stolenAmount: 7,
+      playerChargeBefore: 0,
+      playerChargeAfter: 7,
+      opponentChargeBefore: 7,
+      opponentChargeAfter: 0
     });
-    expect((resolveEvent.spawned || []).map((entry) => [entry.row, entry.col])).toEqual([
-      [7, 6],
-      [7, 7]
-    ]);
+  });
 
-    expect(spawnEvents).toHaveLength(2);
-    expect(spawnEvents.map((event) => [event.row, event.col])).toEqual([
-      [7, 6],
-      [7, 7]
-    ]);
-    expect(new Set(spawnEvents.map((event) => `${event.row},${event.col}`)).size).toBe(2);
-    expect(gameState.board[7][6]).toBe(Shared.BLACK);
-    expect(gameState.board[7][7]).toBe(Shared.BLACK);
+  test('相手布石0でも奪取量0として使用が成立する', () => {
+    expect(equalityWillDef).toBeTruthy();
+
+    const prng = createPrng();
+    const cardState = createCardState(prng, equalityWillDef.id, { black: 0, white: 0 });
+    const gameState = createGameState();
+
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([equalityWillDef.id]);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: equalityWillDef.id },
+      prng
+    );
+
+    expect(result.cardState.charge.black).toBe(0);
+    expect(result.cardState.charge.white).toBe(0);
+    expect(getLatestEqualityResolvedEvent(result)).toMatchObject({
+      requestedAmount: 10,
+      stolenAmount: 0,
+      playerChargeBefore: 0,
+      playerChargeAfter: 0,
+      opponentChargeBefore: 0,
+      opponentChargeAfter: 0
+    });
+  });
+
+  test('布石ライブ状態 helper は使用者視点の自分・相手布石を返す', () => {
+    const cardState = { charge: { black: 0, white: 25 } };
+
+    expect(CardLogic.getEqualityWillChargeState(cardState, 'black')).toEqual({ own: 0, opponent: 25 });
+    expect(CardLogic.getEqualityWillChargeState(cardState, 'white')).toEqual({ own: 25, opponent: 0 });
   });
 });

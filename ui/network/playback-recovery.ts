@@ -82,8 +82,10 @@ function createNetworkPlaybackRecoveryController(config?: any): any {
   }
 
   function resolveAuthoritativePlaybackDigest(authoritativePlaybackEvents: any, authoritativePlaybackDigest?: any): string {
-    const digest = normalizePlaybackDigest(authoritativePlaybackDigest);
-    return digest || computePlaybackDigest(authoritativePlaybackEvents);
+    const explicitDigest = normalizePlaybackDigest(authoritativePlaybackDigest);
+    const computedDigest = computePlaybackDigest(authoritativePlaybackEvents);
+    if (explicitDigest && computedDigest && explicitDigest !== computedDigest) return '';
+    return explicitDigest || computedDigest;
   }
 
   function playbackDigestsMatch(requestedPlaybackEvents: any, authoritativePlaybackEvents: any, authoritativePlaybackDigest?: any): boolean {

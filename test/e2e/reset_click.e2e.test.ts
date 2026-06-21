@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import type { Browser, ConsoleMessage } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 declare const describe: any;
 declare const beforeAll: any;
@@ -36,6 +36,7 @@ describe('UI Reset & Click E2E', () => {
     const logs: Array<{ type: string; text: string }> = [];
     page.on('console', (msg: ConsoleMessage) => logs.push({ type: msg.type(), text: msg.text() }));
     await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for board and game state to be ready
     await page.waitForSelector('#board .cell');

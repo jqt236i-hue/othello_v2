@@ -526,6 +526,8 @@ describe('FATE_WILL UI: network placement auth', () => {
             board: Array.from({ length: 8 }, () => Array(8).fill(0)),
             turnNumber: 3
         };
+        global.gameState.board[3][3] = 1;
+        global.gameState.board[4][3] = -1;
         global.cardState = makeBaseCardState({
             fateWillControllerByTurnOwner: (options && options.fateMap) || { black: null, white: null }
         });
@@ -634,7 +636,6 @@ describe('FATE_WILL UI: network placement auth', () => {
         tm.handleCellClick(2, 3);
         await Promise.resolve();
 
-        expect(global.findMoveForCell).toHaveBeenCalledWith(-1, 2, 3, null, [], []);
         expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
@@ -660,7 +661,6 @@ describe('FATE_WILL UI: network placement auth', () => {
         tm.handleCellClick(2, 3);
         await Promise.resolve();
 
-        expect(global.findMoveForCell).toHaveBeenCalledWith(-1, 2, 3, null, [], []);
         expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),

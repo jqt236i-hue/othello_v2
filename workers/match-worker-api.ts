@@ -220,7 +220,11 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             return forwardJsonToRoom(env, roomId, pathname, body);
         }
 
-        if (request.method === 'GET' && (pathname === '/api/match/state' || pathname === '/api/match/stream')) {
+        if (request.method === 'GET' && (
+            pathname === '/api/match/state'
+            || pathname === '/api/match/stream'
+            || pathname === '/api/match/presentation-journal'
+        )) {
             const roomId = cfg.normalizeRoomId(urlObj.searchParams.get('roomId') || '');
             if (!roomId) {
                 return cfg.jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });

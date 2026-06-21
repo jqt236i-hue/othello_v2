@@ -96,8 +96,8 @@ describe('local match server spectator API', () => {
         projectedForSeat: null,
         viewerRole: 'spectator'
       }));
-      expect(spectate.data.snapshot.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
-      expect(spectate.data.snapshot.cardState.hands.white).toEqual(['__hidden_hand__:white:0']);
+      expect(spectate.data.snapshot.cardState.hands.black).toEqual(['meteor_will']);
+      expect(spectate.data.snapshot.cardState.hands.white).toEqual(['guard_will']);
     } finally {
       await closeServer(server);
     }

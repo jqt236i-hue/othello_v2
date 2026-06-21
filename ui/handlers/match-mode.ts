@@ -21,6 +21,13 @@ const DeckCodecModule = (() => {
         return null;
     }
 })();
+const SharedUIBootstrapModule = (() => {
+    try {
+        return _require('../../shared/ui-bootstrap-shared');
+    } catch (e) {
+        return null;
+    }
+})();
 
 const MODE_CPU = 'cpu';
 const MODE_REVERSI = 'reversi';
@@ -30,14 +37,41 @@ const MODE_OTHELLO = 'othello';
     const PLAYER_NAME_MAX = 7;
     const DEFAULT_PLAYER_NAME = 'ななし';
     const SHARED_LEADERBOARD_PANEL_LIMIT = 100;
+    const LEADERBOARD_PODIUM_ENTRY_COUNT = 3;
+    const LEADERBOARD_FILTER_ALL = 'all';
+    const LEADERBOARD_FILTER_NETWORK = 'network';
+    const LEADERBOARD_FILTER_CPU = 'cpu';
+    const LEADERBOARD_CATEGORY_SCORE = 'score';
+    const LEADERBOARD_CATEGORY_TIME_ATTACK = 'timeAttack';
+    const LEADERBOARD_CPU_LEVEL_NAMES = [
+        '',
+        '盤喰いの小鬼',
+        '反転の影',
+        '布石を紡ぐ者',
+        '盤面支配者',
+        '終局を告げる者',
+        '盤理の観測者',
+        '盤界の執行者',
+        '理論の化身',
+        '終焉の冥灰'
+    ];
 
     let currentMode = MODE_CPU;
     let networkChatVisible = false;
     let leaderboardRefreshToken = 0;
+    let leaderboardEntriesCache: any[] = [];
+    let leaderboardUpdatedAt = 0;
+    let leaderboardActiveFilter = LEADERBOARD_FILTER_ALL;
+    let leaderboardActiveCategory = LEADERBOARD_CATEGORY_SCORE;
+    let leaderboardCpuLevelFilter: number | null = null;
+    let leaderboardCpuLevelMenuOpen = false;
+    let leaderboardModeMenuOpen = false;
+    let leaderboardDetailsOpen = false;
     let networkStatusBaseText = '';
     let networkStatusBaseIsError = false;
     let networkTurnTimerInfo: any = null;
     let networkRoomDebugEnabled = false;
+    let networkRoomAutoEnabled = false;
     let selectedNetworkRoomId = '';
 
     const uiRefs: any = {
@@ -55,7 +89,12 @@ const MODE_OTHELLO = 'othello';
         networkBoardSizeSummary: null,
         networkBoardSizeNote: null,
         networkEnableDebugCheckbox: null,
+        networkEnableAutoCheckbox: null,
         networkCopyRoomBtn: null,
+        networkRoomSettingsBtn: null,
+        networkRoomSettingsBackdrop: null,
+        networkRoomSettingsPopup: null,
+        networkRoomSettingsCloseBtn: null,
         networkCreateBtn: null,
         networkJoinBtn: null,
         networkRoomPasswordInput: null,
@@ -98,7 +137,8 @@ const MODE_OTHELLO = 'othello';
     }
 
     function shouldDisableAutoMode(mode: any) {
-        return mode === MODE_NETWORK;
+        if (mode !== MODE_NETWORK) return false;
+        return networkRoomAutoEnabled !== true || isNetworkSpectatorActive();
     }
 
     function getCurrentMode() {
@@ -466,6 +506,12 @@ const MODE_OTHELLO = 'othello';
         networkRoomDebugEnabled = roomState.networkDebugEnabled === true;
     }
 
+    function updateNetworkAutoEnabledFromRoomState(roomState: any) {
+        if (!roomState || typeof roomState !== 'object') return;
+        if (!Object.prototype.hasOwnProperty.call(roomState, 'networkAutoEnabled')) return;
+        networkRoomAutoEnabled = roomState.networkAutoEnabled === true;
+    }
+
     function tryAutoEnableDebugModeForNetworkRoom() {
         if (currentMode !== MODE_NETWORK) return;
         if (networkRoomDebugEnabled !== true) return;
@@ -693,6 +739,7 @@ const MODE_OTHELLO = 'othello';
         const header = document.createElement('div');
         header.id = 'networkRoomListHeader';
         const title = document.createElement('span');
+        title.className = 'network-room-list-title';
         title.textContent = 'ルーム一覧';
         const refreshBtn = document.createElement('button');
         refreshBtn.id = 'networkRoomListRefreshBtn';
@@ -705,9 +752,12 @@ const MODE_OTHELLO = 'othello';
         const list = document.createElement('div');
         list.id = 'networkRoomList';
         list.setAttribute('aria-live', 'polite');
+        const viewport = document.createElement('div');
+        viewport.id = 'networkRoomListViewport';
+        viewport.appendChild(list);
 
         listWrap.appendChild(header);
-        listWrap.appendChild(list);
+        listWrap.appendChild(viewport);
 
         const deckInfo = uiRefs.networkDeckInfo;
         if (deckInfo && deckInfo.parentNode === uiRefs.networkPanel) {
@@ -747,6 +797,15 @@ const MODE_OTHELLO = 'othello';
             const maxSeats = Number.isFinite(Number(entry.maxSeats)) ? Number(entry.maxSeats) : 2;
             const spectatorCount = Number.isFinite(Number(entry.spectatorCount)) ? Number(entry.spectatorCount) : 0;
             const maxSpectators = Number.isFinite(Number(entry.maxSpectators)) ? Number(entry.maxSpectators) : 4;
+            const blackPlayerName = normalizePlayerName(entry.blackPlayerName || entry.blackName || entry.seatNames?.black) || host;
+            const whitePlayerName = normalizePlayerName(entry.whitePlayerName || entry.whiteName || entry.guestName || entry.opponentName || entry.seatNames?.white)
+                || (seatCount >= 2 ? '参加者' : '募集中');
+            const currentRoomId = root.NetworkMatchClient && typeof root.NetworkMatchClient.getRoomId === 'function'
+                ? formatRoomIdInput(root.NetworkMatchClient.getRoomId())
+                : '';
+            if (currentRoomId && currentRoomId === roomId) {
+                item.classList.add('is-current-room');
+            }
             const body = document.createElement('div');
             body.className = 'network-room-entry-body';
             const main = document.createElement('span');
@@ -776,12 +835,60 @@ const MODE_OTHELLO = 'othello';
             const boardEl = document.createElement('span');
             boardEl.textContent = `盤面 ${boardLabel}`;
             const spectatorEl = document.createElement('span');
-            spectatorEl.textContent = `観戦 ${spectatorCount}/${maxSpectators}`;
+            spectatorEl.textContent = `観測 ${spectatorCount}/${maxSpectators}`;
             meta.appendChild(hostEl);
             meta.appendChild(boardEl);
             meta.appendChild(spectatorEl);
 
+            const versus = document.createElement('span');
+            versus.className = 'network-room-entry-versus';
+            const blackMark = document.createElement('span');
+            blackMark.className = 'network-room-entry-mark';
+            blackMark.textContent = blackPlayerName;
+            if (Array.from(blackPlayerName).length > 4) {
+                blackMark.classList.add('is-long-name');
+            }
+            const versusText = document.createElement('span');
+            versusText.className = 'network-room-entry-vs';
+            versusText.textContent = 'VS';
+            const whiteMark = document.createElement('span');
+            whiteMark.className = 'network-room-entry-mark';
+            whiteMark.textContent = whitePlayerName;
+            if (Array.from(whitePlayerName).length > 4) {
+                whiteMark.classList.add('is-long-name');
+            }
+            versus.appendChild(blackMark);
+            versus.appendChild(versusText);
+            versus.appendChild(whiteMark);
+
+            const counts = document.createElement('span');
+            counts.className = 'network-room-entry-counts';
+            const playerCount = document.createElement('span');
+            playerCount.className = 'network-room-entry-count is-player-count';
+            const playerLabel = document.createElement('span');
+            playerLabel.className = 'network-room-entry-count-label';
+            playerLabel.textContent = 'プレイヤー';
+            const playerValue = document.createElement('span');
+            playerValue.className = 'network-room-entry-count-value';
+            playerValue.textContent = `${seatCount}/${maxSeats}`;
+            playerCount.appendChild(playerLabel);
+            playerCount.appendChild(playerValue);
+            const spectatorCountEl = document.createElement('span');
+            spectatorCountEl.className = 'network-room-entry-count is-spectator-count';
+            const spectatorLabel = document.createElement('span');
+            spectatorLabel.className = 'network-room-entry-count-label';
+            spectatorLabel.textContent = '観測中';
+            const spectatorValue = document.createElement('span');
+            spectatorValue.className = 'network-room-entry-count-value';
+            spectatorValue.textContent = `${spectatorCount}/${maxSpectators}`;
+            spectatorCountEl.appendChild(spectatorLabel);
+            spectatorCountEl.appendChild(spectatorValue);
+            counts.appendChild(playerCount);
+            counts.appendChild(spectatorCountEl);
+
             body.appendChild(main);
+            body.appendChild(versus);
+            body.appendChild(counts);
             body.appendChild(meta);
 
             const joinButton = document.createElement('button');
@@ -789,6 +896,10 @@ const MODE_OTHELLO = 'othello';
             joinButton.className = 'btn-small network-room-entry-join';
             joinButton.textContent = '参加';
             joinButton.disabled = entry.canJoin === false;
+            if (currentRoomId && currentRoomId === roomId) {
+                joinButton.textContent = '参加済み';
+                joinButton.disabled = true;
+            }
             joinButton.setAttribute(
                 'aria-label',
                 `${roomName}に参加。ホスト ${host}、盤面 ${boardLabel}、${seatCount}/${maxSeats}${entry.hasPassword === true ? '、パスワードあり' : ''}`
@@ -799,15 +910,27 @@ const MODE_OTHELLO = 'othello';
             const spectateButton = document.createElement('button');
             spectateButton.type = 'button';
             spectateButton.className = 'btn-small network-room-entry-spectate';
-            spectateButton.textContent = '観戦';
+            spectateButton.textContent = '観測';
             spectateButton.disabled = entry.canSpectate === false;
-            spectateButton.setAttribute(
-                'aria-label',
-                `${roomName}を観戦。観戦 ${spectatorCount}/${maxSpectators}${entry.hasPassword === true ? '、パスワードあり' : ''}`
-            );
-            spectateButton.addEventListener('click', () => {
-                spectateRoomFromList(roomId, roomName, entry.hasPassword === true);
-            });
+            if (currentRoomId && currentRoomId === roomId) {
+                spectateButton.classList.add('network-room-entry-leave');
+                spectateButton.textContent = '退出';
+                spectateButton.disabled = false;
+                spectateButton.setAttribute('aria-label', `${roomName}から退出`);
+                spectateButton.addEventListener('click', () => {
+                    if (uiRefs.networkLeaveBtn && typeof uiRefs.networkLeaveBtn.click === 'function') {
+                        uiRefs.networkLeaveBtn.click();
+                    }
+                });
+            } else {
+                spectateButton.setAttribute(
+                    'aria-label',
+                    `${roomName}を観測。観測 ${spectatorCount}/${maxSpectators}${entry.hasPassword === true ? '、パスワードあり' : ''}`
+                );
+                spectateButton.addEventListener('click', () => {
+                    spectateRoomFromList(roomId, roomName, entry.hasPassword === true);
+                });
+            }
             item.appendChild(body);
             item.appendChild(joinButton);
             item.appendChild(spectateButton);
@@ -869,7 +992,7 @@ const MODE_OTHELLO = 'othello';
             return;
         }
         if (!root.NetworkMatchClient || typeof root.NetworkMatchClient.spectateRoom !== 'function') {
-            writeNetworkStatus('観戦機能を利用できません', true);
+            writeNetworkStatus('観測機能を利用できません', true);
             return;
         }
 
@@ -890,15 +1013,15 @@ const MODE_OTHELLO = 'othello';
             });
             if (result && result.ok) {
                 setNetworkOverlayVisible(false);
-                writeNetworkStatus('観戦中', false);
+                writeNetworkStatus('観測中', false);
                 refreshNetworkChatVisibility();
                 renderNetworkDeckInfo();
                 refreshBoardUi();
                 return;
             }
-            writeNetworkStatus('観戦参加に失敗しました', true);
+            writeNetworkStatus('観測への参加に失敗しました', true);
         } catch (e) {
-            writeNetworkStatus('観戦参加に失敗しました', true);
+            writeNetworkStatus('観測への参加に失敗しました', true);
         }
     }
 
@@ -909,6 +1032,9 @@ const MODE_OTHELLO = 'othello';
     function setNetworkOverlayVisible(visible: any) {
         if (!uiRefs.networkOverlay) return;
         const open = !!visible;
+        if (!open) {
+            setNetworkRoomSettingsPopupVisible(false);
+        }
         uiRefs.networkOverlay.classList.toggle('is-open', open);
         uiRefs.networkOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
         renderNetworkDeckInfo();
@@ -976,6 +1102,347 @@ const MODE_OTHELLO = 'othello';
         }
     }
 
+    function ensureLeaderboardStylesheet() {
+        try {
+            if (typeof document === 'undefined' || !document.head) return;
+            const existing = document.querySelector('link[data-leaderboard-styles="true"]');
+            if (existing) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'styles-leaderboard.css';
+            link.setAttribute('data-leaderboard-styles', 'true');
+            document.head.appendChild(link);
+        } catch (e) { /* ignore */ }
+    }
+
+    function normalizeLeaderboardFilter(value: any) {
+        if (value === LEADERBOARD_FILTER_NETWORK) return LEADERBOARD_FILTER_NETWORK;
+        if (value === LEADERBOARD_FILTER_CPU) return LEADERBOARD_FILTER_CPU;
+        return LEADERBOARD_FILTER_ALL;
+    }
+
+    function normalizeLeaderboardCategory(value: any) {
+        return value === LEADERBOARD_CATEGORY_TIME_ATTACK
+            ? LEADERBOARD_CATEGORY_TIME_ATTACK
+            : LEADERBOARD_CATEGORY_SCORE;
+    }
+
+    function getLeaderboardModeLabel(filter: any): string {
+        const normalized = normalizeLeaderboardFilter(filter);
+        if (normalized === LEADERBOARD_FILTER_NETWORK) return '対人';
+        if (normalized === LEADERBOARD_FILTER_ALL) return '総合';
+        return 'CPU';
+    }
+
+    function getLeaderboardModeButtonLabel(): string {
+        return 'MODE';
+    }
+
+    function normalizeLeaderboardCpuLevel(value: any): number | null {
+        if (value === null || value === undefined || String(value).trim() === '') return null;
+        if (!Number.isFinite(Number(value))) return null;
+        return Math.max(1, Math.min(9, Math.trunc(Number(value))));
+    }
+
+    function getLeaderboardCpuLevelLabel(level: any): string {
+        const normalized = normalizeLeaderboardCpuLevel(level);
+        if (normalized === null) return '全Lv';
+        const name = LEADERBOARD_CPU_LEVEL_NAMES[normalized] || '';
+        return name ? `Lv${normalized}: ${name}` : `Lv${normalized}`;
+    }
+
+    function getActiveLeaderboardEntries() {
+        return Array.isArray(leaderboardEntriesCache) ? leaderboardEntriesCache.slice() : [];
+    }
+
+    function isTimeAttackLeaderboardActive(): boolean {
+        return leaderboardActiveCategory === LEADERBOARD_CATEGORY_TIME_ATTACK;
+    }
+
+    function formatLeaderboardDuration(ms: any): string {
+        const totalMs = Number(ms);
+        if (!Number.isFinite(totalMs) || totalMs <= 0) return '--';
+        const centiseconds = Math.floor((Math.trunc(totalMs) % 1000) / 10);
+        const totalSeconds = Math.floor(Math.trunc(totalMs) / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+    }
+
+    function getLeaderboardEntryValueText(entry: any): string {
+        if (isTimeAttackLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_ATTACK)) {
+            return formatLeaderboardDuration(entry && entry.bestTimeMs);
+        }
+        return `${entry && entry.bestScore ? entry.bestScore : 0}`;
+    }
+
+    function createLeaderboardModeLabel(entry: any) {
+        const cpuSuffix = Number.isFinite(Number(entry && entry.cpuLevel)) ? ` Lv${entry.cpuLevel}` : '';
+        return entry && entry.mode === 'network' ? '対人' : `CPU${cpuSuffix}`;
+    }
+
+    function createLeaderboardModeChip(entry: any) {
+        const chip = document.createElement('span');
+        chip.className = 'leaderboard-mode-chip';
+        chip.dataset.mode = entry && entry.mode === 'network' ? 'network' : 'cpu';
+        chip.textContent = createLeaderboardModeLabel(entry);
+        return chip;
+    }
+
+    function ensureLeaderboardScaffold() {
+        ensureLeaderboardStylesheet();
+        if (!uiRefs.leaderboardPanel) return null;
+
+        const header = uiRefs.leaderboardPanel.querySelector('#leaderboardModalHeader');
+        const title = header ? header.querySelector('.leaderboard-title') : null;
+        if (title && !title.classList.contains('is-reference-title')) {
+            title.classList.add('is-reference-title');
+            title.textContent = '';
+
+            const titleMain = document.createElement('span');
+            titleMain.className = 'leaderboard-title-main';
+            titleMain.textContent = 'ランキング';
+
+            const titleSub = document.createElement('span');
+            titleSub.className = 'leaderboard-title-sub';
+            titleSub.textContent = 'Card Reversi';
+
+            title.appendChild(titleMain);
+            title.appendChild(titleSub);
+        }
+
+        const body = uiRefs.leaderboardPanel.querySelector('#leaderboardModalBody');
+        const nameRow = uiRefs.leaderboardPanel.querySelector('#leaderboardNameRow');
+        const status = uiRefs.leaderboardPanel.querySelector('#leaderboardStatusText');
+        const list = uiRefs.leaderboardPanel.querySelector('#leaderboardList');
+        if (!body || !nameRow || !status || !list) return null;
+
+        let shell = uiRefs.leaderboardPanel.querySelector('#leaderboardReferenceShell');
+        if (!shell) {
+            shell = document.createElement('div');
+            shell.id = 'leaderboardReferenceShell';
+            shell.className = 'leaderboard-reference-shell';
+        }
+
+        let summary = uiRefs.leaderboardPanel.querySelector('#leaderboardSummary');
+        if (!summary) {
+            summary = document.createElement('div');
+            summary.id = 'leaderboardSummary';
+            summary.className = 'leaderboard-summary';
+        }
+
+        let tabs = uiRefs.leaderboardPanel.querySelector('#leaderboardFilterTabs');
+        if (!tabs) {
+            tabs = document.createElement('div');
+            tabs.id = 'leaderboardFilterTabs';
+            tabs.className = 'leaderboard-filter-tabs';
+
+            const tabDefs = [
+                { id: 'leaderboardCategoryScore', label: 'スコアランキング', category: LEADERBOARD_CATEGORY_SCORE },
+                { id: 'leaderboardCategoryTimeAttack', label: 'タイムアタック', category: LEADERBOARD_CATEGORY_TIME_ATTACK }
+            ];
+            tabDefs.forEach((tabDef) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.id = tabDef.id;
+                button.className = 'leaderboard-filter-tab';
+                button.dataset.category = tabDef.category;
+                button.textContent = tabDef.label;
+                button.setAttribute('aria-pressed', 'false');
+                tabs.appendChild(button);
+            });
+        }
+
+        if (!nameRow.classList.contains('is-reference-row')) {
+            nameRow.classList.add('is-reference-row');
+            const label = nameRow.querySelector('label');
+            const input = uiRefs.leaderboardNameInput;
+            const reloadBtn = uiRefs.leaderboardReloadBtn;
+
+            const field = document.createElement('div');
+            field.id = 'leaderboardNameField';
+            field.className = 'leaderboard-name-field';
+            if (label) field.appendChild(label);
+            if (input) field.appendChild(input);
+
+            const actions = document.createElement('div');
+            actions.id = 'leaderboardActionButtons';
+            actions.className = 'leaderboard-action-buttons';
+
+            const modeWrap = document.createElement('div');
+            modeWrap.id = 'leaderboardModeControl';
+            modeWrap.className = 'leaderboard-mode-control';
+            const modeBtn = document.createElement('button');
+            modeBtn.id = 'leaderboardModeBtn';
+            modeBtn.className = 'btn-small leaderboard-mode-btn';
+            modeBtn.type = 'button';
+            modeBtn.textContent = getLeaderboardModeButtonLabel();
+            modeBtn.setAttribute('aria-label', `表示モード: ${getLeaderboardModeLabel(leaderboardActiveFilter)}`);
+            modeBtn.setAttribute('aria-expanded', 'false');
+            modeBtn.setAttribute('aria-haspopup', 'listbox');
+            const modeMenu = document.createElement('div');
+            modeMenu.id = 'leaderboardModeMenu';
+            modeMenu.className = 'leaderboard-mode-menu';
+            modeMenu.setAttribute('role', 'listbox');
+            modeMenu.setAttribute('aria-hidden', 'true');
+            [
+                { id: 'leaderboardModeOptionCpu', label: 'CPU', filter: LEADERBOARD_FILTER_CPU },
+                { id: 'leaderboardModeOptionNetwork', label: '対人', filter: LEADERBOARD_FILTER_NETWORK },
+                { id: 'leaderboardModeOptionAll', label: '総合', filter: LEADERBOARD_FILTER_ALL }
+            ].forEach((item) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.id = item.id;
+                option.className = 'leaderboard-mode-option';
+                option.dataset.filter = item.filter;
+                option.setAttribute('role', 'option');
+                option.textContent = item.label;
+                modeMenu.appendChild(option);
+            });
+            modeWrap.appendChild(modeBtn);
+            modeWrap.appendChild(modeMenu);
+            actions.appendChild(modeWrap);
+
+            const levelWrap = document.createElement('div');
+            levelWrap.id = 'leaderboardCpuLevelControl';
+            levelWrap.className = 'leaderboard-cpu-level-control';
+            const levelBtn = document.createElement('button');
+            levelBtn.id = 'leaderboardCpuLevelBtn';
+            levelBtn.className = 'btn-small leaderboard-cpu-level-btn';
+            levelBtn.type = 'button';
+            levelBtn.textContent = getLeaderboardCpuLevelLabel(leaderboardCpuLevelFilter);
+            levelBtn.setAttribute('aria-expanded', 'false');
+            levelBtn.setAttribute('aria-haspopup', 'listbox');
+            const levelMenu = document.createElement('div');
+            levelMenu.id = 'leaderboardCpuLevelMenu';
+            levelMenu.className = 'leaderboard-cpu-level-menu';
+            levelMenu.setAttribute('role', 'listbox');
+            levelMenu.setAttribute('aria-hidden', 'true');
+            const levelDefs: Array<{ level: number | null; label: string }> = [
+                { level: null, label: '全Lv' },
+                ...Array.from({ length: 9 }, (_item, index) => {
+                    const level = index + 1;
+                    return { level, label: getLeaderboardCpuLevelLabel(level) };
+                })
+            ];
+            levelDefs.forEach((item) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'leaderboard-cpu-level-option';
+                option.id = item.level === null ? 'leaderboardCpuLevelOptionAll' : `leaderboardCpuLevelOption${item.level}`;
+                option.dataset.cpuLevel = item.level === null ? '' : String(item.level);
+                option.setAttribute('role', 'option');
+                option.textContent = item.label;
+                levelMenu.appendChild(option);
+            });
+            levelWrap.appendChild(levelBtn);
+            levelWrap.appendChild(levelMenu);
+            actions.appendChild(levelWrap);
+            if (reloadBtn) actions.appendChild(reloadBtn);
+
+            let infoBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardInfoBtn');
+            if (!infoBtn) {
+                infoBtn = document.createElement('button');
+                infoBtn.id = 'leaderboardInfoBtn';
+                infoBtn.className = 'btn-small leaderboard-info-btn';
+                infoBtn.type = 'button';
+                infoBtn.textContent = 'ⓘ';
+                infoBtn.setAttribute('aria-pressed', 'false');
+                infoBtn.setAttribute('aria-label', 'ランキング説明');
+            }
+            actions.appendChild(infoBtn);
+
+            nameRow.innerHTML = '';
+            nameRow.appendChild(field);
+            nameRow.appendChild(actions);
+        }
+
+        let details = uiRefs.leaderboardPanel.querySelector('#leaderboardDetailsPanel');
+        if (!details) {
+            details = document.createElement('div');
+            details.id = 'leaderboardDetailsPanel';
+            details.className = 'leaderboard-details-panel';
+            details.textContent = 'スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。CPUはLv別に絞り込み可能。15:00超過、敗北、引き分け、デバッグモードはタイムアタック対象外。';
+        }
+
+        let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');
+        if (!podium) {
+            podium = document.createElement('div');
+            podium.id = 'leaderboardPodium';
+            podium.className = 'leaderboard-podium';
+        }
+
+        let table = uiRefs.leaderboardPanel.querySelector('#leaderboardTable');
+        if (!table) {
+            table = document.createElement('div');
+            table.id = 'leaderboardTable';
+            table.className = 'leaderboard-table';
+        }
+
+        let tableHeader = uiRefs.leaderboardPanel.querySelector('#leaderboardTableHeader');
+        if (!tableHeader) {
+            tableHeader = document.createElement('div');
+            tableHeader.id = 'leaderboardTableHeader';
+            tableHeader.className = 'leaderboard-table-header';
+            ['順位', 'プレイヤー名', isTimeAttackLeaderboardActive() ? 'タイム' : 'スコア', 'モード'].forEach((labelText, index) => {
+                const cell = document.createElement('span');
+                cell.className = `leaderboard-table-header-cell is-col-${index + 1}`;
+                cell.textContent = labelText;
+                tableHeader.appendChild(cell);
+            });
+        }
+
+        let listViewport = uiRefs.leaderboardPanel.querySelector('#leaderboardListViewport');
+        if (!listViewport) {
+            listViewport = document.createElement('div');
+            listViewport.id = 'leaderboardListViewport';
+            listViewport.className = 'leaderboard-list-viewport';
+        }
+
+        let footnote = uiRefs.leaderboardPanel.querySelector('#leaderboardFootnote');
+        if (!footnote) {
+            footnote = document.createElement('div');
+            footnote.id = 'leaderboardFootnote';
+            footnote.className = 'leaderboard-footnote';
+            footnote.textContent = 'ランキングは定期的に更新されます';
+        }
+
+        body.innerHTML = '';
+        listViewport.appendChild(list);
+        table.appendChild(tableHeader);
+        table.appendChild(listViewport);
+        shell.appendChild(summary);
+        shell.appendChild(tabs);
+        shell.appendChild(nameRow);
+        shell.appendChild(details);
+        shell.appendChild(status);
+        shell.appendChild(podium);
+        shell.appendChild(table);
+        shell.appendChild(footnote);
+        body.appendChild(shell);
+
+        uiRefs.leaderboardStatus = status;
+        uiRefs.leaderboardList = list;
+        uiRefs.leaderboardNameInput = uiRefs.leaderboardPanel.querySelector('#leaderboardNameInput');
+        uiRefs.leaderboardReloadBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardReloadBtn');
+
+        return {
+            summary,
+            tabs,
+            cpuLevelControl: uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelControl'),
+            cpuLevelBtn: uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelBtn'),
+            cpuLevelMenu: uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelMenu'),
+            modeBtn: uiRefs.leaderboardPanel.querySelector('#leaderboardModeBtn'),
+            modeMenu: uiRefs.leaderboardPanel.querySelector('#leaderboardModeMenu'),
+            details,
+            podium,
+            table,
+            status,
+            list,
+            infoBtn: uiRefs.leaderboardPanel.querySelector('#leaderboardInfoBtn')
+        };
+    }
+
     function clearLeaderboardRows() {
         if (!uiRefs.leaderboardList) return;
         uiRefs.leaderboardList.innerHTML = '';
@@ -989,41 +1456,271 @@ const MODE_OTHELLO = 'othello';
         uiRefs.leaderboardList.appendChild(row);
     }
 
-    function createLeaderboardRow(entry: any, selfPlayerId: any, duplicateNames: any) {
-        const row = document.createElement('div');
-        row.className = 'leaderboard-row';
+    function createLeaderboardRankBadge(rankValue: any) {
+        const badge = document.createElement('span');
+        badge.className = 'leaderboard-rank-badge';
+        badge.textContent = `${rankValue || '-'}`;
+        return badge;
+    }
 
-        const rank = document.createElement('span');
-        rank.className = 'leaderboard-rank';
-        rank.textContent = `#${entry.rank || '-'}`;
-
+    function createLeaderboardNameLabel(entry: any, duplicateNames: any) {
         const name = document.createElement('span');
         name.className = 'leaderboard-name';
         const normalizedName = normalizePlayerName(entry.playerName) || DEFAULT_PLAYER_NAME;
-        const shouldAttachId = !!(duplicateNames && duplicateNames.has(normalizedName));
-        const shortId = getShortPlayerId(entry.playerId);
-        name.textContent = (shouldAttachId && shortId)
-            ? `${normalizedName}#${shortId}`
-            : normalizedName;
+        name.textContent = normalizedName;
+        return name;
+    }
+
+    function createLeaderboardRow(entry: any, selfPlayerId: any, duplicateNames: any) {
+        const row = document.createElement('div');
+        row.className = 'leaderboard-row';
+        row.dataset.mode = entry && entry.mode === 'network' ? 'network' : 'cpu';
+        const displayRank = Number(entry && entry.rank);
+        if (Number.isFinite(displayRank) && displayRank >= 1 && displayRank <= 3) {
+            row.classList.add(`is-rank-${displayRank}`, 'is-top-rank');
+        }
+
+        const rankWrap = document.createElement('span');
+        rankWrap.className = 'leaderboard-rank-wrap';
+        rankWrap.appendChild(createLeaderboardRankBadge(entry.rank));
+
+        const name = createLeaderboardNameLabel(entry, duplicateNames);
 
         const score = document.createElement('span');
         score.className = 'leaderboard-score';
-        score.textContent = `${entry.bestScore || 0}`;
+        score.textContent = getLeaderboardEntryValueText(entry);
 
-        const mode = document.createElement('span');
-        mode.className = 'leaderboard-meta';
-        const cpuSuffix = Number.isFinite(Number(entry.cpuLevel)) ? ` Lv${entry.cpuLevel}` : '';
-        mode.textContent = entry.mode === 'network' ? '対人' : `CPU${cpuSuffix}`;
+        const mode = createLeaderboardModeChip(entry);
 
         if (selfPlayerId && entry.playerId && entry.playerId === selfPlayerId) {
             row.classList.add('is-self');
+            const marker = document.createElement('span');
+            marker.className = 'leaderboard-self-marker';
+            marker.textContent = '▹';
+            rankWrap.insertBefore(marker, rankWrap.firstChild);
         }
 
-        row.appendChild(rank);
+        row.appendChild(rankWrap);
         row.appendChild(name);
         row.appendChild(score);
         row.appendChild(mode);
         return row;
+    }
+
+    function createLeaderboardPodiumCard(entry: any, displayRank: any, duplicateNames: any, selfPlayerId: any) {
+        const card = document.createElement('div');
+        card.className = `leaderboard-podium-card is-rank-${displayRank || 0}`;
+        if (selfPlayerId && entry && entry.playerId === selfPlayerId) {
+            card.classList.add('is-self');
+        }
+
+        const badge = document.createElement('div');
+        badge.className = 'leaderboard-podium-badge';
+        badge.textContent = `${displayRank || '-'}`;
+
+        const name = createLeaderboardNameLabel(entry, duplicateNames);
+        name.classList.add('leaderboard-podium-name');
+
+        const score = document.createElement('div');
+        score.className = 'leaderboard-podium-score';
+        score.textContent = getLeaderboardEntryValueText(entry);
+
+        const mode = createLeaderboardModeChip(entry);
+        mode.classList.add('leaderboard-podium-mode');
+
+        card.appendChild(badge);
+        card.appendChild(name);
+        card.appendChild(score);
+        card.appendChild(mode);
+        return card;
+    }
+
+    function createLeaderboardPodiumPlaceholder(displayRank: any) {
+        const card = document.createElement('div');
+        card.className = `leaderboard-podium-card is-rank-${displayRank || 0} is-placeholder`;
+
+        const badge = document.createElement('div');
+        badge.className = 'leaderboard-podium-badge';
+        badge.textContent = `${displayRank || '-'}`;
+
+        const name = document.createElement('div');
+        name.className = 'leaderboard-podium-name';
+        name.textContent = '----';
+
+        const score = document.createElement('div');
+        score.className = 'leaderboard-podium-score';
+        score.textContent = '----';
+
+        const meta = document.createElement('div');
+        meta.className = 'leaderboard-podium-mode leaderboard-mode-chip is-placeholder';
+        meta.textContent = '未接続';
+
+        card.appendChild(badge);
+        card.appendChild(name);
+        card.appendChild(score);
+        card.appendChild(meta);
+        return card;
+    }
+
+    function createLeaderboardSummaryMetric(labelText: any, valueText: any, accentText?: any) {
+        const card = document.createElement('div');
+        card.className = 'leaderboard-summary-card';
+
+        const label = document.createElement('span');
+        label.className = 'leaderboard-summary-label';
+        label.textContent = String(labelText || '');
+
+        const value = document.createElement('span');
+        value.className = 'leaderboard-summary-value';
+        value.textContent = String(valueText || '未記録');
+
+        card.appendChild(label);
+        card.appendChild(value);
+
+        if (accentText) {
+            const accent = document.createElement('span');
+            accent.className = 'leaderboard-summary-accent';
+            accent.textContent = String(accentText);
+            card.appendChild(accent);
+        }
+
+        return card;
+    }
+
+    function syncLeaderboardFilterButtons() {
+        if (!uiRefs.leaderboardPanel) return;
+        const buttons = Array.from(uiRefs.leaderboardPanel.querySelectorAll('.leaderboard-filter-tab'));
+        buttons.forEach((button: any) => {
+            const active = normalizeLeaderboardCategory(button && button.dataset ? button.dataset.category : '') === leaderboardActiveCategory;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
+
+    function syncLeaderboardModeControl() {
+        if (!uiRefs.leaderboardPanel) return;
+        const button = uiRefs.leaderboardPanel.querySelector('#leaderboardModeBtn');
+        const menu = uiRefs.leaderboardPanel.querySelector('#leaderboardModeMenu');
+        if (button) {
+            button.textContent = getLeaderboardModeButtonLabel();
+            button.setAttribute('aria-label', `表示モード: ${getLeaderboardModeLabel(leaderboardActiveFilter)}`);
+            button.setAttribute('aria-expanded', leaderboardModeMenuOpen ? 'true' : 'false');
+        }
+        if (menu) {
+            menu.classList.toggle('is-open', leaderboardModeMenuOpen);
+            menu.setAttribute('aria-hidden', leaderboardModeMenuOpen ? 'false' : 'true');
+            const options = Array.from(menu.querySelectorAll('.leaderboard-mode-option'));
+            options.forEach((option: any) => {
+                const active = normalizeLeaderboardFilter(option && option.dataset ? option.dataset.filter : '') === leaderboardActiveFilter;
+                option.classList.toggle('is-active', active);
+                option.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+    }
+
+    function syncLeaderboardTableHeader() {
+        if (!uiRefs.leaderboardPanel) return;
+        const header = uiRefs.leaderboardPanel.querySelector('#leaderboardTableHeader');
+        if (!header) return;
+        const labels = ['順位', 'プレイヤー名', isTimeAttackLeaderboardActive() ? 'タイム' : 'スコア', 'モード'];
+        const cells = Array.from(header.querySelectorAll('.leaderboard-table-header-cell'));
+        cells.forEach((cell: any, index) => {
+            cell.textContent = labels[index] || '';
+        });
+    }
+
+    function syncLeaderboardCpuLevelControl() {
+        if (!uiRefs.leaderboardPanel) return;
+        const control = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelControl');
+        const button = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelBtn');
+        const menu = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelMenu');
+        const cpuActive = leaderboardActiveFilter === LEADERBOARD_FILTER_CPU;
+        if (control) {
+            control.classList.toggle('is-visible', cpuActive);
+            control.setAttribute('aria-hidden', cpuActive ? 'false' : 'true');
+        }
+        if (button) {
+            button.textContent = getLeaderboardCpuLevelLabel(leaderboardCpuLevelFilter);
+            button.setAttribute('aria-expanded', leaderboardCpuLevelMenuOpen && cpuActive ? 'true' : 'false');
+        }
+        if (menu) {
+            menu.classList.toggle('is-open', leaderboardCpuLevelMenuOpen && cpuActive);
+            menu.setAttribute('aria-hidden', leaderboardCpuLevelMenuOpen && cpuActive ? 'false' : 'true');
+            const options = Array.from(menu.querySelectorAll('.leaderboard-cpu-level-option'));
+            options.forEach((option: any) => {
+                const level = normalizeLeaderboardCpuLevel(option && option.dataset ? option.dataset.cpuLevel : '');
+                const active = level === leaderboardCpuLevelFilter;
+                option.classList.toggle('is-active', active);
+                option.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+    }
+
+    function syncLeaderboardDetailsVisibility() {
+        if (!uiRefs.leaderboardPanel) return;
+        uiRefs.leaderboardPanel.classList.toggle('is-detail-open', leaderboardDetailsOpen === true);
+        const infoBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardInfoBtn');
+        if (infoBtn) {
+            infoBtn.setAttribute('aria-pressed', leaderboardDetailsOpen ? 'true' : 'false');
+            infoBtn.textContent = 'ⓘ';
+        }
+    }
+
+    function renderLeaderboardSummary(entries: any, updatedAt: any) {
+        const scaffold = ensureLeaderboardScaffold();
+        if (!scaffold || !scaffold.summary) return;
+
+        let selfPlayerId = null;
+        try {
+            if (root.LeaderboardClient && typeof root.LeaderboardClient.getPlayerId === 'function') {
+                selfPlayerId = root.LeaderboardClient.getPlayerId();
+            }
+        } catch (e) { /* ignore */ }
+
+        const selfEntry = Array.isArray(entries)
+            ? entries.find((entry: any) => entry && entry.playerId && entry.playerId === selfPlayerId)
+            : null;
+
+        const bestText = selfEntry ? getLeaderboardEntryValueText(selfEntry) : '未記録';
+        const rankText = selfEntry ? `#${selfEntry.rank || '-'}` : '未記録';
+        const timeText = formatLeaderboardTime(updatedAt) || '--:--';
+
+        scaffold.summary.innerHTML = '';
+        scaffold.summary.appendChild(createLeaderboardSummaryMetric(isTimeAttackLeaderboardActive() ? 'あなたの最速記録' : 'あなたの最高記録', bestText));
+        scaffold.summary.appendChild(createLeaderboardSummaryMetric('現在順位', rankText));
+        scaffold.summary.appendChild(createLeaderboardSummaryMetric('最終更新', timeText));
+    }
+
+    function renderLeaderboardPodium(entries: any) {
+        const scaffold = ensureLeaderboardScaffold();
+        if (!scaffold || !scaffold.podium) return;
+        scaffold.podium.innerHTML = '';
+
+        const safeEntries = Array.isArray(entries) ? entries : [];
+        if (!safeEntries.length) {
+            [2, 1, 3].forEach((rank) => {
+                scaffold.podium.appendChild(createLeaderboardPodiumPlaceholder(rank));
+            });
+            return;
+        }
+
+        let selfPlayerId = null;
+        try {
+            if (root.LeaderboardClient && typeof root.LeaderboardClient.getPlayerId === 'function') {
+                selfPlayerId = root.LeaderboardClient.getPlayerId();
+            }
+        } catch (e) { /* ignore */ }
+
+        const duplicateNames = collectDuplicateLeaderboardNames(safeEntries);
+        const topThree = safeEntries.slice(0, LEADERBOARD_PODIUM_ENTRY_COUNT);
+        const displayOrder = [1, 0, 2];
+        displayOrder.forEach((entryIndex) => {
+            const entry = topThree[entryIndex];
+            if (!entry) return;
+            scaffold.podium.appendChild(
+                createLeaderboardPodiumCard(entry, entry.rank || (entryIndex + 1), duplicateNames, selfPlayerId)
+            );
+        });
     }
 
     function renderLeaderboardRows(entries: any) {
@@ -1044,17 +1741,37 @@ const MODE_OTHELLO = 'othello';
         } catch (e) { /* ignore */ }
 
         const duplicateNames = collectDuplicateLeaderboardNames(safeEntries);
+        const rowEntries = safeEntries.slice();
+        if (!rowEntries.length) {
+            appendLeaderboardPlaceholder('上位表示のみです');
+            return;
+        }
 
-        safeEntries.forEach((entry) => {
+        rowEntries.forEach((entry) => {
             if (!entry || typeof entry !== 'object') return;
             uiRefs.leaderboardList.appendChild(createLeaderboardRow(entry, selfPlayerId, duplicateNames));
         });
     }
 
+    function renderLeaderboardView() {
+        const activeEntries = getActiveLeaderboardEntries();
+        renderLeaderboardSummary(activeEntries, leaderboardUpdatedAt);
+        renderLeaderboardPodium(activeEntries);
+        renderLeaderboardRows(activeEntries);
+        syncLeaderboardFilterButtons();
+        syncLeaderboardModeControl();
+        syncLeaderboardCpuLevelControl();
+        syncLeaderboardTableHeader();
+        syncLeaderboardDetailsVisibility();
+    }
+
     async function refreshLeaderboardPanel(options: any) {
         const opts = options || {};
         if (!uiRefs.leaderboardPanel || !uiRefs.leaderboardStatus || !uiRefs.leaderboardList) return;
+        ensureLeaderboardScaffold();
         if (uiRefs.leaderboardOverlay && !isLeaderboardOverlayOpen() && opts.force !== true) return;
+        const requestedFilter = normalizeLeaderboardFilter(opts.mode || leaderboardActiveFilter);
+        renderLeaderboardView();
         if (!root.LeaderboardClient || typeof root.LeaderboardClient.fetchLeaderboard !== 'function') {
             writeLeaderboardStatus('ランキング機能を利用できません', true);
             return;
@@ -1065,8 +1782,15 @@ const MODE_OTHELLO = 'othello';
 
         let result = null;
         try {
-            const fetchOptions = Object.assign({ limit: SHARED_LEADERBOARD_PANEL_LIMIT }, opts);
+            const fetchOptions = Object.assign({ limit: SHARED_LEADERBOARD_PANEL_LIMIT, mode: requestedFilter, category: leaderboardActiveCategory }, opts);
             delete fetchOptions.force;
+            fetchOptions.mode = requestedFilter;
+            fetchOptions.category = leaderboardActiveCategory;
+            if (requestedFilter === LEADERBOARD_FILTER_CPU && leaderboardCpuLevelFilter !== null) {
+                fetchOptions.cpuLevel = leaderboardCpuLevelFilter;
+            } else {
+                delete fetchOptions.cpuLevel;
+            }
             result = await root.LeaderboardClient.fetchLeaderboard(fetchOptions);
         } catch (e) {
             result = { ok: false, reason: 'LIST_FAILED', entries: [] };
@@ -1075,17 +1799,21 @@ const MODE_OTHELLO = 'othello';
         if (token !== leaderboardRefreshToken) return;
 
         if (!result || result.ok !== true) {
+            renderLeaderboardView();
             writeLeaderboardStatus('ランキング取得に失敗しました', true);
             return;
         }
 
-        renderLeaderboardRows(result.entries || []);
+        leaderboardEntriesCache = Array.isArray(result.entries) ? result.entries.slice() : [];
+        leaderboardUpdatedAt = Number.isFinite(Number(result.updatedAt)) ? Number(result.updatedAt) : 0;
+        renderLeaderboardView();
         const timeLabel = formatLeaderboardTime(result.updatedAt);
         writeLeaderboardStatus(timeLabel ? `最終更新 ${timeLabel}` : 'ランキングを表示中', false);
     }
 
     function bindLeaderboardControls() {
         if (!uiRefs.leaderboardPanel || !uiRefs.leaderboardOverlay) return;
+        ensureLeaderboardScaffold();
 
         if (uiRefs.leaderboardOpenBtn) {
             uiRefs.leaderboardOpenBtn.addEventListener('click', () => {
@@ -1095,8 +1823,89 @@ const MODE_OTHELLO = 'othello';
                 }
                 setLeaderboardOverlayVisible(willOpen);
                 if (willOpen) {
-                    refreshLeaderboardPanel({ force: true });
+                    refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
                 }
+            });
+        }
+
+        const filterTabs = uiRefs.leaderboardPanel.querySelector('#leaderboardFilterTabs');
+        if (filterTabs && !(filterTabs as any).__leaderboardBound) {
+            (filterTabs as any).__leaderboardBound = true;
+            filterTabs.addEventListener('click', (event: any) => {
+                const target = event && event.target && typeof event.target.closest === 'function'
+                    ? event.target.closest('.leaderboard-filter-tab')
+                    : null;
+                if (!target || !target.dataset) return;
+                leaderboardActiveCategory = normalizeLeaderboardCategory(target.dataset.category);
+                leaderboardCpuLevelMenuOpen = false;
+                leaderboardModeMenuOpen = false;
+                syncLeaderboardFilterButtons();
+                syncLeaderboardModeControl();
+                syncLeaderboardCpuLevelControl();
+                refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
+            });
+        }
+
+        const modeBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardModeBtn');
+        if (modeBtn && !(modeBtn as any).__leaderboardBound) {
+            (modeBtn as any).__leaderboardBound = true;
+            modeBtn.addEventListener('click', () => {
+                leaderboardModeMenuOpen = !leaderboardModeMenuOpen;
+                leaderboardCpuLevelMenuOpen = false;
+                syncLeaderboardModeControl();
+                syncLeaderboardCpuLevelControl();
+            });
+        }
+
+        const modeMenu = uiRefs.leaderboardPanel.querySelector('#leaderboardModeMenu');
+        if (modeMenu && !(modeMenu as any).__leaderboardBound) {
+            (modeMenu as any).__leaderboardBound = true;
+            modeMenu.addEventListener('click', (event: any) => {
+                const target = event && event.target && typeof event.target.closest === 'function'
+                    ? event.target.closest('.leaderboard-mode-option')
+                    : null;
+                if (!target || !target.dataset) return;
+                leaderboardActiveFilter = normalizeLeaderboardFilter(target.dataset.filter);
+                leaderboardModeMenuOpen = false;
+                leaderboardCpuLevelMenuOpen = false;
+                syncLeaderboardModeControl();
+                syncLeaderboardCpuLevelControl();
+                refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
+            });
+        }
+
+        const cpuLevelBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelBtn');
+        if (cpuLevelBtn && !(cpuLevelBtn as any).__leaderboardBound) {
+            (cpuLevelBtn as any).__leaderboardBound = true;
+            cpuLevelBtn.addEventListener('click', () => {
+                if (leaderboardActiveFilter !== LEADERBOARD_FILTER_CPU) return;
+                leaderboardCpuLevelMenuOpen = !leaderboardCpuLevelMenuOpen;
+                syncLeaderboardCpuLevelControl();
+            });
+        }
+
+        const cpuLevelMenu = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelMenu');
+        if (cpuLevelMenu && !(cpuLevelMenu as any).__leaderboardBound) {
+            (cpuLevelMenu as any).__leaderboardBound = true;
+            cpuLevelMenu.addEventListener('click', (event: any) => {
+                const target = event && event.target && typeof event.target.closest === 'function'
+                    ? event.target.closest('.leaderboard-cpu-level-option')
+                    : null;
+                if (!target || !target.dataset) return;
+                leaderboardCpuLevelFilter = normalizeLeaderboardCpuLevel(target.dataset.cpuLevel);
+                leaderboardCpuLevelMenuOpen = false;
+                syncLeaderboardCpuLevelControl();
+                refreshLeaderboardPanel({ force: true, mode: LEADERBOARD_FILTER_CPU });
+            });
+        }
+
+        const detailBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardDetailBtn');
+        const infoBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardInfoBtn') || detailBtn;
+        if (infoBtn && !(infoBtn as any).__leaderboardBound) {
+            (infoBtn as any).__leaderboardBound = true;
+            infoBtn.addEventListener('click', () => {
+                leaderboardDetailsOpen = !leaderboardDetailsOpen;
+                syncLeaderboardDetailsVisibility();
             });
         }
 
@@ -1116,6 +1925,16 @@ const MODE_OTHELLO = 'othello';
         if (typeof root.addEventListener === 'function') {
             root.addEventListener('keydown', (event: any) => {
                 if (!event || event.key !== 'Escape') return;
+                if (leaderboardCpuLevelMenuOpen) {
+                    leaderboardCpuLevelMenuOpen = false;
+                    syncLeaderboardCpuLevelControl();
+                    return;
+                }
+                if (leaderboardModeMenuOpen) {
+                    leaderboardModeMenuOpen = false;
+                    syncLeaderboardModeControl();
+                    return;
+                }
                 if (isLeaderboardOverlayOpen()) {
                     setLeaderboardOverlayVisible(false);
                     return;
@@ -1174,17 +1993,21 @@ const MODE_OTHELLO = 'othello';
 
         if (uiRefs.leaderboardReloadBtn) {
             uiRefs.leaderboardReloadBtn.addEventListener('click', () => {
-                refreshLeaderboardPanel({ force: true });
+                refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
             });
         }
 
         if (typeof root.addEventListener === 'function') {
             root.addEventListener('leaderboard:updated', () => {
                 if (!isLeaderboardOverlayOpen()) return;
-                refreshLeaderboardPanel({ force: true });
+                refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
             });
         }
 
+        syncLeaderboardFilterButtons();
+        syncLeaderboardModeControl();
+        syncLeaderboardCpuLevelControl();
+        syncLeaderboardDetailsVisibility();
         setLeaderboardOverlayVisible(false);
     }
 
@@ -1205,6 +2028,20 @@ const MODE_OTHELLO = 'othello';
         });
 
         setNetworkOverlayVisible(false);
+    }
+
+    function setNetworkRoomSettingsPopupVisible(open: boolean) {
+        if (uiRefs.networkRoomSettingsPopup) {
+            uiRefs.networkRoomSettingsPopup.classList.toggle('is-open', open);
+            uiRefs.networkRoomSettingsPopup.setAttribute('aria-hidden', open ? 'false' : 'true');
+        }
+        if (uiRefs.networkRoomSettingsBackdrop) {
+            uiRefs.networkRoomSettingsBackdrop.classList.toggle('is-open', open);
+            uiRefs.networkRoomSettingsBackdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+        }
+        if (uiRefs.networkRoomSettingsBtn) {
+            uiRefs.networkRoomSettingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
     }
 
     function getChatMaxLength() {
@@ -1455,6 +2292,28 @@ const MODE_OTHELLO = 'othello';
         } catch (e) { /* ignore */ }
     }
 
+    function markTimeAttackFirstMoveForMatchMode() {
+        try {
+            const mod = root && root.ResultOverlayModule;
+            if (mod && typeof mod.markTimeAttackStarted === 'function') {
+                mod.markTimeAttackStarted();
+                return true;
+            }
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
+    function refreshNetworkAutoModeAccess() {
+        if (!uiRefs.autoToggleBtn) return;
+        const disable = shouldDisableAutoMode(currentMode);
+        uiRefs.autoToggleBtn.disabled = disable;
+        uiRefs.autoToggleBtn.classList.toggle('is-network-disabled', disable);
+        uiRefs.autoToggleBtn.setAttribute('aria-disabled', disable ? 'true' : 'false');
+        if (disable) {
+            disableAutoModeForHumanPlay();
+        }
+    }
+
     function applyReversiModeUiState() {
         const active = currentMode === MODE_REVERSI;
         try {
@@ -1521,6 +2380,7 @@ const MODE_OTHELLO = 'othello';
         }
 
         refreshNetworkChatVisibility();
+        refreshNetworkAutoModeAccess();
         renderNetworkTimerStatus();
         scheduleControlPanelLayoutSync();
     }
@@ -1573,7 +2433,7 @@ const MODE_OTHELLO = 'othello';
             return;
         }
 
-        if (prevMode === MODE_NETWORK && nextMode !== MODE_NETWORK) {
+        if (prevMode === MODE_NETWORK && nextMode !== MODE_NETWORK && opts.skipNetworkLeave !== true) {
             try {
                 if (root.NetworkMatchClient && typeof root.NetworkMatchClient.leaveRoom === 'function') {
                     await root.NetworkMatchClient.leaveRoom();
@@ -1598,9 +2458,7 @@ const MODE_OTHELLO = 'othello';
         if (shouldClearHumanVsHumanMode(currentMode)) {
             syncHumanModeFlags(false);
         }
-        if (shouldDisableAutoMode(currentMode)) {
-            disableAutoModeForHumanPlay();
-        }
+        refreshNetworkAutoModeAccess();
 
         if (opts.suppressStatus !== true) {
             if (currentMode === MODE_NETWORK) {
@@ -1647,7 +2505,7 @@ const MODE_OTHELLO = 'othello';
             });
             const role = String(result.viewerRole || '').trim().toLowerCase();
             writeNetworkStatus(role === 'spectator'
-                ? 'ネット対戦: 観戦セッションへ復帰しました'
+                ? 'ネット対戦: 観測セッションへ復帰しました'
                 : 'ネット対戦: 対戦セッションへ復帰しました', false);
             setNetworkOverlayVisible(false);
             renderNetworkTimerStatus();
@@ -1722,13 +2580,15 @@ const MODE_OTHELLO = 'othello';
             root.NetworkMatchClient.setRoomStateListener((roomState: any) => {
                 const spectatorActive = isNetworkSpectatorActive(roomState);
                 updateNetworkDebugEnabledFromRoomState(roomState);
+                updateNetworkAutoEnabledFromRoomState(roomState);
                 applyNetworkDebugModeAccess();
+                refreshNetworkAutoModeAccess();
                 refreshNetworkChatVisibility();
                 renderNetworkDeckInfo(roomState);
                 if (uiRefs.networkCreateBtn) uiRefs.networkCreateBtn.disabled = spectatorActive;
                 if (uiRefs.networkJoinBtn) uiRefs.networkJoinBtn.disabled = spectatorActive;
                 if (spectatorActive) {
-                    writeNetworkStatus('観戦中', false);
+                    writeNetworkStatus('観測中', false);
                 }
                 try {
                     if (typeof root.updateCpuCharacter === 'function') {
@@ -1958,6 +2818,28 @@ const MODE_OTHELLO = 'othello';
             });
         }
 
+        if (uiRefs.networkRoomSettingsBtn) {
+            uiRefs.networkRoomSettingsBtn.addEventListener('click', () => {
+                const isOpen = !!(
+                    uiRefs.networkRoomSettingsPopup
+                    && uiRefs.networkRoomSettingsPopup.classList.contains('is-open')
+                );
+                setNetworkRoomSettingsPopupVisible(!isOpen);
+            });
+        }
+
+        if (uiRefs.networkRoomSettingsCloseBtn) {
+            uiRefs.networkRoomSettingsCloseBtn.addEventListener('click', () => {
+                setNetworkRoomSettingsPopupVisible(false);
+            });
+        }
+
+        if (uiRefs.networkRoomSettingsBackdrop) {
+            uiRefs.networkRoomSettingsBackdrop.addEventListener('click', () => {
+                setNetworkRoomSettingsPopupVisible(false);
+            });
+        }
+
         if (uiRefs.networkCreateBtn) {
             uiRefs.networkCreateBtn.addEventListener('click', async () => {
                 await setMode(MODE_NETWORK, { silentLog: true });
@@ -1972,6 +2854,10 @@ const MODE_OTHELLO = 'othello';
                     uiRefs.networkEnableDebugCheckbox
                     && uiRefs.networkEnableDebugCheckbox.checked
                 );
+                const requestedNetworkAutoEnabled = !!(
+                    uiRefs.networkEnableAutoCheckbox
+                    && uiRefs.networkEnableAutoCheckbox.checked
+                );
                 notifyInvalidCustomDeckFallback(localDeckSelection);
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
@@ -1984,7 +2870,8 @@ const MODE_OTHELLO = 'othello';
                         roomName: readNetworkRoomName(),
                         roomPassword: readNetworkRoomPassword(),
                         roomBoardConfig,
-                        networkDebugEnabled: requestedNetworkDebugEnabled
+                        networkDebugEnabled: requestedNetworkDebugEnabled,
+                        networkAutoEnabled: requestedNetworkAutoEnabled
                     });
                     if (result && result.ok && uiRefs.networkRoomInput) {
                         uiRefs.networkRoomInput.value = result.roomName || readNetworkRoomName() || '無名部屋';
@@ -1995,8 +2882,11 @@ const MODE_OTHELLO = 'othello';
                     }
                     if (result && result.ok) {
                         networkRoomDebugEnabled = result.networkDebugEnabled === true;
+                        networkRoomAutoEnabled = result.networkAutoEnabled === true;
                         applyNetworkDebugModeAccess();
+                        refreshNetworkAutoModeAccess();
                         tryAutoEnableDebugModeForNetworkRoom();
+                        setNetworkRoomSettingsPopupVisible(false);
                     }
                     refreshNetworkChatVisibility();
                     renderNetworkDeckInfo();
@@ -2034,7 +2924,9 @@ const MODE_OTHELLO = 'othello';
                     });
                     if (result && result.ok) {
                         networkRoomDebugEnabled = result.networkDebugEnabled === true;
+                        networkRoomAutoEnabled = result.networkAutoEnabled === true;
                         applyNetworkDebugModeAccess();
+                        refreshNetworkAutoModeAccess();
                         tryAutoEnableDebugModeForNetworkRoom();
                     }
                     refreshNetworkChatVisibility();
@@ -2057,11 +2949,16 @@ const MODE_OTHELLO = 'othello';
                     }
                 } catch (e) { /* ignore */ }
                 networkRoomDebugEnabled = false;
+                networkRoomAutoEnabled = false;
                 if (uiRefs.networkEnableDebugCheckbox) {
                     uiRefs.networkEnableDebugCheckbox.checked = false;
                 }
+                if (uiRefs.networkEnableAutoCheckbox) {
+                    uiRefs.networkEnableAutoCheckbox.checked = false;
+                }
                 applyNetworkDebugModeAccess();
-                await setMode(MODE_CPU, { silentLog: true });
+                refreshNetworkAutoModeAccess();
+            await setMode(MODE_CPU, { silentLog: true, skipNetworkLeave: true });
                 renderNetworkDeckInfo(null);
                 refreshBoardUi();
             });
@@ -2089,7 +2986,12 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkBoardSizeSummary = opts.networkBoardSizeSummary || null;
         uiRefs.networkBoardSizeNote = opts.networkBoardSizeNote || null;
         uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;
+        uiRefs.networkEnableAutoCheckbox = opts.networkEnableAutoCheckbox || null;
         uiRefs.networkCopyRoomBtn = opts.networkCopyRoomBtn || null;
+        uiRefs.networkRoomSettingsBtn = opts.networkRoomSettingsBtn || null;
+        uiRefs.networkRoomSettingsBackdrop = opts.networkRoomSettingsBackdrop || null;
+        uiRefs.networkRoomSettingsPopup = opts.networkRoomSettingsPopup || null;
+        uiRefs.networkRoomSettingsCloseBtn = opts.networkRoomSettingsCloseBtn || null;
         uiRefs.networkCreateBtn = opts.networkCreateBtn || null;
         uiRefs.networkJoinBtn = opts.networkJoinBtn || null;
         uiRefs.networkLeaveBtn = opts.networkLeaveBtn || null;
@@ -2112,9 +3014,21 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkChatInput = opts.networkChatInput || null;
         uiRefs.networkChatSendBtn = opts.networkChatSendBtn || null;
         uiRefs.autoToggleBtn = opts.autoToggleBtn || null;
+        try {
+            const payload = { onTimeAttackFirstMove: markTimeAttackFirstMoveForMatchMode };
+            if (SharedUIBootstrapModule && typeof SharedUIBootstrapModule.mergeUIImpl === 'function') {
+                SharedUIBootstrapModule.mergeUIImpl(root, 'turn_manager', payload);
+            } else {
+                root.__uiImpl_turn_manager = Object.assign({}, root.__uiImpl_turn_manager || {}, payload);
+                root.onTimeAttackFirstMove = markTimeAttackFirstMoveForMatchMode;
+            }
+        } catch (e) { /* ignore */ }
         ensureNetworkLobbyUi();
         if (uiRefs.networkEnableDebugCheckbox) {
             uiRefs.networkEnableDebugCheckbox.checked = false;
+        }
+        if (uiRefs.networkEnableAutoCheckbox) {
+            uiRefs.networkEnableAutoCheckbox.checked = false;
         }
 
         if (uiRefs.modeCpuBtn) {

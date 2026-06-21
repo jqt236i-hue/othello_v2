@@ -267,10 +267,10 @@ describe('rules help panel', () => {
       resolveCardDescriptionTexts: (cardDef) => ({
         quickText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石は反転または破壊されたとき3回まで復活する。'
-          : '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
+          : '自石を1つ選び、完全保護を付与。穴マス以外の全ての効果を無効化する。',
         detailText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
-          : '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
+          : '自石を1つ選び、完全保護を付与。穴マス以外の全ての効果を無効化する。',
         distinctDetailText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
           : '',
@@ -332,7 +332,7 @@ describe('rules help panel', () => {
 
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3ターン持続']);
-    expect(cardDescEl.textContent).toContain('穴マス化以外の全ての効果を無効化する。');
+    expect(cardDescEl.textContent).toContain('穴マス以外の全ての効果を無効化する。');
   });
 
   test('filters card encyclopedia by search text and effect tag chips', () => {
@@ -379,11 +379,11 @@ describe('rules help panel', () => {
             quickText: 'マス1つを永続の穴にする。',
             distinctDetailText: '穴マスは配置できず反転経路を遮断する。',
             effectTags: [
-              { kind: 'hole-cell', label: '穴マス化' }
+              { kind: 'hole-cell', label: '穴マス' }
             ]
           },
           guard_01: {
-            quickText: '自石を1つ選び、完全保護を付与。穴マス化以外の全ての効果を無効化する。',
+            quickText: '自石を1つ選び、完全保護を付与。穴マス以外の全ての効果を無効化する。',
             distinctDetailText: '',
             effectTags: [
               { kind: 'full-protection', label: '完全保護' },
@@ -431,7 +431,7 @@ describe('rules help panel', () => {
     const selectedTitle = () => document.querySelector('#rules-help-card-name .rules-help-card-title').textContent;
 
     expect(cardNames()).toEqual(['守る意志', '銀の意志', '封鎖の意志', '避ける意志', '因果抹消']);
-    expect(tagLabels()).toEqual(['特殊石', '穴マス化', '完全保護', '反転回避', '破壊回避']);
+    expect(tagLabels()).toEqual(['特殊石', '穴マス', '完全保護', '反転回避', '破壊回避']);
     expect(tagLabels()).not.toContain('18手後使用可能');
     expect(tagLabels()).not.toContain('5ターン後に発動');
     expect(tagLabels()).not.toContain('3ターン持続');
@@ -459,7 +459,7 @@ describe('rules help panel', () => {
     clearButton.click();
 
     const holeCellFilter = Array.from(document.querySelectorAll('.rules-help-card-tag-filter'))
-      .find((el) => el.textContent === '穴マス化') as HTMLButtonElement;
+      .find((el) => el.textContent === '穴マス') as HTMLButtonElement;
     holeCellFilter.click();
 
     expect(holeCellFilter.getAttribute('aria-pressed')).toBe('true');
@@ -524,7 +524,7 @@ describe('rules help panel', () => {
     mod.setupRulesHelp(btn, panel);
 
     const effectTerms = Array.from(document.querySelectorAll('#rules-help-effects-list dt')).map((el) => el.textContent);
-    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス化', '不可侵', '反転保護', '完全保護', '反転回避', '破壊回避']));
+    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス', '絶対執行', '不可侵', '反転保護', '完全保護', '反転回避', '破壊回避']));
 
     const inviolableButton = Array.from(document.querySelectorAll('#rules-help-effects-list .rules-help-effect-term-button'))
       .find((el) => el.textContent === '不可侵') as HTMLButtonElement;

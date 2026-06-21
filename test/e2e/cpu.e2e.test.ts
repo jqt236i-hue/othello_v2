@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 function startServer(port = 0) {
   return startStaticServer(port);
@@ -27,6 +27,7 @@ describe('CPU E2E', () => {
   test('computeCpuAction returns a valid action object in browser', async () => {
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
     // Wait for global computeCpuAction to be available
     await page.waitForFunction(() => typeof window.computeCpuAction === 'function');
 

@@ -112,7 +112,7 @@ function applyFontSkin(rootRef: Window | null | undefined, skinId: string): Font
 
 function syncDisplayedFontSkin(rootRef: Window | null | undefined, preferredSkinId: string | null | undefined): FontSkinDefinition | null {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_FONT_SKIN_ID) || 'default').trim() || 'default';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_FONT_SKIN_ID) || 'shippori-mincho').trim() || 'shippori-mincho';
   const normalized = catalogModule && typeof catalogModule.normalizeFontSkinId === 'function'
     ? catalogModule.normalizeFontSkinId(preferredSkinId, rootRef as Window)
     : fallbackId;

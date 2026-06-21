@@ -75,6 +75,30 @@ describe('local match server presentation journal', () => {
           turnIndex: created.data.snapshot.cardState.turnIndex
         }
       });
+      const replay = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_local_journal_place_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: move.row, col: move.col },
+        turnIndex: created.data.snapshot.cardState.turnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: move.row,
+          col: move.col,
+          turnIndex: created.data.snapshot.cardState.turnIndex
+        }
+      });
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(seatToken)}`
+      );
 
       const recovery = await requestJson(
         port,
@@ -85,6 +109,15 @@ describe('local match server presentation journal', () => {
       expect(publish.status).toBe(200);
       expect(publish.data.presentationCursor).toMatchObject({ visualSeq: 1, stateVersion: publish.data.stateVersion });
       expect(publish.data.presentationFrames).toHaveLength(1);
+      expect(replay.status).toBe(200);
+      expect(replay.data.idempotentReplay).toBe(true);
+      expect(replay.data.playbackEvents).toEqual(publish.data.playbackEvents);
+      expect(replay.data.playbackDigest).toBe(publish.data.playbackDigest);
+      expect(replay.data.presentationFrames).toHaveLength(1);
+      expect(replay.data.presentationFrames[0].playbackDigest).toBe(publish.data.presentationFrames[0].playbackDigest);
+      expect(state.status).toBe(200);
+      expect(state.data.presentationFrames).toHaveLength(1);
+      expect(state.data.presentationFrames[0].playbackEvents).toEqual(publish.data.playbackEvents);
       expect(recovery.status).toBe(200);
       expect(recovery.data.baseVisualSeq).toBe(0);
       expect(recovery.data.baseSnapshot.stateVersion).toBe(created.data.stateVersion);

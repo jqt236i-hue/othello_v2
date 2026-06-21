@@ -159,7 +159,7 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             : buildFailureResult();
     }
     if (cardType === 'EQUALITY_WILL') {
-        if (!context || !context.gameState || typeof context.canUseEqualityWillForPlayer !== 'function') {
+        if (!context || typeof context.canUseEqualityWillForPlayer !== 'function') {
             return buildFailureResult();
         }
         return context.canUseEqualityWillForPlayer(context.cardState, context.gameState, context.playerKey)

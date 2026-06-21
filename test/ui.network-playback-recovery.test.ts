@@ -60,7 +60,7 @@ describe('NetworkPlaybackRecoveryController', () => {
     expect(shouldShadow).toBe(true);
   });
 
-  test('publish response shadow playback accepts a matching authoritative playback digest', () => {
+  test('publish response shadow playback accepts matching authoritative events and digest', () => {
     const requestedPlaybackEvents = [{ type: 'flip', phase: 1, targets: [{ r: 1, col: 1 }] }];
     const trackedPublish = {
       requestMeta: {
@@ -74,11 +74,32 @@ describe('NetworkPlaybackRecoveryController', () => {
         gameState: { turnNumber: 2 },
         cardState: { turnIndex: 2, markers: [] }
       },
-      [{ type: 'flip', phase: 9, targets: [{ r: 9, col: 9 }] }],
+      [{ type: 'flip', phase: 1, targets: [{ r: 1, col: 1 }] }],
       authoritativeDigest
     );
 
     expect(shouldShadow).toBe(true);
+  });
+
+  test('publish response shadow playback rejects a digest that disagrees with authoritative events', () => {
+    const requestedPlaybackEvents = [{ type: 'flip', phase: 1, targets: [{ r: 1, col: 1 }] }];
+    const trackedPublish = {
+      requestMeta: {
+        playbackEvents: requestedPlaybackEvents
+      }
+    };
+    const localDigest = controller.computePlaybackDigest(requestedPlaybackEvents);
+    const shouldShadow = controller.shouldApplyPublishResponseAsShadowPlayback(
+      trackedPublish,
+      {
+        gameState: { turnNumber: 2 },
+        cardState: { turnIndex: 2, markers: [] }
+      },
+      [{ type: 'flip', phase: 9, targets: [{ r: 9, col: 9 }] }],
+      localDigest
+    );
+
+    expect(shouldShadow).toBe(false);
   });
 
   test('publish response shadow playback rejects matching snapshot with different playback digest', () => {

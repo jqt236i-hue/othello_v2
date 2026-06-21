@@ -52,6 +52,52 @@ describe('AnimationFlipEvents', () => {
     );
 
     expect(triggerFlip).toHaveBeenCalledTimes(1);
-    expect(deps.syncDiscVisual).toHaveBeenCalledTimes(2);
+    expect(deps.syncDiscVisual).toHaveBeenCalledTimes(1);
+  });
+
+  test('syncs flipped color before starting the CSS flip animation', async () => {
+    const flipEvents = require('../ui/animation-flip-events.js');
+    const calls: string[] = [];
+    const triggerFlip = jest.fn();
+    const deps = createDeps(triggerFlip);
+    deps.syncDiscVisual = jest.fn((disc: HTMLElement, state: any) => {
+      calls.push(`sync:${state.color}`);
+      disc.classList.toggle('black', state.color === 1);
+      disc.classList.toggle('white', state.color === -1);
+    });
+    deps.animationShared.triggerFlip = jest.fn(() => {
+      calls.push('trigger');
+    });
+
+    await flipEvents.handleFlipEvent(
+      {
+        type: 'flip',
+        targets: [{ r: 2, col: 3, ownerBefore: 'black', after: { color: -1 } }]
+      },
+      deps
+    );
+
+    expect(calls).toEqual(['sync:-1', 'trigger']);
+    const disc = document.querySelector('.disc') as HTMLElement;
+    expect(disc.classList.contains('white')).toBe(true);
+  });
+
+  test('keeps using the shared CSS flip helper when element.animate is available', async () => {
+    const flipEvents = require('../ui/animation-flip-events.js');
+    const triggerFlip = jest.fn();
+    const deps = createDeps(triggerFlip);
+    const disc = document.querySelector('.disc') as any;
+    disc.animate = jest.fn();
+
+    await flipEvents.handleFlipEvent(
+      {
+        type: 'flip',
+        targets: [{ r: 2, col: 3, ownerBefore: 'black', after: { color: -1 } }]
+      },
+      deps
+    );
+
+    expect(disc.animate).not.toHaveBeenCalled();
+    expect(triggerFlip).toHaveBeenCalledTimes(1);
   });
 });

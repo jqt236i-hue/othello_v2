@@ -16,8 +16,8 @@ const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
     id: 'default',
     label: '既定石',
     note: '初期所持',
-    blackImagePath: 'assets/images/stones/normal_stone-black.png',
-    whiteImagePath: 'assets/images/stones/normal_stone-white.png'
+    blackImagePath: 'assets/images/stone-skin/default/black.png',
+    whiteImagePath: 'assets/images/stone-skin/default/white.png'
   }),
   Object.freeze({
     id: 'o-stone',
@@ -25,11 +25,25 @@ const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
     note: '初期所持',
     blackImagePath: 'assets/images/stone-skin/o-stone/black.png',
     whiteImagePath: 'assets/images/stone-skin/o-stone/white.png'
+  }),
+  Object.freeze({
+    id: 'jade-rim',
+    label: '碧縁石',
+    note: '青緑盤に合わせた黒曜石と白玉石',
+    blackImagePath: 'assets/images/stone-skin/jade-rim/black.png',
+    whiteImagePath: 'assets/images/stone-skin/jade-rim/white.png'
+  }),
+  Object.freeze({
+    id: 'pearl-obsidian',
+    label: '真珠黒曜石',
+    note: '金縁の黒曜石と真珠石',
+    blackImagePath: 'assets/images/stone-skin/pearl-obsidian/black.png',
+    whiteImagePath: 'assets/images/stone-skin/pearl-obsidian/white.png'
   })
 ]);
 
 const STONE_SKINS = BASE_STONE_SKINS.slice();
-const DEFAULT_STONE_SKIN_ID = BASE_STONE_SKINS[0].id;
+const DEFAULT_STONE_SKIN_ID = 'jade-rim';
 
 function cloneSkin(skin: StoneSkinItem): StoneSkinItem {
   return { ...skin };

@@ -24,6 +24,6 @@ describe('font skin controller browser registry wiring', () => {
 
     expect(api).not.toBeNull();
     expect(dom.window.document.querySelectorAll('.font-skin-option').length).toBeGreaterThan(1);
-    expect(dom.window.document.body.getAttribute('data-font-skin-id')).toBe('default');
+    expect(dom.window.document.body.getAttribute('data-font-skin-id')).toBe('shippori-mincho');
   });
 });

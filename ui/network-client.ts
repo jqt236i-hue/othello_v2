@@ -334,6 +334,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         roomDeck: null,
         roomBoardConfig: null,
         networkDebugEnabled: false,
+        networkAutoEnabled: false,
         serverUrl: deriveInitialServerUrl(),
         stateVersion: null as any,
         eventSource: null as any,
@@ -442,6 +443,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPresentationTimeline: any = null;
     let networkPlaybackDispatcher: any = null;
     let networkVisualStateStore: any = null;
+    let networkPresentationGapRecoveryPromise: Promise<any> | null = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
@@ -690,13 +692,21 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (networkPlaybackDispatcher) return networkPlaybackDispatcher;
         const mod = resolveNetworkPlaybackDispatcherModule();
         if (!mod || typeof mod.createNetworkPlaybackDispatcher !== 'function') return null;
-        networkPlaybackDispatcher = mod.createNetworkPlaybackDispatcher({
+        const presentationHandlerModule = resolveNetworkPresentationHandlerModule();
+        const dispatcherConfig: any = {
             root,
             getCardState: () => {
                 try { return root && root.cardState; } catch (e: any) { return null; }
             },
             recordNetworkTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details)
-        });
+        };
+        if (presentationHandlerModule && typeof presentationHandlerModule.handlePresentationEvent === 'function') {
+            dispatcherConfig.handlePresentationEvent = (event: any) => presentationHandlerModule.handlePresentationEvent(event);
+        }
+        if (presentationHandlerModule && typeof presentationHandlerModule.onBoardUpdated === 'function') {
+            dispatcherConfig.onBoardUpdated = (info?: any) => presentationHandlerModule.onBoardUpdated(info);
+        }
+        networkPlaybackDispatcher = mod.createNetworkPlaybackDispatcher(dispatcherConfig);
         try {
             root.NetworkPlaybackDispatcher = networkPlaybackDispatcher;
         } catch (e: any) { /* ignore */ }
@@ -706,6 +716,88 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             }
         } catch (e: any) { /* ignore */ }
         return networkPlaybackDispatcher;
+    }
+
+    function requestNetworkTimelineBoardRefresh(frame: any, meta: any) {
+        const info = {
+            source: 'network_timeline',
+            reason: meta && meta.reason ? String(meta.reason) : 'presentation_frame_committed',
+            visualSeq: Number.isFinite(Number(meta && meta.visualSeq)) ? Math.trunc(Number(meta.visualSeq)) : null,
+            visualVersion: Number.isFinite(Number(meta && meta.visualVersion)) ? Math.trunc(Number(meta.visualVersion)) : null,
+            frameSource: meta && meta.source ? String(meta.source) : null,
+            stateVersionFrom: frame && Number.isFinite(Number(frame.stateVersionFrom)) ? Math.trunc(Number(frame.stateVersionFrom)) : null,
+            stateVersionTo: frame && Number.isFinite(Number(frame.stateVersionTo)) ? Math.trunc(Number(frame.stateVersionTo)) : null
+        };
+        const boardUpdateSyncRuntime = resolveNetworkClientCandidate(() => _require('./board-update-sync-runtime'))
+            || resolveNetworkClientGlobal('BoardUpdateSyncRuntime');
+        const armBoardUpdateSync = () => {
+            if (!boardUpdateSyncRuntime || typeof boardUpdateSyncRuntime.armBoardUpdateSyncContext !== 'function') return false;
+            try {
+                boardUpdateSyncRuntime.armBoardUpdateSyncContext({
+                    allowBoardUpdateDuringPlayback: true,
+                    source: info.source,
+                    reason: info.reason
+                });
+                return true;
+            } catch (e: any) {
+                return false;
+            }
+        };
+        let requested = false;
+        const emitBoardUpdate = resolveNetworkClientCandidate(() => root && root.emitBoardUpdate)
+            || resolveNetworkClientGlobal('emitBoardUpdate');
+        if (typeof emitBoardUpdate === 'function') {
+            try {
+                armBoardUpdateSync();
+                emitBoardUpdate(info);
+                requested = true;
+            } catch (e: any) { /* ignore */ }
+        }
+        const renderScheduler = resolveNetworkClientCandidate(() => root && root.RenderScheduler)
+            || resolveNetworkClientGlobal('RenderScheduler');
+        const forceDirectRender = info.reason === 'presentation_timeline_drained';
+        if (renderScheduler && typeof renderScheduler.requestBoardRender === 'function') {
+            try {
+                armBoardUpdateSync();
+                const scheduled = renderScheduler.requestBoardRender(info) !== false;
+                if (scheduled) requested = true;
+                if (scheduled && typeof renderScheduler.flushVisualUpdates === 'function') {
+                    armBoardUpdateSync();
+                    if (renderScheduler.flushVisualUpdates({ ignorePlayback: true }) !== false) {
+                        requested = true;
+                    }
+                }
+                if (forceDirectRender) {
+                    const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
+                        || resolveNetworkClientGlobal('renderBoard');
+                    if (typeof renderBoard === 'function') {
+                        armBoardUpdateSync();
+                        renderBoard();
+                        requested = true;
+                    }
+                    const boardRenderer = resolveNetworkClientCandidate(() => _require('./board-renderer'));
+                    if (boardRenderer && typeof boardRenderer.renderBoardFull === 'function') {
+                        armBoardUpdateSync();
+                        boardRenderer.renderBoardFull();
+                        requested = true;
+                    }
+                }
+            } catch (e: any) { /* ignore */ }
+        } else {
+            const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
+                || resolveNetworkClientGlobal('renderBoard');
+            if (typeof renderBoard === 'function') {
+                try {
+                    armBoardUpdateSync();
+                    renderBoard();
+                    requested = true;
+                } catch (e: any) { /* ignore */ }
+            }
+        }
+        if (!requested) {
+            recordNetworkTelemetry('network_timeline_board_refresh_unavailable', info);
+        }
+        return requested;
     }
 
     function getNetworkPresentationTimeline() {
@@ -721,7 +813,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             initialVisualSeq: state.lastVisualSeq || 0,
             initialVisualVersion,
             playbackDispatcher: getNetworkPlaybackDispatcher(),
-            visualStateStore: getNetworkVisualStateStore()
+            visualStateStore: getNetworkVisualStateStore(),
+            onFrameCommitted: (frame: any, meta: any) => requestNetworkTimelineBoardRefresh(frame, meta)
         });
         try {
             root.NetworkPresentationTimeline = networkPresentationTimeline;
@@ -732,6 +825,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             }
         } catch (e: any) { /* ignore */ }
         return networkPresentationTimeline;
+    }
+
+    function resolveNetworkPresentationHandlerModule(): any {
+        return resolveNetworkClientCandidate(() => {
+            if (root && root.PresentationHandler) return root.PresentationHandler;
+            return null;
+        })
+            || resolveNetworkClientGlobal('PresentationHandler')
+            || resolveNetworkClientCandidate(() => _require('./presentation-handler'));
     }
 
     function getNetworkSessionSeatController() {
@@ -832,6 +934,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             resolveVisualStateStore: () => getNetworkVisualStateStore(),
             enqueuePresentationFramesFromPayload,
             drainPresentationTimeline,
+            syncVisualCursorForSnapshotNoPlayback,
             clearPlaybackStateForLeave,
             clearPendingForceSyncPlaybackRecovery,
             resetSessionState,
@@ -975,7 +1078,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             markTrackedPublishSelfSnapshot,
             handleTimeoutPassPayload,
             pruneTrackedPublishes,
-            enqueuePresentationFramesFromPayload
+            enqueuePresentationFramesFromPayload,
+            syncVisualCursorForSnapshotNoPlayback,
+            requestNetworkTimelineBoardRefresh
         });
         return networkStreamSnapshotController;
     }
@@ -1329,6 +1434,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             stateVersion: normalizeDiagnosticsNumber(state.stateVersion),
             appliedStateVersion: normalizeDiagnosticsNumber(state.appliedStateVersion),
             networkDebugEnabled: state.networkDebugEnabled === true,
+            networkAutoEnabled: state.networkAutoEnabled === true,
             stream: {
                 connected: !!state.eventSource,
                 lastEventId: String(state.lastStreamEventId || ''),
@@ -1432,6 +1538,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             roomDeck: cloneReadableNetworkStateValue(state.roomDeck, null),
             roomBoardConfig: cloneReadableNetworkStateValue(state.roomBoardConfig, null),
             networkDebugEnabled: state.networkDebugEnabled === true,
+            networkAutoEnabled: state.networkAutoEnabled === true,
             stateVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null,
             publishTracker: {
                 nextSequence: Number.isFinite(Number(tracker.nextSequence)) ? Number(tracker.nextSequence) : 0,
@@ -1910,7 +2017,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function resolveNetworkPresenceSpectatorName(payload: any) {
-        return normalizePlayerName(payload && (payload.spectatorName || payload.playerName)) || '観戦者';
+        return normalizePlayerName(payload && (payload.spectatorName || payload.playerName)) || '観測者';
     }
 
     function showNetworkPresenceToastFromPayload(payload: any) {
@@ -2159,6 +2266,189 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         } catch (e: any) { /* ignore */ }
     }
 
+    function syncVisualCursorForSnapshotNoPlayback(payload: any, snapshotVersion: any) {
+        const version = Number.isFinite(Number(snapshotVersion))
+            ? Math.max(0, Math.trunc(Number(snapshotVersion)))
+            : null;
+        if (version === null) return false;
+
+        const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
+            ? payload.presentationCursor
+            : null;
+        const cursorSeq = cursor && Number.isFinite(Number(cursor.visualSeq))
+            ? Math.max(0, Math.trunc(Number(cursor.visualSeq)))
+            : null;
+        const cursorVersion = cursor && Number.isFinite(Number(cursor.stateVersion))
+            ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
+            : version;
+
+        state.lastVisualVersion = cursorVersion;
+        if (cursorSeq !== null) {
+            state.lastVisualSeq = cursorSeq;
+        }
+
+        if (networkPresentationTimeline && typeof networkPresentationTimeline.setBaseCursor === 'function') {
+            try {
+                networkPresentationTimeline.setBaseCursor({
+                    visualSeq: Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0,
+                    visualVersion: cursorVersion
+                });
+            } catch (e: any) { /* ignore */ }
+        }
+        const store = getNetworkVisualStateStore();
+        const snapshot = payload && payload.snapshot && typeof payload.snapshot === 'object'
+            ? payload.snapshot
+            : null;
+        if (store && snapshot) {
+            try {
+                if (typeof store.setBaseVisualSnapshot === 'function') {
+                    const visualSnapshot = cloneDataForCommandPayload(snapshot);
+                    if (visualSnapshot && typeof visualSnapshot === 'object' && !Number.isFinite(Number(visualSnapshot.stateVersion))) {
+                        visualSnapshot.stateVersion = version;
+                    }
+                    store.setBaseVisualSnapshot(visualSnapshot, {
+                        visualSeq: Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0,
+                        visualVersion: cursorVersion,
+                        source: 'snapshot_no_playback'
+                    });
+                } else if (typeof store.clearVisualSnapshot === 'function') {
+                    store.clearVisualSnapshot();
+                }
+            } catch (e: any) { /* ignore */ }
+        } else if (store && typeof store.clearVisualSnapshot === 'function') {
+            try {
+                store.clearVisualSnapshot();
+            } catch (e: any) { /* ignore */ }
+        }
+        syncVisualCursorFromTimeline();
+        return true;
+    }
+
+    function buildPresentationJournalPath(afterVisualSeq: any) {
+        if (!state.roomId) return null;
+        const seq = Number.isFinite(Number(afterVisualSeq))
+            ? Math.max(0, Math.trunc(Number(afterVisualSeq)))
+            : 0;
+        if (isSpectator()) {
+            return '/api/match/presentation-journal?roomId=' + encodeURIComponent(state.roomId)
+                + '&viewerRole=spectator'
+                + '&spectatorId=' + encodeURIComponent(state.spectatorId || '')
+                + '&spectatorToken=' + encodeURIComponent(state.spectatorToken || '')
+                + '&afterVisualSeq=' + encodeURIComponent(String(seq));
+        }
+        if (!state.seatKey) return null;
+        return '/api/match/presentation-journal?roomId=' + encodeURIComponent(state.roomId)
+            + '&seatKey=' + encodeURIComponent(state.seatKey)
+            + '&seatToken=' + encodeURIComponent(state.seatToken || '')
+            + '&afterVisualSeq=' + encodeURIComponent(String(seq));
+    }
+
+    function applyJournalBaseVisualSnapshot(payload: any) {
+        if (!payload || !payload.baseSnapshot) return false;
+        const store = getNetworkVisualStateStore();
+        if (!store || typeof store.setBaseVisualSnapshot !== 'function') return false;
+        const baseVisualSeq = Number.isFinite(Number(payload.baseVisualSeq))
+            ? Math.max(0, Math.trunc(Number(payload.baseVisualSeq)))
+            : 0;
+        const frames = Array.isArray(payload.presentationFrames) ? payload.presentationFrames : [];
+        const firstFrame = frames
+            .slice()
+            .sort((a: any, b: any) => Number(a && a.visualSeq) - Number(b && b.visualSeq))[0] || null;
+        const baseVisualVersion = firstFrame && Number.isFinite(Number(firstFrame.stateVersionFrom))
+            ? Math.max(0, Math.trunc(Number(firstFrame.stateVersionFrom)))
+            : (Number.isFinite(Number(payload.baseSnapshot && payload.baseSnapshot.stateVersion))
+            ? Math.max(0, Math.trunc(Number(payload.baseSnapshot.stateVersion)))
+            : (Number.isFinite(Number(payload.baseVisualVersion))
+                ? Math.max(0, Math.trunc(Number(payload.baseVisualVersion)))
+                : null));
+        store.setBaseVisualSnapshot(payload.baseSnapshot, {
+            visualSeq: baseVisualSeq,
+            visualVersion: baseVisualVersion,
+            preserveExisting: true,
+            source: 'journal_recovery'
+        });
+        return true;
+    }
+
+    function shouldRecoverPresentationTimelineGap(source: any) {
+        const normalizedSource = String(source || '').trim();
+        if (normalizedSource === 'journal_recovery') return false;
+        const timeline = getNetworkPresentationTimeline();
+        if (!timeline || typeof timeline.getDiagnostics !== 'function') return false;
+        try {
+            const diagnostics = timeline.getDiagnostics();
+            return !!(
+                diagnostics
+                && diagnostics.playing !== true
+                && diagnostics.paused !== true
+                && Number(diagnostics.pendingFrameCount || 0) > 0
+            );
+        } catch (e: any) {
+            return false;
+        }
+    }
+
+    function recoverPresentationTimelineGap(reason: any, source: any) {
+        if (networkPresentationGapRecoveryPromise) return networkPresentationGapRecoveryPromise;
+        const timeline = getNetworkPresentationTimeline();
+        if (!timeline || typeof timeline.getDiagnostics !== 'function') return Promise.resolve(false);
+        let diagnostics: any = null;
+        try {
+            diagnostics = timeline.getDiagnostics();
+        } catch (e: any) {
+            diagnostics = null;
+        }
+        if (!diagnostics || Number(diagnostics.pendingFrameCount || 0) <= 0) return Promise.resolve(false);
+        const afterVisualSeq = Number.isFinite(Number(diagnostics.visualSeq))
+            ? Math.max(0, Math.trunc(Number(diagnostics.visualSeq)))
+            : (Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0);
+        const path = buildPresentationJournalPath(afterVisualSeq);
+        if (!path) return Promise.resolve(false);
+
+        recordNetworkTelemetry('network_presentation_timeline_gap_recovery_started', {
+            reason: String(reason || ''),
+            source: String(source || ''),
+            afterVisualSeq,
+            pendingFrameCount: Number(diagnostics.pendingFrameCount || 0),
+            pendingVisualSeqs: Array.isArray(diagnostics.pendingVisualSeqs) ? diagnostics.pendingVisualSeqs.slice(0, 8) : []
+        });
+
+        networkPresentationGapRecoveryPromise = Promise.resolve()
+            .then(() => requestJson('GET', path, undefined))
+            .then((res: any) => {
+                if (!res || !res.ok || !res.data || res.data.ok !== true) {
+                    recordNetworkTelemetry('network_presentation_timeline_gap_recovery_failed', {
+                        reason: res && res.data && res.data.reason ? String(res.data.reason) : 'PRESENTATION_JOURNAL_FETCH_FAILED',
+                        status: res && Number.isFinite(Number(res.status)) ? Number(res.status) : null
+                    });
+                    return false;
+                }
+                applyJournalBaseVisualSnapshot(res.data);
+                const enqueued = enqueuePresentationFramesFromPayload(res.data, {
+                    source: 'journal_recovery',
+                    skipAutoDrain: true
+                });
+                return drainPresentationTimeline().then((drained: any) => {
+                    recordNetworkTelemetry('network_presentation_timeline_gap_recovered', {
+                        afterVisualSeq,
+                        enqueued,
+                        drained
+                    });
+                    return true;
+                });
+            })
+            .catch((error: any) => {
+                recordNetworkTelemetry('network_presentation_timeline_gap_recovery_failed', {
+                    reason: error && error.message ? String(error.message) : String(error || '')
+                });
+                return false;
+            })
+            .finally(() => {
+                networkPresentationGapRecoveryPromise = null;
+            });
+        return networkPresentationGapRecoveryPromise;
+    }
+
     function drainPresentationTimeline() {
         const timeline = getNetworkPresentationTimeline();
         if (!timeline || typeof timeline.drainPlayableFrames !== 'function') {
@@ -2183,9 +2473,21 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!Array.isArray(frames) || frames.length <= 0) return 0;
         const timeline = getNetworkPresentationTimeline();
         if (!timeline || typeof timeline.enqueueFrames !== 'function') return 0;
-        const accepted = timeline.enqueueFrames(frames, options || { source: 'network_payload' });
-        if (accepted > 0) {
-            drainPresentationTimeline();
+        const enqueueOptions = Object.assign(
+            { source: 'network_payload' },
+            (options && typeof options === 'object') ? options : {}
+        );
+        if (typeof enqueueOptions.allowBaseCursorAdvance !== 'boolean') {
+            const source = String(enqueueOptions.source || 'network_payload');
+            enqueueOptions.allowBaseCursorAdvance = source === 'network_snapshot' || source === 'journal_recovery';
+        }
+        const accepted = timeline.enqueueFrames(frames, enqueueOptions);
+        if (accepted > 0 && enqueueOptions.skipAutoDrain !== true) {
+            drainPresentationTimeline().then((drained: any) => {
+                if (Number(drained || 0) <= 0 && shouldRecoverPresentationTimelineGap(enqueueOptions.source)) {
+                    recoverPresentationTimelineGap('drain_stalled_after_enqueue', enqueueOptions.source);
+                }
+            });
         }
         syncVisualCursorFromTimeline();
         return accepted;
@@ -2630,6 +2932,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.roomDeck = null;
             state.roomBoardConfig = null;
             state.networkDebugEnabled = false;
+            state.networkAutoEnabled = false;
             state.chatHistory = [];
             state.stateVersion = null;
             state.appliedStateVersion = null;
@@ -2953,7 +3256,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function publishSnapshot(meta: any) {
         if (isSpectator()) {
-            emitStatus('観戦中は操作できません', true);
+            emitStatus('観測中は操作できません', true);
             return Promise.resolve({ ok: false, reason: 'SPECTATOR_READ_ONLY' });
         }
         const controller = getNetworkPublishFlowController();
@@ -3021,7 +3324,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     async function requestRematch() {
         if (!isActive()) return { ok: false, reason: 'INACTIVE' };
         if (isSpectator()) {
-            emitStatus('観戦中は操作できません', true);
+            emitStatus('観測中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
         const deckSyncResult = await syncActiveDeckSelectionBeforeRematch();
@@ -3054,7 +3357,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     async function respondRematchRequest(requestId: any, accepted: any) {
         if (!isActive()) return { ok: false, reason: 'INACTIVE' };
         if (isSpectator()) {
-            emitStatus('観戦中は操作できません', true);
+            emitStatus('観測中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
         if (accepted === true) {
@@ -3153,6 +3456,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return null;
     }
 
+    function getNetworkAutoEnabled() {
+        return state.networkAutoEnabled === true;
+    }
+
     function setRoomStateListener(listener: any) {
         state.roomStateListener = (typeof listener === 'function') ? listener : null;
         emitRoomStateChanged();
@@ -3199,7 +3506,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             return { ok: false, reason: 'INACTIVE' };
         }
         if (isSpectator()) {
-            emitStatus('観戦中はチャット送信できません', true);
+            emitStatus('観測中はチャット送信できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
         if (!state.seatToken) {
@@ -3257,7 +3564,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             return { ok: false, reason: 'INACTIVE' };
         }
         if (isSpectator()) {
-            emitStatus('観戦中は操作できません', true);
+            emitStatus('観測中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
         if (!state.seatToken) {
@@ -3302,7 +3609,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             return { ok: false, reason: 'INACTIVE' };
         }
         if (isSpectator()) {
-            emitStatus('観戦中は操作できません', true);
+            emitStatus('観測中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
         if (!state.seatToken) {
@@ -3376,6 +3683,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getStateVersion,
         getRoomDeck,
         getRoomBoardConfig,
+        getNetworkAutoEnabled,
         getNetworkTelemetry,
         dumpDiagnostics
     };

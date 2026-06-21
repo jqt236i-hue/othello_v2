@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import type { Browser } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 declare const describe: any;
 declare const beforeAll: any;
@@ -35,6 +35,7 @@ describe('Destroy hand card then place E2E', () => {
     if (!browser || serverPort === null) throw new Error('E2E runtime is not initialized');
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await closeMaintenanceNoticeIfPresent(page);
 
     await page.waitForSelector('#board .cell');
     await page.waitForFunction(() => {

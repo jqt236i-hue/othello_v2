@@ -65,7 +65,7 @@ function readCpuSmartnessValueFromSelect(id: string): number | string {
     const raw = String(el && el.value || '').trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(8, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(9, Math.floor(n))) : raw;
 }
 
 function createInjectedTimerService(timersImpl: any) {
@@ -122,8 +122,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     let _stoneBaseImagesReadyPromise: any = null;
     const ASSET_MANIFEST_UPDATED_EVENT = 'asset-manifest:updated';
     const STONE_BASE_IMAGE_PATHS = [
-        'assets/images/stones/normal_stone-black.png',
-        'assets/images/stones/normal_stone-white.png'
+        'assets/images/stone-skin/default/black.png',
+        'assets/images/stone-skin/default/white.png'
     ];
     const IMAGE_ASSET_PATH_PATTERN = /\.(png|jpe?g|webp|svg)(?:[?#].*)?$/i;
 
@@ -1160,7 +1160,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         removeElementByIdForReset(doc, 'result-overlay');
         removeElementByIdForReset(doc, 'result-reopen-button');
         try {
-            doc.querySelectorAll('.battle-status-turn.has-result-reopen-button').forEach((el: any) => {
+            doc.querySelectorAll('.has-result-reopen-button').forEach((el: any) => {
                 try { if (el && el.classList) el.classList.remove('has-result-reopen-button'); } catch (e: any) { /* ignore */ }
             });
         } catch (e: any) { /* ignore */ }
@@ -1428,6 +1428,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     },
                     getCardLogic: () => {
                         try { return typeof globalThis !== 'undefined' ? (globalThis as any).CardLogic || null : null; } catch (e: any) { return null; }
+                    },
+                    getCardState: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).cardState || null : null; } catch (e: any) { return null; }
                     },
                     getGameState: () => {
                         try { return typeof globalThis !== 'undefined' ? (globalThis as any).gameState || null : null; } catch (e: any) { return null; }
@@ -2250,6 +2253,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             if (typeof handler !== 'function') continue;
                             handler(payload.row, payload.col, payload.playerKey);
                             return true;
+                        }
+                        const moduleHandlers: Record<string, { moduleId: string; exportName: string }> = {
+                            destroy: {
+                                moduleId: '../game/card-effects/destroy',
+                                exportName: 'handleDestroySelection'
+                            }
+                        };
+                        const moduleHandler = moduleHandlers[key];
+                        if (moduleHandler) {
+                            try {
+                                const mod = require(moduleHandler.moduleId);
+                                const handler = mod ? mod[moduleHandler.exportName] : null;
+                                if (typeof handler === 'function') {
+                                    handler(payload.row, payload.col, payload.playerKey);
+                                    return true;
+                                }
+                            } catch (e: any) { /* ignore */ }
                         }
                         return false;
                     },

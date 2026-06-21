@@ -147,7 +147,8 @@ describe('battle status panel', () => {
       expect(toast.classList.contains('is-self')).toBe(true);
       expect(toast.classList.contains('is-black-turn')).toBe(true);
       expect(toast.classList.contains('is-visible')).toBe(true);
-      expect(toast.style.left).toBe('1016px');
+      const turnArrivalReferenceWidth = 164;
+      expect(toast.style.left).toBe(`${window.innerWidth - turnArrivalReferenceWidth - 8}px`);
       expect(toast.style.top).toBe('707px');
 
       window.gameState.currentPlayer = -1;
@@ -168,6 +169,30 @@ describe('battle status panel', () => {
       expect(toast.classList.contains('is-visible')).toBe(false);
       expect(toast.classList.contains('is-hiding')).toBe(false);
       expect(toast.classList.contains('is-white-turn')).toBe(false);
+    } finally {
+      teardownBattleStatusDom(dom);
+      jest.useRealTimers();
+    }
+  });
+
+  test('nudges wide turn arrival art slightly right without fully moving it outside the board lane', () => {
+    jest.useFakeTimers();
+    const { dom, window } = setupBattleStatusDom();
+
+    try {
+      Object.defineProperty(window, 'innerWidth', { value: 1500, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+
+      window.updateStatus();
+
+      const toast = window.document.getElementById('turn-arrival-toast') as HTMLElement;
+      Object.defineProperty(toast, 'offsetWidth', { value: 188, configurable: true });
+      Object.defineProperty(toast, 'offsetHeight', { value: 42, configurable: true });
+
+      window.updateStatus();
+
+      expect(toast.style.left).toBe('1082px');
+      expect(toast.style.top).toBe('705px');
     } finally {
       teardownBattleStatusDom(dom);
       jest.useRealTimers();

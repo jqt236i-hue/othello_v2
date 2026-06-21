@@ -77,7 +77,12 @@ interface InitDomElements {
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
+  networkEnableAutoCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
+  networkRoomSettingsBtn: HTMLElement | null;
+  networkRoomSettingsBackdrop: HTMLElement | null;
+  networkRoomSettingsPopup: HTMLElement | null;
+  networkRoomSettingsCloseBtn: HTMLElement | null;
   networkCreateBtn: HTMLElement | null;
   networkJoinBtn: HTMLElement | null;
   networkLeaveBtn: HTMLElement | null;
@@ -146,7 +151,7 @@ function emitSpectatorReadOnlyStatus(root: any): void {
     try {
       const writer = candidateRoot && (candidateRoot as any).writeNetworkStatus;
       if (typeof writer !== 'function') continue;
-      writer('観戦中は操作できません', true);
+      writer('観測中は操作できません', true);
       return;
     } catch (e) { /* ignore */ }
   }
@@ -332,7 +337,13 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       networkBoardSizeSummary: refs.networkBoardSizeSummary,
       networkBoardSizeNote: refs.networkBoardSizeNote,
       networkEnableDebugCheckbox: refs.networkEnableDebugCheckbox,
-      networkCopyRoomBtn: refs.networkCopyRoomBtn, networkCreateBtn: refs.networkCreateBtn,
+      networkEnableAutoCheckbox: refs.networkEnableAutoCheckbox,
+      networkCopyRoomBtn: refs.networkCopyRoomBtn,
+      networkRoomSettingsBtn: refs.networkRoomSettingsBtn,
+      networkRoomSettingsBackdrop: refs.networkRoomSettingsBackdrop,
+      networkRoomSettingsPopup: refs.networkRoomSettingsPopup,
+      networkRoomSettingsCloseBtn: refs.networkRoomSettingsCloseBtn,
+      networkCreateBtn: refs.networkCreateBtn,
       networkJoinBtn: refs.networkJoinBtn, networkLeaveBtn: refs.networkLeaveBtn,
       networkStatus: refs.networkStatusText, networkDeckInfo: refs.networkDeckInfo,
       networkTimerStatus: refs.networkTimerStatus, networkOverlay: refs.networkOverlay,

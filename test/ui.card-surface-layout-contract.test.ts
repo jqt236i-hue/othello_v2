@@ -1,15 +1,26 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 import {
   expectCssBlockNotToContain,
   expectCssBlockToContain,
   readRepoTextFile
 } from './helpers/css-test-helpers';
 
+function readPngSize(relativePath: string): { width: number; height: number } {
+  const buffer = fs.readFileSync(path.join(__dirname, '..', relativePath));
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20)
+  };
+}
+
 describe('card surface layout contract', () => {
   test('deck and card base surfaces use layout variables', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
-    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*conic-gradient[\s\S]*--card-back-emblem/);
+    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*background:\s*var\(--card-back-deck-image\)\s*center\s*\/\s*100%\s*100%\s*no-repeat/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);
     expect(cardsCss).toMatch(/\.card-cost-badge[\s\S]*top:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)[\s\S]*left:\s*calc\(var\(--layout-size-card-badge-offset\)\s*-\s*\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(cardsCss).toMatch(/\.card-name[\s\S]*padding:[\s\S]*var\(--layout-size-card-badge-font\)/);
@@ -118,7 +129,7 @@ describe('card surface layout contract', () => {
       'resource'
     ];
 
-    expect(layoutInfoCss).toMatch(/\.game-term-highlight\s*\{[\s\S]*font-weight:\s*800[\s\S]*border-radius:\s*4px[\s\S]*box-decoration-break:\s*clone/);
+    expect(layoutInfoCss).toMatch(/\.game-term-highlight\s*\{[\s\S]*font-weight:\s*800[\s\S]*border-radius:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*box-decoration-break:\s*clone/);
     for (const className of termClasses) {
       expect(layoutInfoCss).toMatch(new RegExp(`\\.game-term-highlight--${className}\\s*\\{[\\s\\S]*color:[\\s\\S]*background:`));
     }
@@ -258,13 +269,19 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-name\s*\{[\s\S]*top:\s*auto[\s\S]*bottom:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
 
-  test('card backs and deck stacks use shared emblem treatment without readable CARD text', () => {
+  test('card backs and deck stacks use image assets without readable CARD text', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
+    expect(cardsCss).toMatch(/--card-back-deck-image:\s*url\("assets\/images\/other\/card-back-deck-v1\.png"\)/);
+    expect(cardsCss).toMatch(/--card-back-hand-image:\s*url\("assets\/images\/other\/card-back-hand-v1\.png"\)/);
+    expect(readPngSize('assets/images/other/card-back-deck-v1.png')).toEqual({ width: 590, height: 780 });
+    expect(readPngSize('assets/images/other/card-back-hand-v1.png')).toEqual({ width: 910, height: 1200 });
     expect(cardsCss).toMatch(/\.card-item\.hidden\s*\{[\s\S]*font-size:\s*0/);
-    expect(cardsCss).toMatch(/\.card-item\.hidden::before[\s\S]*--card-back-emblem/);
-    expect(cardsCss).toMatch(/\.card-item\.hidden::after[\s\S]*conic-gradient/);
-    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*--card-back-emblem/);
+    expect(cardsCss).toMatch(/\.card-item\.hidden\s*\{[\s\S]*background:\s*var\(--card-back-hand-image\)\s*center\s*\/\s*100%\s*100%\s*no-repeat/);
+    expect(cardsCss).toMatch(/\.card-item\.hidden::before,\s*[\r\n]+\.card-item\.hidden::after\s*\{[\s\S]*content:\s*none/);
+    expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*background:\s*var\(--card-back-deck-image\)\s*center\s*\/\s*100%\s*100%\s*no-repeat/);
+    expect(cardsCss).toMatch(/\.flying-card\.face-down\s*\{[\s\S]*background:\s*var\(--card-back-deck-image\)\s*center\s*\/\s*100%\s*100%\s*no-repeat/);
+    expect(cardsCss).toMatch(/\.held-use-card\.face-down\s*\{[\s\S]*background:\s*var\(--card-back-hand-image\)\s*center\s*\/\s*100%\s*100%\s*no-repeat/);
     expect(cardsCss).toMatch(/\.deck-stack \.deck-count[\s\S]*backdrop-filter:\s*blur/);
   });
 });

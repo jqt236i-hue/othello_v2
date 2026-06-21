@@ -1968,18 +1968,36 @@ async function handlePublish(req: any, res: any) {
             dedupeOutcome: 'replay'
         });
         const autoPassNotice = resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
-        writeJson(res, 200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-            ok: true,
-            serverTime,
-            idempotentReplay: true,
-            autoPassNotice,
-            publishKind: 'idempotent_replay',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion,
-            replayedStateVersion: lastAcceptedOperation.stateVersion
-        })));
+        const replayPresentationFrameEntry = typeof MatchAuthority.findPresentationFrameEntryForAcceptedOperation === 'function'
+            ? MatchAuthority.findPresentationFrameEntryForAcceptedOperation(room, lastAcceptedOperation)
+            : null;
+        const replayPublicFrame = replayPresentationFrameEntry && typeof MatchAuthority.toPublicPresentationFrame === 'function'
+            ? MatchAuthority.toPublicPresentationFrame(replayPresentationFrameEntry, { role: 'seat', seatKey }, room)
+            : null;
+        const replayPlaybackEvents = replayPublicFrame && Array.isArray(replayPublicFrame.playbackEvents)
+            ? replayPublicFrame.playbackEvents
+            : [];
+        const replayEffectLogs = replayPublicFrame && Array.isArray(replayPublicFrame.effectLogs)
+            ? replayPublicFrame.effectLogs
+            : [];
+        writeJson(res, 200, buildPublishPayload(room, seatKey, Object.assign(
+            MatchAuthority.buildPublishResponseOptions({
+                ok: true,
+                serverTime,
+                idempotentReplay: true,
+                autoPassNotice,
+                playbackEvents: replayPlaybackEvents,
+                effectLogs: replayEffectLogs,
+                playbackDiagnostics: replayPublicFrame ? replayPublicFrame.playbackDiagnostics : null,
+                publishKind: 'idempotent_replay',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                replayedStateVersion: lastAcceptedOperation.stateVersion
+            }),
+            { presentationFrameEntry: replayPresentationFrameEntry }
+        )));
         return;
     }
 
@@ -2388,6 +2406,7 @@ function handleState(req: any, res: any, urlObj: any) {
         effectLogs: MatchAuthority.normalizeEffectLogMessages((recoveredMeta as any).effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics((recoveredMeta as any).playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         presentationCursor: buildPresentationCursor(room),
+        presentationFrames: Array.isArray((recoveredMeta as any).presentationFrames) ? (recoveredMeta as any).presentationFrames : [],
         operationId: (recoveredMeta as any).operationId ? String((recoveredMeta as any).operationId) : null,
         playerKey: (recoveredMeta as any).playerKey ? normalizePlayerKey((recoveredMeta as any).playerKey) : null,
         actionType: (recoveredMeta as any).actionType ? String((recoveredMeta as any).actionType) : null,

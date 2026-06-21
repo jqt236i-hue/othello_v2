@@ -155,7 +155,12 @@ interface InitDomElements {
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
+  networkEnableAutoCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
+  networkRoomSettingsBtn: HTMLElement | null;
+  networkRoomSettingsBackdrop: HTMLElement | null;
+  networkRoomSettingsPopup: HTMLElement | null;
+  networkRoomSettingsCloseBtn: HTMLElement | null;
   networkCreateBtn: HTMLElement | null;
   networkJoinBtn: HTMLElement | null;
   networkLeaveBtn: HTMLElement | null;

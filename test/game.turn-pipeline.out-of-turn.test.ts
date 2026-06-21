@@ -56,7 +56,8 @@ describe('turn_pipeline applyTurnSafe out-of-turn guard', () => {
       expect.any(Object),
       'white',
       expect.any(Array),
-      undefined
+      undefined,
+      expect.any(Object)
     );
     expect(phaseMocks.applyCardUsagePhase).toHaveBeenCalledWith(
       expect.any(Object),

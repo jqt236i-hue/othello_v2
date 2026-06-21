@@ -6,19 +6,19 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'equality_will_01',
   name_ja: '平等の意志',
   type: 'EQUALITY_WILL',
-  cost: 8,
-  desc_ja: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。',
-  display_type_ja: '繁栄'
+  cost: 0,
+  desc_ja: '相手の布石を最大10奪う。自分の布石が0のときに使用可能。',
+  display_type_ja: '採掘'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '平等の意志',
-  desc: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。'
+  desc: '相手の布石を最大10奪う。自分の布石が0のときに使用可能。'
 });
 
-const EXPECTED_QUICK_TEXT = '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。';
-const EXPECTED_DETAIL_TEXT = '相手の石数が自分より10個以上多い時のみ使用できる。\n使用時、盤面の空きマスからランダムに最大3マスへ、自分色の通常石を1個ずつ生成する。\n各生成石は、そのマスを起点に通常の挟み反転を行う。\n空きマスが3未満なら、存在する空きマス数ぶんだけ生成する。';
+const EXPECTED_QUICK_TEXT = '相手の布石を最大10奪う。自分の布石が0のときに使用可能。';
+const EXPECTED_DETAIL_TEXT = '自分の布石が0の時のみ使用できる。\n使用時、相手の布石を最大10奪い、奪った分を自分へ加算する。\n相手の布石が10未満なら、存在する布石数ぶんだけ奪う。\n相手の布石が0でも使用条件を満たしていれば使用でき、奪取量0として解決する。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

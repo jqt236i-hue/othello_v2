@@ -117,18 +117,36 @@ function createMatchWorkerPublishController(config?: any): any {
         dedupeOutcome: 'replay'
       }, undefined);
       const autoPassNotice = resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
-      return cfg.jsonResponse(200, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
-        ok: true,
-        idempotentReplay: true,
-        serverTime,
-        autoPassNotice,
-        publishKind: 'idempotent_replay',
-        operationId,
-        actionType,
-        receivedBaseVersion: baseVersion,
-        authoritativeStateVersion: room.stateVersion,
-        replayedStateVersion: lastAcceptedOperation.stateVersion
-      })));
+      const replayPresentationFrameEntry = typeof cfg.MatchAuthority.findPresentationFrameEntryForAcceptedOperation === 'function'
+        ? cfg.MatchAuthority.findPresentationFrameEntryForAcceptedOperation(room, lastAcceptedOperation)
+        : null;
+      const replayPublicFrame = replayPresentationFrameEntry && typeof cfg.MatchAuthority.toPublicPresentationFrame === 'function'
+        ? cfg.MatchAuthority.toPublicPresentationFrame(replayPresentationFrameEntry, { role: 'seat', seatKey }, room)
+        : null;
+      const replayPlaybackEvents = replayPublicFrame && Array.isArray(replayPublicFrame.playbackEvents)
+        ? replayPublicFrame.playbackEvents
+        : [];
+      const replayEffectLogs = replayPublicFrame && Array.isArray(replayPublicFrame.effectLogs)
+        ? replayPublicFrame.effectLogs
+        : [];
+      return cfg.jsonResponse(200, cfg.buildPublishPayload(room, seatKey, Object.assign(
+        cfg.MatchAuthority.buildPublishResponseOptions({
+          ok: true,
+          idempotentReplay: true,
+          serverTime,
+          autoPassNotice,
+          playbackEvents: replayPlaybackEvents,
+          effectLogs: replayEffectLogs,
+          playbackDiagnostics: replayPublicFrame ? replayPublicFrame.playbackDiagnostics : null,
+          publishKind: 'idempotent_replay',
+          operationId,
+          actionType,
+          receivedBaseVersion: baseVersion,
+          authoritativeStateVersion: room.stateVersion,
+          replayedStateVersion: lastAcceptedOperation.stateVersion
+        }),
+        { presentationFrameEntry: replayPresentationFrameEntry }
+      )));
     }
 
     if (baseVersion === null || baseVersion !== room.stateVersion) {

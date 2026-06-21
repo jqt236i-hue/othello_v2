@@ -354,7 +354,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 push(`救済の意志: 破壊石${Number(ev.spawnedCount) || 0}個を通常石として救済、${Number(ev.flippedCount) || 0}枚を反転`);
                 break;
             case 'equality_will_resolved':
-                push(`平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成、${Number(ev.flippedCount) || 0}枚を反転`);
+                push(`平等の意志: 布石を${Number(ev.stolenAmount) || 0}奪取`);
                 break;
             case 'reinforcement_will_resolved':
                 push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置、${Number(ev.flippedCount) || 0}枚を反転`);

@@ -33,6 +33,15 @@
         padding: calc(10px * var(--layout-stage-scale));
     }
 
+    #handSkinOptions,
+    #backgroundSkinOptions,
+    #boardSkinOptions,
+    #boardFrameSkinOptions,
+    #fontSkinOptions,
+    #stoneSkinOptions {
+        grid-template-columns: 1fr;
+    }
+
     #gachaActionRow {
         grid-template-columns: 1fr;
     }
@@ -266,9 +275,9 @@ html.layout-profile-phone-portrait {
         var(--layout-phone-portrait-hand-fixed-padding-x)
     );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
-    --layout-phone-portrait-player-bottom-offset: calc(3px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-bottom-offset: calc(18px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
-    --layout-phone-portrait-quick-controls-bottom-offset: calc(72px * var(--layout-stage-scale));
+    --layout-phone-portrait-quick-controls-bottom-offset: calc(44px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-width: min(92vw, calc(520px * var(--layout-stage-scale)));
     --layout-phone-portrait-quick-controls-bgm-width: calc(112px * var(--layout-stage-scale));
     --layout-phone-portrait-quick-controls-volume-width: calc(96px * var(--layout-stage-scale));
@@ -281,7 +290,7 @@ html.layout-profile-phone-portrait #game-container {
     justify-content: flex-start;
     padding-top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
     padding-bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(102px * var(--layout-stage-scale)));
-    gap: calc(2px * var(--layout-stage-scale));
+    gap: calc(4px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait .player-area-top,
@@ -307,7 +316,7 @@ html.layout-profile-phone-portrait .player-area-bottom {
 }
 
 html.layout-profile-phone-portrait #board-frame {
-    --board-frame-inner-size: min(92vw, calc(410px * var(--layout-stage-scale)), 44dvh);
+    --board-frame-inner-size: min(84vw, calc(410px * var(--layout-stage-scale)), 44dvh);
     --board-frame-padding: calc(7.5px * var(--layout-stage-scale));
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
@@ -382,7 +391,7 @@ html.layout-profile-phone-portrait #card-detail-panel {
     bottom: auto;
     width: var(--layout-phone-portrait-main-column-width);
     min-height: 0;
-    max-height: calc(162px * var(--layout-stage-scale));
+    max-height: calc(170px * var(--layout-stage-scale));
     margin: calc(4px * var(--layout-stage-scale)) 0 0;
     padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     transform: none;
@@ -397,7 +406,7 @@ html.layout-profile-phone-portrait #card-detail-name {
 }
 
 html.layout-profile-phone-portrait #card-detail-desc {
-    min-height: calc(52px * var(--layout-stage-scale));
+    min-height: calc(58px * var(--layout-stage-scale));
     max-height: calc(66px * var(--layout-stage-scale));
     margin-bottom: calc(4px * var(--layout-stage-scale));
     padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
@@ -460,13 +469,132 @@ html.layout-profile-phone-portrait #networkRoomList {
     max-height: calc(128px * var(--layout-stage-scale));
 }
 
+html.layout-profile-phone-portrait #networkRoomListViewport {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+}
+
 html.layout-profile-phone-portrait .network-room-entry-main {
     align-items: flex-start;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 35em) {
     .network-create-fields {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Network lobby responsive overrides for the image-assisted large lobby. */
+html.layout-profile-phone-portrait #networkOverlay {
+    align-items: flex-start;
+    padding: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) calc(8px * var(--layout-stage-scale)) max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+    overflow-y: auto;
+}
+
+html.layout-profile-phone-portrait #networkModal {
+    width: min(100%, calc(100vw - calc(16px * var(--layout-stage-scale))));
+    height: auto;
+    min-height: calc(780px * var(--layout-stage-scale));
+    max-height: none;
+    aspect-ratio: auto;
+    background-size: cover;
+}
+
+html.layout-profile-phone-portrait #networkModalBody {
+    position: relative;
+    inset: auto;
+    height: auto;
+    min-height: calc(700px * var(--layout-stage-scale));
+    padding: calc(76px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale));
+    overflow: visible;
+}
+
+html.layout-profile-phone-portrait #networkPanel {
+    display: flex !important;
+    flex-direction: column;
+    gap: calc(18px * var(--layout-stage-scale));
+    height: auto;
+}
+
+html.layout-profile-phone-portrait #networkModalHeader {
+    left: calc(18px * var(--layout-stage-scale));
+    right: calc(18px * var(--layout-stage-scale));
+    top: calc(18px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #networkCloseBtn {
+    right: calc(14px * var(--layout-stage-scale));
+    top: calc(12px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #networkPanel .network-section,
+html.layout-profile-phone-portrait #networkRoomListPanel {
+    display: flex;
+    flex-direction: column;
+    padding: calc(22px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(214, 168, 75, 0.42);
+    background: rgba(0, 7, 10, 0.54);
+}
+
+html.layout-profile-phone-portrait #networkActionRow {
+    align-self: stretch;
+    margin: 0;
+}
+
+html.layout-profile-phone-portrait #networkRoomSettingsBtn {
+    position: static;
+    transform: none;
+}
+
+html.layout-profile-phone-portrait #networkRoomSettingsBtn {
+    margin: 0 0 calc(10px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #networkBoardSizeRow,
+html.layout-profile-phone-portrait #networkDebugOptionRow,
+html.layout-profile-phone-portrait #networkAutoOptionRow,
+html.layout-profile-phone-portrait #networkAdvancedSettings,
+html.layout-profile-phone-portrait #networkStatusText,
+html.layout-profile-phone-portrait #networkDeckInfo {
+    position: static;
+    width: auto;
+    max-width: none;
+    transform: none;
+}
+
+html.layout-profile-phone-portrait #networkRoomList {
+    grid-template-columns: 1fr;
+    max-height: none;
+    overflow: visible;
+}
+
+html.layout-profile-phone-portrait #networkRoomListViewport {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+}
+
+html.layout-profile-phone-portrait .network-room-list-entry {
+    min-height: calc(300px * var(--layout-stage-scale));
+}
+
+@media (max-width: 57.5em) and (orientation: landscape) {
+    #networkModal {
+        width: calc(100vw - calc(16px * var(--layout-stage-scale)));
+        height: calc(100dvh - calc(16px * var(--layout-stage-scale)));
+        min-height: 0;
+    }
+
+    #networkRoomList {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: calc(12px * var(--layout-stage-scale));
+    }
+
+    .network-room-list-entry {
+        min-height: calc(250px * var(--layout-stage-scale));
+        padding: calc(26px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
     }
 }
 
@@ -574,7 +702,7 @@ html.layout-profile-phone-portrait #deck-black {
     order: 2;
     align-self: flex-end;
     width: var(--layout-phone-portrait-player-deck-width);
-    height: calc(62px * var(--layout-stage-scale));
+    height: calc(66px * var(--layout-stage-scale));
     margin-left: 0;
     margin-right: 0;
 }
@@ -1614,7 +1742,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack {
         position: fixed;
-        left: var(--profile-stone-info-left);
+        left: var(--profile-left-info-stack-left);
         top: var(--profile-left-info-stack-top);
         z-index: 11988;
         display: flex;
@@ -1756,7 +1884,7 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled .player-area-top {
-        top: calc(-14px * var(--layout-stage-scale));
+        top: calc(-15px * var(--layout-stage-scale));
         margin-bottom: calc(24px * var(--layout-stage-scale));
     }
 

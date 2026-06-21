@@ -54,10 +54,10 @@ describe('smart cpu level shortcut', () => {
     expect(menu?.querySelector('.cpu-level-menu-item.is-selected')?.getAttribute('data-cpu-level')).toBe('1');
     expect(menu?.querySelector('[data-cpu-level="1"]')?.classList.contains('cpu-level-tier-1')).toBe(true);
     expect(menu?.querySelector('[data-cpu-level="5"]')?.classList.contains('cpu-level-tier-5')).toBe(true);
-    expect(menu?.querySelector('[data-cpu-level="6-board-executor"]')?.classList.contains('cpu-level-profile-board-executor')).toBe(true);
-    expect(menu?.querySelector('[data-cpu-level="7-theory-incarnation"]')?.classList.contains('cpu-level-tier-7')).toBe(true);
-    expect(menu?.querySelector('[data-cpu-level="8-ending-ash"]')?.classList.contains('cpu-level-tier-8')).toBe(true);
-    expect(menu?.querySelector('[data-cpu-level="8-ending-ash"]')?.classList.contains('cpu-level-profile-ending-ash')).toBe(true);
+    expect(menu?.querySelector('[data-cpu-level="7-board-executor"]')?.classList.contains('cpu-level-profile-board-executor')).toBe(true);
+    expect(menu?.querySelector('[data-cpu-level="8-theory-incarnation"]')?.classList.contains('cpu-level-tier-8')).toBe(true);
+    expect(menu?.querySelector('[data-cpu-level="9-ending-ash"]')?.classList.contains('cpu-level-tier-9')).toBe(true);
+    expect(menu?.querySelector('[data-cpu-level="9-ending-ash"]')?.classList.contains('cpu-level-profile-ending-ash')).toBe(true);
 
     (menu?.querySelector('[data-cpu-level="4"]') as HTMLButtonElement).click();
 
@@ -68,24 +68,24 @@ describe('smart cpu level shortcut', () => {
 
     shortcut.click();
     const reopenedMenu = document.getElementById('cpu-level-menu');
-    (reopenedMenu?.querySelector('[data-cpu-level="6-board-executor"]') as HTMLButtonElement).click();
+    (reopenedMenu?.querySelector('[data-cpu-level="7-board-executor"]') as HTMLButtonElement).click();
 
-    expect(smartWhite.value).toBe('6-board-executor');
-    expect((global as any).cpuSmartness.white).toBe(6);
-
-    shortcut.click();
-    const lv7Menu = document.getElementById('cpu-level-menu');
-    (lv7Menu?.querySelector('[data-cpu-level="7-theory-incarnation"]') as HTMLButtonElement).click();
-
-    expect(smartWhite.value).toBe('7-theory-incarnation');
+    expect(smartWhite.value).toBe('7-board-executor');
     expect((global as any).cpuSmartness.white).toBe(7);
 
     shortcut.click();
-    const lv8Menu = document.getElementById('cpu-level-menu');
-    (lv8Menu?.querySelector('[data-cpu-level="8-ending-ash"]') as HTMLButtonElement).click();
+    const lv7Menu = document.getElementById('cpu-level-menu');
+    (lv7Menu?.querySelector('[data-cpu-level="8-theory-incarnation"]') as HTMLButtonElement).click();
 
-    expect(smartWhite.value).toBe('8-ending-ash');
+    expect(smartWhite.value).toBe('8-theory-incarnation');
     expect((global as any).cpuSmartness.white).toBe(8);
+
+    shortcut.click();
+    const lv8Menu = document.getElementById('cpu-level-menu');
+    (lv8Menu?.querySelector('[data-cpu-level="9-ending-ash"]') as HTMLButtonElement).click();
+
+    expect(smartWhite.value).toBe('9-ending-ash');
+    expect((global as any).cpuSmartness.white).toBe(9);
 
     delete global.window;
     delete global.document;
@@ -131,7 +131,7 @@ describe('smart cpu level shortcut', () => {
     );
 
     const smartWhite = document.getElementById('smartWhite') as HTMLSelectElement;
-    smartWhite.value = '7-theory-incarnation';
+    smartWhite.value = '8-theory-incarnation';
     smartWhite.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 
     expect(global.resetGame).toHaveBeenCalledTimes(1);
@@ -185,7 +185,7 @@ describe('smart cpu level shortcut', () => {
     );
 
     const smartBlack = document.getElementById('smartBlack') as HTMLSelectElement;
-    smartBlack.value = '7-theory-incarnation';
+    smartBlack.value = '8-theory-incarnation';
     smartBlack.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
     expect(global.resetGame).toHaveBeenCalledTimes(1);
 
@@ -292,7 +292,7 @@ describe('smart cpu level shortcut', () => {
     );
 
     const smartWhite = document.getElementById('smartWhite') as HTMLSelectElement;
-    smartWhite.value = '7-theory-incarnation';
+    smartWhite.value = '8-theory-incarnation';
     smartWhite.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 
     expect(global.resetGame).not.toHaveBeenCalled();

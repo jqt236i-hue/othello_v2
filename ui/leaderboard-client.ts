@@ -12,6 +12,7 @@ const PLAYER_NAME_MAX = 7;
 const DEFAULT_PLAYER_NAME = 'ななし';
 const PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const LEADERBOARD_FETCH_LIMIT_MAX = 100;
+const LEADERBOARD_FETCH_MODES = new Set(['all', 'network', 'cpu']);
 
 function canUseStorage(): boolean {
   try {
@@ -139,20 +140,41 @@ async function requestJson(method: string, path: string, payload?: any, options?
 
 function normalizeEntry(entry: any): any {
   if (!entry || typeof entry !== 'object') return null;
+  const category = entry.category === 'timeAttack' ? 'timeAttack' : 'score';
   const score = Number.isFinite(Number(entry.bestScore)) ? Math.max(0, Math.trunc(Number(entry.bestScore))) : 0;
+  const bestTimeMs = category === 'timeAttack' && Number.isFinite(Number(entry.bestTimeMs))
+    ? Math.max(1, Math.trunc(Number(entry.bestTimeMs)))
+    : null;
   const rank = Number.isFinite(Number(entry.rank)) ? Math.max(1, Math.trunc(Number(entry.rank))) : null;
   const updatedAt = Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : 0;
   const mode = entry.mode === 'network' ? 'network' : 'cpu';
-  const cpuLevel = Number.isFinite(Number(entry.cpuLevel)) ? Math.max(1, Math.min(6, Math.trunc(Number(entry.cpuLevel)))) : null;
+  const cpuLevel = Number.isFinite(Number(entry.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(entry.cpuLevel)))) : null;
 
   return {
     rank,
     playerId: normalizePlayerId(entry.playerId) || null,
     playerName: normalizePlayerName(entry.playerName),
+    category,
     bestScore: score,
+    bestTimeMs,
     mode,
     cpuLevel,
     updatedAt
+  };
+}
+
+function normalizeBoardConfig(value: any): any {
+  if (!value || typeof value !== 'object') return null;
+  const rows = Number(value.rows);
+  const cols = Number(value.cols);
+  if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
+  const normalizedRows = Math.trunc(rows);
+  const normalizedCols = Math.trunc(cols);
+  if (normalizedRows <= 0 || normalizedCols <= 0) return null;
+  return {
+    rows: normalizedRows,
+    cols: normalizedCols,
+    standard8x8: value.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8)
   };
 }
 
@@ -161,7 +183,15 @@ async function fetchLeaderboard(options?: any): Promise<any> {
   const limit = Number.isFinite(Number(opts.limit))
     ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
     : 10;
-  const res = await requestJson('GET', `/api/leaderboard/list?limit=${limit}`, null, opts);
+  const mode = LEADERBOARD_FETCH_MODES.has(String(opts.mode || ''))
+    ? String(opts.mode)
+    : 'cpu';
+  const category = opts.category === 'timeAttack' ? 'timeAttack' : 'score';
+  const cpuLevel = mode === 'cpu' && Number.isFinite(Number(opts.cpuLevel))
+    ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel))))
+    : null;
+  const levelQuery = cpuLevel === null ? '' : `&cpuLevel=${encodeURIComponent(String(cpuLevel))}`;
+  const res = await requestJson('GET', `/api/leaderboard/list?limit=${limit}&mode=${encodeURIComponent(mode)}&category=${encodeURIComponent(category)}${levelQuery}`, null, opts);
   if (!res.ok) {
     return { ok: false, reason: res.reason || 'LIST_FAILED', entries: [], updatedAt: 0 };
   }
@@ -173,6 +203,9 @@ async function fetchLeaderboard(options?: any): Promise<any> {
   return {
     ok: true,
     entries,
+    mode,
+    category,
+    cpuLevel,
     updatedAt: Number.isFinite(Number(res.data && res.data.updatedAt)) ? Number(res.data.updatedAt) : 0
   };
 }
@@ -192,8 +225,10 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
     score,
     scoreVersion: Number.isFinite(Number(summary.version)) ? Math.trunc(Number(summary.version)) : null,
     turnCount: Number.isFinite(Number(summary.turnCount)) ? Math.max(0, Math.trunc(Number(summary.turnCount))) : null,
+    category: 'score',
     mode: opts.mode === 'network' ? 'network' : 'cpu',
-    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(6, Math.trunc(Number(opts.cpuLevel)))) : null,
+    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
+    boardConfig: normalizeBoardConfig(opts.boardConfig),
     limit: Number.isFinite(Number(opts.limit))
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
@@ -217,12 +252,55 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
   };
 }
 
+async function submitTimeAttack(summary: any, options?: any): Promise<any> {
+  const input = summary || {};
+  const opts = options || {};
+  const elapsedMs = Number.isFinite(Number(input.elapsedMs))
+    ? Math.max(1, Math.trunc(Number(input.elapsedMs)))
+    : null;
+  if (elapsedMs === null) {
+    return { ok: false, reason: 'INVALID_TIME_ATTACK' };
+  }
+
+  const payload = {
+    playerId: getPlayerId(),
+    playerName: getPlayerName(),
+    category: 'timeAttack',
+    elapsedMs,
+    debug: opts.debug === true,
+    mode: opts.mode === 'network' ? 'network' : 'cpu',
+    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
+    boardConfig: normalizeBoardConfig(opts.boardConfig),
+    limit: Number.isFinite(Number(opts.limit))
+      ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
+      : 10
+  };
+
+  const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
+  if (!res.ok) {
+    return { ok: false, reason: res.reason || 'SUBMIT_FAILED' };
+  }
+
+  const entries = Array.isArray(res.data && res.data.entries)
+    ? res.data.entries.map((entry: any) => normalizeEntry(entry)).filter(Boolean)
+    : [];
+
+  return {
+    ok: true,
+    updated: !!(res.data && res.data.updated),
+    bestTimeMs: Number.isFinite(Number(res.data && res.data.bestTimeMs)) ? Number(res.data.bestTimeMs) : elapsedMs,
+    rank: Number.isFinite(Number(res.data && res.data.rank)) ? Number(res.data.rank) : null,
+    entries
+  };
+}
+
 const LeaderboardClient = {
   getPlayerName,
   setPlayerName,
   getPlayerId,
   fetchLeaderboard,
   submitScore,
+  submitTimeAttack,
   resolveServerBaseUrl
 };
 

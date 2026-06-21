@@ -168,7 +168,7 @@ describe('status-display network seat labels', () => {
     const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
     statusDisplay.updateBattleStatusPanel();
 
-    expect(window.document.querySelector('.battle-status-turn')?.textContent).toBe('観戦中');
+    expect(window.document.querySelector('.battle-status-turn')?.textContent).toBe('観測中');
     expect(window.document.getElementById('turn-arrival-toast')).toBeNull();
     dom.window.close();
   });

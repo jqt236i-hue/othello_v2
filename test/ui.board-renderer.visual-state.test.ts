@@ -89,4 +89,22 @@ describe('board renderer network visual state', () => {
     expect(disc?.classList.contains('white')).toBe(false);
     expect((global as any).countDiscs).not.toHaveBeenCalledWith((global as any).gameState);
   });
+
+  test('renderBoardFull returns to current global state after playback catches up', () => {
+    (global as any).NetworkVisualStateStore.getDiagnostics.mockReturnValue({
+      canonicalVersion: 2,
+      visualVersion: 2,
+      lagging: false,
+      hasVisualSnapshot: true
+    });
+    const boardRenderer = require('../ui/board-renderer.js');
+
+    boardRenderer.renderBoardFull();
+
+    const disc = document.querySelector('.disc');
+    expect(disc).toBeTruthy();
+    expect(disc?.classList.contains('black')).toBe(false);
+    expect(disc?.classList.contains('white')).toBe(true);
+    expect((global as any).NetworkVisualStateStore.getRenderSnapshot).not.toHaveBeenCalled();
+  });
 });

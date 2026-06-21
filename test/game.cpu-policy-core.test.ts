@@ -207,7 +207,7 @@ describe('cpu-policy-core', () => {
         }));
     });
 
-    test('chooseHandDestroyTargetForCycle immediately destroys EQUALITY_WILL when the 10-disc gap is inactive', () => {
+    test('chooseHandDestroyTargetForCycle destroys EQUALITY_WILL when own charge is available', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['equality_01'],
             [],
@@ -1839,21 +1839,22 @@ describe('cpu-policy-core', () => {
         expect(trailing.score).toBeGreaterThan(aheadEndgame.score);
     });
 
-    test('scoreCardUseDecision treats EQUALITY_WILL as a comeback-only option', () => {
-        const trailing = core.scoreCardUseDecision(
+    test('scoreCardUseDecision treats EQUALITY_WILL as a zero-charge swing option', () => {
+        const emptyCharge = core.scoreCardUseDecision(
             'equality',
-            () => 15,
+            () => 0,
             () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
             {
                 level: 6,
                 playerValue: -1,
                 legalMovesCount: 3,
-                discDiff: -12,
+                discDiff: 0,
                 empties: 26,
-                ownCharge: 28,
+                ownCharge: 0,
+                oppCharge: 25,
                 handSize: 3,
-                ownDiscs: 8,
-                oppDiscs: 20,
+                ownDiscs: 14,
+                oppDiscs: 14,
                 ownCorners: 0,
                 oppCorners: 1,
                 ownEdges: 2,
@@ -1864,20 +1865,21 @@ describe('cpu-policy-core', () => {
                 cornerEmergency: true
             }
         );
-        const inactive = core.scoreCardUseDecision(
+        const hasCharge = core.scoreCardUseDecision(
             'equality',
-            () => 15,
+            () => 0,
             () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
             {
                 level: 6,
                 playerValue: -1,
                 legalMovesCount: 4,
-                discDiff: -6,
+                discDiff: -12,
                 empties: 26,
-                ownCharge: 28,
+                ownCharge: 12,
+                oppCharge: 25,
                 handSize: 3,
-                ownDiscs: 13,
-                oppDiscs: 19,
+                ownDiscs: 8,
+                oppDiscs: 20,
                 ownCorners: 1,
                 oppCorners: 1,
                 ownEdges: 4,
@@ -1888,10 +1890,37 @@ describe('cpu-policy-core', () => {
                 cornerEmergency: false
             }
         );
+        const noOpponentCharge = core.scoreCardUseDecision(
+            'equality',
+            () => 0,
+            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                discDiff: 0,
+                empties: 26,
+                ownCharge: 0,
+                oppCharge: 0,
+                handSize: 3,
+                ownDiscs: 14,
+                oppDiscs: 14,
+                ownCorners: 0,
+                oppCorners: 1,
+                ownEdges: 2,
+                oppEdges: 5,
+                usableCardIds: ['equality'],
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true
+            }
+        );
 
-        expect(trailing.shouldUse).toBe(true);
-        expect(inactive.shouldUse).toBe(false);
-        expect(trailing.score).toBeGreaterThan(inactive.score);
+        expect(emptyCharge.shouldUse).toBe(true);
+        expect(hasCharge.shouldUse).toBe(false);
+        expect(noOpponentCharge.shouldUse).toBe(false);
+        expect(emptyCharge.score).toBeGreaterThan(hasCharge.score);
+        expect(emptyCharge.score).toBeGreaterThan(noOpponentCharge.score);
     });
 
     test('scoreCardUseDecision treats REINFORCEMENT_WILL as a recovery option under pressure', () => {
@@ -2206,10 +2235,28 @@ describe('cpu-policy-core', () => {
         expect(selected.cardId).toBe('last');
     });
 
-    test('scoreCardRetentionPriority devalues EQUALITY_WILL when the 10-disc gap is inactive', () => {
-        const live = core.scoreCardRetentionPriority(
+    test('scoreCardRetentionPriority keeps EQUALITY_WILL when own charge is zero', () => {
+        const emptyCharge = core.scoreCardRetentionPriority(
             'equality',
-            () => 15,
+            () => 0,
+            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 3,
+                handSize: 4,
+                discDiff: 0,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                ownCharge: 0
+            }
+        );
+        const hasCharge = core.scoreCardRetentionPriority(
+            'equality',
+            () => 0,
             () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
             {
                 level: 6,
@@ -2222,30 +2269,12 @@ describe('cpu-policy-core', () => {
                 oppCorners: 1,
                 hasCornerMoveNow: false,
                 cornerEmergency: true,
-                ownCharge: 28
-            }
-        );
-        const inactive = core.scoreCardRetentionPriority(
-            'equality',
-            () => 15,
-            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                handSize: 4,
-                discDiff: -8,
-                empties: 24,
-                ownCorners: 0,
-                oppCorners: 1,
-                hasCornerMoveNow: false,
-                cornerEmergency: true,
-                ownCharge: 28
+                ownCharge: 12
             }
         );
 
-        expect(live.score).toBeGreaterThan(inactive.score);
-        expect(inactive.score).toBeLessThan(0);
+        expect(emptyCharge.score).toBeGreaterThan(hasCharge.score);
+        expect(hasCharge.score).toBeLessThan(0);
     });
 
     test('scoreCardRetentionPriority devalues REINFORCEMENT_WILL when corner recovery pressure is absent', () => {
@@ -2642,12 +2671,12 @@ describe('cpu-policy-core', () => {
         }));
     });
 
-    test('EQUALITY_WILL keeps an explicit explosive-comeback profile without free-placement recovery classification', () => {
+    test('EQUALITY_WILL keeps an explicit economy profile without free-placement recovery classification', () => {
         expect(core.isCornerRecoveryCardType('EQUALITY_WILL')).toBe(false);
         expect(core.hasUsageStyleForCardType('EQUALITY_WILL')).toBe(true);
         expect(core.hasMovePlanProfileForCardType('EQUALITY_WILL')).toBe(true);
         expect(core.getMovePlanProfileForCardType('EQUALITY_WILL')).toEqual(expect.objectContaining({
-            archetype: 'explosiveComeback',
+            archetype: 'economyCycle',
             placementWeight: 0
         }));
     });

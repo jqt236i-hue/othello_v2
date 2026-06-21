@@ -67,6 +67,12 @@ describe('NetworkSessionLifecycleController', () => {
         stateObj.spectatorId = session.spectatorId || '';
         stateObj.spectatorToken = session.spectatorToken || '';
         stateObj.spectatorName = session.spectatorName || '';
+        stateObj.lastVisualSeq = Number.isFinite(Number(session.lastVisualSeq))
+          ? Math.max(0, Math.trunc(Number(session.lastVisualSeq)))
+          : 0;
+        stateObj.lastVisualVersion = Number.isFinite(Number(session.lastVisualVersion))
+          ? Math.max(0, Math.trunc(Number(session.lastVisualVersion)))
+          : null;
         return true;
       }),
       shouldRetryJoinWithoutStoredClaim: jest.fn(),
@@ -76,6 +82,7 @@ describe('NetworkSessionLifecycleController', () => {
       shouldSkipForceSyncSnapshot: jest.fn(() => false),
       applySnapshotThroughCoordinator: jest.fn(() => true),
       rememberPendingForceSyncPlaybackRecovery: jest.fn(),
+      syncVisualCursorForSnapshotNoPlayback: jest.fn(() => true),
       resolveStateSyncRecoveredPlaybackEvents: jest.fn((data) => Array.isArray(data?.playbackEvents) ? data.playbackEvents : []),
       recordNetworkTelemetry: jest.fn(),
       getSnapshotStateVersion: jest.fn((snapshot) => snapshot?.stateVersion || null),
@@ -549,6 +556,72 @@ describe('NetworkSessionLifecycleController', () => {
       expect(mockConfig.resolveStateSyncRecoveredPlaybackEvents).not.toHaveBeenCalled();
       expect(mockConfig.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
     });
+
+    test('state syncのpresentation cursorが直接frame数より進んでいる場合はjournalで補完する', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token_black';
+      stateObj.lastVisualSeq = 1;
+      stateObj.lastVisualVersion = 2;
+      mockConfig.requestJson.mockImplementation(async (method, path) => {
+        if (method === 'GET' && path.startsWith('/api/match/state')) {
+          return jsonResponse(200, {
+            ok: true,
+            stateVersion: 4,
+            snapshot: { stateVersion: 4, gameState: {}, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 4 },
+            presentationFrames: [
+              { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }] }
+            ]
+          });
+        }
+        if (method === 'GET' && path.startsWith('/api/match/presentation-journal')) {
+          expect(path).toContain('afterVisualSeq=1');
+          return jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            baseVisualSeq: 1,
+            baseSnapshot: { stateVersion: 2, gameState: {}, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 4 },
+            presentationFrames: [
+              { visualSeq: 2, stateVersionFrom: 2, stateVersionTo: 3, playbackEvents: [{ type: 'event_2' }] },
+              { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }] }
+            ]
+          });
+        }
+        throw new Error(`unexpected request ${method} ${path}`);
+      });
+      mockConfig.enqueuePresentationFramesFromPayload.mockReturnValue(2);
+      mockConfig.drainPresentationTimeline.mockResolvedValue(2);
+
+      const result = await controller.syncLatestState();
+
+      expect(result).toEqual(expect.objectContaining({ ok: true, appliedSnapshot: true }));
+      expect(mockConfig.applySnapshotThroughCoordinator).toHaveBeenCalledWith(
+        expect.objectContaining({ stateVersion: 4 }),
+        expect.objectContaining({
+          source: 'state_sync',
+          applyOptions: expect.objectContaining({
+            presentationFrames: [expect.objectContaining({ visualSeq: 3 })],
+            presentationFrameSource: 'state_sync'
+          })
+        })
+      );
+      expect(mockConfig.visualStateStore.setBaseVisualSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({ stateVersion: 2 }),
+        expect.objectContaining({ visualSeq: 1, visualVersion: 2, source: 'state_sync' })
+      );
+      expect(mockConfig.enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presentationFrames: expect.arrayContaining([
+            expect.objectContaining({ visualSeq: 2 }),
+            expect.objectContaining({ visualSeq: 3 })
+          ])
+        }),
+        { source: 'state_sync' }
+      );
+      expect(mockConfig.drainPresentationTimeline).toHaveBeenCalled();
+    });
   });
 
   describe('syncLatestState - エラーハンドリング', () => {
@@ -620,7 +693,7 @@ describe('NetworkSessionLifecycleController', () => {
       expect(mockConfig.clearStoredSession).not.toHaveBeenCalled();
     });
 
-    test('保存済みvisual cursorが遅れている場合はpresentation journalで復旧する', async () => {
+    test('保存済みvisual cursorが遅れていてもF5復帰では現在cursorへ同期してjournal再生をスキップする', async () => {
       mockConfig.readStoredSession.mockReturnValue({
         roomId: 'ABC',
         viewerRole: 'seat',
@@ -640,44 +713,24 @@ describe('NetworkSessionLifecycleController', () => {
           });
         }
         if (method === 'GET' && path.startsWith('/api/match/presentation-journal')) {
-          expect(path).toContain('roomId=ABC');
-          expect(path).toContain('seatKey=black');
-          expect(path).toContain('seatToken=token_black');
-          expect(path).toContain('afterVisualSeq=1');
-          return jsonResponse(200, {
-            ok: true,
-            roomId: 'ABC',
-            baseVisualSeq: 1,
-            baseSnapshot: { stateVersion: 2, gameState: { currentPlayer: -1 }, cardState: {} },
-            presentationCursor: { visualSeq: 3, stateVersion: 4 },
-            presentationFrames: [
-              { visualSeq: 2, stateVersionFrom: 2, stateVersionTo: 3, playbackEvents: [{ type: 'event_2' }], snapshotAfter: { stateVersion: 3, gameState: {}, cardState: {} } },
-              { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }], snapshotAfter: { stateVersion: 4, gameState: {}, cardState: {} } }
-            ]
-          });
+          throw new Error(`unexpected journal request ${path}`);
         }
         throw new Error(`unexpected request ${method} ${path}`);
       });
-      mockConfig.enqueuePresentationFramesFromPayload.mockReturnValue(2);
-      mockConfig.drainPresentationTimeline.mockResolvedValue(2);
 
       const result = await controller.restoreStoredSession();
 
       expect(result).toEqual(expect.objectContaining({ ok: true, restored: true }));
-      expect(mockConfig.visualStateStore.setBaseVisualSnapshot).toHaveBeenCalledWith(
-        expect.objectContaining({ stateVersion: 2 }),
-        expect.objectContaining({ visualSeq: 1, visualVersion: 2, source: 'journal_recovery' })
-      );
-      expect(mockConfig.enqueuePresentationFramesFromPayload).toHaveBeenCalledWith(
+      expect(mockConfig.requestJson).toHaveBeenCalledTimes(1);
+      expect(mockConfig.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
+      expect(mockConfig.drainPresentationTimeline).not.toHaveBeenCalled();
+      expect(mockConfig.syncVisualCursorForSnapshotNoPlayback).toHaveBeenCalledWith(
         expect.objectContaining({
-          presentationFrames: expect.arrayContaining([
-            expect.objectContaining({ visualSeq: 2 }),
-            expect.objectContaining({ visualSeq: 3 })
-          ])
+          snapshot: expect.objectContaining({ stateVersion: 4 }),
+          presentationCursor: { visualSeq: 3, stateVersion: 4 }
         }),
-        { source: 'journal_recovery' }
+        4
       );
-      expect(mockConfig.drainPresentationTimeline).toHaveBeenCalled();
       expect(mockConfig.openStream).toHaveBeenCalled();
     });
   });

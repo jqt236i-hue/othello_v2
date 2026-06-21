@@ -25,6 +25,12 @@ describe('shared match room lobby helpers', () => {
       roomId: 'ABC',
       roomName: '週末ルーム',
       hostName: 'くろ',
+      blackPlayerName: 'くろ',
+      whitePlayerName: '',
+      seatNames: {
+        black: 'くろ',
+        white: ''
+      },
       seatCount: 1,
       maxSeats: 2,
       spectatorCount: 0,
@@ -39,6 +45,31 @@ describe('shared match room lobby helpers', () => {
       updatedAt: 1234
     });
     expect(entry.roomPassword).toBeUndefined();
+  });
+
+  test('公開用ルーム一覧 entry は参加済みの黒白プレイヤー名を公開する', () => {
+    const entry = MatchRoomLobby.toPublicRoomListEntry({
+      roomId: 'VS1',
+      roomName: '対戦部屋',
+      seats: { black: true, white: true },
+      seatNames: { black: '作成主', white: '挑戦者' },
+      maxSpectators: 4,
+      stateVersion: 1,
+      updatedAt: 2345
+    }, { nowMs: 2345 });
+
+    expect(entry).toEqual(expect.objectContaining({
+      hostName: '作成主',
+      blackPlayerName: '作成主',
+      whitePlayerName: '挑戦者',
+      seatNames: {
+        black: '作成主',
+        white: '挑戦者'
+      },
+      seatCount: 2,
+      canJoin: false,
+      canSpectate: true
+    }));
   });
 
   test('空の部屋と観戦不可の満員部屋は一覧に出さない', () => {

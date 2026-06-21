@@ -553,8 +553,8 @@ export function preloadWorkStoneImages() {
     if ((window as any)._workStoneImagesPreloaded) return;
     (window as any)._workStoneImagesPreloaded = true;
     const paths = [
-        'assets/images/stones/work_stone-black.png',
-        'assets/images/stones/work_stone-white.png'
+        'assets/images/special-stones/work_stone-black.png',
+        'assets/images/special-stones/work_stone-white.png'
     ];
     // Consider loaded once all either loaded or errored (we don't want to block forever)
     (window as any)._workStoneImagesLoaded = false;

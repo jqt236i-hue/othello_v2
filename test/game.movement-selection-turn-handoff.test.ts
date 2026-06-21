@@ -115,6 +115,7 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
       processCpuTurn: () => global.processCpuTurn(),
       publishSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
       isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
+      ensureCurrentPlayerCanActOrPass: (...args) => global.ensureCurrentPlayerCanActOrPass(...args),
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
       getTurnPipeline: () => global.TurnPipeline,
       getActionManager: () => global.ActionManager
@@ -151,7 +152,7 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
     delete globalThis.waitForPlaybackIdle;
   });
 
-  test('waits for playback, starts next turn, and schedules white CPU after selection', async () => {
+  test('waits for playback, publishes continue-turn selection, and checks next available action', async () => {
     const handlers = require('../game/card-effects/strong-wind.js');
     await handlers[handlerName](2, 2, 'black');
 
@@ -160,8 +161,9 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
     expect(action[actionField]).toEqual({ row: 2, col: 2 });
     expect(action.deferNetworkPublish).toBe(true);
 
-    expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
-    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(global.onTurnStart).not.toHaveBeenCalled();
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledWith({ useBlackDelay: true });
 
     expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
     const snapshot = global.NetworkMatchClient.publishSnapshot.mock.calls[0][0];
@@ -170,13 +172,12 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
       actionType: 'place'
     }));
     expect(snapshot.snapshot).toBeUndefined();
-    expect(snapshot.playbackEvents).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'status_applied', phase: 1 }),
-      expect.objectContaining({ type: 'draw', phase: 2 })
-    ]));
+    expect(snapshot.playbackEvents).toEqual([
+      expect.objectContaining({ type: 'status_applied', phase: 1 })
+    ]);
 
     jest.runAllTimers();
-    expect(global.processCpuTurn).toHaveBeenCalledTimes(1);
+    expect(global.processCpuTurn).not.toHaveBeenCalled();
   });
 
   test('keeps busy flags through playback wait before handoff completes', async () => {

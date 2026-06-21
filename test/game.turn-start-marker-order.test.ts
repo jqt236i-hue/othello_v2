@@ -1028,7 +1028,11 @@ describe('turn-start marker ordering', () => {
         return { destroyed: [{ sourceRow: row, sourceCol: col, row, col: col + 1, owner: playerKey }] };
       }),
       applyRegenAfterFlips: jest.fn(() => ({ regened: [], captureFlips: [] })),
-      applyLivingWillAfterFlips: jest.fn(() => ({ restored: [] })),
+      applyLivingWillAfterFlips: jest.fn((_cardState, _gameState, flips) => {
+        const first = Array.isArray(flips) ? flips[0] : null;
+        order.push(`ultimate-living:${first ? `${first.row},${first.col}` : 'none'}`);
+        return { restored: [] };
+      }),
       emitPresentationEvent: jest.fn()
     };
 
@@ -1049,6 +1053,7 @@ describe('turn-start marker ordering', () => {
       'ultimate:move2',
       'ultimate:flip2',
       'ultimate:end',
+      'ultimate-living:2,5',
       'dragon:4,4'
     ]);
   });

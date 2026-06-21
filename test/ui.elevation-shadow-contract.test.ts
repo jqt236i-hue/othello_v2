@@ -1,4 +1,8 @@
-import { readRepoTextFile, readLayoutCssSurface } from './helpers/css-test-helpers';
+import {
+  expectCssBlockToContain,
+  readRepoTextFile,
+  readLayoutCssSurface
+} from './helpers/css-test-helpers';
 
 describe('UI elevation shadow contract', () => {
   test('shared elevation tokens exist for layered game UI surfaces', () => {
@@ -17,7 +21,7 @@ describe('UI elevation shadow contract', () => {
     const boardCss = readRepoTextFile('styles-board.css');
     const cardsCss = readRepoTextFile('styles-cards.css');
 
-    expect(layoutCss).toMatch(/#board-frame[\s\S]*box-shadow:[\s\S]*var\(--ui-elevation-board\)/);
+    expectCssBlockToContain(layoutCss, '#board-frame', /box-shadow:[\s\S]*var\(--ui-elevation-board\)/);
     expect(layoutCss).toMatch(/#effect-live-panel[\s\S]*box-shadow:[\s\S]*var\(--ui-elevation-panel\)/);
     expect(layoutCss).toMatch(/#manifest-effect-panel[\s\S]*box-shadow:[\s\S]*var\(--ui-elevation-panel\)/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*box-shadow:[\s\S]*var\(--ui-elevation-panel\)/);

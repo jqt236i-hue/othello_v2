@@ -50,6 +50,84 @@ describe('NetworkPresentationTimeline', () => {
     });
   });
 
+  test('notifies after a frame is committed so the board can refresh from visual state', async () => {
+    const order: string[] = [];
+    const onFrameCommitted = jest.fn((playedFrame: any, meta: any) => {
+      order.push(`commit:${playedFrame.visualSeq}:${meta.visualVersion}`);
+    });
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      onFrameCommitted
+    });
+
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    const drained = await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => {
+        order.push('playback');
+        return { started: true, method: 'test' };
+      })
+    });
+
+    expect(drained).toBe(1);
+    expect(order).toEqual(['playback', 'commit:1:2']);
+    expect(onFrameCommitted).toHaveBeenCalledWith(
+      expect.objectContaining({ visualSeq: 1, stateVersionTo: 2 }),
+      expect.objectContaining({
+        source: 'stream',
+        visualSeq: 1,
+        visualVersion: 2
+      })
+    );
+  });
+
+  test('waits for frame commit refresh before reporting the frame drained', async () => {
+    const order: string[] = [];
+    let releaseCommit: (() => void) | null = null;
+    const commitRefresh = new Promise<void>((resolve) => {
+      releaseCommit = resolve;
+    });
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      onFrameCommitted: jest.fn(async () => {
+        order.push('commit-start');
+        await commitRefresh;
+        order.push('commit-finished');
+      })
+    });
+
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    let resolved = false;
+    const drainPromise = timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => {
+        order.push('playback');
+        return { started: true, method: 'test' };
+      })
+    }).then((drained: number) => {
+      resolved = true;
+      return drained;
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(resolved).toBe(false);
+    expect(order).toEqual(['playback', 'commit-start']);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      playing: true,
+      visualSeq: 1,
+      visualVersion: 2
+    });
+
+    releaseCommit && releaseCommit();
+
+    await expect(drainPromise).resolves.toBe(1);
+    expect(order).toEqual(['playback', 'commit-start', 'commit-finished']);
+  });
+
   test('waits for missing visualSeq before playing later frames', async () => {
     const played: string[] = [];
     const timeline = Timeline.createNetworkPresentationTimeline({
@@ -73,6 +151,97 @@ describe('NetworkPresentationTimeline', () => {
       })
     })).toBe(2);
     expect(played).toEqual(['event_1', 'event_2']);
+  });
+
+  test('can align to the first received frame when an authoritative snapshot already skipped earlier visuals', async () => {
+    const played: string[] = [];
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1
+    });
+
+    timeline.enqueueFrames([frame(2, 2, 3)], {
+      source: 'stream',
+      allowBaseCursorAdvance: true
+    });
+
+    expect(await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
+        played.push(events[0].type);
+        return { started: true, method: 'test' };
+      })
+    })).toBe(1);
+
+    expect(played).toEqual(['event_2']);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 3,
+      pendingFrameCount: 0,
+      paused: false
+    });
+  });
+
+  test('can align an unplayed visual version back to the incoming frame base', async () => {
+    const played: string[] = [];
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 2
+    });
+
+    timeline.enqueueFrames([frame(1, 1, 2)], {
+      source: 'stream',
+      allowBaseCursorAdvance: true
+    });
+
+    expect(await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
+        played.push(events[0].type);
+        return { started: true, method: 'test' };
+      })
+    })).toBe(1);
+
+    expect(played).toEqual(['event_1']);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 2,
+      pendingFrameCount: 0,
+      paused: false
+    });
+  });
+
+  test('journal recovery can align base cursor when a later stream frame is already pending', async () => {
+    const played: string[] = [];
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1
+    });
+
+    timeline.enqueueFrames([frame(2, 1, 2, 'stream_2')], {
+      source: 'stream',
+      allowBaseCursorAdvance: false
+    });
+    timeline.enqueueFrames([
+      frame(1, 0, 1, 'journal_1'),
+      frame(2, 1, 2, 'journal_2')
+    ], {
+      source: 'journal_recovery',
+      allowBaseCursorAdvance: true
+    });
+
+    expect(await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
+        played.push(events[0].type);
+        return { started: true, method: 'test' };
+      })
+    })).toBe(2);
+
+    expect(played).toEqual(['journal_1', 'stream_2']);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 2,
+      pendingFrameCount: 0,
+      paused: false
+    });
   });
 
   test('ignores duplicate visualSeq entries', async () => {
@@ -99,6 +268,54 @@ describe('NetworkPresentationTimeline', () => {
       visualSeq: 1,
       visualVersion: 2,
       pendingFrameCount: 0
+    });
+  });
+
+  test('state sync catch-up plays journal gap and skips duplicated direct frame once', async () => {
+    const played: string[] = [];
+    const committed: number[] = [];
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 1,
+      initialVisualVersion: 2,
+      visualStateStore: {
+        commitFrame: jest.fn((playedFrame: any) => committed.push(playedFrame.visualSeq))
+      }
+    });
+
+    expect(timeline.enqueueFrames([frame(3, 3, 4, 'direct_3')], {
+      source: 'state_sync',
+      allowBaseCursorAdvance: false
+    })).toBe(1);
+
+    expect(await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
+        played.push(events[0].type);
+        return { started: true, method: 'test' };
+      })
+    })).toBe(0);
+
+    expect(timeline.enqueueFrames([
+      frame(2, 2, 3, 'journal_2'),
+      frame(3, 3, 4, 'journal_duplicate_3')
+    ], {
+      source: 'state_sync',
+      allowBaseCursorAdvance: false
+    })).toBe(1);
+
+    expect(await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async (events: any[]) => {
+        played.push(events[0].type);
+        return { started: true, method: 'test' };
+      })
+    })).toBe(2);
+
+    expect(played).toEqual(['journal_2', 'direct_3']);
+    expect(committed).toEqual([2, 3]);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 3,
+      visualVersion: 4,
+      pendingFrameCount: 0,
+      paused: false
     });
   });
 

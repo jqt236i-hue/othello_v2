@@ -87,15 +87,15 @@ describe('visual-effects map shared between game/ui', () => {
       'rainbowStone'
     ]);
     expect(first.started).toEqual(expect.arrayContaining([
-      'assets/images/stones/gold_stone.png',
-      'assets/images/stones/silver.stone.png',
-      'assets/images/stones/rainbow_stone.png'
+      'assets/images/special-stones/gold_stone.png',
+      'assets/images/special-stones/silver.stone.png',
+      'assets/images/special-stones/rainbow_stone.png'
     ]));
-    expect(created.filter((src) => src === 'assets/images/stones/rainbow_stone.png')).toHaveLength(1);
+    expect(created.filter((src) => src === 'assets/images/special-stones/rainbow_stone.png')).toHaveLength(1);
 
     const second = window.preloadStoneVisualEffectKeys(['rainbowStone']);
     expect(second.started).toHaveLength(0);
-    expect(second.skipped).toContain('assets/images/stones/rainbow_stone.png');
+    expect(second.skipped).toContain('assets/images/special-stones/rainbow_stone.png');
   });
 
   test('CRYSTAL_STONE no longer resolves to a special stone visual', async () => {
@@ -309,8 +309,8 @@ describe('visual-effects map shared between game/ui', () => {
     expect(shared.resolveCardVisualImagePath('ULTIMATE_REVERSE_DRAGON')).toContain('ultimate_reverse_dragon-black.png');
     expect(shared.getCardVisualImagePaths('ULTIMATE_REVERSE_DRAGON')).toEqual(
       expect.arrayContaining([
-        'assets/images/stones/ultimate_reverse_dragon-black.png',
-        'assets/images/stones/ultimate_reverse_dragon-white.png'
+        'assets/images/special-stones/ultimate_reverse_dragon-black.png',
+        'assets/images/special-stones/ultimate_reverse_dragon-white.png'
       ])
     );
     expect(shared.cardTypeUsesNonNormalStoneImage('ULTIMATE_REVERSE_DRAGON')).toBe(true);

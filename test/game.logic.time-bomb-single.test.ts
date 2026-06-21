@@ -101,6 +101,7 @@ describe('CardTimeBomb.tickBombAt', () => {
   test('makes destroy evade skip all blast cells from the same explosion', () => {
     const cardState = {
       turnIndex: 10,
+      _defaultRandomSource: { random: () => 0 },
       markers: [
         { id: 1, kind: 'specialStone', row: 3, col: 3, owner: 'black', createdSeq: 1, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 5 } },
         {

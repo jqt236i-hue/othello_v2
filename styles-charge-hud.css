@@ -1,6 +1,6 @@
 /* ===== Charge HUD Layer, Counters, and Delta Popups ===== */
 
-/* Charge HUD sits above hands while board frame shadows stay below them. */
+/* Charge HUD sits above the elevated board stack and the hand areas. */
 #charge-hud-layer {
     position: absolute;
     inset: 0;
@@ -13,22 +13,24 @@
 .charge-display {
     position: absolute;
     box-sizing: border-box;
-    min-width: calc(116px * var(--layout-stage-scale));
-    height: calc(24px * var(--layout-stage-scale));
+    width: calc(154px * var(--layout-stage-scale));
+    min-width: 0;
+    height: calc(36px * var(--layout-stage-scale));
     display: flex;
     align-items: center;
     justify-content: center;
     gap: calc(3px * var(--layout-stage-scale));
-    padding: var(--layout-size-charge-pad-y) var(--layout-size-charge-pad-x);
-    background:
-        linear-gradient(180deg, rgba(62, 48, 29, 0.99), rgba(18, 14, 10, 0.99)),
-        linear-gradient(135deg, rgba(255, 244, 214, 0.07), transparent 46%, rgba(255, 206, 103, 0.06) 100%);
-    border: var(--layout-size-charge-border) solid rgba(190, 146, 48, 0.74);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    color: #ffd700;
+    padding: 0 calc(20px * var(--layout-stage-scale));
+    border: 0;
+    border-radius: 0;
+    background-image: url("assets/images/other/charge-counter-wafu-v1.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    color: #f7d78d;
     font-family: var(--selected-app-font-readable-family);
     font-size: var(--layout-size-charge-font);
-    font-weight: 700;
+    font-weight: 800;
     line-height: 1;
     letter-spacing: 0;
     font-variant-numeric: tabular-nums;
@@ -39,50 +41,40 @@
     pointer-events: none;
     z-index: var(--layout-z-charge-display);
     box-shadow: none;
-    text-shadow: none;
+    filter: drop-shadow(var(--ui-drop-shadow-panel));
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9),
+        0 0 calc(5px * var(--layout-stage-scale)) rgba(255, 214, 129, 0.18);
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
 }
 
 .charge-display::before {
-    content: "";
-    position: absolute;
-    left: calc(10px * var(--layout-stage-scale));
-    right: calc(10px * var(--layout-stage-scale));
-    top: calc(2px * var(--layout-stage-scale));
-    height: calc(38% * 1);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, rgba(255, 251, 237, 0.14), rgba(255, 251, 237, 0) 100%);
-    pointer-events: none;
+    content: none;
 }
 
 .charge-display::after {
-    content: "";
-    position: absolute;
-    inset: calc(3px * var(--layout-stage-scale));
-    border-radius: calc(999px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 224, 138, 0.08);
-    pointer-events: none;
+    content: none;
 }
 
 .charge-display .charge-label {
-    color: rgba(255, 220, 150, 0.58);
-    font-size: calc(9px * var(--layout-stage-scale));
-    font-weight: 700;
-    letter-spacing: calc(0.8px * var(--layout-stage-scale));
+    color: rgba(238, 191, 107, 0.84);
+    font-size: calc(9.5px * var(--layout-stage-scale));
+    font-weight: 800;
+    letter-spacing: 0;
 }
 
 .charge-display .charge-current {
-    color: #ffe5a0;
-    font-size: calc(18.5px * var(--layout-stage-scale));
-    font-weight: 800;
+    color: #ffe9ae;
+    font-size: calc(20px * var(--layout-stage-scale));
+    font-weight: 900;
 }
 
 .charge-display .charge-separator,
 .charge-display .charge-max {
-    color: rgba(255, 221, 149, 0.72);
-    font-size: calc(10.5px * var(--layout-stage-scale));
-    font-weight: 700;
+    color: rgba(255, 224, 159, 0.82);
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 800;
 }
 
 .charge-display .time-stop-status-badge {
@@ -117,14 +109,14 @@
 
 #charge-white {
     left: 50%;
-    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset));
+    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 14px);
     transform: translateX(-50%);
 }
 
 .pass-streak-status {
     position: absolute;
     left: 50%;
-    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset) - (31px * var(--layout-stage-scale)));
+    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset) - (25px * var(--layout-stage-scale)) - 6px);
     transform: translateX(-50%);
     box-sizing: border-box;
     width: max-content;
@@ -218,28 +210,24 @@
 }
 
 .charge-delta {
-    --charge-delta-core: rgba(154, 226, 255, 0.98);
-    --charge-delta-flare: rgba(80, 170, 255, 0.42);
-    --charge-delta-edge: rgba(176, 235, 255, 0.76);
-    --charge-delta-panel: rgba(12, 24, 38, 0.78);
     position: absolute;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--layout-size-charge-delta-min-width);
+    width: var(--layout-size-charge-delta-min-width);
+    min-width: 0;
     height: var(--layout-size-charge-delta-height);
-    padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
-    border: var(--layout-size-charge-delta-border) solid var(--charge-delta-edge);
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background:
-        linear-gradient(90deg, transparent 0%, var(--charge-delta-flare) 48%, transparent 100%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 42%),
-        linear-gradient(180deg, var(--charge-delta-panel), rgba(8, 14, 24, 0.88));
+    padding: 0 calc(10px * var(--layout-stage-scale));
+    border: 0;
+    border-radius: 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
     color: #f2fbff;
     font-family: var(--selected-app-font-readable-family);
     font-size: var(--layout-size-charge-delta-font);
-    font-weight: 800;
+    font-weight: 900;
     line-height: 1;
     letter-spacing: 0;
     font-variant-numeric: tabular-nums;
@@ -249,13 +237,11 @@
     -moz-osx-font-smoothing: grayscale;
     pointer-events: none;
     z-index: var(--layout-z-charge-delta);
-    box-shadow:
-        0 calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.18),
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.34);
+    box-shadow: none;
+    filter: drop-shadow(0 calc(4px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42));
     text-shadow:
-        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.64),
-        0 0 calc(4px * var(--layout-stage-scale)) var(--charge-delta-flare);
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.74),
+        0 0 calc(4px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.18);
     opacity: 0;
     transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) scale(0.88);
     transition: opacity 0s linear, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -269,31 +255,11 @@
 }
 
 .charge-delta::before {
-    content: "";
-    position: absolute;
-    left: calc(5px * var(--layout-stage-scale));
-    right: calc(5px * var(--layout-stage-scale));
-    top: calc(3px * var(--layout-stage-scale));
-    height: calc(2px * var(--layout-stage-scale));
-    border-radius: calc(999px * var(--layout-stage-scale));
-    background:
-        linear-gradient(90deg, transparent, var(--charge-delta-core) 48%, transparent);
-    opacity: 0.7;
-    pointer-events: none;
+    content: none;
 }
 
 .charge-delta::after {
-    content: "";
-    position: absolute;
-    left: calc(-6px * var(--layout-stage-scale));
-    right: calc(-6px * var(--layout-stage-scale));
-    bottom: calc(-3px * var(--layout-stage-scale));
-    height: calc(5px * var(--layout-stage-scale));
-    border-radius: 50%;
-    background:
-        radial-gradient(ellipse at 50% 50%, var(--charge-delta-flare) 0%, rgba(0, 0, 0, 0) 70%);
-    opacity: 0.55;
-    pointer-events: none;
+    content: none;
 }
 
 .charge-delta.is-side-left {
@@ -307,13 +273,13 @@
 }
 
 .charge-delta.is-above {
-    --charge-delta-drift-x: 0px;
+    --charge-delta-drift-x: 0;
     transform-origin: center bottom;
 }
 
 .charge-delta.is-restart {
     opacity: 0 !important;
-    transform: translate3d(var(--charge-delta-drift-x, 0px), var(--layout-size-charge-delta-shift-y-start), 0) !important;
+    transform: translate3d(var(--charge-delta-drift-x, 0), var(--layout-size-charge-delta-shift-y-start), 0) !important;
     transition: none !important;
 }
 
@@ -337,17 +303,11 @@
 }
 
 .charge-delta.is-increase {
-    --charge-delta-core: rgba(154, 226, 255, 0.98);
-    --charge-delta-flare: rgba(80, 170, 255, 0.42);
-    --charge-delta-edge: rgba(176, 235, 255, 0.76);
-    --charge-delta-panel: rgba(12, 26, 44, 0.82);
+    background-image: url("assets/images/other/charge-delta-increase-wafu-v1.png");
     color: #eefbff;
 }
 
 .charge-delta.is-decrease {
-    --charge-delta-core: rgba(255, 177, 182, 0.94);
-    --charge-delta-flare: rgba(228, 82, 104, 0.38);
-    --charge-delta-edge: rgba(255, 162, 174, 0.68);
-    --charge-delta-panel: rgba(46, 12, 22, 0.82);
+    background-image: url("assets/images/other/charge-delta-decrease-wafu-v1.png");
     color: #fff1f4;
 }

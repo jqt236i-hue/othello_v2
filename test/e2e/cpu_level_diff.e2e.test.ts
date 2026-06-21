@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
 
 function startServer(port = 0) {
   return startStaticServer(port);
@@ -34,6 +34,7 @@ describe('CPU level difference E2E', () => {
     });
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for selects
     await page.waitForSelector('#smartBlack');
@@ -90,6 +91,7 @@ describe('CPU level difference E2E', () => {
   test('white draw uses CPU hand image from level selects even when window cpuSmartness is not mirrored', async () => {
     page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${serverPort}/`);
+    await closeMaintenanceNoticeIfPresent(page);
 
     await page.click('#sidePanelToggleBtn');
     await page.waitForSelector('#smartBlack');

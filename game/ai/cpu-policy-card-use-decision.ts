@@ -68,6 +68,17 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         return (siphon * 2) - Math.max(0, Number(cardCost) || 0);
     }
 
+    function getEqualityWillStealableAmount(ownCharge: unknown, oppCharge: unknown): number {
+        const normalizedOwnCharge = Number.isFinite(Number(ownCharge))
+            ? Math.max(0, Math.floor(Number(ownCharge)))
+            : 0;
+        const availableOpponentCharge = Number.isFinite(Number(oppCharge))
+            ? Math.max(0, Math.floor(Number(oppCharge)))
+            : 0;
+        const playerChargeRoom = Math.max(0, 99 - normalizedOwnCharge);
+        return Math.min(10, availableOpponentCharge, playerChargeRoom);
+    }
+
     function scoreCardUseDecision(
         cardId: CpuPolicyCardId,
         getCardCost: CpuPolicyCardCostResolver,
@@ -937,14 +948,19 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         }
 
         if (isEqualityWill) {
-            score -= 24;
-            if (ctx.discDiff <= -10) score += 52;
-            else if (!ctx.forceUseCard) score -= 120;
-            if (ctx.discDiff <= -14) score += 24;
-            if (lowDiscEmergency) score += 18;
-            if (criticalLowDiscEmergency) score += 24;
-            if (ctx.empties <= 12) score -= 42;
-            else if (ctx.empties <= 18) score -= 16;
+            score -= 10;
+            if (ctx.ownCharge <= 0) {
+                const stealableAmount = getEqualityWillStealableAmount(ctx.ownCharge, ctx.oppCharge);
+                if (stealableAmount > 0) {
+                    score += 76 + (stealableAmount * 7);
+                    if (ctx.handSize >= 3) score += 20;
+                } else if (!ctx.forceUseCard) {
+                    score -= 130;
+                }
+            } else if (!ctx.forceUseCard) {
+                score -= 220;
+            }
+            if (ctx.empties <= 8) score -= 18;
         }
 
         if (isReinforcementWill) {

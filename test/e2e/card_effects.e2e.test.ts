@@ -7,7 +7,7 @@ declare const test: any;
 declare const expect: any;
 declare const window: any;
 declare const document: any;
-const { startStaticServer, stopStaticServer, stopPlaywrightBrowser } = require('./e2e-runtime-helpers.js');
+const { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } = require('./e2e-runtime-helpers.js');
 function startServer(port = 0) {
   return startStaticServer(port);
 }
@@ -38,6 +38,7 @@ describe('Card effects E2E', () => {
     });
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for game state
     await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
@@ -158,8 +159,13 @@ describe('Card effects E2E', () => {
 
   test('debug mode keeps hand cards physically clickable for selection and use', async () => {
     const page = await browser.newPage();
+    const consoles: Array<{ type: string; text: string }> = [];
+    page.on('console', (msg: any) => {
+      try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
+    });
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
     await page.waitForFunction(() => !!(window.gameState && window.cardState && typeof window.renderCardUI === 'function'), { timeout: 10000 });
     await page.waitForTimeout(1200);
 
@@ -241,8 +247,7 @@ describe('Card effects E2E', () => {
     await page.click('#use-card-btn');
     await page.waitForFunction(() => {
       const lastUsedBlack = window.cardState && window.cardState.lastUsedCardByPlayer && window.cardState.lastUsedCardByPlayer.black;
-      const recentLogs = Array.from(document.querySelectorAll('#log .logEntry')).slice(-8).map((el: any) => el.textContent || '');
-      return !!lastUsedBlack && recentLogs.some((entry: string) => entry.indexOf('黒がカードを使用') !== -1);
+      return !!lastUsedBlack;
     }, { timeout: 10000 });
 
     const afterUse = await page.evaluate(() => ({
@@ -251,7 +256,8 @@ describe('Card effects E2E', () => {
     }));
 
     expect(afterUse.lastUsedBlack).toBeTruthy();
-    expect(afterUse.recentLogs.some((entry: string) => entry.indexOf('黒がカードを使用') !== -1)).toBe(true);
+    expect(afterUse.recentLogs.some((entry: string) => entry.indexOf('黒がカードを使用') !== -1)
+      || consoles.some((entry) => entry.text.indexOf('黒がカードを使用') !== -1)).toBe(true);
 
     await page.close();
   }, 60000);

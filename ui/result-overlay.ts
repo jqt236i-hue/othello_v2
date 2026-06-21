@@ -29,16 +29,40 @@ const SCORE_CONFIG = Object.freeze({
 });
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
+const TIME_ATTACK_LIMIT_MS = 900000;
 const _observationStoneRewardByToken = new Map();
 const RESULT_REOPEN_BUTTON_ID = 'result-reopen-button';
 const RESULT_REOPEN_BUTTON_CLASS = 'result-reopen-button';
-const RESULT_REOPEN_TURN_CLASS = 'has-result-reopen-button';
+const RESULT_REOPEN_CONTAINER_CLASS = 'has-result-reopen-button';
 
 // Module-level token: survives gameState replacement by network snapshots.
 // Updated each time showResult() is called so stale delayed callbacks can detect
 // that a newer invocation has superseded them.
 let _pendingResultToken: any = null;
 let _resultPresentationActive = false;
+let _timeAttackStartedAt: number | null = null;
+
+function markTimeAttackStarted(startedAt?: any) {
+    if (_timeAttackStartedAt !== null) return _timeAttackStartedAt;
+    const value = Number.isFinite(Number(startedAt)) ? Math.trunc(Number(startedAt)) : Date.now();
+    _timeAttackStartedAt = Math.max(0, value);
+    return _timeAttackStartedAt;
+}
+
+function resetTimeAttackStarted() {
+    _timeAttackStartedAt = null;
+}
+
+function formatTimeAttackDuration(ms: any): string {
+    const value = Number(ms);
+    if (!Number.isFinite(value) || value <= 0) return '--';
+    const normalized = Math.trunc(value);
+    const centiseconds = Math.floor((normalized % 1000) / 10);
+    const totalSeconds = Math.floor(normalized / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+}
 
 function resolveResultOverlayModuleOrNull(id: string, globalName: string): any {
     if (typeof require === 'function') {
@@ -86,6 +110,7 @@ function ensureResultPresentationState(resultState: any) {
 function resetResultPresentationRuntimeState() {
     _pendingResultToken = null;
     _resultPresentationActive = false;
+    resetTimeAttackStarted();
     removeResultReopenButton();
 }
 
@@ -393,7 +418,7 @@ function saveScoreLeaderboard(payload: any) {
 
 function clampCpuLevel(value: any) {
     const level = toFiniteInteger(value, 1);
-    return Math.max(1, Math.min(6, level));
+    return Math.max(1, Math.min(9, level));
 }
 
 function resolveCpuLevelForViewer(viewerKey: any) {
@@ -508,6 +533,50 @@ function isDebugScoreSuppressed(): boolean {
     return false;
 }
 
+function resolveResultBoardConfig(): any {
+    try {
+        const stateRef = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
+            ? gameState
+            : null;
+        const explicit = stateRef && stateRef.boardConfig && typeof stateRef.boardConfig === 'object'
+            ? stateRef.boardConfig
+            : null;
+        const explicitRows = Number(explicit && explicit.rows);
+        const explicitCols = Number(explicit && explicit.cols);
+        if (Number.isFinite(explicitRows) && Number.isFinite(explicitCols)) {
+            const rows = Math.trunc(explicitRows);
+            const cols = Math.trunc(explicitCols);
+            return {
+                rows,
+                cols,
+                standard8x8: explicit.standard8x8 === true || (rows === 8 && cols === 8)
+            };
+        }
+
+        const board = stateRef && Array.isArray(stateRef.board) ? stateRef.board : null;
+        if (!board || board.length <= 0) return null;
+        let cols = 0;
+        for (let index = 0; index < board.length; index += 1) {
+            if (Array.isArray(board[index])) cols = Math.max(cols, board[index].length);
+        }
+        if (cols <= 0) return null;
+        return {
+            rows: board.length,
+            cols,
+            standard8x8: board.length === 8 && cols === 8
+        };
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function isResultRankingBoardEligible(): boolean {
+    const boardConfig = resolveResultBoardConfig();
+    if (!boardConfig) return true;
+    return boardConfig.standard8x8 === true
+        && Math.trunc(Number(boardConfig.rows)) === 8
+        && Math.trunc(Number(boardConfig.cols)) === 8;
+}
+
 function computeScoreSummaryForViewer(options: any) {
     const opts = options || {};
     const counts = opts.counts || { black: 0, white: 0 };
@@ -554,6 +623,12 @@ function computeScoreSummaryForViewer(options: any) {
 
 function updateCpuLeaderboard(scoreSummary: any, viewerKey: any) {
     const cpuLevel = resolveCpuLevelForViewer(viewerKey);
+    if (!isResultRankingBoardEligible()) {
+        return { mode: 'custom-board', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
+    }
+    if (isDebugScoreSuppressed()) {
+        return { mode: 'debug', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
+    }
     if (!isCpuMatchMode()) {
         return { mode: 'network', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
     }
@@ -626,6 +701,44 @@ function createScoreMetaLine(scoreSummary: any, leaderboardState: any) {
         : Math.max(0, toFiniteInteger(scoreSummary.total, 0));
     const updatedSuffix = (leaderboardState.enabled && leaderboardState.updated) ? '（自己最高更新）' : '';
     line.textContent = `CPU Lv${leaderboardState.cpuLevel} 最高点 ${bestScore}${updatedSuffix}`;
+    return line;
+}
+
+function resolveTimeAttackSummary(localOutcomeKey: any, options?: any) {
+    const opts = options || {};
+    const startedAt = Number.isFinite(Number(opts.startedAt))
+        ? Math.max(0, Math.trunc(Number(opts.startedAt)))
+        : _timeAttackStartedAt;
+    const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.trunc(Number(opts.nowMs)) : Date.now();
+    const debugSuppressed = isDebugScoreSuppressed();
+    const elapsedMs = startedAt !== null ? Math.max(0, Math.trunc(nowMs - Number(startedAt))) : null;
+    const won = localOutcomeKey === 'win';
+    const overLimit = Number.isFinite(Number(elapsedMs)) && Number(elapsedMs) > TIME_ATTACK_LIMIT_MS;
+    const eligible = won && !debugSuppressed && elapsedMs !== null && elapsedMs > 0 && !overLimit;
+
+    return {
+        eligible,
+        elapsedMs: eligible ? elapsedMs : null,
+        rawElapsedMs: elapsedMs,
+        overLimit,
+        debugSuppressed,
+        won
+    };
+}
+
+function createTimeAttackLine(summary: any) {
+    const line = document.createElement('div');
+    line.className = 'result-time-attack';
+    const elapsedText = summary && summary.eligible
+        ? formatTimeAttackDuration(summary.elapsedMs)
+        : '--';
+    line.textContent = `速攻 ${elapsedText}`;
+    if (summary && summary.overLimit) {
+        const reason = document.createElement('span');
+        reason.className = 'result-time-attack-reason';
+        reason.textContent = '15:00超過';
+        line.appendChild(reason);
+    }
     return line;
 }
 
@@ -756,9 +869,9 @@ function isLoopbackHostForResult(value: any) {
     return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]' || host.endsWith('.localhost');
 }
 
-function canAutoSubmitSharedLeaderboard(client: any) {
+function canAutoSubmitSharedLeaderboard(client: any, methodName: string = 'submitScore') {
     try {
-        if (!client || typeof client.submitScore !== 'function') return false;
+        if (!client || typeof client[methodName] !== 'function') return false;
         if (typeof client.resolveServerBaseUrl !== 'function') return true;
 
         const baseUrl = withTrailingSlashRemovedForResult(client.resolveServerBaseUrl({}));
@@ -783,12 +896,14 @@ function canAutoSubmitSharedLeaderboard(client: any) {
 function submitSharedLeaderboardScore(scoreSummary: any, viewerKey: any) {
     try {
         if (typeof window === 'undefined') return;
+        if (!isResultRankingBoardEligible()) return;
+        if (isDebugScoreSuppressed()) return;
         const client = window.LeaderboardClient;
         if (!canAutoSubmitSharedLeaderboard(client)) return;
 
         const mode = resolveCurrentMatchMode();
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10 })
+        client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, boardConfig: resolveResultBoardConfig() })
             .then((result: any) => {
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
@@ -811,6 +926,38 @@ function removeExistingResultOverlay(options: any = {}) {
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 }
 
+function submitSharedLeaderboardTimeAttack(timeAttackSummary: any, viewerKey: any) {
+    try {
+        if (!timeAttackSummary || timeAttackSummary.eligible !== true) return;
+        if (typeof window === 'undefined') return;
+        if (!isResultRankingBoardEligible()) return;
+        const mode = resolveCurrentMatchMode();
+        if (mode !== 'cpu') return;
+        if (isDebugScoreSuppressed()) return;
+        const client = window.LeaderboardClient;
+        if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeAttack')) return;
+
+        const cpuLevel = resolveCpuLevelForViewer(viewerKey);
+        client.submitTimeAttack({ elapsedMs: timeAttackSummary.elapsedMs }, {
+            mode,
+            cpuLevel,
+            limit: 10,
+            debug: isDebugScoreSuppressed(),
+            boardConfig: resolveResultBoardConfig()
+        })
+            .then((result: any) => {
+                if (result && result.ok) {
+                    notifySharedLeaderboardUpdated({
+                        category: 'timeAttack',
+                        updated: !!result.updated,
+                        rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                    });
+                }
+            })
+            .catch(() => {});
+    } catch (e: any) { /* ignore */ }
+}
+
 function removeResultReopenButton() {
     const doc = (typeof document !== 'undefined') ? document : null;
     if (!doc) return false;
@@ -819,20 +966,34 @@ function removeResultReopenButton() {
     if (button && button.parentNode) button.parentNode.removeChild(button);
 
     try {
-        const turns = Array.from(doc.querySelectorAll(`.battle-status-turn.${RESULT_REOPEN_TURN_CLASS}`));
-        turns.forEach((turn: any) => {
-            if (turn && turn.classList) turn.classList.remove(RESULT_REOPEN_TURN_CLASS);
+        const containers = Array.from(doc.querySelectorAll(`.${RESULT_REOPEN_CONTAINER_CLASS}`));
+        containers.forEach((container: any) => {
+            if (container && container.classList) container.classList.remove(RESULT_REOPEN_CONTAINER_CLASS);
         });
     } catch (e: any) { /* ignore */ }
 
     return !!button;
 }
 
+function resolveResultReopenButtonTarget(doc: Document) {
+    const viewerKey = parseResultPlayerKey(resolveResultViewerKey()) || 'black';
+    const handTarget = doc.getElementById(`hand-${viewerKey}`) as HTMLElement | null;
+    if (handTarget) return handTarget;
+
+    const blackHand = doc.getElementById('hand-black') as HTMLElement | null;
+    if (blackHand) return blackHand;
+
+    const firstHand = doc.querySelector('.hand-container') as HTMLElement | null;
+    if (firstHand) return firstHand;
+
+    return doc.querySelector('.battle-status-turn') as HTMLElement | null;
+}
+
 function ensureResultReopenButton() {
     const doc = (typeof document !== 'undefined') ? document : null;
     if (!doc) return null;
 
-    const target = doc.querySelector('.battle-status-turn') as HTMLElement | null;
+    const target = resolveResultReopenButtonTarget(doc);
     if (!target) return null;
 
     let button = doc.getElementById(RESULT_REOPEN_BUTTON_ID) as HTMLButtonElement | null;
@@ -857,7 +1018,7 @@ function ensureResultReopenButton() {
         target.appendChild(button);
     }
 
-    target.classList.add(RESULT_REOPEN_TURN_CLASS);
+    target.classList.add(RESULT_REOPEN_CONTAINER_CLASS);
     button.hidden = false;
     button.removeAttribute('aria-hidden');
     button.disabled = false;
@@ -1075,6 +1236,9 @@ function showResultOverlay(options?: any) {
     const observationStoneSummary = othelloMode
         ? null
         : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey);
+    const timeAttackSummary = othelloMode
+        ? null
+        : resolveTimeAttackSummary(localOutcomeKey);
 
     const scoreSummary = computeScoreSummaryForViewer({
         counts,
@@ -1086,6 +1250,7 @@ function showResultOverlay(options?: any) {
     });
     const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardScore(scoreSummary, viewerKey);
+    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeAttack(timeAttackSummary, viewerKey);
 
     hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });
@@ -1122,6 +1287,9 @@ function showResultOverlay(options?: any) {
 
         const scoreMeta = createScoreMetaLine(scoreSummary, leaderboardState);
         panel.appendChild(scoreMeta);
+
+        const timeAttackLine = createTimeAttackLine(timeAttackSummary);
+        panel.appendChild(timeAttackLine);
     }
 
     const observationStoneLine = createObservationStoneLine(observationStoneSummary);
@@ -1381,6 +1549,10 @@ const ResultOverlay = {
     createObservationStoneLine,
     resolveCpuLevelForViewer,
     resolveCurrentMatchMode,
+    markTimeAttackStarted,
+    resetTimeAttackStarted,
+    resolveTimeAttackSummary,
+    formatTimeAttackDuration,
     syncQuickResetButtonLabelForResultState
 };
 export = ResultOverlay;

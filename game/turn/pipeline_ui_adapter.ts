@@ -494,7 +494,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             reason.indexOf('reverse_will_flip') === 0 ||
             reason.indexOf('regen_triggered') === 0 ||
             reason.indexOf('regen_capture_flip') === 0 ||
-            reason.indexOf('equality_will_flip') === 0 ||
             reason.indexOf('reinforcement_will_flip') === 0 ||
             reason.indexOf('support_troops_will_flip') === 0 ||
             reason.indexOf('salvation_flip') === 0 ||
@@ -817,11 +816,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     const CARD_EFFECT_SPAWN_PLAYBACK_UI_META = Object.freeze({
-        equality_will_spawn: Object.freeze({
-            rawResolvedType: 'equality_will_resolved',
-            soundSourceType: 'equality_will_spawn',
-            phaseStartIndex: 2
-        }),
         reinforcement_will_spawn: Object.freeze({
             rawResolvedType: 'reinforcement_will_resolved',
             soundSourceType: 'reinforcement_will_spawn',

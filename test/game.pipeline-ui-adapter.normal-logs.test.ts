@@ -43,9 +43,9 @@ describe('pipeline_ui_adapter normal logs', () => {
 
   test('maps equality resolution to player-facing effect log', () => {
     const out = Adapter.mapEffectLogsFromPipeline([
-      { type: 'equality_will_resolved', player: 'black', spawnedCount: 3, flippedCount: 2 }
+      { type: 'equality_will_resolved', player: 'black', stolenAmount: 10 }
     ], [], 'black');
-    expect(out).toEqual(['黒: 平等の意志: 通常石3個を生成、2枚を反転']);
+    expect(out).toEqual(['黒: 平等の意志: 布石を10奪取']);
   });
 
   test('maps reinforcement resolution to player-facing effect log', () => {

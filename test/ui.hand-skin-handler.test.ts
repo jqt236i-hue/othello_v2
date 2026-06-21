@@ -16,8 +16,11 @@ describe('hand skin handler', () => {
         <div id="appearancePanelTabs">
           <button id="appearanceTabHand" type="button"></button>
           <button id="appearanceTabBackground" type="button"></button>
+          <button id="appearanceTabBoard" type="button"></button>
+          <button id="appearanceTabBoardFrame" type="button"></button>
           <button id="appearanceTabFont" type="button"></button>
           <button id="appearanceTabStone" type="button"></button>
+          <button id="appearanceTabPreset" type="button"></button>
         </div>
         <div id="handSkinSection">
           <div id="handSkinOptions"></div>
@@ -25,11 +28,22 @@ describe('hand skin handler', () => {
         <div id="backgroundSkinSection" hidden>
           <div id="backgroundSkinOptions"></div>
         </div>
+        <div id="boardSkinSection" hidden>
+          <div id="boardSkinOptions"></div>
+        </div>
+        <div id="boardFrameSkinSection" hidden>
+          <div id="boardFrameSkinOptions"></div>
+        </div>
         <div id="fontSkinSection" hidden>
           <div id="fontSkinOptions"></div>
         </div>
         <div id="stoneSkinSection" hidden>
           <div id="stoneSkinOptions"></div>
+        </div>
+        <div id="appearancePresetSection" hidden>
+          <input id="appearancePresetNameInput" />
+          <button id="appearancePresetSaveBtn" type="button"></button>
+          <div id="appearancePresetList"></div>
         </div>
       </div>
       <img id="handImage" src="assets/images/hand-skin/勇者の手.png" alt="" />
@@ -246,14 +260,91 @@ describe('hand skin handler', () => {
 
     document.getElementById('handSkinBtn').click();
     document.getElementById('appearanceTabStone').click();
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('jade-rim');
     document.querySelector('[data-stone-skin-id="o-stone"]').click();
+    document.querySelector('[data-stone-skin-id="jade-rim"]').click();
 
-    expect(window.localStorage.getItem('othello.stoneSkin')).toBe('o-stone');
-    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
-    expect(document.documentElement.style.getPropertyValue('--normal-stone-black-image')).toBe('url("assets/images/stone-skin/o-stone/black.png")');
-    expect(document.documentElement.style.getPropertyValue('--normal-stone-white-image')).toBe('url("assets/images/stone-skin/o-stone/white.png")');
+    expect(window.localStorage.getItem('othello.stoneSkin')).toBe('jade-rim');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('jade-rim');
+    expect(document.documentElement.style.getPropertyValue('--normal-stone-black-image')).toBe('url("assets/images/stone-skin/jade-rim/black.png")');
+    expect(document.documentElement.style.getPropertyValue('--normal-stone-white-image')).toBe('url("assets/images/stone-skin/jade-rim/white.png")');
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
     expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+  });
+
+  test('board tab persists selected board surface without affecting the selected hand skin', () => {
+    unlockAltGachaHandSkin();
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    const board = document.createElement('div');
+    board.id = 'board';
+    document.body.appendChild(board);
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    document.getElementById('handSkinBtn').click();
+    document.getElementById('appearanceTabBoard').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="emerald-stone"]').click();
+
+    expect(window.localStorage.getItem('othello.boardSkin')).toBe('emerald-stone');
+    expect(window.localStorage.getItem('reversi.boardSkin')).toBe('emerald-stone');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
+    expect(board.getAttribute('data-board-skin-id')).toBe('emerald-stone');
+    expect(board.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-emerald-v1.png")');
+    expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+  });
+
+  test('preset tab saves current appearance, reapplies it, and deletes it', () => {
+    unlockAltGachaHandSkin();
+    const board = document.createElement('div');
+    board.id = 'board';
+    document.body.appendChild(board);
+    const boardFrame = document.createElement('div');
+    boardFrame.id = 'board-frame';
+    document.body.appendChild(boardFrame);
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    document.getElementById('handSkinBtn').click();
+    api.selectSkin(ALT_GACHA_HAND_SKIN_ID);
+    document.getElementById('appearanceTabBoard').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="emerald-stone"]').click();
+    document.getElementById('appearanceTabBoardFrame').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="compact-brass-clean-corners"]').click();
+    document.getElementById('appearanceTabFont').click();
+    document.querySelector('[data-font-skin-id="dot-gothic"]').click();
+    document.getElementById('appearanceTabStone').click();
+    document.querySelector('[data-stone-skin-id="o-stone"]').click();
+
+    document.getElementById('appearanceTabPreset').click();
+    document.getElementById('appearancePresetSaveBtn').click();
+
+    const savedPreset = document.querySelector('.appearance-preset-apply');
+    expect(savedPreset.textContent).toContain('プリセット1');
+    expect(window.localStorage.getItem('reversi.appearancePresets')).toContain('emerald-stone');
+
+    api.selectSkin('default');
+    document.getElementById('appearanceTabBoard').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="woven-felt"]').click();
+    document.getElementById('appearanceTabBoardFrame').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="black-gold-lacquer"]').click();
+    document.getElementById('appearanceTabFont').click();
+    document.querySelector('[data-font-skin-id="shippori-mincho"]').click();
+    document.getElementById('appearanceTabStone').click();
+    document.querySelector('[data-stone-skin-id="jade-rim"]').click();
+
+    document.getElementById('appearanceTabPreset').click();
+    document.querySelector('.appearance-preset-apply').click();
+
+    expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('compact-brass-clean-corners');
+    expect(document.body.getAttribute('data-font-skin-id')).toBe('dot-gothic');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
+
+    document.querySelector('.appearance-preset-delete').click();
+    expect(document.querySelector('.appearance-preset-apply')).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem('reversi.appearancePresets')).presets).toEqual([]);
   });
 
   test('unowned gacha skin in storage falls back to default', () => {
@@ -468,5 +559,9 @@ describe('hand skin handler', () => {
     expect(html).toMatch(/id="fontSkinOptions"/);
     expect(html).toMatch(/id="appearanceTabStone"/);
     expect(html).toMatch(/id="stoneSkinOptions"/);
+    expect(html).toMatch(/id="appearanceTabBoard"/);
+    expect(html).toMatch(/id="boardSkinOptions"/);
+    expect(html).toMatch(/id="appearanceTabPreset"/);
+    expect(html).toMatch(/id="appearancePresetSection"/);
   });
 });

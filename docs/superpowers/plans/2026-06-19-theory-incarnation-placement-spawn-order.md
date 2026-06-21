@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Change `理論の化身` so it rewrites theory-number cells, manifests, then spawns by roulette after placement; on later owner turns it allows normal legal placement, spawns after that placement, grants no charge from theory spawns, and lasts 4 owner turns.
+**Goal:** Change `理論の化身` so it rewrites theory-number cells, manifests, then spawns by roulette after placement; on later owner turns it allows normal legal placement, spawns after that placement, grants no charge from selected theory-number cell values, grants normal charge for actual spawn flips, and lasts 4 owner turns.
 
 **Architecture:** Keep canonical rule changes in `game/logic/card-resolution/theory-incarnation*` and turn sequencing in `game/turn/*`. Preserve the existing headless event pipeline and roulette presentation event; UI only consumes updated events/text and must not decide spawn results.
 
@@ -16,7 +16,7 @@
 - Later owner turns while active: owner cannot use cards; if a legal move exists, owner places a normal stone first, then theory roulette starts, then a special stone appears, then the turn ends.
 - If no legal move exists, the owner makes a normal pass. The pass does not trigger theory roulette. This plan consumes one owner-turn duration on that pass so `4ターン持続` remains literal.
 - Theory-spawned special stones still place on the selected theory-number cell, still flip bracketed stones, still fire immediate placement effects, and still consume the selected theory-number cell.
-- Theory-spawned special stones grant `0` charge and do not increase `numberCellCollectedTotalByPlayer`.
+- Theory-spawned special stones do not grant the selected theory-number cell value and do not increase `numberCellCollectedTotalByPlayer`; actual stones flipped by that spawn grant normal flip charge.
 - Duration changes from 5 owner turns to 4 owner turns. The initial manifest-placement spawn does not consume the 4 later owner-turn duration, so the maximum spawn count is 5: initial manifest spawn plus up to 4 later owner-placement spawns.
 - `理論の化身` still locks the owner out of card use while active. It no longer locks normal stone placement.
 - Root files are source of truth. Do not edit `worker-public/`, `dist/`, generated catalog projections, or `public/module-registry.js` as source.
@@ -122,7 +122,7 @@ In `### 10.23.1.0 THEORY_INCARNATION（理論の化身）`, replace the current 
 - 理論の化身で出現した特殊石が配置直後効果を持つ場合、顕現石の配置直後出現と所有者の石配置後出現のどちらでも、出現直後に同じ即時効果を発動する
 - 理論の化身で出現する特殊石は、確定した理論数字マスへ通常配置と同じ反転判定で配置される。挟める列がある場合はその列の敵石を反転し、挟める列がない場合でも特殊石は出現する
 - 理論の化身による特殊石出現時は、候補理論マスを2.5秒の19ステップ固定ルーレットで点滅させ、確定マスをダーク発光させながら特殊石を約2秒かけてフェードインさせる
-- 理論の化身による特殊石出現では布石を獲得しない。確定した理論数字マス値も、実際に反転した石数も、布石獲得と理論の化身使用条件の数字マス獲得合計には加算しない
+- 理論の化身による特殊石出現では、確定した理論数字マス値による布石は獲得しない。ただし、出現時に実際に反転した枚数ぶんの布石は通常どおり獲得する。理論の化身使用条件の数字マス獲得合計には、理論数字マス値も出現時反転枚数も加算しない
 - 配置直後の特殊石出現は4ターンぶんの出現回数を消費しないため、理論数字マスに空きが残っていれば最大5回特殊石を出現できる
 - 理論の化身が持続終了で通常石へ戻るとき、未消費の理論数字マスは使用前の数字マス状態へ戻る。消費済みの理論数字マスは戻らない
 - 理論の化身は4ターン持続する不可侵の顕現石。持続終了時に通常石へ戻る
@@ -155,7 +155,7 @@ Replace the current theory sound/playback sentence with:
 Replace the `理論の化身` row description with this single-cell description:
 
 ```markdown
-自分が対局中に獲得した数字マスの印字値合計が42以上のときだけ使用できる。使用時に空きマスを特殊石カードのコストに対応した理論数字マスへ一時的に書き換え、次に置く自石を4ターン持続・不可侵の顕現石「理論の化身」にする。理論の化身を配置した直後にも、空いている理論数字マスからランダムに1マスを選んで対応コストの特殊石を1体出現させる。理論の化身が盤面にある間、所有者はカード使用できないが、通常の合法手で石を置ける。次ターン以降は所有者が通常の合法手で石を置いた後、空いている理論数字マスからランダムに1マスを選んで対応コストの特殊石を1体出現させる。合法手がない場合は通常どおりパスし、理論ルーレットも特殊石出現も発生しない。理論で出現した特殊石が配置直後効果を持つ場合、顕現石の配置直後出現と所有者の石配置後出現のどちらでも出現直後に同じ即時効果を発動する。出現時は確定マスで通常配置と同じ反転判定を行い、挟める列があれば反転する。挟める列がなくても特殊石の出現は成立する。理論召喚では布石を獲得せず、確定した理論数字マス値と実際に反転した石数は理論の化身使用条件の数字マス獲得合計にも加算しない。配置直後の出現は4ターンぶんの出現回数を消費しないため、最大5回特殊石を出現できる。理論の出現候補から罠石と時限爆弾は除外する。持続終了時、未消費の理論数字マスは使用前の数字マス状態へ戻り、消費済みマスは戻らない。
+自分が対局中に獲得した数字マスの印字値合計が42以上のときだけ使用できる。使用時に空きマスを特殊石カードのコストに対応した理論数字マスへ一時的に書き換え、次に置く自石を4ターン持続・不可侵の顕現石「理論の化身」にする。理論の化身を配置した直後にも、空いている理論数字マスからランダムに1マスを選んで対応コストの特殊石を1体出現させる。理論の化身が盤面にある間、所有者はカード使用できないが、通常の合法手で石を置ける。次ターン以降は所有者が通常の合法手で石を置いた後、空いている理論数字マスからランダムに1マスを選んで対応コストの特殊石を1体出現させる。合法手がない場合は通常どおりパスし、理論ルーレットも特殊石出現も発生しない。理論で出現した特殊石が配置直後効果を持つ場合、顕現石の配置直後出現と所有者の石配置後出現のどちらでも出現直後に同じ即時効果を発動する。出現時は確定マスで通常配置と同じ反転判定を行い、挟める列があれば反転する。挟める列がなくても特殊石の出現は成立する。理論召喚では確定した理論数字マス値による布石は獲得しないが、出現時に実際に反転した枚数ぶんの布石は獲得する。理論数字マス値と出現時反転枚数は理論の化身使用条件の数字マス獲得合計には加算しない。配置直後の出現は4ターンぶんの出現回数を消費しないため、最大5回特殊石を出現できる。理論の出現候補から罠石と時限爆弾は除外する。持続終了時、未消費の理論数字マスは使用前の数字マス状態へ戻り、消費済みマスは戻らない。
 ```
 
 - [ ] **Step 5: Update `正本/演出正本.md`**
@@ -201,7 +201,7 @@ Expected: commit succeeds and includes only the three spec files.
 Append this test inside `describe('理論の化身', () => {` in `test/game.theory-incarnation.test.ts`:
 
 ```ts
-test('理論召喚は布石と理論条件合計を増やさない', () => {
+test('理論召喚は理論数字マス値を加算せず反転枚数ぶん布石を獲得する', () => {
   const prng = createPrng([0]);
   const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
   const gameState = createGameState();
@@ -258,12 +258,12 @@ test('理論召喚は布石と理論条件合計を増やさない', () => {
   const result = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, 'black', prng);
 
   expect(result.spawned).toEqual(expect.objectContaining({
-    chargeGained: 0,
+    chargeGained: 1,
     theoryNumberValue: 33,
     flips: [{ row: 0, col: 1 }]
   }));
-  expect(cardState.charge.black).toBe(10);
-  expect(cardState.chargeGainedTotal.black).toBe(0);
+  expect(cardState.charge.black).toBe(11);
+  expect(cardState.chargeGainedTotal.black).toBe(1);
   expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
 });
 ```
@@ -334,7 +334,7 @@ test('理論石顕現中は通常配置後に理論ルーレットを発生さ�
     type: 'theory_incarnation_spawned',
     player: 'black',
     timing: 'after_owner_placement',
-    detail: expect.objectContaining({ type: 'GHOST', chargeGained: 0 })
+    detail: expect.objectContaining({ type: 'GHOST', chargeGained: 1 })
   }));
   expect(result.events.map((event: any) => event && event.type)).not.toContain('theory_incarnation_auto_turn_end');
   expect(cardState.theoryIncarnationStateByPlayer.black.remainingSpawnCount).toBe(3);
@@ -955,7 +955,7 @@ Expected: commit succeeds with only these files.
 
 ---
 
-### Task 5: Remove Theory Spawn Charge Gain
+### Task 5: Keep Theory Spawn Flip Charge Without Theory Number Charge
 
 **Files:**
 - Modify: `game/logic/card-resolution/theory-incarnation-spawn.ts`
@@ -963,22 +963,25 @@ Expected: commit succeeds with only these files.
 
 - [ ] **Step 1: Replace charge awarding helper**
 
-In `game/logic/card-resolution/theory-incarnation-spawn.ts`, replace `awardTheorySpawnCharge` with:
+In `game/logic/card-resolution/theory-incarnation-spawn.ts`, replace `awardTheorySpawnCharge` with a helper that ignores `numberValue` but awards `flipCount` through the normal board-charge metadata:
 
 ```ts
 function awardTheorySpawnCharge(cardState: any, ownerKey: PlayerKey, row: number, col: number, numberValue: number, flipCount: number, deps: any): number {
-    void cardState;
-    void ownerKey;
-    void row;
-    void col;
     void numberValue;
-    void flipCount;
-    void deps;
-    return 0;
+    const amount = Math.max(0, Math.trunc(Number(flipCount) || 0));
+    if (amount <= 0 || !deps || typeof deps.addChargeWithTotal !== 'function') {
+        return 0
+    }
+    return deps.addChargeWithTotal(cardState, ownerKey, amount, {
+        popupKind: 'board',
+        anchorRow: row,
+        anchorCol: col,
+        sourceType: 'theory_incarnation_flip_gain'
+    });
 }
 ```
 
-This keeps the public return field `chargeGained` stable while making the new rule explicit.
+This keeps the public return field `chargeGained` stable while making the new rule explicit: the theory number value is ignored for charge, and actual spawn flips still grant charge.
 
 - [ ] **Step 2: Remove unused import from theory spawn**
 
@@ -996,10 +999,10 @@ const {
 Run:
 
 ```powershell
-rg -n "theory_incarnation_spawn_gain|chargeGained:\\s*[1-9]|chargeGainedTotal\\.[a-z]+\\)\\.toBe\\([1-9]|numberCellCollectedTotalByPlayer\\.black\\)\\.toBe\\((5|47|75)\\)" test\game.theory-incarnation.test.ts game\logic\card-resolution\theory-incarnation-spawn.ts
+rg -n "theory_incarnation_spawn_gain|numberCellCollectedTotalByPlayer\\.black\\)\\.toBe\\((5|47|75)\\)|theoryNumberValue\\s*\\+" test\game.theory-incarnation.test.ts game\logic\card-resolution\theory-incarnation-spawn.ts
 ```
 
-Expected: no stale expectations that theory spawn grants charge or increases the theory condition total.
+Expected: no stale expectations that theory spawn grants the theory number cell value or increases the theory condition total. Positive `chargeGained` from actual spawn flips is expected.
 
 - [ ] **Step 4: Run focused theory tests**
 
@@ -1011,13 +1014,13 @@ npx jest --runInBand --runTestsByPath test\game.theory-incarnation.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit no-charge behavior**
+- [ ] **Step 5: Commit theory spawn charge behavior**
 
 Run:
 
 ```powershell
 git add game\logic\card-resolution\theory-incarnation-spawn.ts test\game.theory-incarnation.test.ts
-git commit -m "Stop theory spawn charge gain"
+git commit -m "Keep theory spawn flip charge"
 ```
 
 Expected: commit succeeds with only these files.
@@ -1101,7 +1104,7 @@ THEORY_INCARNATION: '空きマスを理論数字マス化し、理論の化身�
 Change the detail text to:
 
 ```ts
-THEORY_INCARNATION: '演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を4T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカード使用できないが、通常の合法手で石を置ける。\n次ターン以降は石を置いた後に理論数字マスから対応コストの特殊石がランダムで1体現れる。\n合法手がない場合は通常どおりパスし、理論ルーレットも特殊石出現も発生しない。\n理論召喚では布石を獲得せず、理論の化身使用条件の数字マス獲得合計にも加算しない。\n配置直後の出現は4Tぶんの出現回数を消費しないため、最大5回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
+THEORY_INCARNATION: '演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を4T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカード使用できないが、通常の合法手で石を置ける。\n次ターン以降は石を置いた後に理論数字マスから対応コストの特殊石がランダムで1体現れる。\n合法手がない場合は通常どおりパスし、理論ルーレットも特殊石出現も発生しない。\n理論召喚では理論数字マス値の布石を獲得しないが、出現時に反転した枚数ぶんの布石は獲得する。理論の化身使用条件の数字マス獲得合計には加算しない。\n配置直後の出現は4Tぶんの出現回数を消費しないため、最大5回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
 ```
 
 - [ ] **Step 3: Update manifest effect panel text**
@@ -1358,7 +1361,7 @@ If no generated or mirror files changed, skip this commit and record that no syn
   - No legal move pass without roulette is covered by Task 2 RED test and Task 4 pass helper.
   - Pass consumes one owner-turn duration but never spawns; this is made explicit in Requirements and Task 4.
   - Initial manifest-placement spawn does not consume the later 4-turn duration; Task 1 text and Task 4 `theoryManifestPlaced` wiring protect this.
-  - No charge and no theory-condition gain from spawned stones is covered by Task 2 RED test and Task 5 implementation.
+  - No theory-number-value charge and no theory-condition gain from spawned stones is covered by Task 2 RED test and Task 5 implementation; actual spawn flip charge remains covered there.
   - Duration 4 is covered by Task 1 docs, Task 3 constants/tags, and Task 7 UI text.
   - CPU behavior is covered by Task 6.
   - Player text and generated catalog are covered by Task 7.

@@ -19,6 +19,10 @@ function createSnapshot(stateVersion: number, label: string) {
   };
 }
 
+function flushAsyncWork() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 describe('network client visual catch-up', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -31,6 +35,7 @@ describe('network client visual catch-up', () => {
       })
     };
     (global as any).emitBoardUpdate = jest.fn();
+    (global as any).renderBoard = jest.fn();
     (global as any).emitCardStateChange = jest.fn();
     (global as any).emitGameStateChange = jest.fn();
   });
@@ -40,8 +45,11 @@ describe('network client visual catch-up', () => {
     delete (global as any).cardState;
     delete (global as any).BoardOps;
     delete (global as any).emitBoardUpdate;
+    delete (global as any).renderBoard;
+    delete (global as any).RenderScheduler;
     delete (global as any).emitCardStateChange;
     delete (global as any).emitGameStateChange;
+    delete (global as any).PresentationHandler;
   });
 
   test('keeps render snapshot behind canonical snapshot until the visual frame commits', () => {
@@ -99,5 +107,89 @@ describe('network client visual catch-up', () => {
       stateVersion: 2,
       gameState: { board: [['new']] }
     });
+  });
+
+  test('requests a board update after a network presentation frame commits', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect((global as any).emitBoardUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'network_timeline',
+      reason: 'presentation_frame_committed',
+      visualSeq: 1,
+      visualVersion: 2
+    }));
+    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
+  });
+
+  test('flushes queued RenderScheduler board updates before frame commit settles', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    const flushOrder: string[] = [];
+    (global as any).RenderScheduler = {
+      requestBoardRender: jest.fn(() => {
+        flushOrder.push('request');
+        return true;
+      }),
+      flushVisualUpdates: jest.fn(() => {
+        flushOrder.push('flush');
+        (global as any).renderBoard();
+        return true;
+      })
+    };
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect((global as any).RenderScheduler.requestBoardRender).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'network_timeline',
+      reason: 'presentation_frame_committed'
+    }));
+    expect((global as any).RenderScheduler.flushVisualUpdates).toHaveBeenCalledWith({
+      ignorePlayback: true
+    });
+    expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
   });
 });

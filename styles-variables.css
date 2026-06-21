@@ -64,7 +64,10 @@
     /* Shared z-index scale */
     --layout-z-board-frame: 10;
     --layout-z-player-area: 20;
-    --layout-z-charge-hud: 30;
+    --layout-z-charge-hud: 12020;
+    --layout-z-board-expansion-layer: 12025;
+    --layout-z-hand-animation: 12030;
+    --layout-z-board-toast: 12040;
     --layout-z-charge-display: 1009;
     --layout-z-charge-delta: 24020;
     --z-board-fx: 30;
@@ -128,6 +131,7 @@
     --profile-stone-info-width: min(var(--profile-stone-info-target-width), var(--profile-stone-info-max-width));
     --profile-stone-info-left: max(var(--profile-stone-info-safe-left), min(var(--profile-effect-left), calc((50vw - (var(--profile-board-frame-outer-size) / 2)) - var(--profile-stone-info-width) - calc(16px * var(--layout-stage-scale)))));
     --profile-left-info-stack-top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-left-info-stack-top) * var(--layout-stage-scale)));
+    --profile-left-info-stack-left: max(var(--profile-stone-info-safe-left), calc(var(--profile-stone-info-left) - calc(24px * var(--layout-stage-scale))));
     --profile-left-info-stack-width: var(--profile-stone-info-width);
     --profile-effect-min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
     --profile-effect-max-height: none;
@@ -176,20 +180,20 @@
     --layout-size-charge-border: max(1px, calc(2px * var(--layout-stage-scale)));
     --layout-size-charge-offset: calc((-28px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
     --layout-charge-board-offset-y: calc(-18px * var(--layout-stage-scale));
-    --layout-charge-own-offset: calc(16px * var(--layout-stage-scale));
-    --layout-charge-opponent-offset: calc(16px * var(--layout-stage-scale));
+    --layout-charge-own-offset: calc(5px * var(--layout-stage-scale));
+    --layout-charge-opponent-offset: calc(17px * var(--layout-stage-scale));
 
     --layout-size-charge-delta-font: calc(13px * var(--layout-stage-scale));
     --layout-size-charge-delta-pad-y: calc(1px * var(--layout-stage-scale));
     --layout-size-charge-delta-pad-x: calc(8px * var(--layout-stage-scale));
-    --layout-size-charge-delta-height: calc(22px * var(--layout-stage-scale));
+    --layout-size-charge-delta-height: calc(28px * var(--layout-stage-scale));
     --layout-size-charge-delta-radius: calc(16px * var(--layout-stage-scale));
     --layout-size-charge-delta-border: max(1px, calc(1px * var(--layout-stage-scale)));
     --layout-size-charge-delta-anchor-gap: calc(8px * var(--layout-stage-scale));
     --layout-size-charge-delta-side-gap: calc(1px * var(--layout-stage-scale));
     --layout-size-charge-delta-increase-offset-x: calc(5px * var(--layout-stage-scale));
     --layout-size-charge-delta-side-offset-y: calc(3px * var(--layout-stage-scale));
-    --layout-size-charge-delta-min-width: calc(48px * var(--layout-stage-scale));
+    --layout-size-charge-delta-min-width: calc(58px * var(--layout-stage-scale));
     --layout-size-charge-delta-aura-width: calc(84px * var(--layout-stage-scale));
     --layout-size-charge-delta-aura-height: calc(34px * var(--layout-stage-scale));
     --layout-size-charge-delta-aura-blur: calc(11px * var(--layout-stage-scale));
@@ -265,8 +269,8 @@
     --stone-white-base: #f0f0f0;
     --stone-white-shadow: #bbbbbb;
     --stone-protected: #999999;
-    --normal-stone-black-image: url('assets/images/stones/normal_stone-black.png');
-    --normal-stone-white-image: url('assets/images/stones/normal_stone-white.png');
+    --normal-stone-black-image: url('assets/images/stone-skin/jade-rim/black.png');
+    --normal-stone-white-image: url('assets/images/stone-skin/jade-rim/white.png');
     
     /* Accent Colors */
     --color-legal-bg: #00695c;
@@ -300,14 +304,14 @@
     /* 1.0 = no scale (uniform diameter for all special stones) */
     --special-stone-scale: 1.00;
     /* Stone shadow variables */
-    --stone-shadow-color: rgba(0, 0, 0, 0.52);
+    --stone-shadow-color: rgba(0, 0, 0, 0.84);
     --stone-shadow-offset-x: 5px;
-    --stone-shadow-offset-y: 8px;
-    --stone-shadow-blur: 8px;
+    --stone-shadow-offset-y: 9px;
+    --stone-shadow-blur: 5px;
     --stone-shadow-spread: 0px;
-    --stone-keyline-width: 0.5px;
-    --stone-keyline-color: rgba(66, 126, 86, 0.34);
-    --stone-keyline-inner-shade: rgba(28, 74, 42, 0.12);
+    --stone-keyline-width: 0px;
+    --stone-keyline-color: transparent;
+    --stone-keyline-inner-shade: transparent;
 
     /* Board depth shadow variables */
     --board-shadow-outer: 0 0 10px rgba(0, 0, 0, 0.8);
@@ -316,9 +320,9 @@
 
     /* Per-cell contact shadow for occupied cells */
     --cell-contact-shadow-offset-x: 4px;
-    --cell-contact-shadow-offset-y: 5px;
-    --cell-contact-shadow-blur: 8px;
-    --cell-contact-shadow-color: rgba(0, 0, 0, 0.42);
+    --cell-contact-shadow-offset-y: 6px;
+    --cell-contact-shadow-blur: 6px;
+    --cell-contact-shadow-color: rgba(0, 0, 0, 0.68);
     --cell-contact-shadow-highlight: rgba(255, 255, 255, 0.06);
 }
 

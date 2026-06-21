@@ -133,7 +133,16 @@ describe('TRAP_WILL selection turn handoff', () => {
     expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
 
-    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playerKey: 'black',
+      actionType: 'place',
+      action: expect.objectContaining({
+        type: 'place',
+        player: 'black',
+        trapTarget: { row: 2, col: 2 },
+        deferNetworkPublish: true
+      })
+    }));
 
     jest.runAllTimers();
     expect(global.processCpuTurn).toHaveBeenCalledTimes(1);

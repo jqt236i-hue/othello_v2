@@ -128,7 +128,7 @@ describe('network legal hints for join seat', () => {
     const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(global.boardEl);
 
-    const expansionCell = global.boardEl.querySelector('.cell-expanded-left[data-row="3"][data-col="-1"]');
+    const expansionCell = document.querySelector('.cell-expanded-left[data-row="3"][data-col="-1"]');
     expect(global.getLegalMoves).toHaveBeenCalledTimes(1);
     expect(expansionCell).toBeTruthy();
     expect(expansionCell.classList.contains('legal')).toBe(true);
@@ -143,7 +143,7 @@ describe('network legal hints for join seat', () => {
     const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(global.boardEl);
 
-    const expansionCell = global.boardEl.querySelector('.cell-expanded-left[data-row="3"][data-col="-1"]');
+    const expansionCell = document.querySelector('.cell-expanded-left[data-row="3"][data-col="-1"]');
     expect(global.getLegalMoves).not.toHaveBeenCalled();
     expect(expansionCell).toBeTruthy();
     expect(expansionCell.classList.contains('legal')).toBe(false);

@@ -20,7 +20,6 @@ type RandomBoardSpawnDeps = {
     getReinforcementWillTargets: (cardState: any, gameState: any, playerKey: any) => any[];
     readCardPendingEffect: (cardState: any, playerKey: any) => any;
     clearCardPendingEffect: (cardState: any, playerKey: any, options?: any) => any;
-    equalityWillMaxSpawns: number;
     reinforcementWillSpawnCount: number;
     supportTroopsWillSpawnCount: number;
 };
@@ -188,28 +187,6 @@ function resolveRandomBoardSpawnEffectUsage(cardState: any, gameState: any, play
     };
 }
 
-function resolveEqualityWillUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RandomBoardSpawnDeps) {
-    return resolveRandomBoardSpawnEffectUsage(
-        cardState,
-        gameState,
-        playerKey,
-        deps.equalityWillMaxSpawns,
-        prng,
-        'EQUALITY_WILL',
-        'equality_will_spawn',
-        {
-            normalFlip: true,
-            flipReason: 'equality_will_flip',
-            spawnMetaFactory: (spawnIndex: any) => ({
-                owner: playerKey,
-                requestedCount: deps.equalityWillMaxSpawns,
-                spawnIndex
-            })
-        },
-        deps
-    );
-}
-
 function canUseReinforcementWillForPlayer(cardState: any, gameState: any, playerKey: any, deps: RandomBoardSpawnDeps) {
     return deps.getReinforcementWillTargets(cardState, gameState, playerKey).length > 0;
 }
@@ -279,7 +256,6 @@ function resolveSupportTroopsWillUsage(cardState: any, gameState: any, playerKey
 module.exports = {
     collectRandomBoardSpawnablePositions,
     resolveRandomBoardSpawnEffectUsage,
-    resolveEqualityWillUsage,
     canUseReinforcementWillForPlayer,
     resolveReinforcementWillUsage,
     canUseSupportTroopsWillForPlayer,

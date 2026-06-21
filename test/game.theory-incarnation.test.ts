@@ -118,7 +118,7 @@ describe('理論の化身', () => {
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
   });
 
-  test('理論召喚は確定マスで挟める列があれば通常配置と同じ反転を行う', () => {
+  test('理論召喚は確定マスで挟める列があれば反転枚数ぶん布石を獲得する', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();
@@ -178,14 +178,27 @@ describe('理論の化身', () => {
       col: 0,
       type: 'GHOST',
       flips: [{ row: 0, col: 1 }, { row: 0, col: 2 }],
-      chargeGained: 0
+      chargeGained: 2
     }));
     expect(gameState.board[0][0]).toBe(Shared.BLACK);
     expect(gameState.board[0][1]).toBe(Shared.BLACK);
     expect(gameState.board[0][2]).toBe(Shared.BLACK);
     expect(gameState.board[0][3]).toBe(Shared.BLACK);
-    expect(cardState.charge.black).toBe(0);
-    expect(cardState.chargeGainedTotal.black || 0).toBe(0);
+    expect(cardState.charge.black).toBe(2);
+    expect(cardState.chargeGainedTotal.black || 0).toBe(2);
+    expect(cardState.chargeDeltaEvents || []).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        player: 'black',
+        delta: 2,
+        before: 0,
+        after: 2,
+        reason: 'placement_or_effect_gain',
+        popupKind: 'board',
+        sourceType: 'theory_incarnation_flip_gain',
+        anchorRow: 0,
+        anchorCol: 0
+      })
+    ]));
     expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
     expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
     const removedSpawnGainSource = ['theory_incarnation', 'spawn_gain'].join('_');
@@ -453,7 +466,7 @@ describe('理論の化身', () => {
     }).toThrow(/legal moves available/);
   });
 
-  test('理論石顕現中の所有者は通常配置後に理論召喚し、出現では布石を獲得しない', () => {
+  test('理論石顕現中の所有者は通常配置後に理論召喚し、反転なしなら理論数字マス値の布石を獲得しない', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();

@@ -82,6 +82,10 @@ describe('NetworkMatchClient apply coordinator', () => {
     global.renderCardUI = jest.fn();
     global.showResult = jest.fn();
     global.isGameOver = jest.fn((gs) => !!(gs && gs.currentPlayer === -1));
+    global.PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {
         if (!state || !ev) return;
@@ -152,6 +156,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.PresentationHandler;
     delete global.BoardOps;
     delete global.showResult;
     delete global.isGameOver;

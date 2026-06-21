@@ -737,6 +737,8 @@ function handleCellClick(row: number, col: number) {
         });
     }
 
+    callTurnManagerRuntimeFunction('onTimeAttackFirstMove', { row, col, playerKey });
+
     if (isNetworkModeForTurnManager()) {
         const executeMoveFn = readTurnManagerRuntimeFunction('executeMove') || (MoveExecutorModule && MoveExecutorModule.executeMove) || (typeof executeMove === 'function' ? executeMove : null);
         if (executeMoveFn) executeMoveFn(move);
@@ -872,7 +874,7 @@ function isNetworkSpectatorForTurnManager() {
 }
 
 function emitSpectatorReadOnlyStatusForTurnManager() {
-    const message = '観戦中は操作できません';
+    const message = '観測中は操作できません';
     try {
         const impl = __uiImpl_turn_manager;
         if (impl && typeof impl.emitStatus === 'function') {
@@ -1272,7 +1274,7 @@ function resetGame(options?: any) {
         }
         const n = Number(value);
         if (!Number.isFinite(n)) return 1;
-        return Math.max(1, Math.min(8, Math.floor(n)));
+        return Math.max(1, Math.min(9, Math.floor(n)));
     };
 
     // Read CPU smartness from UI helper if available (avoid direct DOM access in game/)

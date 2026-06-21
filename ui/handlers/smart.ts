@@ -94,10 +94,10 @@ function getCpuLevelMenuItemClasses(profileValue: unknown): string[] {
   const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
   const level = Number(profile && profile.level);
   const classes = ['cpu-level-menu-item'];
-  if (Number.isFinite(level)) classes.push(`cpu-level-tier-${Math.max(1, Math.min(8, Math.floor(level)))}`);
-  if (profile && profile.id === '6-board-executor') classes.push('cpu-level-profile-board-executor');
-  if (profile && profile.id === '7-theory-incarnation') classes.push('cpu-level-profile-theory');
-  if (profile && profile.id === '8-ending-ash') classes.push('cpu-level-profile-ending-ash');
+  if (Number.isFinite(level)) classes.push(`cpu-level-tier-${Math.max(1, Math.min(9, Math.floor(level)))}`);
+  if (profile && profile.id === '7-board-executor') classes.push('cpu-level-profile-board-executor');
+  if (profile && profile.id === '8-theory-incarnation') classes.push('cpu-level-profile-theory');
+  if (profile && profile.id === '9-ending-ash') classes.push('cpu-level-profile-ending-ash');
   return classes;
 }
 

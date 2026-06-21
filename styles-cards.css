@@ -1,11 +1,12 @@
 /* ===== Card Items, Hands, Deck, Card Detail Panel, Card Styling ===== */
 
+:root {
+    --card-back-deck-image: url("assets/images/other/card-back-deck-v1.png");
+    --card-back-hand-image: url("assets/images/other/card-back-hand-v1.png");
+}
+
 .deck-stack {
     --deck-ratio: 1;
-    --card-back-emblem:
-        radial-gradient(circle at 50% 50%, transparent 0 15%, rgba(231, 202, 128, 0.62) 16% 18%, transparent 19% 31%, rgba(231, 202, 128, 0.38) 32% 34%, transparent 35%),
-        linear-gradient(90deg, transparent 0 46%, rgba(231, 202, 128, 0.3) 47% 53%, transparent 54%),
-        linear-gradient(0deg, transparent 0 46%, rgba(231, 202, 128, 0.24) 47% 53%, transparent 54%);
     position: relative;
     width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale));
     height: calc(var(--layout-size-deck-height) * var(--layout-priority-deck-scale));
@@ -25,12 +26,8 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    background:
-        radial-gradient(ellipse at 50% 18%, rgba(255, 236, 170, 0.17), transparent 35%),
-        conic-gradient(from 45deg at 50% 48%, rgba(231, 202, 128, 0.16), transparent 12%, rgba(231, 202, 128, 0.2) 25%, transparent 38%, rgba(231, 202, 128, 0.14) 50%, transparent 64%, rgba(231, 202, 128, 0.18) 75%, transparent 88%, rgba(231, 202, 128, 0.16)),
-        var(--card-back-emblem),
-        linear-gradient(155deg, #4a3420 0%, #24170d 42%, #130a06 100%);
-    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.42);
+    background: var(--card-back-deck-image) center / 100% 100% no-repeat;
+    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.18);
     border-radius: calc(5px * var(--layout-stage-scale));
     box-shadow:
         0 calc(4px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48),
@@ -1097,15 +1094,9 @@
 }
 
 .card-item.hidden {
-    --card-back-emblem:
-        radial-gradient(circle at 50% 50%, transparent 0 14%, rgba(231, 202, 128, 0.65) 15% 17%, transparent 18% 31%, rgba(231, 202, 128, 0.36) 32% 34%, transparent 35%),
-        linear-gradient(90deg, transparent 0 45%, rgba(231, 202, 128, 0.28) 46% 54%, transparent 55%),
-        linear-gradient(0deg, transparent 0 45%, rgba(231, 202, 128, 0.24) 46% 54%, transparent 55%);
     clip-path: var(--card-frame-pentagon);
-    background:
-        radial-gradient(ellipse at 50% 18%, rgba(255, 236, 170, 0.14), transparent 36%),
-        linear-gradient(155deg, #4a3420 0%, #25170d 44%, #130a06 100%);
-    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.48);
+    background: var(--card-back-hand-image) center / 100% 100% no-repeat;
+    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.18);
     color: transparent;
     font-size: 0;
     box-shadow:
@@ -1115,28 +1106,9 @@
         0 calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44);
 }
 
-.card-item.hidden::before {
-    content: '';
-    position: absolute;
-    inset: calc(7px * var(--layout-stage-scale));
-    background: var(--card-back-emblem);
-    border: var(--layout-size-border-thin) solid rgba(231, 202, 128, 0.32);
-    border-radius: calc(3px * var(--layout-stage-scale));
-    box-shadow:
-        inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.26),
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(231, 202, 128, 0.12);
-    pointer-events: none;
-}
-
+.card-item.hidden::before,
 .card-item.hidden::after {
-    content: '';
-    position: absolute;
-    inset: calc(15px * var(--layout-stage-scale));
-    background:
-        conic-gradient(from 45deg at 50% 50%, rgba(231, 202, 128, 0.52), transparent 12%, rgba(231, 202, 128, 0.34) 25%, transparent 38%, rgba(231, 202, 128, 0.48) 50%, transparent 64%, rgba(231, 202, 128, 0.34) 75%, transparent 88%, rgba(231, 202, 128, 0.52));
-    border-radius: 50%;
-    opacity: 0.42;
-    pointer-events: none;
+    content: none;
 }
 
 .card-item.selected {
@@ -1533,8 +1505,8 @@
 }
 
 .flying-card.face-down {
-    background: linear-gradient(135deg, #3d2e20, #1a0f08);
-    border: var(--layout-size-border-thin) solid #4a3828;
+    background: var(--card-back-deck-image) center / 100% 100% no-repeat;
+    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.18);
     color: #d4af37;
 }
 
@@ -2700,7 +2672,7 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 1000;
+    z-index: var(--layout-z-hand-animation);
     overflow: hidden;
     display: none;
 }
@@ -2759,8 +2731,8 @@
 }
 
 .held-draw-card.face-down {
-    background: linear-gradient(135deg, #3d2e20, #1a0f08);
-    border: var(--layout-size-border-thin) solid #4a3828;
+    background: var(--card-back-deck-image) center / 100% 100% no-repeat;
+    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.18);
 }
 
 .held-use-card {
@@ -2787,8 +2759,8 @@
 }
 
 .held-use-card.face-down {
-    background: linear-gradient(135deg, #3d2e20, #1a0f08);
-    border: var(--layout-size-border-thin) solid #4a3828;
+    background: var(--card-back-hand-image) center / 100% 100% no-repeat;
+    border: var(--layout-size-border-thin) solid rgba(232, 197, 116, 0.18);
     color: #d4af37;
 }
 

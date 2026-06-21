@@ -213,10 +213,13 @@ export function createCpuPolicyRetentionScore() {
         }
 
         if (isEqualityWill) {
-            if (ctx.discDiff <= -10) score += 150;
-            else score -= 220;
-            if (ctx.discDiff <= -14) score += 40;
-            if (ctx.empties <= 12) score -= 34;
+            if (ctx.ownCharge <= 0) {
+                score += 180;
+                if (ctx.handSize >= 3) score += 30;
+            } else {
+                score -= 180;
+            }
+            if (ctx.empties <= 8) score -= 24;
         }
 
         if (isReinforcementWill) {

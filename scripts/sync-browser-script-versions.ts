@@ -33,6 +33,7 @@ interface SyncBrowserScriptVersionsResult {
 }
 
 const DEFAULT_BROWSER_SCRIPT_VERSION_ENTRIES: readonly BrowserScriptVersionEntry[] = Object.freeze([
+    { relativePath: 'public/runtime.js' },
     { relativePath: 'public/module-registry.js' },
     { relativePath: 'entry-browser.js' }
 ]);

@@ -33,10 +33,16 @@ function getRuntimeGlobalValue(key: string): any {
 let CardExpansionModule: any = null;
 let CardMarkersModule: any = null;
 let SharedBoardUtilsModule: any = null;
+let CardFlipsModule: any = null;
+let CardProtectionContextModule: any = null;
+let CardChargeLedgerModule: any = null;
 
 CardExpansionModule = safeRequire('./cards/expansion') || getRuntimeGlobalValue('CardExpansion');
 CardMarkersModule = safeRequire('./cards/markers') || getRuntimeGlobalValue('CardMarkers');
 SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
+CardFlipsModule = safeRequire('./cards/flips') || getRuntimeGlobalValue('CardFlips');
+CardProtectionContextModule = safeRequire('./cards-internal/protection-context') || getRuntimeGlobalValue('CardProtectionContext');
+CardChargeLedgerModule = safeRequire('./cards-internal/charge-ledger') || getRuntimeGlobalValue('CardChargeLedger');
 
 const SharedConstants = safeRequire('../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
 const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || getRuntimeGlobalValue('PresentationEffectProfiles');
@@ -52,6 +58,18 @@ function getCardExpansionModule(): any {
 
 function getCardMarkersModule(): any {
     return CardMarkersModule || null;
+}
+
+function getCardFlipsModule(): any {
+    return CardFlipsModule || null;
+}
+
+function getCardProtectionContextModule(): any {
+    return CardProtectionContextModule || null;
+}
+
+function getCardChargeLedgerModule(): any {
+    return CardChargeLedgerModule || null;
 }
 
 function getSpecialStoneRegistryModule(): any {
@@ -652,6 +670,132 @@ function _isFrozenCell(cardState: any, row: number, col: number): boolean {
     }
     const markers = _getSpecialMarkersAt(cardState, row, col).concat(_getManifestMarkersAt(cardState, row, col));
     return markers.some((marker: any) => String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'FREEZE');
+}
+
+function _getLivingWillRestoreCardContext(cardState: any): any {
+    const protectionContext = getCardProtectionContextModule();
+    if (!protectionContext || typeof protectionContext.buildCardProtectionContext !== 'function') {
+        return {};
+    }
+    const cardMarkers = getCardMarkersModule();
+    return protectionContext.buildCardProtectionContext(cardState, {
+        constants: SharedConstants,
+        SpecialStoneRegistry: getSpecialStoneRegistryModule(),
+        ManifestStoneRegistry: getManifestStoneRegistryModule(),
+        getSpecialMarkers: cardMarkers && typeof cardMarkers.getSpecialMarkers === 'function'
+            ? (state: any) => cardMarkers.getSpecialMarkers(state)
+            : undefined,
+        getManifestMarkers: cardMarkers && typeof cardMarkers.getManifestMarkers === 'function'
+            ? (state: any) => cardMarkers.getManifestMarkers(state)
+            : undefined,
+        getBombMarkers: cardMarkers && typeof cardMarkers.getBombMarkers === 'function'
+            ? (state: any) => cardMarkers.getBombMarkers(state)
+            : undefined,
+        getBlockingMarkers: cardMarkers && typeof cardMarkers.getBlockingMarkers === 'function'
+            ? (state: any) => cardMarkers.getBlockingMarkers(state)
+            : undefined,
+        isFrozenCellForCard: _isFrozenCell
+    });
+}
+
+function _clearBombAtForLivingWillRestore(cardState: any, row: number, col: number): boolean {
+    if (_getSpecialMarkersAt(cardState, row, col).some((marker: any) => (
+        String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() === 'GHOST'
+    ))) {
+        return false;
+    }
+    const cardMarkers = getCardMarkersModule();
+    const bombCategory = cardMarkers && cardMarkers.MARKER_CATEGORIES
+        ? cardMarkers.MARKER_CATEGORIES.BOMB
+        : 'bomb';
+    if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+        cardMarkers.removeMarkersAt(cardState, row, col, { category: bombCategory });
+        return true;
+    }
+    if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+        MarkersAdapter.removeMarkersAt(cardState, row, col, { category: bombCategory });
+        return true;
+    }
+    if (!cardState || !Array.isArray(cardState.markers)) return false;
+    const before = cardState.markers.length;
+    cardState.markers = cardState.markers.filter((marker: any) => !(
+        marker &&
+        _normalizeBoardIndex(marker.row) === row &&
+        _normalizeBoardIndex(marker.col) === col &&
+        marker.data &&
+        (marker.data.category === bombCategory || marker.data.type === 'TIME_BOMB')
+    ));
+    return cardState.markers.length !== before;
+}
+
+function _clearHyperactiveAtPositionsForLivingWillRestore(cardState: any, positions: any[]): void {
+    if (!cardState || !Array.isArray(cardState.markers) || !Array.isArray(positions) || positions.length === 0) return;
+    const removeSet = new Set(positions.map((pos: any) => `${pos.row},${pos.col}`));
+    const specialKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    const clearTypes = new Set([
+        'HYPERACTIVE',
+        'ESCAPE_HYPERACTIVE',
+        'EXTREME_HYPERACTIVE',
+        'ROBOT_VACUUM',
+        'GLUTTONOUS',
+        'ULTIMATE_HYPERACTIVE',
+        'SNIPER',
+        'AFTERIMAGE_WILL',
+        'WILL_HUNTER_KING'
+    ]);
+    cardState.markers = cardState.markers.filter((marker: any) => {
+        if (!marker || marker.kind !== specialKind) return true;
+        const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+        if (!clearTypes.has(type)) return true;
+        if (_getSpecialMarkersAt(cardState, marker.row, marker.col).some((entry: any) => (
+            String(entry && entry.data && entry.data.type ? entry.data.type : '').toUpperCase() === 'GHOST'
+        ))) {
+            return true;
+        }
+        return !removeSet.has(`${marker.row},${marker.col}`);
+    });
+}
+
+function _addChargeWithTotalForLivingWillRestore(cardState: any, playerKey: PlayerKey, amount: number, meta?: any): number {
+    const ledger = getCardChargeLedgerModule();
+    if (ledger && typeof ledger.addChargeWithTotal === 'function') {
+        return ledger.addChargeWithTotal(cardState, playerKey, amount, {
+            helpers: { chargeMax: SharedConstants && SharedConstants.CHARGE_MAX ? SharedConstants.CHARGE_MAX : 99 }
+        }, meta);
+    }
+    if (!cardState || !amount) return 0;
+    if (!cardState.charge || typeof cardState.charge !== 'object') cardState.charge = { black: 0, white: 0 };
+    if (!cardState.chargeGainedTotal || typeof cardState.chargeGainedTotal !== 'object') {
+        cardState.chargeGainedTotal = { black: 0, white: 0 };
+    }
+    const before = Number(cardState.charge[playerKey] || 0);
+    const max = Number(SharedConstants && SharedConstants.CHARGE_MAX) || 99;
+    const after = Math.max(0, Math.min(max, before + amount));
+    const added = Math.max(0, after - before);
+    cardState.charge[playerKey] = after;
+    cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;
+    return added;
+}
+
+function _getLivingWillRestoreDeps(meta: any): any {
+    const cardFlips = getCardFlipsModule();
+    return {
+        BoardOps: {
+            spawnAt,
+            changeAt,
+            getCellValue,
+            getExpansionDescriptors,
+            emitPresentationEvent
+        },
+        getCardContext: _getLivingWillRestoreCardContext,
+        getOccupiedOriginFlipsWithContext: cardFlips && typeof cardFlips.getOccupiedOriginFlipsWithContext === 'function'
+            ? cardFlips.getOccupiedOriginFlipsWithContext
+            : undefined,
+        clearBombAt: _clearBombAtForLivingWillRestore,
+        clearHyperactiveAtPositions: _clearHyperactiveAtPositionsForLivingWillRestore,
+        addChargeWithTotal: _addChargeWithTotalForLivingWillRestore,
+        random: meta && meta.random
+    };
 }
 
 function _isAbsoluteProtectedCell(cardState: any, row: number, col: number): boolean {
@@ -1757,7 +1901,7 @@ function _inferSpawnIntent(cause: string | null, reason: string | null): string 
     if (causeUpper === 'SALVATION_WILL') return 'salvation_spawn';
     if (causeUpper === 'STONE_SALVATION_GOD') return 'salvation_spawn';
     if (causeUpper === 'LIVING_WILL') return 'restore_spawn';
-    if (causeUpper === 'EQUALITY_WILL' || causeUpper === 'REINFORCEMENT_WILL' || reasonLower.indexOf('_spawn') >= 0) {
+    if (causeUpper === 'REINFORCEMENT_WILL' || reasonLower.indexOf('_spawn') >= 0) {
         return 'normal_spawn';
     }
     return null;
@@ -2164,16 +2308,7 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
                 cause: cause || null,
                 reason: reason || null
             },
-            {
-                BoardOps: {
-                    spawnAt,
-                    changeAt,
-                    getCellValue,
-                    getExpansionDescriptors,
-                    emitPresentationEvent
-                },
-                random: meta && meta.random
-            }
+            _getLivingWillRestoreDeps(meta)
         );
         if (livingWillResult && livingWillResult.restored) {
             return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
@@ -2442,16 +2577,7 @@ function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: 
                 reason: reason || null,
                 removedSpecialType: specialType
             },
-            {
-                BoardOps: {
-                    spawnAt,
-                    changeAt,
-                    getCellValue,
-                    getExpansionDescriptors,
-                    emitPresentationEvent
-                },
-                random: meta && meta.random
-            }
+            _getLivingWillRestoreDeps(meta)
         );
     }
     return result;

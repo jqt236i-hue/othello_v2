@@ -278,6 +278,12 @@ interface LivingWillDeps {
     clearCardPendingEffect?: (state: CardState, owner: PlayerKey) => void;
     getLivingWillTargets?: (cardState: CardState, gameState: GameState, playerKey: PlayerKey) => any[];
     emitPresentationEvent?: (cardState: CardState, event: any) => void;
+    getCardContext?: (cardState: CardState) => any;
+    getFlipsWithContext?: (gameState: GameState, row: number, col: number, ownerValue: number, context?: any) => any[];
+    getOccupiedOriginFlipsWithContext?: (gameState: GameState, row: number, col: number, ownerValue: number, context?: any) => any[];
+    clearBombAt?: (cardState: CardState, row: number, col: number) => void;
+    clearHyperactiveAtPositions?: (cardState: CardState, positions: any[]) => void;
+    addChargeWithTotal?: (cardState: CardState, playerKey: PlayerKey, amount: number, meta?: any) => number;
 }
 
 function getBoardOps(deps: LivingWillDeps): any {
@@ -709,6 +715,73 @@ function restoreBaselineMarkers(cardState: CardState, gameState: GameState, row:
     return restored;
 }
 
+function normalizeFlipPosition(raw: any): CellPosition | null {
+    const row = Number.isInteger(raw && raw.row) ? raw.row : normalizeBoardIndex(raw && raw[0]);
+    const col = Number.isInteger(raw && raw.col) ? raw.col : normalizeBoardIndex(raw && raw[1]);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    return { row: row as number, col: col as number };
+}
+
+function applyRestoredStoneFlips(cardState: CardState, gameState: GameState, row: number, col: number, ownerKey: PlayerKey, deps: LivingWillDeps): CellPosition[] {
+    if (!deps || typeof deps.getOccupiedOriginFlipsWithContext !== 'function') return [];
+    const ownerValue = ownerKeyToValue(ownerKey);
+    const context = typeof deps.getCardContext === 'function' ? deps.getCardContext(cardState) : {};
+    const rawFlips = deps.getOccupiedOriginFlipsWithContext(gameState, row, col, ownerValue, context);
+    if (!Array.isArray(rawFlips) || rawFlips.length === 0) return [];
+
+    const boardOps = getBoardOps(deps);
+    const flipped: CellPosition[] = [];
+    const seen = new Set<string>();
+    for (const raw of rawFlips) {
+        const pos = normalizeFlipPosition(raw);
+        if (!pos) continue;
+        const key = `${pos.row},${pos.col}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        let changed = true;
+        if (boardOps && typeof boardOps.changeAt === 'function') {
+            const changeRes = boardOps.changeAt(
+                cardState,
+                gameState,
+                pos.row,
+                pos.col,
+                ownerKey,
+                'LIVING_WILL',
+                'living_will_restore_flip',
+                {
+                    sourceSpecial: 'LIVING_WILL',
+                    restoredFromRow: row,
+                    restoredFromCol: col
+                }
+            );
+            changed = !!(changeRes && changeRes.changed);
+        } else {
+            const gs = gameState as any;
+            if (gs && Array.isArray(gs.board) && Array.isArray(gs.board[pos.row])) {
+                gs.board[pos.row][pos.col] = ownerValue;
+            }
+        }
+        if (!changed) continue;
+        if (typeof deps.clearBombAt === 'function') {
+            deps.clearBombAt(cardState, pos.row, pos.col);
+        }
+        flipped.push(pos);
+    }
+    if (flipped.length && typeof deps.clearHyperactiveAtPositions === 'function') {
+        deps.clearHyperactiveAtPositions(cardState, flipped);
+    }
+    if (flipped.length && typeof deps.addChargeWithTotal === 'function') {
+        deps.addChargeWithTotal(cardState, ownerKey, flipped.length, {
+            popupKind: 'board',
+            sourceType: 'living_will_restore_flip_gain',
+            anchorRow: row,
+            anchorCol: col
+        });
+    }
+    return flipped;
+}
+
 interface RestoreResult {
     restored: boolean;
     consumed: boolean;
@@ -717,6 +790,7 @@ interface RestoreResult {
     destination?: CellPosition;
     owner?: PlayerKey;
     relocated?: boolean;
+    flipped?: CellPosition[];
 }
 
 interface LivingWillTrigger extends RestoreTrigger {
@@ -811,8 +885,9 @@ function restoreFromLivingWillSnapshot(cardState: CardState, gameState: GameStat
     }
 
     restoreBaselineMarkers(cardState, gameState, destRow, destCol, baseline, deps);
+    const flipped = applyRestoredStoneFlips(cardState, gameState, destRow, destCol, baseline.owner, deps);
 
-    return {
+    const result: RestoreResult = {
         restored: true,
         consumed: true,
         source: { row: srcRow, col: srcCol },
@@ -820,6 +895,8 @@ function restoreFromLivingWillSnapshot(cardState: CardState, gameState: GameStat
         owner: baseline.owner,
         relocated: relocate
     };
+    if (flipped.length) result.flipped = flipped;
+    return result;
 }
 
 interface ApplyLivingWillResult {
@@ -890,10 +967,12 @@ function applyLivingWill(cardState: CardState, gameState: GameState, playerKey: 
 
 interface ApplyLivingWillAfterFlipsResult {
     restored: CellPosition[];
+    flipped?: CellPosition[];
 }
 
 function applyLivingWillAfterFlips(cardState: CardState, gameState: GameState, flips: any[], flipperKey: PlayerKey, deps: LivingWillDeps = {}): ApplyLivingWillAfterFlipsResult {
     const restored: CellPosition[] = [];
+    const flipped: CellPosition[] = [];
     if (!Array.isArray(flips) || !flips.length) return { restored };
     const seen = new Set<string>();
     for (const raw of flips) {
@@ -916,9 +995,14 @@ function applyLivingWillAfterFlips(cardState: CardState, gameState: GameState, f
             sourceCol: col,
             flippedBy: flipperKey || null
         }, deps);
-        if (result && result.restored) restored.push(result.destination || { row: row as number, col: col as number });
+        if (result && result.restored) {
+            restored.push(result.destination || { row: row as number, col: col as number });
+            if (Array.isArray(result.flipped) && result.flipped.length) flipped.push(...result.flipped);
+        }
     }
-    return { restored };
+    const out: ApplyLivingWillAfterFlipsResult = { restored };
+    if (flipped.length) out.flipped = flipped;
+    return out;
 }
 
 export = {

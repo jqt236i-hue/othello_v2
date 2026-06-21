@@ -26,6 +26,12 @@ interface CpuOpponentRuntimeSelection {
     cardUseUnlockTurnNumber: number | null;
 }
 
+const CPU_OPPONENT_PROFILE_ALIASES: Record<string, string> = {
+    '6-board-executor': '7-board-executor',
+    '7-theory-incarnation': '8-theory-incarnation',
+    '8-ending-ash': '9-ending-ash'
+};
+
 const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
     {
         id: '1',
@@ -82,20 +88,20 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         deckProfile: 'lv6-default'
     },
     {
-        id: '6-board-executor',
-        level: 6,
+        id: '7-board-executor',
+        level: 7,
         decisionLevel: 6,
         name: '盤界の執行者',
-        menuLabel: 'Lv6: 盤界の執行者',
+        menuLabel: 'Lv7: 盤界の執行者',
         portraitSrc: 'assets/images/special-cards/characters/board_executor.png',
         deckProfile: 'lv6-board-executor'
     },
     {
-        id: '7-theory-incarnation',
-        level: 7,
+        id: '8-theory-incarnation',
+        level: 8,
         decisionLevel: 6,
         name: '理論の化身',
-        menuLabel: 'Lv7: 理論の化身',
+        menuLabel: 'Lv8: 理論の化身',
         portraitSrc: 'assets/images/special-cards/characters/theory_incarnation.png',
         deckProfile: 'lv7-theory-incarnation',
         initialCharge: 50,
@@ -103,11 +109,11 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         cardUseUnlockTurnNumber: 8
     },
     {
-        id: '8-ending-ash',
-        level: 8,
+        id: '9-ending-ash',
+        level: 9,
         decisionLevel: 6,
         name: '終焉の冥灰',
-        menuLabel: 'Lv8: 終焉の冥灰',
+        menuLabel: 'Lv9: 終焉の冥灰',
         portraitSrc: 'assets/images/special-cards/characters/終焉の冥灰.png',
         deckProfile: 'lv8-ending-ash',
         initialCharge: 99,
@@ -119,6 +125,10 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
 const CPU_OPPONENT_PROFILE_BY_ID = new Map<string, CpuOpponentProfile>(
     CPU_OPPONENT_PROFILES.map((profile) => [profile.id, profile])
 );
+Object.keys(CPU_OPPONENT_PROFILE_ALIASES).forEach((alias) => {
+    const profile = CPU_OPPONENT_PROFILE_BY_ID.get(CPU_OPPONENT_PROFILE_ALIASES[alias]);
+    if (profile) CPU_OPPONENT_PROFILE_BY_ID.set(alias, profile);
+});
 const CPU_OPPONENT_DEFAULT_PROFILE_BY_LEVEL = new Map<number, CpuOpponentProfile>();
 CPU_OPPONENT_PROFILES.forEach((profile) => {
     if (!CPU_OPPONENT_DEFAULT_PROFILE_BY_LEVEL.has(profile.level)) {
@@ -129,7 +139,7 @@ CPU_OPPONENT_PROFILES.forEach((profile) => {
 function clampCpuLevel(value: unknown): number {
     const n = Number(value);
     if (!Number.isFinite(n)) return 1;
-    return Math.max(1, Math.min(8, Math.floor(n)));
+    return Math.max(1, Math.min(9, Math.floor(n)));
 }
 
 function getCpuOpponentProfiles(): CpuOpponentProfile[] {
@@ -216,7 +226,7 @@ function shouldSkipCpuOpponentCardPhase(value: unknown, turnNumber: unknown): bo
 }
 
 function isCpuOpponentProfile(value: unknown, profileId: string): boolean {
-    return getCpuOpponentProfileId(value) === profileId;
+    return getCpuOpponentProfileId(value) === getCpuOpponentProfileId(profileId);
 }
 
 export = {

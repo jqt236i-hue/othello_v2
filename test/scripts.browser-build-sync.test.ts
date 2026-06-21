@@ -12,6 +12,18 @@ function writeFile(filePath: string, content: string) {
     fs.writeFileSync(filePath, content, 'utf8');
 }
 
+function writeBrowserIndexFixture(rootDir: string) {
+    writeFile(path.join(rootDir, 'public', 'runtime.js'), 'window.__cjsRegister = function() {};\nwindow.__cjsAlias = function() {};\n');
+    writeFile(path.join(rootDir, 'index.html'), [
+        '<!doctype html>',
+        '<html><body>',
+        '<script src="public/runtime.js"></script>',
+        '<script src="public/module-registry.js?v=1"></script>',
+        '<script src="entry-browser.js?v=1"></script>',
+        '</body></html>'
+    ].join('\n'));
+}
+
 describe('browser build sync', () => {
     const cleanupDirs: string[] = [];
 
@@ -30,21 +42,17 @@ describe('browser build sync', () => {
 
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 1;\n');
-        writeFile(path.join(rootDir, 'index.html'), [
-            '<!doctype html>',
-            '<html><body>',
-            '<script src="public/module-registry.js?v=1"></script>',
-            '<script src="entry-browser.js?v=1"></script>',
-            '</body></html>'
-        ].join('\n'));
+        writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
 
         const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
         const registryPath = path.join(rootDir, 'public', 'module-registry.js');
+        const runtimeVersion = computeScriptVersionToken(path.join(rootDir, 'public', 'runtime.js'));
         const registryVersion = computeScriptVersionToken(registryPath);
         const entryVersion = computeScriptVersionToken(path.join(rootDir, 'entry-browser.js'));
 
+        expect(html).toContain(`public/runtime.js?v=${runtimeVersion}`);
         expect(html).toContain(`public/module-registry.js?v=${registryVersion}`);
         expect(html).toContain(`entry-browser.js?v=${entryVersion}`);
         expect(checkBrowserBuildUpToDate(rootDir)).toEqual({
@@ -60,13 +68,7 @@ describe('browser build sync', () => {
 
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 1;\n');
-        writeFile(path.join(rootDir, 'index.html'), [
-            '<!doctype html>',
-            '<html><body>',
-            '<script src="public/module-registry.js?v=1"></script>',
-            '<script src="entry-browser.js?v=1"></script>',
-            '</body></html>'
-        ].join('\n'));
+        writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 2;\n');
@@ -84,13 +86,7 @@ describe('browser build sync', () => {
 
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 1;\n');
-        writeFile(path.join(rootDir, 'index.html'), [
-            '<!doctype html>',
-            '<html><body>',
-            '<script src="public/module-registry.js?v=1"></script>',
-            '<script src="entry-browser.js?v=1"></script>',
-            '</body></html>'
-        ].join('\n'));
+        writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
 
@@ -114,21 +110,72 @@ describe('browser build sync', () => {
         writeFile(path.join(rootDir, 'dist', 'game', 'network-turn-handoff.js'), 'module.exports = require("./network-turn-handoff.runtime");\n');
         writeFile(path.join(rootDir, 'game', 'visual-effects-map.runtime.js'), 'module.exports = { runtime: "visual" };\n');
         writeFile(path.join(rootDir, 'game', 'network-turn-handoff.runtime.js'), 'module.exports = { runtime: "handoff" };\n');
-        writeFile(path.join(rootDir, 'index.html'), [
-            '<!doctype html>',
-            '<html><body>',
-            '<script src="public/module-registry.js?v=1"></script>',
-            '<script src="entry-browser.js?v=1"></script>',
-            '</body></html>'
-        ].join('\n'));
+        writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
 
         const registry = fs.readFileSync(path.join(rootDir, 'public', 'module-registry.js'), 'utf8');
         expect(registry).toContain('_r("game/visual-effects-map.runtime"');
-        expect(registry).toContain('_r("game/visual-effects-map.runtime.js"');
+        expect(registry).toContain('_a("game/visual-effects-map.runtime.js", "game/visual-effects-map.runtime")');
         expect(registry).toContain('_r("game/network-turn-handoff.runtime"');
-        expect(registry).toContain('_r("game/network-turn-handoff.runtime.js"');
+        expect(registry).toContain('_a("game/network-turn-handoff.runtime.js", "game/network-turn-handoff.runtime")');
+    });
+
+    test('buildRegistry makes .js aliases share the same browser module instance', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-build-js-alias-'));
+        cleanupDirs.push(rootDir);
+
+        writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
+        writeFile(path.join(rootDir, 'dist', 'ui', 'stateful.js'), [
+            '"use strict";',
+            'let calls = 0;',
+            'calls += 1;',
+            'module.exports = { calls };'
+        ].join('\n'));
+        writeBrowserIndexFixture(rootDir);
+
+        buildRegistry({ rootDir, log: false });
+
+        const registry = fs.readFileSync(path.join(rootDir, 'public', 'module-registry.js'), 'utf8');
+        const factories: Record<string, Function> = {};
+        const aliases: Record<string, string> = {};
+        const moduleCache: Record<string, { exports: any }> = {};
+        const context = {
+            window: {
+                __cjsRegister(key: string, sourceCode: string) {
+                    factories[key] = new Function('module', 'exports', '__dirname', '__filename', sourceCode);
+                },
+                __cjsAlias(aliasKey: string, targetKey: string) {
+                    aliases[aliasKey] = targetKey;
+                }
+            }
+        };
+        vm.runInNewContext(registry, context);
+
+        const resolveAlias = (key: string): string => {
+            let current = key;
+            const seen = new Set<string>();
+            while (aliases[current] && !seen.has(current)) {
+                seen.add(current);
+                current = aliases[current];
+            }
+            return current;
+        };
+        const localRequire = (key: string) => {
+            const resolved = resolveAlias(key);
+            if (moduleCache[resolved]) return moduleCache[resolved].exports;
+            const factory = factories[resolved];
+            if (typeof factory !== 'function') throw new Error(`missing module: ${resolved}`);
+            const module = { exports: {} };
+            moduleCache[resolved] = module;
+            factory(module, module.exports, path.posix.dirname(resolved), resolved);
+            return module.exports;
+        };
+
+        const withoutExtension = localRequire('ui/stateful');
+        const withExtension = localRequire('ui/stateful.js');
+
+        expect(withExtension).toBe(withoutExtension);
     });
 
     test('buildRegistry strips local _require fallbacks before browser registration', () => {
@@ -143,13 +190,7 @@ describe('browser build sync', () => {
             '  : (typeof require !== "undefined" ? require : null);',
             'module.exports = { ok: typeof _require === "function" || _require === null };'
         ].join('\n'));
-        writeFile(path.join(rootDir, 'index.html'), [
-            '<!doctype html>',
-            '<html><body>',
-            '<script src="public/module-registry.js?v=1"></script>',
-            '<script src="entry-browser.js?v=1"></script>',
-            '</body></html>'
-        ].join('\n'));
+        writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
 
@@ -159,6 +200,10 @@ describe('browser build sync', () => {
             window: {
                 __cjsRegister(key: string, sourceCode: string) {
                     registered[key] = new Function('module', 'exports', '__dirname', '__filename', sourceCode);
+                },
+                __cjsAlias() {
+                    // The alias contract is verified by the adjacent test; this case only
+                    // needs a runtime-compatible registry surface to inspect sanitization.
                 }
             }
         };

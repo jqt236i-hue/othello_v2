@@ -78,6 +78,25 @@ export function createCardAvailability(deps?: CardAvailabilityDeps) {
         return countDiscsForCardComparison(gameState);
     }
 
+    function normalizePlayerKey(playerKey: any) {
+        return playerKey === 'white' || playerKey === WHITE ? 'white' : 'black';
+    }
+
+    function readCharge(cardState: any, playerKey: any) {
+        const normalized = normalizePlayerKey(playerKey);
+        const raw = Number(cardState && cardState.charge && cardState.charge[normalized]);
+        return Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0;
+    }
+
+    function getEqualityWillChargeState(cardState: any, playerKey: any) {
+        const normalized = normalizePlayerKey(playerKey);
+        const opponentKey = normalized === 'white' ? 'black' : 'white';
+        return {
+            own: readCharge(cardState, normalized),
+            opponent: readCharge(cardState, opponentKey)
+        };
+    }
+
     function hasFewerDiscsThanOpponentForPlayer(gameState: any, playerKey: any) {
         return getDiscDisadvantageForPlayer(gameState, playerKey) > 0;
     }
@@ -90,9 +109,8 @@ export function createCardAvailability(deps?: CardAvailabilityDeps) {
     }
 
     function canUseEqualityWillForPlayer(cardState: any, gameState: any, playerKey: any) {
-        void cardState;
-        if (!gameState || !Array.isArray(gameState.board)) return false;
-        return getDiscDisadvantageForPlayer(gameState, playerKey) >= 10;
+        void gameState;
+        return getEqualityWillChargeState(cardState, playerKey).own === 0;
     }
 
     function getReinforcementWillTargetCount(cardState: any, gameState: any, playerKey: any) {
@@ -109,6 +127,7 @@ export function createCardAvailability(deps?: CardAvailabilityDeps) {
         countDiscsForCardComparison,
         getDiscDisadvantageForPlayer,
         getEqualityWillBoardCounts,
+        getEqualityWillChargeState,
         hasFewerDiscsThanOpponentForPlayer,
         canUseLastResortForPlayer,
         canUseEqualityWillForPlayer,

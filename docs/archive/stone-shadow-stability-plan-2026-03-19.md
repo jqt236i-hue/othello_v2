@@ -128,7 +128,7 @@
 {
   owner: 'black' | 'white',
   renderMode: 'base-only' | 'replace' | 'overlay',
-  baseImage: 'assets/images/stones/normal_stone-black.png',
+  baseImage: 'assets/images/stone-skin/default/black.png',
   overlayImage: null,
   scale: 1.0,
   shadowProfile: 'default'

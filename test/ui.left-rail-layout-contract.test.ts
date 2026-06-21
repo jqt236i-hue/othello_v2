@@ -1,6 +1,7 @@
 import {
   readLayoutCssSurface,
   readRepoTextFile,
+  readCssBlock,
 } from './helpers/css-test-helpers';
 
 describe('left action rail layout contract', () => {
@@ -45,10 +46,34 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(83,\s*214,\s*209/);
     expect(layoutCss).toMatch(/:is\(#networkCloseBtn,\s*#leaderboardCloseBtn,\s*#gachaCloseBtn,\s*#deckBuilderCloseBtn,\s*#handSkinCloseBtn,\s*#rules-help-close-btn\)[\s\S]*border-radius:\s*50%/);
     expect(layoutCss).toMatch(/:is\(#networkModalHeader,\s*#leaderboardModalHeader,\s*#gachaModalHeader,\s*#deckBuilderModalHeader,\s*#handSkinPanelHeader,\s*#rules-help-title-row\)[\s\S]*background:/);
-    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
+    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#networkRoomListViewport,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#boardSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
     expect(layoutCss).toMatch(/#handSkinPanel[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/#rules-help-panel[\s\S]*position:\s*fixed/);
     expect(layoutCss).not.toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)\s*\{[^}]*position:\s*relative/);
+  });
+
+  test('left action popups fade in consistently when opened', () => {
+    const layoutCss = readLayoutCssSurface();
+
+    const modalOverlayBlock = readCssBlock(layoutCss, ':is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay)');
+    expect(modalOverlayBlock).toMatch(/opacity:\s*0/);
+    expect(modalOverlayBlock).toMatch(/visibility:\s*hidden/);
+    expect(modalOverlayBlock).toMatch(/transition:\s*opacity\s+180ms\s+ease,\s*visibility\s+0s\s+linear\s+180ms/);
+
+    const modalOpenBlock = readCssBlock(layoutCss, ':is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open');
+    expect(modalOpenBlock).toMatch(/opacity:\s*1/);
+    expect(modalOpenBlock).toMatch(/visibility:\s*visible/);
+    expect(modalOpenBlock).toMatch(/transition-delay:\s*0s/);
+
+    const panelBlock = readCssBlock(layoutCss, ':is(#handSkinPanel, #rules-help-panel)');
+    expect(panelBlock).toMatch(/opacity:\s*0/);
+    expect(panelBlock).toMatch(/visibility:\s*hidden/);
+    expect(panelBlock).toMatch(/transition:\s*opacity\s+160ms\s+ease,\s*transform\s+160ms\s+ease,\s*visibility\s+0s\s+linear\s+160ms/);
+
+    const panelOpenBlock = readCssBlock(layoutCss, ':is(#handSkinPanel, #rules-help-panel).is-open');
+    expect(panelOpenBlock).toMatch(/opacity:\s*1/);
+    expect(panelOpenBlock).toMatch(/visibility:\s*visible/);
+    expect(panelOpenBlock).toMatch(/transition-delay:\s*0s/);
   });
 
   test('left action rail exposes mode and utility buttons in index markup', () => {

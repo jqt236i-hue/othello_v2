@@ -240,7 +240,7 @@ function isNetworkSpectatorActive(deps: GameKeyboardShortcutDeps): boolean {
 function emitSpectatorReadOnlyStatus(deps: GameKeyboardShortcutDeps): void {
     try {
         if (typeof deps.emitStatus === 'function') {
-            deps.emitStatus('観戦中は操作できません', true);
+            deps.emitStatus('観測中は操作できません', true);
             return;
         }
     } catch (e) { /* ignore */ }
@@ -250,7 +250,7 @@ function emitSpectatorReadOnlyStatus(deps: GameKeyboardShortcutDeps): void {
         try {
             const writer = candidateRoot && candidateRoot.writeNetworkStatus;
             if (typeof writer !== 'function') continue;
-            writer('観戦中は操作できません', true);
+            writer('観測中は操作できません', true);
             return;
         } catch (e) { /* ignore */ }
     }

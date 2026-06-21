@@ -10,10 +10,10 @@ function createPrng(randomValue = 0.5) {
 }
 
 describe('TELEPORT_WILL（テレポート）', () => {
-  test('カード定義が存在し、コスト10である', () => {
+  test('カード定義が存在し、コスト11である', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'TELEPORT_WILL');
     expect(def).toBeTruthy();
-    expect(def.cost).toBe(10);
+    expect(def.cost).toBe(11);
   });
 
   test('対象は敵味方を問わず盤面の全石。移動先が無い場合は対象がない', () => {

@@ -884,6 +884,7 @@ function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptio
             : ((opts.seats && typeof opts.seats === 'object') ? { black: '', white: '' } : undefined),
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        networkAutoEnabled: opts.networkAutoEnabled === true,
         turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
         playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
         playbackDigest: opts.playbackDigest,
@@ -958,6 +959,9 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'networkDebugEnabled')) {
         payload.networkDebugEnabled = opts.networkDebugEnabled === true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'networkAutoEnabled')) {
+        payload.networkAutoEnabled = opts.networkAutoEnabled === true;
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'turnTimer')) {
         payload.turnTimer = (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null;
@@ -1085,6 +1089,9 @@ function buildRoomPayloadFromRoom(
     if (!Object.prototype.hasOwnProperty.call(source, 'seatHandSkins') && hasRoomSeats) {
         source.seatHandSkins = normalizeSeatHandSkins(room.seatHandSkins);
     }
+    if (!Object.prototype.hasOwnProperty.call(source, 'networkAutoEnabled')) {
+        source.networkAutoEnabled = room.networkAutoEnabled === true;
+    }
     return buildRoomPayload(source);
 }
 
@@ -1100,6 +1107,7 @@ function buildSnapshotPayloadFromRoom(
         snapshot: Object.prototype.hasOwnProperty.call(opts, 'snapshot') ? opts.snapshot : null,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        networkAutoEnabled: opts.networkAutoEnabled === true,
         turnTimer: opts.turnTimer,
         playbackEvents: opts.playbackEvents,
         playbackDigest: opts.playbackDigest,
@@ -1125,6 +1133,7 @@ function buildPresencePayloadFromRoom(
         ok: true,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        networkAutoEnabled: opts.networkAutoEnabled === true,
         turnTimer: opts.turnTimer,
         type: opts.type,
         seatKey: opts.seatKey,
@@ -1158,6 +1167,7 @@ function buildHeartbeatPayloadFromRoom(
         stateVersion: room.stateVersion,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        networkAutoEnabled: opts.networkAutoEnabled === true,
         turnTimer: opts.turnTimer,
         serverTime: opts.serverTime
     }, opts));
@@ -1179,6 +1189,7 @@ function buildPublishPayloadFromRoom(
         seatHandSkins: room.seatHandSkins,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        networkAutoEnabled: opts.networkAutoEnabled === true,
         turnTimer: opts.turnTimer,
         playbackEvents: opts.playbackEvents,
         playbackDigest: opts.playbackDigest,
@@ -1439,7 +1450,7 @@ function addSpectatorToRoom(
     }
 
     const spectatorToken = String(makeToken() || '').trim();
-    const spectatorName = normalizeSpectatorName(opts.spectatorName) || '観戦者';
+    const spectatorName = normalizeSpectatorName(opts.spectatorName) || '観測者';
     spectators[spectatorId] = {
         token: spectatorToken,
         name: spectatorName,
@@ -1479,7 +1490,7 @@ function removeSpectatorFromRoom(
         };
     }
 
-    const spectatorName = normalizeSpectatorName(entry.name) || '観戦者';
+    const spectatorName = normalizeSpectatorName(entry.name) || '観測者';
     delete spectators[spectatorId];
     room.updatedAt = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
     return {
@@ -2389,6 +2400,38 @@ function getPresentationFramesAfter(
         .map((entry) => toPublicPresentationFrame(entry, viewerValue, room));
 }
 
+function findPresentationFrameEntryForOperation(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    operationIdValue: unknown,
+    stateVersionValue?: unknown
+): MatchAuthorityPresentationJournalEntry | null {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+    const operationId = normalizeOperationId(operationIdValue);
+    if (!operationId) return null;
+    const stateVersion = normalizeStateVersion(stateVersionValue);
+    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
+    for (let index = journal.length - 1; index >= 0; index -= 1) {
+        const entry = journal[index];
+        if (!entry || normalizeOperationId(entry.operationId) !== operationId) continue;
+        if (stateVersion !== null && normalizeStateVersion(entry.stateVersionTo) !== stateVersion) continue;
+        return entry;
+    }
+    return null;
+}
+
+function findPresentationFrameEntryForAcceptedOperation(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    acceptedOperationValue: unknown
+): MatchAuthorityPresentationJournalEntry | null {
+    const acceptedOperation = normalizeAcceptedOperationEntry(acceptedOperationValue);
+    if (!acceptedOperation) return null;
+    return findPresentationFrameEntryForOperation(
+        roomValue,
+        acceptedOperation.operationId,
+        acceptedOperation.stateVersion
+    );
+}
+
 function findBaseSnapshotForVisualSeq(
     roomValue: MatchAuthorityRoomState | null | undefined,
     afterVisualSeq: number,
@@ -2592,6 +2635,8 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     getBufferedSnapshotPayloadForStateVersion,
     appendPresentationFrame,
     getPresentationFramesAfter,
+    findPresentationFrameEntryForOperation,
+    findPresentationFrameEntryForAcceptedOperation,
     buildPresentationJournalResponse,
     toPublicPresentationFrame
 });

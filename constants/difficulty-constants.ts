@@ -3,7 +3,7 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
 
-const CPU_LEVEL_NAMES: string[] = ['不明', '盤喰いの小鬼', '反転の影', '布石を紡ぐ者', '盤面支配者', '終局を告げる者', '盤理の観測者'];
+const CPU_LEVEL_NAMES: string[] = ['不明', '盤喰いの小鬼', '反転の影', '布石を紡ぐ者', '盤面支配者', '終局を告げる者', '盤理の観測者', '盤界の執行者', '理論の化身', '終焉の冥灰'];
 
 // ===== CPU Difficulty Dialogue =====
 

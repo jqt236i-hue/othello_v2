@@ -21,12 +21,12 @@
 
 ## Current Evidence Summary
 
-> Status update after implementation through commit `afe53d2a`:
+> Status update for the current checkout after the review-gate fixes:
 >
-> - Phase 1 root-bug fixes are implemented and committed: canonical marker identity/backfill, anchor snapshot before turn-start mutation, markerId/object-identity resolution, deleted-anchor skip, same-coordinate replacement protection, broad category-change skip, deterministic turn-start `actionId`/`effectBlockId`, presentation `sequenceIndex`, time-bomb phase separation, Worker/root PRNG persistence and non-null state hash via shared turn-pipeline factory.
-> - Phase 2 lifecycle work is partially implemented and committed: split `onTurnStartBeforeAnchors()`/`drawForTurnStart()`, draw after fixed anchors, post-flip revives per anchor, timer/status tick emission per anchor, status duration anchors, SEED sprout generated-flip handling inside the seed anchor, trap cleanup characterization after all anchors, and ultimate-hyperactive non-interleaving tests. Remaining Phase 2 audit work is card-by-card lifecycle consolidation for any behavior still intentionally left in global post-processing, especially WORK/REGEN/trap policies if their source-of-truth rules are changed later.
+> - Phase 1 root-bug fixes are implemented in the current checkout: canonical marker identity/backfill, anchor snapshot before turn-start mutation, markerId/object-identity resolution, deleted-anchor skip, same-coordinate replacement protection, broad category-change skip, deterministic turn-start `actionId`/`effectBlockId`, presentation `sequenceIndex`, time-bomb phase separation, Worker/root PRNG persistence and non-null state hash via shared turn-pipeline factory.
+> - Phase 2 lifecycle work is partially implemented in the current checkout: split `onTurnStartBeforeAnchors()`/`drawForTurnStart()`, draw after fixed anchors, post-flip revives per anchor, timer/status tick emission per anchor, status duration anchors, SEED sprout generated-flip handling inside the seed anchor, trap cleanup characterization after all anchors, and ultimate-hyperactive non-interleaving tests. Remaining Phase 2 audit work is card-by-card lifecycle consolidation for any behavior still intentionally left in global post-processing, especially WORK/REGEN/trap policies if their source-of-truth rules are changed later.
 > - Phase 3 runtime/playback parity is implemented as a shared-core design rather than deleting every Worker wrapper: `workers/match-worker.ts` still exposes `createWorkerTurnPipelineModule()`, but it delegates to `game/turn/turn_pipeline_factory.ts`; Worker/local/root now share the same turn driver contract. Shared playback planner/digest and authority publish/SSE digest contracts are in place, and local-preview shadowing requires digest agreement.
-> - Phase 4 local verification is partially complete: `npm run typecheck`, `npm run build:ts`, focused turn-start/playback/network suites, `npm run check:window`, `npm run test:network:parity`, and `npm run match:check` pass. `npm run checkall` is currently blocked by pre-existing `.wrangler/codex-head-deploy` JS inventory entries, not by the source files changed for this plan. `npm run test:jest` was retried with a 20 minute timeout and did not complete. `npm run worker:prepare`, deployment, and public two-browser smoke are blocked until unrelated dirty generated/mirror files are either committed/stashed/reverted by their owner or explicitly approved for overwrite.
+> - Phase 4 local automated verification is partially complete in the current checkout: `npm run typecheck`, `npm run build:ts`, focused turn-start/network/playback suites, full `npm run test:jest`, `npm run test:network:parity`, `npm run match:check`, `npm run checkall`, `npm run worker:prepare`, and local Chrome/Edge turn-start browser smoke pass. Public deployment, live two-browser Worker smoke, final review gate, and final diff/commit or release-note decision are still not complete. The latest codex-review gate remains `ok=false` because the worktree and deploy surface are too broad/mixed for a safe release review.
 
 - `README_LIGHTWEIGHT.md` is absent in this checkout. Treat that as repository state, not a game bug.
 - `01-rulebook.md` and `正本/ターン進行正本.md` require turn-start effects before draw, createdSeq-based turn-start order, no same-turn activation for newly born turn-start objects, and one-by-one special stone/bomb processing.
@@ -1278,7 +1278,7 @@ git commit -m "refactor: share authority playback and runtime parity contracts"
 
 ### Task 4.1: Local Verification Matrix
 
-- [ ] **Step 4.1.1: Run static and type checks**
+- [x] **Step 4.1.1: Run static and type checks**
 
 ```powershell
 npm run check:window
@@ -1286,30 +1286,50 @@ npm run typecheck
 npm run build:ts
 ```
 
-- [ ] **Step 4.1.2: Run focused suites**
+Result in this checkout: `npm run checkall`, `npm run typecheck`, and `npm run build:ts` pass.
+
+Latest verification:
+- `npm run typecheck` PASS (`artifacts/typecheck-final.log`)
+- `npm run build:ts` PASS
+- `npm run checkall` PASS (`artifacts/checkall-final.log`)
+
+- [x] **Step 4.1.2: Run focused suites**
 
 ```powershell
 npx jest --runInBand --runTestsByPath test\game.turn-start-marker-order.test.ts test\game.turn-start-anchor-lifecycle.test.ts test\game.pipeline-ui-adapter.destroy-batch.test.ts test\game.pipeline-ui-adapter.spawn.test.ts test\workers.match-prng-contract.test.ts test\ui.network-playback-digest.test.ts
 ```
 
-- [ ] **Step 4.1.3: Run network parity**
+Result in this checkout: focused turn-start/network/playback suites pass, including stale-expectation updates for authoritative playback digest/event consistency and idempotent replay playback bundles.
+
+Latest verification:
+- `npx jest --runInBand --runTestsByPath test\ui.match-mode.leaderboard-limit.test.ts test\shared.presentation-effect-profiles.test.ts test\ui.animation-engine.guard-timer.test.ts test\e2e\tablet-opponent-deck-layout.e2e.test.ts` PASS
+
+- [x] **Step 4.1.3: Run network parity**
 
 ```powershell
 npm run test:network:parity
 npm run match:check
 ```
 
-- [ ] **Step 4.1.4: Run full Jest**
+Result in this checkout: `npm run test:network:parity` and `npm run match:check` pass.
+
+Latest verification:
+- `npm run test:network:parity` PASS (`artifacts/network-parity-final.log`)
+- `npm run match:check` PASS (`artifacts/match-check-final.log`)
+
+- [x] **Step 4.1.4: Run full Jest**
 
 ```powershell
 npm run test:jest
 ```
 
+Current result: green. After `npx jest --clearCache`, `npm run test:jest` passed with 700 suites / 4922 tests (`artifacts/full-jest-final.log`).
+
 If this cannot run because the lightweight checkout lacks dependencies, record the exact missing command or dependency and run the focused suites plus `npm run test:network:parity` instead. Do not mark Phase 4 complete if tests fail.
 
 ### Task 4.2: Browser Game Verification
 
-- [ ] **Step 4.2.1: Local two-client smoke**
+- [x] **Step 4.2.1: Local two-client smoke**
 
 Use the existing local match server or static/dev server path. Verify:
 - first move accepted
@@ -1317,6 +1337,10 @@ Use the existing local match server or static/dev server path. Verify:
 - pending selection accepted
 - time bomb playback phase separated
 - special stone chain playback completes before next input unlock
+
+Result in this checkout:
+- `test\e2e\network_special_cards.e2e.test.ts` passed as part of full Jest. It uses two Playwright browser contexts against the local match server and covers create/join, pending selections, bomb playback feedback on both clients, and post-playback input/turn settling.
+- `node dist\scripts\network-turn-start-browser-check.js` PASS after updating the smoke probe to observe the current `NetworkPlaybackDispatcher` path as well as the legacy `BoardOps` path (`artifacts/network-turn-start-browser-check-final-2.log`). It verified Chrome/Edge two-client playback reasons for `destroy_dragon`, `lightning`, `sniper`, and `robot_vacuum` with no console/page errors.
 
 - [ ] **Step 4.2.2: Public Worker smoke after deployment**
 
@@ -1335,6 +1359,93 @@ Use two independent browser sessions. Verify:
 git status --short
 git diff --stat
 ```
+
+Latest codex-review gate:
+- Result: `ok=false`
+- Blocking reason: current worktree and deploy surface are too broad/mixed to review or deploy as the turn-start/network parity unit.
+- Specific blockers: unrelated tracked changes and untracked assets/artifacts/source files are mixed with the parity work; `worker-public/` contains unreviewed modified/untracked deploy-surface files; public deployment and live two-browser Worker verification are not complete.
+- Required before deploy: isolate a coherent release candidate, make `worker-public/` deterministic from root source, re-run the verification matrix after isolation, and pass codex-review with no unreviewed scope.
+
+Current isolation audit:
+- Date: 2026-06-21
+- `git status --short` still shows a mixed checkout, not a deployable release candidate.
+- Current counts: tracked changed `213`, untracked `3253`, artifacts `3027`, `worker-public` or generated surface `132`, leaderboard/ranking `65`, visual/UI/assets `133`.
+- The turn-start/network parity candidate set can be narrowed to `52` files after excluding leaderboard/ranking matches, but this is only an audit list. It is not proof that the current checkout is safe to deploy.
+- Raw `git diff --stat` for the allowlist is inflated by CRLF churn. With `--ignore-cr-at-eol`, the tracked allowlist diff is `48` files, `1725` insertions, and `156` deletions. The allowlist also contains `4` untracked source/test files that must be intentionally added in the isolated candidate: `test/game.turn-start-anchor-lifecycle.test.ts`, `test/ui.network-auto-play.test.ts`, `test/ui.network-playback-digest.test.ts`, and `ui/network/auto-play.ts`.
+- Because another session is changing the ranking screen, do not include leaderboard/ranking UI, leaderboard assets, `styles-leaderboard.css`, or `workers/match-worker-leaderboard*` changes in the turn-start/network parity release candidate unless a separate explicit product decision says otherwise.
+
+Release-candidate source allowlist for the next isolated checkout:
+
+```text
+docs/superpowers/plans/2026-06-19-turn-start-network-parity-refactor.md
+game/logic/board_ops.ts
+game/turn/card-usage/immediate-effects.ts
+game/turn/pipeline-ui/log-mappers.ts
+game/turn/pipeline_ui_adapter.ts
+game/turn/turn-start/special-stone-phase.ts
+scripts/local-match-server.ts
+scripts/network-turn-start-browser-check.ts
+scripts/prepare-worker-assets.ts
+shared/presentation-effect-profiles.ts
+test/game.logic.time-bomb-single.test.ts
+test/game.turn-start-anchor-lifecycle.test.ts
+test/game.turn-start-marker-order.test.ts
+test/local-match-server.presentation-journal.test.ts
+test/local-match-server.publish-contract.test.ts
+test/local-match-server.spectator.test.ts
+test/shared.presentation-effect-profiles.test.ts
+test/ui.network-auto-play.test.ts
+test/ui.network-client.apply-coordinator.test.ts
+test/ui.network-client.movement-deferred-publish.test.ts
+test/ui.network-client.snapshot-effect-logs.test.ts
+test/ui.network-client.spectator.test.ts
+test/ui.network-client.visual-catchup.test.ts
+test/ui.network-legal-hints.test.ts
+test/ui.network-playback-digest.test.ts
+test/ui.network-playback-dispatcher.test.ts
+test/ui.network-playback-recovery.test.ts
+test/ui.network-presentation-timeline.test.ts
+test/ui.network-publish-flow.contract.test.ts
+test/ui.network-room-list-style.test.ts
+test/ui.network-session-lifecycle.test.ts
+test/ui.network-stream-snapshot.test.ts
+test/utils.match-authority.contract-types.test.ts
+test/workers.match-presentation-journal.test.ts
+test/workers.match-sub-placement-turn-start.test.ts
+test/workers.match-worker-api.test.ts
+ui/network-client.ts
+ui/network/auto-play.ts
+ui/network/playback-dispatcher.ts
+ui/network/playback-recovery.ts
+ui/network/presentation-timeline.ts
+ui/network/publish-flow.ts
+ui/network/session-lifecycle.ts
+ui/network/session-seat.ts
+ui/network/stream-snapshot.ts
+utils/match-authority-types.ts
+utils/match-authority.ts
+workers/match-worker-api.ts
+workers/match-worker-publish-controller.ts
+workers/match-worker-runtime-preload.ts
+workers/match-worker-types.ts
+workers/match-worker.ts
+```
+
+Release-candidate hard excludes for this parity deployment:
+- `artifacts/**`
+- `worker-public/**` until regenerated from the isolated root source with `npm run worker:prepare`
+- `public/module-registry.js` and `public/runtime.js` until regenerated by the normal build/sync flow
+- `assets/images/other/leaderboard-*`, `styles-leaderboard.css`, `ui/leaderboard-client.ts`, `workers/match-worker-leaderboard*`, and leaderboard/ranking tests unless a separate leaderboard release is intentionally bundled
+- board skin, stone skin, font, charge HUD, and broad visual UI asset work unless intentionally bundled in a separate UI release
+
+Isolation procedure before any deploy:
+1. Start from a clean checkout or explicitly approved worktree/branch.
+2. Reapply only the release-candidate allowlist above, then inspect `git diff --stat` and `git status --short`.
+3. Confirm line-ending noise is not part of the release by comparing both normal `git diff --stat` and `git diff --stat --ignore-cr-at-eol`.
+4. Run `npm run typecheck`, `npm run build:ts`, `npm run checkall`, `npm run test:network:parity`, `npm run match:check`, `npm run worker:prepare`, full `npm run test:jest`, and local Chrome/Edge turn-start browser smoke against that isolated checkout.
+5. Run codex-review again on the isolated diff. Required result: `ok=true` or no blocking findings.
+6. Deploy only after the isolated diff passes review and `worker-public/` is proven to be generated from the isolated root source.
+7. After deploy, run the public URL live two-browser Worker smoke and record the evidence in this plan.
 
 - [ ] **Step 4.3.2: Block on unresolved spec or contract gaps**
 
@@ -1359,10 +1470,10 @@ If any item is still unresolved and not explicitly out-of-scope in docs, stop an
 Current completion state:
 
 - Phase 0: Complete.
-- Phase 1: Complete through source implementation, focused tests, typecheck, build, and network parity. Mirror preparation remains blocked by unrelated dirty generated/mirror files.
+- Phase 1: Complete through source implementation, focused tests, typecheck, build, network parity, and worker mirror preparation in the current checkout.
 - Phase 2: Complete for the high-risk ordering bugs and tested lifecycle moves listed in the status update. Not a full card-by-card lifecycle rewrite; remaining global post-processing policies must stay unchanged unless a new source-of-truth decision explicitly moves them.
 - Phase 3: Complete as shared factory/planner/digest contracts. The Worker still has an adapter wrapper, but no longer owns a separate turn-pipeline algorithm.
-- Phase 4: Local automated verification is partially complete. Public deployment and live two-client verification are not complete in this checkout because `worker:prepare`/deploy would overwrite unrelated dirty generated/mirror files.
+- Phase 4: Partially complete. Static/type/build checks, focused suites, full Jest, network parity, local match smoke, local Chrome/Edge turn-start browser smoke, `checkall`, and worker mirror preparation pass in the current checkout. Public deployment, live two-client Worker verification, final review gate, and final diff/commit or release-note decision are still not complete.
 
 Do not merge Phase 2 before Phase 1 tests are green. Do not merge Phase 3 before Phase 2 lifecycle tests are green. Do not deploy before Phase 4 local network verification passes.
 

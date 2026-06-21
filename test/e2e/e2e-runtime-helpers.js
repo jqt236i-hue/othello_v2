@@ -108,6 +108,39 @@ async function stopPlaywrightBrowser(browser, timeoutMs = 5000) {
   await settleTeardown(browser.close().catch(() => undefined), timeoutMs);
 }
 
+async function closeMaintenanceNoticeIfPresent(page, timeoutMs = 5000) {
+  if (!page || typeof page.locator !== 'function') return false;
+  const notice = page.locator('#maintenanceNotice.is-open');
+  const noticeCount = await notice.count().catch(() => 0);
+  if (noticeCount <= 0) return false;
+
+  const closeButton = page.locator('#maintenanceNoticeCloseBtn');
+  const closeCount = await closeButton.count().catch(() => 0);
+  if (closeCount > 0) {
+    await closeButton.click({ timeout: timeoutMs }).catch(async () => {
+      await page.evaluate(() => {
+        const button = document.getElementById('maintenanceNoticeCloseBtn');
+        if (button instanceof HTMLElement) button.click();
+      }).catch(() => undefined);
+    });
+  } else {
+    await page.evaluate(() => {
+      const maintenanceNotice = document.getElementById('maintenanceNotice');
+      if (!maintenanceNotice) return;
+      maintenanceNotice.classList.remove('is-open');
+      maintenanceNotice.setAttribute('aria-hidden', 'true');
+    }).catch(() => undefined);
+  }
+
+  await page.waitForFunction(() => {
+    const maintenanceNotice = document.getElementById('maintenanceNotice');
+    return !maintenanceNotice
+      || !maintenanceNotice.classList.contains('is-open')
+      || maintenanceNotice.getAttribute('aria-hidden') === 'true';
+  }, { timeout: timeoutMs }).catch(() => undefined);
+  return true;
+}
+
 async function stopStaticServer(server) {
   if (!server || typeof server.close !== 'function') return;
 
@@ -139,5 +172,6 @@ module.exports = {
   startLocalMatchServer,
   stopStaticServer,
   stopPlaywrightPage,
-  stopPlaywrightBrowser
+  stopPlaywrightBrowser,
+  closeMaintenanceNoticeIfPresent
 };

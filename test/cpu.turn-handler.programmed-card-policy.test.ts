@@ -55,7 +55,7 @@ const lowYieldEconomyCards = [
 ];
 
 function setupLowYieldEconomyCard(cardCase: any, legalMoves: any[]) {
-    global.cpuSmartness = { white: 7, black: 1 };
+    global.cpuSmartness = { white: '8-theory-incarnation', black: 1 };
     global.cardState = {
         hands: { white: [cardCase.id], black: [] },
         charge: { white: 50, black: 10 },
@@ -175,9 +175,9 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test('Lv7 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
+    test('Lv8 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
-        global.cpuSmartness = { white: 7, black: 1 };
+        global.cpuSmartness = { white: '8-theory-incarnation', black: 1 };
         global.cardState = {
             hands: { white: ['theory_incarnation_01'], black: [] },
             charge: { white: 50, black: 10 },
@@ -196,9 +196,9 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.executeMove).toHaveBeenCalledWith(move);
     });
 
-    test('black Lv7 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
+    test('black Lv8 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
-        global.cpuSmartness = { white: 1, black: 7 };
+        global.cpuSmartness = { white: 1, black: '8-theory-incarnation' };
         global.cardState = {
             hands: { white: [], black: ['theory_incarnation_01'] },
             charge: { white: 10, black: 50 },
@@ -217,8 +217,8 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.executeMove).toHaveBeenCalledWith(move);
     });
 
-    test('Lv7 theory incarnation uses Lv6 card logic from turn 8 onward', async () => {
-        global.cpuSmartness = { white: 7, black: 1 };
+    test('Lv8 theory incarnation uses Lv6 card logic from turn 8 onward', async () => {
+        global.cpuSmartness = { white: '8-theory-incarnation', black: 1 };
         global.cardState = {
             hands: { white: ['theory_incarnation_01'], black: [] },
             charge: { white: 50, black: 10 },
@@ -238,7 +238,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
 
     test('CPU turn places normally while 理論の化身 leaves placement unlocked', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
-        global.cpuSmartness = { white: 7, black: 1 };
+        global.cpuSmartness = { white: '8-theory-incarnation', black: 1 };
         global.cardState = {
             hands: { white: ['some_card'], black: [] },
             charge: { white: 50, black: 10 },
@@ -279,9 +279,9 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.processPassTurn).not.toHaveBeenCalled();
     });
 
-    test('Lv8 ending ash skips all card-use paths before turn 6 and places a stone', async () => {
+    test('Lv9 ending ash skips all card-use paths before turn 6 and places a stone', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
-        global.cpuSmartness = { white: '8-ending-ash', black: 1 };
+        global.cpuSmartness = { white: '9-ending-ash', black: 1 };
         global.cardState = {
             hands: { white: ['observer_will_01'], black: [] },
             charge: { white: 99, black: 10 },
@@ -300,8 +300,8 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.executeMove).toHaveBeenCalledWith(move);
     });
 
-    test('Lv8 ending ash uses Lv6 card logic from turn 6 onward', async () => {
-        global.cpuSmartness = { white: '8-ending-ash', black: 1 };
+    test('Lv9 ending ash uses Lv6 card logic from turn 6 onward', async () => {
+        global.cpuSmartness = { white: '9-ending-ash', black: 1 };
         global.cardState = {
             hands: { white: ['observer_will_01'], black: [] },
             charge: { white: 99, black: 10 },
@@ -319,7 +319,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
-    test.each(lowYieldEconomyCards)('Lv7 theory incarnation blocks low-yield $name through programmed policy', async (cardCase) => {
+    test.each(lowYieldEconomyCards)('Lv8 theory incarnation blocks low-yield $name through programmed policy', async (cardCase) => {
         setupLowYieldEconomyCard(cardCase, cardCase.legalMoves);
 
         await mod.runCpuTurn('white');
@@ -544,7 +544,7 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
     test('runCpuTurn commits the ONNX move directly without policy fallback override', async () => {
         const onnxMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
         const fallbackMove = { row: 5, col: 4, flips: [{ row: 4, col: 4 }] };
-        global.cpuSmartness = { white: '8-ending-ash', black: 1 };
+        global.cpuSmartness = { white: '9-ending-ash', black: 1 };
         global.CardLogic = {
             getUsableCardIds: () => [],
             hasUsableCard: () => false,

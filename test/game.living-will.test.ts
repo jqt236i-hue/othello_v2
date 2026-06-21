@@ -156,6 +156,36 @@ describe('LIVING_WILL (生きる意志)', () => {
     expect(findMarker(cardState, 1, 1, 'LIVING_WILL')).toBeUndefined();
   });
 
+  test('owner-turn duration expiry flips lines captured from the restored stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[4][4] = 1;
+    gameState.board[4][5] = -1;
+    gameState.board[4][6] = 1;
+    cardState.markers.push({
+      id: 21,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'GUARD', remainingOwnerTurns: 3, sourceType: 'GUARD_WILL', sourceCardId: 'guard_01' }
+    });
+
+    cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget' };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 4, 4)).toMatchObject({ applied: true });
+
+    const currentGuard = findMarker(cardState, 4, 4, 'GUARD');
+    currentGuard.data.remainingOwnerTurns = 1;
+
+    CardLogic.onTurnStart(cardState, 'black', gameState);
+
+    expect(gameState.board[4][4]).toBe(1);
+    expect(gameState.board[4][5]).toBe(1);
+    expect(gameState.board[4][6]).toBe(1);
+    expect(cardState.charge.black).toBe(1);
+    expect(findMarker(cardState, 4, 4, 'GUARD')).toBeTruthy();
+    expect(findMarker(cardState, 4, 4, 'LIVING_WILL')).toBeUndefined();
+  });
+
   test('meteor-style destroy relocates the revival to another empty cell', () => {
     const { cardState, gameState } = makeState();
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(-1));
@@ -192,6 +222,53 @@ describe('LIVING_WILL (生きる意志)', () => {
 
     expect(result).toEqual({ restored: [{ row: 4, col: 4 }] });
     expect(gameState.board[4][4]).toBe(1);
+    expect(findMarker(cardState, 4, 4, 'LIVING_WILL')).toBeUndefined();
+  });
+
+  test('post-flip revive flips lines captured from the restored stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[4][4] = 1;
+    gameState.board[4][5] = -1;
+    gameState.board[4][6] = 1;
+
+    cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget' };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 4, 4)).toMatchObject({ applied: true });
+
+    gameState.board[4][4] = -1;
+    const result = CardLogic.applyLivingWillAfterFlips(cardState, gameState, [{ row: 4, col: 4 }], 'white');
+
+    expect(result).toEqual({
+      restored: [{ row: 4, col: 4 }],
+      flipped: [{ row: 4, col: 5 }]
+    });
+    expect(gameState.board[4][4]).toBe(1);
+    expect(gameState.board[4][5]).toBe(1);
+    expect(gameState.board[4][6]).toBe(1);
+    expect(cardState.charge.black).toBe(1);
+    expect(findMarker(cardState, 4, 4, 'LIVING_WILL')).toBeUndefined();
+  });
+
+  test('destroy-triggered revive flips lines captured from the restored stone', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[4][4] = 1;
+    gameState.board[4][5] = -1;
+    gameState.board[4][6] = 1;
+
+    cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget' };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 4, 4)).toMatchObject({ applied: true });
+
+    const destroyed = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'unit_test_destroy');
+
+    expect(destroyed).toMatchObject({
+      livingWillRevived: true,
+      relocated: false,
+      from: { row: 4, col: 4 },
+      to: { row: 4, col: 4 }
+    });
+    expect(gameState.board[4][4]).toBe(1);
+    expect(gameState.board[4][5]).toBe(1);
+    expect(gameState.board[4][6]).toBe(1);
+    expect(cardState.charge.black).toBe(1);
     expect(findMarker(cardState, 4, 4, 'LIVING_WILL')).toBeUndefined();
   });
 });

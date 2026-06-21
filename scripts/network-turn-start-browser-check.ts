@@ -241,7 +241,18 @@ async function closeSeat(seat: Seat | null | undefined): Promise<void> {
 async function installPageHelpers(seat: Seat): Promise<void> {
   await seat.page.evaluate(() => {
     (window as any).__turnStartBrowserCheckPayloads = [];
-    const attachWrapper = () => {
+    const capturePlaybackEvents = (playbackEvents: any) => {
+      try {
+        if (Array.isArray(playbackEvents) && playbackEvents.length > 0) {
+          (window as any).__turnStartBrowserCheckPayloads.push(JSON.parse(JSON.stringify(playbackEvents)));
+          return true;
+        }
+      } catch (_e) {
+        // ignore
+      }
+      return false;
+    };
+    const attachBoardOpsWrapper = () => {
       const boardOps = (window as any).BoardOps;
       if (!boardOps || typeof boardOps.emitPresentationEvent !== 'function' || boardOps.__turnStartBrowserCheckWrapped) {
         return false;
@@ -250,7 +261,7 @@ async function installPageHelpers(seat: Seat): Promise<void> {
       boardOps.emitPresentationEvent = function wrappedEmitPresentationEvent(state: any, ev: any) {
         try {
           if (ev && ev.type === 'PLAYBACK_EVENTS' && Array.isArray(ev.events)) {
-            (window as any).__turnStartBrowserCheckPayloads.push(JSON.parse(JSON.stringify(ev.events)));
+            capturePlaybackEvents(ev.events);
           }
         } catch (_e) {
           // ignore
@@ -260,9 +271,31 @@ async function installPageHelpers(seat: Seat): Promise<void> {
       boardOps.__turnStartBrowserCheckWrapped = true;
       return true;
     };
-    if (!attachWrapper()) {
+    const attachDispatcherWrapper = () => {
+      const dispatcher = (window as any).NetworkPlaybackDispatcher;
+      if (
+        !dispatcher
+        || typeof dispatcher.dispatchNetworkPlaybackEvents !== 'function'
+        || dispatcher.__turnStartBrowserCheckWrapped
+      ) {
+        return false;
+      }
+      const original = dispatcher.dispatchNetworkPlaybackEvents.bind(dispatcher);
+      dispatcher.dispatchNetworkPlaybackEvents = async function wrappedDispatchNetworkPlaybackEvents(playbackEvents: any, options?: any) {
+        capturePlaybackEvents(playbackEvents);
+        return original(playbackEvents, options);
+      };
+      dispatcher.__turnStartBrowserCheckWrapped = true;
+      return true;
+    };
+    const attachWrappers = () => {
+      const boardOpsAttached = attachBoardOpsWrapper();
+      const dispatcherAttached = attachDispatcherWrapper();
+      return boardOpsAttached && dispatcherAttached;
+    };
+    if (!attachWrappers()) {
       const intervalId = setInterval(() => {
-        if (attachWrapper()) clearInterval(intervalId);
+        if (attachWrappers()) clearInterval(intervalId);
       }, 20);
     }
     (window as any).__turnStartBrowserCheckPayloadsByReason = () => {

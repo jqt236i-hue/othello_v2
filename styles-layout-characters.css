@@ -243,17 +243,23 @@
     --cpu-tier-accent-strong: 219, 199, 255;
 }
 
+.cpu-level-menu-item.cpu-level-tier-7 {
+    --cpu-tier-accent: 190, 78, 255;
+    --cpu-tier-accent-strong: 244, 203, 255;
+}
+
 .cpu-level-menu-item.cpu-level-profile-board-executor {
     --cpu-tier-accent: 212, 78, 255;
     --cpu-tier-accent-strong: 250, 203, 255;
 }
 
-.cpu-level-menu-item.cpu-level-tier-7 {
+.cpu-level-menu-item.cpu-level-tier-8,
+.cpu-level-menu-item.cpu-level-profile-theory {
     --cpu-tier-accent: 224, 52, 64;
     --cpu-tier-accent-strong: 255, 184, 188;
 }
 
-.cpu-level-menu-item.cpu-level-tier-8,
+.cpu-level-menu-item.cpu-level-tier-9,
 .cpu-level-menu-item.cpu-level-profile-ending-ash {
     --cpu-tier-accent: 154, 168, 174;
     --cpu-tier-accent-strong: 238, 244, 246;

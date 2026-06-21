@@ -144,7 +144,7 @@ describe('game keyboard shortcuts', () => {
     expect(used).toEqual([]);
     expect(destroyed).toEqual([]);
     expect(clicks).toEqual([]);
-    expect((dom.window as any).writeNetworkStatus).toHaveBeenCalledWith('観戦中は操作できません', true);
+    expect((dom.window as any).writeNetworkStatus).toHaveBeenCalledWith('観測中は操作できません', true);
   });
 
   test('shortcuts are ignored while typing or composing', () => {

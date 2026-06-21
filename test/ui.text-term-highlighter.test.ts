@@ -11,7 +11,8 @@ describe('text term highlighter', () => {
     expect(labels).toEqual(expect.arrayContaining([
       '反転',
       '破壊',
-      '穴マス化',
+      '穴マス',
+      '絶対執行',
       '特殊石',
       '通常石',
       '反転保護',
@@ -23,8 +24,10 @@ describe('text term highlighter', () => {
   });
 
   test('shares effect tag descriptions with highlighted game terms', () => {
-    const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス化');
-    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マス化できる。');
+    const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス');
+    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。');
+    const erase = getGameTermGlossary().find((entry) => entry.label === '抹消');
+    expect(erase?.description).toContain('絶対保護以外の保護を貫通できる');
   });
 
   test('catalogs free placement as a placement action term', () => {
@@ -84,7 +87,7 @@ describe('text term highlighter', () => {
   test('recognizes aliases while preserving displayed text', () => {
     const matches = findGameTermMatches('穴化できない場合は不発となり、通常石に戻る。');
     expect(matches.map((match) => match.text)).toEqual(['穴化', '通常石']);
-    expect(matches[0].label).toBe('穴マス化');
+    expect(matches[0].label).toBe('穴マス');
     expect(matches[0].category).toBe('cell');
   });
 

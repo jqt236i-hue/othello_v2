@@ -463,6 +463,53 @@ function _getBoardHintProjectionForDiff() {
     return null;
 }
 
+function _resolveBoardExpansionLayerForDiff(boardEl: any, createIfMissing?: any) {
+    const resolveLayer = _getDiscStoneHelperForDiff('resolveBoardExpansionLayerElement');
+    if (resolveLayer) {
+        return resolveLayer(boardEl, createIfMissing);
+    }
+    if (typeof document === 'undefined' || !document || !boardEl) return null;
+    const boardFrame = typeof boardEl.closest === 'function' ? boardEl.closest('#board-frame') : null;
+    const boardStack = boardFrame && boardFrame.parentElement
+        ? boardFrame.parentElement
+        : boardEl.parentElement;
+    if (!boardStack) return null;
+
+    let layer = typeof boardStack.querySelector === 'function'
+        ? boardStack.querySelector('#board-expansion-layer')
+        : null;
+    if (layer || !createIfMissing || typeof document.createElement !== 'function') {
+        return layer;
+    }
+
+    layer = document.createElement('div');
+    layer.id = 'board-expansion-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    const chargeHudLayer = typeof boardStack.querySelector === 'function'
+        ? boardStack.querySelector('#charge-hud-layer')
+        : null;
+    if (chargeHudLayer && chargeHudLayer.parentNode === boardStack) {
+        boardStack.insertBefore(layer, chargeHudLayer);
+    } else if (boardFrame && boardFrame.parentNode === boardStack) {
+        boardStack.insertBefore(layer, boardFrame.nextSibling);
+    } else {
+        boardStack.appendChild(layer);
+    }
+    return layer;
+}
+
+function _getRenderedCellsForDiff(boardEl: any) {
+    const cells: any[] = [];
+    if (boardEl && typeof boardEl.querySelectorAll === 'function') {
+        cells.push(...Array.from(boardEl.querySelectorAll('.cell')));
+    }
+    const expansionLayer = _resolveBoardExpansionLayerForDiff(boardEl, false);
+    if (expansionLayer && typeof expansionLayer.querySelectorAll === 'function') {
+        cells.push(...Array.from(expansionLayer.querySelectorAll('.cell')));
+    }
+    return cells;
+}
+
 function _buildBoardHintProjectionForDiff(gameStateValue: any, cardStateValue: any, playerKey: any, boardShape: any, canControlCurrentTurn: boolean, isHumanTurn: boolean, expansions: any[]) {
     const projectionModule = _getBoardHintProjectionForDiff();
     if (!projectionModule || typeof projectionModule.buildBoardHintProjection !== 'function') return null;
@@ -1258,6 +1305,7 @@ function _consumeBoardUpdateSyncContextForDiff() {
 // AnimationEngine already animates flip events; DiffRenderer is used to sync final DOM state after playback.
 let suppressFallbackFlipThisRender = false;
 let pendingMoveSourceKeysThisRender: any = null;
+let pendingFlipTargetKeysThisRender: any = null;
 function _getCardStateForDiffPlayback() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
@@ -1314,6 +1362,23 @@ function _extractMoveSourceKeyFromPlaybackTargetForDiff(target: any) {
     return row !== null && col !== null ? `${row},${col}` : null;
 }
 
+function _extractCellKeyFromPlaybackTargetForDiff(target: any) {
+    if (!target || typeof target !== 'object') return null;
+
+    const row = _normalizeBoardCoord(
+        Object.prototype.hasOwnProperty.call(target, 'row')
+            ? target.row
+            : (Object.prototype.hasOwnProperty.call(target, 'r') ? target.r : target.y)
+    );
+    const col = _normalizeBoardCoord(
+        Object.prototype.hasOwnProperty.call(target, 'col')
+            ? target.col
+            : (Object.prototype.hasOwnProperty.call(target, 'c') ? target.c : target.x)
+    );
+
+    return row !== null && col !== null ? `${row},${col}` : null;
+}
+
 function _collectPendingMoveSourceKeysForDiff() {
     const keys = new Set();
     const pendingEntries = _getPendingPlaybackQueueEntriesForDiff();
@@ -1331,9 +1396,35 @@ function _collectPendingMoveSourceKeysForDiff() {
     return keys;
 }
 
+function _collectPendingFlipTargetKeysForDiff() {
+    const keys = new Set();
+    const pendingEntries = _getPendingPlaybackQueueEntriesForDiff();
+    for (const entry of pendingEntries) {
+        const playbackEvents = _getPlaybackEventsFromQueueEntryForDiff(entry);
+        for (const playbackEvent of playbackEvents) {
+            const eventType = String(playbackEvent && playbackEvent.type || '').toLowerCase();
+            if (eventType !== 'flip' && eventType !== 'change') continue;
+            const targets = eventType === 'change'
+                ? [playbackEvent]
+                : (Array.isArray(playbackEvent.targets) ? playbackEvent.targets : []);
+            for (const target of targets) {
+                const key = _extractCellKeyFromPlaybackTargetForDiff(target);
+                if (key) keys.add(key);
+            }
+        }
+    }
+    return keys;
+}
+
 function _hasPendingMoveSourceAtForDiff(row: any, col: any) {
     const key = `${row},${col}`;
     const keys = pendingMoveSourceKeysThisRender || _collectPendingMoveSourceKeysForDiff();
+    return keys.has(key);
+}
+
+function _hasPendingFlipTargetAtForDiff(row: any, col: any) {
+    const key = `${row},${col}`;
+    const keys = pendingFlipTargetKeysThisRender || _collectPendingFlipTargetKeysForDiff();
     return keys.has(key);
 }
 
@@ -1657,7 +1748,7 @@ function _ensureBoardExpansionDirectionHintForDiff(cell: any, direction: any) {
 }
 
 function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
-    if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
+    if (!boardEl) return;
     const gameState = _resolveGameStateForDiffRender();
     const cardState = _resolveCardStateForDiffRender();
     const playerKey = gameState ? getPlayerKey(gameState.currentPlayer) : null;
@@ -1683,7 +1774,7 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
     const expansionHintMap = projection.boardExpansionDirectionHintMap instanceof Map
         ? projection.boardExpansionDirectionHintMap
         : new Map();
-    const cells = boardEl.querySelectorAll('.cell');
+    const cells = _getRenderedCellsForDiff(boardEl);
     cells.forEach((cell: any) => {
         const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
         const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
@@ -1905,7 +1996,9 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '復活': '失われた時に元の色や状態へ戻る。',
     '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。',
-    '穴マス化': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マス化できる。',
+    '抹消': '石やマス状態ごと対象マスを取り除き、穴マスにする処理。通常の石破壊とは別扱い。',
+    '穴マス': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。',
+    '絶対執行': '盤界の執行者専用の抹消。全ての保護を貫通して特殊石を穴マスにする。',
     '顕現石': '特殊カードによって盤面に現れる、特殊石とは別分類の不可侵石。',
     '繁殖生成石': '繁殖の意志でそのターンに新規生成された通常石。次の同一所有者ターン開始まで小さめの双葉表示になる。',
     '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外。誘惑・捕獲は受け流し、入替や他の効果は通常どおり受ける。',
@@ -2662,7 +2755,9 @@ function initializeBoardDOM(boardEl: any) {
     const gameState = _resolveGameStateForDiffRender();
     const boardShape = _applyBoardCssVarsForDiff(boardEl, gameState);
     const expansions = _getExpansionDescriptorsForDiff(gameState);
+    const expansionLayer = _resolveBoardExpansionLayerForDiff(boardEl, true);
     boardEl.innerHTML = '';
+    if (expansionLayer) expansionLayer.innerHTML = '';
     cellCache = [];
     cellCacheMap = new Map();
 
@@ -2693,7 +2788,7 @@ function initializeBoardDOM(boardEl: any) {
         cell.dataset.col = String(expansion.col);
         _applyExpansionCellPositionForDiff(cell, expansion.row, expansion.col, boardShape);
         attachBoardCellInteraction(cell, expansion.row, expansion.col);
-        boardEl.appendChild(cell);
+        (expansionLayer || boardEl).appendChild(cell);
         _cacheCell(expansion.row, expansion.col, cell);
     }
 
@@ -3334,6 +3429,17 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
         return;
     }
 
+    if (
+        prevState
+        && prevState.value !== EMPTY
+        && state.value !== EMPTY
+        && prevState.value !== state.value
+        && !suppressFallbackFlipThisRender
+        && (_isVisualPlaybackActiveForDiff() || _hasPendingFlipTargetAtForDiff(row, col))
+    ) {
+        return;
+    }
+
     // Clear existing classes and content
     cell.className = 'cell';
     cell.innerHTML = '';
@@ -3687,8 +3793,8 @@ function getEffectKeyForType(type: any) {
 }
 
 function reconcileCellHasDiscClasses(boardEl: any) {
-    if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
-    const cells = boardEl.querySelectorAll('.cell');
+    if (!boardEl) return;
+    const cells = _getRenderedCellsForDiff(boardEl);
     cells.forEach((cell: any) => {
         try {
             const hasDisc = !!cell.querySelector('.disc');
@@ -3706,7 +3812,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             .filter(Boolean)
             .map((exp: any) => [`${exp.row},${exp.col}`, exp])
     );
-    const cells = boardEl.querySelectorAll('.cell');
+    const cells = _getRenderedCellsForDiff(boardEl);
     cells.forEach((cell: any) => {
         try {
             const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
@@ -3823,6 +3929,7 @@ function renderBoardDiff(boardEl: any) {
     suppressFallbackFlipThisRender = !!(boardUpdateContext && boardUpdateContext.suppressFallbackFlip === true);
     suppressBoardExpansionRevealSoundThisRender = !!(boardUpdateContext && boardUpdateContext.suppressBoardExpansionRevealSound === true);
     pendingMoveSourceKeysThisRender = _collectPendingMoveSourceKeysForDiff();
+    pendingFlipTargetKeysThisRender = _collectPendingFlipTargetKeysForDiff();
 
     try {
         const gameState = _resolveGameStateForDiffRender();
@@ -3919,6 +4026,7 @@ function renderBoardDiff(boardEl: any) {
         suppressFallbackFlipThisRender = false;
         suppressBoardExpansionRevealSoundThisRender = false;
         pendingMoveSourceKeysThisRender = null;
+        pendingFlipTargetKeysThisRender = null;
     }
 }
 

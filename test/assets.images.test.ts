@@ -3,21 +3,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 describe('stone image assets', () => {
-  const stonesDir = path.join(__dirname, '..', 'assets', 'images', 'stones');
+  const specialStonesDir = path.join(__dirname, '..', 'assets', 'images', 'special-stones');
+  const stoneSkinDir = path.join(__dirname, '..', 'assets', 'images', 'stone-skin');
 
   it('includes the normal stone PNGs', () => {
-    assert.ok(fs.existsSync(path.join(stonesDir, 'normal_stone-black.png')));
-    assert.ok(fs.existsSync(path.join(stonesDir, 'normal_stone-white.png')));
+    assert.ok(fs.existsSync(path.join(stoneSkinDir, 'default', 'black.png')));
+    assert.ok(fs.existsSync(path.join(stoneSkinDir, 'default', 'white.png')));
   });
 
   test('includes the TIME_STOP stone PNGs', () => {
-    assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-black.png')));
-    assert.ok(fs.existsSync(path.join(stonesDir, 'TIME_STOP-white.png')));
+    assert.ok(fs.existsSync(path.join(specialStonesDir, 'TIME_STOP-black.png')));
+    assert.ok(fs.existsSync(path.join(specialStonesDir, 'TIME_STOP-white.png')));
   });
 
   it('includes the promoted strongest-stone PNGs used after 強い意志 evolves', () => {
-    assert.ok(fs.existsSync(path.join(stonesDir, 'absolute_protect_next_stone-black.png')));
-    assert.ok(fs.existsSync(path.join(stonesDir, 'absolute_protect_next_stone-white.png')));
+    assert.ok(fs.existsSync(path.join(specialStonesDir, 'absolute_protect_next_stone-black.png')));
+    assert.ok(fs.existsSync(path.join(specialStonesDir, 'absolute_protect_next_stone-white.png')));
   });
 
   it('declares CSS variables for the normal stone images', () => {

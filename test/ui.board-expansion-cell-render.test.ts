@@ -3,7 +3,7 @@ import { readRepoTextFile } from './helpers/css-test-helpers';
 
 describe('DiffRenderer board expansion cell rendering', () => {
   beforeEach(() => {
-    const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    const dom = new JSDOM('<!doctype html><html><body><div id="board-stack"><div id="board-frame"><div id="board"></div></div><div id="board-expansion-layer"></div></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
     global.boardEl = document.getElementById('board');
@@ -60,15 +60,17 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    const expansionCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionLayer = document.getElementById('board-expansion-layer');
+    const expansionCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(expansionCell).toBeTruthy();
+    expect(boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]')).toBeNull();
     expect(expansionCell.classList.contains('cell-expanded')).toBe(true);
     expect(expansionCell.style.left).toBe('-12.5%');
     expect(expansionCell.classList.contains('cell-expanded-reveal')).toBe(false);
 
     diff.renderBoardDiff(boardEl);
 
-    const expansionCellAfter = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionCellAfter = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(expansionCellAfter).toBeTruthy();
     expect(expansionCellAfter.classList.contains('cell-expanded')).toBe(true);
   });
@@ -90,8 +92,9 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    const leftCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
-    const rightCell = boardEl.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
+    const expansionLayer = document.getElementById('board-expansion-layer');
+    const leftCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const rightCell = expansionLayer.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
     expect(leftCell).toBeTruthy();
     expect(rightCell).toBeTruthy();
     expect(boardEl.classList.contains('board-expanded-left')).toBe(true);
@@ -116,9 +119,10 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    const topCell = boardEl.querySelector('.cell-expanded-top[data-row="-1"][data-col="0"]');
-    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
-    const bottomCell = boardEl.querySelector('.cell-expanded-bottom[data-row="8"][data-col="7"]');
+    const expansionLayer = document.getElementById('board-expansion-layer');
+    const topCell = expansionLayer.querySelector('.cell-expanded-top[data-row="-1"][data-col="0"]');
+    const cornerCell = expansionLayer.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    const bottomCell = expansionLayer.querySelector('.cell-expanded-bottom[data-row="8"][data-col="7"]');
 
     expect(topCell).toBeTruthy();
     expect(cornerCell).toBeTruthy();
@@ -181,7 +185,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    const cornerCell = document.getElementById('board-expansion-layer').querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
     expect(cornerCell).toBeTruthy();
     expect(cornerCell.classList.contains('legal-free')).toBe(true);
     expect(cornerCell.classList.contains('legal')).toBe(false);
@@ -203,7 +207,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
     };
     diff.renderBoardDiff(boardEl);
 
-    const newCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionLayer = document.getElementById('board-expansion-layer');
+    const newCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(newCell).toBeTruthy();
     expect(newCell.classList.contains('cell-expanded-reveal')).toBe(true);
 
@@ -220,8 +225,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
     };
     diff.renderBoardDiff(boardEl);
 
-    const oldCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
-    const addedCell = boardEl.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
+    const oldCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const addedCell = expansionLayer.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
     expect(oldCell).toBeTruthy();
     expect(addedCell).toBeTruthy();
     expect(oldCell.classList.contains('cell-expanded-reveal')).toBe(false);
@@ -295,19 +300,19 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     expect(boardCss).toMatch(/#board\.board-expanded-left\s*\{[\s\S]*border-left-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\.board-expanded-left::after\s*\{[\s\S]*border-left-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\s+\.cell-expanded-left\s*\{[\s\S]*border-right-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-left\s*\{[\s\S]*border-right-color:\s*transparent/);
 
     expect(boardCss).toMatch(/#board\.board-expanded-right\s*\{[\s\S]*border-right-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\.board-expanded-right::after\s*\{[\s\S]*border-right-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\s+\.cell-expanded-right\s*\{[\s\S]*border-left-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-right\s*\{[\s\S]*border-left-color:\s*transparent/);
 
     expect(boardCss).toMatch(/#board\.board-expanded-top\s*\{[\s\S]*border-top-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\.board-expanded-top::after\s*\{[\s\S]*border-top-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\s+\.cell-expanded-top\s*\{[\s\S]*border-bottom-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-top\s*\{[\s\S]*border-bottom-color:\s*transparent/);
 
     expect(boardCss).toMatch(/#board\.board-expanded-bottom\s*\{[\s\S]*border-bottom-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\.board-expanded-bottom::after\s*\{[\s\S]*border-bottom-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\s+\.cell-expanded-bottom\s*\{[\s\S]*border-top-color:\s*transparent/);
+    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-bottom\s*\{[\s\S]*border-top-color:\s*transparent/);
 
     expect(boardCss).toMatch(/#board\.board-expanded-left\s+\.cell-edge-left:not\(\.cell-expanded\)\s*\{[\s\S]*border-left-color:\s*transparent/);
     expect(boardCss).toMatch(/#board\.board-expanded-right\s+\.cell-edge-right:not\(\.cell-expanded\)\s*\{[\s\S]*border-right-color:\s*transparent/);
@@ -318,7 +323,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
   test('board CSS keeps occupied cells above neighboring grid lines', () => {
     const boardCss = readRepoTextFile('styles-board.css');
 
-    expect(boardCss).toMatch(/#board\s*\{[\s\S]*--board-layer-occupied-cell:\s*4;/);
+    expect(boardCss).toMatch(/#board,\s*[\s\S]*#board-expansion-layer\s*\{[\s\S]*--board-layer-occupied-cell:\s*4;/);
     expect(boardCss).toMatch(/\.cell\.has-disc\s*\{[\s\S]*z-index:\s*var\(--board-layer-occupied-cell\);/);
   });
 });

@@ -15,12 +15,12 @@ interface FontSkinItem {
 
 const BASE_FONT_SKINS: readonly FontSkinItem[] = Object.freeze([
   Object.freeze({
-    id: 'default',
-    label: '既定フォント',
-    note: '初期設定',
-    fontFamily: '"Segoe UI", serif',
-    accentFontFamily: '"Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif',
-    readableFontFamily: '"Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif',
+    id: 'shippori-mincho',
+    label: 'Shippori Mincho',
+    note: '和風・物語調のカード名に合う上品な明朝',
+    fontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    accentFontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    readableFontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
     previewText: 'Aa\nあア\n123'
   }),
   Object.freeze({
@@ -30,6 +30,51 @@ const BASE_FONT_SKINS: readonly FontSkinItem[] = Object.freeze([
     fontFamily: '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace',
     accentFontFamily: '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace',
     readableFontFamily: '"Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif',
+    previewText: 'Aa\nあア\n123'
+  }),
+  Object.freeze({
+    id: 'cinzel',
+    label: 'Cinzel',
+    note: '金属プレートや英字見出し向けの碑文風セリフ',
+    fontFamily: '"CR-Cinzel", "Times New Roman", serif',
+    accentFontFamily: '"CR-Cinzel", "Times New Roman", serif',
+    readableFontFamily: '"Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif',
+    previewText: 'Aa\nあア\n123'
+  }),
+  Object.freeze({
+    id: 'kaisei-tokumin',
+    label: 'Kaisei Tokumin',
+    note: '幻想感のある太め明朝。強いカード名向け',
+    fontFamily: '"CR-Kaisei Tokumin", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    accentFontFamily: '"CR-Kaisei Tokumin", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    readableFontFamily: '"CR-Kaisei Tokumin", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    previewText: 'Aa\nあア\n123'
+  }),
+  Object.freeze({
+    id: 'zen-antique-soft',
+    label: 'Zen Antique Soft',
+    note: 'レトロで柔らかい和風セリフ',
+    fontFamily: '"CR-Zen Antique Soft", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    accentFontFamily: '"CR-Zen Antique Soft", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    readableFontFamily: '"CR-Zen Antique Soft", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    previewText: 'Aa\nあア\n123'
+  }),
+  Object.freeze({
+    id: 'yusei-magic',
+    label: 'Yusei Magic',
+    note: '軽い手書き感。コミカルなカードや演出向け',
+    fontFamily: '"CR-Yusei Magic", "Yu Gothic", "Hiragino Sans", sans-serif',
+    accentFontFamily: '"CR-Yusei Magic", "Yu Gothic", "Hiragino Sans", sans-serif',
+    readableFontFamily: '"CR-Yusei Magic", "Yu Gothic", "Hiragino Sans", sans-serif',
+    previewText: 'Aa\nあア\n123'
+  }),
+  Object.freeze({
+    id: 'rocknroll-one',
+    label: 'RocknRoll One',
+    note: '太く読みやすいポップ見出し。操作ボタン向け',
+    fontFamily: '"CR-RocknRoll One", "Yu Gothic", "Hiragino Sans", sans-serif',
+    accentFontFamily: '"CR-RocknRoll One", "Yu Gothic", "Hiragino Sans", sans-serif',
+    readableFontFamily: '"CR-RocknRoll One", "Yu Gothic", "Hiragino Sans", sans-serif',
     previewText: 'Aa\nあア\n123'
   })
 ]);
@@ -60,6 +105,7 @@ function getOwnedFontSkins(): FontSkinItem[] {
 
 function normalizeFontSkinId(value: unknown): string {
   const normalized = normalizeCatalogFontSkinId(value);
+  if (normalized === 'default') return DEFAULT_FONT_SKIN_ID;
   return FONT_SKINS.some((item) => item.id === normalized) ? normalized : DEFAULT_FONT_SKIN_ID;
 }
 

@@ -32,8 +32,8 @@ describe('special card foundation assets', () => {
     const manifest = require('../assets/asset-manifest.json');
     const paths = manifest.files.map((entry: any) => entry.path);
 
-    expect(paths).toContain('assets/images/stones/board_executor-black.png');
-    expect(paths).toContain('assets/images/stones/board_executor-white.png');
+    expect(paths).toContain('assets/images/special-stones/board_executor-black.png');
+    expect(paths).toContain('assets/images/special-stones/board_executor-white.png');
     expect(paths).not.toContain('assets/images/stones/bankai-black.png');
     expect(paths).not.toContain('assets/images/stones/bankai-white.png');
   });

@@ -63,16 +63,30 @@ export interface MatchWorkerPreparedSnapshotBroadcast {
 export interface MatchWorkerLeaderboardStore {
     version: number;
     players: Record<string, MatchWorkerLeaderboardEntry>;
+    playerModes: Record<string, MatchWorkerLeaderboardModeEntries>;
+    playerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>>;
+    timeAttackPlayers: Record<string, MatchWorkerLeaderboardEntry>;
+    timeAttackPlayerModes: Record<string, MatchWorkerLeaderboardModeEntries>;
+    timeAttackPlayerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>>;
     updatedAt: number;
 }
 
 export type MatchWorkerLeaderboardMode = 'cpu' | 'network';
+export type MatchWorkerLeaderboardCategory = 'score' | 'timeAttack';
+
+export interface MatchWorkerLeaderboardModeEntries {
+    cpu?: MatchWorkerLeaderboardEntry | null;
+    network?: MatchWorkerLeaderboardEntry | null;
+}
 
 export interface MatchWorkerLeaderboardEntry {
     playerId: string;
     playerName: string;
+    category: MatchWorkerLeaderboardCategory;
     bestScore: number;
     lastScore: number;
+    bestTimeMs: number | null;
+    lastTimeMs: number | null;
     mode: MatchWorkerLeaderboardMode;
     cpuLevel: number | null;
     scoreVersion: number | null;
@@ -273,6 +287,7 @@ export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     roomName?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: unknown;
+    networkAutoEnabled?: unknown;
 }
 
 export interface MatchWorkerTurnTimerOptions extends Record<string, unknown> {

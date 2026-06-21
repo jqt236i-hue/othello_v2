@@ -63,7 +63,19 @@ describe('match-authority public contract types', () => {
       {
         eventId: 'ROOM_1_2',
         eventName: 'snapshot',
-        payload: { visible: 'both' }
+        payload: {
+          visible: 'both',
+          sseReplay: {
+            replayed: true,
+            lastEventId: 'ROOM_1_1',
+            index: 1,
+            count: 1,
+            remaining: 0
+          }
+        },
+        replayIndex: 1,
+        replayCount: 1,
+        replayRemaining: 0
       }
     ]);
   });

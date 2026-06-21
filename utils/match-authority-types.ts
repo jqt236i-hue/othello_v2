@@ -138,6 +138,7 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     initialSnapshotByViewer?: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> | null;
     authorityLog?: unknown[] | null;
     authoritativeStateHash?: unknown;
+    networkAutoEnabled?: boolean | null;
 }
 
 export interface MatchAuthorityPublishMeta {
@@ -169,6 +170,7 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     roomDeck?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: unknown;
+    networkAutoEnabled?: unknown;
     turnTimer?: unknown;
     playbackEvents?: unknown;
     playbackDigest?: unknown;
@@ -213,6 +215,7 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     roomDeck?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: boolean;
+    networkAutoEnabled?: boolean;
     turnTimer?: unknown | null;
     playbackEvents?: unknown[];
     playbackDigest?: string;
@@ -254,6 +257,7 @@ export interface MatchAuthoritySnapshotPayloadFromRoomOptions extends MatchAutho
     snapshot?: unknown;
     roomDeck?: unknown;
     networkDebugEnabled?: unknown;
+    networkAutoEnabled?: unknown;
     turnTimer?: unknown;
     playbackEvents?: unknown;
     playbackDigest?: unknown;
@@ -267,6 +271,7 @@ export interface MatchAuthoritySnapshotPayloadFromRoomOptions extends MatchAutho
 export interface MatchAuthorityPresencePayloadFromRoomOptions extends MatchAuthorityRoomPayloadOptions {
     roomDeck?: unknown;
     networkDebugEnabled?: unknown;
+    networkAutoEnabled?: unknown;
     turnTimer?: unknown;
     type?: unknown;
     seatKey?: unknown;
@@ -281,6 +286,7 @@ export interface MatchAuthorityPresencePayloadFromRoomOptions extends MatchAutho
 export interface MatchAuthorityHeartbeatPayloadFromRoomOptions extends MatchAuthorityRoomPayloadOptions {
     roomDeck?: unknown;
     networkDebugEnabled?: unknown;
+    networkAutoEnabled?: unknown;
     turnTimer?: unknown;
 }
 
@@ -288,6 +294,7 @@ export interface MatchAuthorityPublishPayloadFromRoomOptions extends MatchAuthor
     snapshot?: unknown;
     roomDeck?: unknown;
     networkDebugEnabled?: unknown;
+    networkAutoEnabled?: unknown;
     turnTimer?: unknown;
     playbackEvents?: unknown;
     playbackDigest?: unknown;

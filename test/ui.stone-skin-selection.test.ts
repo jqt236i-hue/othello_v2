@@ -23,8 +23,8 @@ describe('stone skin selection', () => {
     expect(selection.readStoredStoneSkinId(window)).toBe('o-stone');
 
     expect(selection.writeStoredStoneSkinId(window, 'missing')).toBe(true);
-    expect(window.localStorage.getItem(selection.STONE_SKIN_STORAGE_KEY)).toBe('default');
-    expect(window.localStorage.getItem(selection.LEGACY_STONE_SKIN_STORAGE_KEY)).toBe('default');
-    expect(selection.readStoredStoneSkinId(window)).toBe('default');
+    expect(window.localStorage.getItem(selection.STONE_SKIN_STORAGE_KEY)).toBe('jade-rim');
+    expect(window.localStorage.getItem(selection.LEGACY_STONE_SKIN_STORAGE_KEY)).toBe('jade-rim');
+    expect(selection.readStoredStoneSkinId(window)).toBe('jade-rim');
   });
 });

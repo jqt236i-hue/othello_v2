@@ -699,7 +699,9 @@ try {
     const runtimeMethod = getPresentationRuntimeMethod('flushPendingPresentationEvents');
     if (runtimeMethod.method) {
       setTimeout(function () {
-        try { onBoardUpdated(); } catch (e) { /* ignore */ }
+        try {
+          Promise.resolve(onBoardUpdated()).catch(function () { /* ignore fallback drain failure */ });
+        } catch (e) { /* ignore */ }
       }, 60);
     }
   }

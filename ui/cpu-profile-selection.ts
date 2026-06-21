@@ -35,7 +35,7 @@ function readCpuSmartnessValueFromSelectId(selectId: unknown, doc?: Document | n
     const raw = readRawSelectValue(selectId, doc).trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(8, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(9, Math.floor(n))) : raw;
 }
 
 function readCpuSmartnessFromSelects(doc?: Document | null): CpuSmartnessSelection {

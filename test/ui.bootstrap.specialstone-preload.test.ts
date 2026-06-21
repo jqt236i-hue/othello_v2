@@ -31,7 +31,7 @@ describe('ui/bootstrap special stone preload', () => {
     global.getSupportedEffectKeys = jest.fn(() => ['ultimateDragon', 'ultimateDestroyGod', 'normal', 'ultimateDragon']);
     global.preloadStoneVisualEffectKeys = jest.fn((keys) => {
       preloadCalls.push(keys);
-      return { started: ['assets/images/stones/ultimate_reverse_dragon-black.png'], skipped: [] };
+      return { started: ['assets/images/special-stones/ultimate_reverse_dragon-black.png'], skipped: [] };
     });
 
     const uiBootstrap = require('../ui/bootstrap.js');
@@ -43,7 +43,7 @@ describe('ui/bootstrap special stone preload', () => {
     expect(result).toMatchObject({
       attempted: true,
       effectKeys: ['ultimateDragon', 'ultimateDestroyGod'],
-      started: ['assets/images/stones/ultimate_reverse_dragon-black.png']
+      started: ['assets/images/special-stones/ultimate_reverse_dragon-black.png']
     });
   });
 

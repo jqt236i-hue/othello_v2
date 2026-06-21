@@ -49,7 +49,7 @@ function canUseStorage(rootRef: Window): boolean {
 
 function readStoredFontSkinId(rootRef: Window & { FontSkinCatalogModule?: FontSkinCatalogModule }): string {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_FONT_SKIN_ID) || 'default').trim() || 'default';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_FONT_SKIN_ID) || 'shippori-mincho').trim() || 'shippori-mincho';
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     if (catalogModule && typeof catalogModule.normalizeFontSkinId === 'function') {
@@ -67,9 +67,10 @@ function readStoredFontSkinId(rootRef: Window & { FontSkinCatalogModule?: FontSk
 function writeStoredFontSkinId(rootRef: Window & { FontSkinCatalogModule?: FontSkinCatalogModule }, skinId: string): boolean {
   if (!canUseStorage(rootRef)) return false;
   const catalogModule = resolveCatalogModule(rootRef);
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_FONT_SKIN_ID) || 'shippori-mincho').trim() || 'shippori-mincho';
   const definition = catalogModule && typeof catalogModule.getFontSkinDefinition === 'function'
     ? catalogModule.getFontSkinDefinition(skinId, rootRef)
-    : { id: 'default' };
+    : { id: fallbackId };
   try {
     if (definition) {
       rootRef.localStorage.setItem(FONT_SKIN_STORAGE_KEY, definition.id);

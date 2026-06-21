@@ -1,6 +1,7 @@
 import * as path from 'path';
 
 const modPath = path.resolve(__dirname, '..', 'game', 'pass-handler.js');
+const turnPipelinePath = path.resolve(__dirname, '..', 'game', 'turn', 'turn_pipeline.js');
 
 const makeTurnPipeline = () => ({
     applyTurnSafe: jest.fn((cs: any, gs: any) => ({
@@ -144,6 +145,22 @@ describe('pass-handler flows', () => {
         };
         const ph = require('../game/pass-handler');
         await expect(ph.processPassTurn('black', false)).resolves.toBeTruthy();
+    });
+
+    test('processPassTurn falls back to required TurnPipeline when global TurnPipeline has no API', async () => {
+        const moduleTurnPipeline = makeTurnPipeline();
+        jest.doMock(turnPipelinePath, () => moduleTurnPipeline, { virtual: false });
+        delete require.cache[modPath];
+        (global as any).TurnPipeline = {};
+
+        try {
+            const ph = require('../game/pass-handler');
+            await expect(ph.processPassTurn('black', false)).resolves.toBeTruthy();
+
+            expect(moduleTurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.dontMock(turnPipelinePath);
+        }
     });
 
     test('getLegalMoves 未定義でも handleBlackPassWhenNoMoves が投げない', async () => {
