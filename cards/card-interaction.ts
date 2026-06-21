@@ -2383,6 +2383,13 @@ function _getWaitForPlaybackIdleFn() {
     return null;
 }
 
+function _getVisualPlaybackDrainFn() {
+    if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.getVisualPlaybackDrainFn === 'function') {
+        return _cardInteractionPendingNetworkModule.getVisualPlaybackDrainFn(_getCardInteractionPendingNetworkDeps());
+    }
+    return _getWaitForPlaybackIdleFn();
+}
+
 function _waitForCardUseAnimationIdle() {
     if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.waitForCardUseAnimationIdle === 'function') {
         return _cardInteractionPendingNetworkModule.waitForCardUseAnimationIdle(_getCardInteractionPendingNetworkDeps());
@@ -2445,7 +2452,9 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any, options?: a
         return;
     }
 
-    const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
+    const waitForPlaybackFn = opts.directBoardRender === true
+        ? _getVisualPlaybackDrainFn()
+        : _getWaitForPlaybackIdleFn();
     if (typeof waitForPlaybackFn === 'function') {
         Promise.resolve(waitForPlaybackFn()).then(renderBoardAfterCardAnimationIfNeededSafely).catch(renderBoardAfterCardAnimationIfNeededSafely);
         return;

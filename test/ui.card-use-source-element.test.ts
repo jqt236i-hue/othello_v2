@@ -1225,10 +1225,14 @@ describe('card use source element selection', () => {
       delete global.waitForPlaybackIdle;
     });
 
-    test('TABOO_REVERSE_WILL pending legal hints wait for card_use_animation before direct board render', async () => {
+    test('TABOO_REVERSE_WILL pending legal hints ignore early window idle until visual playback drains', async () => {
       let resolvePlayback;
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
-      global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
+      global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+      const pendingNetwork = require('../dist/cards/card-interaction-pending-network.js');
+      pendingNetwork.getVisualPlaybackDrainFn = jest.fn(() => jest.fn(() => playbackPromise));
+      global.cardState.selectedCardId = 'taboo_reverse_01';
+      global.cardState.hands.black = ['taboo_reverse_01'];
       global.CardLogic = {
         getCardDef: (id) => ({ id, type: 'TABOO_REVERSE_WILL', name: '禁忌の反転', desc: 'd', cost: 1 })
       };
@@ -1261,11 +1265,23 @@ describe('card use source element selection', () => {
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
       expect(global.renderBoard).toHaveBeenCalledTimes(0);
 
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+      expect(pendingNetwork.getVisualPlaybackDrainFn).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.renderBoard).toHaveBeenCalledTimes(0);
+      expect(global.cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
+      expect(global.cardState._presentationEventsPersist).toEqual([
+        { type: 'CARD_USED' },
+        { type: 'PLAYBACK_EVENTS' }
+      ]);
+
       resolvePlayback();
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
       expect(global.renderBoard).toHaveBeenCalledTimes(1);
       expect(global.cardState.presentationEvents).toEqual([]);
@@ -1277,8 +1293,10 @@ describe('card use source element selection', () => {
       let resolvePlayback;
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
       delete global.waitForPlaybackIdle;
-      global.PlaybackStateManager.waitForVisualPlaybackDrain = jest.fn(() => playbackPromise);
-      global.window.PlaybackStateManager = global.PlaybackStateManager;
+      const pendingNetwork = require('../dist/cards/card-interaction-pending-network.js');
+      pendingNetwork.getVisualPlaybackDrainFn = jest.fn(() => jest.fn(() => playbackPromise));
+      global.cardState.selectedCardId = 'taboo_reverse_01';
+      global.cardState.hands.black = ['taboo_reverse_01'];
       global.CardLogic = {
         getCardDef: (id) => ({ id, type: 'TABOO_REVERSE_WILL', name: '禁忌の反転', desc: 'd', cost: 1 })
       };
@@ -1315,7 +1333,7 @@ describe('card use source element selection', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(global.PlaybackStateManager.waitForVisualPlaybackDrain).toHaveBeenCalledTimes(1);
+      expect(pendingNetwork.getVisualPlaybackDrainFn).toHaveBeenCalledTimes(1);
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
       expect(global.renderBoard).toHaveBeenCalledTimes(1);
       expect(global.cardState.presentationEvents).toEqual([]);

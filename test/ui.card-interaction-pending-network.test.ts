@@ -212,6 +212,25 @@ describe('card interaction pending network settlement', () => {
     expect((global as any).cardState.presentationEvents).toEqual([]);
   });
 
+  test('visual drain helper prefers playback manager over direct idle wait', async () => {
+    const directWait = jest.fn(() => Promise.resolve());
+    deps.readDirectWaitForPlaybackIdle = () => directWait;
+
+    const waitFn = pendingNetwork.getVisualPlaybackDrainFn(deps);
+    expect(typeof waitFn).toBe('function');
+
+    const waitPromise = waitFn();
+
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).toHaveBeenCalledWith({
+      root: global,
+      getCardState: deps.getCardStateValue
+    });
+    expect(directWait).not.toHaveBeenCalled();
+
+    resolveDrain && resolveDrain();
+    await waitPromise;
+  });
+
   test('releases busy and publish locks on publish failure', async () => {
     const onFailure = jest.fn();
 

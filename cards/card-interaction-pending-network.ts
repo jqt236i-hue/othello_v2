@@ -33,6 +33,17 @@ function getWaitForPlaybackIdleFn(deps: PendingNetworkDeps) {
     return null;
 }
 
+function getVisualPlaybackDrainFn(deps: PendingNetworkDeps) {
+    const playbackState = deps && deps.playbackStateManager;
+    if (playbackState && typeof playbackState.waitForVisualPlaybackDrain === 'function') {
+        return () => playbackState.waitForVisualPlaybackDrain({
+            root: typeof deps.getUiRootRef === 'function' ? deps.getUiRootRef() : null,
+            getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : null
+        });
+    }
+    return getWaitForPlaybackIdleFn(deps);
+}
+
 function waitForCardUseAnimationIdle(deps: PendingNetworkDeps) {
     const scheduleNextTick = (callback: any) => {
         try {
@@ -259,6 +270,7 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
 
 module.exports = {
     getWaitForPlaybackIdleFn,
+    getVisualPlaybackDrainFn,
     waitForAuthoritativeVisualPlaybackDrain,
     clearAuthoritativeVisualPlaybackFlag,
     waitForCardUseAnimationIdle,
