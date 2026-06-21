@@ -282,6 +282,46 @@ describe('match authority publish response payload', () => {
     });
   });
 
+  test('buildPresencePayloadFromRoom and buildHeartbeatPayloadFromRoom preserve viewer-neutral room fields', () => {
+    const room = {
+      roomId: 'ABCD',
+      stateVersion: 3,
+      seats: { black: true, white: false },
+      seatNames: { black: '黒', white: '' },
+      spectators: {
+        spec_a: { token: 'secret', name: '観測者', joinedAt: 1, lastSeenAt: 2 }
+      },
+      maxSpectators: 4,
+      updatedAt: 99
+    };
+
+    expect(MatchAuthority.buildPresencePayloadFromRoom(room, {
+      type: 'presence',
+      seatKey: 'black',
+      playerName: '黒',
+      spectatorCount: 1,
+      maxSpectators: 4
+    })).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'ABCD',
+      stateVersion: 3,
+      type: 'presence',
+      seatKey: 'black',
+      playerName: '黒',
+      spectatorCount: 1,
+      maxSpectators: 4
+    }));
+
+    expect(MatchAuthority.buildHeartbeatPayloadFromRoom(room, {
+      serverTime: 123
+    })).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'ABCD',
+      stateVersion: 3,
+      serverTime: 123
+    }));
+  });
+
   test('sanitizePendingSelectionActionForAuthority strips redundant use-card fields once authority already committed the card', () => {
     const action = {
       type: 'place',

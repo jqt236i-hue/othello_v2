@@ -1707,35 +1707,14 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
 function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPresencePayloadMeta | null | undefined): Record<string, unknown> {
     const serverTime = Date.now();
     const metaRecord = asRecord(meta);
-    const seatKey = metaRecord.seatKey ? normalizePlayerKey(metaRecord.seatKey) : 'black';
-    const publicSeatState = buildPublicSeatState(room);
-    const payloadOptions: Record<string, unknown> = {
-        type: metaRecord.type ? String(metaRecord.type) : 'join',
-        seatKey,
-        playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
-        rejoined: !!metaRecord.rejoined,
-        requestId: metaRecord.requestId ? String(metaRecord.requestId) : '',
-        accepted: metaRecord.accepted === true,
+    return MatchAuthority.buildPresencePayloadFromRoom(room, Object.assign({}, metaRecord, {
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
-    };
-    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorId')) {
-        payloadOptions.spectatorId = metaRecord.spectatorId;
-    }
-    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorName')) {
-        payloadOptions.spectatorName = metaRecord.spectatorName;
-    }
-    if (Object.prototype.hasOwnProperty.call(metaRecord, 'spectatorCount')) {
-        payloadOptions.spectatorCount = metaRecord.spectatorCount;
-    }
-    if (Object.prototype.hasOwnProperty.call(metaRecord, 'maxSpectators')) {
-        payloadOptions.maxSpectators = metaRecord.maxSpectators;
-    }
-    return MatchAuthority.buildPresencePayloadFromRoom(room, payloadOptions);
+    }));
 }
 
 function buildHeartbeatPayload(room: MatchWorkerRoomState, serverTime: unknown): Record<string, unknown> {

@@ -1149,15 +1149,23 @@ function buildPresencePayloadFromRoom(
 ): MatchAuthorityRoomPayload {
     const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
     const opts: MatchAuthorityPresencePayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
+    const seatKey = normalizePlayerKey(opts.seatKey, 'black');
+    const roomSeatNames = (room.seatNames && typeof room.seatNames === 'object')
+        ? room.seatNames
+        : { black: '', white: '' };
+    const playerName = Object.prototype.hasOwnProperty.call(opts, 'playerName')
+        ? opts.playerName
+        : roomSeatNames[seatKey];
     const payloadOptions: MatchAuthorityPresencePayloadFromRoomOptions = {
         ok: true,
+        stateVersion: room.stateVersion,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
         networkAutoEnabled: opts.networkAutoEnabled === true,
         turnTimer: opts.turnTimer,
-        type: opts.type,
-        seatKey: opts.seatKey,
-        playerName: opts.playerName,
+        type: Object.prototype.hasOwnProperty.call(opts, 'type') ? opts.type : 'join',
+        seatKey,
+        playerName,
         rejoined: opts.rejoined,
         serverTime: opts.serverTime
     };
