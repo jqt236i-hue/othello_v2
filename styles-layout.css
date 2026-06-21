@@ -34,6 +34,10 @@
 
 #board-frame {
     --board-frame-padding: calc(25px * var(--layout-stage-scale));
+    --board-frame-padding-top: var(--board-frame-padding);
+    --board-frame-padding-right: var(--board-frame-padding);
+    --board-frame-padding-bottom: var(--board-frame-padding);
+    --board-frame-padding-left: var(--board-frame-padding);
     --board-frame-inner-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
     --board-frame-fill-background:
         radial-gradient(circle at 12% 12%, rgba(255, 236, 180, 0.12), transparent 20%),
@@ -47,9 +51,9 @@
     --board-frame-art-overhang: calc(34px * var(--layout-stage-scale));
     position: relative;
     z-index: var(--layout-z-board-frame);
-    width: var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2)));
-    height: var(--board-frame-outer-height, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2)));
-    padding: var(--board-frame-padding);
+    width: var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + var(--board-frame-padding-left) + var(--board-frame-padding-right)));
+    height: var(--board-frame-outer-height, calc(var(--board-frame-inner-size) + var(--board-frame-padding-top) + var(--board-frame-padding-bottom)));
+    padding: var(--board-frame-padding-top) var(--board-frame-padding-right) var(--board-frame-padding-bottom) var(--board-frame-padding-left);
     box-sizing: border-box;
     background: var(--board-frame-fill-background);
     border-radius: calc(10px * var(--layout-stage-scale));
@@ -74,7 +78,7 @@
 }
 
 #board-frame[data-board-frame-skin-id^="compact-"] {
-    --board-frame-padding: calc(18px * var(--layout-stage-scale));
+    --board-frame-padding-top: calc(18px * var(--layout-stage-scale));
 }
 
 /* Frame bevel details */

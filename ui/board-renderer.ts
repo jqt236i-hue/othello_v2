@@ -515,8 +515,8 @@ function _measureBoardFrameBaseOuterSize(frameElement: any) {
     probe.style.position = 'absolute';
     probe.style.left = '0';
     probe.style.top = '0';
-    probe.style.width = 'calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2))';
-    probe.style.height = 'calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2))';
+    probe.style.width = 'calc(var(--board-frame-inner-size) + var(--board-frame-padding-left) + var(--board-frame-padding-right))';
+    probe.style.height = 'calc(var(--board-frame-inner-size) + var(--board-frame-padding-top) + var(--board-frame-padding-bottom))';
     probe.style.visibility = 'hidden';
     probe.style.pointerEvents = 'none';
     probe.style.boxSizing = 'border-box';

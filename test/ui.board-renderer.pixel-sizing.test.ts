@@ -90,6 +90,56 @@ describe('board renderer pixel sizing', () => {
     expect(document.body.classList.contains('board-oversize-active')).toBe(false);
   });
 
+  test('syncBoardPixelSizing measures asymmetric board frame padding variables', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    const originalCreateElement = document.createElement.bind(document);
+    let probeWidthExpression = '';
+    let probeHeightExpression = '';
+
+    frameEl.style.paddingTop = '18px';
+    frameEl.style.paddingRight = '25px';
+    frameEl.style.paddingBottom = '25px';
+    frameEl.style.paddingLeft = '25px';
+    frameEl.getBoundingClientRect = () => ({ width: 470, height: 463 });
+
+    jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
+      const el = originalCreateElement(tagName);
+      if (String(tagName || '').toLowerCase() === 'div') {
+        Object.defineProperty(el.style, 'width', {
+          configurable: true,
+          set(value) {
+            const nextValue = String(value || '');
+            if (nextValue.includes('--board-frame-padding')) probeWidthExpression = nextValue;
+          },
+          get() { return probeWidthExpression; }
+        });
+        Object.defineProperty(el.style, 'height', {
+          configurable: true,
+          set(value) {
+            const nextValue = String(value || '');
+            if (nextValue.includes('--board-frame-padding')) probeHeightExpression = nextValue;
+          },
+          get() { return probeHeightExpression; }
+        });
+        el.getBoundingClientRect = function () {
+          return { width: 470, height: 463 };
+        };
+      }
+      return el;
+    });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 8 });
+
+    expect(probeWidthExpression).toContain('var(--board-frame-padding-left');
+    expect(probeWidthExpression).toContain('var(--board-frame-padding-right');
+    expect(probeHeightExpression).toContain('var(--board-frame-padding-top');
+    expect(probeHeightExpression).toContain('var(--board-frame-padding-bottom');
+    expect(boardEl.style.width).toBe('416px');
+    expect(boardEl.style.height).toBe('416px');
+  });
+
   test('syncBoardPixelSizing nudges the board onto whole-screen pixels without using transform compositing', () => {
     const frameEl = document.getElementById('board-frame');
     const boardEl = document.getElementById('board');
