@@ -102,7 +102,8 @@ describe('status-display portrait commentary bubbles', () => {
     expect(css).toMatch(/#cpu-speech-bubble[\s\S]*backdrop-filter:\s*blur/);
     expect(css).toMatch(/#cpu-speech-bubble[\s\S]*--portrait-speech-accent/);
     expect(css).toMatch(/#cpu-speech-bubble::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(242,\s*201,\s*95/);
-    expect(css).toMatch(/#cpu-speech-bubble::after[\s\S]*border-top-color:\s*rgba\(26,\s*21,\s*16,\s*0\.94\)/);
+    expect(css).toMatch(/#cpu-speech-bubble[\s\S]*rgba\(26,\s*21,\s*16,\s*0\.62\)/);
+    expect(css).toMatch(/#cpu-speech-bubble::after[\s\S]*border-top-color:\s*rgba\(26,\s*21,\s*16,\s*0\.62\)/);
     expect(css).toMatch(/#cpu-speech-bubble\.is-visible[\s\S]*animation:\s*portrait-speech-enter/);
   });
 

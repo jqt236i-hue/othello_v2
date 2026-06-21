@@ -313,8 +313,8 @@
         0 calc(12px * var(--layout-stage-scale))
     );
     background:
-        radial-gradient(120% 90% at 12% 0%, rgba(242, 201, 95, 0.14), transparent 42%),
-        linear-gradient(135deg, rgba(26, 21, 16, 0.94), rgba(10, 13, 14, 0.94) 58%, rgba(30, 18, 12, 0.94));
+        radial-gradient(120% 90% at 12% 0%, rgba(242, 201, 95, 0.10), transparent 42%),
+        linear-gradient(135deg, rgba(26, 21, 16, 0.62), rgba(10, 13, 14, 0.62) 58%, rgba(30, 18, 12, 0.62));
     color: #f8edda;
     font-size: calc(13px * var(--layout-stage-scale));
     font-weight: 800;
@@ -361,8 +361,8 @@
     transform: translateX(-50%);
     border-style: solid;
     border-width: calc(9px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) 0 calc(8px * var(--layout-stage-scale));
-    border-color: rgba(26, 21, 16, 0.94) transparent transparent transparent;
-    border-top-color: rgba(26, 21, 16, 0.94);
+    border-color: rgba(26, 21, 16, 0.62) transparent transparent transparent;
+    border-top-color: rgba(26, 21, 16, 0.62);
     filter: drop-shadow(0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36));
 }
 
