@@ -6,6 +6,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const PresentationQueue = _require('../../shared/presentation-queue');
+
 function cloneData(value: any, cloneFn?: any): any {
   if (typeof cloneFn === 'function') {
     return cloneFn(value);
@@ -20,6 +22,10 @@ function cloneData(value: any, cloneFn?: any): any {
 
 function clearTransientPresentationQueues(cardStateRef: any): void {
   if (!cardStateRef || typeof cardStateRef !== 'object') return;
+  if (PresentationQueue && typeof PresentationQueue.clearPresentationQueues === 'function') {
+    PresentationQueue.clearPresentationQueues(cardStateRef);
+    return;
+  }
   if (!Array.isArray(cardStateRef.presentationEvents)) cardStateRef.presentationEvents = [];
   else cardStateRef.presentationEvents.length = 0;
   if (!Array.isArray(cardStateRef._presentationEventsPersist)) cardStateRef._presentationEventsPersist = [];
@@ -80,6 +86,9 @@ function getTransientPresentationQueueSignature(source: any): string | null {
 }
 
 function hasPendingPresentationEvents(source: any): boolean {
+  if (PresentationQueue && typeof PresentationQueue.getPresentationQueueState === 'function') {
+    return PresentationQueue.getPresentationQueueState(source).hasPending === true;
+  }
   const ref = (source && typeof source === 'object') ? source : {};
   const pendingPersist = Array.isArray(ref._presentationEventsPersist) ? ref._presentationEventsPersist.length > 0 : false;
   const pendingLive = Array.isArray(ref.presentationEvents) ? ref.presentationEvents.length > 0 : false;

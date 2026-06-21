@@ -10,6 +10,8 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
+const PresentationQueue = _require('../../shared/presentation-queue');
+
 interface PresentationEvent {
     type: string;
     [key: string]: any;
@@ -53,7 +55,9 @@ function emitPresentationEvent(cardState: CardState | null, ev: PresentationEven
     } catch (_e) { /* ignore */ }
 
     try {
-        if (cardState && Array.isArray(cardState._presentationEventsPersist)) {
+        if (PresentationQueue && typeof PresentationQueue.appendPersistedPresentationEvent === 'function') {
+            PresentationQueue.appendPersistedPresentationEvent(cardState, ev);
+        } else if (cardState && Array.isArray(cardState._presentationEventsPersist)) {
             cardState._presentationEventsPersist.push(ev);
         } else if (cardState) {
             cardState._presentationEventsPersist = [ev];

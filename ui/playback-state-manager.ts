@@ -6,6 +6,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const PresentationQueue = _require('../shared/presentation-queue');
+
 function getRoot(): any {
   const base: any = (typeof globalThis !== 'undefined' ? globalThis : {});
   if (base && base.window && typeof base.window === 'object') return base.window;
@@ -401,14 +403,15 @@ function getPresentationQueueState(source?: any): any {
       } catch (e) { /* ignore */ }
       return null;
     }());
-  const presentationEvents = Array.isArray(resolved && resolved.presentationEvents) ? resolved.presentationEvents : [];
-  const persistentEvents = Array.isArray(resolved && resolved._presentationEventsPersist) ? resolved._presentationEventsPersist : [];
-  const mergedEvents = presentationEvents.concat(persistentEvents);
+  if (PresentationQueue && typeof PresentationQueue.getPresentationQueueState === 'function') {
+    return PresentationQueue.getPresentationQueueState(resolved);
+  }
   return {
-    presentationEvents,
-    persistentEvents,
-    hasPending: mergedEvents.length > 0,
-    hasVisualPlayback: mergedEvents.some((ev: any) => ev && ev.type === 'PLAYBACK_EVENTS')
+    presentationEvents: [],
+    persistentEvents: [],
+    entries: [],
+    hasPending: false,
+    hasVisualPlayback: false
   };
 }
 

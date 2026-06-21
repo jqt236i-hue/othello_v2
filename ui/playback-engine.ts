@@ -9,6 +9,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const PresentationQueue = _require('../shared/presentation-queue');
+
 import type { CardState } from '../src/types';
 
 interface AnimationEngine {
@@ -68,37 +70,20 @@ interface CardStateWithEvents {
 }
 
 function consumePresentationEventBuffer(cardState: CardState | null | undefined): PresentationEvent[] {
+  if (PresentationQueue && typeof PresentationQueue.drainLivePresentationEvents === 'function') {
+    return PresentationQueue.drainLivePresentationEvents(cardState) as PresentationEvent[];
+  }
   const state = (cardState && typeof cardState === 'object') ? cardState as CardState & CardStateWithEvents : {} as CardStateWithEvents;
   const events = Array.isArray(state.presentationEvents) ? state.presentationEvents.slice() : [];
   if (Array.isArray(state.presentationEvents)) state.presentationEvents.length = 0;
   return events;
 }
 
-function getPresentationEventSignature(ev: PresentationEvent | null | undefined): string | null {
-  if (!ev || typeof ev !== 'object') return null;
-  try {
-    return JSON.stringify(ev);
-  } catch (e) {
-    return null;
-  }
-}
-
 function removePersistedPresentationEvent(cardState: CardState | null | undefined, ev: PresentationEvent | null | undefined): boolean {
-  const state = (cardState && typeof cardState === 'object') ? cardState as CardState & CardStateWithEvents : null;
-  const persisted = state && Array.isArray(state._presentationEventsPersist) ? state._presentationEventsPersist : null;
-  if (!persisted || persisted.length === 0 || !ev) return false;
-
-  let index = persisted.indexOf(ev);
-  if (index < 0) {
-    const eventSignature = getPresentationEventSignature(ev);
-    if (eventSignature) {
-      index = persisted.findIndex((candidate) => getPresentationEventSignature(candidate) === eventSignature);
-    }
+  if (PresentationQueue && typeof PresentationQueue.removePersistedPresentationEvent === 'function') {
+    return PresentationQueue.removePersistedPresentationEvent(cardState, ev) === true;
   }
-
-  if (index < 0) return false;
-  persisted.splice(index, 1);
-  return true;
+  return false;
 }
 
 async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps | null | undefined): Promise<void> {
