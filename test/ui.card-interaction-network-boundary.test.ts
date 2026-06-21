@@ -20,4 +20,16 @@ describe('card interaction network boundary', () => {
 
     expect(pendingNetwork.getActiveNetworkMatchClient()).toBe((global as any).NetworkMatchClient);
   });
+
+  test('debug fill hand publish stays behind pending network helper', async () => {
+    const pendingNetwork = require('../cards/card-interaction-pending-network');
+    (global as any).NetworkMatchClient.publishSnapshot.mockResolvedValue({ ok: true });
+
+    await expect(pendingNetwork.publishNetworkDebugFillHand()).resolves.toEqual({ ok: true });
+    expect((global as any).NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith({
+      actionType: 'debug_fill_hand',
+      playbackEvents: [],
+      action: { type: 'debug_fill_hand' }
+    });
+  });
 });

@@ -158,6 +158,20 @@ function isNetworkSpectatorActive(): boolean {
     }
 }
 
+function publishNetworkDebugFillHand() {
+    const networkClient = getActiveNetworkMatchClient();
+    if (!networkClient) return null;
+    try {
+        return networkClient.publishSnapshot({
+            actionType: 'debug_fill_hand',
+            playbackEvents: [],
+            action: { type: 'debug_fill_hand' }
+        });
+    } catch (e) {
+        return Promise.reject(e);
+    }
+}
+
 function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetworkDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const networkClient = getActiveNetworkMatchClient();
@@ -243,5 +257,6 @@ module.exports = {
     getNetworkMatchClientRoot,
     getActiveNetworkMatchClient,
     isNetworkSpectatorActive,
+    publishNetworkDebugFillHand,
     startNetworkOnlyPendingSelectionPublish
 };

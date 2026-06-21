@@ -2422,20 +2422,6 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
     renderBoardAfterCardAnimationIfNeeded();
 }
 
-function _getActiveNetworkMatchClient() {
-    if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.getActiveNetworkMatchClient === 'function') {
-        return _cardInteractionPendingNetworkModule.getActiveNetworkMatchClient();
-    }
-    return null;
-}
-
-function _getNetworkMatchClientRoot(): CardInteractionRuntimeRoot | null {
-    if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.getNetworkMatchClientRoot === 'function') {
-        return _cardInteractionPendingNetworkModule.getNetworkMatchClientRoot();
-    }
-    return null;
-}
-
 function _startNetworkOnlyPendingSelectionPublish(options: any) {
     if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.startNetworkOnlyPendingSelectionPublish === 'function') {
         return _cardInteractionPendingNetworkModule.startNetworkOnlyPendingSelectionPublish(options, _getCardInteractionPendingNetworkDeps());
@@ -2447,21 +2433,11 @@ function _startNetworkOnlyPendingSelectionPublish(options: any) {
 function fillDebugHand() {
     if (!_isDebugAllowed()) return;
     if (!_isDebugHvHMode() && !_isDebugUnlimitedUsage()) return;
-    const networkRoot = _getNetworkMatchClientRoot();
-    const networkClient = networkRoot
-        ? networkRoot.NetworkMatchClient
+    const networkDebugFillHandPublish = (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.publishNetworkDebugFillHand === 'function')
+        ? _cardInteractionPendingNetworkModule.publishNetworkDebugFillHand()
         : null;
-    if (
-        networkClient
-        && typeof networkClient.publishSnapshot === 'function'
-        && typeof networkClient.isActive === 'function'
-        && networkClient.isActive()
-    ) {
-        Promise.resolve(networkClient.publishSnapshot({
-            actionType: 'debug_fill_hand',
-            playbackEvents: [],
-            action: { type: 'debug_fill_hand' }
-        })).then((result) => {
+    if (networkDebugFillHandPublish) {
+        Promise.resolve(networkDebugFillHandPublish).then((result) => {
             if (result && result.ok === false) {
                 addLog('🐛 デバッグ: 自席手札の補充に失敗');
                 return;
