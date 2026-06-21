@@ -29,6 +29,13 @@ const DEFAULT_OWNED_BACKGROUND_SKIN_IDS = Object.freeze([
   'default-16',
   'default-17',
   'default-18',
+  'default-19',
+  'default-20',
+  'default-21',
+  'default-22',
+  'default-23',
+  'default-24',
+  'default-25',
   'unobserved-night'
 ]);
 const DEFAULT_OWNED_PLACEMENT_SOUND_IDS = Object.freeze(['default']);

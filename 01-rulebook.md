@@ -1440,7 +1440,7 @@
 - 手置き演出と通常ドロー演出の手本体は `assets/images/hand-skin/` 配下の画像を正本にする
 - `HELP` ボタンの下にある `SKIN` ボタンから、自分側の手の見た目スキン・背景画像・盤面下地・盤面フレーム・文字フォント・通常石スキンを切り替えられる
 - 手の見た目スキンの初期所持は `勇者の手` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
-- 背景画像の初期所持は `既定背景` (`assets/images/background/default.png`) と `デフォルト2`〜`デフォルト18` (各 `assets/images/background/デフォルトN.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、選択は次回起動後も保持してよい
+- 背景画像の初期所持は `既定背景` (`assets/images/background/default.png`) と `デフォルト2`〜`デフォルト25` (各 `assets/images/background/デフォルトN.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、選択は次回起動後も保持してよい
 - 盤面フレームの初期所持は `黒金漆枠` (`assets/images/board/board-frame-black-gold-lacquer-v1.png`) とし、選択は次回起動後も保持してよい
 - 文字フォントの初期所持は `Shippori Mincho` と `DotGothic16` とし、初期選択は `Shippori Mincho` とする。選択は次回起動後も保持してよい
 - 通常石スキンの初期所持は `既定石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `O石` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい
