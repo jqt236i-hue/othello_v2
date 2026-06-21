@@ -867,7 +867,9 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
 }
 
 .cell.effect-target-highlight-positive {
-    background-color: rgba(180, 102, 255, 0.38) !important;
+    background:
+        linear-gradient(180deg, rgba(236, 204, 255, 0.16), rgba(82, 35, 142, 0.18)),
+        linear-gradient(135deg, rgba(180, 102, 255, 0.38), rgba(116, 58, 224, 0.42)) !important;
     outline: calc(2px * var(--layout-stage-scale)) solid rgba(210, 154, 255, 0.9);
     outline-offset: calc(-2px * var(--layout-stage-scale));
     box-shadow:

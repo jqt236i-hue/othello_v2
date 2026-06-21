@@ -29,6 +29,12 @@ describe('legal hint styles', () => {
     expect(css).toMatch(/\.cell\.legal,\s*\.cell\.legal-free\s*\{[\s\S]*?linear-gradient\(180deg,\s*rgba\(120,\s*232,\s*214,\s*0\.07\),\s*rgba\(0,\s*0,\s*0,\s*0\.04\)\)[\s\S]*?linear-gradient\(135deg,\s*rgba\(13,\s*108,\s*96,\s*0\.72\),\s*rgba\(7,\s*76,\s*68,\s*0\.68\)\)[\s\S]*?box-shadow:\s*[\s\S]*?inset 0 0 calc\(13px \* var\(--layout-stage-scale\)\) rgba\(116,\s*255,\s*228,\s*0\.06\)[\s\S]*?inset 0 0 0 calc\(1px \* var\(--layout-stage-scale\)\) rgba\(160,\s*255,\s*226,\s*0\.05\)[\s\S]*?inset 0 calc\(1px \* var\(--layout-stage-scale\)\) 0 rgba\(224,\s*255,\s*249,\s*0\.05\)[\s\S]*?\}/);
   });
 
+  test('styles-board.css makes positive effect target highlights override legal hint backgrounds', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+
+    expect(css).toMatch(/\.cell\.effect-target-highlight-positive\s*\{[\s\S]*?background:\s*[\s\S]*?rgba\(180,\s*102,\s*255,\s*0\.38\)[\s\S]*?\}/);
+  });
+
   test('styles-responsive.css does not restore legal hint circle hover styles', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-responsive.css'), 'utf8');
 
