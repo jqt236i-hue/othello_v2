@@ -19,8 +19,10 @@ describe('custom board frame styling', () => {
     expect(layoutCss).not.toMatch(/#board-frame\[data-board-frame-skin-id\^="compact-"\][\s\S]*--board-frame-padding-top/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*width:\s*var\(--board-frame-outer-width,\s*calc\(var\(--board-frame-inner-size\)\s*\+\s*var\(--board-frame-padding-left\)\s*\+\s*var\(--board-frame-padding-right\)\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*height:\s*var\(--board-frame-outer-height,\s*calc\(var\(--board-frame-inner-size\)\s*\+\s*var\(--board-frame-padding-top\)\s*\+\s*var\(--board-frame-padding-bottom\)\)\)/);
-    expect(layoutCss).toMatch(/#board-frame::before[\s\S]*top:\s*calc\(-1\s*\*\s*var\(--board-frame-art-overhang\)\s*\+\s*var\(--board-frame-art-offset-y\)\)/);
-    expect(layoutCss).toMatch(/#board-frame::before[\s\S]*bottom:\s*calc\(-1\s*\*\s*var\(--board-frame-art-overhang\)\s*-\s*var\(--board-frame-art-offset-y\)\)/);
+    expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-top:\s*var\(--board-frame-art-overhang\)/);
+    expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-bottom:\s*var\(--board-frame-art-overhang\)/);
+    expect(layoutCss).toMatch(/#board-frame::before[\s\S]*top:\s*calc\(-1\s*\*\s*var\(--board-frame-art-overhang-top\)\s*\+\s*var\(--board-frame-art-offset-y\)\)/);
+    expect(layoutCss).toMatch(/#board-frame::before[\s\S]*bottom:\s*calc\(-1\s*\*\s*var\(--board-frame-art-overhang-bottom\)\s*-\s*var\(--board-frame-art-offset-y\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-max-size:\s*var\(--board-frame-inner-size,\s*calc\(var\(--layout-anchor-board-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-board-scale\)\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-size:\s*var\(--board-disc-size-px,\s*89\.9%\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-inset:\s*var\(--board-disc-inset-px,\s*5\.05%\)/);

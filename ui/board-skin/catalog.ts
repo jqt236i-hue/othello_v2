@@ -23,6 +23,8 @@ interface BoardFrameSkinLayout {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  artOverhangTop?: number;
+  artOverhangBottom?: number;
   artOffsetY?: number;
 }
 
@@ -127,7 +129,9 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
       paddingRight: 25,
       paddingBottom: 25,
       paddingLeft: 25,
-      artOffsetY: 5
+      artOverhangTop: 29,
+      artOverhangBottom: 29,
+      artOffsetY: 0
     })
   }),
   Object.freeze({

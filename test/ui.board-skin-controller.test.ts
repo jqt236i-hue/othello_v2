@@ -139,7 +139,9 @@ describe('board skin controller', () => {
     expect(frameEl.style.getPropertyValue('--board-frame-padding-right')).toBe('calc(25px * var(--layout-stage-scale))');
     expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe('calc(25px * var(--layout-stage-scale))');
     expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe('calc(25px * var(--layout-stage-scale))');
-    expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(5px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-art-overhang-top')).toBe('calc(29px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-art-overhang-bottom')).toBe('calc(29px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(0px * var(--layout-stage-scale))');
 
     api.selectFrameSkin('compact-iron-clean-corners');
 

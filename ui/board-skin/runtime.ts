@@ -20,6 +20,8 @@ interface BoardFrameSkinLayout {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  artOverhangTop?: number;
+  artOverhangBottom?: number;
   artOffsetY?: number;
 }
 
@@ -87,6 +89,8 @@ function applyBoardFrameLayoutVars(targetEl: HTMLElement | null | undefined, lay
     ['--board-frame-padding-right', 'paddingRight'],
     ['--board-frame-padding-bottom', 'paddingBottom'],
     ['--board-frame-padding-left', 'paddingLeft'],
+    ['--board-frame-art-overhang-top', 'artOverhangTop'],
+    ['--board-frame-art-overhang-bottom', 'artOverhangBottom'],
     ['--board-frame-art-offset-y', 'artOffsetY']
   ];
   entries.forEach(([propertyName, fieldName]) => {
