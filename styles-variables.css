@@ -58,8 +58,8 @@
     --layout-priority-deck-scale: 1;
     --layout-priority-hand-scale: 1;
     --layout-priority-card-detail-scale: 1;
-    --layout-opponent-hand-scale: 0.9;
-    --layout-opponent-deck-scale: 0.9;
+    --layout-opponent-hand-scale: 0.765;
+    --layout-opponent-deck-scale: 0.765;
 
     /* Shared z-index scale */
     --layout-z-board-frame: 10;
