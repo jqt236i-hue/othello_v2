@@ -189,7 +189,7 @@
 /* Opponent UI micro-offset: move only top deck/hand slightly closer to board. */
 .player-area-top {
     top: calc(8px * var(--layout-stage-scale));
-    margin-bottom: calc(-8px * var(--layout-stage-scale));
+    margin-bottom: calc(10px * var(--layout-stage-scale));
 }
 
 #hand-white {

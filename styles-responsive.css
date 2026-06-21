@@ -293,7 +293,7 @@ html.layout-profile-phone-portrait .player-area-bottom {
 
 html.layout-profile-phone-portrait .player-area-top {
     top: 0;
-    margin-bottom: 0;
+    margin-bottom: calc(18px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait .player-area-bottom {
@@ -1757,7 +1757,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     html.layout-profile-tablet-4x3.layout-stage-enabled .player-area-top {
         top: calc(-14px * var(--layout-stage-scale));
-        margin-bottom: calc(6px * var(--layout-stage-scale));
+        margin-bottom: calc(24px * var(--layout-stage-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
