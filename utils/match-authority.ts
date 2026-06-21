@@ -178,6 +178,21 @@ function makeSeatToken(explicitCrypto?: MatchAuthorityCryptoLike | null): string
     return randomFromChars(SEAT_TOKEN_CHARS, SEAT_TOKEN_LENGTH, explicitCrypto);
 }
 
+function makeSpectatorToken(makeSeatTokenFn: (() => string) = makeSeatToken): string {
+    return makeSeatTokenFn();
+}
+
+function makeSpectatorId(makeSeatTokenFn: (() => string) = makeSeatToken): string {
+    return `spec_${makeSeatTokenFn().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
+}
+
+function makeRematchRequestId(
+    makeSeatTokenFn: (() => string) = makeSeatToken,
+    nowFn: (() => number) = Date.now
+): string {
+    return `rematch_${nowFn()}_${makeSeatTokenFn().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12)}`;
+}
+
 function makeSseStreamId(nowValue: unknown, explicitCrypto?: MatchAuthorityCryptoLike | null): string {
     const timestamp = Number.isFinite(Number(nowValue)) ? Number(nowValue) : Date.now();
     return `sse_${timestamp}_${randomFromChars(SSE_ID_SUFFIX_CHARS, SSE_ID_SUFFIX_LENGTH, explicitCrypto)}`;
@@ -2563,6 +2578,9 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     randomFromChars,
     makeRoomId,
     makeSeatToken,
+    makeSpectatorToken,
+    makeSpectatorId,
+    makeRematchRequestId,
     makeSseStreamId,
     parseSeatKeyOptional,
     normalizePlayerKey,

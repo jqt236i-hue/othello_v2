@@ -24,6 +24,15 @@ describe('match-authority public contract types', () => {
     expect(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS).toBe(10000);
   });
 
+  test('shared spectator and rematch id factories preserve transport formats', () => {
+    const makeSeatToken = jest.fn(() => 'abc.DEF-123_extra');
+    const now = jest.fn(() => 1234567890);
+
+    expect(MatchAuthority.makeSpectatorToken(makeSeatToken)).toBe('abc.DEF-123_extra');
+    expect(MatchAuthority.makeSpectatorId(makeSeatToken)).toBe('spec_abcDEF-123_extra'.slice(0, 'spec_'.length + 16));
+    expect(MatchAuthority.makeRematchRequestId(makeSeatToken, now)).toBe('rematch_1234567890_abcDEF-123_e');
+  });
+
   test('publish response exposes typed authority metadata', () => {
     const payload: MatchAuthorityPublishResponsePayload = MatchAuthority.buildPublishResponsePayload({
       ok: false,

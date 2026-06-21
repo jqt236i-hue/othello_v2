@@ -416,15 +416,15 @@ function makeSeatToken(): string {
 }
 
 function makeSpectatorToken(): string {
-    return makeSeatToken();
+    return MatchAuthority.makeSpectatorToken(makeSeatToken);
 }
 
 function makeSpectatorId(): string {
-    return `spec_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
+    return MatchAuthority.makeSpectatorId(makeSeatToken);
 }
 
 function makeRematchRequestId(): string {
-    return `rematch_${Date.now()}_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12)}`;
+    return MatchAuthority.makeRematchRequestId(makeSeatToken, Date.now);
 }
 
 function getRuntimeGlobalScopes(): Record<string, unknown>[] {

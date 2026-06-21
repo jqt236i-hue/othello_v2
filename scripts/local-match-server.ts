@@ -173,15 +173,15 @@ function makeSeatToken() {
 }
 
 function makeSpectatorToken() {
-    return makeSeatToken();
+    return MatchAuthority.makeSpectatorToken(makeSeatToken);
 }
 
 function makeSpectatorId() {
-    return `spec_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)}`;
+    return MatchAuthority.makeSpectatorId(makeSeatToken);
 }
 
 function makeRematchRequestId() {
-    return `rematch_${Date.now()}_${makeSeatToken().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12)}`;
+    return MatchAuthority.makeRematchRequestId(makeSeatToken, Date.now);
 }
 
 function normalizeNetworkPlayerName(value: any) {
