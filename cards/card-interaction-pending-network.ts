@@ -21,7 +21,16 @@ function getWaitForPlaybackIdleFn(deps: PendingNetworkDeps) {
     const waitForPlaybackFn = (typeof direct === 'function')
         ? direct
         : ((typeof window !== 'undefined' && typeof (window as any).waitForPlaybackIdle === 'function') ? (window as any).waitForPlaybackIdle : null);
-    return typeof waitForPlaybackFn === 'function' ? waitForPlaybackFn : null;
+    if (typeof waitForPlaybackFn === 'function') return waitForPlaybackFn;
+
+    const playbackState = deps && deps.playbackStateManager;
+    if (playbackState && typeof playbackState.waitForVisualPlaybackDrain === 'function') {
+        return () => playbackState.waitForVisualPlaybackDrain({
+            root: typeof deps.getUiRootRef === 'function' ? deps.getUiRootRef() : null,
+            getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : null
+        });
+    }
+    return null;
 }
 
 function waitForCardUseAnimationIdle(deps: PendingNetworkDeps) {

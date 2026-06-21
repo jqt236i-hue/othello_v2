@@ -1225,6 +1225,103 @@ describe('card use source element selection', () => {
       delete global.waitForPlaybackIdle;
     });
 
+    test('TABOO_REVERSE_WILL pending legal hints wait for card_use_animation before direct board render', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'TABOO_REVERSE_WILL', name: '禁忌の反転', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: {
+            ...global.cardState.pendingEffectByPlayer,
+            black: { type: 'TABOO_REVERSE_WILL', stage: null, cardId: 'taboo_reverse_01' }
+          }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'taboo_reverse_01' }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      global.renderBoard.mockClear();
+      window.useSelectedCard();
+      global.cardState.presentationEvents = [{ type: 'PLAYBACK_EVENTS' }];
+      global.cardState._presentationEventsPersist = [
+        { type: 'CARD_USED' },
+        { type: 'PLAYBACK_EVENTS' }
+      ];
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.renderBoard).toHaveBeenCalledTimes(0);
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.renderBoard).toHaveBeenCalledTimes(1);
+      expect(global.cardState.presentationEvents).toEqual([]);
+      expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'CARD_USED' }]);
+      delete global.waitForPlaybackIdle;
+    });
+
+    test('TABOO_REVERSE_WILL pending legal hints use playback manager drain when waitForPlaybackIdle is unavailable', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      delete global.waitForPlaybackIdle;
+      global.PlaybackStateManager.waitForVisualPlaybackDrain = jest.fn(() => playbackPromise);
+      global.window.PlaybackStateManager = global.PlaybackStateManager;
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'TABOO_REVERSE_WILL', name: '禁忌の反転', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: {
+            ...global.cardState.pendingEffectByPlayer,
+            black: { type: 'TABOO_REVERSE_WILL', stage: null, cardId: 'taboo_reverse_01' }
+          }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'taboo_reverse_01' }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      global.renderBoard.mockClear();
+      window.useSelectedCard();
+      global.cardState.presentationEvents = [{ type: 'PLAYBACK_EVENTS' }];
+      global.cardState._presentationEventsPersist = [
+        { type: 'CARD_USED' },
+        { type: 'PLAYBACK_EVENTS' }
+      ];
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.renderBoard).toHaveBeenCalledTimes(0);
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.PlaybackStateManager.waitForVisualPlaybackDrain).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.renderBoard).toHaveBeenCalledTimes(1);
+      expect(global.cardState.presentationEvents).toEqual([]);
+      expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'CARD_USED' }]);
+    });
+
     test('selectTarget へ入る card use は card_use_animation 中でも即座に emitBoardUpdate する', async () => {
       let resolvePlayback;
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });

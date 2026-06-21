@@ -2045,10 +2045,27 @@ function _isFreePlacementPendingActionForCardUi(pending: any) {
         || pendingType === 'ULTIMATE_DESTROY_GOD';
 }
 
+function _isPlacementHintPendingActionForCardUi(pending: any) {
+    if (!pending || typeof pending !== 'object') return false;
+    if (pending.stage === 'selectTarget') return false;
+    const pendingType = String(pending.type || '').trim().toUpperCase();
+    return pendingType === 'TABOO_REVERSE_WILL';
+}
+
 function _isBoardPendingActionForCardUi(pending: any) {
     if (!pending || typeof pending !== 'object') return false;
     if (pending.stage === 'selectTarget' && !_isHandOverlayPendingTypeForCardUi(pending.type)) return true;
-    return _isFreePlacementPendingActionForCardUi(pending);
+    return _isFreePlacementPendingActionForCardUi(pending)
+        || _isPlacementHintPendingActionForCardUi(pending);
+}
+
+function _doesRunResultEnterPlacementHintPendingForOwner(runResult: any, ownerKey: any) {
+    const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
+    if (!normalizedOwnerKey) return false;
+    const nextCardState = _getRunResultNextCardState(runResult);
+    if (!nextCardState || !nextCardState.pendingEffectByPlayer) return false;
+    const pending = nextCardState.pendingEffectByPlayer[normalizedOwnerKey];
+    return _isPlacementHintPendingActionForCardUi(pending);
 }
 
 function _hasBoardPendingSelectionForOwner(ownerKey: any) {
@@ -2301,7 +2318,9 @@ function _finalizeCardActionUi(options: any) {
     if (opts.boardUpdateMode === 'immediate') {
         _requestImmediateVisualBoardRefresh();
     } else if (opts.boardUpdateMode === 'playback-aware') {
-        _emitBoardUpdateWithOptionalPlaybackDelay(opts.delayBoardVisual === true);
+        _emitBoardUpdateWithOptionalPlaybackDelay(opts.delayBoardVisual === true, {
+            directBoardRender: opts.directBoardRender === true
+        });
     }
     _ensureCurrentPlayerCanActOrPassSafely();
 }
@@ -2371,6 +2390,13 @@ function _waitForCardUseAnimationIdle() {
     return Promise.resolve();
 }
 
+function _clearOrphanPlaybackQueuesForCardUi() {
+    if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.clearOrphanNetworkPlaybackQueues === 'function') {
+        return _cardInteractionPendingNetworkModule.clearOrphanNetworkPlaybackQueues(_getCardInteractionPendingNetworkDeps());
+    }
+    return false;
+}
+
 function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) {
     if (typeof renderCardUI !== 'function') return;
     const opts = (options && typeof options === 'object') ? options : {};
@@ -2391,9 +2417,15 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) 
     _requestCardUiSyncForInteraction('card-interaction:playback-delay-fallback');
 }
 
-function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
+function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any, options?: any) {
+    const opts = (options && typeof options === 'object') ? options : {};
     const renderBoardSync = () => {
-        _requestImmediateBoardRefresh();
+        if (opts.directBoardRender === true) {
+            _clearOrphanPlaybackQueuesForCardUi();
+            _requestImmediateVisualBoardRefresh();
+        } else {
+            _requestImmediateBoardRefresh();
+        }
     };
     const renderBoardSyncSafely = () => {
         try { renderBoardSync(); } catch (e) { /* ignore */ }
@@ -2867,13 +2899,17 @@ function useSelectedCard() {
     if (entersBoardTargetSelection) {
         _armBoardTargetSelectionEntryPlaybackContext(result, actionPlayerKey);
     }
+    const entersPlacementHintPending = _doesRunResultEnterPlacementHintPendingForOwner(result, actionPlayerKey);
     const shouldDelayBoardForSelectionEntry = false;
-    const shouldDelayPostUseBoardVisual = _hasBoardMutatingPlaybackEvent(result) || shouldDelayBoardForSelectionEntry;
+    const shouldDelayPostUseBoardVisual = _hasBoardMutatingPlaybackEvent(result)
+        || shouldDelayBoardForSelectionEntry
+        || entersPlacementHintPending;
     _finalizeCardActionUi({
         delayHandVisual: shouldDelayPostUseHandVisual,
         renderImmediately: primedCaptureReservedHandSlot,
         boardUpdateMode: 'playback-aware',
-        delayBoardVisual: shouldDelayPostUseBoardVisual
+        delayBoardVisual: shouldDelayPostUseBoardVisual,
+        directBoardRender: entersPlacementHintPending && !_hasBoardMutatingPlaybackEvent(result)
     });
 }
 
