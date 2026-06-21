@@ -49,7 +49,7 @@ Expected current baseline before this plan is implemented:
 ## File Map
 
 - Modify `game/turn-manager.ts`: remove `NetworkMatchClient` discovery from the game layer and rely on `setUIImpl()` / `replaceUIImpl()` bridge values.
-- Modify `test/turn-manager.retry.test.ts` or create `test/turn-manager.network-boundary.test.ts`: characterize the no-root-client behavior.
+- Modify `test/turn-manager.retry.test.ts` and create `test/turn-manager.network-boundary.test.ts`: characterize the no-root-client behavior.
 - Modify `scripts/check-window-usage.ts`: make the static checker reject indirect `NetworkMatchClient` property access inside source-of-truth `game/` files.
 - Modify `test/code.window-usage.test.ts`: add a fixture proving `root.NetworkMatchClient` is rejected.
 - Modify `utils/match-authority.ts` and `utils/match-authority-types.ts`: expose shared network constants and wrapper helpers that both Worker and local server can consume.
@@ -68,6 +68,7 @@ Expected current baseline before this plan is implemented:
 
 - Modify: `game/turn-manager.ts`
 - Test: `test/turn-manager.network-boundary.test.ts`
+- Test: `test/turn-manager.retry.test.ts`
 - Related existing test: `test/ui.bootstrap.cpu-early-registration.test.ts`
 
 - [ ] **Step 1: Add a failing behavioral boundary test**
@@ -112,6 +113,7 @@ describe('turn-manager network boundary', () => {
 
     expect(turnManager.canLocalUserOperateCurrentTurn()).toBe(true);
     expect((global as any).NetworkMatchClient.isSpectator).not.toHaveBeenCalled();
+    expect((global as any).NetworkMatchClient.getSeatKey).not.toHaveBeenCalled();
     expect(emitStatus).not.toHaveBeenCalled();
   });
 
@@ -133,19 +135,46 @@ describe('turn-manager network boundary', () => {
 });
 ```
 
+Also update the existing `test/turn-manager.retry.test.ts` case `network spectator board click is read-only even when local player keys still point to black` so it no longer relies on root `NetworkMatchClient` discovery. Keep the user-visible assertion unchanged, but inject the spectator state through the UI bridge:
+
+```ts
+  test('network spectator board click is read-only even when local player keys still point to black', () => {
+    global.MATCH_MODE = 'network';
+    global.NetworkMatchClient = {
+      getSeatKey: jest.fn(() => null),
+      isSpectator: jest.fn(() => true)
+    };
+    global.LOCAL_PLAYER_KEY = 'black';
+    global.__LOCAL_PLAYER_KEY = 'black';
+    global.BOARD_VIEWER_KEY = 'black';
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      ...buildTurnManagerUIBridge(),
+      isNetworkSpectator: () => true
+    });
+    rm.handleCellClick(0, 0);
+
+    expect(global.NetworkMatchClient.getSeatKey).not.toHaveBeenCalled();
+    expect(global.NetworkMatchClient.isSpectator).not.toHaveBeenCalled();
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+```
+
 - [ ] **Step 2: Run the focused test and verify it fails before implementation**
 
 Run:
 
 ```powershell
-npm run test:jest -- test/turn-manager.network-boundary.test.ts
+npm run test:jest -- test/turn-manager.network-boundary.test.ts test/turn-manager.retry.test.ts
 ```
 
-Expected before implementation: the first test fails because `canLocalUserOperateCurrentTurn()` calls the root `NetworkMatchClient.isSpectator()` fallback and returns `false`.
+Expected before implementation: the new boundary test fails because `canLocalUserOperateCurrentTurn()` still discovers root `NetworkMatchClient` directly or indirectly. The updated retry test may also fail until the implementation stops consulting root network-client state from `game/turn-manager.ts`.
 
-- [ ] **Step 3: Remove the fallback from `isNetworkSpectatorForTurnManager()`**
+- [ ] **Step 3: Remove direct and indirect root network-client discovery from turn-manager**
 
-Change `game/turn-manager.ts` so this function only consumes injected UI bridge data:
+First, change `isNetworkSpectatorForTurnManager()` so it only consumes injected UI bridge data:
 
 ```ts
 function isNetworkSpectatorForTurnManager() {
@@ -158,6 +187,47 @@ function isNetworkSpectatorForTurnManager() {
 }
 ```
 
+Then update `resolveNetworkLocalPlayerKey()` so it never passes the runtime root into `OwnerHelpers.resolveLocalPlayerKey()`. It may use injected values and pure owner normalization, but must not let `game/turn-manager.ts` discover root `NetworkMatchClient` through `OwnerHelpers`:
+
+```ts
+function resolveNetworkLocalPlayerKey() {
+    try {
+        const seatKey = callTurnManagerRuntimeFunction('readNetworkSeatKey');
+        if (seatKey === 'white' || seatKey === 'black') return seatKey;
+        const runtimeKeys = [
+            readTurnManagerRuntimeValue('LOCAL_PLAYER_KEY'),
+            readTurnManagerRuntimeValue('__LOCAL_PLAYER_KEY'),
+            readTurnManagerRuntimeValue('BOARD_VIEWER_KEY')
+        ];
+        for (const key of runtimeKeys) {
+            if (key === 'white' || key === 'black') return key;
+        }
+        const directImpl = __uiImpl_turn_manager;
+        if (directImpl) {
+            const directKeys = [directImpl.LOCAL_PLAYER_KEY, directImpl.__LOCAL_PLAYER_KEY, directImpl.BOARD_VIEWER_KEY];
+            for (const key of directKeys) {
+                if (key === 'white' || key === 'black') return key;
+            }
+        }
+    } catch (e) { /* ignore */ }
+    return 'black';
+}
+```
+
+Finally, when calling `OwnerHelpers.resolveNetworkInputPermissions()` from `canLocalUserOperateCurrentTurn()`, pass a safe root object instead of `getTurnManagerRuntimeRoot()` because all needed state is already supplied explicitly:
+
+```ts
+return OwnerHelpersModule.resolveNetworkInputPermissions({
+    rootRef: {},
+    cardState,
+    gameState,
+    currentPlayer: gameState.currentPlayer,
+    localPlayerKey: resolveNetworkLocalPlayerKey(),
+    matchMode: readTurnManagerMatchMode(),
+    debugHumanVsHuman: isTurnManagerHumanVsHumanFlagEnabled()
+}).canOperateBoard === true;
+```
+
 Do not add any alternate `window`, `globalThis`, `root`, or network-client lookup in `game/turn-manager.ts`.
 
 - [ ] **Step 4: Run focused behavioral verification**
@@ -165,7 +235,7 @@ Do not add any alternate `window`, `globalThis`, `root`, or network-client looku
 Run:
 
 ```powershell
-npm run test:jest -- test/turn-manager.network-boundary.test.ts test/ui.bootstrap.cpu-early-registration.test.ts
+npm run test:jest -- test/turn-manager.network-boundary.test.ts test/turn-manager.retry.test.ts test/ui.bootstrap.cpu-early-registration.test.ts
 ```
 
 Expected: PASS. The bootstrap test confirms the UI bridge still supplies spectator read-only behavior.
@@ -189,10 +259,10 @@ Expected:
 Run:
 
 ```powershell
-git diff -- game/turn-manager.ts test/turn-manager.network-boundary.test.ts
-git diff --check -- game/turn-manager.ts test/turn-manager.network-boundary.test.ts
+git diff -- game/turn-manager.ts test/turn-manager.network-boundary.test.ts test/turn-manager.retry.test.ts
+git diff --check -- game/turn-manager.ts test/turn-manager.network-boundary.test.ts test/turn-manager.retry.test.ts
 git status --short
-git add game/turn-manager.ts test/turn-manager.network-boundary.test.ts
+git add game/turn-manager.ts test/turn-manager.network-boundary.test.ts test/turn-manager.retry.test.ts
 git commit -m "Remove turn-manager network client fallback"
 ```
 
@@ -414,7 +484,7 @@ test('shared spectator and rematch id factories preserve transport formats', () 
 
   expect(MatchAuthority.makeSpectatorToken(makeSeatToken)).toBe('abc.DEF-123_extra');
   expect(MatchAuthority.makeSpectatorId(makeSeatToken)).toBe('spec_abcDEF-123_extra'.slice(0, 'spec_'.length + 16));
-  expect(MatchAuthority.makeRematchRequestId(makeSeatToken, now)).toBe('rematch_1234567890_abcDEF-123');
+  expect(MatchAuthority.makeRematchRequestId(makeSeatToken, now)).toBe('rematch_1234567890_abcDEF-123_e');
 });
 ```
 
@@ -541,7 +611,9 @@ test('buildPresencePayloadFromRoom and buildHeartbeatPayloadFromRoom preserve vi
   expect(MatchAuthority.buildPresencePayloadFromRoom(room, {
     type: 'presence',
     seatKey: 'black',
-    playerName: '黒'
+    playerName: '黒',
+    spectatorCount: 1,
+    maxSpectators: 4
   })).toEqual(expect.objectContaining({
     ok: true,
     roomId: 'ABCD',
@@ -553,13 +625,13 @@ test('buildPresencePayloadFromRoom and buildHeartbeatPayloadFromRoom preserve vi
     maxSpectators: 4
   }));
 
-  expect(MatchAuthority.buildHeartbeatPayloadFromRoom(room, 123)).toEqual(expect.objectContaining({
-    type: 'heartbeat',
+  expect(MatchAuthority.buildHeartbeatPayloadFromRoom(room, {
+    serverTime: 123
+  })).toEqual(expect.objectContaining({
+    ok: true,
     roomId: 'ABCD',
     stateVersion: 3,
-    serverTime: 123,
-    spectatorCount: 1,
-    maxSpectators: 4
+    serverTime: 123
   }));
 });
 ```
@@ -585,7 +657,7 @@ In `scripts/local-match-server.ts`, match the same wrapper shape. The wrappers s
 Run:
 
 ```powershell
-npm run test:jest -- test/utils.match-authority.publish-response.test.ts test/workers.match-publish-idempotency.test.ts test/ui.network-client.reconnect-sync.test.ts
+npm run test:jest -- test/utils.match-authority.publish-response.test.ts test/workers.match-publish-idempotency.test.ts test/workers.match-stream-sse.test.ts test/ui.network-client.reconnect-sync.test.ts
 npm run test:network:parity
 ```
 
@@ -914,9 +986,9 @@ Run:
 
 ```powershell
 npm run check:window
-npm run test:jest -- test/code.window-usage.test.ts test/turn-manager.network-boundary.test.ts test/ui.bootstrap.cpu-early-registration.test.ts
+npm run test:jest -- test/code.window-usage.test.ts test/turn-manager.network-boundary.test.ts test/turn-manager.retry.test.ts test/ui.bootstrap.cpu-early-registration.test.ts
 npm run test:jest -- test/utils.match-authority.contract-types.test.ts test/utils.match-authority.publish-response.test.ts
-npm run test:jest -- test/utils.owner-helpers.network-seat.test.ts test/ui.card-surface-layout-contract.test.ts test/ui.card-interaction-overlay-selection.test.ts
+npm run test:jest -- test/workers.match-stream-sse.test.ts test/utils.owner-helpers.network-seat.test.ts test/ui.card-surface-layout-contract.test.ts test/ui.card-interaction-overlay-selection.test.ts
 npm run test:network:parity
 ```
 
