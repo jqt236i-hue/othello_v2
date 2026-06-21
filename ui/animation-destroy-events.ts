@@ -23,6 +23,7 @@ type AnimationDestroyEventDeps = {
     createDisc?: (state: any) => any;
     removeDiscFromCell: (cell: any, disc: any) => any;
     resolveOwnerClassFromColor: (ownerColor: any) => string;
+    onDestroyGhostFallback?: (target: any, context: any) => void;
 };
 
 function getDocumentRef(): any {
@@ -107,6 +108,14 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
                 isSuperCrushCollision &&
                 (superCrushDestinationContext && superCrushDestinationContext.sourceHadDisc === false)
             );
+            if (useGhostOnlyDestroy && !disc && typeof deps.onDestroyGhostFallback === 'function') {
+                deps.onDestroyGhostFallback(target, {
+                    reason: destroyReason,
+                    cause: destroyCause,
+                    canRenderDestroyGhostWithoutDisc,
+                    isSuperCrushCollision
+                });
+            }
             if (useGhostOnlyDestroy) {
                 await deps.playDestroySourceAnimation(target, sourceAnimationProfile);
                 if (preserveDiscOnDestroy) {

@@ -1747,7 +1747,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 animateDestroyGhostAtCell: (cell: any, ownerColor: any) => this._animateDestroyGhostAtCell(cell, ownerColor),
                 createDisc: (state: any) => this.createDisc(state),
                 removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
-                resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor)
+                resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor),
+                onDestroyGhostFallback: (target: any, context: any) => {
+                    try {
+                        const root: any = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
+                        if (root && Array.isArray(root.__destroyGhostFallbackEvents)) {
+                            root.__destroyGhostFallbackEvents.push({ target, context });
+                        }
+                    } catch (e: any) { /* ignore diagnostics */ }
+                }
             });
         }
 

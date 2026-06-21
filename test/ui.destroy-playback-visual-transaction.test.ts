@@ -15,6 +15,40 @@ function createCardState() {
   };
 }
 
+function createDestroyDeps(cell: Element, onDestroyGhostFallback = jest.fn()) {
+  return {
+    eventTypes: { DESTROY: 'DESTROY' },
+    fadeOutMs: 1,
+    getCellEl: () => cell,
+    sleep: jest.fn(() => Promise.resolve()),
+    getTargetCause: (target: any) => String((target && target.cause) || 'SNIPER_WILL'),
+    getTargetReason: (target: any) => String((target && target.reason) || 'unit_destroy'),
+    isSuperCrushCause: () => false,
+    getSuperCrushDestinationContext: () => null,
+    resolveSuperCrushTargetDelayMs: () => 0,
+    resolveOwnerColorFromBefore: (ownerBefore: any) => (ownerBefore === 'black' ? 1 : (ownerBefore === 'white' ? -1 : null)),
+    shouldPreserveDiscOnDestroy: () => false,
+    resolveDestroyTargetHighlightMinimumMs: () => 0,
+    resolveEffectTargetHighlightTone: () => null,
+    runWithEffectTargetHighlight: async (_cell: any, _eventType: any, _target: any, runner: any) => runner(),
+    resolveDestroySourceAnimationProfile: () => null,
+    playDestroySourceAnimation: jest.fn(() => Promise.resolve()),
+    animateDestroyGhostAtCell: jest.fn(() => Promise.resolve()),
+    createDisc: (state: any) => {
+      const disc = document.createElement('div');
+      disc.className = 'disc';
+      if (state && state.color === 1) disc.classList.add('black');
+      if (state && state.color === -1) disc.classList.add('white');
+      return disc;
+    },
+    removeDiscFromCell: (_cell: any, disc: any) => {
+      if (disc && disc.parentElement) disc.parentElement.removeChild(disc);
+    },
+    resolveOwnerClassFromColor: (ownerColor: any) => (ownerColor === 1 ? 'black' : (ownerColor === -1 ? 'white' : '')),
+    onDestroyGhostFallback
+  };
+}
+
 describe('destroy playback visual transaction', () => {
   let dom: JSDOM;
 
@@ -102,5 +136,56 @@ describe('destroy playback visual transaction', () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  test('no-disc destroy fallback emits diagnostics when a visual ghost is required', async () => {
+    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    const cell = document.createElement('div');
+    const onDestroyGhostFallback = jest.fn();
+    const deps = createDestroyDeps(cell, onDestroyGhostFallback);
+
+    await AnimationDestroyEvents.handleDestroyEvent({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 3,
+        ownerBefore: 'black',
+        before: { color: 1, owner: 'black' },
+        cause: 'SNIPER_WILL',
+        reason: 'unit_destroy'
+      }]
+    }, deps);
+
+    expect(onDestroyGhostFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ r: 2, col: 3 }),
+      expect.objectContaining({
+        canRenderDestroyGhostWithoutDisc: true,
+        cause: 'SNIPER_WILL',
+        reason: 'unit_destroy'
+      })
+    );
+  });
+
+  test('normal destroy with an existing target disc does not use ghost fallback diagnostics', async () => {
+    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    const cell = document.createElement('div');
+    const disc = document.createElement('div');
+    const onDestroyGhostFallback = jest.fn();
+    disc.className = 'disc white';
+    cell.appendChild(disc);
+
+    await AnimationDestroyEvents.handleDestroyEvent({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 3,
+        ownerBefore: 'white',
+        before: { color: -1, owner: 'white' },
+        cause: 'SNIPER_WILL',
+        reason: 'unit_destroy'
+      }]
+    }, createDestroyDeps(cell, onDestroyGhostFallback));
+
+    expect(onDestroyGhostFallback).not.toHaveBeenCalled();
   });
 });
