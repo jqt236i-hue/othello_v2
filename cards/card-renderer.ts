@@ -368,7 +368,7 @@ function applyCardSpecialArtToFace(cardEl: any, cardDef: any, options: any) {
 }
 function _getProjectedHandCostForRender(cardState: any, ownerKey: any, handIndex: any, fallbackCost: any): number | null {
     const fallback = Number.isFinite(Number(fallbackCost)) ? Number(fallbackCost) : 0;
-    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const owner = _normalizeOwnerKeyForRender(ownerKey);
     if (!cardState || typeof cardState !== 'object' || !owner || !Number.isInteger(Number(handIndex))) {
         return null;
     }
@@ -749,6 +749,9 @@ function _normalizePlayerKeyForRender(playerKey: any) {
         return 'white';
     return null;
 }
+function _normalizeOwnerKeyForRender(ownerKey: any): PlayerOwnerKey | null {
+    return _normalizePlayerKeyForRender(ownerKey) as PlayerOwnerKey | null;
+}
 function _getOpposingPlayerKeyForRender(playerKey: any) {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.getOpposingPlayerKey === 'function') {
@@ -971,8 +974,8 @@ function _isHiddenHandTokenForRender(cardId: any) {
 function _isHandCardRevealedToViewerForRender(cardState: any, viewerKey: any, ownerKey: any, handIndex: any) {
     if (!cardState || typeof cardState !== 'object')
         return false;
-    const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
-    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const viewer = _normalizeOwnerKeyForRender(viewerKey);
+    const owner = _normalizeOwnerKeyForRender(ownerKey);
     if (!viewer || !owner || viewer === owner || !Number.isInteger(Number(handIndex)))
         return false;
     const normalizedHandIndex = Math.max(0, Math.trunc(Number(handIndex)));
@@ -1006,7 +1009,7 @@ function _isHandCardRevealedToViewerForRender(cardState: any, viewerKey: any, ow
 function _isHandCardObservedForRender(cardState: any, ownerKey: any, handIndex: any, viewerKey: any) {
     if (!cardState || typeof cardState !== 'object')
         return false;
-    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const owner = _normalizeOwnerKeyForRender(ownerKey);
     if (!owner || !Number.isInteger(Number(handIndex)))
         return false;
     const normalizedHandIndex = Math.max(0, Math.trunc(Number(handIndex)));
@@ -1018,7 +1021,7 @@ function _isHandCardObservedForRender(cardState: any, ownerKey: any, handIndex: 
         : null;
     if (observedSlots && observedSlots.includes(normalizedHandIndex))
         return true;
-    const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
+    const viewer = _normalizeOwnerKeyForRender(viewerKey);
     if (viewer && viewer !== owner && _hasActiveObserverWillRevealForRender(cardState, viewer, owner))
         return true;
     const handCopyIdsByPlayer = (cardState._handCopyIdsByPlayer && typeof cardState._handCopyIdsByPlayer === 'object')
@@ -1049,8 +1052,8 @@ function _isHandCardObservedForRender(cardState: any, ownerKey: any, handIndex: 
 function _hasActiveObserverWillRevealForRender(cardState: any, viewerKey: any, ownerKey: any) {
     if (!cardState || typeof cardState !== 'object')
         return false;
-    const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
-    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const viewer = _normalizeOwnerKeyForRender(viewerKey);
+    const owner = _normalizeOwnerKeyForRender(ownerKey);
     if (!viewer || !owner || viewer === owner)
         return false;
     try {
@@ -1072,7 +1075,7 @@ function _hasActiveObserverWillRevealForRender(cardState: any, viewerKey: any, o
     });
 }
 function _hasOwnerUsedCardThisActiveTurnForRender(cardState: any, ownerKey: any) {
-    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const normalizedOwnerKey = _normalizeOwnerKeyForRender(ownerKey);
     if (!cardState || typeof cardState !== 'object' || !normalizedOwnerKey)
         return false;
     if (cardState.lastTurnStartedFor !== normalizedOwnerKey)
@@ -1787,18 +1790,14 @@ function renderCardUI() {
     const handRevealState = (typeof window !== 'undefined' && window.__handSequentialRevealState && typeof window.__handSequentialRevealState === 'object')
         ? window.__handSequentialRevealState
         : null;
-    const revealPlayerKey = (handRevealState && (handRevealState.playerKey === 'black' || handRevealState.playerKey === 'white'))
-        ? handRevealState.playerKey
-        : null;
+    const revealPlayerKey = handRevealState ? _normalizeOwnerKeyForRender(handRevealState.playerKey) : null;
     const revealVisibleCount = (handRevealState && Number.isFinite(handRevealState.visibleCount))
         ? Math.max(0, Math.trunc(handRevealState.visibleCount))
         : null;
     const captureReservedState = (typeof window !== 'undefined' && window.__captureReservedHandSlotState && typeof window.__captureReservedHandSlotState === 'object')
         ? window.__captureReservedHandSlotState
         : null;
-    const reservedPlayerKey = (captureReservedState && (captureReservedState.playerKey === 'black' || captureReservedState.playerKey === 'white'))
-        ? captureReservedState.playerKey
-        : null;
+    const reservedPlayerKey = captureReservedState ? _normalizeOwnerKeyForRender(captureReservedState.playerKey) : null;
     const reservedHandIndex = (captureReservedState && Number.isInteger(captureReservedState.handIndex))
         ? captureReservedState.handIndex
         : null;
@@ -1856,7 +1855,7 @@ function renderCardUI() {
         return false;
     }
     function _getRuleUsableCardIdSetForRender(ownerKey: any) {
-        const owner = ownerKey === 'white' ? 'white' : 'black';
+        const owner = _normalizeOwnerKeyForRender(ownerKey) || 'black';
         if (Object.prototype.hasOwnProperty.call(ruleUsableCardIdSetByOwner, owner)) {
             return ruleUsableCardIdSetByOwner[owner] || null;
         }
@@ -1953,6 +1952,7 @@ function renderCardUI() {
         state.cost = cost;
         state.isObserved = _isHandCardObservedForRender(cardState, ownerKey, actualIndex, localRevealViewerKey);
         const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
+        // Local non-debug play exposes controls from the black hand; this is a UI control branch, not owner normalization.
         const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
         const canControlOwnerHand = isNetworkMode
             ? ((ownerKey === localPlayerKey && isOwnerTurn && !fateWillVictimLockedOut) || (fateWillIsViewingVictim && isOwnerTurn))

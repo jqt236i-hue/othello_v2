@@ -343,7 +343,16 @@ function _normalizeOwnerKey(ownerKey: any) {
             return _ownerHelpersModule.normalizePlayerKey(ownerKey, 'black');
         }
     } catch (e) { /* ignore */ }
-    return ownerKey === 'white' ? 'white' : 'black';
+    return _normalizeOwnerKeyOptional(ownerKey) || 'black';
+}
+
+function _normalizeOwnerKeyOptional(ownerKey: any): CardInteractionPlayerKey | null {
+    try {
+        if (_ownerHelpersModule && typeof _ownerHelpersModule.normalizePlayerKeyOptional === 'function') {
+            return _ownerHelpersModule.normalizePlayerKeyOptional(ownerKey);
+        }
+    } catch (e) { /* ignore */ }
+    return ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
 }
 
 function _isHiddenHandToken(cardId: any) {
@@ -1880,7 +1889,7 @@ function _getRunResultNextCardState(runResult: any) {
 }
 
 function _hasCardUseCostChargeDelta(runResult: any, ownerKey: any) {
-    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey) return false;
     const nextCardState = _getRunResultNextCardState(runResult);
     const events = (nextCardState && Array.isArray(nextCardState.chargeDeltaEvents))
@@ -1888,7 +1897,7 @@ function _hasCardUseCostChargeDelta(runResult: any, ownerKey: any) {
         : [];
     return events.some((event: any) => {
         if (!event || typeof event !== 'object') return false;
-        const player = event.player === 'white' ? 'white' : (event.player === 'black' ? 'black' : null);
+        const player = _normalizeOwnerKeyOptional(event.player);
         const delta = Number(event.delta);
         return player === normalizedOwnerKey
             && Number.isFinite(delta)
@@ -1910,7 +1919,7 @@ function _drainCardUseCostChargeDelta(runResult: any, ownerKey: any) {
 }
 
 function _doesRunResultEnterBoardTargetSelectionForOwner(runResult: any, ownerKey: any) {
-    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey) return false;
     const nextCardState = _getRunResultNextCardState(runResult);
     if (!nextCardState || !nextCardState.pendingEffectByPlayer) return false;
@@ -1920,7 +1929,7 @@ function _doesRunResultEnterBoardTargetSelectionForOwner(runResult: any, ownerKe
 }
 
 function _getBoardTargetSelectionEntryContext(runResult: any, ownerKey: any) {
-    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey) return null;
     const nextCardState = _getRunResultNextCardState(runResult);
     if (!nextCardState || !nextCardState.pendingEffectByPlayer) return null;
@@ -1955,7 +1964,7 @@ function _armBoardTargetSelectionEntryPlaybackContext(runResult: any, ownerKey: 
 }
 
 function _ensureBoardPendingSelectionAfterCardUse(runResult: any, ownerKey: any, cardId: any, cardDef: any) {
-    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey || !cardDef || typeof cardDef.type !== 'string') return false;
 
     const pendingType = String(cardDef.type || '').trim().toUpperCase();
@@ -2043,7 +2052,7 @@ function _isBoardPendingActionForCardUi(pending: any) {
 }
 
 function _hasBoardPendingSelectionForOwner(ownerKey: any) {
-    const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey) return false;
     const candidates: any[] = [];
     const pushCandidate = (value: any) => {
@@ -2143,7 +2152,7 @@ function _applyDeferredGeneratedThrowChainHandReveal(runResult: any) {
     const rootRef = _getUiRootRef();
     if (!rootRef) return false;
 
-    const ownerKey = meta.playerKey === 'white' ? 'white' : 'black';
+    const ownerKey = _normalizeOwnerKey(meta.playerKey);
     const nextCardState = (runResult && runResult.result && runResult.result.nextCardState)
         ? runResult.result.nextCardState
         : cardState;
@@ -2247,7 +2256,7 @@ function _getEffectiveCardCostForHandCard(cardId: any, ownerKey: any, handIndex?
 
 function _getProjectedHandCost(state: any, ownerKey: any, handIndex: any, fallbackCost: any): number | null {
     const fallback = Number.isFinite(Number(fallbackCost)) ? Number(fallbackCost) : 0;
-    const owner = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
+    const owner = _normalizeOwnerKeyOptional(ownerKey);
     if (!state || typeof state !== 'object' || !owner || !Number.isInteger(Number(handIndex))) return null;
     const adjustmentsByPlayer = (state.handCostAdjustmentsByPlayer && typeof state.handCostAdjustmentsByPlayer === 'object')
         ? state.handCostAdjustmentsByPlayer
@@ -2706,9 +2715,7 @@ function onCardClick(cardId: any, ownerKey: any, handIndex?: any) {
     if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
     const playerKey = _resolveInputPlayerKey();
     const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
-    const clickedOwnerKey = (ownerKey === 'white' || ownerKey === 'black')
-        ? ownerKey
-        : null;
+    const clickedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     const stateRef = _getCardStateRef();
     const pending = stateRef && stateRef.pendingEffectByPlayer ? stateRef.pendingEffectByPlayer[actionOwnerKey] : null;
 
@@ -3016,7 +3023,7 @@ function _findHandCardSwipeTarget(event: any) {
         : null;
     if (!cardEl || !cardEl.dataset || !cardEl.dataset.cardId) return null;
     if (typeof cardEl.closest === 'function' && !cardEl.closest('#hand-black, #hand-white')) return null;
-    const ownerKey = cardEl.dataset.ownerKey === 'white' ? 'white' : 'black';
+    const ownerKey = _normalizeOwnerKey(cardEl.dataset.ownerKey);
     const rawActualHandIndex = Number(cardEl.dataset.actualHandIndex);
     const rawHandIndex = Number.isInteger(rawActualHandIndex) && rawActualHandIndex >= 0
         ? rawActualHandIndex
@@ -3110,7 +3117,7 @@ function _selectHandCardForSwipeAction(state: any) {
 
     const playerKey = _resolveInputPlayerKey();
     const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
-    const clickedOwnerKey = state.ownerKey === 'white' ? 'white' : 'black';
+    const clickedOwnerKey = _normalizeOwnerKey(state.ownerKey);
     const stateRef = _getCardStateRef();
     const pending = stateRef && stateRef.pendingEffectByPlayer ? stateRef.pendingEffectByPlayer[actionOwnerKey] : null;
 
