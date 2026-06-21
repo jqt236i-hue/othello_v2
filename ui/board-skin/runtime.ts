@@ -12,6 +12,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 interface BoardSkinDefinition {
   id: string;
   imagePath: string;
+  layout?: BoardFrameSkinLayout;
+}
+
+interface BoardFrameSkinLayout {
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  artOffsetY?: number;
 }
 
 interface BoardSkinCatalogModule {
@@ -65,6 +74,28 @@ function cssUrl(path: string): string {
   return 'url("' + String(path || '').replace(/"/g, '\\"') + '")';
 }
 
+function cssLayoutPx(value: unknown): string | null {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  return `calc(${numericValue}px * var(--layout-stage-scale))`;
+}
+
+function applyBoardFrameLayoutVars(targetEl: HTMLElement | null | undefined, layout: BoardFrameSkinLayout | null | undefined): void {
+  if (!targetEl || !targetEl.style) return;
+  const entries: Array<[string, keyof BoardFrameSkinLayout]> = [
+    ['--board-frame-padding-top', 'paddingTop'],
+    ['--board-frame-padding-right', 'paddingRight'],
+    ['--board-frame-padding-bottom', 'paddingBottom'],
+    ['--board-frame-padding-left', 'paddingLeft'],
+    ['--board-frame-art-offset-y', 'artOffsetY']
+  ];
+  entries.forEach(([propertyName, fieldName]) => {
+    const cssValue = layout ? cssLayoutPx(layout[fieldName]) : null;
+    if (cssValue) targetEl.style.setProperty(propertyName, cssValue);
+    else targetEl.style.removeProperty(propertyName);
+  });
+}
+
 function applyBoardSkin(rootRef: Window | null | undefined, skinId: string): BoardSkinDefinition | null {
   const ctx = resolveRootRef(rootRef);
   const docRef = resolveDocument(ctx);
@@ -96,9 +127,11 @@ function applyBoardFrameSkin(rootRef: Window | null | undefined, skinId: string)
   const frameEl = docRef.getElementById('board-frame') as HTMLElement | null;
   rootEl.setAttribute('data-board-frame-skin-id', definition.id);
   rootEl.style.setProperty('--board-frame-image', cssUrl(definition.imagePath));
+  applyBoardFrameLayoutVars(rootEl as HTMLElement, definition.layout);
   if (frameEl) {
     frameEl.setAttribute('data-board-frame-skin-id', definition.id);
     frameEl.style.setProperty('--board-frame-image', cssUrl(definition.imagePath));
+    applyBoardFrameLayoutVars(frameEl, definition.layout);
   }
   return definition;
 }

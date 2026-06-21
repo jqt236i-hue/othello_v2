@@ -128,6 +128,28 @@ describe('board skin controller', () => {
     expect(document.getElementById('board-frame')!.style.getPropertyValue('--board-frame-image')).toBe('url("assets/images/board/board-frame-compact-brass-clean-corners-v3.png")');
   });
 
+  test('applies per-frame layout variables from the board frame catalog', () => {
+    const controller = require('../ui/board-skin/controller.js');
+    const api = controller.setupBoardSkinControls({ root: window });
+    const frameEl = document.getElementById('board-frame')!;
+
+    api.selectFrameSkin('compact-brass-clean-corners');
+
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-top')).toBe('calc(18px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-right')).toBe('calc(25px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe('calc(25px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe('calc(25px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(5px * var(--layout-stage-scale))');
+
+    api.selectFrameSkin('compact-iron-clean-corners');
+
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-top')).toBe('calc(20px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-right')).toBe('calc(28px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe('calc(28px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe('calc(28px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(3px * var(--layout-stage-scale))');
+  });
+
   test('persists and applies the selected compact board frame skins', () => {
     const controller = require('../ui/board-skin/controller.js');
     const api = controller.setupBoardSkinControls({ root: window });

@@ -15,6 +15,15 @@ interface BoardFrameSkinItem {
   label: string;
   note: string;
   imagePath: string;
+  layout?: BoardFrameSkinLayout;
+}
+
+interface BoardFrameSkinLayout {
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  artOffsetY?: number;
 }
 
 const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
@@ -112,19 +121,40 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
     id: 'compact-brass-clean-corners',
     label: '重厚黒金枠',
     note: '黒鉄と古金金具の角が干渉しない盤面外フレーム',
-    imagePath: 'assets/images/board/board-frame-compact-brass-clean-corners-v3.png'
+    imagePath: 'assets/images/board/board-frame-compact-brass-clean-corners-v3.png',
+    layout: Object.freeze({
+      paddingTop: 18,
+      paddingRight: 25,
+      paddingBottom: 25,
+      paddingLeft: 25,
+      artOffsetY: 5
+    })
   }),
   Object.freeze({
     id: 'compact-iron-clean-corners',
     label: '黒鉄鋲留枠',
     note: '黒鉄の鋲留めと直線内枠の盤面外フレーム',
-    imagePath: 'assets/images/board/board-frame-compact-iron-clean-corners-v3.png'
+    imagePath: 'assets/images/board/board-frame-compact-iron-clean-corners-v3.png',
+    layout: Object.freeze({
+      paddingTop: 20,
+      paddingRight: 28,
+      paddingBottom: 28,
+      paddingLeft: 28,
+      artOffsetY: 3
+    })
   }),
   Object.freeze({
     id: 'compact-gold-clean-corners',
     label: '黒金装飾枠',
     note: '黒漆と金装飾を抑えた盤面外フレーム',
-    imagePath: 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png'
+    imagePath: 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png',
+    layout: Object.freeze({
+      paddingTop: 21,
+      paddingRight: 29,
+      paddingBottom: 29,
+      paddingLeft: 29,
+      artOffsetY: 3
+    })
   })
 ]);
 
@@ -136,7 +166,10 @@ function cloneSkin(skin: BoardSkinItem): BoardSkinItem {
 }
 
 function cloneFrameSkin(skin: BoardFrameSkinItem): BoardFrameSkinItem {
-  return { ...skin };
+  return {
+    ...skin,
+    layout: skin.layout ? { ...skin.layout } : undefined
+  };
 }
 
 function normalizeCatalogBoardSkinId(value: unknown): string {
