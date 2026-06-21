@@ -1,6 +1,6 @@
 {
   "version": "2026-06-21",
-  "generatedAt": "2026-06-21T05:51:27.936Z",
+  "generatedAt": "2026-06-21T09:59:06.365Z",
   "files": [
     {
       "path": "assets/images/special-stones/absolute_protect_next_stone-black.png",
@@ -557,6 +557,26 @@
     {
       "path": "assets/images/background/デフォルト13.png",
       "sha256": "bfc7fdae44bfed70d0c689ddddaa2617301a0fb76a5365570746e09c021402d1"
+    },
+    {
+      "path": "assets/images/background/デフォルト14.png",
+      "sha256": "06b5ce3ffb7be4e3280104dabfb80913b6dc582f66467fc2f4b5ae17a81fad0c"
+    },
+    {
+      "path": "assets/images/background/デフォルト15.png",
+      "sha256": "573787eafd8fc1fd932ce0ac397f3da6f5e604397e84c663f1089790eff622ee"
+    },
+    {
+      "path": "assets/images/background/デフォルト16.png",
+      "sha256": "9d605e9a121f103fbf2d30be0f04bba87b82be55ec2f6881ce0830aa3444540a"
+    },
+    {
+      "path": "assets/images/background/デフォルト17.png",
+      "sha256": "228f1e0dabeb0d3da4cf031888e4ff3462ff970f75e87d6bed789620a4524fd6"
+    },
+    {
+      "path": "assets/images/background/デフォルト18.png",
+      "sha256": "38be73d228e3f57c6fdac6587cd2d2e8ae01851a042de0fac6de2a5d94b38a11"
     },
     {
       "path": "assets/images/background/デフォルト2.png",

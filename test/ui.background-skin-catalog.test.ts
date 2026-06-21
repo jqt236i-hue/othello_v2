@@ -32,7 +32,12 @@ describe('background skin catalog', () => {
     ['default-10', 'デフォルト10', 'assets/images/background/デフォルト10.png'],
     ['default-11', 'デフォルト11', 'assets/images/background/デフォルト11.png'],
     ['default-12', 'デフォルト12', 'assets/images/background/デフォルト12.png'],
-    ['default-13', 'デフォルト13', 'assets/images/background/デフォルト13.png']
+    ['default-13', 'デフォルト13', 'assets/images/background/デフォルト13.png'],
+    ['default-14', 'デフォルト14', 'assets/images/background/デフォルト14.png'],
+    ['default-15', 'デフォルト15', 'assets/images/background/デフォルト15.png'],
+    ['default-16', 'デフォルト16', 'assets/images/background/デフォルト16.png'],
+    ['default-17', 'デフォルト17', 'assets/images/background/デフォルト17.png'],
+    ['default-18', 'デフォルト18', 'assets/images/background/デフォルト18.png']
   ])('includes %s as an initially owned background skin', (skinId, label, imagePath) => {
     const storage = require('../ui/storage/gacha-progress.ts');
     (window as any).GachaProgressStorage = storage;
