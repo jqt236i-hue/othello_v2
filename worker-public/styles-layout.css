@@ -195,6 +195,11 @@
     margin-right: 0;
 }
 
+#hand-black,
+#deck-black {
+    transform: translateY(calc(9px * var(--layout-stage-scale)));
+}
+
 /* Hand Containers */
 .hand-container {
     --layout-hand-fixed-card-width: var(--layout-size-card-width);
