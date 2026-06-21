@@ -73,6 +73,10 @@
     overflow: visible;
 }
 
+#board-frame[data-board-frame-skin-id^="compact-"] {
+    --board-frame-padding: calc(12px * var(--layout-stage-scale));
+}
+
 /* Frame bevel details */
 #board-frame::before {
     content: "";

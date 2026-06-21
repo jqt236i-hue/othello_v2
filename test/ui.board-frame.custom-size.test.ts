@@ -14,6 +14,7 @@ describe('custom board frame styling', () => {
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-padding:\s*calc\(25px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-inner-size:\s*calc\(var\(--layout-anchor-board-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-board-scale\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-fill-background:/);
+    expect(layoutCss).toMatch(/#board-frame\[data-board-frame-skin-id\^="compact-"\][\s\S]*--board-frame-padding:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*width:\s*var\(--board-frame-outer-width,\s*calc\(var\(--board-frame-inner-size\)\s*\+\s*\(var\(--board-frame-padding\)\s*\*\s*2\)\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*height:\s*var\(--board-frame-outer-height,\s*calc\(var\(--board-frame-inner-size\)\s*\+\s*\(var\(--board-frame-padding\)\s*\*\s*2\)\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-max-size:\s*var\(--board-frame-inner-size,\s*calc\(var\(--layout-anchor-board-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-board-scale\)\)\)/);
