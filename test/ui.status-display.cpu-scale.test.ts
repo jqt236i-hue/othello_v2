@@ -26,7 +26,7 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#hero-character-img[\s\S]*scaleX\(var\(--hero-character-face-direction,\s*-1\)\)/);
     expect(css).toMatch(/#hero-character-img:hover[\s\S]*scale\(1\.04\)[\s\S]*scaleX\(var\(--hero-character-face-direction,\s*-1\)\)/);
     expect(css).toMatch(/#cpu-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(css).toMatch(/#cpu-character-panel[\s\S]*transform:\s*translateY\(calc\(20px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(css).toMatch(/#cpu-character-panel[\s\S]*transform:\s*translateY\(calc\(35px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(css).toMatch(/#hero-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*0/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*background:[\s\S]*linear-gradient\(180deg,\s*rgba\(255,\s*248,\s*225,\s*0\.14\),\s*rgba\(255,\s*248,\s*225,\s*0\)\s*38%\)/);
