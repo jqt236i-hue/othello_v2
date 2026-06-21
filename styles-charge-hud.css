@@ -103,7 +103,7 @@
 
 #charge-black {
     left: 50%;
-    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset));
+    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset) - 3px);
     transform: translateX(-50%);
 }
 
