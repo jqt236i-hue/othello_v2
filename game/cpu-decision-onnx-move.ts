@@ -24,6 +24,18 @@ export type CpuDecisionOnnxMoveDeps = {
   warn: (...args: any[]) => void;
 };
 
+const DEFAULT_NON_LV6_ONNX_MOVE_BUDGET_MS = 120;
+
+function resolveOnnxMoveBudgetMs(level: any, configuredBudgetMs: any): number {
+  const configured = Number(configuredBudgetMs);
+  if (Number.isFinite(configured) && configured > 0) return Math.floor(configured);
+  const normalizedLevel = Number(level);
+  if (Number.isFinite(normalizedLevel) && normalizedLevel < 6) {
+    return DEFAULT_NON_LV6_ONNX_MOVE_BUDGET_MS;
+  }
+  return 0;
+}
+
 export function createCpuDecisionOnnxMove(deps: CpuDecisionOnnxMoveDeps) {
   async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
     const board = deps.getCurrentCpuBoard();
@@ -48,7 +60,7 @@ export function createCpuDecisionOnnxMove(deps: CpuDecisionOnnxMoveDeps) {
       deps.logCpuOnnxLatencyDegrade(level, playerKey, 'chooseMove', preGate.reason);
       return null;
     }
-    const budgetMs = deps.resolveCpuLv6OnnxRuntimeBudgetMs(level, 'chooseMove');
+    const budgetMs = resolveOnnxMoveBudgetMs(level, deps.resolveCpuLv6OnnxRuntimeBudgetMs(level, 'chooseMove'));
     try {
       const handCardIds = deps.getHandCardIdsForPlayer(playerKey);
       const selected = await deps.awaitCpuPromiseWithinBudget(

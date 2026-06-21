@@ -32,6 +32,8 @@ describe('UI bootstrap early CPU registration', () => {
     const setPassHandlerRuntime = jest.fn();
     const setCpuDecisionRuntime = jest.fn();
     const selectMoveFromOnnxPolicyAsync = jest.fn();
+    const selectCpuMoveWithPolicy = jest.fn();
+    const generateMovesForPlayer = jest.fn();
     const setTurnPipelinePhasesRuntime = jest.fn();
     jest.doMock('../game/cpu-turn-handler', () => mockCpu);
     jest.doMock('../game/pass-handler', () => ({
@@ -41,7 +43,11 @@ describe('UI bootstrap early CPU registration', () => {
     }));
     jest.doMock('../game/cpu-decision', () => ({
       setCpuDecisionRuntime,
-      selectMoveFromOnnxPolicyAsync
+      selectMoveFromOnnxPolicyAsync,
+      selectCpuMoveWithPolicy
+    }));
+    jest.doMock('../game/move-generator', () => ({
+      generateMovesForPlayer
     }));
     jest.doMock('../game/turn/turn_pipeline_phases', () => ({
       setTurnPipelinePhasesRuntime
@@ -55,6 +61,8 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof globals.processCpuTurn).toBe('function');
     expect(typeof globals.processAutoBlackTurn).toBe('function');
     expect(globals.selectMoveFromOnnxPolicyAsync).toBe(selectMoveFromOnnxPolicyAsync);
+    expect(globals.selectCpuMoveWithPolicy).toBe(selectCpuMoveWithPolicy);
+    expect(typeof globals.generateMovesForPlayer).toBe('function');
     expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
     expect(mockCpu.setCpuTurnTimerService).toHaveBeenCalledWith(expect.objectContaining({
       setTimeout: expect.any(Function),
@@ -71,6 +79,8 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction).toBe('function');
     expect(setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')).toBe(selectMoveFromOnnxPolicyAsync);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].resolveRuntimeFunction('generateMovesForPlayer')).toBe(globals.generateMovesForPlayer);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].resolveRuntimeFunction('selectCpuMoveWithPolicy')).toBe(selectCpuMoveWithPolicy);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].showResult).toBe('function');
     global.ActionManager = { sentinel: 'action' };
     global.NetworkTurnHandoff = { sentinel: 'handoff' };

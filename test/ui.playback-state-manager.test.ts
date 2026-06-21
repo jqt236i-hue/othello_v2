@@ -346,6 +346,29 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getCardAnimating()).toBe(false);
   });
 
+  test('visual playback claim release does not restore processing cleared during playback', () => {
+    const manager = require('../ui/playback-state-manager.js');
+
+    manager.setBusyState({
+      processing: true,
+      cardAnimating: false,
+      playbackActive: false
+    });
+
+    const claim = manager.claimVisualPlayback({
+      source: 'cpu_card_use',
+      eventTypes: ['card_use_animation']
+    });
+
+    manager.setProcessing(false);
+    manager.finalizePlayback({ clearBoardUpdateContext: true });
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+
+    expect(manager.getProcessing()).toBe(false);
+    expect(manager.getCardAnimating()).toBe(false);
+  });
+
   test('waitForVisualPlaybackDrain waits while a visual playback claim exists', async () => {
     const manager = require('../ui/playback-state-manager.js');
     const emptyCardState = {

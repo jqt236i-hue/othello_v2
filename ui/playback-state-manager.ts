@@ -91,6 +91,7 @@ const selectionSettlementLockIds = new Set<number>();
 let nextVisualPlaybackClaimId = 1;
 const visualPlaybackClaimIds = new Map<number, any>();
 let visualPlaybackClaimBusyBaseline: { processing: boolean; cardAnimating: boolean } | null = null;
+let visualPlaybackClaimProcessingCleared = false;
 
 function syncSelectionSettlementLockMirror(): number {
   const count = selectionSettlementLockIds.size;
@@ -137,6 +138,7 @@ function claimVisualPlayback(meta?: any): any {
       processing: getProcessing(),
       cardAnimating: getCardAnimating()
     };
+    visualPlaybackClaimProcessingCleared = false;
   }
   const token = {
     id: nextVisualPlaybackClaimId++,
@@ -164,14 +166,16 @@ function releaseVisualPlaybackClaim(token?: any): boolean {
     return true;
   }
   const baseline = visualPlaybackClaimBusyBaseline;
+  const processingCleared = visualPlaybackClaimProcessingCleared === true;
   visualPlaybackClaimBusyBaseline = null;
+  visualPlaybackClaimProcessingCleared = false;
   if (readMirroredValue('VisualPlaybackActive') === true) {
     setProcessing(true);
     setCardAnimating(true);
     setBoardLockActive(true);
     return true;
   }
-  setProcessing(baseline ? baseline.processing === true : false);
+  setProcessing(processingCleared ? false : (baseline ? baseline.processing === true : false));
   setCardAnimating(baseline ? baseline.cardAnimating === true : false);
   setBoardLockActive(getPlaybackActive());
   return true;
@@ -180,6 +184,7 @@ function releaseVisualPlaybackClaim(token?: any): boolean {
 function clearVisualPlaybackClaims(): boolean {
   visualPlaybackClaimIds.clear();
   visualPlaybackClaimBusyBaseline = null;
+  visualPlaybackClaimProcessingCleared = false;
   syncVisualPlaybackClaimMirror();
   return true;
 }
@@ -296,6 +301,9 @@ function getProcessing(): boolean {
 }
 
 function setProcessing(active: boolean): boolean {
+  if (active !== true && visualPlaybackClaimIds.size > 0) {
+    visualPlaybackClaimProcessingCleared = true;
+  }
   return setMirroredValue('isProcessing', active === true) === true;
 }
 
