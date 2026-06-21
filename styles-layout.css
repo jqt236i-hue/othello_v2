@@ -74,7 +74,7 @@
 }
 
 #board-frame[data-board-frame-skin-id^="compact-"] {
-    --board-frame-padding: calc(12px * var(--layout-stage-scale));
+    --board-frame-padding: calc(18px * var(--layout-stage-scale));
 }
 
 /* Frame bevel details */
