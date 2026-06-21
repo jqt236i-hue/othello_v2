@@ -611,6 +611,18 @@
       "sha256": "2f6ba393629a20cce645b3508decca706eefcb275f6d2677a1742bc356c8f14f"
     },
     {
+      "path": "assets/images/background/デフォルト26.png",
+      "sha256": "accaec2b482377601f7d32a7a6671f6a7e35cab597f5f66a10a7d706a2b61fe8"
+    },
+    {
+      "path": "assets/images/background/デフォルト27.png",
+      "sha256": "a9e96955e599bca7430d6247baf9718826bd6ac9f3c58a76da5938463025a2e0"
+    },
+    {
+      "path": "assets/images/background/デフォルト28.png",
+      "sha256": "16e66140e103d54cb787854f034d7272a94edd072a512af9d7ae9570134a2ee3"
+    },
+    {
       "path": "assets/images/background/デフォルト3.png",
       "sha256": "60688dde506ebe5c18a8e23f79ec1e430de42eeaa34ccf2b7782d65da70dfaca"
     },
