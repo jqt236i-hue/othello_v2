@@ -44,6 +44,10 @@ function shouldEnforceGlobalThis(filePath: string): boolean {
         || filePath === 'utils/owner-helpers.ts';
 }
 
+function shouldEnforceGameNetworkClientRootAccess(filePath: string): boolean {
+    return filePath.indexOf('game/') === 0;
+}
+
 function shouldEnforceDomlessConstants(filePath: string): boolean {
     return filePath.indexOf('constants/') === 0;
 }
@@ -191,6 +195,13 @@ for (const f of files) {
             }
             if (
                 (unwrappedBase.text === 'window' || unwrappedBase.text === 'globalThis')
+                && (ts.isPropertyAccessExpression(node) || ts.isPropertyAccessChain(node))
+                && node.name.text === 'NetworkMatchClient'
+            ) {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: 'root NetworkMatchClient' });
+            }
+            if (
+                shouldEnforceGameNetworkClientRootAccess(f)
                 && (ts.isPropertyAccessExpression(node) || ts.isPropertyAccessChain(node))
                 && node.name.text === 'NetworkMatchClient'
             ) {
