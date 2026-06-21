@@ -4,7 +4,7 @@
 
 **Goal:** 破壊対象の石が `配置 -> 先に消える -> 破壊演出用に再出現 -> 消える` と見える問題を、カード個別ではなく UI playback と最終盤面同期の共通 transaction として完全に止める。
 
-**Architecture:** `game/` の canonical 破壊処理は変えない。`ui/` 側で `PLAYBACK_EVENTS` が drain された瞬間から `AnimationEngine.beginPlayback()` が実際に board lock を所有するまでの隙間を `PlaybackStateManager` の visual playback claim で塞ぎ、`DiffRenderer` と `ui.ts` の board render が final EMPTY state を先行描画できないようにする。
+**Architecture:** `game/` の canonical 破壊処理は変えない。`ui/` 側で `PresentationHandler` が playback-bearing queue を drain した瞬間から、その drain 内の最後の `PLAYBACK_EVENTS` が完了するまでを `PlaybackStateManager` の visual playback claim で覆う。`DiffRenderer` と `ui.ts` の board render はこの drain-level claim と実 playback lock の両方を見て final EMPTY state の先行描画を止め、`waitForVisualPlaybackDrain()` も claim 中を非 idle と扱う。
 
 **Tech Stack:** TypeScript, Jest/jsdom, classic browser module wrappers, existing `PlaybackStateManager`, `PresentationHandler`, `DiffRenderer`, `AnimationEngine`.
 
@@ -24,10 +24,11 @@ This plan intentionally does not change card logic for `狙撃の意志`, `破�
 ## Behavior Contract
 
 - `DESTROY` playback が存在する board update では、final board render must not remove the target stone before playback starts.
-- `PLAYBACK_EVENTS` queue が `PresentationHandler` に drain された後も、AnimationEngine が playback ownership を取るまでは board render を defer する。
-- `AnimationEngine.beginPlayback()` が呼ばれたら、claim は実 playback lock に引き継がれる。
+- `PLAYBACK_EVENTS` queue が `PresentationHandler` に drain された後も、その drain 内の playback-bearing event がすべて終わるまでは board render を defer する。
+- `AnimationEngine.beginPlayback()` が呼ばれても drain-level claim は消さない。実 playback と drain claim は重なってよく、claim は `flushBoardPresentationEvents()` の `finally` で解放する。
 - Playback が開始できなかった場合だけ claim を解除し、busy state と board lock を stale にしない。
 - Playback 完了後の final board sync は今まで通り `AnimationEngine.finalizePlayback()` の `emitBoardUpdate` で行う。
+- `waitForVisualPlaybackDrain()` は `VisualPlaybackActive` と pending queue だけでなく visual playback claim も idle 判定に含める。
 - `game/`, `shared/`, worker authority, and card-specific logic stay headless and unchanged.
 
 ## File Structure
@@ -35,19 +36,23 @@ This plan intentionally does not change card logic for `狙撃の意志`, `破�
 - Modify `ui/playback-state-manager.ts`
   - Add visual playback claim state and public helpers.
   - Make `shouldDeferBoardUpdate()` and `shouldDeferUiSync()` return true while a claim exists.
-  - Clear claims when real playback begins, finalizes, aborts, or locks are cleared.
+  - Make `waitForVisualPlaybackDrain()` wait while a claim exists.
+  - Keep drain-level claims alive across `beginPlayback()` / `finalizePlayback()` and clear them only by explicit release or stale cleanup.
 - Modify `ui/diff-renderer.ts`
   - Treat a visual playback claim as an active Single Visual Writer condition.
   - Skip final diff render while a claim exists, even if presentation queues were already drained.
 - Modify `ui/presentation-handler.ts`
-  - Claim visual playback before dispatching a non-suppressed `PLAYBACK_EVENTS` batch.
-  - Release the claim if playback dispatch fails before `AnimationEngine.beginPlayback()` takes ownership.
+  - Claim visual playback for the full drained presentation queue when that queue contains non-suppressed `PLAYBACK_EVENTS`.
+  - Keep that claim active across intermediate `AnimationEngine.finalizePlayback()` board updates until the whole drain completes.
+  - Also claim around direct non-drain `PLAYBACK_EVENTS` dispatches so direct callers still get handoff protection.
 - Modify `test/ui.playback-state-manager.test.ts`
   - Add focused claim-state contract tests.
 - Create `test/ui.destroy-playback-visual-transaction.test.ts`
   - Reproduce the broken final-render-before-destroy-playback case in jsdom.
 - Create `test/ui.presentation-handler.playback-claim.test.ts`
-  - Verify `PresentationHandler` claims before calling `AnimationEngine.play()` and does not claim suppressed playback.
+  - Verify `PresentationHandler` claims before calling `AnimationEngine.play()`, holds the claim across multi-event drains, and does not claim suppressed playback.
+- Modify `test/ui.card-interaction-pending-network.test.ts`
+  - Verify pending-selection network cleanup waits while a visual playback claim is active.
 - Optionally modify `docs/architecture-contracts.md`
   - Add one short note under the UI presentation boundary if the current text does not already state that playback drain and final board render are a transaction.
 - Optionally modify `正本/演出正本.md`
@@ -60,6 +65,7 @@ This plan intentionally does not change card logic for `狙撃の意志`, `破�
 - Do not add card-type-specific branches for `SNIPER_WILL`, `ULTIMATE_REVERSE_DRAGON`, `ULTIMATE_DESTROY_GOD`, or any destroy cause.
 - Keep the new state inside `PlaybackStateManager`; do not introduce another global flag outside that module except the existing mirrored debug/window state it owns.
 - The checkout is already dirty. Stage and commit only files intentionally changed for this plan's execution.
+- `ui/diff-renderer.ts` is already dirty in the current checkout. Before any implementation touches it, inspect `git diff -- ui/diff-renderer.ts`. Do not use full-file `git add ui/diff-renderer.ts` while unrelated hunks remain; stage only the new playback-claim hunks with interactive/patch staging or pause and ask for direction.
 
 ---
 
@@ -106,30 +112,67 @@ Append these tests inside the existing `describe('PlaybackStateManager runtime h
     expect(global.window.__visualPlaybackClaimCount).toBe(0);
   });
 
-  test('beginPlayback transfers a visual playback claim to the real playback lock', () => {
+  test('beginPlayback keeps a drain-level visual playback claim until explicit release', () => {
     const manager = require('../ui/playback-state-manager.js');
     const board = document.getElementById('board');
 
-    manager.claimVisualPlayback({
+    const claim = manager.claimVisualPlayback({
       source: 'unit-test',
-      eventTypes: ['destroy']
+      eventTypes: ['destroy'],
+      scope: 'presentation_drain'
     });
     expect(manager.hasClaimedVisualPlayback()).toBe(true);
 
     const started = manager.beginPlayback({ boardElement: board, startedAt: 1234 });
 
     expect(started.playbackActive).toBe(true);
-    expect(manager.hasClaimedVisualPlayback()).toBe(false);
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
     expect(manager.getPlaybackActive()).toBe(true);
     expect(global.window.VisualPlaybackActive).toBe(true);
-    expect(global.window.__visualPlaybackClaimActive).toBe(false);
+    expect(global.window.__visualPlaybackClaimActive).toBe(true);
     expect(board.classList.contains('playback-locked')).toBe(true);
 
     manager.finalizePlayback({ boardElement: board, clearBoardUpdateContext: true });
 
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+    expect(manager.shouldDeferBoardUpdate({ cardState: { presentationEvents: [], _presentationEventsPersist: [] } })).toBe(true);
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
     expect(manager.getPlaybackActive()).toBe(false);
     expect(global.window.VisualPlaybackActive).toBe(false);
     expect(board.classList.contains('playback-locked')).toBe(false);
+  });
+
+  test('waitForVisualPlaybackDrain waits while a visual playback claim exists', async () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const emptyCardState = {
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    const claim = manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy'],
+      scope: 'presentation_drain'
+    });
+    let resolved = false;
+
+    const drainPromise = manager.waitForVisualPlaybackDrain({
+      cardState: emptyCardState,
+      timeoutMs: 5000
+    }).then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(16);
+    await Promise.resolve();
+
+    expect(resolved).toBe(false);
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    jest.advanceTimersByTime(16);
+    await drainPromise;
+
+    expect(resolved).toBe(true);
   });
 
   test('clearPlaybackLock clears stale visual playback claims', () => {
@@ -438,11 +481,15 @@ Insert these functions after `syncSelectionSettlementLockMirror()`:
 ```ts
 function normalizeVisualPlaybackClaimMeta(meta?: any): any {
   const source = String(meta && meta.source ? meta.source : 'unknown').trim() || 'unknown';
+  const rawScope = String(meta && meta.scope ? meta.scope : '').trim().toLowerCase();
+  const scope = rawScope === 'presentation_drain' || rawScope === 'batch_handoff'
+    ? rawScope
+    : 'generic';
   const eventCount = Number(meta && meta.eventCount);
   const eventTypes = Array.isArray(meta && meta.eventTypes)
     ? meta.eventTypes.map((value: any) => String(value || '').trim()).filter((value: string) => !!value)
     : [];
-  const normalized: any = { source };
+  const normalized: any = { source, scope };
   if (Number.isFinite(eventCount) && eventCount >= 0) normalized.eventCount = Math.trunc(eventCount);
   if (eventTypes.length > 0) normalized.eventTypes = eventTypes;
   if (typeof meta !== 'undefined' && meta !== null && typeof meta === 'object') {
@@ -481,13 +528,12 @@ function releaseVisualPlaybackClaim(token?: any): boolean {
   const tokenId = Number(token && token.id);
   const removed = Number.isFinite(tokenId) && visualPlaybackClaimIds.delete(tokenId);
   syncVisualPlaybackClaimMirror();
-  if (!hasClaimedVisualPlayback()
-    && readMirroredValue('VisualPlaybackActive') !== true
-    && hasSelectionSettlementLock() !== true
-    && isNetworkPresentationTimelinePlaying() !== true) {
+  if (!getPlaybackActive()) {
     setProcessing(false);
     setCardAnimating(false);
     setBoardLockActive(false);
+  } else {
+    setBoardLockActive(true);
   }
   return removed === true;
 }
@@ -499,7 +545,18 @@ function clearVisualPlaybackClaims(): boolean {
 }
 ```
 
-- [ ] **Step 3: Include claims in defer checks**
+- [ ] **Step 3: Include claims in busy, defer, and visual-drain checks**
+
+Change `getPlaybackActive()` to include visual playback claims:
+
+```ts
+function getPlaybackActive(): boolean {
+  return readMirroredValue('VisualPlaybackActive') === true
+    || hasClaimedVisualPlayback() === true
+    || hasSelectionSettlementLock()
+    || isNetworkPresentationTimelinePlaying();
+}
+```
 
 Change `shouldDeferBoardUpdate()` to:
 
@@ -531,20 +588,23 @@ function shouldDeferUiSync(options?: any): boolean {
 }
 ```
 
-- [ ] **Step 4: Transfer claims into real playback**
-
-At the start of `beginPlayback()`, before `setInteractionLock(true)`, add:
+Change `isVisualPlaybackDrainComplete()` to:
 
 ```ts
-  clearVisualPlaybackClaims();
+function isVisualPlaybackDrainComplete(options?: any): boolean {
+  return readMirroredValue('VisualPlaybackActive') !== true
+    && hasClaimedVisualPlayback() !== true
+    && hasPendingVisualPlayback(resolveVisualPlaybackDrainCardState(options)) !== true;
+}
 ```
 
-The function should begin like:
+- [ ] **Step 4: Keep drain claims alive while real playback runs**
+
+Do not clear visual playback claims in `beginPlayback()`. A presentation drain claim must survive intermediate `AnimationEngine.finalizePlayback()` board updates while a later drained playback event is still waiting. The function should remain structurally like:
 
 ```ts
 function beginPlayback(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
-  clearVisualPlaybackClaims();
   setInteractionLock(true);
   if (opts.startedAt === null) {
     setPlaybackStartedAt(null);
@@ -563,37 +623,11 @@ function beginPlayback(options?: any): any {
 
 - [ ] **Step 5: Clear claims in cleanup paths**
 
-In `finalizePlayback()` add `clearVisualPlaybackClaims();` before `setBusyState(...)`.
+Do not clear visual playback claims in `finalizePlayback()`. `finalizePlayback()` can run between two playback-bearing events from the same drained presentation queue, so clearing there would reopen the final-render race.
 
 In `clearPlaybackLock()` add `clearVisualPlaybackClaims();` before `clearBoardUpdateContext();`.
 
-The cleanup blocks should include:
-
-```ts
-function finalizePlayback(options?: any): any {
-  const opts = (options && typeof options === 'object') ? options : {};
-  if (Object.prototype.hasOwnProperty.call(opts, 'boardUpdateContext')) {
-    if (opts.boardUpdateContext) {
-      armBoardUpdateContext(opts.boardUpdateContext);
-    } else if (opts.clearBoardUpdateContext !== false) {
-      clearBoardUpdateContext();
-    }
-  } else if (opts.clearBoardUpdateContext === true) {
-    clearBoardUpdateContext();
-  }
-  if (opts.clearSelectionEntry !== false) {
-    clearSelectionEntryPlaybackContext();
-  }
-  clearVisualPlaybackClaims();
-  setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
-  setPlaybackStartedAt(null);
-  setBoardLockActive(false, opts);
-  if (typeof opts.emitBoardUpdate === 'function') {
-    opts.emitBoardUpdate();
-  }
-  return getBoardUpdateContext();
-}
-```
+The cleanup block should include:
 
 ```ts
 function clearPlaybackLock(options?: any): boolean {
@@ -722,6 +756,13 @@ function collectPlaybackEventTypesForClaim(payload: any[]): string[] {
   return Array.from(seen);
 }
 
+function getPlaybackEventsFromPresentationEventForClaim(ev: any): any[] {
+  if (!ev || typeof ev !== 'object') return [];
+  if (ev.type !== 'PLAYBACK_EVENTS') return [];
+  if (ev.meta && ev.meta.suppressPlayback === true) return [];
+  return normalizePlaybackEventsForUi(Array.isArray(ev.events) ? ev.events : []);
+}
+
 function claimPlaybackBatchForPresentation(ev: any, payload: any[]): any {
   const manager = resolvePlaybackStateManagerForPresentation();
   if (!manager || typeof manager.claimVisualPlayback !== 'function') return null;
@@ -729,13 +770,32 @@ function claimPlaybackBatchForPresentation(ev: any, payload: any[]): any {
   return manager.claimVisualPlayback({
     source: typeof meta.source === 'string' && meta.source.trim() ? meta.source.trim() : 'presentation_handler',
     reason: 'playback_batch_dispatch',
+    scope: 'batch_handoff',
     eventCount: Array.isArray(payload) ? payload.length : 0,
     eventTypes: collectPlaybackEventTypesForClaim(payload),
     strictNetworkPlayback: meta.strictNetworkPlayback === true
   });
 }
 
-function releasePlaybackBatchClaimForPresentation(claim: any): boolean {
+function claimPresentationDrainForEvents(events: any[]): any {
+  const list = Array.isArray(events) ? events : [];
+  const playbackPayloads = list
+    .map(getPlaybackEventsFromPresentationEventForClaim)
+    .filter((payload) => payload.length > 0);
+  if (!playbackPayloads.length) return null;
+  const mergedPayload = ([] as any[]).concat(...playbackPayloads);
+  const manager = resolvePlaybackStateManagerForPresentation();
+  if (!manager || typeof manager.claimVisualPlayback !== 'function') return null;
+  return manager.claimVisualPlayback({
+    source: 'presentation_handler',
+    reason: 'presentation_queue_drain',
+    scope: 'presentation_drain',
+    eventCount: mergedPayload.length,
+    eventTypes: collectPlaybackEventTypesForClaim(mergedPayload)
+  });
+}
+
+function releasePlaybackClaimForPresentation(claim: any): boolean {
   if (!claim) return false;
   const manager = resolvePlaybackStateManagerForPresentation();
   if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') return false;
@@ -743,9 +803,46 @@ function releasePlaybackBatchClaimForPresentation(claim: any): boolean {
 }
 ```
 
-- [ ] **Step 4: Claim around non-suppressed playback dispatch**
+- [ ] **Step 4: Claim around the full presentation drain**
 
-In `playPlaybackEvents()`, after the `suppressPlayback` early return and before `const playbackDispatchDeps = getPlaybackDispatchDeps();`, add:
+In `flushBoardPresentationEvents()`, after `events` is loaded and before the `for (const ev of events)` loop, create a drain-level claim. Release it in `finally`, not inside `handlePresentationEvent`, so intermediate `AnimationEngine.finalizePlayback()` board updates between drained playback events still see a claim.
+
+Use this structure:
+
+```ts
+async function flushBoardPresentationEvents(): Promise<void> {
+  let drainClaim: any = null;
+  try {
+    const events = flushPendingPresentationEvents();
+    drainClaim = claimPresentationDrainForEvents(events);
+    emitPresentationDebugConsole('board_updated_flush', {
+      eventCount: Array.isArray(events) ? events.length : 0,
+      eventTypes: Array.isArray(events)
+        ? events.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value)
+        : []
+    });
+    try {
+      const drainChargeDeltaPopups = (typeof window !== 'undefined' && typeof (window as any).drainVisibleChargeDeltaPopups === 'function')
+        ? (window as any).drainVisibleChargeDeltaPopups
+        : ((typeof (drainVisibleChargeDeltaPopups as any) === 'function') ? drainVisibleChargeDeltaPopups : null);
+      if (drainChargeDeltaPopups) {
+        drainChargeDeltaPopups({ allowRawFallback: false });
+      }
+    } catch (e) { /* ignore */ }
+    for (const ev of events) {
+      await handlePresentationEvent(ev);
+    }
+  } catch (e) {
+    console.error('[PresentationHandler] onBoardUpdated error', e);
+  } finally {
+    releasePlaybackClaimForPresentation(drainClaim);
+  }
+}
+```
+
+- [ ] **Step 5: Keep direct non-drain playback dispatch covered**
+
+In `playPlaybackEvents()`, after the `suppressPlayback` early return and before `const playbackDispatchDeps = getPlaybackDispatchDeps();`, keep a batch-level claim for direct callers that do not go through `flushBoardPresentationEvents()`. This is intentionally in addition to the drain claim; nested claims are valid, and releasing the batch claim must leave the drain claim active.
 
 ```ts
   const playbackClaim = claimPlaybackBatchForPresentation(ev, payload);
@@ -834,11 +931,73 @@ Wrap the dispatch body in `try/finally` so the function shape becomes:
       }
     }
   } finally {
-    releasePlaybackBatchClaimForPresentation(playbackClaim);
+    releasePlaybackClaimForPresentation(playbackClaim);
   }
 ```
 
-- [ ] **Step 5: Run focused tests**
+- [ ] **Step 6: Add a multi-event drain regression test**
+
+Extend `test/ui.presentation-handler.playback-claim.test.ts` with a test where the flushed queue contains two non-suppressed `PLAYBACK_EVENTS`. The first playback should call `emitBoardUpdate` before the second playback begins, but the drain claim must still be active at that point.
+
+```ts
+  test('holds a drain claim across multiple drained playback batches', async () => {
+    const order: string[] = [];
+    const drainClaim = { id: 1 };
+    const batchClaimOne = { id: 2 };
+    const batchClaimTwo = { id: 3 };
+    const claims = [drainClaim, batchClaimOne, batchClaimTwo];
+    (global as any).GameEvents = {
+      gameEvents: {
+        on: jest.fn()
+      }
+    };
+    (global as any).GamePresentationRuntime = {
+      flushPendingPresentationEvents: jest.fn(() => [
+        { type: 'PLAYBACK_EVENTS', events: [{ type: 'move', phase: 1 }] },
+        { type: 'PLAYBACK_EVENTS', events: [{ type: 'destroy', phase: 2, targets: [{ r: 2, col: 3 }] }] }
+      ])
+    };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn((meta) => {
+        order.push(`claim:${meta.scope}`);
+        return claims.shift();
+      }),
+      releaseVisualPlaybackClaim: jest.fn((claim) => {
+        order.push(`release:${claim.id}`);
+        return true;
+      }),
+      hasClaimedVisualPlayback: jest.fn(() => true)
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async (payload) => {
+        order.push(`play:${payload[0].type}`);
+        if (payload[0].type === 'move') {
+          order.push(`between:${(global as any).PlaybackStateManager.hasClaimedVisualPlayback()}`);
+        }
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await PresentationHandler.onBoardUpdated();
+
+    expect(order).toEqual([
+      'claim:presentation_drain',
+      'claim:batch_handoff',
+      'play:move',
+      'between:true',
+      'release:2',
+      'claim:batch_handoff',
+      'play:destroy',
+      'release:3',
+      'release:1'
+    ]);
+  });
+```
+
+If the existing runtime resolver changes, adapt the setup to the actual `getPresentationRuntimeMethod()` lookup instead of weakening the assertion.
+
+- [ ] **Step 7: Run focused tests**
 
 Run:
 
@@ -854,38 +1013,84 @@ PASS test/ui.destroy-playback-visual-transaction.test.ts
 PASS test/ui.presentation-handler.playback-claim.test.ts
 ```
 
-- [ ] **Step 6: Commit the UI transaction wiring**
+- [ ] **Step 8: Commit the UI transaction wiring**
 
 Run:
 
 ```powershell
 git status --short
 git diff -- ui/diff-renderer.ts ui/presentation-handler.ts test/ui.destroy-playback-visual-transaction.test.ts test/ui.presentation-handler.playback-claim.test.ts
-git add ui/diff-renderer.ts ui/presentation-handler.ts test/ui.destroy-playback-visual-transaction.test.ts test/ui.presentation-handler.playback-claim.test.ts
+git add ui/presentation-handler.ts test/ui.destroy-playback-visual-transaction.test.ts test/ui.presentation-handler.playback-claim.test.ts
+git add -p ui/diff-renderer.ts
+git diff --cached -- ui/diff-renderer.ts
 git commit -m "fix: defer board render during playback handoff"
 ```
+
+Before committing, confirm the staged `ui/diff-renderer.ts` diff contains only playback-claim hunks. If unrelated pre-existing hunks appear, unstage them and repeat patch staging.
 
 ---
 
 ### Task 6: Protect Network And Existing Move-Source Contracts
 
 **Files:**
+- Modify: `test/ui.card-interaction-pending-network.test.ts`
 - Modify only if tests reveal regressions:
   - `ui/playback-state-manager.ts`
   - `ui/diff-renderer.ts`
   - `ui/presentation-handler.ts`
 
-- [ ] **Step 1: Run existing network/presentation focused tests**
+- [ ] **Step 1: Add pending-selection network drain coverage**
+
+Extend `test/ui.card-interaction-pending-network.test.ts` under `describe('PlaybackStateManager visual playback drain', ...)` with:
+
+```ts
+  test('waits for visual playback claims to release before authoritative settlement', async () => {
+    jest.useFakeTimers();
+    const claim = playbackStateManager.claimVisualPlayback({
+      source: 'unit_test',
+      scope: 'presentation_drain',
+      eventTypes: ['destroy']
+    });
+    let resolved = false;
+
+    const drainPromise = playbackStateManager.waitForVisualPlaybackDrain({
+      cardState: {
+        presentationEvents: [],
+        _presentationEventsPersist: []
+      },
+      timeoutMs: 100
+    }).then(() => {
+      resolved = true;
+    });
+    await flushPromises();
+    jest.advanceTimersByTime(16);
+    await flushPromises();
+
+    expect(resolved).toBe(false);
+
+    expect(playbackStateManager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    jest.advanceTimersByTime(16);
+    await drainPromise;
+
+    expect(resolved).toBe(true);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+```
+
+This test overlaps with the lower-level `test/ui.playback-state-manager.test.ts` check intentionally because `cards/card-interaction-pending-network.ts` depends on this exact public wait contract before clearing publish locks and orphan playback queues.
+
+- [ ] **Step 2: Run existing network/presentation focused tests**
 
 Run:
 
 ```powershell
-npx jest --runInBand --runTestsByPath test/ui.network-snapshot.pending-presentation-reconcile.test.ts test/ui.network-snapshot.move-source-empty.test.ts test/ui.network-snapshot.single-writer-baseline.test.ts test/ui.playback-engine.dispatch.test.ts test/ui.presentation-handler.strict-network.test.ts
+npx jest --runInBand --runTestsByPath test/ui.card-interaction-pending-network.test.ts test/ui.network-snapshot.pending-presentation-reconcile.test.ts test/ui.network-snapshot.move-source-empty.test.ts test/ui.network-snapshot.single-writer-baseline.test.ts test/ui.playback-engine.dispatch.test.ts test/ui.presentation-handler.strict-network.test.ts
 ```
 
 Expected:
 
 ```text
+PASS test/ui.card-interaction-pending-network.test.ts
 PASS test/ui.network-snapshot.pending-presentation-reconcile.test.ts
 PASS test/ui.network-snapshot.move-source-empty.test.ts
 PASS test/ui.network-snapshot.single-writer-baseline.test.ts
@@ -893,12 +1098,12 @@ PASS test/ui.playback-engine.dispatch.test.ts
 PASS test/ui.presentation-handler.strict-network.test.ts
 ```
 
-- [ ] **Step 2: If a test fails because stale claim state remains, tighten cleanup**
+- [ ] **Step 3: If a test fails because stale claim state remains, tighten cleanup**
 
 If a failure shows `__visualPlaybackClaimActive` stays true after a suppressed playback, strict-network error, or direct fallback path, inspect the failure and add cleanup only in the matching branch. The expected cleanup call is:
 
 ```ts
-releasePlaybackBatchClaimForPresentation(playbackClaim);
+releasePlaybackClaimForPresentation(playbackClaim);
 ```
 
 or, in manager cleanup paths:
@@ -909,9 +1114,9 @@ clearVisualPlaybackClaims();
 
 Do not add card-specific exceptions.
 
-- [ ] **Step 3: Re-run the focused tests**
+- [ ] **Step 4: Re-run the focused tests**
 
-Run the same command from Step 1.
+Run the same command from Step 2.
 
 Expected:
 
@@ -919,18 +1124,21 @@ Expected:
 PASS
 ```
 
-- [ ] **Step 4: Commit only if Task 6 required code changes**
+- [ ] **Step 5: Commit Task 6 changes**
 
-If Step 2 changed files, run:
+Run:
 
 ```powershell
 git status --short
-git diff -- ui/playback-state-manager.ts ui/diff-renderer.ts ui/presentation-handler.ts
-git add ui/playback-state-manager.ts ui/diff-renderer.ts ui/presentation-handler.ts
+git diff -- test/ui.card-interaction-pending-network.test.ts ui/playback-state-manager.ts ui/diff-renderer.ts ui/presentation-handler.ts
+git add test/ui.card-interaction-pending-network.test.ts
+git add ui/playback-state-manager.ts ui/presentation-handler.ts
+git add -p ui/diff-renderer.ts
+git diff --cached -- ui/diff-renderer.ts
 git commit -m "fix: stabilize playback claim cleanup"
 ```
 
-If no code changed, do not create an empty commit.
+Only stage source files listed here if Task 6 actually changed them. For `ui/diff-renderer.ts`, stage only playback-claim hunks and verify unrelated pre-existing hunks are not cached.
 
 ---
 
@@ -1021,7 +1229,7 @@ typecheck exits 0
 Run:
 
 ```powershell
-npx jest --runInBand --runTestsByPath test/ui.playback-state-manager.test.ts test/ui.destroy-playback-visual-transaction.test.ts test/ui.presentation-handler.playback-claim.test.ts test/ui.network-snapshot.pending-presentation-reconcile.test.ts test/ui.network-snapshot.move-source-empty.test.ts test/ui.network-snapshot.single-writer-baseline.test.ts test/ui.playback-engine.dispatch.test.ts test/ui.presentation-handler.strict-network.test.ts
+npx jest --runInBand --runTestsByPath test/ui.playback-state-manager.test.ts test/ui.destroy-playback-visual-transaction.test.ts test/ui.presentation-handler.playback-claim.test.ts test/ui.card-interaction-pending-network.test.ts test/ui.network-snapshot.pending-presentation-reconcile.test.ts test/ui.network-snapshot.move-source-empty.test.ts test/ui.network-snapshot.single-writer-baseline.test.ts test/ui.playback-engine.dispatch.test.ts test/ui.presentation-handler.strict-network.test.ts
 npm run test:network:parity
 ```
 
@@ -1106,7 +1314,7 @@ Unrelated dirty files remain unstaged if they existed before this work.
 
 ## Self-Review
 
-- Spec coverage: the plan covers the root cause, not individual cards: pending playback drain, final board render deferral, destroy ghost fallback prevention, cleanup, docs, and network regression.
+- Spec coverage: the plan covers the root cause, not individual cards: full presentation-drain playback locking, final board render deferral, destroy ghost fallback prevention, cleanup, docs, and network pending-selection regression.
 - Placeholder scan: no task depends on an unspecified helper; new helper names are defined in Task 4 and used in Task 5.
 - Type consistency: planned exported helpers are `claimVisualPlayback`, `releaseVisualPlaybackClaim`, `clearVisualPlaybackClaims`, and `hasClaimedVisualPlayback`; those same names are used in tests and UI wiring.
-- Risk: `PresentationHandler` claim release must not outlive `AnimationEngine.finalizePlayback()` in a way that suppresses the final board sync. The plan avoids that by making `beginPlayback()` transfer and clear claims synchronously.
+- Risk: `PresentationHandler` claim release must outlive intermediate `AnimationEngine.finalizePlayback()` calls inside the same drained queue, but must not persist after the whole drain. The plan avoids both failure modes by holding a drain-level claim in `flushBoardPresentationEvents()` and releasing it in `finally`.
