@@ -14,6 +14,7 @@ describe('status-display cpu image scaling', () => {
 
     expect(js).toMatch(/function\s+applyCpuCharacterLevelScale[\s\S]*setProperty\('--cpu-level-scale'/);
     expect(js).toMatch(/CPU_BASE_VISUAL_SCALE\s*=\s*0\.88/);
+    expect(js).toMatch(/CPU_LEVEL_VISUAL_SCALE_STEP\s*=\s*0\.07/);
     expect(js).not.toMatch(/function\s+applyCpuCharacterLevelScale[\s\S]*safeBaseWidth/);
     expect(varsCss).toMatch(/--layout-character-image-scale:\s*0\.8/);
     expect(css).toMatch(/#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
