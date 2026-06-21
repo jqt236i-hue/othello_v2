@@ -283,6 +283,69 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(board.classList.contains('playback-locked')).toBe(false);
   });
 
+  test('finalizePlayback keeps claim-owned busy and board lock until release', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const board = document.getElementById('board');
+    const claim = manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy'],
+      scope: 'presentation_drain'
+    });
+
+    manager.beginPlayback({ boardElement: board, startedAt: 1234 });
+    manager.finalizePlayback({ boardElement: board, clearBoardUpdateContext: true });
+
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+    expect(manager.getPlaybackActive()).toBe(true);
+    expect(manager.getProcessing()).toBe(true);
+    expect(manager.getCardAnimating()).toBe(true);
+    expect(board.classList.contains('playback-locked')).toBe(true);
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+
+    expect(manager.getProcessing()).toBe(false);
+    expect(manager.getCardAnimating()).toBe(false);
+    expect(board.classList.contains('playback-locked')).toBe(false);
+  });
+
+  test('invalid visual playback claim release does not clear unrelated busy flags', () => {
+    const manager = require('../ui/playback-state-manager.js');
+
+    manager.setBusyState({
+      processing: true,
+      cardAnimating: true,
+      playbackActive: false
+    });
+
+    expect(manager.releaseVisualPlaybackClaim({ id: 9999 })).toBe(false);
+
+    expect(manager.getProcessing()).toBe(true);
+    expect(manager.getCardAnimating()).toBe(true);
+  });
+
+  test('visual playback claim release restores busy flags that predated the claim', () => {
+    const manager = require('../ui/playback-state-manager.js');
+
+    manager.setBusyState({
+      processing: true,
+      cardAnimating: false,
+      playbackActive: false
+    });
+
+    const claim = manager.claimVisualPlayback({
+      source: 'unit-test',
+      eventTypes: ['destroy']
+    });
+
+    expect(manager.getProcessing()).toBe(true);
+    expect(manager.getCardAnimating()).toBe(true);
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+
+    expect(manager.getProcessing()).toBe(true);
+    expect(manager.getCardAnimating()).toBe(false);
+  });
+
   test('waitForVisualPlaybackDrain waits while a visual playback claim exists', async () => {
     const manager = require('../ui/playback-state-manager.js');
     const emptyCardState = {

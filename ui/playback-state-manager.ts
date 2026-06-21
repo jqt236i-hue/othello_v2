@@ -90,6 +90,7 @@ let nextSelectionSettlementLockId = 1;
 const selectionSettlementLockIds = new Set<number>();
 let nextVisualPlaybackClaimId = 1;
 const visualPlaybackClaimIds = new Map<number, any>();
+let visualPlaybackClaimBusyBaseline: { processing: boolean; cardAnimating: boolean } | null = null;
 
 function syncSelectionSettlementLockMirror(): number {
   const count = selectionSettlementLockIds.size;
@@ -131,6 +132,12 @@ function hasClaimedVisualPlayback(): boolean {
 }
 
 function claimVisualPlayback(meta?: any): any {
+  if (visualPlaybackClaimIds.size === 0) {
+    visualPlaybackClaimBusyBaseline = {
+      processing: getProcessing(),
+      cardAnimating: getCardAnimating()
+    };
+  }
   const token = {
     id: nextVisualPlaybackClaimId++,
     meta: normalizeVisualPlaybackClaimMeta(meta)
@@ -147,18 +154,32 @@ function releaseVisualPlaybackClaim(token?: any): boolean {
   const tokenId = Number(token && token.id);
   const removed = Number.isFinite(tokenId) && visualPlaybackClaimIds.delete(tokenId);
   syncVisualPlaybackClaimMirror();
-  if (!getPlaybackActive()) {
-    setProcessing(false);
-    setCardAnimating(false);
-    setBoardLockActive(false);
-  } else {
-    setBoardLockActive(true);
+  if (removed !== true) {
+    return false;
   }
-  return removed === true;
+  if (hasClaimedVisualPlayback()) {
+    setProcessing(true);
+    setCardAnimating(true);
+    setBoardLockActive(true);
+    return true;
+  }
+  const baseline = visualPlaybackClaimBusyBaseline;
+  visualPlaybackClaimBusyBaseline = null;
+  if (readMirroredValue('VisualPlaybackActive') === true) {
+    setProcessing(true);
+    setCardAnimating(true);
+    setBoardLockActive(true);
+    return true;
+  }
+  setProcessing(baseline ? baseline.processing === true : false);
+  setCardAnimating(baseline ? baseline.cardAnimating === true : false);
+  setBoardLockActive(getPlaybackActive());
+  return true;
 }
 
 function clearVisualPlaybackClaims(): boolean {
   visualPlaybackClaimIds.clear();
+  visualPlaybackClaimBusyBaseline = null;
   syncVisualPlaybackClaimMirror();
   return true;
 }
@@ -741,9 +762,10 @@ function finalizePlayback(options?: any): any {
   if (opts.clearSelectionEntry !== false) {
     clearSelectionEntryPlaybackContext();
   }
-  setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+  const keepClaimBusy = hasClaimedVisualPlayback() === true;
+  setBusyState({ processing: keepClaimBusy, cardAnimating: keepClaimBusy, playbackActive: false });
   setPlaybackStartedAt(null);
-  setBoardLockActive(false, opts);
+  setBoardLockActive(getPlaybackActive(), opts);
   if (typeof opts.emitBoardUpdate === 'function') {
     opts.emitBoardUpdate();
   }
