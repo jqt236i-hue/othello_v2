@@ -52,7 +52,7 @@ describe('theory incarnation spawn roulette animation', () => {
         owner: 'black',
         ownerAfter: 'black',
         spawnedMarkerType: 'GHOST',
-        candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+        candidateCells: [{ row: 0, col: 0, value: 5 }, { row: 0, col: 1, value: 16 }],
         after: { color: 1, special: 'GHOST', owner: 'black' }
       }]
     }, {
@@ -79,6 +79,9 @@ describe('theory incarnation spawn roulette animation', () => {
     expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
     expect(selectedCell.querySelector('.stale-spawn')).toBe(null);
     expect(selectedCell.classList.contains('has-disc')).toBe(false);
+    expect(otherCell.querySelector('.board-bonus-number').textContent).toBe('5');
+    expect(selectedCell.querySelector('.board-bonus-number').textContent).toBe('16');
+    expect(selectedCell.classList.contains('has-theory-number-cell')).toBe(true);
 
     const firstDelay = timers[0].ms;
     const firstTimer = timers.shift();
@@ -104,6 +107,7 @@ describe('theory incarnation spawn roulette animation', () => {
     expect(lastDelay).toBeGreaterThan(firstDelay);
     expect(disc).toBeTruthy();
     expect(disc.dataset.special).toBe('GHOST');
+    expect(selectedCell.querySelector('.board-bonus-number')).toBe(null);
     expect(selectedCell.classList.contains('theory-spawn-materialize')).toBe(false);
     expect(otherCell.classList.contains('theory-spawn-roulette-active')).toBe(false);
     expect(waitForOpacityTransition).toHaveBeenCalledWith(

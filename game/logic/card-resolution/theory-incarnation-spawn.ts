@@ -83,12 +83,17 @@ function prepareSpawnMarkerData(cardState: any, markerData: any, ownerKey: Playe
     return data;
 }
 
-function createTheorySpawnRoulettePayload(available: Array<{ key: string; cell: any }>, picked: { key: string; cell: any }, markerData: any): any {
+function createTheorySpawnRoulettePayload(cardState: any, available: Array<{ key: string; cell: any }>, picked: { key: string; cell: any }, markerData: any): any {
     const candidateCells = available
-        .map(({ cell }) => ({
-            row: Number(cell && cell.row),
-            col: Number(cell && cell.col)
-        }))
+        .map(({ key, cell }) => {
+            const out: any = {
+                row: Number(cell && cell.row),
+                col: Number(cell && cell.col)
+            };
+            const value = getTheorySpawnNumberValue(cardState, key, cell);
+            if (Number.isFinite(value) && value > 0) out.value = value;
+            return out;
+        })
         .filter((cell) => Number.isInteger(cell.row) && Number.isInteger(cell.col));
     const selectedCell = {
         row: Number(picked && picked.cell && picked.cell.row),
@@ -126,7 +131,7 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         };
     const ownerKey = ownerKeyOf(state.ownerKey);
     const markerData = prepareSpawnMarkerData(cardState, markerDataBase, ownerKey);
-    const roulette = createTheorySpawnRoulettePayload(available, picked, markerData);
+    const roulette = createTheorySpawnRoulettePayload(cardState, available, picked, markerData);
     const ownerValue = ownerKey === 'white' ? deps.WHITE : deps.BLACK;
     const boardPlacement = typeof deps.spawnAndFlipPlacement === 'function'
         ? deps.spawnAndFlipPlacement({

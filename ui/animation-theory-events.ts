@@ -26,7 +26,11 @@ function normalizeCell(value: any) {
     const row = Number(value && value.row);
     const col = Number(value && value.col);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    return { row, col };
+    const rawNumberValue = Number(value && value.value);
+    const numberValue = Number.isFinite(rawNumberValue) && rawNumberValue > 0
+        ? Math.floor(rawNumberValue)
+        : null;
+    return numberValue !== null ? { row, col, value: numberValue } : { row, col };
 }
 
 function sleep(ms: number, deps: TheoryAnimationDeps) {
@@ -49,7 +53,10 @@ function collectCandidateCells(target: any, deps: TheoryAnimationDeps) {
         .map((cell: any, index: number) => ({
             cell,
             index,
-            element: deps.getCellEl(cell.row, cell.col)
+            element: deps.getCellEl(cell.row, cell.col),
+            temporaryNumberLabel: null,
+            addedBoardBonusClass: false,
+            addedTheoryNumberClass: false
         }))
         .filter((entry: any) => !!entry.element);
 }
@@ -59,6 +66,52 @@ function clearRouletteClasses(entries: any[]) {
         try {
             entry.element.classList.remove(ROULETTE_CLASS, ROULETTE_TRAIL_CLASS, ROULETTE_SELECTED_CLASS);
             entry.element.style.removeProperty('--theory-roulette-index');
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function applyTemporaryNumberLabels(entries: any[]) {
+    for (const entry of entries) {
+        const element = entry && entry.element;
+        const numberValue = Number(entry && entry.cell && entry.cell.value);
+        if (!element || !Number.isFinite(numberValue) || numberValue <= 0) continue;
+        try {
+            if (element.querySelector && element.querySelector('.board-bonus-number')) continue;
+            const doc = element.ownerDocument || (typeof document !== 'undefined' ? document : null);
+            if (!doc || typeof doc.createElement !== 'function') continue;
+            const label = doc.createElement('div');
+            label.className = 'board-bonus-number';
+            label.textContent = String(Math.floor(numberValue));
+            element.appendChild(label);
+            entry.temporaryNumberLabel = label;
+            if (element.classList && !element.classList.contains('has-board-bonus')) {
+                element.classList.add('has-board-bonus');
+                entry.addedBoardBonusClass = true;
+            }
+            if (element.classList && !element.classList.contains('has-theory-number-cell')) {
+                element.classList.add('has-theory-number-cell');
+                entry.addedTheoryNumberClass = true;
+            }
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function clearTemporaryNumberLabels(entries: any[]) {
+    for (const entry of entries) {
+        const element = entry && entry.element;
+        try {
+            if (entry && entry.temporaryNumberLabel && entry.temporaryNumberLabel.parentElement) {
+                entry.temporaryNumberLabel.parentElement.removeChild(entry.temporaryNumberLabel);
+            }
+            if (element && element.classList) {
+                if (entry && entry.addedBoardBonusClass) element.classList.remove('has-board-bonus');
+                if (entry && entry.addedTheoryNumberClass) element.classList.remove('has-theory-number-cell');
+            }
+            if (entry) {
+                entry.temporaryNumberLabel = null;
+                entry.addedBoardBonusClass = false;
+                entry.addedTheoryNumberClass = false;
+            }
         } catch (e) { /* ignore */ }
     }
 }
@@ -225,6 +278,7 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
         const selected = normalizeCell(target && (target.selectedCell || { row: target.row ?? target.r, col: target.col }));
         const selectedEntry = findEntryForCell(entries, selected);
         hidePreRenderedSpawnStone(selectedEntry);
+        applyTemporaryNumberLabels(entries);
 
         await playRouletteSequence(entries, selectedEntry, durationMs, deps);
         clearRouletteClasses(entries);
@@ -232,6 +286,7 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
             try { selectedEntry.element.classList.add(ROULETTE_SELECTED_CLASS); } catch (e) { /* ignore */ }
         }
         await materializeSelectedStone(target, deps, materializeMs);
+        clearTemporaryNumberLabels(entries);
     }
 }
 

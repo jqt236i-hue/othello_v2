@@ -521,7 +521,7 @@ describe('理論の化身', () => {
       detail: expect.objectContaining({
         roulette: expect.objectContaining({
           selectedCell: { row: 0, col: 0 },
-          candidateCells: [{ row: 0, col: 0 }]
+          candidateCells: [{ row: 0, col: 0, value: 5 }]
         })
       })
     }));
@@ -561,7 +561,7 @@ describe('理論の化身', () => {
           durationMs: 2500,
           materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
-          candidateCells: expect.arrayContaining([{ row: 0, col: 0 }])
+          candidateCells: expect.arrayContaining([{ row: 0, col: 0, value: 23 }])
         })
       })
     }));
@@ -637,7 +637,7 @@ describe('理論の化身', () => {
           durationMs: 2500,
           materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
-          candidateCells: [{ row: 0, col: 0 }],
+          candidateCells: [{ row: 0, col: 0, value: 5 }],
           spawnedMarkerType: 'HYPERACTIVE',
           sourceCardId: 'hyperactive_01',
           sourceCardType: 'HYPERACTIVE_WILL'
@@ -1035,7 +1035,10 @@ describe('理論の化身', () => {
           durationMs: 2500,
           materializeMs: 2000,
           selectedCell: { row: 0, col: 0 },
-          candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+          candidateCells: [
+            { row: 0, col: 0, value: 33 },
+            { row: 0, col: 1, value: 33 }
+          ],
           spawnedMarkerType: 'WILL_HUNTER_KING'
         }),
         special: 'WILL_HUNTER_KING',
