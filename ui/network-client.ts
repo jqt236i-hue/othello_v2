@@ -147,6 +147,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return false;
     }
 
+    function syncBoardPlaybackLockAfterTimelineDrain() {
+        try {
+            if (PlaybackStateModule && typeof PlaybackStateModule.setBoardLockActive === 'function') {
+                PlaybackStateModule.setBoardLockActive(getPlaybackActive());
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+
     function clearBoardUpdateContext() {
         try {
             if (PlaybackStateModule && typeof PlaybackStateModule.clearBoardUpdateContext === 'function') {
@@ -2726,10 +2734,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             .then(() => timeline.drainPlayableFrames(getNetworkPlaybackDispatcher()))
             .then((drained: any) => {
                 syncVisualCursorFromTimeline();
+                syncBoardPlaybackLockAfterTimelineDrain();
                 return drained;
             })
             .catch((error: any) => {
                 syncVisualCursorFromTimeline();
+                syncBoardPlaybackLockAfterTimelineDrain();
                 recordNetworkTelemetry('network_presentation_timeline_drain_failed', {
                     error: error && error.message ? String(error.message) : String(error || '')
                 });

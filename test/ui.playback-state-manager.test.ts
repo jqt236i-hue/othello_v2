@@ -64,6 +64,24 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(global.window.isProcessing).toBe(false);
   });
 
+  test('setBusyState clears the board playback lock when playback becomes inactive', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const board = document.getElementById('board');
+
+    manager.beginPlayback({ boardElement: board, startedAt: 1000 });
+    expect(manager.getPlaybackActive()).toBe(true);
+    expect(board.classList.contains('playback-locked')).toBe(true);
+
+    manager.setBusyState({
+      processing: false,
+      cardAnimating: false,
+      playbackActive: false
+    });
+
+    expect(manager.getPlaybackActive()).toBe(false);
+    expect(board.classList.contains('playback-locked')).toBe(false);
+  });
+
   test('playback stale helpers reflect animation engine state and configured timeout', () => {
     const manager = require('../ui/playback-state-manager.js');
     global.window.PASS_STALE_PLAYBACK_MS = 2500;

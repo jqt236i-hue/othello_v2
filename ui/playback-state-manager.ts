@@ -75,6 +75,10 @@ function setBoardLockActive(active: boolean, options?: any): boolean {
   return locked;
 }
 
+function syncBoardLockToPlaybackState(options?: any): boolean {
+  return setBoardLockActive(getPlaybackActive(), options);
+}
+
 function getAnimationEngine(options?: any): any {
   const config = (options && typeof options === 'object') ? options : {};
   if (config.animationEngine && typeof config.animationEngine === 'object') return config.animationEngine;
@@ -196,6 +200,7 @@ function clearVisualPlaybackClaims(): boolean {
   visualPlaybackClaimProcessingCleared = false;
   visualPlaybackClaimCardAnimatingCleared = false;
   syncVisualPlaybackClaimMirror();
+  syncBoardLockToPlaybackState();
   return true;
 }
 
@@ -276,6 +281,7 @@ function setPlaybackActive(active: boolean): boolean {
   } else {
     setMirroredValue('__playbackActiveSince', null);
   }
+  syncBoardLockToPlaybackState();
   return next;
 }
 
@@ -337,6 +343,8 @@ function setBusyState(options: any): any {
   if (Object.prototype.hasOwnProperty.call(config, 'playbackActive')) {
     setPlaybackActive(config.playbackActive === true);
   }
+
+  syncBoardLockToPlaybackState();
 
   return {
     isProcessing: getProcessing(),
