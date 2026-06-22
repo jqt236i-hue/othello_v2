@@ -286,6 +286,51 @@ function buildFailureSnapshot(snapshot: any, diagnostics: any) {
     });
 }
 
+function buildMatchQuery(args: Pick<LevelMatchArgs, 'requireOnnxLoaded' | 'requireTargetModelLoaded' | 'requireValueModelLoaded'>) {
+    const queryParts = [];
+    const requiresOnnxRuntime = args.requireOnnxLoaded ||
+        args.requireTargetModelLoaded ||
+        args.requireValueModelLoaded;
+    if (requiresOnnxRuntime) {
+        queryParts.push('eagerCpuPolicy=1');
+        queryParts.push('cpuOnnx=1');
+    }
+    return queryParts.length ? `?${queryParts.join('&')}` : '';
+}
+
+async function closeMaintenanceNoticeIfPresent(page: any, timeoutMs = 5000) {
+    if (!page || typeof page.locator !== 'function') return false;
+    const notice = page.locator('#maintenanceNotice.is-open');
+    const noticeCount = await notice.count().catch(() => 0);
+    if (noticeCount <= 0) return false;
+
+    const closeButton = page.locator('#maintenanceNoticeCloseBtn');
+    const closeCount = await closeButton.count().catch(() => 0);
+    if (closeCount > 0) {
+        await closeButton.click({ timeout: timeoutMs }).catch(async () => {
+            await page.evaluate(() => {
+                const button = document.getElementById('maintenanceNoticeCloseBtn');
+                if (button instanceof HTMLElement) button.click();
+            }).catch(() => undefined);
+        });
+    } else {
+        await page.evaluate(() => {
+            const maintenanceNotice = document.getElementById('maintenanceNotice');
+            if (!maintenanceNotice) return;
+            maintenanceNotice.classList.remove('is-open');
+            maintenanceNotice.setAttribute('aria-hidden', 'true');
+        }).catch(() => undefined);
+    }
+
+    await page.waitForFunction(() => {
+        const maintenanceNotice = document.getElementById('maintenanceNotice');
+        return !maintenanceNotice ||
+            !maintenanceNotice.classList.contains('is-open') ||
+            maintenanceNotice.getAttribute('aria-hidden') === 'true';
+    }, { timeout: timeoutMs }).catch(() => undefined);
+    return true;
+}
+
 async function runMatch(args: any) {
     const root = resolveServeRoot(__dirname);
     const startedAt = Date.now();
@@ -342,14 +387,7 @@ async function runMatch(args: any) {
         page.setDefaultNavigationTimeout(args.timeoutMs);
 
         stage = 'goto';
-        const queryParts = [];
-        const requiresOnnxRuntime = args.requireOnnxLoaded ||
-            args.requireTargetModelLoaded ||
-            args.requireValueModelLoaded;
-        if (requiresOnnxRuntime) {
-            queryParts.push('cpuOnnx=1');
-        }
-        const query = queryParts.length ? `?${queryParts.join('&')}` : '';
+        const query = buildMatchQuery(args);
         await page.goto(`http://127.0.0.1:${port}/${query}`);
         stage = 'wait-selectors';
         await page.waitForSelector('#smartBlack', { state: 'attached' });
@@ -358,6 +396,8 @@ async function runMatch(args: any) {
         await page.waitForFunction(() => (globalThis as BenchGlobal).__uiInitialized === true, {
             timeout: Math.min(args.timeoutMs, 30000)
         });
+        stage = 'close-maintenance-notice';
+        await closeMaintenanceNoticeIfPresent(page, 5000);
 
         // Benchmark mode: reduce animation waits so headless matches finish reliably.
         stage = 'configure-benchmark-mode';
@@ -389,6 +429,9 @@ async function runMatch(args: any) {
         }
 
         // ONNX gate requires that the deployed ONNX is actually loaded before the match starts.
+        const requiresOnnxRuntime = args.requireOnnxLoaded ||
+            args.requireTargetModelLoaded ||
+            args.requireValueModelLoaded;
         if (requiresOnnxRuntime) {
             stage = 'wait-onnx';
             await page.waitForFunction((requirements: any) => {
@@ -631,6 +674,8 @@ export = {
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,
     buildFailureSnapshot,
+    buildMatchQuery,
+    closeMaintenanceNoticeIfPresent,
     resolveServeRoot,
     runMatch
 };

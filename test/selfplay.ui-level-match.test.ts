@@ -3,6 +3,7 @@ const {
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,
     buildFailureSnapshot,
+    buildMatchQuery,
     resolveServeRoot
 } = require('../scripts/run-ui-level-match');
 
@@ -36,6 +37,20 @@ describe('ui level match script args', () => {
         expect(args.requireOnnxLoaded).toBe(true);
         expect(args.requireTargetModelLoaded).toBe(true);
         expect(args.requireValueModelLoaded).toBe(true);
+    });
+
+    test('buildMatchQuery eagerly loads CPU policy when ONNX is required', () => {
+        expect(buildMatchQuery({
+            requireOnnxLoaded: true,
+            requireTargetModelLoaded: false,
+            requireValueModelLoaded: false
+        })).toBe('?eagerCpuPolicy=1&cpuOnnx=1');
+
+        expect(buildMatchQuery({
+            requireOnnxLoaded: false,
+            requireTargetModelLoaded: false,
+            requireValueModelLoaded: false
+        })).toBe('');
     });
 
     test('resolveServeRoot points dist CLI execution at the repository root', () => {
