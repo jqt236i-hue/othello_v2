@@ -101,16 +101,35 @@ function createNetworkStreamSnapshotController(config?: any): any {
       }
       : {};
 
-    let applied = typeof cfg.applySnapshotThroughCoordinator === 'function'
-      ? cfg.applySnapshotThroughCoordinator(snapshot, {
+    let intakeResult: any = null;
+    let applied = false;
+    if (
+      typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
+      && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
+    ) {
+      const envelope = cfg.normalizeNetworkSnapshotEnvelope({
+        source: 'stream',
+        payload,
+        force: false,
+        skipResultOverlay: shouldSkipResultOverlay,
+        trackedPublish,
+        applyOptions: Object.assign({}, streamPlaybackApplyOptions, presentationFrameApplyOptions, {
+          force: false,
+          skipResultOverlay: shouldSkipResultOverlay
+        })
+      });
+      intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
+      applied = !!(intakeResult && intakeResult.appliedSnapshot === true);
+    } else if (typeof cfg.applySnapshotThroughCoordinator === 'function') {
+      applied = cfg.applySnapshotThroughCoordinator(snapshot, {
         source: 'stream',
         trackedPublish,
         applyOptions: Object.assign({}, streamPlaybackApplyOptions, presentationFrameApplyOptions, {
           force: false,
           skipResultOverlay: shouldSkipResultOverlay
         })
-      })
-      : false;
+      });
+    }
     const recoveredForcedPlayback = !applied
       && typeof cfg.shouldRecoverForceSyncedStreamPlayback === 'function'
       && cfg.shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
@@ -148,7 +167,8 @@ function createNetworkStreamSnapshotController(config?: any): any {
         )
       ) {
         const visualCursorSynced = cfg.syncVisualCursorForSnapshotNoPlayback(payload, snapshotVersion);
-        if (visualCursorSynced && typeof cfg.requestNetworkTimelineBoardRefresh === 'function') {
+        const intakeRequestedBoardRefresh = !!(intakeResult && intakeResult.requestedBoardRefresh === true);
+        if (!intakeRequestedBoardRefresh && visualCursorSynced && typeof cfg.requestNetworkTimelineBoardRefresh === 'function') {
           const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
             ? payload.presentationCursor
             : null;

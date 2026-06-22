@@ -40,6 +40,20 @@ describe('network intake envelope normalizer', () => {
     expect(envelope.visualSeq).toBeNull();
   });
 
+  test('prefers authoritative snapshot meta version over top-level snapshot stateVersion', () => {
+    const envelope = normalizeNetworkSnapshotEnvelope({
+      source: 'stream',
+      payload: {
+        snapshot: {
+          stateVersion: 5,
+          _meta: { version: 11 }
+        }
+      }
+    });
+
+    expect(envelope.stateVersion).toBe(11);
+  });
+
   test('normalizes journal recovery shape and defaults arrays', () => {
     const envelope = normalizeNetworkSnapshotEnvelope({
       source: 'presentation_journal',

@@ -298,22 +298,39 @@ function createNetworkPublishFlowController(config?: any): any {
               presentationFrameSource: 'publish_response'
             }
             : {};
-          const applied = shouldSkipPublishResponse
-            ? false
-            : (
-              typeof cfg.applySnapshotThroughCoordinator === 'function'
-                ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
-                  source: 'publish_response',
-                  trackedPublish,
-                  applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, presentationFrameApplyOptions, {
-                    force: true,
-                    skipResultOverlay: (typeof cfg.hasTrackedPublishPresentedResult === 'function')
-                      ? cfg.hasTrackedPublishPresentedResult(trackedPublish)
-                      : false
-                  })
+          let applied = false;
+          if (!shouldSkipPublishResponse) {
+            const skipResultOverlay = (typeof cfg.hasTrackedPublishPresentedResult === 'function')
+              ? cfg.hasTrackedPublishPresentedResult(trackedPublish)
+              : false;
+            if (
+              typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
+              && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
+            ) {
+              const envelope = cfg.normalizeNetworkSnapshotEnvelope({
+                source: 'publish_response',
+                payload: res.data,
+                force: true,
+                trackedPublish,
+                skipResultOverlay,
+                applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, presentationFrameApplyOptions, {
+                  force: true,
+                  skipResultOverlay
                 })
-                : false
-            );
+              });
+              const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
+              applied = !!(intakeResult && intakeResult.appliedSnapshot === true);
+            } else if (typeof cfg.applySnapshotThroughCoordinator === 'function') {
+              applied = cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
+                source: 'publish_response',
+                trackedPublish,
+                applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, presentationFrameApplyOptions, {
+                  force: true,
+                  skipResultOverlay
+                })
+              });
+            }
+          }
           if (applied) {
             if (typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
               cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, Object.assign({}, publishResponsePlaybackApplyOptions, {

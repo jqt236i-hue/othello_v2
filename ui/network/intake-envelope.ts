@@ -22,6 +22,8 @@ export interface NetworkSnapshotEnvelope {
   force: boolean;
   skipResultOverlay: boolean;
   receivedAt: number;
+  trackedPublish?: unknown;
+  applyOptions?: Record<string, unknown>;
 }
 
 export interface NormalizeNetworkSnapshotEnvelopeInput {
@@ -38,6 +40,8 @@ export interface NormalizeNetworkSnapshotEnvelopeInput {
   skipResultOverlay?: unknown;
   receivedAt?: unknown;
   now?: () => number;
+  trackedPublish?: unknown;
+  applyOptions?: unknown;
 }
 
 const KNOWN_SOURCES = new Set([
@@ -88,9 +92,9 @@ function pickSnapshot(input: NormalizeNetworkSnapshotEnvelopeInput, payload: any
 function readSnapshotVersion(snapshot: unknown): number | null {
   const record = snapshot && typeof snapshot === 'object' ? snapshot as any : null;
   if (!record) return null;
-  return toIntegerOrNull(record.stateVersion)
-    ?? toIntegerOrNull(record.version)
-    ?? toIntegerOrNull(record._meta && record._meta.version);
+  return toIntegerOrNull(record._meta && record._meta.version)
+    ?? toIntegerOrNull(record.stateVersion)
+    ?? toIntegerOrNull(record.version);
 }
 
 function firstInteger(values: unknown[]): number | null {
@@ -146,6 +150,10 @@ export function normalizeNetworkSnapshotEnvelope(input: NormalizeNetworkSnapshot
     presentationCursor,
     force: sourceInput.force === true,
     skipResultOverlay: sourceInput.skipResultOverlay === true,
-    receivedAt
+    receivedAt,
+    trackedPublish: sourceInput.trackedPublish,
+    applyOptions: sourceInput.applyOptions && typeof sourceInput.applyOptions === 'object'
+      ? sourceInput.applyOptions as Record<string, unknown>
+      : undefined
   };
 }

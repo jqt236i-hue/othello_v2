@@ -448,6 +448,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPlaybackDispatcherModule: any = null;
     let networkVisualStateStoreModule: any = null;
     let networkDebugTraceModule: any = null;
+    let networkIntakeEnvelopeModule: any = null;
+    let networkIntakeCoordinatorModule: any = null;
     let animationFeedbackEventsModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
@@ -469,6 +471,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPlaybackDispatcher: any = null;
     let networkVisualStateStore: any = null;
     let networkDebugTrace: any = null;
+    let networkIntakeCoordinator: any = null;
     let networkPresentationGapRecoveryPromise: Promise<any> | null = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
@@ -494,6 +497,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkPlaybackDispatcherModule = resolveNetworkClientModule('./network/playback-dispatcher', null);
     networkVisualStateStoreModule = resolveNetworkClientModule('./network/visual-state-store', null);
     networkDebugTraceModule = resolveNetworkClientModule('./network/debug-trace', null);
+    networkIntakeEnvelopeModule = resolveNetworkClientModule('./network/intake-envelope', null);
+    networkIntakeCoordinatorModule = resolveNetworkClientModule('./network/intake-coordinator', null);
     networkDebugTrace = networkDebugTraceModule
         && typeof networkDebugTraceModule.createNetworkDebugTrace === 'function'
         ? networkDebugTraceModule.createNetworkDebugTrace({ limit: 250 })
@@ -718,6 +723,72 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             }
         } catch (e: any) { /* ignore */ }
         return networkVisualStateStore;
+    }
+
+    function normalizeNetworkSnapshotEnvelope(input: any) {
+        const mod = networkIntakeEnvelopeModule;
+        if (mod && typeof mod.normalizeNetworkSnapshotEnvelope === 'function') {
+            return mod.normalizeNetworkSnapshotEnvelope(input || {});
+        }
+        return null;
+    }
+
+    function buildIntakeApplyOptions(meta: any): any {
+        const applyOptions = Object.assign(
+            {},
+            (meta && meta.applyOptions && typeof meta.applyOptions === 'object') ? meta.applyOptions : {}
+        );
+        applyOptions.force = meta && meta.force === true;
+        applyOptions.skipResultOverlay = meta && meta.skipResultOverlay === true;
+        const frames = Array.isArray(meta && meta.presentationFrames) ? meta.presentationFrames : [];
+        if (frames.length > 0) {
+            delete applyOptions.presentationFrames;
+            applyOptions.playbackEvents = [];
+            applyOptions.presentationFrameSource = meta && meta.source ? String(meta.source) : 'network_intake';
+        } else if (!Array.isArray(applyOptions.playbackEvents) && Array.isArray(meta && meta.playbackEvents)) {
+            applyOptions.playbackEvents = meta.playbackEvents;
+        }
+        applyOptions.source = meta && meta.source ? String(meta.source) : 'network_intake';
+        return applyOptions;
+    }
+
+    function getNetworkIntakeCoordinator() {
+        if (networkIntakeCoordinator) return networkIntakeCoordinator;
+        const mod = networkIntakeCoordinatorModule;
+        if (!mod || typeof mod.createNetworkIntakeCoordinator !== 'function') return null;
+        networkIntakeCoordinator = mod.createNetworkIntakeCoordinator({
+            getAppliedStateVersion,
+            applyCanonicalSnapshot: (snapshot: any, meta: any) => applySnapshotThroughCoordinator(snapshot, {
+                source: meta && meta.source ? String(meta.source) : 'network_intake',
+                trackedPublish: meta && meta.trackedPublish ? meta.trackedPublish : null,
+                applyOptions: buildIntakeApplyOptions(meta)
+            }),
+            enqueuePresentationFrames: (frames: any, meta: any) => enqueuePresentationFrames(frames, {
+                source: meta && meta.source ? String(meta.source) : 'network_intake'
+            }),
+            requestBoardRefresh: (meta: any) => requestNetworkTimelineBoardRefresh(null, {
+                reason: meta && meta.reason ? String(meta.reason) : 'snapshot_no_playback_visual_sync',
+                visualSeq: Number.isFinite(Number(meta && meta.visualSeq)) ? Math.trunc(Number(meta.visualSeq)) : null,
+                visualVersion: Number.isFinite(Number(meta && meta.stateVersion)) ? Math.trunc(Number(meta.stateVersion)) : null,
+                source: 'network_timeline'
+            }),
+            recordTrace: (type: any, details: any) => recordNetworkTrace(type, details)
+        });
+        return networkIntakeCoordinator;
+    }
+
+    function submitNetworkSnapshotEnvelope(envelope: any) {
+        const coordinator = getNetworkIntakeCoordinator();
+        if (!coordinator || typeof coordinator.submit !== 'function') {
+            return {
+                appliedSnapshot: false,
+                enqueuedFrameCount: 0,
+                requestedBoardRefresh: false,
+                duplicateOperation: false,
+                skippedReason: 'intake_coordinator_unavailable'
+            };
+        }
+        return coordinator.submit(envelope);
     }
 
     function getNetworkPlaybackDispatcher() {
@@ -1156,7 +1227,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             pruneTrackedPublishes,
             enqueuePresentationFramesFromPayload,
             syncVisualCursorForSnapshotNoPlayback,
-            requestNetworkTimelineBoardRefresh
+            requestNetworkTimelineBoardRefresh,
+            normalizeNetworkSnapshotEnvelope,
+            submitNetworkSnapshotEnvelope
         });
         return networkStreamSnapshotController;
     }
@@ -1260,7 +1333,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             showAutoPassNoticeFromPayload,
             pruneTrackedPublishes,
             getSnapshotStateVersion,
-            enqueuePresentationFramesFromPayload
+            enqueuePresentationFramesFromPayload,
+            normalizeNetworkSnapshotEnvelope,
+            submitNetworkSnapshotEnvelope
         });
         return networkPublishFlowController;
     }

@@ -7,6 +7,10 @@ export interface NetworkIntakeApplyMeta {
   visualSeq: number | null;
   force: boolean;
   skipResultOverlay: boolean;
+  trackedPublish?: unknown;
+  applyOptions?: Record<string, unknown>;
+  playbackEvents?: unknown[];
+  presentationFrames?: unknown[];
 }
 
 export interface NetworkIntakeBoardRefreshMeta extends NetworkIntakeApplyMeta {
@@ -52,7 +56,11 @@ function createApplyMeta(envelope: NetworkSnapshotEnvelope): NetworkIntakeApplyM
     stateVersion: envelope.stateVersion,
     visualSeq: envelope.visualSeq,
     force: envelope.force === true,
-    skipResultOverlay: envelope.skipResultOverlay === true
+    skipResultOverlay: envelope.skipResultOverlay === true,
+    trackedPublish: envelope.trackedPublish,
+    applyOptions: envelope.applyOptions,
+    playbackEvents: envelope.playbackEvents,
+    presentationFrames: envelope.presentationFrames
   };
 }
 

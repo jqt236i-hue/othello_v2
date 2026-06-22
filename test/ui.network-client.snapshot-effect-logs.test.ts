@@ -198,6 +198,13 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     ]));
     expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        type: 'network_intake_submit',
+        source: 'stream',
+        stateVersion: 4
+      })
+    ]));
+    expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
         type: 'board_request',
         source: 'network_timeline',
         visualSeq: 6,
@@ -233,6 +240,13 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
       expect.objectContaining({
         type: 'publish_response_snapshot_applied',
+        source: 'publish_response',
+        stateVersion: 4
+      })
+    ]));
+    expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'network_intake_submit',
         source: 'publish_response',
         stateVersion: 4
       })
