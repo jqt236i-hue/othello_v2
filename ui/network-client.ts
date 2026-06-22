@@ -769,6 +769,44 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         let requested = false;
         const emitBoardUpdate = resolveNetworkClientCandidate(() => root && root.emitBoardUpdate)
             || resolveNetworkClientGlobal('emitBoardUpdate');
+        const requestPostPlaybackBoardRefresh = () => {
+            const waitForPlaybackIdle = resolveNetworkClientCandidate(() => root && root.waitForPlaybackIdle)
+                || resolveNetworkClientGlobal('waitForPlaybackIdle');
+            if (typeof waitForPlaybackIdle !== 'function') return false;
+            Promise.resolve(waitForPlaybackIdle()).then(() => {
+                try {
+                    armBoardUpdateSync();
+                    if (typeof emitBoardUpdate === 'function') {
+                        emitBoardUpdate(info);
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    const scheduler = resolveNetworkClientCandidate(() => root && root.RenderScheduler)
+                        || resolveNetworkClientGlobal('RenderScheduler');
+                    if (scheduler && typeof scheduler.requestBoardRender === 'function') {
+                        armBoardUpdateSync();
+                        scheduler.requestBoardRender(info);
+                        if (typeof scheduler.flushVisualUpdates === 'function') {
+                            armBoardUpdateSync();
+                            scheduler.flushVisualUpdates();
+                        }
+                        return;
+                    }
+                    const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
+                        || resolveNetworkClientGlobal('renderBoard');
+                    if (typeof renderBoard === 'function' && shouldDeferNetworkBoardDomWrite() !== true) {
+                        armBoardUpdateSync();
+                        renderBoard();
+                    }
+                } catch (e: any) { /* ignore */ }
+            }).catch(() => {
+                try {
+                    armBoardUpdateSync();
+                    if (typeof emitBoardUpdate === 'function') emitBoardUpdate(info);
+                } catch (e: any) { /* ignore */ }
+            });
+            return true;
+        };
         if (typeof emitBoardUpdate === 'function') {
             try {
                 armBoardUpdateSync();
@@ -786,7 +824,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 if (scheduled) requested = true;
                 if (scheduled && typeof renderScheduler.flushVisualUpdates === 'function') {
                     armBoardUpdateSync();
-                    if (renderScheduler.flushVisualUpdates() !== false) {
+                    const flushed = renderScheduler.flushVisualUpdates() !== false;
+                    if (flushed) {
                         requested = true;
                     }
                 }
@@ -816,6 +855,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     requested = true;
                 } catch (e: any) { /* ignore */ }
             }
+        }
+        if (requestPostPlaybackBoardRefresh()) {
+            requested = true;
         }
         if (!requested) {
             recordNetworkTelemetry('network_timeline_board_refresh_unavailable', info);

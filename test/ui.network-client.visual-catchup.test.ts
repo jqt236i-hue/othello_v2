@@ -47,6 +47,7 @@ describe('network client visual catch-up', () => {
     delete (global as any).emitBoardUpdate;
     delete (global as any).renderBoard;
     delete (global as any).RenderScheduler;
+    delete (global as any).waitForPlaybackIdle;
     delete (global as any).emitCardStateChange;
     delete (global as any).emitGameStateChange;
     delete (global as any).PresentationHandler;
@@ -240,6 +241,118 @@ describe('network client visual catch-up', () => {
     busy = false;
     (global as any).RenderScheduler.flushVisualUpdates();
 
+    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
+  });
+
+  test('retries timeline board flush after playback idle when the first flush is deferred', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    let releaseIdle: (() => void) | null = null;
+    (global as any).waitForPlaybackIdle = jest.fn(() => new Promise<void>((resolve) => {
+      releaseIdle = resolve;
+    }));
+    const flushOrder: string[] = [];
+    (global as any).RenderScheduler = {
+      requestBoardRender: jest.fn(() => {
+        flushOrder.push('request');
+        return true;
+      }),
+      flushVisualUpdates: jest.fn(() => {
+        flushOrder.push('flush');
+        if (flushOrder.length <= 2) return false;
+        (global as any).renderBoard();
+        return true;
+      })
+    };
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect((global as any).waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect((global as any).renderBoard).not.toHaveBeenCalled();
+
+    releaseIdle && releaseIdle();
+    await flushAsyncWork();
+
+    expect(flushOrder).toEqual(['request', 'flush', 'request', 'flush']);
+    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
+  });
+
+  test('runs a post-playback board refresh even when the first timeline flush reports success', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    let releaseIdle: (() => void) | null = null;
+    let idleReleased = false;
+    (global as any).waitForPlaybackIdle = jest.fn(() => new Promise<void>((resolve) => {
+      releaseIdle = () => {
+        idleReleased = true;
+        resolve();
+      };
+    }));
+    const flushOrder: string[] = [];
+    (global as any).RenderScheduler = {
+      requestBoardRender: jest.fn(() => {
+        flushOrder.push('request');
+        return true;
+      }),
+      flushVisualUpdates: jest.fn(() => {
+        flushOrder.push('flush');
+        if (idleReleased) {
+          (global as any).renderBoard();
+        }
+        return true;
+      })
+    };
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect((global as any).waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).renderBoard).not.toHaveBeenCalled();
+
+    releaseIdle && releaseIdle();
+    await flushAsyncWork();
+
+    expect(flushOrder).toEqual(['request', 'flush', 'request', 'flush']);
     expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
   });
 });
