@@ -312,6 +312,32 @@
     font-variant-numeric: tabular-nums lining-nums;
 }
 
+.result-time-attack:has(+ .result-time-defense) {
+    display: inline-flex;
+    width: 50%;
+    justify-content: flex-end;
+    padding-right: calc(12px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+.result-time-attack:has(+ .result-time-defense) + .result-time-defense {
+    display: inline-flex;
+    width: 50%;
+    justify-content: flex-start;
+    padding-left: calc(12px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+.result-time-attack:has(+ .result-time-defense) + .result-time-defense::before {
+    content: '';
+    width: var(--layout-size-border-thin);
+    height: calc(20px * var(--layout-stage-scale));
+    margin-right: calc(18px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, transparent, rgba(var(--result-gold), 0.62), transparent);
+}
+
 .result-time-attack-reason {
     color: rgba(255, 170, 150, 0.9);
     font-family: var(--selected-app-font-readable-family);
