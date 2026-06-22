@@ -35,6 +35,13 @@ const MatchModeLeaderboardControllerModule = (() => {
         return null;
     }
 })();
+const MatchModeNetworkChatModule = (() => {
+    try {
+        return _require('./match-mode/network-chat');
+    } catch (e) {
+        return null;
+    }
+})();
 const MatchModeNetworkButtonsModule = (() => {
     try {
         return _require('./match-mode/network-buttons');
@@ -52,7 +59,6 @@ const MODE_OTHELLO = 'othello';
     const DEFAULT_PLAYER_NAME = 'ななし';
 
     let currentMode = MODE_CPU;
-    let networkChatVisible = false;
     let networkStatusBaseText = '';
     let networkStatusBaseIsError = false;
     let networkTurnTimerInfo: any = null;
@@ -1104,111 +1110,6 @@ const MODE_OTHELLO = 'othello';
         }
     }
 
-    function getChatMaxLength() {
-        try {
-            if (root.NetworkMatchClient && typeof root.NetworkMatchClient.getChatMaxLength === 'function') {
-                return Math.max(1, Number(root.NetworkMatchClient.getChatMaxLength()) || CHAT_INPUT_FALLBACK_MAX);
-            }
-        } catch (e) { /* ignore */ }
-        return CHAT_INPUT_FALLBACK_MAX;
-    }
-
-    function formatChatInput(value: any) {
-        const maxLength = getChatMaxLength();
-        return Array.from(String(value || '').replace(/[\r\n]+/g, ' ').trim())
-            .slice(0, maxLength)
-            .join('');
-    }
-
-    function clearNetworkChatMessages() {
-        if (!uiRefs.networkChatMessages) return;
-        uiRefs.networkChatMessages.innerHTML = '';
-    }
-
-    function normalizeNetworkChatSeatKey(value: any) {
-        const normalized = String(value || '').trim().toLowerCase();
-        return normalized === 'white' ? 'white' : 'black';
-    }
-
-    function appendNetworkChatMessage(entry: any) {
-        if (!uiRefs.networkChatMessages || !entry || !entry.text) return;
-        const seatKey = normalizeNetworkChatSeatKey(entry.seatKey);
-        const seatLabel = seatKey === 'white' ? '白' : '黒';
-        const localSeat = (root.NetworkMatchClient && typeof root.NetworkMatchClient.getSeatKey === 'function')
-            ? normalizeNetworkChatSeatKey(root.NetworkMatchClient.getSeatKey())
-            : 'black';
-
-        const line = document.createElement('div');
-        line.className = 'network-chat-line';
-        if (seatKey === localSeat) {
-            line.classList.add('network-chat-line--self');
-        }
-        line.textContent = `${seatLabel}: ${entry.text}`;
-        uiRefs.networkChatMessages.appendChild(line);
-        uiRefs.networkChatMessages.scrollTop = uiRefs.networkChatMessages.scrollHeight;
-    }
-
-    function showNetworkChatSpeechBubble(entry: any) {
-        if (!entry || !entry.text) return;
-        const seatKey = normalizeNetworkChatSeatKey(entry.seatKey);
-        const localSeat = (root.NetworkMatchClient && typeof root.NetworkMatchClient.getSeatKey === 'function')
-            ? normalizeNetworkChatSeatKey(root.NetworkMatchClient.getSeatKey())
-            : 'black';
-        const speechText = String(entry.text || '').trim();
-        if (!speechText) return;
-
-        if (seatKey === localSeat) {
-            if (typeof root.showHeroSpeechBubble === 'function') {
-                root.showHeroSpeechBubble(speechText);
-            }
-            return;
-        }
-
-        if (typeof root.showCpuSpeechBubble === 'function') {
-            root.showCpuSpeechBubble(speechText);
-        }
-    }
-
-    function renderNetworkChatHistory(messages: any) {
-        clearNetworkChatMessages();
-        if (!Array.isArray(messages)) return;
-        messages.forEach((entry) => {
-            appendNetworkChatMessage(entry);
-        });
-    }
-
-    function setNetworkChatExpanded(expanded: any) {
-        if (!uiRefs.networkChatPanel) return;
-        const isOpen = !!expanded;
-        uiRefs.networkChatPanel.classList.toggle('is-open', isOpen);
-        if (uiRefs.networkChatToggle) {
-            uiRefs.networkChatToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        }
-    }
-
-    function setNetworkChatVisible(visible: any) {
-        if (!uiRefs.networkChatPanel) return;
-        const nextVisible = !!visible;
-        const changed = networkChatVisible !== nextVisible;
-        networkChatVisible = nextVisible;
-
-        uiRefs.networkChatPanel.classList.toggle('is-active', nextVisible);
-        uiRefs.networkChatPanel.setAttribute('aria-hidden', nextVisible ? 'false' : 'true');
-        if (uiRefs.networkChatInput) {
-            uiRefs.networkChatInput.disabled = !nextVisible;
-        }
-        if (uiRefs.networkChatSendBtn) {
-            uiRefs.networkChatSendBtn.disabled = !nextVisible;
-        }
-        if (changed && nextVisible) {
-            setNetworkChatExpanded(false);
-        }
-        if (changed && !nextVisible) {
-            setNetworkChatExpanded(false);
-            clearNetworkChatMessages();
-        }
-    }
-
     function isNetworkSpectatorActive(roomState?: any) {
         if (roomState && String(roomState.viewerRole || '').trim().toLowerCase() === 'spectator') {
             return true;
@@ -1220,15 +1121,80 @@ const MODE_OTHELLO = 'othello';
         );
     }
 
+    let networkChatController: any = null;
+
+    function createNetworkChatControllerContext() {
+        return {
+            root,
+            uiRefs,
+            CHAT_INPUT_FALLBACK_MAX
+        };
+    }
+
+    function getNetworkChatController() {
+        if (!networkChatController
+            && MatchModeNetworkChatModule
+            && typeof MatchModeNetworkChatModule.createNetworkChatController === 'function') {
+            networkChatController = MatchModeNetworkChatModule.createNetworkChatController(createNetworkChatControllerContext());
+        }
+        return networkChatController;
+    }
+
+    function getNetworkChatVisible() {
+        const controller = getNetworkChatController();
+        return !!(controller && typeof controller.getVisible === 'function' && controller.getVisible());
+    }
+
+    function getChatMaxLength() {
+        const controller = getNetworkChatController();
+        return controller && typeof controller.getChatMaxLength === 'function'
+            ? controller.getChatMaxLength()
+            : CHAT_INPUT_FALLBACK_MAX;
+    }
+
+    function formatChatInput(value: any) {
+        const controller = getNetworkChatController();
+        return controller && typeof controller.formatInput === 'function'
+            ? controller.formatInput(value)
+            : Array.from(String(value || '').replace(/[\r\n]+/g, ' ').trim()).slice(0, CHAT_INPUT_FALLBACK_MAX).join('');
+    }
+
+    function appendNetworkChatMessage(entry: any) {
+        const controller = getNetworkChatController();
+        if (controller && typeof controller.appendMessage === 'function') {
+            controller.appendMessage(entry);
+        }
+    }
+
+    function showNetworkChatSpeechBubble(entry: any) {
+        const controller = getNetworkChatController();
+        if (controller && typeof controller.showSpeechBubble === 'function') {
+            controller.showSpeechBubble(entry);
+        }
+    }
+
+    function renderNetworkChatHistory(messages: any) {
+        const controller = getNetworkChatController();
+        if (controller && typeof controller.renderHistory === 'function') {
+            controller.renderHistory(messages);
+        }
+    }
+
+    function setNetworkChatExpanded(expanded: any) {
+        const controller = getNetworkChatController();
+        if (controller && typeof controller.setExpanded === 'function') {
+            controller.setExpanded(expanded);
+        }
+    }
+
     function refreshNetworkChatVisibility() {
-        const isNetworkMode = currentMode === MODE_NETWORK;
-        const spectatorActive = isNetworkSpectatorActive();
-        const hasTwoPlayers = !!(
-            root.NetworkMatchClient
-            && typeof root.NetworkMatchClient.hasTwoPlayers === 'function'
-            && root.NetworkMatchClient.hasTwoPlayers()
-        );
-        setNetworkChatVisible(isNetworkMode && hasTwoPlayers && !spectatorActive);
+        const controller = getNetworkChatController();
+        if (controller && typeof controller.refreshVisibility === 'function') {
+            controller.refreshVisibility({
+                networkMode: currentMode === MODE_NETWORK,
+                spectatorActive: isNetworkSpectatorActive()
+            });
+        }
     }
 
     function clearControlPanelConstraints() {
@@ -1581,7 +1547,7 @@ const MODE_OTHELLO = 'othello';
             DEFAULT_PLAYER_NAME,
             MODE_NETWORK,
             MODE_CPU,
-            getNetworkChatVisible: () => networkChatVisible,
+            getNetworkChatVisible,
             setNetworkTurnTimerInfo: (next: any) => { networkTurnTimerInfo = next; },
             setNetworkRoomDebugEnabled: (next: any) => { networkRoomDebugEnabled = next === true; },
             setNetworkRoomAutoEnabled: (next: any) => { networkRoomAutoEnabled = next === true; },
