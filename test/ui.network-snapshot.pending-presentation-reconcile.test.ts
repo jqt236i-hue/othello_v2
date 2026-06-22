@@ -90,7 +90,7 @@ describe('network snapshot pending presentation reconcile', () => {
     delete global.AnimationEngine;
   });
 
-  function createController(stateObj) {
+  function createController(stateObj, playbackStateOverrides = {}) {
     const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     return createNetworkSnapshotController({
       getState: () => stateObj,
@@ -123,7 +123,8 @@ describe('network snapshot pending presentation reconcile', () => {
         getPlaybackStartedAt: jest.fn(() => {
           const startedAt = Number(global.__playbackActiveSince);
           return Number.isFinite(startedAt) ? startedAt : null;
-        })
+        }),
+        ...playbackStateOverrides
       }
     });
   }
@@ -264,5 +265,33 @@ describe('network snapshot pending presentation reconcile', () => {
     expect(busyStateCalls).toEqual([
       { processing: false, cardAnimating: false }
     ]);
+  });
+
+  test('applySnapshot delegates playback settlement policy to playback state module', () => {
+    const stateObj = { stateVersion: 10 };
+    const resolveSnapshotPlaybackSettlement = jest.fn(() => ({
+      clearPlaybackLock: false,
+      clearTransientPresentationQueues: false,
+      setBusyFalse: false,
+      keepBusy: false,
+      reason: null
+    }));
+    const ctrl = createController(stateObj, { resolveSnapshotPlaybackSettlement });
+
+    const applied = ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [],
+      releaseUnclaimedPlayback: true,
+      clearUndrainedPlayback: true
+    });
+
+    expect(applied).toBe(true);
+    expect(resolveSnapshotPlaybackSettlement).toHaveBeenCalledTimes(1);
+    expect(resolveSnapshotPlaybackSettlement).toHaveBeenCalledWith(expect.objectContaining({
+      cardState: global.cardState,
+      playbackEvents: [],
+      releaseUnclaimedPlayback: true,
+      clearUndrainedPlayback: true,
+      boardUpdateRequested: true
+    }));
   });
 });

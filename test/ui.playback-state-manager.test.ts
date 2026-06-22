@@ -453,4 +453,104 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getProcessing()).toBe(false);
     expect(manager.getCardAnimating()).toBe(false);
   });
+
+  test('snapshot settlement keeps claimed playback busy while playback engine is running', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    manager.beginPlayback({ startedAt: 1000 });
+    global.window.AnimationEngine = { isPlaying: true };
+
+    const settlement = manager.resolveSnapshotPlaybackSettlement({
+      playbackEvents: [{ type: 'flip' }],
+      cardState: { presentationEvents: [], _presentationEventsPersist: [] },
+      releaseUnclaimedPlayback: true,
+      clearUndrainedPlayback: true,
+      boardUpdateRequested: true
+    });
+
+    expect(settlement).toMatchObject({
+      clearPlaybackLock: false,
+      clearTransientPresentationQueues: false,
+      setBusyFalse: false,
+      keepBusy: true,
+      reason: null
+    });
+  });
+
+  test('snapshot settlement releases stale playback lock when no queues remain and engine is idle', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    manager.beginPlayback({ startedAt: 1000 });
+    global.window.AnimationEngine = { isPlaying: false };
+
+    const settlement = manager.resolveSnapshotPlaybackSettlement({
+      playbackEvents: [],
+      presentationState: { shouldKeepBusy: false },
+      cardState: { presentationEvents: [], _presentationEventsPersist: [] }
+    });
+
+    expect(settlement).toMatchObject({
+      clearPlaybackLock: true,
+      clearTransientPresentationQueues: false,
+      setBusyFalse: false,
+      reason: 'stale_playback_lock'
+    });
+  });
+
+  test('snapshot settlement clears undrained playback queues only after board update requested', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const cardState = {
+      presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip' }] }],
+      _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip' }] }]
+    };
+
+    expect(manager.resolveSnapshotPlaybackSettlement({
+      playbackEvents: [{ type: 'flip' }],
+      cardState,
+      clearUndrainedPlayback: true,
+      boardUpdateRequested: false
+    })).toMatchObject({
+      clearPlaybackLock: false,
+      clearTransientPresentationQueues: false,
+      reason: null
+    });
+
+    expect(manager.resolveSnapshotPlaybackSettlement({
+      playbackEvents: [{ type: 'flip' }],
+      cardState,
+      clearUndrainedPlayback: true,
+      boardUpdateRequested: true
+    })).toMatchObject({
+      clearPlaybackLock: true,
+      clearTransientPresentationQueues: true,
+      reason: 'undrained_playback_queue'
+    });
+  });
+
+  test('snapshot settlement releases restored queue busy state when signature still matches', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const cardState = {
+      presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }],
+      _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 2 }] }]
+    };
+    const restoredQueueSignature = JSON.stringify({
+      presentationEvents: cardState.presentationEvents,
+      persistentEvents: cardState._presentationEventsPersist
+    });
+
+    const settlement = manager.resolveSnapshotPlaybackSettlement({
+      playbackEvents: [],
+      presentationState: {
+        restoredPreservedQueues: true,
+        restoredQueueSignature
+      },
+      busyStateBeforeSnapshot: null,
+      cardState
+    });
+
+    expect(settlement).toMatchObject({
+      clearPlaybackLock: false,
+      clearTransientPresentationQueues: true,
+      setBusyFalse: true,
+      reason: 'restored_queue_busy_released'
+    });
+  });
 });

@@ -134,131 +134,13 @@ function reconcilePresentationQueues(cardStateRef: any, options?: any): any {
   };
 }
 
-function shouldReleaseRestoredQueueBusyState(options?: any): boolean {
-  const opts = (options && typeof options === 'object') ? options : {};
-  const presentationState = opts.presentationState || {};
-  if (presentationState.restoredPreservedQueues !== true) return false;
-  const busyStateBeforeSnapshot = opts.busyStateBeforeSnapshot || null;
-  const hadBusyBeforeSnapshot = !!(
-    busyStateBeforeSnapshot
-    && (
-      busyStateBeforeSnapshot.processing === true
-      || busyStateBeforeSnapshot.cardAnimating === true
-      || busyStateBeforeSnapshot.playbackActive === true
-    )
-  );
-  const playbackEngineRunning = typeof opts.isPlaybackEngineRunning === 'function'
-    ? opts.isPlaybackEngineRunning()
-    : null;
-  if (hadBusyBeforeSnapshot && playbackEngineRunning !== false) {
-    return false;
-  }
-  if (typeof opts.isVisualPlaybackActive === 'function' && opts.isVisualPlaybackActive() === true) {
-    return false;
-  }
-
-  const currentQueues = captureTransientPresentationQueues(opts.cardStateRef, opts.cloneData);
-  if (!currentQueues.hasPending) return true;
-
-  const currentSignature = getTransientPresentationQueueSignature(currentQueues);
-  return !!presentationState.restoredQueueSignature
-    && currentSignature === presentationState.restoredQueueSignature;
-}
-
-function shouldReleaseStalePlaybackLockAfterSnapshot(options?: any): boolean {
-  const opts = (options && typeof options === 'object') ? options : {};
-  const presentationState = opts.presentationState || {};
-  if (presentationState.shouldKeepBusy === true) return false;
-  if (typeof opts.isVisualPlaybackActive !== 'function' || opts.isVisualPlaybackActive() !== true) return false;
-
-  const currentQueues = captureTransientPresentationQueues(opts.cardStateRef, opts.cloneData);
-  if (currentQueues.hasPending) return false;
-
-  const playbackRunning = typeof opts.isPlaybackEngineRunning === 'function'
-    ? opts.isPlaybackEngineRunning()
-    : null;
-  if (playbackRunning === false) return true;
-  if (playbackRunning === true) return false;
-
-  const startedAt = typeof opts.getPlaybackStartedAt === 'function'
-    ? opts.getPlaybackStartedAt()
-    : null;
-  if (!Number.isFinite(Number(startedAt))) return false;
-
-  const nowMs = Number.isFinite(Number(opts.nowMs)) ? Number(opts.nowMs) : Date.now();
-  const staleMs = Number.isFinite(Number(opts.stalePlaybackTimeoutMs))
-    ? Math.max(1, Math.trunc(Number(opts.stalePlaybackTimeoutMs)))
-    : 3500;
-  return (nowMs - Number(startedAt)) > staleMs;
-}
-
-function shouldReleaseUnclaimedPlaybackBusyState(options?: any): boolean {
-  const opts = (options && typeof options === 'object') ? options : {};
-  const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-  if (playbackEvents.length === 0) return false;
-  const playbackRunning = typeof opts.isPlaybackEngineRunning === 'function'
-    ? opts.isPlaybackEngineRunning()
-    : null;
-  const startedAt = typeof opts.getPlaybackStartedAt === 'function'
-    ? opts.getPlaybackStartedAt()
-    : null;
-  if (
-    typeof opts.isVisualPlaybackActive === 'function'
-    && opts.isVisualPlaybackActive() === true
-    && playbackRunning === true
-    && Number.isFinite(Number(startedAt))
-  ) {
-    return false;
-  }
-
-  const currentQueues = captureTransientPresentationQueues(opts.cardStateRef, opts.cloneData);
-  if (currentQueues.hasPending) return false;
-
-  return playbackRunning !== true;
-}
-
-function shouldClearUndrainedPlaybackQueues(options?: any): boolean {
-  const opts = (options && typeof options === 'object') ? options : {};
-  const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-  if (playbackEvents.length === 0) return false;
-  if (opts.force === true) return false;
-  const playbackRunning = typeof opts.isPlaybackEngineRunning === 'function'
-    ? opts.isPlaybackEngineRunning()
-    : null;
-  const startedAt = typeof opts.getPlaybackStartedAt === 'function'
-    ? opts.getPlaybackStartedAt()
-    : null;
-  if (
-    typeof opts.isVisualPlaybackActive === 'function'
-    && opts.isVisualPlaybackActive() === true
-    && playbackRunning === true
-    && Number.isFinite(Number(startedAt))
-  ) {
-    return false;
-  }
-  if (playbackRunning === true) return false;
-
-  const currentQueues = captureTransientPresentationQueues(opts.cardStateRef, opts.cloneData);
-  if (!currentQueues.hasPending) return false;
-
-  const queueEntries = []
-    .concat(Array.isArray(currentQueues.presentationEvents) ? currentQueues.presentationEvents : [])
-    .concat(Array.isArray(currentQueues.persistentEvents) ? currentQueues.persistentEvents : []);
-  if (queueEntries.length === 0) return false;
-  return queueEntries.every((entry: any) => entry && entry.type === 'PLAYBACK_EVENTS');
-}
-
 const SnapshotPresentation = {
   clearTransientPresentationQueues,
   captureTransientPresentationQueues,
   restoreTransientPresentationQueues,
   getTransientPresentationQueueSignature,
   hasPendingPresentationEvents,
-  reconcilePresentationQueues,
-  shouldReleaseRestoredQueueBusyState,
-  shouldReleaseStalePlaybackLockAfterSnapshot,
-  shouldReleaseUnclaimedPlaybackBusyState,
-  shouldClearUndrainedPlaybackQueues
+  reconcilePresentationQueues
 };
 
 export = SnapshotPresentation;

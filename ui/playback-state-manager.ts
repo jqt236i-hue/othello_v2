@@ -424,6 +424,187 @@ function hasPendingPresentationEvents(source?: any): boolean {
   return getPresentationQueueState(source).hasPending === true;
 }
 
+function getPresentationQueueSignature(queueState: any): string | null {
+  const state = (queueState && typeof queueState === 'object') ? queueState : {};
+  const presentationEvents = Array.isArray(state.presentationEvents) ? state.presentationEvents : [];
+  const persistentEvents = Array.isArray(state.persistentEvents) ? state.persistentEvents : [];
+  try {
+    return JSON.stringify({
+      presentationEvents,
+      persistentEvents
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+function hasBusyStateBeforeSnapshot(value: any): boolean {
+  return !!(
+    value
+    && (
+      value.processing === true
+      || value.cardAnimating === true
+      || value.playbackActive === true
+    )
+  );
+}
+
+function isSnapshotPlaybackEngineRunning(options?: any): boolean | null {
+  const animationEngine = getAnimationEngine(options);
+  if (animationEngine && typeof animationEngine.isPlaying === 'boolean') {
+    return animationEngine.isPlaying === true;
+  }
+  return null;
+}
+
+function createSnapshotPlaybackSettlementDecision(overrides?: any): any {
+  return Object.assign({
+    clearPlaybackLock: false,
+    clearTransientPresentationQueues: false,
+    setBusyFalse: false,
+    keepBusy: false,
+    reason: null
+  }, overrides || {});
+}
+
+function shouldReleaseRestoredSnapshotQueueBusyState(input: any): boolean {
+  const data = (input && typeof input === 'object') ? input : {};
+  if (data.restoredQueues !== true) return false;
+  if (hasBusyStateBeforeSnapshot(data.busyStateBeforeSnapshot) && data.playbackRunning !== false) {
+    return false;
+  }
+  if (data.playbackActive === true) return false;
+
+  const queueState = data.queueState || {};
+  if (queueState.hasPending !== true) return true;
+
+  const currentSignature = getPresentationQueueSignature(queueState);
+  return !!data.restoredQueueSignature && currentSignature === data.restoredQueueSignature;
+}
+
+function shouldReleaseStaleSnapshotPlaybackLock(input: any): boolean {
+  const data = (input && typeof input === 'object') ? input : {};
+  if (data.shouldKeepBusy === true) return false;
+  if (data.playbackActive !== true) return false;
+  const queueState = data.queueState || {};
+  if (queueState.hasPending === true) return false;
+  if (data.playbackRunning === false) return true;
+  if (data.playbackRunning === true) return false;
+
+  const startedAt = Number(data.playbackStartedAt);
+  if (!Number.isFinite(startedAt)) return false;
+  const nowMs = Number.isFinite(Number(data.nowMs)) ? Number(data.nowMs) : Date.now();
+  const staleMs = Number.isFinite(Number(data.stalePlaybackTimeoutMs))
+    ? Math.max(1, Math.trunc(Number(data.stalePlaybackTimeoutMs)))
+    : getPlaybackStaleMs(data);
+  return (nowMs - startedAt) > staleMs;
+}
+
+function shouldReleaseUnclaimedSnapshotPlayback(input: any): boolean {
+  const data = (input && typeof input === 'object') ? input : {};
+  if (data.hasPlaybackEvents !== true) return false;
+  if (
+    data.playbackActive === true
+    && data.playbackRunning === true
+    && Number.isFinite(Number(data.playbackStartedAt))
+  ) {
+    return false;
+  }
+  const queueState = data.queueState || {};
+  if (queueState.hasPending === true) return false;
+  return data.playbackRunning !== true;
+}
+
+function shouldClearUndrainedSnapshotPlaybackQueues(input: any): boolean {
+  const data = (input && typeof input === 'object') ? input : {};
+  if (data.clearUndrainedPlayback !== true) return false;
+  if (data.hasPlaybackEvents !== true) return false;
+  if (data.force === true) return false;
+  if (data.boardUpdateRequested !== true) return false;
+  if (
+    data.playbackActive === true
+    && data.playbackRunning === true
+    && Number.isFinite(Number(data.playbackStartedAt))
+  ) {
+    return false;
+  }
+  if (data.playbackRunning === true) return false;
+
+  const queueState = data.queueState || {};
+  if (queueState.hasPending !== true) return false;
+  const entries = Array.isArray(queueState.entries)
+    ? queueState.entries
+    : getPresentationQueueEntries(data.cardState);
+  if (entries.length === 0) return false;
+  return entries.every((entry: any) => entry && entry.type === 'PLAYBACK_EVENTS');
+}
+
+function decideSnapshotPlaybackSettlement(input: any): any {
+  const data = (input && typeof input === 'object') ? input : {};
+  const keepBusy = data.shouldKeepBusy === true || data.hasPlaybackEvents === true;
+  if (shouldClearUndrainedSnapshotPlaybackQueues(data)) {
+    return createSnapshotPlaybackSettlementDecision({
+      clearPlaybackLock: true,
+      clearTransientPresentationQueues: true,
+      keepBusy,
+      reason: 'undrained_playback_queue'
+    });
+  }
+  if (data.releaseUnclaimedPlayback === true && shouldReleaseUnclaimedSnapshotPlayback(data)) {
+    return createSnapshotPlaybackSettlementDecision({
+      clearPlaybackLock: true,
+      keepBusy,
+      reason: 'unclaimed_playback'
+    });
+  }
+  if (shouldReleaseRestoredSnapshotQueueBusyState(data)) {
+    return createSnapshotPlaybackSettlementDecision({
+      clearTransientPresentationQueues: true,
+      setBusyFalse: true,
+      keepBusy: false,
+      reason: 'restored_queue_busy_released'
+    });
+  }
+  if (shouldReleaseStaleSnapshotPlaybackLock(data)) {
+    return createSnapshotPlaybackSettlementDecision({
+      clearPlaybackLock: true,
+      keepBusy: false,
+      reason: 'stale_playback_lock'
+    });
+  }
+  return createSnapshotPlaybackSettlementDecision({ keepBusy });
+}
+
+function resolveSnapshotPlaybackSettlement(input?: any): any {
+  const opts = (input && typeof input === 'object') ? input : {};
+  const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+  const presentationState = opts.presentationState || {};
+  const queueState = getPresentationQueueState(opts.cardState);
+  const playbackRunning = isSnapshotPlaybackEngineRunning(opts);
+  const restoredQueues = presentationState.restoredPreservedQueues === true;
+  const shouldKeepBusy = presentationState.shouldKeepBusy === true || playbackEvents.length > 0;
+  return decideSnapshotPlaybackSettlement({
+    hasPlaybackEvents: playbackEvents.length > 0,
+    restoredQueues,
+    restoredQueueSignature: presentationState.restoredQueueSignature || null,
+    queueState,
+    cardState: opts.cardState,
+    playbackRunning,
+    playbackActive: getPlaybackActive(),
+    playbackStartedAt: getPlaybackStartedAt(),
+    releaseUnclaimedPlayback: opts.releaseUnclaimedPlayback === true,
+    clearUndrainedPlayback: opts.clearUndrainedPlayback === true,
+    boardUpdateRequested: opts.boardUpdateRequested === true,
+    shouldKeepBusy,
+    busyStateBeforeSnapshot: opts.busyStateBeforeSnapshot || null,
+    force: opts.force === true,
+    stalePlaybackTimeoutMs: opts.stalePlaybackTimeoutMs,
+    nowMs: opts.nowMs,
+    root: opts.root,
+    animationEngine: opts.animationEngine
+  });
+}
+
 function hasPendingVisualPlayback(source?: any): boolean {
   return getPresentationQueueState(source).hasVisualPlayback === true;
 }
@@ -922,6 +1103,7 @@ function getRuntimePlaybackState(): any {
     getPresentationQueueEntries,
     hasPendingPresentationEvents,
     hasPendingVisualPlayback,
+    resolveSnapshotPlaybackSettlement,
     waitForVisualPlaybackDrain,
     shouldDeferBoardUpdate,
     shouldDeferUiSync,
@@ -987,6 +1169,7 @@ const PlaybackStateManager = {
   getPresentationQueueEntries,
   hasPendingPresentationEvents,
   hasPendingVisualPlayback,
+  resolveSnapshotPlaybackSettlement,
   waitForVisualPlaybackDrain,
   shouldDeferBoardUpdate,
   shouldDeferUiSync,

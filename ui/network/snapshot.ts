@@ -43,6 +43,7 @@ function createNetworkSnapshotController(config: any): any {
         : null;
     const snapshotCanonicalModule = resolveNetworkSnapshotModuleOrNull('./snapshot-canonical', 'NetworkSnapshotCanonicalModule');
     const snapshotPresentationModule = resolveNetworkSnapshotModuleOrNull('./snapshot-presentation', 'NetworkSnapshotPresentationModule');
+    const playbackStateManagerModule = resolveNetworkSnapshotModuleOrNull('../playback-state-manager', 'PlaybackStateManager');
 
     if (!snapshotCanonicalModule || typeof snapshotCanonicalModule.inspectAuthoritativeSnapshot !== 'function') {
         throw new Error('NetworkSnapshotCanonicalModule is required before ui/network/snapshot.js');
@@ -614,50 +615,48 @@ function createNetworkSnapshotController(config: any): any {
         return snapshotPresentationModule.reconcilePresentationQueues(cardStateRef, options);
     }
 
-    function shouldReleaseRestoredQueueBusyState(cardStateRef: any, presentationState: any, busyStateBeforeSnapshot: any): boolean {
-        return snapshotPresentationModule.shouldReleaseRestoredQueueBusyState({
-            cardStateRef,
-            presentationState,
-            busyStateBeforeSnapshot,
-            isPlaybackEngineRunning,
-            isVisualPlaybackActive,
-            cloneData
-        });
+    function createDefaultSnapshotPlaybackSettlement(): any {
+        return {
+            clearPlaybackLock: false,
+            clearTransientPresentationQueues: false,
+            setBusyFalse: false,
+            keepBusy: false,
+            reason: null
+        };
     }
 
-    function shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef: any, presentationState: any): boolean {
-        return snapshotPresentationModule.shouldReleaseStalePlaybackLockAfterSnapshot({
-            cardStateRef,
-            presentationState,
-            isVisualPlaybackActive,
-            isPlaybackEngineRunning,
-            getPlaybackStartedAt,
-            stalePlaybackTimeoutMs: getStalePlaybackTimeoutMs(),
-            cloneData
-        });
-    }
-
-    function shouldReleaseUnclaimedPlaybackBusyState(cardStateRef: any, playbackEvents: any[]): boolean {
-        return snapshotPresentationModule.shouldReleaseUnclaimedPlaybackBusyState({
-            cardStateRef,
-            playbackEvents,
-            isVisualPlaybackActive,
-            isPlaybackEngineRunning,
-            getPlaybackStartedAt,
-            cloneData
-        });
-    }
-
-    function shouldClearUndrainedPlaybackQueues(cardStateRef: any, playbackEvents: any[], options: any): boolean {
-        return snapshotPresentationModule.shouldClearUndrainedPlaybackQueues({
-            cardStateRef,
-            playbackEvents,
-            force: options && options.force === true,
-            isVisualPlaybackActive,
-            isPlaybackEngineRunning,
-            getPlaybackStartedAt,
-            cloneData
-        });
+    function resolveSnapshotPlaybackSettlement(cardStateRef: any, details: any, refreshState: any, opts: any): any {
+        const playbackState = resolvePlaybackStateModule();
+        const settlementOwner = (
+            playbackState
+            && typeof playbackState.resolveSnapshotPlaybackSettlement === 'function'
+        )
+            ? playbackState
+            : (
+                playbackStateManagerModule
+                && typeof playbackStateManagerModule.resolveSnapshotPlaybackSettlement === 'function'
+                    ? playbackStateManagerModule
+                    : null
+            );
+        if (!settlementOwner) return createDefaultSnapshotPlaybackSettlement();
+        try {
+            return settlementOwner.resolveSnapshotPlaybackSettlement({
+                cardState: cardStateRef,
+                playbackEvents: Array.isArray(details && details.playbackEvents) ? details.playbackEvents : [],
+                presentationState: details && details.presentationState ? details.presentationState : {},
+                busyStateBeforeSnapshot: details && details.busyStateBeforeSnapshot ? details.busyStateBeforeSnapshot : null,
+                releaseUnclaimedPlayback: opts && opts.releaseUnclaimedPlayback === true,
+                clearUndrainedPlayback: opts && opts.clearUndrainedPlayback === true,
+                boardUpdateRequested: refreshState && refreshState.boardUpdateRequested === true,
+                force: opts && opts.force === true,
+                stalePlaybackTimeoutMs: getStalePlaybackTimeoutMs()
+            }) || createDefaultSnapshotPlaybackSettlement();
+        } catch (e) {
+            emitTelemetry('snapshot_playback_settlement_failed', {
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+            return createDefaultSnapshotPlaybackSettlement();
+        }
     }
 
     function hasPendingPlaybackOrPresentation(): boolean {
@@ -1036,17 +1035,16 @@ function createNetworkSnapshotController(config: any): any {
 
         if (shouldEmitShadowPlayback) {
             clearTransientPresentationQueues(cardStateRef);
-        } else if (opts.clearUndrainedPlayback === true && refreshState && refreshState.boardUpdateRequested === true && shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, opts)) {
-            clearTransientPresentationQueues(cardStateRef);
-            clearBusyStateAndPlaybackLock();
-        } else if (opts.releaseUnclaimedPlayback === true && shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents)) {
-            clearBusyStateAndPlaybackLock();
-        } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
-            clearTransientPresentationQueues(cardStateRef);
-            setBusyState(false);
-        }
-        if (shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState)) {
-            clearBusyStateAndPlaybackLock();
+        } else {
+            const settlement = resolveSnapshotPlaybackSettlement(cardStateRef, details, refreshState, opts);
+            if (settlement.clearTransientPresentationQueues === true) {
+                clearTransientPresentationQueues(cardStateRef);
+            }
+            if (settlement.clearPlaybackLock === true) {
+                clearBusyStateAndPlaybackLock();
+            } else if (settlement.setBusyFalse === true) {
+                setBusyState(false);
+            }
         }
     }
 

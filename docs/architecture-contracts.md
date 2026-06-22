@@ -199,7 +199,7 @@ The browser keeps two state lanes:
 - canonical state: latest accepted server snapshot, used for authority, validation, result state, and reconnect truth
 - visual state: render-facing state, advanced only after each contiguous presentation frame finishes playback
 
-`ui/network/presentation-timeline.ts` owns visual cursor order. `ui/network/visual-state-store.ts` owns render-facing state selection. `ui/network/snapshot.ts` owns canonical snapshot application and must not directly skip strict network playback when presentation frames are available.
+`ui/network/presentation-timeline.ts` owns visual cursor order. `ui/network/visual-state-store.ts` owns render-facing state selection. `ui/network/snapshot.ts` owns canonical snapshot application and must not directly skip strict network playback when presentation frames are available. `ui/network/snapshot-presentation.ts` owns only transient presentation queue capture / restore / reconciliation helpers; playback-lock and busy-state settlement policy belongs to `ui/playback-state-manager.ts`.
 
 ### 6.5 Board effect blocks
 
@@ -300,6 +300,7 @@ Network playback must keep these ownership boundaries explicit:
 
 - snapshot application owns canonical state replacement
 - playback queue ownership owns animation sequencing and settlement only
+- `ui/network/snapshot.ts` may ask playback state for a settlement decision after canonical application, but it should only apply that decision through existing UI-state writers; it must not own duplicate stale-lock, restored-queue, or unclaimed-playback policy
 - local busy flags (`isProcessing`, card-animation locks, playback locks, and related guards) are UI settlement state, not authority state
 - compatibility paths such as suppressed playback or shadow playback may exist for self-originated preview/recovery flows, but they remain noncanonical and must not block canonical convergence once the same authoritative state has landed
 - if both clients have converged on the same authoritative snapshot and no further presentation work is pending, local busy state must be releasable on both clients
