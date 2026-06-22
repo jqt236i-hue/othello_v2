@@ -245,7 +245,8 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     if (hasSpecialOrBomb) return result;
 
     if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {
-        boardOpsInstance.changeAt(cardState, gameState, row, col, playerKey, 'SWAP', 'swap_with_enemy');
+        const changeResult = boardOpsInstance.changeAt(cardState, gameState, row, col, playerKey, 'SWAP', 'swap_with_enemy');
+        if (!changeResult || changeResult.changed !== true) return result;
     } else {
         if (!setCellValue(gameState, row, col, player)) return result;
     }

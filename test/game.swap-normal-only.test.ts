@@ -84,6 +84,29 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     ]));
   });
 
+  test('applySwapEffect rejects enemy manifest-protected target when board mutation is blocked', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[4][5] = -1;
+    cardState.pendingEffectByPlayer.black = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' };
+    cardState.markers.push({
+      id: 23,
+      kind: 'manifestStone',
+      row: 4,
+      col: 5,
+      owner: 'white',
+      data: { type: 'BOARD_EXECUTOR', absoluteProtected: true, remainingOwnerTurns: 4 }
+    });
+
+    expect(CardLogic.getSwapTargets(cardState, gameState, 'black')).not.toEqual(expect.arrayContaining([{ row: 4, col: 5 }]));
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 4, 5);
+
+    expect(ok).toBe(false);
+    expect(gameState.board[4][5]).toBe(-1);
+    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'SWAP_WITH_ENEMY' }));
+    expect(cardState.charge.black).toBe(0);
+  });
+
   test('applyCardUsage arms SWAP_WITH_ENEMY when an enemy normal stone exists', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['swap_01'];
@@ -137,6 +160,30 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(gameState.board[4][4]).toBe(1);
     expect(gameState.board[4][3]).toBe(-1);
     // swap 本体のみ
+    expect(cardState.charge.black).toBe(1);
+  });
+
+  test('applySwapEffect does not count manifest-protected bracket stones as flipped', () => {
+    const { cardState, gameState } = makeState();
+    // row 4: B W(manifest protected) W(target) B
+    gameState.board[4][2] = 1;
+    gameState.board[4][3] = -1;
+    gameState.board[4][4] = -1;
+    gameState.board[4][5] = 1;
+    cardState.markers.push({
+      id: 24,
+      kind: 'manifestStone',
+      row: 4,
+      col: 3,
+      owner: 'white',
+      data: { type: 'BOARD_EXECUTOR', absoluteProtected: true, remainingOwnerTurns: 4 }
+    });
+
+    const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 4, 4);
+
+    expect(ok).toBe(true);
+    expect(gameState.board[4][4]).toBe(1);
+    expect(gameState.board[4][3]).toBe(-1);
     expect(cardState.charge.black).toBe(1);
   });
 
