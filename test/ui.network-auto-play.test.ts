@@ -182,6 +182,41 @@ describe('NetworkAutoPlay', () => {
     });
   });
 
+  test('publishes a CPU-selected card before placing when legal moves exist', async () => {
+    const root = createRoot({
+      selectCardToUse: jest.fn().mockReturnValue({
+        cardId: 'work_01',
+        cardDef: { type: 'WORK_WILL', name: '労働' }
+      }),
+      computeCpuAction: jest.fn().mockReturnValue({
+        type: 'move',
+        move: { row: 4, col: 5 }
+      }),
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(true)
+      }
+    });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const result = await controller.tick();
+
+    expect(result.handled).toBe(true);
+    expect(result.published).toBe(true);
+    expect(root.selectCardToUse).toHaveBeenCalledWith('black');
+    expect(root.selectCpuMoveWithPolicy).not.toHaveBeenCalled();
+    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
+      playerKey: 'black',
+      actionType: 'use_card',
+      action: {
+        type: 'use_card',
+        playerKey: 'black',
+        useCardId: 'work_01',
+        useCardOwnerKey: 'black'
+      },
+      playbackEvents: []
+    });
+  });
+
   test('publishes a pending target selection instead of stalling', async () => {
     const root = createRoot({
       cardState: {

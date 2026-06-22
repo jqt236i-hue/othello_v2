@@ -56,6 +56,45 @@ describe('CpuNetworkCommandPlanner', () => {
     });
   });
 
+  test('prioritizes a CPU-selected card before placing a legal move', () => {
+    const input = createInput({
+      getLegalMoves: jest.fn().mockReturnValue([{ row: 2, col: 3 }]),
+      selectCpuMoveWithPolicy: jest.fn().mockReturnValue({ row: 2, col: 3 }),
+      selectCardToUse: jest.fn().mockReturnValue({ cardId: 'work_01' }),
+      computeCpuAction: jest.fn().mockReturnValue({ type: 'move', move: { row: 2, col: 3 } }),
+      CardLogic: { hasUsableCard: jest.fn().mockReturnValue(true) }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toEqual({
+      actionType: 'use_card',
+      action: {
+        type: 'use_card',
+        playerKey: 'black',
+        useCardId: 'work_01',
+        useCardOwnerKey: 'black'
+      }
+    });
+    expect(input.selectCpuMoveWithPolicy).not.toHaveBeenCalled();
+  });
+
+  test('does not fallback to the first card while a legal move exists', () => {
+    const input = createInput({
+      getLegalMoves: jest.fn().mockReturnValue([{ row: 2, col: 3 }]),
+      selectCpuMoveWithPolicy: jest.fn().mockReturnValue({ row: 2, col: 3 }),
+      selectCardToUse: jest.fn().mockReturnValue(null),
+      computeCpuAction: jest.fn().mockReturnValue({ type: 'move', move: { row: 2, col: 3 } }),
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(true),
+        getUsableCardIds: jest.fn().mockReturnValue(['work_01'])
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toEqual({
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3 }
+    });
+  });
+
   test('falls back to the first usable card when CPU card decision declines to use one', () => {
     const input = createInput({
       cardState: {

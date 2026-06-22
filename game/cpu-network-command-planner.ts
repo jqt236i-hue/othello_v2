@@ -184,24 +184,27 @@ function getUsableCardIds(input: PlannerInput, playerKey: string): string[] {
 
 function resolveCardDecision(input: PlannerInput, playerKey: string): any {
   try {
-    if (typeof input.computeCpuAction === 'function') return input.computeCpuAction(playerKey);
-  } catch (e) { /* fall through */ }
-  try {
     if (typeof input.selectCardToUse === 'function') {
       const selected = input.selectCardToUse(playerKey);
-      if (selected && selected.cardId) return { type: 'useCard', cardId: selected.cardId };
+      if (selected && selected.cardId) {
+        return { type: 'useCard', cardId: selected.cardId, cardDef: selected.cardDef };
+      }
     }
+  } catch (e) { /* fall through */ }
+  try {
+    if (typeof input.computeCpuAction === 'function') return input.computeCpuAction(playerKey);
   } catch (e) { /* fall through */ }
   return null;
 }
 
-function planCardUse(input: PlannerInput, playerKey: string): any {
+function planCardUse(input: PlannerInput, playerKey: string, options?: { allowFallback?: boolean }): any {
   if (!hasUsableCard(input, playerKey)) return null;
   const decision = resolveCardDecision(input, playerKey);
   const type = String(decision && (decision.type || decision.actionType) || '').trim();
   let cardId = String(decision && (decision.cardId || decision.useCardId) || '').trim();
+  const allowFallback = !options || options.allowFallback !== false;
   if ((type !== 'useCard' && type !== 'use_card') || !cardId) {
-    cardId = getUsableCardIds(input, playerKey)[0] || '';
+    cardId = allowFallback ? (getUsableCardIds(input, playerKey)[0] || '') : '';
   }
   if (!cardId) return null;
   return {
@@ -323,6 +326,8 @@ function planCpuNetworkCommand(inputValue: PlannerInput): any {
   const unresolvedPendingType = normalizePendingType(unresolvedPending && unresolvedPending.type);
   const pending = planPendingSelection(input, playerKey);
   if (pending) return pending;
+  const selectedCard = planCardUse(input, playerKey, { allowFallback: false });
+  if (selectedCard) return selectedCard;
   const moves = getLegalMoves(input, playerKey, unresolvedPendingType);
   if (moves.length > 0) return createPlaceAction(selectMove(input, moves, playerKey));
   const card = planCardUse(input, playerKey);
