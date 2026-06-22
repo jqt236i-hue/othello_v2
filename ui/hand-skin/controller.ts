@@ -126,11 +126,6 @@ function resolveUIBootstrapModule(rootRef: any): any {
       return (globalThis as any).UIBootstrap;
     }
   } catch (e) { /* ignore */ }
-  if (typeof _require === 'function') {
-    try {
-      return _require('../bootstrap.js');
-    } catch (e) { /* ignore */ }
-  }
   return null;
 }
 

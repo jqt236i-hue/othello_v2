@@ -35,7 +35,7 @@ function _resolveCardRendererModule(requirePath: string, globalKey: string): any
 
 let PlaybackStateModule: any = _resolveCardRendererModule('../ui/playback-state-manager', 'PlaybackStateManager');
 let OwnerHelpersModule: any = _resolveCardRendererModule('../utils/owner-helpers', 'OwnerHelpers');
-let HandAnimationUtilsModule: any = _resolveCardRendererModule('../ui/animation-utils', 'HandAnimationUtilsModule');
+let HandFadeStateModule: any = _resolveCardRendererModule('../ui/hand-animation/fade-state', 'HandFadeStateModule');
 let PlayerSlotElementsModule: any = _resolveCardRendererModule('../ui/player-slot-elements', 'PlayerSlotElements');
 let CardLogicModule: any = _resolveCardRendererModule('../game/logic/cards', 'CardLogic');
 let SpecialCardRegistryModule: any = _resolveCardRendererModule('../shared/special-card-registry', 'SpecialCardRegistry');
@@ -1337,19 +1337,6 @@ function _canReuseHandCardElement(cardEl: any, desiredKind: any, cardId: any, ow
 }
 function _refreshDebugHandLayoutIfNeeded() {
     try {
-        if (typeof require === 'function') {
-            const uiBootstrap = require('../ui/bootstrap');
-            if (uiBootstrap && typeof uiBootstrap.getRegisteredUIGlobals === 'function') {
-                const globals = uiBootstrap.getRegisteredUIGlobals() || {};
-                if (typeof globals.refreshDebugHandLayout === 'function') {
-                    globals.refreshDebugHandLayout();
-                    return;
-                }
-            }
-        }
-    }
-    catch (e) { /* ignore */ }
-    try {
         if (typeof window !== 'undefined' && typeof window.refreshDebugHandLayout === 'function') {
             window.refreshDebugHandLayout();
         }
@@ -1780,8 +1767,8 @@ function renderCardUI() {
     const pending = cardState.pendingEffectByPlayer[pendingOwnerKey];
     const canInteract = !isAnimating || staleVisualPlaybackLock || isDebugUnlimited;
     const timeStopStatus = _resolveTimeStopStatusForRender(cardState, inputPlayerKey, gameState);
-    const fadeState = (HandAnimationUtilsModule && typeof HandAnimationUtilsModule.getQueuedHandFadeInState === 'function')
-        ? HandAnimationUtilsModule.getQueuedHandFadeInState()
+    const fadeState = (HandFadeStateModule && typeof HandFadeStateModule.getQueuedHandFadeInState === 'function')
+        ? HandFadeStateModule.getQueuedHandFadeInState()
         : ((typeof window !== 'undefined')
             ? (window.__handFadeInState || window.__handFadeInHint || null)
             : null);

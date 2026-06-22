@@ -23,17 +23,7 @@ const EXCLUDED_DIR_NAMES = new Set([
 ]);
 const MODULE_LOADER_CALLEES = new Set(['require', '_require']);
 
-const EXPECTED_CYCLIC_COMPONENTS = [
-  [
-    'cards/card-renderer.ts',
-    'ui/animation-utils.ts',
-    'ui/bootstrap.js',
-    'ui/bootstrap.ts',
-    'ui/hand-skin/controller.js',
-    'ui/hand-skin/controller.ts',
-    'ui/handlers/hand-skin.ts'
-  ]
-];
+const EXPECTED_CYCLIC_COMPONENTS: string[][] = [];
 
 function toPosixPath(filePath: string): string {
   return filePath.replace(/\\/g, '/');

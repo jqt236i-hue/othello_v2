@@ -59,6 +59,8 @@ try { __player_slot_elements_utils = (typeof require === 'function') ? require('
 let __element_cache_utils: any = null;
 try { __element_cache_utils = (typeof require === 'function') ? require('./element-cache') : (typeof globalThis !== 'undefined' ? (globalThis as any).ElementCacheModule : null); } catch (e: any) { __element_cache_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).ElementCacheModule : null); }
 let __hand_skin_utils: any = null;
+let __hand_fade_state_utils: any = null;
+try { __hand_fade_state_utils = (typeof require === 'function') ? require('./hand-animation/fade-state') : (typeof globalThis !== 'undefined' ? (globalThis as any).HandFadeStateModule : null); } catch (e: any) { __hand_fade_state_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).HandFadeStateModule : null); }
 let __hand_animation_preferences_utils: any = null;
 try { __hand_animation_preferences_utils = (typeof require === 'function') ? require('./hand-animation-preferences.js') : (typeof globalThis !== 'undefined' ? (globalThis as any).HandAnimationPreferencesModule : null); } catch (e: any) { __hand_animation_preferences_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).HandAnimationPreferencesModule : null); }
 function _getOwnerHelpers() {
@@ -1005,36 +1007,18 @@ function _settleHandFadeInVisualState(cardEl: any) {
     cardEl.style.removeProperty('--card-fade-in-duration');
 }
 
-function _normalizeQueuedHandFadeInState(fadeState: any) {
-    if (!fadeState || typeof fadeState !== 'object') return null;
-    const token = typeof fadeState.token === 'string' && fadeState.token.trim()
-        ? fadeState.token
-        : null;
-    if (!token) return null;
-    return {
-        playerKey: _normalizeHandOwnerKey(fadeState.playerKey),
-        count: Number.isFinite(fadeState.count) ? Math.max(0, Math.trunc(fadeState.count)) : 0,
-        token
-    };
-}
-
 function getQueuedHandFadeInState() {
-    try {
-        if (typeof window === 'undefined') return null;
-        return _normalizeQueuedHandFadeInState(window.__handFadeInState || window.__handFadeInHint || null);
-    } catch (e: any) {
-        return null;
+    if (__hand_fade_state_utils && typeof __hand_fade_state_utils.getQueuedHandFadeInState === 'function') {
+        return __hand_fade_state_utils.getQueuedHandFadeInState(typeof window !== 'undefined' ? window : null);
     }
+    return null;
 }
 
 function _setQueuedHandFadeInState(fadeState: any) {
-    const nextState = _normalizeQueuedHandFadeInState(fadeState);
-    try {
-        if (typeof window === 'undefined') return nextState;
-        window.__handFadeInState = nextState;
-        window.__handFadeInHint = nextState;
-    } catch (e: any) { /* ignore */ }
-    return nextState;
+    if (__hand_fade_state_utils && typeof __hand_fade_state_utils.setQueuedHandFadeInState === 'function') {
+        return __hand_fade_state_utils.setQueuedHandFadeInState(fadeState, typeof window !== 'undefined' ? window : null);
+    }
+    return null;
 }
 
 function _armHandFadeInVisualCleanup(cardEl: any) {
@@ -1079,28 +1063,9 @@ function _armHandFadeInVisualCleanup(cardEl: any) {
 }
 
 function _clearHandFadeInState(criteria: any) {
-    const token = (criteria && typeof criteria === 'object')
-        ? (typeof criteria.token === 'string' ? criteria.token : null)
-        : (typeof criteria === 'string' ? criteria : null);
-    const ownerKey = (criteria && typeof criteria === 'object' && typeof criteria.ownerKey !== 'undefined' && criteria.ownerKey !== null)
-        ? _normalizeHandOwnerKey(criteria.ownerKey)
-        : null;
-    try {
-        if (typeof window === 'undefined') return;
-        const activeState = getQueuedHandFadeInState();
-        const activeHint = _normalizeQueuedHandFadeInState(window.__handFadeInHint || null);
-        const shouldClearAll = !token && !ownerKey;
-        if (shouldClearAll
-            || (activeState && token && activeState.token === token)
-            || (activeState && ownerKey && activeState.playerKey === ownerKey)) {
-            window.__handFadeInState = null;
-        }
-        if (shouldClearAll
-            || (activeHint && token && activeHint.token === token)
-            || (activeHint && ownerKey && activeHint.playerKey === ownerKey)) {
-            window.__handFadeInHint = null;
-        }
-    } catch (e: any) { /* ignore */ }
+    if (__hand_fade_state_utils && typeof __hand_fade_state_utils.clearQueuedHandFadeInState === 'function') {
+        __hand_fade_state_utils.clearQueuedHandFadeInState(criteria, typeof window !== 'undefined' ? window : null);
+    }
 }
 
 function _applyQueuedHandFadeIn(fadeState: any, payload: any) {
