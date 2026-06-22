@@ -35,6 +35,13 @@ const MatchModeLeaderboardStylesModule = (() => {
         return null;
     }
 })();
+const MatchModeNetworkClipboardModule = (() => {
+    try {
+        return _require('./match-mode/network-clipboard');
+    } catch (e) {
+        return null;
+    }
+})();
 
 const MODE_CPU = 'cpu';
 const MODE_REVERSI = 'reversi';
@@ -2537,39 +2544,10 @@ const MODE_OTHELLO = 'othello';
 
     function bindNetworkButtons() {
         const copyTextToClipboard = async (value: any) => {
-            const text = String(value || '');
-            if (!text) return false;
-
-            try {
-                if (root.navigator && root.navigator.clipboard && typeof root.navigator.clipboard.writeText === 'function') {
-                    await root.navigator.clipboard.writeText(text);
-                    return true;
-                }
-            } catch (e) { /* ignore and fall back */ }
-
-            try {
-                if (!document || !document.body || typeof document.createElement !== 'function') {
-                    return false;
-                }
-                const hidden = document.createElement('textarea');
-                hidden.value = text;
-                hidden.setAttribute('readonly', 'readonly');
-                hidden.style.position = 'fixed';
-                hidden.style.left = '-9999px';
-                hidden.style.top = '0';
-                hidden.style.opacity = '0';
-                document.body.appendChild(hidden);
-                hidden.focus();
-                hidden.select();
-                if (typeof hidden.setSelectionRange === 'function') {
-                    hidden.setSelectionRange(0, hidden.value.length);
-                }
-                const copied = (typeof document.execCommand === 'function') ? document.execCommand('copy') : false;
-                document.body.removeChild(hidden);
-                return copied === true;
-            } catch (e) {
-                return false;
+            if (MatchModeNetworkClipboardModule && typeof MatchModeNetworkClipboardModule.copyTextToClipboard === 'function') {
+                return MatchModeNetworkClipboardModule.copyTextToClipboard(root, typeof document !== 'undefined' ? document : null, value);
             }
+            return false;
         };
 
         const sendChatMessage = async () => {
