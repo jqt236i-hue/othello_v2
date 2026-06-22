@@ -1,0 +1,101 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import * as vm from 'vm';
+
+type BootLoadEntry = {
+  moduleKey: string;
+  globalNames?: string[];
+  defaultGlobalNames?: string[];
+  initDebugCardSearch?: boolean;
+};
+
+function readEntryBrowserText(): string {
+  return fs.readFileSync(path.resolve(__dirname, '..', 'entry-browser.js'), 'utf8');
+}
+
+function extractBootLoadEntries(text: string): BootLoadEntry[] {
+  const tableMatch = text.match(/var BOOT_LOAD_ENTRIES = (\[[\s\S]*?\]);/);
+  if (tableMatch) {
+    const context: any = {};
+    vm.runInNewContext(`entries = ${tableMatch[1]};`, context);
+    return context.entries;
+  }
+
+  const start = text.indexOf('var gameState;');
+  const end = text.indexOf('// ===== Namespace globals for module resolution =====');
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const bootSection = text.slice(start, end);
+  const blockRe = /\/\/ ([^\r\n]+)\r?\ntry \{\r?\n([\s\S]*?)\r?\n\} catch \(e\) \{\r?\n\s*handleBootModuleError\("([^"]+)", e\);\r?\n\}/g;
+  const entriesByVariable = new Map<string, BootLoadEntry>();
+  const entries: BootLoadEntry[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = blockRe.exec(bootSection)) !== null) {
+    const body = match[2];
+    const requireMatch = body.match(/var\s+([A-Za-z0-9_$]+)\s*=\s*require\("([^"]+)"\);/);
+    if (!requireMatch) continue;
+    const variableName = requireMatch[1];
+    const entry: BootLoadEntry = { moduleKey: requireMatch[2] };
+    const globalNames: string[] = [];
+    const defaultGlobalNames: string[] = [];
+    const directGlobalRe = new RegExp(`window\\.([A-Za-z0-9_$]+)\\s*=\\s*${variableName}\\s*;`, 'g');
+    const defaultGlobalRe = new RegExp(`window\\.([A-Za-z0-9_$]+)\\s*=\\s*${variableName}\\.default\\s*;`, 'g');
+    let globalMatch: RegExpExecArray | null;
+    while ((globalMatch = directGlobalRe.exec(body)) !== null) globalNames.push(globalMatch[1]);
+    while ((globalMatch = defaultGlobalRe.exec(body)) !== null) defaultGlobalNames.push(globalMatch[1]);
+    if (body.includes(`${variableName}.initDebugCardSearch()`)) entry.initDebugCardSearch = true;
+    if (globalNames.length > 0) entry.globalNames = globalNames;
+    if (defaultGlobalNames.length > 0) entry.defaultGlobalNames = defaultGlobalNames;
+    entriesByVariable.set(variableName, entry);
+    entries.push(entry);
+  }
+
+  const directAssignmentRe = /if \(typeof ([A-Za-z0-9_$]+) !== "undefined" && \1\) window\.([A-Za-z0-9_$]+) = \1;/g;
+  while ((match = directAssignmentRe.exec(text)) !== null) {
+    const entry = entriesByVariable.get(match[1]);
+    if (!entry) continue;
+    const names = entry.globalNames || [];
+    if (!names.includes(match[2])) names.push(match[2]);
+    entry.globalNames = names;
+  }
+
+  return entries;
+}
+
+describe('entry-browser boot load table sequence', () => {
+  test('preserves classic boot module order and duplicate compatibility loads', () => {
+    const entries = extractBootLoadEntries(readEntryBrowserText());
+    expect(entries.slice(0, 12).map((entry) => entry.moduleKey)).toEqual([
+      './dist/ui/layout-stage',
+      './dist/is-env-capable',
+      './dist/constants/difficulty-constants',
+      './dist/constants/ui-element-cache',
+      './dist/constants/animation-constants',
+      './dist/cards/catalog',
+      './dist/shared-constants',
+      './dist/shared/shared-board-utils',
+      './dist/shared/deck-spec',
+      './dist/shared/deck-codec',
+      './dist/shared/destroy-outcome-contract',
+      './dist/shared/manifest-stone-registry'
+    ]);
+    expect(entries.filter((entry) => entry.moduleKey === './dist/shared/shared-board-utils')).toHaveLength(2);
+    expect(entries[entries.length - 1].moduleKey).toBe('./dist/ui/event-handlers');
+  });
+
+  test('preserves boot namespace globals that Object.assign cannot create', () => {
+    const entries = extractBootLoadEntries(readEntryBrowserText());
+    const byModule = new Map(entries.map((entry) => [entry.moduleKey, entry]));
+    expect(byModule.get('./dist/cards/catalog')?.globalNames).toContain('CardCatalog');
+    expect(byModule.get('./dist/game/logic/board_ops')?.globalNames).toContain('BoardOps');
+    expect(byModule.get('./dist/game/logic/core')?.globalNames).toEqual(expect.arrayContaining(['CoreLogic', 'Core']));
+    expect(byModule.get('./dist/game/logic/cards')?.globalNames).toContain('CardLogic');
+    expect(byModule.get('./dist/ui/animation-engine')?.globalNames).toContain('AnimationEngine');
+    expect(byModule.get('./dist/ui/animation-utils')?.globalNames).toContain('AnimationUtils');
+    expect(byModule.get('./dist/cards/card-renderer')?.globalNames).toContain('HandAnimationUtilsModule');
+    expect(byModule.get('./dist/sound-engine')?.defaultGlobalNames).toContain('SoundEngine');
+    expect(byModule.get('./dist/ui/debug-card-search')?.globalNames).toContain('DebugCardSearchModule');
+    expect(byModule.get('./dist/ui/debug-card-search')?.initDebugCardSearch).toBe(true);
+  });
+});
