@@ -235,8 +235,6 @@
     position: absolute;
     pointer-events: none;
     background-repeat: no-repeat;
-    background-position: center;
-    background-size: 100% 100%;
     z-index: 0;
 }
 
@@ -248,12 +246,15 @@
         var(--layout-size-ui-gap) +
         calc(22px * var(--layout-stage-scale))
     );
-    --card-area-panel-height: calc(var(--layout-size-hand-min-height-top) + calc(76px * var(--layout-stage-scale)));
+    --card-area-panel-height: max(calc(var(--layout-size-hand-min-height-top) + calc(128px * var(--layout-stage-scale))), 34vh);
     left: calc((var(--card-area-panel-deck-width) + var(--layout-size-ui-gap) + calc(11px * var(--layout-stage-scale))) * -1);
-    top: calc(-74px * var(--layout-stage-scale));
+    top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)) - 10px);
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-edge-panel-opponent-v2.png");
+    background-image: url("assets/images/ui/card-area-table-opponent-v6.png");
+    background-position: bottom center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
     opacity: 0.76;
 }
 
@@ -265,13 +266,16 @@
         var(--layout-size-ui-gap) +
         calc(36px * var(--layout-stage-scale))
     );
-    --card-area-panel-height: calc(var(--layout-size-hand-min-height-bottom) + calc(114px * var(--layout-stage-scale)));
+    --card-area-panel-height: max(calc(var(--layout-size-hand-min-height-bottom) + calc(114px * var(--layout-stage-scale))), 38vh);
     left: calc(-18px * var(--layout-stage-scale));
     top: calc(-13px * var(--layout-stage-scale));
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-edge-panel-player-v2.png");
-    opacity: 0.82;
+    background-image: url("assets/images/ui/card-area-table-player-v6.png");
+    background-position: top center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    opacity: 0.84;
 }
 
 .hand-track {

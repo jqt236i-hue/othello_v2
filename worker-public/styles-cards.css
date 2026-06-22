@@ -1413,6 +1413,7 @@
 #deck-white.deck-stack {
     width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale) * var(--layout-opponent-deck-scale));
     height: calc(var(--layout-size-deck-height) * var(--layout-priority-deck-scale) * var(--layout-opponent-deck-scale));
+    transform: translateY(-10px);
 }
 
 #hand-black .card-item .card-cost-badge {
