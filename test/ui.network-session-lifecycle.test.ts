@@ -622,6 +622,73 @@ describe('NetworkSessionLifecycleController', () => {
       );
       expect(mockConfig.drainPresentationTimeline).toHaveBeenCalled();
     });
+
+    test('presentation journal catch-up submits frames through intake coordinator when available', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token_black';
+      stateObj.lastVisualSeq = 1;
+      stateObj.lastVisualVersion = 2;
+      mockConfig.normalizeNetworkSnapshotEnvelope = jest.fn((input) => ({
+        source: input.source,
+        operationId: null,
+        stateVersion: input.stateVersion ?? input.payload?.stateVersion ?? input.payload?.presentationCursor?.stateVersion ?? null,
+        visualSeq: input.payload?.presentationCursor?.visualSeq ?? null,
+        snapshot: Object.prototype.hasOwnProperty.call(input, 'snapshot') ? input.snapshot : input.payload?.snapshot ?? null,
+        presentationFrames: input.payload?.presentationFrames ?? [],
+        playbackEvents: [],
+        presentationCursor: input.payload?.presentationCursor ?? null,
+        force: input.force === true,
+        skipResultOverlay: false,
+        receivedAt: 1,
+        applyOptions: input.applyOptions
+      }));
+      mockConfig.submitNetworkSnapshotEnvelope = jest.fn((envelope) => ({
+        appliedSnapshot: envelope.source === 'state_sync',
+        enqueuedFrameCount: envelope.source === 'presentation_journal' ? 2 : 1,
+        requestedBoardRefresh: false
+      }));
+      mockConfig.requestJson.mockImplementation(async (method, path) => {
+        if (method === 'GET' && path.startsWith('/api/match/state')) {
+          return jsonResponse(200, {
+            ok: true,
+            stateVersion: 4,
+            snapshot: { stateVersion: 4, gameState: {}, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 4 },
+            presentationFrames: [
+              { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }] }
+            ]
+          });
+        }
+        if (method === 'GET' && path.startsWith('/api/match/presentation-journal')) {
+          return jsonResponse(200, {
+            ok: true,
+            baseVisualSeq: 1,
+            baseSnapshot: { stateVersion: 2, gameState: {}, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 4 },
+            presentationFrames: [
+              { visualSeq: 2, stateVersionFrom: 2, stateVersionTo: 3, playbackEvents: [{ type: 'event_2' }] },
+              { visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'event_3' }] }
+            ]
+          });
+        }
+        throw new Error(`unexpected request ${method} ${path}`);
+      });
+
+      await controller.syncLatestState();
+
+      expect(mockConfig.submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+        source: 'presentation_journal',
+        snapshot: null,
+        stateVersion: 4,
+        presentationFrames: expect.arrayContaining([
+          expect.objectContaining({ visualSeq: 2 }),
+          expect.objectContaining({ visualSeq: 3 })
+        ])
+      }));
+      expect(mockConfig.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
+      expect(mockConfig.drainPresentationTimeline).toHaveBeenCalled();
+    });
   });
 
   describe('syncLatestState - エラーハンドリング', () => {

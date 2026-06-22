@@ -214,7 +214,22 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
     setJournalBaseVisualSnapshot(res.data, normalizedSource);
     let enqueued = 0;
-    if (typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
+    if (
+      typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
+      && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
+    ) {
+      const envelope = cfg.normalizeNetworkSnapshotEnvelope({
+        source: 'presentation_journal',
+        payload: res.data,
+        snapshot: null,
+        stateVersion: canonicalVersion,
+        force: false
+      });
+      const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
+      enqueued = Number.isFinite(Number(intakeResult && intakeResult.enqueuedFrameCount))
+        ? Math.max(0, Math.trunc(Number(intakeResult.enqueuedFrameCount)))
+        : 0;
+    } else if (typeof cfg.enqueuePresentationFramesFromPayload === 'function') {
       enqueued = cfg.enqueuePresentationFramesFromPayload(res.data, { source: normalizedSource }) || 0;
     }
     if (typeof cfg.drainPresentationTimeline === 'function') {
