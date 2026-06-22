@@ -50,11 +50,7 @@ if (typeof require === 'function') {
 }
 const PassHandlerControllerEvents = require('./controller-events');
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
-let cpuTurnHandlerModule: any = null;
 let passHandlerRuntime: any = null;
-if (typeof require === 'function') {
-    try { cpuTurnHandlerModule = require('./cpu-turn-handler'); } catch (e) { /* ignore */ }
-}
 
 function setPassHandlerRuntime(runtime: any) {
     passHandlerRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
@@ -314,9 +310,6 @@ const WHITE_CPU_TURN_MAX_RETRIES = 2;
 function resolveCpuTurnFnForPass() {
     if (passHandlerRuntime && typeof passHandlerRuntime.processCpuTurn === 'function') {
         return passHandlerRuntime.processCpuTurn;
-    }
-    if (cpuTurnHandlerModule && typeof cpuTurnHandlerModule.processCpuTurn === 'function') {
-        return cpuTurnHandlerModule.processCpuTurn;
     }
     try {
         if (typeof processCpuTurn === 'function') return processCpuTurn;

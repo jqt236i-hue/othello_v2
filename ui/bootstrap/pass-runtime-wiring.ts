@@ -14,6 +14,21 @@ function isNetworkMatchClientSpectator(client: any): boolean {
   }
 }
 
+function createLazyProcessCpuTurn(runtimeResolvers: any): (...args: any[]) => any {
+  return function processCpuTurnFromRuntime(...args: any[]): any {
+    try {
+      const candidate = runtimeResolvers && typeof runtimeResolvers.resolveRuntimeFunction === 'function'
+        ? runtimeResolvers.resolveRuntimeFunction('processCpuTurn')
+        : null;
+      if (typeof candidate === 'function') return candidate(...args);
+      if (typeof globalThis !== 'undefined' && typeof (globalThis as any).processCpuTurn === 'function') {
+        return (globalThis as any).processCpuTurn(...args);
+      }
+    } catch (e: any) { /* ignore */ }
+    return undefined;
+  };
+}
+
 export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registeredGlobals: Record<string, any> } {
   const passHandler = deps.requireModule('../game/pass-handler');
   const passGlobals: Record<string, any> = {};
@@ -36,11 +51,9 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
   }
   try {
     if (typeof passHandler.setPassHandlerRuntime === 'function') {
-      let cpu: any = null;
       const runtimeResolvers = deps.runtimeResolvers || {};
-      try { cpu = deps.requireModule('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
       passHandler.setPassHandlerRuntime({
-        processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
+        processCpuTurn: createLazyProcessCpuTurn(runtimeResolvers),
         readMatchMode: runtimeResolvers.readMatchMode,
         readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
         readNetworkSeatKey: () => {

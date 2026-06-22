@@ -70,10 +70,6 @@ let timers: any = null;
 if (typeof require === 'function') {
     try { timers = _require('./timers'); } catch (e) { /* ignore */ }
 }
-let passHandler: any = null;
-if (typeof require === 'function') {
-    try { passHandler = _require('./pass-handler'); } catch (e) { /* ignore */ }
-}
 let moveGenerator: any = null;
 if (typeof require === 'function') {
     try { moveGenerator = _require('./move-generator'); } catch (e) { /* ignore */ }
@@ -1054,7 +1050,6 @@ function resolveProcessPassTurn() {
             return __uiImpl_cpu.processPassTurn;
         }
     } catch (e) { /* ignore */ }
-    if (passHandler && typeof passHandler.processPassTurn === 'function') return passHandler.processPassTurn;
     return null;
 }
 

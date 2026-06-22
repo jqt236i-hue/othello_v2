@@ -34,10 +34,6 @@ const EXPECTED_CYCLIC_COMPONENTS = [
     'ui/handlers/hand-skin.ts'
   ],
   [
-    'game/cpu-turn-handler.ts',
-    'game/pass-handler.ts'
-  ],
-  [
     'ui/board-renderer.ts',
     'ui/diff-renderer.ts'
   ]
