@@ -6,6 +6,65 @@ window._require = window.require;
 window.__require = window.require;
 var _require = window.require;
 
+function normalizeBootModuleKey(moduleKey) {
+  var normalized = String(moduleKey || "").trim().replace(/\\/g, "/");
+  normalized = normalized.replace(/^\.\//, "");
+  if (normalized.indexOf("dist/") === 0) normalized = normalized.slice(5);
+  normalized = normalized.replace(/\.js$/, "");
+  return normalized;
+}
+
+function formatBootModuleName(moduleKey) {
+  return String(moduleKey || "").trim().replace(/^\.\//, "").replace(/\.js$/, "");
+}
+
+function listHasBootModuleKey(list, normalizedKey) {
+  if (!Array.isArray(list)) return false;
+  return list.indexOf(normalizedKey) >= 0 || list.indexOf("dist/" + normalizedKey) >= 0;
+}
+
+function getBootModuleClass(moduleKey) {
+  var meta = window.__CARD_REVERSI_BOOT_MODULES__ || {};
+  var normalized = normalizeBootModuleKey(moduleKey);
+  if (listHasBootModuleKey(meta.required, normalized)) return "required";
+  if (listHasBootModuleKey(meta.optional, normalized)) return "optional";
+  var optionalPrefixes = Array.isArray(meta.optionalPrefixes) ? meta.optionalPrefixes : [];
+  for (var i = 0; i < optionalPrefixes.length; i += 1) {
+    var prefix = normalizeBootModuleKey(optionalPrefixes[i]);
+    if (!prefix) continue;
+    if (normalized === prefix || normalized.indexOf(prefix + "/") === 0) return "optional";
+  }
+  return "required";
+}
+
+function getBootModuleErrorMessage(moduleKey, error) {
+  return "[boot] required module failed: " + formatBootModuleName(moduleKey) + ": " + (error && error.message ? error.message : error);
+}
+
+function handleBootModuleError(moduleKey, error, options) {
+  var opts = options || {};
+  var bootClass = opts.bootClass || getBootModuleClass(moduleKey);
+  if (bootClass === "optional") {
+    console.warn("[boot] skip " + formatBootModuleName(moduleKey) + ": " + (error && error.message ? error.message : error));
+    return null;
+  }
+  var err = new Error(getBootModuleErrorMessage(moduleKey, error));
+  try {
+    err.cause = error;
+  } catch (_ignore) {
+    err.originalError = error;
+  }
+  throw err;
+}
+
+function requireBootModule(moduleKey, options) {
+  try {
+    return require(moduleKey);
+  } catch (e) {
+    return handleBootModuleError(moduleKey, e, options);
+  }
+}
+
 var gameState;
 var cardState;
 var boardConfig;
@@ -18,7 +77,7 @@ try {
   var _mod1 = require("./dist/ui/layout-stage");
   if (_mod1) Object.assign(window, _mod1);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/layout-stage: " + e.message);
+  handleBootModuleError("dist/ui/layout-stage", e);
 }
 
 // dist/is-env-capable
@@ -26,7 +85,7 @@ try {
   var _mod2 = require("./dist/is-env-capable");
   if (_mod2) Object.assign(window, _mod2);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/is-env-capable: " + e.message);
+  handleBootModuleError("dist/is-env-capable", e);
 }
 
 // dist/constants/difficulty-constants
@@ -34,7 +93,7 @@ try {
   var _mod3 = require("./dist/constants/difficulty-constants");
   if (_mod3) Object.assign(window, _mod3);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/constants/difficulty-constants: " + e.message);
+  handleBootModuleError("dist/constants/difficulty-constants", e);
 }
 
 // dist/constants/ui-element-cache
@@ -42,7 +101,7 @@ try {
   var _mod4 = require("./dist/constants/ui-element-cache");
   if (_mod4) Object.assign(window, _mod4);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/constants/ui-element-cache: " + e.message);
+  handleBootModuleError("dist/constants/ui-element-cache", e);
 }
 
 // dist/constants/animation-constants
@@ -50,7 +109,7 @@ try {
   var _mod5 = require("./dist/constants/animation-constants");
   if (_mod5) Object.assign(window, _mod5);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/constants/animation-constants: " + e.message);
+  handleBootModuleError("dist/constants/animation-constants", e);
 }
 
 // dist/cards/catalog
@@ -61,7 +120,7 @@ try {
     window.CardCatalog = _mod6;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/cards/catalog: " + e.message);
+  handleBootModuleError("dist/cards/catalog", e);
 }
 
 // dist/shared-constants
@@ -69,7 +128,7 @@ try {
   var _mod7 = require("./dist/shared-constants");
   if (_mod7) Object.assign(window, _mod7);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared-constants: " + e.message);
+  handleBootModuleError("dist/shared-constants", e);
 }
 
 // dist/shared/shared-board-utils
@@ -77,7 +136,7 @@ try {
   var _mod8 = require("./dist/shared/shared-board-utils");
   if (_mod8) Object.assign(window, _mod8);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/shared-board-utils: " + e.message);
+  handleBootModuleError("dist/shared/shared-board-utils", e);
 }
 
 // dist/shared/deck-spec
@@ -85,7 +144,7 @@ try {
   var _mod9 = require("./dist/shared/deck-spec");
   if (_mod9) Object.assign(window, _mod9);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/deck-spec: " + e.message);
+  handleBootModuleError("dist/shared/deck-spec", e);
 }
 
 // dist/shared/deck-codec
@@ -93,7 +152,7 @@ try {
   var _mod10 = require("./dist/shared/deck-codec");
   if (_mod10) Object.assign(window, _mod10);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/deck-codec: " + e.message);
+  handleBootModuleError("dist/shared/deck-codec", e);
 }
 
 // dist/shared/destroy-outcome-contract
@@ -101,7 +160,7 @@ try {
   var _mod11 = require("./dist/shared/destroy-outcome-contract");
   if (_mod11) Object.assign(window, _mod11);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/destroy-outcome-contract: " + e.message);
+  handleBootModuleError("dist/shared/destroy-outcome-contract", e);
 }
 
 // dist/shared/manifest-stone-registry
@@ -112,7 +171,7 @@ try {
     window.ManifestStoneRegistry = _modManifestStoneRegistry;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/manifest-stone-registry: " + e.message);
+  handleBootModuleError("dist/shared/manifest-stone-registry", e);
 }
 
 // dist/shared/special-stone-registry
@@ -123,7 +182,7 @@ try {
     window.SpecialStoneRegistry = _mod12;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/special-stone-registry: " + e.message);
+  handleBootModuleError("dist/shared/special-stone-registry", e);
 }
 
 // dist/shared/stone-status-snapshot
@@ -134,7 +193,7 @@ try {
     window.StoneStatusSnapshot = _mod13;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/stone-status-snapshot: " + e.message);
+  handleBootModuleError("dist/shared/stone-status-snapshot", e);
 }
 
 // dist/shared/shared-board-utils
@@ -142,7 +201,7 @@ try {
   var _mod14 = require("./dist/shared/shared-board-utils");
   if (_mod14) Object.assign(window, _mod14);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/shared-board-utils: " + e.message);
+  handleBootModuleError("dist/shared/shared-board-utils", e);
 }
 
 // dist/game/logic/markers_adapter
@@ -150,7 +209,7 @@ try {
   var _mod15 = require("./dist/game/logic/markers_adapter");
   if (_mod15) Object.assign(window, _mod15);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/markers_adapter: " + e.message);
+  handleBootModuleError("dist/game/logic/markers_adapter", e);
 }
 
 // dist/game/logic/cards-internal/random-source
@@ -158,7 +217,7 @@ try {
   var _mod16 = require("./dist/game/logic/cards-internal/random-source");
   if (_mod16) Object.assign(window, _mod16);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/random-source: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/random-source", e);
 }
 
 // dist/game/logic/cards-internal/state-factory
@@ -166,7 +225,7 @@ try {
   var _mod17 = require("./dist/game/logic/cards-internal/state-factory");
   if (_mod17) Object.assign(window, _mod17);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/state-factory: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/state-factory", e);
 }
 
 // dist/game/logic/cards-internal/module-resolver
@@ -174,7 +233,7 @@ try {
   var _mod18 = require("./dist/game/logic/cards-internal/module-resolver");
   if (_mod18) Object.assign(window, _mod18);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/module-resolver: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/module-resolver", e);
 }
 
 // dist/game/logic/cards-internal/presentation-helpers
@@ -182,7 +241,7 @@ try {
   var _mod19 = require("./dist/game/logic/cards-internal/presentation-helpers");
   if (_mod19) Object.assign(window, _mod19);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/presentation-helpers: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/presentation-helpers", e);
 }
 
 // dist/game/logic/board_ops
@@ -191,7 +250,7 @@ try {
   if (_mod20) Object.assign(window, _mod20);
   if (_mod20) window.BoardOps = _mod20;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/board_ops: " + e.message);
+  handleBootModuleError("dist/game/logic/board_ops", e);
 }
 
 // dist/utils/owner-helpers
@@ -199,7 +258,7 @@ try {
   var _mod21 = require("./dist/utils/owner-helpers");
   if (_mod21) Object.assign(window, _mod21);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/utils/owner-helpers: " + e.message);
+  handleBootModuleError("dist/utils/owner-helpers", e);
 }
 
 // dist/game/logic/core
@@ -209,7 +268,7 @@ try {
   window.CoreLogic = _mod22;
   window.Core = _mod22;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/core: " + e.message);
+  handleBootModuleError("dist/game/logic/core", e);
 }
 
 // dist/game/logic/cards/defs
@@ -217,7 +276,7 @@ try {
   var _mod23 = require("./dist/game/logic/cards/defs");
   if (_mod23) Object.assign(window, _mod23);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/defs: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/defs", e);
 }
 
 // dist/game/logic/cards/costs
@@ -225,7 +284,7 @@ try {
   var _mod24 = require("./dist/game/logic/cards/costs");
   if (_mod24) Object.assign(window, _mod24);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/costs: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/costs", e);
 }
 
 // dist/game/logic/cards/utils
@@ -233,7 +292,7 @@ try {
   var _mod25 = require("./dist/game/logic/cards/utils");
   if (_mod25) Object.assign(window, _mod25);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/utils: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/utils", e);
 }
 
 // dist/game/logic/cards/targets
@@ -241,7 +300,7 @@ try {
   var _mod26 = require("./dist/game/logic/cards/targets");
   if (_mod26) Object.assign(window, _mod26);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/targets: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/targets", e);
 }
 
 // dist/game/logic/cards/selectors
@@ -249,7 +308,7 @@ try {
   var _mod27 = require("./dist/game/logic/cards/selectors");
   if (_mod27) Object.assign(window, _mod27);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/selectors: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/selectors", e);
 }
 
 // dist/game/logic/cards/flips
@@ -257,7 +316,7 @@ try {
   var _mod28 = require("./dist/game/logic/cards/flips");
   if (_mod28) Object.assign(window, _mod28);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/flips: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/flips", e);
 }
 
 // dist/game/logic/cards/chain
@@ -265,7 +324,7 @@ try {
   var _mod29 = require("./dist/game/logic/cards/chain");
   if (_mod29) Object.assign(window, _mod29);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/chain: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/chain", e);
 }
 
 // dist/game/logic/cards/regen
@@ -273,7 +332,7 @@ try {
   var _mod30 = require("./dist/game/logic/cards/regen");
   if (_mod30) Object.assign(window, _mod30);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/regen: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/regen", e);
 }
 
 // dist/game/logic/cards/time_bomb
@@ -281,7 +340,7 @@ try {
   var _mod31 = require("./dist/game/logic/cards/time_bomb");
   if (_mod31) Object.assign(window, _mod31);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/time_bomb: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/time_bomb", e);
 }
 
 // dist/game/logic/cards/breeding
@@ -289,7 +348,7 @@ try {
   var _mod32 = require("./dist/game/logic/cards/breeding");
   if (_mod32) Object.assign(window, _mod32);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/breeding: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/breeding", e);
 }
 
 // dist/game/logic/cards/hyperactive
@@ -297,7 +356,7 @@ try {
   var _mod33 = require("./dist/game/logic/cards/hyperactive");
   if (_mod33) Object.assign(window, _mod33);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/hyperactive: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/hyperactive", e);
 }
 
 // dist/game/logic/cards/udg
@@ -305,7 +364,7 @@ try {
   var _mod34 = require("./dist/game/logic/cards/udg");
   if (_mod34) Object.assign(window, _mod34);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/udg: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/udg", e);
 }
 
 // dist/game/logic/cards/sniper
@@ -313,7 +372,7 @@ try {
   var _mod35 = require("./dist/game/logic/cards/sniper");
   if (_mod35) Object.assign(window, _mod35);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/sniper: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/sniper", e);
 }
 
 // dist/game/logic/cards/lightning
@@ -321,7 +380,7 @@ try {
   var _mod36 = require("./dist/game/logic/cards/lightning");
   if (_mod36) Object.assign(window, _mod36);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/lightning: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/lightning", e);
 }
 
 // dist/game/logic/cards/destroy_dragon
@@ -329,7 +388,7 @@ try {
   var _mod37 = require("./dist/game/logic/cards/destroy_dragon");
   if (_mod37) Object.assign(window, _mod37);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/destroy_dragon: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/destroy_dragon", e);
 }
 
 // dist/game/logic/cards/will_hunter_king
@@ -337,7 +396,7 @@ try {
   var _mod38 = require("./dist/game/logic/cards/will_hunter_king");
   if (_mod38) Object.assign(window, _mod38);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/will_hunter_king: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/will_hunter_king", e);
 }
 
 // dist/game/logic/cards/work_will
@@ -345,7 +404,7 @@ try {
   var _mod39 = require("./dist/game/logic/cards/work_will");
   if (_mod39) Object.assign(window, _mod39);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/work_will: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/work_will", e);
 }
 
 // dist/game/logic/cards/expansion
@@ -353,7 +412,7 @@ try {
   var _mod40 = require("./dist/game/logic/cards/expansion");
   if (_mod40) Object.assign(window, _mod40);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/expansion: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/expansion", e);
 }
 
 // dist/game/logic/cards/markers
@@ -361,7 +420,7 @@ try {
   var _mod41 = require("./dist/game/logic/cards/markers");
   if (_mod41) Object.assign(window, _mod41);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/markers: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/markers", e);
 }
 
 // dist/game/logic/cards/living_will
@@ -369,7 +428,7 @@ try {
   var _mod42 = require("./dist/game/logic/cards/living_will");
   if (_mod42) Object.assign(window, _mod42);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/living_will: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/living_will", e);
 }
 
 // dist/game/logic/cards/movement
@@ -377,7 +436,7 @@ try {
   var _mod43 = require("./dist/game/logic/cards/movement");
   if (_mod43) Object.assign(window, _mod43);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/movement: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/movement", e);
 }
 
 // dist/game/logic/cards/teleport
@@ -385,7 +444,7 @@ try {
   var _mod44 = require("./dist/game/logic/cards/teleport");
   if (_mod44) Object.assign(window, _mod44);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/teleport: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/teleport", e);
 }
 
 // dist/game/logic/cards/clone
@@ -393,7 +452,7 @@ try {
   var _mod45 = require("./dist/game/logic/cards/clone");
   if (_mod45) Object.assign(window, _mod45);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/clone: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/clone", e);
 }
 
 // dist/game/logic/cards/meteor
@@ -401,7 +460,7 @@ try {
   var _mod46 = require("./dist/game/logic/cards/meteor");
   if (_mod46) Object.assign(window, _mod46);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/meteor: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/meteor", e);
 }
 
 // dist/game/logic/cards/shrink
@@ -409,7 +468,7 @@ try {
   var _mod47 = require("./dist/game/logic/cards/shrink");
   if (_mod47) Object.assign(window, _mod47);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards/shrink: " + e.message);
+  handleBootModuleError("dist/game/logic/cards/shrink", e);
 }
 
 // dist/game/logic/effects/dragon
@@ -417,7 +476,7 @@ try {
   var _mod48 = require("./dist/game/logic/effects/dragon");
   if (_mod48) Object.assign(window, _mod48);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/effects/dragon: " + e.message);
+  handleBootModuleError("dist/game/logic/effects/dragon", e);
 }
 
 // dist/game/logic/effects/swap_with_enemy
@@ -425,7 +484,7 @@ try {
   var _mod49 = require("./dist/game/logic/effects/swap_with_enemy");
   if (_mod49) Object.assign(window, _mod49);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/effects/swap_with_enemy: " + e.message);
+  handleBootModuleError("dist/game/logic/effects/swap_with_enemy", e);
 }
 
 // dist/game/logic/effects/destroy_one_stone
@@ -433,7 +492,7 @@ try {
   var _mod50 = require("./dist/game/logic/effects/destroy_one_stone");
   if (_mod50) Object.assign(window, _mod50);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/effects/destroy_one_stone: " + e.message);
+  handleBootModuleError("dist/game/logic/effects/destroy_one_stone", e);
 }
 
 // dist/game/cards/effects/ownership
@@ -441,7 +500,7 @@ try {
   var _mod51 = require("./dist/game/cards/effects/ownership");
   if (_mod51) Object.assign(window, _mod51);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cards/effects/ownership: " + e.message);
+  handleBootModuleError("dist/game/cards/effects/ownership", e);
 }
 
 // dist/game/cards/effects/board-expansion-apply
@@ -449,7 +508,7 @@ try {
   var _mod52 = require("./dist/game/cards/effects/board-expansion-apply");
   if (_mod52) Object.assign(window, _mod52);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cards/effects/board-expansion-apply: " + e.message);
+  handleBootModuleError("dist/game/cards/effects/board-expansion-apply", e);
 }
 
 // dist/game/cards/effects/status-cells
@@ -457,7 +516,7 @@ try {
   var _mod53 = require("./dist/game/cards/effects/status-cells");
   if (_mod53) Object.assign(window, _mod53);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cards/effects/status-cells: " + e.message);
+  handleBootModuleError("dist/game/cards/effects/status-cells", e);
 }
 
 // dist/game/cards/effects/hand-effects
@@ -465,7 +524,7 @@ try {
   var _mod54 = require("./dist/game/cards/effects/hand-effects");
   if (_mod54) Object.assign(window, _mod54);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cards/effects/hand-effects: " + e.message);
+  handleBootModuleError("dist/game/cards/effects/hand-effects", e);
 }
 
 // dist/game/cards/effects/position-swap
@@ -473,7 +532,7 @@ try {
   var _mod55 = require("./dist/game/cards/effects/position-swap");
   if (_mod55) Object.assign(window, _mod55);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cards/effects/position-swap: " + e.message);
+  handleBootModuleError("dist/game/cards/effects/position-swap", e);
 }
 
 // dist/game/logic/cards-internal/card-usage-prechecks
@@ -481,7 +540,7 @@ try {
   var _mod56 = require("./dist/game/logic/cards-internal/card-usage-prechecks");
   if (_mod56) Object.assign(window, _mod56);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/card-usage-prechecks: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/card-usage-prechecks", e);
 }
 
 // dist/game/logic/cards-internal/selector-orchestrator
@@ -489,7 +548,7 @@ try {
   var _mod57 = require("./dist/game/logic/cards-internal/selector-orchestrator");
   if (_mod57) Object.assign(window, _mod57);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/selector-orchestrator: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/selector-orchestrator", e);
 }
 
 // dist/game/logic/cards-internal/hand-manager
@@ -497,7 +556,7 @@ try {
   var _mod58 = require("./dist/game/logic/cards-internal/hand-manager");
   if (_mod58) Object.assign(window, _mod58);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/hand-manager: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/hand-manager", e);
 }
 
 // dist/game/logic/cards-internal/effect-timing
@@ -505,7 +564,7 @@ try {
   var _mod59 = require("./dist/game/logic/cards-internal/effect-timing");
   if (_mod59) Object.assign(window, _mod59);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/effect-timing: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/effect-timing", e);
 }
 
 // dist/game/logic/cards-internal/pending-state-manager
@@ -513,7 +572,7 @@ try {
   var _mod60 = require("./dist/game/logic/cards-internal/pending-state-manager");
   if (_mod60) Object.assign(window, _mod60);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/pending-state-manager: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/pending-state-manager", e);
 }
 
 // dist/game/turn/pending-coordinator
@@ -521,7 +580,7 @@ try {
   var _mod61 = require("./dist/game/turn/pending-coordinator");
   if (_mod61) Object.assign(window, _mod61);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/turn/pending-coordinator: " + e.message);
+  handleBootModuleError("dist/game/turn/pending-coordinator", e);
 }
 
 // dist/game/logic/cards-internal/charge-ledger
@@ -529,7 +588,7 @@ try {
   var _mod62 = require("./dist/game/logic/cards-internal/charge-ledger");
   if (_mod62) Object.assign(window, _mod62);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards-internal/charge-ledger: " + e.message);
+  handleBootModuleError("dist/game/logic/cards-internal/charge-ledger", e);
 }
 
 // dist/game/logic/cards
@@ -538,7 +597,7 @@ try {
   if (_mod63) Object.assign(window, _mod63);
   window.CardLogic = _mod63;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/cards: " + e.message);
+  handleBootModuleError("dist/game/logic/cards", e);
 }
 
 // dist/game/logic/presentation
@@ -546,7 +605,7 @@ try {
   var _mod64 = require("./dist/game/logic/presentation");
   if (_mod64) Object.assign(window, _mod64);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/presentation: " + e.message);
+  handleBootModuleError("dist/game/logic/presentation", e);
 }
 
 // dist/game/logic/position-weights
@@ -554,7 +613,7 @@ try {
   var _mod65 = require("./dist/game/logic/position-weights");
   if (_mod65) Object.assign(window, _mod65);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/logic/position-weights: " + e.message);
+  handleBootModuleError("dist/game/logic/position-weights", e);
 }
 
 // dist/game/schema/prng
@@ -563,7 +622,7 @@ try {
   if (_mod66) Object.assign(window, _mod66);
   window.SeededPRNG = _mod66;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/schema/prng: " + e.message);
+  handleBootModuleError("dist/game/schema/prng", e);
 }
 
 // dist/game/schema/action_manager
@@ -571,7 +630,7 @@ try {
   var _mod67 = require("./dist/game/schema/action_manager");
   if (_mod67) Object.assign(window, _mod67);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/schema/action_manager: " + e.message);
+  handleBootModuleError("dist/game/schema/action_manager", e);
 }
 
 // dist/game-events
@@ -580,7 +639,7 @@ try {
   if (_mod68) Object.assign(window, _mod68);
   window.GameEvents = _mod68;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game-events: " + e.message);
+  handleBootModuleError("dist/game-events", e);
 }
 
 // dist/game/game-core-logic
@@ -588,7 +647,7 @@ try {
   var _mod69 = require("./dist/game/game-core-logic");
   if (_mod69) Object.assign(window, _mod69);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/game-core-logic: " + e.message);
+  handleBootModuleError("dist/game/game-core-logic", e);
 }
 
 // dist/game/move-generator
@@ -596,7 +655,7 @@ try {
   var _mod70 = require("./dist/game/move-generator");
   if (_mod70) Object.assign(window, _mod70);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/move-generator: " + e.message);
+  handleBootModuleError("dist/game/move-generator", e);
 }
 
 // dist/card-system
@@ -604,7 +663,7 @@ try {
   var _mod71 = require("./dist/card-system");
   if (_mod71) Object.assign(window, _mod71);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/card-system: " + e.message);
+  handleBootModuleError("dist/card-system", e);
 }
 
 // dist/ui/storage/action-log
@@ -612,7 +671,7 @@ try {
   var _mod72 = require("./dist/ui/storage/action-log");
   if (_mod72) Object.assign(window, _mod72);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/storage/action-log: " + e.message);
+  handleBootModuleError("dist/ui/storage/action-log", e);
 }
 
 // dist/shared/commentary-context-helpers
@@ -620,7 +679,7 @@ try {
   var _mod73 = require("./dist/shared/commentary-context-helpers");
   if (_mod73) Object.assign(window, _mod73);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/commentary-context-helpers: " + e.message);
+  handleBootModuleError("dist/shared/commentary-context-helpers", e);
 }
 
 // dist/shared/commentary-runtime-helpers
@@ -628,7 +687,7 @@ try {
   var _mod74 = require("./dist/shared/commentary-runtime-helpers");
   if (_mod74) Object.assign(window, _mod74);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/commentary-runtime-helpers: " + e.message);
+  handleBootModuleError("dist/shared/commentary-runtime-helpers", e);
 }
 
 // dist/shared/playback-event-helpers
@@ -636,7 +695,7 @@ try {
   var _mod75 = require("./dist/shared/playback-event-helpers");
   if (_mod75) Object.assign(window, _mod75);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/playback-event-helpers: " + e.message);
+  handleBootModuleError("dist/shared/playback-event-helpers", e);
 }
 
 // dist/ui/commentary-broker
@@ -644,7 +703,7 @@ try {
   var _mod76 = require("./dist/ui/commentary-broker");
   if (_mod76) Object.assign(window, _mod76);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/commentary-broker: " + e.message);
+  handleBootModuleError("dist/ui/commentary-broker", e);
 }
 
 // dist/ui/bootstrap
@@ -652,7 +711,7 @@ try {
   var _mod77 = require("./dist/ui/bootstrap");
   if (_mod77) Object.assign(window, _mod77);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/bootstrap: " + e.message);
+  handleBootModuleError("dist/ui/bootstrap", e);
 }
 
 // dist/ui/bootstrap/init-dom
@@ -660,7 +719,7 @@ try {
   var _mod78 = require("./dist/ui/bootstrap/init-dom");
   if (_mod78) Object.assign(window, _mod78);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/bootstrap/init-dom: " + e.message);
+  handleBootModuleError("dist/ui/bootstrap/init-dom", e);
 }
 
 // dist/ui/bootstrap/init-events
@@ -668,7 +727,7 @@ try {
   var _mod79 = require("./dist/ui/bootstrap/init-events");
   if (_mod79) Object.assign(window, _mod79);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/bootstrap/init-events: " + e.message);
+  handleBootModuleError("dist/ui/bootstrap/init-events", e);
 }
 
 // dist/ui/bootstrap/init-game
@@ -676,7 +735,7 @@ try {
   var _mod80 = require("./dist/ui/bootstrap/init-game");
   if (_mod80) Object.assign(window, _mod80);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/bootstrap/init-game: " + e.message);
+  handleBootModuleError("dist/ui/bootstrap/init-game", e);
 }
 
 // dist/ui/bootstrap/init-network
@@ -684,7 +743,7 @@ try {
   var _mod81 = require("./dist/ui/bootstrap/init-network");
   if (_mod81) Object.assign(window, _mod81);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/bootstrap/init-network: " + e.message);
+  handleBootModuleError("dist/ui/bootstrap/init-network", e);
 }
 
 // dist/ui/marker-bridge
@@ -692,7 +751,7 @@ try {
   var _mod82 = require("./dist/ui/marker-bridge");
   if (_mod82) Object.assign(window, _mod82);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/marker-bridge: " + e.message);
+  handleBootModuleError("dist/ui/marker-bridge", e);
 }
 
 // dist/ui
@@ -700,7 +759,7 @@ try {
   var _mod83 = require("./dist/ui");
   if (_mod83) Object.assign(window, _mod83);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui: " + e.message);
+  handleBootModuleError("dist/ui", e);
 }
 
 // dist/ui/animation-resolver
@@ -708,7 +767,7 @@ try {
   var _mod84 = require("./dist/ui/animation-resolver");
   if (_mod84) Object.assign(window, _mod84);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/animation-resolver: " + e.message);
+  handleBootModuleError("dist/ui/animation-resolver", e);
 }
 
 // dist/ui/animation-shared
@@ -716,7 +775,7 @@ try {
   var _mod85 = require("./dist/ui/animation-shared");
   if (_mod85) Object.assign(window, _mod85);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/animation-shared: " + e.message);
+  handleBootModuleError("dist/ui/animation-shared", e);
 }
 
 // dist/ui/animation-helpers
@@ -724,7 +783,7 @@ try {
   var _mod86 = require("./dist/ui/animation-helpers");
   if (_mod86) Object.assign(window, _mod86);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/animation-helpers: " + e.message);
+  handleBootModuleError("dist/ui/animation-helpers", e);
 }
 
 // dist/ui/playback-runtime
@@ -732,7 +791,7 @@ try {
   var _mod87 = require("./dist/ui/playback-runtime");
   if (_mod87) Object.assign(window, _mod87);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/playback-runtime: " + e.message);
+  handleBootModuleError("dist/ui/playback-runtime", e);
 }
 
 // dist/ui/playback-state-manager
@@ -740,7 +799,7 @@ try {
   var _mod88 = require("./dist/ui/playback-state-manager");
   if (_mod88) Object.assign(window, _mod88);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/playback-state-manager: " + e.message);
+  handleBootModuleError("dist/ui/playback-state-manager", e);
 }
 
 // dist/ui/board-update-dispatch
@@ -748,7 +807,7 @@ try {
   var _mod89 = require("./dist/ui/board-update-dispatch");
   if (_mod89) Object.assign(window, _mod89);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/board-update-dispatch: " + e.message);
+  handleBootModuleError("dist/ui/board-update-dispatch", e);
 }
 
 // dist/ui/board-update-sync-runtime
@@ -756,7 +815,7 @@ try {
   var _mod90 = require("./dist/ui/board-update-sync-runtime");
   if (_mod90) Object.assign(window, _mod90);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/board-update-sync-runtime: " + e.message);
+  handleBootModuleError("dist/ui/board-update-sync-runtime", e);
 }
 
 // dist/ui/diff-renderer
@@ -764,7 +823,7 @@ try {
   var _mod91 = require("./dist/ui/diff-renderer");
   if (_mod91) Object.assign(window, _mod91);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/diff-renderer: " + e.message);
+  handleBootModuleError("dist/ui/diff-renderer", e);
 }
 
 // dist/ui/board-renderer
@@ -772,7 +831,7 @@ try {
   var _mod92 = require("./dist/ui/board-renderer");
   if (_mod92) Object.assign(window, _mod92);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/board-renderer: " + e.message);
+  handleBootModuleError("dist/ui/board-renderer", e);
 }
 
 // dist/ui/status-display
@@ -780,7 +839,7 @@ try {
   var _mod93 = require("./dist/ui/status-display");
   if (_mod93) Object.assign(window, _mod93);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/status-display: " + e.message);
+  handleBootModuleError("dist/ui/status-display", e);
 }
 
 // dist/ui/animation-utils
@@ -788,7 +847,7 @@ try {
   var _mod94 = require("./dist/ui/animation-utils");
   if (_mod94) Object.assign(window, _mod94);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/animation-utils: " + e.message);
+  handleBootModuleError("dist/ui/animation-utils", e);
 }
 
 // dist/ui/stone-visuals
@@ -796,7 +855,7 @@ try {
   var _mod95 = require("./dist/ui/stone-visuals");
   if (_mod95) Object.assign(window, _mod95);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/stone-visuals: " + e.message);
+  handleBootModuleError("dist/ui/stone-visuals", e);
 }
 
 // dist/ui/animation-constants
@@ -804,7 +863,7 @@ try {
   var _mod96 = require("./dist/ui/animation-constants");
   if (_mod96) Object.assign(window, _mod96);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/animation-constants: " + e.message);
+  handleBootModuleError("dist/ui/animation-constants", e);
 }
 
 // dist/ui/animation-engine
@@ -813,7 +872,7 @@ try {
   if (_mod97) Object.assign(window, _mod97);
   if (_mod97) window.AnimationEngine = _mod97;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/animation-engine: " + e.message);
+  handleBootModuleError("dist/ui/animation-engine", e);
 }
 
 // dist/ui/playback-engine
@@ -821,7 +880,7 @@ try {
   var _mod98 = require("./dist/ui/playback-engine");
   if (_mod98) Object.assign(window, _mod98);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/playback-engine: " + e.message);
+  handleBootModuleError("dist/ui/playback-engine", e);
 }
 
 // dist/ui/move-executor-visuals
@@ -829,7 +888,7 @@ try {
   var _mod99 = require("./dist/ui/move-executor-visuals");
   if (_mod99) Object.assign(window, _mod99);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/move-executor-visuals: " + e.message);
+  handleBootModuleError("dist/ui/move-executor-visuals", e);
 }
 
 // dist/ui/visual-effects-map
@@ -837,7 +896,7 @@ try {
   var _mod100 = require("./dist/ui/visual-effects-map");
   if (_mod100) Object.assign(window, _mod100);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/visual-effects-map: " + e.message);
+  handleBootModuleError("dist/ui/visual-effects-map", e);
 }
 
 // dist/shared/gacha-helpers
@@ -847,7 +906,7 @@ try {
   if (_mod101) window.GachaHelpersModule = _mod101;
   if (_mod101) window.GachaHelpersModule = _mod101;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/gacha-helpers: " + e.message);
+  handleBootModuleError("dist/shared/gacha-helpers", e);
 }
 
 // dist/shared/observation-gacha-catalog-shared
@@ -856,7 +915,7 @@ try {
   if (_mod102) Object.assign(window, _mod102);
   if (_mod102) window.ObservationGachaCatalogSharedModule = _mod102;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/observation-gacha-catalog-shared: " + e.message);
+  handleBootModuleError("dist/shared/observation-gacha-catalog-shared", e);
 }
 
 // dist/shared/observation-gacha-catalog.generated
@@ -865,7 +924,7 @@ try {
   if (_mod103) Object.assign(window, _mod103);
   if (_mod103) window.ObservationGachaCatalogModule = _mod103;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/observation-gacha-catalog.generated: " + e.message);
+  handleBootModuleError("dist/shared/observation-gacha-catalog.generated", e);
 }
 
 // dist/shared/gacha-hand-catalog-shared
@@ -874,7 +933,7 @@ try {
   if (_mod104) Object.assign(window, _mod104);
   if (_mod104) window.GachaHandCatalogSharedModule = _mod104;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/gacha-hand-catalog-shared: " + e.message);
+  handleBootModuleError("dist/shared/gacha-hand-catalog-shared", e);
 }
 
 // dist/shared/gacha-hand-catalog.generated
@@ -883,7 +942,7 @@ try {
   if (_mod105) Object.assign(window, _mod105);
   if (_mod105) window.GachaHandCatalogModule = _mod105;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/gacha-hand-catalog.generated: " + e.message);
+  handleBootModuleError("dist/shared/gacha-hand-catalog.generated", e);
 }
 
 // dist/ui/storage/gacha-progress
@@ -892,7 +951,7 @@ try {
   if (_mod106) Object.assign(window, _mod106);
   if (_mod106) window.GachaProgressStorageModule = _mod106;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/storage/gacha-progress: " + e.message);
+  handleBootModuleError("dist/ui/storage/gacha-progress", e);
 }
 
 // dist/ui/gacha/gacha-events
@@ -901,7 +960,7 @@ try {
   if (_mod107) Object.assign(window, _mod107);
   if (_mod107) window.GachaEventsModule = _mod107;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-events: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-events", e);
 }
 
 // dist/ui/gacha/catalog-access
@@ -910,7 +969,7 @@ try {
   if (_mod108) Object.assign(window, _mod108);
   if (_mod108) window.ObservationGachaCatalogAccessModule = _mod108;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/catalog-access: " + e.message);
+  handleBootModuleError("dist/ui/gacha/catalog-access", e);
 }
 
 // dist/ui/placement-sound-selection
@@ -919,7 +978,7 @@ try {
   if (_mod109) Object.assign(window, _mod109);
   if (_mod109) window.PlacementSoundSelectionModule = _mod109;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/placement-sound-selection: " + e.message);
+  handleBootModuleError("dist/ui/placement-sound-selection", e);
 }
 
 // dist/ui/gacha/gacha-transaction
@@ -930,7 +989,7 @@ try {
     window.GachaTransactionModule = _mod110;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-transaction: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-transaction", e);
 }
 
 // dist/ui/gacha/gacha-item-visuals
@@ -939,7 +998,7 @@ try {
   if (_mod111) Object.assign(window, _mod111);
   if (_mod111) window.GachaItemVisualsModule = _mod111;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-item-visuals: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-item-visuals", e);
 }
 
 // dist/ui/gacha/gacha-overlay-view
@@ -950,7 +1009,7 @@ try {
     window.GachaOverlayViewModule = _mod112;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-overlay-view: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-overlay-view", e);
 }
 
 // dist/ui/gacha/gacha-overlay-controller
@@ -961,7 +1020,7 @@ try {
     window.GachaOverlayControllerModule = _mod113;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-overlay-controller: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-overlay-controller", e);
 }
 
 // dist/ui/gacha/gacha-reveal-stage
@@ -970,7 +1029,7 @@ try {
   if (_mod114) Object.assign(window, _mod114);
   if (_mod114) window.GachaRevealStageModule = _mod114;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-reveal-stage: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-reveal-stage", e);
 }
 
 // dist/ui/sound-engine-access
@@ -979,7 +1038,7 @@ try {
   if (_mod115) Object.assign(window, _mod115);
   if (_mod115) window.SoundEngineAccessModule = _mod115;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/sound-engine-access: " + e.message);
+  handleBootModuleError("dist/ui/sound-engine-access", e);
 }
 
 // dist/ui/gacha/gacha-reveal-audio
@@ -988,7 +1047,7 @@ try {
   if (_mod116) Object.assign(window, _mod116);
   if (_mod116) window.GachaRevealAudioModule = _mod116;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha/gacha-reveal-audio: " + e.message);
+  handleBootModuleError("dist/ui/gacha/gacha-reveal-audio", e);
 }
 
 // dist/ui/gacha-reveal-player
@@ -997,7 +1056,7 @@ try {
   if (_mod117) Object.assign(window, _mod117);
   if (_mod117) window.GachaRevealPlayerModule = _mod117;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/gacha-reveal-player: " + e.message);
+  handleBootModuleError("dist/ui/gacha-reveal-player", e);
 }
 
 // dist/ui/leaderboard-client
@@ -1005,7 +1064,7 @@ try {
   var _mod118 = require("./dist/ui/leaderboard-client");
   if (_mod118) Object.assign(window, _mod118);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/leaderboard-client: " + e.message);
+  handleBootModuleError("dist/ui/leaderboard-client", e);
 }
 
 // dist/ui/result-overlay
@@ -1014,7 +1073,7 @@ try {
   if (_mod119) Object.assign(window, _mod119);
   if (_mod119) window.ResultOverlayModule = _mod119;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/result-overlay: " + e.message);
+  handleBootModuleError("dist/ui/result-overlay", e);
 }
 
 // dist/shared/network-action-schema
@@ -1023,7 +1082,7 @@ try {
   if (_mod120) Object.assign(window, _mod120);
   if (_mod120) window.NetworkActionSchemaModule = _mod120;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/network-action-schema: " + e.message);
+  handleBootModuleError("dist/shared/network-action-schema", e);
 }
 
 // dist/ui/network/commentary
@@ -1032,7 +1091,7 @@ try {
   if (_mod121) Object.assign(window, _mod121);
   if (_mod121) window.NetworkCommentaryModule = _mod121;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/commentary: " + e.message);
+  handleBootModuleError("dist/ui/network/commentary", e);
 }
 
 // dist/ui/network/command-payload
@@ -1041,7 +1100,7 @@ try {
   if (_mod122) Object.assign(window, _mod122);
   if (_mod122) window.NetworkCommandPayloadModule = _mod122;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/command-payload: " + e.message);
+  handleBootModuleError("dist/ui/network/command-payload", e);
 }
 
 // dist/ui/network/publish-request
@@ -1050,7 +1109,7 @@ try {
   if (_mod123) Object.assign(window, _mod123);
   if (_mod123) window.NetworkPublishRequestModule = _mod123;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/publish-request: " + e.message);
+  handleBootModuleError("dist/ui/network/publish-request", e);
 }
 
 // dist/ui/network/action-bridge
@@ -1059,7 +1118,7 @@ try {
   if (_mod124) Object.assign(window, _mod124);
   if (_mod124) window.NetworkActionBridgeModule = _mod124;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/action-bridge: " + e.message);
+  handleBootModuleError("dist/ui/network/action-bridge", e);
 }
 
 // dist/ui/network/apply-coordinator
@@ -1068,7 +1127,7 @@ try {
   if (_mod125) Object.assign(window, _mod125);
   if (_mod125) window.NetworkApplyCoordinatorModule = _mod125;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/apply-coordinator: " + e.message);
+  handleBootModuleError("dist/ui/network/apply-coordinator", e);
 }
 
 // dist/ui/network/reconnect-controller
@@ -1077,7 +1136,7 @@ try {
   if (_mod126) Object.assign(window, _mod126);
   if (_mod126) window.NetworkReconnectControllerModule = _mod126;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/reconnect-controller: " + e.message);
+  handleBootModuleError("dist/ui/network/reconnect-controller", e);
 }
 
 // dist/ui/network/publish-tracker
@@ -1086,7 +1145,7 @@ try {
   if (_mod127) Object.assign(window, _mod127);
   if (_mod127) window.NetworkPublishTrackerModule = _mod127;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/publish-tracker: " + e.message);
+  handleBootModuleError("dist/ui/network/publish-tracker", e);
 }
 
 // dist/ui/network/snapshot-runtime
@@ -1094,7 +1153,7 @@ try {
   var _mod128 = require("./dist/ui/network/snapshot-runtime");
   if (_mod128) Object.assign(window, _mod128);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/snapshot-runtime: " + e.message);
+  handleBootModuleError("dist/ui/network/snapshot-runtime", e);
 }
 
 // dist/ui/network/snapshot-canonical
@@ -1102,7 +1161,7 @@ try {
   var _mod129 = require("./dist/ui/network/snapshot-canonical");
   if (_mod129) Object.assign(window, _mod129);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/snapshot-canonical: " + e.message);
+  handleBootModuleError("dist/ui/network/snapshot-canonical", e);
 }
 
 // dist/ui/network/snapshot-presentation
@@ -1110,7 +1169,7 @@ try {
   var _mod130 = require("./dist/ui/network/snapshot-presentation");
   if (_mod130) Object.assign(window, _mod130);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/snapshot-presentation: " + e.message);
+  handleBootModuleError("dist/ui/network/snapshot-presentation", e);
 }
 
 // dist/ui/network/snapshot
@@ -1118,7 +1177,7 @@ try {
   var _mod131 = require("./dist/ui/network/snapshot");
   if (_mod131) Object.assign(window, _mod131);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/snapshot: " + e.message);
+  handleBootModuleError("dist/ui/network/snapshot", e);
 }
 
 // dist/ui/network/session-seat
@@ -1126,7 +1185,7 @@ try {
   var _mod132 = require("./dist/ui/network/session-seat");
   if (_mod132) Object.assign(window, _mod132);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/session-seat: " + e.message);
+  handleBootModuleError("dist/ui/network/session-seat", e);
 }
 
 // dist/ui/network/session-lifecycle
@@ -1134,7 +1193,7 @@ try {
   var _mod133 = require("./dist/ui/network/session-lifecycle");
   if (_mod133) Object.assign(window, _mod133);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network/session-lifecycle: " + e.message);
+  handleBootModuleError("dist/ui/network/session-lifecycle", e);
 }
 
 // dist/ui/network-client
@@ -1142,7 +1201,7 @@ try {
   var _mod134 = require("./dist/ui/network-client");
   if (_mod134) Object.assign(window, _mod134);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/network-client: " + e.message);
+  handleBootModuleError("dist/ui/network-client", e);
 }
 
 // dist/sound-engine
@@ -1151,7 +1210,7 @@ try {
   if (_mod135) Object.assign(window, _mod135);
   if (_mod135 && _mod135.default) window.SoundEngine = _mod135.default;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/sound-engine: " + e.message);
+  handleBootModuleError("dist/sound-engine", e);
 }
 
 // dist/cards/card-renderer
@@ -1160,7 +1219,7 @@ try {
   if (_mod136) Object.assign(window, _mod136);
   if (_mod136) window.HandAnimationUtilsModule = _mod136;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/cards/card-renderer: " + e.message);
+  handleBootModuleError("dist/cards/card-renderer", e);
 }
 
 // dist/cards/card-interaction-effects
@@ -1168,7 +1227,7 @@ try {
   var _mod137 = require("./dist/cards/card-interaction-effects");
   if (_mod137) Object.assign(window, _mod137);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/cards/card-interaction-effects: " + e.message);
+  handleBootModuleError("dist/cards/card-interaction-effects", e);
 }
 
 // dist/cards/card-interaction
@@ -1176,7 +1235,7 @@ try {
   var _mod138 = require("./dist/cards/card-interaction");
   if (_mod138) Object.assign(window, _mod138);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/cards/card-interaction: " + e.message);
+  handleBootModuleError("dist/cards/card-interaction", e);
 }
 
 // dist/ui/debug-card-search
@@ -1190,7 +1249,7 @@ try {
     }
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/debug-card-search: " + e.message);
+  handleBootModuleError("dist/ui/debug-card-search", e);
 }
 
 // dist/ui/storage/deck-presets
@@ -1198,7 +1257,7 @@ try {
   var _mod139 = require("./dist/ui/storage/deck-presets");
   if (_mod139) Object.assign(window, _mod139);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/storage/deck-presets: " + e.message);
+  handleBootModuleError("dist/ui/storage/deck-presets", e);
 }
 
 // dist/ui/deck-builder-state
@@ -1206,7 +1265,7 @@ try {
   var _mod140 = require("./dist/ui/deck-builder-state");
   if (_mod140) Object.assign(window, _mod140);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/deck-builder-state: " + e.message);
+  handleBootModuleError("dist/ui/deck-builder-state", e);
 }
 
 // dist/ui/deck-builder-renderer
@@ -1214,7 +1273,7 @@ try {
   var _mod141 = require("./dist/ui/deck-builder-renderer");
   if (_mod141) Object.assign(window, _mod141);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/deck-builder-renderer: " + e.message);
+  handleBootModuleError("dist/ui/deck-builder-renderer", e);
 }
 
 // dist/ui/deck-builder-controller
@@ -1225,7 +1284,7 @@ try {
     window.DeckBuilderControllerModule = _mod142;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/deck-builder-controller: " + e.message);
+  handleBootModuleError("dist/ui/deck-builder-controller", e);
 }
 
 // dist/game/timers
@@ -1233,7 +1292,7 @@ try {
   var _mod143 = require("./dist/game/timers");
   if (_mod143) Object.assign(window, _mod143);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/timers: " + e.message);
+  handleBootModuleError("dist/game/timers", e);
 }
 
 // dist/game/auto
@@ -1241,7 +1300,7 @@ try {
   var _mod144 = require("./dist/game/auto");
   if (_mod144) Object.assign(window, _mod144);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/auto: " + e.message);
+  handleBootModuleError("dist/game/auto", e);
 }
 
 // dist/game/visual-effects-map
@@ -1249,7 +1308,7 @@ try {
   var _mod145 = require("./dist/game/visual-effects-map");
   if (_mod145) Object.assign(window, _mod145);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/visual-effects-map: " + e.message);
+  handleBootModuleError("dist/game/visual-effects-map", e);
 }
 
 // dist/game/log-messages
@@ -1257,7 +1316,7 @@ try {
   var _mod146 = require("./dist/game/log-messages");
   if (_mod146) Object.assign(window, _mod146);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/log-messages: " + e.message);
+  handleBootModuleError("dist/game/log-messages", e);
 }
 
 // dist/game/turn/turn_pipeline_phase_helpers
@@ -1265,7 +1324,7 @@ try {
   var _mod147 = require("./dist/game/turn/turn_pipeline_phase_helpers");
   if (_mod147) Object.assign(window, _mod147);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/turn/turn_pipeline_phase_helpers: " + e.message);
+  handleBootModuleError("dist/game/turn/turn_pipeline_phase_helpers", e);
 }
 
 // dist/game/turn/turn_pipeline_phases
@@ -1274,7 +1333,7 @@ try {
   if (_mod148) Object.assign(window, _mod148);
   window.TurnPipelinePhases = _mod148;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/turn/turn_pipeline_phases: " + e.message);
+  handleBootModuleError("dist/game/turn/turn_pipeline_phases", e);
 }
 
 // dist/game/turn/turn_pipeline
@@ -1283,7 +1342,7 @@ try {
   if (_mod149) Object.assign(window, _mod149);
   window.TurnPipeline = _mod149;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/turn/turn_pipeline: " + e.message);
+  handleBootModuleError("dist/game/turn/turn_pipeline", e);
 }
 
 // dist/game/turn/pipeline_ui_adapter
@@ -1292,7 +1351,7 @@ try {
   if (_mod150) Object.assign(window, _mod150);
   window.TurnPipelineUIAdapter = _mod150;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/turn/pipeline_ui_adapter: " + e.message);
+  handleBootModuleError("dist/game/turn/pipeline_ui_adapter", e);
 }
 
 // dist/game/controller-events
@@ -1300,7 +1359,7 @@ try {
   var _mod151 = require("./dist/game/controller-events");
   if (_mod151) Object.assign(window, _mod151);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/controller-events: " + e.message);
+  handleBootModuleError("dist/game/controller-events", e);
 }
 
 // dist/game/move-executor-visuals
@@ -1308,7 +1367,7 @@ try {
   var _mod152 = require("./dist/game/move-executor-visuals");
   if (_mod152) Object.assign(window, _mod152);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/move-executor-visuals: " + e.message);
+  handleBootModuleError("dist/game/move-executor-visuals", e);
 }
 
 // dist/game/special-effects/helpers
@@ -1316,7 +1375,7 @@ try {
   var _mod153 = require("./dist/game/special-effects/helpers");
   if (_mod153) Object.assign(window, _mod153);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/helpers: " + e.message);
+  handleBootModuleError("dist/game/special-effects/helpers", e);
 }
 
 // dist/game/special-effects/bombs
@@ -1324,7 +1383,7 @@ try {
   var _mod154 = require("./dist/game/special-effects/bombs");
   if (_mod154) Object.assign(window, _mod154);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/bombs: " + e.message);
+  handleBootModuleError("dist/game/special-effects/bombs", e);
 }
 
 // dist/game/special-effects/dragons
@@ -1332,7 +1391,7 @@ try {
   var _mod155 = require("./dist/game/special-effects/dragons");
   if (_mod155) Object.assign(window, _mod155);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/dragons: " + e.message);
+  handleBootModuleError("dist/game/special-effects/dragons", e);
 }
 
 // dist/game/special-effects/breeding
@@ -1340,7 +1399,7 @@ try {
   var _mod156 = require("./dist/game/special-effects/breeding");
   if (_mod156) Object.assign(window, _mod156);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/breeding: " + e.message);
+  handleBootModuleError("dist/game/special-effects/breeding", e);
 }
 
 // dist/game/special-effects/hyperactive
@@ -1348,7 +1407,7 @@ try {
   var _mod157 = require("./dist/game/special-effects/hyperactive");
   if (_mod157) Object.assign(window, _mod157);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/hyperactive: " + e.message);
+  handleBootModuleError("dist/game/special-effects/hyperactive", e);
 }
 
 // dist/game/special-effects/udg
@@ -1356,7 +1415,7 @@ try {
   var _mod158 = require("./dist/game/special-effects/udg");
   if (_mod158) Object.assign(window, _mod158);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/udg: " + e.message);
+  handleBootModuleError("dist/game/special-effects/udg", e);
 }
 
 // dist/game/special-effects/protections
@@ -1364,7 +1423,7 @@ try {
   var _mod159 = require("./dist/game/special-effects/protections");
   if (_mod159) Object.assign(window, _mod159);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects/protections: " + e.message);
+  handleBootModuleError("dist/game/special-effects/protections", e);
 }
 
 // dist/game/special-effects-handler
@@ -1372,7 +1431,7 @@ try {
   var _mod160 = require("./dist/game/special-effects-handler");
   if (_mod160) Object.assign(window, _mod160);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/special-effects-handler: " + e.message);
+  handleBootModuleError("dist/game/special-effects-handler", e);
 }
 
 // dist/game/card-effects/helpers
@@ -1380,7 +1439,7 @@ try {
   var _mod161 = require("./dist/game/card-effects/helpers");
   if (_mod161) Object.assign(window, _mod161);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/helpers: " + e.message);
+  handleBootModuleError("dist/game/card-effects/helpers", e);
 }
 
 // dist/game/card-effects/selection-flow
@@ -1388,7 +1447,7 @@ try {
   var _mod162 = require("./dist/game/card-effects/selection-flow");
   if (_mod162) Object.assign(window, _mod162);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/selection-flow: " + e.message);
+  handleBootModuleError("dist/game/card-effects/selection-flow", e);
 }
 
 // dist/game/card-effects/placement
@@ -1396,7 +1455,7 @@ try {
   var _mod163 = require("./dist/game/card-effects/placement");
   if (_mod163) Object.assign(window, _mod163);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/placement: " + e.message);
+  handleBootModuleError("dist/game/card-effects/placement", e);
 }
 
 // dist/game/card-effects/destroy
@@ -1404,7 +1463,7 @@ try {
   var _mod164 = require("./dist/game/card-effects/destroy");
   if (_mod164) Object.assign(window, _mod164);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/destroy: " + e.message);
+  handleBootModuleError("dist/game/card-effects/destroy", e);
 }
 
 // dist/game/card-effects/strong-wind
@@ -1412,7 +1471,7 @@ try {
   var _mod165 = require("./dist/game/card-effects/strong-wind");
   if (_mod165) Object.assign(window, _mod165);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/strong-wind: " + e.message);
+  handleBootModuleError("dist/game/card-effects/strong-wind", e);
 }
 
 // dist/game/card-effects/teleport
@@ -1420,7 +1479,7 @@ try {
   var _mod166 = require("./dist/game/card-effects/teleport");
   if (_mod166) Object.assign(window, _mod166);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/teleport: " + e.message);
+  handleBootModuleError("dist/game/card-effects/teleport", e);
 }
 
 // dist/game/card-effects/tempt
@@ -1428,7 +1487,7 @@ try {
   var _mod167 = require("./dist/game/card-effects/tempt");
   if (_mod167) Object.assign(window, _mod167);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/tempt: " + e.message);
+  handleBootModuleError("dist/game/card-effects/tempt", e);
 }
 
 // dist/game/card-effects/capture
@@ -1436,7 +1495,7 @@ try {
   var _mod168 = require("./dist/game/card-effects/capture");
   if (_mod168) Object.assign(window, _mod168);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/capture: " + e.message);
+  handleBootModuleError("dist/game/card-effects/capture", e);
 }
 
 // dist/game/card-effects/time-bomb
@@ -1444,7 +1503,7 @@ try {
   var _mod169 = require("./dist/game/card-effects/time-bomb");
   if (_mod169) Object.assign(window, _mod169);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/time-bomb: " + e.message);
+  handleBootModuleError("dist/game/card-effects/time-bomb", e);
 }
 
 // dist/game/network-turn-handoff
@@ -1452,7 +1511,7 @@ try {
   var _mod170 = require("./dist/game/network-turn-handoff");
   if (_mod170) Object.assign(window, _mod170);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/network-turn-handoff: " + e.message);
+  handleBootModuleError("dist/game/network-turn-handoff", e);
 }
 
 // dist/game/card-effects/trap
@@ -1460,7 +1519,7 @@ try {
   var _mod171 = require("./dist/game/card-effects/trap");
   if (_mod171) Object.assign(window, _mod171);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/trap: " + e.message);
+  handleBootModuleError("dist/game/card-effects/trap", e);
 }
 
 // dist/game/card-effects/guard
@@ -1468,7 +1527,7 @@ try {
   var _mod172 = require("./dist/game/card-effects/guard");
   if (_mod172) Object.assign(window, _mod172);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/guard: " + e.message);
+  handleBootModuleError("dist/game/card-effects/guard", e);
 }
 
 // dist/game/card-effects/living-will
@@ -1476,7 +1535,7 @@ try {
   var _mod173 = require("./dist/game/card-effects/living-will");
   if (_mod173) Object.assign(window, _mod173);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/living-will: " + e.message);
+  handleBootModuleError("dist/game/card-effects/living-will", e);
 }
 
 // dist/game/card-effects/hyperactive-inherit
@@ -1484,7 +1543,7 @@ try {
   var _mod174 = require("./dist/game/card-effects/hyperactive-inherit");
   if (_mod174) Object.assign(window, _mod174);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/hyperactive-inherit: " + e.message);
+  handleBootModuleError("dist/game/card-effects/hyperactive-inherit", e);
 }
 
 // dist/game/card-effects/extend-life
@@ -1492,7 +1551,7 @@ try {
   var _mod175 = require("./dist/game/card-effects/extend-life");
   if (_mod175) Object.assign(window, _mod175);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/extend-life: " + e.message);
+  handleBootModuleError("dist/game/card-effects/extend-life", e);
 }
 
 // dist/game/card-effects/swap
@@ -1500,7 +1559,7 @@ try {
   var _mod176 = require("./dist/game/card-effects/swap");
   if (_mod176) Object.assign(window, _mod176);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/swap: " + e.message);
+  handleBootModuleError("dist/game/card-effects/swap", e);
 }
 
 // dist/game/card-effects/position-swap
@@ -1508,7 +1567,7 @@ try {
   var _mod177 = require("./dist/game/card-effects/position-swap");
   if (_mod177) Object.assign(window, _mod177);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/position-swap: " + e.message);
+  handleBootModuleError("dist/game/card-effects/position-swap", e);
 }
 
 // dist/game/card-effects/board-expansion
@@ -1516,7 +1575,7 @@ try {
   var _mod178 = require("./dist/game/card-effects/board-expansion");
   if (_mod178) Object.assign(window, _mod178);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/board-expansion: " + e.message);
+  handleBootModuleError("dist/game/card-effects/board-expansion", e);
 }
 
 // dist/game/card-effects/board-shrink
@@ -1524,7 +1583,7 @@ try {
   var _mod179 = require("./dist/game/card-effects/board-shrink");
   if (_mod179) Object.assign(window, _mod179);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/board-shrink: " + e.message);
+  handleBootModuleError("dist/game/card-effects/board-shrink", e);
 }
 
 // dist/game/card-effects/blockade
@@ -1532,7 +1591,7 @@ try {
   var _mod180 = require("./dist/game/card-effects/blockade");
   if (_mod180) Object.assign(window, _mod180);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/blockade: " + e.message);
+  handleBootModuleError("dist/game/card-effects/blockade", e);
 }
 
 // dist/game/card-effects/meteor
@@ -1540,7 +1599,7 @@ try {
   var _mod181 = require("./dist/game/card-effects/meteor");
   if (_mod181) Object.assign(window, _mod181);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/meteor: " + e.message);
+  handleBootModuleError("dist/game/card-effects/meteor", e);
 }
 
 // dist/game/card-effects/freeze
@@ -1548,7 +1607,7 @@ try {
   var _mod182 = require("./dist/game/card-effects/freeze");
   if (_mod182) Object.assign(window, _mod182);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/freeze: " + e.message);
+  handleBootModuleError("dist/game/card-effects/freeze", e);
 }
 
 // dist/game/card-effects/seed
@@ -1556,7 +1615,7 @@ try {
   var _mod183 = require("./dist/game/card-effects/seed");
   if (_mod183) Object.assign(window, _mod183);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/seed: " + e.message);
+  handleBootModuleError("dist/game/card-effects/seed", e);
 }
 
 // dist/game/card-effects/clone
@@ -1564,7 +1623,7 @@ try {
   var _mod184 = require("./dist/game/card-effects/clone");
   if (_mod184) Object.assign(window, _mod184);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/clone: " + e.message);
+  handleBootModuleError("dist/game/card-effects/clone", e);
 }
 
 // dist/game/card-effects/reverse-will
@@ -1572,7 +1631,7 @@ try {
   var _mod185 = require("./dist/game/card-effects/reverse-will");
   if (_mod185) Object.assign(window, _mod185);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects/reverse-will: " + e.message);
+  handleBootModuleError("dist/game/card-effects/reverse-will", e);
 }
 
 // dist/game/card-effects-applier
@@ -1580,7 +1639,7 @@ try {
   var _mod186 = require("./dist/game/card-effects-applier");
   if (_mod186) Object.assign(window, _mod186);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/card-effects-applier: " + e.message);
+  handleBootModuleError("dist/game/card-effects-applier", e);
 }
 
 // dist/constants/cpu-lv6-shared-profile
@@ -1588,7 +1647,7 @@ try {
   var _mod187 = require("./dist/constants/cpu-lv6-shared-profile");
   if (_mod187) Object.assign(window, _mod187);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/constants/cpu-lv6-shared-profile: " + e.message);
+  handleBootModuleError("dist/constants/cpu-lv6-shared-profile", e);
 }
 
 // dist/shared/cpu-lv6-runtime-capability
@@ -1596,7 +1655,7 @@ try {
   var _mod187 = require("./dist/shared/cpu-lv6-runtime-capability");
   if (_mod187) Object.assign(window, _mod187);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/shared/cpu-lv6-runtime-capability: " + e.message);
+  handleBootModuleError("dist/shared/cpu-lv6-runtime-capability", e);
 }
 
 // dist/game/ai/level-system
@@ -1604,7 +1663,7 @@ try {
   var _mod188 = require("./dist/game/ai/level-system");
   if (_mod188) Object.assign(window, _mod188);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/ai/level-system: " + e.message);
+  handleBootModuleError("dist/game/ai/level-system", e);
 }
 
 // dist/game/ai/policy-onnx-runtime
@@ -1612,7 +1671,7 @@ try {
   var _mod189 = require("./dist/game/ai/policy-onnx-runtime");
   if (_mod189) Object.assign(window, _mod189);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/ai/policy-onnx-runtime: " + e.message);
+  handleBootModuleError("dist/game/ai/policy-onnx-runtime", e);
 }
 
 // dist/game/ai/policy-table-runtime
@@ -1623,7 +1682,7 @@ try {
   var _mod191 = require("./dist/game/ai/commentary-data");
   if (_mod191) Object.assign(window, _mod191);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/ai/commentary-data: " + e.message);
+  handleBootModuleError("dist/game/ai/commentary-data", e);
 }
 
 // dist/game/ai/fixed-commentary-engine
@@ -1631,7 +1690,7 @@ try {
   var _mod192 = require("./dist/game/ai/fixed-commentary-engine");
   if (_mod192) Object.assign(window, _mod192);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/ai/fixed-commentary-engine: " + e.message);
+  handleBootModuleError("dist/game/ai/fixed-commentary-engine", e);
 }
 
 // dist/game/ai/cpu-commentary-runtime
@@ -1639,7 +1698,7 @@ try {
   var _mod193 = require("./dist/game/ai/cpu-commentary-runtime");
   if (_mod193) Object.assign(window, _mod193);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/ai/cpu-commentary-runtime: " + e.message);
+  handleBootModuleError("dist/game/ai/cpu-commentary-runtime", e);
 }
 
 // dist/game/cpu-decision-board-utils
@@ -1647,7 +1706,7 @@ try {
   var _mod194 = require("./dist/game/cpu-decision-board-utils");
   if (_mod194) Object.assign(window, _mod194);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cpu-decision-board-utils: " + e.message);
+  handleBootModuleError("dist/game/cpu-decision-board-utils", e);
 }
 
 // dist/game/cpu-decision
@@ -1655,7 +1714,7 @@ try {
   var _mod195 = require("./dist/game/cpu-decision");
   if (_mod195) Object.assign(window, _mod195);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cpu-decision: " + e.message);
+  handleBootModuleError("dist/game/cpu-decision", e);
 }
 
 // dist/game/pass-handler
@@ -1663,7 +1722,7 @@ try {
   var _mod196 = require("./dist/game/pass-handler");
   if (_mod196) Object.assign(window, _mod196);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/pass-handler: " + e.message);
+  handleBootModuleError("dist/game/pass-handler", e);
 }
 
 // dist/game/move-executor
@@ -1671,7 +1730,7 @@ try {
   var _mod197 = require("./dist/game/move-executor");
   if (_mod197) Object.assign(window, _mod197);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/move-executor: " + e.message);
+  handleBootModuleError("dist/game/move-executor", e);
 }
 
 // dist/game/turn-manager
@@ -1679,7 +1738,7 @@ try {
   var _mod198 = require("./dist/game/turn-manager");
   if (_mod198) Object.assign(window, _mod198);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/turn-manager: " + e.message);
+  handleBootModuleError("dist/game/turn-manager", e);
 }
 
 // dist/game/cpu-turn-handler
@@ -1687,7 +1746,7 @@ try {
   var _mod199 = require("./dist/game/cpu-turn-handler");
   if (_mod199) Object.assign(window, _mod199);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/cpu-turn-handler: " + e.message);
+  handleBootModuleError("dist/game/cpu-turn-handler", e);
 }
 
 // dist/game/game-controller-slim
@@ -1695,7 +1754,7 @@ try {
   var _mod200 = require("./dist/game/game-controller-slim");
   if (_mod200) Object.assign(window, _mod200);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/game/game-controller-slim: " + e.message);
+  handleBootModuleError("dist/game/game-controller-slim", e);
 }
 
 
@@ -1704,7 +1763,7 @@ try {
   var _mod215 = require("./dist/ui/handlers/auto");
   if (_mod215) Object.assign(window, _mod215);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/auto: " + e.message);
+  handleBootModuleError("dist/ui/handlers/auto", e);
 }
 
 // dist/ui/handlers/smart
@@ -1712,7 +1771,7 @@ try {
   var _mod216 = require("./dist/ui/handlers/smart");
   if (_mod216) Object.assign(window, _mod216);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/smart: " + e.message);
+  handleBootModuleError("dist/ui/handlers/smart", e);
 }
 
 // dist/ui/handlers/sound
@@ -1720,7 +1779,7 @@ try {
   var _mod217 = require("./dist/ui/handlers/sound");
   if (_mod217) Object.assign(window, _mod217);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/sound: " + e.message);
+  handleBootModuleError("dist/ui/handlers/sound", e);
 }
 
 // dist/ui/handlers/rules-help
@@ -1728,7 +1787,7 @@ try {
   var _mod218 = require("./dist/ui/handlers/rules-help");
   if (_mod218) Object.assign(window, _mod218);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/rules-help: " + e.message);
+  handleBootModuleError("dist/ui/handlers/rules-help", e);
 }
 
 // dist/ui/handlers/gacha
@@ -1736,7 +1795,7 @@ try {
   var _mod219 = require("./dist/ui/handlers/gacha");
   if (_mod219) Object.assign(window, _mod219);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/gacha: " + e.message);
+  handleBootModuleError("dist/ui/handlers/gacha", e);
 }
 
 // dist/ui/cosmetics/catalog-shared
@@ -1747,7 +1806,7 @@ try {
     window.CosmeticCatalogSharedModule = _mod220;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/cosmetics/catalog-shared: " + e.message);
+  handleBootModuleError("dist/ui/cosmetics/catalog-shared", e);
 }
 
 // dist/ui/background-skin/catalog
@@ -1756,7 +1815,7 @@ try {
   if (_mod221) Object.assign(window, _mod221);
   if (_mod221) window.BackgroundSkinCatalogModule = _mod221;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/background-skin/catalog: " + e.message);
+  handleBootModuleError("dist/ui/background-skin/catalog", e);
 }
 
 // dist/ui/background-skin/selection
@@ -1765,7 +1824,7 @@ try {
   if (_mod222) Object.assign(window, _mod222);
   if (_mod222) window.BackgroundSkinSelectionModule = _mod222;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/background-skin/selection: " + e.message);
+  handleBootModuleError("dist/ui/background-skin/selection", e);
 }
 
 // dist/ui/background-skin/runtime
@@ -1774,7 +1833,7 @@ try {
   if (_mod223) Object.assign(window, _mod223);
   if (_mod223) window.BackgroundSkinRuntimeModule = _mod223;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/background-skin/runtime: " + e.message);
+  handleBootModuleError("dist/ui/background-skin/runtime", e);
 }
 
 // dist/ui/background-skin/controller
@@ -1783,7 +1842,7 @@ try {
   if (_mod224) Object.assign(window, _mod224);
   if (_mod224) window.BackgroundSkinControllerModule = _mod224;
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/background-skin/controller: " + e.message);
+  handleBootModuleError("dist/ui/background-skin/controller", e);
 }
 
 // dist/ui/hand-skin/catalog
@@ -1794,7 +1853,7 @@ try {
     window.HandSkinCatalogModule = _mod225;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/hand-skin/catalog: " + e.message);
+  handleBootModuleError("dist/ui/hand-skin/catalog", e);
 }
 
 // dist/ui/hand-skin/selection
@@ -1805,7 +1864,7 @@ try {
     window.HandSkinSelectionModule = _mod226;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/hand-skin/selection: " + e.message);
+  handleBootModuleError("dist/ui/hand-skin/selection", e);
 }
 
 // dist/ui/hand-skin/runtime
@@ -1816,7 +1875,7 @@ try {
     window.HandSkinRuntimeModule = _mod227;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/hand-skin/runtime: " + e.message);
+  handleBootModuleError("dist/ui/hand-skin/runtime", e);
 }
 
 // dist/ui/hand-skin/controller
@@ -1827,7 +1886,7 @@ try {
     window.HandSkinControllerModule = _mod228;
   }
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/hand-skin/controller: " + e.message);
+  handleBootModuleError("dist/ui/hand-skin/controller", e);
 }
 
 // dist/ui/handlers/hand-skin
@@ -1835,7 +1894,7 @@ try {
   var _mod229 = require("./dist/ui/handlers/hand-skin");
   if (_mod229) Object.assign(window, _mod229);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/hand-skin: " + e.message);
+  handleBootModuleError("dist/ui/handlers/hand-skin", e);
 }
 
 
@@ -1844,7 +1903,7 @@ try {
   var _mod232 = require("./dist/ui/handlers/cpu-policy");
   if (_mod232) Object.assign(window, _mod232);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/cpu-policy: " + e.message);
+  handleBootModuleError("dist/ui/handlers/cpu-policy", e);
 }
 
 // dist/ui/handlers/deck-builder
@@ -1852,7 +1911,7 @@ try {
   var _mod233 = require("./dist/ui/handlers/deck-builder");
   if (_mod233) Object.assign(window, _mod233);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/deck-builder: " + e.message);
+  handleBootModuleError("dist/ui/handlers/deck-builder", e);
 }
 
 // dist/ui/handlers/match-mode
@@ -1860,7 +1919,7 @@ try {
   var _mod234 = require("./dist/ui/handlers/match-mode");
   if (_mod234) Object.assign(window, _mod234);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/match-mode: " + e.message);
+  handleBootModuleError("dist/ui/handlers/match-mode", e);
 }
 
 // dist/ui/handlers/debug
@@ -1868,7 +1927,7 @@ try {
   var _mod235 = require("./dist/ui/handlers/debug");
   if (_mod235) Object.assign(window, _mod235);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/debug: " + e.message);
+  handleBootModuleError("dist/ui/handlers/debug", e);
 }
 
 // dist/ui/handlers/init
@@ -1876,7 +1935,7 @@ try {
   var _mod236 = require("./dist/ui/handlers/init");
   if (_mod236) Object.assign(window, _mod236);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/init: " + e.message);
+  handleBootModuleError("dist/ui/handlers/init", e);
 }
 
 // dist/ui/presentation-handler
@@ -1884,7 +1943,7 @@ try {
   var _mod237 = require("./dist/ui/presentation-handler");
   if (_mod237) Object.assign(window, _mod237);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/presentation-handler: " + e.message);
+  handleBootModuleError("dist/ui/presentation-handler", e);
 }
 
 // dist/ui/event-handlers
@@ -1892,7 +1951,7 @@ try {
   var _mod238 = require("./dist/ui/event-handlers");
   if (_mod238) Object.assign(window, _mod238);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/ui/event-handlers: " + e.message);
+  handleBootModuleError("dist/ui/event-handlers", e);
 }
 
 // ===== Global contract restoration =====

@@ -35,6 +35,8 @@ interface BuildRegistryResult {
     wroteFile: boolean;
 }
 
+type BrowserBootModuleClass = 'required' | 'optional';
+
 const BROWSER_MODULE_PREFIXES = [
     'cards/',
     'constants/',
@@ -102,6 +104,91 @@ const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: stri
         aliases: ['game/card-effects-applier.js']
     }
 ];
+
+const REQUIRED_BOOT_MODULE_KEYS = new Set([
+    'shared-constants',
+    'cards/catalog',
+    'game/logic/core',
+    'game/logic/cards',
+    'game/turn/turn_pipeline',
+    'ui/bootstrap',
+    'ui/network-client',
+    'ui/board-renderer',
+    'ui/presentation-handler'
+]);
+
+const OPTIONAL_BOOT_MODULE_PREFIXES = [
+    'data/dialogue/',
+    'game/ai/othello-onnx-runtime',
+    'game/ai/policy-onnx-runtime',
+    'node_modules/onnxruntime-web',
+    'othello-ai/',
+    'shared/gacha',
+    'shared/observation-gacha',
+    'ui/background-skin/',
+    'ui/cosmetics/',
+    'ui/debug',
+    'ui/font-skin/',
+    'ui/gacha/',
+    'ui/handlers/debug',
+    'ui/hand-skin/',
+    'ui/leaderboard',
+    'ui/storage/gacha'
+];
+
+function normalizeBootModuleKey(key: string): string {
+    let normalized = String(key || '').trim().replace(/\\/g, '/');
+    normalized = normalized.replace(/^\.\//, '');
+    if (normalized.startsWith('dist/')) normalized = normalized.slice(5);
+    normalized = normalized.replace(/\.js$/, '');
+    return normalized;
+}
+
+function classifyBrowserBootModule(key: string): BrowserBootModuleClass {
+    const normalized = normalizeBootModuleKey(key);
+    if (REQUIRED_BOOT_MODULE_KEYS.has(normalized)) return 'required';
+    if (OPTIONAL_BOOT_MODULE_PREFIXES.some(prefix => normalized === prefix.replace(/\/$/, '') || normalized.startsWith(prefix))) {
+        return 'optional';
+    }
+    return 'required';
+}
+
+function buildBootModuleMetadata(registeredKeys: Set<string>): {
+    required: string[];
+    optional: string[];
+    optionalPrefixes: string[];
+} {
+    const required = new Set<string>();
+    const optional = new Set<string>();
+
+    registeredKeys.forEach(key => {
+        const normalized = normalizeBootModuleKey(key);
+        if (!normalized) return;
+        if (classifyBrowserBootModule(normalized) === 'optional') {
+            optional.add(normalized);
+        } else {
+            required.add(normalized);
+        }
+    });
+
+    return {
+        required: Array.from(required).sort(),
+        optional: Array.from(optional).sort(),
+        optionalPrefixes: OPTIONAL_BOOT_MODULE_PREFIXES.slice().sort()
+    };
+}
+
+function createBootModuleMetadataLines(registeredKeys: Set<string>): string[] {
+    const metadata = buildBootModuleMetadata(registeredKeys);
+    const json = JSON.stringify(metadata, null, 2)
+        .split('\n')
+        .map((line, index) => index === 0 ? line : '  ' + line)
+        .join('\n');
+    return [
+        '  window.__CARD_REVERSI_BOOT_MODULES__ = ' + json + ';',
+        ''
+    ];
+}
 
 function isRootRuntimeModule(rel: string): boolean {
     if (!rel.endsWith('.runtime.js')) return false;
@@ -222,6 +309,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         '  if (!_a) throw new Error("[cjs] runtime.js must support module aliases");',
         ''
     ];
+    const bootMetadataInsertIndex = lines.length;
 
     const skipped: string[] = [];
     const registeredKeys = new Set<string>();
@@ -297,6 +385,8 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         registeredKeys.add(moduleKey + '.js');
     }
 
+    lines.splice(bootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(registeredKeys));
+
     lines.push('})();');
     lines.push('');
 
@@ -336,5 +426,6 @@ if (require.main === module) {
 }
 
 export = {
-    buildRegistry
+    buildRegistry,
+    classifyBrowserBootModule
 };
