@@ -209,7 +209,45 @@ describe('card interaction pending network settlement', () => {
     expect(publishLocks.black).toBe(false);
     expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
     expect(deps.renderCardUiSafely).toHaveBeenCalledTimes(1);
-    expect((global as any).cardState.presentationEvents).toEqual([]);
+    expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
+  });
+
+  test('waits for publish visualSeq settlement instead of forced queue cleanup', async () => {
+    let resolveVisualSettlement: ((value: any) => void) | null = null;
+    const visualSettlementPromise = new Promise((resolve) => {
+      resolveVisualSettlement = resolve;
+    });
+    deps.playbackStateManager = {
+      waitForNetworkVisualSeq: jest.fn(() => visualSettlementPromise),
+      waitForVisualPlaybackDrain: jest.fn()
+    };
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 }
+    }, deps);
+
+    await flushPromises();
+    resolvePublish && resolvePublish({
+      ok: true,
+      presentationCursor: { visualSeq: 7, stateVersion: 12 }
+    });
+    await flushPromises();
+
+    expect(deps.playbackStateManager.waitForNetworkVisualSeq).toHaveBeenCalledWith(7, {
+      timeoutMs: 1500,
+      operationId: null
+    });
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+    expect(publishLocks.black).toBe(true);
+    expect(deps.setPendingSelectionBusy).not.toHaveBeenCalledWith(false);
+
+    resolveVisualSettlement && resolveVisualSettlement({ ok: true, visualSeq: 7 });
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
   });
 
   test('successful publish settles only after authoritative playback drain', async () => {

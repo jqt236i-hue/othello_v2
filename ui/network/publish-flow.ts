@@ -24,6 +24,31 @@ function createNetworkPublishFlowController(config?: any): any {
     }
   }
 
+  function toIntegerOrNull(value: any): number | null {
+    if (value === null || typeof value === 'undefined' || value === '') return null;
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return null;
+    return Math.trunc(numberValue);
+  }
+
+  function buildAcceptedPublishResult(data: any, responseStateVersion: number | null, operationId: string): any {
+    const payload = (data && typeof data === 'object') ? data : {};
+    const cursor = payload.presentationCursor && typeof payload.presentationCursor === 'object'
+      ? payload.presentationCursor
+      : null;
+    const visualSeq = toIntegerOrNull(payload.visualSeq)
+      ?? toIntegerOrNull(cursor && cursor.visualSeq);
+    if (!cursor && visualSeq === null) return { ok: true };
+    const result: any = {
+      ok: true,
+      operationId: String(payload.operationId || operationId || '') || null,
+      stateVersion: responseStateVersion,
+      presentationCursor: cursor,
+      visualSeq
+    };
+    return result;
+  }
+
   function publishSnapshot(meta: any): Promise<any> {
     const state = getState();
     if (!state || typeof state !== 'object') {
@@ -363,7 +388,7 @@ function createNetworkPublishFlowController(config?: any): any {
           }
         }
         if (typeof cfg.pruneTrackedPublishes === 'function') cfg.pruneTrackedPublishes();
-        return { ok: true };
+        return buildAcceptedPublishResult(res.data, responseStateVersion, operationId);
       })
       .catch((error: any) => {
         const message = error && error.message ? error.message : 'PUBLISH_ERROR';

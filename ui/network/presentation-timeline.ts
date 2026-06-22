@@ -45,6 +45,17 @@ function createNetworkPresentationTimeline(config?: any): any {
     return null;
   }
 
+  function resolveVisualSettlementTracker(): any {
+    if (cfg.visualSettlementTracker && typeof cfg.visualSettlementTracker === 'object') {
+      return cfg.visualSettlementTracker;
+    }
+    try {
+      const root = typeof window !== 'undefined' ? window : globalThis;
+      return root && (root as any).NetworkVisualSettlementTracker;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
   function normalizeFrameList(values: any): any[] {
     if (!Array.isArray(values) || values.length <= 0) return [];
     return FrameContract.collectFramesAfter(values, visualSeq);
@@ -139,6 +150,10 @@ function createNetworkPresentationTimeline(config?: any): any {
     visualVersion = frame.stateVersionTo;
     lastPlayedFrame = frame;
     sourceBySeq.delete(frame.visualSeq);
+    const visualSettlementTracker = resolveVisualSettlementTracker();
+    if (visualSettlementTracker && typeof visualSettlementTracker.markVisualSeqCompleted === 'function') {
+      visualSettlementTracker.markVisualSeqCompleted(frame.visualSeq, commitMeta);
+    }
     return commitMeta;
   }
 

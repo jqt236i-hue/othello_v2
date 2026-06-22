@@ -9,7 +9,7 @@ type PendingPublishDeps = {
 
 type PendingPublishPorts = {
     getActiveNetworkMatchClient: () => any;
-    waitForAuthoritativeVisualPlaybackDrain: (deps: any) => Promise<any>;
+    waitForAuthoritativeVisualPlaybackDrain: (deps: any, publishResult?: any) => Promise<any>;
     clearAuthoritativeVisualPlaybackFlag: (deps: any) => any;
     clearOrphanNetworkPlaybackQueues: (deps: any) => any;
 };
@@ -36,7 +36,6 @@ function startPendingSelectionPublish(options: any, deps: PendingPublishDeps, po
         terminalSettled = true;
         clearPublishLock();
         ports.clearAuthoritativeVisualPlaybackFlag(deps);
-        ports.clearOrphanNetworkPlaybackQueues(deps);
         deps.setPendingSelectionBusy(false);
         deps.renderCardUiSafely();
     };
@@ -47,9 +46,9 @@ function startPendingSelectionPublish(options: any, deps: PendingPublishDeps, po
         }
     };
 
-    const settleSuccessAfterPublish = () => {
+    const settleSuccessAfterPublish = (publishResult: any) => {
         try {
-            ports.waitForAuthoritativeVisualPlaybackDrain(deps)
+            ports.waitForAuthoritativeVisualPlaybackDrain(deps, publishResult)
                 .then(finishSuccessSettlement)
                 .catch(finishSuccessSettlement);
         } catch (e) {
@@ -81,7 +80,7 @@ function startPendingSelectionPublish(options: any, deps: PendingPublishDeps, po
                 return;
             }
             handlePublishSuccess(publishResult);
-            settleSuccessAfterPublish();
+            settleSuccessAfterPublish(publishResult);
         })
         .catch(() => {
             finishFailureSettlement({ ok: false, reason: 'NETWORK_PUBLISH_FAILED' });

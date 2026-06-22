@@ -34,8 +34,8 @@ function clearOrphanNetworkPlaybackQueues(deps: PendingNetworkDeps) {
     return PendingSettlement.clearOrphanNetworkPlaybackQueues(deps);
 }
 
-function waitForAuthoritativeVisualPlaybackDrain(deps: PendingNetworkDeps) {
-    return PendingSettlement.waitForAuthoritativeVisualPlaybackDrain(deps);
+function waitForAuthoritativeVisualPlaybackDrain(deps: PendingNetworkDeps, publishResult?: any) {
+    return PendingSettlement.waitForAuthoritativeVisualPlaybackDrain(deps, publishResult);
 }
 
 function clearAuthoritativeVisualPlaybackFlag(deps: PendingNetworkDeps) {

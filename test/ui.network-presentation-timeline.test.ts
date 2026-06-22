@@ -82,6 +82,28 @@ describe('NetworkPresentationTimeline', () => {
     );
   });
 
+  test('marks visualSeq completed after a frame commit', async () => {
+    const visualSettlementTracker = {
+      markVisualSeqCompleted: jest.fn()
+    };
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      visualSettlementTracker
+    });
+
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    await expect(timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => ({ started: true, method: 'test' }))
+    })).resolves.toBe(1);
+
+    expect(visualSettlementTracker.markVisualSeqCompleted).toHaveBeenCalledWith(1, expect.objectContaining({
+      visualVersion: 2,
+      source: 'stream'
+    }));
+  });
+
   test('waits for frame commit refresh before reporting the frame drained', async () => {
     const order: string[] = [];
     let releaseCommit: (() => void) | null = null;

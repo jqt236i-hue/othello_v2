@@ -96,6 +96,7 @@ describe('NetworkPublishFlowController contract', () => {
       operationId: 'op_visual',
       actionType: 'place',
       stateVersion: 2,
+      presentationCursor: { visualSeq: 1, stateVersion: 2 },
       snapshot: { stateVersion: 2 },
       playbackEvents: [{ type: 'legacy_flip' }],
       presentationFrames: [
@@ -141,7 +142,13 @@ describe('NetworkPublishFlowController contract', () => {
     });
 
     await expect(controller.publishSnapshot({ playerKey: 'black', actionType: 'place' }))
-      .resolves.toEqual({ ok: true });
+      .resolves.toEqual({
+        ok: true,
+        operationId: 'op_visual',
+        stateVersion: 2,
+        presentationCursor: { visualSeq: 1, stateVersion: 2 },
+        visualSeq: 1
+      });
 
     expect(applySnapshotThroughCoordinator).toHaveBeenCalledWith(
       { stateVersion: 2 },

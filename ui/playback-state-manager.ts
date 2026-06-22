@@ -732,6 +732,29 @@ function waitForVisualPlaybackDrain(options?: any): Promise<void> {
   });
 }
 
+function resolveNetworkVisualSettlementTracker(options?: any): any {
+  const opts = (options && typeof options === 'object') ? options : {};
+  if (opts.visualSettlementTracker && typeof opts.visualSettlementTracker === 'object') {
+    return opts.visualSettlementTracker;
+  }
+  const mirrored = readMirroredValue('NetworkVisualSettlementTracker');
+  if (mirrored && typeof mirrored === 'object') return mirrored;
+  return null;
+}
+
+function waitForNetworkVisualSeq(visualSeq: any, options?: any): Promise<any> {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const tracker = resolveNetworkVisualSettlementTracker(opts);
+  if (tracker && typeof tracker.waitForVisualSeq === 'function') {
+    return Promise.resolve(tracker.waitForVisualSeq(visualSeq, opts));
+  }
+  return waitForVisualPlaybackDrain(opts).then(() => ({
+    ok: true,
+    visualSeq: Number.isFinite(Number(visualSeq)) ? Math.trunc(Number(visualSeq)) : 0,
+    reason: 'visual_playback_drain_fallback'
+  }));
+}
+
 function cloneBoardUpdateContext(context: any): any {
   if (!context || typeof context !== 'object') return null;
   const cloned = Object.assign({}, context);
@@ -1123,6 +1146,7 @@ function getRuntimePlaybackState(): any {
     hasPendingVisualPlayback,
     resolveSnapshotPlaybackSettlement,
     waitForVisualPlaybackDrain,
+    waitForNetworkVisualSeq,
     shouldDeferBoardUpdate,
     shouldDeferUiSync,
     setBoardLockActive
@@ -1189,6 +1213,7 @@ const PlaybackStateManager = {
   hasPendingVisualPlayback,
   resolveSnapshotPlaybackSettlement,
   waitForVisualPlaybackDrain,
+  waitForNetworkVisualSeq,
   shouldDeferBoardUpdate,
   shouldDeferUiSync,
   getBoardUpdateContext,

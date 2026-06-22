@@ -51,6 +51,7 @@ describe('network client visual catch-up', () => {
     delete (global as any).emitCardStateChange;
     delete (global as any).emitGameStateChange;
     delete (global as any).PresentationHandler;
+    delete (global as any).NetworkVisualSettlementTracker;
   });
 
   test('keeps render snapshot behind canonical snapshot until the visual frame commits', () => {
@@ -175,6 +176,38 @@ describe('network client visual catch-up', () => {
     await flushAsyncWork();
 
     expect((global as any).renderBoard).not.toHaveBeenCalled();
+  });
+
+  test('marks network visual settlement after a presentation frame commits', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+    const tracker = (global as any).NetworkVisualSettlementTracker;
+    expect(tracker).toBeTruthy();
+    const waiter = tracker.waitForVisualSeq(1, { timeoutMs: 5000 });
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    await expect(waiter).resolves.toEqual({ ok: true, visualSeq: 1 });
   });
 
   test('requests RenderScheduler board updates without forcing playback bypass', async () => {

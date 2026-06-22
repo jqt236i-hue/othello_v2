@@ -402,6 +402,21 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(resolved).toBe(true);
   });
 
+  test('waitForNetworkVisualSeq delegates to the network visual settlement tracker', async () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const tracker = {
+      waitForVisualSeq: jest.fn(() => Promise.resolve({ ok: true, visualSeq: 5 }))
+    };
+    global.window.NetworkVisualSettlementTracker = tracker;
+
+    await expect(manager.waitForNetworkVisualSeq(5, { timeoutMs: 1000 })).resolves.toEqual({
+      ok: true,
+      visualSeq: 5
+    });
+
+    expect(tracker.waitForVisualSeq).toHaveBeenCalledWith(5, { timeoutMs: 1000 });
+  });
+
   test('clearPlaybackLock clears stale visual playback claims', () => {
     const manager = require('../ui/playback-state-manager.js');
 

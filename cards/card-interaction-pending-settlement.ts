@@ -120,8 +120,46 @@ function getPendingSelectionPublishSettleTimeoutMs(deps: PendingSettlementDeps) 
     return readValue(rootRef) ?? readValue(typeof globalThis !== 'undefined' ? globalThis : null) ?? 1500;
 }
 
-function waitForAuthoritativeVisualPlaybackDrain(deps: PendingSettlementDeps) {
+function readPositiveInteger(value: any): number | null {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return null;
+    const next = Math.trunc(numberValue);
+    return next > 0 ? next : null;
+}
+
+function getPublishResultVisualSeq(publishResult: any): number | null {
+    const result = (publishResult && typeof publishResult === 'object') ? publishResult : {};
+    const cursor = result.presentationCursor && typeof result.presentationCursor === 'object'
+        ? result.presentationCursor
+        : null;
+    const dataCursor = result.data && result.data.presentationCursor && typeof result.data.presentationCursor === 'object'
+        ? result.data.presentationCursor
+        : null;
+    return readPositiveInteger(result.visualSeq)
+        ?? readPositiveInteger(cursor && cursor.visualSeq)
+        ?? readPositiveInteger(dataCursor && dataCursor.visualSeq);
+}
+
+function getPublishResultOperationId(publishResult: any): string | null {
+    const result = (publishResult && typeof publishResult === 'object') ? publishResult : {};
+    const raw = result.operationId ?? (result.data && result.data.operationId);
+    const normalized = String(raw || '').trim();
+    return normalized || null;
+}
+
+function waitForAuthoritativeVisualPlaybackDrain(deps: PendingSettlementDeps, publishResult?: any) {
     const playbackStateManager = deps.playbackStateManager;
+    const visualSeq = getPublishResultVisualSeq(publishResult);
+    if (
+        visualSeq !== null
+        && playbackStateManager
+        && typeof playbackStateManager.waitForNetworkVisualSeq === 'function'
+    ) {
+        return Promise.resolve(playbackStateManager.waitForNetworkVisualSeq(visualSeq, {
+            timeoutMs: getPendingSelectionPublishSettleTimeoutMs(deps),
+            operationId: getPublishResultOperationId(publishResult)
+        }));
+    }
     if (!playbackStateManager || typeof playbackStateManager.waitForVisualPlaybackDrain !== 'function') {
         return Promise.resolve();
     }
