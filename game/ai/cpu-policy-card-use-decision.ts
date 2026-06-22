@@ -168,6 +168,8 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         const {
             ownCorners,
             oppCorners,
+            boardExpansionWillEnemyCornerTargetCount,
+            boardExpansionGodEnemyCornerTargetCount,
             hasCornerMoveNow,
             hasEdgeMoveNow,
             cornerEmergency,
@@ -238,6 +240,14 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         }
         if (isLossWill && ownSpecialCount > 0 && lossEnemyAnchorPayoffIsModest) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
+        }
+        if (isBoardExpansionWill) {
+            const enemyCornerTargetCount = cardType === 'BOARD_EXPANSION_GOD'
+                ? boardExpansionGodEnemyCornerTargetCount
+                : boardExpansionWillEnemyCornerTargetCount;
+            if (enemyCornerTargetCount <= 0) {
+                return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'board_expansion_no_enemy_corner');
+            }
         }
         let score = cardCost * 2;
         if (Object.prototype.hasOwnProperty.call(cardTypeBaseScoreBonus, cardType)) {

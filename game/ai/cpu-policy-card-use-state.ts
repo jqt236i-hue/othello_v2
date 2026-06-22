@@ -35,6 +35,9 @@ export function createCpuPolicyCardUseState(deps?: CpuPolicyCardUseStateDeps) {
         const ctx = (context && typeof context === 'object') ? context as Record<string, unknown> : {};
         const ownCorners = toSafeNumber(ctx.ownCorners);
         const oppCorners = toSafeNumber(ctx.oppCorners);
+        const boardExpansionEnemyCornerTargetCount = toSafeInt(ctx.boardExpansionEnemyCornerTargetCount);
+        const boardExpansionWillEnemyCornerTargetCount = toSafeInt(ctx.boardExpansionWillEnemyCornerTargetCount);
+        const boardExpansionGodEnemyCornerTargetCount = toSafeInt(ctx.boardExpansionGodEnemyCornerTargetCount);
         const hasCornerMoveNow = ctx.hasCornerMoveNow === true;
         const hasEdgeMoveNow = ctx.hasEdgeMoveNow === true;
         const cornerEmergency = !!ctx.cornerEmergency || (oppCorners > ownCorners);
@@ -112,6 +115,9 @@ export function createCpuPolicyCardUseState(deps?: CpuPolicyCardUseStateDeps) {
         return {
             ownCorners,
             oppCorners,
+            boardExpansionEnemyCornerTargetCount,
+            boardExpansionWillEnemyCornerTargetCount,
+            boardExpansionGodEnemyCornerTargetCount,
             hasCornerMoveNow,
             hasEdgeMoveNow,
             cornerEmergency,

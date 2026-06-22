@@ -1,6 +1,7 @@
 type CpuDecisionCardContextConfig = {
     getGameState: () => any;
     getCardState: () => any;
+    getCardLogic?: () => any;
     resolvePlayerValue: (playerKey: any) => any;
     getShapeAwareBoard: (board: any, gameState: any, cardState: any) => any;
     countBoardStatsForPlayer: (playerValue: any) => any;
@@ -28,11 +29,61 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         return cfg.getCardState ? cfg.getCardState() : null;
     }
 
+    function readCardLogic(): any {
+        return cfg.getCardLogic ? cfg.getCardLogic() : null;
+    }
+
+    function isEnemyOccupiedCornerTarget(board: any, playerValue: any, target: any): boolean {
+        if (!target) return false;
+        const row = Number(target.row);
+        const col = Number(target.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        if (typeof cfg.isCornerCell !== 'function' || !cfg.isCornerCell(row, col, board)) return false;
+        return cfg.getBoardCellValueSafe(board, row, col) === -playerValue;
+    }
+
+    function countEnemyOccupiedCornerTargets(board: any, playerValue: any, targets: any): number {
+        if (!Array.isArray(targets)) return 0;
+        let count = 0;
+        for (const target of targets) {
+            if (isEnemyOccupiedCornerTarget(board, playerValue, target)) count += 1;
+        }
+        return count;
+    }
+
+    function getBoardExpansionGodRequiredSelectionCount(cardLogic: any, cs: any, gs: any, playerKey: any): number {
+        if (!cardLogic || typeof cardLogic.getBoardExpansionGodRequiredSelectionCount !== 'function') return 1;
+        const count = Number(cardLogic.getBoardExpansionGodRequiredSelectionCount(cs, gs, playerKey));
+        return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    }
+
+    function getBoardExpansionEnemyCornerTargetCounts(playerKey: any, board: any, playerValue: any) {
+        const cardLogic = readCardLogic();
+        const cs = readCardState();
+        const gs = readGameState();
+        const willTargets = cardLogic && typeof cardLogic.getBoardExpansionTargets === 'function'
+            ? cardLogic.getBoardExpansionTargets(cs, gs, playerKey)
+            : [];
+        const godTargets = cardLogic && typeof cardLogic.getBoardExpansionGodTargets === 'function'
+            ? cardLogic.getBoardExpansionGodTargets(cs, gs, playerKey)
+            : [];
+        const will = countEnemyOccupiedCornerTargets(board, playerValue, willTargets);
+        const rawGod = countEnemyOccupiedCornerTargets(board, playerValue, godTargets);
+        const godRequired = getBoardExpansionGodRequiredSelectionCount(cardLogic, cs, gs, playerKey);
+        const god = godRequired > 0 && rawGod >= godRequired ? rawGod : 0;
+        return {
+            boardExpansionWillEnemyCornerTargetCount: will,
+            boardExpansionGodEnemyCornerTargetCount: god,
+            boardExpansionEnemyCornerTargetCount: Math.max(will, god)
+        };
+    }
+
     function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
         const cs = readCardState();
         const gs = readGameState();
         const board = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
         const playerValue = cfg.resolvePlayerValue(playerKey);
+        const boardExpansionTargetCounts = getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
         const stats = cfg.countBoardStatsForPlayer(playerValue);
         const edgeControl = cfg.countEdgeControl(board, playerValue);
         const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey])
@@ -114,6 +165,9 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
             ownCorners: planState.ownCorners,
             oppCorners: planState.oppCorners,
+            boardExpansionEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionEnemyCornerTargetCount,
+            boardExpansionWillEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionWillEnemyCornerTargetCount,
+            boardExpansionGodEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionGodEnemyCornerTargetCount,
             ownEdges: edgeControl.ownEdges,
             oppEdges: edgeControl.oppEdges,
             hasCornerMoveNow: planState.hasCornerMoveNow,

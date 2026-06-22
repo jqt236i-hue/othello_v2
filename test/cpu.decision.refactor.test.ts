@@ -3268,6 +3268,110 @@ describe('cpu decision refactor helpers', () => {
     expect(action.destroyTarget).toEqual({ row: 0, col: 8 });
   });
 
+  test('cpuSelectBoardExpansionWillWithPolicy targets only enemy occupied corner', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[0][0] = 1;
+    global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [
+        { row: 0, col: 7, side: 'right' },
+        { row: 2, col: 0, side: 'left' },
+        { row: 0, col: 0, side: 'left' }
+      ],
+      applyBoardExpansionWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[0])
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.expansionTarget).toEqual({ row: 0, col: 0 });
+  });
+
+  test('cpuSelectBoardExpansionWillWithPolicy clears pending when no enemy occupied corner exists', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[0][7] = -1;
+    global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [
+        { row: 0, col: 0, side: 'left' },
+        { row: 2, col: 0, side: 'left' },
+        { row: 0, col: 7, side: 'right' }
+      ],
+      applyBoardExpansionWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[0])
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn()
+    };
+
+    await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).not.toHaveBeenCalled();
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('cpuSelectBoardExpansionWillWithPolicy targets enemy occupied corner for BOARD_EXPANSION_GOD', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[7][7] = 1;
+    global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [
+        { row: 0, col: 0 },
+        { row: 7, col: 7 }
+      ],
+      applyBoardExpansionGod: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.expansionTarget).toEqual({ row: 7, col: 7 });
+  });
+
   test('cpuSelectMeteorWillWithPolicy prefers corner target that promotes adjacent own edge into pseudo-corner', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {

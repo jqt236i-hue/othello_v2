@@ -1968,6 +1968,7 @@ const CpuDecisionCardContext = (CpuDecisionCardContextModule && typeof CpuDecisi
     ? CpuDecisionCardContextModule.createCpuDecisionCardContext({
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCardLogic: () => resolveCardLogicForCpuDecision(),
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
@@ -2181,6 +2182,9 @@ function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount
         forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
         ownCorners: 0,
         oppCorners: 0,
+        boardExpansionEnemyCornerTargetCount: 0,
+        boardExpansionWillEnemyCornerTargetCount: 0,
+        boardExpansionGodEnemyCornerTargetCount: 0,
         ownEdges: 0,
         oppEdges: 0,
         hasCornerMoveNow: false,
@@ -3045,6 +3049,7 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
         getCurrentCpuBoard: () => getCurrentCpuBoard(),
         getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        isCornerCell,
         getLegalMoves: (gameStateValue: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []),
         handOffSelectionTurnInGameState: (playerKey: any) => handOffSelectionTurnInGameState(playerKey),
         maybeContinueCpuSelectionTurnHandoff: (playerKey: any, pendingType: any, playbackEvents: any, action?: any) =>

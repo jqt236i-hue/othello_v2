@@ -96,6 +96,31 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         const forceUseCard = !!ctx.forceUseCard || legalMovesCount <= 0;
         const ownCorners = isFiniteNumber(ctx.ownCorners) ? Number(ctx.ownCorners) : 0;
         const oppCorners = isFiniteNumber(ctx.oppCorners) ? Number(ctx.oppCorners) : 0;
+        const hasBoardExpansionEnemyCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'boardExpansionEnemyCornerTargetCount');
+        const hasBoardExpansionWillEnemyCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'boardExpansionWillEnemyCornerTargetCount');
+        const hasBoardExpansionGodEnemyCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'boardExpansionGodEnemyCornerTargetCount');
+        const hasAnySpecificBoardExpansionEnemyCornerTargetCount = hasBoardExpansionWillEnemyCornerTargetCount || hasBoardExpansionGodEnemyCornerTargetCount;
+        const fallbackBoardExpansionEnemyCornerTargetCount = Math.max(0, Math.floor(oppCorners));
+        const explicitBoardExpansionEnemyCornerTargetCount = hasBoardExpansionEnemyCornerTargetCount
+            ? (isFiniteNumber(ctx.boardExpansionEnemyCornerTargetCount)
+                ? Math.max(0, Math.floor(Number(ctx.boardExpansionEnemyCornerTargetCount)))
+                : 0)
+            : (hasAnySpecificBoardExpansionEnemyCornerTargetCount ? 0 : fallbackBoardExpansionEnemyCornerTargetCount);
+        const boardExpansionWillEnemyCornerTargetCount = hasBoardExpansionWillEnemyCornerTargetCount
+            ? (isFiniteNumber(ctx.boardExpansionWillEnemyCornerTargetCount)
+                ? Math.max(0, Math.floor(Number(ctx.boardExpansionWillEnemyCornerTargetCount)))
+                : 0)
+            : explicitBoardExpansionEnemyCornerTargetCount;
+        const boardExpansionGodEnemyCornerTargetCount = hasBoardExpansionGodEnemyCornerTargetCount
+            ? (isFiniteNumber(ctx.boardExpansionGodEnemyCornerTargetCount)
+                ? Math.max(0, Math.floor(Number(ctx.boardExpansionGodEnemyCornerTargetCount)))
+                : 0)
+            : explicitBoardExpansionEnemyCornerTargetCount;
+        const boardExpansionEnemyCornerTargetCount = hasBoardExpansionEnemyCornerTargetCount
+            ? explicitBoardExpansionEnemyCornerTargetCount
+            : (hasAnySpecificBoardExpansionEnemyCornerTargetCount
+                ? Math.max(boardExpansionWillEnemyCornerTargetCount, boardExpansionGodEnemyCornerTargetCount)
+                : explicitBoardExpansionEnemyCornerTargetCount);
         const hasCornerMoveNow = ctx.hasCornerMoveNow === true;
         const hasEdgeMoveNow = ctx.hasEdgeMoveNow === true;
         const cornerEmergency = ctx.cornerEmergency === true;
@@ -188,6 +213,9 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             minUseScore,
             ownCorners,
             oppCorners,
+            boardExpansionEnemyCornerTargetCount,
+            boardExpansionWillEnemyCornerTargetCount,
+            boardExpansionGodEnemyCornerTargetCount,
             hasCornerMoveNow,
             hasEdgeMoveNow,
             cornerEmergency,

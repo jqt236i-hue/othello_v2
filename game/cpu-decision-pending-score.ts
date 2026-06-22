@@ -591,22 +591,11 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             return score;
         case 'BOARD_EXPANSION_WILL':
         case 'BOARD_EXPANSION_GOD': {
-            const side = String(target.side || '');
-            if (onBoard) {
-                if (own) score += 260;
-                else if (empty) score += 120;
-                else if (opp) score += 40;
-                if (row === 0 || row === 7) score += 180;
-                score += seatValue * 0.12;
-            } else {
-                score += 120;
-            }
-            if (side === 'left' || side === 'right') {
-                const topCorner = getBoardCellValueSafe(board, 0, side === 'left' ? 0 : 7);
-                const bottomCorner = getBoardCellValueSafe(board, 7, side === 'left' ? 0 : 7);
-                if (topCorner === opponentValue || bottomCorner === opponentValue) score += 220;
-                if (topCorner === playerValue || bottomCorner === playerValue) score += 140;
-            }
+            if (!corner || !opp) return -1000000;
+            score += pendingType === 'BOARD_EXPANSION_GOD' ? 3400 : 3000;
+            score += Math.max(0, seatValue) * 0.12;
+            if (discDiff <= -8) score += 180;
+            if (discDiff <= -14) score += 120;
             return score;
         }
         default:

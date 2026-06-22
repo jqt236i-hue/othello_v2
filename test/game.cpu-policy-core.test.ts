@@ -971,6 +971,80 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
+    test('scoreCardUseDecision blocks BOARD_EXPANSION_WILL without enemy occupied corner target', () => {
+        const out = core.scoreCardUseDecision(
+            'board_expand_01',
+            () => 19,
+            () => ({ id: 'board_expand_01', type: 'BOARD_EXPANSION_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 30,
+                ownCharge: 50,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                boardExpansionWillEnemyCornerTargetCount: 0
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('board_expansion_no_enemy_corner');
+    });
+
+    test('scoreCardUseDecision allows BOARD_EXPANSION_WILL when enemy occupied corner target exists', () => {
+        const out = core.scoreCardUseDecision(
+            'board_expand_01',
+            () => 19,
+            () => ({ id: 'board_expand_01', type: 'BOARD_EXPANSION_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 30,
+                ownCharge: 50,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                boardExpansionWillEnemyCornerTargetCount: 1,
+                boardExpansionEnemyCornerTargetCount: 1
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThan(out.minUseScore);
+    });
+
+    test('scoreCardUseDecision blocks BOARD_EXPANSION_GOD without enemy occupied corner target', () => {
+        const out = core.scoreCardUseDecision(
+            'board_expand_god_01',
+            () => 27,
+            () => ({ id: 'board_expand_god_01', type: 'BOARD_EXPANSION_GOD' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -18,
+                empties: 30,
+                ownCharge: 60,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                boardExpansionGodEnemyCornerTargetCount: 0,
+                boardExpansionEnemyCornerTargetCount: 0
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('board_expansion_no_enemy_corner');
+    });
+
 
 
 
