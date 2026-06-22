@@ -1,5 +1,13 @@
 # Network Battle Repair And Boot-Safe Optimization Implementation Plan (Revised)
 
+**Document role:** Active implementation plan and remaining-work checklist for network battle repair.
+
+**Target:** Browser network battle mode, boot-time lazy loading, generated browser/Worker surfaces, and the local/public verification path.
+
+**Source of truth:** Player-visible behavior follows `01-rulebook.md`; architecture boundaries follow `docs/architecture-contracts.md`; root source files are authoritative and `worker-public/` is a generated mirror.
+
+**Non-goals:** This plan does not change card rules, rebalance cards, edit generated mirrors by hand, deploy publicly without approval, or continue the old boot-splitting tasks that are superseded below.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. This revised plan supersedes every earlier version of `docs/superpowers/plans/2026-06-22-network-battle-complete-repair-optimization.md`.
 
 **Goal:** ネット対戦モードを安定化しつつ、起動軽量化の副作用でデバッグ、スキン、ガチャ、ランキング、CPU、演出、通常プレイが崩れない状態へ段階的に修復する。
@@ -137,6 +145,414 @@ Network repair:
 - Test: `test/ui.network-snapshot.*.test.ts`
 - Test: `test/ui.animation-engine.test.ts`
 - Test: `test/e2e/network-battle-complete-smoke.test.ts`
+
+## Remaining Work Snapshot (2026-06-22)
+
+This section is the current executor-facing backlog. It supersedes the older interpretation that Phase 4 through Phase 6 require new skeleton modules: the intake, trace, reconnect, and visual-settlement modules already exist. The remaining work is characterization, hardening, and verification against those modules.
+
+Evidence already present in the repo:
+
+- `ui/network/debug-trace.ts`
+- `ui/network/intake-envelope.ts`
+- `ui/network/intake-coordinator.ts`
+- `ui/network/reconnect-controller.ts`
+- `ui/network/visual-settlement.ts`
+- `ui/playback-state-manager.ts`
+- `cards/card-interaction-pending-settlement.ts`
+- `test/ui.network-debug-trace.test.ts`
+- `test/ui.network-intake-envelope.test.ts`
+- `test/ui.network-intake-coordinator.test.ts`
+- `test/ui.network-reconnect-controller.test.ts`
+- `test/ui.network-visual-settlement.test.ts`
+- `test/e2e/network-battle-complete-smoke.test.ts`
+
+Completed or protected checkpoints:
+
+- Phase 0 plan rewrite is committed as `3c2cc798 Revise network repair plan for boot safety`.
+- Lazy UI control repair is committed as `37fc2bc4 Restore lazy UI controls after boot split`.
+- Browser UI control smoke is committed as `139ff37c Add browser UI control startup smoke`.
+- `match:ui-control-smoke` exists and covers debug, hand skin, gacha, and leaderboard startup controls.
+- `match:boot-performance-check` remains the gate for optional registry and ONNX startup regressions.
+
+Current phase status:
+
+| Phase | Status | Remaining concrete work |
+| --- | --- | --- |
+| Phase 0 | Complete for the revised plan | Re-run dirty-worktree classification before each implementation unit. |
+| Phase 1 | Mostly complete | Re-run boot contract, lazy loader, UI handler, smoke, and boot performance checks before any new lazy-loading change. |
+| Phase 2 | Complete | Keep `match:ui-control-smoke` in the required verification bundle. |
+| Phase 3 | Open gate | Inspect generated and mirror diffs before staging any Worker/browser mirror output. |
+| Phase 4 | Partially implemented | R2, R3, and R4 below. |
+| Phase 5 | Partially implemented | R5 and R6 below. |
+| Phase 6 | Partially implemented | R7 below. |
+| Phase 7 | Not started | R8 below. |
+| Phase 8 | Active guardrail | Apply to every future boot optimization. |
+| Phase 9 | Not complete | R9 and R10 below. |
+
+### Remaining Task R1: Establish A Clean Network Baseline
+
+**Files:**
+
+- Read: repository working tree
+- Modify: none
+
+- [ ] Run:
+
+```powershell
+git status --short
+```
+
+Expected on 2026-06-22 before this task list was written: dirty files existed outside this plan, including `01-rulebook.md`, `styles-base.css`, animation tests/source, generated `worker-public/` files, and `test/ui.background-css-default.test.ts`. Do not edit or stage those files for network-plan bookkeeping.
+
+- [ ] Run the baseline checks:
+
+```powershell
+npm run match:boot-performance-check
+npm run match:ui-control-smoke
+npm run match:playback-board-writer-check
+npx jest --runInBand --runTestsByPath test/ui.network-debug-trace.test.ts test/ui.network-intake-envelope.test.ts test/ui.network-intake-coordinator.test.ts test/ui.network-reconnect-controller.test.ts test/ui.network-visual-settlement.test.ts test/ui.network-snapshot.pending-presentation-reconcile.test.ts
+```
+
+Expected: all pass before semantic network changes begin. A failure in these commands is a blocker for R2 through R8 until the failing path is classified.
+
+### Remaining Task R2: Harden The Network Trace Schema
+
+**Files:**
+
+- Modify: `ui/network/debug-trace.ts`
+- Modify: `test/ui.network-debug-trace.test.ts`
+- Modify after the trace API is proven in isolation: `ui/network-client.ts`
+- Modify after the coordinator trace payload is proven in isolation: `ui/network/intake-coordinator.ts`
+
+- [ ] Add explicit trace fields:
+
+```ts
+playbackActive: boolean | null;
+decision: 'accepted' | 'deduped' | 'stale' | 'deferred' | 'refresh_requested' | 'rejected' | null;
+```
+
+- [ ] Keep existing fields:
+
+```text
+type
+source
+operationId
+stateVersion
+visualSeq
+boardWriter
+timestamp
+accepted
+reason
+```
+
+- [ ] Extend `test/ui.network-debug-trace.test.ts` with this focused case:
+
+```ts
+const trace = createNetworkDebugTrace({ limit: 2, now: () => 100 });
+trace.record('network_intake_submit', {
+  source: 'stream',
+  operationId: 'op1',
+  stateVersion: 1,
+  visualSeq: 1,
+  boardWriter: 'network_timeline',
+  playbackActive: true,
+  decision: 'accepted',
+  reason: 'presentation_frames'
+});
+trace.record('network_intake_submit', {
+  source: 'state_sync',
+  operationId: 'op2',
+  stateVersion: 2,
+  visualSeq: 2,
+  boardWriter: 'none',
+  playbackActive: false,
+  decision: 'deduped',
+  reason: 'duplicate_operation_state'
+});
+trace.record('network_intake_submit', {
+  source: 'stream',
+  operationId: 'op3',
+  stateVersion: 3,
+  visualSeq: 3,
+  boardWriter: 'network_timeline',
+  playbackActive: false,
+  decision: 'accepted',
+  reason: 'fresh_state'
+});
+expect(trace.snapshot()).toEqual([
+  expect.objectContaining({ operationId: 'op2', playbackActive: false, decision: 'deduped' }),
+  expect.objectContaining({ operationId: 'op3', playbackActive: false, decision: 'accepted' })
+]);
+```
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.network-debug-trace.test.ts test/ui.network-intake-coordinator.test.ts
+```
+
+Expected: trace dumps explain which intake source won, which source was deduped, and whether visual playback was active at the decision point.
+
+### Remaining Task R3: Prove Every Intake Source Uses The Coordinator
+
+**Files:**
+
+- Modify: `test/ui.network-client.apply-coordinator.test.ts`
+- Modify: `test/ui.network-client.reconnect-sync.test.ts`
+- Modify: `test/ui.network-stream-snapshot.test.ts`
+- Modify after red tests: `ui/network/publish-flow.ts`
+- Modify after red tests: `ui/network/stream-snapshot.ts`
+- Modify after red tests: `ui/network/session-lifecycle.ts`
+
+- [ ] Add a source matrix test that covers:
+
+```text
+publish_response
+stream
+state_sync
+presentation_journal
+heartbeat_recovery
+```
+
+- [ ] For each source, assert:
+
+```text
+NetworkIntakeCoordinator.submit is called once
+networkDebugTrace records the same source
+direct renderBoard/renderBoardFull/flushVisualUpdates/emitBoardUpdate is not called from the source handler
+```
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.network-client.apply-coordinator.test.ts test/ui.network-client.reconnect-sync.test.ts test/ui.network-stream-snapshot.test.ts
+```
+
+Expected: all authoritative network state arrivals enter through the intake coordinator before board refresh or presentation enqueue.
+
+### Remaining Task R4: Characterize Duplicate Source Arrival
+
+**Files:**
+
+- Modify: `test/ui.network-intake-coordinator.test.ts`
+- Modify: `test/ui.network-client.apply-coordinator.test.ts`
+- Modify after red tests: `ui/network/intake-coordinator.ts`
+- Modify after red tests: `ui/network-client.ts`
+
+- [ ] Add a test for the same `operationId`, `stateVersion`, and `visualSeq` arriving through `publish_response` and then `stream`.
+
+- [ ] Assert the exact result:
+
+```text
+canonical snapshot applied count: 1
+presentation frame enqueue count: 1
+board refresh request count: 0
+trace decisions: accepted, deduped
+duplicateOperation: true on the second submit result
+```
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.network-intake-coordinator.test.ts test/ui.network-client.apply-coordinator.test.ts
+npm run test:network:parity
+```
+
+Expected: POST response, SSE, state sync, and journal replay cannot double-apply the same visual transition.
+
+### Remaining Task R5: Keep Single Visual Writer Enforcement Green
+
+**Files:**
+
+- Read first: `scripts/check-playback-board-writer.ts`
+- Modify after a failing gate: `ui/render-scheduler.ts`
+- Modify after a failing gate: `ui/network/presentation-timeline.ts`
+- Modify after a failing gate: `ui/network-client.ts`
+
+- [ ] Run:
+
+```powershell
+npm run match:playback-board-writer-check
+```
+
+- [ ] When the gate reports a direct writer, remove that specific direct call path or route it through the existing presentation timeline / render scheduler path.
+
+- [ ] Re-run:
+
+```powershell
+npm run match:playback-board-writer-check
+npx jest --runInBand --runTestsByPath test/ui.network-snapshot.single-writer-baseline.test.ts test/ui.network-presentation-timeline.test.ts
+```
+
+Expected: no network playback path writes board DOM directly while visual playback is active.
+
+### Remaining Task R6: Finish Pending Selection visualSeq Settlement
+
+**Files:**
+
+- Modify: `test/ui.card-interaction-pending-network.test.ts`
+- Modify: `test/ui.network-snapshot.pending-presentation-reconcile.test.ts`
+- Modify: `test/ui.playback-state-manager.test.ts`
+- Modify after red tests: `cards/card-interaction-pending-settlement.ts`
+- Modify after red tests: `ui/playback-state-manager.ts`
+- Modify after red tests: `ui/network/visual-settlement.ts`
+
+- [ ] Add a normal-success test where publish result contains `presentationCursor.visualSeq: 12`.
+
+- [ ] Assert the exact sequence:
+
+```text
+waitForNetworkVisualSeq(12, { operationId }) is called
+busy or selection lock remains true before visualSeq 12 settles
+visualSeq 11 settlement does not release the lock
+visualSeq 12 settlement releases the lock
+clearOrphanNetworkPlaybackQueues is not called during normal success
+```
+
+- [ ] Keep orphan cleanup only for abort, stale recovery, or explicit abandonment paths, and record a trace entry when cleanup runs.
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.card-interaction-pending-network.test.ts test/ui.network-snapshot.pending-presentation-reconcile.test.ts test/ui.playback-state-manager.test.ts
+npm run test:network:parity
+```
+
+Expected: pending card selection settles on authoritative visual playback completion, not on a fixed 1,500 ms cleanup path.
+
+### Remaining Task R7: Reconnect One-Flight And Journal Catch-Up Audit
+
+**Files:**
+
+- Modify: `test/ui.network-reconnect-controller.test.ts`
+- Modify: `test/ui.network-client.reconnect-sync.test.ts`
+- Modify after red tests: `ui/network/reconnect-controller.ts`
+- Modify after red tests: `ui/network/session-lifecycle.ts`
+- Modify after red tests: `ui/network/intake-coordinator.ts`
+
+- [ ] Add or extend a test where heartbeat recovery and reconnect recovery are requested in the same tick.
+
+- [ ] Assert:
+
+```text
+syncLatestStateWithRetry call count: 1
+networkRecoverySyncInFlight prevents duplicate reconnect recovery
+heartbeatResyncInFlight prevents duplicate heartbeat recovery
+presentation_journal submits a NetworkSnapshotEnvelope
+presentation_journal does not call direct board render
+```
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.network-reconnect-controller.test.ts test/ui.network-client.reconnect-sync.test.ts test/ui.network-snapshot.pending-presentation-reconcile.test.ts
+npm run test:network:parity
+```
+
+Expected: reconnect, heartbeat recovery, state sync, and presentation journal catch-up are one-flight and idempotent.
+
+### Remaining Task R8: Add Ack-Only POST Behind A Compatibility Flag
+
+**Files:**
+
+- Modify after R2 through R7 pass: `workers/match-worker-publish-controller.ts`
+- Modify after R2 through R7 pass: `scripts/local-match-server.ts`
+- Modify after R2 through R7 pass: `utils/match-authority.ts`
+- Modify after R2 through R7 pass: `ui/network/publish-flow.ts`
+- Test: `test/workers.match-publish-idempotency.test.ts`
+- Test: `test/ui.network-client.publish-base-version.test.ts`
+- Test: `test/ui.network-publish-flow.contract.test.ts`
+
+- [ ] Preserve the default response mode:
+
+```ts
+const publishResponseMode = room.publishResponseMode || 'snapshot_compat';
+```
+
+- [ ] Add ack-only coverage that returns:
+
+```ts
+{
+  ok: true,
+  operationId,
+  stateVersion: room.stateVersion,
+  presentationCursor: buildPresentationCursor(room),
+  publishMeta,
+  serverTime
+}
+```
+
+- [ ] Assert snapshot-compatible POST remains the default for both Worker and local match server.
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/workers.match-publish-idempotency.test.ts test/ui.network-client.publish-base-version.test.ts test/ui.network-publish-flow.contract.test.ts test/ui.network-client.reconnect-sync.test.ts
+npm run test:network:parity
+```
+
+Expected: payload reduction is opt-in only, and default network battle behavior is unchanged until the compatibility flag is deliberately switched.
+
+### Remaining Task R9: Run The Local Two-Browser Smoke As The Final Local Gate
+
+**Files:**
+
+- Read/modify after failure classification: `test/e2e/network-battle-complete-smoke.test.ts`
+
+- [ ] Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/e2e/network-battle-complete-smoke.test.ts
+```
+
+Expected:
+
+```text
+/api/match/publish 500 count: 0
+unexpected publish 409 count: 0
+duplicate visualSeq playback count: 0
+direct board write during playback count: 0
+stuck busy lock count: 0
+final canonical board hash matches across both clients
+```
+
+### Remaining Task R10: Public Live Check After Explicit Approval
+
+**Files:**
+
+- Create after live check: `docs/network-live-check-2026-06-22.md`
+
+- [ ] Before asking for deployment approval, run:
+
+```powershell
+npm run typecheck
+npm run build:browser
+npm run check:generated-network-surface
+npm run test:network:parity
+npm run match:boot-performance-check
+npm run match:ui-control-smoke
+npm run worker:prepare
+```
+
+- [ ] Ask the user for explicit deployment approval.
+
+- [ ] After approval, verify `https://card.reversi-0.workers.dev/` with two independent browser sessions, Chrome as one player and Edge as the other.
+
+- [ ] Capture the live-check report fields:
+
+```text
+roomId
+Chrome console summary
+Edge console summary
+publish status summary
+request failure summary
+network debug trace from both browsers
+screenshots before reconnect
+screenshots after reconnect
+final canonical board hash from both browsers
+```
+
+Expected: the public live check reproduces the local gate with no publish 500, no duplicate playback, no direct board write during playback, no stuck busy lock, and matching final canonical board hash.
 
 ## Phase 0: Freeze, Inventory, And Safety Baseline
 
