@@ -77,7 +77,7 @@ describe('status-display network seat labels', () => {
     expect(window.document.getElementById('hero-label').textContent).toBe('白:Beta');
     expect(window.document.getElementById('cpu-level-label').textContent).toBe('黒:Alpha');
     expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('true');
-    expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/hero/HERO.png');
+    expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/hero/hero.png');
     expect(window.document.getElementById('cpu-character-img').alt).toBe('対戦相手の勇者');
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(true);
 

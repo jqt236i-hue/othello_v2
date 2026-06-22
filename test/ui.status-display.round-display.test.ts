@@ -9,7 +9,7 @@ function setupStatusDisplayDom(gameStateOverride) {
     '<div id="effect-live-panel"></div>' +
     '<img id="cpu-character-img" />' +
     '<div id="cpu-level-label"></div>' +
-    '<img id="hero-character-img" src="assets/images/hero/HERO.png" />' +
+    '<img id="hero-character-img" src="assets/images/hero/hero.png" />' +
     '<select id="smartWhite"><option value="1">1</option><option value="7-board-executor">Lv7: 盤界の執行者</option><option value="8-theory-incarnation">Lv8: 理論の化身</option><option value="9-ending-ash">Lv9: 終焉の冥灰</option></select>' +
     '<select id="smartBlack"><option value="1">1</option><option value="6">Lv6: 盤理の観測者</option><option value="7-board-executor">Lv7: 盤界の執行者</option><option value="8-theory-incarnation">Lv8: 理論の化身</option><option value="9-ending-ash">Lv9: 終焉の冥灰</option></select>' +
     '<div id="hero-label"></div>' +
@@ -219,7 +219,7 @@ describe('status-display round bonus surface', () => {
 
     const img = window.document.getElementById('hero-character-img') as HTMLImageElement;
     const label = window.document.getElementById('hero-label') as HTMLElement;
-    expect(img.src).toContain('assets/images/hero/HERO.png');
+    expect(img.src).toContain('assets/images/hero/hero.png');
     expect(img.alt).toBe('リバーシの勇者');
     expect(label.textContent).toBe('リバーシの勇者');
 
