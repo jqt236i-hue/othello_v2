@@ -32,7 +32,7 @@ function getBootModuleClass(moduleKey) {
   for (var i = 0; i < optionalPrefixes.length; i += 1) {
     var prefix = normalizeBootModuleKey(optionalPrefixes[i]);
     if (!prefix) continue;
-    if (normalized === prefix || normalized.indexOf(prefix + "/") === 0) return "optional";
+    if (normalized === prefix.replace(/\/$/, "") || normalized.indexOf(prefix) === 0) return "optional";
   }
   return "required";
 }
@@ -1960,12 +1960,13 @@ if (typeof window.CardSystem !== "undefined") window.CardSystem = window.CardSys
 
 function requireBootNamespace(globalName, modulePath, options) {
   var opts = options || {};
+  var bootClass = opts.optional === true ? "optional" : getBootModuleClass(modulePath);
   try {
     window[globalName] = window[globalName] || require(modulePath);
     return window[globalName];
   } catch (e) {
-    var message = "[boot] required namespace failed " + globalName + " <- " + modulePath + ": " + (e && e.message ? e.message : e);
-    if (opts.optional) {
+    var message = "[boot] " + (bootClass === "optional" ? "skip optional" : "required") + " namespace " + globalName + " <- " + modulePath + ": " + (e && e.message ? e.message : e);
+    if (bootClass === "optional") {
       console.warn(message);
       return null;
     }

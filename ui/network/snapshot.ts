@@ -649,6 +649,9 @@ function createNetworkSnapshotController(config: any): any {
                 clearUndrainedPlayback: opts && opts.clearUndrainedPlayback === true,
                 boardUpdateRequested: refreshState && refreshState.boardUpdateRequested === true,
                 force: opts && opts.force === true,
+                playbackActive: isVisualPlaybackActive(),
+                playbackStartedAt: getPlaybackStartedAt(),
+                playbackRunning: isPlaybackEngineRunning(),
                 stalePlaybackTimeoutMs: getStalePlaybackTimeoutMs()
             }) || createDefaultSnapshotPlaybackSettlement();
         } catch (e) {

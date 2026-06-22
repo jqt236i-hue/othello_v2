@@ -190,6 +190,25 @@ describe('network snapshot pending presentation reconcile', () => {
     ]);
   });
 
+  test('force snapshot clears stale injected playback lock without mirrored global playback state', () => {
+    const stateObj = { stateVersion: 10 };
+    global.AnimationEngine = { isPlaying: false };
+    global.VisualPlaybackActive = false;
+    global.__playbackActiveSince = null;
+    const ctrl = createController(stateObj, {
+      getPlaybackActive: jest.fn(() => true),
+      getPlaybackStartedAt: jest.fn(() => 100)
+    });
+
+    const applied = ctrl.applySnapshot(createSnapshot(11), { playbackEvents: [] });
+
+    expect(applied).toBe(true);
+    expect(busyStateCalls).toEqual([
+      { processing: false, cardAnimating: false },
+      { abortPlayback: true }
+    ]);
+  });
+
   test('force snapshot keeps playback lock while engine still reports active playback', () => {
     const stateObj = { stateVersion: 10 };
     const ctrl = createController(stateObj);

@@ -575,12 +575,30 @@ function decideSnapshotPlaybackSettlement(input: any): any {
   return createSnapshotPlaybackSettlementDecision({ keepBusy });
 }
 
+function hasOwnSnapshotSettlementOption(options: any, key: string): boolean {
+  return !!options && Object.prototype.hasOwnProperty.call(options, key);
+}
+
+function coerceOptionalBoolean(value: any): boolean | null {
+  if (value === true) return true;
+  if (value === false) return false;
+  return null;
+}
+
 function resolveSnapshotPlaybackSettlement(input?: any): any {
   const opts = (input && typeof input === 'object') ? input : {};
   const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
   const presentationState = opts.presentationState || {};
   const queueState = getPresentationQueueState(opts.cardState);
-  const playbackRunning = isSnapshotPlaybackEngineRunning(opts);
+  const playbackRunning = hasOwnSnapshotSettlementOption(opts, 'playbackRunning')
+    ? coerceOptionalBoolean(opts.playbackRunning)
+    : isSnapshotPlaybackEngineRunning(opts);
+  const playbackActive = hasOwnSnapshotSettlementOption(opts, 'playbackActive')
+    ? opts.playbackActive === true
+    : getPlaybackActive();
+  const playbackStartedAt = hasOwnSnapshotSettlementOption(opts, 'playbackStartedAt')
+    ? opts.playbackStartedAt
+    : getPlaybackStartedAt();
   const restoredQueues = presentationState.restoredPreservedQueues === true;
   const shouldKeepBusy = presentationState.shouldKeepBusy === true || playbackEvents.length > 0;
   return decideSnapshotPlaybackSettlement({
@@ -590,8 +608,8 @@ function resolveSnapshotPlaybackSettlement(input?: any): any {
     queueState,
     cardState: opts.cardState,
     playbackRunning,
-    playbackActive: getPlaybackActive(),
-    playbackStartedAt: getPlaybackStartedAt(),
+    playbackActive,
+    playbackStartedAt,
     releaseUnclaimedPlayback: opts.releaseUnclaimedPlayback === true,
     clearUndrainedPlayback: opts.clearUndrainedPlayback === true,
     boardUpdateRequested: opts.boardUpdateRequested === true,

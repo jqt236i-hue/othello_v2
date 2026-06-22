@@ -495,6 +495,28 @@ describe('PlaybackStateManager runtime helpers', () => {
     });
   });
 
+  test('snapshot settlement honors explicit injected playback state over mirrored globals', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    manager.clearPlaybackLock();
+    global.window.AnimationEngine = { isPlaying: true };
+
+    const settlement = manager.resolveSnapshotPlaybackSettlement({
+      playbackEvents: [],
+      presentationState: { shouldKeepBusy: false },
+      cardState: { presentationEvents: [], _presentationEventsPersist: [] },
+      playbackActive: true,
+      playbackRunning: false,
+      playbackStartedAt: 1000
+    });
+
+    expect(settlement).toMatchObject({
+      clearPlaybackLock: true,
+      clearTransientPresentationQueues: false,
+      setBusyFalse: false,
+      reason: 'stale_playback_lock'
+    });
+  });
+
   test('snapshot settlement clears undrained playback queues only after board update requested', () => {
     const manager = require('../ui/playback-state-manager.js');
     const cardState = {
