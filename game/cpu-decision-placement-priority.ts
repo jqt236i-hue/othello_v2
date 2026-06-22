@@ -13,6 +13,56 @@ export type CpuDecisionPlacementPriorityDeps = {
 };
 
 export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPriorityDeps) {
+  const ultimateImmediateAnchorPendingTypes = new Set([
+    'ULTIMATE_REVERSE_DRAGON',
+    'ULTIMATE_DESTROY_GOD'
+  ]);
+
+  function isUltimateImmediateAnchorPendingType(pendingType: any): boolean {
+    return ultimateImmediateAnchorPendingTypes.has(String(pendingType || '').trim().toUpperCase());
+  }
+
+  function resolveMovePlayerValue(playerKey: any, move: any): number {
+    const movePlayerValue = Number(move && move.playerValue !== undefined ? move.playerValue : move && move.player);
+    if (Number.isFinite(movePlayerValue) && movePlayerValue !== 0) return movePlayerValue > 0 ? 1 : -1;
+    const key = String(playerKey || '').trim().toLowerCase();
+    if (key === 'black' || key === '1') return 1;
+    return -1;
+  }
+
+  function countAdjacentEnemyCells(board: any, row: number, col: number, playerValue: number): number {
+    if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
+    const opponentValue = -playerValue;
+    let count = 0;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        if (deps.getBoardCellValueSafe(board, row + dr, col + dc) === opponentValue) count += 1;
+      }
+    }
+    return count;
+  }
+
+  function filterUltimateImmediateAnchorEffectMoves(playerKey: any, pendingType: any, candidateMoves: any, board: any): any {
+    if (!isUltimateImmediateAnchorPendingType(pendingType)) return candidateMoves;
+    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !Array.isArray(board)) return candidateMoves;
+
+    let bestAdjacentEnemyCount = 0;
+    const profiledMoves = candidateMoves.map((move: any) => {
+      const row = Number(move && move.row);
+      const col = Number(move && move.col);
+      const adjacentEnemyCount = countAdjacentEnemyCells(board, row, col, resolveMovePlayerValue(playerKey, move));
+      if (adjacentEnemyCount > bestAdjacentEnemyCount) bestAdjacentEnemyCount = adjacentEnemyCount;
+      return { move, adjacentEnemyCount };
+    });
+
+    if (bestAdjacentEnemyCount <= 0) return candidateMoves;
+    const narrowed = profiledMoves
+      .filter((one) => one.adjacentEnemyCount === bestAdjacentEnemyCount)
+      .map((one) => one.move);
+    return narrowed.length > 0 ? narrowed : candidateMoves;
+  }
+
   function scoreLv6PlacementPlanMove(playerKey: any, level: any, move: any, planContext: any): any {
     const policyCore = deps.getCpuPolicyCore();
     if (!policyCore || typeof policyCore.scoreMoveForCornerEdgePlan !== 'function') {
@@ -144,14 +194,24 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
     if (!Number.isFinite(level) || level < 6) return candidateMoves;
 
     const board = deps.getCurrentCpuBoard();
-    const filteredCandidates = (board && candidateMoves.length > 1)
-      ? filterLv6OpenCornerAdjacentMoves(candidateMoves, board)
+    const pendingType = deps.resolvePendingType(playerKey);
+    const effectFocusedCandidates = (board && candidateMoves.length > 1)
+      ? filterUltimateImmediateAnchorEffectMoves(playerKey, pendingType, candidateMoves, board)
       : candidateMoves;
+    const filteredCandidates = (board && effectFocusedCandidates.length > 1)
+      ? filterLv6OpenCornerAdjacentMoves(effectFocusedCandidates, board)
+      : effectFocusedCandidates;
     const candidatePool = filteredCandidates.length > 0 ? filteredCandidates : candidateMoves;
 
-    if (board && filteredCandidates.length > 0 && filteredCandidates.length < candidateMoves.length) {
+    if (board && effectFocusedCandidates.length > 0 && effectFocusedCandidates.length < candidateMoves.length) {
       deps.cpuDebugLog(
-        `[CPU] Lv${level} ${playerKey}: 角隣接の危険候補を除外 (${filteredCandidates.length}/${candidateMoves.length})`
+        `[CPU] Lv${level} ${playerKey}: ${String(pendingType || '')}配置を敵石隣接候補へ補正 (${effectFocusedCandidates.length}/${candidateMoves.length})`
+      );
+    }
+
+    if (board && filteredCandidates.length > 0 && filteredCandidates.length < effectFocusedCandidates.length) {
+      deps.cpuDebugLog(
+        `[CPU] Lv${level} ${playerKey}: 角隣接の危険候補を除外 (${filteredCandidates.length}/${effectFocusedCandidates.length})`
       );
     }
 
