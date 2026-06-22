@@ -103,6 +103,14 @@ function createNetworkSnapshotController(config: any): any {
         return null;
     }
 
+    function resolveRenderScheduler(): any {
+        const scheduler = resolveGlobalObject('RenderScheduler');
+        if (scheduler && typeof scheduler.requestBoardRender === 'function') {
+            return scheduler;
+        }
+        return null;
+    }
+
     function resolveBoardUpdateSyncRuntime(): any {
         if (runtime && typeof runtime.resolveBoardUpdateSyncRuntime === 'function') {
             return runtime.resolveBoardUpdateSyncRuntime();
@@ -390,35 +398,25 @@ function createNetworkSnapshotController(config: any): any {
                 const injectedEmitBoardUpdate = (typeof cfg.emitBoardUpdate === 'function')
                     ? cfg.emitBoardUpdate
                     : null;
-                const injectedRenderBoard = (typeof cfg.renderBoard === 'function')
-                    ? cfg.renderBoard
-                    : null;
                 if (injectedEmitBoardUpdate) {
                     injectedEmitBoardUpdate({
                         source: 'network_snapshot',
                         reason: 'snapshot_refresh'
                     });
                     boardUpdateRequested = true;
-                } else if (injectedRenderBoard) {
-                    injectedRenderBoard();
-                    boardUpdateRequested = true;
                 } else {
                     const boardUpdateDispatch = resolveBoardUpdateDispatch();
-                    if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
+                    if (boardUpdateDispatch
+                        && typeof boardUpdateDispatch.requestBoardUpdate === 'function'
+                        && resolveRenderScheduler()) {
                         boardUpdateRequested = boardUpdateDispatch.requestBoardUpdate({
                             emitBoardUpdate: cfg.emitBoardUpdate,
-                            renderBoard: cfg.renderBoard,
                             source: 'network_snapshot',
                             reason: 'snapshot_refresh'
                         }) === true;
                     } else {
                         const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
-                        const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
                         if (emitBoardUpdate) boardUpdateRequested = emitBoardUpdate() === true;
-                        else if (renderBoard) {
-                            renderBoard();
-                            boardUpdateRequested = true;
-                        }
                     }
                 }
             } catch (e) { /* ignore */ }

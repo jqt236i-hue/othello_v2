@@ -872,13 +872,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                             armBoardUpdateSync();
                             scheduler.flushVisualUpdates();
                         }
-                        return;
-                    }
-                    const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
-                        || resolveNetworkClientGlobal('renderBoard');
-                    if (typeof renderBoard === 'function' && shouldDeferNetworkBoardDomWrite() !== true) {
-                        armBoardUpdateSync();
-                        renderBoard();
                     }
                 } catch (e: any) { /* ignore */ }
             }).catch(() => {
@@ -898,7 +891,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
         const renderScheduler = resolveNetworkClientCandidate(() => root && root.RenderScheduler)
             || resolveNetworkClientGlobal('RenderScheduler');
-        const forceDirectRender = info.reason === 'presentation_timeline_drained';
         if (renderScheduler && typeof renderScheduler.requestBoardRender === 'function') {
             try {
                 armBoardUpdateSync();
@@ -911,32 +903,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                         requested = true;
                     }
                 }
-                if (forceDirectRender && shouldDeferNetworkBoardDomWrite() !== true) {
-                    const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
-                        || resolveNetworkClientGlobal('renderBoard');
-                    if (typeof renderBoard === 'function') {
-                        armBoardUpdateSync();
-                        renderBoard();
-                        requested = true;
-                    }
-                    const boardRenderer = resolveNetworkClientCandidate(() => _require('./board-renderer'));
-                    if (boardRenderer && typeof boardRenderer.renderBoardFull === 'function') {
-                        armBoardUpdateSync();
-                        boardRenderer.renderBoardFull();
-                        requested = true;
-                    }
-                }
             } catch (e: any) { /* ignore */ }
-        } else {
-            const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
-                || resolveNetworkClientGlobal('renderBoard');
-            if (typeof renderBoard === 'function' && shouldDeferNetworkBoardDomWrite() !== true) {
-                try {
-                    armBoardUpdateSync();
-                    renderBoard();
-                    requested = true;
-                } catch (e: any) { /* ignore */ }
-            }
         }
         if (requestPostPlaybackBoardRefresh()) {
             requested = true;

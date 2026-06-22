@@ -132,6 +132,7 @@ describe('network client visual catch-up', () => {
     });
 
     expect(applied).toBe(true);
+    (global as any).renderBoard.mockClear();
 
     await flushAsyncWork();
     await flushAsyncWork();
@@ -142,6 +143,37 @@ describe('network client visual catch-up', () => {
       visualSeq: 1,
       visualVersion: 2
     }));
+    expect((global as any).renderBoard).not.toHaveBeenCalled();
+  });
+
+  test('does not fall back to direct renderBoard when no board writer is available', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    delete (global as any).emitBoardUpdate;
+    delete (global as any).RenderScheduler;
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
     expect((global as any).renderBoard).not.toHaveBeenCalled();
   });
 
