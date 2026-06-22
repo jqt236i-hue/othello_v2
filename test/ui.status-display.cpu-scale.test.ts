@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { readLayoutCssSurface } from './helpers/css-test-helpers';
+import { readCssBlock, readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('status-display cpu image scaling', () => {
   test('uses CSS variable based level scaling without JS pixel width override', () => {
@@ -31,9 +31,14 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/#hero-character-panel[\s\S]*gap:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*0/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*background:[\s\S]*linear-gradient\(180deg,\s*rgba\(255,\s*248,\s*225,\s*0\.14\),\s*rgba\(255,\s*248,\s*225,\s*0\)\s*38%\)/);
-    expect(css).toMatch(/#cpu-level-label[\s\S]*font-weight:\s*500/);
+    expect(css).toMatch(/#cpu-level-label[\s\S]*font-weight:\s*600/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*backdrop-filter:\s*blur/);
     expect(css).toMatch(/#cpu-level-label[\s\S]*letter-spacing:\s*calc\(1\.4px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(readCssBlock(css, '#cpu-level-label')).toEqual(expect.stringMatching(/display:\s*inline-grid/));
+    expect(readCssBlock(css, '#cpu-level-label')).toEqual(expect.stringMatching(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s*auto/));
+    expect(readCssBlock(css, '#cpu-level-label')).toEqual(expect.stringMatching(/linear-gradient\(180deg,\s*rgba\(42,\s*52,\s*45,\s*0\.95\),\s*rgba\(12,\s*22,\s*22,\s*0\.92\)\)/));
+    expect(readCssBlock(css, '#cpu-level-label::after')).toEqual(expect.stringMatching(/content:\s*"▽"/));
+    expect(readCssBlock(css, '#cpu-level-label::after')).toEqual(expect.stringMatching(/color:\s*rgba\(224,\s*198,\s*122,\s*0\.88\)/));
     expect(css).toMatch(/#cpu-level-menu[\s\S]*backdrop-filter:\s*blur/);
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-1[\s\S]*--cpu-tier-accent:\s*72,\s*78,\s*82/);
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-5[\s\S]*--cpu-tier-accent:\s*96,\s*102,\s*106/);
