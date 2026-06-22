@@ -2476,7 +2476,10 @@
     place-items: center;
     line-height: 1;
     z-index: 2;
-    transform: translateY(calc(1px * var(--layout-stage-scale)));
+    transform: translate(
+        calc(1px * var(--layout-stage-scale)),
+        calc(-1px * var(--layout-stage-scale))
+    );
 }
 
 @media (max-width: 560px) {

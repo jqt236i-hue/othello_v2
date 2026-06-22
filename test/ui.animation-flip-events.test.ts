@@ -82,6 +82,25 @@ describe('AnimationFlipEvents', () => {
     expect(disc.classList.contains('white')).toBe(true);
   });
 
+  test('marks playback-flipped discs so final diff sync does not replay fallback flip', async () => {
+    const flipEvents = require('../ui/animation-flip-events.js');
+    const playbackFlipMarker = require('../ui/playback-flip-marker.js');
+    const triggerFlip = jest.fn();
+    const deps = createDeps(triggerFlip);
+
+    await flipEvents.handleFlipEvent(
+      {
+        type: 'flip',
+        targets: [{ r: 2, col: 3, ownerBefore: 'black', after: { color: -1 } }]
+      },
+      deps
+    );
+
+    const disc = document.querySelector('.disc') as HTMLElement;
+    expect(disc.dataset.playbackFlipAt).toMatch(/^\d+$/);
+    expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(true);
+  });
+
   test('keeps using the shared CSS flip helper when element.animate is available', async () => {
     const flipEvents = require('../ui/animation-flip-events.js');
     const triggerFlip = jest.fn();

@@ -74,6 +74,21 @@ function expectSourceToSyncWithoutDestroyFade(row, col) {
   expect(sourceCell.querySelector('.disc')).toBeNull();
 }
 
+function expectSourceToRemainUntilPlayback(row, col) {
+  const sourceCell = global.boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+  expect(sourceCell).toBeTruthy();
+  expect(sourceCell.classList.contains('has-disc')).toBe(true);
+  expect(sourceCell.querySelector('.disc')).toBeTruthy();
+}
+
+function flushDeferredPlaybackBoardUpdate() {
+  if (global.cardState && typeof global.cardState === 'object') {
+    global.cardState.presentationEvents = [];
+    global.cardState._presentationEventsPersist = [];
+  }
+  global.emitBoardUpdate();
+}
+
 describe('Network snapshot move-source empty handling', () => {
   let dom;
   let diff;
@@ -267,6 +282,8 @@ describe('Network snapshot move-source empty handling', () => {
     );
 
     expect(applied).toBe(true);
+    expectSourceToRemainUntilPlayback(source.row, source.col);
+    flushDeferredPlaybackBoardUpdate();
     expectSourceToSyncWithoutDestroyFade(source.row, source.col);
     const destCell = global.boardEl.querySelector(`.cell[data-row="${dest.row}"][data-col="${dest.col}"]`);
     expect(destCell).toBeTruthy();
@@ -306,6 +323,8 @@ describe('Network snapshot move-source empty handling', () => {
     );
 
     expect(applied).toBe(true);
+    expectSourceToRemainUntilPlayback(source.row, source.col);
+    flushDeferredPlaybackBoardUpdate();
     expectSourceToSyncWithoutDestroyFade(source.row, source.col);
     const destCell = global.boardEl.querySelector(`.cell[data-row="${dest.row}"][data-col="${dest.col}"]`);
     expect(destCell).toBeTruthy();
@@ -369,6 +388,8 @@ describe('Network snapshot move-source empty handling', () => {
     );
 
     expect(applied).toBe(true);
+    expectSourceToRemainUntilPlayback(source.row, source.col);
+    flushDeferredPlaybackBoardUpdate();
     const sourceCell = global.boardEl.querySelector(`.cell[data-row="${source.row}"][data-col="${source.col}"]`);
     const destCell = global.boardEl.querySelector(`.cell[data-row="${dest.row}"][data-col="${dest.col}"]`);
     expect(sourceCell).toBeTruthy();
@@ -407,6 +428,8 @@ describe('Network snapshot move-source empty handling', () => {
     );
 
     expect(applied).toBe(true);
+    expectSourceToRemainUntilPlayback(3, 3);
+    flushDeferredPlaybackBoardUpdate();
     const destroyedCell = global.boardEl.querySelector('.cell[data-row="1"][data-col="1"]');
     expect(destroyedCell).toBeTruthy();
     const fadingDisc = destroyedCell.querySelector('.disc');

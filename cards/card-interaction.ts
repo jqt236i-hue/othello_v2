@@ -2049,7 +2049,8 @@ function _isPlacementHintPendingActionForCardUi(pending: any) {
     if (!pending || typeof pending !== 'object') return false;
     if (pending.stage === 'selectTarget') return false;
     const pendingType = String(pending.type || '').trim().toUpperCase();
-    return pendingType === 'TABOO_REVERSE_WILL';
+    return _isFreePlacementPendingActionForCardUi(pending)
+        || pendingType === 'TABOO_REVERSE_WILL';
 }
 
 function _isBoardPendingActionForCardUi(pending: any) {
@@ -2450,6 +2451,10 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any, options?: a
     if (!shouldDelay) {
         renderBoardSync();
         return;
+    }
+
+    if (opts.directBoardRender === true) {
+        _requestImmediateBoardRefresh();
     }
 
     const waitForPlaybackFn = opts.directBoardRender === true

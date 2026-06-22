@@ -59,7 +59,7 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     expect(playbackState.getBoardUpdateContext()).toBeNull();
   });
 
-  test('does not apply fallback .flip when snapshot sync is allowed during pending playback', () => {
+  test('does not apply snapshot diff while pending playback is still queued', () => {
     const playbackState = require('../ui/playback-state-manager.js');
     const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
     const diff = require('../ui/diff-renderer.js');
@@ -84,13 +84,17 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
       reason: 'network_snapshot_refresh'
     });
 
-    diff.renderBoardDiff(boardEl);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const updated = diff.renderBoardDiff(boardEl);
+    warnSpy.mockRestore();
 
     const cell = document.querySelector('.cell[data-row="0"][data-col="0"]');
     expect(cell).toBeTruthy();
     const disc = cell.querySelector('.disc');
     expect(disc).toBeTruthy();
-    expect(disc.classList.contains('white')).toBe(true);
+    expect(updated).toBe(0);
+    expect(disc.classList.contains('black')).toBe(true);
+    expect(disc.classList.contains('white')).toBe(false);
     expect(disc.classList.contains('flip')).toBe(false);
   });
 });

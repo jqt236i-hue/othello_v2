@@ -675,7 +675,6 @@ function createNetworkSnapshotController(config: any): any {
         if (!runtimeRef || typeof runtimeRef.armBoardUpdateSyncContext !== 'function') return false;
         try {
             return !!runtimeRef.armBoardUpdateSyncContext({
-                allowBoardUpdateDuringPlayback: true,
                 source: source || 'network_snapshot',
                 reason: reason || 'snapshot_playback_board_sync'
             });

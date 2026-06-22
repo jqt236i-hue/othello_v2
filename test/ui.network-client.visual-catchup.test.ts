@@ -109,7 +109,7 @@ describe('network client visual catch-up', () => {
     });
   });
 
-  test('requests a board update after a network presentation frame commits', async () => {
+  test('requests a board update after a network presentation frame commits without direct board render', async () => {
     (global as any).PresentationHandler = {
       handlePresentationEvent: jest.fn(async () => undefined),
       onBoardUpdated: jest.fn(async () => undefined)
@@ -141,10 +141,10 @@ describe('network client visual catch-up', () => {
       visualSeq: 1,
       visualVersion: 2
     }));
-    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
+    expect((global as any).renderBoard).not.toHaveBeenCalled();
   });
 
-  test('flushes queued RenderScheduler board updates before frame commit settles', async () => {
+  test('requests RenderScheduler board updates without forcing playback bypass', async () => {
     (global as any).PresentationHandler = {
       handlePresentationEvent: jest.fn(async () => undefined),
       onBoardUpdated: jest.fn(async () => undefined)
@@ -155,8 +155,56 @@ describe('network client visual catch-up', () => {
         flushOrder.push('request');
         return true;
       }),
+      flushVisualUpdates: jest.fn((options?: any) => {
+        flushOrder.push(options && options.ignorePlayback === true ? 'flush-ignore' : 'flush');
+        return false;
+      })
+    };
+    const client = require('../ui/network-client.js');
+    const nextSnapshot = createSnapshot(2, 'new');
+    const frame = {
+      visualSeq: 1,
+      stateVersionFrom: 0,
+      stateVersionTo: 2,
+      playbackEvents: [{ type: 'flip' }],
+      snapshotAfter: nextSnapshot
+    };
+
+    const applied = client.applySnapshot(nextSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'legacy_flip' }],
+      presentationFrames: [frame]
+    });
+
+    expect(applied).toBe(true);
+
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect((global as any).RenderScheduler.requestBoardRender).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'network_timeline',
+      reason: 'presentation_frame_committed'
+    }));
+    expect((global as any).RenderScheduler.flushVisualUpdates.mock.calls[0]).toEqual([]);
+    expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).renderBoard).not.toHaveBeenCalled();
+  });
+
+  test('RenderScheduler can flush timeline board update after playback becomes idle', async () => {
+    (global as any).PresentationHandler = {
+      handlePresentationEvent: jest.fn(async () => undefined),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
+    let busy = true;
+    const flushOrder: string[] = [];
+    (global as any).RenderScheduler = {
+      requestBoardRender: jest.fn(() => {
+        flushOrder.push('request');
+        return true;
+      }),
       flushVisualUpdates: jest.fn(() => {
         flushOrder.push('flush');
+        if (busy) return false;
         (global as any).renderBoard();
         return true;
       })
@@ -186,10 +234,12 @@ describe('network client visual catch-up', () => {
       source: 'network_timeline',
       reason: 'presentation_frame_committed'
     }));
-    expect((global as any).RenderScheduler.flushVisualUpdates).toHaveBeenCalledWith({
-      ignorePlayback: true
-    });
     expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).renderBoard).not.toHaveBeenCalled();
+
+    busy = false;
+    (global as any).RenderScheduler.flushVisualUpdates();
+
     expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
   });
 });

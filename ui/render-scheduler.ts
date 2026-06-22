@@ -80,8 +80,7 @@ function createRenderScheduler(deps?: RenderSchedulerDeps) {
     if (normalized) state.reasons.push(normalized);
   };
 
-  const shouldDefer = (ignorePlayback?: boolean) => {
-    if (ignorePlayback === true) return false;
+  const shouldDefer = () => {
     return typeof currentDeps.shouldDeferUiSync === 'function'
       ? currentDeps.shouldDeferUiSync() === true
       : false;
@@ -101,20 +100,28 @@ function createRenderScheduler(deps?: RenderSchedulerDeps) {
 
   const flushNow = (options?: { ignorePlayback?: boolean }) => {
     if (!state.boardQueued && !state.cardUiQueued && !state.statusQueued) return false;
-    if (shouldDefer(options && options.ignorePlayback)) {
+    const playbackDeferred = shouldDefer();
+    const ignorePlayback = options && options.ignorePlayback === true;
+    if (playbackDeferred && !ignorePlayback) {
       state.deferredUntilIdle = true;
       schedule();
       return false;
     }
 
-    const runBoard = state.boardQueued;
+    // ignorePlayback may flush non-board UI, but board DOM writes still obey playback deferral.
+    const runBoard = state.boardQueued && !playbackDeferred;
     const runCard = state.cardUiQueued;
     const runStatus = state.statusQueued;
-    state.boardQueued = false;
+    if (!runBoard && state.boardQueued && playbackDeferred && !runCard && !runStatus) {
+      state.deferredUntilIdle = true;
+      schedule();
+      return false;
+    }
+    state.boardQueued = state.boardQueued && !runBoard;
     state.cardUiQueued = false;
     state.statusQueued = false;
-    state.deferredUntilIdle = false;
-    state.reasons = [];
+    state.deferredUntilIdle = state.boardQueued && playbackDeferred;
+    if (!state.deferredUntilIdle) state.reasons = [];
 
     if (runBoard) {
       const renderBoard = resolveRuntimeFunction('renderBoard', currentDeps.renderBoard);
@@ -128,6 +135,7 @@ function createRenderScheduler(deps?: RenderSchedulerDeps) {
       const updateStatus = resolveRuntimeFunction('updateStatus', currentDeps.updateStatus);
       if (updateStatus) updateStatus();
     }
+    if (state.deferredUntilIdle) schedule();
     return true;
   };
 

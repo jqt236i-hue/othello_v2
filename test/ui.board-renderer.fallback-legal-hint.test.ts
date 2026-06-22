@@ -106,13 +106,12 @@ describe('board-renderer fallback legal hints', () => {
     expect(legalCell.classList.contains('legal')).toBe(true);
   });
 
-  test('renderBoard honors allowBoardUpdateDuringPlayback sync context even when playback defers ordinary board updates', () => {
+  test('renderBoard skips board diff while playback defers updates even when allowBoardUpdateDuringPlayback is armed', () => {
     const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
     boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
-    global.PlaybackStateManager = {
-      shouldDeferBoardUpdate: jest.fn(() => true)
-    };
-    global.window.PlaybackStateManager = global.PlaybackStateManager;
+    global.cardState.presentationEvents = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'destroy', phase: 1 }] }
+    ];
     boardUpdateSyncRuntime.armBoardUpdateSyncContext({
       allowBoardUpdateDuringPlayback: true,
       source: 'unit-test',
@@ -122,7 +121,8 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoard();
 
-    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+    expect(global.renderBoardDiff).not.toHaveBeenCalled();
+    expect(global.updateOccupancyUI).not.toHaveBeenCalled();
     boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 
@@ -425,6 +425,27 @@ describe('board-renderer fallback legal hints', () => {
     expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
   });
 
+  test('renderBoardFull skips full redraw with persisted PLAYBACK_EVENTS even when allowBoardUpdateDuringPlayback is armed', () => {
+    const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+    boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
+    global.boardEl.innerHTML = '<div class="sentinel"></div>';
+    global.cardState._presentationEventsPersist = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'destroy', phase: 1 }] }
+    ];
+    boardUpdateSyncRuntime.armBoardUpdateSyncContext({
+      allowBoardUpdateDuringPlayback: true,
+      source: 'unit-test',
+      reason: 'snapshot_playback_board_sync'
+    });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
+    boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
+  });
+
   test('renderBoardDiff leaves selection-mode unchanged while PLAYBACK_EVENTS are pending', () => {
     global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
     global.cardState.pendingEffectByPlayer.black = {
@@ -444,6 +465,29 @@ describe('board-renderer fallback legal hints', () => {
     expect(updatedCount).toBe(0);
     expect(global.boardEl.classList.contains('selection-mode')).toBe(false);
     expect(global.boardEl.children).toHaveLength(0);
+  });
+
+  test('renderBoardDiff skips DOM updates while playback is pending even when allowBoardUpdateDuringPlayback is armed', () => {
+    const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+    boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
+    global.cardState.presentationEvents = [
+      { type: 'PLAYBACK_EVENTS', events: [{ type: 'destroy', phase: 1 }] }
+    ];
+    global.boardEl.innerHTML = '<div class="sentinel"></div>';
+    boardUpdateSyncRuntime.armBoardUpdateSyncContext({
+      allowBoardUpdateDuringPlayback: true,
+      source: 'unit-test',
+      reason: 'network_timeline_board_sync'
+    });
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const updatedCount = diffRenderer.renderBoardDiff(global.boardEl);
+    warnSpy.mockRestore();
+
+    expect(updatedCount).toBe(0);
+    expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
+    boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 
   test('renderBoardFull delegates to canonical full render when available', () => {

@@ -3235,3 +3235,455 @@ input[type=range].compact-slider.quick-volume-slider::-moz-range-thumb {
         0 0 calc(10px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.46),
         0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48);
 }
+
+/* Mossed stone HUD skin: visual-only overlay for command rail and quick controls. */
+#leftActionButtons,
+#quick-controls-bar {
+    --moss-control-gold: #b99a57;
+    --moss-control-iron: rgba(7, 10, 9, 0.96);
+    --moss-control-iron-2: rgba(21, 23, 19, 0.94);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(127, 112, 70, 0.58);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    clip-path: polygon(
+        calc(7px * var(--layout-stage-scale)) 0,
+        calc(100% - calc(7px * var(--layout-stage-scale))) 0,
+        100% calc(7px * var(--layout-stage-scale)),
+        100% calc(100% - calc(7px * var(--layout-stage-scale))),
+        calc(100% - calc(7px * var(--layout-stage-scale))) 100%,
+        calc(7px * var(--layout-stage-scale)) 100%,
+        0 calc(100% - calc(7px * var(--layout-stage-scale))),
+        0 calc(7px * var(--layout-stage-scale))
+    );
+    background:
+        radial-gradient(130% 90% at 16% 0%, rgba(91, 126, 96, 0.18), transparent 38%),
+        radial-gradient(100% 86% at 90% 100%, rgba(114, 86, 42, 0.20), transparent 48%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.024) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 9px),
+        linear-gradient(180deg, var(--moss-control-iron-2), var(--moss-control-iron) 58%, rgba(5, 9, 8, 0.98));
+    box-shadow:
+        0 calc(16px * var(--layout-stage-scale)) calc(32px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(16, 12, 8, 0.92),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(226, 198, 132, 0.08),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 198, 0.08),
+        inset 0 calc(-10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+    -webkit-backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+}
+
+#leftActionButtons::before,
+#quick-controls-bar::after {
+    content: "";
+    position: absolute;
+    inset: calc(5px * var(--layout-stage-scale));
+    pointer-events: none;
+    background:
+        radial-gradient(circle, rgba(218, 188, 108, 0.72) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.62) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.54) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.50) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(185, 154, 87, 0.46), transparent) top calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(92, 122, 94, 0.28), transparent) bottom calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat;
+    opacity: 0.78;
+}
+
+#leftActionButtons::after {
+    right: calc(5px * var(--layout-stage-scale));
+    top: calc(16px * var(--layout-stage-scale));
+    bottom: calc(16px * var(--layout-stage-scale));
+    width: calc(1px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, transparent, rgba(185, 154, 87, 0.42), rgba(92, 122, 94, 0.28), transparent);
+}
+
+#leftActionButtons .left-action-btn {
+    --left-action-tone: rgba(93, 106, 74, 0.18);
+    --left-action-tone-strong: rgba(185, 154, 87, 0.42);
+    --left-action-tone-soft: rgba(185, 154, 87, 0.10);
+    --left-action-border: rgba(117, 98, 60, 0.48);
+    --left-action-icon-top: #e8dcc2;
+    --left-action-icon-bottom: #a9b79d;
+    border-color: var(--left-action-border);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 244, 210, 0.045), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(21, 25, 20, 0.82), rgba(6, 11, 9, 0.82));
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.06),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.18);
+}
+
+#leftActionButtons #modeCpuBtn,
+#leftActionButtons #modeReversiBtn,
+#leftActionButtons #modeNetworkBtn,
+#leftActionButtons #gachaOpenBtn,
+#leftActionButtons #deckBuilderOpenBtn,
+#leftActionButtons #leaderboardOpenBtn,
+#leftActionButtons #handSkinBtn,
+#leftActionButtons #sidePanelToggleBtn,
+#leftActionButtons #rulesHelpBtn,
+#leftActionButtons .left-action-btn-rail-toggle {
+    --left-action-border: rgba(117, 98, 60, 0.48);
+    --left-action-tone-strong: rgba(185, 154, 87, 0.42);
+    --left-action-tone-soft: rgba(185, 154, 87, 0.10);
+}
+
+#leftActionButtons .left-action-label {
+    color: rgba(238, 226, 198, 0.94);
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.86),
+        0 0 calc(6px * var(--layout-stage-scale)) rgba(185, 154, 87, 0.10);
+}
+
+#leftActionButtons .left-action-icon {
+    background: linear-gradient(180deg, var(--left-action-icon-top), var(--left-action-icon-bottom));
+    filter:
+        drop-shadow(0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.70))
+        drop-shadow(0 0 calc(5px * var(--layout-stage-scale)) rgba(185, 154, 87, 0.14));
+}
+
+#leftActionButtons .left-action-btn:hover,
+#leftActionButtons .left-action-btn[aria-expanded="true"],
+#leftActionButtons .left-action-btn.is-active,
+#leftActionButtons :is(#modeNetworkBtn, #gachaOpenBtn, #deckBuilderOpenBtn, #leaderboardOpenBtn)[aria-expanded="true"] {
+    border-color: rgba(185, 154, 87, 0.62);
+    background:
+        linear-gradient(180deg, rgba(185, 154, 87, 0.13), transparent 48%),
+        linear-gradient(180deg, rgba(30, 35, 27, 0.92), rgba(7, 12, 10, 0.92));
+    box-shadow:
+        0 calc(7px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.07),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.36);
+}
+
+.quick-control-btn,
+#quickBgmTrackButton.quick-bgm-track-button,
+.quick-volume-control {
+    border-radius: calc(3px * var(--layout-stage-scale));
+    border-color: rgba(117, 98, 60, 0.48);
+    background:
+        linear-gradient(180deg, rgba(255, 244, 210, 0.045), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(32, 31, 27, 0.94), rgba(9, 12, 10, 0.96));
+    color: rgba(238, 226, 198, 0.94);
+    box-shadow:
+        0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.30),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.07),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.22);
+}
+
+#resetBtn.quick-control-btn {
+    --quick-control-accent: #ad6a5e;
+    --quick-control-accent-rgb: 173, 106, 94;
+    border-color: rgba(173, 106, 94, 0.48);
+}
+
+#quickBgmToggleBtn.quick-control-btn,
+#muteBtn.quick-control-btn {
+    --quick-control-accent: #779aaa;
+    --quick-control-accent-rgb: 119, 154, 170;
+    border-color: rgba(119, 154, 170, 0.42);
+}
+
+#autoToggleBtn.quick-control-btn,
+.quick-control-btn.btn-active,
+#autoToggleBtn.quick-control-btn.btn-active {
+    --quick-control-accent: #b99a57;
+    --quick-control-accent-rgb: 185, 154, 87;
+    border-color: rgba(185, 154, 87, 0.58);
+    color: #f3e7c7;
+}
+
+.quick-control-btn:hover:not(:disabled) {
+    filter: brightness(1.04);
+    box-shadow:
+        0 calc(7px * var(--layout-stage-scale)) calc(15px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.40),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.09),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(var(--quick-control-accent-rgb), 0.38);
+}
+
+.quick-volume-label {
+    color: rgba(222, 202, 146, 0.90);
+}
+
+input[type=range].compact-slider.quick-volume-slider {
+    background:
+        linear-gradient(90deg, rgba(185, 154, 87, 0.78), rgba(104, 139, 116, 0.50)),
+        rgba(31, 24, 18, 0.92);
+    border-color: rgba(117, 98, 60, 0.46);
+}
+
+input[type=range].compact-slider.quick-volume-slider::-webkit-slider-thumb {
+    border-color: rgba(238, 222, 176, 0.92);
+    background:
+        radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.60), transparent 34%),
+        linear-gradient(180deg, #c3a464, #725b2d);
+    box-shadow:
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(185, 154, 87, 0.32),
+        0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50);
+}
+
+input[type=range].compact-slider.quick-volume-slider::-moz-range-thumb {
+    border-color: rgba(238, 222, 176, 0.92);
+    background: linear-gradient(180deg, #c3a464, #725b2d);
+    box-shadow:
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(185, 154, 87, 0.32),
+        0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50);
+}
+
+/* Mossed stone HUD skin: visual-only overlay for the expanded settings panel. */
+body #control-panel {
+    --settings-panel-gold: #b99a57;
+    --settings-panel-gold-rgb: 185, 154, 87;
+    --settings-panel-green: #7d9d7f;
+    --settings-panel-text: rgba(235, 224, 196, 0.94);
+    --settings-panel-muted: rgba(206, 194, 162, 0.74);
+    --settings-control-rgb: 185, 154, 87;
+    --settings-row-rgb: 185, 154, 87;
+    padding: calc(14px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+    gap: calc(10px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(127, 112, 70, 0.58);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    clip-path: polygon(
+        calc(7px * var(--layout-stage-scale)) 0,
+        calc(100% - calc(7px * var(--layout-stage-scale))) 0,
+        100% calc(7px * var(--layout-stage-scale)),
+        100% calc(100% - calc(7px * var(--layout-stage-scale))),
+        calc(100% - calc(7px * var(--layout-stage-scale))) 100%,
+        calc(7px * var(--layout-stage-scale)) 100%,
+        0 calc(100% - calc(7px * var(--layout-stage-scale))),
+        0 calc(7px * var(--layout-stage-scale))
+    );
+    background:
+        radial-gradient(132% 92% at 16% 0%, rgba(91, 126, 96, 0.18), transparent 38%),
+        radial-gradient(94% 84% at 92% 100%, rgba(114, 86, 42, 0.20), transparent 48%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.024) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 9px),
+        linear-gradient(180deg, rgba(21, 23, 19, 0.95), rgba(7, 10, 9, 0.97) 58%, rgba(5, 9, 8, 0.98));
+    box-shadow:
+        0 calc(16px * var(--layout-stage-scale)) calc(32px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(16, 12, 8, 0.92),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(226, 198, 132, 0.08),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 198, 0.08),
+        inset 0 calc(-10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+    color: var(--settings-panel-text);
+    backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+    -webkit-backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+    position: relative;
+    isolation: isolate;
+}
+
+body #control-panel::before {
+    content: "";
+    position: absolute;
+    left: calc(5px * var(--layout-stage-scale));
+    right: calc(5px * var(--layout-stage-scale));
+    top: calc(5px * var(--layout-stage-scale));
+    height: auto;
+    bottom: calc(5px * var(--layout-stage-scale));
+    pointer-events: none;
+    z-index: 0;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(185, 154, 87, 0.18);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background:
+        radial-gradient(circle, rgba(218, 188, 108, 0.72) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.62) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.54) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.50) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(185, 154, 87, 0.46), transparent) top calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(92, 122, 94, 0.28), transparent) bottom calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat;
+    box-shadow:
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.18),
+        inset calc(-1px * var(--layout-stage-scale)) 0 0 rgba(102, 130, 101, 0.14);
+    opacity: 0.78;
+}
+
+body #control-panel > * {
+    position: relative;
+    z-index: 1;
+}
+
+body #control-panel .control-group {
+    position: relative;
+    --settings-row-rgb: 185, 154, 87;
+    min-height: calc(26px * var(--layout-stage-scale));
+    padding: calc(3px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border-left: calc(2px * var(--layout-stage-scale)) solid rgba(var(--settings-row-rgb), 0.42);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(var(--settings-row-rgb), 0.12), transparent 34%, rgba(91, 126, 96, 0.035));
+}
+
+body #control-panel .control-group:has(#debugModeBtn) {
+    --settings-row-rgb: 174, 100, 79;
+}
+
+body #control-panel .control-group:has(#boardSizeOpenBtn) {
+    --settings-row-rgb: 114, 154, 119;
+}
+
+body #control-panel .control-group:has(#smartBlack) {
+    --settings-row-rgb: 158, 141, 105;
+}
+
+body #control-panel .control-group:has(#seTypeSelect) {
+    --settings-row-rgb: 103, 143, 158;
+}
+
+body #control-panel .control-group:has(#bgmPlayBtn) {
+    --settings-row-rgb: 190, 155, 78;
+}
+
+body #control-panel .control-label {
+    color: var(--settings-panel-muted);
+    font-weight: 900;
+    letter-spacing: calc(0.02em * var(--layout-stage-scale));
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.86);
+}
+
+body #control-panel .small-label,
+body #control-panel .board-size-control-summary,
+body #control-panel .board-size-editor-label,
+body #control-panel .board-size-editor-separator,
+body #control-panel .board-size-editor-note {
+    color: var(--settings-panel-text);
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.82);
+}
+
+body #control-panel .board-size-control-summary,
+body #control-panel .board-size-editor-note {
+    color: rgba(222, 202, 146, 0.90);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+body #control-panel :is(.btn-small, select.compact-select, .compact-number-input) {
+    --settings-control-rgb: 185, 154, 87;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(var(--settings-control-rgb), 0.50);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(var(--settings-control-rgb), 0.16), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(31, 31, 27, 0.96), rgba(8, 12, 10, 0.98));
+    color: rgba(238, 226, 198, 0.96);
+    box-shadow:
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.30),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.07),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(var(--settings-control-rgb), 0.28);
+}
+
+body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #bgmPlayBtn, #bgmPauseBtn) {
+    background:
+        linear-gradient(180deg, rgba(var(--settings-control-rgb), 0.20), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(32, 31, 27, 0.96), rgba(8, 12, 10, 0.98)) !important;
+    color: rgba(238, 226, 198, 0.96) !important;
+    border-color: rgba(var(--settings-control-rgb), 0.56);
+}
+
+body #control-panel :is(#boardSizeOpenBtn, #bgmPlayBtn, #bgmPauseBtn):hover,
+body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeCloseBtn):hover {
+    border-color: rgba(var(--settings-control-rgb), 0.74);
+    filter: brightness(1.05);
+    box-shadow:
+        0 calc(5px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.36),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.09),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(var(--settings-control-rgb), 0.42);
+}
+
+body #control-panel select.compact-select {
+    min-height: calc(26px * var(--layout-stage-scale));
+    padding-right: calc(22px * var(--layout-stage-scale));
+    background:
+        linear-gradient(45deg, transparent 50%, rgba(var(--settings-control-rgb), 0.88) 50%) right calc(10px * var(--layout-stage-scale)) center / calc(5px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(135deg, rgba(var(--settings-control-rgb), 0.88) 50%, transparent 50%) right calc(6px * var(--layout-stage-scale)) center / calc(5px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(180deg, rgba(var(--settings-control-rgb), 0.16), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(31, 31, 27, 0.96), rgba(8, 12, 10, 0.98));
+    appearance: none;
+}
+
+body #control-panel #debugModeBtn {
+    --settings-control-rgb: 174, 100, 79;
+}
+
+body #control-panel #logToggleBtn {
+    --settings-control-rgb: 148, 132, 95;
+}
+
+body #control-panel :is(#boardSizeOpenBtn, #boardSizeCloseBtn, #boardSizeRowsInput, #boardSizeColsInput) {
+    --settings-control-rgb: 114, 154, 119;
+}
+
+body #control-panel #smartBlack {
+    --settings-control-rgb: 84, 92, 80;
+    color: rgba(238, 229, 202, 0.96);
+}
+
+body #control-panel #smartWhite {
+    --settings-control-rgb: 205, 196, 174;
+    color: rgba(249, 242, 222, 0.98);
+}
+
+body #control-panel #seTypeSelect {
+    --settings-control-rgb: 103, 143, 158;
+}
+
+body #control-panel :is(#bgmPlayBtn, #bgmPauseBtn, #bgmTrackSelect, #bgmVolSlider) {
+    --settings-control-rgb: 190, 155, 78;
+}
+
+body #control-panel .board-size-control-summary {
+    color: rgba(174, 216, 175, 0.92);
+}
+
+body #control-panel #networkTimerStatus {
+    border-color: rgba(117, 98, 60, 0.46);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 244, 210, 0.04), transparent 42%),
+        rgba(6, 10, 8, 0.52);
+    color: rgba(226, 239, 215, 0.92);
+}
+
+body #control-panel .board-size-editor {
+    padding:
+        calc(3px * var(--layout-stage-scale))
+        calc(4px * var(--layout-stage-scale))
+        calc(2px * var(--layout-stage-scale))
+        calc(34px * var(--layout-stage-scale));
+}
+
+body #control-panel input[type=range].compact-slider {
+    height: calc(6px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(var(--settings-control-rgb), 0.78), rgba(104, 139, 116, 0.50)),
+        rgba(31, 24, 18, 0.92);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(var(--settings-control-rgb), 0.46);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50),
+        0 0 calc(7px * var(--layout-stage-scale)) rgba(var(--settings-control-rgb), 0.10);
+}
+
+body #control-panel input[type=range].compact-slider::-webkit-slider-thumb {
+    width: calc(13px * var(--layout-stage-scale));
+    height: calc(13px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(238, 222, 176, 0.92);
+    background:
+        radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.60), transparent 34%),
+        linear-gradient(180deg, #c3a464, #725b2d);
+    box-shadow:
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(var(--settings-control-rgb), 0.32),
+        0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50);
+}
+
+body #control-panel input[type=range].compact-slider::-moz-range-thumb {
+    width: calc(13px * var(--layout-stage-scale));
+    height: calc(13px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(238, 222, 176, 0.92);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #c3a464, #725b2d);
+    box-shadow:
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(var(--settings-control-rgb), 0.32),
+        0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50);
+}

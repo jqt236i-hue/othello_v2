@@ -292,6 +292,8 @@ Any new board-writing path must preserve that contract rather than bypass it.
 
 For board updates that contain `PLAYBACK_EVENTS`, draining the presentation queue and handing board ownership to `AnimationEngine` are one visual transaction. `DiffRenderer` / board render must not draw the final canonical board between those steps; final board sync happens after playback completion emits the follow-up board update.
 
+Playback active, claimed, or pending means only the playback/presentation writer may mutate board cells. Network snapshot application, presentation timeline catch-up, and canonical state reconciliation may update model state immediately, but they must queue board DOM sync until playback is idle. Flags or options such as `allowBoardUpdateDuringPlayback`, `ignorePlayback`, or similarly named urgent-refresh paths must not grant board DOM write permission during playback; at most they may carry source/reason metadata or flush non-board UI.
+
 #### 7.3.1 Snapshot / playback / busy ownership
 
 Network playback must keep these ownership boundaries explicit:

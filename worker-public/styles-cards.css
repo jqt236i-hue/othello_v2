@@ -1754,6 +1754,18 @@
         linear-gradient(135deg, rgba(44, 36, 70, 0.94), rgba(10, 9, 14, 0.90));
 }
 
+.card-detail-effect-tag.is-erasure,
+.rules-help-card-tag.is-erasure,
+.card-detail-effect-tag.is-absolute-execution,
+.rules-help-card-tag.is-absolute-execution {
+    --card-detail-tag-accent: rgba(255, 92, 92, 0.84);
+    color: #ffb0a8;
+    border-color: rgba(255, 92, 92, 0.66);
+    background:
+        linear-gradient(180deg, rgba(255, 92, 92, 0.20), rgba(255, 255, 255, 0) 46%),
+        linear-gradient(135deg, rgba(82, 24, 24, 0.96), rgba(16, 7, 7, 0.92));
+}
+
 .card-detail-effect-tag.is-inviolable,
 .rules-help-card-tag.is-inviolable {
     --card-detail-tag-accent: rgba(244, 126, 194, 0.76);
@@ -2990,4 +3002,162 @@
     .heaven-blessing-detail-desc {
         font-size: calc(14px * var(--layout-stage-scale));
     }
+}
+
+/* Mossed stone HUD skin: visual-only overlay for the card detail panel. */
+#card-detail-panel {
+    --card-detail-accent: #b99a57;
+    --card-detail-accent-soft: rgba(185, 154, 87, 0.22);
+    --card-detail-desc-panel: rgba(6, 9, 8, 0.50);
+    --card-detail-action-bar:
+        linear-gradient(90deg, rgba(87, 69, 34, 0.24), rgba(5, 8, 7, 0.44) 30%, rgba(16, 26, 21, 0.40));
+    --card-detail-warning-chip:
+        linear-gradient(180deg, rgba(69, 52, 24, 0.78), rgba(14, 12, 9, 0.86));
+    --card-detail-panel-bg:
+        radial-gradient(120% 86% at 15% 0%, rgba(91, 126, 96, 0.20), transparent 40%),
+        radial-gradient(96% 86% at 90% 100%, rgba(116, 88, 45, 0.18), transparent 52%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.024) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 9px),
+        linear-gradient(180deg, rgba(19, 22, 19, 0.96), rgba(7, 10, 9, 0.97) 58%, rgba(8, 11, 9, 0.98));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(127, 112, 70, 0.58);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    clip-path: polygon(
+        calc(7px * var(--layout-stage-scale)) 0,
+        calc(100% - calc(7px * var(--layout-stage-scale))) 0,
+        100% calc(7px * var(--layout-stage-scale)),
+        100% calc(100% - calc(7px * var(--layout-stage-scale))),
+        calc(100% - calc(7px * var(--layout-stage-scale))) 100%,
+        calc(7px * var(--layout-stage-scale)) 100%,
+        0 calc(100% - calc(7px * var(--layout-stage-scale))),
+        0 calc(7px * var(--layout-stage-scale))
+    );
+    background: var(--card-detail-panel-bg);
+    box-shadow:
+        0 calc(18px * var(--layout-stage-scale)) calc(36px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(16, 12, 8, 0.92),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(226, 198, 132, 0.08),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 198, 0.08),
+        inset 0 calc(-10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+    filter: drop-shadow(0 calc(7px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.34));
+    backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+    -webkit-backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+}
+
+#card-detail-panel::before {
+    top: calc(5px * var(--layout-stage-scale));
+    left: calc(5px * var(--layout-stage-scale));
+    right: calc(5px * var(--layout-stage-scale));
+    bottom: calc(5px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(185, 154, 87, 0.18);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    clip-path: none;
+    background:
+        linear-gradient(90deg, rgba(185, 154, 87, 0.12), transparent 18%, transparent 82%, rgba(91, 126, 96, 0.10)),
+        linear-gradient(180deg, rgba(255, 248, 212, 0.035), transparent 38%);
+    box-shadow:
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.18),
+        inset calc(-1px * var(--layout-stage-scale)) 0 0 rgba(102, 130, 101, 0.14);
+}
+
+#card-detail-panel::after {
+    top: calc(5px * var(--layout-stage-scale));
+    left: calc(5px * var(--layout-stage-scale));
+    right: calc(5px * var(--layout-stage-scale));
+    bottom: calc(5px * var(--layout-stage-scale));
+    height: auto;
+    background:
+        radial-gradient(circle, rgba(218, 188, 108, 0.72) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.62) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.54) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.50) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(185, 154, 87, 0.46), transparent) top calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(92, 122, 94, 0.28), transparent) bottom calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat;
+    opacity: 0.78;
+    box-shadow: none;
+}
+
+#card-detail-name {
+    color: #e3cf91;
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88),
+        0 0 calc(7px * var(--layout-stage-scale)) rgba(185, 154, 87, 0.13);
+}
+
+#card-detail-name::after {
+    background: linear-gradient(90deg, rgba(185, 154, 87, 0.58), rgba(92, 122, 94, 0.20), transparent);
+}
+
+#card-detail-desc {
+    border-color: rgba(117, 98, 60, 0.46);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 248, 212, 0.04), transparent 42%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(8, 10, 9, 0.58), rgba(3, 6, 5, 0.54));
+    color: rgba(239, 225, 192, 0.94);
+    box-shadow:
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.18),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.05),
+        inset 0 calc(-8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.14);
+}
+
+.card-detail-effect-tag {
+    border-radius: calc(3px * var(--layout-stage-scale));
+    border-color: rgba(128, 166, 117, 0.42);
+    color: rgba(226, 239, 215, 0.92);
+    background:
+        linear-gradient(180deg, rgba(255, 244, 210, 0.055), transparent 48%),
+        linear-gradient(180deg, rgba(35, 51, 40, 0.84), rgba(9, 14, 12, 0.86));
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.07),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(128, 166, 117, 0.24);
+}
+
+#card-detail-actions {
+    border-top-color: rgba(185, 154, 87, 0.22);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 248, 212, 0.035), transparent 38%),
+        var(--card-detail-action-bar);
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.04),
+        0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.38);
+}
+
+#card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn),
+#card-detail-panel > #pass-btn,
+#card-detail-panel > #cancel-card-btn {
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(var(--card-detail-action-accent-rgb), 0.16), rgba(255, 255, 255, 0) 46%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(32, 31, 27, 0.96), rgba(10, 12, 11, 0.98));
+    color: rgba(245, 235, 212, 0.94);
+    box-shadow:
+        0 calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.08),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(var(--card-detail-action-accent-rgb), 0.34);
+}
+
+#card-detail-actions > #toggle-card-detail-btn:not(:disabled) {
+    --card-detail-action-accent: #6e82c9;
+    --card-detail-action-accent-rgb: 110, 130, 201;
+}
+
+#card-detail-actions > #use-card-btn:not(:disabled) {
+    --card-detail-action-accent: #4fa56e;
+    --card-detail-action-accent-rgb: 79, 165, 110;
+}
+
+#card-detail-actions > #destroy-card-btn:not(:disabled) {
+    --card-detail-action-accent: #b45f55;
+    --card-detail-action-accent-rgb: 180, 95, 85;
+}
+
+#use-card-reason {
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(185, 154, 87, 0.14), transparent 48%),
+        linear-gradient(180deg, rgba(48, 39, 20, 0.84), rgba(10, 12, 10, 0.88));
+    color: rgba(231, 211, 159, 0.82);
 }

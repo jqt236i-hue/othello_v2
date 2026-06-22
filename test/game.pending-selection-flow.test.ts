@@ -81,9 +81,7 @@ function createPlaybackBridgeMethods(playbackStateManager) {
       try {
         const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
         if (boardUpdateSyncRuntime && typeof boardUpdateSyncRuntime.armBoardUpdateSyncContext === 'function') {
-          boardUpdateSyncRuntime.armBoardUpdateSyncContext(Object.assign({}, context, {
-            allowBoardUpdateDuringPlayback: true
-          }));
+          boardUpdateSyncRuntime.armBoardUpdateSyncContext(Object.assign({}, context));
           return true;
         }
       } catch (e) { /* ignore */ }

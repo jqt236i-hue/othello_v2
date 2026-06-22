@@ -206,6 +206,7 @@ var BoardUpdateSyncRuntimeModule: any = null;
 if (typeof require === 'function') {
     try { BoardUpdateSyncRuntimeModule = require('./board-update-sync-runtime'); } catch (e: any) { /* ignore */ }
 }
+const PlaybackFlipMarker = _require('./playback-flip-marker');
 
 function _getGlobalScopeForDiff() {
     return (typeof globalThis !== 'undefined')
@@ -1443,6 +1444,56 @@ function _hasPendingFlipTargetAtForDiff(row: any, col: any) {
     return keys.has(key);
 }
 
+function _hasRecentPlaybackFlipMarkerForDiff(disc: any) {
+    return !!(
+        PlaybackFlipMarker &&
+        typeof PlaybackFlipMarker.hasRecentPlaybackFlipMarker === 'function' &&
+        PlaybackFlipMarker.hasRecentPlaybackFlipMarker(disc)
+    );
+}
+
+function _normalizeBoardUpdateContextKeySetForDiff(value: any) {
+    const keys = new Set();
+    if (!Array.isArray(value)) return keys;
+    for (const raw of value) {
+        const key = String(raw || '').trim();
+        if (key) keys.add(key);
+    }
+    return keys;
+}
+
+function _mergeBoardUpdateContextKeySetsForDiff(contextKeys: any, queueKeys: any) {
+    const merged = new Set();
+    if (contextKeys && typeof contextKeys.forEach === 'function') {
+        contextKeys.forEach((key: any) => {
+            const normalized = String(key || '').trim();
+            if (normalized) merged.add(normalized);
+        });
+    }
+    if (queueKeys && typeof queueKeys.forEach === 'function') {
+        queueKeys.forEach((key: any) => {
+            const normalized = String(key || '').trim();
+            if (normalized) merged.add(normalized);
+        });
+    }
+    return merged;
+}
+
+function _preservePendingPlaybackDiffContextForFinalSync() {
+    if (!PlaybackStateModule || typeof PlaybackStateModule.armBoardUpdateContext !== 'function') return;
+    const moveSourceKeys = Array.from(_collectPendingMoveSourceKeysForDiff());
+    const flipTargetKeys = Array.from(_collectPendingFlipTargetKeysForDiff());
+    if (moveSourceKeys.length === 0 && flipTargetKeys.length === 0) return;
+    try {
+        PlaybackStateModule.armBoardUpdateContext({
+            source: 'diff-renderer',
+            reason: 'deferred_playback_board_sync',
+            pendingMoveSourceKeys: moveSourceKeys,
+            pendingFlipTargetKeys: flipTargetKeys
+        });
+    } catch (e: any) { /* ignore */ }
+}
+
 function _resolveNetworkVisualStateStoreForDiff() {
     try {
         if (typeof window !== 'undefined' && (window as any).NetworkVisualStateStore) {
@@ -2011,7 +2062,7 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '復活': '失われた時に元の色や状態へ戻る。',
     '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。',
-    '抹消': '石やマス状態ごと対象マスを取り除き、穴マスにする処理。通常の石破壊とは別扱い。',
+    '抹消': 'そのマスの石を取り除きます。\n完全保護や反転保護でも防げません。絶対保護だけは防げます。',
     '穴マス': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。',
     '絶対執行': '盤界の執行者専用の抹消。全ての保護を貫通して特殊石を穴マスにする。',
     '顕現石': '特殊カードによって盤面に現れる、特殊石とは別分類の不可侵石。',
@@ -3763,7 +3814,8 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
         // Fallback flip animation in case PlaybackEngine path fails:
         // when a stone stays occupied but owner changes, add a quick flip class.
         const noAnim = (AnimationShared && typeof AnimationShared.isNoAnim === 'function') ? AnimationShared.isNoAnim() : ((typeof window !== 'undefined' && window.DISABLE_ANIMATIONS === true) || (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)));
-        if (!suppressFallbackFlipThisRender && !noAnim && prevState && prevState.value !== EMPTY && prevState.value !== state.value) {
+        const suppressRecentPlaybackFlip = _hasRecentPlaybackFlipMarkerForDiff(currentDisc);
+        if (!suppressFallbackFlipThisRender && !suppressRecentPlaybackFlip && !noAnim && prevState && prevState.value !== EMPTY && prevState.value !== state.value) {
             const flipMs = (typeof window !== 'undefined' && window.AnimationConstants && window.AnimationConstants.FLIP_MS) ? window.AnimationConstants.FLIP_MS : 600;
             try {
                 if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc);
@@ -3911,11 +3963,6 @@ function renderBoardDiff(boardEl: any) {
     }
     if (boardEl) boardDomElement = boardEl;
     // Single Visual Writer detection: prevent diff/rerender during active playback
-    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForDiff();
-    const allowBoardUpdateDuringPlayback = !!(
-        boardUpdateSyncContext
-        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
-    );
     const shouldDeferBoardUpdate = !!(
         PlaybackStateModule
         && typeof PlaybackStateModule.shouldDeferBoardUpdate === 'function'
@@ -3925,12 +3972,13 @@ function renderBoardDiff(boardEl: any) {
     const hasClaimedVisualPlayback = _hasClaimedVisualPlaybackForDiff();
     const visualPlaybackActive = _isVisualPlaybackActiveForDiff();
     const boardHasPlaybackLock = !!(boardEl && boardEl.classList && boardEl.classList.contains('playback-locked'));
-    if ((hasPendingPlaybackEvents || hasClaimedVisualPlayback || (visualPlaybackActive && boardHasPlaybackLock)) && shouldDeferBoardUpdate && !allowBoardUpdateDuringPlayback) {
+    if ((hasPendingPlaybackEvents || hasClaimedVisualPlayback || (visualPlaybackActive && boardHasPlaybackLock)) && shouldDeferBoardUpdate) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('renderBoardDiff called during active VisualPlayback (dev fail-fast)');
         } else {
             // Do not abort playback here; aborting causes animations to disappear mid-sequence.
             // Instead, skip this render. AnimationEngine requests a final emitBoardUpdate after playback ends.
+            _preservePendingPlaybackDiffContextForFinalSync();
             console.warn('renderBoardDiff called during active VisualPlayback. Skipping diff render until playback ends.');
             if (typeof window !== 'undefined') { window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; window.__telemetry__.singleVisualWriterHits = (window.__telemetry__.singleVisualWriterHits || 0) + 1; }
             return 0;
@@ -3944,8 +3992,14 @@ function renderBoardDiff(boardEl: any) {
     const boardUpdateContext = _consumeBoardUpdateContextForDiff();
     suppressFallbackFlipThisRender = !!(boardUpdateContext && boardUpdateContext.suppressFallbackFlip === true);
     suppressBoardExpansionRevealSoundThisRender = !!(boardUpdateContext && boardUpdateContext.suppressBoardExpansionRevealSound === true);
-    pendingMoveSourceKeysThisRender = _collectPendingMoveSourceKeysForDiff();
-    pendingFlipTargetKeysThisRender = _collectPendingFlipTargetKeysForDiff();
+    pendingMoveSourceKeysThisRender = _mergeBoardUpdateContextKeySetsForDiff(
+        _normalizeBoardUpdateContextKeySetForDiff(boardUpdateContext && boardUpdateContext.pendingMoveSourceKeys),
+        _collectPendingMoveSourceKeysForDiff()
+    );
+    pendingFlipTargetKeysThisRender = _mergeBoardUpdateContextKeySetsForDiff(
+        _normalizeBoardUpdateContextKeySetForDiff(boardUpdateContext && boardUpdateContext.pendingFlipTargetKeys),
+        _collectPendingFlipTargetKeysForDiff()
+    );
 
     try {
         const gameState = _resolveGameStateForDiffRender();

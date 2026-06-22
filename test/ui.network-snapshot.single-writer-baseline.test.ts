@@ -58,6 +58,7 @@ describe('applySnapshot single-writer baseline', () => {
   let busyStateCalls;
   let syncPendingCalls;
   let armBoardUpdateContextCalls;
+  let boardUpdateSyncContexts;
 
   beforeEach(() => {
     jest.resetModules();
@@ -76,6 +77,7 @@ describe('applySnapshot single-writer baseline', () => {
     busyStateCalls = [];
     syncPendingCalls = [];
     armBoardUpdateContextCalls = [];
+    boardUpdateSyncContexts = [];
 
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
@@ -128,13 +130,20 @@ describe('applySnapshot single-writer baseline', () => {
         return context;
       })
     }, playbackStateOverrides || {});
+    const boardUpdateSyncRuntime = {
+      armBoardUpdateSyncContext: jest.fn((context) => {
+        boardUpdateSyncContexts.push(context);
+        return context;
+      })
+    };
     return createNetworkSnapshotController({
       getState: () => stateObj,
       emitCardStateChange: global.emitCardStateChange,
       emitGameStateChange: global.emitGameStateChange,
       emitBoardUpdate: global.emitBoardUpdate,
       renderCardUI: global.renderCardUI,
-      playbackState
+      playbackState,
+      boardUpdateSyncRuntime
     });
   }
 
@@ -400,6 +409,24 @@ describe('applySnapshot single-writer baseline', () => {
       source: 'network_snapshot',
       reason: 'snapshot_playback_suppress_fallback_flip'
     }));
+  });
+
+  test('playbackEvents ありの snapshot board sync context は board DOM 書き込み許可を含めない', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11);
+
+    ctrl.applySnapshot(snap, {
+      playbackEvents: [{ type: 'destroy', phase: 1, targets: [] }]
+    });
+
+    expect(boardUpdateSyncContexts).toContainEqual(expect.objectContaining({
+      source: 'network_snapshot',
+      reason: 'snapshot_playback_board_sync'
+    }));
+    expect(boardUpdateSyncContexts.some((context) => (
+      context && context.allowBoardUpdateDuringPlayback === true
+    ))).toBe(false);
   });
 
   test('カード効果 playbackEvents ありの snapshot は即時 hand UI 再描画をせず playback に渡す', () => {

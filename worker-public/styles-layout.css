@@ -34,6 +34,10 @@
 
 #board-frame {
     --board-frame-padding: calc(25px * var(--layout-stage-scale));
+    --board-frame-padding-top: var(--board-frame-padding);
+    --board-frame-padding-right: var(--board-frame-padding);
+    --board-frame-padding-bottom: var(--board-frame-padding);
+    --board-frame-padding-left: var(--board-frame-padding);
     --board-frame-inner-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
     --board-frame-fill-background:
         radial-gradient(circle at 12% 12%, rgba(255, 236, 180, 0.12), transparent 20%),
@@ -45,11 +49,14 @@
         inset 0 calc(-2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.78);
     --board-frame-image: url("assets/images/board/board-frame-black-gold-lacquer-v1.png");
     --board-frame-art-overhang: calc(34px * var(--layout-stage-scale));
+    --board-frame-art-overhang-top: var(--board-frame-art-overhang);
+    --board-frame-art-overhang-bottom: var(--board-frame-art-overhang);
+    --board-frame-art-offset-y: 0px;
     position: relative;
     z-index: var(--layout-z-board-frame);
-    width: var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2)));
-    height: var(--board-frame-outer-height, calc(var(--board-frame-inner-size) + (var(--board-frame-padding) * 2)));
-    padding: var(--board-frame-padding);
+    width: var(--board-frame-outer-width, calc(var(--board-frame-inner-size) + var(--board-frame-padding-left) + var(--board-frame-padding-right)));
+    height: var(--board-frame-outer-height, calc(var(--board-frame-inner-size) + var(--board-frame-padding-top) + var(--board-frame-padding-bottom)));
+    padding: var(--board-frame-padding-top) var(--board-frame-padding-right) var(--board-frame-padding-bottom) var(--board-frame-padding-left);
     box-sizing: border-box;
     background: var(--board-frame-fill-background);
     border-radius: calc(10px * var(--layout-stage-scale));
@@ -77,10 +84,10 @@
 #board-frame::before {
     content: "";
     position: absolute;
-    top: calc(-1 * var(--board-frame-art-overhang));
+    top: calc(-1 * var(--board-frame-art-overhang-top) + var(--board-frame-art-offset-y));
     left: calc(-1 * var(--board-frame-art-overhang));
     right: calc(-1 * var(--board-frame-art-overhang));
-    bottom: calc(-1 * var(--board-frame-art-overhang));
+    bottom: calc(-1 * var(--board-frame-art-overhang-bottom) - var(--board-frame-art-offset-y));
     border-radius: calc(16px * var(--layout-stage-scale));
     pointer-events: none;
     box-shadow: none;
@@ -221,6 +228,50 @@
     max-width: var(--layout-size-hand-max-width);
     min-height: var(--layout-size-hand-min-height-top);
     padding: calc(5px * var(--layout-stage-scale));
+}
+
+.hand-container::before {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    z-index: 0;
+}
+
+#hand-white::before {
+    --card-area-panel-deck-width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale) * var(--layout-opponent-deck-scale));
+    --card-area-panel-width: calc(
+        var(--layout-hand-fixed-width) +
+        var(--card-area-panel-deck-width) +
+        var(--layout-size-ui-gap) +
+        calc(22px * var(--layout-stage-scale))
+    );
+    --card-area-panel-height: calc(var(--layout-size-hand-min-height-top) + calc(76px * var(--layout-stage-scale)));
+    left: calc((var(--card-area-panel-deck-width) + var(--layout-size-ui-gap) + calc(11px * var(--layout-stage-scale))) * -1);
+    top: calc(-74px * var(--layout-stage-scale));
+    width: var(--card-area-panel-width);
+    height: var(--card-area-panel-height);
+    background-image: url("assets/images/ui/card-area-edge-panel-opponent-v2.png");
+    opacity: 0.76;
+}
+
+#hand-black::before {
+    --card-area-panel-deck-width: calc(var(--layout-size-deck-width) * var(--layout-priority-deck-scale));
+    --card-area-panel-width: calc(
+        var(--layout-hand-fixed-width) +
+        var(--card-area-panel-deck-width) +
+        var(--layout-size-ui-gap) +
+        calc(36px * var(--layout-stage-scale))
+    );
+    --card-area-panel-height: calc(var(--layout-size-hand-min-height-bottom) + calc(114px * var(--layout-stage-scale)));
+    left: calc(-18px * var(--layout-stage-scale));
+    top: calc(-13px * var(--layout-stage-scale));
+    width: var(--card-area-panel-width);
+    height: var(--card-area-panel-height);
+    background-image: url("assets/images/ui/card-area-edge-panel-player-v2.png");
+    opacity: 0.82;
 }
 
 .hand-track {

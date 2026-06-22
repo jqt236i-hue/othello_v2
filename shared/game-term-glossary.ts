@@ -21,7 +21,7 @@ export const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.
   Object.freeze({ id: 'taboo-flip', label: '禁忌反転', category: 'flip', description: '挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。' }),
   Object.freeze({ id: 'flip-count', label: '反転枚数', category: 'flip', description: '反転で布石に加算される枚数。破壊は含まない。' }),
   Object.freeze({ id: 'destroy', label: '破壊', category: 'destroy', description: '石を消滅させる処理。反転とは別扱い。' }),
-  Object.freeze({ id: 'erase', label: '抹消', category: 'destroy', description: '石やマス状態ごと対象マスを取り除き、穴マスにする処理。通常の石破壊とは別扱い。\n絶対保護以外の保護を貫通できる。' }),
+  Object.freeze({ id: 'erase', label: '抹消', category: 'destroy', description: 'そのマスの石を取り除きます。\n完全保護や反転保護でも防げません。絶対保護だけは防げます。' }),
   Object.freeze({ id: 'blast', label: '破壊／爆発', category: 'destroy', description: '石を消滅させる。完全保護以外の保護を貫通できる。', aliases: Object.freeze(['爆破', '爆発']) }),
   Object.freeze({ id: 'cell-destroy', label: 'マス破壊', category: 'destroy', description: 'マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。' }),
   Object.freeze({ id: 'slash-destroy', label: '斬撃破壊', category: 'destroy', description: '意志狩りの王などの斬撃演出を伴う破壊。' }),

@@ -813,9 +813,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         ? _require('./board-update-sync-runtime')
                         : null;
                     if (runtime && typeof runtime.armBoardUpdateSyncContext === 'function') {
-                        runtime.armBoardUpdateSyncContext(Object.assign({}, context, {
-                            allowBoardUpdateDuringPlayback: true
-                        }));
+                        runtime.armBoardUpdateSyncContext(Object.assign({}, context));
                         return true;
                     }
                 } catch (e: any) { /* ignore */ }
@@ -824,9 +822,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         ? (globalThis as any).BoardUpdateSyncRuntime
                         : null;
                     if (runtime && typeof runtime.armBoardUpdateSyncContext === 'function') {
-                        runtime.armBoardUpdateSyncContext(Object.assign({}, context, {
-                            allowBoardUpdateDuringPlayback: true
-                        }));
+                        runtime.armBoardUpdateSyncContext(Object.assign({}, context));
                         return true;
                     }
                 } catch (e: any) { /* ignore */ }

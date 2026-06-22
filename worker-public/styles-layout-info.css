@@ -1931,6 +1931,15 @@
     --rules-help-tag-filter-hover-bg: rgba(53, 42, 88, 0.36);
 }
 
+.rules-help-card-tag-filter.is-erasure,
+.rules-help-card-tag-filter.is-absolute-execution {
+    --rules-help-tag-filter-border: rgba(255, 92, 92, 0.62);
+    --rules-help-tag-filter-color: #ffb0a8;
+    --rules-help-tag-filter-bg: rgba(82, 24, 24, 0.28);
+    --rules-help-tag-filter-hover-border: rgba(255, 92, 92, 0.86);
+    --rules-help-tag-filter-hover-bg: rgba(82, 24, 24, 0.40);
+}
+
 .rules-help-card-tag-filter.is-inviolable {
     --rules-help-tag-filter-border: rgba(244, 126, 194, 0.56);
     --rules-help-tag-filter-color: #ffb6df;
@@ -2667,7 +2676,7 @@
     position: relative;
 }
 
-:is(#networkModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel)::before {
+:is(#leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel)::before {
     content: "";
     position: absolute;
     left: calc(14px * var(--layout-stage-scale));
@@ -3749,10 +3758,7 @@
     border: 0;
     border-radius: 0;
     clip-path: none;
-    background:
-        linear-gradient(rgba(1, 6, 9, 0.06), rgba(1, 6, 9, 0.06)),
-        url("assets/images/other/network-lobby-frame-v1.png") center / 100% 100% no-repeat,
-        radial-gradient(100% 80% at 50% 42%, rgba(5, 43, 51, 0.80), rgba(0, 0, 0, 0.98));
+    background: url("assets/images/other/network-lobby-frame-v1.png") center / 100% 100% no-repeat;
     box-shadow:
         0 18px 58px rgba(0, 0, 0, 0.74),
         0 0 42px rgba(36, 244, 255, 0.10),
@@ -3760,35 +3766,6 @@
     color: var(--network-lobby-cream);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-}
-
-#networkModal::before,
-#networkModal::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-    z-index: 1;
-}
-
-#networkModal::before {
-    inset: 1.2% 1%;
-    height: auto;
-    left: 1%;
-    right: 1%;
-    top: 1.2%;
-    background:
-        radial-gradient(circle at 19% 47%, rgba(36, 244, 255, 0.26), transparent 10%),
-        radial-gradient(circle at 84% 68%, rgba(36, 244, 255, 0.18), transparent 9%),
-        linear-gradient(90deg, transparent, rgba(36, 244, 255, 0.14), transparent 58%);
-    mix-blend-mode: screen;
-}
-
-#networkModal::after {
-    inset: 0;
-    background:
-        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 7px),
-        radial-gradient(circle at 50% 0%, rgba(255, 231, 168, 0.08), transparent 16%);
-    opacity: 0.34;
 }
 
 #networkModalHeader {
@@ -4508,37 +4485,19 @@
     row-gap: clamp(8px, 0.66vw, 12px);
     min-height: clamp(244px, 15.9vw, 286px);
     padding: clamp(19px, 1.38vw, 25px) clamp(16px, 1.16vw, 22px) clamp(13px, 0.96vw, 18px);
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 231, 168, 0.45);
+    border: 0;
     border-radius: 0;
-    background:
-        linear-gradient(90deg, rgba(214, 168, 75, 0.22), transparent 12% 88%, rgba(214, 168, 75, 0.16)),
-        radial-gradient(80% 30% at 50% 0%, rgba(36, 244, 255, 0.09), transparent 70%),
-        linear-gradient(180deg, rgba(5, 20, 26, 0.76), rgba(0, 7, 10, 0.84));
-    box-shadow:
-        inset 0 0 0 2px rgba(7, 17, 20, 0.76),
-        inset 0 0 0 4px rgba(214, 168, 75, 0.18),
-        0 9px 24px rgba(0, 0, 0, 0.56);
-    clip-path: polygon(
-        var(--network-room-card-step-x) 0,
-        calc(100% - var(--network-room-card-step-x)) 0,
-        calc(100% - var(--network-room-card-step-x) + 8px) var(--network-room-card-step-y),
-        calc(100% - var(--network-room-card-cut-x)) var(--network-room-card-step-y),
-        100% var(--network-room-card-cut-y),
-        100% calc(100% - var(--network-room-card-cut-y)),
-        calc(100% - var(--network-room-card-cut-x)) 100%,
-        var(--network-room-card-cut-x) 100%,
-        0 calc(100% - var(--network-room-card-cut-y)),
-        0 var(--network-room-card-cut-y),
-        var(--network-room-card-cut-x) var(--network-room-card-step-y),
-        calc(var(--network-room-card-step-x) - 8px) var(--network-room-card-step-y)
-    );
-    overflow: hidden;
+    background: transparent;
+    box-shadow: none;
+    clip-path: none;
+    overflow: visible;
 }
 
 .network-room-list-entry::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: clamp(18px, 1.26vw, 23px) 0;
+    z-index: 0;
     border: calc(1px * var(--layout-stage-scale)) solid rgba(36, 244, 255, 0.30);
     clip-path: polygon(
         var(--network-room-card-step-x) 0,
@@ -4562,10 +4521,16 @@
         linear-gradient(90deg, rgba(255, 231, 168, 0.60), rgba(255, 231, 168, 0.60)) left 0 bottom 0 / 18% 1px no-repeat,
         linear-gradient(180deg, rgba(255, 231, 168, 0.60), rgba(255, 231, 168, 0.60)) left 0 bottom 0 / 1px 18% no-repeat,
         linear-gradient(90deg, rgba(255, 231, 168, 0.66), rgba(255, 231, 168, 0.66)) right 0 bottom 0 / 18% 1px no-repeat,
-        linear-gradient(180deg, rgba(255, 231, 168, 0.66), rgba(255, 231, 168, 0.66)) right 0 bottom 0 / 1px 18% no-repeat;
+        linear-gradient(180deg, rgba(255, 231, 168, 0.66), rgba(255, 231, 168, 0.66)) right 0 bottom 0 / 1px 18% no-repeat,
+        linear-gradient(90deg, rgba(214, 168, 75, 0.22), transparent 12% 88%, rgba(214, 168, 75, 0.16)),
+        radial-gradient(80% 30% at 50% 0%, rgba(36, 244, 255, 0.09), transparent 70%),
+        linear-gradient(180deg, rgba(5, 20, 26, 0.76), rgba(0, 7, 10, 0.84));
     box-shadow:
+        inset 0 0 0 2px rgba(7, 17, 20, 0.76),
+        inset 0 0 0 4px rgba(214, 168, 75, 0.18),
         inset 0 0 18px rgba(36, 244, 255, 0.08),
-        inset 0 0 0 1px rgba(214, 168, 75, 0.16);
+        inset 0 0 0 1px rgba(214, 168, 75, 0.16),
+        0 9px 24px rgba(0, 0, 0, 0.56);
     pointer-events: none;
 }
 
@@ -4612,21 +4577,20 @@
 }
 
 .network-room-list-entry.is-current-room {
-    border-color: rgba(36, 244, 255, 0.98);
-    box-shadow:
-        inset 0 0 0 2px rgba(7, 17, 20, 0.76),
-        inset 0 0 0 4px rgba(214, 168, 75, 0.36),
-        -14px 0 36px rgba(36, 244, 255, 0.46),
-        0 0 36px rgba(36, 244, 255, 0.68),
-        0 0 0 1px rgba(255, 231, 168, 0.28),
-        0 9px 24px rgba(0, 0, 0, 0.56);
+    box-shadow: none;
 }
 
 .network-room-list-entry.is-current-room::before {
     border-color: rgba(36, 244, 255, 0.58);
     box-shadow:
+        inset 0 0 0 2px rgba(7, 17, 20, 0.76),
+        inset 0 0 0 4px rgba(214, 168, 75, 0.36),
         inset 0 0 18px rgba(36, 244, 255, 0.14),
-        inset 0 0 0 1px rgba(214, 168, 75, 0.22);
+        inset 0 0 0 1px rgba(214, 168, 75, 0.22),
+        -14px 0 36px rgba(36, 244, 255, 0.46),
+        0 0 36px rgba(36, 244, 255, 0.68),
+        0 0 0 1px rgba(255, 231, 168, 0.28),
+        0 9px 24px rgba(0, 0, 0, 0.56);
 }
 
 .network-room-list-entry.is-current-room .network-room-entry-body::before {
@@ -4966,19 +4930,15 @@
     display: grid;
     place-items: center;
     padding: clamp(26px, 1.9vw, 38px);
-    overflow: hidden;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 231, 168, 0.40);
+    overflow: visible;
+    border: 0;
     border-radius: 0;
-    clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
-    background:
-        linear-gradient(90deg, rgba(36, 244, 255, 0.10), transparent 20%, transparent 80%, rgba(36, 244, 255, 0.08)),
-        radial-gradient(42% 58% at 50% 46%, rgba(36, 244, 255, 0.10), transparent 72%),
-        radial-gradient(30% 76% at 0% 50%, rgba(36, 244, 255, 0.16), transparent 72%),
-        linear-gradient(180deg, rgba(5, 20, 26, 0.58), rgba(0, 7, 10, 0.76));
+    clip-path: none;
+    background: transparent;
     color: rgba(244, 234, 216, 0.70);
     -webkit-text-fill-color: currentColor;
     font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
-    font-size: clamp(18px, 1.3vw, 24px);
+    font-size: clamp(12.6px, 0.91vw, 16.8px);
     line-height: 1.42;
     font-kerning: normal;
     font-feature-settings: "kern" 1, "palt" 1;
@@ -4988,43 +4948,7 @@
     text-shadow:
         0 0 16px rgba(0, 0, 0, 0.90),
         0 0 12px rgba(36, 244, 255, 0.20);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(32, 231, 255, 0.20),
-        inset 0 0 34px rgba(3, 15, 18, 0.86),
-        0 0 24px rgba(36, 244, 255, 0.10);
-}
-
-.network-room-list-empty::before,
-.network-room-list-empty::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-}
-
-.network-room-list-empty::before {
-    inset: clamp(12px, 0.85vw, 16px);
-    clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
-    background:
-        linear-gradient(90deg, transparent 33.15%, rgba(214, 168, 75, 0.24) 33.25%, transparent 33.45%, transparent 66.55%, rgba(214, 168, 75, 0.24) 66.75%, transparent 66.85%),
-        linear-gradient(180deg, rgba(255, 231, 168, 0.34), transparent 16%, transparent 84%, rgba(255, 231, 168, 0.24)),
-        linear-gradient(90deg, rgba(255, 231, 168, 0.28), transparent 12%, transparent 88%, rgba(255, 231, 168, 0.22));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(214, 168, 75, 0.28);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(36, 244, 255, 0.12),
-        inset 0 0 28px rgba(0, 0, 0, 0.54);
-    opacity: 0.92;
-}
-
-.network-room-list-empty::after {
-    top: clamp(20px, 1.35vw, 26px);
-    left: 50%;
-    width: clamp(72px, 5.4vw, 104px);
-    height: calc(1px * var(--layout-stage-scale));
-    transform: translateX(-50%);
-    background: linear-gradient(90deg, transparent, rgba(214, 168, 75, 0.66) 28%, rgba(36, 244, 255, 0.78) 50%, rgba(214, 168, 75, 0.66) 72%, transparent);
-    box-shadow:
-        0 0 12px rgba(36, 244, 255, 0.24),
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+    box-shadow: none;
 }
 
 #networkStatusText {
@@ -6011,4 +5935,153 @@
         width: calc(128px * var(--gacha-reference-scale));
         height: calc(118px * var(--gacha-reference-scale));
     }
+}
+
+/* Mossed stone HUD skin: visual-only overlay for left status and manifest panels. */
+#effect-live-panel,
+#manifest-effect-panel {
+    --moss-hud-gold: #b99a57;
+    --moss-hud-gold-soft: rgba(185, 154, 87, 0.34);
+    --moss-hud-iron: rgba(7, 10, 9, 0.96);
+    --moss-hud-iron-2: rgba(21, 23, 19, 0.94);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(156, 129, 73, 0.56);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    clip-path: polygon(
+        calc(7px * var(--layout-stage-scale)) 0,
+        calc(100% - calc(7px * var(--layout-stage-scale))) 0,
+        100% calc(7px * var(--layout-stage-scale)),
+        100% calc(100% - calc(7px * var(--layout-stage-scale))),
+        calc(100% - calc(7px * var(--layout-stage-scale))) 100%,
+        calc(7px * var(--layout-stage-scale)) 100%,
+        0 calc(100% - calc(7px * var(--layout-stage-scale))),
+        0 calc(7px * var(--layout-stage-scale))
+    );
+    background:
+        radial-gradient(130% 90% at 16% 0%, rgba(91, 126, 96, 0.18), transparent 38%),
+        radial-gradient(100% 86% at 90% 100%, rgba(114, 86, 42, 0.20), transparent 48%),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.025) 0 1px, transparent 1px 5px),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 9px),
+        linear-gradient(180deg, var(--moss-hud-iron-2), var(--moss-hud-iron) 58%, rgba(5, 9, 8, 0.98));
+    box-shadow:
+        0 calc(16px * var(--layout-stage-scale)) calc(32px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(18, 13, 8, 0.92),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(226, 198, 132, 0.09),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 198, 0.09),
+        inset 0 calc(-10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.30);
+    backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+    -webkit-backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
+}
+
+#effect-live-panel::before,
+#manifest-effect-panel::before {
+    inset: calc(5px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(190, 157, 88, 0.20);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(185, 154, 87, 0.13), transparent 18%, transparent 82%, rgba(80, 112, 88, 0.10)),
+        linear-gradient(180deg, rgba(255, 248, 212, 0.035), transparent 38%);
+    box-shadow:
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.22),
+        inset calc(-1px * var(--layout-stage-scale)) 0 0 rgba(102, 130, 101, 0.16);
+}
+
+#effect-live-panel::after,
+#manifest-effect-panel::after {
+    left: calc(5px * var(--layout-stage-scale));
+    right: calc(5px * var(--layout-stage-scale));
+    top: calc(5px * var(--layout-stage-scale));
+    bottom: calc(5px * var(--layout-stage-scale));
+    height: auto;
+    opacity: 0.78;
+    filter: none;
+    background:
+        radial-gradient(circle, rgba(218, 188, 108, 0.72) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.62) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.54) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(218, 188, 108, 0.50) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(185, 154, 87, 0.48), transparent) top calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(92, 122, 94, 0.30), transparent) bottom calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat;
+}
+
+.battle-status-round {
+    color: #ead493;
+    border-color: rgba(185, 154, 87, 0.40);
+    border-left-color: rgba(185, 154, 87, 0.76);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(107, 82, 34, 0.34), rgba(8, 10, 9, 0.70) 42%, rgba(28, 37, 30, 0.36)),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.025) 0 1px, transparent 1px 5px);
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 239, 180, 0.055),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.32);
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88);
+}
+
+.battle-status-score,
+.battle-status-latest {
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(117, 98, 60, 0.48);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 248, 212, 0.035), transparent 42%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.42), rgba(42, 35, 22, 0.34) 50%, rgba(0, 0, 0, 0.44));
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 244, 198, 0.035),
+        inset 0 calc(-6px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.18);
+}
+
+.battle-status-score::before {
+    background: linear-gradient(180deg, transparent, rgba(185, 154, 87, 0.58), transparent);
+    box-shadow: none;
+}
+
+.battle-status-turn {
+    border-color: rgba(98, 172, 123, 0.42);
+    background:
+        linear-gradient(180deg, rgba(63, 126, 89, 0.48), rgba(16, 64, 47, 0.62)),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent);
+    color: #b6f0cf;
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(230, 255, 236, 0.08),
+        inset 0 calc(-5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.18);
+}
+
+.battle-status-latest {
+    border-left: calc(3px * var(--layout-stage-scale)) solid rgba(185, 154, 87, 0.72);
+    color: rgba(240, 225, 190, 0.92);
+}
+
+#manifest-effect-title {
+    color: #e3cf91;
+    border-bottom-color: rgba(185, 154, 87, 0.26);
+    border-left-color: rgba(185, 154, 87, 0.66);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(107, 82, 34, 0.38), rgba(9, 11, 10, 0.44) 48%, rgba(31, 50, 41, 0.24)),
+        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.025) 0 1px, transparent 1px 5px);
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 239, 180, 0.05),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.28);
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.86);
+}
+
+#manifest-effect-title::before {
+    background: linear-gradient(135deg, rgba(205, 178, 103, 0.92), rgba(84, 64, 29, 0.94));
+    box-shadow: 0 0 calc(7px * var(--layout-stage-scale)) rgba(185, 154, 87, 0.22);
+}
+
+.manifest-effect-line {
+    color: rgba(239, 225, 192, 0.92);
+    border-left-color: rgba(133, 169, 138, 0.52);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(86, 121, 91, 0.15), rgba(0, 0, 0, 0.30) 28%, rgba(95, 73, 35, 0.14));
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 235, 168, 0.035),
+        inset 0 calc(-5px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.12);
+}
+
+.manifest-effect-line--dynamic {
+    border-color: rgba(185, 154, 87, 0.36);
+    background:
+        linear-gradient(90deg, rgba(107, 82, 34, 0.34), rgba(0, 0, 0, 0.30));
 }

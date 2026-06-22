@@ -27,7 +27,8 @@ describe('text term highlighter', () => {
     const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス');
     expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。');
     const erase = getGameTermGlossary().find((entry) => entry.label === '抹消');
-    expect(erase?.description).toContain('絶対保護以外の保護を貫通できる');
+    expect(erase?.description).toContain('完全保護や反転保護でも防げません');
+    expect(erase?.description).toContain('絶対保護だけは防げます');
   });
 
   test('catalogs free placement as a placement action term', () => {

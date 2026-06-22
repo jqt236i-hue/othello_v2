@@ -52,7 +52,11 @@ describe('board skin controller', () => {
       'black-green-lacquer',
       'cyan-obsidian',
       'verdigris-jade',
-      'celestial-green-stone'
+      'celestial-green-stone',
+      'bluegreen-felt',
+      'celadon-stone',
+      'teal-lacquer',
+      'quiet-cosmos'
     ]);
 
     api.selectSkin('celestial-green-stone');
@@ -83,7 +87,11 @@ describe('board skin controller', () => {
       ['stone-inlay', 'assets/images/board/board-surface-stone-inlay-v1.png'],
       ['brushed-lacquer', 'assets/images/board/board-surface-brushed-lacquer-v1.png'],
       ['mica-washi', 'assets/images/board/board-surface-mica-washi-v1.png'],
-      ['aged-board', 'assets/images/board/board-surface-aged-board-v1.png']
+      ['aged-board', 'assets/images/board/board-surface-aged-board-v1.png'],
+      ['bluegreen-felt', 'assets/images/board/board-surface-bluegreen-felt-v1.png'],
+      ['celadon-stone', 'assets/images/board/board-surface-celadon-stone-v1.png'],
+      ['teal-lacquer', 'assets/images/board/board-surface-teal-lacquer-v1.png'],
+      ['quiet-cosmos', 'assets/images/board/board-surface-quiet-cosmos-v1.png']
     ];
 
     expected.forEach(([skinId, imagePath]) => {
@@ -117,7 +125,11 @@ describe('board skin controller', () => {
       'black-gold-lacquer',
       'compact-brass-clean-corners',
       'compact-iron-clean-corners',
-      'compact-gold-clean-corners'
+      'compact-gold-clean-corners',
+      'marsh-forged-iron',
+      'submerged-wood',
+      'swamp-ruin-stone',
+      'shadow-vine-lacquer'
     ]);
 
     api.selectFrameSkin('compact-brass-clean-corners');
@@ -150,6 +162,14 @@ describe('board skin controller', () => {
     expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe('calc(28px * var(--layout-stage-scale))');
     expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe('calc(28px * var(--layout-stage-scale))');
     expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(3px * var(--layout-stage-scale))');
+
+    api.selectFrameSkin('submerged-wood');
+
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-top')).toBe('calc(15px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-right')).toBe('calc(20px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe('calc(20px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe('calc(20px * var(--layout-stage-scale))');
+    expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(2px * var(--layout-stage-scale))');
   });
 
   test('persists and applies the selected compact board frame skins', () => {
@@ -157,7 +177,11 @@ describe('board skin controller', () => {
     const api = controller.setupBoardSkinControls({ root: window });
     const expected: Array<[string, string]> = [
       ['compact-iron-clean-corners', 'assets/images/board/board-frame-compact-iron-clean-corners-v3.png'],
-      ['compact-gold-clean-corners', 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png']
+      ['compact-gold-clean-corners', 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png'],
+      ['marsh-forged-iron', 'assets/images/board/board-frame-marsh-forged-iron-v1.png'],
+      ['submerged-wood', 'assets/images/board/board-frame-submerged-wood-v1.png'],
+      ['swamp-ruin-stone', 'assets/images/board/board-frame-swamp-ruin-stone-v1.png'],
+      ['shadow-vine-lacquer', 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png']
     ];
 
     expected.forEach(([skinId, imagePath]) => {
@@ -174,7 +198,11 @@ describe('board skin controller', () => {
     const imagePaths = [
       'assets/images/board/board-frame-compact-brass-clean-corners-v3.png',
       'assets/images/board/board-frame-compact-iron-clean-corners-v3.png',
-      'assets/images/board/board-frame-compact-gold-clean-corners-v3.png'
+      'assets/images/board/board-frame-compact-gold-clean-corners-v3.png',
+      'assets/images/board/board-frame-marsh-forged-iron-v1.png',
+      'assets/images/board/board-frame-submerged-wood-v1.png',
+      'assets/images/board/board-frame-swamp-ruin-stone-v1.png',
+      'assets/images/board/board-frame-shadow-vine-lacquer-v1.png'
     ];
 
     imagePaths.forEach((imagePath) => {

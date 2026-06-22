@@ -206,6 +206,15 @@ function createOptionButton(docRef: Document, skin: any): HTMLButtonElement {
 
 const HandAnimationPreferencesModule = resolveHandAnimationPreferencesModule();
 const APPEARANCE_PRESET_STORAGE_KEY = 'reversi.appearancePresets';
+const APPEARANCE_PRESET_CODE_PREFIX = 'appearance:v1:';
+const APPEARANCE_PRESET_FIELDS = [
+  'handSkinId',
+  'backgroundSkinId',
+  'boardSkinId',
+  'boardFrameSkinId',
+  'fontSkinId',
+  'stoneSkinId'
+];
 
 function readHandAnimationPreference(rootRef: any, key: 'draw' | 'place'): boolean {
   if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.readHandAnimationPreference === 'function') {
@@ -304,6 +313,101 @@ function createDefaultPresetName(presets: any[]): string {
   return `プリセット${index}`;
 }
 
+function encodeBase64Url(rootRef: any, text: string): string {
+  let base64 = '';
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  if (ctx && typeof ctx.btoa === 'function') {
+    const binary = encodeURIComponent(text).replace(/%([0-9A-F]{2})/g, function (_match, hex) {
+      return String.fromCharCode(parseInt(hex, 16));
+    });
+    base64 = ctx.btoa(binary);
+  } else if (typeof Buffer !== 'undefined') {
+    base64 = Buffer.from(text, 'utf8').toString('base64');
+  }
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function decodeBase64Url(rootRef: any, text: string): string | null {
+  const normalized = String(text || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  try {
+    if (ctx && typeof ctx.atob === 'function') {
+      const binary = ctx.atob(padded);
+      let encoded = '';
+      for (let i = 0; i < binary.length; i += 1) {
+        encoded += `%${binary.charCodeAt(i).toString(16).padStart(2, '0')}`;
+      }
+      return decodeURIComponent(encoded);
+    }
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(padded, 'base64').toString('utf8');
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
+
+function normalizeAppearancePresetCodePayload(value: any): any | null {
+  const source = value && typeof value === 'object' ? value : {};
+  const appearance: any = {};
+  APPEARANCE_PRESET_FIELDS.forEach((field) => {
+    const raw = source[field];
+    const normalized = typeof raw === 'string' ? raw.trim() : '';
+    if (normalized) appearance[field] = normalized;
+  });
+  return Object.keys(appearance).length ? appearance : null;
+}
+
+function encodeAppearancePresetCode(rootRef: any, appearance: any): string {
+  const normalized = normalizeAppearancePresetCodePayload(appearance);
+  const payload = JSON.stringify({
+    version: 1,
+    appearance: normalized || {}
+  });
+  return `${APPEARANCE_PRESET_CODE_PREFIX}${encodeBase64Url(rootRef, payload)}`;
+}
+
+function decodeAppearancePresetCode(rootRef: any, code: any): any | null {
+  const rawCode = String(code || '').trim();
+  if (!rawCode.startsWith(APPEARANCE_PRESET_CODE_PREFIX)) return null;
+  const decoded = decodeBase64Url(rootRef, rawCode.slice(APPEARANCE_PRESET_CODE_PREFIX.length));
+  if (!decoded) return null;
+  try {
+    const parsed = JSON.parse(decoded);
+    return normalizeAppearancePresetCodePayload(parsed && parsed.appearance);
+  } catch (e) {
+    return null;
+  }
+}
+
+function copyTextWithHiddenTextarea(docRef: Document, text: string): boolean {
+  const container = docRef.body || docRef.documentElement;
+  if (!container) return false;
+  const textarea = docRef.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'readonly');
+  textarea.setAttribute('aria-hidden', 'true');
+  textarea.tabIndex = -1;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  textarea.style.opacity = '0';
+  container.appendChild(textarea);
+  let copied = false;
+  try {
+    textarea.focus();
+    textarea.select();
+    copied = typeof docRef.execCommand === 'function' && docRef.execCommand('copy') === true;
+  } catch (e) {
+    copied = false;
+  } finally {
+    if (textarea.parentNode) textarea.parentNode.removeChild(textarea);
+  }
+  return copied;
+}
+
 function setupHandSkinControls(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootRef = opts.root || (typeof window !== 'undefined' ? window : null);
@@ -341,6 +445,9 @@ function setupHandSkinControls(options?: any): any {
   const presetTabBtn = opts.presetTabBtn || docRef.getElementById('appearanceTabPreset');
   const presetNameInput = opts.presetNameInput || docRef.getElementById('appearancePresetNameInput');
   const presetSaveBtn = opts.presetSaveBtn || docRef.getElementById('appearancePresetSaveBtn');
+  const presetCodeInput = opts.presetCodeInput || docRef.getElementById('appearancePresetCodeInput');
+  const presetCodeLoadBtn = opts.presetCodeLoadBtn || docRef.getElementById('appearancePresetCodeLoadBtn');
+  const presetCodeStatusEl = opts.presetCodeStatusEl || docRef.getElementById('appearancePresetCodeStatus');
   const presetListEl = opts.presetListEl || docRef.getElementById('appearancePresetList');
   const handImageEl = opts.handImage || docRef.getElementById('handImage');
   if (!button || !panel || !optionsEl || !handImageEl) return null;
@@ -441,6 +548,18 @@ function setupHandSkinControls(options?: any): any {
       });
       row.appendChild(applyBtn);
 
+      const codeCopyBtn = docRef.createElement('button');
+      codeCopyBtn.type = 'button';
+      codeCopyBtn.className = 'appearance-preset-code-copy';
+      codeCopyBtn.textContent = 'コードコピー';
+      codeCopyBtn.setAttribute('aria-label', `${applyBtn.textContent}のコードをコピー`);
+      codeCopyBtn.addEventListener('click', function (event: any) {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+        copyAppearanceCode(preset && preset.appearance, `${applyBtn.textContent}のコードをコピーしました`);
+      });
+      row.appendChild(codeCopyBtn);
+
       const deleteBtn = docRef.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'appearance-preset-delete';
@@ -474,6 +593,84 @@ function setupHandSkinControls(options?: any): any {
     writeAppearancePresetState(rootRef, state);
     if (presetNameInput) presetNameInput.value = '';
     renderAppearancePresetList();
+  }
+
+  function setAppearancePresetCodeStatus(message: string, tone?: string): void {
+    if (!presetCodeStatusEl) return;
+    presetCodeStatusEl.textContent = message;
+    presetCodeStatusEl.classList.toggle('is-error', tone === 'error');
+  }
+
+  function copyAppearanceCode(appearance: any, successMessage?: string): string {
+    const code = encodeAppearancePresetCode(rootRef, appearance);
+    if (presetCodeInput) presetCodeInput.value = code;
+    const fallbackCopied = copyTextWithHiddenTextarea(docRef, code);
+    let statusSettled = false;
+    function setCopySuccess(): void {
+      if (statusSettled) return;
+      statusSettled = true;
+      setAppearancePresetCodeStatus(successMessage || 'コードをコピーしました');
+    }
+    function setCopyFailure(): void {
+      if (fallbackCopied) {
+        setCopySuccess();
+        return;
+      }
+      if (statusSettled) return;
+      statusSettled = true;
+      setAppearancePresetCodeStatus('コードをコピーできませんでした', 'error');
+    }
+    if (fallbackCopied) setCopySuccess();
+    const clipboard = rootRef && rootRef.navigator && rootRef.navigator.clipboard;
+    if (clipboard && typeof clipboard.writeText === 'function') {
+      try {
+        const result = clipboard.writeText(code);
+        if (result && typeof result.then === 'function') {
+          result.then(function () {
+            setCopySuccess();
+          }).catch(function () {
+            setCopyFailure();
+          });
+        } else {
+          setCopySuccess();
+        }
+      } catch (e) {
+        setCopyFailure();
+      }
+    } else {
+      setCopyFailure();
+    }
+    return code;
+  }
+
+  function copyCurrentAppearanceCode(): string {
+    return copyAppearanceCode(collectCurrentAppearance(), '今の状態のコードをコピーしました');
+  }
+
+  async function readAppearancePresetCodeText(): Promise<string> {
+    if (presetCodeInput && String(presetCodeInput.value || '').trim()) {
+      return String(presetCodeInput.value || '').trim();
+    }
+    const clipboard = rootRef && rootRef.navigator && rootRef.navigator.clipboard;
+    if (clipboard && typeof clipboard.readText === 'function') {
+      return String(await clipboard.readText() || '').trim();
+    }
+    if (rootRef && typeof rootRef.prompt === 'function') {
+      return String(rootRef.prompt('プリセットコードを入力') || '').trim();
+    }
+    return '';
+  }
+
+  async function loadAppearancePresetCode(): Promise<boolean> {
+    const appearance = decodeAppearancePresetCode(rootRef, await readAppearancePresetCodeText());
+    if (!appearance) {
+      setAppearancePresetCodeStatus('コードを読み込めませんでした', 'error');
+      return false;
+    }
+    applyAppearancePreset({ appearance });
+    renderAppearancePresetList();
+    setAppearancePresetCodeStatus('コードから見た目を読み込みました');
+    return true;
   }
 
   function syncButtonLabel(): void {
@@ -699,6 +896,15 @@ function setupHandSkinControls(options?: any): any {
     });
   }
 
+  if (presetCodeLoadBtn) {
+    presetCodeLoadBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      loadAppearancePresetCode().catch(function () {
+        setAppearancePresetCodeStatus('コードを読み込めませんでした', 'error');
+      });
+    });
+  }
+
   docRef.addEventListener('pointerdown', function (event: any) {
     if (!isOpen) return;
     const target = event ? event.target : null;
@@ -754,6 +960,8 @@ function setupHandSkinControls(options?: any): any {
       setActiveTab(tabKey);
       return activeTab;
     },
+    copyCurrentAppearanceCode,
+    loadAppearancePresetCode,
     getHandAnimationPreferences: function (): { draw: boolean; place: boolean } {
       return syncHandAnimationFlags(rootRef);
     }

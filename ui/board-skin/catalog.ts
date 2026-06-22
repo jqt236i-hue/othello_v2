@@ -106,6 +106,30 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
     label: '星翠盤',
     note: '星雲のような緑石の下地',
     imagePath: 'assets/images/board/board-surface-celestial-green-v1.png'
+  }),
+  Object.freeze({
+    id: 'bluegreen-felt',
+    label: '青翠布盤',
+    note: '青みを帯びた静かな布目の下地',
+    imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.png'
+  }),
+  Object.freeze({
+    id: 'celadon-stone',
+    label: '青磁石盤',
+    note: '青緑の石目を抑えた盤面下地',
+    imagePath: 'assets/images/board/board-surface-celadon-stone-v1.png'
+  }),
+  Object.freeze({
+    id: 'teal-lacquer',
+    label: '青藍漆盤',
+    note: '鈍い青緑の漆調下地',
+    imagePath: 'assets/images/board/board-surface-teal-lacquer-v1.png'
+  }),
+  Object.freeze({
+    id: 'quiet-cosmos',
+    label: '静宙盤',
+    note: '暗い宇宙感を抑えた盤面下地',
+    imagePath: 'assets/images/board/board-surface-quiet-cosmos-v1.png'
   })
 ]);
 
@@ -158,6 +182,58 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
       paddingBottom: 29,
       paddingLeft: 29,
       artOffsetY: 3
+    })
+  }),
+  Object.freeze({
+    id: 'marsh-forged-iron',
+    label: '湿地鍛鉄枠',
+    note: '湿地の緑青を帯びた黒鉄の盤面外フレーム',
+    imagePath: 'assets/images/board/board-frame-marsh-forged-iron-v1.png',
+    layout: Object.freeze({
+      paddingTop: 15,
+      paddingRight: 21,
+      paddingBottom: 21,
+      paddingLeft: 21,
+      artOffsetY: 2
+    })
+  }),
+  Object.freeze({
+    id: 'submerged-wood',
+    label: '沈木枠',
+    note: '濡れた沈木と古金金具の盤面外フレーム',
+    imagePath: 'assets/images/board/board-frame-submerged-wood-v1.png',
+    layout: Object.freeze({
+      paddingTop: 15,
+      paddingRight: 20,
+      paddingBottom: 20,
+      paddingLeft: 20,
+      artOffsetY: 2
+    })
+  }),
+  Object.freeze({
+    id: 'swamp-ruin-stone',
+    label: '湿地遺跡石枠',
+    note: '暗い苔石と鈍い金装飾の盤面外フレーム',
+    imagePath: 'assets/images/board/board-frame-swamp-ruin-stone-v1.png',
+    layout: Object.freeze({
+      paddingTop: 17,
+      paddingRight: 22,
+      paddingBottom: 22,
+      paddingLeft: 22,
+      artOffsetY: 2
+    })
+  }),
+  Object.freeze({
+    id: 'shadow-vine-lacquer',
+    label: '影蔦漆枠',
+    note: '黒緑漆に蔦意匠を抑えた盤面外フレーム',
+    imagePath: 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png',
+    layout: Object.freeze({
+      paddingTop: 16,
+      paddingRight: 21,
+      paddingBottom: 21,
+      paddingLeft: 21,
+      artOffsetY: 2
     })
   })
 ]);

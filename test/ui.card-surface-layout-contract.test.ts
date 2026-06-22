@@ -93,6 +93,8 @@ describe('card surface layout contract', () => {
       'is-special-stone',
       'is-usage-condition',
       'is-hole-cell',
+      'is-erasure',
+      'is-absolute-execution',
       'is-inviolable',
       'is-flip-protection',
       'is-full-protection',

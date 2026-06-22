@@ -43,6 +43,8 @@ describe('hand skin handler', () => {
         <div id="appearancePresetSection" hidden>
           <input id="appearancePresetNameInput" />
           <button id="appearancePresetSaveBtn" type="button"></button>
+          <button id="appearancePresetCodeLoadBtn" type="button"></button>
+          <div id="appearancePresetCodeStatus"></div>
           <div id="appearancePresetList"></div>
         </div>
       </div>
@@ -294,8 +296,18 @@ describe('hand skin handler', () => {
     expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 
-  test('preset tab saves current appearance, reapplies it, and deletes it', () => {
+  test('preset tab saves current appearance, copies its code, reapplies it, and deletes it', async () => {
     unlockAltGachaHandSkin();
+    const clipboardWrites = [];
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: {
+        writeText: jest.fn(async (text) => {
+          clipboardWrites.push(text);
+        })
+      },
+      configurable: true
+    });
+    document.execCommand = jest.fn(() => false);
     const board = document.createElement('div');
     board.id = 'board';
     document.body.appendChild(board);
@@ -322,6 +334,9 @@ describe('hand skin handler', () => {
     const savedPreset = document.querySelector('.appearance-preset-apply');
     expect(savedPreset.textContent).toContain('プリセット1');
     expect(window.localStorage.getItem('reversi.appearancePresets')).toContain('emerald-stone');
+    document.querySelector('.appearance-preset-code-copy').click();
+    await Promise.resolve();
+    expect(clipboardWrites[0]).toMatch(/^appearance:v1:/);
 
     api.selectSkin('default');
     document.getElementById('appearanceTabBoard').click();
@@ -345,6 +360,100 @@ describe('hand skin handler', () => {
     document.querySelector('.appearance-preset-delete').click();
     expect(document.querySelector('.appearance-preset-apply')).toBeNull();
     expect(JSON.parse(window.localStorage.getItem('reversi.appearancePresets')).presets).toEqual([]);
+  });
+
+  test('preset tab loads appearance codes from clipboard without a visible code field', async () => {
+    unlockAltGachaHandSkin();
+    let clipboardText = '';
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: {
+        writeText: jest.fn(async (text) => { clipboardText = text; }),
+        readText: jest.fn(async () => clipboardText)
+      },
+      configurable: true
+    });
+    const board = document.createElement('div');
+    board.id = 'board';
+    document.body.appendChild(board);
+    const boardFrame = document.createElement('div');
+    boardFrame.id = 'board-frame';
+    document.body.appendChild(boardFrame);
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    document.getElementById('handSkinBtn').click();
+    api.selectSkin(ALT_GACHA_HAND_SKIN_ID);
+    document.getElementById('appearanceTabBoard').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="emerald-stone"]').click();
+    document.getElementById('appearanceTabBoardFrame').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="compact-brass-clean-corners"]').click();
+    document.getElementById('appearanceTabFont').click();
+    document.querySelector('[data-font-skin-id="dot-gothic"]').click();
+    document.getElementById('appearanceTabStone').click();
+    document.querySelector('[data-stone-skin-id="o-stone"]').click();
+
+    document.getElementById('appearanceTabPreset').click();
+    document.getElementById('appearancePresetSaveBtn').click();
+    document.querySelector('.appearance-preset-code-copy').click();
+    await Promise.resolve();
+
+    expect(document.getElementById('appearancePresetCodeInput')).toBeNull();
+    expect(clipboardText).toMatch(/^appearance:v1:/);
+
+    api.selectSkin('default');
+    document.getElementById('appearanceTabBoard').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="woven-felt"]').click();
+    document.getElementById('appearanceTabBoardFrame').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="black-gold-lacquer"]').click();
+    document.getElementById('appearanceTabFont').click();
+    document.querySelector('[data-font-skin-id="shippori-mincho"]').click();
+    document.getElementById('appearanceTabStone').click();
+    document.querySelector('[data-stone-skin-id="jade-rim"]').click();
+
+    document.getElementById('appearanceTabPreset').click();
+    await document.getElementById('appearancePresetCodeLoadBtn').click();
+    await Promise.resolve();
+
+    expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('compact-brass-clean-corners');
+    expect(document.body.getAttribute('data-font-skin-id')).toBe('dot-gothic');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
+    expect(document.getElementById('appearancePresetCodeStatus').textContent).toContain('読み込みました');
+  });
+
+  test('preset row code copy falls back when async clipboard copy is blocked', async () => {
+    unlockAltGachaHandSkin();
+    const legacyCopies = [];
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: {
+        writeText: jest.fn(async () => {
+          throw new Error('clipboard blocked');
+        })
+      },
+      configurable: true
+    });
+    document.execCommand = jest.fn((command) => {
+      if (command === 'copy' && document.activeElement) {
+        legacyCopies.push(document.activeElement.value);
+        return true;
+      }
+      return false;
+    });
+    const mod = require('../ui/handlers/hand-skin.js');
+    mod.setupHandSkinControls({ root: window });
+
+    document.getElementById('handSkinBtn').click();
+    document.getElementById('appearanceTabPreset').click();
+    document.getElementById('appearancePresetSaveBtn').click();
+    document.querySelector('.appearance-preset-code-copy').click();
+    await Promise.resolve();
+
+    expect(window.navigator.clipboard.writeText).toHaveBeenCalled();
+    expect(legacyCopies).toHaveLength(1);
+    expect(legacyCopies[0]).toMatch(/^appearance:v1:/);
+    expect(document.getElementById('appearancePresetCodeStatus').textContent).toContain('コピーしました');
+    expect(document.querySelector('textarea[aria-hidden="true"]')).toBeNull();
   });
 
   test('unowned gacha skin in storage falls back to default', () => {
@@ -563,5 +672,8 @@ describe('hand skin handler', () => {
     expect(html).toMatch(/id="boardSkinOptions"/);
     expect(html).toMatch(/id="appearanceTabPreset"/);
     expect(html).toMatch(/id="appearancePresetSection"/);
+    expect(html).not.toMatch(/id="appearancePresetCodeInput"/);
+    expect(html).not.toMatch(/id="appearancePresetCodeCopyBtn"/);
+    expect(html).toMatch(/id="appearancePresetCodeLoadBtn"/);
   });
 });

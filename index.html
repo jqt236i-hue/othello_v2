@@ -179,7 +179,7 @@
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>抹消</dt>
-                        <dd>石やマス状態ごと対象マスを取り除き、穴マスにする処理。通常の石破壊とは別扱い。</dd>
+                        <dd>そのマスの石を取り除きます。完全保護や反転保護でも防げません。絶対保護だけは防げます。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>絶対執行</dt>
@@ -593,6 +593,10 @@
                     <button id="appearancePresetSaveBtn" class="btn-small" type="button">保存</button>
                 </div>
             </div>
+            <div id="appearancePresetCodePanel">
+                <button id="appearancePresetCodeLoadBtn" class="btn-small" type="button">コード読み込み</button>
+                <div id="appearancePresetCodeStatus" role="status" aria-live="polite"></div>
+            </div>
             <div id="appearancePresetList" aria-label="見た目プリセット一覧"></div>
         </div>
     </div>
@@ -909,10 +913,10 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=151279364278406"></script>
+    <script src="public/module-registry.js?v=54523941481953"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
-    <script src="entry-browser.js?v=184186054029713"></script>
+    <script src="entry-browser.js?v=246637970322792"></script>
 </body>
 
 </html>

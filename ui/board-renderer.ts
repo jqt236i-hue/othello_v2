@@ -1134,12 +1134,7 @@ function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, hintProjection:
 function renderBoard() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
-    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
-    const allowBoardUpdateDuringPlayback = !!(
-        boardUpdateSyncContext
-        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
-    );
-    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
+    if (_shouldSkipBoardRenderForPlayback()) {
         return;
     }
     // Determine whether we are in a "target selection" card mode.
@@ -1354,12 +1349,7 @@ function _resolveBoardDiffResetDelegate() {
 function renderBoardFull() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
-    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
-    const allowBoardUpdateDuringPlayback = !!(
-        boardUpdateSyncContext
-        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
-    );
-    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
+    if (_shouldSkipBoardRenderForPlayback()) {
         return;
     }
     const fullRender = _resolveBoardFullRenderDelegate();
@@ -1382,12 +1372,7 @@ function renderBoardFull() {
 function renderBoardFullLegacy() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
-    const boardUpdateSyncContext = _peekBoardUpdateSyncContextForBoardRenderer();
-    const allowBoardUpdateDuringPlayback = !!(
-        boardUpdateSyncContext
-        && boardUpdateSyncContext.allowBoardUpdateDuringPlayback === true
-    );
-    if (_shouldSkipBoardRenderForPlayback() && !allowBoardUpdateDuringPlayback) {
+    if (_shouldSkipBoardRenderForPlayback()) {
         return;
     }
     const renderState = _resolveBoardRenderStateForBoardRenderer();

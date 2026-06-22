@@ -1050,9 +1050,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (invokeSignalBridgeMethod('armBoardUpdateDuringPlayback', [syncContext]) === true) {
             return true;
         }
-        return invokeSignalBridgeMethod('armSelectionBoardUpdateContext', [Object.assign({
-            allowBoardUpdateDuringPlayback: true
-        }, syncContext)]) === true;
+        return invokeSignalBridgeMethod('armSelectionBoardUpdateContext', [syncContext]) === true;
     }
 
     function emitSelectionStateChangeSignals(playbackEvents: any) {

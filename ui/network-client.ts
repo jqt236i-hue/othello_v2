@@ -179,8 +179,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function armBoardUpdateDuringPlayback(context: any) {
         const syncContext = {
-            ...(context && typeof context === 'object' ? context : {}),
-            allowBoardUpdateDuringPlayback: true
+            ...(context && typeof context === 'object' ? context : {})
         };
         try {
             const BoardUpdateSyncRuntime = resolveNetworkClientModule(
@@ -199,6 +198,31 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             }
         } catch (e: any) { /* ignore */ }
         return false;
+    }
+
+    function resolveNetworkClientCardState(): any {
+        try {
+            if (root && root.cardState && typeof root.cardState === 'object') return root.cardState;
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') {
+                return (globalThis as any).cardState;
+            }
+        } catch (e: any) { /* ignore */ }
+        return null;
+    }
+
+    function shouldDeferNetworkBoardDomWrite(): boolean {
+        try {
+            if (
+                PlaybackStateModule
+                && typeof PlaybackStateModule.shouldDeferBoardUpdate === 'function'
+                && PlaybackStateModule.shouldDeferBoardUpdate({ cardState: resolveNetworkClientCardState() }) === true
+            ) {
+                return true;
+            }
+        } catch (e: any) { /* ignore */ }
+        return getPlaybackActive() === true;
     }
 
     function shouldClearStaleBoardUpdateContext(options: any) {
@@ -734,7 +758,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (!boardUpdateSyncRuntime || typeof boardUpdateSyncRuntime.armBoardUpdateSyncContext !== 'function') return false;
             try {
                 boardUpdateSyncRuntime.armBoardUpdateSyncContext({
-                    allowBoardUpdateDuringPlayback: true,
                     source: info.source,
                     reason: info.reason
                 });
@@ -763,11 +786,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 if (scheduled) requested = true;
                 if (scheduled && typeof renderScheduler.flushVisualUpdates === 'function') {
                     armBoardUpdateSync();
-                    if (renderScheduler.flushVisualUpdates({ ignorePlayback: true }) !== false) {
+                    if (renderScheduler.flushVisualUpdates() !== false) {
                         requested = true;
                     }
                 }
-                if (forceDirectRender) {
+                if (forceDirectRender && shouldDeferNetworkBoardDomWrite() !== true) {
                     const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
                         || resolveNetworkClientGlobal('renderBoard');
                     if (typeof renderBoard === 'function') {
@@ -786,7 +809,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         } else {
             const renderBoard = resolveNetworkClientCandidate(() => root && root.renderBoard)
                 || resolveNetworkClientGlobal('renderBoard');
-            if (typeof renderBoard === 'function') {
+            if (typeof renderBoard === 'function' && shouldDeferNetworkBoardDomWrite() !== true) {
                 try {
                     armBoardUpdateSync();
                     renderBoard();

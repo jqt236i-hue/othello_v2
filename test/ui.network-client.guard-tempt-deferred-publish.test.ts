@@ -931,7 +931,6 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     if (expectPreviewBoardSyncContext) {
       expect(boardUpdateContexts).toEqual(expect.arrayContaining([
         expect.objectContaining({
-          allowBoardUpdateDuringPlayback: true,
           source: 'selection-flow',
           reason: 'selection_state_sync'
         })

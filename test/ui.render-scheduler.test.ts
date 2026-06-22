@@ -97,6 +97,45 @@ describe('ui render scheduler', () => {
     expect(calls).toEqual(['board', 'card', 'status']);
   });
 
+  test('flushNow ignorePlayback still defers board rendering while playback is active', () => {
+    const scheduled: FrameRequestCallback[] = [];
+    const calls: string[] = [];
+    let busy = true;
+    const { createRenderScheduler } = require('../ui/render-scheduler.js');
+    const scheduler = createRenderScheduler({
+      requestAnimationFrame: (cb: FrameRequestCallback) => {
+        scheduled.push(cb);
+        return scheduled.length;
+      },
+      renderBoard: () => calls.push('board'),
+      renderCardUI: () => calls.push('card'),
+      updateStatus: () => calls.push('status'),
+      shouldDeferUiSync: () => busy
+    });
+
+    scheduler.requestBoardRender({ reason: 'board' });
+    scheduler.requestCardUiRender({ reason: 'card' });
+    scheduler.requestStatusUpdate({ reason: 'status' });
+
+    expect(scheduler.flushNow({ ignorePlayback: true })).toBe(true);
+    expect(calls).toEqual(['card', 'status']);
+    expect(scheduler.getState()).toMatchObject({
+      boardQueued: true,
+      cardUiQueued: false,
+      statusQueued: false,
+      deferredUntilIdle: true
+    });
+
+    busy = false;
+    scheduled[0](16);
+
+    expect(calls).toEqual(['card', 'status', 'board']);
+    expect(scheduler.getState()).toMatchObject({
+      boardQueued: false,
+      deferredUntilIdle: false
+    });
+  });
+
   test('ui requestCardUiSync still coalesces through scheduler-compatible state', async () => {
     jest.resetModules();
     const { JSDOM } = require('jsdom');

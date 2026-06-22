@@ -45,6 +45,21 @@ function createPlaybackMove(fromRow, fromCol, toRow, toCol, reason) {
   }];
 }
 
+function expectSourceToRemainUntilPlayback(row, col) {
+  const sourceCell = global.boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+  expect(sourceCell).toBeTruthy();
+  expect(sourceCell.classList.contains('has-disc')).toBe(true);
+  expect(sourceCell.querySelector('.disc')).toBeTruthy();
+}
+
+function flushDeferredPlaybackBoardUpdate() {
+  if (global.cardState && typeof global.cardState === 'object') {
+    global.cardState.presentationEvents = [];
+    global.cardState._presentationEventsPersist = [];
+  }
+  global.emitBoardUpdate();
+}
+
 describe('Network snapshot hyperactive source-empty handling', () => {
   let dom;
   let diff;
@@ -186,6 +201,8 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     );
 
     expect(applied).toBe(true);
+    expectSourceToRemainUntilPlayback(source.row, source.col);
+    flushDeferredPlaybackBoardUpdate();
     const sourceCell = global.boardEl.querySelector(`.cell[data-row="${source.row}"][data-col="${source.col}"]`);
     const destCell = global.boardEl.querySelector(`.cell[data-row="${dest.row}"][data-col="${dest.col}"]`);
     expect(sourceCell).toBeTruthy();
@@ -260,6 +277,8 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     );
 
     expect(applied).toBe(true);
+    expectSourceToRemainUntilPlayback(2, 2);
+    flushDeferredPlaybackBoardUpdate();
     const sourceCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="2"]');
     const destCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="5"]');
     expect(sourceCell).toBeTruthy();

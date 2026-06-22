@@ -91,6 +91,26 @@ describe('DiffRenderer flip fallback', () => {
 		expect(window.__suppressNextDiffFlip).toBe(false);
 	});
 
+	test('skips fallback flip when the existing disc was just flipped by playback', () => {
+		const playbackFlipMarker = require('../ui/playback-flip-marker.js');
+		gameState.board[0][0] = BLACK;
+		diffRenderer.renderBoardDiff(boardEl);
+
+		const animatedDisc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc') as HTMLElement;
+		expect(animatedDisc).toBeTruthy();
+		playbackFlipMarker.markPlaybackFlippedDisc(animatedDisc);
+		animatedDisc.classList.remove('black');
+		animatedDisc.classList.add('white');
+
+		gameState.board[0][0] = WHITE;
+		diffRenderer.renderBoardDiff(boardEl);
+
+		const disc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc') as HTMLElement;
+		expect(disc).toBeTruthy();
+		expect(disc.classList.contains('white')).toBe(true);
+		expect(disc.classList.contains('flip')).toBe(false);
+	});
+
 	test('suppression context is one-shot so later owner changes still flip', () => {
 		gameState.board[0][0] = BLACK;
 		diffRenderer.renderBoardDiff(boardEl);

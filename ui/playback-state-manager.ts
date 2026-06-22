@@ -535,7 +535,27 @@ function waitForVisualPlaybackDrain(options?: any): Promise<void> {
 
 function cloneBoardUpdateContext(context: any): any {
   if (!context || typeof context !== 'object') return null;
-  return Object.assign({}, context);
+  const cloned = Object.assign({}, context);
+  if (Array.isArray(context.pendingMoveSourceKeys)) {
+    cloned.pendingMoveSourceKeys = context.pendingMoveSourceKeys.slice();
+  }
+  if (Array.isArray(context.pendingFlipTargetKeys)) {
+    cloned.pendingFlipTargetKeys = context.pendingFlipTargetKeys.slice();
+  }
+  return cloned;
+}
+
+function normalizeBoardUpdateKeyList(value: any): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of value) {
+    const key = String(raw || '').trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  return keys.length > 0 ? keys : null;
 }
 
 function normalizeBoardUpdateContext(context: any): any {
@@ -555,6 +575,14 @@ function normalizeBoardUpdateContext(context: any): any {
   }
   if (context.allowSelectionEntryDuringPlayback === true) {
     next.allowSelectionEntryDuringPlayback = true;
+  }
+  const pendingMoveSourceKeys = normalizeBoardUpdateKeyList(context.pendingMoveSourceKeys);
+  if (pendingMoveSourceKeys) {
+    next.pendingMoveSourceKeys = pendingMoveSourceKeys;
+  }
+  const pendingFlipTargetKeys = normalizeBoardUpdateKeyList(context.pendingFlipTargetKeys);
+  if (pendingFlipTargetKeys) {
+    next.pendingFlipTargetKeys = pendingFlipTargetKeys;
   }
   return Object.keys(next).length > 0 ? next : null;
 }
@@ -704,7 +732,25 @@ function armBoardUpdateContext(context: any): any {
   if (current && current.suppressFallbackFlip === true) {
     next.suppressFallbackFlip = true;
   }
-  return setBoardUpdateContext(current ? Object.assign({}, current, next) : next);
+  if (current && current.suppressBoardExpansionRevealSound === true) {
+    next.suppressBoardExpansionRevealSound = true;
+  }
+  const merged = current ? Object.assign({}, current, next) : next;
+  const mergedMoveSourceKeys = normalizeBoardUpdateKeyList([
+    ...((current && current.pendingMoveSourceKeys) || []),
+    ...((next && next.pendingMoveSourceKeys) || [])
+  ]);
+  if (mergedMoveSourceKeys) {
+    merged.pendingMoveSourceKeys = mergedMoveSourceKeys;
+  }
+  const mergedFlipTargetKeys = normalizeBoardUpdateKeyList([
+    ...((current && current.pendingFlipTargetKeys) || []),
+    ...((next && next.pendingFlipTargetKeys) || [])
+  ]);
+  if (mergedFlipTargetKeys) {
+    merged.pendingFlipTargetKeys = mergedFlipTargetKeys;
+  }
+  return setBoardUpdateContext(merged);
 }
 
 function consumeBoardUpdateContext(): any {

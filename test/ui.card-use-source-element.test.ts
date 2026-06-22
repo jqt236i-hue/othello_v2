@@ -1262,7 +1262,7 @@ describe('card use source element selection', () => {
         { type: 'PLAYBACK_EVENTS' }
       ];
 
-      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       expect(global.renderBoard).toHaveBeenCalledTimes(0);
 
       await Promise.resolve();
@@ -1270,7 +1270,7 @@ describe('card use source element selection', () => {
 
       expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
       expect(pendingNetwork.getVisualPlaybackDrainFn).toHaveBeenCalledTimes(1);
-      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       expect(global.renderBoard).toHaveBeenCalledTimes(0);
       expect(global.cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
       expect(global.cardState._presentationEventsPersist).toEqual([
@@ -1282,7 +1282,63 @@ describe('card use source element selection', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      expect(global.renderBoard).toHaveBeenCalledTimes(1);
+      expect(global.cardState.presentationEvents).toEqual([]);
+      expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'CARD_USED' }]);
+      delete global.waitForPlaybackIdle;
+    });
+
+    test('FREE_PLACEMENT pending legal hints start card_use_animation before delayed direct board render', async () => {
+      let resolvePlayback;
+      const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
+      global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+      const pendingNetwork = require('../dist/cards/card-interaction-pending-network.js');
+      pendingNetwork.getVisualPlaybackDrainFn = jest.fn(() => jest.fn(() => playbackPromise));
+      global.cardState.selectedCardId = 'free_01';
+      global.cardState.hands.black = ['free_01'];
+      global.CardLogic = {
+        getCardDef: (id) => ({ id, type: 'FREE_PLACEMENT', name: '自由の意志', desc: 'd', cost: 1 })
+      };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: {
+            ...global.cardState.pendingEffectByPlayer,
+            black: { type: 'FREE_PLACEMENT', stage: null, cardId: 'free_01' }
+          }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: [
+          { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'free_01' }] }
+        ]
+      }));
+
+      require('../cards/card-interaction.js');
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+      global.renderBoard.mockClear();
+      window.useSelectedCard();
+      global.cardState.presentationEvents = [{ type: 'PLAYBACK_EVENTS' }];
+      global.cardState._presentationEventsPersist = [
+        { type: 'CARD_USED' },
+        { type: 'PLAYBACK_EVENTS' }
+      ];
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+      expect(pendingNetwork.getVisualPlaybackDrainFn).toHaveBeenCalledTimes(1);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      expect(global.renderBoard).toHaveBeenCalledTimes(0);
+
+      resolvePlayback();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       expect(global.renderBoard).toHaveBeenCalledTimes(1);
       expect(global.cardState.presentationEvents).toEqual([]);
       expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'CARD_USED' }]);
@@ -1326,7 +1382,7 @@ describe('card use source element selection', () => {
         { type: 'PLAYBACK_EVENTS' }
       ];
 
-      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       expect(global.renderBoard).toHaveBeenCalledTimes(0);
 
       resolvePlayback();
@@ -1334,7 +1390,7 @@ describe('card use source element selection', () => {
       await Promise.resolve();
 
       expect(pendingNetwork.getVisualPlaybackDrainFn).toHaveBeenCalledTimes(1);
-      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
       expect(global.renderBoard).toHaveBeenCalledTimes(1);
       expect(global.cardState.presentationEvents).toEqual([]);
       expect(global.cardState._presentationEventsPersist).toEqual([{ type: 'CARD_USED' }]);

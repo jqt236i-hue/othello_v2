@@ -180,7 +180,7 @@
     --layout-size-charge-border: max(1px, calc(2px * var(--layout-stage-scale)));
     --layout-size-charge-offset: calc((-28px + clamp(8px, 1.8vmin, 19px)) * var(--layout-stage-scale));
     --layout-charge-board-offset-y: calc(-18px * var(--layout-stage-scale));
-    --layout-charge-own-offset: calc(5px * var(--layout-stage-scale));
+    --layout-charge-own-offset: calc(3px * var(--layout-stage-scale));
     --layout-charge-opponent-offset: calc(17px * var(--layout-stage-scale));
 
     --layout-size-charge-delta-font: calc(13px * var(--layout-stage-scale));

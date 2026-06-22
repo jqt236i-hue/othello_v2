@@ -303,8 +303,8 @@ describe('card detail effect tags', () => {
       .find((el) => el.getAttribute('data-term-label') === '抹消') as HTMLElement;
     expect(eraseTermButton).toBeTruthy();
     eraseTermButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('石やマス状態ごと対象マスを取り除き');
-    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('絶対保護以外の保護を貫通できる');
+    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('そのマスの石を取り除きます');
+    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('絶対保護だけは防げます');
 
     const boardExecutorDef = {
       id: 'board_executor_01',
