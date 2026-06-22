@@ -107,6 +107,26 @@ async function main(): Promise<void> {
         && (window as any).RenderScheduler
       );
     }, null, { timeout: 30000 });
+    await page.waitForFunction(() => {
+      const root = window as any;
+      let timeline: any = null;
+      try {
+        timeline = root.NetworkPresentationTimeline && typeof root.NetworkPresentationTimeline.getDiagnostics === 'function'
+          ? root.NetworkPresentationTimeline.getDiagnostics()
+          : null;
+      } catch (_e) {
+        timeline = null;
+      }
+      return root.isProcessing !== true
+        && root.isCardAnimating !== true
+        && root.VisualPlaybackActive !== true
+        && !(root.AnimationEngine && root.AnimationEngine.isPlaying === true)
+        && (!timeline || (
+          timeline.playing !== true
+          && timeline.paused !== true
+          && Number(timeline.pendingFrameCount || 0) === 0
+        ));
+    }, null, { timeout: 30000 });
 
     const evidence = await page.evaluate(async () => {
       const root = window as any;
