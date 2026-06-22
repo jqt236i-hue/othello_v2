@@ -147,4 +147,76 @@ describe('cpu decision card context module', () => {
     expect(context.boardExpansionGodEnemyCornerTargetCount).toBe(1);
     expect(context.boardExpansionEnemyCornerTargetCount).toBe(1);
   });
+
+  test('buildCardUseDecisionContext counts movement targets that displace or replace enemy corners', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[0][0] = 1;
+    board[0][7] = 1;
+    board[7][7] = 1;
+    board[3][0] = -1;
+    board[3][3] = -1;
+    board[4][7] = -1;
+
+    const moduleRef = createCpuDecisionCardContext({
+      getGameState: () => ({ board }),
+      getCardState: () => ({
+        charge: { black: 0, white: 80 },
+        hands: { black: [], white: [] },
+        decks: { black: [], white: [] },
+        markers: []
+      }),
+      getCardLogic: () => ({
+        getBoardExpansionTargets: () => [],
+        getBoardExpansionGodTargets: () => [],
+        getSwapTargets: () => [],
+        getBuoyancyTargets: () => [{ row: 7, col: 7 }],
+        getGravityTargets: () => [{ row: 0, col: 7 }],
+        getSuperBuoyancyTargets: () => [{ row: 3, col: 0 }],
+        getSuperGravityTargets: () => [{ row: 4, col: 7 }],
+        getSuperAttractionTargets: (_cs: any, _gs: any, _playerKey: any, pending: any) => {
+          if (pending && pending.firstTarget && pending.firstTarget.row === 3 && pending.firstTarget.col === 3) {
+            return [{ row: 0, col: 0 }];
+          }
+          return [{ row: 3, col: 3 }];
+        }
+      }),
+      resolvePlayerValue: (playerKey: any) => (playerKey === 'white' ? -1 : 1),
+      getShapeAwareBoard: (sourceBoard: any) => sourceBoard,
+      countBoardStatsForPlayer: () => ({ discDiff: -8, empties: 58 }),
+      countEdgeControl: () => ({ ownEdges: 2, oppEdges: 3 }),
+      buildCornerPlanState: () => ({
+        ownCorners: 0,
+        oppCorners: 3,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: true,
+        cornerEmergency: true,
+        cornerHoldMode: false,
+        recoveryCostGap: 0,
+        highBonusMoveAvailable: false
+      }),
+      getBoardBonusValueAt: () => 0,
+      getBoardCellValueSafe: (sourceBoard: any, row: any, col: any) => {
+        if (!sourceBoard || !sourceBoard[row]) return null;
+        return sourceBoard[row][col];
+      },
+      getCpuPolicyCore: () => null,
+      isCornerCell: (row: any, col: any) => (
+        (row === 0 && col === 0) ||
+        (row === 0 && col === 7) ||
+        (row === 7 && col === 0) ||
+        (row === 7 && col === 7)
+      )
+    });
+
+    const context = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], []);
+
+    expect(context.movementCornerSwingTargetCounts).toMatchObject({
+      BUOYANCY_WILL: 1,
+      GRAVITY_WILL: 1,
+      SUPER_BUOYANCY_WILL: 1,
+      SUPER_GRAVITY_WILL: 1,
+      SUPER_ATTRACTION_WILL: 1
+    });
+    expect(context.movementCornerSwingTargetCount).toBe(1);
+  });
 });

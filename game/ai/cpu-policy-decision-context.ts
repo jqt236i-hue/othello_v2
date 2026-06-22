@@ -16,6 +16,14 @@ function fallbackIsFiniteNumber(value: unknown): boolean {
     return Number.isFinite(Number(value));
 }
 
+const MOVEMENT_CORNER_SWING_CARD_TYPES = [
+    'BUOYANCY_WILL',
+    'GRAVITY_WILL',
+    'SUPER_BUOYANCY_WILL',
+    'SUPER_GRAVITY_WILL',
+    'SUPER_ATTRACTION_WILL'
+];
+
 export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDeps) {
     const asRecord = typeof deps?.asRecord === 'function' ? deps.asRecord : fallbackAsRecord;
     const isFiniteNumber = typeof deps?.isFiniteNumber === 'function' ? deps.isFiniteNumber : fallbackIsFiniteNumber;
@@ -34,6 +42,34 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             const opp = Math.max(0, occupied - own);
             return { own, opp };
         });
+
+    function normalizeMovementCornerSwingTargetCounts(ctx: Record<string, unknown>): Record<string, number> {
+        const rawCounts = asRecord(ctx.movementCornerSwingTargetCounts);
+        const hasRawCounts = !!(
+            ctx.movementCornerSwingTargetCounts &&
+            typeof ctx.movementCornerSwingTargetCounts === 'object'
+        );
+        const fallback = isFiniteNumber(ctx.movementCornerSwingTargetCount)
+            ? Math.max(0, Math.floor(Number(ctx.movementCornerSwingTargetCount)))
+            : 0;
+        const counts: Record<string, number> = {};
+        for (const cardType of MOVEMENT_CORNER_SWING_CARD_TYPES) {
+            const rawValue = rawCounts[cardType];
+            counts[cardType] = hasRawCounts
+                ? (isFiniteNumber(rawValue) ? Math.max(0, Math.floor(Number(rawValue))) : 0)
+                : fallback;
+        }
+        return counts;
+    }
+
+    function getMaxMovementCornerSwingTargetCount(counts: Record<string, number>): number {
+        let max = 0;
+        for (const cardType of MOVEMENT_CORNER_SWING_CARD_TYPES) {
+            const value = Number(counts[cardType]);
+            if (Number.isFinite(value) && value > max) max = Math.floor(value);
+        }
+        return max;
+    }
 
     function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefined) {
         const ctx = asRecord(context);
@@ -124,6 +160,8 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             : (hasAnySpecificBoardExpansionEnemyCornerTargetCount
                 ? Math.max(boardExpansionWillEnemyCornerTargetCount, boardExpansionGodEnemyCornerTargetCount)
                 : explicitBoardExpansionEnemyCornerTargetCount);
+        const movementCornerSwingTargetCounts = normalizeMovementCornerSwingTargetCounts(ctx);
+        const movementCornerSwingTargetCount = getMaxMovementCornerSwingTargetCount(movementCornerSwingTargetCounts);
         const hasCornerMoveNow = ctx.hasCornerMoveNow === true;
         const hasEdgeMoveNow = ctx.hasEdgeMoveNow === true;
         const cornerEmergency = ctx.cornerEmergency === true;
@@ -220,6 +258,8 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             boardExpansionEnemyCornerTargetCount,
             boardExpansionWillEnemyCornerTargetCount,
             boardExpansionGodEnemyCornerTargetCount,
+            movementCornerSwingTargetCounts,
+            movementCornerSwingTargetCount,
             hasCornerMoveNow,
             hasEdgeMoveNow,
             cornerEmergency,

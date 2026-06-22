@@ -3620,10 +3620,10 @@ describe('cpu decision refactor helpers', () => {
     expect(action.teleportTarget).toEqual({ row: 0, col: 0 });
   });
 
-  test('cpuSelectSuperBuoyancyWillWithPolicy prefers edge stone that can be forced into corner lane', async () => {
+  test('cpuSelectSuperBuoyancyWillWithPolicy targets own stone that replaces an enemy corner', async () => {
     global.gameState = {
       board: [
-        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [-1, 0, 0, -1, 0, 0, 0, 0],
@@ -3658,17 +3658,17 @@ describe('cpu decision refactor helpers', () => {
     expect(action.superBuoyancyTarget).toEqual({ row: 3, col: 0 });
   });
 
-  test('cpuSelectSuperGravityWillWithPolicy prefers edge stone that can be forced into corner lane', async () => {
+  test('cpuSelectSuperGravityWillWithPolicy targets own stone that replaces an enemy corner', async () => {
     global.gameState = {
       board: [
-        [-1, 0, 0, 0, 0, 0, 0, 1],
+        [-1, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, -1, 0, 0, -1],
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0]
+        [0, 0, 0, 0, 0, 0, 0, 1]
       ],
       currentPlayer: -1
     };
@@ -3696,7 +3696,7 @@ describe('cpu decision refactor helpers', () => {
     expect(action.superGravityTarget).toEqual({ row: 4, col: 7 });
   });
 
-  test('cpuSelectSuperBuoyancyWillWithPolicy avoids moving enemy edge stone into open corner', async () => {
+  test('cpuSelectSuperBuoyancyWillWithPolicy clears pending when no enemy corner can be displaced or replaced', async () => {
     global.gameState = {
       board: [
         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3730,11 +3730,11 @@ describe('cpu decision refactor helpers', () => {
 
     await cpuDecision.cpuSelectSuperBuoyancyWillWithPolicy('white');
 
-    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
-    expect(action.superBuoyancyTarget).toEqual({ row: 3, col: 0 });
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
-  test('cpuSelectSuperGravityWillWithPolicy avoids moving enemy edge stone into open corner', async () => {
+  test('cpuSelectSuperGravityWillWithPolicy clears pending when no enemy corner can be displaced or replaced', async () => {
     global.gameState = {
       board: [
         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -3768,8 +3768,171 @@ describe('cpu decision refactor helpers', () => {
 
     await cpuDecision.cpuSelectSuperGravityWillWithPolicy('white');
 
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('cpuSelectBuoyancyWillWithPolicy targets enemy corner stone that can be moved away', async () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, -1],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 1]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'BUOYANCY_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 7 }, { row: 7, col: 7 }],
+      applyBuoyancyWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectBuoyancyWillWithPolicy('white');
+
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
-    expect(action.superGravityTarget).toEqual({ row: 4, col: 7 });
+    expect(action.buoyancyTarget).toEqual({ row: 7, col: 7 });
+  });
+
+  test('cpuSelectGravityWillWithPolicy targets enemy corner stone that can be moved away', async () => {
+    global.gameState = {
+      board: [
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [-1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'GRAVITY_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 3, col: 0 }, { row: 0, col: 0 }],
+      applyGravityWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectGravityWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.gravityTarget).toEqual({ row: 0, col: 0 });
+  });
+
+  test('cpuSelectSuperAttractionWillWithPolicy chooses a source that can replace an enemy corner', async () => {
+    global.gameState = {
+      board: [
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'SUPER_ATTRACTION_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 2, col: 2 }, { row: 3, col: 3 }],
+      getSuperAttractionTargets: (_cs, _gs, _playerKey, pending) => {
+        if (pending && pending.firstTarget && pending.firstTarget.row === 3 && pending.firstTarget.col === 3) {
+          return [{ row: 0, col: 0 }];
+        }
+        return [{ row: 2, col: 2 }, { row: 3, col: 3 }];
+      },
+      applySuperAttractionWill: jest.fn(() => ({ applied: true, completed: false, firstTarget: { row: 3, col: 3 } }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: { ...global.cardState.pendingEffectByPlayer.white, firstTarget: { row: 3, col: 3 } } }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSuperAttractionWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.superAttractionTarget).toEqual({ row: 3, col: 3 });
+  });
+
+  test('cpuSelectSuperAttractionWillWithPolicy chooses enemy corner destination after own source is selected', async () => {
+    global.gameState = {
+      board: [
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = {
+      type: 'SUPER_ATTRACTION_WILL',
+      stage: 'selectTarget',
+      firstTarget: { row: 3, col: 3 }
+    };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 0, col: 1 }, { row: 0, col: 0 }],
+      getSuperAttractionTargets: () => [{ row: 0, col: 1 }, { row: 0, col: 0 }],
+      applySuperAttractionWill: jest.fn(() => ({ applied: true, completed: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSuperAttractionWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.superAttractionTarget).toEqual({ row: 0, col: 0 });
   });
 
   test('cpuSelectExtendLifeWillWithPolicy prefers pipeline adapter path', async () => {

@@ -2248,8 +2248,8 @@
 - `Lv6白CPU` は `SWAP_WITH_ENEMY` を、相手の通常石が置かれている角を合法対象にできる時だけ使用候補にする。特殊石・爆弾・保護石など交換対象外の角は使用条件に含めず、対象選択でも相手通常石の角だけを選ぶ
 - `Lv6白CPU` は `BOARD_EXPANSION_WILL` / `BOARD_EXPANSION_GOD` を、相手石が置かれている角を合法対象にできる時だけ使用候補にする。対象選択でもその相手角だけを選び、空角・自角・角以外には使用しない。`BOARD_EXPANSION_GOD` は相手角が1つでもあれば使用候補にでき、CPU選択ではその相手角1つで拡張を確定する
 - `Lv6白CPU` は `TELEPORT_WILL` を「敵角外し」用途で最重視し、敵角や強辺起点を優先対象にする。自角への使用は強く避ける
-- `Lv6白CPU` は `SUPER_BUOYANCY_WILL` / `SUPER_GRAVITY_WILL` を単純な列破壊札ではなく、「自辺石を強引に角へ押し込める再奪還札」として評価し、角列にある自辺石を優先対象にする
-- `Lv6白CPU` は `SUPER_BUOYANCY_WILL` / `SUPER_GRAVITY_WILL` で相手石を動かす場合、移動先が空き角になる対象は強く禁止し、相手石を角へ送る誤用を避ける
+- `Lv6白CPU` は `BUOYANCY_WILL` / `GRAVITY_WILL` / `SUPER_BUOYANCY_WILL` / `SUPER_GRAVITY_WILL` / `SUPER_ATTRACTION_WILL` を、相手の角石を角からどかせる、または相手の角石を自分の石で置き換えられる合法対象がある時だけ使用候補にする。対象選択でもその条件を満たす石・到達先だけを選び、それ以外では温存する
+- `Lv6白CPU` は `BUOYANCY_WILL` / `GRAVITY_WILL` / `SUPER_BUOYANCY_WILL` / `SUPER_GRAVITY_WILL` / `SUPER_ATTRACTION_WILL` で相手石を動かす場合、別の角へ相手石を送る対象は使用しない
 - `Lv6白CPU` は優勢時に高変動カード（時限爆弾/最後の切り札/投石連鎖系/連鎖系）を手札破壊で先に回し、利敵リスクを抑える
 - `Lv6白CPU` は優勢時、禁忌の反転/十字爆弾/クロス爆弾/多動系/究極多動神などの高変動札を売却・手札破壊候補として強めに扱い、劣勢・角緊急時のみ採用しやすくする
 - `Lv6白CPU` は優勢時、`CLONE_WILL` / `BREEDING_WILL` / `ESCAPE_WILL` / `RIBO_WILL` / `ROBOT_VACUUM_WILL` など、扱いが難しく角辺方針を崩しやすい札を手札破壊候補として強めに扱う

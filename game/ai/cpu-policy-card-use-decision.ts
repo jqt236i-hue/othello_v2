@@ -79,6 +79,26 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         return Math.min(10, availableOpponentCharge, playerChargeRoom);
     }
 
+    function getMovementCornerSwingTargetCount(context: any, cardType: string): number {
+        const counts = context && context.movementCornerSwingTargetCounts;
+        if (counts && typeof counts === 'object' && Object.prototype.hasOwnProperty.call(counts, cardType)) {
+            const value = Number(counts[cardType]);
+            return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+        }
+        const fallback = Number(context && context.movementCornerSwingTargetCount);
+        return Number.isFinite(fallback) ? Math.max(0, Math.floor(fallback)) : 0;
+    }
+
+    function isMovementCornerSwingCardType(cardType: string): boolean {
+        return (
+            cardType === 'BUOYANCY_WILL' ||
+            cardType === 'GRAVITY_WILL' ||
+            cardType === 'SUPER_BUOYANCY_WILL' ||
+            cardType === 'SUPER_GRAVITY_WILL' ||
+            cardType === 'SUPER_ATTRACTION_WILL'
+        );
+    }
+
     function scoreCardUseDecision(
         cardId: CpuPolicyCardId,
         getCardCost: CpuPolicyCardCostResolver,
@@ -252,6 +272,9 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (enemyCornerTargetCount <= 0) {
                 return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'board_expansion_no_enemy_corner');
             }
+        }
+        if (isMovementCornerSwingCardType(cardType) && getMovementCornerSwingTargetCount(ctx, cardType) <= 0) {
+            return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'movement_no_enemy_corner_swing');
         }
         let score = cardCost * 2;
         if (Object.prototype.hasOwnProperty.call(cardTypeBaseScoreBonus, cardType)) {

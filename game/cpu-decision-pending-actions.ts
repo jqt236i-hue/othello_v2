@@ -1,3 +1,5 @@
+const MovementCornerSwing = require('./cpu-decision-movement-corner-swing');
+
 type PendingActionsConfig = {
     buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => any;
     choosePendingTargetWithPolicyAsync: (playerKey: any, pendingType: any, targets: any, pending: any) => Promise<any>;
@@ -178,6 +180,23 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         return filtered;
     }
 
+    function filterMovementCornerSwingTargetsForCpu(playerKey: any, cardType: any, pending: any, targets: any[]): any[] {
+        if (!MovementCornerSwing || typeof MovementCornerSwing.filterMovementCornerSwingTargets !== 'function') {
+            return [];
+        }
+        return MovementCornerSwing.filterMovementCornerSwingTargets(cardType, targets, {
+            cardLogic: getCardLogic(),
+            cardState: cfg.getCardState(),
+            gameState: cfg.getGameState(),
+            playerKey,
+            pending,
+            board: getBoardExpansionTargetBoard(),
+            playerValue: cfg.resolvePlayerValue(playerKey),
+            getBoardCellValueSafe: cfg.getBoardCellValueSafe,
+            isCornerCell: cfg.isCornerCell
+        });
+    }
+
     function constrainCpuBoardExpansionGodToOneTarget(pendingType: any, pending: any, targets: any[]): void {
         if (pendingType !== 'BOARD_EXPANSION_GOD') return;
         if (!pending || typeof pending !== 'object') return;
@@ -256,10 +275,12 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
     }
 
     async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
         return runTargetAction({
             playerKey,
             pendingType: 'SUPER_BUOYANCY_WILL',
-            targets: getSelectableTargets(playerKey),
+            pending,
+            targets: filterMovementCornerSwingTargetsForCpu(playerKey, 'SUPER_BUOYANCY_WILL', pending, getSelectableTargets(playerKey)),
             noTargetLabel: '超浮力対象なし',
             targetLabel: '超浮力ターゲット',
             payloadKey: 'superBuoyancyTarget',
@@ -269,10 +290,12 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
     }
 
     async function cpuSelectBuoyancyWillWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
         return runTargetAction({
             playerKey,
             pendingType: 'BUOYANCY_WILL',
-            targets: getSelectableTargets(playerKey),
+            pending,
+            targets: filterMovementCornerSwingTargetsForCpu(playerKey, 'BUOYANCY_WILL', pending, getSelectableTargets(playerKey)),
             noTargetLabel: '浮力対象なし',
             targetLabel: '浮力ターゲット',
             payloadKey: 'buoyancyTarget',
@@ -282,10 +305,12 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
     }
 
     async function cpuSelectSuperGravityWillWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
         return runTargetAction({
             playerKey,
             pendingType: 'SUPER_GRAVITY_WILL',
-            targets: getSelectableTargets(playerKey),
+            pending,
+            targets: filterMovementCornerSwingTargetsForCpu(playerKey, 'SUPER_GRAVITY_WILL', pending, getSelectableTargets(playerKey)),
             noTargetLabel: '超重力対象なし',
             targetLabel: '超重力ターゲット',
             payloadKey: 'superGravityTarget',
@@ -295,10 +320,12 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
     }
 
     async function cpuSelectGravityWillWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
         return runTargetAction({
             playerKey,
             pendingType: 'GRAVITY_WILL',
-            targets: getSelectableTargets(playerKey),
+            pending,
+            targets: filterMovementCornerSwingTargetsForCpu(playerKey, 'GRAVITY_WILL', pending, getSelectableTargets(playerKey)),
             noTargetLabel: '重力対象なし',
             targetLabel: '重力ターゲット',
             payloadKey: 'gravityTarget',
@@ -313,7 +340,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             playerKey,
             pendingType: 'SUPER_ATTRACTION_WILL',
             pending,
-            targets: getSelectableTargets(playerKey),
+            targets: filterMovementCornerSwingTargetsForCpu(playerKey, 'SUPER_ATTRACTION_WILL', pending, getSelectableTargets(playerKey)),
             noTargetLabel: '超引力対象なし',
             targetLabel: '超引力ターゲット',
             payloadKey: 'superAttractionTarget',

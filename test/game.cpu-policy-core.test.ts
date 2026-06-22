@@ -2963,10 +2963,45 @@ describe('cpu-policy-core', () => {
                 hasCornerMoveNow: false,
                 hasEdgeMoveNow: true,
                 cornerEmergency: true,
-                ownCharge: 28
+                ownCharge: 28,
+                movementCornerSwingTargetCounts: {
+                    SUPER_BUOYANCY_WILL: 1
+                }
             }
         );
         expect(out.shouldUse).toBe(true);
+    });
+
+    test.each([
+        ['buoyancy_01', 'BUOYANCY_WILL'],
+        ['gravity_01', 'GRAVITY_WILL'],
+        ['super_buoyancy_01', 'SUPER_BUOYANCY_WILL'],
+        ['super_gravity_01', 'SUPER_GRAVITY_WILL'],
+        ['super_attraction_01', 'SUPER_ATTRACTION_WILL']
+    ])('scoreCardUseDecision blocks %s without an enemy-corner displacement target', (cardId, cardType) => {
+        const out = core.scoreCardUseDecision(
+            cardId,
+            () => 14,
+            () => ({ id: cardId, type: cardType }),
+            {
+                level: 6,
+                legalMovesCount: 1,
+                discDiff: -18,
+                empties: 24,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 2,
+                oppEdges: 9,
+                hasCornerMoveNow: false,
+                hasEdgeMoveNow: true,
+                cornerEmergency: true,
+                ownCharge: 60,
+                movementCornerSwingTargetCounts: {
+                    [cardType]: 0
+                }
+            }
+        );
+        expect(out.shouldUse).toBe(false);
     });
 
     test('scoreCardUseDecision suppresses SUPER_BUOYANCY_WILL in opening edge race without corner emergency', () => {

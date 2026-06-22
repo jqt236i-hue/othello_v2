@@ -1,3 +1,5 @@
+const MovementCornerSwing = require('./cpu-decision-movement-corner-swing');
+
 type CpuDecisionCardContextConfig = {
     getGameState: () => any;
     getCardState: () => any;
@@ -77,6 +79,22 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         return countEnemyOccupiedCornerTargets(board, playerValue, targets);
     }
 
+    function getMovementCornerSwingTargetCounts(playerKey: any, board: any, playerValue: any): any {
+        if (!MovementCornerSwing || typeof MovementCornerSwing.getMovementCornerSwingTargetCounts !== 'function') {
+            return {};
+        }
+        return MovementCornerSwing.getMovementCornerSwingTargetCounts({
+            cardLogic: readCardLogic(),
+            cardState: readCardState(),
+            gameState: readGameState(),
+            playerKey,
+            board,
+            playerValue,
+            getBoardCellValueSafe: cfg.getBoardCellValueSafe,
+            isCornerCell: cfg.isCornerCell
+        });
+    }
+
     function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
         const cs = readCardState();
         const gs = readGameState();
@@ -84,6 +102,13 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         const playerValue = cfg.resolvePlayerValue(playerKey);
         const boardExpansionTargetCounts = getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
         const swapEnemyNormalCornerTargetCount = getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue);
+        const movementCornerSwingTargetCounts = getMovementCornerSwingTargetCounts(playerKey, board, playerValue);
+        const movementCornerSwingTargetCount = (
+            MovementCornerSwing &&
+            typeof MovementCornerSwing.getMaxMovementCornerSwingTargetCount === 'function'
+        )
+            ? MovementCornerSwing.getMaxMovementCornerSwingTargetCount(movementCornerSwingTargetCounts)
+            : 0;
         const stats = cfg.countBoardStatsForPlayer(playerValue);
         const edgeControl = cfg.countEdgeControl(board, playerValue);
         const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey])
@@ -169,6 +194,8 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             boardExpansionEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionEnemyCornerTargetCount,
             boardExpansionWillEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionWillEnemyCornerTargetCount,
             boardExpansionGodEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionGodEnemyCornerTargetCount,
+            movementCornerSwingTargetCounts,
+            movementCornerSwingTargetCount,
             ownEdges: edgeControl.ownEdges,
             oppEdges: edgeControl.oppEdges,
             hasCornerMoveNow: planState.hasCornerMoveNow,
