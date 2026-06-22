@@ -281,6 +281,8 @@ describe('match-mode shared leaderboard panel', () => {
     delete global.location;
     delete global.addLog;
     delete global.updateCpuCharacter;
+    delete global.LeaderboardClient;
+    delete global.loadLazyRuntimeGroup;
   });
 
   test('初期化時に速攻開始フックをturn-managerへ同期する', () => {
@@ -299,6 +301,35 @@ describe('match-mode shared leaderboard panel', () => {
     expect(document.getElementById('leaderboardOverlay').classList.contains('is-open')).toBe(true);
     expect(document.getElementById('leaderboardList').textContent).toContain('なれ。');
     expect(document.getElementById('leaderboardList').textContent).toContain('アルファ');
+  });
+
+  test('ランキングクライアント未読込なら初回オープンでoptional runtimeを読む', async () => {
+    delete window.LeaderboardClient;
+    delete global.LeaderboardClient;
+    expect(window.LeaderboardClient).toBeUndefined();
+    expect(global.LeaderboardClient).toBeUndefined();
+    const lazyClient = {
+      getPlayerName: jest.fn(() => 'ななし'),
+      setPlayerName: jest.fn((value) => value),
+      getPlayerId: jest.fn(() => 'player_alpha_0001'),
+      fetchLeaderboard
+    };
+    window.loadLazyRuntimeGroup = jest.fn(async (group) => {
+      expect(group).toBe('leaderboard');
+      window.LeaderboardClient = lazyClient;
+      return true;
+    });
+
+    document.getElementById('leaderboardOpenBtn').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(document.getElementById('leaderboardOverlay').classList.contains('is-open')).toBe(true);
+    expect(window.loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
+    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score' }));
+    expect(document.getElementById('leaderboardStatusText').textContent).not.toBe('ランキング機能を利用できません');
   });
 
   test('ランキングパネルは10位以降の返却行も描画する', async () => {

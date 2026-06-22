@@ -1,6 +1,6 @@
 'use strict';
 
-type LazyRuntimeGroup = 'cpu' | 'onnx' | 'gacha' | 'commentary';
+type LazyRuntimeGroup = 'cpu' | 'onnx' | 'gacha' | 'commentary' | 'cosmetic' | 'leaderboard';
 type LoadScriptFn = (src: string) => Promise<unknown>;
 
 interface LazyRuntimeLoaderOptions {
@@ -26,6 +26,8 @@ function normalizeGroup(group: LazyRuntimeGroup | string): LazyRuntimeGroup {
   if (normalized === 'onnx') return 'onnx';
   if (normalized === 'gacha') return 'gacha';
   if (normalized === 'commentary') return 'commentary';
+  if (normalized === 'cosmetic') return 'cosmetic';
+  if (normalized === 'leaderboard') return 'leaderboard';
   return 'cpu';
 }
 

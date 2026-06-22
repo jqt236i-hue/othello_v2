@@ -61,6 +61,12 @@ describe('hand skin handler', () => {
     target.dispatchEvent(event);
   }
 
+  async function flushMicrotasks(times = 4) {
+    for (let i = 0; i < times; i += 1) {
+      await Promise.resolve();
+    }
+  }
+
   function appendCpuLevelSelect(id, value) {
     const select = document.createElement('select');
     select.id = id;
@@ -88,14 +94,92 @@ describe('hand skin handler', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    jest.dontMock('../ui/hand-skin/controller.js');
+    jest.dontMock('../ui/hand-skin/runtime.js');
     setDom();
   });
 
   afterEach(() => {
+    jest.dontMock('../ui/hand-skin/controller.js');
+    jest.dontMock('../ui/hand-skin/runtime.js');
     try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.KeyboardEvent; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.__non_webpack_require__; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.HandSkinCatalogModule; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.HandSkinRuntimeModule; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.HandSkinSelectionModule; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.HandSkinControllerModule; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+  });
+
+  test('lazy-loads appearance modules when the hand skin button is clicked before optional registry load', async () => {
+    let optionalLoaded = false;
+    const controllerApi = {
+      openPanel: jest.fn(),
+      closePanel: jest.fn(),
+      refreshOptions: jest.fn(),
+      copyCurrentAppearanceCode: jest.fn(() => 'appearance:v1:test'),
+      loadAppearancePresetCode: jest.fn(() => Promise.resolve('loaded')),
+      getHandAnimationPreferences: jest.fn(() => ({ draw: true, place: true }))
+    };
+    const controllerModule = {
+      setupHandSkinControls: jest.fn(() => controllerApi)
+    };
+    jest.doMock('../ui/hand-skin/controller.js', () => {
+      if (!optionalLoaded) {
+        throw new Error('optional hand skin controller is not registered yet');
+      }
+      return controllerModule;
+    });
+    const loadLazyRuntimeGroup = jest.fn(async (group) => {
+      expect(group).toBe('cosmetic');
+      optionalLoaded = true;
+      return true;
+    });
+    const mod = require('../ui/handlers/hand-skin.js');
+
+    const api = mod.setupHandSkinControls({ root: window, loadLazyRuntimeGroup });
+    expect(api).toBeTruthy();
+
+    document.getElementById('handSkinBtn').click();
+    await flushMicrotasks();
+
+    expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
+    expect(controllerModule.setupHandSkinControls).toHaveBeenCalledWith(expect.objectContaining({
+      root: window,
+      document,
+      lazyRuntimeGroupLoaded: true
+    }));
+    expect(controllerApi.openPanel).toHaveBeenCalledTimes(1);
+    expect(api.copyCurrentAppearanceCode()).toBe('appearance:v1:test');
+    expect(await api.loadAppearancePresetCode()).toBe('loaded');
+    expect(api.getHandAnimationPreferences()).toEqual({ draw: true, place: true });
+  });
+
+  test('re-resolves hand skin runtime helpers after optional modules become available', () => {
+    let optionalLoaded = false;
+    const runtimeModule = {
+      applyHandSkin: jest.fn(() => 'applied'),
+      resolveHandAnimationContext: jest.fn(() => ({ ownerKey: 'black' })),
+      resolveHandVisualOptions: jest.fn(() => ({ handSkinId: 'default' })),
+      syncDisplayedHandSkin: jest.fn(() => 'synced')
+    };
+    jest.doMock('../ui/hand-skin/runtime.js', () => {
+      if (!optionalLoaded) {
+        throw new Error('optional hand skin runtime is not registered yet');
+      }
+      return runtimeModule;
+    });
+    const mod = require('../ui/handlers/hand-skin.js');
+    const handImage = document.getElementById('handImage');
+
+    expect(mod.syncDisplayedHandSkin(window, 'default', handImage)).toBeNull();
+    optionalLoaded = true;
+
+    expect(mod.syncDisplayedHandSkin(window, 'default', handImage)).toBe('synced');
+    expect(runtimeModule.syncDisplayedHandSkin).toHaveBeenCalledWith(window, 'default', handImage, undefined);
+    expect(mod.applyHandSkin(handImage, 'default', window)).toBe('applied');
   });
 
   test('applies stored unlocked gacha hand skin and updates selected option state', () => {

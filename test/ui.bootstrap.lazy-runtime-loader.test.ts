@@ -25,12 +25,16 @@ describe('lazy runtime loader', () => {
     });
 
     await loader.load('gacha');
+    await loader.load('cosmetic');
+    await loader.load('leaderboard');
     await loader.load('commentary');
     await loader.load('gacha');
 
     expect(loadedScripts).toEqual(['public/module-registry.optional.js']);
     expect(restoreOptionalBootEntries).toHaveBeenCalledTimes(1);
     expect(loader.isLoaded('gacha')).toBe(true);
+    expect(loader.isLoaded('cosmetic')).toBe(true);
+    expect(loader.isLoaded('leaderboard')).toBe(true);
     expect(loader.isLoaded('commentary')).toBe(true);
     expect(loader.isLoaded('onnx')).toBe(false);
 

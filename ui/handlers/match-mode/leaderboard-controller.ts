@@ -6,6 +6,57 @@ const LeaderboardStylesModule = (() => {
     }
 })();
 
+function resolveLazyRuntimeGroupLoader(root: any): any {
+    try {
+        if (root && typeof root.loadLazyRuntimeGroup === 'function') {
+            return root.loadLazyRuntimeGroup.bind(root);
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).loadLazyRuntimeGroup === 'function') {
+            return (globalThis as any).loadLazyRuntimeGroup;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            (globalThis as any).LazyRuntimeLoaderModule &&
+            typeof (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup === 'function'
+        ) {
+            return (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        const moduleRef = require('../../bootstrap/lazy-runtime-loader');
+        if (moduleRef && typeof moduleRef.loadLazyRuntimeGroup === 'function') {
+            return moduleRef.loadLazyRuntimeGroup;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function resolveLeaderboardClient(root: any, allowRequire = true): any {
+    try {
+        if (root && root.LeaderboardClient) return root.LeaderboardClient;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).LeaderboardClient) {
+            return (globalThis as any).LeaderboardClient;
+        }
+    } catch (e: any) { /* ignore */ }
+    if (allowRequire !== true) return null;
+    try {
+        const moduleRef = require('../../leaderboard-client');
+        if (moduleRef) {
+            try {
+                if (root && !root.LeaderboardClient) root.LeaderboardClient = moduleRef;
+            } catch (e: any) { /* ignore */ }
+            return moduleRef;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function createLeaderboardController(context: any) {
     const {
         root,
@@ -48,6 +99,28 @@ function createLeaderboardController(context: any) {
     let leaderboardCpuLevelMenuOpen = false;
     let leaderboardModeMenuOpen = false;
     let leaderboardDetailsOpen = false;
+    let leaderboardClientLoad: Promise<any> | null = null;
+
+    function ensureLeaderboardClient(): Promise<any> {
+        const existing = resolveLeaderboardClient(root, false);
+        if (existing && typeof existing.fetchLeaderboard === 'function') return Promise.resolve(existing);
+        if (!leaderboardClientLoad) {
+            const loadLazyRuntimeGroup = resolveLazyRuntimeGroupLoader(root);
+            if (typeof loadLazyRuntimeGroup !== 'function') return Promise.resolve(null);
+            leaderboardClientLoad = Promise.resolve(loadLazyRuntimeGroup('leaderboard')).then(() => {
+                const client = resolveLeaderboardClient(root, true);
+                return client && typeof client.fetchLeaderboard === 'function' ? client : null;
+            }).finally(() => {
+                if (!resolveLeaderboardClient(root, true)) leaderboardClientLoad = null;
+            });
+        }
+        return leaderboardClientLoad;
+    }
+
+    function getLeaderboardClient(): any {
+        const client = resolveLeaderboardClient(root, false);
+        return client && typeof client.fetchLeaderboard === 'function' ? client : null;
+    }
 
     function collectDuplicateLeaderboardNames(entries: any) {
         const counts = new Map();
@@ -794,13 +867,19 @@ function createLeaderboardController(context: any) {
         if (uiRefs.leaderboardOverlay && !isLeaderboardOverlayOpen() && opts.force !== true) return;
         const requestedFilter = normalizeLeaderboardFilter(opts.mode || leaderboardActiveFilter);
         renderLeaderboardView();
-        if (!root.LeaderboardClient || typeof root.LeaderboardClient.fetchLeaderboard !== 'function') {
+        const token = ++leaderboardRefreshToken;
+        writeLeaderboardStatus('ランキング更新中...', false);
+
+        let leaderboardClient = getLeaderboardClient();
+        if (!leaderboardClient) {
+            leaderboardClient = await ensureLeaderboardClient();
+        }
+        if (token !== leaderboardRefreshToken) return;
+
+        if (!leaderboardClient || typeof leaderboardClient.fetchLeaderboard !== 'function') {
             writeLeaderboardStatus('ランキング機能を利用できません', true);
             return;
         }
-
-        const token = ++leaderboardRefreshToken;
-        writeLeaderboardStatus('ランキング更新中...', false);
 
         let result = null;
         try {
@@ -813,7 +892,7 @@ function createLeaderboardController(context: any) {
             } else {
                 delete fetchOptions.cpuLevel;
             }
-            result = await root.LeaderboardClient.fetchLeaderboard(fetchOptions);
+            result = await leaderboardClient.fetchLeaderboard(fetchOptions);
         } catch (e) {
             result = { ok: false, reason: 'LIST_FAILED', entries: [] };
         }

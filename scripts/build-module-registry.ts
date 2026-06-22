@@ -136,7 +136,6 @@ const OPTIONAL_BOOT_MODULE_PREFIXES = [
     'ui/debug',
     'ui/font-skin/',
     'ui/gacha/',
-    'ui/handlers/debug',
     'ui/hand-skin/',
     'ui/leaderboard',
     'ui/storage/gacha'

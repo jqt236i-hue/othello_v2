@@ -22,11 +22,12 @@ describe('browser module registry boot contract', () => {
     expect(classifyBrowserBootModule('dist/ui/network-client')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/board-renderer')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/presentation-handler')).toBe('required');
+    expect(classifyBrowserBootModule('dist/ui/handlers/debug')).toBe('required');
+    expect(classifyBrowserBootModule('dist/ui/handlers/hand-skin')).toBe('required');
   });
 
   test('classifies diagnostics, cosmetics, and heavyweight optional modules as optional', () => {
     expect(classifyBrowserBootModule('dist/ui/debug-card-search')).toBe('optional');
-    expect(classifyBrowserBootModule('dist/ui/handlers/debug')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/background-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/font-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/game/ai/policy-onnx-runtime')).toBe('optional');
