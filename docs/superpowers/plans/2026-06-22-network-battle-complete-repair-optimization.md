@@ -1387,7 +1387,7 @@ Goal: two independent browsers verify the public gameplay path, not only unit co
 - Modify or create: `test/e2e/network-battle-complete-smoke.test.ts`
 - Reuse existing local static server / local match server helpers.
 
-- [ ] Scenario:
+- [x] Scenario:
 
 1. Browser A creates room as black.
 2. Browser B joins as white.
@@ -1398,7 +1398,7 @@ Goal: two independent browsers verify the public gameplay path, not only unit co
 7. Force stream reconnect on one browser.
 8. Continue one move after reconnect.
 
-- [ ] Assert:
+- [x] Assert:
 
 ```ts
 expect(consoleErrors).toEqual([]);
@@ -1410,13 +1410,15 @@ expect(trace.stuckBusyLocks).toBe(0);
 expect(boardHashA).toBe(boardHashB);
 ```
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 npx jest --runInBand test/e2e/network-battle-complete-smoke.test.ts
 ```
 
 Expected: PASS locally.
+
+Result on 2026-06-22: `npx jest --runInBand --runTestsByPath test/e2e/network-battle-complete-smoke.test.ts` passed. The scenario creates a local network room with two independent Chromium contexts, performs normal black/white placements, uses `守る意志` for pending target selection, uses `金の意志` for destroy playback, forces one client offline/online, continues after reconnect, and asserts clean publish statuses, clean debug trace, and matching final canonical board hashes.
 
 ### Task 9.2: Live Public Chrome/Edge Check
 

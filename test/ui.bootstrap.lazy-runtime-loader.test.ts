@@ -12,7 +12,11 @@ describe('lazy runtime loader', () => {
     jest.resetModules();
     const { createLazyRuntimeLoader } = require('../ui/bootstrap/lazy-runtime-loader');
     const loadedScripts: string[] = [];
+    const restoreOptionalBootEntries = jest.fn();
     const loader = createLazyRuntimeLoader({
+      root: {
+        __restoreCardReversiOptionalBootEntries: restoreOptionalBootEntries
+      },
       optionalRegistrySrc: 'public/module-registry.optional.js',
       onnxRuntimeSrc: 'node_modules/onnxruntime-web/dist/ort.min.js',
       loadScript: async (src: string) => {
@@ -25,6 +29,7 @@ describe('lazy runtime loader', () => {
     await loader.load('gacha');
 
     expect(loadedScripts).toEqual(['public/module-registry.optional.js']);
+    expect(restoreOptionalBootEntries).toHaveBeenCalledTimes(1);
     expect(loader.isLoaded('gacha')).toBe(true);
     expect(loader.isLoaded('commentary')).toBe(true);
     expect(loader.isLoaded('onnx')).toBe(false);
@@ -35,6 +40,7 @@ describe('lazy runtime loader', () => {
       'public/module-registry.optional.js',
       'node_modules/onnxruntime-web/dist/ort.min.js'
     ]);
+    expect(restoreOptionalBootEntries).toHaveBeenCalledTimes(1);
     expect(loader.isLoaded('onnx')).toBe(true);
   });
 

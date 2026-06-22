@@ -45,7 +45,9 @@ function handleBootModuleError(moduleKey, error, options) {
   var opts = options || {};
   var bootClass = opts.bootClass || getBootModuleClass(moduleKey);
   if (bootClass === "optional") {
-    console.warn("[boot] skip " + formatBootModuleName(moduleKey) + ": " + (error && error.message ? error.message : error));
+    if (opts.quietOptional !== true) {
+      console.warn("[boot] skip " + formatBootModuleName(moduleKey) + ": " + (error && error.message ? error.message : error));
+    }
     return null;
   }
   var err = new Error(getBootModuleErrorMessage(moduleKey, error));
@@ -74,7 +76,7 @@ function requireBootNamespace(globalName, modulePath, options) {
   } catch (e) {
     var message = "[boot] " + (bootClass === "optional" ? "skip optional" : "required") + " namespace " + globalName + " <- " + modulePath + ": " + (e && e.message ? e.message : e);
     if (bootClass === "optional") {
-      console.warn(message);
+      if (opts.quietOptional !== true) console.warn(message);
       return null;
     }
     console.error(message);
@@ -107,13 +109,36 @@ function applyBootModuleEntry(moduleExports, entry) {
   return moduleExports;
 }
 
+function isOptionalBootEntry(entry) {
+  if (!entry || !entry.moduleKey) return false;
+  return entry.bootClass === "optional" || getBootModuleClass(entry.moduleKey) === "optional";
+}
+
 function runBootLoadEntries(entries) {
   for (var i = 0; i < entries.length; i += 1) {
     var entry = entries[i];
+    if (isOptionalBootEntry(entry)) {
+      entry.moduleExports = null;
+      continue;
+    }
     var moduleExports = requireBootModule(entry.moduleKey, entry.bootClass ? { bootClass: entry.bootClass } : undefined);
     applyBootModuleEntry(moduleExports, entry);
     entry.moduleExports = moduleExports;
   }
+}
+
+function restoreOptionalBootEntries(entries) {
+  var restored = 0;
+  for (var i = 0; i < entries.length; i += 1) {
+    var entry = entries[i];
+    if (!isOptionalBootEntry(entry) || entry.moduleExports) continue;
+    var moduleExports = requireBootModule(entry.moduleKey, { bootClass: "optional" });
+    if (!moduleExports) continue;
+    applyBootModuleEntry(moduleExports, entry);
+    entry.moduleExports = moduleExports;
+    restored += 1;
+  }
+  return restored;
 }
 
 function assignBootLateGlobals(entries) {
@@ -359,38 +384,43 @@ var BOOT_LOAD_ENTRIES = [
 ];
 
 runBootLoadEntries(BOOT_LOAD_ENTRIES);
+window.__restoreCardReversiOptionalBootEntries = function() {
+  var restored = restoreOptionalBootEntries(BOOT_LOAD_ENTRIES);
+  assignBootLateGlobals(BOOT_LOAD_ENTRIES);
+  return restored;
+};
 
 // ===== Namespace globals for module resolution =====
 // Cards & catalogs
 requireBootNamespace("CardCatalog", "./dist/cards/catalog");
 requireBootNamespace("DeckBuilderControllerModule", "./dist/ui/deck-builder-controller");
 // Gacha system
-requireBootNamespace("GachaHelpersModule", "./dist/shared/gacha-helpers");
-requireBootNamespace("ObservationGachaCatalogSharedModule", "./dist/shared/observation-gacha-catalog-shared");
-requireBootNamespace("ObservationGachaCatalogModule", "./dist/shared/observation-gacha-catalog.generated");
-requireBootNamespace("GachaProgressStorageModule", "./dist/ui/storage/gacha-progress");
-requireBootNamespace("GachaEventsModule", "./dist/ui/gacha/gacha-events");
-requireBootNamespace("GachaTransactionModule", "./dist/ui/gacha/gacha-transaction");
-requireBootNamespace("GachaOverlayViewModule", "./dist/ui/gacha/gacha-overlay-view");
-requireBootNamespace("GachaOverlayControllerModule", "./dist/ui/gacha/gacha-overlay-controller");
-requireBootNamespace("GachaItemVisualsModule", "./dist/ui/gacha/gacha-item-visuals");
-requireBootNamespace("GachaRevealStageModule", "./dist/ui/gacha/gacha-reveal-stage");
-requireBootNamespace("GachaRevealAudioModule", "./dist/ui/gacha/gacha-reveal-audio");
+requireBootNamespace("GachaHelpersModule", "./dist/shared/gacha-helpers", { quietOptional: true });
+requireBootNamespace("ObservationGachaCatalogSharedModule", "./dist/shared/observation-gacha-catalog-shared", { quietOptional: true });
+requireBootNamespace("ObservationGachaCatalogModule", "./dist/shared/observation-gacha-catalog.generated", { quietOptional: true });
+requireBootNamespace("GachaProgressStorageModule", "./dist/ui/storage/gacha-progress", { quietOptional: true });
+requireBootNamespace("GachaEventsModule", "./dist/ui/gacha/gacha-events", { quietOptional: true });
+requireBootNamespace("GachaTransactionModule", "./dist/ui/gacha/gacha-transaction", { quietOptional: true });
+requireBootNamespace("GachaOverlayViewModule", "./dist/ui/gacha/gacha-overlay-view", { quietOptional: true });
+requireBootNamespace("GachaOverlayControllerModule", "./dist/ui/gacha/gacha-overlay-controller", { quietOptional: true });
+requireBootNamespace("GachaItemVisualsModule", "./dist/ui/gacha/gacha-item-visuals", { quietOptional: true });
+requireBootNamespace("GachaRevealStageModule", "./dist/ui/gacha/gacha-reveal-stage", { quietOptional: true });
+requireBootNamespace("GachaRevealAudioModule", "./dist/ui/gacha/gacha-reveal-audio", { quietOptional: true });
 requireBootNamespace("GachaRevealPlayerModule", "./dist/ui/gacha/gacha-reveal-player");
 // Hand skin
-requireBootNamespace("HandSkinCatalogModule", "./dist/ui/hand-skin/catalog");
-requireBootNamespace("HandSkinSelectionModule", "./dist/ui/hand-skin/selection");
-requireBootNamespace("HandSkinRuntimeModule", "./dist/ui/hand-skin/runtime");
-requireBootNamespace("HandSkinControllerModule", "./dist/ui/hand-skin/controller");
+requireBootNamespace("HandSkinCatalogModule", "./dist/ui/hand-skin/catalog", { quietOptional: true });
+requireBootNamespace("HandSkinSelectionModule", "./dist/ui/hand-skin/selection", { quietOptional: true });
+requireBootNamespace("HandSkinRuntimeModule", "./dist/ui/hand-skin/runtime", { quietOptional: true });
+requireBootNamespace("HandSkinControllerModule", "./dist/ui/hand-skin/controller", { quietOptional: true });
 // Background skin
-requireBootNamespace("BackgroundSkinCatalogModule", "./dist/ui/background-skin/catalog");
-requireBootNamespace("BackgroundSkinSelectionModule", "./dist/ui/background-skin/selection");
-requireBootNamespace("BackgroundSkinRuntimeModule", "./dist/ui/background-skin/runtime");
-requireBootNamespace("BackgroundSkinControllerModule", "./dist/ui/background-skin/controller");
+requireBootNamespace("BackgroundSkinCatalogModule", "./dist/ui/background-skin/catalog", { quietOptional: true });
+requireBootNamespace("BackgroundSkinSelectionModule", "./dist/ui/background-skin/selection", { quietOptional: true });
+requireBootNamespace("BackgroundSkinRuntimeModule", "./dist/ui/background-skin/runtime", { quietOptional: true });
+requireBootNamespace("BackgroundSkinControllerModule", "./dist/ui/background-skin/controller", { quietOptional: true });
 // Cosmetic
-requireBootNamespace("CosmeticCatalogSharedModule", "./dist/ui/cosmetics/catalog-shared");
-requireBootNamespace("GachaHandCatalogSharedModule", "./dist/shared/gacha-hand-catalog-shared");
-requireBootNamespace("GachaHandCatalogModule", "./dist/shared/gacha-hand-catalog.generated");
+requireBootNamespace("CosmeticCatalogSharedModule", "./dist/ui/cosmetics/catalog-shared", { quietOptional: true });
+requireBootNamespace("GachaHandCatalogSharedModule", "./dist/shared/gacha-hand-catalog-shared", { quietOptional: true });
+requireBootNamespace("GachaHandCatalogModule", "./dist/shared/gacha-hand-catalog.generated", { quietOptional: true });
 // Sound & presentation
 requireBootNamespace("PlacementSoundSelectionModule", "./dist/ui/placement-sound-selection");
 requireBootNamespace("SoundEngineAccessModule", "./dist/ui/sound-engine-access");
@@ -414,7 +444,7 @@ requireBootNamespace("NetworkSessionSeatModule", "./dist/ui/network/session-seat
 requireBootNamespace("NetworkSessionLifecycleModule", "./dist/ui/network/session-lifecycle");
 requireBootNamespace("NetworkReconnectControllerModule", "./dist/ui/network/reconnect-controller");
 // Catalog access for gacha
-requireBootNamespace("ObservationGachaCatalogAccessModule", "./dist/ui/gacha/catalog-access");
+requireBootNamespace("ObservationGachaCatalogAccessModule", "./dist/ui/gacha/catalog-access", { quietOptional: true });
 // Card rendering & interaction
 requireBootNamespace("HandAnimationUtilsModule", "./dist/cards/card-renderer");
 

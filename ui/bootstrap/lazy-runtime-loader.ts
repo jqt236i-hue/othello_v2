@@ -104,6 +104,7 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
   const loadingGroups = new Map<LazyRuntimeGroup, Promise<boolean>>();
   let optionalRegistryLoad: Promise<unknown> | null = null;
   let onnxRuntimeLoad: Promise<unknown> | null = null;
+  let optionalBootEntriesRestored = false;
 
   const loadScript: LoadScriptFn = typeof opts.loadScript === 'function'
     ? opts.loadScript
@@ -115,8 +116,22 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
   );
   const onnxRuntimeSrc = opts.onnxRuntimeSrc || DEFAULT_ONNX_RUNTIME_SRC;
 
+  const restoreOptionalBootEntries = () => {
+    if (optionalBootEntriesRestored) return;
+    optionalBootEntriesRestored = true;
+    try {
+      const restore = rootRef && rootRef.__restoreCardReversiOptionalBootEntries;
+      if (typeof restore === 'function') restore();
+    } catch (e) { /* ignore */ }
+  };
+
   const ensureOptionalRegistry = (): Promise<unknown> => {
-    if (!optionalRegistryLoad) optionalRegistryLoad = Promise.resolve(loadScript(optionalRegistrySrc));
+    if (!optionalRegistryLoad) {
+      optionalRegistryLoad = Promise.resolve(loadScript(optionalRegistrySrc)).then((result) => {
+        restoreOptionalBootEntries();
+        return result;
+      });
+    }
     return optionalRegistryLoad;
   };
 

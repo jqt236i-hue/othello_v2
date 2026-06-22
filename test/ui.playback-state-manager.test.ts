@@ -369,6 +369,51 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getCardAnimating()).toBe(false);
   });
 
+  test('visual playback claim release does not restore cardAnimating cleared during playback', () => {
+    const manager = require('../ui/playback-state-manager.js');
+
+    manager.setBusyState({
+      processing: false,
+      cardAnimating: true,
+      playbackActive: false
+    });
+
+    const claim = manager.claimVisualPlayback({
+      source: 'network_timeline',
+      eventTypes: ['card_use_animation']
+    });
+
+    manager.setCardAnimating(false);
+    manager.finalizePlayback({ clearBoardUpdateContext: true });
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+
+    expect(manager.getProcessing()).toBe(false);
+    expect(manager.getCardAnimating()).toBe(false);
+  });
+
+  test('visual playback claim can opt out of restoring pre-claim busy baseline', () => {
+    const manager = require('../ui/playback-state-manager.js');
+
+    manager.setBusyState({
+      processing: true,
+      cardAnimating: true,
+      playbackActive: false
+    });
+
+    const claim = manager.claimVisualPlayback({
+      source: 'network_timeline',
+      eventTypes: ['card_use_animation'],
+      strictNetworkPlayback: true,
+      restoreBusyBaseline: false
+    });
+
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+
+    expect(manager.getProcessing()).toBe(false);
+    expect(manager.getCardAnimating()).toBe(false);
+  });
+
   test('waitForVisualPlaybackDrain waits while a visual playback claim exists', async () => {
     const manager = require('../ui/playback-state-manager.js');
     const emptyCardState = {

@@ -478,7 +478,8 @@ function claimPlaybackBatchForPresentation(ev: any, payload: any[]): any {
     scope: 'batch_handoff',
     eventCount: Array.isArray(payload) ? payload.length : 0,
     eventTypes: collectPlaybackEventTypesForClaim(payload),
-    strictNetworkPlayback: meta.strictNetworkPlayback === true
+    strictNetworkPlayback: meta.strictNetworkPlayback === true,
+    restoreBusyBaseline: meta.strictNetworkPlayback === true ? false : undefined
   });
 }
 
