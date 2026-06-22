@@ -1,4 +1,5 @@
 const MovementCornerSwing = require('./cpu-decision-movement-corner-swing');
+const TemptValue = require('./cpu-decision-tempt-value');
 
 type CpuDecisionCardContextConfig = {
     getGameState: () => any;
@@ -79,6 +80,19 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         return countEnemyOccupiedCornerTargets(board, playerValue, targets);
     }
 
+    function getTemptHighValueTargetCount(playerKey: any): number {
+        const cardLogic = readCardLogic();
+        if (!cardLogic || typeof cardLogic.getTemptWillTargets !== 'function') return 0;
+        const targets = cardLogic.getTemptWillTargets(readCardState(), readGameState(), playerKey);
+        return TemptValue && typeof TemptValue.countHighValueTemptTargetsForCpu === 'function'
+            ? TemptValue.countHighValueTemptTargetsForCpu(playerKey, targets, {
+                cardLogic,
+                cardState: readCardState(),
+                minSourceCost: TemptValue.CPU_TEMPT_MIN_SOURCE_COST
+            })
+            : 0;
+    }
+
     function getMovementCornerSwingTargetCounts(playerKey: any, board: any, playerValue: any): any {
         if (!MovementCornerSwing || typeof MovementCornerSwing.getMovementCornerSwingTargetCounts !== 'function') {
             return {};
@@ -102,6 +116,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         const playerValue = cfg.resolvePlayerValue(playerKey);
         const boardExpansionTargetCounts = getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
         const swapEnemyNormalCornerTargetCount = getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue);
+        const temptHighValueTargetCount = getTemptHighValueTargetCount(playerKey);
         const movementCornerSwingTargetCounts = getMovementCornerSwingTargetCounts(playerKey, board, playerValue);
         const movementCornerSwingTargetCount = (
             MovementCornerSwing &&
@@ -191,6 +206,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             ownCorners: planState.ownCorners,
             oppCorners: planState.oppCorners,
             swapEnemyNormalCornerTargetCount,
+            temptHighValueTargetCount,
             boardExpansionEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionEnemyCornerTargetCount,
             boardExpansionWillEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionWillEnemyCornerTargetCount,
             boardExpansionGodEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionGodEnemyCornerTargetCount,

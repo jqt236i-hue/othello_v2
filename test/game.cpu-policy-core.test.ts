@@ -1019,6 +1019,56 @@ describe('cpu-policy-core', () => {
         expect(out.score).toBeGreaterThan(out.minUseScore);
     });
 
+    test('scoreCardUseDecision blocks TEMPT_WILL without high-value enemy special target', () => {
+        const out = core.scoreCardUseDecision(
+            'tempt_01',
+            () => 34,
+            () => ({ id: 'tempt_01', type: 'TEMPT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 30,
+                ownCharge: 60,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                oppSpecialCount: 3,
+                temptHighValueTargetCount: 0
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('tempt_no_high_value_enemy_special');
+    });
+
+    test('scoreCardUseDecision allows TEMPT_WILL with high-value enemy special target', () => {
+        const out = core.scoreCardUseDecision(
+            'tempt_01',
+            () => 34,
+            () => ({ id: 'tempt_01', type: 'TEMPT_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 30,
+                ownCharge: 60,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 1,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                oppSpecialCount: 3,
+                temptHighValueTargetCount: 1
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThan(out.minUseScore);
+    });
+
     test('scoreCardUseDecision blocks BOARD_EXPANSION_WILL without enemy occupied corner target', () => {
         const out = core.scoreCardUseDecision(
             'board_expand_01',

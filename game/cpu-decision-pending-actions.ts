@@ -1,4 +1,5 @@
 const MovementCornerSwing = require('./cpu-decision-movement-corner-swing');
+const TemptValue = require('./cpu-decision-tempt-value');
 
 type PendingActionsConfig = {
     buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => any;
@@ -210,6 +211,16 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
     function filterSwapEnemyNormalCornerTargets(playerKey: any, targets: any[]): any[] {
         return Array.isArray(targets)
             ? targets.filter((target) => isOpponentOccupiedCornerTarget(playerKey, target))
+            : [];
+    }
+
+    function filterTemptHighValueTargetsForCpu(playerKey: any, targets: any[]): any[] {
+        return TemptValue && typeof TemptValue.filterHighValueTemptTargetsForCpu === 'function'
+            ? TemptValue.filterHighValueTemptTargetsForCpu(playerKey, targets, {
+                cardLogic: getCardLogic(),
+                cardState: cfg.getCardState(),
+                minSourceCost: TemptValue.CPU_TEMPT_MIN_SOURCE_COST
+            })
             : [];
     }
 
@@ -594,7 +605,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         return runTargetAction({
             playerKey,
             pendingType: 'TEMPT_WILL',
-            targets: getSelectableTargets(playerKey),
+            targets: filterTemptHighValueTargetsForCpu(playerKey, getTargetsByMethod(playerKey, 'getTemptWillTargets')),
             noTargetLabel: '誘惑対象なし',
             targetLabel: '誘惑ターゲット',
             payloadKey: 'temptTarget',

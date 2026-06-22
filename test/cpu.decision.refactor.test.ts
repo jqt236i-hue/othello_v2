@@ -2963,6 +2963,117 @@ describe('cpu decision refactor helpers', () => {
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('cpuSelectTemptWillWithPolicy clears pending when only low-value special targets exist', async () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TEMPT_WILL', stage: 'selectTarget' };
+    global.cardState.markers = [
+      { kind: 'specialStone', row: 2, col: 2, owner: 'black', data: { type: 'TRAP', sourceCardId: 'trap_01' } }
+    ];
+    global.CardLogic = {
+      getTemptWillTargets: () => [{ row: 2, col: 2 }],
+      getCardCost: jest.fn(() => 6),
+      applyTemptWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = { runTurnWithAdapter: jest.fn() };
+
+    await cpuDecision.cpuSelectTemptWillWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.CardLogic.applyTemptWill).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('cpuSelectTemptWillWithPolicy ignores high-cost targets blocked by complete protection', async () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TEMPT_WILL', stage: 'selectTarget' };
+    global.cardState.markers = [
+      { kind: 'specialStone', row: 2, col: 2, owner: 'black', data: { type: 'PERMA_PROTECTED', sourceCardId: 'perma_01' } },
+      { kind: 'specialStone', row: 2, col: 2, owner: 'black', data: { type: 'GUARD', sourceCardId: 'guard_01' } }
+    ];
+    global.CardLogic = {
+      getTemptWillTargets: () => [{ row: 2, col: 2 }],
+      getCardCost: jest.fn((cardId) => ({ perma_01: 16, guard_01: 15 }[cardId] || 0)),
+      applyTemptWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = { runTurnWithAdapter: jest.fn() };
+
+    await cpuDecision.cpuSelectTemptWillWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.CardLogic.applyTemptWill).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('cpuSelectTemptWillWithPolicy targets high-value enemy special stone only', async () => {
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'TEMPT_WILL', stage: 'selectTarget' };
+    global.cardState.markers = [
+      { kind: 'specialStone', row: 2, col: 2, owner: 'black', data: { type: 'TRAP', sourceCardId: 'trap_01' } },
+      { kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'PROTECTED', sourceCardId: 'hard_01' } }
+    ];
+    global.CardLogic = {
+      getTemptWillTargets: () => [{ row: 2, col: 2 }, { row: 3, col: 3 }],
+      getCardCost: jest.fn((cardId) => ({ trap_01: 6, hard_01: 16 }[cardId] || 0)),
+      applyTemptWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectTemptWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.temptTarget).toEqual({ row: 3, col: 3 });
+    expect(global.CardLogic.applyTemptWill).not.toHaveBeenCalled();
+  });
+
   test('cpuSelectSwapWithEnemyWithPolicy continues turn start after immediate handoff', async () => {
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),

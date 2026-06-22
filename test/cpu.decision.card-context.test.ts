@@ -148,6 +148,60 @@ describe('cpu decision card context module', () => {
     expect(context.boardExpansionEnemyCornerTargetCount).toBe(1);
   });
 
+  test('buildCardUseDecisionContext counts only high-value TEMPT_WILL targets', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[2][2] = 1;
+    board[3][3] = 1;
+    board[4][4] = 1;
+
+    const moduleRef = createCpuDecisionCardContext({
+      getGameState: () => ({ board }),
+      getCardState: () => ({
+        charge: { black: 0, white: 80 },
+        hands: { black: [], white: ['tempt_01'] },
+        decks: { black: [], white: [] },
+        markers: [
+          { kind: 'specialStone', owner: 'black', row: 2, col: 2, data: { type: 'TRAP', sourceCardId: 'trap_01' } },
+          { kind: 'specialStone', owner: 'black', row: 3, col: 3, data: { type: 'PROTECTED', sourceCardId: 'hard_01' } },
+          { kind: 'specialStone', owner: 'black', row: 4, col: 4, data: { type: 'PERMA_PROTECTED', sourceCardId: 'perma_01' } },
+          { kind: 'specialStone', owner: 'black', row: 4, col: 4, data: { type: 'GUARD', sourceCardId: 'guard_01' } }
+        ]
+      }),
+      getCardLogic: () => ({
+        getBoardExpansionTargets: () => [],
+        getBoardExpansionGodTargets: () => [],
+        getSwapTargets: () => [],
+        getTemptWillTargets: () => [
+          { row: 2, col: 2 },
+          { row: 3, col: 3 },
+          { row: 4, col: 4 }
+        ],
+        getCardCost: (cardId: string) => ({ trap_01: 6, hard_01: 16, perma_01: 16, guard_01: 15 }[cardId] || 0)
+      }),
+      resolvePlayerValue: (playerKey: any) => (playerKey === 'white' ? -1 : 1),
+      getShapeAwareBoard: (sourceBoard: any) => sourceBoard,
+      countBoardStatsForPlayer: () => ({ discDiff: -8, empties: 61 }),
+      countEdgeControl: () => ({ ownEdges: 0, oppEdges: 0 }),
+      buildCornerPlanState: () => ({
+        ownCorners: 0,
+        oppCorners: 0,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: false,
+        cornerHoldMode: false,
+        recoveryCostGap: 0,
+        highBonusMoveAvailable: false
+      }),
+      getBoardBonusValueAt: () => 0,
+      getBoardCellValueSafe: (sourceBoard: any, row: any, col: any) => sourceBoard[row][col],
+      getCpuPolicyCore: () => null
+    });
+
+    const context = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], ['tempt_01']);
+
+    expect(context.temptHighValueTargetCount).toBe(1);
+  });
+
   test('buildCardUseDecisionContext counts movement targets that displace or replace enemy corners', () => {
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
     board[0][0] = 1;

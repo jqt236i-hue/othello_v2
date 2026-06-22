@@ -181,6 +181,7 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             : null;
         const ownSpecialCount = isFiniteNumber(ctx.ownSpecialCount) ? Math.max(0, Math.floor(Number(ctx.ownSpecialCount))) : 0;
         const oppSpecialCount = isFiniteNumber(ctx.oppSpecialCount) ? Math.max(0, Math.floor(Number(ctx.oppSpecialCount))) : 0;
+        const temptHighValueTargetCount = isFiniteNumber(ctx.temptHighValueTargetCount) ? Math.max(0, Math.floor(Number(ctx.temptHighValueTargetCount))) : 0;
         const ownGuardCount = isFiniteNumber(ctx.ownGuardCount) ? Math.max(0, Math.floor(Number(ctx.ownGuardCount))) : 0;
         const oppGuardCount = isFiniteNumber(ctx.oppGuardCount) ? Math.max(0, Math.floor(Number(ctx.oppGuardCount))) : 0;
         const ownCornerResetCount = isFiniteNumber(ctx.ownCornerResetCount) ? Math.max(0, Math.floor(Number(ctx.ownCornerResetCount))) : 0;
@@ -274,6 +275,7 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             cloneSplitEligibleSourceCount,
             ownSpecialCount,
             oppSpecialCount,
+            temptHighValueTargetCount,
             ownGuardCount,
             oppGuardCount,
             ownCornerResetCount,

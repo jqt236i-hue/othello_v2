@@ -207,6 +207,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             oppHandSize,
             ownSpecialCount,
             oppSpecialCount,
+            temptHighValueTargetCount,
             ownGuardCount,
             oppGuardCount,
             ownCornerResetCount,
@@ -272,6 +273,9 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (enemyCornerTargetCount <= 0) {
                 return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'board_expansion_no_enemy_corner');
             }
+        }
+        if (cardType === 'TEMPT_WILL' && temptHighValueTargetCount <= 0) {
+            return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'tempt_no_high_value_enemy_special');
         }
         if (isMovementCornerSwingCardType(cardType) && getMovementCornerSwingTargetCount(ctx, cardType) <= 0) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'movement_no_enemy_corner_swing');
