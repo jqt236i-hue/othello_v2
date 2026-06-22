@@ -1087,7 +1087,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             resetSessionState,
             resetTurnTimerState,
             closeStream,
-            teardownActionBridge
+            teardownActionBridge,
+            normalizeNetworkSnapshotEnvelope,
+            submitNetworkSnapshotEnvelope
         });
         return networkSessionLifecycleController;
     }

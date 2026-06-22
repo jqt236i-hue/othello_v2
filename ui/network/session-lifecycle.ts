@@ -488,17 +488,36 @@ function createNetworkSessionLifecycleController(config: any): any {
           : (typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
           ? cfg.resolveStateSyncRecoveredPlaybackEvents(res.data)
           : (Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : []));
-        appliedSnapshot = typeof cfg.applySnapshotThroughCoordinator === 'function'
-          ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
+        if (
+          typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
+          && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
+        ) {
+          const envelope = cfg.normalizeNetworkSnapshotEnvelope({
             source: 'state_sync',
+            payload: res.data,
+            force: true,
             applyOptions: {
               force: true,
               playbackEvents: playbackEvents,
               presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
               presentationFrameSource: 'state_sync'
             }
-          })
-          : false;
+          });
+          const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
+          appliedSnapshot = !!(intakeResult && intakeResult.appliedSnapshot === true);
+        } else {
+          appliedSnapshot = typeof cfg.applySnapshotThroughCoordinator === 'function'
+            ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
+              source: 'state_sync',
+              applyOptions: {
+                force: true,
+                playbackEvents: playbackEvents,
+                presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
+                presentationFrameSource: 'state_sync'
+              }
+            })
+            : false;
+        }
         if (appliedSnapshot && typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
           cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
             source: 'state_sync',

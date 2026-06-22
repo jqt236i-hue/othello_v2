@@ -314,6 +314,13 @@ describe('NetworkMatchClient snapshot effect logs', () => {
           stateVersion: 4
         })
       ]));
+      expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'network_intake_submit',
+          source: 'state_sync',
+          stateVersion: 4
+        })
+      ]));
       expect(global.emitLogAdded).not.toHaveBeenCalled();
       expect(global.addLog).not.toHaveBeenCalled();
     } finally {
