@@ -121,6 +121,20 @@ describe('inviolable special cards in hand effects', () => {
     expect(cardState.discard).not.toEqual(expect.arrayContaining(['observer_will_01']));
   });
 
+  test('EXECUTION_WILL is not usable when opponent hand has only special cards', () => {
+    const { cardState, gameState } = createState();
+    CardLogic.addCardToHand(cardState, 'black', 'execution_01');
+    CardLogic.addCardToHand(cardState, 'white', 'observer_will_01');
+    cardState.prevOpponentTurnDestroyedStonesByPlayer = {
+      black: [{ owner: 'black' }],
+      white: []
+    };
+
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).not.toContain('execution_01');
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'execution_01')).toBe(false);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
   test('destroyHandCard rejects opponent-caused destruction of a special card', () => {
     const { cardState } = createState();
     CardLogic.addCardToHand(cardState, 'white', 'observer_will_01');

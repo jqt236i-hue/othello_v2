@@ -813,7 +813,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey]))
                 ? cardState.hands[opponentKey]
                 : [];
-            if (opponentHand.length === 0) continue;
+            if (!opponentHand.some((opponentCardId: any) => !isInviolableSpecialCardId(opponentCardId, context))) continue;
             const executionLedger = (cardState as any).prevOpponentTurnDestroyedStonesByPlayer
                 || (cardState as any).prevOpponentTurnDestroyedNormalByPlayer;
             const executionList = executionLedger && executionLedger[playerKey];

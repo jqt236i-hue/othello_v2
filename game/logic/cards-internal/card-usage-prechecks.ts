@@ -219,7 +219,8 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
         const opponentHand = (context && context.cardState && context.cardState.hands && Array.isArray(context.cardState.hands[opponentKey]))
             ? context.cardState.hands[opponentKey]
             : [];
-        return context.getExecutionWillTargetCount(context.cardState, context.playerKey) > 0 && opponentHand.length > 0
+        const hasDestructibleOpponentCard = opponentHand.some((cardId: any) => !isInviolableSpecialCardId(cardId));
+        return context.getExecutionWillTargetCount(context.cardState, context.playerKey) > 0 && hasDestructibleOpponentCard
             ? result
             : buildFailureResult();
     }

@@ -292,6 +292,55 @@ describe('ROBOT_VACUUM_WILL（ロボット掃除機）', () => {
     ))).toBe(true);
   });
 
+  test('ターン開始吸い込み破壊は救済神復活後も執行の意志の条件に残る', () => {
+    const { cardState, gameState } = createState(0);
+    delete cardState._defaultRandomSource;
+    cardState.charge.white = 99;
+    CardLogic.addCardToHand(cardState, 'white', 'execution_01');
+    CardLogic.addCardToHand(cardState, 'black', 'gold_stone');
+
+    gameState.board[0][0] = Shared.WHITE;
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[3][5] = Shared.WHITE;
+
+    cardState.markers.push(
+      {
+        id: 3201,
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        owner: 'white',
+        data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 }
+      },
+      {
+        id: 3202,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ROBOT_VACUUM', remainingOwnerTurns: 5 }
+      }
+    );
+
+    const events = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'black',
+      events,
+      createPrng(0)
+    );
+
+    expect(events.some((ev) => ev && ev.type === 'robot_vacuum_sucked_start')).toBe(true);
+    expect((cardState.presentationEvents || []).some((ev) => (
+      ev && ev.type === 'SPAWN' && ev.reason === 'stone_salvation_god_revive'
+    ))).toBe(true);
+    expect(CardLogic.getExecutionWillTargetCount(cardState, 'white')).toBe(1);
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'white')).toContain('execution_01');
+  });
+
   test('持続ターンは所有者ターン開始時のみ減少し、0で同色の通常石に戻る', () => {
     const { cardState, gameState } = createState(0.2);
 
