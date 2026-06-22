@@ -113,6 +113,35 @@ describe('prepare-worker-assets', () => {
         expect(() => verifyMirrors([], [], config)).toThrow(/(size|content) mismatch: index\.html/);
     });
 
+    test('can sync selected root files without deleting unrelated mirror files', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-incremental-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: ['public/module-registry.js', 'public/module-registry.optional.js'],
+            verifyRootFiles: ['public/module-registry.js', 'public/module-registry.optional.js'],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: [],
+            generatedOptionalAssets: [],
+            cleanOutDir: false
+        };
+        const config = createPrepareConfig(options);
+
+        writeFile(path.join(rootDir, 'public', 'module-registry.js'), 'startup');
+        writeFile(path.join(rootDir, 'public', 'module-registry.optional.js'), 'optional');
+        writeFile(path.join(outDir, 'styles-layout-result.css'), 'unrelated-user-work');
+
+        prepareWorkerAssets(options);
+
+        expect(fs.readFileSync(path.join(outDir, 'public', 'module-registry.js'), 'utf8')).toBe('startup');
+        expect(fs.readFileSync(path.join(outDir, 'public', 'module-registry.optional.js'), 'utf8')).toBe('optional');
+        expect(fs.readFileSync(path.join(outDir, 'styles-layout-result.css'), 'utf8')).toBe('unrelated-user-work');
+        expect(() => verifyMirrors([], [], config)).not.toThrow();
+    });
+
     test('detects worker-public asset drift in a temp mirror', () => {
         const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-assets-'));
         cleanupDirs.push(rootDir);

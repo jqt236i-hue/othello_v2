@@ -24,6 +24,8 @@ interface BuildRegistryOptions {
     rootDir?: string;
     distDir?: string;
     outFile?: string;
+    optionalOutFile?: string;
+    splitRegistries?: boolean;
     write?: boolean;
     log?: boolean;
     syncScriptVersions?: boolean;
@@ -34,7 +36,9 @@ interface BuildRegistryResult {
     startupContent: string;
     optionalContent: string;
     outFile: string;
+    optionalOutFile: string;
     wroteFile: boolean;
+    wroteOptionalFile: boolean;
 }
 
 type BrowserBootModuleClass = 'required' | 'optional';
@@ -312,6 +316,10 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     const rootDir = opts.rootDir ? path.resolve(String(opts.rootDir)) : ROOT;
     const distDir = opts.distDir ? path.resolve(String(opts.distDir)) : path.join(rootDir, 'dist');
     const outFile = opts.outFile ? path.resolve(String(opts.outFile)) : path.join(rootDir, 'public', 'module-registry.js');
+    const optionalOutFile = opts.optionalOutFile
+        ? path.resolve(String(opts.optionalOutFile))
+        : path.join(path.dirname(outFile), 'module-registry.optional.js');
+    const shouldSplitRegistries = opts.splitRegistries !== false;
     const shouldWrite = opts.write !== false;
     const shouldLog = opts.log !== false;
     const shouldSyncScriptVersions = opts.syncScriptVersions !== false;
@@ -433,12 +441,22 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     const startupContent = finalizeRegistryContent(startupLines);
     const optionalContent = finalizeRegistryContent(optionalLines);
     let wroteFile = false;
+    let wroteOptionalFile = false;
     if (shouldWrite) {
         fs.mkdirSync(path.dirname(outFile), { recursive: true });
+        const mainContent = shouldSplitRegistries ? startupContent : content;
         const current = fs.existsSync(outFile) ? fs.readFileSync(outFile, 'utf8') : null;
-        if (current !== content) {
-            writeFileWithRetry(outFile, content);
+        if (current !== mainContent) {
+            writeFileWithRetry(outFile, mainContent);
             wroteFile = true;
+        }
+        if (shouldSplitRegistries) {
+            fs.mkdirSync(path.dirname(optionalOutFile), { recursive: true });
+            const currentOptional = fs.existsSync(optionalOutFile) ? fs.readFileSync(optionalOutFile, 'utf8') : null;
+            if (currentOptional !== optionalContent) {
+                writeFileWithRetry(optionalOutFile, optionalContent);
+                wroteOptionalFile = true;
+            }
         }
         if (shouldSyncScriptVersions && fs.existsSync(path.join(rootDir, 'index.html'))) {
             syncBrowserScriptVersions({ rootDir, write: true });
@@ -446,7 +464,8 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     }
 
     if (shouldLog) {
-        console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile));
+        const suffix = shouldSplitRegistries ? ' plus ' + path.relative(rootDir, optionalOutFile) : '';
+        console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile) + suffix);
         if (skipped.length > 0) {
             console.log('[module-registry] skipped ' + skipped.length + ' files:');
             skipped.forEach(s => {
@@ -460,7 +479,9 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         startupContent,
         optionalContent,
         outFile,
-        wroteFile
+        optionalOutFile,
+        wroteFile,
+        wroteOptionalFile
     };
 }
 

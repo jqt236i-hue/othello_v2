@@ -72,6 +72,111 @@ function resolveUIBootstrapModule(): any {
   return null;
 }
 
+function resolveLazyRuntimeGroupLoader(options: any, rootRef: any): any {
+  if (options && typeof options.loadLazyRuntimeGroup === 'function') {
+    return options.loadLazyRuntimeGroup;
+  }
+  try {
+    if (rootRef && typeof rootRef.loadLazyRuntimeGroup === 'function') {
+      return rootRef.loadLazyRuntimeGroup.bind(rootRef);
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).loadLazyRuntimeGroup === 'function') {
+      return (globalThis as any).loadLazyRuntimeGroup;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (
+      typeof globalThis !== 'undefined' &&
+      (globalThis as any).LazyRuntimeLoaderModule &&
+      typeof (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup === 'function'
+    ) {
+      return (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    const moduleRef = _require('../bootstrap/lazy-runtime-loader');
+    if (moduleRef && typeof moduleRef.loadLazyRuntimeGroup === 'function') {
+      return moduleRef.loadLazyRuntimeGroup;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function createLazyGachaControls(options: any, rootRef: any, docRef: Document, loadLazyRuntimeGroup: any): any {
+  const openBtn = options.openBtn || docRef.getElementById('gachaOpenBtn');
+  if (!openBtn || typeof openBtn.addEventListener !== 'function') return null;
+
+  let delegate: any = null;
+  let loading: Promise<any> | null = null;
+
+  const ensureDelegate = (): Promise<any> => {
+    if (delegate) return Promise.resolve(delegate);
+    if (!loading) {
+      loading = Promise.resolve(loadLazyRuntimeGroup('gacha')).then(() => {
+        delegate = setupGachaControls(Object.assign({}, options, {
+          root: rootRef,
+          document: docRef,
+          lazyRuntimeGroupLoaded: true
+        }));
+        if (!delegate) {
+          throw new Error('gacha modules are unavailable after lazy runtime load');
+        }
+        return delegate;
+      }).finally(() => {
+        if (!delegate) loading = null;
+      });
+    }
+    return loading;
+  };
+
+  const onOpenClick = function (event: Event) {
+    if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();
+    void ensureDelegate().then((api) => {
+      try {
+        openBtn.removeEventListener('click', onOpenClick);
+      } catch (e) { /* ignore */ }
+      if (api && typeof api.openOverlay === 'function') api.openOverlay();
+    }).catch((error) => {
+      try {
+        if (typeof console !== 'undefined' && typeof console.error === 'function') {
+          console.error('[gacha] lazy runtime load failed', error && error.message ? error.message : error);
+        }
+      } catch (e) { /* ignore */ }
+    });
+  };
+
+  openBtn.addEventListener('click', onOpenClick);
+
+  return {
+    openOverlay: function () {
+      return ensureDelegate().then((api) => api && typeof api.openOverlay === 'function' ? api.openOverlay() : undefined);
+    },
+    closeOverlay: function () {
+      if (delegate && typeof delegate.closeOverlay === 'function') return delegate.closeOverlay();
+      return undefined;
+    },
+    refresh: function () {
+      if (delegate && typeof delegate.refresh === 'function') return delegate.refresh();
+      return undefined;
+    },
+    performPull: function (pullCount: number) {
+      return ensureDelegate().then((api) => api && typeof api.performPull === 'function' ? api.performPull(pullCount) : null);
+    },
+    getCatalogItems: function () {
+      return delegate && typeof delegate.getCatalogItems === 'function' ? delegate.getCatalogItems() : [];
+    },
+    isOpen: function () {
+      return delegate && typeof delegate.isOpen === 'function' ? delegate.isOpen() : false;
+    },
+    isAnimating: function () {
+      if (delegate && typeof delegate.isAnimating === 'function') return delegate.isAnimating();
+      return !!loading;
+    }
+  };
+}
+
 function getCatalogItems(options?: any): any[] {
   const transactionModule = resolveGachaTransactionModule();
   if (!transactionModule || typeof transactionModule.getCatalogItems !== 'function') return [];
@@ -143,7 +248,14 @@ function setupGachaControls(options?: any): any {
   const assetManifestUpdatedEventName = (
     uiBootstrap && typeof uiBootstrap.ASSET_MANIFEST_UPDATED_EVENT === 'string' && uiBootstrap.ASSET_MANIFEST_UPDATED_EVENT
   ) || 'asset-manifest:updated';
-  if (!transactionModule || !viewModule || !controllerModule) return null;
+  if (!transactionModule || !viewModule || !controllerModule) {
+    const loadLazyRuntimeGroup = opts.lazyRuntimeGroupLoaded === true
+      ? null
+      : resolveLazyRuntimeGroupLoader(opts, rootRef);
+    return typeof loadLazyRuntimeGroup === 'function'
+      ? createLazyGachaControls(opts, rootRef, docRef, loadLazyRuntimeGroup)
+      : null;
+  }
 
   const view = viewModule.createGachaOverlayView(Object.assign({}, opts, {
     root: rootRef,

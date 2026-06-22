@@ -39,7 +39,7 @@ describe('initializeUI async policy loading', () => {
     delete global.restoreStoredNetworkSessionOnBoot;
   });
 
-  test('resetGame waits for ONNX and policy-table initialization', async () => {
+  test('bootstrap reset does not eagerly load ONNX or policy-table initialization', async () => {
     const onnxLoad = deferred();
     const tableLoad = deferred();
     global.initPolicyOnnxModel = jest.fn(() => onnxLoad.promise);
@@ -51,23 +51,10 @@ describe('initializeUI async policy loading', () => {
     }), { virtual: false });
 
     const initModule = require('../ui/handlers/init.js');
-    const initPromise = initModule.initializeUI();
+    await initModule.initializeUI();
 
-    expect(global.__uiInitialized).toBe(false);
-    expect(global.initPolicyOnnxModel).toHaveBeenCalledTimes(1);
+    expect(global.initPolicyOnnxModel).not.toHaveBeenCalled();
     expect(global.initPolicyTableModel).not.toHaveBeenCalled();
-    expect(global.resetGame).not.toHaveBeenCalled();
-
-    onnxLoad.resolve();
-    await flushMicrotasks();
-
-    expect(global.initPolicyTableModel).toHaveBeenCalledTimes(1);
-    expect(global.resetGame).not.toHaveBeenCalled();
-    expect(global.__uiInitialized).toBe(false);
-
-    tableLoad.resolve();
-    await initPromise;
-
     expect(global.resetGame).toHaveBeenCalledTimes(1);
     expect(global.__uiInitialized).toBe(true);
   });

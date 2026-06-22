@@ -218,6 +218,57 @@ function _resolveBrowserPolicyRuntime(globalName: string, moduleIds: string[]): 
   return null;
 }
 
+function _resolveLazyRuntimeGroupLoader(): any {
+  try {
+    const docRef = (typeof document !== 'undefined' && document && typeof document.createElement === 'function')
+      ? document
+      : (typeof window !== 'undefined' && (window as any).document && typeof (window as any).document.createElement === 'function'
+        ? (window as any).document
+        : null);
+    if (!docRef) return null;
+  } catch (e) {
+    return null;
+  }
+  try {
+    if (typeof window !== 'undefined' && typeof (window as any).loadLazyRuntimeGroup === 'function') {
+      return (window as any).loadLazyRuntimeGroup;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).loadLazyRuntimeGroup === 'function') {
+      return (globalThis as any).loadLazyRuntimeGroup;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (
+      typeof globalThis !== 'undefined' &&
+      (globalThis as any).LazyRuntimeLoaderModule &&
+      typeof (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup === 'function'
+    ) {
+      return (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    const moduleRef = _resolveModuleWithRequireLoaders('../bootstrap/lazy-runtime-loader', (value) => value);
+    if (moduleRef && typeof moduleRef.loadLazyRuntimeGroup === 'function') return moduleRef.loadLazyRuntimeGroup;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function _loadLazyRuntimeGroup(group: string): Promise<boolean> {
+  const loadLazyRuntimeGroup = _resolveLazyRuntimeGroupLoader();
+  if (typeof loadLazyRuntimeGroup !== 'function') return false;
+  try {
+    await loadLazyRuntimeGroup(group);
+    return true;
+  } catch (error: any) {
+    if (_isDebugEnabled()) {
+      console.warn('[CPU] lazy runtime load failed:', group, error && error.message ? error.message : error);
+    }
+    return false;
+  }
+}
+
 function _resolvePolicyOnnxRuntime(): any {
   return _resolveBrowserPolicyRuntime('CpuPolicyOnnxRuntime', [
     '../../game/ai/policy-onnx-runtime',
@@ -625,6 +676,7 @@ async function initLvMaxModels(): Promise<void> {
 }
 
 async function loadCpuPolicy(): Promise<void> {
+  await _loadLazyRuntimeGroup('cpu');
   if (typeof (CpuPolicy as any) === 'undefined' || !(CpuPolicy as any).loadPolicyForLevel) {
     if (_isDebugEnabled()) console.warn('CpuPolicy.loadPolicyForLevel not available');
     return;
@@ -647,6 +699,7 @@ async function loadCpuPolicy(): Promise<void> {
 }
 
 async function initPolicyOnnxModel(): Promise<void> {
+  await _loadLazyRuntimeGroup('onnx');
   const runtime = _resolvePolicyOnnxRuntime();
   if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
   const capability = _resolveCpuLv6BrowserRuntimeCapability();
@@ -931,6 +984,7 @@ function _resolveOthelloBrowserCpuRuntime(): any {
 
 async function initOthelloOnnxModel(): Promise<void> {
   if (!_shouldLoadOthelloOnnxByDefault()) return;
+  await _loadLazyRuntimeGroup('onnx');
   const runtime = _resolveOthelloOnnxRuntime();
   if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
 

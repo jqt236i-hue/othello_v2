@@ -18,8 +18,9 @@ interface BrowserBuildCheckResult {
 }
 
 function checkBrowserBuildUpToDate(rootDirInput?: string): BrowserBuildCheckResult {
-    const rootDir = rootDirInput ? path.resolve(String(rootDirInput)) : path.resolve(__dirname, '..');
+    const rootDir = rootDirInput ? path.resolve(String(rootDirInput)) : process.cwd();
     const registryPath = path.join(rootDir, 'public', 'module-registry.js');
+    const optionalRegistryPath = path.join(rootDir, 'public', 'module-registry.optional.js');
     if (!fs.existsSync(registryPath)) {
         return {
             ok: false,
@@ -32,7 +33,8 @@ function checkBrowserBuildUpToDate(rootDirInput?: string): BrowserBuildCheckResu
         rootDir,
         write: false,
         log: false,
-        syncScriptVersions: false
+        syncScriptVersions: false,
+        splitRegistries: true
     });
     if (!registryResult) {
         return {
@@ -43,11 +45,27 @@ function checkBrowserBuildUpToDate(rootDirInput?: string): BrowserBuildCheckResu
     }
 
     const currentRegistry = fs.readFileSync(registryPath, 'utf8');
-    if (currentRegistry !== registryResult.content) {
+    if (currentRegistry !== registryResult.startupContent) {
         return {
             ok: false,
             code: 1,
             message: '[check-browser-build] module registry is stale. Run `npm run build:browser`.'
+        };
+    }
+
+    if (!fs.existsSync(optionalRegistryPath)) {
+        return {
+            ok: false,
+            code: 1,
+            message: '[check-browser-build] optional module registry is stale. Run `npm run build:browser`.'
+        };
+    }
+    const currentOptionalRegistry = fs.readFileSync(optionalRegistryPath, 'utf8');
+    if (currentOptionalRegistry !== registryResult.optionalContent) {
+        return {
+            ok: false,
+            code: 1,
+            message: '[check-browser-build] optional module registry is stale. Run `npm run build:browser`.'
         };
     }
 

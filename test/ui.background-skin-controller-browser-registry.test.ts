@@ -13,8 +13,10 @@ describe('background skin controller browser registry wiring', () => {
 
     const runtimePath = path.resolve(__dirname, '..', 'public', 'runtime.js');
     const registryPath = path.resolve(__dirname, '..', 'public', 'module-registry.js');
+    const optionalRegistryPath = path.resolve(__dirname, '..', 'public', 'module-registry.optional.js');
     dom.window.eval(fs.readFileSync(runtimePath, 'utf8'));
     dom.window.eval(fs.readFileSync(registryPath, 'utf8'));
+    dom.window.eval(fs.readFileSync(optionalRegistryPath, 'utf8'));
 
     const controller = (dom.window as any).require('ui/background-skin/controller');
     const api = controller.setupBackgroundSkinControls({

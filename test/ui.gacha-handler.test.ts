@@ -46,6 +46,12 @@ describe('gacha handler', () => {
     delete global.document;
     delete global.Event;
     delete global.CustomEvent;
+    delete global.GachaTransactionModule;
+    delete global.GachaOverlayViewModule;
+    delete global.GachaOverlayControllerModule;
+    jest.dontMock('../ui/gacha/gacha-transaction');
+    jest.dontMock('../ui/gacha/gacha-overlay-view');
+    jest.dontMock('../ui/gacha/gacha-overlay-controller');
   });
 
   test('opens modal with details visible and performs a deterministic new pull', () => {
@@ -178,5 +184,72 @@ describe('gacha handler', () => {
     expect(document.getElementById('gachaOverlay').classList.contains('is-revealing')).toBe(false);
     expect(document.getElementById('gachaCloseBtn').disabled).toBe(false);
     expect(document.getElementById('gachaSinglePullBtn').disabled).toBe(false);
+  });
+
+  test('lazy loads optional gacha modules on first open click', async () => {
+    jest.resetModules();
+    setDom();
+    jest.doMock('../ui/gacha/gacha-transaction', () => {
+      throw new Error('optional gacha registry not loaded');
+    });
+    jest.doMock('../ui/gacha/gacha-overlay-view', () => {
+      throw new Error('optional gacha registry not loaded');
+    });
+    jest.doMock('../ui/gacha/gacha-overlay-controller', () => {
+      throw new Error('optional gacha registry not loaded');
+    });
+
+    const controller = {
+      initialize: jest.fn(),
+      isOpen: jest.fn(() => false),
+      openOverlay: jest.fn(),
+      closeOverlay: jest.fn(),
+      toggleDetails: jest.fn(),
+      refresh: jest.fn(),
+      getCatalogItems: jest.fn(() => []),
+      isAnimating: jest.fn(() => false),
+      performPull: jest.fn(),
+      handleOverlayBackgroundClick: jest.fn(),
+      handleEscape: jest.fn(() => false)
+    };
+    const createGachaOverlayController = jest.fn(() => controller);
+    const createGachaOverlayView = jest.fn(() => ({
+      refs: {
+        openBtn: document.getElementById('gachaOpenBtn'),
+        overlay: document.getElementById('gachaOverlay'),
+        modal: document.getElementById('gachaModal'),
+        closeBtn: document.getElementById('gachaCloseBtn'),
+        detailToggleBtn: null,
+        singlePullBtn: document.getElementById('gachaSinglePullBtn'),
+        tenPullBtn: document.getElementById('gachaTenPullBtn')
+      }
+    }));
+    const loadLazyRuntimeGroup = jest.fn(async (group) => {
+      expect(group).toBe('gacha');
+      global.GachaTransactionModule = {
+        getCatalogItems: () => [],
+        commitPullTransaction: jest.fn()
+      };
+      global.GachaOverlayViewModule = { createGachaOverlayView };
+      global.GachaOverlayControllerModule = { createGachaOverlayController };
+      return true;
+    });
+
+    const mod = require('../ui/handlers/gacha.js');
+    const api = mod.setupGachaControls({
+      root: window,
+      loadLazyRuntimeGroup
+    });
+
+    expect(api).not.toBeNull();
+    expect(createGachaOverlayController).not.toHaveBeenCalled();
+
+    document.getElementById('gachaOpenBtn').click();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
+    expect(createGachaOverlayController).toHaveBeenCalledTimes(1);
+    expect(controller.initialize).toHaveBeenCalledTimes(1);
+    expect(controller.openOverlay).toHaveBeenCalledTimes(1);
   });
 });

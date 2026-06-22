@@ -23,6 +23,7 @@ interface PrepareWorkerAssetsOptions {
     verifyRootFiles?: string[];
     optionalFiles?: string[];
     generatedOptionalAssets?: GeneratedOptionalAssetTask[];
+    cleanOutDir?: boolean;
 }
 
 interface PrepareWorkerAssetsConfig {
@@ -34,6 +35,7 @@ interface PrepareWorkerAssetsConfig {
     verifyRootFiles: string[];
     optionalFiles: string[];
     generatedOptionalAssets: GeneratedOptionalAssetTask[];
+    cleanOutDir: boolean;
 }
 
 interface GeneratedOptionalAssetTask {
@@ -85,7 +87,8 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-stone-shadows.css',
     'styles-variables.css',
     'public/runtime.js',
-    'public/module-registry.js'
+    'public/module-registry.js',
+    'public/module-registry.optional.js'
 ]);
 
 const DIRS: readonly string[] = Object.freeze([
@@ -204,7 +207,8 @@ function createPrepareConfig(options?: PrepareWorkerAssetsOptions): PrepareWorke
         verifyDirs: cloneList(opts.verifyDirs || (opts.dirs ? dirs : VERIFY_DIRS)),
         verifyRootFiles: cloneList(opts.verifyRootFiles || (opts.rootFiles ? rootFiles : VERIFY_ROOT_FILES)),
         optionalFiles: cloneList(opts.optionalFiles || OPTIONAL_FILES),
-        generatedOptionalAssets: cloneList(opts.generatedOptionalAssets || GENERATED_OPTIONAL_ASSETS)
+        generatedOptionalAssets: cloneList(opts.generatedOptionalAssets || GENERATED_OPTIONAL_ASSETS),
+        cleanOutDir: opts.cleanOutDir !== false
     };
 }
 
@@ -513,7 +517,9 @@ function verifyMirrors(optionalFiles: any, generatedAssets: any, config: any) {
 function prepareWorkerAssets(options?: PrepareWorkerAssetsOptions) {
     const settings = createPrepareConfig(options);
     refreshGeneratedCatalogArtifacts(settings);
-    rmDirSafe(settings.outDir);
+    if (settings.cleanOutDir) {
+        rmDirSafe(settings.outDir);
+    }
     ensureDir(settings.outDir);
     const copyableOptionalFiles = resolveCopyableOptionalFiles(settings);
     const generatedOptionalAssets = resolveGeneratedOptionalAssets(settings);

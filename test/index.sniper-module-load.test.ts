@@ -79,8 +79,10 @@ describe('sniper module load order', () => {
     assertSniperScriptOrder(html, 'index.html');
     const registryPath = path.join(__dirname, '..', 'public', 'module-registry.js');
     const registry = fs.readFileSync(registryPath, 'utf8');
+    const optionalRegistryPath = path.join(__dirname, '..', 'public', 'module-registry.optional.js');
+    const optionalRegistry = fs.readFileSync(optionalRegistryPath, 'utf8');
     assertSniperModuleRegistry(registry, 'public/module-registry.js');
-    assertOthelloAiRuntimeRegistry(registry, 'public/module-registry.js');
+    assertOthelloAiRuntimeRegistry(optionalRegistry, 'public/module-registry.optional.js');
     assertBrowserRuntimeCompanions(registry, 'public/module-registry.js');
   });
 
@@ -90,8 +92,10 @@ describe('sniper module load order', () => {
     assertSniperScriptOrder(html, 'worker-public/index.html');
     const registryPath = path.join(__dirname, '..', 'worker-public', 'public', 'module-registry.js');
     const registry = fs.readFileSync(registryPath, 'utf8');
+    const optionalRegistryPath = path.join(__dirname, '..', 'worker-public', 'public', 'module-registry.optional.js');
+    const optionalRegistry = fs.readFileSync(optionalRegistryPath, 'utf8');
     assertSniperModuleRegistry(registry, 'worker-public/public/module-registry.js');
-    assertOthelloAiRuntimeRegistry(registry, 'worker-public/public/module-registry.js');
+    assertOthelloAiRuntimeRegistry(optionalRegistry, 'worker-public/public/module-registry.optional.js');
     assertBrowserRuntimeCompanions(registry, 'worker-public/public/module-registry.js');
   });
 });
