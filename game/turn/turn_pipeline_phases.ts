@@ -842,162 +842,352 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         );
     }
 
-    function applyTurnStartPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any, prng: any, BoardOps?: any) {
-        const p = prng || undefined;
+    type TurnPipelinePhaseContext = {
+        CardLogic: any;
+        Core: any;
+        cardState: any;
+        gameState: any;
+        playerKey: any;
+        events: any[];
+        prng: any;
+        BoardOps?: any;
+        action?: any;
+    };
 
+    type TurnPhasePresentationSnapshot = {
+        workMarkersBeforePhase: any;
+        specialStoneSpeechBeforePhase: any;
+        eventStartIndex: number;
+        presentationStartIndex: number;
+    };
+
+    type TurnStartStageState = TurnPhasePresentationSnapshot & {
+        timerSnapshot: any;
+        turnStartTimerTickEmittedKeys: Set<string>;
+        othelloMode: boolean;
+        turnStartMarkerAnchors: any[];
+        turnStartOptions: any;
+        hasSplitTurnStartHooks: boolean;
+    };
+
+    function createTurnPipelinePhaseContext(
+        CardLogic: any,
+        Core: any,
+        cardState: any,
+        gameState: any,
+        playerKey: any,
+        events: any,
+        prng: any,
+        BoardOps?: any,
+        action?: any
+    ): TurnPipelinePhaseContext {
+        return {
+            CardLogic,
+            Core,
+            cardState,
+            gameState,
+            playerKey,
+            events,
+            prng: prng || undefined,
+            BoardOps,
+            action
+        };
+    }
+
+    function snapshotTurnPhasePresentationStart(ctx: TurnPipelinePhaseContext): TurnPhasePresentationSnapshot {
+        return {
+            workMarkersBeforePhase: snapshotWorkMarkers(ctx.cardState),
+            specialStoneSpeechBeforePhase: snapshotSpecialStoneSpeechMarkers(ctx.cardState),
+            eventStartIndex: Array.isArray(ctx.events) ? ctx.events.length : 0,
+            presentationStartIndex: Array.isArray(ctx.cardState.presentationEvents)
+                ? ctx.cardState.presentationEvents.length
+                : 0
+        };
+    }
+
+    function syncTurnStartPendingSelectionCache(ctx: TurnPipelinePhaseContext): void {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
-            PendingCoordinatorModule.syncPendingSelectionActionCache(cardState);
+            PendingCoordinatorModule.syncPendingSelectionActionCache(ctx.cardState);
         }
+    }
 
-        if (cardState.lastTurnStartedFor !== playerKey) {
-            // Set the active turn player for SALVATION_WILL destruction tracking and reset the
-            // opponent's beneficiary ledger so this turn can accumulate every destroyed stone.
-            const opponentKeyForSalvation = playerKey === 'black' ? 'white' : 'black';
-            cardState._activeTurnPlayer = playerKey;
-            if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
-                const legacySalvationLedger = (cardState.prevOpponentTurnDestroyedNormalByPlayer && typeof cardState.prevOpponentTurnDestroyedNormalByPlayer === 'object')
-                    ? cardState.prevOpponentTurnDestroyedNormalByPlayer
-                    : null;
-                cardState.prevOpponentTurnDestroyedStonesByPlayer = legacySalvationLedger
-                    ? {
-                        black: Array.isArray(legacySalvationLedger.black) ? legacySalvationLedger.black.map((entry: any) => ({ ...entry })) : [],
-                        white: Array.isArray(legacySalvationLedger.white) ? legacySalvationLedger.white.map((entry: any) => ({ ...entry })) : []
-                    }
-                    : { black: [], white: [] };
-            }
-            cardState.prevOpponentTurnDestroyedStonesByPlayer[opponentKeyForSalvation] = [];
+    function beginTurnStartForPlayer(ctx: TurnPipelinePhaseContext): boolean {
+        const { cardState, playerKey } = ctx;
+        if (cardState.lastTurnStartedFor === playerKey) return false;
 
-            // Clear FATE_WILL controller for the opponent if the current player was that controller.
-            // This means the single controlled opponent turn has already completed.
-            if (cardState.fateWillControllerByTurnOwner) {
-                if (cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] === playerKey) {
-                    cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] = null;
+        const opponentKeyForSalvation = playerKey === 'black' ? 'white' : 'black';
+        cardState._activeTurnPlayer = playerKey;
+        if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+            const legacySalvationLedger = (cardState.prevOpponentTurnDestroyedNormalByPlayer && typeof cardState.prevOpponentTurnDestroyedNormalByPlayer === 'object')
+                ? cardState.prevOpponentTurnDestroyedNormalByPlayer
+                : null;
+            cardState.prevOpponentTurnDestroyedStonesByPlayer = legacySalvationLedger
+                ? {
+                    black: Array.isArray(legacySalvationLedger.black) ? legacySalvationLedger.black.map((entry: any) => ({ ...entry })) : [],
+                    white: Array.isArray(legacySalvationLedger.white) ? legacySalvationLedger.white.map((entry: any) => ({ ...entry })) : []
                 }
-            }
+                : { black: [], white: [] };
+        }
+        cardState.prevOpponentTurnDestroyedStonesByPlayer[opponentKeyForSalvation] = [];
 
-            if (!(TurnRoundStateModule && typeof TurnRoundStateModule.ensureGameRoundState === 'function' && typeof TurnRoundStateModule.applyPendingRoundBonusAtTurnStart === 'function')) {
-                throw new Error('TurnPipeline round state module unavailable');
+        if (cardState.fateWillControllerByTurnOwner) {
+            if (cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] === playerKey) {
+                cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] = null;
             }
-            TurnRoundStateModule.ensureGameRoundState({ Core, gameState });
-            const roundBonusSummary = TurnRoundStateModule.applyPendingRoundBonusAtTurnStart({
-                CardLogic,
-                Core,
-                cardState,
-                gameState,
-                events,
-                addChargeWithTotal
-            });
-            const eventStartIndex = Array.isArray(events)
-                ? events.length
-                : 0;
-            const presentationStartIndex = Array.isArray(cardState.presentationEvents)
-                ? cardState.presentationEvents.length
-                : 0;
-            const workMarkersBeforeStart = snapshotWorkMarkers(cardState);
-            const specialStoneSpeechBeforeStart = snapshotSpecialStoneSpeechMarkers(cardState);
-            const timerSnapshot = (TurnStartTimerPhaseModule && typeof TurnStartTimerPhaseModule.snapshotTurnStartTimers === 'function')
-                ? TurnStartTimerPhaseModule.snapshotTurnStartTimers(cardState, {
-                    getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-                        ? MarkersAdapter.getMarkers(nextCardState)
-                        : (nextCardState.markers || []),
-                    isBombCategoryMarker,
-                    resolveSpecialStatusTimer,
-                    specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
-                })
-                : new Map();
-            const turnStartTimerTickEmittedKeys = new Set<string>();
+        }
+        return true;
+    }
 
-            const othelloMode = isOthelloModeForTurnPipelinePhases();
-            const turnStartMarkerAnchors = (!othelloMode && TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors === 'function')
-                ? TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors(cardState, {
-                    getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-                        ? MarkersAdapter.getMarkers(nextCardState)
-                        : (nextCardState.markers || []),
-                    isBombCategoryMarker
-                })
-                : [];
-            const turnStartOptions: any = {
-                deferGuardDurationEndUntilAfterTurnStartMarkers: true,
-                deferStatusDurationUntilTurnStartMarkers: true
-            };
-            if (roundBonusSummary) {
-                turnStartOptions.skipStoneSalvationGodRevives = true;
-            }
-            const hasSplitTurnStartHooks = !othelloMode
-                && CardLogic
-                && typeof CardLogic.onTurnStartBeforeAnchors === 'function'
-                && typeof CardLogic.drawForTurnStart === 'function';
-            const turnStartSummary = othelloMode
-                ? null
-                : (hasSplitTurnStartHooks
-                    ? (CardLogic.onTurnStartBeforeAnchors(cardState, playerKey, gameState, p, turnStartOptions) || null)
-                    : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartOptions) || null));
-            events.push({ type: 'turn_start', player: playerKey });
-            if (turnStartSummary && turnStartSummary.ribo && Array.isArray(turnStartSummary.ribo.entries)) {
-                for (const entry of turnStartSummary.ribo.entries) {
-                    if (!entry) continue;
-                    if (entry.shortage) {
-                        events.push({
-                            type: 'ribo_will_shortage',
-                            player: playerKey,
-                            destroyed: Array.isArray(entry.destroyed) ? entry.destroyed.slice() : [],
-                            destroyedCount: Number(entry.destroyedCount) || 0,
-                            remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
-                            completed: entry.completed === true
-                        });
-                    } else {
-                        events.push({
-                            type: 'ribo_will_repaid',
-                            player: playerKey,
-                            repaid: Number(entry.repaid) || 0,
-                            remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
-                            completed: entry.completed === true
-                        });
-                    }
-                }
-            }
-            if (turnStartSummary && turnStartSummary.observerWill && Array.isArray(turnStartSummary.observerWill.entries)) {
-                for (const entry of turnStartSummary.observerWill.entries) {
-                    if (!entry) continue;
-                    if (entry.shortage) {
-                        events.push({
-                            type: 'observer_will_shortage',
-                            player: playerKey,
-                            destroyed: Array.isArray(entry.destroyed) ? entry.destroyed.slice() : [],
-                            destroyedCount: Number(entry.destroyedCount) || 0,
-                            remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
-                            completed: entry.completed === true
-                        });
-                    } else {
-                        events.push({
-                            type: 'observer_will_repaid',
-                            player: playerKey,
-                            repaid: Number(entry.repaid) || 0,
-                            remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
-                            completed: entry.completed === true
-                        });
-                    }
-                }
-            }
-            if (turnStartSummary && turnStartSummary.boardExecutor && turnStartSummary.boardExecutor.applied) {
+    function applyTurnStartRoundBonus(ctx: TurnPipelinePhaseContext): any {
+        if (!(TurnRoundStateModule && typeof TurnRoundStateModule.ensureGameRoundState === 'function' && typeof TurnRoundStateModule.applyPendingRoundBonusAtTurnStart === 'function')) {
+            throw new Error('TurnPipeline round state module unavailable');
+        }
+        TurnRoundStateModule.ensureGameRoundState({ Core: ctx.Core, gameState: ctx.gameState });
+        return TurnRoundStateModule.applyPendingRoundBonusAtTurnStart({
+            CardLogic: ctx.CardLogic,
+            Core: ctx.Core,
+            cardState: ctx.cardState,
+            gameState: ctx.gameState,
+            events: ctx.events,
+            addChargeWithTotal
+        });
+    }
+
+    function getTurnPhaseMarkers(nextCardState: any): any[] {
+        return (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
+            ? MarkersAdapter.getMarkers(nextCardState)
+            : (nextCardState.markers || []);
+    }
+
+    function prepareTurnStartStage(ctx: TurnPipelinePhaseContext, roundBonusSummary: any): TurnStartStageState {
+        const phaseSnapshot = snapshotTurnPhasePresentationStart(ctx);
+        const timerSnapshot = (TurnStartTimerPhaseModule && typeof TurnStartTimerPhaseModule.snapshotTurnStartTimers === 'function')
+            ? TurnStartTimerPhaseModule.snapshotTurnStartTimers(ctx.cardState, {
+                getMarkers: getTurnPhaseMarkers,
+                isBombCategoryMarker,
+                resolveSpecialStatusTimer,
+                specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
+            })
+            : new Map();
+        const othelloMode = isOthelloModeForTurnPipelinePhases();
+        const turnStartMarkerAnchors = (!othelloMode && TurnStartMarkerPhaseModule && typeof TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors === 'function')
+            ? TurnStartMarkerPhaseModule.collectTurnStartMarkerAnchors(ctx.cardState, {
+                getMarkers: getTurnPhaseMarkers,
+                isBombCategoryMarker
+            })
+            : [];
+        const turnStartOptions: any = {
+            deferGuardDurationEndUntilAfterTurnStartMarkers: true,
+            deferStatusDurationUntilTurnStartMarkers: true
+        };
+        if (roundBonusSummary) {
+            turnStartOptions.skipStoneSalvationGodRevives = true;
+        }
+        const hasSplitTurnStartHooks = !othelloMode
+            && ctx.CardLogic
+            && typeof ctx.CardLogic.onTurnStartBeforeAnchors === 'function'
+            && typeof ctx.CardLogic.drawForTurnStart === 'function';
+        return {
+            ...phaseSnapshot,
+            timerSnapshot,
+            turnStartTimerTickEmittedKeys: new Set<string>(),
+            othelloMode,
+            turnStartMarkerAnchors,
+            turnStartOptions,
+            hasSplitTurnStartHooks
+        };
+    }
+
+    function emitTurnStartRepaymentEntries(events: any[], playerKey: any, entries: any[], shortageType: string, repaidType: string): void {
+        for (const entry of entries) {
+            if (!entry) continue;
+            if (entry.shortage) {
                 events.push({
-                    type: 'board_executor_hand_tax',
+                    type: shortageType,
                     player: playerKey,
-                    lost: Number(turnStartSummary.boardExecutor.lost) || 0,
-                    handCount: Number(turnStartSummary.boardExecutor.handCount) || 0
+                    destroyed: Array.isArray(entry.destroyed) ? entry.destroyed.slice() : [],
+                    destroyedCount: Number(entry.destroyedCount) || 0,
+                    remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
+                    completed: entry.completed === true
+                });
+            } else {
+                events.push({
+                    type: repaidType,
+                    player: playerKey,
+                    repaid: Number(entry.repaid) || 0,
+                    remainingOwnerTurns: Number(entry.remainingOwnerTurnsAfter) || 0,
+                    completed: entry.completed === true
                 });
             }
-            if (turnStartSummary && Array.isArray(turnStartSummary.generatedSpawnFlipResults) && turnStartSummary.generatedSpawnFlipResults.length) {
-                applyGeneratedSpawnFlipResultsTurnStart(
-                    CardLogic,
-                    cardState,
-                    gameState,
-                    events,
-                    turnStartSummary.generatedSpawnFlipResults
-                );
-            }
+        }
+    }
 
-            if (othelloMode) {
+    function emitTurnStartSummaryEvents(ctx: TurnPipelinePhaseContext, turnStartSummary: any): void {
+        if (turnStartSummary && turnStartSummary.ribo && Array.isArray(turnStartSummary.ribo.entries)) {
+            emitTurnStartRepaymentEntries(
+                ctx.events,
+                ctx.playerKey,
+                turnStartSummary.ribo.entries,
+                'ribo_will_shortage',
+                'ribo_will_repaid'
+            );
+        }
+        if (turnStartSummary && turnStartSummary.observerWill && Array.isArray(turnStartSummary.observerWill.entries)) {
+            emitTurnStartRepaymentEntries(
+                ctx.events,
+                ctx.playerKey,
+                turnStartSummary.observerWill.entries,
+                'observer_will_shortage',
+                'observer_will_repaid'
+            );
+        }
+        if (turnStartSummary && turnStartSummary.boardExecutor && turnStartSummary.boardExecutor.applied) {
+            ctx.events.push({
+                type: 'board_executor_hand_tax',
+                player: ctx.playerKey,
+                lost: Number(turnStartSummary.boardExecutor.lost) || 0,
+                handCount: Number(turnStartSummary.boardExecutor.handCount) || 0
+            });
+        }
+        if (turnStartSummary && Array.isArray(turnStartSummary.generatedSpawnFlipResults) && turnStartSummary.generatedSpawnFlipResults.length) {
+            applyGeneratedSpawnFlipResultsTurnStart(
+                ctx.CardLogic,
+                ctx.cardState,
+                ctx.gameState,
+                ctx.events,
+                turnStartSummary.generatedSpawnFlipResults
+            );
+        }
+    }
+
+    function finalizeActionPhasePresentation(ctx: TurnPipelinePhaseContext, phaseSnapshot: TurnPhasePresentationSnapshot): void {
+        if (PhasePresentationFinalizerModule && typeof PhasePresentationFinalizerModule.finalizePhasePresentation === 'function') {
+            PhasePresentationFinalizerModule.finalizePhasePresentation({
+                CardLogic: ctx.CardLogic,
+                cardState: ctx.cardState,
+                playerKey: ctx.playerKey,
+                events: ctx.events,
+                prng: ctx.prng,
+                eventStartIndex: phaseSnapshot.eventStartIndex,
+                presentationStartIndex: phaseSnapshot.presentationStartIndex,
+                workMarkersBeforePhase: phaseSnapshot.workMarkersBeforePhase,
+                specialStoneSpeechBeforePhase: phaseSnapshot.specialStoneSpeechBeforePhase,
+                removalReason: 'removed_during_action',
+                emitWorkRemovedPresentationFromSnapshots,
+                emitSpecialStoneBubblesFromPhase
+            });
+        }
+    }
+
+    function applyPassActionStage(ctx: TurnPipelinePhaseContext): void {
+        const { CardLogic, Core, cardState, gameState, playerKey, events } = ctx;
+        const action = ctx.action || {};
+        const p = ctx.prng;
+        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        const cardCtx = resolveSafeCardContext(CardLogic, cardState);
+        const legalMoves = Core.getLegalMoves(gameState, playerValue, cardCtx);
+        const placementLocked = CardLogic
+            && typeof CardLogic.isPlacementLockedForPlayer === 'function'
+            && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
+        const forcePass = action && (
+            action.forcePass === true
+            || action.timeoutPass === true
+            || String(action.reason || '').trim().toLowerCase() === 'timeout'
+        );
+        const autoNoActionPass = action && action.autoNoActionPass === true;
+        if (autoNoActionPass && !forcePass) {
+            const pending = readPendingForActionPhase(cardState, playerKey);
+            if (pending) {
+                throw new Error('Illegal auto pass: pending action available');
+            }
+            if (legalMoves.length > 0 && !placementLocked) {
+                throw new Error('Illegal auto pass: legal moves available');
+            }
+            const hasUsableCard = CardLogic
+                && typeof CardLogic.hasUsableCard === 'function'
+                && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true;
+            if (hasUsableCard) {
+                throw new Error('Illegal auto pass: usable card available');
+            }
+        }
+        if (legalMoves.length > 0 && !placementLocked && !forcePass) {
+            throw new Error('Illegal pass: legal moves available');
+        }
+        if (
+            CardLogic &&
+            typeof CardLogic.processTheoryIncarnationOwnerPass === 'function' &&
+            !isOthelloModeForTurnPipelinePhases()
+        ) {
+            const theoryPassRes = CardLogic.processTheoryIncarnationOwnerPass(cardState, gameState, playerKey, p);
+            if (theoryPassRes && theoryPassRes.expired) {
+                events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
+            }
+        }
+        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events);
+    }
+
+    function applyUseCardOnlyActionStage(ctx: TurnPipelinePhaseContext): void {
+        const action = ctx.action || {};
+        ctx.events.push({ type: 'card_used_only', player: ctx.playerKey, cardId: action.useCardId || null });
+    }
+
+    function applyCancelCardActionStage(ctx: TurnPipelinePhaseContext): void {
+        const action = ctx.action || {};
+        const res = (typeof ctx.CardLogic.cancelPendingSelection === 'function')
+            ? ctx.CardLogic.cancelPendingSelection(ctx.cardState, ctx.playerKey, action.cancelOptions)
+            : { canceled: false, reason: 'not_supported' };
+        ctx.events.push({
+            type: 'card_cancelled',
+            player: ctx.playerKey,
+            canceled: !!res.canceled,
+            reason: res.reason || null,
+            cardId: res.cardId || null
+        });
+    }
+
+    function applyDestroyHandCardActionStage(ctx: TurnPipelinePhaseContext): void {
+        const { CardLogic, cardState, playerKey, events } = ctx;
+        const action = ctx.action || {};
+        if (
+            SubPlacementContinuationModule &&
+            typeof SubPlacementContinuationModule.isSubPlacementTurnActive === 'function' &&
+            SubPlacementContinuationModule.isSubPlacementTurnActive(cardState, playerKey)
+        ) {
+            throw new Error('destroy_hand_card failed: sub-placement is active');
+        }
+        const res = (typeof CardLogic.destroyHandCard === 'function')
+            ? CardLogic.destroyHandCard(cardState, playerKey, action.destroyCardId, action.destroyOptions)
+            : { applied: false, reason: 'not_supported' };
+        if (!res || !res.applied) {
+            throw new Error(`destroy_hand_card failed${res && res.reason ? `: ${res.reason}` : ''}`);
+        }
+        emitHandRemovePresentation(CardLogic, cardState, {
+            player: playerKey,
+            count: 1,
+            reason: 'destroy_hand_card',
+            cardId: res.destroyedCardId || action.destroyCardId || null
+        });
+        events.push({ type: 'hand_card_destroyed', player: playerKey, cardId: res.destroyedCardId || action.destroyCardId || null });
+    }
+
+    function applyTurnStartPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any, prng: any, BoardOps?: any) {
+        const ctx = createTurnPipelinePhaseContext(CardLogic, Core, cardState, gameState, playerKey, events, prng, BoardOps);
+        const p = ctx.prng;
+
+        syncTurnStartPendingSelectionCache(ctx);
+
+        if (beginTurnStartForPlayer(ctx)) {
+            const roundBonusSummary = applyTurnStartRoundBonus(ctx);
+            const turnStartStage = prepareTurnStartStage(ctx, roundBonusSummary);
+            const turnStartSummary = turnStartStage.othelloMode
+                ? null
+                : (turnStartStage.hasSplitTurnStartHooks
+                    ? (CardLogic.onTurnStartBeforeAnchors(cardState, playerKey, gameState, p, turnStartStage.turnStartOptions) || null)
+                    : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartStage.turnStartOptions) || null));
+            events.push({ type: 'turn_start', player: playerKey });
+            emitTurnStartSummaryEvents(ctx, turnStartSummary);
+
+            if (turnStartStage.othelloMode) {
                 return { ok: true, events };
             }
 
@@ -1020,12 +1210,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     TurnStartTimerPhaseModule.emitTurnStartTimerStatusTickForMarker({
                         CardLogic,
                         cardState,
-                        timerSnapshot,
+                        timerSnapshot: turnStartStage.timerSnapshot,
                         marker,
-                        emittedTimerTickKeys: turnStartTimerTickEmittedKeys,
-                        getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-                            ? MarkersAdapter.getMarkers(nextCardState)
-                            : (nextCardState.markers || []),
+                        emittedTimerTickKeys: turnStartStage.turnStartTimerTickEmittedKeys,
+                        getMarkers: getTurnPhaseMarkers,
                         isBombCategoryMarker,
                         resolveSpecialStatusTimer,
                         specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
@@ -1050,7 +1238,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     playerKey,
                     events,
                     prng: p,
-                    markers: turnStartMarkerAnchors,
+                    markers: turnStartStage.turnStartMarkerAnchors,
                     isBombCategoryMarker,
                     isFrozenCell,
                     awardBoardChargeGain,
@@ -1082,18 +1270,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 TurnStartPostProcessingModule.finalizeTurnStartMarkerProcessing({
                     CardLogic,
                     cardState,
-                    gameState,
-                    playerKey,
-                    events,
-                    prng: p,
-                    processedTurnStartMarkers,
-                    workMarkersBeforeStart,
-                    specialStoneSpeechBeforeStart,
-                    eventStartIndex,
-                    presentationStartIndex,
-                    applyPostFlipRevives,
-                    awardBoardChargeGain,
-                    pushTrapEvents,
+                        gameState,
+                        playerKey,
+                        events,
+                        prng: p,
+                        processedTurnStartMarkers,
+                        workMarkersBeforeStart: turnStartStage.workMarkersBeforePhase,
+                        specialStoneSpeechBeforeStart: turnStartStage.specialStoneSpeechBeforePhase,
+                        eventStartIndex: turnStartStage.eventStartIndex,
+                        presentationStartIndex: turnStartStage.presentationStartIndex,
+                        applyPostFlipRevives,
+                        awardBoardChargeGain,
+                        pushTrapEvents,
                     emitTrapHandRemoveEvents,
                     normalizePlayerKey,
                     isWorkDurationEndPresentationEvent,
@@ -1106,19 +1294,17 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 TurnStartTimerPhaseModule.emitTurnStartTimerStatusTicks({
                     CardLogic,
                     cardState,
-                    timerSnapshot,
-                    emittedTimerTickKeys: turnStartTimerTickEmittedKeys,
-                    getMarkers: (nextCardState: any) => (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-                        ? MarkersAdapter.getMarkers(nextCardState)
-                        : (nextCardState.markers || []),
+                    timerSnapshot: turnStartStage.timerSnapshot,
+                    emittedTimerTickKeys: turnStartStage.turnStartTimerTickEmittedKeys,
+                    getMarkers: getTurnPhaseMarkers,
                     isBombCategoryMarker,
                     resolveSpecialStatusTimer,
                     specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
                 });
             }
 
-            if (hasSplitTurnStartHooks) {
-                CardLogic.drawForTurnStart(cardState, playerKey, p, turnStartOptions);
+            if (turnStartStage.hasSplitTurnStartHooks) {
+                CardLogic.drawForTurnStart(cardState, playerKey, p, turnStartStage.turnStartOptions);
             }
 
             delete cardState._frozenCellsActiveAtTurnStart;
@@ -1317,89 +1503,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
-        const p = prng || undefined;
-        const workMarkersBeforeAction = snapshotWorkMarkers(cardState);
-        const specialStoneSpeechBeforeAction = snapshotSpecialStoneSpeechMarkers(cardState);
-        const eventStartIndex = Array.isArray(events)
-            ? events.length
-            : 0;
-        const presentationStartIndex = Array.isArray(cardState.presentationEvents)
-            ? cardState.presentationEvents.length
-            : 0;
+        const ctx = createTurnPipelinePhaseContext(CardLogic, Core, cardState, gameState, playerKey, events, prng, BoardOps, action);
+        const p = ctx.prng;
+        const phaseSnapshot = snapshotTurnPhasePresentationStart(ctx);
+        const presentationStartIndex = phaseSnapshot.presentationStartIndex;
         try {
             if (action.type === 'pass') {
-                const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
-                const ctx = resolveSafeCardContext(CardLogic, cardState);
-                const legalMoves = Core.getLegalMoves(gameState, playerValue, ctx);
-                const placementLocked = CardLogic
-                    && typeof CardLogic.isPlacementLockedForPlayer === 'function'
-                    && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
-                const forcePass = action && (
-                    action.forcePass === true
-                    || action.timeoutPass === true
-                    || String(action.reason || '').trim().toLowerCase() === 'timeout'
-                );
-                const autoNoActionPass = action && action.autoNoActionPass === true;
-                if (autoNoActionPass && !forcePass) {
-                    const pending = readPendingForActionPhase(cardState, playerKey);
-                    if (pending) {
-                        throw new Error('Illegal auto pass: pending action available');
-                    }
-                    if (legalMoves.length > 0 && !placementLocked) {
-                        throw new Error('Illegal auto pass: legal moves available');
-                    }
-                    const hasUsableCard = CardLogic
-                        && typeof CardLogic.hasUsableCard === 'function'
-                        && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true;
-                    if (hasUsableCard) {
-                        throw new Error('Illegal auto pass: usable card available');
-                    }
-                }
-                if (legalMoves.length > 0 && !placementLocked && !forcePass) {
-                    throw new Error('Illegal pass: legal moves available');
-                }
-                if (
-                    CardLogic &&
-                    typeof CardLogic.processTheoryIncarnationOwnerPass === 'function' &&
-                    !isOthelloModeForTurnPipelinePhases()
-                ) {
-                    const theoryPassRes = CardLogic.processTheoryIncarnationOwnerPass(cardState, gameState, playerKey, p);
-                    if (theoryPassRes && theoryPassRes.expired) {
-                        events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
-                    }
-                }
-                // Pass policy: abandon any unresolved card effect for this turn.
-                applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events);
+                applyPassActionStage(ctx);
             } else if (action.type === 'use_card') {
-            events.push({ type: 'card_used_only', player: playerKey, cardId: action.useCardId || null });
+            applyUseCardOnlyActionStage(ctx);
             return;
         } else if (action.type === 'cancel_card') {
-            const res = (typeof CardLogic.cancelPendingSelection === 'function')
-                ? CardLogic.cancelPendingSelection(cardState, playerKey, action.cancelOptions)
-                : { canceled: false, reason: 'not_supported' };
-            events.push({ type: 'card_cancelled', player: playerKey, canceled: !!res.canceled, reason: res.reason || null, cardId: res.cardId || null });
+            applyCancelCardActionStage(ctx);
             return;
         } else if (action.type === 'destroy_hand_card') {
-            if (
-                SubPlacementContinuationModule &&
-                typeof SubPlacementContinuationModule.isSubPlacementTurnActive === 'function' &&
-                SubPlacementContinuationModule.isSubPlacementTurnActive(cardState, playerKey)
-            ) {
-                throw new Error('destroy_hand_card failed: sub-placement is active');
-            }
-            const res = (typeof CardLogic.destroyHandCard === 'function')
-                ? CardLogic.destroyHandCard(cardState, playerKey, action.destroyCardId, action.destroyOptions)
-                : { applied: false, reason: 'not_supported' };
-            if (!res || !res.applied) {
-                throw new Error(`destroy_hand_card failed${res && res.reason ? `: ${res.reason}` : ''}`);
-            }
-            emitHandRemovePresentation(CardLogic, cardState, {
-                player: playerKey,
-                count: 1,
-                reason: 'destroy_hand_card',
-                cardId: res.destroyedCardId || action.destroyCardId || null
-            });
-            events.push({ type: 'hand_card_destroyed', player: playerKey, cardId: res.destroyedCardId || action.destroyCardId || null });
+            applyDestroyHandCardActionStage(ctx);
             return;
         } else if (action.type === 'place') {
             // 3.5) Optional pre-placement selection effects (for cards that require a target)
@@ -1679,22 +1797,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             throw new Error('Unknown action.type');
         }
         } finally {
-            if (PhasePresentationFinalizerModule && typeof PhasePresentationFinalizerModule.finalizePhasePresentation === 'function') {
-                PhasePresentationFinalizerModule.finalizePhasePresentation({
-                    CardLogic,
-                    cardState,
-                    playerKey,
-                    events,
-                    prng: p,
-                    eventStartIndex,
-                    presentationStartIndex,
-                    workMarkersBeforePhase: workMarkersBeforeAction,
-                    specialStoneSpeechBeforePhase: specialStoneSpeechBeforeAction,
-                    removalReason: 'removed_during_action',
-                    emitWorkRemovedPresentationFromSnapshots,
-                    emitSpecialStoneBubblesFromPhase
-                });
-            }
+            finalizeActionPhasePresentation(ctx, phaseSnapshot);
         }
     }
 
