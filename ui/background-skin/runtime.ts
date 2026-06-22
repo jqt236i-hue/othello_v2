@@ -21,6 +21,8 @@ interface BackgroundSkinCatalogModule {
   getBackgroundSkinDefinition?: (skinId: string, rootRef: Window) => BackgroundSkinDefinition | null;
 }
 
+const FALLBACK_BACKGROUND_SKIN_ID = 'default-25';
+
 function resolveRootRef(rootRef: Window | null | undefined): Window | null {
   if (rootRef && typeof rootRef === 'object') return rootRef;
   try {
@@ -97,7 +99,7 @@ function applyBackgroundSkin(rootRef: Window | null | undefined, skinId: string)
 
 function syncDisplayedBackgroundSkin(rootRef: Window | null | undefined, preferredSkinId: string | null | undefined): BackgroundSkinDefinition | null {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BACKGROUND_SKIN_ID) || 'default').trim() || 'default';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BACKGROUND_SKIN_ID) || FALLBACK_BACKGROUND_SKIN_ID).trim() || FALLBACK_BACKGROUND_SKIN_ID;
   const normalized = catalogModule && typeof catalogModule.normalizeBackgroundSkinId === 'function'
     ? catalogModule.normalizeBackgroundSkinId(preferredSkinId, rootRef as Window)
     : fallbackId;

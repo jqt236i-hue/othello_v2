@@ -22,6 +22,11 @@ interface StoneSkinCatalogModule {
 }
 
 type NormalStoneOwner = 'black' | 'white';
+const FALLBACK_STONE_SKIN_ID = 'o-stone';
+const FALLBACK_STONE_IMAGE_PATHS = Object.freeze({
+  black: 'assets/images/stone-skin/o-stone/black.png',
+  white: 'assets/images/stone-skin/o-stone/white.png'
+});
 
 function resolveRootRef(rootRef: Window | null | undefined): Window | null {
   if (rootRef && typeof rootRef === 'object') return rootRef;
@@ -77,12 +82,10 @@ function getNormalStoneImageVariableName(owner: unknown): string {
 
 function getDefaultNormalStoneImagePath(owner: unknown, rootRef?: Window | null): string {
   const normalizedOwner = normalizeNormalStoneOwner(owner);
-  const fallbackPath = normalizedOwner === 'white'
-    ? 'assets/images/stone-skin/default/white.png'
-    : 'assets/images/stone-skin/default/black.png';
+  const fallbackPath = FALLBACK_STONE_IMAGE_PATHS[normalizedOwner];
   const catalogModule = resolveCatalogModule(rootRef);
   if (!catalogModule || typeof catalogModule.getStoneSkinDefinition !== 'function') return fallbackPath;
-  const defaultSkinId = String(catalogModule.DEFAULT_STONE_SKIN_ID || '').trim() || 'default';
+  const defaultSkinId = String(catalogModule.DEFAULT_STONE_SKIN_ID || '').trim() || FALLBACK_STONE_SKIN_ID;
   const definition = catalogModule.getStoneSkinDefinition(defaultSkinId, resolveRootRef(rootRef) as Window);
   if (!definition) return fallbackPath;
   return normalizedOwner === 'white'
@@ -131,7 +134,7 @@ function applyStoneSkin(rootRef: Window | null | undefined, skinId: string): Sto
 
 function syncDisplayedStoneSkin(rootRef: Window | null | undefined, preferredSkinId: string | null | undefined): StoneSkinDefinition | null {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_STONE_SKIN_ID) || 'default').trim() || 'default';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_STONE_SKIN_ID) || FALLBACK_STONE_SKIN_ID).trim() || FALLBACK_STONE_SKIN_ID;
   const normalized = catalogModule && typeof catalogModule.normalizeStoneSkinId === 'function'
     ? catalogModule.normalizeStoneSkinId(preferredSkinId, rootRef as Window)
     : fallbackId;

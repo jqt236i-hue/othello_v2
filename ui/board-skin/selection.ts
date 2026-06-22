@@ -29,6 +29,8 @@ const BOARD_SKIN_STORAGE_KEY = 'reversi.boardSkin';
 const LEGACY_BOARD_SKIN_STORAGE_KEY = 'othello.boardSkin';
 const BOARD_FRAME_SKIN_STORAGE_KEY = 'reversi.boardFrameSkin';
 const LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY = 'othello.boardFrameSkin';
+const FALLBACK_BOARD_SKIN_ID = 'bluegreen-felt';
+const FALLBACK_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
 
 function requireBoardSkinCatalogModuleOrNull(): BoardSkinCatalogModule | null {
   if (typeof _require !== 'function') return null;
@@ -57,7 +59,7 @@ function canUseStorage(rootRef: Window): boolean {
 
 function readStoredBoardSkinId(rootRef: Window & { BoardSkinCatalogModule?: BoardSkinCatalogModule }): string {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_SKIN_ID) || 'woven-felt').trim() || 'woven-felt';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_SKIN_ID) || FALLBACK_BOARD_SKIN_ID).trim() || FALLBACK_BOARD_SKIN_ID;
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     const storedValue = rootRef.localStorage.getItem(BOARD_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_BOARD_SKIN_STORAGE_KEY);
@@ -75,7 +77,7 @@ function writeStoredBoardSkinId(rootRef: Window & { BoardSkinCatalogModule?: Boa
   const catalogModule = resolveCatalogModule(rootRef);
   const definition = catalogModule && typeof catalogModule.getBoardSkinDefinition === 'function'
     ? catalogModule.getBoardSkinDefinition(skinId, rootRef)
-    : { id: 'woven-felt' };
+    : { id: FALLBACK_BOARD_SKIN_ID };
   try {
     if (definition) {
       rootRef.localStorage.setItem(BOARD_SKIN_STORAGE_KEY, definition.id);
@@ -89,7 +91,7 @@ function writeStoredBoardSkinId(rootRef: Window & { BoardSkinCatalogModule?: Boa
 
 function readStoredBoardFrameSkinId(rootRef: Window & { BoardSkinCatalogModule?: BoardSkinCatalogModule }): string {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID) || 'black-gold-lacquer').trim() || 'black-gold-lacquer';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID) || FALLBACK_BOARD_FRAME_SKIN_ID).trim() || FALLBACK_BOARD_FRAME_SKIN_ID;
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     const storedValue = rootRef.localStorage.getItem(BOARD_FRAME_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY);
@@ -107,7 +109,7 @@ function writeStoredBoardFrameSkinId(rootRef: Window & { BoardSkinCatalogModule?
   const catalogModule = resolveCatalogModule(rootRef);
   const definition = catalogModule && typeof catalogModule.getBoardFrameSkinDefinition === 'function'
     ? catalogModule.getBoardFrameSkinDefinition(skinId, rootRef)
-    : { id: 'black-gold-lacquer' };
+    : { id: FALLBACK_BOARD_FRAME_SKIN_ID };
   try {
     if (definition) {
       rootRef.localStorage.setItem(BOARD_FRAME_SKIN_STORAGE_KEY, definition.id);

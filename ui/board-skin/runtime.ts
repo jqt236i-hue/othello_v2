@@ -34,6 +34,9 @@ interface BoardSkinCatalogModule {
   getBoardFrameSkinDefinition?: (skinId: string, rootRef: Window) => BoardSkinDefinition | null;
 }
 
+const FALLBACK_BOARD_SKIN_ID = 'bluegreen-felt';
+const FALLBACK_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
+
 function resolveRootRef(rootRef: Window | null | undefined): Window | null {
   if (rootRef && typeof rootRef === 'object') return rootRef;
   try {
@@ -142,7 +145,7 @@ function applyBoardFrameSkin(rootRef: Window | null | undefined, skinId: string)
 
 function syncDisplayedBoardSkin(rootRef: Window | null | undefined, preferredSkinId: string | null | undefined): BoardSkinDefinition | null {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_SKIN_ID) || 'woven-felt').trim() || 'woven-felt';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_SKIN_ID) || FALLBACK_BOARD_SKIN_ID).trim() || FALLBACK_BOARD_SKIN_ID;
   const normalized = catalogModule && typeof catalogModule.normalizeBoardSkinId === 'function'
     ? catalogModule.normalizeBoardSkinId(preferredSkinId, rootRef as Window)
     : fallbackId;
@@ -151,7 +154,7 @@ function syncDisplayedBoardSkin(rootRef: Window | null | undefined, preferredSki
 
 function syncDisplayedBoardFrameSkin(rootRef: Window | null | undefined, preferredSkinId: string | null | undefined): BoardSkinDefinition | null {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID) || 'black-gold-lacquer').trim() || 'black-gold-lacquer';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID) || FALLBACK_BOARD_FRAME_SKIN_ID).trim() || FALLBACK_BOARD_FRAME_SKIN_ID;
   const normalized = catalogModule && typeof catalogModule.normalizeBoardFrameSkinId === 'function'
     ? catalogModule.normalizeBoardFrameSkinId(preferredSkinId, rootRef as Window)
     : fallbackId;

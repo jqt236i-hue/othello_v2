@@ -21,6 +21,7 @@ interface StoneSkinCatalogModule {
 
 const STONE_SKIN_STORAGE_KEY = 'reversi.stoneSkin';
 const LEGACY_STONE_SKIN_STORAGE_KEY = 'othello.stoneSkin';
+const FALLBACK_STONE_SKIN_ID = 'o-stone';
 
 function requireStoneSkinCatalogModuleOrNull(): StoneSkinCatalogModule | null {
   if (typeof _require !== 'function') return null;
@@ -49,7 +50,7 @@ function canUseStorage(rootRef: Window): boolean {
 
 function readStoredStoneSkinId(rootRef: Window & { StoneSkinCatalogModule?: StoneSkinCatalogModule }): string {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_STONE_SKIN_ID) || 'default').trim() || 'default';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_STONE_SKIN_ID) || FALLBACK_STONE_SKIN_ID).trim() || FALLBACK_STONE_SKIN_ID;
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     const storedValue = rootRef.localStorage.getItem(STONE_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_STONE_SKIN_STORAGE_KEY);
@@ -67,7 +68,7 @@ function writeStoredStoneSkinId(rootRef: Window & { StoneSkinCatalogModule?: Sto
   const catalogModule = resolveCatalogModule(rootRef);
   const definition = catalogModule && typeof catalogModule.getStoneSkinDefinition === 'function'
     ? catalogModule.getStoneSkinDefinition(skinId, rootRef)
-    : { id: 'default' };
+    : { id: FALLBACK_STONE_SKIN_ID };
   try {
     if (definition) {
       rootRef.localStorage.setItem(STONE_SKIN_STORAGE_KEY, definition.id);

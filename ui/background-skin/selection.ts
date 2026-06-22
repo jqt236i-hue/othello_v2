@@ -25,6 +25,7 @@ interface BackgroundSkinCatalogModule {
 
 const BACKGROUND_SKIN_STORAGE_KEY = 'reversi.backgroundSkin';
 const LEGACY_BACKGROUND_SKIN_STORAGE_KEY = 'othello.backgroundSkin';
+const FALLBACK_BACKGROUND_SKIN_ID = 'default-25';
 
 function requireBackgroundSkinCatalogModuleOrNull(): BackgroundSkinCatalogModule | null {
   if (typeof _require !== 'function') return null;
@@ -53,7 +54,7 @@ function canUseStorage(rootRef: Window): boolean {
 
 function readStoredBackgroundSkinId(rootRef: Window & { BackgroundSkinCatalogModule?: BackgroundSkinCatalogModule }): string {
   const catalogModule = resolveCatalogModule(rootRef);
-  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BACKGROUND_SKIN_ID) || 'default').trim() || 'default';
+  const fallbackId = String((catalogModule && catalogModule.DEFAULT_BACKGROUND_SKIN_ID) || FALLBACK_BACKGROUND_SKIN_ID).trim() || FALLBACK_BACKGROUND_SKIN_ID;
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     if (catalogModule && typeof catalogModule.normalizeBackgroundSkinId === 'function') {
@@ -73,7 +74,7 @@ function writeStoredBackgroundSkinId(rootRef: Window & { BackgroundSkinCatalogMo
   const catalogModule = resolveCatalogModule(rootRef);
   const definition = catalogModule && typeof catalogModule.getBackgroundSkinDefinition === 'function'
     ? catalogModule.getBackgroundSkinDefinition(skinId, rootRef)
-    : { id: 'default' };
+    : { id: FALLBACK_BACKGROUND_SKIN_ID };
   try {
     if (definition) {
       rootRef.localStorage.setItem(BACKGROUND_SKIN_STORAGE_KEY, definition.id);
