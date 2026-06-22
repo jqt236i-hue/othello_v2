@@ -486,6 +486,109 @@ describe('cpu-policy-core', () => {
         expect(decision.score).toBeLessThan(decision.minUseScore);
     });
 
+    test('scoreCardUseDecision suppresses LOSS_WILL even when enemy anchor payoff is larger', () => {
+        const decision = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            () => ({ id: 'loss_will_01', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 2,
+                ownCharge: 30,
+                handSize: 3,
+                ownDiscs: 8,
+                oppDiscs: 18,
+                empties: 22,
+                discDiff: -10,
+                ownCorners: 0,
+                oppCorners: 3,
+                ownEdges: 1,
+                oppEdges: 6,
+                ownSpecialCount: 1,
+                oppSpecialCount: 6,
+                ownCornerResetCount: 1,
+                oppCornerResetCount: 3,
+                ownEdgeResetCount: 0,
+                oppEdgeResetCount: 3,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(decision.shouldUse).toBe(false);
+        expect(decision.reason).toBe('loss_will_own_special');
+    });
+
+    test('scoreCardUseDecision suppresses LOSS_WILL while own time bomb remains', () => {
+        const decision = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            () => ({ id: 'loss_will_01', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                forceUseCard: true,
+                ownCharge: 30,
+                handSize: 2,
+                ownDiscs: 6,
+                oppDiscs: 18,
+                empties: 20,
+                discDiff: -12,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 1,
+                oppEdges: 5,
+                ownSpecialCount: 0,
+                ownBombCount: 1,
+                oppSpecialCount: 5,
+                ownCornerResetCount: 0,
+                oppCornerResetCount: 2,
+                ownEdgeResetCount: 0,
+                oppEdgeResetCount: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(decision.shouldUse).toBe(false);
+        expect(decision.reason).toBe('loss_will_own_special');
+    });
+
+    test('scoreCardUseDecision can use LOSS_WILL when own special stones and bombs are absent', () => {
+        const decision = core.scoreCardUseDecision(
+            'loss_will_01',
+            () => 11,
+            () => ({ id: 'loss_will_01', type: 'LOSS_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                forceUseCard: true,
+                ownCharge: 30,
+                handSize: 2,
+                ownDiscs: 6,
+                oppDiscs: 18,
+                empties: 20,
+                discDiff: -12,
+                ownCorners: 0,
+                oppCorners: 2,
+                ownEdges: 1,
+                oppEdges: 5,
+                ownSpecialCount: 0,
+                ownBombCount: 0,
+                oppSpecialCount: 5,
+                ownCornerResetCount: 0,
+                oppCornerResetCount: 2,
+                ownEdgeResetCount: 0,
+                oppEdgeResetCount: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true
+            }
+        );
+        expect(decision.shouldUse).toBe(true);
+        expect(decision.reason).toBeUndefined();
+    });
+
     test('chooseMove falls back to deterministic rng', () => {
         const moves = [{ id: 0 }, { id: 1 }, { id: 2 }];
         const selected = core.chooseMove(moves, 1, { random: () => 0.5 }, null);
@@ -1829,7 +1932,7 @@ describe('cpu-policy-core', () => {
                 discDiff: -4,
                 empties: 30,
                 ownCharge: 18,
-                ownSpecialCount: 1,
+                ownSpecialCount: 0,
                 oppSpecialCount: 5,
                 ownGuardCount: 0,
                 oppGuardCount: 1
@@ -1845,7 +1948,7 @@ describe('cpu-policy-core', () => {
                 discDiff: 6,
                 empties: 22,
                 ownCharge: 18,
-                ownSpecialCount: 3,
+                ownSpecialCount: 0,
                 oppSpecialCount: 1,
                 ownGuardCount: 1,
                 oppGuardCount: 0
@@ -1866,7 +1969,7 @@ describe('cpu-policy-core', () => {
             discDiff: -4,
             empties: 30,
             ownCharge: 18,
-            ownSpecialCount: 1,
+            ownSpecialCount: 0,
             oppSpecialCount: 5,
             ownGuardCount: 0,
             oppGuardCount: 1
@@ -1905,7 +2008,7 @@ describe('cpu-policy-core', () => {
             discDiff: -4,
             empties: 30,
             ownCharge: 18,
-            ownSpecialCount: 1,
+            ownSpecialCount: 0,
             oppSpecialCount: 5,
             ownGuardCount: 0,
             oppGuardCount: 1
@@ -1939,7 +2042,7 @@ describe('cpu-policy-core', () => {
             discDiff: -4,
             empties: 30,
             ownCharge: 18,
-            ownSpecialCount: 1,
+            ownSpecialCount: 0,
             oppSpecialCount: 5,
             ownGuardCount: 0,
             oppGuardCount: 1
@@ -1991,7 +2094,7 @@ describe('cpu-policy-core', () => {
         expect(out.score).toBeLessThan(out.minUseScore);
     });
 
-    test('scoreCardUseDecision keeps LOSS_WILL available when enemy anchor resets clearly outweigh own', () => {
+    test('scoreCardUseDecision blocks LOSS_WILL even when enemy anchor resets clearly outweigh own', () => {
         const out = core.scoreCardUseDecision(
             'loss',
             () => 11,
@@ -2013,8 +2116,8 @@ describe('cpu-policy-core', () => {
                 cornerEmergency: true
             }
         );
-        expect(out.shouldUse).toBe(true);
-        expect(out.score).toBeGreaterThanOrEqual(out.minUseScore);
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('loss_will_own_special');
     });
 
     test('scoreCardUseDecision uses EXTREME_HYPERACTIVE_WILL as comeback card and suppresses it while ahead in endgame', () => {

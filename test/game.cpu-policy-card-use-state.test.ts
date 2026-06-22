@@ -34,6 +34,7 @@ describe('cpu-policy card-use state module', () => {
       oppHandSize: 4,
       ownSpecialCount: 1,
       oppSpecialCount: 4,
+      ownBombCount: 1,
       ownGuardCount: 1,
       oppGuardCount: 0,
       ownCornerResetCount: 1,
@@ -61,6 +62,7 @@ describe('cpu-policy card-use state module', () => {
     expect(out.edgeDiff).toBe(-3);
     expect(out.ownAnchorResetWeight).toBe(2);
     expect(out.oppAnchorResetWeight).toBe(7);
+    expect(out.ownBombCount).toBe(1);
     expect(out.strategicDiff).toBe(-15);
     expect(out.handPressureLevel).toBe(3);
     expect(out.chargePressureLevel).toBe(2);

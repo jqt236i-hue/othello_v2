@@ -161,6 +161,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         let oppSpecialCount = 0;
         let ownGuardCount = 0;
         let oppGuardCount = 0;
+        let ownBombCount = 0;
         let cloneSplitEligibleSourceCount = 0;
         const cloneSplitEligibleSourceKeys = new Set();
         for (const marker of markers) {
@@ -174,6 +175,10 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
                     cloneSplitEligibleSourceKeys.add(sourceKey);
                     cloneSplitEligibleSourceCount += 1;
                 }
+            }
+            if (marker.kind === 'bomb') {
+                if (marker.owner === playerKey) ownBombCount += 1;
+                continue;
             }
             if (marker.kind !== 'specialStone') continue;
             const data = marker.data && typeof marker.data === 'object' ? marker.data : null;
@@ -227,6 +232,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             cloneSplitEligibleSourceCount,
             ownSpecialCount,
             oppSpecialCount,
+            ownBombCount,
             ownGuardCount,
             oppGuardCount,
             usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : [],

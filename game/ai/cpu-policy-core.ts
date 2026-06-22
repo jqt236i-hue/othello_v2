@@ -95,6 +95,7 @@ interface CpuPolicyDecisionContext {
     cloneSplitEligibleSourceCount: number | null;
     ownSpecialCount: number;
     oppSpecialCount: number;
+    ownBombCount: number;
     ownGuardCount: number;
     oppGuardCount: number;
     ownCornerResetCount: number;

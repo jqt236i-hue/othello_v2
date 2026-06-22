@@ -89,6 +89,7 @@ describe('cpu decision card context module', () => {
       cloneSplitEligibleSourceCount: 2,
       ownSpecialCount: 1,
       oppSpecialCount: 1,
+      ownBombCount: 1,
       ownGuardCount: 1,
       oppGuardCount: 1,
       usableCardIds: ['a'],

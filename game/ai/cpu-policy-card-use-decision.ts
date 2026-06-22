@@ -207,6 +207,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             oppHandSize,
             ownSpecialCount,
             oppSpecialCount,
+            ownBombCount,
             temptHighValueTargetCount,
             ownGuardCount,
             oppGuardCount,
@@ -226,7 +227,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             cornerDiff,
             ownAnchorResetWeight,
             oppAnchorResetWeight,
-            lossEnemyAnchorPayoffIsModest,
             strategicDiff,
             handPressureLevel,
             chargePressureLevel,
@@ -260,7 +260,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         if (isTrapWill && ownDiscs <= 20) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'trap_will_low_own_stones');
         }
-        if (isLossWill && ownSpecialCount > 0 && lossEnemyAnchorPayoffIsModest) {
+        if (isLossWill && (ownSpecialCount > 0 || ownBombCount > 0)) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
         }
         if (isSwapWithEnemy && swapEnemyNormalCornerTargetCount <= 0) {

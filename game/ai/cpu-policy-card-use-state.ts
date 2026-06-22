@@ -57,6 +57,7 @@ export function createCpuPolicyCardUseState(deps?: CpuPolicyCardUseStateDeps) {
         const oppHandSize = toSafeInt(ctx.oppHandSize);
         const ownSpecialCount = toSafeInt(ctx.ownSpecialCount);
         const oppSpecialCount = toSafeInt(ctx.oppSpecialCount);
+        const ownBombCount = toSafeInt(ctx.ownBombCount);
         const temptHighValueTargetCount = toSafeInt(ctx.temptHighValueTargetCount);
         const ownGuardCount = toSafeInt(ctx.ownGuardCount);
         const oppGuardCount = toSafeInt(ctx.oppGuardCount);
@@ -137,6 +138,7 @@ export function createCpuPolicyCardUseState(deps?: CpuPolicyCardUseStateDeps) {
             oppHandSize,
             ownSpecialCount,
             oppSpecialCount,
+            ownBombCount,
             temptHighValueTargetCount,
             ownGuardCount,
             oppGuardCount,
