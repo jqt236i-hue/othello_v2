@@ -24,6 +24,39 @@ function createNetworkReconnectController(config?: any): any {
     return state;
   }
 
+  function runRecoverySync(kind: string, syncOptions: any, handlers?: any): boolean {
+    const state = readState();
+    if (state.networkRecoverySyncInFlight === true || state.heartbeatResyncInFlight === true) {
+      return false;
+    }
+    state.networkRecoverySyncInFlight = true;
+    if (kind === 'heartbeat') {
+      state.heartbeatResyncInFlight = true;
+    }
+    Promise.resolve(
+      typeof cfg.syncLatestStateWithRetry === 'function'
+        ? cfg.syncLatestStateWithRetry(syncOptions)
+        : null
+    )
+      .then(function (result: any) {
+        if (handlers && typeof handlers.onSuccess === 'function') {
+          handlers.onSuccess(result);
+        }
+      })
+      .catch(function (error: any) {
+        if (handlers && typeof handlers.onFailure === 'function') {
+          handlers.onFailure(error);
+        }
+      })
+      .finally(function () {
+        state.networkRecoverySyncInFlight = false;
+        if (kind === 'heartbeat') {
+          state.heartbeatResyncInFlight = false;
+        }
+      });
+    return true;
+  }
+
   function maybeSyncFromHeartbeat(payload: any): void {
     const state = readState();
     const remoteVersion = Number.isFinite(Number(payload && payload.stateVersion))
@@ -35,7 +68,7 @@ function createNetworkReconnectController(config?: any): any {
       ? cfg.getAppliedStateVersion()
       : null;
     if (localVersion !== null && remoteVersion <= localVersion) return;
-    if (state.heartbeatResyncInFlight) return;
+    if (state.heartbeatResyncInFlight || state.networkRecoverySyncInFlight === true) return;
 
     if (typeof cfg.recordNetworkTelemetry === 'function') {
       cfg.recordNetworkTelemetry('heartbeat_resync_requested', {
@@ -43,13 +76,8 @@ function createNetworkReconnectController(config?: any): any {
         localVersion: localVersion
       });
     }
-    state.heartbeatResyncInFlight = true;
-    Promise.resolve(
-      typeof cfg.syncLatestStateWithRetry === 'function'
-        ? cfg.syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 300 })
-        : null
-    )
-      .then(function () {
+    runRecoverySync('heartbeat', { maxAttempts: 2, baseDelayMs: 300 }, {
+      onSuccess: function () {
         if (typeof cfg.recordNetworkTelemetry === 'function') {
           cfg.recordNetworkTelemetry('heartbeat_resync_succeeded', {
             remoteVersion: remoteVersion,
@@ -57,18 +85,16 @@ function createNetworkReconnectController(config?: any): any {
             localVersionAfter: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null
           });
         }
-      })
-      .catch(function () {
+      },
+      onFailure: function () {
         if (typeof cfg.recordNetworkTelemetry === 'function') {
           cfg.recordNetworkTelemetry('heartbeat_resync_failed', {
             remoteVersion: remoteVersion,
             localVersion: localVersion
           });
         }
-      })
-      .finally(function () {
-        state.heartbeatResyncInFlight = false;
-      });
+      }
+    });
   }
 
   function clearReconnectTimer(): void {
@@ -102,13 +128,7 @@ function createNetworkReconnectController(config?: any): any {
       state.reconnectRecoveryTimerId = null;
       if (!state.reconnectRecoveryPending) return;
       state.reconnectRecoveryPending = false;
-      Promise.resolve(
-        typeof cfg.syncLatestStateWithRetry === 'function'
-          ? cfg.syncLatestStateWithRetry({ maxAttempts: 3, baseDelayMs: 350 })
-          : null
-      ).catch(function () {
-        // Keep stream path resilient; next snapshot or reconnect will recover.
-      });
+      runRecoverySync('reconnect', { maxAttempts: 3, baseDelayMs: 350 });
     }, cfg.reconnectRecoveryWaitMs);
   }
 
@@ -196,6 +216,7 @@ function createNetworkReconnectController(config?: any): any {
     clearReconnectTimer();
     clearReconnectRecoveryTimer();
     state.reconnectRecoveryPending = false;
+    state.networkRecoverySyncInFlight = false;
     clearStreamWatchdogTimer();
     if (state.eventSource) {
       try { state.eventSource.close(); } catch (e) { /* ignore */ }
