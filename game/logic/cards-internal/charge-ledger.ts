@@ -96,12 +96,30 @@ function addChargeValue(cardState: any, playerKey: string, amount: number, reaso
     return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason, context, meta);
 }
 
+function resolveChargeGainMultiplier(cardState: any, playerKey: string, meta?: any): number {
+    if (meta && typeof meta === 'object' && meta.disableChargeGainMultiplier === true) {
+        return 1;
+    }
+    const source = cardState && cardState.chargeGainMultiplierByPlayer && typeof cardState.chargeGainMultiplierByPlayer === 'object'
+        ? cardState.chargeGainMultiplierByPlayer
+        : {};
+    const raw = Number(source[playerKey]);
+    return Number.isFinite(raw) && raw > 1 ? Math.floor(raw) : 1;
+}
+
+function applyChargeGainMultiplier(cardState: any, playerKey: string, amount: number, meta?: any): number {
+    const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+    if (safeAmount <= 0) return safeAmount;
+    return safeAmount * resolveChargeGainMultiplier(cardState, playerKey, meta);
+}
+
 function addChargeWithTotal(cardState: any, playerKey: string, amount: number, context?: ChargeContext, meta?: any): number {
     if (!cardState || !amount)
         return 0;
     ensureChargeState(cardState);
     ensureChargeGainedTotal(cardState);
-    const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain', context, meta);
+    const requestedAmount = applyChargeGainMultiplier(cardState, playerKey, amount, meta);
+    const deltaRes = addChargeValue(cardState, playerKey, requestedAmount, 'placement_or_effect_gain', context, meta);
     const added = Number(deltaRes.delta) || 0;
     if (added > 0) {
         cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;

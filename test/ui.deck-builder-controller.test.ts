@@ -1104,6 +1104,7 @@ describe('deck builder controller', () => {
   });
 
   test('CPU Lv9終焉の冥灰対戦では白CPUへ冥灰専用デッキと初期布石99を入れる', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
     window.getCurrentMatchMode = () => 'cpu';
     const smartWhite = document.getElementById('smartWhite');
     const option = document.createElement('option');
@@ -1114,19 +1115,28 @@ describe('deck builder controller', () => {
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
+    const whiteCardIds = options.initialDeckCardIdsByPlayer.white;
 
     expect(whiteCardIds).toContain('observer_will_01');
+    expect(whiteCardIds).toContain('theory_incarnation_01');
+    expect(whiteCardIds).toContain('board_executor_01');
     expect(whiteCardIds).toContain('meteor_god_01');
     expect(whiteCardIds).toContain('destroy_01');
     expect(whiteCardIds).toContain('board_expand_01');
-    expect(whiteCardIds).not.toContain('theory_incarnation_01');
-    expect(whiteCardIds).not.toContain('board_executor_01');
-    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(whiteCardIds).not.toContain('triple_chain_01');
+    expect(whiteCardIds).not.toContain('quad_chain_01');
+    expect(whiteCardIds).not.toContain('infinite_chain_01');
+    expect(whiteCardIds).not.toContain('triple_01');
+    expect(whiteCardIds).not.toContain('quad_01');
+    expect(whiteCardIds).not.toContain('infinite_01');
+    expect(whiteCardIds).toEqual(DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds());
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
     expect(options.initialChargeByPlayer).toEqual({ white: 99 });
+    expect(options.chargeGainMultiplierByPlayer).toEqual({ white: 2 });
   });
 
   test('CPU Lv9終焉の冥灰を黒に選ぶと黒CPUへ冥灰専用デッキと初期布石99を入れる', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
     window.getCurrentMatchMode = () => 'cpu';
     const smartBlack = document.getElementById('smartBlack');
     const option = document.createElement('option');
@@ -1137,17 +1147,24 @@ describe('deck builder controller', () => {
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const blackCardIds = options.initialDeckSpecByPlayer.black.cards.map((entry) => entry.cardId);
+    const blackCardIds = options.initialDeckCardIdsByPlayer.black;
 
     expect(blackCardIds).toContain('observer_will_01');
+    expect(blackCardIds).toContain('theory_incarnation_01');
+    expect(blackCardIds).toContain('board_executor_01');
     expect(blackCardIds).toContain('meteor_god_01');
     expect(blackCardIds).toContain('destroy_01');
     expect(blackCardIds).toContain('board_expand_01');
-    expect(blackCardIds).not.toContain('theory_incarnation_01');
-    expect(blackCardIds).not.toContain('board_executor_01');
-    expect(options.initialDeckSpecByPlayer.white).toBeUndefined();
-    expect(options.initialDeckSpecByPlayer.black.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(blackCardIds).not.toContain('triple_chain_01');
+    expect(blackCardIds).not.toContain('quad_chain_01');
+    expect(blackCardIds).not.toContain('infinite_chain_01');
+    expect(blackCardIds).not.toContain('triple_01');
+    expect(blackCardIds).not.toContain('quad_01');
+    expect(blackCardIds).not.toContain('infinite_01');
+    expect(blackCardIds).toEqual(DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds());
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
     expect(options.initialChargeByPlayer).toEqual({ black: 99 });
+    expect(options.chargeGainMultiplierByPlayer).toEqual({ black: 2 });
   });
 
   test('無効な保存済みプリセットは activePresetId を外してデフォルトデッキへ戻す', () => {

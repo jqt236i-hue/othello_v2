@@ -134,7 +134,10 @@ function processTrapEffects(cardState: CardState, gameState: GameState, activePl
                 setChargeValue(cardState, victimKey, remainingCharge, 'trap_stolen_charge');
             }
             const gainedCharge = typeof addChargeWithTotal === 'function'
-                ? addChargeWithTotal(cardState, ownerKey, stolenCharge)
+                ? addChargeWithTotal(cardState, ownerKey, stolenCharge, {
+                    disableChargeGainMultiplier: true,
+                    sourceType: 'trap_stolen_charge'
+                })
                 : 0;
 
             const clearResult = typeof clearHandToDiscard === 'function'

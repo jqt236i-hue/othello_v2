@@ -215,6 +215,14 @@ function resolveSwapFlips(gameState: any, row: number, col: number, player: numb
     }
 }
 
+function resolveChargeGainMultiplier(cardState: any, playerKey: string): number {
+    const source = cardState && cardState.chargeGainMultiplierByPlayer && typeof cardState.chargeGainMultiplierByPlayer === 'object'
+        ? cardState.chargeGainMultiplierByPlayer
+        : {};
+    const raw = Number(source[playerKey]);
+    return Number.isFinite(raw) && raw > 1 ? Math.floor(raw) : 1;
+}
+
 function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, row: number, col: number, deps: SwapDeps = {}): SwapResult {
     const boardOpsInstance = deps.BoardOps;
     const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
@@ -292,6 +300,7 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
 
     (cardState as any).charge = cardState.charge || { black: 0, white: 0 };
     const chargeGain = 1 + swapFlips.length;
+    const requestedChargeGain = chargeGain * resolveChargeGainMultiplier(cardState, playerKey);
     const chargeMeta = {
         popupKind: 'board',
         sourceType: 'swap_flip_gain',
@@ -300,11 +309,11 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     };
     let added = 0;
     if (CardUtils && typeof CardUtils.addChargeWithDelta === 'function') {
-        const deltaRes = CardUtils.addChargeWithDelta(cardState, playerKey, chargeGain, 'swap_flip_gain', chargeMeta);
+        const deltaRes = CardUtils.addChargeWithDelta(cardState, playerKey, requestedChargeGain, 'swap_flip_gain', chargeMeta);
         added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
     } else {
         const before = Number((cardState as any).charge[playerKey] || 0);
-        (cardState as any).charge[playerKey] = Math.min(CHARGE_MAX || 99, ((cardState as any).charge[playerKey] || 0) + chargeGain);
+        (cardState as any).charge[playerKey] = Math.min(CHARGE_MAX || 99, ((cardState as any).charge[playerKey] || 0) + requestedChargeGain);
         added = Number((cardState as any).charge[playerKey] || 0) - before;
     }
     if (added > 0 && typeof deps.emitPresentationEvent === 'function') {

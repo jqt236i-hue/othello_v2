@@ -44,6 +44,27 @@ describe('WORK_WILL on expansion cells', () => {
     expect(work.data.remainingOwnerTurns).toBe(1);
   });
 
+  test('processWorkEffects uses injected charge helper and returns actual gained amount', () => {
+    const { cardState, gameState } = createStates();
+    const addChargeWithTotal = jest.fn(() => 2);
+    cardState.workAnchorPosByPlayer.black = { row: 7, col: 8 };
+    cardState.markers.push({
+      id: 5004,
+      kind: 'specialStone',
+      row: 7,
+      col: 8,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 0, remainingOwnerTurns: 2 }
+    });
+
+    const res = CardWork.processWorkEffects(cardState, gameState, 'black', { addChargeWithTotal });
+
+    expect(addChargeWithTotal).toHaveBeenCalledWith(cardState, 'black', 1, expect.objectContaining({
+      sourceType: 'work_gain'
+    }));
+    expect(res.gained).toBe(2);
+  });
+
   test('processWorkEffects clears an expansion anchor cell when duration ends', () => {
     const { cardState, gameState } = createStates();
     cardState.workAnchorPosByPlayer.black = { row: 7, col: 8 };

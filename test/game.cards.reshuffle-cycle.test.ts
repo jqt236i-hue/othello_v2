@@ -123,6 +123,20 @@ describe('CardLogic commitDraw reshuffle cycle policy', () => {
     expect(cardState.chargeGainedTotal).toEqual({ black: 0, white: 0 });
   });
 
+  test('chargeGainMultiplierByPlayer initializes and copies generated gain multipliers', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0.5 };
+    const cardState = CardLogic.createCardState(prng, {
+      chargeGainMultiplierByPlayer: { black: 'bad', white: 2.8 }
+    });
+
+    expect(cardState.chargeGainMultiplierByPlayer).toEqual({ black: 1, white: 2 });
+
+    const copied = CardLogic.copyCardState(cardState);
+
+    expect(copied.chargeGainMultiplierByPlayer).toEqual({ black: 1, white: 2 });
+    expect(copied.chargeGainMultiplierByPlayer).not.toBe(cardState.chargeGainMultiplierByPlayer);
+  });
+
   test('initialDeckCardIdsByPlayer accepts duplicate-heavy custom decks', () => {
     const duplicateDeckIds = Array(15).fill('perma_01').concat(Array(15).fill('work_01'));
     const prng = { shuffle: (arr) => arr, random: () => 0.5 };

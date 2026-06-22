@@ -3546,7 +3546,17 @@ const {
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
 
-        const deltaRes = addChargeValue(cardState, playerKey, amount, 'placement_or_effect_gain', meta);
+        const source = cardState.chargeGainMultiplierByPlayer && typeof cardState.chargeGainMultiplierByPlayer === 'object'
+            ? cardState.chargeGainMultiplierByPlayer
+            : {};
+        const rawMultiplier = meta && typeof meta === 'object' && meta.disableChargeGainMultiplier === true
+            ? 1
+            : Number(source[playerKey]);
+        const multiplier = Number.isFinite(rawMultiplier) && rawMultiplier > 1 ? Math.floor(rawMultiplier) : 1;
+        const requestedAmount = Number.isFinite(Number(amount)) && Number(amount) > 0
+            ? Number(amount) * multiplier
+            : Number(amount) || 0;
+        const deltaRes = addChargeValue(cardState, playerKey, requestedAmount, 'placement_or_effect_gain', meta);
         const added = Number(deltaRes.delta) || 0;
         if (added > 0) {
             cardState.chargeGainedTotal[playerKey] = (cardState.chargeGainedTotal[playerKey] || 0) + added;

@@ -61,6 +61,22 @@ function resolveBoardChargeGainContext(options: any) {
     };
 }
 
+function resolveChargeGainMultiplier(cardState: any, playerKey: any, options: any): number {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (opts.disableChargeGainMultiplier === true) return 1;
+    const source = cardState && cardState.chargeGainMultiplierByPlayer && typeof cardState.chargeGainMultiplierByPlayer === 'object'
+        ? cardState.chargeGainMultiplierByPlayer
+        : {};
+    const raw = Number(source[playerKey]);
+    return Number.isFinite(raw) && raw > 1 ? Math.floor(raw) : 1;
+}
+
+function applyChargeGainMultiplier(cardState: any, playerKey: any, amount: any, options: any): number {
+    const safeAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+    if (safeAmount <= 0) return safeAmount;
+    return safeAmount * resolveChargeGainMultiplier(cardState, playerKey, options);
+}
+
 function addChargeWithTotal(cardState: any, playerKey: any, amount: any, options: any, deps: BoardChargeDeps) {
     if (!cardState || !amount) return 0;
     if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
@@ -79,12 +95,13 @@ function addChargeWithTotal(cardState: any, playerKey: any, amount: any, options
     const deltaMeta = (opts && opts.popupKind === 'board')
         ? buildBoardChargeDeltaMeta(boardAnchor!.row, boardAnchor!.col, opts.sourceType)
         : null;
+    const requestedAmount = applyChargeGainMultiplier(cardState, playerKey, amount, opts);
     const deltaRes = (deps && deps.CardUtilsModule && typeof deps.CardUtilsModule.addChargeWithDelta === 'function')
-        ? deps.CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, deltaMeta)
+        ? deps.CardUtilsModule.addChargeWithDelta(cardState, playerKey, requestedAmount, reason, deltaMeta)
         : null;
     let added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
-    if (!deltaRes || (Number(amount) > 0 && added <= 0 && before < chargeMax && (cardState.charge[playerKey] || 0) <= before)) {
-        const after = Math.min(chargeMax, before + amount);
+    if (!deltaRes || (requestedAmount > 0 && added <= 0 && before < chargeMax && (cardState.charge[playerKey] || 0) <= before)) {
+        const after = Math.min(chargeMax, before + requestedAmount);
         cardState.charge[playerKey] = after;
         added = after - before;
     }
@@ -180,7 +197,10 @@ function transferChargeBetweenPlayers(cardState: any, fromPlayerKey: any, toPlay
     const movable = Math.min(requested, fromCharge, toRoom);
     if (movable <= 0) return 0;
 
-    const gained = addChargeWithTotal(cardState, toPlayerKey, movable, null, deps);
+    const gained = addChargeWithTotal(cardState, toPlayerKey, movable, {
+        reason: `${reasonKey || 'transfer'}_gain`,
+        disableChargeGainMultiplier: true
+    }, deps);
     if (gained <= 0) return 0;
 
     if (deps && deps.CardUtilsModule && typeof deps.CardUtilsModule.addChargeWithDelta === 'function') {

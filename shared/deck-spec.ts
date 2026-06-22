@@ -82,6 +82,15 @@
     const CPU_LV6_BOARD_EXECUTOR_WHITE_DECK_CODE = 'D1C1:sniper_01.ghost_01.afterimage_will_01.swap_01.strong_wind_01.super_buoyancy_01.super_gravity_01.super_attraction_01.trap_01.tempt_01.capture_01.regen_01.destroy_01.proliferation_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.double_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.equality_will_01';
     const CPU_LV7_THEORY_INCARNATION_WHITE_DECK_CODE = 'D1C1:ghost_01.perma_01.trap_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.clone_01.hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.crystal_stone*2.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.stone_salvation_god_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.meteor_god_01';
     const CPU_LV8_ENDING_ASH_DECK_CODE = 'D1C1:swap_01*2.position_swap_01*2.perma_01*3.strong_wind_01.super_buoyancy_01.buoyancy_01.super_gravity_01.super_attraction_01.gravity_01.tempt_01.regen_01.destroy_01*3.udr_01.will_hunter_king_01.observer_will_01.guard_01*2.stone_salvation_god_01.board_expand_01*2.board_shrink_01.meteor_01.support_troops_01.meteor_god_01';
+    const CPU_LV9_ENDING_ASH_FORBIDDEN_CARD_IDS = Object.freeze([
+        'triple_chain_01',
+        'quad_chain_01',
+        'infinite_chain_01',
+        'triple_01',
+        'quad_01',
+        'infinite_01'
+    ]);
+    const CPU_LV9_ENDING_ASH_FORBIDDEN_CARD_ID_SET: ReadonlySet<string> = new Set(CPU_LV9_ENDING_ASH_FORBIDDEN_CARD_IDS);
     const BUILT_IN_DECK_PRESETS: readonly BuiltInDeckPreset[] = Object.freeze([
         Object.freeze({
             id: 'observation',
@@ -221,6 +230,10 @@
 
     function getCpuLv8EndingAshDeckCode(): string {
         return BUILT_IN_DECK_PRESETS[3].deckCode;
+    }
+
+    function getCpuLv9EndingAshDeckCardIds(): string[] {
+        return getEnabledCardIds().filter((cardId) => !CPU_LV9_ENDING_ASH_FORBIDDEN_CARD_ID_SET.has(cardId));
     }
 
     function getBuiltInDeckPresets(): BuiltInDeckPreset[] {
@@ -467,6 +480,7 @@
         CPU_LV6_BOARD_EXECUTOR_WHITE_DECK_CODE,
         CPU_LV7_THEORY_INCARNATION_WHITE_DECK_CODE,
         CPU_LV8_ENDING_ASH_DECK_CODE,
+        CPU_LV9_ENDING_ASH_FORBIDDEN_CARD_IDS,
         createDeckSpecError,
         getCatalogVersion,
         getEnabledCardDefs,
@@ -483,6 +497,7 @@
         getCpuLv6BoardExecutorWhiteDeckCode,
         getCpuLv7TheoryIncarnationWhiteDeckCode,
         getCpuLv8EndingAshDeckCode,
+        getCpuLv9EndingAshDeckCardIds,
         getBuiltInDeckPresets,
         sampleDefaultDeckCardIds,
         createDefaultDeckSpec,

@@ -8,7 +8,9 @@ type CpuOpponentPlayerKey = 'black' | 'white';
 interface CpuOpponentStartupOptions {
     profileId: string;
     deckCode: string | null;
+    deckCardIds: string[] | null;
     initialCharge: number | null;
+    chargeGainMultiplier: number | null;
     cardUseUnlockTurnNumber: number | null;
     hasStartupOptions: boolean;
 }
@@ -46,17 +48,34 @@ function getCpuOpponentDeckCode(profileValue: unknown): string | null {
     return null;
 }
 
+function getCpuOpponentDeckCardIds(profileValue: unknown): string[] | null {
+    const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
+    if (!profile || profile.deckProfile !== 'lv9-ending-ash-all-enabled') return null;
+    if (typeof DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds !== 'function') return null;
+
+    const cardIds = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();
+    return Array.isArray(cardIds) && cardIds.length > 0 ? cardIds.slice() : null;
+}
+
 function getCpuOpponentStartupOptions(profileValue: unknown, playerKey: unknown): CpuOpponentStartupOptions {
     const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
     const profileId = String(profile && profile.id || CpuOpponentProfiles.getCpuOpponentProfileId(profileValue));
     const normalizedPlayerKey = normalizePlayerKey(playerKey);
     const deckCode = getCpuOpponentDeckCode(profileId);
+    const deckCardIds = getCpuOpponentDeckCardIds(profileId);
     const rawInitialCharge = normalizedPlayerKey
         && typeof CpuOpponentProfiles.getCpuOpponentInitialChargeForPlayer === 'function'
         ? CpuOpponentProfiles.getCpuOpponentInitialChargeForPlayer(profileId, normalizedPlayerKey)
         : 0;
     const initialCharge = Number.isFinite(Number(rawInitialCharge)) && Number(rawInitialCharge) > 0
         ? Math.floor(Number(rawInitialCharge))
+        : null;
+    const rawChargeGainMultiplier = normalizedPlayerKey
+        && typeof CpuOpponentProfiles.getCpuOpponentChargeGainMultiplierForPlayer === 'function'
+        ? CpuOpponentProfiles.getCpuOpponentChargeGainMultiplierForPlayer(profileId, normalizedPlayerKey)
+        : 1;
+    const chargeGainMultiplier = Number.isFinite(Number(rawChargeGainMultiplier)) && Number(rawChargeGainMultiplier) > 1
+        ? Math.floor(Number(rawChargeGainMultiplier))
         : null;
     const rawUnlockTurn = typeof CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber === 'function'
         ? CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber(profileId)
@@ -70,9 +89,11 @@ function getCpuOpponentStartupOptions(profileValue: unknown, playerKey: unknown)
     return {
         profileId,
         deckCode,
+        deckCardIds,
         initialCharge,
+        chargeGainMultiplier,
         cardUseUnlockTurnNumber,
-        hasStartupOptions: !!deckCode || initialCharge !== null
+        hasStartupOptions: !!deckCode || !!deckCardIds || initialCharge !== null || chargeGainMultiplier !== null
     };
 }
 
@@ -97,6 +118,7 @@ function shouldResetOpeningCpuProfileChange(input: CpuOpponentProfileChangeReset
 
 export = {
     getCpuOpponentDeckCode,
+    getCpuOpponentDeckCardIds,
     getCpuOpponentStartupOptions,
     shouldResetOpeningCpuProfileChange
 };

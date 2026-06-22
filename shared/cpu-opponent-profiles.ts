@@ -7,9 +7,11 @@ interface CpuOpponentProfile {
     name: string;
     menuLabel: string;
     portraitSrc: string;
-    deckProfile: 'default' | 'lv6-default' | 'lv6-board-executor' | 'lv7-theory-incarnation' | 'lv8-ending-ash';
+    deckProfile: 'default' | 'lv6-default' | 'lv6-board-executor' | 'lv7-theory-incarnation' | 'lv8-ending-ash' | 'lv9-ending-ash-all-enabled';
     initialCharge?: number;
     initialChargeByPlayer?: { black?: number; white?: number };
+    chargeGainMultiplier?: number;
+    chargeGainMultiplierByPlayer?: { black?: number; white?: number };
     cardUseUnlockTurnNumber?: number;
 }
 
@@ -115,9 +117,10 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         name: '終焉の冥灰',
         menuLabel: 'Lv9: 終焉の冥灰',
         portraitSrc: 'assets/images/special-cards/characters/終焉の冥灰.png',
-        deckProfile: 'lv8-ending-ash',
+        deckProfile: 'lv9-ending-ash-all-enabled',
         initialCharge: 99,
         initialChargeByPlayer: { black: 99, white: 99 },
+        chargeGainMultiplier: 2,
         cardUseUnlockTurnNumber: 6
     }
 ];
@@ -200,6 +203,19 @@ function getCpuOpponentInitialChargeForPlayer(value: unknown, playerKey: unknown
     return 0;
 }
 
+function getCpuOpponentChargeGainMultiplierForPlayer(value: unknown, playerKey: unknown): number {
+    const profile = getCpuOpponentProfile(value);
+    const normalizedPlayerKey = playerKey === 'black' || playerKey === 'white' ? playerKey : null;
+    const source = profile.chargeGainMultiplierByPlayer && typeof profile.chargeGainMultiplierByPlayer === 'object'
+        ? profile.chargeGainMultiplierByPlayer
+        : {};
+    const raw = normalizedPlayerKey && Number.isFinite(Number(source[normalizedPlayerKey]))
+        ? Number(source[normalizedPlayerKey])
+        : Number(profile.chargeGainMultiplier);
+    if (!Number.isFinite(raw) || raw <= 0) return 1;
+    return Math.max(1, Math.floor(raw));
+}
+
 function getCpuOpponentCardUseUnlockTurnNumber(value: unknown): number | null {
     const profile = getCpuOpponentProfile(value);
     const n = Number(profile.cardUseUnlockTurnNumber);
@@ -238,6 +254,7 @@ export = {
     getCpuOpponentProfileId,
     getCpuOpponentInitialChargeByPlayer,
     getCpuOpponentInitialChargeForPlayer,
+    getCpuOpponentChargeGainMultiplierForPlayer,
     getCpuOpponentCardUseUnlockTurnNumber,
     resolveCpuOpponentRuntimeSelection,
     shouldSkipCpuOpponentCardPhase,

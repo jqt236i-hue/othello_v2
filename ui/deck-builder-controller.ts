@@ -815,30 +815,62 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             return DeckCodecModule.decodeDeckCode(startupOptions.deckCode);
         }
 
+        function resolveCpuDeckCardIds(startupOptions: any) {
+            const cardIds = startupOptions && Array.isArray(startupOptions.deckCardIds)
+                ? startupOptions.deckCardIds
+                : null;
+            if (!cardIds || cardIds.length <= 0) return null;
+            return cardIds
+                .map((cardId: any) => String(cardId || '').trim())
+                .filter((cardId: string) => !!cardId);
+        }
+
         function resolveCpuInitialCharge(startupOptions: any) {
             const value = startupOptions && startupOptions.initialCharge;
             if (Number.isFinite(Number(value)) && Number(value) > 0) return Math.floor(Number(value));
             return null;
         }
 
+        function resolveCpuChargeGainMultiplier(startupOptions: any) {
+            const value = startupOptions && startupOptions.chargeGainMultiplier;
+            if (Number.isFinite(Number(value)) && Number(value) > 1) return Math.floor(Number(value));
+            return null;
+        }
+
         function buildCpuDeckInitOptions(blackDeckSpec: any) {
             const blackStartupOptions = resolveCpuStartupOptions('black');
             const whiteStartupOptions = resolveCpuStartupOptions('white');
+            const profileBlackDeckCardIds = resolveCpuDeckCardIds(blackStartupOptions);
+            const whiteDeckCardIds = resolveCpuDeckCardIds(whiteStartupOptions);
             const profileBlackDeckSpec = resolveCpuDeckSpec(blackStartupOptions);
             const whiteDeckSpec = resolveCpuDeckSpec(whiteStartupOptions);
+            const initialDeckCardIdsByPlayer: any = {};
             const initialDeckSpecByPlayer: any = {};
-            if (profileBlackDeckSpec) initialDeckSpecByPlayer.black = profileBlackDeckSpec;
+            if (profileBlackDeckCardIds) initialDeckCardIdsByPlayer.black = profileBlackDeckCardIds;
+            else if (profileBlackDeckSpec) initialDeckSpecByPlayer.black = profileBlackDeckSpec;
             else if (blackDeckSpec) initialDeckSpecByPlayer.black = blackDeckSpec;
-            if (whiteDeckSpec) initialDeckSpecByPlayer.white = whiteDeckSpec;
+            if (whiteDeckCardIds) initialDeckCardIdsByPlayer.white = whiteDeckCardIds;
+            else if (whiteDeckSpec) initialDeckSpecByPlayer.white = whiteDeckSpec;
             const initialChargeByPlayer: any = {};
             const blackInitialCharge = resolveCpuInitialCharge(blackStartupOptions);
             const whiteInitialCharge = resolveCpuInitialCharge(whiteStartupOptions);
             if (blackInitialCharge !== null) initialChargeByPlayer.black = blackInitialCharge;
             if (whiteInitialCharge !== null) initialChargeByPlayer.white = whiteInitialCharge;
+            const chargeGainMultiplierByPlayer: any = {};
+            const blackChargeGainMultiplier = resolveCpuChargeGainMultiplier(blackStartupOptions);
+            const whiteChargeGainMultiplier = resolveCpuChargeGainMultiplier(whiteStartupOptions);
+            if (blackChargeGainMultiplier !== null) chargeGainMultiplierByPlayer.black = blackChargeGainMultiplier;
+            if (whiteChargeGainMultiplier !== null) chargeGainMultiplierByPlayer.white = whiteChargeGainMultiplier;
             const options: any = {};
+            if (Object.keys(initialDeckCardIdsByPlayer).length > 0) {
+                options.initialDeckCardIdsByPlayer = initialDeckCardIdsByPlayer;
+            }
             if (Object.keys(initialDeckSpecByPlayer).length > 0) options.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
             if (initialChargeByPlayer && Object.keys(initialChargeByPlayer).length > 0) {
                 options.initialChargeByPlayer = initialChargeByPlayer;
+            }
+            if (chargeGainMultiplierByPlayer && Object.keys(chargeGainMultiplierByPlayer).length > 0) {
+                options.chargeGainMultiplierByPlayer = chargeGainMultiplierByPlayer;
             }
             return options;
         }

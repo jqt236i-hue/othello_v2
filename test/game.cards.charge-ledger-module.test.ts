@@ -38,6 +38,40 @@ describe('cards-internal charge-ledger', () => {
     expect(cardState.chargeGainedTotal.black).toBe(6);
   });
 
+  test('addChargeWithTotal applies generated gain multiplier before the cap', () => {
+    const cardState = {
+      charge: { black: 10, white: 0 },
+      chargeGainMultiplierByPlayer: { black: 2, white: 1 },
+      chargeGainedTotal: { black: 0, white: 0 }
+    };
+
+    const added = chargeLedger.addChargeWithTotal(cardState, 'black', 3, {
+      helpers: { chargeMax: 99 }
+    });
+
+    expect(added).toBe(6);
+    expect(cardState.charge.black).toBe(16);
+    expect(cardState.chargeGainedTotal.black).toBe(6);
+  });
+
+  test('addChargeWithTotal can opt out of generated gain multiplier for transfers', () => {
+    const cardState = {
+      charge: { black: 10, white: 0 },
+      chargeGainMultiplierByPlayer: { black: 2, white: 1 },
+      chargeGainedTotal: { black: 0, white: 0 }
+    };
+
+    const added = chargeLedger.addChargeWithTotal(cardState, 'black', 3, {
+      helpers: { chargeMax: 99 }
+    }, {
+      disableChargeGainMultiplier: true
+    });
+
+    expect(added).toBe(3);
+    expect(cardState.charge.black).toBe(13);
+    expect(cardState.chargeGainedTotal.black).toBe(3);
+  });
+
   test('setChargeValue delegates to injected helper when available', () => {
     const helperResult = { changed: true, before: 1, after: 5, delta: 4 };
     const setChargeWithDelta = jest.fn().mockReturnValue(helperResult);

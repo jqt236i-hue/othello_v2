@@ -203,6 +203,23 @@ function normalizeInitialChargeByPlayer(options: any): Record<string, number> {
     };
 }
 
+function normalizeChargeGainMultiplierByPlayer(options: any): Record<string, number> {
+    const source = options && options.chargeGainMultiplierByPlayer && typeof options.chargeGainMultiplierByPlayer === 'object'
+        ? options.chargeGainMultiplierByPlayer
+        : {};
+    const sharedValue = options && Number.isFinite(Number(options.chargeGainMultiplier))
+        ? Number(options.chargeGainMultiplier)
+        : 1;
+    const normalize = (value: any) => {
+        const raw = Number.isFinite(Number(value)) ? Number(value) : sharedValue;
+        return Number.isFinite(raw) && raw > 1 ? Math.floor(raw) : 1;
+    };
+    return {
+        black: normalize(source.black),
+        white: normalize(source.white)
+    };
+}
+
 function createCardState(prng: PRNG | null, options: any, context: Context): any {
     const p = prng || getDefaultPrng(context);
     const resolveCardBoardConfig = requireContextFunction(context, 'resolveCardBoardConfig');
@@ -229,6 +246,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
     const blackDeck = buildDeck('black');
     const whiteDeck = buildDeck('white');
     const initialChargeByPlayer = normalizeInitialChargeByPlayer(options);
+    const chargeGainMultiplierByPlayer = normalizeChargeGainMultiplierByPlayer(options);
     const boardBonusByCell = plainReversi ? {} : buildInitialBoardBonusMap(p, boardConfig);
     const stoneIdMap = createStoneIdBoard(boardConfig);
     const openingPlacements = getOpeningPlacementsForState(boardConfig);
@@ -294,6 +312,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
             black: initialChargeByPlayer.black,
             white: initialChargeByPlayer.white
         },
+        chargeGainMultiplierByPlayer,
         chargeGainedTotal: { black: 0, white: 0 },
         chargeDeltaEvents: [],
         _nextChargeDeltaSeq: 1,
@@ -499,6 +518,7 @@ function copyCardState(cs: any, context: Context): any {
             black: Number.isFinite(Number(cardState.charge && cardState.charge.black)) ? Number(cardState.charge.black) : 0,
             white: Number.isFinite(Number(cardState.charge && cardState.charge.white)) ? Number(cardState.charge.white) : 0
         },
+        chargeGainMultiplierByPlayer: normalizeChargeGainMultiplierByPlayer(cardState),
         chargeGainedTotal: {
             black: Number.isFinite(Number(cardState.chargeGainedTotal && cardState.chargeGainedTotal.black)) ? Number(cardState.chargeGainedTotal.black) : 0,
             white: Number.isFinite(Number(cardState.chargeGainedTotal && cardState.chargeGainedTotal.white)) ? Number(cardState.chargeGainedTotal.white) : 0

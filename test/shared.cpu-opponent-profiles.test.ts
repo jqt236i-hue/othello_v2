@@ -83,11 +83,15 @@ describe('cpu opponent profiles', () => {
       decisionLevel: 6,
       name: '終焉の冥灰',
       portraitSrc: 'assets/images/special-cards/characters/終焉の冥灰.png',
-      deckProfile: 'lv8-ending-ash',
+      deckProfile: 'lv9-ending-ash-all-enabled',
       initialCharge: 99,
       initialChargeByPlayer: { black: 99, white: 99 },
+      chargeGainMultiplier: 2,
       cardUseUnlockTurnNumber: 6
     }));
+    expect(CpuOpponentProfiles.getCpuOpponentChargeGainMultiplierForPlayer('9-ending-ash', 'white')).toBe(2);
+    expect(CpuOpponentProfiles.getCpuOpponentChargeGainMultiplierForPlayer('9-ending-ash', 'black')).toBe(2);
+    expect(CpuOpponentProfiles.getCpuOpponentChargeGainMultiplierForPlayer('8-theory-incarnation', 'white')).toBe(1);
     expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel('9-ending-ash')).toBe(6);
     expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(9)).toBe(6);
     expect(CpuOpponentProfiles.getCpuOpponentCardUseUnlockTurnNumber(9)).toBe(6);
@@ -130,7 +134,7 @@ describe('cpu opponent profiles', () => {
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6')).toBe(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('7-board-executor')).toBe(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
     expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('8-theory-incarnation')).toBe(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('9-ending-ash')).toBe(DeckSpecHelpers.getCpuLv8EndingAshDeckCode());
+    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('9-ending-ash')).toBeNull();
   });
 
   test('exposes the dedicated CPU decks as built-in deck presets', () => {
@@ -166,7 +170,7 @@ describe('cpu opponent profiles', () => {
     expect(deckSpec.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
   });
 
-  test('keeps Lv9 ending ash on the configured fixed deck code', () => {
+  test('keeps legacy ending ash built-in preset on the configured fixed deck code', () => {
     expect(DeckSpecHelpers.getCpuLv8EndingAshDeckCode()).toBe(EXPECTED_LV8_ENDING_ASH_DECK_CODE);
 
     const deckSpec = DeckCodecModule.decodeDeckCode(EXPECTED_LV8_ENDING_ASH_DECK_CODE);
@@ -178,39 +182,72 @@ describe('cpu opponent profiles', () => {
     });
   });
 
+  test('builds Lv9 ending ash deck from every enabled card except forbidden successors', () => {
+    const deckCardIds = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();
+    const enabledIds = DeckSpecHelpers.getEnabledCardIds();
+    const forbidden = [
+      'triple_chain_01',
+      'quad_chain_01',
+      'infinite_chain_01',
+      'triple_01',
+      'quad_01',
+      'infinite_01'
+    ];
+
+    expect(deckCardIds.length).toBeGreaterThan(30);
+    expect(new Set(deckCardIds).size).toBe(deckCardIds.length);
+    expect(deckCardIds).toEqual(enabledIds.filter((cardId) => !forbidden.includes(cardId)));
+    expect(deckCardIds).toContain('double_chain_01');
+    expect(deckCardIds).toContain('double_01');
+    for (const cardId of forbidden) {
+      expect(deckCardIds).not.toContain(cardId);
+    }
+  });
+
   test('resolves startup options for Lv8 handicap and normal levels', () => {
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'black')).toEqual({
       profileId: '8-theory-incarnation',
       deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
+      deckCardIds: null,
       initialCharge: 50,
+      chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: 8,
       hasStartupOptions: true
     });
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'white')).toEqual({
       profileId: '8-theory-incarnation',
       deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
+      deckCardIds: null,
       initialCharge: 50,
+      chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: 8,
       hasStartupOptions: true
     });
+    const lv9DeckCardIds = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('9-ending-ash', 'black')).toEqual({
       profileId: '9-ending-ash',
-      deckCode: DeckSpecHelpers.getCpuLv8EndingAshDeckCode(),
+      deckCode: null,
+      deckCardIds: lv9DeckCardIds,
       initialCharge: 99,
+      chargeGainMultiplier: 2,
       cardUseUnlockTurnNumber: 6,
       hasStartupOptions: true
     });
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('9-ending-ash', 'white')).toEqual({
       profileId: '9-ending-ash',
-      deckCode: DeckSpecHelpers.getCpuLv8EndingAshDeckCode(),
+      deckCode: null,
+      deckCardIds: lv9DeckCardIds,
       initialCharge: 99,
+      chargeGainMultiplier: 2,
       cardUseUnlockTurnNumber: 6,
       hasStartupOptions: true
     });
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('1', 'white')).toEqual({
       profileId: '1',
       deckCode: null,
+      deckCardIds: null,
       initialCharge: null,
+      chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: null,
       hasStartupOptions: false
     });

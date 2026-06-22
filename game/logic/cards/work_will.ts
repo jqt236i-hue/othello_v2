@@ -47,6 +47,7 @@ type GameState = {
 type WorkDeps = {
   removeMarkersAt?: (cardState: CardState, row: number, col: number, options?: { kind?: string; type?: string; owner?: PlayerKey }) => void;
   addMarker?: (cardState: CardState, kind: string, row: number, col: number, owner: PlayerKey, data?: Marker['data']) => unknown;
+  addChargeWithTotal?: (cardState: CardState, playerKey: PlayerKey, amount: number, meta?: any) => number;
 };
 
 function ensureAnchors(cardState: CardState): Record<PlayerKey, { row: number; col: number } | null> {
@@ -168,7 +169,7 @@ function findWorkMarker(cardState: CardState, playerKey: PlayerKey): { marker: M
   return { marker, row, col };
 }
 
-function processWorkEffects(cardState: CardState, gameState: GameState, playerKey: PlayerKey): {
+function processWorkEffects(cardState: CardState, gameState: GameState, playerKey: PlayerKey, deps: WorkDeps = {}): {
   gained: number;
   removed: boolean;
   row: number | null;
@@ -204,7 +205,12 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
   }
 
   const gain = Math.min(CHARGE_MAX || 99, 1 << stage);
-  addChargeWithTotal(cardState, playerKey, gain);
+  const chargeHelper = typeof deps.addChargeWithTotal === 'function'
+    ? deps.addChargeWithTotal
+    : addChargeWithTotal;
+  const actualGain = chargeHelper(cardState, playerKey, gain, {
+    sourceType: 'work_gain'
+  });
   const remainingAfter = remainingBefore - 1;
   const newStage = (stage + 1) % 5;
   for (const candidate of cardState.markers || []) {
@@ -221,7 +227,14 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
     anchors[playerKey] = null;
   }
 
-  return { gained: gain, removed, row, col, removedReason: removed ? 'duration_end' : null, incomeStep: stage + 1 };
+  return {
+    gained: Number.isFinite(Number(actualGain)) ? Number(actualGain) : gain,
+    removed,
+    row,
+    col,
+    removedReason: removed ? 'duration_end' : null,
+    incomeStep: stage + 1
+  };
 }
 
 export = {

@@ -968,7 +968,12 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
             if (workAnchor && frozenCellsActiveAtTurnStart.has(`${workAnchor.row},${workAnchor.col}`)) {
                 return summary;
             }
-            const res = workMod.processWorkEffects(cardState, gameState, playerKey);
+            const workDeps = typeof helpers.addChargeWithTotal === 'function'
+                ? { addChargeWithTotal: helpers.addChargeWithTotal }
+                : null;
+            const res = workDeps
+                ? workMod.processWorkEffects(cardState, gameState, playerKey, workDeps)
+                : workMod.processWorkEffects(cardState, gameState, playerKey);
             if (!cardState.presentationEvents) (cardState as any).presentationEvents = [];
             const row = Number.isInteger(res && res.row) ? res.row : null;
             const col = Number.isInteger(res && res.col) ? res.col : null;
@@ -1048,20 +1053,33 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         // Non-number cells should behave like a normal placement.
     }
 
+    let plunderGain = 0;
     if (pending && pending.type === 'PLUNDER_WILL') {
         const res = applyPlunderWillEffect(cardState, playerKey, flipCount, getPlunderWillModule(context));
-        chargeGain += res.plundered;
+        plunderGain = Number.isFinite(Number(res.plundered)) ? Math.max(0, Math.floor(Number(res.plundered))) : 0;
         effects.plunderAmount = res.plundered;
     }
 
-    let actualChargeGained = chargeGain;
+    let actualChargeGained = chargeGain + plunderGain;
     if (typeof helpers.addChargeWithTotal === 'function') {
-        actualChargeGained = helpers.addChargeWithTotal(cardState, playerKey, chargeGain, (chargeGain > 0 && flipCount > 0) ? {
-            popupKind: 'board',
-            sourceType: 'placement_flip_gain',
-            anchorRow: row,
-            anchorCol: col
-        } : null);
+        let actualGeneratedGain = 0;
+        if (chargeGain > 0) {
+            actualGeneratedGain = helpers.addChargeWithTotal(cardState, playerKey, chargeGain, (flipCount > 0) ? {
+                popupKind: 'board',
+                sourceType: 'placement_flip_gain',
+                anchorRow: row,
+                anchorCol: col
+            } : null);
+        }
+        let actualPlunderGain = 0;
+        if (plunderGain > 0) {
+            actualPlunderGain = helpers.addChargeWithTotal(cardState, playerKey, plunderGain, {
+                disableChargeGainMultiplier: true,
+                sourceType: 'plunder_gain'
+            });
+        }
+        actualChargeGained = (Number.isFinite(Number(actualGeneratedGain)) ? Number(actualGeneratedGain) : chargeGain)
+            + (Number.isFinite(Number(actualPlunderGain)) ? Number(actualPlunderGain) : plunderGain);
     }
     effects.chargeGained = Number.isFinite(Number(actualChargeGained))
         ? Number(actualChargeGained)

@@ -631,9 +631,13 @@ describe('CardEffectTiming module', () => {
 
     expect(applyPlunderWill).toHaveBeenCalledWith(plunderState, 'black', 3);
     expect(plunderEffects).toMatchObject({ chargeGained: 5, plunderAmount: 2 });
-    expect(addChargeWithTotal).toHaveBeenCalledWith(plunderState, 'black', 5, expect.objectContaining({
+    expect(addChargeWithTotal).toHaveBeenCalledWith(plunderState, 'black', 3, expect.objectContaining({
       popupKind: 'board',
       sourceType: 'placement_flip_gain'
+    }));
+    expect(addChargeWithTotal).toHaveBeenCalledWith(plunderState, 'black', 2, expect.objectContaining({
+      disableChargeGainMultiplier: true,
+      sourceType: 'plunder_gain'
     }));
 
     const protectedState = {
