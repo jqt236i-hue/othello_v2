@@ -237,23 +237,6 @@
 
 }
 
-#cpu-character-panel,
-#hero-character-panel {
-    gap: 0 !important;
-}
-
-#cpu-level-label {
-    margin-top: calc(1px * var(--layout-stage-scale)) !important;
-    transform: translateY(calc(12px * var(--layout-stage-scale))) !important;
-    line-height: 1 !important;
-}
-
-#hero-label {
-    margin-top: calc(1px * var(--layout-stage-scale)) !important;
-    transform: translateY(calc(48px * var(--layout-stage-scale))) !important;
-    line-height: 1 !important;
-}
-
 /* iPhone portrait profile: dedicate vertical flow to hands/board/card detail. */
 html.layout-profile-phone-portrait {
     --layout-phone-portrait-main-column-width: min(calc(430px * var(--layout-stage-scale)), 96vw);
