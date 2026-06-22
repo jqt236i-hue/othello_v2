@@ -41,5 +41,8 @@ describe('NetworkReconnectController', () => {
     await Promise.resolve();
 
     expect(syncLatestStateWithRetry).toHaveBeenCalledTimes(1);
+    expect(syncLatestStateWithRetry).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'heartbeat_recovery'
+    }));
   });
 });

@@ -90,6 +90,26 @@ describe('NetworkPublishFlowController contract', () => {
       publishChain: Promise.resolve()
     };
     const applySnapshotThroughCoordinator = jest.fn(() => true);
+    const normalizeNetworkSnapshotEnvelope = jest.fn((input) => ({
+      source: input.source,
+      operationId: input.payload?.operationId ?? null,
+      stateVersion: input.payload?.stateVersion ?? null,
+      visualSeq: input.payload?.presentationCursor?.visualSeq ?? null,
+      snapshot: input.payload?.snapshot ?? null,
+      presentationFrames: input.payload?.presentationFrames ?? [],
+      playbackEvents: input.payload?.playbackEvents ?? [],
+      presentationCursor: input.payload?.presentationCursor ?? null,
+      force: input.force === true,
+      skipResultOverlay: input.skipResultOverlay === true,
+      receivedAt: 1,
+      trackedPublish: input.trackedPublish,
+      applyOptions: input.applyOptions
+    }));
+    const submitNetworkSnapshotEnvelope = jest.fn(() => ({
+      appliedSnapshot: true,
+      enqueuedFrameCount: 1,
+      requestedBoardRefresh: false
+    }));
     const enqueuePresentationFramesFromPayload = jest.fn();
     const responsePayload = {
       ok: true,
@@ -138,7 +158,9 @@ describe('NetworkPublishFlowController contract', () => {
       emitPayloadEffectLogs: jest.fn(),
       showAutoPassNoticeFromPayload: jest.fn(),
       pruneTrackedPublishes: jest.fn(),
-      enqueuePresentationFramesFromPayload
+      enqueuePresentationFramesFromPayload,
+      normalizeNetworkSnapshotEnvelope,
+      submitNetworkSnapshotEnvelope
     });
 
     await expect(controller.publishSnapshot({ playerKey: 'black', actionType: 'place' }))
@@ -150,16 +172,30 @@ describe('NetworkPublishFlowController contract', () => {
         visualSeq: 1
       });
 
-    expect(applySnapshotThroughCoordinator).toHaveBeenCalledWith(
-      { stateVersion: 2 },
-      expect.objectContaining({
+    expect(normalizeNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'publish_response',
+      payload: responsePayload,
+      force: true,
+      applyOptions: expect.objectContaining({
+        playbackEvents: [],
+        presentationFrames: responsePayload.presentationFrames,
+        presentationFrameSource: 'publish_response'
+      })
+    }));
+    expect(submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'publish_response',
+      snapshot: { stateVersion: 2 },
+      presentationFrames: responsePayload.presentationFrames,
+      playbackEvents: responsePayload.playbackEvents
+    }));
+    expect(applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    expect(normalizeNetworkSnapshotEnvelope.mock.calls[0][0]).toEqual(expect.objectContaining({
         applyOptions: expect.objectContaining({
           playbackEvents: [],
           presentationFrames: responsePayload.presentationFrames,
           presentationFrameSource: 'publish_response'
         })
-      })
-    );
+    }));
     expect(enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
   });
 

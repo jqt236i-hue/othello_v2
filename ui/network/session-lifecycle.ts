@@ -137,6 +137,12 @@ function createNetworkSessionLifecycleController(config: any): any {
     return Math.trunc(numberValue);
   }
 
+  function normalizeStateSyncIntakeSource(value: any): 'state_sync' | 'heartbeat_recovery' {
+    return String(value || '').trim() === 'heartbeat_recovery'
+      ? 'heartbeat_recovery'
+      : 'state_sync';
+  }
+
   function buildPresentationJournalPath(state: any, afterVisualSeq: any): string {
     const seq = Math.max(0, toIntegerOrNull(afterVisualSeq) || 0);
     if (isSpectatorState(state)) {
@@ -465,6 +471,7 @@ function createNetworkSessionLifecycleController(config: any): any {
 
   async function syncLatestState(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
+    const intakeSource = normalizeStateSyncIntakeSource(opts.source);
     const state = readState();
     if (!state.roomId) return { ok: false, reason: 'NO_ROOM' };
 
@@ -508,14 +515,14 @@ function createNetworkSessionLifecycleController(config: any): any {
           && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
         ) {
           const envelope = cfg.normalizeNetworkSnapshotEnvelope({
-            source: 'state_sync',
+            source: intakeSource,
             payload: res.data,
             force: true,
             applyOptions: {
               force: true,
               playbackEvents: playbackEvents,
               presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
-              presentationFrameSource: 'state_sync'
+              presentationFrameSource: intakeSource
             }
           });
           const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
@@ -523,19 +530,19 @@ function createNetworkSessionLifecycleController(config: any): any {
         } else {
           appliedSnapshot = typeof cfg.applySnapshotThroughCoordinator === 'function'
             ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
-              source: 'state_sync',
+              source: intakeSource,
               applyOptions: {
                 force: true,
                 playbackEvents: playbackEvents,
                 presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
-                presentationFrameSource: 'state_sync'
+                presentationFrameSource: intakeSource
               }
             })
             : false;
         }
         if (appliedSnapshot && typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
           cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
-            source: 'state_sync',
+            source: intakeSource,
             force: true,
             playbackEvents: playbackEvents
           });

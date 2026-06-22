@@ -3024,7 +3024,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             }
 
             try {
-                const result = await syncLatestState();
+                const result = await syncLatestState({ source: opts.source });
                 if (result && result.ok === true) {
                     return result;
                 }

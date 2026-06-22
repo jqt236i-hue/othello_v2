@@ -198,6 +198,31 @@ describe('NetworkStreamSnapshotController', () => {
       playbackEvents: events,
       shadowPlaybackEvents: []
     }));
+    calls.normalizeNetworkSnapshotEnvelope = jest.fn((input: any) => ({
+      source: input.source,
+      operationId: input.payload?.operationId ?? null,
+      stateVersion: input.payload?.stateVersion ?? null,
+      visualSeq: input.payload?.presentationCursor?.visualSeq ?? null,
+      snapshot: input.payload?.snapshot ?? null,
+      presentationFrames: input.payload?.presentationFrames ?? [],
+      playbackEvents: input.payload?.playbackEvents ?? [],
+      presentationCursor: input.payload?.presentationCursor ?? null,
+      force: input.force === true,
+      skipResultOverlay: input.skipResultOverlay === true,
+      receivedAt: 1,
+      trackedPublish: input.trackedPublish,
+      applyOptions: input.applyOptions
+    }));
+    calls.submitNetworkSnapshotEnvelope = jest.fn(() => ({
+      appliedSnapshot: true,
+      enqueuedFrameCount: 1,
+      requestedBoardRefresh: false
+    }));
+    const { createNetworkStreamSnapshotController } = require('../ui/network/stream-snapshot.js');
+    controller = createNetworkStreamSnapshotController({
+      getState: () => stateObj,
+      ...calls
+    });
 
     const payload = {
       ok: true,
@@ -217,18 +242,33 @@ describe('NetworkStreamSnapshotController', () => {
 
     controller.handleStreamSnapshotPayload(payload);
 
-    expect(calls.applySnapshotThroughCoordinator).toHaveBeenCalledWith(
-      { stateVersion: 15 },
-      expect.objectContaining({
+    expect(calls.normalizeNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'stream',
+      payload,
+      force: false,
+      applyOptions: expect.objectContaining({
+        playbackEvents: [],
+        presentationFrames: payload.presentationFrames,
+        presentationFrameSource: 'stream'
+      })
+    }));
+    expect(calls.submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'stream',
+      snapshot: { stateVersion: 15 },
+      presentationFrames: payload.presentationFrames,
+      playbackEvents: payload.playbackEvents
+    }));
+    expect(calls.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    expect(calls.normalizeNetworkSnapshotEnvelope.mock.calls[0][0]).toEqual(expect.objectContaining({
         applyOptions: expect.objectContaining({
           playbackEvents: [],
           presentationFrames: payload.presentationFrames,
           presentationFrameSource: 'stream'
         })
-      })
-    );
+    }));
     expect(calls.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
     expect(calls.syncVisualCursorForSnapshotNoPlayback).not.toHaveBeenCalled();
+    expect(calls.requestNetworkTimelineBoardRefresh).not.toHaveBeenCalled();
   });
 
   test('self reset_game stream snapshot does not skip result overlay sync', () => {

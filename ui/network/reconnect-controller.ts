@@ -76,7 +76,7 @@ function createNetworkReconnectController(config?: any): any {
         localVersion: localVersion
       });
     }
-    runRecoverySync('heartbeat', { maxAttempts: 2, baseDelayMs: 300 }, {
+    runRecoverySync('heartbeat', { maxAttempts: 2, baseDelayMs: 300, source: 'heartbeat_recovery' }, {
       onSuccess: function () {
         if (typeof cfg.recordNetworkTelemetry === 'function') {
           cfg.recordNetworkTelemetry('heartbeat_resync_succeeded', {
@@ -128,7 +128,7 @@ function createNetworkReconnectController(config?: any): any {
       state.reconnectRecoveryTimerId = null;
       if (!state.reconnectRecoveryPending) return;
       state.reconnectRecoveryPending = false;
-      runRecoverySync('reconnect', { maxAttempts: 3, baseDelayMs: 350 });
+      runRecoverySync('reconnect', { maxAttempts: 3, baseDelayMs: 350, source: 'state_sync' });
     }, cfg.reconnectRecoveryWaitMs);
   }
 

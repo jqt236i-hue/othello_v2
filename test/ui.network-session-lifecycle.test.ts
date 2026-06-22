@@ -500,6 +500,53 @@ describe('NetworkSessionLifecycleController', () => {
       expect(mockConfig.applySnapshotThroughCoordinator).toHaveBeenCalled();
     });
 
+    test('heartbeat recovery state sync submits a heartbeat_recovery envelope', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token123';
+      mockConfig.normalizeNetworkSnapshotEnvelope = jest.fn((input) => ({
+        source: input.source,
+        operationId: null,
+        stateVersion: input.payload?.stateVersion ?? input.payload?.snapshot?.stateVersion ?? null,
+        visualSeq: input.payload?.presentationCursor?.visualSeq ?? null,
+        snapshot: input.payload?.snapshot ?? null,
+        presentationFrames: input.payload?.presentationFrames ?? [],
+        playbackEvents: input.payload?.playbackEvents ?? [],
+        presentationCursor: input.payload?.presentationCursor ?? null,
+        force: input.force === true,
+        skipResultOverlay: false,
+        receivedAt: 1,
+        applyOptions: input.applyOptions
+      }));
+      mockConfig.submitNetworkSnapshotEnvelope = jest.fn(() => ({
+        appliedSnapshot: true,
+        enqueuedFrameCount: 0,
+        requestedBoardRefresh: true
+      }));
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        stateVersion: 10,
+        snapshot: { stateVersion: 10 },
+        playbackEvents: []
+      }));
+
+      const result = await controller.syncLatestState({ source: 'heartbeat_recovery' });
+
+      expect(result.ok).toBe(true);
+      expect(mockConfig.normalizeNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+        source: 'heartbeat_recovery',
+        force: true,
+        applyOptions: expect.objectContaining({
+          presentationFrameSource: 'heartbeat_recovery'
+        })
+      }));
+      expect(mockConfig.submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+        source: 'heartbeat_recovery',
+        snapshot: { stateVersion: 10 }
+      }));
+      expect(mockConfig.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    });
+
     test('観戦者セッションではspectator credentialsで状態を同期する', async () => {
       stateObj.roomId = 'SPC';
       stateObj.viewerRole = 'spectator';
@@ -677,6 +724,13 @@ describe('NetworkSessionLifecycleController', () => {
 
       await controller.syncLatestState();
 
+      expect(mockConfig.submitNetworkSnapshotEnvelope).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        source: 'state_sync',
+        snapshot: expect.objectContaining({ stateVersion: 4 }),
+        presentationFrames: [
+          expect.objectContaining({ visualSeq: 3 })
+        ]
+      }));
       expect(mockConfig.submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
         source: 'presentation_journal',
         snapshot: null,
@@ -686,6 +740,7 @@ describe('NetworkSessionLifecycleController', () => {
           expect.objectContaining({ visualSeq: 3 })
         ])
       }));
+      expect(mockConfig.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
       expect(mockConfig.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
       expect(mockConfig.drainPresentationTimeline).toHaveBeenCalled();
     });
