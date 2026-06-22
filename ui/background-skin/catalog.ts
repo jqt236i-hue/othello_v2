@@ -41,7 +41,7 @@ interface CosmeticCatalogSharedModule {
 const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'default',
-    label: '既定背景',
+    label: '古書机背景',
     note: '初期所持',
     imagePath: 'assets/images/background/default.png'
   }),

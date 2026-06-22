@@ -21,6 +21,13 @@ describe('stone skin catalog', () => {
 
     expect(catalog.DEFAULT_STONE_SKIN_ID).toBe('o-stone');
     expect(catalog.getOwnedStoneSkins(window).map((skin: any) => skin.id)).toEqual(['default', 'o-stone', 'jade-rim', 'pearl-obsidian']);
+    expect(catalog.getStoneSkinDefinition('default', window)).toEqual(expect.objectContaining({
+      id: 'default',
+      label: 'クラシック石',
+      note: '初期所持',
+      blackImagePath: 'assets/images/stone-skin/default/black.png',
+      whiteImagePath: 'assets/images/stone-skin/default/white.png'
+    }));
     expect(catalog.getStoneSkinDefinition('missing', window)).toEqual(expect.objectContaining({
       id: 'o-stone',
       label: '既定'

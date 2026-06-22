@@ -14,7 +14,7 @@ interface StoneSkinItem {
 const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'default',
-    label: '既定石',
+    label: 'クラシック石',
     note: '初期所持',
     blackImagePath: 'assets/images/stone-skin/default/black.png',
     whiteImagePath: 'assets/images/stone-skin/default/white.png'

@@ -21,6 +21,7 @@ describe('background skin catalog', () => {
   });
 
   test.each([
+    ['default', '古書机背景', 'assets/images/background/default.png'],
     ['default-2', 'デフォルト2', 'assets/images/background/デフォルト2.png'],
     ['default-3', 'デフォルト3', 'assets/images/background/デフォルト3.png'],
     ['default-4', 'デフォルト4', 'assets/images/background/デフォルト4.png'],
