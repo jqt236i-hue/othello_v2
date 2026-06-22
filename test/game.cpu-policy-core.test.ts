@@ -1368,6 +1368,55 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(false);
     });
 
+    test('scoreCardUseDecision suppresses TRAP_WILL while own stones are twenty or fewer', () => {
+        const baseContext = {
+            level: 6,
+            playerValue: -1,
+            legalMovesCount: 1,
+            ownCharge: 32,
+            handSize: 4,
+            ownCorners: 0,
+            oppCorners: 2,
+            ownEdges: 1,
+            oppEdges: 5,
+            hasCornerMoveNow: false,
+            hasEdgeMoveNow: true,
+            cornerEmergency: true,
+            reserveChargeFloor: 8,
+            maxLegalFlips: 3,
+            maxLegalGain: 3,
+            avgLegalFlips: 2.5
+        };
+
+        const suppressed = core.scoreCardUseDecision(
+            'trap_01',
+            () => 6,
+            () => ({ id: 'trap_01', type: 'TRAP_WILL' }),
+            {
+                ...baseContext,
+                ownDiscs: 20,
+                oppDiscs: 28,
+                empties: 16,
+                discDiff: -8
+            }
+        );
+        const available = core.scoreCardUseDecision(
+            'trap_01',
+            () => 6,
+            () => ({ id: 'trap_01', type: 'TRAP_WILL' }),
+            {
+                ...baseContext,
+                ownDiscs: 21,
+                oppDiscs: 27,
+                empties: 16,
+                discDiff: -6
+            }
+        );
+
+        expect(suppressed.shouldUse).toBe(false);
+        expect(available.shouldUse).toBe(true);
+    });
+
     test('scoreCardUseDecision uses RAINBOW_STONE when immediate charge ROI is high', () => {
         const out = core.scoreCardUseDecision(
             'rainbow',

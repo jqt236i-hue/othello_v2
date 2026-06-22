@@ -233,6 +233,9 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         if (forcedDestroyReason) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, forcedDestroyReason);
         }
+        if (isTrapWill && ownDiscs <= 20) {
+            return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'trap_will_low_own_stones');
+        }
         if (isLossWill && ownSpecialCount > 0 && lossEnemyAnchorPayoffIsModest) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
         }
