@@ -151,7 +151,11 @@ function getBoardExpansionGodRequiredSelectionCount(cardState: any, gameState: a
     const availableCount = getBoardExpansionGodTargets(cardState, gameState, playerKey, deps).length;
     const totalSelectableCount = selectedCount + availableCount;
     if (totalSelectableCount <= 0) return 0;
-    return Math.min(2, totalSelectableCount);
+    const pendingMaxSelections = Number(pending && pending.maxSelections);
+    const maxSelections = Number.isFinite(pendingMaxSelections) && pendingMaxSelections > 0
+        ? Math.min(2, Math.trunc(pendingMaxSelections))
+        : 2;
+    return Math.min(maxSelections, totalSelectableCount);
 }
 
 function getBoardShrinkSelectionCount(deps: TargetAccessDeps) {

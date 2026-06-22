@@ -171,29 +171,21 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         return selectedKeys.size;
     }
 
-    function getBoardExpansionRequiredRemainingCount(playerKey: any, pendingType: any, pending: any): number {
-        if (pendingType !== 'BOARD_EXPANSION_GOD') return 1;
-        const cardLogic = getCardLogic();
-        let required = Number(pending && pending.maxSelections);
-        if (cardLogic && typeof cardLogic.getBoardExpansionGodRequiredSelectionCount === 'function') {
-            required = Number(cardLogic.getBoardExpansionGodRequiredSelectionCount(
-                cfg.getCardState(),
-                cfg.getGameState(),
-                playerKey
-            ));
-        }
-        if (!Number.isFinite(required) || required <= 0) required = 1;
-        const selectedCount = getBoardExpansionGodSelectedCount(pending);
-        return Math.max(1, Math.floor(required) - selectedCount);
-    }
-
-    function filterBoardExpansionEnemyCornerTargets(playerKey: any, pendingType: any, pending: any, targets: any[]): any[] {
+    function filterBoardExpansionEnemyCornerTargets(playerKey: any, targets: any[]): any[] {
         const filtered = Array.isArray(targets)
             ? targets.filter((target) => isOpponentOccupiedCornerTarget(playerKey, target))
             : [];
-        const requiredRemaining = getBoardExpansionRequiredRemainingCount(playerKey, pendingType, pending);
-        if (pendingType === 'BOARD_EXPANSION_GOD' && filtered.length < requiredRemaining) return [];
         return filtered;
+    }
+
+    function constrainCpuBoardExpansionGodToOneTarget(pendingType: any, pending: any, targets: any[]): void {
+        if (pendingType !== 'BOARD_EXPANSION_GOD') return;
+        if (!pending || typeof pending !== 'object') return;
+        if (!Array.isArray(targets) || targets.length <= 0) return;
+        if (getBoardExpansionGodSelectedCount(pending) > 0) return;
+        pending.maxSelections = 1;
+        pending.selectedCount = 0;
+        pending.selectedTargets = [];
     }
 
     function filterSwapEnemyNormalCornerTargets(playerKey: any, targets: any[]): any[] {
@@ -453,11 +445,13 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         const pending = cfg.readCpuPendingEffect(playerKey);
         const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_EXPANSION_WILL';
         const isGodExpansion = pendingType === 'BOARD_EXPANSION_GOD';
+        const targets = filterBoardExpansionEnemyCornerTargets(playerKey, getSelectableTargets(playerKey));
+        constrainCpuBoardExpansionGodToOneTarget(pendingType, pending, targets);
         return runTargetAction({
             playerKey,
             pendingType,
             pending,
-            targets: filterBoardExpansionEnemyCornerTargets(playerKey, pendingType, pending, getSelectableTargets(playerKey)),
+            targets,
             noTargetLabel: isGodExpansion ? '盤面拡張神対象なし' : '盤面拡張対象なし',
             targetLabel: isGodExpansion ? '盤面拡張神ターゲット' : '盤面拡張ターゲット',
             payloadKey: 'expansionTarget',

@@ -51,12 +51,6 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         return count;
     }
 
-    function getBoardExpansionGodRequiredSelectionCount(cardLogic: any, cs: any, gs: any, playerKey: any): number {
-        if (!cardLogic || typeof cardLogic.getBoardExpansionGodRequiredSelectionCount !== 'function') return 1;
-        const count = Number(cardLogic.getBoardExpansionGodRequiredSelectionCount(cs, gs, playerKey));
-        return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
-    }
-
     function getBoardExpansionEnemyCornerTargetCounts(playerKey: any, board: any, playerValue: any) {
         const cardLogic = readCardLogic();
         const cs = readCardState();
@@ -68,9 +62,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             ? cardLogic.getBoardExpansionGodTargets(cs, gs, playerKey)
             : [];
         const will = countEnemyOccupiedCornerTargets(board, playerValue, willTargets);
-        const rawGod = countEnemyOccupiedCornerTargets(board, playerValue, godTargets);
-        const godRequired = getBoardExpansionGodRequiredSelectionCount(cardLogic, cs, gs, playerKey);
-        const god = godRequired > 0 && rawGod >= godRequired ? rawGod : 0;
+        const god = countEnemyOccupiedCornerTargets(board, playerValue, godTargets);
         return {
             boardExpansionWillEnemyCornerTargetCount: will,
             boardExpansionGodEnemyCornerTargetCount: god,

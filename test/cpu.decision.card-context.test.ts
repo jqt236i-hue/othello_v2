@@ -95,4 +95,56 @@ describe('cpu decision card context module', () => {
       cornerPlanState: planState
     });
   });
+
+  test('buildCardUseDecisionContext counts BOARD_EXPANSION_GOD when one enemy corner target is legal', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[7][7] = 1;
+
+    const moduleRef = createCpuDecisionCardContext({
+      getGameState: () => ({ board }),
+      getCardState: () => ({
+        charge: { black: 0, white: 27 },
+        hands: { black: [], white: ['board_expand_god_01'] },
+        decks: { black: [], white: [] },
+        markers: []
+      }),
+      getCardLogic: () => ({
+        getBoardExpansionTargets: () => [],
+        getBoardExpansionGodTargets: () => [
+          { row: 0, col: 0 },
+          { row: 7, col: 7 }
+        ],
+        getBoardExpansionGodRequiredSelectionCount: () => 2,
+        getSwapTargets: () => []
+      }),
+      resolvePlayerValue: (playerKey: any) => (playerKey === 'white' ? -1 : 1),
+      getShapeAwareBoard: (sourceBoard: any) => sourceBoard,
+      countBoardStatsForPlayer: () => ({ discDiff: 0, empties: 63 }),
+      countEdgeControl: () => ({ ownEdges: 0, oppEdges: 0 }),
+      buildCornerPlanState: () => ({
+        ownCorners: 0,
+        oppCorners: 1,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: true,
+        cornerHoldMode: false,
+        recoveryCostGap: 0,
+        highBonusMoveAvailable: false
+      }),
+      getBoardBonusValueAt: () => 0,
+      getBoardCellValueSafe: (sourceBoard: any, row: any, col: any) => sourceBoard[row][col],
+      getCpuPolicyCore: () => null,
+      isCornerCell: (row: any, col: any) => (
+        (row === 0 && col === 0) ||
+        (row === 0 && col === 7) ||
+        (row === 7 && col === 0) ||
+        (row === 7 && col === 7)
+      )
+    });
+
+    const context = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], ['board_expand_god_01']);
+
+    expect(context.boardExpansionGodEnemyCornerTargetCount).toBe(1);
+    expect(context.boardExpansionEnemyCornerTargetCount).toBe(1);
+  });
 });

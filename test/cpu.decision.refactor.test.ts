@@ -3388,25 +3388,35 @@ describe('cpu decision refactor helpers', () => {
       currentPlayer: -1
     };
     global.gameState.board[7][7] = 1;
-    global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+    global.cardState.pendingEffectByPlayer.white = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 2,
+      selectedTargets: []
+    };
     global.CardLogic = {
       getSelectableTargets: () => [
         { row: 0, col: 0 },
         { row: 7, col: 7 }
       ],
+      getBoardExpansionGodRequiredSelectionCount: () => 2,
       applyBoardExpansionGod: jest.fn(() => ({ applied: true }))
     };
     global.TurnPipeline = {};
     global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: jest.fn(() => ({
-        ok: true,
-        nextCardState: {
-          ...global.cardState,
-          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
-        },
-        nextGameState: global.gameState,
-        playbackEvents: []
-      }))
+      runTurnWithAdapter: jest.fn(() => {
+        expect(global.cardState.pendingEffectByPlayer.white.maxSelections).toBe(1);
+        return {
+          ok: true,
+          nextCardState: {
+            ...global.cardState,
+            pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+          },
+          nextGameState: global.gameState,
+          playbackEvents: []
+        };
+      })
     };
 
     await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');

@@ -384,6 +384,34 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
+  test('BOARD_EXPANSION_GODはpending.maxSelectionsが1なら候補が複数でも1角で確定する', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
+    expect(def).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 40;
+    cardState.hands.black = [def.id];
+
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
+    expect(used).toBe(true);
+    expect(CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black')).toHaveLength(4);
+
+    cardState.pendingEffectByPlayer.black.maxSelections = 1;
+
+    const applied = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 7, 7);
+
+    expect(applied && applied.applied).toBe(true);
+    expect(applied && applied.completed).toBe(true);
+    expect(applied && applied.sources).toEqual([{ row: 7, col: 7 }]);
+    expect(applied && applied.added).toEqual(expect.arrayContaining([
+      { row: 7, col: 8 },
+      { row: 8, col: 8 },
+      { row: 8, col: 7 }
+    ]));
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
   test('BOARD_EXPANSION_GODは選択可能な角が0だと使用できない', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
     expect(def).toBeTruthy();
