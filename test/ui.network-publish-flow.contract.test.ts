@@ -162,4 +162,74 @@ describe('NetworkPublishFlowController contract', () => {
     );
     expect(enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
   });
+
+  test('accepted ack-only publish response is tracked without applying a snapshot', async () => {
+    const publishFlowModule = require('../ui/network/publish-flow');
+    const state = {
+      roomId: 'ABC',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      stateVersion: 1,
+      publishChain: Promise.resolve()
+    };
+    const applySnapshotThroughCoordinator = jest.fn(() => true);
+    const recordNetworkTelemetry = jest.fn();
+    const markTrackedPublishResponse = jest.fn();
+    const controller = publishFlowModule.createNetworkPublishFlowController({
+      getState: () => state,
+      isActive: () => true,
+      normalizePlayerKey: (value: any) => (value === 'white' ? 'white' : 'black'),
+      createOperationId: () => 'op_ack_only',
+      resolveNetworkPublishRequestModule: () => ({
+        buildPublishRequest: () => ({
+          commandPayload: { actor: 'black', params: {} },
+          requestPayload: { actionType: 'place' },
+          queuedActionType: 'place'
+        })
+      }),
+      getCurrentPublishTurnIndex: () => 5,
+      createTrackedPublish: () => ({ sequence: 1 }),
+      publishRequestWithRetry: jest.fn(async () => ({
+        ok: true,
+        data: {
+          ok: true,
+          operationId: 'op_ack_only',
+          stateVersion: 2,
+          presentationCursor: { visualSeq: 7, stateVersion: 2 },
+          publishMeta: {
+            kind: 'accepted',
+            operationId: 'op_ack_only',
+            actionType: 'place',
+            receivedBaseVersion: 1,
+            authoritativeStateVersion: 2
+          }
+        }
+      })),
+      applySnapshotThroughCoordinator,
+      getAppliedStateVersion: () => 1,
+      getSnapshotStateVersion: (snapshot: any) => snapshot && snapshot.stateVersion,
+      recordNetworkTelemetry,
+      markTrackedPublishResponse,
+      emitPayloadEffectLogs: jest.fn(),
+      showAutoPassNoticeFromPayload: jest.fn(),
+      pruneTrackedPublishes: jest.fn()
+    });
+
+    await expect(controller.publishSnapshot({ playerKey: 'black', actionType: 'place' }))
+      .resolves.toEqual({
+        ok: true,
+        operationId: 'op_ack_only',
+        stateVersion: 2,
+        presentationCursor: { visualSeq: 7, stateVersion: 2 },
+        visualSeq: 7
+      });
+
+    expect(applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    expect(markTrackedPublishResponse).toHaveBeenCalledWith(expect.objectContaining({ sequence: 1 }), 2);
+    expect(recordNetworkTelemetry).toHaveBeenCalledWith('publish_ack_without_snapshot', {
+      operationId: 'op_ack_only',
+      responseStateVersion: 2,
+      visualSeq: 7
+    });
+  });
 });

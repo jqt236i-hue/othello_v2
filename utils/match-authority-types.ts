@@ -26,6 +26,8 @@ export interface MatchAuthoritySeatTokens {
 
 export type MatchAuthorityViewerRole = 'seat' | 'spectator';
 
+export type MatchAuthorityPublishResponseMode = 'snapshot_compat' | 'ack_only';
+
 export interface MatchAuthoritySpectatorState {
     token: string;
     name: string;
@@ -136,6 +138,7 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     visualSeq?: number | null;
     presentationJournal?: MatchAuthorityPresentationJournalEntry[] | null;
     initialSnapshotByViewer?: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> | null;
+    publishResponseMode?: MatchAuthorityPublishResponseMode | string | null;
     authorityLog?: unknown[] | null;
     authoritativeStateHash?: unknown;
     networkAutoEnabled?: boolean | null;
@@ -202,6 +205,7 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     presentationFrames?: unknown;
     baseVisualSeq?: unknown;
     baseSnapshot?: unknown;
+    publishResponseMode?: unknown;
 }
 
 export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
@@ -399,6 +403,9 @@ export interface MatchAuthorityPublicApi {
         seatKey: unknown,
         entry: unknown
     ): MatchAuthorityAcceptedOperationEntry | null;
+    normalizePublishResponseMode(value: unknown): MatchAuthorityPublishResponseMode;
+    shouldUseAckOnlyPublishResponse(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityPublishResponseOptions | null): boolean;
+    buildPublishAckPayloadFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityPublishPayloadFromRoomOptions | null): MatchAuthorityPublishResponsePayload;
     buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptions): MatchAuthorityPublishResponsePayload;
     buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAuthorityRoomPayload;
     buildRoomPayloadFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityRoomPayloadFromRoomOptions | null): MatchAuthorityRoomPayload;

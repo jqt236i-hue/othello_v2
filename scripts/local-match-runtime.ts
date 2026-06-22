@@ -39,6 +39,7 @@ function createRoom(options: any) {
         roomDeck: null,
         roomBoardConfig: initialOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        publishResponseMode: MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode),
         turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },
         lastAcceptedOperationBySeat: { black: null, white: null },
         acceptedOperationHistoryBySeat: { black: [], white: [] },
@@ -61,6 +62,15 @@ function normalizeBaseVersion(value: any) {
 
 function buildPayload(room: any, viewerSeatKey: any, options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
+    if (MatchAuthority.shouldUseAckOnlyPublishResponse(room, opts)) {
+        return MatchAuthority.buildPublishAckPayloadFromRoom(room, Object.assign({
+            presentationCursor: {
+                visualSeq: Number.isFinite(Number(room.visualSeq)) ? Number(room.visualSeq) : 0,
+                stateVersion: Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : 0
+            },
+            serverTime: Date.now()
+        }, opts));
+    }
     return MatchAuthority.buildPublishPayloadFromRoom(room, Object.assign({
         snapshot: Object.prototype.hasOwnProperty.call(opts, 'snapshot')
             ? opts.snapshot

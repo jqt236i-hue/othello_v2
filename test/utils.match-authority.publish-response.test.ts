@@ -132,6 +132,51 @@ describe('match authority publish response payload', () => {
     expect(payload.publishMeta).toBeUndefined();
   });
 
+  test('buildPublishAckPayloadFromRoom returns only the publish ack contract', () => {
+    const payload = MatchAuthority.buildPublishAckPayloadFromRoom({
+      roomId: 'abc',
+      stateVersion: 6,
+      seats: { black: true, white: true },
+      seatNames: { black: 'くろ', white: 'しろ' },
+      snapshot: { stateVersion: 6 }
+    }, {
+      ok: true,
+      serverTime: 12345,
+      presentationCursor: { visualSeq: 4, stateVersion: 6 },
+      publishMeta: {
+        kind: 'accepted',
+        operationId: ' op_ack_1 ',
+        actionType: 'PLACE',
+        receivedBaseVersion: 5,
+        authoritativeStateVersion: 6
+      }
+    });
+
+    expect(payload).toEqual({
+      ok: true,
+      roomId: 'ABC',
+      serverTime: 12345,
+      stateVersion: 6,
+      operationId: 'op_ack_1',
+      presentationCursor: { visualSeq: 4, stateVersion: 6 },
+      publishMeta: {
+        kind: 'accepted',
+        operationId: 'op_ack_1',
+        actionType: 'place',
+        receivedBaseVersion: 5,
+        authoritativeStateVersion: 6,
+        replayedStateVersion: null,
+        rejectedReason: null
+      }
+    });
+    expect(payload).not.toHaveProperty('snapshot');
+    expect(payload).not.toHaveProperty('playbackEvents');
+    expect(payload).not.toHaveProperty('presentationFrames');
+    expect(payload).not.toHaveProperty('roomDeck');
+    expect(payload).not.toHaveProperty('turnTimer');
+    expect(payload).not.toHaveProperty('seats');
+  });
+
   test('omits roomBoardConfig when caller did not provide it', () => {
     const payload = MatchAuthority.buildPublishResponsePayload({
       ok: true,

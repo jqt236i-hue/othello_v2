@@ -1134,6 +1134,57 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('ack-only publish response omits snapshot and playback payloads when room flag is enabled', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      patchRoomSnapshotForTests(roomId, (room) => {
+        room.publishResponseMode = 'ack_only';
+      });
+
+      const publishBody = buildPlacePublishBody({
+        roomId,
+        snapshot: created.data.snapshot,
+        stateVersion: created.data.stateVersion,
+        seatKey: 'black',
+        seatToken,
+        operationId: 'op_ack_only_local_1'
+      });
+      const publish = await requestJson(port, 'POST', '/api/match/publish', publishBody);
+
+      expect(publish.status).toBe(200);
+      expect(publish.data).toEqual(expect.objectContaining({
+        ok: true,
+        roomId,
+        stateVersion: Number(created.data.stateVersion) + 1,
+        operationId: 'op_ack_only_local_1',
+        serverTime: expect.any(Number),
+        presentationCursor: expect.objectContaining({
+          visualSeq: 1,
+          stateVersion: Number(created.data.stateVersion) + 1
+        }),
+        publishMeta: expect.objectContaining({
+          kind: 'accepted',
+          operationId: 'op_ack_only_local_1',
+          actionType: 'place',
+          receivedBaseVersion: Number(created.data.stateVersion),
+          authoritativeStateVersion: Number(created.data.stateVersion) + 1
+        })
+      }));
+      expect(publish.data).not.toHaveProperty('snapshot');
+      expect(publish.data).not.toHaveProperty('playbackEvents');
+      expect(publish.data).not.toHaveProperty('presentationFrames');
+      expect(publish.data).not.toHaveProperty('roomDeck');
+      expect(publish.data).not.toHaveProperty('turnTimer');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('auto pass idempotent replay response preserves auto pass notice metadata', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

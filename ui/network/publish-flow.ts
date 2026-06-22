@@ -284,6 +284,7 @@ function createNetworkPublishFlowController(config?: any): any {
         if (typeof cfg.markTrackedPublishResponse === 'function') {
           cfg.markTrackedPublishResponse(trackedPublish, responseStateVersion);
         }
+        const acceptedPublishResult = buildAcceptedPublishResult(res.data, responseStateVersion, operationId);
         if (res.data && res.data.idempotentReplay === true && typeof cfg.recordNetworkTelemetry === 'function') {
           cfg.recordNetworkTelemetry('publish_idempotent_replay_ack', {
             operationId,
@@ -386,9 +387,15 @@ function createNetworkPublishFlowController(config?: any): any {
               skipReason: shouldSkipPublishResponse ? 'self_snapshot_already_applied' : 'apply_rejected'
             });
           }
+        } else if (typeof cfg.recordNetworkTelemetry === 'function') {
+          cfg.recordNetworkTelemetry('publish_ack_without_snapshot', {
+            operationId: acceptedPublishResult.operationId || operationId,
+            responseStateVersion,
+            visualSeq: typeof acceptedPublishResult.visualSeq === 'number' ? acceptedPublishResult.visualSeq : null
+          });
         }
         if (typeof cfg.pruneTrackedPublishes === 'function') cfg.pruneTrackedPublishes();
-        return buildAcceptedPublishResult(res.data, responseStateVersion, operationId);
+        return acceptedPublishResult;
       })
       .catch((error: any) => {
         const message = error && error.message ? error.message : 'PUBLISH_ERROR';

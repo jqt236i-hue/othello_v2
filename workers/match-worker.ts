@@ -959,6 +959,17 @@ function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, play
 
 function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown, options: MatchWorkerPublishPayloadOptions = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
+    const presentationCursor = buildPresentationCursor(room);
+    if (MatchAuthority.shouldUseAckOnlyPublishResponse(room, options)) {
+        return MatchAuthority.buildPublishAckPayloadFromRoom(room, {
+            ok: true,
+            stateVersion: room && Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : null,
+            presentationCursor,
+            serverTime,
+            idempotentReplay: options.idempotentReplay === true,
+            publishMeta: options.publishMeta || null
+        });
+    }
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
     const networkAutoEnabled = toPublicNetworkAutoEnabled(room);
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
@@ -977,7 +988,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
-        presentationCursor: buildPresentationCursor(room),
+        presentationCursor,
         presentationFrames: buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
@@ -1784,6 +1795,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
     const opts = asRecord(options);
     const networkDebugEnabled = opts.networkDebugEnabled === true;
     const networkAutoEnabled = opts.networkAutoEnabled === true;
+    const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
     const playerName = normalizeNetworkPlayerName(opts.playerName) || MatchRoomLobby.createRandomPlayerName();
     const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(opts.roomPassword);
@@ -1835,6 +1847,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 selectedHandSkinId: opts.selectedHandSkinId,
                 networkDebugEnabled,
                 networkAutoEnabled,
+                publishResponseMode,
                 roomName,
                 roomPassword,
                 initialDeckSpecByPlayer,
@@ -2510,6 +2523,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         );
         const networkDebugEnabled = opts.networkDebugEnabled === true;
         const networkAutoEnabled = opts.networkAutoEnabled === true;
+        const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
         const nowMs = Date.now();
         return {
             roomId,
@@ -2524,6 +2538,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomBoardConfig,
             networkDebugEnabled,
             networkAutoEnabled,
+            publishResponseMode,
             stateVersion: 0,
             seats: { black: false, white: false },
             seatNames: { black: '', white: '' },
@@ -2615,6 +2630,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         );
         const networkDebugEnabled = payload.networkDebugEnabled === true;
         const networkAutoEnabled = payload.networkAutoEnabled === true;
+        const publishResponseMode = MatchAuthority.normalizePublishResponseMode(payload.publishResponseMode);
         const roomName = MatchRoomLobby.resolveRoomName(payload.roomName);
         const roomPassword = MatchRoomLobby.normalizeRoomPassword(payload.roomPassword);
 
@@ -2633,6 +2649,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomBoardConfig,
             networkDebugEnabled,
             networkAutoEnabled,
+            publishResponseMode,
             roomName,
             roomPassword
         });

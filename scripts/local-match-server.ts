@@ -434,6 +434,17 @@ function collectServerPlaybackEvents(snapshot: any, rawEvents: any) {
 
 function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
+    const presentationCursor = buildPresentationCursor(room);
+    if (MatchAuthority.shouldUseAckOnlyPublishResponse(room, options)) {
+        return MatchAuthority.buildPublishAckPayloadFromRoom(room, {
+            ok: true,
+            stateVersion: room && Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : null,
+            presentationCursor,
+            serverTime,
+            idempotentReplay: options.idempotentReplay === true,
+            publishMeta: options.publishMeta || null
+        });
+    }
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
         ? options.snapshot
@@ -456,7 +467,7 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
-        presentationCursor: buildPresentationCursor(room),
+        presentationCursor,
         presentationFrames: buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
@@ -1325,6 +1336,7 @@ function makeRoom(options: any) {
         roomDeck: null,
         roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        publishResponseMode: MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode),
         turnTimer: createPausedTurnTimer({ snapshot }),
         lastAcceptedOperationBySeat: { black: null, white: null },
         eventSeq: 0,
@@ -1438,13 +1450,14 @@ async function handleCreate(req: any, res: any) {
     const roomName = MatchRoomLobby.resolveRoomName(body.roomName);
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(body.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(body.roomBoardConfig);
+    const publishResponseMode = MatchAuthority.normalizePublishResponseMode(body.publishResponseMode);
     const deckSelection = resolveDeckSelection(body.deckCode);
     if (!deckSelection.ok) {
         writeJson(res, 400, { ok: false, reason: deckSelection.reason || 'DECK_CODE_INVALID' });
         return;
     }
 
-    const room = makeRoom({ networkDebugEnabled, roomBoardConfig, roomName, roomPassword });
+    const room = makeRoom({ networkDebugEnabled, roomBoardConfig, roomName, roomPassword, publishResponseMode });
     room.seats.black = true;
     room.seatNames.black = playerName;
     room.seatHandSkins.black = selectedHandSkinId;

@@ -167,6 +167,79 @@ function runCommandPublishIdempotencyScenario() {
   return runScenario(runner);
 }
 
+function runAckOnlyPublishScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const TurnPipelinePhases = fromRoot('game/turn/turn_pipeline_phases.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(11);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'IDA1',",
+    "    playerName: 'くろ',",
+    "    seed: 11,",
+    "    snapshot: {",
+    "      gameState,",
+    "      cardState,",
+    "    }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  await durableObject.loadRoom();",
+    "  durableObject.room.publishResponseMode = 'ack_only';",
+    "  await durableObject.saveRoom();",
+    "",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_ack_only_worker_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: 1,",
+    "    action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }",
+    "  });",
+    "  const payload = await publishResponse.json();",
+    "",
+    "  await durableObject.loadRoom();",
+    "",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: publishResponse.status,",
+    "    payload,",
+    "    finalStateVersion: durableObject.room ? durableObject.room.stateVersion : null,",
+    "    finalBoard: durableObject.room && durableObject.room.snapshot && durableObject.room.snapshot.gameState",
+    "      ? durableObject.room.snapshot.gameState.board",
+    "      : null",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 function runAutoPassIdempotencyScenario() {
   const runner = [
     "(async () => {",
@@ -1130,6 +1203,37 @@ describe('match worker publish idempotency', () => {
 
     expect(result.finalStateVersion).toBe(1);
     expect(Array.isArray(result.finalBoard)).toBe(true);
+    expect(result.finalBoard[2][3]).toBe(1);
+  });
+
+  test('ack-only publish response omits snapshot and playback payloads when room flag is enabled', () => {
+    const result = runAckOnlyPublishScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'IDA1',
+      stateVersion: 1,
+      operationId: 'op_ack_only_worker_1',
+      serverTime: expect.any(Number),
+      presentationCursor: expect.objectContaining({
+        visualSeq: 1,
+        stateVersion: 1
+      }),
+      publishMeta: expect.objectContaining({
+        kind: 'accepted',
+        operationId: 'op_ack_only_worker_1',
+        actionType: 'place',
+        receivedBaseVersion: 0,
+        authoritativeStateVersion: 1
+      })
+    }));
+    expect(result.payload).not.toHaveProperty('snapshot');
+    expect(result.payload).not.toHaveProperty('playbackEvents');
+    expect(result.payload).not.toHaveProperty('presentationFrames');
+    expect(result.payload).not.toHaveProperty('roomDeck');
+    expect(result.payload).not.toHaveProperty('turnTimer');
+    expect(result.finalStateVersion).toBe(1);
     expect(result.finalBoard[2][3]).toBe(1);
   });
 

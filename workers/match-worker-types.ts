@@ -291,6 +291,7 @@ export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     roomBoardConfig?: unknown;
     networkDebugEnabled?: unknown;
     networkAutoEnabled?: unknown;
+    publishResponseMode?: unknown;
 }
 
 export interface MatchWorkerTurnTimerOptions extends Record<string, unknown> {

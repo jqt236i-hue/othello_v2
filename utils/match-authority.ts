@@ -25,6 +25,7 @@ import type {
     MatchAuthorityPublicSnapshot,
     MatchAuthorityPublishMeta,
     MatchAuthorityPublishPayloadFromRoomOptions,
+    MatchAuthorityPublishResponseMode,
     MatchAuthorityPublishResponseOptions,
     MatchAuthorityPublishResponsePayload,
     MatchAuthorityRoomPayload,
@@ -586,6 +587,25 @@ function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptio
     return response;
 }
 
+function normalizePublishResponseMode(value: unknown): MatchAuthorityPublishResponseMode {
+    const text = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (text === 'ack_only' || text === 'ackonly') return 'ack_only';
+    return 'snapshot_compat';
+}
+
+function shouldUseAckOnlyPublishResponse(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthorityPublishResponseOptions | null
+): boolean {
+    const opts = asRecord(options);
+    if (opts.ok !== true) return false;
+    const room = asRecord(roomValue);
+    const modeValue = Object.prototype.hasOwnProperty.call(opts, 'publishResponseMode')
+        ? opts.publishResponseMode
+        : room.publishResponseMode;
+    return normalizePublishResponseMode(modeValue) === 'ack_only';
+}
+
 function buildVersionRejectedPublishResponseOptions(
     room: MatchAuthorityRoomState | null | undefined,
     options: MatchAuthorityPublishResponseOptionInput | null | undefined
@@ -889,6 +909,53 @@ function assignOptionalRoomBoardConfig<T extends Record<string, unknown>>(target
     return target;
 }
 
+function hasPublishMetaFields(publishMeta: MatchAuthorityPublishMeta): boolean {
+    return !!(
+        publishMeta.kind
+        || publishMeta.operationId
+        || publishMeta.actionType
+        || publishMeta.receivedBaseVersion !== null
+        || publishMeta.authoritativeStateVersion !== null
+        || publishMeta.replayedStateVersion !== null
+        || publishMeta.rejectedReason
+    );
+}
+
+function buildPublishAckPayloadFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthorityPublishPayloadFromRoomOptions | null
+): MatchAuthorityPublishResponsePayload {
+    const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts: MatchAuthorityPublishPayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
+    const publishMeta = normalizePublishMeta(opts.publishMeta);
+    const operationId = normalizeOperationId(
+        Object.prototype.hasOwnProperty.call(opts, 'operationId')
+            ? opts.operationId
+            : publishMeta.operationId
+    ) || publishMeta.operationId || null;
+    const payloadOptions: MatchAuthorityRoomPayloadOptions = {
+        ok: opts.ok === true,
+        roomId: Object.prototype.hasOwnProperty.call(opts, 'roomId') ? opts.roomId : room.roomId || null,
+        stateVersion: Object.prototype.hasOwnProperty.call(opts, 'stateVersion') ? opts.stateVersion : room.stateVersion,
+        serverTime: opts.serverTime
+    };
+    if (operationId) {
+        payloadOptions.operationId = operationId;
+    }
+    if (opts.idempotentReplay === true) {
+        payloadOptions.idempotentReplay = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'presentationCursor')) {
+        payloadOptions.presentationCursor = opts.presentationCursor || null;
+    }
+
+    const payload = buildRoomPayload(payloadOptions) as MatchAuthorityPublishResponsePayload;
+    if (hasPublishMetaFields(publishMeta)) {
+        payload.publishMeta = publishMeta;
+    }
+    return payload;
+}
+
 function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptions): MatchAuthorityPublishResponsePayload {
     const opts = (options && typeof options === 'object') ? options : {};
     const payload = buildRoomPayload(assignOptionalRoomBoardConfig({
@@ -922,15 +989,7 @@ function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptio
     }, opts));
 
     const publishMeta = normalizePublishMeta(opts.publishMeta);
-    if (
-        publishMeta.kind
-        || publishMeta.operationId
-        || publishMeta.actionType
-        || publishMeta.receivedBaseVersion !== null
-        || publishMeta.authoritativeStateVersion !== null
-        || publishMeta.replayedStateVersion !== null
-        || publishMeta.rejectedReason
-    ) {
+    if (hasPublishMetaFields(publishMeta)) {
         payload.publishMeta = publishMeta;
     }
 
@@ -2668,6 +2727,8 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     classifyVersionRejectionReason,
     isVersionRejectionReason,
     buildVersionRejectedPublishResponseOptions,
+    normalizePublishResponseMode,
+    shouldUseAckOnlyPublishResponse,
     makeHiddenHandToken,
     parseHiddenHandToken,
     addSpectatorToRoom,
@@ -2685,6 +2746,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     buildSnapshotPayloadFromRoom,
     buildPresencePayloadFromRoom,
     buildHeartbeatPayloadFromRoom,
+    buildPublishAckPayloadFromRoom,
     buildPublishPayloadFromRoom,
     buildPublishResponseOptions,
     resolveSeatForJoin,

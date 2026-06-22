@@ -23,6 +23,11 @@ function createRoom() {
 }
 
 describe('match authority presentation journal', () => {
+  test('keeps SSE and presentation journal buffers bounded at eight entries', () => {
+    expect(MatchAuthority.SSE_RESUME_BUFFER_LIMIT).toBe(8);
+    expect(MatchAuthority.PRESENTATION_JOURNAL_LIMIT).toBe(8);
+  });
+
   test('appendPresentationFrame increments visualSeq and stores viewer payloads', () => {
     const room = createRoom();
     const frame = MatchAuthority.appendPresentationFrame(room, {
