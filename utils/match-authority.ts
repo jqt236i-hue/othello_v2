@@ -110,7 +110,8 @@ const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 const OPERATION_ID_MAX_LENGTH = 128;
 const HAND_SKIN_ID_MAX_LENGTH = 128;
-const SSE_RESUME_BUFFER_LIMIT = 96;
+const SSE_RESUME_BUFFER_LIMIT = 8;
+const PRESENTATION_JOURNAL_LIMIT = 8;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
 const NETWORK_PLAYER_NAME_MAX = 7;
 const CHAT_MAX_LENGTH = 20;
@@ -2384,8 +2385,28 @@ function appendPresentationFrame(
     };
 
     journal.push(entry);
+    if (journal.length > PRESENTATION_JOURNAL_LIMIT) {
+        const removeCount = journal.length - PRESENTATION_JOURNAL_LIMIT;
+        const baseEntry = journal[removeCount - 1];
+        if (baseEntry && typeof baseEntry === 'object') {
+            room.presentationJournalBaseVisualSeq = toPositiveInteger(baseEntry.visualSeq, 0);
+            room.presentationJournalBaseSnapshotByViewer = deepClone(baseEntry.snapshotAfterByViewer || {});
+        }
+        journal.splice(0, removeCount);
+    }
     room.visualSeq = visualSeq;
     return entry;
+}
+
+function getMinimumRetainedPresentationBaseSeq(roomValue: MatchAuthorityRoomState | null | undefined): number {
+    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
+    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
+    if (journal.length <= 0) return 0;
+    if (Number.isFinite(Number(room.presentationJournalBaseVisualSeq))) {
+        return Math.max(0, Math.trunc(Number(room.presentationJournalBaseVisualSeq)));
+    }
+    const firstSeq = toPositiveInteger(journal[0] && journal[0].visualSeq, 0);
+    return Math.max(0, firstSeq - 1);
 }
 
 function toPublicPresentationFrame(
@@ -2480,6 +2501,15 @@ function findBaseSnapshotForVisualSeq(
     const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
     const viewer = normalizePresentationViewer(viewerValue);
     const payloadKey = getPresentationPayloadKeyForViewer(viewer);
+    const retainedBaseSeq = Number.isFinite(Number(room.presentationJournalBaseVisualSeq))
+        ? Math.max(0, Math.trunc(Number(room.presentationJournalBaseVisualSeq)))
+        : null;
+    if (retainedBaseSeq !== null && afterVisualSeq === retainedBaseSeq) {
+        const baseSnapshots = room.presentationJournalBaseSnapshotByViewer && typeof room.presentationJournalBaseSnapshotByViewer === 'object'
+            ? asRecord(room.presentationJournalBaseSnapshotByViewer)
+            : {};
+        return baseSnapshots[payloadKey] || baseSnapshots.spectator || null;
+    }
     if (afterVisualSeq <= 0) {
         const initial = room.initialSnapshotByViewer && room.initialSnapshotByViewer[payloadKey];
         return initial || room.snapshot || null;
@@ -2502,9 +2532,23 @@ function buildPresentationJournalResponse(
     const currentVisualSeq = toPositiveInteger(room.visualSeq, 0);
     const currentStateVersion = toPositiveInteger(room.stateVersion, 0);
     const presentationCursor = { visualSeq: currentVisualSeq, stateVersion: currentStateVersion };
-    const baseSnapshot = findBaseSnapshotForVisualSeq(room, afterVisualSeq, opts.viewer);
     const serverTime = Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now();
     const roomId = room.roomId ? String(room.roomId).trim().toUpperCase() : null;
+    const minimumRetainedBaseSeq = getMinimumRetainedPresentationBaseSeq(room);
+    if (afterVisualSeq < minimumRetainedBaseSeq) {
+        return {
+            ok: false,
+            roomId,
+            reason: 'VISUAL_CURSOR_EXPIRED',
+            baseVisualSeq: afterVisualSeq,
+            baseSnapshot: null,
+            presentationCursor,
+            presentationFrames: [],
+            snapshot: room.snapshot || null,
+            serverTime
+        };
+    }
+    const baseSnapshot = findBaseSnapshotForVisualSeq(room, afterVisualSeq, opts.viewer);
 
     if (!baseSnapshot) {
         return {
@@ -2582,6 +2626,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     PLAYER_KEYS,
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
+    PRESENTATION_JOURNAL_LIMIT,
     NETWORK_PLAYER_NAME_MAX,
     CHAT_MAX_LENGTH,
     CHAT_HISTORY_LIMIT,
