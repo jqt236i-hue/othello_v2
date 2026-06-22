@@ -28,6 +28,13 @@ const SharedUIBootstrapModule = (() => {
         return null;
     }
 })();
+const MatchModeLeaderboardStylesModule = (() => {
+    try {
+        return _require('./match-mode/leaderboard-styles');
+    } catch (e) {
+        return null;
+    }
+})();
 
 const MODE_CPU = 'cpu';
 const MODE_REVERSI = 'reversi';
@@ -1104,16 +1111,9 @@ const MODE_OTHELLO = 'othello';
     }
 
     function ensureLeaderboardStylesheet() {
-        try {
-            if (typeof document === 'undefined' || !document.head) return;
-            const existing = document.querySelector('link[data-leaderboard-styles="true"]');
-            if (existing) return;
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'styles-leaderboard.css';
-            link.setAttribute('data-leaderboard-styles', 'true');
-            document.head.appendChild(link);
-        } catch (e) { /* ignore */ }
+        if (MatchModeLeaderboardStylesModule && typeof MatchModeLeaderboardStylesModule.ensureLeaderboardStylesheet === 'function') {
+            MatchModeLeaderboardStylesModule.ensureLeaderboardStylesheet(typeof document !== 'undefined' ? document : null);
+        }
     }
 
     function normalizeLeaderboardFilter(value: any) {
