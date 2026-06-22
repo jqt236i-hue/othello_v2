@@ -19,7 +19,6 @@ const DEFENSIVE_CARD_TYPES = new Set([
     'GUARD_WILL',
     'GUARDIAN_GOD',
     'REGEN_WILL',
-    'PLUNDER_WILL',
     'HEAVEN_BLESSING',
     'REVEAL_HAND_WILL',
     'CONDEMN_WILL',
@@ -175,7 +174,6 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'RAINBOW_STONE',
         'SILVER_STONE',
         'CRYSTAL_STONE',
-        'PLUNDER_WILL',
         'WORK_WILL',
         'RIBO_WILL',
     ]);

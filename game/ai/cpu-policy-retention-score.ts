@@ -70,7 +70,6 @@ type CpuPolicyRetentionFlags = {
     isCrystalStone: boolean;
     isRainbowStone: boolean;
     isSilverStone: boolean;
-    isPlunderWill: boolean;
     isLossWill: boolean;
     isCorrosionWill: boolean;
     isTrapWill: boolean;
@@ -158,7 +157,6 @@ export function createCpuPolicyRetentionScore() {
             isCrystalStone,
             isRainbowStone,
             isSilverStone,
-            isPlunderWill,
             isLossWill,
             isCorrosionWill,
             isTrapWill,
@@ -355,12 +353,6 @@ export function createCpuPolicyRetentionScore() {
             if (oppSpecialCount <= 0) score -= 260;
             else score += Math.min(120, oppSpecialCount * 42);
             if (ctx.discDiff >= 6 && !cornerEmergency && oppSpecialCount <= 1) score -= 82;
-        }
-        if (isPlunderWill) {
-            const siphon = Math.min(Math.max(0, Math.floor(ctx.oppCharge || 0)), maxLegalFlips);
-            if (maxLegalFlips < 3) score -= 60;
-            if (siphon <= 1) score -= 90;
-            else score += Math.min(90, siphon * 12);
         }
         if (isLossWill) {
             const specialDiff = oppSpecialCount - ownSpecialCount;

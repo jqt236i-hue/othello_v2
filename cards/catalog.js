@@ -468,16 +468,6 @@ window.CardCatalog = {
       "desc": "手札をすべて破壊し、新たに3枚ドローする。"
     },
     {
-      "id": "plunder_will",
-      "name_ja": "吸収の意志",
-      "type": "PLUNDER_WILL",
-      "cost": 4,
-      "desc_ja": "次の反転枚数だけ相手の布石を吸収する。",
-      "display_type_ja": "採掘",
-      "name": "吸収の意志",
-      "desc": "次の反転枚数だけ相手の布石を吸収する。"
-    },
-    {
       "id": "work_01",
       "name_ja": "出稼ぎの意志",
       "type": "WORK_WILL",

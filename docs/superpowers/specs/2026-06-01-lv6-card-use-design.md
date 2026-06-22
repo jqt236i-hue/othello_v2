@@ -67,7 +67,6 @@ Refine thresholds for:
 - `SILVER_STONE`
 - `RAINBOW_STONE`
 - `CRYSTAL_STONE`
-- `PLUNDER_WILL`
 - `TREASURE_BOX`
 - `REBUILD_WILL`
 

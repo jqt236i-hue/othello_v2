@@ -59,15 +59,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         return Math.max(0, Math.floor(maxLegalBoardBonus || 0)) - Math.max(0, Number(cardCost) || 0);
     }
 
-    function getPlunderSwingExtraProfit(maxLegalFlips: number, oppCharge: unknown, cardCost: number): number {
-        const possibleFlips = Math.max(0, Math.floor(maxLegalFlips || 0));
-        const availableOpponentCharge = Number.isFinite(Number(oppCharge))
-            ? Math.max(0, Math.floor(Number(oppCharge)))
-            : 0;
-        const siphon = Math.min(possibleFlips, availableOpponentCharge);
-        return (siphon * 2) - Math.max(0, Number(cardCost) || 0);
-    }
-
     function getEqualityWillStealableAmount(ownCharge: unknown, oppCharge: unknown): number {
         const normalizedOwnCharge = Number.isFinite(Number(ownCharge))
             ? Math.max(0, Math.floor(Number(ownCharge)))
@@ -143,7 +134,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isCrystalStone,
             isRainbowStone,
             isSilverStone,
-            isPlunderWill,
             isTreasureBox,
             isLossWill,
             isCorrosionWill,
@@ -200,7 +190,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             ownEdges,
             oppEdges,
             maxLegalFlips,
-            avgLegalFlips,
             maxLegalGain,
             maxLegalBoardBonus,
             cloneSplitEligibleSourceCount,
@@ -306,13 +295,11 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
                 minUseScore: ctx.minUseScore
             };
         }
-        if (isGoldStone || isRainbowStone || isSilverStone || isCrystalStone || isPlunderWill) {
+        if (isGoldStone || isRainbowStone || isSilverStone || isCrystalStone) {
             const multiplier = isRainbowStone ? 6 : (isGoldStone ? 4 : (isSilverStone ? 3 : 2));
             const extraProfit = isCrystalStone
                 ? getNumberCellExtraProfit(maxLegalBoardBonus, cardCost)
-                : (isPlunderWill
-                    ? getPlunderSwingExtraProfit(maxLegalFlips, ctx.oppCharge, cardCost)
-                    : getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost));
+                : getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost);
             if (extraProfit <= 0) {
                 return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'cpu_unprofitable_charge_roi');
             }
@@ -320,8 +307,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         const highYieldChargeRecovery = (
             ((isGoldStone || isRainbowStone || isSilverStone) &&
                 getFlipMultiplierExtraProfit(maxLegalFlips, isRainbowStone ? 6 : (isGoldStone ? 4 : 3), cardCost) > 0) ||
-            (isCrystalStone && getNumberCellExtraProfit(maxLegalBoardBonus, cardCost) > 0) ||
-            (isPlunderWill && getPlunderSwingExtraProfit(maxLegalFlips, ctx.oppCharge, cardCost) > 0)
+            (isCrystalStone && getNumberCellExtraProfit(maxLegalBoardBonus, cardCost) > 0)
         );
         if (!ctx.forceUseCard && reserveGap > 0) {
             let reservePenalty = reserveGap * 26;
@@ -615,25 +601,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (cornerEmergency && net <= 0) score -= 55;
             if (endgamePhase && net <= 0) score -= 45;
             if (criticalLowDiscEmergency && net > 0) score += 42;
-        }
-
-        if (isPlunderWill) {
-            const siphon = Math.min(Math.max(0, Math.floor(ctx.oppCharge || 0)), maxLegalFlips);
-            score -= 8;
-            score += ((siphon * 2) - cardCost) * 8;
-            if (avgLegalFlips >= 2.5) score += 10;
-            if (maxLegalFlips < 3 && !ctx.forceUseCard) {
-                score -= 240;
-                if (whiteLv6Mode) score -= 150;
-                if (setupBudgetTight) score -= 72;
-            }
-            if (siphon <= 1) score -= 120;
-            else if (siphon <= 2) {
-                score -= 70;
-                if (whiteLv6Mode && setupBudgetTight) score -= 54;
-            }
-            if (siphon >= 3) score += 44;
-            if (cornerEmergency && siphon <= 2) score -= 30;
         }
 
         if (isTreasureBox) {

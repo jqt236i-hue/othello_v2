@@ -68,7 +68,6 @@
 - 悪食の意志 (`GLUTTONOUS_WILL`)
 - 意志狩りの王 (`WILL_HUNTER_KING`)
 - 瞬間多動 (`INSTANT_HYPERACTIVE_WILL`)
-- 吸収の意志 (`PLUNDER_WILL`)
 - 出稼ぎの意志 (`WORK_WILL`)
 - 意志の喪失 (`LOSS_WILL`)
 - 二連投石 (`DOUBLE_PLACE`)

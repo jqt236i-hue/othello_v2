@@ -195,7 +195,7 @@ if __name__ == "__main__":
     print(f"CardCharacteristicLearner parameters: {sum(p.numel() for p in learner.parameters()):,}")
 
     # Test with a few cards
-    test_cards = ["hard_01", "destroy_01", "sniper_01", "plunder_will"]
+    test_cards = ["hard_01", "destroy_01", "sniper_01", "work_01"]
     for card_id in test_cards:
         chars = learner.get_characteristics(card_id)
         print(f"{card_id}: {dict(zip(CARD_CHARACTERISTICS, [f'{c:.2f}' for c in chars]))}")

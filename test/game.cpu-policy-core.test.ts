@@ -1616,33 +1616,6 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(false);
     });
 
-    test('scoreCardUseDecision suppresses PLUNDER_WILL below three flips in white Lv6 mode', () => {
-        const out = core.scoreCardUseDecision(
-            'plunder',
-            () => 7,
-            () => ({ id: 'plunder', type: 'PLUNDER_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 4,
-                discDiff: 0,
-                empties: 26,
-                ownCharge: 18,
-                oppCharge: 10,
-                handSize: 2,
-                ownCorners: 1,
-                oppCorners: 1,
-                hasCornerMoveNow: false,
-                cornerEmergency: false,
-                reserveChargeFloor: 8,
-                maxLegalFlips: 2,
-                maxLegalGain: 2,
-                avgLegalFlips: 1.8
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-    });
-
     test('scoreCardUseDecision suppresses TRAP_WILL while own stones are twenty or fewer', () => {
         const baseContext = {
             level: 6,
@@ -3225,12 +3198,11 @@ describe('cpu-policy-core', () => {
         expect(lowRainbow.shouldUse).toBe(false);
     });
 
-    test('scoreCardUseDecision allows gold silver rainbow and plunder when card-cost ROI is positive', () => {
+    test('scoreCardUseDecision allows gold silver and rainbow when card-cost ROI is positive', () => {
         const defs: Record<string, TestCardDef> = {
             gold: { id: 'gold', type: 'GOLD_STONE' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
-            rainbow: { id: 'rainbow', type: 'RAINBOW_STONE' },
-            plunder: { id: 'plunder', type: 'PLUNDER_WILL' }
+            rainbow: { id: 'rainbow', type: 'RAINBOW_STONE' }
         };
         const common = {
             level: 6,
@@ -3252,11 +3224,9 @@ describe('cpu-policy-core', () => {
             maxLegalGain: 2
         });
         const rainbow = core.scoreCardUseDecision('rainbow', () => 10, (id: string) => defs[id], common);
-        const plunder = core.scoreCardUseDecision('plunder', () => 4, (id: string) => defs[id], common);
         expect(gold.shouldUse).toBe(true);
         expect(silver.shouldUse).toBe(true);
         expect(rainbow.shouldUse).toBe(true);
-        expect(plunder.shouldUse).toBe(true);
     });
 
     test.each([
@@ -3287,13 +3257,6 @@ describe('cpu-policy-core', () => {
             cardType: 'CRYSTAL_STONE',
             cost: 6,
             context: { maxLegalFlips: 5, maxLegalGain: 20, maxLegalBoardBonus: 6, highBonusMoveAvailable: true }
-        },
-        {
-            label: 'plunder at break-even swing',
-            cardId: 'plunder',
-            cardType: 'PLUNDER_WILL',
-            cost: 4,
-            context: { maxLegalFlips: 2, maxLegalGain: 9, oppCharge: 2 }
         }
     ])('scoreCardUseDecision hard-blocks $label even when forced', ({ cardId, cardType, cost, context }) => {
         const out = core.scoreCardUseDecision(

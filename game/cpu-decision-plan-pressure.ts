@@ -74,7 +74,6 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     METEOR_GOD: makePlanPressureProfile(3, 4, 3, 2),
     METEOR_WILL: makePlanPressureProfile(3, 4, 3, 2),
     PERMA_PROTECT_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
-    PLUNDER_WILL: makePlanPressureProfile(1, 2, 0, 2),
     POSITION_SWAP_WILL: makePlanPressureProfile(2, 3, 2, 2),
     PROTECTED_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
     REBUILD_WILL: makePlanPressureProfile(1, 2, 1, 2),

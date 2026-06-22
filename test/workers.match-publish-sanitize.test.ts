@@ -1123,23 +1123,6 @@ describe('match worker publish sanitize', () => {
     expect(result.afterPlace.turnTimer.turnSeatKey).toBe('white');
   });
 
-  test('command publish with PLUNDER_WILL preserves stolen charge and clears pending effect', () => {
-    const result = runCommandPublishPendingPlaceScenario('PLUNDER_WILL');
-    const cardState = result.internalCardState;
-
-    expect(result.status).toBe(200);
-    expect(result.payload.ok).toBe(true);
-    expect(result.internalGameState.board[2][3]).toBe(1);
-    expect(cardState.charge.black).toBe(7);
-    expect(cardState.charge.white).toBe(3);
-    expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
-    expect(result.broadcastMeta.playbackEvents).toEqual(expect.not.arrayContaining([
-      expect.objectContaining({ type: 'PLUNDER_WILL' }),
-      expect.objectContaining({ type: 'DESTROY' })
-    ]));
-  });
-
   test('command publish with RAINBOW_STONE emits destroy playback and leaves source empty', () => {
     const result = runCommandPublishPendingPlaceScenario('RAINBOW_STONE');
     const cardState = result.internalCardState;

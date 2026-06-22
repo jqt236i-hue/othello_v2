@@ -44,8 +44,6 @@
         'RAINBOW_STONE',
         'SILVER_STONE',
         'CRYSTAL_STONE',
-
-        'PLUNDER_WILL',
         'WORK_WILL'
     ]);
 

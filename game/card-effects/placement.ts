@@ -89,9 +89,6 @@ function logPlacementEffects(effects: any, player: any): void {
     if (effects.crystalStoneUsed) {
         emitPlacementLog(LOG_MESSAGES.crystalCharge(effects.crystalStoneGain || 0));
     }
-    if (effects.plunderAmount > 0) {
-        emitPlacementLog(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
-    }
     if (effects.protected) {
         emitPlacementLog(LOG_MESSAGES.protectNext(ownerName));
         emitPlacementDebugLog('[EFFECT] Protected stone formed (UI-only)', 'info');

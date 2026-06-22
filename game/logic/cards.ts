@@ -969,22 +969,6 @@ const {
         return Object.freeze({
             CardWorkModule,
             CardLivingWillModule,
-            PlunderWillModule: Object.freeze({
-                applyPlunderWill(cardState: any, playerKey: any, flipCount: any) {
-                    const opponentKey = playerKey === 'black' ? 'white' : 'black';
-                    const opponentCharge = (cardState && cardState.charge && Number.isFinite(Number(cardState.charge[opponentKey])))
-                        ? Number(cardState.charge[opponentKey])
-                        : 0;
-                    const normalizedFlipCount = Number.isFinite(Number(flipCount))
-                        ? Math.max(0, Math.trunc(Number(flipCount)))
-                        : 0;
-                    const stolen = Math.min(normalizedFlipCount, Math.max(0, opponentCharge));
-                    if (stolen > 0) {
-                        addChargeValue(cardState, opponentKey, -stolen, 'plunder_loss');
-                    }
-                    return { plundered: stolen };
-                }
-            }),
             ProtectedNextStoneModule: Object.freeze({
                 applyProtectedNextStone(cardState: any, playerKey: any, row: any, col: any) {
                     addMarker(cardState, specialStoneKind, row, col, playerKey, {

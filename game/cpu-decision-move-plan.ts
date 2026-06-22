@@ -147,12 +147,7 @@ export function createCpuDecisionMovePlan(config: CpuDecisionMovePlanConfig): an
                 maxLegalFlips >= 3 &&
                 maxLegalGain >= 3) ||
             (cardType === 'CRYSTAL_STONE' &&
-                maxLegalBoardBonus >= 3) ||
-            (cardType === 'PLUNDER_WILL' &&
-                maxLegalFlips >= 3 &&
-                maxLegalGain >= 3 &&
-                Number.isFinite(decisionContext && decisionContext.oppCharge) &&
-                Number(decisionContext.oppCharge) >= 3)
+                maxLegalBoardBonus >= 3)
         );
 
         const allowCornerWindowException = (

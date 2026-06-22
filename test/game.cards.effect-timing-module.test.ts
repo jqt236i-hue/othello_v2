@@ -597,48 +597,9 @@ describe('CardEffectTiming module', () => {
 
   test('applyPlacementEffects uses injected placement effect modules', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
-    const addChargeWithTotal = jest.fn((cardState, playerKey, amount) => amount);
-    const applyPlunderWill = jest.fn(() => ({ plundered: 2 }));
     const applyProtectedNextStone = jest.fn(() => ({ applied: true }));
     const applyPermaProtectNextStone = jest.fn(() => ({ applied: true }));
     const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
-
-    const plunderState = {
-      charge: { black: 5, white: 7 },
-      pendingEffectByPlayer: { black: { type: 'PLUNDER_WILL' }, white: null },
-      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
-      workNextPlacementArmedByPlayer: { black: false, white: false }
-    };
-    const plunderEffects = CardEffectTiming.applyPlacementEffects(plunderState, gameState, 'black', 4, 4, 3, {
-      constants: {
-        BLACK: 1,
-        WHITE: -1,
-        EMPTY: 0,
-        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
-        DOUBLE_PLACE_EXTRA: 1,
-        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
-      },
-      helpers: {
-        addChargeWithTotal,
-        addMarker: jest.fn(),
-        workDebugLog: jest.fn(),
-        workDebugError: jest.fn()
-      },
-      modules: {
-        PlunderWillModule: { applyPlunderWill }
-      }
-    });
-
-    expect(applyPlunderWill).toHaveBeenCalledWith(plunderState, 'black', 3);
-    expect(plunderEffects).toMatchObject({ chargeGained: 5, plunderAmount: 2 });
-    expect(addChargeWithTotal).toHaveBeenCalledWith(plunderState, 'black', 3, expect.objectContaining({
-      popupKind: 'board',
-      sourceType: 'placement_flip_gain'
-    }));
-    expect(addChargeWithTotal).toHaveBeenCalledWith(plunderState, 'black', 2, expect.objectContaining({
-      disableChargeGainMultiplier: true,
-      sourceType: 'plunder_gain'
-    }));
 
     const protectedState = {
       pendingEffectByPlayer: { black: { type: 'PROTECTED_NEXT_STONE' }, white: null },

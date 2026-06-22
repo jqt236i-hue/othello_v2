@@ -410,7 +410,6 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.hyperactivePlaced && !e.instantHyperactivePlaced && !e.escapeHyperactivePlaced && !e.extremeHyperactivePlaced && !e.robotVacuumPlaced && !e.gluttonousPlaced) push('多動石を設置');
                     if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を爆破`);
                     if (e.xBombExploded) push(`クロス爆弾: ${e.xBombDestroyed || 0}個を爆破`);
-                    if (e.plunderAmount > 0) push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
                 }
                 break;
             case 'extra_place_consumed':

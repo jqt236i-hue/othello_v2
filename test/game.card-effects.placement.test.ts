@@ -36,7 +36,6 @@ describe('applyProtectionAfterMove', () => {
             goldStoneUsed: true,
             crystalStoneUsed: true,
             crystalStoneGain: 12,
-            plunderAmount: 5,
             protected: true,
             permaProtected: true,
             bombPlaced: true,
@@ -56,7 +55,6 @@ describe('applyProtectionAfterMove', () => {
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.rainbowCharge(3));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.silverCharge(3));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.crystalCharge(12));
-        expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.plunderPoints(5));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.protectNext('黒'));
         expect(global.emitLogAdded).toHaveBeenCalledWith(LOG_MESSAGES.ultimateHyperactivePlaced('黒'));
         expect(res.pendingType).toBe('FREE_PLACEMENT');

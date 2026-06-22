@@ -201,11 +201,6 @@ function getWorkModule(context: Context): any {
     return modules.CardWorkModule || modules.WorkModule || null;
 }
 
-function getPlunderWillModule(context: Context): any {
-    const modules = getModules(context);
-    return modules.PlunderWillModule || null;
-}
-
 function getProtectedNextStoneModule(context: Context): any {
     const modules = getModules(context);
     return modules.ProtectedNextStoneModule || null;
@@ -299,18 +294,6 @@ function restoreTrackedLivingWill(cardState: any, gameState: any, livingWillMark
         },
         getLivingWillRestoreDeps(context, constants)
     );
-}
-
-function applyPlunderWillEffect(cardState: any, playerKey: string, flipCount: number, moduleApi: any): { plundered: number } {
-    if (!moduleApi || typeof moduleApi.applyPlunderWill !== 'function') {
-        return { plundered: 0 };
-    }
-    const res = moduleApi.applyPlunderWill(cardState, playerKey, flipCount);
-    return {
-        plundered: Number.isFinite(Number(res && res.plundered))
-            ? Number(res.plundered)
-            : 0
-    };
 }
 
 function applyProtectedNextStoneEffect(cardState: any, playerKey: string, row: number, col: number, moduleApi: any): { applied: boolean } {
@@ -962,12 +945,6 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
     const workMod = getWorkModule(context);
     if (workMod && typeof workMod.processWorkEffects === 'function') {
         try {
-            const workAnchor = cardState && (cardState as any).workAnchorPosByPlayer
-                ? (cardState as any).workAnchorPosByPlayer[playerKey]
-                : null;
-            if (workAnchor && frozenCellsActiveAtTurnStart.has(`${workAnchor.row},${workAnchor.col}`)) {
-                return summary;
-            }
             const workDeps = typeof helpers.addChargeWithTotal === 'function'
                 ? { addChargeWithTotal: helpers.addChargeWithTotal }
                 : null;
@@ -975,37 +952,40 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
                 ? workMod.processWorkEffects(cardState, gameState, playerKey, workDeps)
                 : workMod.processWorkEffects(cardState, gameState, playerKey);
             if (!cardState.presentationEvents) (cardState as any).presentationEvents = [];
-            const row = Number.isInteger(res && res.row) ? res.row : null;
-            const col = Number.isInteger(res && res.col) ? res.col : null;
-            const removedReason = (res && typeof res.removedReason === 'string' && res.removedReason)
-                ? res.removedReason
-                : null;
-            const incomeStep = Number.isFinite(Number(res && res.incomeStep))
-                ? Number(res.incomeStep)
-                : null;
-            if (res && res.gained && res.gained > 0) {
-                if (typeof helpers.emitPresentationEvent === 'function') {
+            const workEntries = Array.isArray(res && res.entries) && res.entries.length > 0
+                ? res.entries
+                : (res ? [res] : []);
+            for (const entry of workEntries) {
+                const row = Number.isInteger(entry && entry.row) ? entry.row : null;
+                const col = Number.isInteger(entry && entry.col) ? entry.col : null;
+                const removedReason = (entry && typeof entry.removedReason === 'string' && entry.removedReason)
+                    ? entry.removedReason
+                    : null;
+                const incomeStep = Number.isFinite(Number(entry && entry.incomeStep))
+                    ? Number(entry.incomeStep)
+                    : null;
+                if (entry && entry.gained && entry.gained > 0 && typeof helpers.emitPresentationEvent === 'function') {
                     helpers.emitPresentationEvent(cardState, {
                         type: 'WORK_INCOME',
                         player: playerKey,
                         row,
                         col,
-                        gained: res.gained,
-                        removed: !!res.removed,
+                        gained: entry.gained,
+                        removed: !!entry.removed,
                         reason: removedReason,
                         meta: { reason: removedReason, incomeStep }
                     });
+                } else if (entry && entry.removed && typeof helpers.emitPresentationEvent === 'function') {
+                    helpers.emitPresentationEvent(cardState, {
+                        type: 'WORK_REMOVED',
+                        player: playerKey,
+                        row,
+                        col,
+                        removed: true,
+                        reason: removedReason,
+                        meta: { reason: removedReason }
+                    });
                 }
-            } else if (res && res.removed && typeof helpers.emitPresentationEvent === 'function') {
-                helpers.emitPresentationEvent(cardState, {
-                    type: 'WORK_REMOVED',
-                    player: playerKey,
-                    row,
-                    col,
-                    removed: true,
-                    reason: removedReason,
-                    meta: { reason: removedReason }
-                });
             }
         } catch (e) {
             // swallow to avoid breaking turn start in environments without module
@@ -1053,14 +1033,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         // Non-number cells should behave like a normal placement.
     }
 
-    let plunderGain = 0;
-    if (pending && pending.type === 'PLUNDER_WILL') {
-        const res = applyPlunderWillEffect(cardState, playerKey, flipCount, getPlunderWillModule(context));
-        plunderGain = Number.isFinite(Number(res.plundered)) ? Math.max(0, Math.floor(Number(res.plundered))) : 0;
-        effects.plunderAmount = res.plundered;
-    }
-
-    let actualChargeGained = chargeGain + plunderGain;
+    let actualChargeGained = chargeGain;
     if (typeof helpers.addChargeWithTotal === 'function') {
         let actualGeneratedGain = 0;
         if (chargeGain > 0) {
@@ -1071,15 +1044,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
                 anchorCol: col
             } : null);
         }
-        let actualPlunderGain = 0;
-        if (plunderGain > 0) {
-            actualPlunderGain = helpers.addChargeWithTotal(cardState, playerKey, plunderGain, {
-                disableChargeGainMultiplier: true,
-                sourceType: 'plunder_gain'
-            });
-        }
-        actualChargeGained = (Number.isFinite(Number(actualGeneratedGain)) ? Number(actualGeneratedGain) : chargeGain)
-            + (Number.isFinite(Number(actualPlunderGain)) ? Number(actualPlunderGain) : plunderGain);
+        actualChargeGained = Number.isFinite(Number(actualGeneratedGain)) ? Number(actualGeneratedGain) : chargeGain;
     }
     effects.chargeGained = Number.isFinite(Number(actualChargeGained))
         ? Number(actualChargeGained)

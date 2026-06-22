@@ -61,7 +61,6 @@
 | will_hunter_king_01 | WILL_HUNTER_KING |  | Y |  | Y |  |  | auto-covered |
 | instant_hyperactive_01 | INSTANT_HYPERACTIVE_WILL |  |  |  |  |  | Y | auto-covered |
 | rebuild_01 | REBUILD_WILL |  |  |  |  |  | Y | auto-covered |
-| plunder_will | PLUNDER_WILL |  |  | Y |  |  |  | auto-covered |
 | work_01 | WORK_WILL |  |  |  |  |  | Y | auto-covered |
 | ribo_01 | RIBO_WILL |  |  |  |  |  | Y | auto-covered |
 | loss_will_01 | LOSS_WILL |  |  |  |  |  | Y | auto-covered |

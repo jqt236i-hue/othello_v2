@@ -67,7 +67,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isCrystalStone = cardType === 'CRYSTAL_STONE';
         const isRainbowStone = cardType === 'RAINBOW_STONE';
         const isSilverStone = cardType === 'SILVER_STONE';
-        const isPlunderWill = cardType === 'PLUNDER_WILL';
         const isTreasureBox = cardType === 'TREASURE_BOX';
         const isLossWill = cardType === 'LOSS_WILL';
         const isCorrosionWill = cardType === 'CORROSION_WILL';
@@ -113,7 +112,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isUltimateHyperactiveGod
         );
         const isChargeSwingCard = (
-            cardType === 'PLUNDER_WILL' ||
             cardType === 'EQUALITY_WILL' ||
             cardType === 'GOLD_STONE' ||
             cardType === 'CRYSTAL_STONE' ||
@@ -168,7 +166,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isCrystalStone,
             isRainbowStone,
             isSilverStone,
-            isPlunderWill,
             isTreasureBox,
             isLossWill,
             isCorrosionWill,

@@ -186,7 +186,6 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   BOARD_SHRINK_GOD: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。',
   FREEZE_WILL: 'マス1つを凍結し、反転・破壊と持続減少を止める',
   REBUILD_WILL: '特殊カード以外の手札を破壊し、新たに3枚ドローする',
-  PLUNDER_WILL: '次の反転枚数ぶん相手布石を吸収',
   WORK_WILL: '次石をアンカー化し毎ターン布石を獲得',
   LOSS_WILL: '盤面上の特殊石を全て通常石に戻す。自分の手札を全て破壊して使用。',
   DOUBLE_PLACE: '使用ターンだけ石を2連続で置ける。使用後、三連投石が手札に加わる。',
@@ -281,7 +280,6 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   BOARD_SHRINK_GOD: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。',
   FREEZE_WILL: '凍結マスと、そのマス上の石は反転・破壊されない。\n凍結中の特殊石は持続ターンが減らず、解除後に再び減り始める。',
   REBUILD_WILL: '使用カードと特殊カード以外の手札をすべて先に破壊してから引き直す。\n山札が足りない場合は引ける枚数だけ補充する。',
-  PLUNDER_WILL: '相手から減らしたぶんをそのまま自分へ加算する。',
   WORK_WILL: function resolveWorkLine(resolveChargeMaxText?: () => string | number) {
     const chargeMaxText = (typeof resolveChargeMaxText === 'function')
       ? String(resolveChargeMaxText() || '99')

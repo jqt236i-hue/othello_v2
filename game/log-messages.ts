@@ -15,7 +15,6 @@ const LOG_MESSAGES = {
     goldCharge: (gain: any) => `金の意志：布石 +${gain}（4倍）`,
     rainbowCharge: (gain: any) => `虹の意志：布石 +${gain}（6倍）`,
     crystalCharge: (gain: any) => `演算の意志：数字マス布石 +${gain}（2倍）`,
-    plunderPoints: (amount: any) => `吸収：${amount}ポイントを吸収`,
 
     protectNext: (ownerName: any) => `${ownerName}: 次の石を保護`,
     permaProtectNext: (ownerName: any) => `${ownerName}: 次の石を永続保護`,

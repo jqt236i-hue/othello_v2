@@ -389,22 +389,6 @@ function getCardEffectTimingContext(deps: any) {
       CardLivingWillModule,
       CardSpawnAndFlipModule,
       CardBoardExecutorResolutionModule,
-      PlunderWillModule: {
-        applyPlunderWill(cardState: any, playerKey: string, flipCount: any) {
-          const opponentKey = playerKey === 'black' ? 'white' : 'black';
-          const opponentCharge = (cardState && cardState.charge && Number.isFinite(Number(cardState.charge[opponentKey])))
-            ? Number(cardState.charge[opponentKey])
-            : 0;
-          const normalizedFlipCount = Number.isFinite(Number(flipCount))
-            ? Math.max(0, Math.trunc(Number(flipCount)))
-            : 0;
-          const stolen = Math.min(normalizedFlipCount, Math.max(0, opponentCharge));
-          if (stolen > 0 && typeof addChargeValue === 'function') {
-            addChargeValue(cardState, opponentKey, -stolen, 'plunder_loss');
-          }
-          return { plundered: stolen };
-        }
-      },
       ProtectedNextStoneModule: {
         applyProtectedNextStone(cardState: any, playerKey: string, row: number, col: number) {
           if (typeof addMarker === 'function') {

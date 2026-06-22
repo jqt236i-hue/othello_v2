@@ -33,9 +33,8 @@
 - Modify `game/logic/cards-internal/state-factory.ts`: Initialize and preserve `chargeGainMultiplierByPlayer`.
 - Modify `game/logic/cards-internal/charge-ledger.ts`: Apply the multiplier for generated `addChargeWithTotal` gains unless disabled by meta.
 - Modify `game/turn/board-charge.ts`: Apply the same multiplier in turn-board charge paths, and disable it for player-to-player transfers.
-- Modify `game/logic/cards-internal/effect-timing.ts`: Split normal placement/flip gain from `PLUNDER_WILL` stolen charge so only generated gain is multiplied.
 - Modify `game/logic/cards/work_will.ts`: Route work income through injected charge gain helper so Lv9 multiplier applies.
-- Modify `game/logic/cards.ts`: Pass charge helper into Work module and mark plunder transfer gain as multiplier-disabled.
+- Modify `game/logic/cards.ts`: Pass charge helper into Work module.
 - Inspect `game/logic/card-resolution/trap.ts`; modify it only if the search in Task 7 finds a charge-steal path that uses a multiplier-eligible add helper.
 - Test `test/shared.cpu-opponent-profiles.test.ts`: Startup options and Lv9 all-card deck helper.
 - Test `test/ui.deck-builder-controller.test.ts`: Lv9 white/black startup uses raw deck ids and multiplier.
@@ -653,7 +652,7 @@ describe('charge gain multiplier', () => {
 
     const gained = CardChargeLedger.addChargeWithTotal(cardState, 'white', 4, {
       helpers: { chargeMax: 99 }
-    }, { disableChargeGainMultiplier: true, sourceType: 'plunder_gain' });
+    }, { disableChargeGainMultiplier: true, sourceType: 'transfer_gain' });
 
     expect(gained).toBe(4);
     expect(cardState.charge.white).toBe(14);
@@ -801,12 +800,12 @@ Expected: PASS.
 - Inspect and conditionally modify: `game/logic/card-resolution/trap.ts`
 - Modify: `test/game.cards.charge-multiplier.test.ts`
 
-- [ ] **Step 1: Add plunder and work regression tests**
+- [ ] **Step 1: Add transfer and work regression tests**
 
 Append to `test/game.cards.charge-multiplier.test.ts`:
 
 ```ts
-test('plunder-style disabled gains are not multiplied when added separately', () => {
+test('disabled transfer gains are not multiplied when added separately', () => {
   const cardState = createCardState({ charge: { black: 20, white: 10 } });
 
   const generated = CardChargeLedger.addChargeWithTotal(cardState, 'white', 2, {
@@ -814,7 +813,7 @@ test('plunder-style disabled gains are not multiplied when added separately', ()
   }, { sourceType: 'placement_flip_gain' });
   const stolen = CardChargeLedger.addChargeWithTotal(cardState, 'white', 2, {
     helpers: { chargeMax: 99 }
-  }, { disableChargeGainMultiplier: true, sourceType: 'plunder_gain' });
+  }, { disableChargeGainMultiplier: true, sourceType: 'transfer_gain' });
 
   expect(generated).toBe(4);
   expect(stolen).toBe(2);
@@ -865,44 +864,7 @@ npm run test:jest -- --runTestsByPath test/game.cards.charge-multiplier.test.ts
 
 Expected before implementation: work test fails because `processWorkEffects` does not accept the injected charge helper.
 
-- [ ] **Step 3: Split plunder gain in `effect-timing.ts`**
-
-Replace the current `PLUNDER_WILL` addition pattern:
-
-```ts
-if (pending && pending.type === 'PLUNDER_WILL') {
-    const res = applyPlunderWillEffect(cardState, playerKey, flipCount, getPlunderWillModule(context));
-    chargeGain += res.plundered;
-    effects.plunderAmount = res.plundered;
-}
-```
-
-with:
-
-```ts
-let plunderedCharge = 0;
-if (pending && pending.type === 'PLUNDER_WILL') {
-    const res = applyPlunderWillEffect(cardState, playerKey, flipCount, getPlunderWillModule(context));
-    plunderedCharge = res.plundered;
-    effects.plunderAmount = res.plundered;
-}
-```
-
-After the generated `helpers.addChargeWithTotal(...)` call, add:
-
-```ts
-if (plunderedCharge > 0 && typeof helpers.addChargeWithTotal === 'function') {
-    const plunderAdded = helpers.addChargeWithTotal(cardState, playerKey, plunderedCharge, {
-        disableChargeGainMultiplier: true,
-        sourceType: 'plunder_gain'
-    });
-    actualChargeGained = Number(actualChargeGained || 0) + Number(plunderAdded || 0);
-}
-```
-
-This preserves existing `effects.chargeGained` as total actual gain while not doubling stolen charge.
-
-- [ ] **Step 4: Update Work module to accept injected add helper**
+- [ ] **Step 3: Update Work module to accept injected add helper**
 
 In `game/logic/cards/work_will.ts`, extend `WorkDeps`:
 

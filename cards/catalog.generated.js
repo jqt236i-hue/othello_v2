@@ -376,14 +376,6 @@ window.CardCatalog = {
       "display_type_ja": "観測"
     },
     {
-      "id": "plunder_will",
-      "name_ja": "吸収の意志",
-      "type": "PLUNDER_WILL",
-      "cost": 4,
-      "desc_ja": "次の反転枚数だけ相手の布石を吸収する。",
-      "display_type_ja": "採掘"
-    },
-    {
       "id": "work_01",
       "name_ja": "出稼ぎの意志",
       "type": "WORK_WILL",
