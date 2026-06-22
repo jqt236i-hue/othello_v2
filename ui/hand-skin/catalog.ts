@@ -42,7 +42,7 @@ interface CosmeticCatalogSharedModule {
 const BASE_HAND_SKINS: readonly HandSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'default',
-    label: '勇者の手',
+    label: '既定',
     note: '初期所持',
     imagePath: 'assets/images/hand-skin/勇者の手.png'
   })

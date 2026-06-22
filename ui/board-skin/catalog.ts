@@ -109,7 +109,7 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
   }),
   Object.freeze({
     id: 'bluegreen-felt',
-    label: '青翠布盤',
+    label: '既定',
     note: '青みを帯びた静かな布目の下地',
     imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.png'
   }),
@@ -134,7 +134,7 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
 ]);
 
 const BOARD_SKINS = BASE_BOARD_SKINS.slice();
-const DEFAULT_BOARD_SKIN_ID = 'woven-felt';
+const DEFAULT_BOARD_SKIN_ID = 'bluegreen-felt';
 
 const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
@@ -186,7 +186,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   }),
   Object.freeze({
     id: 'marsh-forged-iron',
-    label: '湿地鍛鉄枠',
+    label: '既定',
     note: '湿地の緑青を帯びた黒鉄の盤面外フレーム',
     imagePath: 'assets/images/board/board-frame-marsh-forged-iron-v1.png',
     layout: Object.freeze({
@@ -239,7 +239,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
 ]);
 
 const BOARD_FRAME_SKINS = BASE_BOARD_FRAME_SKINS.slice();
-const DEFAULT_BOARD_FRAME_SKIN_ID = 'black-gold-lacquer';
+const DEFAULT_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
 
 function cloneSkin(skin: BoardSkinItem): BoardSkinItem {
   return { ...skin };

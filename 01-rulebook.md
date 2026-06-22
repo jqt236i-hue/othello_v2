@@ -1441,12 +1441,13 @@
 - 手置き演出の手モーションは約 `0.44秒`、通常ドロー演出の手モーションは約 `0.56秒` で完了する短めのテンポを基準とする
 - 手置き演出と通常ドロー演出の手本体は `assets/images/hand-skin/` 配下の画像を正本にする
 - `HELP` ボタンの下にある `SKIN` ボタンから、自分側の手の見た目スキン・背景画像・盤面下地・盤面フレーム・文字フォント・通常石スキンを切り替えられる
-- 手の見た目スキンの初期所持は `勇者の手` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
-- 背景画像の初期所持は `既定背景` (`assets/images/background/default.png`) と `デフォルト2`〜`デフォルト28` (各 `assets/images/background/デフォルトN.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、選択は次回起動後も保持してよい
-- 盤面下地の初期所持は盤面デザインカタログの各下地とし、`青翠布盤`・`青磁石盤`・`青藍漆盤`・`静宙盤` も含める。選択は次回起動後も保持してよい
-- 盤面フレームの初期所持は盤面フレームカタログの各フレームとし、`黒金漆枠`・`重厚黒金枠`・`黒鉄鋲留枠`・`黒金装飾枠`・`湿地鍛鉄枠`・`沈木枠`・`湿地遺跡石枠`・`影蔦漆枠` を含める。選択は次回起動後も保持してよい
-- 文字フォントの初期所持は `Shippori Mincho` と `DotGothic16` とし、初期選択は `Shippori Mincho` とする。選択は次回起動後も保持してよい
-- 通常石スキンの初期所持は `既定石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `O石` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい
+- 手の見た目スキンの初期所持は `既定` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
+- 背景画像の初期所持は `既定背景` (`assets/images/background/default.png`) と `デフォルト2`〜`デフォルト28` (各 `assets/images/background/デフォルトN.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、`default-25` の表示名は `既定` とする。選択は次回起動後も保持してよい
+- 盤面下地の初期所持は盤面デザインカタログの各下地とし、`既定` (`bluegreen-felt`)・`青磁石盤`・`青藍漆盤`・`静宙盤` も含める。選択は次回起動後も保持してよい
+- 盤面フレームの初期所持は盤面フレームカタログの各フレームとし、`黒金漆枠`・`重厚黒金枠`・`黒鉄鋲留枠`・`黒金装飾枠`・`既定` (`marsh-forged-iron`)・`沈木枠`・`湿地遺跡石枠`・`影蔦漆枠` を含める。選択は次回起動後も保持してよい
+- 文字フォントの初期所持は `既定` (`shippori-mincho`) と `DotGothic16` とし、初期選択は `既定` とする。選択は次回起動後も保持してよい
+- 通常石スキンの初期所持は `既定石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `既定` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい
+- 保存済みの見た目選択がない初期起動・リセット時の既定セットは、手の見た目 `既定` (`default`)、背景 `既定` (`default-25`)、盤面下地 `既定` (`bluegreen-felt`)、盤面フレーム `既定` (`marsh-forged-iron`)、文字フォント `既定` (`shippori-mincho`)、通常石 `既定` (`o-stone`) とする。保存済みの選択がある場合は保存値を優先する
 - `DotGothic16` を選んだ場合でも、カード説明・戦況パネル・詳細本文・小型ボタンなど小さく潰れやすい文字面と、画数が多く詰まりやすいカード名は、可読性優先で通常ゴシックへ自動フォールバックしてよい
 - 背景画像は `cover` で引き伸ばさず、用意した画像サイズのまま画面中央に表示してよい。既定運用は `1920x1080`
 - `人の手` (`assets/images/Gacha/N/人の手.png`) と `陽気な手` (`assets/images/Gacha/N/陽気な手.png`) は `N` レアの観測ガチャ産として扱う

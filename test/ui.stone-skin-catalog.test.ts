@@ -16,18 +16,18 @@ describe('stone skin catalog', () => {
     delete (global as any).window;
   });
 
-  test('exposes jade rim as the default selected stone skin while keeping owned skins available', () => {
+  test('exposes O stone as the default selected stone skin while keeping owned skins available', () => {
     const catalog = require('../ui/stone-skin/catalog.ts');
 
-    expect(catalog.DEFAULT_STONE_SKIN_ID).toBe('jade-rim');
+    expect(catalog.DEFAULT_STONE_SKIN_ID).toBe('o-stone');
     expect(catalog.getOwnedStoneSkins(window).map((skin: any) => skin.id)).toEqual(['default', 'o-stone', 'jade-rim', 'pearl-obsidian']);
     expect(catalog.getStoneSkinDefinition('missing', window)).toEqual(expect.objectContaining({
-      id: 'jade-rim',
-      label: '碧縁石'
+      id: 'o-stone',
+      label: '既定'
     }));
     expect(catalog.getStoneSkinDefinition('o-stone', window)).toEqual(expect.objectContaining({
       id: 'o-stone',
-      label: 'O石',
+      label: '既定',
       note: '初期所持',
       blackImagePath: 'assets/images/stone-skin/o-stone/black.png',
       whiteImagePath: 'assets/images/stone-skin/o-stone/white.png'

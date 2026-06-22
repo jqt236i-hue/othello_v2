@@ -16,7 +16,7 @@ interface FontSkinItem {
 const BASE_FONT_SKINS: readonly FontSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'shippori-mincho',
-    label: 'Shippori Mincho',
+    label: '既定',
     note: '和風・物語調のカード名に合う上品な明朝',
     fontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
     accentFontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',

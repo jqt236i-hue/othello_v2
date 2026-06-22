@@ -38,7 +38,8 @@ describe('board skin controller', () => {
     const api = controller.setupBoardSkinControls({ root: window });
     const catalog = require('../ui/board-skin/catalog.js');
 
-    expect(catalog.DEFAULT_BOARD_SKIN_ID).toBe('woven-felt');
+    expect(catalog.DEFAULT_BOARD_SKIN_ID).toBe('bluegreen-felt');
+    expect(catalog.getAllBoardSkins().find((skin: { id: string }) => skin.id === 'bluegreen-felt')?.label).toBe('既定');
     expect(catalog.getAllBoardSkins().map((skin: { id: string }) => skin.id)).toEqual([
       'emerald-stone',
       'moss-stone',
@@ -104,15 +105,15 @@ describe('board skin controller', () => {
     });
   });
 
-  test('uses woven felt as the startup default when no board skin is stored', () => {
+  test('uses bluegreen felt as the startup default when no board skin is stored', () => {
     const controller = require('../ui/board-skin/controller.js');
     const api = controller.setupBoardSkinControls({ root: window });
 
-    expect(api.getSelectedSkinId()).toBe('woven-felt');
+    expect(api.getSelectedSkinId()).toBe('bluegreen-felt');
     expect(window.localStorage.getItem('othello.boardSkin')).toBeNull();
     expect(window.localStorage.getItem('reversi.boardSkin')).toBeNull();
-    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('woven-felt');
-    expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-woven-felt-v1.png")');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+    expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-bluegreen-felt-v1.png")');
   });
 
   test('persists and applies the generated board frame skin', () => {
@@ -120,7 +121,8 @@ describe('board skin controller', () => {
     const api = controller.setupBoardSkinControls({ root: window });
     const catalog = require('../ui/board-skin/catalog.js');
 
-    expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('black-gold-lacquer');
+    expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('marsh-forged-iron');
+    expect(catalog.getAllBoardFrameSkins().find((skin: { id: string }) => skin.id === 'marsh-forged-iron')?.label).toBe('既定');
     expect(catalog.getAllBoardFrameSkins().map((skin: { id: string }) => skin.id)).toEqual([
       'black-gold-lacquer',
       'compact-brass-clean-corners',

@@ -27,7 +27,7 @@ describe('board CSS rendering contract', () => {
     const css = readRepoTextFile('styles-board.css');
 
     expect(css).toMatch(/--board-surface-base-color:\s*#[0-9a-fA-F]{6};/);
-    expect(css).toMatch(/--board-surface-texture-image:\s*url\("assets\/images\/board\/board-surface-woven-felt-v1\.png"\);/);
+    expect(css).toMatch(/--board-surface-texture-image:\s*url\("assets\/images\/board\/board-surface-bluegreen-felt-v1\.png"\);/);
     expect(css).toMatch(/--board-cell-base-color:\s*var\(--board-surface-base-color\);/);
     expect(css).toMatch(/--board-cell-base-image:\s*var\(--board-surface-base-image\);/);
     expect(css).toMatch(/--board-cell-base-size:\s*var\(--board-surface-base-size\);/);

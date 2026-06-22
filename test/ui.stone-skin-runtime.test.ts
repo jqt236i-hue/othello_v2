@@ -46,7 +46,7 @@ describe('stone skin runtime', () => {
     delete (global as any).window;
     delete (global as any).document;
 
-    expect(runtime.resolveNormalStoneBackgroundImage('black', null)).toBe('url("assets/images/stone-skin/jade-rim/black.png")');
-    expect(runtime.resolveNormalStoneBackgroundImage('white', null)).toBe('url("assets/images/stone-skin/jade-rim/white.png")');
+    expect(runtime.resolveNormalStoneBackgroundImage('black', null)).toBe('url("assets/images/stone-skin/o-stone/black.png")');
+    expect(runtime.resolveNormalStoneBackgroundImage('white', null)).toBe('url("assets/images/stone-skin/o-stone/white.png")');
   });
 });

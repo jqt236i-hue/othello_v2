@@ -269,8 +269,8 @@
     --stone-white-base: #f0f0f0;
     --stone-white-shadow: #bbbbbb;
     --stone-protected: #999999;
-    --normal-stone-black-image: url('assets/images/stone-skin/jade-rim/black.png');
-    --normal-stone-white-image: url('assets/images/stone-skin/jade-rim/white.png');
+    --normal-stone-black-image: url('assets/images/stone-skin/o-stone/black.png');
+    --normal-stone-white-image: url('assets/images/stone-skin/o-stone/white.png');
     
     /* Accent Colors */
     --color-legal-bg: #00695c;

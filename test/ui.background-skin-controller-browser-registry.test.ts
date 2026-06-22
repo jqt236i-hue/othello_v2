@@ -24,6 +24,6 @@ describe('background skin controller browser registry wiring', () => {
 
     expect(api).not.toBeNull();
     expect(dom.window.document.querySelectorAll('.background-skin-option').length).toBeGreaterThan(0);
-    expect(dom.window.document.body.getAttribute('data-background-skin-id')).toBe('default');
+    expect(dom.window.document.body.getAttribute('data-background-skin-id')).toBe('default-25');
   });
 });

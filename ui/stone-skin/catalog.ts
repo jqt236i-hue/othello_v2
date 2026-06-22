@@ -21,7 +21,7 @@ const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
   }),
   Object.freeze({
     id: 'o-stone',
-    label: 'O石',
+    label: '既定',
     note: '初期所持',
     blackImagePath: 'assets/images/stone-skin/o-stone/black.png',
     whiteImagePath: 'assets/images/stone-skin/o-stone/white.png'
@@ -43,7 +43,7 @@ const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
 ]);
 
 const STONE_SKINS = BASE_STONE_SKINS.slice();
-const DEFAULT_STONE_SKIN_ID = 'jade-rim';
+const DEFAULT_STONE_SKIN_ID = 'o-stone';
 
 function cloneSkin(skin: StoneSkinItem): StoneSkinItem {
   return { ...skin };

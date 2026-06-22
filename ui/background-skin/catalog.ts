@@ -185,7 +185,7 @@ const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
   }),
   Object.freeze({
     id: 'default-25',
-    label: 'デフォルト25',
+    label: '既定',
     note: '初期所持',
     imagePath: 'assets/images/background/デフォルト25.png'
   }),
@@ -242,7 +242,7 @@ if (!sharedModule || typeof sharedModule.createOwnedCosmeticCatalogApi !== 'func
 const catalogApi = sharedModule.createOwnedCosmeticCatalogApi({
   kind: 'background_skin',
   baseItems: BASE_BACKGROUND_SKINS,
-  defaultId: BASE_BACKGROUND_SKINS[0].id,
+  defaultId: 'default-25',
   listOwnedMethodName: 'listOwnedBackgroundSkinIds',
   isOwnedMethodName: 'isBackgroundSkinOwned'
 });

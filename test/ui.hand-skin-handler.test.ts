@@ -262,7 +262,7 @@ describe('hand skin handler', () => {
 
     document.getElementById('handSkinBtn').click();
     document.getElementById('appearanceTabStone').click();
-    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('jade-rim');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
     document.querySelector('[data-stone-skin-id="o-stone"]').click();
     document.querySelector('[data-stone-skin-id="jade-rim"]').click();
 

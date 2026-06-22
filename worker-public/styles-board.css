@@ -20,7 +20,7 @@
     --board-bonus-number-shadow: rgba(0, 0, 0, 0.74);
     --board-bonus-number-glow: rgba(112, 212, 184, 0.24);
     --board-surface-base-color: #07110f;
-    --board-surface-texture-image: url("assets/images/board/board-surface-woven-felt-v1.png");
+    --board-surface-texture-image: url("assets/images/board/board-surface-bluegreen-felt-v1.png");
     --board-surface-base-image:
         var(--board-surface-texture-image),
         linear-gradient(180deg, rgba(9, 18, 16, 0.98), rgba(3, 8, 8, 0.98));
