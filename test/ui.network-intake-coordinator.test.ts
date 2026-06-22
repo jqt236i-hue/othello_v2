@@ -22,8 +22,10 @@ describe('network intake coordinator', () => {
   test('dedupes same visualSeq from publish response and stream', () => {
     const applied: string[] = [];
     const enqueued: number[] = [];
+    const traces: Array<{ type: string; details: any }> = [];
     const coordinator = createNetworkIntakeCoordinator({
       getAppliedStateVersion: () => null,
+      getPlaybackActive: () => false,
       applyCanonicalSnapshot: (_snapshot, meta) => {
         applied.push(meta.source);
         return true;
@@ -33,11 +35,11 @@ describe('network intake coordinator', () => {
         return frames.length;
       },
       requestBoardRefresh: () => true,
-      recordTrace: () => undefined
+      recordTrace: (type, details) => traces.push({ type, details })
     });
 
     const frame = { visualSeq: 3, stateVersionFrom: 2, stateVersionTo: 3, operationId: 'op_1' };
-    coordinator.submit(envelope({
+    const first = coordinator.submit(envelope({
       source: 'publish_response',
       operationId: 'op_1',
       stateVersion: 3,
@@ -46,7 +48,7 @@ describe('network intake coordinator', () => {
       presentationFrames: [frame],
       force: true
     }));
-    coordinator.submit(envelope({
+    const second = coordinator.submit(envelope({
       source: 'stream',
       operationId: 'op_1',
       stateVersion: 3,
@@ -58,19 +60,40 @@ describe('network intake coordinator', () => {
 
     expect(applied).toEqual(['publish_response']);
     expect(enqueued).toEqual([3]);
+    expect(first).toMatchObject({ duplicateOperation: false });
+    expect(second).toMatchObject({ duplicateOperation: true });
+    expect(traces.map((entry) => entry.details)).toEqual([
+      expect.objectContaining({
+        source: 'publish_response',
+        boardWriter: 'network_timeline',
+        playbackActive: false,
+        decision: 'accepted',
+        accepted: true
+      }),
+      expect.objectContaining({
+        source: 'stream',
+        boardWriter: 'none',
+        playbackActive: false,
+        decision: 'deduped',
+        accepted: false,
+        skippedReason: 'duplicate_operation_state'
+      })
+    ]);
   });
 
   test('requests board refresh for accepted snapshot without playback or presentation frames', () => {
     const boardRequests: any[] = [];
+    const recordTrace = jest.fn();
     const coordinator = createNetworkIntakeCoordinator({
       getAppliedStateVersion: () => 4,
+      getPlaybackActive: () => true,
       applyCanonicalSnapshot: () => true,
       enqueuePresentationFrames: jest.fn(),
       requestBoardRefresh: (meta) => {
         boardRequests.push(meta);
         return true;
       },
-      recordTrace: jest.fn()
+      recordTrace
     });
 
     const result = coordinator.submit(envelope({
@@ -93,16 +116,24 @@ describe('network intake coordinator', () => {
         visualSeq: 9
       })
     ]);
+    expect(recordTrace).toHaveBeenCalledWith('network_intake_submit', expect.objectContaining({
+      source: 'state_sync',
+      boardWriter: 'render_scheduler',
+      playbackActive: true,
+      decision: 'refresh_requested',
+      accepted: true
+    }));
   });
 
   test('skips stale non-forced snapshots before applying canonical state', () => {
     const applyCanonicalSnapshot = jest.fn(() => true);
+    const recordTrace = jest.fn();
     const coordinator = createNetworkIntakeCoordinator({
       getAppliedStateVersion: () => 8,
       applyCanonicalSnapshot,
       enqueuePresentationFrames: jest.fn(),
       requestBoardRefresh: jest.fn(),
-      recordTrace: jest.fn()
+      recordTrace
     });
 
     const result = coordinator.submit(envelope({
@@ -116,5 +147,13 @@ describe('network intake coordinator', () => {
       skippedReason: 'stale_state_version'
     });
     expect(applyCanonicalSnapshot).not.toHaveBeenCalled();
+    expect(recordTrace).toHaveBeenCalledWith('network_intake_submit', expect.objectContaining({
+      source: 'stream',
+      boardWriter: 'none',
+      playbackActive: null,
+      decision: 'stale',
+      accepted: false,
+      skippedReason: 'stale_state_version'
+    }));
   });
 });

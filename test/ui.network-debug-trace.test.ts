@@ -20,6 +20,8 @@ describe('network debug trace', () => {
         stateVersion: 4,
         visualSeq: 3,
         boardWriter: 'none',
+        playbackActive: null,
+        decision: null,
         timestamp: 1000,
         accepted: null,
         reason: null
@@ -59,6 +61,8 @@ describe('network debug trace', () => {
         stateVersion: 11,
         visualSeq: 21,
         boardWriter: 'none',
+        playbackActive: null,
+        decision: null,
         accepted: null,
         reason: null
       },
@@ -69,6 +73,8 @@ describe('network debug trace', () => {
         stateVersion: null,
         visualSeq: null,
         boardWriter: 'renderBoard',
+        playbackActive: null,
+        decision: null,
         accepted: null,
         reason: null
       }
@@ -102,5 +108,45 @@ describe('network debug trace', () => {
       bySource: {},
       byBoardWriter: {}
     });
+  });
+
+  test('keeps decision and playback state on capped network intake traces', () => {
+    const trace = createNetworkDebugTrace({ limit: 2, now: () => 100 });
+
+    trace.record('network_intake_submit', {
+      source: 'stream',
+      operationId: 'op1',
+      stateVersion: 1,
+      visualSeq: 1,
+      boardWriter: 'network_timeline',
+      playbackActive: true,
+      decision: 'accepted',
+      reason: 'presentation_frames'
+    });
+    trace.record('network_intake_submit', {
+      source: 'state_sync',
+      operationId: 'op2',
+      stateVersion: 2,
+      visualSeq: 2,
+      boardWriter: 'none',
+      playbackActive: false,
+      decision: 'deduped',
+      reason: 'duplicate_operation_state'
+    });
+    trace.record('network_intake_submit', {
+      source: 'stream',
+      operationId: 'op3',
+      stateVersion: 3,
+      visualSeq: 3,
+      boardWriter: 'network_timeline',
+      playbackActive: false,
+      decision: 'accepted',
+      reason: 'fresh_state'
+    });
+
+    expect(trace.snapshot()).toEqual([
+      expect.objectContaining({ operationId: 'op2', playbackActive: false, decision: 'deduped' }),
+      expect.objectContaining({ operationId: 'op3', playbackActive: false, decision: 'accepted' })
+    ]);
   });
 });

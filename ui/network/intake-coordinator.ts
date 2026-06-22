@@ -19,6 +19,7 @@ export interface NetworkIntakeBoardRefreshMeta extends NetworkIntakeApplyMeta {
 
 export interface NetworkIntakeCoordinatorConfig {
   getAppliedStateVersion?: () => number | null;
+  getPlaybackActive?: () => boolean | null;
   applyCanonicalSnapshot?: (snapshot: unknown, meta: NetworkIntakeApplyMeta) => boolean;
   enqueuePresentationFrames?: (frames: unknown[], meta: NetworkIntakeApplyMeta) => number;
   requestBoardRefresh?: (meta: NetworkIntakeBoardRefreshMeta) => boolean;
@@ -62,6 +63,31 @@ function createApplyMeta(envelope: NetworkSnapshotEnvelope): NetworkIntakeApplyM
     playbackEvents: envelope.playbackEvents,
     presentationFrames: envelope.presentationFrames
   };
+}
+
+function readPlaybackActive(config: NetworkIntakeCoordinatorConfig): boolean | null {
+  if (typeof config.getPlaybackActive !== 'function') return null;
+  try {
+    const value = config.getPlaybackActive();
+    return typeof value === 'boolean' ? value : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function getTraceBoardWriter(enqueuedFrameCount: number, requestedBoardRefresh: boolean): string {
+  if (enqueuedFrameCount > 0) return 'network_timeline';
+  if (requestedBoardRefresh) return 'render_scheduler';
+  return 'none';
+}
+
+function getTraceDecision(result: NetworkIntakeSubmitResult): string {
+  if (result.requestedBoardRefresh) return 'refresh_requested';
+  if (result.appliedSnapshot || result.enqueuedFrameCount > 0) return 'accepted';
+  if (result.duplicateOperation) return 'deduped';
+  if (result.skippedReason === 'stale_state_version') return 'stale';
+  if (result.skippedReason === 'apply_rejected') return 'rejected';
+  return 'deferred';
 }
 
 export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinatorConfig): any {
@@ -155,11 +181,16 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
       duplicateOperation: key !== null && seenByOperationAndVersion.has(key) && !appliedSnapshot,
       skippedReason
     };
+    const decision = getTraceDecision(result);
     trace('network_intake_submit', {
       source: envelope.source,
       operationId: envelope.operationId,
       stateVersion: envelope.stateVersion,
       visualSeq: envelope.visualSeq,
+      boardWriter: getTraceBoardWriter(enqueuedFrameCount, requestedBoardRefresh),
+      playbackActive: readPlaybackActive(cfg),
+      decision,
+      accepted: decision === 'accepted' || decision === 'refresh_requested',
       appliedSnapshot,
       enqueuedFrameCount,
       requestedBoardRefresh,

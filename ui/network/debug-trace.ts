@@ -6,6 +6,15 @@ export type NetworkDebugTraceSource =
   | 'heartbeat_recovery'
   | string;
 
+export type NetworkDebugTraceDecision =
+  | 'accepted'
+  | 'deduped'
+  | 'stale'
+  | 'deferred'
+  | 'refresh_requested'
+  | 'rejected'
+  | string;
+
 export interface NetworkDebugTraceEntry {
   type: string;
   source: NetworkDebugTraceSource;
@@ -13,6 +22,8 @@ export interface NetworkDebugTraceEntry {
   stateVersion: number | null;
   visualSeq: number | null;
   boardWriter: string | null;
+  playbackActive: boolean | null;
+  decision: NetworkDebugTraceDecision | null;
   timestamp: number;
   accepted: boolean | null;
   reason: string | null;
@@ -25,6 +36,8 @@ export interface NetworkDebugTraceSnapshotEntry {
   stateVersion: number | null;
   visualSeq: number | null;
   boardWriter: string | null;
+  playbackActive: boolean | null;
+  decision: NetworkDebugTraceDecision | null;
   accepted: boolean | null;
   reason: string | null;
 }
@@ -66,6 +79,11 @@ function normalizeNumber(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function normalizeBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  return null;
+}
+
 function incrementCount(map: Record<string, number>, key: string | null): void {
   if (!key) return;
   map[key] = Number.isFinite(map[key]) ? map[key] + 1 : 1;
@@ -88,6 +106,8 @@ export function createNetworkDebugTrace(options?: NetworkDebugTraceOptions): Net
       stateVersion: normalizeNumber(safeDetails.stateVersion),
       visualSeq: normalizeNumber(safeDetails.visualSeq),
       boardWriter: normalizeString(safeDetails.boardWriter),
+      playbackActive: normalizeBoolean(safeDetails.playbackActive),
+      decision: normalizeString(safeDetails.decision),
       timestamp,
       accepted: typeof safeDetails.accepted === 'boolean' ? safeDetails.accepted : null,
       reason: normalizeString(safeDetails.reason)
@@ -112,6 +132,8 @@ export function createNetworkDebugTrace(options?: NetworkDebugTraceOptions): Net
       stateVersion: entry.stateVersion,
       visualSeq: entry.visualSeq,
       boardWriter: entry.boardWriter,
+      playbackActive: entry.playbackActive,
+      decision: entry.decision,
       accepted: entry.accepted,
       reason: entry.reason
     }));

@@ -792,6 +792,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!mod || typeof mod.createNetworkIntakeCoordinator !== 'function') return null;
         networkIntakeCoordinator = mod.createNetworkIntakeCoordinator({
             getAppliedStateVersion,
+            getPlaybackActive,
             applyCanonicalSnapshot: (snapshot: any, meta: any) => applySnapshotThroughCoordinator(snapshot, {
                 source: meta && meta.source ? String(meta.source) : 'network_intake',
                 trackedPublish: meta && meta.trackedPublish ? meta.trackedPublish : null,
