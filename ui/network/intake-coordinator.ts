@@ -194,6 +194,7 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
       appliedSnapshot,
       enqueuedFrameCount,
       requestedBoardRefresh,
+      reason: skippedReason,
       skippedReason
     });
     return result;

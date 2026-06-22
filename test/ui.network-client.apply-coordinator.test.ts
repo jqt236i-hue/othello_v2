@@ -478,6 +478,7 @@ describe('NetworkMatchClient apply coordinator', () => {
       ok: true,
       roomId: 'ABC',
       stateVersion: 11,
+      presentationCursor: { visualSeq: 7, stateVersion: 11 },
       snapshot: responseSnapshot,
       playbackEvents
     };
@@ -492,6 +493,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     await Promise.resolve();
     expect(publishPayloads).toHaveLength(1);
     const operationId = publishPayloads[0].operationId;
+    responsePayload.operationId = operationId;
 
     resolvePublishResponse();
     const result = await publishPromise;
@@ -505,6 +507,7 @@ describe('NetworkMatchClient apply coordinator', () => {
         operationId,
         playerKey: 'black',
         actionType: 'place',
+        presentationCursor: { visualSeq: 7, stateVersion: 11 },
         playbackEvents,
         snapshot: responseSnapshot
       })
@@ -515,5 +518,24 @@ describe('NetworkMatchClient apply coordinator', () => {
 
     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
     expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync || 0).toBe(0);
+    const intakeEntries = window.__networkDebugTrace.entries()
+      .filter((entry) => entry.type === 'network_intake_submit' && entry.operationId === operationId);
+    expect(intakeEntries).toEqual([
+      expect.objectContaining({
+        source: 'publish_response',
+        stateVersion: 11,
+        visualSeq: 7,
+        decision: 'accepted',
+        accepted: true
+      }),
+      expect.objectContaining({
+        source: 'stream',
+        stateVersion: 11,
+        visualSeq: 7,
+        decision: 'deduped',
+        accepted: false,
+        reason: 'duplicate_operation_state'
+      })
+    ]);
   });
 });

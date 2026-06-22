@@ -22,6 +22,7 @@ describe('network intake coordinator', () => {
   test('dedupes same visualSeq from publish response and stream', () => {
     const applied: string[] = [];
     const enqueued: number[] = [];
+    const boardRequests: any[] = [];
     const traces: Array<{ type: string; details: any }> = [];
     const coordinator = createNetworkIntakeCoordinator({
       getAppliedStateVersion: () => null,
@@ -34,7 +35,10 @@ describe('network intake coordinator', () => {
         enqueued.push(...frames.map((frame: any) => frame.visualSeq));
         return frames.length;
       },
-      requestBoardRefresh: () => true,
+      requestBoardRefresh: (meta) => {
+        boardRequests.push(meta);
+        return true;
+      },
       recordTrace: (type, details) => traces.push({ type, details })
     });
 
@@ -60,11 +64,19 @@ describe('network intake coordinator', () => {
 
     expect(applied).toEqual(['publish_response']);
     expect(enqueued).toEqual([3]);
+    expect(boardRequests).toEqual([]);
     expect(first).toMatchObject({ duplicateOperation: false });
     expect(second).toMatchObject({ duplicateOperation: true });
+    expect(traces.map((entry) => entry.type)).toEqual([
+      'network_intake_submit',
+      'network_intake_submit'
+    ]);
     expect(traces.map((entry) => entry.details)).toEqual([
       expect.objectContaining({
         source: 'publish_response',
+        operationId: 'op_1',
+        stateVersion: 3,
+        visualSeq: 3,
         boardWriter: 'network_timeline',
         playbackActive: false,
         decision: 'accepted',
@@ -72,6 +84,9 @@ describe('network intake coordinator', () => {
       }),
       expect.objectContaining({
         source: 'stream',
+        operationId: 'op_1',
+        stateVersion: 3,
+        visualSeq: 3,
         boardWriter: 'none',
         playbackActive: false,
         decision: 'deduped',
