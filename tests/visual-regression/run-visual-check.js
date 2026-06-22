@@ -11,7 +11,27 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
   const baseline = path.join(__dirname, 'baseline-board.png');
   const current = path.join(__dirname, 'current-board.png');
   const diffOut = path.join(__dirname, 'diff-board.png');
+  const currentTemp = path.join(__dirname, `current-board.capture.${process.pid}.png`);
+  const diffTemp = path.join(__dirname, `diff-board.capture.${process.pid}.png`);
   const threshold = process.env.VISUAL_DIFF_THRESHOLD ? parseInt(process.env.VISUAL_DIFF_THRESHOLD, 10) : 4000; // pixels
+
+  function removeIfExists(filePath) {
+    try { fs.rmSync(filePath, { force: true }); } catch (e) {}
+  }
+
+  function publishFailureArtifacts(options = {}) {
+    try {
+      if (fs.existsSync(currentTemp)) fs.copyFileSync(currentTemp, current);
+    } catch (e) {}
+    try {
+      if (options.diff === true && fs.existsSync(diffTemp)) fs.copyFileSync(diffTemp, diffOut);
+    } catch (e) {}
+  }
+
+  function cleanupTempArtifacts() {
+    removeIfExists(currentTemp);
+    removeIfExists(diffTemp);
+  }
 
   // Start minimal static server
   const http = require('http');
@@ -68,13 +88,16 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
 
     const board = await page.$('#board');
     if (!board) throw new Error('Could not find #board element');
-    await board.screenshot({ path: current });
-    console.log('[viz-check] saved', current);
+    cleanupTempArtifacts();
+    await board.screenshot({ path: currentTemp });
+    console.log('[viz-check] captured', currentTemp);
     await browser.close();
 
     if (!fs.existsSync(baseline)) {
       // No baseline: promote current to baseline
-      fs.copyFileSync(current, baseline);
+      fs.copyFileSync(currentTemp, baseline);
+      fs.copyFileSync(currentTemp, current);
+      cleanupTempArtifacts();
       console.log('[viz-check] baseline created at', baseline);
       server.close();
       process.exit(0);
@@ -82,26 +105,33 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
 
     // Compare baseline vs current
     const img1 = PNG.sync.read(fs.readFileSync(baseline));
-    const img2 = PNG.sync.read(fs.readFileSync(current));
+    const img2 = PNG.sync.read(fs.readFileSync(currentTemp));
     const { width, height } = img1;
     if (width !== img2.width || height !== img2.height) {
       console.error('[viz-check] image size mismatch');
+      publishFailureArtifacts();
+      cleanupTempArtifacts();
       server.close();
       process.exit(2);
     }
     const diff = new PNG({ width, height });
     const num = pixelmatch(img1.data, img2.data, diff.data, width, height, { threshold: 0.12 });
-    fs.writeFileSync(diffOut, PNG.sync.write(diff));
+    fs.writeFileSync(diffTemp, PNG.sync.write(diff));
     console.log('[viz-check] diff pixels:', num, '(threshold:', threshold + ')');
     server.close();
     if (num > threshold) {
       console.error('[viz-check] visual regression detected');
+      publishFailureArtifacts({ diff: true });
+      cleanupTempArtifacts();
       process.exit(3);
     }
+    cleanupTempArtifacts();
     console.log('[viz-check] visual check passed');
     process.exit(0);
   } catch (e) {
     console.error('[viz-check] error', e && e.message);
+    publishFailureArtifacts();
+    cleanupTempArtifacts();
     server.close();
     process.exit(2);
   }
