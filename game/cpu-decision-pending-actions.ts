@@ -77,6 +77,13 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         return fallbackToSelectable ? getSelectableTargets(playerKey) : [];
     }
 
+    function getSwapTargetsForCpu(playerKey: any): any[] {
+        const cardLogic = getCardLogic();
+        return (cardLogic && typeof cardLogic.getSwapTargets === 'function')
+            ? cardLogic.getSwapTargets(cfg.getCardState(), cfg.getGameState(), playerKey)
+            : getSelectableTargets(playerKey);
+    }
+
     function getPlayerHand(playerKey: any): any[] {
         const state = cfg.getCardState();
         return (state && state.hands && Array.isArray(state.hands[playerKey]))
@@ -187,6 +194,12 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         const requiredRemaining = getBoardExpansionRequiredRemainingCount(playerKey, pendingType, pending);
         if (pendingType === 'BOARD_EXPANSION_GOD' && filtered.length < requiredRemaining) return [];
         return filtered;
+    }
+
+    function filterSwapEnemyNormalCornerTargets(playerKey: any, targets: any[]): any[] {
+        return Array.isArray(targets)
+            ? targets.filter((target) => isOpponentOccupiedCornerTarget(playerKey, target))
+            : [];
     }
 
     async function runTargetAction(options: TargetActionOptions): Promise<any> {
@@ -330,7 +343,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         return runTargetAction({
             playerKey,
             pendingType: 'SWAP_WITH_ENEMY',
-            targets: getSelectableTargets(playerKey),
+            targets: filterSwapEnemyNormalCornerTargets(playerKey, getSwapTargetsForCpu(playerKey)),
             noTargetLabel: '交換対象なし',
             targetLabel: '交換ターゲット',
             payloadKey: 'swapTarget',

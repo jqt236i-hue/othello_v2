@@ -317,6 +317,7 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             if (discDiff >= 6 && own) score -= 260;
             return score;
         case 'SWAP_WITH_ENEMY':
+            if (!corner || !opp) return -1000000;
             score += opp ? 260 : -600;
             if (corner) score += opp ? 3600 : -2600;
             else if (edge) score += opp ? 1100 : -900;

@@ -971,6 +971,54 @@ describe('cpu-policy-core', () => {
         expect(out.shouldUse).toBe(true);
     });
 
+    test('scoreCardUseDecision blocks SWAP_WITH_ENEMY without enemy normal corner target', () => {
+        const out = core.scoreCardUseDecision(
+            'swap_01',
+            () => 17,
+            () => ({ id: 'swap_01', type: 'SWAP_WITH_ENEMY' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 30,
+                ownCharge: 50,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                swapEnemyNormalCornerTargetCount: 0
+            }
+        );
+        expect(out.shouldUse).toBe(false);
+        expect(out.reason).toBe('swap_no_enemy_normal_corner');
+    });
+
+    test('scoreCardUseDecision allows SWAP_WITH_ENEMY when enemy normal corner target exists', () => {
+        const out = core.scoreCardUseDecision(
+            'swap_01',
+            () => 17,
+            () => ({ id: 'swap_01', type: 'SWAP_WITH_ENEMY' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 1,
+                discDiff: -14,
+                empties: 30,
+                ownCharge: 50,
+                handSize: 5,
+                ownCorners: 0,
+                oppCorners: 2,
+                hasCornerMoveNow: false,
+                cornerEmergency: true,
+                swapEnemyNormalCornerTargetCount: 1
+            }
+        );
+        expect(out.shouldUse).toBe(true);
+        expect(out.score).toBeGreaterThan(out.minUseScore);
+    });
+
     test('scoreCardUseDecision blocks BOARD_EXPANSION_WILL without enemy occupied corner target', () => {
         const out = core.scoreCardUseDecision(
             'board_expand_01',

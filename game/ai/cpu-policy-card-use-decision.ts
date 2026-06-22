@@ -168,6 +168,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         const {
             ownCorners,
             oppCorners,
+            swapEnemyNormalCornerTargetCount,
             boardExpansionWillEnemyCornerTargetCount,
             boardExpansionGodEnemyCornerTargetCount,
             hasCornerMoveNow,
@@ -240,6 +241,9 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         }
         if (isLossWill && ownSpecialCount > 0 && lossEnemyAnchorPayoffIsModest) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
+        }
+        if (isSwapWithEnemy && swapEnemyNormalCornerTargetCount <= 0) {
+            return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'swap_no_enemy_normal_corner');
         }
         if (isBoardExpansionWill) {
             const enemyCornerTargetCount = cardType === 'BOARD_EXPANSION_GOD'

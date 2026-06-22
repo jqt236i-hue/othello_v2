@@ -2856,9 +2856,15 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('cpuSelectSwapWithEnemyWithPolicy prefers pipeline adapter path', async () => {
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[0][0] = 1;
     global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
     global.CardLogic = {
-      getSelectableTargets: () => [{ row: 2, col: 3 }],
+      getSwapTargets: () => [{ row: 0, col: 0 }],
+      getSelectableTargets: () => [{ row: 0, col: 0 }],
       applySwapEffect: jest.fn(() => true)
     };
     global.TurnPipeline = {};
@@ -2922,6 +2928,41 @@ describe('cpu decision refactor helpers', () => {
     expect(action.swapTarget).toEqual({ row: 0, col: 0 });
   });
 
+  test('cpuSelectSwapWithEnemyWithPolicy clears pending when no enemy normal corner target exists', async () => {
+    global.gameState = {
+      board: [
+        [1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, -1]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
+    global.cardState.markers = [
+      { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 3 } }
+    ];
+    global.CardLogic = {
+      getSwapTargets: () => [{ row: 3, col: 3 }],
+      getSelectableTargets: () => [{ row: 0, col: 0 }, { row: 3, col: 3 }],
+      applySwapEffect: jest.fn(() => true)
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn()
+    };
+
+    await cpuDecision.cpuSelectSwapWithEnemyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(global.CardLogic.applySwapEffect).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('cpuSelectSwapWithEnemyWithPolicy continues turn start after immediate handoff', async () => {
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
@@ -2929,9 +2970,11 @@ describe('cpu decision refactor helpers', () => {
       turnNumber: 7,
       consecutivePasses: 0
     };
+    global.gameState.board[0][0] = 1;
     global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
     global.CardLogic = {
-      getSelectableTargets: () => [{ row: 2, col: 3 }],
+      getSwapTargets: () => [{ row: 0, col: 0 }],
+      getSelectableTargets: () => [{ row: 0, col: 0 }],
       applySwapEffect: jest.fn(() => true)
     };
     global.waitForPlaybackIdle = jest.fn(async () => {});
@@ -3782,9 +3825,15 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('cpuSelectSwapWithEnemyWithPolicy does not fallback when pipeline path rejects', async () => {
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[0][0] = 1;
     global.cardState.pendingEffectByPlayer.white = { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' };
     global.CardLogic = {
-      getSelectableTargets: () => [{ row: 4, col: 5 }],
+      getSwapTargets: () => [{ row: 0, col: 0 }],
+      getSelectableTargets: () => [{ row: 0, col: 0 }],
       applySwapEffect: jest.fn(() => true)
     };
     global.TurnPipeline = {};

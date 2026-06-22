@@ -2182,6 +2182,7 @@ function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount
         forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
         ownCorners: 0,
         oppCorners: 0,
+        swapEnemyNormalCornerTargetCount: 0,
         boardExpansionEnemyCornerTargetCount: 0,
         boardExpansionWillEnemyCornerTargetCount: 0,
         boardExpansionGodEnemyCornerTargetCount: 0,

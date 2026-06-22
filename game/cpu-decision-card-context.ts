@@ -78,12 +78,20 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         };
     }
 
+    function getSwapEnemyNormalCornerTargetCount(playerKey: any, board: any, playerValue: any): number {
+        const cardLogic = readCardLogic();
+        if (!cardLogic || typeof cardLogic.getSwapTargets !== 'function') return 0;
+        const targets = cardLogic.getSwapTargets(readCardState(), readGameState(), playerKey);
+        return countEnemyOccupiedCornerTargets(board, playerValue, targets);
+    }
+
     function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
         const cs = readCardState();
         const gs = readGameState();
         const board = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
         const playerValue = cfg.resolvePlayerValue(playerKey);
         const boardExpansionTargetCounts = getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
+        const swapEnemyNormalCornerTargetCount = getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue);
         const stats = cfg.countBoardStatsForPlayer(playerValue);
         const edgeControl = cfg.countEdgeControl(board, playerValue);
         const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey])
@@ -165,6 +173,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
             ownCorners: planState.ownCorners,
             oppCorners: planState.oppCorners,
+            swapEnemyNormalCornerTargetCount,
             boardExpansionEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionEnemyCornerTargetCount,
             boardExpansionWillEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionWillEnemyCornerTargetCount,
             boardExpansionGodEnemyCornerTargetCount: boardExpansionTargetCounts.boardExpansionGodEnemyCornerTargetCount,

@@ -96,6 +96,9 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         const forceUseCard = !!ctx.forceUseCard || legalMovesCount <= 0;
         const ownCorners = isFiniteNumber(ctx.ownCorners) ? Number(ctx.ownCorners) : 0;
         const oppCorners = isFiniteNumber(ctx.oppCorners) ? Number(ctx.oppCorners) : 0;
+        const swapEnemyNormalCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'swapEnemyNormalCornerTargetCount') && isFiniteNumber(ctx.swapEnemyNormalCornerTargetCount)
+            ? Math.max(0, Math.floor(Number(ctx.swapEnemyNormalCornerTargetCount)))
+            : 0;
         const hasBoardExpansionEnemyCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'boardExpansionEnemyCornerTargetCount');
         const hasBoardExpansionWillEnemyCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'boardExpansionWillEnemyCornerTargetCount');
         const hasBoardExpansionGodEnemyCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'boardExpansionGodEnemyCornerTargetCount');
@@ -213,6 +216,7 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             minUseScore,
             ownCorners,
             oppCorners,
+            swapEnemyNormalCornerTargetCount,
             boardExpansionEnemyCornerTargetCount,
             boardExpansionWillEnemyCornerTargetCount,
             boardExpansionGodEnemyCornerTargetCount,
