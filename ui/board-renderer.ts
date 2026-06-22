@@ -68,6 +68,11 @@ if (typeof require === 'function') {
     try { BoardRendererHintProjectionModule = require('../shared/board-hint-projection'); } catch (e: any) { /* ignore */ }
 }
 
+var BoardRendererStoneHelpersRegistryModule: any = null;
+if (typeof require === 'function') {
+    try { BoardRendererStoneHelpersRegistryModule = require('./board-renderer/stone-helpers'); } catch (e: any) { /* ignore */ }
+}
+
 function _getBoardHintProjectionForBoardRenderer() {
     if (BoardRendererHintProjectionModule) return BoardRendererHintProjectionModule;
     try {
@@ -1935,6 +1940,12 @@ const BoardRenderer = {
             syncBoardExpansionLayerGeometry,
             resolveBoardExpansionLayerElement
         };
+if (
+    BoardRendererStoneHelpersRegistryModule &&
+    typeof BoardRendererStoneHelpersRegistryModule.setBoardRendererStoneHelpers === 'function'
+) {
+    BoardRendererStoneHelpersRegistryModule.setBoardRendererStoneHelpers(BoardRenderer);
+}
 export = BoardRenderer;
 if (typeof window !== 'undefined') {
     // Prefer board-renderer as the canonical renderBoard implementation.

@@ -32,10 +32,6 @@ const EXPECTED_CYCLIC_COMPONENTS = [
     'ui/hand-skin/controller.js',
     'ui/hand-skin/controller.ts',
     'ui/handlers/hand-skin.ts'
-  ],
-  [
-    'ui/board-renderer.ts',
-    'ui/diff-renderer.ts'
   ]
 ];
 
