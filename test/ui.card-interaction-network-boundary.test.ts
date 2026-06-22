@@ -11,6 +11,9 @@ describe('card interaction network boundary', () => {
   });
 
   afterEach(() => {
+    jest.dontMock('../cards/card-interaction-network-client');
+    jest.dontMock('../cards/card-interaction-pending-settlement');
+    jest.dontMock('../cards/card-interaction-pending-publish');
     delete (global as any).window;
     delete (global as any).NetworkMatchClient;
   });
@@ -75,5 +78,18 @@ describe('card interaction network boundary', () => {
     };
 
     expect(pendingNetwork.isNetworkSpectatorActive()).toBe(false);
+  });
+
+  test.each([
+    ['network client adapter', '../cards/card-interaction-network-client'],
+    ['pending settlement adapter', '../cards/card-interaction-pending-settlement'],
+    ['pending publish adapter', '../cards/card-interaction-pending-publish']
+  ])('fails fast when %s cannot load', (_label, modulePath) => {
+    jest.resetModules();
+    jest.doMock(modulePath, () => {
+      throw new Error('adapter load failed');
+    });
+
+    expect(() => require('../cards/card-interaction-pending-network')).toThrow('adapter load failed');
   });
 });

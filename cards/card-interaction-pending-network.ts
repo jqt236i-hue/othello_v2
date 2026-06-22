@@ -14,26 +14,9 @@ type PendingNetworkDeps = {
     publishLocks: Record<string, boolean>;
 };
 
-let NetworkClientAdapter: any = null;
-try {
-    NetworkClientAdapter = require('./card-interaction-network-client');
-} catch (e) {
-    NetworkClientAdapter = null;
-}
-
-let PendingSettlement: any = null;
-try {
-    PendingSettlement = require('./card-interaction-pending-settlement');
-} catch (e) {
-    PendingSettlement = null;
-}
-
-let PendingPublish: any = null;
-try {
-    PendingPublish = require('./card-interaction-pending-publish');
-} catch (e) {
-    PendingPublish = null;
-}
+const NetworkClientAdapter: any = require('./card-interaction-network-client');
+const PendingSettlement: any = require('./card-interaction-pending-settlement');
+const PendingPublish: any = require('./card-interaction-pending-publish');
 
 function getWaitForPlaybackIdleFn(deps: PendingNetworkDeps) {
     return PendingSettlement.getWaitForPlaybackIdleFn(deps);
