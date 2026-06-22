@@ -284,6 +284,64 @@ describe('match worker leaderboard helpers', () => {
     });
   });
 
+  test('最短手数は短い自己ベストだけを保存して短い順に並ぶ', () => {
+    const helpers = createHelpers();
+    let store = helpers.createEmptyStore();
+
+    const alphaSlow = helpers.applySubmit(store, {
+      category: 'shortestTurns',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 42,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(alphaSlow.ok).toBe(true);
+    if (!alphaSlow.ok) return;
+    store = alphaSlow.store;
+
+    const alphaFast = helpers.applySubmit(store, {
+      category: 'shortestTurns',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 37,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(alphaFast.ok).toBe(true);
+    if (!alphaFast.ok) return;
+    expect(alphaFast.payload.updated).toBe(true);
+    expect(alphaFast.payload.bestTurnCount).toBe(37);
+    store = alphaFast.store;
+
+    const beta = helpers.applySubmit(store, {
+      category: 'shortestTurns',
+      playerId: 'player_beta_0002',
+      playerName: 'ベータ',
+      turnCount: 40,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(beta.ok).toBe(true);
+    if (!beta.ok) return;
+
+    const entries = helpers.listEntries(beta.store, 10, 'cpu', 6, 'shortestTurns');
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      rank: 1,
+      playerName: 'アルファ',
+      turnCount: 37,
+      mode: 'cpu',
+      cpuLevel: 6,
+      category: 'shortestTurns'
+    });
+    expect(entries[1]).toMatchObject({
+      rank: 2,
+      playerName: 'ベータ',
+      turnCount: 40
+    });
+  });
+
   test('タイムアタックは900秒超過とデバッグ記録を保存しない', () => {
     const helpers = createHelpers();
     const store = helpers.createEmptyStore();
@@ -363,6 +421,37 @@ describe('match worker leaderboard helpers', () => {
     expect(debug).toEqual({
       ok: false,
       reason: 'TIME_DEFENSE_INELIGIBLE'
+    });
+  });
+
+  test('最短手数はnetworkモードとデバッグ記録を保存しない', () => {
+    const helpers = createHelpers();
+    const store = helpers.createEmptyStore();
+
+    const network = helpers.applySubmit(store, {
+      category: 'shortestTurns',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 37,
+      mode: 'network'
+    });
+    expect(network).toEqual({
+      ok: false,
+      reason: 'SHORTEST_TURNS_INELIGIBLE'
+    });
+
+    const debug = helpers.applySubmit(store, {
+      category: 'shortestTurns',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 37,
+      mode: 'cpu',
+      cpuLevel: 1,
+      debug: true
+    });
+    expect(debug).toEqual({
+      ok: false,
+      reason: 'SHORTEST_TURNS_INELIGIBLE'
     });
   });
 

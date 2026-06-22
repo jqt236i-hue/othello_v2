@@ -163,6 +163,26 @@ describe('match-mode shared leaderboard panel', () => {
         cpuLevel: 1,
         category: 'timeDefense'
       }
+    ],
+    shortestTurnsCpu: [
+      {
+        rank: 1,
+        playerId: 'player_short_0001',
+        playerName: '速手',
+        turnCount: 37,
+        mode: 'cpu',
+        cpuLevel: 1,
+        category: 'shortestTurns'
+      },
+      {
+        rank: 2,
+        playerId: 'player_short_0002',
+        playerName: '短勝',
+        turnCount: 40,
+        mode: 'cpu',
+        cpuLevel: 1,
+        category: 'shortestTurns'
+      }
     ]
   };
 
@@ -248,6 +268,8 @@ describe('match-mode shared leaderboard panel', () => {
         ? leaderboardEntriesByMode.timeAttackCpu
         : options && options.category === 'timeDefense'
         ? leaderboardEntriesByMode.timeDefenseCpu
+        : options && options.category === 'shortestTurns'
+        ? leaderboardEntriesByMode.shortestTurnsCpu
         : options && options.mode === 'cpu' && options.cpuLevel === 6
         ? leaderboardEntriesByMode.cpuLv6
         : leaderboardEntriesByMode[(options && options.mode) || 'all'] || leaderboardEntriesByMode.all,
@@ -360,7 +382,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(document.getElementById('leaderboardList').textContent).toContain('記録14');
   });
 
-  test('ランキングパネルを開くと2種別タブとMODEボタンを組み立てる', async () => {
+  test('ランキングパネルを開くと4種別タブとMODEボタンを組み立てる', async () => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
     await Promise.resolve();
@@ -378,7 +400,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(summary?.textContent).toContain('8543');
     expect(summary?.textContent).toContain('#4');
     expect(summary?.textContent).toContain('06:40');
-    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'タイムアタック', 'タイムディフェンス']);
+    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'タイムアタック', '最長手数', '最短手数']);
     expect(document.getElementById('leaderboardCategoryScore')?.getAttribute('aria-pressed')).toBe('true');
     expect(modeBtn?.textContent).toBe('MODE');
     expect(modeBtn?.getAttribute('aria-label')).toBe('表示モード: 総合');
@@ -477,7 +499,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(podium?.textContent).toContain('03:02.34');
   });
 
-  test('タイムディフェンスタブでは手数列と長手数記録を表示する', async () => {
+  test('最長手数タブでは手数列と長手数記録を表示する', async () => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
     await Promise.resolve();
@@ -501,6 +523,30 @@ describe('match-mode shared leaderboard panel', () => {
     expect(summary?.textContent).toContain('あなたの最長記録');
   });
 
+  test('最短手数タブでは手数列と短手数記録を表示する', async () => {
+    document.getElementById('leaderboardOpenBtn').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const shortestTab = document.getElementById('leaderboardCategoryShortestTurns');
+    shortestTab.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const podium = document.getElementById('leaderboardPodium');
+    const header = document.getElementById('leaderboardTableHeader');
+    const summary = document.getElementById('leaderboardSummary');
+
+    expect(shortestTab.getAttribute('aria-pressed')).toBe('true');
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'shortestTurns' }));
+    expect(header?.textContent).toContain('手数');
+    expect(header?.textContent).not.toContain('タイム');
+    expect(header?.textContent).not.toContain('スコア');
+    expect(podium?.textContent).toContain('速手');
+    expect(podium?.textContent).toContain('37手');
+    expect(summary?.textContent).toContain('あなたの最短記録');
+  });
+
   test('ⓘボタンでランキング説明パネルを開く', async () => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
@@ -510,6 +556,7 @@ describe('match-mode shared leaderboard panel', () => {
     const panel = document.getElementById('leaderboardDetailsPanel');
     expect(infoBtn).toBeTruthy();
     expect(panel?.textContent).toContain('スコアランキング');
+    expect(panel?.textContent).toContain('最短手数');
     expect(document.getElementById('leaderboardModal').classList.contains('is-detail-open')).toBe(false);
 
     infoBtn.click();

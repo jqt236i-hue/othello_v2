@@ -77,6 +77,7 @@ function createLeaderboardController(context: any) {
     const LEADERBOARD_CATEGORY_SCORE = 'score';
     const LEADERBOARD_CATEGORY_TIME_ATTACK = 'timeAttack';
     const LEADERBOARD_CATEGORY_TIME_DEFENSE = 'timeDefense';
+    const LEADERBOARD_CATEGORY_SHORTEST_TURNS = 'shortestTurns';
     const LEADERBOARD_CPU_LEVEL_NAMES = [
         '',
         '盤喰いの小鬼',
@@ -198,6 +199,7 @@ function createLeaderboardController(context: any) {
     function normalizeLeaderboardCategory(value: any) {
         if (value === LEADERBOARD_CATEGORY_TIME_ATTACK) return LEADERBOARD_CATEGORY_TIME_ATTACK;
         if (value === LEADERBOARD_CATEGORY_TIME_DEFENSE) return LEADERBOARD_CATEGORY_TIME_DEFENSE;
+        if (value === LEADERBOARD_CATEGORY_SHORTEST_TURNS) return LEADERBOARD_CATEGORY_SHORTEST_TURNS;
         return LEADERBOARD_CATEGORY_SCORE;
     }
 
@@ -237,6 +239,14 @@ function createLeaderboardController(context: any) {
         return leaderboardActiveCategory === LEADERBOARD_CATEGORY_TIME_DEFENSE;
     }
 
+    function isShortestTurnsLeaderboardActive(): boolean {
+        return leaderboardActiveCategory === LEADERBOARD_CATEGORY_SHORTEST_TURNS;
+    }
+
+    function isTurnCountLeaderboardActive(): boolean {
+        return isTimeDefenseLeaderboardActive() || isShortestTurnsLeaderboardActive();
+    }
+
     function formatLeaderboardDuration(ms: any): string {
         const totalMs = Number(ms);
         if (!Number.isFinite(totalMs) || totalMs <= 0) return '--';
@@ -251,7 +261,10 @@ function createLeaderboardController(context: any) {
         if (isTimeAttackLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_ATTACK)) {
             return formatLeaderboardDuration(entry && entry.bestTimeMs);
         }
-        if (isTimeDefenseLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_DEFENSE)) {
+        if (
+            isTurnCountLeaderboardActive()
+            || (entry && (entry.category === LEADERBOARD_CATEGORY_TIME_DEFENSE || entry.category === LEADERBOARD_CATEGORY_SHORTEST_TURNS))
+        ) {
             const turns = Number(entry && entry.turnCount);
             return Number.isFinite(turns) && turns > 0 ? `${Math.trunc(turns)}手` : '--';
         }
@@ -260,13 +273,14 @@ function createLeaderboardController(context: any) {
 
     function getLeaderboardValueHeaderLabel(): string {
         if (isTimeAttackLeaderboardActive()) return 'タイム';
-        if (isTimeDefenseLeaderboardActive()) return '手数';
+        if (isTurnCountLeaderboardActive()) return '手数';
         return 'スコア';
     }
 
     function getLeaderboardSummaryBestLabel(): string {
         if (isTimeAttackLeaderboardActive()) return 'あなたの最速記録';
         if (isTimeDefenseLeaderboardActive()) return 'あなたの最長記録';
+        if (isShortestTurnsLeaderboardActive()) return 'あなたの最短記録';
         return 'あなたの最高記録';
     }
 
@@ -334,7 +348,8 @@ function createLeaderboardController(context: any) {
             const tabDefs = [
                 { id: 'leaderboardCategoryScore', label: 'スコアランキング', category: LEADERBOARD_CATEGORY_SCORE },
                 { id: 'leaderboardCategoryTimeAttack', label: 'タイムアタック', category: LEADERBOARD_CATEGORY_TIME_ATTACK },
-                { id: 'leaderboardCategoryTimeDefense', label: 'タイムディフェンス', category: LEADERBOARD_CATEGORY_TIME_DEFENSE }
+                { id: 'leaderboardCategoryTimeDefense', label: '最長手数', category: LEADERBOARD_CATEGORY_TIME_DEFENSE },
+                { id: 'leaderboardCategoryShortestTurns', label: '最短手数', category: LEADERBOARD_CATEGORY_SHORTEST_TURNS }
             ];
             tabDefs.forEach((tabDef) => {
                 const button = document.createElement('button');
@@ -457,7 +472,7 @@ function createLeaderboardController(context: any) {
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。タイムディフェンスは勝利までの手数が多いほど上位。CPUはLv別に絞り込み可能。15:00超過はタイムアタック対象外。敗北、引き分け、デバッグモードはタイム系ランキング対象外。';
+            details.textContent = 'スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。最長手数は勝利までの手数が多いほど上位。最短手数は勝利までの手数が少ないほど上位。CPUはLv別に絞り込み可能。15:00超過はタイムアタック対象外。敗北、引き分け、デバッグモードはタイム系ランキング対象外。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');

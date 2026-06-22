@@ -144,12 +144,14 @@ function normalizeEntry(entry: any): any {
     ? 'timeAttack'
     : entry.category === 'timeDefense'
     ? 'timeDefense'
+    : entry.category === 'shortestTurns'
+    ? 'shortestTurns'
     : 'score';
   const score = Number.isFinite(Number(entry.bestScore)) ? Math.max(0, Math.trunc(Number(entry.bestScore))) : 0;
   const bestTimeMs = category === 'timeAttack' && Number.isFinite(Number(entry.bestTimeMs))
     ? Math.max(1, Math.trunc(Number(entry.bestTimeMs)))
     : null;
-  const turnCount = category === 'timeDefense' && Number.isFinite(Number(entry.turnCount))
+  const turnCount = (category === 'timeDefense' || category === 'shortestTurns') && Number.isFinite(Number(entry.turnCount))
     ? Math.max(1, Math.trunc(Number(entry.turnCount)))
     : (Number.isFinite(Number(entry.turnCount)) ? Math.max(0, Math.trunc(Number(entry.turnCount))) : null);
   const rank = Number.isFinite(Number(entry.rank)) ? Math.max(1, Math.trunc(Number(entry.rank))) : null;
@@ -198,6 +200,8 @@ async function fetchLeaderboard(options?: any): Promise<any> {
     ? 'timeAttack'
     : opts.category === 'timeDefense'
     ? 'timeDefense'
+    : opts.category === 'shortestTurns'
+    ? 'shortestTurns'
     : 'score';
   const cpuLevel = mode === 'cpu' && Number.isFinite(Number(opts.cpuLevel))
     ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel))))
@@ -348,6 +352,48 @@ async function submitTimeDefense(summary: any, options?: any): Promise<any> {
   };
 }
 
+async function submitShortestTurns(summary: any, options?: any): Promise<any> {
+  const input = summary || {};
+  const opts = options || {};
+  const turnCount = Number.isFinite(Number(input.turnCount))
+    ? Math.max(1, Math.trunc(Number(input.turnCount)))
+    : null;
+  if (turnCount === null) {
+    return { ok: false, reason: 'INVALID_SHORTEST_TURNS' };
+  }
+
+  const payload = {
+    playerId: getPlayerId(),
+    playerName: getPlayerName(),
+    category: 'shortestTurns',
+    turnCount,
+    debug: opts.debug === true,
+    mode: opts.mode === 'network' ? 'network' : 'cpu',
+    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
+    boardConfig: normalizeBoardConfig(opts.boardConfig),
+    limit: Number.isFinite(Number(opts.limit))
+      ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
+      : 10
+  };
+
+  const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
+  if (!res.ok) {
+    return { ok: false, reason: res.reason || 'SUBMIT_FAILED' };
+  }
+
+  const entries = Array.isArray(res.data && res.data.entries)
+    ? res.data.entries.map((entry: any) => normalizeEntry(entry)).filter(Boolean)
+    : [];
+
+  return {
+    ok: true,
+    updated: !!(res.data && res.data.updated),
+    bestTurnCount: Number.isFinite(Number(res.data && res.data.bestTurnCount)) ? Number(res.data.bestTurnCount) : turnCount,
+    rank: Number.isFinite(Number(res.data && res.data.rank)) ? Number(res.data.rank) : null,
+    entries
+  };
+}
+
 const LeaderboardClient = {
   getPlayerName,
   setPlayerName,
@@ -356,6 +402,7 @@ const LeaderboardClient = {
   submitScore,
   submitTimeAttack,
   submitTimeDefense,
+  submitShortestTurns,
   resolveServerBaseUrl
 };
 

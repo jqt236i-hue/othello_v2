@@ -6,11 +6,11 @@ type MatchWorkerLeaderboardRoomHelpers = {
     listEntries: (store: MatchWorkerLeaderboardStore, limit: unknown, mode?: unknown, cpuLevel?: unknown, category?: unknown) => Array<Record<string, unknown>>;
     applySubmit: (store: MatchWorkerLeaderboardStore, body: Record<string, unknown>) =>
         | { ok: true; store: MatchWorkerLeaderboardStore; payload: Record<string, unknown> }
-        | { ok: false; reason: 'PLAYER_ID_REQUIRED' | 'TIME_ATTACK_INELIGIBLE' | 'TIME_DEFENSE_INELIGIBLE' | 'SCORE_INELIGIBLE' | 'BOARD_NOT_ELIGIBLE' };
+        | { ok: false; reason: 'PLAYER_ID_REQUIRED' | 'TIME_ATTACK_INELIGIBLE' | 'TIME_DEFENSE_INELIGIBLE' | 'SHORTEST_TURNS_INELIGIBLE' | 'SCORE_INELIGIBLE' | 'BOARD_NOT_ELIGIBLE' };
     normalizeLimit: (value: unknown) => number;
     normalizeListMode: (value: unknown) => 'all' | 'cpu' | 'network';
     normalizeListCpuLevel: (value: unknown) => number | null;
-    normalizeCategory: (value: unknown) => 'score' | 'timeAttack' | 'timeDefense';
+    normalizeCategory: (value: unknown) => 'score' | 'timeAttack' | 'timeDefense' | 'shortestTurns';
 };
 
 type MatchWorkerLeaderboardRoomControllerConfig = {
@@ -18,6 +18,7 @@ type MatchWorkerLeaderboardRoomControllerConfig = {
     storageKey: string;
     timeAttackStorageKey?: string;
     timeDefenseStorageKey?: string;
+    shortestTurnsStorageKey?: string;
     defaultLimit: number;
     helpers: MatchWorkerLeaderboardRoomHelpers;
     jsonResponse: (statusCode: number, payload: unknown) => Response;
@@ -30,11 +31,13 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
     const scoreStorageKey = cfg.storageKey;
     const timeAttackStorageKey = cfg.timeAttackStorageKey || `${scoreStorageKey}_time_attack`;
     const timeDefenseStorageKey = cfg.timeDefenseStorageKey || `${scoreStorageKey}_time_defense`;
+    const shortestTurnsStorageKey = cfg.shortestTurnsStorageKey || `${scoreStorageKey}_shortest_turns`;
 
     function storageKeyForCategory(category: unknown): string {
         const normalized = cfg.helpers.normalizeCategory(category);
         if (normalized === 'timeAttack') return timeAttackStorageKey;
         if (normalized === 'timeDefense') return timeDefenseStorageKey;
+        if (normalized === 'shortestTurns') return shortestTurnsStorageKey;
         return scoreStorageKey;
     }
 

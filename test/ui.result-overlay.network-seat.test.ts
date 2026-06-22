@@ -552,10 +552,12 @@ describe('result overlay seat perspective', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitShortestTurns = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
       submitTimeAttack,
       submitTimeDefense,
+      submitShortestTurns,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
     global.gameState.boardConfig = { rows: 8, cols: 8, standard8x8: true };
@@ -584,6 +586,14 @@ describe('result overlay seat perspective', () => {
       limit: 10,
       boardConfig: expect.objectContaining({ rows: 8, cols: 8, standard8x8: true })
     }));
+    expect(submitShortestTurns).toHaveBeenCalledWith(expect.objectContaining({
+      turnCount: 42
+    }), expect.objectContaining({
+      mode: 'cpu',
+      cpuLevel: 1,
+      limit: 10,
+      boardConfig: expect.objectContaining({ rows: 8, cols: 8, standard8x8: true })
+    }));
     expect((document.querySelector('.result-time-attack') || {}).textContent || '').toContain('速攻 03:02.34');
     expect((document.querySelector('.result-time-defense') || {}).textContent || '').toContain('42手で勝利');
     nowSpy.mockRestore();
@@ -593,10 +603,12 @@ describe('result overlay seat perspective', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitShortestTurns = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
       submitTimeAttack,
       submitTimeDefense,
+      submitShortestTurns,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
     global.gameState.board = Array.from({ length: 6 }, () => Array(6).fill(0));
@@ -612,6 +624,7 @@ describe('result overlay seat perspective', () => {
     expect(submitScore).not.toHaveBeenCalled();
     expect(submitTimeAttack).not.toHaveBeenCalled();
     expect(submitTimeDefense).not.toHaveBeenCalled();
+    expect(submitShortestTurns).not.toHaveBeenCalled();
     expect(localStorage.getItem('othello_cpu_leaderboard_v5')).toBeNull();
     nowSpy.mockRestore();
   });
@@ -622,10 +635,12 @@ describe('result overlay seat perspective', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitShortestTurns = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
       submitTimeAttack,
       submitTimeDefense,
+      submitShortestTurns,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
     global.cardState.turnCountByPlayer = { black: 24, white: 18 };
@@ -648,6 +663,10 @@ describe('result overlay seat perspective', () => {
       mode: 'cpu',
       cpuLevel: 9
     }));
+    expect(submitShortestTurns).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+      mode: 'cpu',
+      cpuLevel: 9
+    }));
     nowSpy.mockRestore();
   });
 
@@ -657,10 +676,12 @@ describe('result overlay seat perspective', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitShortestTurns = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore,
       submitTimeAttack,
       submitTimeDefense,
+      submitShortestTurns,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
     global.cardState.turnCountByPlayer = { black: 24, white: 18 };
@@ -674,15 +695,18 @@ describe('result overlay seat perspective', () => {
     expect(submitScore).toHaveBeenCalled();
     expect(submitTimeAttack).not.toHaveBeenCalled();
     expect(submitTimeDefense).not.toHaveBeenCalled();
+    expect(submitShortestTurns).not.toHaveBeenCalled();
     nowSpy.mockRestore();
   });
 
   test('敗北時はタイムディフェンスを表示せず送信しない', () => {
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitShortestTurns = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     window.LeaderboardClient = {
       submitScore: jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 })),
       submitTimeAttack: jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 })),
       submitTimeDefense,
+      submitShortestTurns,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
     global.cardState.turnCountByPlayer = { black: 24, white: 18 };
@@ -693,6 +717,7 @@ describe('result overlay seat perspective', () => {
 
     expect(document.querySelector('.result-time-defense')).toBeNull();
     expect(submitTimeDefense).not.toHaveBeenCalled();
+    expect(submitShortestTurns).not.toHaveBeenCalled();
   });
 
   test('900秒超過の速攻記録は表示のみ対象外で送信しない', () => {

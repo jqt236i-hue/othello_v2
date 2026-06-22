@@ -1015,6 +1015,38 @@ function submitSharedLeaderboardTimeDefense(timeDefenseSummary: any, viewerKey: 
     } catch (e: any) { /* ignore */ }
 }
 
+function submitSharedLeaderboardShortestTurns(timeDefenseSummary: any, viewerKey: any) {
+    try {
+        if (!timeDefenseSummary || timeDefenseSummary.eligible !== true) return;
+        if (typeof window === 'undefined') return;
+        if (!isResultRankingBoardEligible()) return;
+        const mode = resolveCurrentMatchMode();
+        if (mode !== 'cpu') return;
+        if (isDebugScoreSuppressed()) return;
+        const client = window.LeaderboardClient;
+        if (!canAutoSubmitSharedLeaderboard(client, 'submitShortestTurns')) return;
+
+        const cpuLevel = resolveCpuLevelForViewer(viewerKey);
+        client.submitShortestTurns({ turnCount: timeDefenseSummary.turnCount }, {
+            mode,
+            cpuLevel,
+            limit: 10,
+            debug: isDebugScoreSuppressed(),
+            boardConfig: resolveResultBoardConfig()
+        })
+            .then((result: any) => {
+                if (result && result.ok) {
+                    notifySharedLeaderboardUpdated({
+                        category: 'shortestTurns',
+                        updated: !!result.updated,
+                        rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                    });
+                }
+            })
+            .catch(() => {});
+    } catch (e: any) { /* ignore */ }
+}
+
 function removeResultReopenButton() {
     const doc = (typeof document !== 'undefined') ? document : null;
     if (!doc) return false;
@@ -1312,6 +1344,7 @@ function showResultOverlay(options?: any) {
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardScore(scoreSummary, viewerKey);
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeAttack(timeAttackSummary, viewerKey);
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeDefense(timeDefenseSummary, viewerKey);
+    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardShortestTurns(timeDefenseSummary, viewerKey);
 
     hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });

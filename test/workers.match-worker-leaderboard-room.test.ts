@@ -29,6 +29,7 @@ function createController() {
     storageKey: 'global_score_leaderboard_v3',
     timeAttackStorageKey: 'global_time_attack_leaderboard_v1',
     timeDefenseStorageKey: 'global_time_defense_leaderboard_v1',
+    shortestTurnsStorageKey: 'global_shortest_turns_leaderboard_v1',
     defaultLimit: 10,
     helpers,
     jsonResponse: createJsonResponse,
@@ -288,6 +289,67 @@ describe('match worker leaderboard room controller', () => {
       rank: 2,
       playerName: 'ベータ',
       turnCount: 51
+    });
+  });
+
+  test('list can switch to shortest turns category', async () => {
+    const { controller, storage } = createController();
+
+    await controller.handleLeaderboardSubmit({
+      playerId: 'player_score_0001',
+      playerName: 'スコア',
+      score: 9000,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+
+    await controller.handleLeaderboardSubmit({
+      category: 'shortestTurns',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 37,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    await controller.handleLeaderboardSubmit({
+      category: 'shortestTurns',
+      playerId: 'player_beta_0002',
+      playerName: 'ベータ',
+      turnCount: 40,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+
+    expect(storage.has('global_score_leaderboard_v3')).toBe(true);
+    expect(storage.has('global_shortest_turns_leaderboard_v1')).toBe(true);
+    const scoreStore = storage.get('global_score_leaderboard_v3') as Record<string, unknown>;
+    expect(scoreStore).toHaveProperty('players');
+    expect(scoreStore).not.toHaveProperty('shortestTurnsPlayers');
+    const shortestTurnsStore = storage.get('global_shortest_turns_leaderboard_v1') as Record<string, unknown>;
+    expect(shortestTurnsStore).toHaveProperty('shortestTurnsPlayers');
+    expect(shortestTurnsStore).not.toHaveProperty('players');
+
+    const response = await controller.handleLeaderboardList(new URL('https://room/api/leaderboard/list?limit=10&mode=cpu&cpuLevel=6&category=shortestTurns'));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+
+    expect(payload).toMatchObject({
+      ok: true,
+      mode: 'cpu',
+      cpuLevel: 6,
+      category: 'shortestTurns'
+    });
+    expect(payload.entries).toHaveLength(2);
+    expect(payload.entries[0]).toMatchObject({
+      rank: 1,
+      playerName: 'アルファ',
+      turnCount: 37,
+      category: 'shortestTurns'
+    });
+    expect(payload.entries[1]).toMatchObject({
+      rank: 2,
+      playerName: 'ベータ',
+      turnCount: 40
     });
   });
 
