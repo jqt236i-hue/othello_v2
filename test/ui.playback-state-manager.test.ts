@@ -462,6 +462,29 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(tracker.waitForVisualSeq).toHaveBeenCalledWith(5, { timeoutMs: 1000 });
   });
 
+  test('waitForNetworkVisualSeq remains pending until the requested visualSeq is completed', async () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const { createVisualSettlementTracker } = require('../ui/network/visual-settlement');
+    const tracker = createVisualSettlementTracker();
+    global.window.NetworkVisualSettlementTracker = tracker;
+
+    const waiter = manager.waitForNetworkVisualSeq(12, { timeoutMs: 1000 });
+    let settled = false;
+    waiter.then(() => {
+      settled = true;
+    });
+
+    tracker.markVisualSeqCompleted(11);
+    await Promise.resolve();
+
+    expect(settled).toBe(false);
+
+    tracker.markVisualSeqCompleted(12);
+
+    await expect(waiter).resolves.toEqual({ ok: true, visualSeq: 12 });
+    expect(settled).toBe(true);
+  });
+
   test('clearPlaybackLock clears stale visual playback claims', () => {
     const manager = require('../ui/playback-state-manager.js');
 

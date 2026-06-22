@@ -250,6 +250,50 @@ describe('card interaction pending network settlement', () => {
     expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
   });
 
+  test('keeps pending busy until the exact authoritative visualSeq settles', async () => {
+    const { createVisualSettlementTracker } = require('../ui/network/visual-settlement');
+    const tracker = createVisualSettlementTracker();
+    deps.playbackStateManager = {
+      waitForNetworkVisualSeq: jest.fn((visualSeq: any, options: any) => tracker.waitForVisualSeq(visualSeq, options)),
+      waitForVisualPlaybackDrain: jest.fn()
+    };
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 }
+    }, deps);
+
+    await flushPromises();
+    resolvePublish && resolvePublish({
+      ok: true,
+      operationId: 'op_pending_12',
+      presentationCursor: { visualSeq: 12, stateVersion: 20 }
+    });
+    await flushPromises();
+
+    expect(deps.playbackStateManager.waitForNetworkVisualSeq).toHaveBeenCalledWith(12, {
+      timeoutMs: 1500,
+      operationId: 'op_pending_12'
+    });
+    expect(publishLocks.black).toBe(true);
+    expect(deps.setPendingSelectionBusy).not.toHaveBeenCalledWith(false);
+
+    tracker.markVisualSeqCompleted(11);
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(true);
+    expect(deps.setPendingSelectionBusy).not.toHaveBeenCalledWith(false);
+    expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
+
+    tracker.markVisualSeqCompleted(12);
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+    expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
+  });
+
   test('successful publish settles only after authoritative playback drain', async () => {
     const order: string[] = [];
     deps.playbackStateManager = {
