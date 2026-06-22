@@ -447,6 +447,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPresentationTimelineModule: any = null;
     let networkPlaybackDispatcherModule: any = null;
     let networkVisualStateStoreModule: any = null;
+    let networkDebugTraceModule: any = null;
     let animationFeedbackEventsModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
@@ -467,6 +468,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPresentationTimeline: any = null;
     let networkPlaybackDispatcher: any = null;
     let networkVisualStateStore: any = null;
+    let networkDebugTrace: any = null;
     let networkPresentationGapRecoveryPromise: Promise<any> | null = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
@@ -491,6 +493,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkPresentationTimelineModule = resolveNetworkClientModule('./network/presentation-timeline', null);
     networkPlaybackDispatcherModule = resolveNetworkClientModule('./network/playback-dispatcher', null);
     networkVisualStateStoreModule = resolveNetworkClientModule('./network/visual-state-store', null);
+    networkDebugTraceModule = resolveNetworkClientModule('./network/debug-trace', null);
+    networkDebugTrace = networkDebugTraceModule
+        && typeof networkDebugTraceModule.createNetworkDebugTrace === 'function'
+        ? networkDebugTraceModule.createNetworkDebugTrace({ limit: 250 })
+        : null;
+    installNetworkDebugTraceAccessor();
     animationFeedbackEventsModule = resolveNetworkClientModule('./animation-feedback-events', root.AnimationFeedbackEvents || null);
 
     function resolveNetworkCommentaryModule() {
@@ -687,7 +695,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         networkSnapshotController = mod.createNetworkSnapshotController({
             root,
             getState: () => state,
-            onTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details),
+            onTelemetry: (type: any, details: any) => recordNetworkTrace(type, details),
             syncPendingSelectionActionCache,
             enqueuePresentationFrames,
             drainPresentationTimeline,
@@ -722,7 +730,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             getCardState: () => {
                 try { return root && root.cardState; } catch (e: any) { return null; }
             },
-            recordNetworkTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details)
+            recordNetworkTelemetry: (type: any, details: any) => recordNetworkTrace(type, details)
         };
         if (presentationHandlerModule && typeof presentationHandlerModule.handlePresentationEvent === 'function') {
             dispatcherConfig.handlePresentationEvent = (event: any) => presentationHandlerModule.handlePresentationEvent(event);
@@ -752,6 +760,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             stateVersionFrom: frame && Number.isFinite(Number(frame.stateVersionFrom)) ? Math.trunc(Number(frame.stateVersionFrom)) : null,
             stateVersionTo: frame && Number.isFinite(Number(frame.stateVersionTo)) ? Math.trunc(Number(frame.stateVersionTo)) : null
         };
+        recordNetworkTrace('board_request', Object.assign({}, info, {
+            boardWriter: 'network_timeline'
+        }));
         const boardUpdateSyncRuntime = resolveNetworkClientCandidate(() => _require('./board-update-sync-runtime'))
             || resolveNetworkClientGlobal('BoardUpdateSyncRuntime');
         const armBoardUpdateSync = () => {
@@ -994,7 +1005,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             resolveStateSyncRecoveredPlaybackEvents,
             applySnapshotThroughCoordinator,
             rememberPendingForceSyncPlaybackRecovery,
-            recordNetworkTelemetry,
+            recordNetworkTelemetry: recordNetworkTrace,
             getSnapshotStateVersion,
             resolveVisualStateStore: () => getNetworkVisualStateStore(),
             enqueuePresentationFramesFromPayload,
@@ -1046,7 +1057,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             emitStatus,
             openStream: (options: any) => openStream(options),
             syncLatestStateWithRetry: (options: any) => syncLatestStateWithRetry(options),
-            recordNetworkTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details),
+            recordNetworkTelemetry: (type: any, details: any) => recordNetworkTrace(type, details),
             getAppliedStateVersion,
             computeRetryDelayMs,
             reconnectRecoveryWaitMs: RECONNECT_STREAM_RECOVERY_WAIT_MS,
@@ -1133,7 +1144,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             shouldRecoverForceSyncedStreamPlayback,
             applySnapshot,
             markTrackedPublishSnapshotApplied,
-            recordNetworkTelemetry,
+            recordNetworkTelemetry: recordNetworkTrace,
             replayPlaybackSuppressThreshold: STREAM_REPLAY_PLAYBACK_SUPPRESS_THRESHOLD,
             consumePendingForceSyncPlaybackRecovery,
             markTrackedPublishResultPresented,
@@ -1233,7 +1244,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             applyPayloadSessionState,
             resolveRejectedPublishSnapshotHandling,
             getVersionConflictTelemetryKey,
-            recordNetworkTelemetry,
+            recordNetworkTelemetry: recordNetworkTrace,
             applySnapshotThroughCoordinator,
             rememberPendingForceSyncPlaybackRecovery,
             shouldRetryVersionConflictPublish,
@@ -1327,8 +1338,89 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
+    function inferNetworkTraceSource(type: any, details: any): string {
+        if (details && typeof details === 'object' && typeof details.source === 'string' && details.source.trim()) {
+            return details.source.trim();
+        }
+        const eventType = String(type || '').trim();
+        if (eventType.indexOf('state_sync') === 0) return 'state_sync';
+        if (eventType.indexOf('stream') === 0) return 'stream';
+        if (eventType.indexOf('publish') === 0) return 'publish_response';
+        if (eventType.indexOf('presentation_journal') === 0) return 'presentation_journal';
+        if (eventType.indexOf('heartbeat') === 0) return 'heartbeat_recovery';
+        if (eventType.indexOf('network_timeline') === 0) return 'network_timeline';
+        return eventType || 'unknown';
+    }
+
+    function firstFiniteNumber(values: any[]): number | null {
+        for (let index = 0; index < values.length; index += 1) {
+            if (values[index] === null || typeof values[index] === 'undefined' || values[index] === '') continue;
+            const numeric = Number(values[index]);
+            if (Number.isFinite(numeric)) return Math.trunc(numeric);
+        }
+        return null;
+    }
+
+    function buildNetworkTraceDetails(type: any, details: any): any {
+        const sourceDetails = details && typeof details === 'object' ? details : {};
+        const traceDetails: any = {};
+        Object.keys(sourceDetails).forEach((key) => {
+            traceDetails[key] = sourceDetails[key];
+        });
+        traceDetails.source = inferNetworkTraceSource(type, sourceDetails);
+        if (!Number.isFinite(Number(traceDetails.stateVersion))) {
+            traceDetails.stateVersion = firstFiniteNumber([
+                sourceDetails.stateVersion,
+                sourceDetails.snapshotVersion,
+                sourceDetails.responseStateVersion,
+                sourceDetails.remoteVersion,
+                sourceDetails.visualVersion
+            ]);
+        }
+        if (!Number.isFinite(Number(traceDetails.visualSeq))) {
+            traceDetails.visualSeq = firstFiniteNumber([
+                sourceDetails.visualSeq,
+                sourceDetails.cursorVisualSeq,
+                sourceDetails.lastVisualSeq
+            ]);
+        }
+        return traceDetails;
+    }
+
+    function installNetworkDebugTraceAccessor(): void {
+        const accessor = {
+            entries: () => networkDebugTrace && typeof networkDebugTrace.entries === 'function'
+                ? networkDebugTrace.entries()
+                : [],
+            snapshot: () => networkDebugTrace && typeof networkDebugTrace.snapshot === 'function'
+                ? networkDebugTrace.snapshot()
+                : [],
+            summary: () => networkDebugTrace && typeof networkDebugTrace.summary === 'function'
+                ? networkDebugTrace.summary()
+                : { total: 0, bySource: {}, byBoardWriter: {} },
+            clear: () => {
+                if (networkDebugTrace && typeof networkDebugTrace.clear === 'function') {
+                    networkDebugTrace.clear();
+                }
+            }
+        };
+        try {
+            root.__networkDebugTrace = accessor;
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined') {
+                (globalThis as any).__networkDebugTrace = accessor;
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+
     function resetNetworkTelemetry() {
         state.networkTelemetry = createNetworkTelemetryState();
+        try {
+            if (networkDebugTrace && typeof networkDebugTrace.clear === 'function') {
+                networkDebugTrace.clear();
+            }
+        } catch (e: any) { /* ignore */ }
     }
 
     function recordNetworkTelemetry(type: any, details: any) {
@@ -1373,12 +1465,32 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
+    function recordNetworkTrace(type: any, details: any) {
+        const eventType = String(type || '').trim();
+        if (!eventType) return;
+        try {
+            if (networkDebugTrace && typeof networkDebugTrace.record === 'function') {
+                networkDebugTrace.record(eventType, buildNetworkTraceDetails(eventType, details));
+            }
+        } catch (e: any) { /* ignore */ }
+        recordNetworkTelemetry(eventType, details);
+    }
+
     function getNetworkTelemetry() {
         try {
             return cloneDataForCommandPayload(state.networkTelemetry || createNetworkTelemetryState());
         } catch (e: any) {
             return createNetworkTelemetryState();
         }
+    }
+
+    function getNetworkDebugTraceForDiagnostics() {
+        try {
+            if (networkDebugTrace && typeof networkDebugTrace.entries === 'function') {
+                return cloneDataForCommandPayload(networkDebugTrace.entries());
+            }
+        } catch (e: any) { /* ignore */ }
+        return [];
     }
 
     function sanitizeDiagnosticsValue(value: any, depth?: number): any {
@@ -1518,6 +1630,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             turnTimer: sanitizeDiagnosticsValue(state.turnTimer || null),
             publishTracker: sanitizeDiagnosticsValue(readableState.publishTracker || null),
             networkTelemetry: getNetworkTelemetry(),
+            networkDebugTrace: getNetworkDebugTraceForDiagnostics(),
             gameState: summarizeGameStateForDiagnostics(gameStateValue),
             cardState: summarizeCardStateForDiagnostics(cardStateValue)
         });

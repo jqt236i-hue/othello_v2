@@ -172,6 +172,7 @@ describe('NetworkMatchClient snapshot effect logs', () => {
       playerKey: 'white',
       actionType: 'use_card',
       playbackEvents: [],
+      presentationCursor: { visualSeq: 6, stateVersion: 4 },
       effectLogs: ['白がカードを使用: 交換', '白: 交換でD3を変換'],
       snapshot: createSnapshot(4, nextBoard)
     };
@@ -188,6 +189,21 @@ describe('NetworkMatchClient snapshot effect logs', () => {
       ['白がカードを使用: 交換', 'effect'],
       ['白: 交換でD3を変換', 'effect']
     ]);
+    expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'stream_snapshot_playback_decision',
+        source: 'stream',
+        stateVersion: 4
+      })
+    ]));
+    expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'board_request',
+        source: 'network_timeline',
+        visualSeq: 6,
+        stateVersion: 4
+      })
+    ]));
     expect(global.addLog).not.toHaveBeenCalled();
   });
 
@@ -214,6 +230,13 @@ describe('NetworkMatchClient snapshot effect logs', () => {
 
     expect(result.ok).toBe(true);
     expect(global.emitLogAdded).toHaveBeenCalledWith('黒がカードを使用: 交換', 'effect');
+    expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'publish_response_snapshot_applied',
+        source: 'publish_response',
+        stateVersion: 4
+      })
+    ]));
     expect(global.addLog).not.toHaveBeenCalled();
   });
 
@@ -243,6 +266,7 @@ describe('NetworkMatchClient snapshot effect logs', () => {
           seatKey: 'black',
           stateVersion: 4,
           networkDebugEnabled: true,
+          presentationCursor: { visualSeq: 6, stateVersion: 4 },
           snapshot: syncSnapshot
         });
       }
@@ -262,13 +286,20 @@ describe('NetworkMatchClient snapshot effect logs', () => {
       global.emitLogAdded.mockClear();
       global.addLog.mockClear();
 
-      const result = await client.syncLatestState();
+      const result = await client.syncLatestState({ syncVisualCursorForSnapshotNoPlayback: true });
 
       expect(result).toEqual({ ok: true, appliedSnapshot: true });
       expect(consoleLogSpy).toHaveBeenCalledWith(
         '[network-debug] state_sync_snapshot_applied',
         expect.objectContaining({ snapshotVersion: 4, force: true })
       );
+      expect(window.__networkDebugTrace.entries()).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'state_sync_snapshot_applied',
+          source: 'state_sync',
+          stateVersion: 4
+        })
+      ]));
       expect(global.emitLogAdded).not.toHaveBeenCalled();
       expect(global.addLog).not.toHaveBeenCalled();
     } finally {
