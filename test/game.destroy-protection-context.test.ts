@@ -25,6 +25,16 @@ function marker(type: string, row = 2, col = 3, owner: 'black' | 'white' = 'blac
   };
 }
 
+function createCardState(markers: any[] = []) {
+  return {
+    markers,
+    presentationEvents: [],
+    _presentationEventsPersist: [],
+    stoneIdMap: Array.from({ length: 8 }, () => Array(8).fill(null)),
+    turnIndex: 0
+  };
+}
+
 function registry(entries: Record<string, any>) {
   return {
     getSpecialStoneInfo(type: any) {
@@ -110,7 +120,7 @@ describe('destroy-protection context', () => {
 
   test('BoardOps.destroyAt keeps current GUARD behavior through the shared helper', () => {
     const gameState = createEmptyGameState();
-    const cardState = { markers: [marker('GUARD', 3, 3)] };
+    const cardState = createCardState([marker('GUARD', 3, 3)]);
     gameState.board[3][3] = Core.BLACK;
 
     const blocked = BoardOps.destroyAt(cardState, gameState, 3, 3, 'TEST', 'guard_block');
@@ -118,11 +128,13 @@ describe('destroy-protection context', () => {
     expect(blocked.destroyed).toBe(false);
     expect(blocked.reason).toBe('guard_protected');
     expect(BoardOps.getCellValue(gameState, 3, 3)).toBe(Core.BLACK);
+    expect(cardState._presentationEventsPersist).toHaveLength(0);
   });
 
   test('BoardOps.destroyAt still destroys GUARD when ignoreGuard is explicitly set', () => {
     const gameState = createEmptyGameState();
-    const cardState = { markers: [marker('GUARD', 3, 3)] };
+    const cardState = createCardState([marker('GUARD', 3, 3)]);
+    cardState.stoneIdMap[3][3] = 's-guard';
     gameState.board[3][3] = Core.BLACK;
 
     const destroyed = BoardOps.destroyAt(cardState, gameState, 3, 3, 'TEST', 'guard_bypass', {
@@ -131,5 +143,62 @@ describe('destroy-protection context', () => {
 
     expect(destroyed.destroyed).toBe(true);
     expect(BoardOps.getCellValue(gameState, 3, 3)).toBe(Core.EMPTY);
+    expect(cardState._presentationEventsPersist).toEqual([
+      expect.objectContaining({
+        type: 'DESTROY',
+        stoneId: 's-guard',
+        row: 3,
+        col: 3,
+        reason: 'guard_bypass'
+      })
+    ]);
+  });
+
+  test('BoardOps.destroyAt appends DESTROY after prior events and preserves action metadata', () => {
+    const gameState = createEmptyGameState();
+    const cardState = createCardState();
+    cardState.turnIndex = 7;
+    cardState.stoneIdMap[4][4] = 's-normal';
+    gameState.board[4][4] = Core.WHITE;
+
+    BoardOps.emitPresentationEvent(cardState, {
+      type: 'SPAWN',
+      stoneId: 's-before',
+      row: 1,
+      col: 1,
+      ownerAfter: 'black',
+      cause: 'TEST',
+      reason: 'setup'
+    });
+
+    let result: any = null;
+    BoardOps.runDestroyBlock(cardState, gameState, () => {
+      result = BoardOps.destroyAt(cardState, gameState, 4, 4, 'TEST', 'normal_destroy');
+    }, {
+      actionId: 'action-destroy-1',
+      effectBlockId: 'effect-destroy-1',
+      turnIndex: 9,
+      plyIndex: 2
+    });
+
+    const events = cardState._presentationEventsPersist;
+    const destroyEvent = events.find((event: any) => event && event.type === 'DESTROY');
+    expect(result.destroyed).toBe(true);
+    expect(BoardOps.getCellValue(gameState, 4, 4)).toBe(Core.EMPTY);
+    expect(events.map((event: any) => event.type)).toEqual(['SPAWN', 'DESTROY']);
+    expect(destroyEvent).toEqual(expect.objectContaining({
+      stoneId: 's-normal',
+      row: 4,
+      col: 4,
+      actionId: 'action-destroy-1',
+      effectBlockId: 'effect-destroy-1',
+      turnIndex: 9,
+      plyIndex: 2,
+      sequenceIndex: 1
+    }));
+    expect(destroyEvent.meta).toEqual(expect.objectContaining({
+      effectBlockId: 'effect-destroy-1',
+      effectKind: 'destroy_block'
+    }));
   });
 });

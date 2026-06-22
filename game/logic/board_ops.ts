@@ -2021,347 +2021,408 @@ function _inferMoveIntent(cause: string | null, reason: string | null): string |
     return null;
 }
 
-function _destroyAtCore(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
+type DestroyCoreContext = {
+    cardState: any;
+    gameState: any;
+    row: number;
+    col: number;
+    cause: string | null;
+    reason: string | null;
+    meta: any;
+    prev: any;
+    ignoreGuard: boolean;
+    ignoreRegen: boolean;
+    cardMarkers: any;
+};
+
+type DestroySalvationContext = {
+    ownerBeforeKey: PlayerKey;
+    wasSpecialStone: boolean;
+    wasStoneSalvationGod: boolean;
+};
+
+function _getDestroyOwnerBeforeKey(prev: any): PlayerKey {
+    return (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
+}
+
+function _prepareDestroyCoreContext(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
     _ensureCardState(cardState);
     const pos = _normalizeCellPosition(row, col);
-    if (!pos) return { destroyed: false, reason: 'out_of_board' };
-    row = pos.row;
-    col = pos.col;
-    const prev = getCellValue(gameState, row, col);
-    if (prev === EMPTY) return { destroyed: false };
-    if (prev === null) return { destroyed: false, reason: 'out_of_board' };
-    if (_isAbsoluteProtectedCell(cardState, row, col)) return { destroyed: false, reason: 'absolute_protected' };
-    const ignoreGuard = !!(meta && meta.ignoreGuard === true);
-    const ignoreRegen = !!(meta && meta.ignoreRegen === true);
-    const cardMarkers = getCardMarkersModule();
+    if (!pos) return { result: { destroyed: false, reason: 'out_of_board' } };
+    const normalizedRow = pos.row;
+    const normalizedCol = pos.col;
+    const prev = getCellValue(gameState, normalizedRow, normalizedCol);
+    if (prev === EMPTY) return { result: { destroyed: false } };
+    if (prev === null) return { result: { destroyed: false, reason: 'out_of_board' } };
+    return {
+        context: {
+            cardState,
+            gameState,
+            row: normalizedRow,
+            col: normalizedCol,
+            cause,
+            reason,
+            meta,
+            prev,
+            ignoreGuard: !!(meta && meta.ignoreGuard === true),
+            ignoreRegen: !!(meta && meta.ignoreRegen === true),
+            cardMarkers: getCardMarkersModule()
+        }
+    };
+}
+
+function _resolveDestroyProtection(ctx: DestroyCoreContext): any {
+    if (_isAbsoluteProtectedCell(ctx.cardState, ctx.row, ctx.col)) {
+        return { destroyed: false, reason: 'absolute_protected' };
+    }
     const destroyProtectionContext = getDestroyProtectionContextModule();
     if (destroyProtectionContext && typeof destroyProtectionContext.resolveDestroyProtectionAt === 'function') {
-        const protection = destroyProtectionContext.resolveDestroyProtectionAt(cardState, row, col, {
+        const protection = destroyProtectionContext.resolveDestroyProtectionAt(ctx.cardState, ctx.row, ctx.col, {
             SpecialStoneRegistry: getSpecialStoneRegistryModule(),
             markerKinds: MARKER_KINDS,
-            ignoreGuard
+            ignoreGuard: ctx.ignoreGuard
         });
         if (protection && protection.reason) {
             return { destroyed: false, reason: protection.reason };
         }
     }
-    if (_isFrozenCell(cardState, row, col)) return { destroyed: false, reason: 'frozen_protected' };
-    const ghostMarker = _getGhostMarkerAt(cardState, row, col);
-    if (ghostMarker && _shouldBlockGhostDestroy(reason, meta)) {
-        const stoneId = getStoneIdAt(cardState, gameState, row, col);
-        const metaOut = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
-        metaOut.blockedByGhost = true;
-        emitPresentationEvent(cardState, {
-            type: 'DESTROY',
-            stoneId,
-            row,
-            col,
-            ownerBefore: (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white',
-            cause: cause || null,
-            reason: reason || null,
-            meta: metaOut
-        });
-        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.GHOST_BLOCKED, {
-            reason: 'ghost_protected'
-        });
+    if (_isFrozenCell(ctx.cardState, ctx.row, ctx.col)) {
+        return { destroyed: false, reason: 'frozen_protected' };
     }
+    return null;
+}
 
-    const destroyEvadeMarker = _shouldSkipDestroyEvade(cause, reason, meta)
-        ? null
-        : _getDestroyEvadeMarkerAt(cardState, row, col);
-    if (destroyEvadeMarker) {
-        const destination = _findDestroyEvadeDestination(cardState, gameState, row, col, meta);
-        if (destination) {
-            const beforeRawDestroyRemaining = destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining;
-            const beforeRemaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
-                ? (EvasionStatus.readDestroyEvadeRemaining(destroyEvadeMarker) || 0)
-                : (_normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining) || 0);
-            const afterRemaining = EvasionStatus && typeof EvasionStatus.consumeDestroyEvade === 'function'
-                ? EvasionStatus.consumeDestroyEvade(destroyEvadeMarker)
-                : Math.max(0, beforeRemaining - 1);
-            if (!(EvasionStatus && typeof EvasionStatus.consumeDestroyEvade === 'function')) {
-                destroyEvadeMarker.data.destroyEvadeRemaining = afterRemaining;
-            }
-            const afterimageWillDepleted = !!(
-                EvasionStatus &&
-                typeof EvasionStatus.shouldPruneEvasionMarker === 'function' &&
-                EvasionStatus.shouldPruneEvasionMarker(destroyEvadeMarker)
-            );
-            const visual = _getSpecialVisualMeta(cardState, row, col);
-            const moveMeta = Object.assign({}, meta, {
-                special: afterimageWillDepleted
-                    ? null
-                    : (visual.special !== null ? visual.special : ((destroyEvadeMarker.data && destroyEvadeMarker.data.type) || null)),
-                timer: afterimageWillDepleted ? null : (visual.timer !== null ? visual.timer : null),
-                owner: afterimageWillDepleted
-                    ? null
-                    : (visual.owner !== null ? visual.owner : ((destroyEvadeMarker.owner !== undefined && destroyEvadeMarker.owner !== null) ? destroyEvadeMarker.owner : null)),
-                flipEvadeRemaining: afterimageWillDepleted
-                    ? null
-                    : (visual.flipEvadeRemaining !== null ? visual.flipEvadeRemaining : null),
-                destroyEvadeRemaining: afterimageWillDepleted ? null : afterRemaining,
-                destroyEvadeTriggeredBy: cause || null,
-                destroyEvadeTriggerReason: reason || null,
-                destroyEvadeOriginRow: row,
-                destroyEvadeOriginCol: col
-            });
-            const moveResult = moveAt(
-                cardState,
-                gameState,
-                row,
-                col,
-                destination.row,
-                destination.col,
-                'DESTROY_EVADE',
-                'destroy_evade_move',
-                moveMeta
-            );
-            if (moveResult && moveResult.moved) {
-                _moveCellMarkers(cardState, row, col, destination.row, destination.col);
-                _pruneAfterimageMarkerIfDepleted(cardState, destroyEvadeMarker);
-                return createDestroyOutcome(DESTROY_OUTCOME_KINDS.EVADED_MOVE, {
-                    reason: 'destroy_evaded',
-                    from: { row, col },
-                    to: { row: destination.row, col: destination.col }
-                });
-            }
-            destroyEvadeMarker.data.destroyEvadeRemaining = beforeRawDestroyRemaining;
-        }
-    }
-
-    const proliferationMarker = _getProliferationMarkerAt(cardState, row, col);
-    if (proliferationMarker) {
-        const destination = _findProliferationDestination(cardState, gameState, row, col, meta);
-        if (destination) {
-            const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
-            const proliferationOwnerTurns = _getProliferationOwnerTurns();
-            const stoneId = getStoneIdAt(cardState, gameState, row, col);
-            const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
-            destroyMeta.proliferated = true;
-            destroyMeta.proliferationOriginRow = row;
-            destroyMeta.proliferationOriginCol = col;
-            destroyMeta.proliferationDestinationRow = destination.row;
-            destroyMeta.proliferationDestinationCol = destination.col;
-            destroyMeta.proliferationTriggeredBy = cause || null;
-            destroyMeta.proliferationTriggerReason = reason || null;
-            emitPresentationEvent(cardState, {
-                type: 'DESTROY',
-                stoneId,
-                row,
-                col,
-                ownerBefore: ownerBeforeKey,
-                cause: cause || null,
-                reason: reason || null,
-                meta: destroyMeta
-            });
-            const spawnMeta = Object.assign(_clonePresentationMeta(meta), {
-                special: 'PROLIFERATION',
-                timer: proliferationOwnerTurns,
-                owner: ownerBeforeKey,
-                fromRow: row,
-                fromCol: col,
-                cloneVisual: true,
-                proliferationOriginRow: row,
-                proliferationOriginCol: col,
-                proliferationTriggeredBy: cause || null,
-                proliferationTriggerReason: reason || null
-            });
-            const spawnResult = spawnAt(
-                cardState,
-                gameState,
-                destination.row,
-                destination.col,
-                ownerBeforeKey as PlayerKey,
-                'PROLIFERATION_WILL',
-                'proliferation_spawn',
-                spawnMeta
-            );
-            if (spawnResult && spawnResult.spawned) {
-                _addSpecialStoneMarker(cardState, destination.row, destination.col, ownerBeforeKey, {
-                    type: 'PROLIFERATION',
-                    remainingOwnerTurns: proliferationOwnerTurns
-                });
-                const generatedFlipResults = _resolveGeneratedSpawnFlip(cardState, gameState, {
-                    row: destination.row,
-                    col: destination.col,
-                    ownerKey: ownerBeforeKey,
-                    cause: 'PROLIFERATION_WILL',
-                    reason: 'proliferation_spawn',
-                    changeCause: 'PROLIFERATION_WILL',
-                    changeReason: 'proliferation_spawn_flip',
-                    changeMeta: spawnMeta
-                });
-                return createDestroyOutcome(DESTROY_OUTCOME_KINDS.PROLIFERATED, {
-                    reason: 'proliferation_triggered',
-                    from: { row, col },
-                    to: { row: destination.row, col: destination.col },
-                    generatedSpawnFlipResults: generatedFlipResults
-                });
-            }
-        }
-    }
-
-    const cardRegenModule = getCardRegenModule();
-    const activeRegenMarker = cardRegenModule && typeof cardRegenModule.findActiveRegenMarkerAt === 'function'
-        ? cardRegenModule.findActiveRegenMarkerAt(cardState, row, col)
-        : null;
-    if (!ignoreRegen && activeRegenMarker && typeof cardRegenModule.applyRegenAfterDestroy === 'function') {
-        const ownerBeforeKeyForRegen = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
-        const stoneId = getStoneIdAt(cardState, gameState, row, col);
-        const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
-        destroyMeta.regenerated = true;
-        destroyMeta.regenTriggeredBy = cause || null;
-        destroyMeta.regenTriggerReason = reason || null;
-        emitPresentationEvent(cardState, {
-            type: 'DESTROY',
-            stoneId,
-            row,
-            col,
-            ownerBefore: ownerBeforeKeyForRegen,
-            cause: cause || null,
-            reason: reason || null,
-            meta: destroyMeta
-        });
-        const regenResult = cardRegenModule.applyRegenAfterDestroy(cardState, gameState, row, col, {
-            destroyCause: cause || null,
-            destroyReason: reason || null
-        }, {
-            BoardOps: {
-                changeAt,
-                emitPresentationEvent
-            }
-        });
-        if (regenResult && regenResult.regenerated) {
-            return createDestroyOutcome(DESTROY_OUTCOME_KINDS.REGENERATED, {
-                reason: 'regen_triggered',
-                row,
-                col,
-                owner: regenResult.owner || ownerBeforeKeyForRegen,
-                remaining: regenResult.remaining,
-                captureFlips: Array.isArray(regenResult.captureFlips) ? regenResult.captureFlips.slice() : []
-            });
-        }
-    }
-
-    const specialKindForSalvation = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
-    const wasSpecialStoneForSalvation = !!(Array.isArray(cardState.markers) && cardState.markers.some(
-        (m: any) => m && m.kind === specialKindForSalvation && m.row === row && m.col === col
-    ));
-    const ownerBeforeKeyForDestroy = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
-    const wasStoneSalvationGodForDestroy = _isStoneSalvationGodMarkerAt(cardState, row, col, ownerBeforeKeyForDestroy);
-    const recordSalvationDestroy = () => {
-        const activeTurnPlayer = cardState._activeTurnPlayer;
-        const beneficiaryPlayer = activeTurnPlayer === 'black'
-            ? 'white'
-            : (activeTurnPlayer === 'white' ? 'black' : null);
-        if (beneficiaryPlayer) {
-            if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
-                cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
-            }
-            if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
-                cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
-            }
-            cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
-                row,
-                col,
-                owner: ownerBeforeKeyForDestroy,
-                wasSpecial: wasSpecialStoneForSalvation
-            });
-        }
-    };
-
-    const cardLivingWillModule = getCardLivingWillModule();
-    const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
-        ? cardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
-        : null;
-    if (livingWillMarker && cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
-        const livingStoneId = getStoneIdAt(cardState, gameState, row, col);
-        const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
-        setStoneIdAt(cardState, gameState, row, col, null);
-        setCellValue(gameState, row, col, EMPTY);
-        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
-            cardMarkers.removeMarkersAt(cardState, row, col);
-        } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-            MarkersAdapter.removeMarkersAt(cardState, row, col);
-        } else if (Array.isArray(cardState.markers)) {
-            cardState.markers = cardState.markers.filter((m: any) => !(m.row === row && m.col === col));
-        }
-        destroyMeta.livingWillTriggered = true;
-        emitPresentationEvent(cardState, {
-            type: 'DESTROY',
-            stoneId: livingStoneId,
-            row,
-            col,
-            ownerBefore: ownerBeforeKeyForDestroy,
-            cause: cause || null,
-            reason: reason || null,
-            meta: destroyMeta
-        });
-        const livingWillResult = cardLivingWillModule.restoreFromLivingWillSnapshot(
-            cardState,
-            gameState,
-            livingWillMarker,
-            {
-                triggerKind: 'destroy',
-                sourceRow: row,
-                sourceCol: col,
-                cause: cause || null,
-                reason: reason || null
-            },
-            _getLivingWillRestoreDeps(meta)
-        );
-        if (livingWillResult && livingWillResult.restored) {
-            return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
-                reason: 'living_will_restored',
-                from: { row, col },
-                to: livingWillResult.destination || { row, col },
-                owner: livingWillResult.owner || ownerBeforeKeyForDestroy,
-                livingWillRevived: true,
-                relocated: !!livingWillResult.relocated
-            });
-        }
-        recordSalvationDestroy();
-        const stoneSalvationGodReviveQueued = wasStoneSalvationGodForDestroy
-            ? null
-            : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
-        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
-            stoneSalvationGodReviveQueued: true
-        } : undefined);
-    }
-
-    let stoneId: string | null = null;
-    stoneId = getStoneIdAt(cardState, gameState, row, col);
-    const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
-    setStoneIdAt(cardState, gameState, row, col, null);
-
-    setCellValue(gameState, row, col, EMPTY);
-    if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
-        cardMarkers.removeMarkersAt(cardState, row, col);
-    } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-        MarkersAdapter.removeMarkersAt(cardState, row, col);
-    } else if (Array.isArray(cardState.markers)) {
-        cardState.markers = cardState.markers.filter((m: any) => !(m.row === row && m.col === col));
-    }
-    emitPresentationEvent(cardState, {
+function _emitDestroyPresentationEvent(ctx: DestroyCoreContext, stoneId: string | null, ownerBefore: PlayerKey, meta: any): void {
+    emitPresentationEvent(ctx.cardState, {
         type: 'DESTROY',
         stoneId,
-        row,
-        col,
-        ownerBefore: ownerBeforeKeyForDestroy,
-        cause: cause || null,
-        reason: reason || null,
-        meta: destroyMeta
+        row: ctx.row,
+        col: ctx.col,
+        ownerBefore,
+        cause: ctx.cause || null,
+        reason: ctx.reason || null,
+        meta
     });
+}
 
-    recordSalvationDestroy();
+function _removeDestroyedCellFromBoard(ctx: DestroyCoreContext): void {
+    setStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col, null);
+    setCellValue(ctx.gameState, ctx.row, ctx.col, EMPTY);
+    if (ctx.cardMarkers && typeof ctx.cardMarkers.removeMarkersAt === 'function') {
+        ctx.cardMarkers.removeMarkersAt(ctx.cardState, ctx.row, ctx.col);
+    } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+        MarkersAdapter.removeMarkersAt(ctx.cardState, ctx.row, ctx.col);
+    } else if (Array.isArray(ctx.cardState.markers)) {
+        ctx.cardState.markers = ctx.cardState.markers.filter((m: any) => !(m.row === ctx.row && m.col === ctx.col));
+    }
+}
 
-    const stoneSalvationGodReviveQueued = wasStoneSalvationGodForDestroy
+function _tryGhostDestroyBlock(ctx: DestroyCoreContext): any {
+    const ghostMarker = _getGhostMarkerAt(ctx.cardState, ctx.row, ctx.col);
+    if (!ghostMarker || !_shouldBlockGhostDestroy(ctx.reason, ctx.meta)) return null;
+    const stoneId = getStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col);
+    const metaOut = _populateSpecialVisualMeta(ctx.cardState, ctx.row, ctx.col, _clonePresentationMeta(ctx.meta));
+    metaOut.blockedByGhost = true;
+    _emitDestroyPresentationEvent(ctx, stoneId, _getDestroyOwnerBeforeKey(ctx.prev), metaOut);
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.GHOST_BLOCKED, {
+        reason: 'ghost_protected'
+    });
+}
+
+function _tryDestroyEvadeMove(ctx: DestroyCoreContext): any {
+    const destroyEvadeMarker = _shouldSkipDestroyEvade(ctx.cause, ctx.reason, ctx.meta)
         ? null
-        : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
+        : _getDestroyEvadeMarkerAt(ctx.cardState, ctx.row, ctx.col);
+    if (!destroyEvadeMarker) return null;
+    const destination = _findDestroyEvadeDestination(ctx.cardState, ctx.gameState, ctx.row, ctx.col, ctx.meta);
+    if (!destination) return null;
 
-    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
+    const beforeRawDestroyRemaining = destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining;
+    const beforeRemaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
+        ? (EvasionStatus.readDestroyEvadeRemaining(destroyEvadeMarker) || 0)
+        : (_normalizeCounterValue(destroyEvadeMarker.data && destroyEvadeMarker.data.destroyEvadeRemaining) || 0);
+    const afterRemaining = EvasionStatus && typeof EvasionStatus.consumeDestroyEvade === 'function'
+        ? EvasionStatus.consumeDestroyEvade(destroyEvadeMarker)
+        : Math.max(0, beforeRemaining - 1);
+    if (!(EvasionStatus && typeof EvasionStatus.consumeDestroyEvade === 'function')) {
+        destroyEvadeMarker.data.destroyEvadeRemaining = afterRemaining;
+    }
+    const afterimageWillDepleted = !!(
+        EvasionStatus &&
+        typeof EvasionStatus.shouldPruneEvasionMarker === 'function' &&
+        EvasionStatus.shouldPruneEvasionMarker(destroyEvadeMarker)
+    );
+    const visual = _getSpecialVisualMeta(ctx.cardState, ctx.row, ctx.col);
+    const moveMeta = Object.assign({}, ctx.meta, {
+        special: afterimageWillDepleted
+            ? null
+            : (visual.special !== null ? visual.special : ((destroyEvadeMarker.data && destroyEvadeMarker.data.type) || null)),
+        timer: afterimageWillDepleted ? null : (visual.timer !== null ? visual.timer : null),
+        owner: afterimageWillDepleted
+            ? null
+            : (visual.owner !== null ? visual.owner : ((destroyEvadeMarker.owner !== undefined && destroyEvadeMarker.owner !== null) ? destroyEvadeMarker.owner : null)),
+        flipEvadeRemaining: afterimageWillDepleted
+            ? null
+            : (visual.flipEvadeRemaining !== null ? visual.flipEvadeRemaining : null),
+        destroyEvadeRemaining: afterimageWillDepleted ? null : afterRemaining,
+        destroyEvadeTriggeredBy: ctx.cause || null,
+        destroyEvadeTriggerReason: ctx.reason || null,
+        destroyEvadeOriginRow: ctx.row,
+        destroyEvadeOriginCol: ctx.col
+    });
+    const moveResult = moveAt(
+        ctx.cardState,
+        ctx.gameState,
+        ctx.row,
+        ctx.col,
+        destination.row,
+        destination.col,
+        'DESTROY_EVADE',
+        'destroy_evade_move',
+        moveMeta
+    );
+    if (moveResult && moveResult.moved) {
+        _moveCellMarkers(ctx.cardState, ctx.row, ctx.col, destination.row, destination.col);
+        _pruneAfterimageMarkerIfDepleted(ctx.cardState, destroyEvadeMarker);
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.EVADED_MOVE, {
+            reason: 'destroy_evaded',
+            from: { row: ctx.row, col: ctx.col },
+            to: { row: destination.row, col: destination.col }
+        });
+    }
+    destroyEvadeMarker.data.destroyEvadeRemaining = beforeRawDestroyRemaining;
+    return null;
+}
+
+function _tryProliferationDestroy(ctx: DestroyCoreContext): any {
+    const proliferationMarker = _getProliferationMarkerAt(ctx.cardState, ctx.row, ctx.col);
+    if (!proliferationMarker) return null;
+    const destination = _findProliferationDestination(ctx.cardState, ctx.gameState, ctx.row, ctx.col, ctx.meta);
+    if (!destination) return null;
+
+    const ownerBeforeKey = _getDestroyOwnerBeforeKey(ctx.prev);
+    const proliferationOwnerTurns = _getProliferationOwnerTurns();
+    const stoneId = getStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col);
+    const destroyMeta = _populateSpecialVisualMeta(ctx.cardState, ctx.row, ctx.col, _clonePresentationMeta(ctx.meta));
+    destroyMeta.proliferated = true;
+    destroyMeta.proliferationOriginRow = ctx.row;
+    destroyMeta.proliferationOriginCol = ctx.col;
+    destroyMeta.proliferationDestinationRow = destination.row;
+    destroyMeta.proliferationDestinationCol = destination.col;
+    destroyMeta.proliferationTriggeredBy = ctx.cause || null;
+    destroyMeta.proliferationTriggerReason = ctx.reason || null;
+    _emitDestroyPresentationEvent(ctx, stoneId, ownerBeforeKey, destroyMeta);
+
+    const spawnMeta = Object.assign(_clonePresentationMeta(ctx.meta), {
+        special: 'PROLIFERATION',
+        timer: proliferationOwnerTurns,
+        owner: ownerBeforeKey,
+        fromRow: ctx.row,
+        fromCol: ctx.col,
+        cloneVisual: true,
+        proliferationOriginRow: ctx.row,
+        proliferationOriginCol: ctx.col,
+        proliferationTriggeredBy: ctx.cause || null,
+        proliferationTriggerReason: ctx.reason || null
+    });
+    const spawnResult = spawnAt(
+        ctx.cardState,
+        ctx.gameState,
+        destination.row,
+        destination.col,
+        ownerBeforeKey,
+        'PROLIFERATION_WILL',
+        'proliferation_spawn',
+        spawnMeta
+    );
+    if (spawnResult && spawnResult.spawned) {
+        _addSpecialStoneMarker(ctx.cardState, destination.row, destination.col, ownerBeforeKey, {
+            type: 'PROLIFERATION',
+            remainingOwnerTurns: proliferationOwnerTurns
+        });
+        const generatedFlipResults = _resolveGeneratedSpawnFlip(ctx.cardState, ctx.gameState, {
+            row: destination.row,
+            col: destination.col,
+            ownerKey: ownerBeforeKey,
+            cause: 'PROLIFERATION_WILL',
+            reason: 'proliferation_spawn',
+            changeCause: 'PROLIFERATION_WILL',
+            changeReason: 'proliferation_spawn_flip',
+            changeMeta: spawnMeta
+        });
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.PROLIFERATED, {
+            reason: 'proliferation_triggered',
+            from: { row: ctx.row, col: ctx.col },
+            to: { row: destination.row, col: destination.col },
+            generatedSpawnFlipResults: generatedFlipResults
+        });
+    }
+    return null;
+}
+
+function _tryRegenDestroy(ctx: DestroyCoreContext): any {
+    const cardRegenModule = getCardRegenModule();
+    const activeRegenMarker = cardRegenModule && typeof cardRegenModule.findActiveRegenMarkerAt === 'function'
+        ? cardRegenModule.findActiveRegenMarkerAt(ctx.cardState, ctx.row, ctx.col)
+        : null;
+    if (ctx.ignoreRegen || !activeRegenMarker || !cardRegenModule || typeof cardRegenModule.applyRegenAfterDestroy !== 'function') {
+        return null;
+    }
+    const ownerBeforeKeyForRegen = _getDestroyOwnerBeforeKey(ctx.prev);
+    const stoneId = getStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col);
+    const destroyMeta = _populateSpecialVisualMeta(ctx.cardState, ctx.row, ctx.col, _clonePresentationMeta(ctx.meta));
+    destroyMeta.regenerated = true;
+    destroyMeta.regenTriggeredBy = ctx.cause || null;
+    destroyMeta.regenTriggerReason = ctx.reason || null;
+    _emitDestroyPresentationEvent(ctx, stoneId, ownerBeforeKeyForRegen, destroyMeta);
+
+    const regenResult = cardRegenModule.applyRegenAfterDestroy(ctx.cardState, ctx.gameState, ctx.row, ctx.col, {
+        destroyCause: ctx.cause || null,
+        destroyReason: ctx.reason || null
+    }, {
+        BoardOps: {
+            changeAt,
+            emitPresentationEvent
+        }
+    });
+    if (regenResult && regenResult.regenerated) {
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.REGENERATED, {
+            reason: 'regen_triggered',
+            row: ctx.row,
+            col: ctx.col,
+            owner: regenResult.owner || ownerBeforeKeyForRegen,
+            remaining: regenResult.remaining,
+            captureFlips: Array.isArray(regenResult.captureFlips) ? regenResult.captureFlips.slice() : []
+        });
+    }
+    return null;
+}
+
+function _createDestroySalvationContext(ctx: DestroyCoreContext): DestroySalvationContext {
+    const specialKindForSalvation = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    const wasSpecialStone = !!(Array.isArray(ctx.cardState.markers) && ctx.cardState.markers.some(
+        (m: any) => m && m.kind === specialKindForSalvation && m.row === ctx.row && m.col === ctx.col
+    ));
+    const ownerBeforeKey = _getDestroyOwnerBeforeKey(ctx.prev);
+    return {
+        ownerBeforeKey,
+        wasSpecialStone,
+        wasStoneSalvationGod: _isStoneSalvationGodMarkerAt(ctx.cardState, ctx.row, ctx.col, ownerBeforeKey)
+    };
+}
+
+function _recordDestroyForSalvationFallback(ctx: DestroyCoreContext, salvation: DestroySalvationContext): void {
+    const activeTurnPlayer = ctx.cardState._activeTurnPlayer;
+    const beneficiaryPlayer = activeTurnPlayer === 'black'
+        ? 'white'
+        : (activeTurnPlayer === 'white' ? 'black' : null);
+    if (!beneficiaryPlayer) return;
+    if (!ctx.cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+        ctx.cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
+    }
+    if (!Array.isArray(ctx.cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
+        ctx.cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
+    }
+    ctx.cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
+        row: ctx.row,
+        col: ctx.col,
+        owner: salvation.ownerBeforeKey,
+        wasSpecial: salvation.wasSpecialStone
+    });
+}
+
+function _queueStoneSalvationGodReviveAfterDestroy(ctx: DestroyCoreContext, salvation: DestroySalvationContext): any {
+    return salvation.wasStoneSalvationGod
+        ? null
+        : _queueDestroyedStoneForStoneSalvationGod(ctx.cardState, ctx.row, ctx.col, salvation.ownerBeforeKey, ctx.cause, ctx.reason, ctx.meta);
+}
+
+function _createDestroyedOutcomeWithStoneSalvationQueue(queued: any): any {
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, queued && queued.queued ? {
         stoneSalvationGodReviveQueued: true
     } : undefined);
+}
+
+function _tryLivingWillRestoreAfterDestroy(ctx: DestroyCoreContext, salvation: DestroySalvationContext): any {
+    const cardLivingWillModule = getCardLivingWillModule();
+    const livingWillMarker = cardLivingWillModule && typeof cardLivingWillModule.findLivingWillMarkerAt === 'function'
+        ? cardLivingWillModule.findLivingWillMarkerAt(ctx.cardState, ctx.row, ctx.col)
+        : null;
+    if (!livingWillMarker || !cardLivingWillModule || typeof cardLivingWillModule.restoreFromLivingWillSnapshot !== 'function') {
+        return null;
+    }
+
+    const livingStoneId = getStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col);
+    const destroyMeta = _populateSpecialVisualMeta(ctx.cardState, ctx.row, ctx.col, _clonePresentationMeta(ctx.meta));
+    _removeDestroyedCellFromBoard(ctx);
+    destroyMeta.livingWillTriggered = true;
+    _emitDestroyPresentationEvent(ctx, livingStoneId, salvation.ownerBeforeKey, destroyMeta);
+
+    const livingWillResult = cardLivingWillModule.restoreFromLivingWillSnapshot(
+        ctx.cardState,
+        ctx.gameState,
+        livingWillMarker,
+        {
+            triggerKind: 'destroy',
+            sourceRow: ctx.row,
+            sourceCol: ctx.col,
+            cause: ctx.cause || null,
+            reason: ctx.reason || null
+        },
+        _getLivingWillRestoreDeps(ctx.meta)
+    );
+    if (livingWillResult && livingWillResult.restored) {
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED, {
+            reason: 'living_will_restored',
+            from: { row: ctx.row, col: ctx.col },
+            to: livingWillResult.destination || { row: ctx.row, col: ctx.col },
+            owner: livingWillResult.owner || salvation.ownerBeforeKey,
+            livingWillRevived: true,
+            relocated: !!livingWillResult.relocated
+        });
+    }
+    _recordDestroyForSalvationFallback(ctx, salvation);
+    return _createDestroyedOutcomeWithStoneSalvationQueue(
+        _queueStoneSalvationGodReviveAfterDestroy(ctx, salvation)
+    );
+}
+
+function _applyNormalDestroy(ctx: DestroyCoreContext, salvation: DestroySalvationContext): any {
+    const stoneId = getStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col);
+    const destroyMeta = _populateSpecialVisualMeta(ctx.cardState, ctx.row, ctx.col, _clonePresentationMeta(ctx.meta));
+    _removeDestroyedCellFromBoard(ctx);
+    _emitDestroyPresentationEvent(ctx, stoneId, salvation.ownerBeforeKey, destroyMeta);
+    _recordDestroyForSalvationFallback(ctx, salvation);
+    return _createDestroyedOutcomeWithStoneSalvationQueue(
+        _queueStoneSalvationGodReviveAfterDestroy(ctx, salvation)
+    );
+}
+
+function _destroyAtCore(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
+    const prepared = _prepareDestroyCoreContext(cardState, gameState, row, col, cause, reason, meta);
+    if (!prepared || !prepared.context) return prepared ? prepared.result : { destroyed: false };
+    const ctx: DestroyCoreContext = prepared.context;
+
+    const protectionResult = _resolveDestroyProtection(ctx);
+    if (protectionResult) return protectionResult;
+
+    const ghostResult = _tryGhostDestroyBlock(ctx);
+    if (ghostResult) return ghostResult;
+
+    const evadeResult = _tryDestroyEvadeMove(ctx);
+    if (evadeResult) return evadeResult;
+
+    const proliferationResult = _tryProliferationDestroy(ctx);
+    if (proliferationResult) return proliferationResult;
+
+    const regenResult = _tryRegenDestroy(ctx);
+    if (regenResult) return regenResult;
+
+    const salvation = _createDestroySalvationContext(ctx);
+    const livingWillResult = _tryLivingWillRestoreAfterDestroy(ctx, salvation);
+    if (livingWillResult) return livingWillResult;
+
+    return _applyNormalDestroy(ctx, salvation);
 }
 
 function destroyAt(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
