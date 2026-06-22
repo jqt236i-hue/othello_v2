@@ -1226,7 +1226,7 @@ Goal: network mode startup does not pay CPU / ONNX / gacha / commentary costs be
 - Modify: `scripts/build-module-registry.ts`
 - Modify: `test/scripts.build-module-registry.boot-contract.test.ts`
 
-- [ ] Extend the existing boot contract test. `classifyBrowserBootModule` and `test/scripts.build-module-registry.boot-contract.test.ts` already exist; do not recreate them.
+- [x] Extend the existing boot contract test. `classifyBrowserBootModule` and `test/scripts.build-module-registry.boot-contract.test.ts` already exist; do not recreate them.
 
 ```ts
 import { classifyBrowserBootModule } from '../scripts/build-module-registry';
@@ -1240,7 +1240,7 @@ test('network core is required but ONNX and gacha are optional', () => {
 });
 ```
 
-- [ ] Add a registry split assertion to the same test file:
+- [x] Add a registry split assertion to the same test file:
 
 ```ts
 test('separates startup registry from lazy optional registry content', () => {
@@ -1252,7 +1252,7 @@ test('separates startup registry from lazy optional registry content', () => {
 });
 ```
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 npx jest --runInBand test/scripts.build-module-registry.boot-contract.test.ts
@@ -1269,16 +1269,16 @@ npx jest --runInBand test/scripts.build-module-registry.boot-contract.test.ts
 - Modify: `ui/handlers/cpu-policy.ts`
 - Modify: `ui/handlers/gacha.ts`
 
-- [ ] Change `scripts/build-module-registry.ts` so `buildRegistry()` can write at least two browser registry files:
+- [x] Change `scripts/build-module-registry.ts` so `buildRegistry()` can write at least two browser registry files:
 
 ```text
 public/module-registry.js                  required startup modules only
 public/module-registry.optional.js         optional CPU/ONNX/gacha/commentary/cosmetic modules
 ```
 
-- [ ] Keep `public/runtime.js` unchanged unless tests prove it cannot safely accept a second registry script. The current runtime can register additional modules through repeated `window.__cjsRegister(...)` calls.
+- [x] Keep `public/runtime.js` unchanged unless tests prove it cannot safely accept a second registry script. The current runtime can register additional modules through repeated `window.__cjsRegister(...)` calls.
 
-- [ ] Update `index.html` so startup loads only:
+- [x] Update `index.html` so startup loads only:
 
 ```html
 <script src="public/runtime.js?..."></script>
@@ -1287,9 +1287,9 @@ public/module-registry.optional.js         optional CPU/ONNX/gacha/commentary/co
 <script src="entry-browser.js?..."></script>
 ```
 
-- [ ] Do not include `public/module-registry.optional.js` or `node_modules/onnxruntime-web/dist/ort.min.js` in the initial HTML.
+- [x] Do not include `public/module-registry.optional.js` or `node_modules/onnxruntime-web/dist/ort.min.js` in the initial HTML.
 
-- [ ] Implement lazy loader:
+- [x] Implement lazy loader:
 
 ```ts
 type LazyGroup = 'cpu' | 'onnx' | 'gacha' | 'commentary';
@@ -1309,22 +1309,22 @@ export async function loadLazyRuntimeGroup(group: LazyGroup, modules: string[]) 
 }
 ```
 
-- [ ] Remove eager script:
+- [x] Remove eager script:
 
 ```html
 <!-- Remove from base boot -->
 <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
 ```
 
-- [ ] CPU Lv6/ONNX path loads ONNX before first ONNX decision:
+- [x] CPU Lv6/ONNX path loads ONNX before first ONNX decision:
 
 ```ts
 await loadOptionalOnnxRuntimeForCpuPolicy();
 ```
 
-- [ ] Gacha button click loads gacha group before opening overlay.
+- [x] Gacha button click loads gacha group before opening overlay.
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 npm run build:browser
@@ -1340,13 +1340,13 @@ Expected: network mode can boot without loading the optional registry chunk or e
 - Create: `scripts/browser-boot-performance-check.ts`
 - Modify: `package.json`
 
-- [ ] Add npm script:
+- [x] Add npm script:
 
 ```json
 "match:boot-performance-check": "npm run build:browser && node dist/scripts/browser-boot-performance-check.js"
 ```
 
-- [ ] Browser check must collect:
+- [x] Browser check must collect:
 
 ```ts
 interface BootPerformanceSample {
@@ -1366,13 +1366,15 @@ Acceptance:
 - required boot module count is lower than current eager count
 - network mode ready time is recorded and does not regress across repeated local runs
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 npm run match:boot-performance-check
 ```
 
 Expected: outputs JSON summary and exits 0.
+
+Result on 2026-06-22: `npm run match:boot-performance-check` passed with `moduleRegistryBytes=7191609`, `optionalRegistryBytes=399816`, `combinedRegistryBytes=7591425`, `requiredBootModuleCount=504`, `optionalBootModuleCount=39`, `combinedBootModuleCount=543`, `optionalRegistryLoadedAtStartup=false`, `onnxScriptLoadedAtStartup=false`, and `networkModeReadyMs=1008`.
 
 ## Phase 9: End-To-End Network Verification
 
