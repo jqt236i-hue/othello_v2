@@ -24,7 +24,7 @@ type MatchWorkerLeaderboardSubmitOk = {
 
 type MatchWorkerLeaderboardSubmitRejected = {
     ok: false;
-    reason: 'PLAYER_ID_REQUIRED' | 'TIME_ATTACK_INELIGIBLE' | 'SCORE_INELIGIBLE' | 'BOARD_NOT_ELIGIBLE';
+    reason: 'PLAYER_ID_REQUIRED' | 'TIME_ATTACK_INELIGIBLE' | 'TIME_DEFENSE_INELIGIBLE' | 'SCORE_INELIGIBLE' | 'BOARD_NOT_ELIGIBLE';
 };
 
 type MatchWorkerLeaderboardSubmitResult =
@@ -73,6 +73,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
     }
 
     function normalizeCategory(value: unknown): MatchWorkerLeaderboardCategory {
+        if (value === 'timeDefense') return 'timeDefense';
         return value === 'timeAttack' ? 'timeAttack' : 'score';
     }
 
@@ -87,6 +88,14 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         if (!Number.isFinite(ms)) return null;
         const normalized = Math.trunc(ms);
         if (normalized <= 0 || normalized > TIME_ATTACK_LIMIT_MS) return null;
+        return normalized;
+    }
+
+    function normalizeTimeDefenseTurnCount(value: unknown): number | null {
+        const turns = Number(value);
+        if (!Number.isFinite(turns)) return null;
+        const normalized = Math.trunc(turns);
+        if (normalized <= 0) return null;
         return normalized;
     }
 
@@ -132,7 +141,11 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const lastTimeMs = category === 'timeAttack'
             ? (normalizeTimeAttackMs(entry.lastTimeMs) || bestTimeMs)
             : null;
+        const turnCount = category === 'timeDefense'
+            ? normalizeTimeDefenseTurnCount(entry.turnCount)
+            : (Number.isFinite(Number(entry.turnCount)) ? Math.max(0, Math.trunc(Number(entry.turnCount))) : null);
         if (category === 'timeAttack' && bestTimeMs === null) return null;
+        if (category === 'timeDefense' && turnCount === null) return null;
         const updatedAt = Number.isFinite(Number(entry.updatedAt))
             ? Math.max(0, Math.trunc(Number(entry.updatedAt)))
             : now();
@@ -151,7 +164,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             mode,
             cpuLevel: mode === 'cpu' ? normalizeCpuLevel(entry.cpuLevel) : null,
             scoreVersion: Number.isFinite(Number(entry.scoreVersion)) ? Math.max(0, Math.trunc(Number(entry.scoreVersion))) : null,
-            turnCount: Number.isFinite(Number(entry.turnCount)) ? Math.max(0, Math.trunc(Number(entry.turnCount))) : null,
+            turnCount,
             updatedAt,
             submittedAt
         };
@@ -171,6 +184,13 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
                 if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
                 return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'ja');
             }
+            if (sortCategory === 'timeDefense') {
+                const aTurns = Number.isFinite(Number(a.turnCount)) ? Number(a.turnCount) : 0;
+                const bTurns = Number.isFinite(Number(b.turnCount)) ? Number(b.turnCount) : 0;
+                if (aTurns !== bTurns) return bTurns - aTurns;
+                if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
+                return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'ja');
+            }
             if (b.bestScore !== a.bestScore) return b.bestScore - a.bestScore;
             if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
             return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'ja');
@@ -186,6 +206,9 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             timeAttackPlayers: {},
             timeAttackPlayerModes: {},
             timeAttackPlayerCpuLevels: {},
+            timeDefensePlayers: {},
+            timeDefensePlayerModes: {},
+            timeDefensePlayerCpuLevels: {},
             updatedAt: now()
         };
     }
@@ -288,12 +311,18 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const timeAttackPlayersRaw = (rawRecord.timeAttackPlayers && typeof rawRecord.timeAttackPlayers === 'object') ? asRecord(rawRecord.timeAttackPlayers) : {};
         const timeAttackPlayerModesRaw = (rawRecord.timeAttackPlayerModes && typeof rawRecord.timeAttackPlayerModes === 'object') ? asRecord(rawRecord.timeAttackPlayerModes) : {};
         const timeAttackPlayerCpuLevelsRaw = (rawRecord.timeAttackPlayerCpuLevels && typeof rawRecord.timeAttackPlayerCpuLevels === 'object') ? asRecord(rawRecord.timeAttackPlayerCpuLevels) : {};
+        const timeDefensePlayersRaw = (rawRecord.timeDefensePlayers && typeof rawRecord.timeDefensePlayers === 'object') ? asRecord(rawRecord.timeDefensePlayers) : {};
+        const timeDefensePlayerModesRaw = (rawRecord.timeDefensePlayerModes && typeof rawRecord.timeDefensePlayerModes === 'object') ? asRecord(rawRecord.timeDefensePlayerModes) : {};
+        const timeDefensePlayerCpuLevelsRaw = (rawRecord.timeDefensePlayerCpuLevels && typeof rawRecord.timeDefensePlayerCpuLevels === 'object') ? asRecord(rawRecord.timeDefensePlayerCpuLevels) : {};
         const players: Record<string, MatchWorkerLeaderboardEntry> = {};
         const playerModes: Record<string, MatchWorkerLeaderboardModeEntries> = {};
         const playerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>> = {};
         const timeAttackPlayers: Record<string, MatchWorkerLeaderboardEntry> = {};
         const timeAttackPlayerModes: Record<string, MatchWorkerLeaderboardModeEntries> = {};
         const timeAttackPlayerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>> = {};
+        const timeDefensePlayers: Record<string, MatchWorkerLeaderboardEntry> = {};
+        const timeDefensePlayerModes: Record<string, MatchWorkerLeaderboardModeEntries> = {};
+        const timeDefensePlayerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>> = {};
 
         const playerIds = new Set<string>();
         Object.keys(playersRaw).forEach((key) => {
@@ -383,6 +412,49 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             }
         }
 
+        const timeDefenseIds = new Set<string>();
+        Object.keys(timeDefensePlayersRaw).forEach((key) => {
+            const normalized = normalizePlayerId(key);
+            if (normalized) timeDefenseIds.add(normalized);
+        });
+        Object.keys(timeDefensePlayerModesRaw).forEach((key) => {
+            const normalized = normalizePlayerId(key);
+            if (normalized) timeDefenseIds.add(normalized);
+        });
+        Object.keys(timeDefensePlayerCpuLevelsRaw).forEach((key) => {
+            const normalized = normalizePlayerId(key);
+            if (normalized) timeDefenseIds.add(normalized);
+        });
+
+        for (const playerId of timeDefenseIds) {
+            const overallEntry = normalizeEntry(timeDefensePlayersRaw[playerId], playerId, undefined, 'timeDefense');
+            const playerName = normalizePlayerName(
+                (overallEntry && overallEntry.playerName)
+                || asRecord(timeDefensePlayerModesRaw[playerId]).playerName
+            );
+            const modeEntries = cloneModeEntriesWithPlayerName(
+                normalizeModeEntries(timeDefensePlayerModesRaw[playerId], playerId, playerName, overallEntry, 'timeDefense'),
+                playerName,
+                'timeDefense'
+            );
+            const cpuLevelEntries = normalizeCpuLevelEntries(timeDefensePlayerCpuLevelsRaw[playerId], playerId, playerName, 'timeDefense');
+            const cpuBestEntry = selectCpuOverallEntry(cpuLevelEntries, 'timeDefense');
+            if (cpuBestEntry) {
+                modeEntries.cpu = cpuBestEntry;
+            }
+            const nextOverall = selectOverallEntry(modeEntries, 'timeDefense') || overallEntry;
+            if (nextOverall) {
+                nextOverall.playerName = playerName;
+                timeDefensePlayers[playerId] = nextOverall;
+            }
+            if (modeEntries.cpu || modeEntries.network) {
+                timeDefensePlayerModes[playerId] = modeEntries;
+            }
+            if (Object.keys(cpuLevelEntries).length) {
+                timeDefensePlayerCpuLevels[playerId] = cpuLevelEntries;
+            }
+        }
+
         const updatedAt = Number.isFinite(Number(rawRecord.updatedAt))
             ? Math.max(0, Math.trunc(Number(rawRecord.updatedAt)))
             : now();
@@ -395,6 +467,9 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             timeAttackPlayers,
             timeAttackPlayerModes,
             timeAttackPlayerCpuLevels,
+            timeDefensePlayers,
+            timeDefensePlayerModes,
+            timeDefensePlayerCpuLevels,
             updatedAt
         };
     }
@@ -407,6 +482,15 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
                 timeAttackPlayers: (store && store.timeAttackPlayers && typeof store.timeAttackPlayers === 'object') ? store.timeAttackPlayers : {},
                 timeAttackPlayerModes: (store && store.timeAttackPlayerModes && typeof store.timeAttackPlayerModes === 'object') ? store.timeAttackPlayerModes : {},
                 timeAttackPlayerCpuLevels: (store && store.timeAttackPlayerCpuLevels && typeof store.timeAttackPlayerCpuLevels === 'object') ? store.timeAttackPlayerCpuLevels : {},
+                updatedAt: Number.isFinite(Number(store && store.updatedAt)) ? Math.max(0, Math.trunc(Number(store.updatedAt))) : now()
+            };
+        }
+        if (normalizedCategory === 'timeDefense') {
+            return {
+                version: storageVersion,
+                timeDefensePlayers: (store && store.timeDefensePlayers && typeof store.timeDefensePlayers === 'object') ? store.timeDefensePlayers : {},
+                timeDefensePlayerModes: (store && store.timeDefensePlayerModes && typeof store.timeDefensePlayerModes === 'object') ? store.timeDefensePlayerModes : {},
+                timeDefensePlayerCpuLevels: (store && store.timeDefensePlayerCpuLevels && typeof store.timeDefensePlayerCpuLevels === 'object') ? store.timeDefensePlayerCpuLevels : {},
                 updatedAt: Number.isFinite(Number(store && store.updatedAt)) ? Math.max(0, Math.trunc(Number(store.updatedAt))) : now()
             };
         }
@@ -432,9 +516,21 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const normalizedCategory = normalizeCategory(category);
         const normalizedMode = normalizeListMode(mode);
         const normalizedCpuLevel = normalizedMode === 'cpu' ? normalizeListCpuLevel(cpuLevel) : null;
-        const playersMap = normalizedCategory === 'timeAttack' ? store && store.timeAttackPlayers : store && store.players;
-        const modeMap = normalizedCategory === 'timeAttack' ? store && store.timeAttackPlayerModes : store && store.playerModes;
-        const cpuLevelsMap = normalizedCategory === 'timeAttack' ? store && store.timeAttackPlayerCpuLevels : store && store.playerCpuLevels;
+        const playersMap = normalizedCategory === 'timeAttack'
+            ? store && store.timeAttackPlayers
+            : normalizedCategory === 'timeDefense'
+            ? store && store.timeDefensePlayers
+            : store && store.players;
+        const modeMap = normalizedCategory === 'timeAttack'
+            ? store && store.timeAttackPlayerModes
+            : normalizedCategory === 'timeDefense'
+            ? store && store.timeDefensePlayerModes
+            : store && store.playerModes;
+        const cpuLevelsMap = normalizedCategory === 'timeAttack'
+            ? store && store.timeAttackPlayerCpuLevels
+            : normalizedCategory === 'timeDefense'
+            ? store && store.timeDefensePlayerCpuLevels
+            : store && store.playerCpuLevels;
         let sourceEntries: MatchWorkerLeaderboardEntry[];
 
         if (normalizedMode === 'all') {
@@ -484,12 +580,16 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const playerName = normalizePlayerName(body && body.playerName);
         const score = clampScore(body && body.score);
         const elapsedMs = normalizeTimeAttackMs(body && body.elapsedMs);
+        const timeDefenseTurnCount = normalizeTimeDefenseTurnCount(body && body.turnCount);
         const mode = normalizeMode(body && body.mode);
         if (!isStandardBoardEligible(body && body.boardConfig)) {
             return { ok: false, reason: 'BOARD_NOT_ELIGIBLE' };
         }
         if (category === 'timeAttack' && (elapsedMs === null || body && body.debug === true || mode !== 'cpu')) {
             return { ok: false, reason: 'TIME_ATTACK_INELIGIBLE' };
+        }
+        if (category === 'timeDefense' && (timeDefenseTurnCount === null || body && body.debug === true || mode !== 'cpu')) {
+            return { ok: false, reason: 'TIME_DEFENSE_INELIGIBLE' };
         }
         if (category === 'score' && body && body.debug === true) {
             return { ok: false, reason: 'SCORE_INELIGIBLE' };
@@ -507,13 +607,28 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             timeAttackPlayers: { ...((store && store.timeAttackPlayers) || {}) },
             timeAttackPlayerModes: { ...((store && store.timeAttackPlayerModes) || {}) },
             timeAttackPlayerCpuLevels: { ...((store && store.timeAttackPlayerCpuLevels) || {}) },
+            timeDefensePlayers: { ...((store && store.timeDefensePlayers) || {}) },
+            timeDefensePlayerModes: { ...((store && store.timeDefensePlayerModes) || {}) },
+            timeDefensePlayerCpuLevels: { ...((store && store.timeDefensePlayerCpuLevels) || {}) },
             updatedAt: Number.isFinite(Number(store && store.updatedAt)) ? Math.max(0, Math.trunc(Number(store.updatedAt))) : now()
         };
 
         const submittedAt = now();
-        const playersMap = category === 'timeAttack' ? nextStore.timeAttackPlayers : nextStore.players;
-        const modeMap = category === 'timeAttack' ? nextStore.timeAttackPlayerModes : nextStore.playerModes;
-        const cpuLevelsMap = category === 'timeAttack' ? nextStore.timeAttackPlayerCpuLevels : nextStore.playerCpuLevels;
+        const playersMap = category === 'timeAttack'
+            ? nextStore.timeAttackPlayers
+            : category === 'timeDefense'
+            ? nextStore.timeDefensePlayers
+            : nextStore.players;
+        const modeMap = category === 'timeAttack'
+            ? nextStore.timeAttackPlayerModes
+            : category === 'timeDefense'
+            ? nextStore.timeDefensePlayerModes
+            : nextStore.playerModes;
+        const cpuLevelsMap = category === 'timeAttack'
+            ? nextStore.timeAttackPlayerCpuLevels
+            : category === 'timeDefense'
+            ? nextStore.timeDefensePlayerCpuLevels
+            : nextStore.playerCpuLevels;
         const currentOverall = normalizeEntry(playersMap[playerId], playerId, undefined, category);
         const currentModeEntries = cloneModeEntriesWithPlayerName(
             normalizeModeEntries(modeMap[playerId], playerId, playerName, currentOverall, category),
@@ -526,18 +641,24 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             : normalizeEntry(currentModeEntries[mode], playerId, mode, category);
         const previousBest = category === 'timeAttack'
             ? (currentModeEntry && Number.isFinite(Number(currentModeEntry.bestTimeMs)) ? Number(currentModeEntry.bestTimeMs) : null)
+            : category === 'timeDefense'
+            ? (currentModeEntry && Number.isFinite(Number(currentModeEntry.turnCount)) ? Number(currentModeEntry.turnCount) : null)
             : (currentModeEntry ? currentModeEntry.bestScore : 0);
         const updated = category === 'timeAttack'
             ? (previousBest === null || Number(elapsedMs) < Number(previousBest))
+            : category === 'timeDefense'
+            ? (previousBest === null || Number(timeDefenseTurnCount) > Number(previousBest))
             : score > Number(previousBest);
-        const bestScore = category === 'timeAttack' ? 0 : (updated ? score : Number(previousBest));
+        const bestScore = category === 'score' ? (updated ? score : Number(previousBest)) : 0;
         const bestTimeMs = category === 'timeAttack'
             ? (updated ? elapsedMs : previousBest)
             : null;
         const bestScoreVersion = category === 'score' && !updated && currentModeEntry
             ? currentModeEntry.scoreVersion
-            : scoreVersion;
-        const bestTurnCount = category === 'score' && !updated && currentModeEntry
+            : (category === 'score' ? scoreVersion : null);
+        const bestTurnCount = category === 'timeDefense'
+            ? (updated ? timeDefenseTurnCount : previousBest)
+            : category === 'score' && !updated && currentModeEntry
             ? currentModeEntry.turnCount
             : turnCount;
 
@@ -607,8 +728,10 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
                 previousBest,
                 bestScore,
                 bestTimeMs,
+                bestTurnCount: category === 'timeDefense' ? bestTurnCount : null,
                 score,
                 elapsedMs,
+                turnCount: category === 'timeDefense' ? timeDefenseTurnCount : turnCount,
                 rank: playerRank > 0 ? playerRank : null,
                 entries,
                 updatedAt: nextStore.updatedAt,

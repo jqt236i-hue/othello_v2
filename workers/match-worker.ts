@@ -81,6 +81,7 @@ const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PL
     : 7;
 const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v3';
 const TIME_ATTACK_LEADERBOARD_STORAGE_KEY = 'global_time_attack_leaderboard_v1';
+const TIME_DEFENSE_LEADERBOARD_STORAGE_KEY = 'global_time_defense_leaderboard_v1';
 const LEADERBOARD_STORAGE_VERSION = 3;
 const MATCH_LOBBY_ROOM_ID = '__match_lobby__';
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
@@ -1981,6 +1982,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 storage: this.state.storage,
                 storageKey: LEADERBOARD_STORAGE_KEY,
                 timeAttackStorageKey: TIME_ATTACK_LEADERBOARD_STORAGE_KEY,
+                timeDefenseStorageKey: TIME_DEFENSE_LEADERBOARD_STORAGE_KEY,
                 defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
                 helpers: MatchWorkerLeaderboardHelpers,
                 jsonResponse

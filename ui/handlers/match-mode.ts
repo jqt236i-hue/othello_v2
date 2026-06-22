@@ -43,6 +43,7 @@ const MODE_OTHELLO = 'othello';
     const LEADERBOARD_FILTER_CPU = 'cpu';
     const LEADERBOARD_CATEGORY_SCORE = 'score';
     const LEADERBOARD_CATEGORY_TIME_ATTACK = 'timeAttack';
+    const LEADERBOARD_CATEGORY_TIME_DEFENSE = 'timeDefense';
     const LEADERBOARD_CPU_LEVEL_NAMES = [
         '',
         '盤喰いの小鬼',
@@ -1122,9 +1123,9 @@ const MODE_OTHELLO = 'othello';
     }
 
     function normalizeLeaderboardCategory(value: any) {
-        return value === LEADERBOARD_CATEGORY_TIME_ATTACK
-            ? LEADERBOARD_CATEGORY_TIME_ATTACK
-            : LEADERBOARD_CATEGORY_SCORE;
+        if (value === LEADERBOARD_CATEGORY_TIME_ATTACK) return LEADERBOARD_CATEGORY_TIME_ATTACK;
+        if (value === LEADERBOARD_CATEGORY_TIME_DEFENSE) return LEADERBOARD_CATEGORY_TIME_DEFENSE;
+        return LEADERBOARD_CATEGORY_SCORE;
     }
 
     function getLeaderboardModeLabel(filter: any): string {
@@ -1159,6 +1160,10 @@ const MODE_OTHELLO = 'othello';
         return leaderboardActiveCategory === LEADERBOARD_CATEGORY_TIME_ATTACK;
     }
 
+    function isTimeDefenseLeaderboardActive(): boolean {
+        return leaderboardActiveCategory === LEADERBOARD_CATEGORY_TIME_DEFENSE;
+    }
+
     function formatLeaderboardDuration(ms: any): string {
         const totalMs = Number(ms);
         if (!Number.isFinite(totalMs) || totalMs <= 0) return '--';
@@ -1173,7 +1178,23 @@ const MODE_OTHELLO = 'othello';
         if (isTimeAttackLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_ATTACK)) {
             return formatLeaderboardDuration(entry && entry.bestTimeMs);
         }
+        if (isTimeDefenseLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_DEFENSE)) {
+            const turns = Number(entry && entry.turnCount);
+            return Number.isFinite(turns) && turns > 0 ? `${Math.trunc(turns)}手` : '--';
+        }
         return `${entry && entry.bestScore ? entry.bestScore : 0}`;
+    }
+
+    function getLeaderboardValueHeaderLabel(): string {
+        if (isTimeAttackLeaderboardActive()) return 'タイム';
+        if (isTimeDefenseLeaderboardActive()) return '手数';
+        return 'スコア';
+    }
+
+    function getLeaderboardSummaryBestLabel(): string {
+        if (isTimeAttackLeaderboardActive()) return 'あなたの最速記録';
+        if (isTimeDefenseLeaderboardActive()) return 'あなたの最長記録';
+        return 'あなたの最高記録';
     }
 
     function createLeaderboardModeLabel(entry: any) {
@@ -1239,7 +1260,8 @@ const MODE_OTHELLO = 'othello';
 
             const tabDefs = [
                 { id: 'leaderboardCategoryScore', label: 'スコアランキング', category: LEADERBOARD_CATEGORY_SCORE },
-                { id: 'leaderboardCategoryTimeAttack', label: 'タイムアタック', category: LEADERBOARD_CATEGORY_TIME_ATTACK }
+                { id: 'leaderboardCategoryTimeAttack', label: 'タイムアタック', category: LEADERBOARD_CATEGORY_TIME_ATTACK },
+                { id: 'leaderboardCategoryTimeDefense', label: 'タイムディフェンス', category: LEADERBOARD_CATEGORY_TIME_DEFENSE }
             ];
             tabDefs.forEach((tabDef) => {
                 const button = document.createElement('button');
@@ -1362,7 +1384,7 @@ const MODE_OTHELLO = 'othello';
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。CPUはLv別に絞り込み可能。15:00超過、敗北、引き分け、デバッグモードはタイムアタック対象外。';
+            details.textContent = 'スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。タイムディフェンスは勝利までの手数が多いほど上位。CPUはLv別に絞り込み可能。15:00超過はタイムアタック対象外。敗北、引き分け、デバッグモードはタイム系ランキング対象外。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');
@@ -1384,7 +1406,7 @@ const MODE_OTHELLO = 'othello';
             tableHeader = document.createElement('div');
             tableHeader.id = 'leaderboardTableHeader';
             tableHeader.className = 'leaderboard-table-header';
-            ['順位', 'プレイヤー名', isTimeAttackLeaderboardActive() ? 'タイム' : 'スコア', 'モード'].forEach((labelText, index) => {
+            ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), 'モード'].forEach((labelText, index) => {
                 const cell = document.createElement('span');
                 cell.className = `leaderboard-table-header-cell is-col-${index + 1}`;
                 cell.textContent = labelText;
@@ -1622,7 +1644,7 @@ const MODE_OTHELLO = 'othello';
         if (!uiRefs.leaderboardPanel) return;
         const header = uiRefs.leaderboardPanel.querySelector('#leaderboardTableHeader');
         if (!header) return;
-        const labels = ['順位', 'プレイヤー名', isTimeAttackLeaderboardActive() ? 'タイム' : 'スコア', 'モード'];
+        const labels = ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), 'モード'];
         const cells = Array.from(header.querySelectorAll('.leaderboard-table-header-cell'));
         cells.forEach((cell: any, index) => {
             cell.textContent = labels[index] || '';
@@ -1686,7 +1708,7 @@ const MODE_OTHELLO = 'othello';
         const timeText = formatLeaderboardTime(updatedAt) || '--:--';
 
         scaffold.summary.innerHTML = '';
-        scaffold.summary.appendChild(createLeaderboardSummaryMetric(isTimeAttackLeaderboardActive() ? 'あなたの最速記録' : 'あなたの最高記録', bestText));
+        scaffold.summary.appendChild(createLeaderboardSummaryMetric(getLeaderboardSummaryBestLabel(), bestText));
         scaffold.summary.appendChild(createLeaderboardSummaryMetric('現在順位', rankText));
         scaffold.summary.appendChild(createLeaderboardSummaryMetric('最終更新', timeText));
     }

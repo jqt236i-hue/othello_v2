@@ -143,6 +143,26 @@ describe('match-mode shared leaderboard panel', () => {
         cpuLevel: 1,
         category: 'timeAttack'
       }
+    ],
+    timeDefenseCpu: [
+      {
+        rank: 1,
+        playerId: 'player_defense_0001',
+        playerName: '粘太',
+        turnCount: 58,
+        mode: 'cpu',
+        cpuLevel: 1,
+        category: 'timeDefense'
+      },
+      {
+        rank: 2,
+        playerId: 'player_defense_0002',
+        playerName: '長考',
+        turnCount: 51,
+        mode: 'cpu',
+        cpuLevel: 1,
+        category: 'timeDefense'
+      }
     ]
   };
 
@@ -226,6 +246,8 @@ describe('match-mode shared leaderboard panel', () => {
       updatedAt: new Date('2026-06-20T06:40:00+09:00').getTime(),
       entries: options && options.category === 'timeAttack'
         ? leaderboardEntriesByMode.timeAttackCpu
+        : options && options.category === 'timeDefense'
+        ? leaderboardEntriesByMode.timeDefenseCpu
         : options && options.mode === 'cpu' && options.cpuLevel === 6
         ? leaderboardEntriesByMode.cpuLv6
         : leaderboardEntriesByMode[(options && options.mode) || 'all'] || leaderboardEntriesByMode.all,
@@ -325,7 +347,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(summary?.textContent).toContain('8543');
     expect(summary?.textContent).toContain('#4');
     expect(summary?.textContent).toContain('06:40');
-    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'タイムアタック']);
+    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'タイムアタック', 'タイムディフェンス']);
     expect(document.getElementById('leaderboardCategoryScore')?.getAttribute('aria-pressed')).toBe('true');
     expect(modeBtn?.textContent).toBe('MODE');
     expect(modeBtn?.getAttribute('aria-label')).toBe('表示モード: 総合');
@@ -422,6 +444,30 @@ describe('match-mode shared leaderboard panel', () => {
     expect(header?.textContent).not.toContain('スコア');
     expect(podium?.textContent).toContain('速太');
     expect(podium?.textContent).toContain('03:02.34');
+  });
+
+  test('タイムディフェンスタブでは手数列と長手数記録を表示する', async () => {
+    document.getElementById('leaderboardOpenBtn').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const defenseTab = document.getElementById('leaderboardCategoryTimeDefense');
+    defenseTab.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const podium = document.getElementById('leaderboardPodium');
+    const header = document.getElementById('leaderboardTableHeader');
+    const summary = document.getElementById('leaderboardSummary');
+
+    expect(defenseTab.getAttribute('aria-pressed')).toBe('true');
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'timeDefense' }));
+    expect(header?.textContent).toContain('手数');
+    expect(header?.textContent).not.toContain('タイム');
+    expect(header?.textContent).not.toContain('スコア');
+    expect(podium?.textContent).toContain('粘太');
+    expect(podium?.textContent).toContain('58手');
+    expect(summary?.textContent).toContain('あなたの最長記録');
   });
 
   test('ⓘボタンでランキング説明パネルを開く', async () => {

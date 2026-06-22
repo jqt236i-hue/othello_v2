@@ -205,7 +205,8 @@
     color: #e2cba7;
 }
 
-.result-time-attack {
+.result-time-attack,
+.result-time-defense {
     display: flex;
     align-items: center;
     justify-content: center;

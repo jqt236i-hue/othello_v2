@@ -68,11 +68,14 @@ export interface MatchWorkerLeaderboardStore {
     timeAttackPlayers: Record<string, MatchWorkerLeaderboardEntry>;
     timeAttackPlayerModes: Record<string, MatchWorkerLeaderboardModeEntries>;
     timeAttackPlayerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>>;
+    timeDefensePlayers: Record<string, MatchWorkerLeaderboardEntry>;
+    timeDefensePlayerModes: Record<string, MatchWorkerLeaderboardModeEntries>;
+    timeDefensePlayerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>>;
     updatedAt: number;
 }
 
 export type MatchWorkerLeaderboardMode = 'cpu' | 'network';
-export type MatchWorkerLeaderboardCategory = 'score' | 'timeAttack';
+export type MatchWorkerLeaderboardCategory = 'score' | 'timeAttack' | 'timeDefense';
 
 export interface MatchWorkerLeaderboardModeEntries {
     cpu?: MatchWorkerLeaderboardEntry | null;

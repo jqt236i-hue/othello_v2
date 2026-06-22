@@ -226,6 +226,64 @@ describe('match worker leaderboard helpers', () => {
     });
   });
 
+  test('タイムディフェンスは長い自己ベストだけを保存して長い順に並ぶ', () => {
+    const helpers = createHelpers();
+    let store = helpers.createEmptyStore();
+
+    const alphaShort = helpers.applySubmit(store, {
+      category: 'timeDefense',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 42,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(alphaShort.ok).toBe(true);
+    if (!alphaShort.ok) return;
+    store = alphaShort.store;
+
+    const alphaLong = helpers.applySubmit(store, {
+      category: 'timeDefense',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 58,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(alphaLong.ok).toBe(true);
+    if (!alphaLong.ok) return;
+    expect(alphaLong.payload.updated).toBe(true);
+    expect(alphaLong.payload.bestTurnCount).toBe(58);
+    store = alphaLong.store;
+
+    const beta = helpers.applySubmit(store, {
+      category: 'timeDefense',
+      playerId: 'player_beta_0002',
+      playerName: 'ベータ',
+      turnCount: 51,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(beta.ok).toBe(true);
+    if (!beta.ok) return;
+
+    const entries = helpers.listEntries(beta.store, 10, 'cpu', 6, 'timeDefense');
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      rank: 1,
+      playerName: 'アルファ',
+      turnCount: 58,
+      mode: 'cpu',
+      cpuLevel: 6,
+      category: 'timeDefense'
+    });
+    expect(entries[1]).toMatchObject({
+      rank: 2,
+      playerName: 'ベータ',
+      turnCount: 51
+    });
+  });
+
   test('タイムアタックは900秒超過とデバッグ記録を保存しない', () => {
     const helpers = createHelpers();
     const store = helpers.createEmptyStore();
@@ -275,6 +333,37 @@ describe('match worker leaderboard helpers', () => {
       reason: 'TIME_ATTACK_INELIGIBLE'
     });
     expect(helpers.listEntries(store, 10, 'network', null, 'timeAttack')).toHaveLength(0);
+  });
+
+  test('タイムディフェンスはnetworkモードとデバッグ記録を保存しない', () => {
+    const helpers = createHelpers();
+    const store = helpers.createEmptyStore();
+
+    const network = helpers.applySubmit(store, {
+      category: 'timeDefense',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 58,
+      mode: 'network'
+    });
+    expect(network).toEqual({
+      ok: false,
+      reason: 'TIME_DEFENSE_INELIGIBLE'
+    });
+
+    const debug = helpers.applySubmit(store, {
+      category: 'timeDefense',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      turnCount: 58,
+      mode: 'cpu',
+      cpuLevel: 1,
+      debug: true
+    });
+    expect(debug).toEqual({
+      ok: false,
+      reason: 'TIME_DEFENSE_INELIGIBLE'
+    });
   });
 
   test('8x8以外の盤面ではスコアとタイムアタックを保存しない', () => {

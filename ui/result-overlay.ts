@@ -742,6 +742,31 @@ function createTimeAttackLine(summary: any) {
     return line;
 }
 
+function resolveTimeDefenseSummary(localOutcomeKey: any, scoreSummary: any) {
+    const debugSuppressed = isDebugScoreSuppressed();
+    const won = localOutcomeKey === 'win';
+    const turnCount = scoreSummary && Number.isFinite(Number(scoreSummary.turnCount))
+        ? Math.max(0, toFiniteInteger(scoreSummary.turnCount, 0))
+        : resolveTurnCountForScore();
+    const eligible = won && !debugSuppressed && turnCount > 0;
+
+    return {
+        eligible,
+        turnCount: eligible ? turnCount : null,
+        rawTurnCount: turnCount,
+        debugSuppressed,
+        won
+    };
+}
+
+function createTimeDefenseLine(summary: any) {
+    if (!summary || summary.eligible !== true) return null;
+    const line = document.createElement('div');
+    line.className = 'result-time-defense';
+    line.textContent = `${Math.max(1, toFiniteInteger(summary.turnCount, 1))}手で勝利`;
+    return line;
+}
+
 function canUseObservationStoneProgress() {
     return !!(
         ResultOverlayGachaHelpersModule
@@ -949,6 +974,38 @@ function submitSharedLeaderboardTimeAttack(timeAttackSummary: any, viewerKey: an
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
                         category: 'timeAttack',
+                        updated: !!result.updated,
+                        rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                    });
+                }
+            })
+            .catch(() => {});
+    } catch (e: any) { /* ignore */ }
+}
+
+function submitSharedLeaderboardTimeDefense(timeDefenseSummary: any, viewerKey: any) {
+    try {
+        if (!timeDefenseSummary || timeDefenseSummary.eligible !== true) return;
+        if (typeof window === 'undefined') return;
+        if (!isResultRankingBoardEligible()) return;
+        const mode = resolveCurrentMatchMode();
+        if (mode !== 'cpu') return;
+        if (isDebugScoreSuppressed()) return;
+        const client = window.LeaderboardClient;
+        if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeDefense')) return;
+
+        const cpuLevel = resolveCpuLevelForViewer(viewerKey);
+        client.submitTimeDefense({ turnCount: timeDefenseSummary.turnCount }, {
+            mode,
+            cpuLevel,
+            limit: 10,
+            debug: isDebugScoreSuppressed(),
+            boardConfig: resolveResultBoardConfig()
+        })
+            .then((result: any) => {
+                if (result && result.ok) {
+                    notifySharedLeaderboardUpdated({
+                        category: 'timeDefense',
                         updated: !!result.updated,
                         rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
                     });
@@ -1248,9 +1305,13 @@ function showResultOverlay(options?: any) {
         flipTotals,
         cornerCaptureTotals
     });
+    const timeDefenseSummary = othelloMode
+        ? null
+        : resolveTimeDefenseSummary(localOutcomeKey, scoreSummary);
     const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardScore(scoreSummary, viewerKey);
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeAttack(timeAttackSummary, viewerKey);
+    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeDefense(timeDefenseSummary, viewerKey);
 
     hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });
@@ -1290,6 +1351,9 @@ function showResultOverlay(options?: any) {
 
         const timeAttackLine = createTimeAttackLine(timeAttackSummary);
         panel.appendChild(timeAttackLine);
+
+        const timeDefenseLine = createTimeDefenseLine(timeDefenseSummary);
+        if (timeDefenseLine) panel.appendChild(timeDefenseLine);
     }
 
     const observationStoneLine = createObservationStoneLine(observationStoneSummary);
