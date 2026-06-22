@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
 describe('match-mode shared leaderboard panel', () => {
@@ -412,6 +414,28 @@ describe('match-mode shared leaderboard panel', () => {
     expect(podium?.textContent).toContain('swqp');
     expect(list?.textContent).toContain('なれ。');
     expect(list?.textContent).toContain('アルファ');
+  });
+
+  test('ランキング種別タブは2列2段で配置するCSSにする', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-leaderboard.css'), 'utf8');
+    const filterTabColumns = Array.from(
+      css.matchAll(
+        /#leaderboardFilterTabs\s*\{[^}]*grid-template-columns:\s*repeat\((\d+),\s*minmax\(0,\s*1fr\)\);/g
+      )
+    ).map((match) => match[1]);
+
+    expect(filterTabColumns.length).toBeGreaterThan(0);
+    expect(filterTabColumns).toEqual(filterTabColumns.map(() => '2'));
+  });
+
+  test('ランキング種別タブ直下の入力行は大きく空けない', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-leaderboard.css'), 'utf8');
+    const nameRowMargins = Array.from(
+      css.matchAll(/#leaderboardNameRow\s*\{[^}]*margin-top:\s*calc\((\d+)px\s*\*/g)
+    ).map((match) => Number(match[1]));
+
+    expect(nameRowMargins.length).toBeGreaterThan(0);
+    expect(Math.max(...nameRowMargins)).toBeLessThanOrEqual(28);
   });
 
   test('MODEボタンで対人へ切り替えると対人記録だけを表示して全Lvを隠す', async () => {
