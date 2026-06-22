@@ -415,8 +415,12 @@ describe('hand skin handler', () => {
     document.getElementById('appearanceTabPreset').click();
     document.getElementById('appearancePresetSaveBtn').click();
 
-    const savedPreset = document.querySelector('.appearance-preset-apply');
-    expect(savedPreset.textContent).toContain('プリセット1');
+    const savedPresetName = document.querySelector('.appearance-preset-name');
+    const savedPresetUse = document.querySelector('.appearance-preset-use');
+    expect(savedPresetName).not.toBeNull();
+    expect(savedPresetUse).not.toBeNull();
+    expect(savedPresetName && savedPresetName.textContent).toContain('プリセット1');
+    expect(savedPresetUse && savedPresetUse.textContent).toBe('使用');
     expect(window.localStorage.getItem('reversi.appearancePresets')).toContain('emerald-stone');
     document.querySelector('.appearance-preset-code-copy').click();
     await Promise.resolve();
@@ -433,7 +437,14 @@ describe('hand skin handler', () => {
     document.querySelector('[data-stone-skin-id="jade-rim"]').click();
 
     document.getElementById('appearanceTabPreset').click();
-    document.querySelector('.appearance-preset-apply').click();
+    document.querySelector('.appearance-preset-name').click();
+    expect(api.getSelectedSkinId()).toBe('default');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('woven-felt');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('black-gold-lacquer');
+    expect(document.body.getAttribute('data-font-skin-id')).toBe('shippori-mincho');
+    expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('jade-rim');
+
+    document.querySelector('.appearance-preset-use').click();
 
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
     expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
@@ -442,7 +453,8 @@ describe('hand skin handler', () => {
     expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
 
     document.querySelector('.appearance-preset-delete').click();
-    expect(document.querySelector('.appearance-preset-apply')).toBeNull();
+    expect(document.querySelector('.appearance-preset-name')).toBeNull();
+    expect(document.querySelector('.appearance-preset-use')).toBeNull();
     expect(JSON.parse(window.localStorage.getItem('reversi.appearancePresets')).presets).toEqual([]);
   });
 

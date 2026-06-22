@@ -532,26 +532,33 @@ function setupHandSkinControls(options?: any): any {
       const row = docRef.createElement('div');
       row.className = 'appearance-preset-row';
 
-      const applyBtn = docRef.createElement('button');
-      applyBtn.type = 'button';
-      applyBtn.className = 'appearance-preset-apply';
-      applyBtn.textContent = String(preset.name || '').trim() || 'プリセット';
-      applyBtn.addEventListener('click', function (event: any) {
+      const presetName = String(preset.name || '').trim() || 'プリセット';
+      const nameEl = docRef.createElement('div');
+      nameEl.className = 'appearance-preset-name';
+      nameEl.textContent = presetName;
+      row.appendChild(nameEl);
+
+      const useBtn = docRef.createElement('button');
+      useBtn.type = 'button';
+      useBtn.className = 'appearance-preset-use';
+      useBtn.textContent = '使用';
+      useBtn.setAttribute('aria-label', `${presetName}を使用`);
+      useBtn.addEventListener('click', function (event: any) {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         applyAppearancePreset(preset);
         renderAppearancePresetList();
       });
-      row.appendChild(applyBtn);
+      row.appendChild(useBtn);
 
       const codeCopyBtn = docRef.createElement('button');
       codeCopyBtn.type = 'button';
       codeCopyBtn.className = 'appearance-preset-code-copy';
       codeCopyBtn.textContent = 'コードコピー';
-      codeCopyBtn.setAttribute('aria-label', `${applyBtn.textContent}のコードをコピー`);
+      codeCopyBtn.setAttribute('aria-label', `${presetName}のコードをコピー`);
       codeCopyBtn.addEventListener('click', function (event: any) {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-        copyAppearanceCode(preset && preset.appearance, `${applyBtn.textContent}のコードをコピーしました`);
+        copyAppearanceCode(preset && preset.appearance, `${presetName}のコードをコピーしました`);
       });
       row.appendChild(codeCopyBtn);
 
@@ -559,7 +566,7 @@ function setupHandSkinControls(options?: any): any {
       deleteBtn.type = 'button';
       deleteBtn.className = 'appearance-preset-delete';
       deleteBtn.textContent = '削除';
-      deleteBtn.setAttribute('aria-label', `${applyBtn.textContent}を削除`);
+      deleteBtn.setAttribute('aria-label', `${presetName}を削除`);
       deleteBtn.addEventListener('click', function (event: any) {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
