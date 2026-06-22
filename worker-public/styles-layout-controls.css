@@ -315,11 +315,12 @@
 
 .network-room-entry-name {
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     color: #fff3c9;
     font-weight: 900;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .network-room-entry-badges {

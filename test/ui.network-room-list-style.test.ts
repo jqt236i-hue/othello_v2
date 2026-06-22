@@ -79,6 +79,7 @@ describe('network room list style', () => {
     const titleBlock = readCssRuleBlock(css, '#networkModalHeader .network-title');
     const fieldLabelBlock = readCssRuleBlock(css, '.network-field-label');
     const roomNameBlock = readCssRuleBlock(css, '.network-room-entry-name');
+    const playerNameBaseBlock = readCssRuleBlock(css, '.network-room-entry-mark');
     const playerNameBlock = readCssRuleBlock(css, '.network-room-entry-mark.is-long-name');
     const countValueBlock = readCssRuleBlock(css, '.network-room-entry-count-value');
     const emptyBlock = readCssRuleBlock(css, '.network-room-list-empty');
@@ -93,6 +94,10 @@ describe('network room list style', () => {
     expect(titleBlock).toMatch(/-webkit-text-stroke:\s*calc\(0\.12px\s*\*\s*var\(--layout-stage-scale\)\)\s*rgba\(255,\s*248,\s*235,\s*0\.20\)/);
     expect(titleBlock).not.toMatch(/rgba\(43,\s*24,\s*5,\s*0\.78\)/);
     expect(roomNameBlock).toMatch(/text-wrap:\s*balance/);
+    expect(roomNameBlock).toMatch(/text-overflow:\s*clip/);
+    expect(roomNameBlock).toMatch(/white-space:\s*normal/);
+    expect(roomNameBlock).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(roomNameBlock).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(roomNameBlock).toMatch(/color:\s*var\(--network-lobby-cream\)/);
     expect(roomNameBlock).toMatch(/-webkit-text-fill-color:\s*currentColor/);
     expect(roomNameBlock).not.toMatch(/-webkit-background-clip:\s*text/);
@@ -101,6 +106,10 @@ describe('network room list style', () => {
     expect(playerNameBlock).toMatch(/text-overflow:\s*clip/);
     expect(playerNameBlock).toMatch(/white-space:\s*normal/);
     expect(playerNameBlock).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(playerNameBaseBlock).toMatch(/text-overflow:\s*clip/);
+    expect(playerNameBaseBlock).toMatch(/white-space:\s*normal/);
+    expect(playerNameBaseBlock).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(playerNameBaseBlock).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(fieldLabelBlock).toMatch(/color:\s*var\(--network-lobby-cream\)/);
     expect(fieldLabelBlock).toMatch(/font-feature-settings:\s*"kern"\s*1,\s*"palt"\s*1/);
     expect(fieldLabelBlock).toMatch(/font-variation-settings:\s*"wght"\s*720/);
