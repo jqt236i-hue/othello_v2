@@ -248,7 +248,7 @@
     );
     --card-area-panel-height: max(calc(var(--layout-size-hand-min-height-top) + calc(128px * var(--layout-stage-scale))), 34vh);
     left: calc((var(--card-area-panel-deck-width) + var(--layout-size-ui-gap) + calc(11px * var(--layout-stage-scale))) * -1);
-    top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)));
+    top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)) - 10px);
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
     background-image:
