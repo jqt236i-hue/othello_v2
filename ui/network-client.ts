@@ -3463,7 +3463,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
-    function syncLatestState() {
+    function syncLatestState(options?: any) {
         return invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'syncLatestState',
