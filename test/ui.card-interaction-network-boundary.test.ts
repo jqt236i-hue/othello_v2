@@ -32,4 +32,48 @@ describe('card interaction network boundary', () => {
       action: { type: 'debug_fill_hand' }
     });
   });
+
+  test('prefers window NetworkMatchClient root over globalThis fallback', () => {
+    const pendingNetwork = require('../cards/card-interaction-pending-network');
+    const windowRoot: any = {
+      NetworkMatchClient: {
+        publishSnapshot: jest.fn(),
+        isActive: () => true
+      }
+    };
+
+    (global as any).window = windowRoot;
+    (global as any).NetworkMatchClient = {
+      publishSnapshot: jest.fn(),
+      isActive: () => true
+    };
+
+    expect(pendingNetwork.getNetworkMatchClientRoot()).toBe(windowRoot);
+  });
+
+  test('active client resolver rejects missing publishSnapshot and inactive clients', () => {
+    const pendingNetwork = require('../cards/card-interaction-pending-network');
+
+    (global as any).NetworkMatchClient = { isActive: () => true };
+    expect(pendingNetwork.getActiveNetworkMatchClient()).toBeNull();
+
+    (global as any).NetworkMatchClient = {
+      publishSnapshot: jest.fn(),
+      isActive: () => false
+    };
+    expect(pendingNetwork.getActiveNetworkMatchClient()).toBeNull();
+  });
+
+  test('spectator check tolerates client exceptions', () => {
+    const pendingNetwork = require('../cards/card-interaction-pending-network');
+    (global as any).NetworkMatchClient = {
+      publishSnapshot: jest.fn(),
+      isActive: () => true,
+      isSpectator: () => {
+        throw new Error('boom');
+      }
+    };
+
+    expect(pendingNetwork.isNetworkSpectatorActive()).toBe(false);
+  });
 });

@@ -212,6 +212,42 @@ describe('card interaction pending network settlement', () => {
     expect((global as any).cardState.presentationEvents).toEqual([]);
   });
 
+  test('successful publish settles only after authoritative playback drain', async () => {
+    const order: string[] = [];
+    deps.playbackStateManager = {
+      waitForVisualPlaybackDrain: jest.fn(() => Promise.resolve().then(() => {
+        order.push('drain');
+      })),
+      setPlaybackActive: jest.fn(() => {
+        order.push('clear-active');
+      }),
+      setPlaybackStartedAt: jest.fn(() => {
+        order.push('clear-started');
+      })
+    };
+    deps.setPendingSelectionBusy = jest.fn((next: boolean) => {
+      order.push(`busy:${next}`);
+    });
+    deps.renderCardUiSafely = jest.fn(() => {
+      order.push('render');
+    });
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 },
+      onSuccess: () => {
+        order.push('success');
+      }
+    }, deps);
+
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+    await flushPromises();
+
+    expect(order).toEqual(['success', 'drain', 'clear-active', 'clear-started', 'busy:false', 'render']);
+  });
+
   test('visual drain helper prefers playback manager over direct idle wait', async () => {
     const directWait = jest.fn(() => Promise.resolve());
     deps.readDirectWaitForPlaybackIdle = () => directWait;
@@ -246,6 +282,32 @@ describe('card interaction pending network settlement', () => {
 
     expect(publishLocks.black).toBe(false);
     expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(onFailure).toHaveBeenCalledWith({ ok: false, reason: 'OUT_OF_TURN' });
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+  });
+
+  test('publish failure clears lock and busy before onFailure callback completes', async () => {
+    const order: string[] = [];
+    deps.setPendingSelectionBusy = jest.fn((next: boolean) => {
+      order.push(`busy:${next}`);
+    });
+    const onFailure = jest.fn(() => {
+      order.push(`failure-lock:${publishLocks.black}`);
+    });
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1' },
+      onFailure
+    }, deps);
+
+    await flushPromises();
+    expect(publishLocks.black).toBe(true);
+
+    resolvePublish && resolvePublish({ ok: false, reason: 'OUT_OF_TURN' });
+    await flushPromises();
+
+    expect(order).toEqual(['busy:false', 'failure-lock:false']);
     expect(onFailure).toHaveBeenCalledWith({ ok: false, reason: 'OUT_OF_TURN' });
     expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
   });
