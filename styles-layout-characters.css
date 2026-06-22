@@ -460,3 +460,21 @@
     display: block;
     filter: drop-shadow(var(--ui-drop-shadow-panel));
 }
+
+/* Character panel baseline offsets shared across responsive profiles. */
+#cpu-character-panel,
+#hero-character-panel {
+    gap: 0 !important;
+}
+
+#cpu-level-label {
+    margin-top: calc(1px * var(--layout-stage-scale)) !important;
+    transform: translateY(calc(12px * var(--layout-stage-scale))) !important;
+    line-height: 1 !important;
+}
+
+#hero-label {
+    margin-top: calc(1px * var(--layout-stage-scale)) !important;
+    transform: translateY(calc(48px * var(--layout-stage-scale))) !important;
+    line-height: 1 !important;
+}
