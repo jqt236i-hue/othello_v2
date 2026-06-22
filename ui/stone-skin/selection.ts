@@ -21,7 +21,10 @@ interface StoneSkinCatalogModule {
 
 const STONE_SKIN_STORAGE_KEY = 'reversi.stoneSkin';
 const LEGACY_STONE_SKIN_STORAGE_KEY = 'othello.stoneSkin';
+const STONE_SKIN_STORAGE_VERSION_KEY = 'reversi.stoneSkin.version';
+const STONE_SKIN_STORAGE_VERSION = '2';
 const FALLBACK_STONE_SKIN_ID = 'o-stone';
+const LEGACY_DEFAULT_STONE_SKIN_ID = 'default';
 
 function requireStoneSkinCatalogModuleOrNull(): StoneSkinCatalogModule | null {
   if (typeof _require !== 'function') return null;
@@ -48,16 +51,44 @@ function canUseStorage(rootRef: Window): boolean {
   try { return !!(rootRef && rootRef.localStorage); } catch (e) { return false; }
 }
 
+function hasCurrentStorageVersion(rootRef: Window): boolean {
+  try {
+    return rootRef.localStorage.getItem(STONE_SKIN_STORAGE_VERSION_KEY) === STONE_SKIN_STORAGE_VERSION;
+  } catch (e) {
+    return false;
+  }
+}
+
+function writeStorageVersion(rootRef: Window): void {
+  try {
+    rootRef.localStorage.setItem(STONE_SKIN_STORAGE_VERSION_KEY, STONE_SKIN_STORAGE_VERSION);
+  } catch (e) { /* ignore */ }
+}
+
+function migrateLegacyDefaultStoneSkinId(rootRef: Window, storedValue: string | null, fallbackId: string): string | null {
+  const normalized = String(storedValue || '').trim();
+  if (normalized !== LEGACY_DEFAULT_STONE_SKIN_ID || hasCurrentStorageVersion(rootRef)) {
+    return storedValue;
+  }
+  try {
+    rootRef.localStorage.setItem(STONE_SKIN_STORAGE_KEY, fallbackId);
+    rootRef.localStorage.setItem(LEGACY_STONE_SKIN_STORAGE_KEY, fallbackId);
+    writeStorageVersion(rootRef);
+  } catch (e) { /* ignore */ }
+  return fallbackId;
+}
+
 function readStoredStoneSkinId(rootRef: Window & { StoneSkinCatalogModule?: StoneSkinCatalogModule }): string {
   const catalogModule = resolveCatalogModule(rootRef);
   const fallbackId = String((catalogModule && catalogModule.DEFAULT_STONE_SKIN_ID) || FALLBACK_STONE_SKIN_ID).trim() || FALLBACK_STONE_SKIN_ID;
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     const storedValue = rootRef.localStorage.getItem(STONE_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_STONE_SKIN_STORAGE_KEY);
+    const migratedValue = migrateLegacyDefaultStoneSkinId(rootRef, storedValue, fallbackId);
     if (catalogModule && typeof catalogModule.normalizeStoneSkinId === 'function') {
-      return catalogModule.normalizeStoneSkinId(storedValue, rootRef);
+      return catalogModule.normalizeStoneSkinId(migratedValue, rootRef);
     }
-    return String(storedValue || '').trim() || fallbackId;
+    return String(migratedValue || '').trim() || fallbackId;
   } catch (e) {
     return fallbackId;
   }
@@ -73,6 +104,7 @@ function writeStoredStoneSkinId(rootRef: Window & { StoneSkinCatalogModule?: Sto
     if (definition) {
       rootRef.localStorage.setItem(STONE_SKIN_STORAGE_KEY, definition.id);
       rootRef.localStorage.setItem(LEGACY_STONE_SKIN_STORAGE_KEY, definition.id);
+      writeStorageVersion(rootRef);
     }
     return true;
   } catch (e) {
@@ -83,6 +115,7 @@ function writeStoredStoneSkinId(rootRef: Window & { StoneSkinCatalogModule?: Sto
 export = {
   STONE_SKIN_STORAGE_KEY,
   LEGACY_STONE_SKIN_STORAGE_KEY,
+  STONE_SKIN_STORAGE_VERSION_KEY,
   readStoredStoneSkinId,
   writeStoredStoneSkinId
 };

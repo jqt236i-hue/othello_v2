@@ -31,6 +31,22 @@ describe('appearance default fallbacks without catalog globals', () => {
     expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
   });
 
+  test('migrates the old stored background default to the current background default', () => {
+    const storage = require('../ui/storage/gacha-progress.ts');
+    (window as any).GachaProgressStorage = storage;
+    (window as any).GachaProgressStorageModule = storage;
+    const selection = require('../ui/background-skin/selection.ts');
+    window.localStorage.setItem(selection.BACKGROUND_SKIN_STORAGE_KEY, 'default');
+    window.localStorage.setItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY, 'default');
+
+    expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
+    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+
+    expect(selection.writeStoredBackgroundSkinId(window, 'default')).toBe(true);
+    expect(selection.readStoredBackgroundSkinId(window)).toBe('default');
+  });
+
   test('uses the configured board defaults when the board catalog is unavailable', () => {
     jest.doMock('../ui/board-skin/catalog', () => {
       throw new Error('catalog unavailable');
@@ -61,5 +77,18 @@ describe('appearance default fallbacks without catalog globals', () => {
     expect(window.localStorage.getItem(selection.LEGACY_STONE_SKIN_STORAGE_KEY)).toBe('o-stone');
     expect(runtime.getDefaultNormalStoneImagePath('black', window)).toBe('assets/images/stone-skin/o-stone/black.png');
     expect(runtime.getDefaultNormalStoneImagePath('white', window)).toBe('assets/images/stone-skin/o-stone/white.png');
+  });
+
+  test('migrates the old stored stone default to the current stone default', () => {
+    const selection = require('../ui/stone-skin/selection.ts');
+    window.localStorage.setItem(selection.STONE_SKIN_STORAGE_KEY, 'default');
+    window.localStorage.setItem(selection.LEGACY_STONE_SKIN_STORAGE_KEY, 'default');
+
+    expect(selection.readStoredStoneSkinId(window)).toBe('o-stone');
+    expect(window.localStorage.getItem(selection.STONE_SKIN_STORAGE_KEY)).toBe('o-stone');
+    expect(window.localStorage.getItem(selection.LEGACY_STONE_SKIN_STORAGE_KEY)).toBe('o-stone');
+
+    expect(selection.writeStoredStoneSkinId(window, 'default')).toBe(true);
+    expect(selection.readStoredStoneSkinId(window)).toBe('default');
   });
 });
