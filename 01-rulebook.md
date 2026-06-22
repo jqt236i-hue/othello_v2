@@ -1447,7 +1447,7 @@
 - 盤面フレームの初期所持は盤面フレームカタログの各フレームとし、`黒金漆枠`・`重厚黒金枠`・`黒鉄鋲留枠`・`黒金装飾枠`・`既定` (`marsh-forged-iron`)・`沈木枠`・`湿地遺跡石枠`・`影蔦漆枠` を含める。選択は次回起動後も保持してよい
 - 文字フォントの初期所持は `既定` (`shippori-mincho`) と `DotGothic16` とし、初期選択は `既定` とする。選択は次回起動後も保持してよい
 - 通常石スキンの初期所持は `クラシック石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `既定` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい
-- 保存済みの見た目選択がない初期起動・リセット時の既定セットは、手の見た目 `既定` (`default`)、背景 `既定` (`default-25`)、盤面下地 `既定` (`bluegreen-felt`)、盤面フレーム `既定` (`marsh-forged-iron`)、文字フォント `既定` (`shippori-mincho`)、通常石 `既定` (`o-stone`) とする。保存済みの選択がある場合は保存値を優先する
+- 保存済みの見た目選択がない初期起動・リセット時の既定セットは、手の見た目 `既定` (`default`)、背景 `既定` (`default-25`)、盤面下地 `既定` (`bluegreen-felt`)、盤面フレーム `既定` (`marsh-forged-iron`)、文字フォント `既定` (`shippori-mincho`)、通常石 `既定` (`o-stone`) とする。背景は JS 初期化前の初期描画でも `default-25` を表示し、保存済みの選択がある場合は保存値を優先する
 - 旧版で既定として保存された背景 `default` と通常石 `default` は、保存バージョンがない場合に限り現在の既定 `default-25` / `o-stone` へ移行する。移行後にプレイヤーが `古書机背景` (`default`) / `クラシック石` (`default`) を選んだ場合はその保存値を優先する
 - `DotGothic16` を選んだ場合でも、カード説明・戦況パネル・詳細本文・小型ボタンなど小さく潰れやすい文字面と、画数が多く詰まりやすいカード名は、可読性優先で通常ゴシックへ自動フォールバックしてよい
 - 背景画像は `cover` で引き伸ばさず、用意した画像サイズのまま画面中央に表示してよい。既定運用は `1920x1080`

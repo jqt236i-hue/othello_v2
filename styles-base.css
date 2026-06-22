@@ -103,7 +103,7 @@
 }
 
 body {
-    --app-background-image: url("assets/images/background/default.png");
+    --app-background-image: url("assets/images/background/デフォルト25.png");
     --selected-app-font-family: "CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
     --selected-app-font-accent-family: "CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
     --selected-app-font-readable-family: "CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
