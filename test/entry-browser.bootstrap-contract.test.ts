@@ -8,7 +8,7 @@ function loadBootHelpers() {
   const helperStart = 0;
   const helperEnd = text.indexOf('var gameState;');
   const namespaceStart = text.indexOf('function requireBootNamespace');
-  const namespaceEnd = text.indexOf('// ===== Namespace globals for module resolution =====');
+  const namespaceEnd = text.indexOf('// ===== Direct namespace assignments');
   const source = [
     text.slice(helperStart, helperEnd),
     text.slice(namespaceStart, namespaceEnd)
@@ -37,10 +37,13 @@ describe('entry-browser bootstrap contract', () => {
     expect(text).toContain('function getBootModuleClass');
     expect(text).toContain('function requireBootModule');
     expect(text).toContain('function handleBootModuleError');
-    expect(topLevelSection).toContain('handleBootModuleError("dist/shared-constants", e)');
-    expect(topLevelSection).toContain('handleBootModuleError("dist/game/logic/core", e)');
-    expect(topLevelSection).toContain('handleBootModuleError("dist/ui/bootstrap", e)');
-    expect(topLevelSection).toContain('handleBootModuleError("dist/ui/debug-card-search", e)');
+    expect(text).toContain('var BOOT_LOAD_ENTRIES = [');
+    expect(text).toContain('runBootLoadEntries(BOOT_LOAD_ENTRIES)');
+    expect(topLevelSection).toContain('var moduleExports = requireBootModule(entry.moduleKey');
+    expect(topLevelSection).toContain('moduleKey: "./dist/shared-constants"');
+    expect(topLevelSection).toContain('moduleKey: "./dist/game/logic/core"');
+    expect(topLevelSection).toContain('moduleKey: "./dist/ui/bootstrap"');
+    expect(topLevelSection).toContain('moduleKey: "./dist/ui/debug-card-search"');
     expect(topLevelSection).toMatch(/throw\s+err/);
   });
 
@@ -48,7 +51,7 @@ describe('entry-browser bootstrap contract', () => {
     const entryPath = path.resolve(__dirname, '..', 'entry-browser.js');
     const text = fs.readFileSync(entryPath, 'utf8');
     const start = text.indexOf('// ===== Namespace globals for module resolution =====');
-    const end = text.indexOf('// ===== Direct namespace assignments from module variables =====');
+    const end = text.indexOf('// ===== Direct namespace assignments');
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);

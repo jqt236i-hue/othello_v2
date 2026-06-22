@@ -5,6 +5,7 @@ import * as vm from 'vm';
 type BootLoadEntry = {
   moduleKey: string;
   globalNames?: string[];
+  lateGlobalNames?: string[];
   defaultGlobalNames?: string[];
   initDebugCardSearch?: boolean;
 };
@@ -63,6 +64,14 @@ function extractBootLoadEntries(text: string): BootLoadEntry[] {
   return entries;
 }
 
+function getAllGlobalNames(entry: BootLoadEntry | undefined): string[] {
+  if (!entry) return [];
+  return [
+    ...(Array.isArray(entry.globalNames) ? entry.globalNames : []),
+    ...(Array.isArray(entry.lateGlobalNames) ? entry.lateGlobalNames : [])
+  ];
+}
+
 describe('entry-browser boot load table sequence', () => {
   test('preserves classic boot module order and duplicate compatibility loads', () => {
     const entries = extractBootLoadEntries(readEntryBrowserText());
@@ -87,15 +96,15 @@ describe('entry-browser boot load table sequence', () => {
   test('preserves boot namespace globals that Object.assign cannot create', () => {
     const entries = extractBootLoadEntries(readEntryBrowserText());
     const byModule = new Map(entries.map((entry) => [entry.moduleKey, entry]));
-    expect(byModule.get('./dist/cards/catalog')?.globalNames).toContain('CardCatalog');
-    expect(byModule.get('./dist/game/logic/board_ops')?.globalNames).toContain('BoardOps');
-    expect(byModule.get('./dist/game/logic/core')?.globalNames).toEqual(expect.arrayContaining(['CoreLogic', 'Core']));
-    expect(byModule.get('./dist/game/logic/cards')?.globalNames).toContain('CardLogic');
-    expect(byModule.get('./dist/ui/animation-engine')?.globalNames).toContain('AnimationEngine');
-    expect(byModule.get('./dist/ui/animation-utils')?.globalNames).toContain('AnimationUtils');
-    expect(byModule.get('./dist/cards/card-renderer')?.globalNames).toContain('HandAnimationUtilsModule');
+    expect(getAllGlobalNames(byModule.get('./dist/cards/catalog'))).toContain('CardCatalog');
+    expect(getAllGlobalNames(byModule.get('./dist/game/logic/board_ops'))).toContain('BoardOps');
+    expect(getAllGlobalNames(byModule.get('./dist/game/logic/core'))).toEqual(expect.arrayContaining(['CoreLogic', 'Core']));
+    expect(getAllGlobalNames(byModule.get('./dist/game/logic/cards'))).toContain('CardLogic');
+    expect(getAllGlobalNames(byModule.get('./dist/ui/animation-engine'))).toContain('AnimationEngine');
+    expect(getAllGlobalNames(byModule.get('./dist/ui/animation-utils'))).toContain('AnimationUtils');
+    expect(getAllGlobalNames(byModule.get('./dist/cards/card-renderer'))).toContain('HandAnimationUtilsModule');
     expect(byModule.get('./dist/sound-engine')?.defaultGlobalNames).toContain('SoundEngine');
-    expect(byModule.get('./dist/ui/debug-card-search')?.globalNames).toContain('DebugCardSearchModule');
+    expect(getAllGlobalNames(byModule.get('./dist/ui/debug-card-search'))).toContain('DebugCardSearchModule');
     expect(byModule.get('./dist/ui/debug-card-search')?.initDebugCardSearch).toBe(true);
   });
 });
