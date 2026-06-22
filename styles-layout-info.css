@@ -4462,10 +4462,11 @@
 #networkRoomList {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-content: end;
-    align-items: end;
+    align-content: start;
+    align-items: start;
     gap: clamp(14px, 1.45vw, 26px);
-    height: 100%;
+    min-height: 100%;
+    height: auto;
     max-height: none;
     margin: 0;
     overflow: visible;
