@@ -96,6 +96,7 @@ const MODE_OTHELLO = 'othello';
         networkBoardSizeNote: null,
         networkEnableDebugCheckbox: null,
         networkEnableAutoCheckbox: null,
+        networkAllCardsDeckCheckbox: null,
         networkCopyRoomBtn: null,
         networkRoomSettingsBtn: null,
         networkRoomSettingsBackdrop: null,
@@ -349,6 +350,9 @@ const MODE_OTHELLO = 'othello';
     }
 
     function formatPendingRoomDeckText() {
+        if (uiRefs.networkAllCardsDeckCheckbox && uiRefs.networkAllCardsDeckCheckbox.checked) {
+            return '作成時に送るデッキ: 両者全カードデッキ';
+        }
         const selection = readActiveLocalDeckSelection();
         const choice = selection.choice;
         if (!choice) {
@@ -424,6 +428,7 @@ const MODE_OTHELLO = 'othello';
 
     function hasCustomRoomDeck(roomDeck: any) {
         if (!roomDeck || typeof roomDeck !== 'object') return false;
+        if (String(roomDeck.source || '').trim() === 'allCards') return true;
         if (roomDeck.deckCode) return true;
         const byPlayer = roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object'
             ? roomDeck.deckCodeByPlayer
@@ -434,6 +439,12 @@ const MODE_OTHELLO = 'othello';
     function formatRoomDeckText(roomDeck: any) {
         if (!roomDeck || typeof roomDeck !== 'object') {
             return formatPendingRoomDeckText();
+        }
+        if (String(roomDeck.source || '').trim() === 'allCards') {
+            const deckSize = Number.isFinite(Number(roomDeck.deckSize)) ? Number(roomDeck.deckSize) : null;
+            return deckSize !== null
+                ? `部屋デッキ: 両者全カードデッキ ${deckSize}枚`
+                : '部屋デッキ: 両者全カードデッキ';
         }
         if (roomDeck.mode === 'perPlayer') {
             const deckCodeByPlayer = (roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object')
@@ -687,6 +698,10 @@ const MODE_OTHELLO = 'othello';
 
     function readNetworkRoomName() {
         return uiRefs.networkRoomInput ? normalizeRoomName(uiRefs.networkRoomInput.value) : '';
+    }
+
+    function readNetworkAllCardsDeckEnabled() {
+        return !!(uiRefs.networkAllCardsDeckCheckbox && uiRefs.networkAllCardsDeckCheckbox.checked);
     }
 
     let networkRoomListController: any = null;
@@ -1338,8 +1353,9 @@ const MODE_OTHELLO = 'othello';
             stepBoardDimensionValue,
             updatePendingRoomBoardConfigFromInputs,
             readNetworkRoomName,
-            readNetworkRoomPassword,
-            refreshNetworkRoomList,
+        readNetworkRoomPassword,
+        readNetworkAllCardsDeckEnabled,
+        refreshNetworkRoomList,
             setNetworkRoomSettingsPopupVisible,
             setMode,
             readActiveLocalDeckSelection,
@@ -1374,6 +1390,7 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkBoardSizeNote = opts.networkBoardSizeNote || null;
         uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;
         uiRefs.networkEnableAutoCheckbox = opts.networkEnableAutoCheckbox || null;
+        uiRefs.networkAllCardsDeckCheckbox = opts.networkAllCardsDeckCheckbox || null;
         uiRefs.networkCopyRoomBtn = opts.networkCopyRoomBtn || null;
         uiRefs.networkRoomSettingsBtn = opts.networkRoomSettingsBtn || null;
         uiRefs.networkRoomSettingsBackdrop = opts.networkRoomSettingsBackdrop || null;
@@ -1416,6 +1433,9 @@ const MODE_OTHELLO = 'othello';
         }
         if (uiRefs.networkEnableAutoCheckbox) {
             uiRefs.networkEnableAutoCheckbox.checked = false;
+        }
+        if (uiRefs.networkAllCardsDeckCheckbox) {
+            uiRefs.networkAllCardsDeckCheckbox.checked = false;
         }
 
         if (uiRefs.modeCpuBtn) {

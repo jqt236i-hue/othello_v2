@@ -389,8 +389,8 @@ describe('board cell long press info', () => {
     expect(tagPanel).not.toBeNull();
     expect(tagPanel.classList.contains('is-open')).toBe(true);
     expect(document.getElementById('stone-info-tag-title').textContent).toBe('反転回避 残り1回');
-    expect(document.getElementById('stone-info-tag-body').textContent).toContain('最も近い有効な空きマス');
-    expect(document.getElementById('stone-info-tag-body').textContent).toContain('長距離移動');
+    expect(document.getElementById('stone-info-tag-body').textContent).toContain('最も近い空きマス');
+    expect(document.getElementById('stone-info-tag-body').textContent).toContain('次に近い空きマス');
 
     evadeTagButton.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
     expect(tagPanel.classList.contains('is-open')).toBe(false);

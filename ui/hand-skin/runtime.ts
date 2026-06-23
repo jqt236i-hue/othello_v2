@@ -6,6 +6,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+let CpuOpponentProfiles: any = null;
+try { CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles'); } catch (e) { CpuOpponentProfiles = null; }
+
 const CPU_HAND_SKINS = Object.freeze([
   Object.freeze({
     id: 'cpu-lv1-2',
@@ -26,10 +29,10 @@ const CPU_HAND_SKINS = Object.freeze([
     imagePath: 'assets/images/hand-skin/lv4.png'
   }),
   Object.freeze({
-    id: 'cpu-lv6',
-    label: 'CPU Lv6',
+    id: 'cpu-lv6-9',
+    label: 'CPU Lv6-9',
     note: 'CPU 固定',
-    imagePath: 'assets/images/hand-skin/lv6.png'
+    imagePath: 'assets/images/hand-skin/lv6-9.png'
   })
 ]);
 const CPU_HAND_SKIN_BY_ID = Object.freeze((CPU_HAND_SKINS as any).reduce((acc: any, skin: any) => {
@@ -42,7 +45,10 @@ const CPU_HAND_SKIN_BY_LEVEL = Object.freeze({
   3: 'cpu-lv3-5',
   4: 'cpu-lv4',
   5: 'cpu-lv3-5',
-  6: 'cpu-lv6'
+  6: 'cpu-lv6-9',
+  7: 'cpu-lv6-9',
+  8: 'cpu-lv6-9',
+  9: 'cpu-lv6-9'
 } as any);
 
 function resolveCatalogModule(rootRef: any): any {
@@ -190,6 +196,19 @@ function isNetworkMode(rootRef: any): boolean {
   return !!(ctx && (ctx.MATCH_MODE === 'network' || ctx.__MATCH_MODE === 'network'));
 }
 
+function readCurrentMatchMode(rootRef: any): string {
+  const ctx = resolveRootRef(rootRef);
+  try {
+    if (ctx && typeof ctx.getCurrentMatchMode === 'function') {
+      return String(ctx.getCurrentMatchMode() || '').trim().toLowerCase();
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    return String((ctx && (ctx.MATCH_MODE || ctx.__MATCH_MODE)) || '').trim().toLowerCase();
+  } catch (e) { /* ignore */ }
+  return '';
+}
+
 function resolveLocalPlayerKey(rootRef: any): string {
   if (!isNetworkMode(rootRef)) {
     return 'black';
@@ -244,9 +263,15 @@ function isOwnerOnBottomSlot(rootRef: any, ownerKey: string): boolean {
 }
 
 function clampCpuLevel(value: any): number {
+  try {
+    if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentLevel === 'function') {
+      const profileLevel = Number(CpuOpponentProfiles.getCpuOpponentLevel(value));
+      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(9, Math.floor(profileLevel)));
+    }
+  } catch (e) { /* ignore and fall back to numeric level */ }
   const n = Number(value);
   if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.min(6, Math.floor(n)));
+  return Math.max(1, Math.min(9, Math.floor(n)));
 }
 
 function resolveCpuLevel(rootRef: any, ownerKey: any, explicitLevel: any): number {
@@ -270,9 +295,7 @@ function resolveCpuLevelFromSelect(rootRef: any, ownerKey: any): number | null {
   if (!selectEl) return null;
   const rawValue = typeof (selectEl as HTMLSelectElement).value === 'string' ? (selectEl as HTMLSelectElement).value.trim() : String((selectEl as any).value || '').trim();
   if (!rawValue) return null;
-  const value = Number(rawValue);
-  if (!Number.isFinite(value)) return null;
-  return clampCpuLevel(value);
+  return clampCpuLevel(rawValue);
 }
 
 function resolveCpuSmartnessState(rootRef: any): any {
@@ -288,9 +311,7 @@ function resolveCpuSmartnessState(rootRef: any): any {
 }
 
 function isCpuMatchMode(rootRef: any): boolean {
-  const ctx = resolveRootRef(rootRef);
-  const rawMode = ctx && (ctx.MATCH_MODE || ctx.__MATCH_MODE);
-  return String(rawMode || '').trim().toLowerCase() === 'cpu';
+  return readCurrentMatchMode(rootRef) === 'cpu';
 }
 
 function getCpuHandSkinDefinition(level: number): any {

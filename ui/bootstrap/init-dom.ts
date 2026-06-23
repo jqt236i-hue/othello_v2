@@ -75,6 +75,7 @@ interface InitDomElements {
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
+  networkAllCardsDeckCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
   networkRoomSettingsBtn: HTMLElement | null;
   networkRoomSettingsBackdrop: HTMLElement | null;
@@ -141,6 +142,7 @@ function getInitDomElements(): InitDomElements {
     networkBoardSizeColsInput: $('networkBoardSizeColsInput') as HTMLInputElement | null, networkBoardSizeSummary: $('networkBoardSizeSummary'),
     networkBoardSizeNote: $('networkBoardSizeNote'), networkEnableDebugCheckbox: $('networkEnableDebugCheckbox') as HTMLInputElement | null,
     networkEnableAutoCheckbox: $('networkEnableAutoCheckbox') as HTMLInputElement | null,
+    networkAllCardsDeckCheckbox: $('networkAllCardsDeckCheckbox') as HTMLInputElement | null,
     networkCopyRoomBtn: $('networkCopyRoomBtn'), networkRoomSettingsBtn: $('networkRoomSettingsBtn'),
     networkRoomSettingsBackdrop: $('networkRoomSettingsBackdrop'), networkRoomSettingsPopup: $('networkRoomSettingsPopup'), networkRoomSettingsCloseBtn: $('networkRoomSettingsCloseBtn'),
     networkCreateBtn: $('networkCreateBtn'),

@@ -613,8 +613,8 @@ describe('hand skin handler', () => {
     const handImage = document.getElementById('handImage');
 
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6.png');
-    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6');
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6-9.png');
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6-9');
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
 
     mod.syncDisplayedHandSkin(window, api.getSelectedSkinId(), handImage, { ownerKey: 'black' });
@@ -624,8 +624,8 @@ describe('hand skin handler', () => {
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
 
     api.syncDisplayedSkin();
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6.png');
-    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6');
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6-9.png');
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6-9');
   });
 
   test('CPU preview resolves from CPU LEVEL selects when cpuSmartness is not mirrored on window', () => {
@@ -655,6 +655,36 @@ describe('hand skin handler', () => {
     });
     expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
     expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
+    expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+  });
+
+  test('CPU preview resolves named CPU profiles from selects into the Lv6-9 fixed hand image', () => {
+    window.MATCH_MODE = 'cpu';
+    window.gameState = { currentPlayer: 1 };
+    window.cardState = { fateWillControllerByTurnOwner: {} };
+    unlockAltGachaHandSkin();
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    appendCpuLevelSelect('smartBlack', 1);
+    appendCpuLevelSelect('smartWhite', '9-ending-ash');
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+    const handImage = document.getElementById('handImage');
+    const visual = mod.resolveHandVisualOptions(window, 'white');
+    const handContext = mod.resolveHandAnimationContext(window, null, { ownerKey: 'white' });
+
+    expect(window.cpuSmartness).toBeUndefined();
+    expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(visual).toMatchObject({ ownerKey: 'white', cpu: true, cpuLevel: 9 });
+    expect(handContext).toMatchObject({
+      ownerKey: 'white',
+      cpu: true,
+      cpuLevel: 9,
+      selectedSkinId: ALT_GACHA_HAND_SKIN_ID,
+      renderedSkinId: 'cpu-lv6-9',
+      renderedImagePath: 'assets/images/hand-skin/lv6-9.png'
+    });
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6-9.png');
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6-9');
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 

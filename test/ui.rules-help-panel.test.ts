@@ -489,7 +489,7 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を消滅させる。完全保護以外の保護を貫通できる。<\/dd>/);
+    expect(html).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・絶対保護・不可侵には効かない。<\/dd>/);
   });
 
   test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {

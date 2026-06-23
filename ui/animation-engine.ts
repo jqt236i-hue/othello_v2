@@ -2195,7 +2195,26 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
         getCellEl(r: any, c: any) {
             if (!this.boardEl || typeof this.boardEl.querySelector !== 'function') return null;
-            return this.boardEl.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+            const selector = `.cell[data-row="${r}"][data-col="${c}"]`;
+            const boardCell = this.boardEl.querySelector(selector);
+            if (boardCell) return boardCell;
+            try {
+                const boardStack = typeof this.boardEl.closest === 'function'
+                    ? this.boardEl.closest('#board-stack')
+                    : null;
+                const scopedLayer = boardStack && typeof boardStack.querySelector === 'function'
+                    ? boardStack.querySelector('#board-expansion-layer')
+                    : null;
+                const expansionLayer = scopedLayer
+                    || (typeof document !== 'undefined' && document && typeof document.getElementById === 'function'
+                        ? document.getElementById('board-expansion-layer')
+                        : null);
+                return expansionLayer && typeof expansionLayer.querySelector === 'function'
+                    ? expansionLayer.querySelector(selector)
+                    : null;
+            } catch (e: any) {
+                return null;
+            }
         }
 
         async waitForDisc(r: any, c: any, attempts: any) {

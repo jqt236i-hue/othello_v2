@@ -17,7 +17,7 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(def.cost).toBe(16);
   });
 
-  test('周囲に空きがない石は対象外になる', () => {
+  test('盤面に空きがあれば周囲に空きがない石も対象になる', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
@@ -27,7 +27,39 @@ describe('CLONE_WILL（複製の意志）', () => {
     gameState.board[5][5] = Core.EMPTY;
 
     const targets = CardLogic.getCloneTargets(cardState, gameState, 'black');
-    expect(targets).toEqual([{ row: 6, col: 6 }]);
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 3 }, { row: 6, col: 6 }]));
+  });
+
+  test('盤面に空きがない場合だけ対象外になる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+
+    gameState.board[3][3] = Core.BLACK;
+
+    const targets = CardLogic.getCloneTargets(cardState, gameState, 'black');
+    expect(targets).toEqual([]);
+  });
+
+  test('選択石の周囲に空きがない時は最も近い空きマスへ複製する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.WHITE));
+
+    gameState.board[3][3] = Core.BLACK;
+    gameState.board[5][5] = Core.EMPTY;
+    cardState.pendingEffectByPlayer.black = {
+      type: 'CLONE_WILL',
+      stage: 'selectTarget',
+      cardId: 'clone_01'
+    };
+
+    const res = CardLogic.applyCloneWill(cardState, gameState, 'black', 3, 3, createPrng(0));
+
+    expect(res && res.applied).toBe(true);
+    expect(res.spawned).toEqual([{ row: 5, col: 5 }]);
+    expect(gameState.board[5][5]).toBe(Core.BLACK);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
   test('選択石の周囲空きからランダム1マスへ複製し、生成後に通常反転する。特殊石は持続値を引き継ぐ', () => {

@@ -37,6 +37,33 @@ describe('animation-engine _sleep', () => {
     expect(engine.getSpawnFadeInMs({ cause: 'SYSTEM', reason: 'standard_place' })).toBe(0);
   });
 
+  test('getCellEl resolves cells rendered in the board expansion layer', () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board-stack">
+            <div id="board-frame"><div id="board"></div></div>
+            <div id="board-expansion-layer">
+              <div class="cell cell-expanded cell-expanded-top" data-row="-1" data-col="0"></div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    global.window = dom.window;
+    global.document = dom.window.document;
+
+    const engine = require('../ui/animation-engine.js');
+
+    expect(engine.getCellEl(-1, 0)).toBe(dom.window.document.querySelector('#board-expansion-layer .cell'));
+
+    dom.window.close();
+    delete global.window;
+    delete global.document;
+  });
+
   test('同じphaseに treasure_gain がある場合は charge_gain_common を再生しない', async () => {
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
     const playEffectByKey = jest.fn();

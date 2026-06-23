@@ -4247,7 +4247,8 @@
 
 #networkRoomSettingsPopup #networkBoardSizeRow,
 #networkRoomSettingsPopup #networkDebugOptionRow,
-#networkRoomSettingsPopup #networkAutoOptionRow {
+#networkRoomSettingsPopup #networkAutoOptionRow,
+#networkRoomSettingsPopup #networkAllCardsDeckOptionRow {
     position: relative;
     left: auto;
     right: auto;
@@ -4271,7 +4272,8 @@
 }
 
 #networkRoomSettingsPopup #networkDebugOptionRow,
-#networkRoomSettingsPopup #networkAutoOptionRow {
+#networkRoomSettingsPopup #networkAutoOptionRow,
+#networkRoomSettingsPopup #networkAllCardsDeckOptionRow {
     display: inline-flex;
     align-items: center;
     gap: clamp(8px, 0.65vw, 12px);

@@ -45,6 +45,7 @@ function bindNetworkButtons(context: any) {
         updatePendingRoomBoardConfigFromInputs,
         readNetworkRoomName,
         readNetworkRoomPassword,
+        readNetworkAllCardsDeckEnabled,
         refreshNetworkRoomList,
         setNetworkRoomSettingsPopupVisible,
         setMode,
@@ -308,6 +309,12 @@ function bindNetworkButtons(context: any) {
     bindNetworkBoardSizeInput(uiRefs.networkBoardSizeRowsInput, 'row');
     bindNetworkBoardSizeInput(uiRefs.networkBoardSizeColsInput, 'col');
 
+    if (uiRefs.networkAllCardsDeckCheckbox) {
+        uiRefs.networkAllCardsDeckCheckbox.addEventListener('change', () => {
+            renderNetworkDeckInfo();
+        });
+    }
+
     if (uiRefs.networkCopyRoomBtn) {
         uiRefs.networkCopyRoomBtn.addEventListener('click', async () => {
             const roomName = readNetworkRoomName() || '無名部屋';
@@ -371,6 +378,9 @@ function bindNetworkButtons(context: any) {
                 uiRefs.networkEnableAutoCheckbox
                 && uiRefs.networkEnableAutoCheckbox.checked
             );
+            const requestedAllCardsDeckEnabled = typeof readNetworkAllCardsDeckEnabled === 'function'
+                ? readNetworkAllCardsDeckEnabled()
+                : !!(uiRefs.networkAllCardsDeckCheckbox && uiRefs.networkAllCardsDeckCheckbox.checked);
             notifyInvalidCustomDeckFallback(localDeckSelection);
             try {
                 if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
@@ -384,7 +394,8 @@ function bindNetworkButtons(context: any) {
                     roomPassword: readNetworkRoomPassword(),
                     roomBoardConfig,
                     networkDebugEnabled: requestedNetworkDebugEnabled,
-                    networkAutoEnabled: requestedNetworkAutoEnabled
+                    networkAutoEnabled: requestedNetworkAutoEnabled,
+                    allCardsDeckEnabled: requestedAllCardsDeckEnabled
                 });
                 if (result && result.ok && uiRefs.networkRoomInput) {
                     uiRefs.networkRoomInput.value = result.roomName || readNetworkRoomName() || '無名部屋';

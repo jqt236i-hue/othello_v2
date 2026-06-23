@@ -4247,7 +4247,8 @@
 
 #networkRoomSettingsPopup #networkBoardSizeRow,
 #networkRoomSettingsPopup #networkDebugOptionRow,
-#networkRoomSettingsPopup #networkAutoOptionRow {
+#networkRoomSettingsPopup #networkAutoOptionRow,
+#networkRoomSettingsPopup #networkAllCardsDeckOptionRow {
     position: relative;
     left: auto;
     right: auto;
@@ -4271,7 +4272,8 @@
 }
 
 #networkRoomSettingsPopup #networkDebugOptionRow,
-#networkRoomSettingsPopup #networkAutoOptionRow {
+#networkRoomSettingsPopup #networkAutoOptionRow,
+#networkRoomSettingsPopup #networkAllCardsDeckOptionRow {
     display: inline-flex;
     align-items: center;
     gap: clamp(8px, 0.65vw, 12px);
@@ -4462,10 +4464,11 @@
 #networkRoomList {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-content: end;
-    align-items: end;
+    align-content: start;
+    align-items: start;
     gap: clamp(14px, 1.45vw, 26px);
-    height: 100%;
+    min-height: 100%;
+    height: auto;
     max-height: none;
     margin: 0;
     overflow: visible;

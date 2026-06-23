@@ -413,60 +413,101 @@ const {
 
     function ensureGeneratedSpawnFlipResolver(cardState: any) {
         if (!cardState || typeof cardState !== 'object') return cardState;
-        if (cardState._generatedSpawnFlipResolverInstalled === true && typeof cardState._generatedSpawnFlipResolver === 'function') {
-            return cardState;
+        if (!(cardState._generatedSpawnFlipResolverInstalled === true && typeof cardState._generatedSpawnFlipResolver === 'function')) {
+            const resolveGeneratedFlipBatch = CardSpawnAndFlipModule && typeof CardSpawnAndFlipModule.resolveGeneratedFlipBatch === 'function'
+                ? CardSpawnAndFlipModule.resolveGeneratedFlipBatch
+                : null;
+            const generatedSpawnFlipResolver = (nextCardState: any, nextGameState: any, entries: any[]) => {
+                if (!resolveGeneratedFlipBatch || !Array.isArray(entries) || entries.length === 0) return [];
+                const results: any[] = [];
+                for (const entry of entries) {
+                    if (!entry || !Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
+                    const ownerKey = entry.ownerKey === 'white' ? 'white' : 'black';
+                    const ownerValue = ownerKey === 'white' ? WHITE : BLACK;
+                    const flipped = resolveGeneratedFlipBatch(
+                        nextCardState,
+                        nextGameState,
+                        ownerKey,
+                        ownerValue,
+                        [{ row: entry.row, col: entry.col }],
+                        {
+                            BoardOps: BoardOpsModule,
+                            getCardContext,
+                            getFlipsWithContext: getFlipsWithContextLocal,
+                            clearBombAt,
+                            changeCause: entry.changeCause || entry.cause || 'SYSTEM',
+                            changeReason: entry.changeReason || `${String(entry.reason || 'generated_spawn').toLowerCase()}_flip`,
+                            changeMeta: entry.changeMeta || null
+                        }
+                    );
+                    if (flipped.length > 0 && typeof clearHyperactiveAtPositions === 'function') {
+                        clearHyperactiveAtPositions(nextCardState, flipped);
+                    }
+                    results.push({
+                        ownerKey,
+                        cause: entry.cause || null,
+                        reason: entry.reason || null,
+                        spawned: [{ row: entry.row, col: entry.col }],
+                        flipped
+                    });
+                }
+                return results;
+            };
+            Object.defineProperty(cardState, '_generatedSpawnFlipResolver', {
+                value: generatedSpawnFlipResolver,
+                configurable: true,
+                writable: true,
+                enumerable: false
+            });
+            Object.defineProperty(cardState, '_generatedSpawnFlipResolverInstalled', {
+                value: true,
+                configurable: true,
+                writable: true,
+                enumerable: false
+            });
         }
-        const resolveGeneratedFlipBatch = CardSpawnAndFlipModule && typeof CardSpawnAndFlipModule.resolveGeneratedFlipBatch === 'function'
-            ? CardSpawnAndFlipModule.resolveGeneratedFlipBatch
-            : null;
-        const generatedSpawnFlipResolver = (nextCardState: any, nextGameState: any, entries: any[]) => {
-            if (!resolveGeneratedFlipBatch || !Array.isArray(entries) || entries.length === 0) return [];
-            const results: any[] = [];
-            for (const entry of entries) {
-                if (!entry || !Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
-                const ownerKey = entry.ownerKey === 'white' ? 'white' : 'black';
-                const ownerValue = ownerKey === 'white' ? WHITE : BLACK;
-                const flipped = resolveGeneratedFlipBatch(
+        if (!(cardState._evasionMoveFlipResolverInstalled === true && typeof cardState._evasionMoveFlipResolver === 'function')) {
+            const evasionMoveFlipResolver = (nextCardState: any, nextGameState: any, entry: any) => {
+                if (!CardHyperactiveModule || typeof CardHyperactiveModule.resolveEvasionMoveFlips !== 'function') {
+                    return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
+                }
+                if (!entry || !Number.isInteger(entry.row) || !Number.isInteger(entry.col)) {
+                    return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
+                }
+                const reason = String(entry.reason || 'evasion_move');
+                return CardHyperactiveModule.resolveEvasionMoveFlips(
                     nextCardState,
                     nextGameState,
-                    ownerKey,
-                    ownerValue,
-                    [{ row: entry.row, col: entry.col }],
+                    { row: entry.row, col: entry.col },
+                    entry.randomSource || defaultPrng,
                     {
+                        defaultPrng,
+                        clearHyperactiveAtPositions,
+                        isBlockedCell,
                         BoardOps: BoardOpsModule,
+                        destroyAt,
                         getCardContext,
-                        getFlipsWithContext: getFlipsWithContextLocal,
-                        clearBombAt,
-                        changeCause: entry.changeCause || entry.cause || 'SYSTEM',
-                        changeReason: entry.changeReason || `${String(entry.reason || 'generated_spawn').toLowerCase()}_flip`,
-                        changeMeta: entry.changeMeta || null
+                        getFlipsWithContext: getFlipsWithContextLocal
+                    },
+                    {
+                        flipCause: entry.changeCause || entry.cause || 'SYSTEM',
+                        flipReason: entry.changeReason || `${reason.toLowerCase()}_flip`
                     }
                 );
-                if (flipped.length > 0 && typeof clearHyperactiveAtPositions === 'function') {
-                    clearHyperactiveAtPositions(nextCardState, flipped);
-                }
-                results.push({
-                    ownerKey,
-                    cause: entry.cause || null,
-                    reason: entry.reason || null,
-                    spawned: [{ row: entry.row, col: entry.col }],
-                    flipped
-                });
-            }
-            return results;
-        };
-        Object.defineProperty(cardState, '_generatedSpawnFlipResolver', {
-            value: generatedSpawnFlipResolver,
-            configurable: true,
-            writable: true,
-            enumerable: false
-        });
-        Object.defineProperty(cardState, '_generatedSpawnFlipResolverInstalled', {
-            value: true,
-            configurable: true,
-            writable: true,
-            enumerable: false
-        });
+            };
+            Object.defineProperty(cardState, '_evasionMoveFlipResolver', {
+                value: evasionMoveFlipResolver,
+                configurable: true,
+                writable: true,
+                enumerable: false
+            });
+            Object.defineProperty(cardState, '_evasionMoveFlipResolverInstalled', {
+                value: true,
+                configurable: true,
+                writable: true,
+                enumerable: false
+            });
+        }
         return cardState;
     }
 
@@ -1565,6 +1606,10 @@ const {
 
     function collectEmptyNeighborCellsForCard(cardState: any, gameState: any, row: any, col: any) {
         return requireCardBoardShapeAccessMethod('collectEmptyNeighborCellsForCard')(cardState, gameState, row, col);
+    }
+
+    function collectCloneSpawnCellsForCard(cardState: any, gameState: any, row: any, col: any) {
+        return requireCardBoardShapeAccessMethod('collectCloneSpawnCellsForCard')(cardState, gameState, row, col);
     }
 
     function getCurrentCornerCellsForCard(cardState: any, gameState: any) {
@@ -2845,6 +2890,7 @@ const {
             getSpecialMarkers,
             getBombMarkers,
             collectEmptyNeighborCellsForCard,
+            collectCloneSpawnCellsForCard,
             BoardOps: BoardOpsModule,
             spawnAndFlipBatch: CardSpawnAndFlipModule && typeof CardSpawnAndFlipModule.spawnAndFlipBatch === 'function'
                 ? CardSpawnAndFlipModule.spawnAndFlipBatch
@@ -4242,7 +4288,9 @@ const {
             clearHyperactiveAtPositions,
             isBlockedCell,
             BoardOps: BoardOpsModule,
-            destroyAt
+            destroyAt,
+            getCardContext,
+            getFlipsWithContext: getFlipsWithContextLocal
         });
     }
 

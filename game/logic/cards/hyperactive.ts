@@ -209,6 +209,7 @@ interface FlipEvasionResult {
     moved: MoveResult[];
     destroyed: DestroyResult[];
     evaded: Position[];
+    flipped: any[];
 }
 
 interface HyperactiveMoveResult {
@@ -899,6 +900,67 @@ function getFlipEvadeMoveReason(markerTypeUpper: string): string {
     return 'hyperactive_flip_evade_move';
 }
 
+function resolveOwnerFromBoardValue(value: any): { ownerKey: PlayerKey; ownerVal: number } | null {
+    const blackVal = BLACK || 1;
+    const whiteVal = WHITE || -1;
+    if (value === blackVal) return { ownerKey: 'black', ownerVal: blackVal };
+    if (value === whiteVal) return { ownerKey: 'white', ownerVal: whiteVal };
+    return null;
+}
+
+function resolveEvasionMoveFlips(
+    cardState: CardState,
+    gameState: GameState,
+    origin: Position,
+    prng: any,
+    deps: HyperactiveDeps = {},
+    options: { flipCause?: string; flipReason?: string; buildFlippedDetail?: (cell: Position) => any } = {}
+): { ownerKey: PlayerKey | null; flipped: any[]; moved: MoveResult[]; destroyed: DestroyResult[] } {
+    if (!origin || !Number.isInteger(origin.row) || !Number.isInteger(origin.col)) {
+        return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
+    }
+    if (typeof deps.getFlipsWithContext !== 'function') {
+        return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
+    }
+    const owner = resolveOwnerFromBoardValue(getBoardCell(gameState, origin.row, origin.col));
+    if (!owner) return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
+
+    let flipCells: any[] = [];
+    setBoardCell(gameState, origin.row, origin.col, EMPTY);
+    try {
+        flipCells = deps.getFlipsWithContext(
+            gameState,
+            origin.row,
+            origin.col,
+            owner.ownerVal,
+            deps.getCardContext ? deps.getCardContext(cardState) : {}
+        );
+    } finally {
+        setBoardCell(gameState, origin.row, origin.col, owner.ownerVal);
+    }
+
+    if (!Array.isArray(flipCells) || flipCells.length === 0) {
+        return { ownerKey: owner.ownerKey, flipped: [], moved: [], destroyed: [] };
+    }
+
+    const flipResult = applyFlipCellsWithEvasion(
+        cardState,
+        gameState,
+        flipCells,
+        owner.ownerKey,
+        owner.ownerVal,
+        prng,
+        deps,
+        options
+    );
+    return {
+        ownerKey: owner.ownerKey,
+        flipped: flipResult.flipped,
+        moved: flipResult.moved,
+        destroyed: flipResult.destroyed
+    };
+}
+
 function resolveHyperactiveFlipEvasion(
     cardState: CardState,
     gameState: GameState,
@@ -909,13 +971,14 @@ function resolveHyperactiveFlipEvasion(
 ): FlipEvasionResult {
     const moved: MoveResult[] = [];
     const destroyed: DestroyResult[] = [];
+    const flipped: any[] = [];
     const evadedSet = new Set<string>();
     const parsedFlips = (Array.isArray(flipCells) ? flipCells : [])
         .map((cell) => normalizeFlipCell(cell))
         .filter((cell): cell is Position => !!cell);
 
     if (parsedFlips.length === 0) {
-        return { remainingFlips: [], moved, destroyed, evaded: [] };
+        return { remainingFlips: [], moved, destroyed, evaded: [], flipped };
     }
 
     const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.consumeFlipEvadeMarkers');
@@ -952,9 +1015,9 @@ function resolveHyperactiveFlipEvasion(
         }
         if (!entry || !markerTypeUpper) continue;
 
-        const ownerKey = entry.owner === 'white' ? 'white' : 'black';
-        const ownerVal = ownerKey === 'black' ? blackVal : whiteVal;
-        if (getBoardCell(gameState, entry.row, entry.col) !== ownerVal) continue;
+        const sourceOwner = resolveOwnerFromBoardValue(getBoardCell(gameState, entry.row, entry.col));
+        if (!sourceOwner || sourceOwner.ownerVal !== ownerBeforeVal) continue;
+        const ownerVal = sourceOwner.ownerVal;
 
         const cause = getFlipEvadeCause(markerTypeUpper);
         const moveReason = getFlipEvadeMoveReason(markerTypeUpper);
@@ -1016,6 +1079,21 @@ function resolveHyperactiveFlipEvasion(
                     specialType: markerTypeUpper
                 });
                 evadedSet.add(key);
+                const evasionMoveFlipResult = resolveEvasionMoveFlips(
+                    cardState,
+                    gameState,
+                    { row: target.row, col: target.col },
+                    p,
+                    deps,
+                    {
+                        flipCause: cause,
+                        flipReason: `${moveReason}_flip`,
+                        buildFlippedDetail: (cell: Position) => ({ row: cell.row, col: cell.col, specialType: markerTypeUpper })
+                    }
+                );
+                if (evasionMoveFlipResult.moved.length) moved.push(...evasionMoveFlipResult.moved);
+                if (evasionMoveFlipResult.destroyed.length) destroyed.push(...evasionMoveFlipResult.destroyed);
+                if (evasionMoveFlipResult.flipped.length) flipped.push(...evasionMoveFlipResult.flipped);
                 break;
             }
 
@@ -1038,7 +1116,7 @@ function resolveHyperactiveFlipEvasion(
         return { row: Number(parts[0]), col: Number(parts[1]) };
     });
 
-    return { remainingFlips, moved, destroyed, evaded };
+    return { remainingFlips, moved, destroyed, evaded, flipped };
 }
 
 function applyFlipCellsWithEvasion(
@@ -1072,7 +1150,9 @@ function applyFlipCellsWithEvasion(
             clearHyperactiveAtPositions: clearSpecialAtPositions,
             isBlockedCell: deps.isBlockedCell,
             BoardOps: deps.BoardOps,
-            destroyAt: deps.destroyAt
+            destroyAt: deps.destroyAt,
+            getCardContext: deps.getCardContext,
+            getFlipsWithContext: deps.getFlipsWithContext
         }
     );
 
@@ -2346,6 +2426,7 @@ const _exports: any = {
     setHyperactiveRuntime,
     moveHyperactiveOnce,
     resolveHyperactiveFlipEvasion,
+    resolveEvasionMoveFlips,
     processHyperactiveMoves,
     processHyperactiveMoveAtAnchor,
     processInstantHyperactiveMoveAtAnchor,

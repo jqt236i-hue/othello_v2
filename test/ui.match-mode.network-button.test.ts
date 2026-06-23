@@ -31,6 +31,8 @@ describe('match-mode network button behavior', () => {
       networkBoardSizeSummary: document.getElementById('networkBoardSizeSummary'),
       networkBoardSizeNote: document.getElementById('networkBoardSizeNote'),
       networkEnableDebugCheckbox: document.getElementById('networkEnableDebugCheckbox'),
+      networkEnableAutoCheckbox: document.getElementById('networkEnableAutoCheckbox'),
+      networkAllCardsDeckCheckbox: document.getElementById('networkAllCardsDeckCheckbox'),
       networkCopyRoomBtn: document.getElementById('networkCopyRoomBtn'),
       networkRoomSettingsBtn: document.getElementById('networkRoomSettingsBtn'),
       networkRoomSettingsPopup: document.getElementById('networkRoomSettingsPopup'),
@@ -78,6 +80,8 @@ describe('match-mode network button behavior', () => {
       '<div id="networkBoardSizeNote"></div>' +
       '</div>' +
       '<input id="networkEnableDebugCheckbox" type="checkbox" />' +
+      '<input id="networkEnableAutoCheckbox" type="checkbox" />' +
+      '<input id="networkAllCardsDeckCheckbox" type="checkbox" />' +
       '<button id="networkCopyRoomBtn">部屋番号コピー</button>' +
       '<button id="networkRoomSettingsBtn" aria-controls="networkRoomSettingsPopup" aria-expanded="false">設定</button>' +
       '<div id="networkRoomSettingsPopup" aria-hidden="true"></div>' +
@@ -405,6 +409,44 @@ describe('match-mode network button behavior', () => {
       deckCode: ''
     }));
     expect(document.getElementById('networkStatusText').textContent).toContain('標準デッキで続行します');
+  });
+
+  test('両者全カードデッキを選ぶと部屋作成 payload に反映される', async () => {
+    window.UIBootstrap = {
+      getRegisteredUIGlobals: jest.fn(() => ({
+        DeckBuilderController: {
+          getLocalBoardConfig: jest.fn(() => ({ rows: 8, cols: 8, standard8x8: true })),
+          getActiveLocalChoice: jest.fn(() => ({
+            mode: 'custom',
+            deckCode: 'D1C1:LOCAL',
+            deckSize: 30
+          }))
+        }
+      }))
+    };
+
+    const networkBtn = document.getElementById('modeNetworkBtn');
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    const allCardsCheckbox = document.getElementById('networkAllCardsDeckCheckbox');
+    const createBtn = document.getElementById('networkCreateBtn');
+
+    networkBtn.click();
+    await Promise.resolve();
+
+    allCardsCheckbox.checked = true;
+    allCardsCheckbox.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    expect(document.getElementById('networkDeckInfo').textContent).toContain('両者全カードデッキ');
+
+    playerInput.value = 'くろ';
+    createBtn.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRoom).toHaveBeenCalledWith(expect.objectContaining({
+      playerName: 'くろ',
+      allCardsDeckEnabled: true
+    }));
   });
 
   test('無効なカスタム deckCode は標準デッキへフォールバックして部屋参加する', async () => {

@@ -234,6 +234,38 @@ describe('animation-utils hand fallback', () => {
     expect(document.getElementById('handLayer').style.display).toBe('none');
   });
 
+  test('playHandAnimation resolves expansion-layer cells for placement sound', async () => {
+    document.body.innerHTML = `
+      <div id="board-stack">
+        <div id="board-frame">
+          <div id="board"></div>
+        </div>
+        <div id="board-expansion-layer">
+          <div class="cell cell-expanded cell-expanded-top" data-row="-1" data-col="0"></div>
+        </div>
+      </div>
+      <div id="deck-black"></div>
+      <div id="deck-white"></div>
+      <div id="charge-black"></div>
+      <div id="charge-white"></div>
+      <div id="hand-black"></div>
+      <div id="hand-white"></div>
+      <div id="handLayer" style="display:none;"></div>
+      <div id="handWrapper"></div>
+      <div id="heldStone"></div>
+      <img id="handImage" />
+    `;
+    global.boardEl = document.getElementById('board');
+    window.localStorage.setItem('othello.handAnimation.place', 'off');
+    const mod = require('../ui/animation-utils.js');
+    const onComplete = jest.fn();
+
+    await expect(mod.playHandAnimation(global.BLACK, -1, 0, onComplete)).resolves.toBeUndefined();
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
+  });
+
   test('playDrawCardHandAnimation preloads the drawn card background before hand reveal', async () => {
     const imageSrcs = [];
     installCardBackgroundPreloadFixture(imageSrcs, {

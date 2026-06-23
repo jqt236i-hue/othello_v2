@@ -52,7 +52,7 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     EXTEND_LIFE_WILL: '延命する自分の特殊石を選んでください',
     EXTEND_LIFE_GOD: '4倍延命する自分の特殊石を選んでください',
     CORROSION_WILL: '腐食の対象となる特殊石を選んでください',
-    CLONE_WILL: '周囲に空きがある自分の石を選んでください',
+    CLONE_WILL: '複製する自分の石を選んでください',
     BOARD_EXPANSION_WILL: '左右端マスを選んで盤面を拡張してください',
     BOARD_EXPANSION_GOD: '角マスを選んで盤面を拡張してください',
     BLOCKADE_WILL: '封鎖する空きマスを選んでください',

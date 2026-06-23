@@ -121,7 +121,11 @@ const REQUIRED_BOOT_MODULE_KEYS = new Set([
     'ui/network-client',
     'ui/board-renderer',
     'ui/debug-card-search',
-    'ui/presentation-handler'
+    'ui/presentation-handler',
+    'ui/cosmetics/catalog-shared',
+    'ui/hand-skin/catalog',
+    'ui/hand-skin/selection',
+    'ui/hand-skin/runtime'
 ]);
 
 const OPTIONAL_BOOT_MODULE_PREFIXES = [

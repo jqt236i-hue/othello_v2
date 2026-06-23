@@ -65,6 +65,28 @@ describe('MatchEntryPayload', () => {
     expect(readSelectedHandSkinId).toHaveBeenCalled();
   });
 
+  test('create payload keeps the all-cards deck room option', () => {
+    const result = MatchEntryPayload.buildCreateRoomPayload(
+      {
+        playerName: 'テスト',
+        deckCode: 'D1C1:LOCAL',
+        allCardsDeckEnabled: true
+      },
+      {
+        sanitizeDeckCode: (value: any) => ({ value: String(value || '').trim(), invalid: false }),
+        readSelectedHandSkinId: () => 'default'
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.payload).toEqual(expect.objectContaining({
+      playerName: 'テスト',
+      deckCode: 'D1C1:LOCAL',
+      allCardsDeckEnabled: true,
+      selectedHandSkinId: 'default'
+    }));
+  });
+
   test('join payload validates room, adds default hand skin, and preserves stored seat claim', () => {
     const result = MatchEntryPayload.buildJoinRoomPayload(
       'abc',

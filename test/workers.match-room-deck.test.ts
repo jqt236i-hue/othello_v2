@@ -258,6 +258,77 @@ function runDefaultRoomDeckScenario() {
   return runScenario(runner, '');
 }
 
+function runAllCardsDeckScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const workerModule = await import(modulePath);",
+    "  const worker = workerModule.default;",
+    "  const { MatchRoomDurableObject } = workerModule;",
+    "  const DeckSpecHelpers = require('./shared/deck-spec');",
+    "  const DeckCodecModule = require('./shared/deck-codec');",
+    "  const allCardsDeckIds = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();",
+    "  const ignoredDeckCode = DeckCodecModule.encodeDeckSpec(DeckSpecHelpers.createDeckSpecFromCardIds(allCardsDeckIds.slice(0, 30)));",
+    "",
+    "  function createStateStore() {",
+    "    const storage = new Map();",
+    "    return {",
+    "      storage: {",
+    "        get: async (key) => storage.get(key),",
+    "        put: async (key, value) => storage.set(key, value),",
+    "        delete: async (key) => storage.delete(key)",
+    "      }",
+    "    };",
+    "  }",
+    "",
+    "  const rooms = new Map();",
+    "  const env = {",
+    "    MATCH_ROOM: {",
+    "      idFromName: (roomId) => roomId,",
+    "      get: (roomId) => {",
+    "        if (!rooms.has(roomId)) {",
+    "          rooms.set(roomId, new MatchRoomDurableObject(createStateStore()));",
+    "        }",
+    "        return { fetch: (request) => rooms.get(roomId).fetch(request) };",
+    "      }",
+    "    }",
+    "  };",
+    "",
+    "  const createResponse = await worker.fetch(new Request('https://worker/api/match/create', {",
+    "    method: 'POST',",
+    "    headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ playerName: 'くろ', deckCode: ignoredDeckCode, allCardsDeckEnabled: true })",
+    "  }), env);",
+    "  const createPayload = await createResponse.json();",
+    "",
+    "  const joinResponse = await worker.fetch(new Request('https://worker/api/match/join', {",
+    "    method: 'POST',",
+    "    headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ roomId: createPayload.roomId, playerName: 'しろ', deckCode: ignoredDeckCode })",
+    "  }), env);",
+    "  const joinPayload = await joinResponse.json();",
+    "",
+    "  const stateResponse = await worker.fetch(new Request(`https://worker/api/match/state?roomId=${encodeURIComponent(createPayload.roomId)}&seatKey=black&seatToken=${encodeURIComponent(createPayload.seatToken || '')}`), env);",
+    "  const statePayload = await stateResponse.json();",
+    "",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
+    "    createStatus: createResponse.status,",
+    "    createPayload,",
+    "    joinStatus: joinResponse.status,",
+    "    joinPayload,",
+    "    stateStatus: stateResponse.status,",
+    "    statePayload,",
+    "    allCardsDeckIds",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner, '');
+}
+
 function countPlayerCopies(cardState, playerKey, cardId) {
   const decks = (cardState && cardState.decks && Array.isArray(cardState.decks[playerKey]))
     ? cardState.decks[playerKey]
@@ -276,6 +347,10 @@ function listPlayerCards(cardState, playerKey) {
     ? cardState.hands[playerKey]
     : [];
   return hands.concat(decks);
+}
+
+function sortedCards(cards) {
+  return cards.slice().sort((left, right) => String(left).localeCompare(String(right), 'en'));
 }
 
 describe('match worker room deck', () => {
@@ -309,6 +384,38 @@ describe('match worker room deck', () => {
     expect(new Set(whiteCards).size).toBe(DeckSpecHelpers.getDefaultDeckSize());
     expect(blackCards.slice().sort()).toEqual(whiteCards.slice().sort());
     expect(blackCards).not.toEqual(whiteCards);
+  });
+
+  test('両者全カードデッキ設定は黒白両方へLv9全カードデッキを強制する', () => {
+    const result = runAllCardsDeckScenario();
+    const cardState = result.statePayload.snapshot.cardState;
+
+    expect(result.createStatus).toBe(200);
+    expect(result.joinStatus).toBe(200);
+    expect(result.stateStatus).toBe(200);
+    expect(result.createPayload.roomDeck).toMatchObject({
+      mode: 'shared',
+      source: 'allCards',
+      deckCode: '',
+      deckSize: result.allCardsDeckIds.length
+    });
+    expect(result.joinPayload.roomDeck).toMatchObject({
+      mode: 'shared',
+      source: 'allCards',
+      deckSize: result.allCardsDeckIds.length
+    });
+    expect(result.statePayload.roomDeck).toMatchObject({
+      mode: 'shared',
+      source: 'allCards',
+      deckSize: result.allCardsDeckIds.length
+    });
+    expect(cardState.initialDeckSizeByPlayer.black).toBe(result.allCardsDeckIds.length);
+    expect(cardState.initialDeckSizeByPlayer.white).toBe(result.allCardsDeckIds.length);
+    expect(sortedCards(listPlayerCards(cardState, 'black'))).toEqual(sortedCards(result.allCardsDeckIds));
+    expect(sortedCards(listPlayerCards(cardState, 'white'))).toEqual(sortedCards(result.allCardsDeckIds));
+    expect(listPlayerCards(cardState, 'black')).toContain('observer_will_01');
+    expect(listPlayerCards(cardState, 'black')).toContain('board_executor_01');
+    expect(listPlayerCards(cardState, 'black')).toContain('theory_incarnation_01');
   });
 
   test('公開 create/join/state が黒白別の roomDeck を返す', () => {

@@ -74,7 +74,7 @@ describe('assets manifest', () => {
       'assets/images/hand-skin/lv1-2.png',
       'assets/images/hand-skin/lv3-5.png',
       'assets/images/hand-skin/lv4.png',
-      'assets/images/hand-skin/lv6.png',
+      'assets/images/hand-skin/lv6-9.png',
       'assets/images/other/観測石.png',
       'assets/audio/bgm/manifest-stones/理論の道-BPM135.mp3',
       'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3',

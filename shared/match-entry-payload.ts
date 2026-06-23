@@ -20,6 +20,7 @@ interface MatchEntryPayloadOptions {
   roomBoardConfig?: unknown;
   networkDebugEnabled?: unknown;
   networkAutoEnabled?: unknown;
+  allCardsDeckEnabled?: unknown;
   roomPassword?: unknown;
   roomName?: unknown;
 }
@@ -159,6 +160,9 @@ function buildCreateRoomPayload(
   }
   if (opts.networkAutoEnabled === true) {
     payload.networkAutoEnabled = true;
+  }
+  if (opts.allCardsDeckEnabled === true) {
+    payload.allCardsDeckEnabled = true;
   }
 
   const deckCode = appendOptionalDeckCode(payload, opts.deckCode, h);

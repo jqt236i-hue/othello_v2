@@ -449,6 +449,30 @@ function _playStonePlaceSoundSafe() {
     } catch (e: any) { /* ignore */ }
 }
 
+function _resolveBoardExpansionLayerForAnimationUtils(boardRoot: any) {
+    if (typeof document === 'undefined' || !document || typeof document.getElementById !== 'function') return null;
+    if (boardRoot && typeof boardRoot.closest === 'function') {
+        const boardStack = boardRoot.closest('#board-stack');
+        if (boardStack && typeof boardStack.querySelector === 'function') {
+            const scopedLayer = boardStack.querySelector('#board-expansion-layer');
+            if (scopedLayer) return scopedLayer;
+        }
+    }
+    return document.getElementById('board-expansion-layer');
+}
+
+function _resolveBoardCellForAnimationUtils(boardRoot: any, row: any, col: any) {
+    const selector = `.cell[data-row="${row}"][data-col="${col}"]`;
+    const boardCell = boardRoot && typeof boardRoot.querySelector === 'function'
+        ? boardRoot.querySelector(selector)
+        : null;
+    if (boardCell) return boardCell;
+    const expansionLayer = _resolveBoardExpansionLayerForAnimationUtils(boardRoot);
+    return expansionLayer && typeof expansionLayer.querySelector === 'function'
+        ? expansionLayer.querySelector(selector)
+        : null;
+}
+
 function _resolveCardStateForHandAnimations() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
@@ -1443,7 +1467,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         _setProcessingState(true);
 
         const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
-        const targetCell = boardRoot ? boardRoot.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`) : null;
+        const targetCell = _resolveBoardCellForAnimationUtils(boardRoot, row, col);
         if (!targetCell) {
             completeImmediately();
             return;

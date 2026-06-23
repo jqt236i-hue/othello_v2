@@ -1889,6 +1889,14 @@ function _resolveGeneratedSpawnFlip(cardState: any, gameState: any, entry: any):
     }
 }
 
+function _resolveEvasionMoveFlip(cardState: any, gameState: any, entry: any): any {
+    const resolver = cardState && typeof cardState._evasionMoveFlipResolver === 'function'
+        ? cardState._evasionMoveFlipResolver
+        : null;
+    if (!resolver || !entry || typeof entry !== 'object') return null;
+    return resolver(cardState, gameState, entry);
+}
+
 function _inferSpawnIntent(cause: string | null, reason: string | null): string | null {
     if (PresentationEffectProfiles && typeof PresentationEffectProfiles.inferSpawnIntent === 'function') {
         return PresentationEffectProfiles.inferSpawnIntent(cause, reason);
@@ -2184,10 +2192,20 @@ function _tryDestroyEvadeMove(ctx: DestroyCoreContext): any {
     if (moveResult && moveResult.moved) {
         _moveCellMarkers(ctx.cardState, ctx.row, ctx.col, destination.row, destination.col);
         _pruneAfterimageMarkerIfDepleted(ctx.cardState, destroyEvadeMarker);
+        const evasionMoveFlipResult = _resolveEvasionMoveFlip(ctx.cardState, ctx.gameState, {
+            row: destination.row,
+            col: destination.col,
+            cause: 'DESTROY_EVADE',
+            reason: 'destroy_evade_move',
+            changeCause: 'DESTROY_EVADE',
+            changeReason: 'destroy_evade_move_flip',
+            randomSource: _resolveBoardOpsRandomSource(ctx.cardState, ctx.meta)
+        });
         return createDestroyOutcome(DESTROY_OUTCOME_KINDS.EVADED_MOVE, {
             reason: 'destroy_evaded',
             from: { row: ctx.row, col: ctx.col },
-            to: { row: destination.row, col: destination.col }
+            to: { row: destination.row, col: destination.col },
+            evasionMoveFlipResult
         });
     }
     destroyEvadeMarker.data.destroyEvadeRemaining = beforeRawDestroyRemaining;

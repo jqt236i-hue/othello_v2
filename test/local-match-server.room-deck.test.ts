@@ -97,6 +97,10 @@ function listPlayerCards(cardState, playerKey) {
   return hands.concat(decks);
 }
 
+function sortedCards(cards) {
+  return cards.slice().sort((left, right) => String(left).localeCompare(String(right), 'en'));
+}
+
 describe('local match server room deck', () => {
   afterEach(() => {
     resetRoomsForTests();
@@ -153,6 +157,71 @@ describe('local match server room deck', () => {
       expect(new Set(whiteCards).size).toBe(DeckSpecHelpers.getDefaultDeckSize());
       expect(blackCards.slice().sort()).toEqual(whiteCards.slice().sort());
       expect(blackCards).not.toEqual(whiteCards);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('両者全カードデッキ設定は黒白両方へLv9全カードデッキを強制する', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const deckInfo = buildDistinctDeckCodes();
+    const expectedAllCardsDeck = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        deckCode: deckInfo.blackDeckCode,
+        allCardsDeckEnabled: true
+      });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId,
+        playerName: 'しろ',
+        deckCode: deckInfo.whiteDeckCode
+      });
+
+      expect(created.status).toBe(200);
+      expect(joined.status).toBe(200);
+      expect(created.data.roomDeck).toMatchObject({
+        mode: 'shared',
+        source: 'allCards',
+        deckCode: '',
+        deckSize: expectedAllCardsDeck.length
+      });
+      expect(joined.data.roomDeck).toMatchObject({
+        mode: 'shared',
+        source: 'allCards',
+        deckCode: '',
+        deckSize: expectedAllCardsDeck.length
+      });
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(blackSeatToken)}`
+      );
+
+      let internalCardState = null;
+      const captured = patchRoomSnapshotForTests(roomId, (room) => {
+        internalCardState = JSON.parse(JSON.stringify(room && room.snapshot && room.snapshot.cardState ? room.snapshot.cardState : null));
+      });
+      expect(captured).toBe(true);
+      expect(state.status).toBe(200);
+      expect(state.data.roomDeck).toMatchObject({
+        mode: 'shared',
+        source: 'allCards',
+        deckSize: expectedAllCardsDeck.length
+      });
+      expect(internalCardState.initialDeckSizeByPlayer.black).toBe(expectedAllCardsDeck.length);
+      expect(internalCardState.initialDeckSizeByPlayer.white).toBe(expectedAllCardsDeck.length);
+      expect(sortedCards(listPlayerCards(internalCardState, 'black'))).toEqual(sortedCards(expectedAllCardsDeck));
+      expect(sortedCards(listPlayerCards(internalCardState, 'white'))).toEqual(sortedCards(expectedAllCardsDeck));
+      expect(listPlayerCards(internalCardState, 'black')).toContain('observer_will_01');
+      expect(listPlayerCards(internalCardState, 'black')).toContain('board_executor_01');
+      expect(listPlayerCards(internalCardState, 'black')).toContain('theory_incarnation_01');
     } finally {
       await closeServer(server);
     }

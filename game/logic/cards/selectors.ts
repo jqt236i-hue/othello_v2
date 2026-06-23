@@ -888,28 +888,24 @@ function getBoardExpansionWillCellDescriptors(gameState: GameState): ExpansionWi
     return cells;
 }
 
-function hasCloneSpawnSpace(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
-    for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-            if (dr === 0 && dc === 0) continue;
-            const nr = row + dr;
-            const nc = col + dc;
-            if (!hasBoardShapeCell(gameState, nr, nc)) continue;
-            if (getCellValue(gameState, nr, nc) !== P_EMPTY) continue;
-            if (isBlockedCell(cardState, nr, nc)) continue;
-            return true;
-        }
-    }
-    return false;
+function hasAnyCloneSpawnSpace(cardState: CardState, gameState: GameState): boolean {
+    let found = false;
+    forEachBoardShapeCell(gameState, (r, c, owner) => {
+        if (found) return;
+        if (owner !== P_EMPTY) return;
+        if (isBlockedCell(cardState, r, c)) return;
+        found = true;
+    });
+    return found;
 }
 
 function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
+    if (!hasAnyCloneSpawnSpace(cardState, gameState)) return [];
     const res: TargetCell[] = [];
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
         if (isAbsoluteProtectedCell(cardState, r, c)) return;
-        if (!hasCloneSpawnSpace(cardState, gameState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;

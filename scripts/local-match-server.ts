@@ -248,9 +248,67 @@ function resolveDeckSelection(rawDeckCodeValue: any) {
     }
 }
 
+function cloneInitialDeckCardIdsByPlayer(source: any) {
+    const byPlayer = (source && typeof source === 'object') ? source : {};
+    const cloneCards = (value: any) => Array.isArray(value)
+        ? value.map((cardId) => String(cardId || '').trim()).filter(Boolean)
+        : null;
+    return {
+        black: cloneCards(byPlayer.black),
+        white: cloneCards(byPlayer.white)
+    };
+}
+
+function getAllCardsDeckCardIds() {
+    if (DeckSpecHelpers && typeof DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds === 'function') {
+        const cardIds = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();
+        if (Array.isArray(cardIds) && cardIds.length > 0) {
+            return cardIds.slice();
+        }
+    }
+    return [];
+}
+
+function createAllCardsDeckCardIdsByPlayer() {
+    const cardIds = getAllCardsDeckCardIds();
+    return {
+        black: cardIds.slice(),
+        white: cardIds.slice()
+    };
+}
+
+function createAllCardsRoomDeckMetadata(cardIdsByPlayer: any) {
+    const blackSize = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.black)
+        ? cardIdsByPlayer.black.length
+        : 0;
+    const whiteSize = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.white)
+        ? cardIdsByPlayer.white.length
+        : blackSize;
+    return {
+        mode: 'shared',
+        deckCode: '',
+        deckSize: blackSize,
+        deckCodeByPlayer: { black: '', white: '' },
+        deckSizeByPlayer: { black: blackSize, white: whiteSize },
+        source: 'allCards'
+    };
+}
+
+function isAllCardsDeckRoom(room: any) {
+    return !!(
+        room
+        && (room.allCardsDeckEnabled === true
+            || (room.roomDeck && String(room.roomDeck.source || '').trim() === 'allCards'))
+    );
+}
+
 function buildInitialDeckSnapshotOptions(room: any) {
     const source: any = (room && typeof room === 'object') ? room : {};
     const options: any = {};
+    const cardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(source.initialDeckCardIdsByPlayer);
+    if (cardIdsByPlayer.black || cardIdsByPlayer.white) {
+        options.initialDeckCardIdsByPlayer = cardIdsByPlayer;
+    }
     const byPlayer = source.initialDeckSpecByPlayer;
     if (byPlayer && (byPlayer.black || byPlayer.white)) {
         options.initialDeckSpecByPlayer = deepClone(byPlayer);
@@ -1319,6 +1377,7 @@ function makeRoom(options: any) {
     const seed = nowMs;
     const initialSnapshotOptions: any = buildInitialDeckSnapshotOptions(opts);
     const snapshot = makeInitialSnapshot(seed, initialSnapshotOptions);
+    const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(initialSnapshotOptions.initialDeckCardIdsByPlayer);
     const room = {
         roomId,
         seed,
@@ -1333,9 +1392,13 @@ function makeRoom(options: any) {
         maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
         roomName: MatchRoomLobby.resolveRoomName(opts.roomName),
         roomPassword: MatchRoomLobby.normalizeRoomPassword(opts.roomPassword),
-        roomDeck: null,
+        initialDeckCardIdsByPlayer: (initialDeckCardIdsByPlayer.black || initialDeckCardIdsByPlayer.white)
+            ? initialDeckCardIdsByPlayer
+            : null,
+        roomDeck: opts.roomDeck && typeof opts.roomDeck === 'object' ? deepClone(opts.roomDeck) : null,
         roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: opts.networkDebugEnabled === true,
+        allCardsDeckEnabled: opts.allCardsDeckEnabled === true,
         publishResponseMode: MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode),
         turnTimer: createPausedTurnTimer({ snapshot }),
         lastAcceptedOperationBySeat: { black: null, white: null },
@@ -1451,17 +1514,36 @@ async function handleCreate(req: any, res: any) {
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(body.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(body.roomBoardConfig);
     const publishResponseMode = MatchAuthority.normalizePublishResponseMode(body.publishResponseMode);
-    const deckSelection = resolveDeckSelection(body.deckCode);
+    const allCardsDeckEnabled = body.allCardsDeckEnabled === true;
+    const allCardsDeckCardIdsByPlayer = allCardsDeckEnabled ? createAllCardsDeckCardIdsByPlayer() : null;
+    const roomDeck = allCardsDeckEnabled ? createAllCardsRoomDeckMetadata(allCardsDeckCardIdsByPlayer) : null;
+    const deckSelection = allCardsDeckEnabled
+        ? { ok: true, hasCustomDeck: false, deckSpec: null, deckCode: '', deckSize: null }
+        : resolveDeckSelection(body.deckCode);
     if (!deckSelection.ok) {
         writeJson(res, 400, { ok: false, reason: deckSelection.reason || 'DECK_CODE_INVALID' });
         return;
     }
 
-    const room = makeRoom({ networkDebugEnabled, roomBoardConfig, roomName, roomPassword, publishResponseMode });
+    if (allCardsDeckEnabled && (!allCardsDeckCardIdsByPlayer || !allCardsDeckCardIdsByPlayer.black.length)) {
+        writeJson(res, 500, { ok: false, reason: 'ALL_CARDS_DECK_UNAVAILABLE' });
+        return;
+    }
+
+    const room = makeRoom({
+        networkDebugEnabled,
+        allCardsDeckEnabled,
+        initialDeckCardIdsByPlayer: allCardsDeckCardIdsByPlayer,
+        roomDeck,
+        roomBoardConfig,
+        roomName,
+        roomPassword,
+        publishResponseMode
+    });
     room.seats.black = true;
     room.seatNames.black = playerName;
     room.seatHandSkins.black = selectedHandSkinId;
-    if (deckSelection.hasCustomDeck) {
+    if (!allCardsDeckEnabled && deckSelection.hasCustomDeck) {
         assignRoomDeckSelection(room, 'black', deckSelection);
     }
     room.updatedAt = Date.now();
@@ -1535,7 +1617,7 @@ async function handleJoin(req: any, res: any) {
     room.seatNames[seatKey] = playerName;
     room.seatHandSkins = toPublicSeatHandSkins(room);
     room.seatHandSkins[seatKey] = selectedHandSkinId;
-    if (deckSelection.hasCustomDeck) {
+    if (!isAllCardsDeckRoom(room) && deckSelection.hasCustomDeck) {
         assignRoomDeckSelection(room, seatKey, deckSelection);
     }
 
@@ -1815,15 +1897,6 @@ async function handleDeck(req: any, res: any) {
         return;
     }
 
-    const deckSelection = resolveDeckSelection(body.deckCode);
-    if (!deckSelection.ok) {
-        writeJson(res, 400, {
-            ok: false,
-            reason: deckSelection.reason || 'DECK_CODE_INVALID'
-        });
-        return;
-    }
-
     const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
     if (!seatKey) {
         writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
@@ -1831,6 +1904,29 @@ async function handleDeck(req: any, res: any) {
     }
     if (!room.seats[seatKey]) {
         writeJson(res, 409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        return;
+    }
+
+    if (isAllCardsDeckRoom(room)) {
+        const serverTime = Date.now();
+        writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+            ok: true,
+            seatKey,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        }));
+        return;
+    }
+
+    const deckSelection = resolveDeckSelection(body.deckCode);
+    if (!deckSelection.ok) {
+        writeJson(res, 400, {
+            ok: false,
+            reason: deckSelection.reason || 'DECK_CODE_INVALID'
+        });
         return;
     }
 

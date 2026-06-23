@@ -163,11 +163,11 @@
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>反転回避</dt>
-                        <dd>相手に石を置かれて反転されるとき、マス移動でその石だけ回避する。</dd>
+                        <dd>反転されるとき、元位置から最も近い空きマスに移動して避ける。隣接に空きがない場合、次に近い空きマスに移動し回避する。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>破壊回避</dt>
-                        <dd>破壊対象になったとき、最短の空きマスへ移動してその石だけ回避する。隣接に空きがなくても空きマスが1つでもあれば長距離移動で回避する。</dd>
+                        <dd>破壊されるとき、元位置から最も近い空きマスに移動して避ける。隣接に空きがない場合、次に近い空きマスに移動し回避する。空きマスがなければ回避できない。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>特殊石</dt>
@@ -207,7 +207,7 @@
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>破壊／爆発</dt>
-                        <dd>石を消滅させる。完全保護以外の保護を貫通できる。</dd>
+                        <dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・絶対保護・不可侵には効かない。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>連鎖反転</dt>
@@ -799,6 +799,10 @@
                                 <input id="networkEnableAutoCheckbox" type="checkbox" />
                                 オートプレイを許可
                             </label>
+                            <label id="networkAllCardsDeckOptionRow" for="networkAllCardsDeckCheckbox">
+                                <input id="networkAllCardsDeckCheckbox" type="checkbox" />
+                                両者全カードデッキ
+                            </label>
                         </div>
                     </div>
                     <button id="networkJoinBtn" class="btn-small network-hidden-control" type="button" hidden>参加</button>
@@ -913,7 +917,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=175634710663349"></script>
+    <script src="public/module-registry.js?v=191019025090182"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=279399154042441"></script>
 </body>

@@ -85,4 +85,14 @@ describe('cards board shape access module', () => {
     expect(movable).toMatchObject({ row: 2, col: 2 });
     expect(blockade).toMatchObject({ row: 1, col: 1 });
   });
+
+  test('collectCloneSpawnCellsForCard returns nearest empty cells when neighbors are full', () => {
+    const gameState = { board: createBoard(6, 6, 1) };
+    gameState.board[3][3] = 1;
+    gameState.board[0][0] = 0;
+    gameState.board[5][5] = 0;
+    const { access } = createAccess({ gameState });
+
+    expect(access.collectCloneSpawnCellsForCard({}, gameState, 3, 3)).toEqual([{ row: 5, col: 5 }]);
+  });
 });

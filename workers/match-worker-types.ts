@@ -167,6 +167,7 @@ export interface MatchWorkerDeckGlobals {
 }
 
 export interface MatchWorkerDeckSpecHelpersModule extends MatchWorkerRuntimeModule {
+    getCpuLv9EndingAshDeckCardIds?: () => string[];
     normalizeDeckSpec(deckSpec: unknown, options?: { requireFullDeck?: boolean }): unknown;
     summarizeDeckSpec(deckSpec: unknown): { deckSize?: unknown; [key: string]: unknown };
 }
@@ -287,12 +288,14 @@ export interface MatchWorkerPresencePayloadMeta extends Record<string, unknown> 
 export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     seed?: unknown;
     snapshot?: unknown;
+    initialDeckCardIdsByPlayer?: unknown;
     initialDeckSpec?: unknown;
     initialDeckSpecByPlayer?: unknown;
     roomDeck?: unknown;
     roomName?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: unknown;
+    allCardsDeckEnabled?: unknown;
     networkAutoEnabled?: unknown;
     publishResponseMode?: unknown;
 }

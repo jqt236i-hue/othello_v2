@@ -104,6 +104,7 @@ interface CloneDeps {
     getSpecialMarkers?(cardState: CardState): any[];
     getBombMarkers?(cardState: CardState): any[];
     collectEmptyNeighborCellsForCard?(cardState: CardState, gameState: GameState, row: number, col: number): Array<{row: number; col: number}>;
+    collectCloneSpawnCellsForCard?(cardState: CardState, gameState: GameState, row: number, col: number): Array<{row: number; col: number}>;
     BoardOps?: any;
     spawnAndFlipBatch?(cardState: CardState, gameState: GameState, playerKey: string, player: number, targets: Array<{row: number; col: number}>, cause: string, reason: string, anchorPos: {row: number; col: number}, deps: any): any;
     getCardContext?(cardState: CardState): any;
@@ -136,6 +137,7 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     const getSpecialMarkers = deps.getSpecialMarkers || (() => []);
     const getBombMarkers = deps.getBombMarkers || (() => []);
     const collectEmptyNeighborCellsForCard = deps.collectEmptyNeighborCellsForCard || (() => []);
+    const collectCloneSpawnCellsForCard = deps.collectCloneSpawnCellsForCard || collectEmptyNeighborCellsForCard;
     const spawnAt = deps.spawnAt || null;
     const spawnAndFlipBatch = typeof deps.spawnAndFlipBatch === 'function' ? deps.spawnAndFlipBatch : null;
     const runSpawnBlock = typeof deps.runSpawnBlock === 'function' ? deps.runSpawnBlock : null;
@@ -151,7 +153,7 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
         return { applied: false, reason: 'not_owner_stone' };
     const sourceSpecials = getSpecialMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col);
     const sourceBombs = getBombMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col);
-    const spawnTargets = collectEmptyNeighborCellsForCard(cardState, gameState, row, col);
+    const spawnTargets = collectCloneSpawnCellsForCard(cardState, gameState, row, col);
     if (!spawnTargets.length)
         return { applied: false, reason: 'no_space' };
     const randomSource = resolveRandomSource(prng);

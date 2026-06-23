@@ -69,4 +69,25 @@ describe('CardClone module', () => {
     expect(cardState.markers).toHaveLength(1);
   });
 
+  test('applyCloneWill falls back to the nearest empty spawn cell when neighbors are full', () => {
+    const cardState = {
+      pendingEffectByPlayer: { black: { type: 'CLONE_WILL', stage: 'selectTarget', cardId: 'clone_01' } },
+      markers: []
+    };
+
+    const result = CardClone.applyCloneWill(cardState, {}, 'black', 3, 3, { random: () => 0 }, {
+      getCloneTargets: () => [{ row: 3, col: 3 }],
+      getCellValueForCard: (_state, row, col) => (row === 3 && col === 3 ? 1 : 0),
+      getSpecialMarkers: () => [],
+      getBombMarkers: () => [],
+      collectEmptyNeighborCellsForCard: () => [],
+      collectCloneSpawnCellsForCard: () => [{ row: 5, col: 5 }],
+      spawnAt: jest.fn(() => ({ spawned: true })),
+      addMarker: jest.fn()
+    });
+
+    expect(result).toEqual({ applied: true, source: { row: 3, col: 3 }, spawned: [{ row: 5, col: 5 }], flipped: [] });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
 });

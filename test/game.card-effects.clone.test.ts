@@ -43,7 +43,7 @@ describe('clone', () => {
         const callArg = mockExecutePendingSelection.mock.calls[0][0];
         expect(callArg.pendingType).toBe('CLONE_WILL');
         expect(callArg.actionPayload).toEqual({ cloneTarget: { row: 3, col: 4 } });
-        expect(callArg.invalidMessage).toBe('周囲に空きがある自分の石を選んでください');
+        expect(callArg.invalidMessage).toBe('複製する自分の石を選んでください');
         expect(callArg.buildPlaybackMeta()).toEqual({ cause: 'CLONE_WILL', target: { row: 3, col: 4 } });
         expect(global.emitLogAdded).toHaveBeenCalledWith('複製の意志: 1個を生成');
     });

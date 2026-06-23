@@ -25,12 +25,17 @@ describe('browser module registry boot contract', () => {
     expect(classifyBrowserBootModule('dist/ui/debug-card-search')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/handlers/debug')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/handlers/hand-skin')).toBe('required');
+    expect(classifyBrowserBootModule('dist/ui/cosmetics/catalog-shared')).toBe('required');
+    expect(classifyBrowserBootModule('dist/ui/hand-skin/catalog')).toBe('required');
+    expect(classifyBrowserBootModule('dist/ui/hand-skin/selection')).toBe('required');
+    expect(classifyBrowserBootModule('dist/ui/hand-skin/runtime')).toBe('required');
   });
 
   test('classifies diagnostics, cosmetics, and heavyweight optional modules as optional', () => {
     expect(classifyBrowserBootModule('dist/ui/debug-test-scenarios')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/background-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/font-skin/controller')).toBe('optional');
+    expect(classifyBrowserBootModule('dist/ui/hand-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/game/ai/policy-onnx-runtime')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/gacha/gacha-overlay-controller')).toBe('optional');
     expect(classifyBrowserBootModule('node_modules/onnxruntime-web/dist/ort.min')).toBe('optional');

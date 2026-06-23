@@ -87,6 +87,66 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
     expect(marker.data.destroyEvadeRemaining).toBe(3);
   });
 
+  test('反転回避移動後は回避した石の盤面色で挟み反転する', () => {
+    const { cardState, gameState } = createState(0);
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[3][0] = Shared.EMPTY;
+    gameState.board[3][1] = Shared.BLACK;
+    gameState.board[3][2] = Shared.BLACK;
+    gameState.board[3][3] = Shared.WHITE;
+    gameState.board[4][4] = Shared.WHITE;
+
+    cardState.markers.push({
+      id: 9121,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: {
+        type: 'AFTERIMAGE_WILL',
+        flipEvadeRemaining: 3,
+        destroyEvadeRemaining: 3
+      }
+    });
+
+    const out = CardLogic.resolveHyperactiveFlipEvasion(
+      cardState,
+      gameState,
+      [[4, 4]],
+      'black',
+      createPrng(0)
+    );
+
+    expect(out.remainingFlips).toHaveLength(0);
+    expect(out.moved).toEqual([
+      expect.objectContaining({
+        from: { row: 4, col: 4 },
+        to: { row: 3, col: 0 },
+        specialType: 'AFTERIMAGE_WILL'
+      })
+    ]);
+    expect(out.flipped).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 1 }),
+      expect.objectContaining({ row: 3, col: 2 })
+    ]));
+    expect(gameState.board[3][0]).toBe(Shared.WHITE);
+    expect(gameState.board[3][1]).toBe(Shared.WHITE);
+    expect(gameState.board[3][2]).toBe(Shared.WHITE);
+    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+
+    const marker = cardState.markers.find((m) => m && m.id === 9121);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(3);
+    expect(marker.col).toBe(0);
+    expect(marker.data.flipEvadeRemaining).toBe(2);
+    expect(marker.data.destroyEvadeRemaining).toBe(3);
+  });
+
   test('反転回避は隣接空きがなくても遠距離の空きマスへ移動する', () => {
     const { cardState, gameState } = createState(0);
 
@@ -175,6 +235,60 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(7);
     expect(marker.col).toBe(7);
+    expect(marker.data.flipEvadeRemaining).toBe(3);
+    expect(marker.data.destroyEvadeRemaining).toBe(2);
+  });
+
+  test('破壊回避移動後は回避した石の盤面色で挟み反転する', () => {
+    const { cardState, gameState } = createState();
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[3][0] = Shared.EMPTY;
+    gameState.board[3][1] = Shared.BLACK;
+    gameState.board[3][2] = Shared.BLACK;
+    gameState.board[3][3] = Shared.WHITE;
+    gameState.board[4][4] = Shared.WHITE;
+
+    cardState.markers.push({
+      id: 9211,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: {
+        type: 'AFTERIMAGE_WILL',
+        flipEvadeRemaining: 3,
+        destroyEvadeRemaining: 3
+      }
+    });
+
+    const out = BoardOps.destroyAt(cardState, gameState, 4, 4, 'SYSTEM', 'test_destroy');
+
+    expect(out).toMatchObject({
+      kind: 'evaded_move',
+      destroyed: false,
+      evaded: true,
+      reason: 'destroy_evaded',
+      from: { row: 4, col: 4 },
+      to: { row: 3, col: 0 }
+    });
+    expect(out.evasionMoveFlipResult && out.evasionMoveFlipResult.flipped).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 1 }),
+      expect.objectContaining({ row: 3, col: 2 })
+    ]));
+    expect(gameState.board[3][0]).toBe(Shared.WHITE);
+    expect(gameState.board[3][1]).toBe(Shared.WHITE);
+    expect(gameState.board[3][2]).toBe(Shared.WHITE);
+    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+
+    const marker = cardState.markers.find((m) => m && m.id === 9211);
+    expect(marker).toBeTruthy();
+    expect(marker.row).toBe(3);
+    expect(marker.col).toBe(0);
     expect(marker.data.flipEvadeRemaining).toBe(3);
     expect(marker.data.destroyEvadeRemaining).toBe(2);
   });

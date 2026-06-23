@@ -50,6 +50,15 @@ type WorkDeps = {
   addChargeWithTotal?: (cardState: CardState, playerKey: PlayerKey, amount: number, meta?: any) => number;
 };
 
+type WorkEffectEntry = {
+  gained: number;
+  removed: boolean;
+  row: number;
+  col: number;
+  removedReason: string | null;
+  incomeStep: number | null;
+};
+
 function ensureAnchors(cardState: CardState): Record<PlayerKey, { row: number; col: number } | null> {
   if (!cardState.workAnchorPosByPlayer) {
     cardState.workAnchorPosByPlayer = { black: null, white: null };
@@ -86,17 +95,6 @@ function addChargeWithTotal(cardState: CardState, playerKey: PlayerKey, amount: 
   return added;
 }
 
-function defaultRemoveMarkersAt(cardState: CardState, row: number, col: number, options?: { kind?: string; type?: string; owner?: PlayerKey }): void {
-  const opts = options || {};
-  cardState.markers = (cardState.markers || []).filter((marker) => {
-    if (!marker || marker.row !== row || marker.col !== col) return true;
-    if (opts.kind && marker.kind !== opts.kind) return true;
-    if (opts.type && marker.data?.type !== opts.type) return true;
-    if (opts.owner && marker.owner !== opts.owner) return true;
-    return false;
-  });
-}
-
 function defaultAddMarker(cardState: CardState, kind: string, row: number, col: number, owner: PlayerKey, data?: Marker['data']): { placed: true } {
   if (!cardState.markers) cardState.markers = [];
   if (typeof cardState._nextMarkerId !== 'number') cardState._nextMarkerId = 1;
@@ -119,13 +117,6 @@ function defaultAddMarker(cardState: CardState, kind: string, row: number, col: 
 
 function placeWorkStone(cardState: CardState, _gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: WorkDeps = {}): { placed: true } {
   const anchors = ensureAnchors(cardState);
-  const previous = anchors[playerKey];
-  const removeMarkersAt = deps.removeMarkersAt || defaultRemoveMarkersAt;
-  if (previous && (previous.row !== row || previous.col !== col)) {
-    removeMarkersAt(cardState, previous.row, previous.col, { kind: 'specialStone', type: 'WORK', owner: playerKey });
-    anchors[playerKey] = null;
-  }
-
   const addMarker = deps.addMarker || defaultAddMarker;
   addMarker(cardState, 'specialStone', row, col, playerKey, { type: 'WORK', ownerColor: playerKey, workStage: 0, remainingOwnerTurns: 5 });
   anchors[playerKey] = { row, col };
@@ -144,29 +135,36 @@ function revertAnchorStone(cardState: CardState, gameState: GameState, row: numb
   return removed;
 }
 
-function findWorkMarker(cardState: CardState, playerKey: PlayerKey): { marker: Marker | null; row: number | null; col: number | null } {
+function isWorkMarkerForPlayer(marker: Marker | null | undefined, playerKey: PlayerKey): marker is Marker {
+  return !!(marker
+    && marker.kind === 'specialStone'
+    && marker.data?.type === 'WORK'
+    && marker.owner === playerKey
+    && Number.isInteger(marker.row)
+    && Number.isInteger(marker.col));
+}
+
+function getWorkMarkers(cardState: CardState, playerKey: PlayerKey): Marker[] {
+  return (cardState.markers || []).filter((marker) => isWorkMarkerForPlayer(marker, playerKey));
+}
+
+function syncPrimaryAnchor(cardState: CardState, playerKey: PlayerKey): void {
   const anchors = ensureAnchors(cardState);
-  const anchor = anchors[playerKey];
-  let row = anchor ? anchor.row : null;
-  let col = anchor ? anchor.col : null;
-  let marker = row !== null && col !== null
-    ? (cardState.markers || []).find((candidate) => candidate.kind === 'specialStone'
-      && candidate.data?.type === 'WORK'
-      && candidate.owner === playerKey
-      && candidate.row === row
-      && candidate.col === col) || null
-    : null;
-  if (!marker) {
-    marker = (cardState.markers || []).find((candidate) => candidate.kind === 'specialStone'
-      && candidate.data?.type === 'WORK'
-      && candidate.owner === playerKey) || null;
-    if (marker) {
-      row = marker.row;
-      col = marker.col;
-      anchors[playerKey] = { row, col };
-    }
+  const current = anchors[playerKey];
+  if (current && (cardState.markers || []).some((marker) => (
+    isWorkMarkerForPlayer(marker, playerKey) &&
+    marker.row === current.row &&
+    marker.col === current.col
+  ))) {
+    return;
   }
-  return { marker, row, col };
+  const marker = getWorkMarkers(cardState, playerKey)[0] || null;
+  anchors[playerKey] = marker ? { row: marker.row, col: marker.col } : null;
+}
+
+function isFrozenAtTurnStart(cardState: CardState, row: number, col: number): boolean {
+  const frozenCells = (cardState as any)._frozenCellsActiveAtTurnStart;
+  return !!(frozenCells && typeof frozenCells.has === 'function' && frozenCells.has(`${row},${col}`));
 }
 
 function processWorkEffects(cardState: CardState, gameState: GameState, playerKey: PlayerKey, deps: WorkDeps = {}): {
@@ -176,64 +174,89 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
   col: number | null;
   removedReason: string | null;
   incomeStep: number | null;
+  entries: WorkEffectEntry[];
 } {
   const ownerValue = playerKey === 'black' ? BLACK : WHITE;
-  const anchors = ensureAnchors(cardState);
-  const { marker, row, col } = findWorkMarker(cardState, playerKey);
+  const entries: WorkEffectEntry[] = [];
+  const markers = getWorkMarkers(cardState, playerKey);
 
-  if (!marker || row === null || col === null) {
-    return { gained: 0, removed: false, row, col, removedReason: null, incomeStep: null };
+  if (!markers.length) {
+    syncPrimaryAnchor(cardState, playerKey);
+    return { gained: 0, removed: false, row: null, col: null, removedReason: null, incomeStep: null, entries };
   }
 
-  const ownerColor = marker.data?.ownerColor || marker.owner || playerKey;
-  const expectedValue = ownerColor === 'black' ? BLACK : ownerColor === 'white' ? WHITE : ownerValue;
-  const cellValue = getCellValue(gameState, row, col);
-  if (cellValue === null || cellValue === EMPTY || cellValue !== expectedValue) {
-    revertAnchorStone(cardState, gameState, row, col, playerKey, 'anchor_lost');
-    anchors[playerKey] = null;
-    return { gained: 0, removed: true, row, col, removedReason: 'anchor_lost', incomeStep: null };
-  }
+  for (const marker of markers) {
+    const row = marker.row;
+    const col = marker.col;
+    if (isFrozenAtTurnStart(cardState, row, col)) continue;
 
-  const rawStage = typeof marker.data?.workStage === 'number' ? marker.data.workStage : 0;
-  const stage = Math.max(0, Math.min(4, Math.trunc(rawStage)));
-  const rawRemaining = typeof marker.data?.remainingOwnerTurns === 'number' ? marker.data.remainingOwnerTurns : 5 - stage;
-  const remainingBefore = Math.max(0, Math.trunc(rawRemaining));
-  if (remainingBefore <= 0) {
-    revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
-    anchors[playerKey] = null;
-    return { gained: 0, removed: true, row, col, removedReason: 'duration_end', incomeStep: null };
-  }
-
-  const gain = Math.min(CHARGE_MAX || 99, 1 << stage);
-  const chargeHelper = typeof deps.addChargeWithTotal === 'function'
-    ? deps.addChargeWithTotal
-    : addChargeWithTotal;
-  const actualGain = chargeHelper(cardState, playerKey, gain, {
-    sourceType: 'work_gain'
-  });
-  const remainingAfter = remainingBefore - 1;
-  const newStage = (stage + 1) % 5;
-  for (const candidate of cardState.markers || []) {
-    if (candidate.kind === 'specialStone' && candidate.data?.type === 'WORK' && candidate.owner === playerKey && candidate.row === row && candidate.col === col) {
-      candidate.data.workStage = newStage;
-      candidate.data.remainingOwnerTurns = remainingAfter;
-      if (candidate.data.ownerColor === undefined) candidate.data.ownerColor = playerKey;
+    const ownerColor = marker.data?.ownerColor || marker.owner || playerKey;
+    const expectedValue = ownerColor === 'black' ? BLACK : ownerColor === 'white' ? WHITE : ownerValue;
+    const cellValue = getCellValue(gameState, row, col);
+    if (cellValue === null || cellValue === EMPTY || cellValue !== expectedValue) {
+      revertAnchorStone(cardState, gameState, row, col, playerKey, 'anchor_lost');
+      entries.push({ gained: 0, removed: true, row, col, removedReason: 'anchor_lost', incomeStep: null });
+      continue;
     }
+
+    const rawStage = typeof marker.data?.workStage === 'number' ? marker.data.workStage : 0;
+    const stage = Math.max(0, Math.min(4, Math.trunc(rawStage)));
+    const rawRemaining = typeof marker.data?.remainingOwnerTurns === 'number' ? marker.data.remainingOwnerTurns : 5 - stage;
+    const remainingBefore = Math.max(0, Math.trunc(rawRemaining));
+    if (remainingBefore <= 0) {
+      revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
+      entries.push({ gained: 0, removed: true, row, col, removedReason: 'duration_end', incomeStep: null });
+      continue;
+    }
+
+    const gain = Math.min(CHARGE_MAX || 99, 1 << stage);
+    const chargeHelper = typeof deps.addChargeWithTotal === 'function'
+      ? deps.addChargeWithTotal
+      : addChargeWithTotal;
+    const actualGain = chargeHelper(cardState, playerKey, gain, {
+      sourceType: 'work_gain'
+    });
+    const normalizedActualGain = Number.isFinite(Number(actualGain)) ? Number(actualGain) : gain;
+    const remainingAfter = remainingBefore - 1;
+    const newStage = (stage + 1) % 5;
+    for (const candidate of cardState.markers || []) {
+      if (candidate.kind === 'specialStone' && candidate.data?.type === 'WORK' && candidate.owner === playerKey && candidate.row === row && candidate.col === col) {
+        candidate.data.workStage = newStage;
+        candidate.data.remainingOwnerTurns = remainingAfter;
+        if (candidate.data.ownerColor === undefined) candidate.data.ownerColor = playerKey;
+      }
+    }
+
+    const removed = remainingAfter <= 0;
+    if (removed) {
+      revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
+    }
+    entries.push({
+      gained: normalizedActualGain,
+      removed,
+      row,
+      col,
+      removedReason: removed ? 'duration_end' : null,
+      incomeStep: stage + 1
+    });
   }
 
-  const removed = remainingAfter <= 0;
-  if (removed) {
-    revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
-    anchors[playerKey] = null;
-  }
+  syncPrimaryAnchor(cardState, playerKey);
+
+  const primaryEntry = entries.find((entry) => entry.gained > 0)
+    || entries.find((entry) => entry.removed)
+    || null;
+  const totalGained = entries.reduce((sum, entry) => sum + (Number.isFinite(Number(entry.gained)) ? Number(entry.gained) : 0), 0);
+  const removed = entries.some((entry) => entry.removed);
 
   return {
-    gained: Number.isFinite(Number(actualGain)) ? Number(actualGain) : gain,
+    gained: totalGained,
     removed,
-    row,
-    col,
-    removedReason: removed ? 'duration_end' : null,
-    incomeStep: stage + 1
+    row: primaryEntry ? primaryEntry.row : null,
+    col: primaryEntry ? primaryEntry.col : null,
+    removedReason: primaryEntry ? primaryEntry.removedReason : null,
+    incomeStep: primaryEntry ? primaryEntry.incomeStep : null,
+    entries
   };
 }
 

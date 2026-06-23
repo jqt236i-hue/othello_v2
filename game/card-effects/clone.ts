@@ -31,7 +31,7 @@ async function handleCloneLikeSelection(row: number, col: number, playerKey: str
     const cfg = config || {};
     const pendingType = String(cfg.pendingType || 'CLONE_WILL');
     const selectedEventType = String(cfg.selectedEventType || 'clone_selected');
-    const selectionFailLog = String(cfg.selectionFailLog || '周囲に空きがある自分の石を選んでください');
+    const selectionFailLog = String(cfg.selectionFailLog || '複製する自分の石を選んでください');
     const playbackCause = String(cfg.playbackCause || pendingType);
     const successLogBuilder = typeof cfg.successLogBuilder === 'function'
         ? cfg.successLogBuilder
@@ -62,7 +62,7 @@ async function handleCloneSelection(row: number, col: number, playerKey: string)
     return handleCloneLikeSelection(row, col, playerKey, {
         pendingType: 'CLONE_WILL',
         selectedEventType: 'clone_selected',
-        selectionFailLog: '周囲に空きがある自分の石を選んでください',
+        selectionFailLog: '複製する自分の石を選んでください',
         playbackCause: 'CLONE_WILL',
         successLogBuilder: (spawnedCount: number) => `複製の意志: ${spawnedCount}個を生成`
     });

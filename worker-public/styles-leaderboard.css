@@ -242,7 +242,7 @@
 
 #leaderboardFilterTabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: calc(12px * var(--layout-stage-scale));
     margin-top: calc(4px * var(--layout-stage-scale));
 }
@@ -256,7 +256,7 @@
         rgba(4, 13, 17, 0.74);
     color: rgba(244, 236, 219, 0.86);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(24px * var(--layout-stage-scale));
+    font-size: calc(21px * var(--layout-stage-scale));
     font-weight: 800;
     letter-spacing: 0;
     box-shadow:
@@ -837,7 +837,7 @@
     }
 
     #leaderboardFilterTabs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     #leaderboardNameRow {
@@ -996,7 +996,7 @@
 
     .leaderboard-filter-tab {
         min-height: calc(44px * var(--layout-stage-scale));
-        font-size: calc(20px * var(--layout-stage-scale));
+        font-size: calc(18px * var(--layout-stage-scale));
     }
 
     #leaderboardNameField,
@@ -1305,14 +1305,14 @@
 }
 
 #leaderboardFilterTabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: calc(10px * var(--layout-stage-scale));
     margin-top: calc(26px * var(--layout-stage-scale));
 }
 
 .leaderboard-filter-tab {
     min-height: calc(43px * var(--layout-stage-scale));
-    font-size: calc(19px * var(--layout-stage-scale));
+    font-size: calc(17px * var(--layout-stage-scale));
     border-color: rgba(188, 112, 42, 0.42);
 }
 
@@ -2235,7 +2235,7 @@
 
 #leaderboardFilterTabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: calc(10px * var(--layout-stage-scale));
     margin-top: calc(10px * var(--layout-stage-scale));
 }
@@ -2246,7 +2246,7 @@
 }
 
 #leaderboardNameRow {
-    margin-top: calc(50px * var(--layout-stage-scale));
+    margin-top: calc(22px * var(--layout-stage-scale));
 }
 
 #leaderboardPodium {
@@ -2497,7 +2497,7 @@
     }
 
     #leaderboardFilterTabs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     #leaderboardNameRow,

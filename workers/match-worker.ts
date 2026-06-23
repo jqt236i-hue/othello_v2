@@ -1440,6 +1440,42 @@ function cloneInitialDeckSpecByPlayer(value: unknown): MatchWorkerSeatValueMap<u
     };
 }
 
+function cloneInitialDeckCardIdsByPlayer(value: unknown): MatchWorkerSeatValueMap<string[] | null> {
+    const source = asRecord(value);
+    const cloneCards = (candidate: unknown): string[] | null => {
+        if (!Array.isArray(candidate)) return null;
+        const cardIds = candidate
+            .map((cardId) => String(cardId || '').trim())
+            .filter(Boolean);
+        return cardIds.length > 0 ? cardIds : null;
+    };
+    return {
+        black: cloneCards(source.black),
+        white: cloneCards(source.white)
+    };
+}
+
+function createAllCardsRoomDeckMetadata(cardIdsByPlayer: MatchWorkerSeatValueMap<string[] | null>): MatchWorkerRoomDeckMetadata {
+    const blackSize = Array.isArray(cardIdsByPlayer.black) ? cardIdsByPlayer.black.length : 0;
+    const whiteSize = Array.isArray(cardIdsByPlayer.white) ? cardIdsByPlayer.white.length : blackSize;
+    return {
+        mode: 'shared',
+        source: 'allCards',
+        deckCode: '',
+        deckSize: blackSize,
+        deckCodeByPlayer: { black: '', white: '' },
+        deckSizeByPlayer: { black: blackSize, white: whiteSize }
+    };
+}
+
+function isAllCardsDeckRoom(room: MatchWorkerRoomState | null | undefined): boolean {
+    return !!(
+        room
+        && (room.allCardsDeckEnabled === true
+            || (room.roomDeck && String(asRecord(room.roomDeck).source || '').trim() === 'allCards'))
+    );
+}
+
 function normalizeRoomDeckMetadata(value: unknown): MatchWorkerRoomDeckMetadata | null {
     const source = (value && typeof value === 'object') ? asRecord(value) : null;
     if (!source) return null;
@@ -1512,6 +1548,10 @@ function hasRoomDeckMetadataEntries(value: unknown): boolean {
 function buildInitialDeckSnapshotOptions(value: unknown): Record<string, unknown> {
     const source = asRecord(value);
     const options: Record<string, unknown> = {};
+    const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(source.initialDeckCardIdsByPlayer);
+    if (initialDeckCardIdsByPlayer.black || initialDeckCardIdsByPlayer.white) {
+        options.initialDeckCardIdsByPlayer = initialDeckCardIdsByPlayer;
+    }
     const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(source.initialDeckSpecByPlayer);
     if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
         options.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
@@ -1792,6 +1832,44 @@ async function resolveDeckSelection(rawDeckCodeValue: unknown): Promise<MatchWor
     }
 }
 
+async function resolveAllCardsDeckSelection(): Promise<{
+    ok: boolean;
+    initialDeckCardIdsByPlayer: MatchWorkerSeatValueMap<string[] | null>;
+    roomDeck: MatchWorkerRoomDeckMetadata | null;
+    reason?: string;
+}> {
+    try {
+        const { deckSpecHelpers } = await loadDeckModules();
+        const cardIds = typeof deckSpecHelpers.getCpuLv9EndingAshDeckCardIds === 'function'
+            ? deckSpecHelpers.getCpuLv9EndingAshDeckCardIds()
+            : [];
+        if (!Array.isArray(cardIds) || cardIds.length === 0) {
+            return {
+                ok: false,
+                initialDeckCardIdsByPlayer: { black: null, white: null },
+                roomDeck: null,
+                reason: 'ALL_CARDS_DECK_UNAVAILABLE'
+            };
+        }
+        const initialDeckCardIdsByPlayer = {
+            black: cardIds.slice(),
+            white: cardIds.slice()
+        };
+        return {
+            ok: true,
+            initialDeckCardIdsByPlayer,
+            roomDeck: createAllCardsRoomDeckMetadata(initialDeckCardIdsByPlayer)
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            initialDeckCardIdsByPlayer: { black: null, white: null },
+            roomDeck: null,
+            reason: 'ALL_CARDS_DECK_UNAVAILABLE'
+        };
+    }
+}
+
 async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Response> {
     const opts = asRecord(options);
     const networkDebugEnabled = opts.networkDebugEnabled === true;
@@ -1801,7 +1879,23 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
     const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(opts.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(opts.roomBoardConfig);
-    const deckSelection = await resolveDeckSelection(opts.deckCode);
+    const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
+    const allCardsDeckSelection = allCardsDeckEnabled ? await resolveAllCardsDeckSelection() : null;
+    if (allCardsDeckSelection && !allCardsDeckSelection.ok) {
+        return jsonResponse(500, {
+            ok: false,
+            reason: allCardsDeckSelection.reason || 'ALL_CARDS_DECK_UNAVAILABLE'
+        });
+    }
+    const deckSelection = allCardsDeckEnabled
+        ? {
+            ok: true,
+            hasCustomDeck: false,
+            deckSpec: null,
+            deckCode: '',
+            deckSize: null
+        }
+        : await resolveDeckSelection(opts.deckCode);
     if (!deckSelection.ok) {
         return jsonResponse(400, {
             ok: false,
@@ -1809,10 +1903,15 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
         });
     }
 
-    const initialDeckSpecByPlayer = deckSelection.hasCustomDeck
+    const initialDeckCardIdsByPlayer = allCardsDeckSelection && allCardsDeckSelection.ok
+        ? allCardsDeckSelection.initialDeckCardIdsByPlayer
+        : null;
+    const initialDeckSpecByPlayer = !allCardsDeckEnabled && deckSelection.hasCustomDeck
         ? { black: deckSelection.deckSpec }
         : null;
-    const roomDeck = deckSelection.hasCustomDeck
+    const roomDeck = allCardsDeckSelection && allCardsDeckSelection.ok
+        ? allCardsDeckSelection.roomDeck
+        : (deckSelection.hasCustomDeck
         ? {
             mode: 'perPlayer',
             deckCode: '',
@@ -1827,12 +1926,13 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
             },
             source: 'room'
         }
-        : null;
+        : null);
 
     for (let attempt = 0; attempt < 12; attempt += 1) {
         const roomId = makeRoomId();
         const seed = Date.now();
         const snapshot = await makeInitialSnapshot(seed, {
+            initialDeckCardIdsByPlayer,
             initialDeckSpecByPlayer,
             roomBoardConfig
         });
@@ -1848,6 +1948,8 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 selectedHandSkinId: opts.selectedHandSkinId,
                 networkDebugEnabled,
                 networkAutoEnabled,
+                allCardsDeckEnabled,
+                initialDeckCardIdsByPlayer,
                 publishResponseMode,
                 roomName,
                 roomPassword,
@@ -2512,6 +2614,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const opts = asRecord(initOptions);
         const seed = Number.isFinite(Number(opts.seed)) ? Number(opts.seed) : Date.now();
         const snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? deepClone(opts.snapshot) as MatchWorkerPublicSnapshot : null;
+        const initialDeckCardIdsByPlayer = (opts.initialDeckCardIdsByPlayer && typeof opts.initialDeckCardIdsByPlayer === 'object')
+            ? cloneInitialDeckCardIdsByPlayer(opts.initialDeckCardIdsByPlayer)
+            : null;
         const initialDeckSpec = (opts.initialDeckSpec && typeof opts.initialDeckSpec === 'object') ? deepClone(opts.initialDeckSpec) : null;
         const initialDeckSpecByPlayer = (opts.initialDeckSpecByPlayer && typeof opts.initialDeckSpecByPlayer === 'object')
             ? cloneInitialDeckSpecByPlayer(opts.initialDeckSpecByPlayer)
@@ -2524,6 +2629,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = opts.networkDebugEnabled === true;
+        const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
         const networkAutoEnabled = opts.networkAutoEnabled === true;
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
         const nowMs = Date.now();
@@ -2532,6 +2638,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             seed,
             snapshot,
             authoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash(snapshot),
+            initialDeckCardIdsByPlayer,
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
@@ -2539,6 +2646,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomPassword,
             roomBoardConfig,
             networkDebugEnabled,
+            allCardsDeckEnabled,
             networkAutoEnabled,
             publishResponseMode,
             stateVersion: 0,
@@ -2617,6 +2725,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             : null;
         const playerName = normalizeNetworkPlayerName(payload.playerName) || MatchRoomLobby.createRandomPlayerName();
         const selectedHandSkinId = normalizeSeatHandSkinId(payload.selectedHandSkinId);
+        const initialDeckCardIdsByPlayer = (payload.initialDeckCardIdsByPlayer && typeof payload.initialDeckCardIdsByPlayer === 'object')
+            ? cloneInitialDeckCardIdsByPlayer(payload.initialDeckCardIdsByPlayer)
+            : null;
         const initialDeckSpec = (payload.initialDeckSpec && typeof payload.initialDeckSpec === 'object')
             ? deepClone(payload.initialDeckSpec)
             : null;
@@ -2631,6 +2742,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = payload.networkDebugEnabled === true;
+        const allCardsDeckEnabled = payload.allCardsDeckEnabled === true;
         const networkAutoEnabled = payload.networkAutoEnabled === true;
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(payload.publishResponseMode);
         const roomName = MatchRoomLobby.resolveRoomName(payload.roomName);
@@ -2645,11 +2757,13 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const room = this.createRoomState(roomId, {
             seed,
             snapshot,
+            initialDeckCardIdsByPlayer,
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
             roomBoardConfig,
             networkDebugEnabled,
+            allCardsDeckEnabled,
             networkAutoEnabled,
             publishResponseMode,
             roomName,
@@ -2738,7 +2852,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         room.seatNames[seatKey] = playerName;
         room.seatHandSkins = toPublicSeatHandSkins(room);
         room.seatHandSkins[seatKey] = selectedHandSkinId;
-        if (deckSelection.hasCustomDeck) {
+        if (!isAllCardsDeckRoom(room) && deckSelection.hasCustomDeck) {
             assignRoomDeckSelection(room, seatKey, deckSelection);
         }
 
@@ -3007,14 +3121,6 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         }
 
-        const deckSelection = await resolveDeckSelection(body.deckCode);
-        if (!deckSelection.ok) {
-            return jsonResponse(400, {
-                ok: false,
-                reason: deckSelection.reason || 'DECK_CODE_INVALID'
-            });
-        }
-
         const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
         const seatToken = String(body.seatToken || '').trim();
         const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
@@ -3023,6 +3129,28 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
         if (!asRecord(room.seats)[seatKey]) {
             return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
+        }
+
+        if (isAllCardsDeckRoom(room)) {
+            const serverTime = Date.now();
+            return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+                ok: true,
+                seatKey,
+                roomDeck: toPublicRoomDeck(room),
+                roomBoardConfig: toPublicRoomBoardConfig(room),
+                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+                networkAutoEnabled: toPublicNetworkAutoEnabled(room),
+                turnTimer: toPublicTurnTimer(room, serverTime),
+                serverTime
+            }));
+        }
+
+        const deckSelection = await resolveDeckSelection(body.deckCode);
+        if (!deckSelection.ok) {
+            return jsonResponse(400, {
+                ok: false,
+                reason: deckSelection.reason || 'DECK_CODE_INVALID'
+            });
         }
 
         const previousRoomDeckJson = JSON.stringify(toPublicRoomDeck(room) || null);

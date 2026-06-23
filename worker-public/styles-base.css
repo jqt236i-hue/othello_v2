@@ -202,7 +202,8 @@ body[data-font-skin-id="dot-gothic"] :is(
     .board-frame-skin-option,
     .font-skin-option,
     .stone-skin-option,
-    .appearance-preset-apply,
+    .appearance-preset-name,
+    .appearance-preset-use,
     .appearance-preset-code-copy,
     .appearance-preset-delete,
     #appearancePresetNameInput,
@@ -349,12 +350,13 @@ body[data-font-skin-id="dot-gothic"] :is(
 
 .appearance-preset-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     gap: calc(8px * var(--layout-stage-scale));
     align-items: center;
 }
 
-.appearance-preset-apply,
+.appearance-preset-name,
+.appearance-preset-use,
 .appearance-preset-code-copy,
 .appearance-preset-delete {
     min-height: calc(32px * var(--layout-stage-scale));
@@ -362,10 +364,11 @@ body[data-font-skin-id="dot-gothic"] :is(
     border-radius: calc(4px * var(--layout-stage-scale));
     background: rgba(6, 28, 34, 0.88);
     color: #eefdf8;
-    cursor: pointer;
 }
 
-.appearance-preset-apply {
+.appearance-preset-name {
+    display: flex;
+    align-items: center;
     text-align: left;
     padding: calc(6px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     overflow: hidden;
@@ -373,7 +376,9 @@ body[data-font-skin-id="dot-gothic"] :is(
     white-space: nowrap;
 }
 
+.appearance-preset-use,
 .appearance-preset-code-copy {
+    cursor: pointer;
     padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
     color: #e8fffa;
     border-color: rgba(104, 242, 235, 0.42);
@@ -381,13 +386,20 @@ body[data-font-skin-id="dot-gothic"] :is(
     white-space: nowrap;
 }
 
+.appearance-preset-use {
+    color: #fff4cf;
+    border-color: rgba(255, 214, 122, 0.44);
+    background: linear-gradient(180deg, rgba(98, 74, 24, 0.86), rgba(45, 34, 13, 0.94));
+}
+
 .appearance-preset-delete {
+    cursor: pointer;
     padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
     color: #ffd3c7;
     border-color: rgba(255, 151, 126, 0.32);
 }
 
-.appearance-preset-apply:hover,
+.appearance-preset-use:hover,
 .appearance-preset-code-copy:hover,
 .appearance-preset-delete:hover {
     filter: brightness(1.16);

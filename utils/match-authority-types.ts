@@ -142,6 +142,8 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     authorityLog?: unknown[] | null;
     authoritativeStateHash?: unknown;
     networkAutoEnabled?: boolean | null;
+    allCardsDeckEnabled?: boolean | null;
+    initialDeckCardIdsByPlayer?: unknown;
 }
 
 export interface MatchAuthorityPublishMeta {

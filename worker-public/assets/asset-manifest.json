@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-22",
-  "generatedAt": "2026-06-22T12:28:26.577Z",
+  "version": "2026-06-23",
+  "generatedAt": "2026-06-23T03:08:54.502Z",
   "files": [
     {
       "path": "assets/images/special-stones/absolute_protect_next_stone-black.png",
@@ -679,7 +679,7 @@
       "sha256": "8ad467b4f1b7f50221f45bfd4fa350b446cf652430c9c3633145ba8215714b69"
     },
     {
-      "path": "assets/images/hand-skin/lv6.png",
+      "path": "assets/images/hand-skin/lv6-9.png",
       "sha256": "86980cf47d314f90cd1169d83bade5bb2bab9c80c3b64dadeed95eaf18adf23d"
     },
     {

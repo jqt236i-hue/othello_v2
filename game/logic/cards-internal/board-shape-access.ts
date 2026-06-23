@@ -100,13 +100,17 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
             .filter((cell: any) => cfg.getCellValueForCard(gameState, cell.row, cell.col) === getEmptyValue());
     }
 
-    function selectRandomEmptyBoardShapeDestination(cardState: any, gameState: any, fromRow: any, fromCol: any, randomSource: any): any {
-        const candidates = getEmptyBoardShapeCellsForCard(cardState, gameState)
+    function getAvailableEmptyBoardShapeCellsForCard(cardState: any, gameState: any, fromRow: any, fromCol: any): any {
+        return getEmptyBoardShapeCellsForCard(cardState, gameState)
             .filter((cell: any) => {
                 if (!cell) return false;
                 if (cell.row === fromRow && cell.col === fromCol) return false;
                 return !isBlockedCell(cardState, cell.row, cell.col, gameState);
             });
+    }
+
+    function selectRandomEmptyBoardShapeDestination(cardState: any, gameState: any, fromRow: any, fromCol: any, randomSource: any): any {
+        const candidates = getAvailableEmptyBoardShapeCellsForCard(cardState, gameState, fromRow, fromCol);
         if (!candidates.length) return null;
         const index = cfg.resolveDeterministicRandomIndex(
             candidates.length,
@@ -115,6 +119,30 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
             'CardLogic.selectRandomEmptyBoardShapeDestination'
         );
         return candidates[index] || candidates[0] || null;
+    }
+
+    function getChebyshevDistance(from: any, to: any): any {
+        return Math.max(Math.abs(Number(from.row) - Number(to.row)), Math.abs(Number(from.col) - Number(to.col)));
+    }
+
+    function collectNearestEmptyBoardShapeCellsForCard(cardState: any, gameState: any, row: any, col: any): any {
+        const origin = { row: Number(row), col: Number(col) };
+        if (!Number.isInteger(origin.row) || !Number.isInteger(origin.col)) return [];
+        const candidates = getAvailableEmptyBoardShapeCellsForCard(cardState, gameState, origin.row, origin.col);
+        if (!candidates.length) return [];
+        let bestDistance = Number.POSITIVE_INFINITY;
+        const nearest = [];
+        for (const candidate of candidates) {
+            const distance = getChebyshevDistance(origin, candidate);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                nearest.length = 0;
+                nearest.push(candidate);
+                continue;
+            }
+            if (distance === bestDistance) nearest.push(candidate);
+        }
+        return nearest;
     }
 
     function moveCoexistingSpecialMarkers(cardState: any, anchorEntry: any, fromRow: any, fromCol: any, toRow: any, toCol: any): any {
@@ -154,6 +182,12 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
             }
         }
         return neighbors;
+    }
+
+    function collectCloneSpawnCellsForCard(cardState: any, gameState: any, row: any, col: any): any {
+        const neighbors = collectEmptyNeighborCellsForCard(cardState, gameState, row, col);
+        if (neighbors.length > 0) return neighbors;
+        return collectNearestEmptyBoardShapeCellsForCard(cardState, gameState, row, col);
     }
 
     function getCurrentCornerCellsForCard(cardState: any, gameState: any): any {
@@ -198,6 +232,7 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
         selectRandomEmptyBoardShapeDestination,
         moveCoexistingSpecialMarkers,
         collectEmptyNeighborCellsForCard,
+        collectCloneSpawnCellsForCard,
         getCurrentCornerCellsForCard,
         countOccupiedCornersForPlayer,
         countOpponentOccupiedCornersForPlayer

@@ -233,8 +233,9 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(extended.newRemainingOwnerTurns).toBe(20);
 
     const gains = [];
+    const uncappedChargeGain = (_cardState, _playerKey, amount) => amount;
     for (let i = 0; i < 20; i += 1) {
-      const one = CardWork.processWorkEffects(cardState, gameState, 'black');
+      const one = CardWork.processWorkEffects(cardState, gameState, 'black', { addChargeWithTotal: uncappedChargeGain });
       gains.push(one.gained);
       expect(one.removed).toBe(i === 19);
     }
@@ -328,24 +329,50 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(gameState.board[4][4]).toBe(SharedConstants.WHITE);
   });
 
-  test('placeWorkStone updates marker ownership through the default canonical helpers', () => {
+  test('placeWorkStone keeps earlier WORK stones and processWorkEffects resolves each active marker', () => {
     const { cardState, gameState } = createStates();
+    gameState.board[1][1] = SharedConstants.BLACK;
+    gameState.board[2][2] = SharedConstants.BLACK;
 
     const first = CardWork.placeWorkStone(cardState, gameState, 'black', 1, 1);
     const second = CardWork.placeWorkStone(cardState, gameState, 'black', 2, 2);
 
     expect(first).toEqual({ placed: true });
     expect(second).toEqual({ placed: true });
-    expect(cardState.markers).toHaveLength(1);
-    expect(cardState.markers[0]).toMatchObject({
-      id: 2,
-      createdSeq: 2,
-      row: 2,
-      col: 2,
-      kind: 'specialStone',
-      owner: 'black',
-      data: expect.objectContaining({ type: 'WORK' })
-    });
+    expect(cardState.markers).toHaveLength(2);
+    expect(cardState.markers).toEqual([
+      expect.objectContaining({
+        id: 1,
+        createdSeq: 1,
+        row: 1,
+        col: 1,
+        kind: 'specialStone',
+        owner: 'black',
+        data: expect.objectContaining({ type: 'WORK' })
+      }),
+      expect.objectContaining({
+        id: 2,
+        createdSeq: 2,
+        row: 2,
+        col: 2,
+        kind: 'specialStone',
+        owner: 'black',
+        data: expect.objectContaining({ type: 'WORK' })
+      })
+    ]);
     expect(cardState.workAnchorPosByPlayer.black).toEqual({ row: 2, col: 2 });
+
+    const res = CardWork.processWorkEffects(cardState, gameState, 'black');
+    expect(res).toMatchObject({
+      gained: 2,
+      removed: false,
+      entries: [
+        expect.objectContaining({ row: 1, col: 1, gained: 1, removed: false, incomeStep: 1 }),
+        expect.objectContaining({ row: 2, col: 2, gained: 1, removed: false, incomeStep: 1 })
+      ]
+    });
+    expect(cardState.charge.black).toBe(2);
+    expect(cardState.markers.map((marker) => marker.data.workStage)).toEqual([1, 1]);
+    expect(cardState.markers.map((marker) => marker.data.remainingOwnerTurns)).toEqual([4, 4]);
   });
 });

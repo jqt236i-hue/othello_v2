@@ -78,6 +78,7 @@ interface InitDomElements {
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
+  networkAllCardsDeckCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
   networkRoomSettingsBtn: HTMLElement | null;
   networkRoomSettingsBackdrop: HTMLElement | null;
@@ -338,6 +339,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       networkBoardSizeNote: refs.networkBoardSizeNote,
       networkEnableDebugCheckbox: refs.networkEnableDebugCheckbox,
       networkEnableAutoCheckbox: refs.networkEnableAutoCheckbox,
+      networkAllCardsDeckCheckbox: refs.networkAllCardsDeckCheckbox,
       networkCopyRoomBtn: refs.networkCopyRoomBtn,
       networkRoomSettingsBtn: refs.networkRoomSettingsBtn,
       networkRoomSettingsBackdrop: refs.networkRoomSettingsBackdrop,
