@@ -100,6 +100,10 @@ interface InitDomElements {
   leaderboardReloadBtn: HTMLElement | null;
   leaderboardStatusText: HTMLElement | null;
   leaderboardList: HTMLElement | null;
+  profileOpenBtn: HTMLElement | null;
+  profileOverlay: HTMLElement | null;
+  profileModal: HTMLElement | null;
+  profileCloseBtn: HTMLElement | null;
   networkChatPanel: HTMLElement | null;
   networkChatToggle: HTMLElement | null;
   networkChatMessages: HTMLElement | null;
@@ -130,6 +134,7 @@ declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLEle
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
+declare const setupPlayerProfilePanel: ((opts: Record<string, unknown>) => unknown) | undefined;
 declare const destroySelectedHandCard: (() => void) | undefined;
 declare const useSelectedCard: (() => void) | undefined;
 declare const toggleCardDetailExpanded: (() => void) | undefined;
@@ -380,6 +385,18 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (typeof setupGachaControls === 'function') setupGachaControls({ root: root as Window });
   if (typeof setupHandSkinControls === 'function') {
     setupHandSkinControls({ button: refs.handSkinBtn, panel: refs.handSkinPanel, closeBtn: refs.handSkinCloseBtn, optionsEl: refs.handSkinOptions, handImage: refs.handImage, root });
+  }
+  let setupPlayerProfilePanelResolved = (typeof setupPlayerProfilePanel === 'function') ? setupPlayerProfilePanel : null;
+  if (!setupPlayerProfilePanelResolved && typeof _require === 'function') {
+    try {
+      const profilePanel = _require('../player-profile-panel');
+      if (profilePanel && typeof profilePanel.setupPlayerProfilePanel === 'function') {
+        setupPlayerProfilePanelResolved = profilePanel.setupPlayerProfilePanel;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  if (typeof setupPlayerProfilePanelResolved === 'function') {
+    setupPlayerProfilePanelResolved({ root });
   }
   setupSidePanelAnchor({
     sidePanel: refs.sidePanel,

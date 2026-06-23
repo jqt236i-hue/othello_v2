@@ -97,6 +97,10 @@ interface InitDomElements {
   leaderboardReloadBtn: HTMLElement | null;
   leaderboardStatusText: HTMLElement | null;
   leaderboardList: HTMLElement | null;
+  profileOpenBtn: HTMLElement | null;
+  profileOverlay: HTMLElement | null;
+  profileModal: HTMLElement | null;
+  profileCloseBtn: HTMLElement | null;
   networkChatPanel: HTMLElement | null;
   networkChatToggle: HTMLElement | null;
   networkChatMessages: HTMLElement | null;
@@ -153,7 +157,9 @@ function getInitDomElements(): InitDomElements {
     leaderboardOverlay: $('leaderboardOverlay'), leaderboardPanel: $('leaderboardModal'),
     leaderboardCloseBtn: $('leaderboardCloseBtn'), leaderboardNameInput: $('leaderboardNameInput') as HTMLInputElement | null,
     leaderboardReloadBtn: $('leaderboardReloadBtn'), leaderboardStatusText: $('leaderboardStatusText'),
-    leaderboardList: $('leaderboardList'), networkChatPanel: $('networkChatPanel'),
+    leaderboardList: $('leaderboardList'), profileOpenBtn: $('profileOpenBtn'),
+    profileOverlay: $('profileOverlay'), profileModal: $('profileModal'), profileCloseBtn: $('profileCloseBtn'),
+    networkChatPanel: $('networkChatPanel'),
     networkChatToggle: $('networkChatToggle'), networkChatMessages: $('networkChatMessages'),
     networkChatInput: $('networkChatInput') as HTMLInputElement | null, networkChatSendBtn: $('networkChatSendBtn'),
     sidePanel: $('side-panel'), sidePanelToggleBtn: $('sidePanelToggleBtn'),
