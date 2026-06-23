@@ -117,6 +117,34 @@ function resolvePublishActionType(action: any, plannedActionType?: any): string 
   return 'place';
 }
 
+function toFiniteIntegerOrNull(value: any): number | null {
+  if (!Number.isFinite(Number(value))) return null;
+  return Math.trunc(Number(value));
+}
+
+function readClientStateVersion(client: any): number | null {
+  try {
+    if (client && typeof client.getStateVersion === 'function') {
+      return toFiniteIntegerOrNull(client.getStateVersion());
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function resolveSignatureVersion(root: NetworkAutoRoot, client: any, state: any): number | string {
+  const candidates = [
+    readClientStateVersion(client),
+    root && toFiniteIntegerOrNull(root.stateVersion),
+    state && toFiniteIntegerOrNull(state.stateVersion),
+    state && state._meta && toFiniteIntegerOrNull(state._meta.version),
+    state && toFiniteIntegerOrNull(state.turnNumber)
+  ];
+  for (const value of candidates) {
+    if (value !== null && typeof value !== 'undefined') return value;
+  }
+  return '';
+}
+
 function buildSignature(action: any, actionType: string, roomId: string, seatKey: string, version: number | string): string {
   const pendingState = action && action.pendingSelectionState && typeof action.pendingSelectionState === 'object'
     ? action.pendingSelectionState
@@ -130,6 +158,8 @@ function buildSignature(action: any, actionType: string, roomId: string, seatKey
     action && action.row,
     action && action.col,
     action && action.useCardId,
+    action && action.turnIndex,
+    action && action.autoNoActionPass === true ? 'autoNoActionPass' : '',
     pendingState && pendingState.pendingEffectId
   ].join(':');
 }
@@ -184,7 +214,7 @@ function createNetworkAutoPlayController(rootRef?: NetworkAutoRoot): NetworkAuto
     if (!action) return { handled: true, reason: 'NO_ACTION_SELECTED' };
 
     const actionType = resolvePublishActionType(action, planned && planned.actionType);
-    const version = Number.isFinite(Number(state.turnNumber)) ? Math.trunc(Number(state.turnNumber)) : '';
+    const version = resolveSignatureVersion(root, client, state);
     const roomId = typeof client.getRoomId === 'function' ? String(client.getRoomId() || '') : '';
     const signature = buildSignature(action, actionType, roomId, seatKey, version);
     if (signature && signature === lastSignature) return { handled: true, reason: 'DUPLICATE_TICK' };

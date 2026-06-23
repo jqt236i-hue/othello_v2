@@ -150,6 +150,26 @@ describe('NetworkAutoPlay', () => {
     });
   });
 
+  test('does not keep pass duplicate-latched after the network state version advances', async () => {
+    let stateVersion = 7;
+    const root = createRoot({
+      getLegalMoves: jest.fn().mockReturnValue([]),
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(false)
+      }
+    });
+    root.NetworkMatchClient.getStateVersion = jest.fn(() => stateVersion);
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const first = await controller.tick();
+    stateVersion = 8;
+    const second = await controller.tick();
+
+    expect(first.published).toBe(true);
+    expect(second.reason).not.toBe('DUPLICATE_TICK');
+    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledTimes(2);
+  });
+
   test('publishes a CPU-selected card when cards are still usable', async () => {
     const root = createRoot({
       getLegalMoves: jest.fn().mockReturnValue([]),
