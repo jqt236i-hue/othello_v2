@@ -9,7 +9,7 @@ describe('left info stack layout contract', () => {
 
     expect(html).toMatch(/id="left-info-stack"/);
     expect(html).toMatch(/id="manifest-effect-panel"/);
-    expect(html).toMatch(/id="left-info-stack"[\s\S]*id="effect-live-panel"[\s\S]*id="stone-info-panel"[\s\S]*id="manifest-effect-panel"/);
+    expect(html).toMatch(/id="left-info-stack"[\s\S]*id="effect-live-panel"[\s\S]*id="manifest-effect-panel"[\s\S]*id="stone-info-panel"/);
   });
 
   test('desktop left info stack uses anchored layout hooks', () => {

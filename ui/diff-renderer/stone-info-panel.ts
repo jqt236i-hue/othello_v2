@@ -18,7 +18,7 @@ export function ensureStoneInfoPanel(doc: Document): HTMLElement | null {
   const manifestPanel = doc.getElementById('manifest-effect-panel');
   const effectPanel = doc.getElementById('effect-live-panel');
   if (manifestPanel && manifestPanel.parentNode) {
-    manifestPanel.parentNode.insertBefore(panel, manifestPanel);
+    manifestPanel.parentNode.insertBefore(panel, manifestPanel.nextSibling);
   } else if (effectPanel && effectPanel.parentNode) {
     effectPanel.parentNode.insertBefore(panel, effectPanel.nextSibling);
   } else {

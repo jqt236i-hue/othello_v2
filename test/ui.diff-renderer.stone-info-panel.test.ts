@@ -28,7 +28,7 @@ describe('DiffRenderer stone info panel DOM shell', () => {
     delete global.gameState;
   });
 
-  test('creates stone info panel before manifest panel when the left stack exists', () => {
+  test('creates stone info panel below manifest panel when the left stack exists', () => {
     const mod = setupDom('<div id="board"></div><div id="left-info-stack"><div id="effect-live-panel"></div><div id="manifest-effect-panel"></div></div>');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
@@ -36,7 +36,7 @@ describe('DiffRenderer stone info panel DOM shell', () => {
     mod.attachBoardCellInteraction(cell, 1, 1);
 
     const stackChildren = Array.from(document.getElementById('left-info-stack').children).map((el) => el.id);
-    expect(stackChildren).toEqual(['effect-live-panel', 'stone-info-panel', 'manifest-effect-panel']);
+    expect(stackChildren).toEqual(['effect-live-panel', 'manifest-effect-panel', 'stone-info-panel']);
   });
 
   test('reuses an existing stone info panel', () => {
