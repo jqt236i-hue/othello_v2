@@ -1,9 +1,12 @@
 import type { MatchWorkerEnv } from './match-worker-types';
 
+const IdentityContract = require('../shared/player-identity-contract');
+
 type MatchWorkerApiControllerConfig = {
     corsHeaders: Record<string, string>;
     leaderboardRoomId: string;
     lobbyRoomId?: string;
+    playerIdentityRoomId?: string;
     normalizeRoomId: (value: unknown) => string;
     jsonResponse: (statusCode: number, payload: unknown) => Response;
     withCORS: (response: Response) => Response;
@@ -48,6 +51,10 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
 
     function getLobbyStub(env: MatchWorkerEnv) {
         return getRoomStub(env, cfg.lobbyRoomId || '__match_lobby__');
+    }
+
+    function getPlayerIdentityRoomId() {
+        return String(cfg.playerIdentityRoomId || '__player_identity__');
     }
 
     async function forwardJsonToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, payload: unknown): Promise<Response> {
@@ -169,6 +176,28 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         return { ok: true, body };
     }
 
+    async function verifyPlayerIdentityForPublicApi(env: MatchWorkerEnv, body: Record<string, unknown>): Promise<
+        { ok: true; playerId: string | null }
+        | { ok: false; response: Response }
+    > {
+        const playerId = IdentityContract.normalizePlayerId(body.playerId);
+        const playerToken = IdentityContract.normalizePlayerToken(body.playerToken);
+        if (!playerId && !playerToken) return { ok: true, playerId: null };
+        if (!playerId || !playerToken) {
+            return { ok: false, response: cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' }) };
+        }
+        const stub = getRoomStub(env, getPlayerIdentityRoomId());
+        const verifyResponse = await stub.fetch(new Request('https://room/api/player/identity/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playerId, playerToken })
+        }));
+        if (!verifyResponse.ok) {
+            return { ok: false, response: cfg.withCORS(verifyResponse) };
+        }
+        return { ok: true, playerId };
+    }
+
     async function handleMatchApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
         const urlObj = new URL(request.url);
         const pathname = urlObj.pathname;
@@ -177,11 +206,27 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             return new Response(null, { status: 204, headers: corsHeaders });
         }
 
+        if (request.method === 'POST' && (
+            pathname === '/api/player/identity/create'
+            || pathname === '/api/player/identity/verify'
+            || pathname === '/api/player/identity/recover'
+        )) {
+            const parsed = await parsePostBody(request);
+            if (!parsed.ok) return parsed.response;
+            return forwardJsonToRoom(env, getPlayerIdentityRoomId(), pathname, parsed.body || {});
+        }
+
         if (request.method === 'POST' && pathname === '/api/match/create') {
             const parsed = await parsePostBody(request);
             if (!parsed.ok) return parsed.response;
+            const body = parsed.body || {};
+            const verified = await verifyPlayerIdentityForPublicApi(env, body);
+            if (!verified.ok) return verified.response;
+            body.playerId = verified.playerId || '';
+            delete body.playerToken;
+            delete body.recoveryCode;
             try {
-                return await cfg.handleCreate(env, parsed.body || {});
+                return await cfg.handleCreate(env, body);
             } catch (error) {
                 return cfg.jsonResponse(500, {
                     ok: false,
@@ -216,6 +261,13 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
                 return cfg.jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
             }
             body.roomId = roomId;
+            if (pathname === '/api/match/join') {
+                const verified = await verifyPlayerIdentityForPublicApi(env, body);
+                if (!verified.ok) return verified.response;
+                body.playerId = verified.playerId || '';
+                delete body.playerToken;
+                delete body.recoveryCode;
+            }
 
             return forwardJsonToRoom(env, roomId, pathname, body);
         }
@@ -246,7 +298,14 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         if (request.method === 'POST' && pathname === '/api/leaderboard/submit') {
             const parsed = await parsePostBody(request);
             if (!parsed.ok) return parsed.response;
-            return forwardJsonToLeaderboard(env, pathname, parsed.body || {});
+            const body = parsed.body || {};
+            const verified = await verifyPlayerIdentityForPublicApi(env, body);
+            if (!verified.ok) return verified.response;
+            if (!verified.playerId) return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+            body.playerId = verified.playerId;
+            delete body.playerToken;
+            delete body.recoveryCode;
+            return forwardJsonToLeaderboard(env, pathname, body);
         }
 
         if (request.method === 'GET' && pathname === '/api/leaderboard/list') {
@@ -265,6 +324,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         forwardGetToLeaderboard,
         forwardGetToLobby,
         parsePostBody,
+        verifyPlayerIdentityForPublicApi,
         handleMatchApi,
         handleLeaderboardApi
     };

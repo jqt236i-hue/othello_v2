@@ -1,0 +1,167 @@
+import * as path from 'path';
+import { pathToFileURL } from 'url';
+import { spawnSync } from 'child_process';
+
+const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
+const RESULT_MARKER = '__WORKER_PLAYER_IDENTITY_RESULT__';
+
+function runWorkerScenario(scenarioSource: string): any {
+  const runner = `
+(async () => {
+  const modulePath = process.argv[1];
+  const workerModule = await import(modulePath);
+  const worker = workerModule.default;
+  const { MatchRoomDurableObject } = workerModule;
+
+  function createStateStore() {
+    const storage = new Map();
+    let alarm = null;
+    return {
+      storage: {
+        get: async (key) => storage.get(key),
+        put: async (key, value) => storage.set(key, globalThis.structuredClone ? globalThis.structuredClone(value) : JSON.parse(JSON.stringify(value))),
+        delete: async (key) => storage.delete(key),
+        getAlarm: async () => alarm,
+        setAlarm: async (value) => { alarm = value; },
+        deleteAlarm: async () => { alarm = null; }
+      }
+    };
+  }
+
+  const rooms = new Map();
+  const env = {
+    MATCH_ROOM: {
+      idFromName: (roomId) => String(roomId || ''),
+      get: (roomId) => {
+        if (!rooms.has(roomId)) rooms.set(roomId, new MatchRoomDurableObject(createStateStore(), env));
+        return { fetch: (request) => rooms.get(roomId).fetch(request) };
+      }
+    }
+  };
+
+${scenarioSource}
+})().catch((error) => {
+  console.error(error && error.stack ? error.stack : String(error));
+  process.exit(1);
+});
+`;
+  const result = spawnSync(process.execPath, ['-e', runner, workerModulePath], {
+    encoding: 'utf8'
+  });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || 'worker identity runner failed');
+  }
+  const stdout = String(result.stdout || '');
+  const markerIndex = stdout.lastIndexOf(RESULT_MARKER);
+  if (markerIndex < 0) {
+    throw new Error(`worker identity runner produced no marker: ${stdout}`);
+  }
+  return JSON.parse(stdout.slice(markerIndex + RESULT_MARKER.length));
+}
+
+describe('match worker anonymous player identity', () => {
+  test('identity create verify and recover keep the same public playerId', () => {
+    const result = runWorkerScenario(`
+  const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+  const created = await createResponse.json();
+
+  const verifyResponse = await worker.fetch(new Request('https://worker/api/player/identity/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId: created.playerId, playerToken: created.playerToken })
+  }), env);
+  const verified = await verifyResponse.json();
+
+  const recoverResponse = await worker.fetch(new Request('https://worker/api/player/identity/recover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recoveryCode: created.recoveryCode })
+  }), env);
+  const recovered = await recoverResponse.json();
+
+  const oldVerifyResponse = await worker.fetch(new Request('https://worker/api/player/identity/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId: created.playerId, playerToken: created.playerToken })
+  }), env);
+  const oldVerified = await oldVerifyResponse.json();
+
+  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({
+    createStatus: createResponse.status,
+    created,
+    verifyStatus: verifyResponse.status,
+    verified,
+    recoverStatus: recoverResponse.status,
+    recovered,
+    oldVerifyStatus: oldVerifyResponse.status,
+    oldVerified
+  }));
+`);
+
+    expect(result.createStatus).toBe(200);
+    expect(result.created.playerId).toMatch(/^p_[A-Za-z0-9_-]{26}$/);
+    expect(result.created.playerToken).toMatch(/^pt_[A-Za-z0-9_-]{43}$/);
+    expect(result.created.recoveryCode).toMatch(/^CR-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}$/);
+    expect(result.verifyStatus).toBe(200);
+    expect(result.verified).toMatchObject({ ok: true, playerId: result.created.playerId });
+    expect(result.recoverStatus).toBe(200);
+    expect(result.recovered.playerId).toBe(result.created.playerId);
+    expect(result.recovered.playerToken).not.toBe(result.created.playerToken);
+    expect(result.oldVerifyStatus).toBe(403);
+    expect(result.oldVerified.reason).toBe('PLAYER_ID_TOKEN_INVALID');
+  });
+
+  test('leaderboard submit verifies playerToken before forwarding sanitized playerId', () => {
+    const result = runWorkerScenario(`
+  const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+  const created = await createResponse.json();
+
+  const okSubmitResponse = await worker.fetch(new Request('https://worker/api/leaderboard/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      playerId: created.playerId,
+      playerToken: created.playerToken,
+      playerName: 'さかな',
+      score: 9412,
+      mode: 'cpu',
+      cpuLevel: 1
+    })
+  }), env);
+  const okSubmit = await okSubmitResponse.json();
+
+  const invalidSubmitResponse = await worker.fetch(new Request('https://worker/api/leaderboard/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      playerId: created.playerId,
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno99',
+      playerName: 'さかな',
+      score: 9999,
+      mode: 'cpu',
+      cpuLevel: 1
+    })
+  }), env);
+  const invalidSubmit = await invalidSubmitResponse.json();
+
+  const listResponse = await worker.fetch(new Request('https://worker/api/leaderboard/list?limit=10'), env);
+  const list = await listResponse.json();
+
+  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({
+    okSubmitStatus: okSubmitResponse.status,
+    okSubmit,
+    invalidSubmitStatus: invalidSubmitResponse.status,
+    invalidSubmit,
+    list
+  }));
+`);
+
+    expect(result.okSubmitStatus).toBe(200);
+    expect(result.okSubmit.ok).toBe(true);
+    expect(result.okSubmit.playerId).toMatch(/^p_[A-Za-z0-9_-]{26}$/);
+    expect(result.invalidSubmitStatus).toBe(403);
+    expect(result.invalidSubmit.reason).toBe('PLAYER_ID_TOKEN_INVALID');
+    expect(result.list.entries).toHaveLength(1);
+    expect(result.list.entries[0]).not.toHaveProperty('playerToken');
+  });
+});

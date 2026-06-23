@@ -2,6 +2,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
 
 const http = require('http');
+const nodeCrypto = require('crypto');
 const { URL } = require('url');
 
 const Core = require('../game/logic/core');
@@ -18,6 +19,7 @@ const NetworkActionSchema = require('../shared/network-action-schema');
 const PlaybackEventHelpers = require('../shared/playback-event-helpers');
 const DeckCodecModule = require('../shared/deck-codec');
 const DeckSpecHelpers = require('../shared/deck-spec');
+const PlayerIdentityContract = require('../shared/player-identity-contract');
 
 function readArgValue(name: any) {
     const key = `--${name}`;
@@ -46,6 +48,7 @@ const SSE_HEARTBEAT_INTERVAL_MS = Number(MatchAuthority.SSE_HEARTBEAT_INTERVAL_M
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 
 const rooms = new Map();
+const playerIdentityRecords = new Map();
 let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function parseSeatKeyOptional(value: any) {
@@ -1505,6 +1508,118 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     return { applied: true, stateVersion: room.stateVersion };
 }
 
+const PLAYER_ID_TOKEN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+const RECOVERY_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ234567';
+
+function randomFromChars(chars: string, length: number) {
+    const bytes = nodeCrypto.randomBytes(length);
+    return Array.from(bytes).map((byte: any) => chars[byte % chars.length]).join('');
+}
+
+function makeLocalPlayerId() {
+    return `p_${randomFromChars(PLAYER_ID_TOKEN_CHARS, 26)}`;
+}
+
+function makeLocalPlayerToken() {
+    return `pt_${randomFromChars(PLAYER_ID_TOKEN_CHARS, 43)}`;
+}
+
+function makeLocalRecoveryCode() {
+    const raw = randomFromChars(RECOVERY_CODE_CHARS, 25);
+    return `CR-${raw.slice(0, 5)}-${raw.slice(5, 10)}-${raw.slice(10, 15)}-${raw.slice(15, 20)}-${raw.slice(20, 25)}`;
+}
+
+function sha256HexLocal(value: string) {
+    return nodeCrypto.createHash('sha256').update(value).digest('hex');
+}
+
+function equalHexLocal(left: string, right: string) {
+    if (left.length !== right.length) return false;
+    let diff = 0;
+    for (let i = 0; i < left.length; i += 1) {
+        diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+function findLocalIdentityByRecoveryCode(recoveryCode: string) {
+    const recoveryHash = sha256HexLocal(recoveryCode);
+    for (const record of playerIdentityRecords.values()) {
+        if (record && equalHexLocal(String(record.recoveryHash || ''), recoveryHash)) return record;
+    }
+    return null;
+}
+
+function verifyLocalPlayerIdentity(playerIdValue: any, playerTokenValue: any) {
+    const playerId = PlayerIdentityContract.normalizePlayerId(playerIdValue);
+    const playerToken = PlayerIdentityContract.normalizePlayerToken(playerTokenValue);
+    if (!playerId || !playerToken) return null;
+    const record = playerIdentityRecords.get(playerId);
+    if (!record) return null;
+    const tokenHash = sha256HexLocal(playerToken);
+    if (!equalHexLocal(String(record.tokenHash || ''), tokenHash)) return null;
+    const nowMs = Date.now();
+    record.lastSeenAt = nowMs;
+    record.updatedAt = nowMs;
+    return playerId;
+}
+
+async function handlePlayerIdentityCreate(req: any, res: any) {
+    await parseBody(req);
+    let playerId = makeLocalPlayerId();
+    while (playerIdentityRecords.has(playerId)) playerId = makeLocalPlayerId();
+    const playerToken = makeLocalPlayerToken();
+    const recoveryCode = makeLocalRecoveryCode();
+    const nowMs = Date.now();
+    playerIdentityRecords.set(playerId, {
+        playerId,
+        tokenHash: sha256HexLocal(playerToken),
+        recoveryHash: sha256HexLocal(recoveryCode),
+        createdAt: nowMs,
+        updatedAt: nowMs,
+        lastSeenAt: nowMs
+    });
+    writeJson(res, 200, { ok: true, playerId, playerToken, recoveryCode, serverTime: nowMs });
+}
+
+async function handlePlayerIdentityVerify(req: any, res: any) {
+    const body = await parseBody(req);
+    const playerId = verifyLocalPlayerIdentity(body.playerId, body.playerToken);
+    if (!playerId) {
+        writeJson(res, 403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        return;
+    }
+    writeJson(res, 200, { ok: true, playerId, serverTime: Date.now() });
+}
+
+async function handlePlayerIdentityRecover(req: any, res: any) {
+    const body = await parseBody(req);
+    const recoveryCode = PlayerIdentityContract.normalizeRecoveryCode(body.recoveryCode);
+    if (!recoveryCode) {
+        writeJson(res, 403, { ok: false, reason: 'RECOVERY_CODE_INVALID' });
+        return;
+    }
+    const record = findLocalIdentityByRecoveryCode(recoveryCode);
+    if (!record) {
+        writeJson(res, 403, { ok: false, reason: 'RECOVERY_CODE_INVALID' });
+        return;
+    }
+    const playerToken = makeLocalPlayerToken();
+    const nextRecoveryCode = makeLocalRecoveryCode();
+    const nowMs = Date.now();
+    record.tokenHash = sha256HexLocal(playerToken);
+    record.recoveryHash = sha256HexLocal(nextRecoveryCode);
+    record.updatedAt = nowMs;
+    record.lastSeenAt = nowMs;
+    writeJson(res, 200, {
+        ok: true,
+        playerId: record.playerId,
+        playerToken,
+        recoveryCode: nextRecoveryCode,
+        serverTime: nowMs
+    });
+}
+
 async function handleCreate(req: any, res: any) {
     const body = await parseBody(req);
     const playerName = normalizeNetworkPlayerName(body.playerName) || MatchRoomLobby.createRandomPlayerName();
@@ -2636,6 +2751,21 @@ function createLocalMatchServer() {
                 return;
             }
 
+            if (req.method === 'POST' && pathname === '/api/player/identity/create') {
+                await handlePlayerIdentityCreate(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/player/identity/verify') {
+                await handlePlayerIdentityVerify(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/player/identity/recover') {
+                await handlePlayerIdentityRecover(req, res);
+                return;
+            }
+
             if (req.method === 'POST' && pathname === '/api/match/create') {
                 await handleCreate(req, res);
                 return;
@@ -2721,6 +2851,7 @@ function createLocalMatchServer() {
 
 function resetRoomsForTests() {
     rooms.clear();
+    playerIdentityRecords.clear();
     stopHeartbeatLoopIfIdle();
 }
 

@@ -58,6 +58,7 @@ import { createMatchWorkerBroadcastController } from './match-worker-broadcast-c
 import { createMatchWorkerChatController } from './match-worker-chat-controller';
 import { createMatchWorkerLeaderboardHelpers } from './match-worker-leaderboard';
 import { createMatchWorkerLeaderboardRoomController } from './match-worker-leaderboard-room';
+import { createMatchWorkerPlayerIdentityController } from './match-worker-player-identity';
 import { createMatchWorkerStreamController } from './match-worker-stream-controller';
 import { createMatchWorkerStreamRouteController } from './match-worker-stream-route-controller';
 import { createMatchWorkerStreamSessionController } from './match-worker-stream-session-controller';
@@ -86,6 +87,8 @@ const SHORTEST_TURNS_LEADERBOARD_STORAGE_KEY = 'global_shortest_turns_leaderboar
 const LEADERBOARD_STORAGE_VERSION = 3;
 const MATCH_LOBBY_ROOM_ID = '__match_lobby__';
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
+const PLAYER_IDENTITY_ROOM_ID = '__player_identity__';
+const PLAYER_IDENTITY_STORAGE_KEY = 'player_identity_store_v1';
 const LEADERBOARD_PLAYER_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
 const LEADERBOARD_DEFAULT_LIMIT = 10;
 const LEADERBOARD_MAX_LIMIT = 100;
@@ -1957,7 +1960,8 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 roomPassword,
                 initialDeckSpecByPlayer,
                 roomDeck,
-                roomBoardConfig
+                roomBoardConfig,
+                playerId: opts.playerId
             })
         });
         const response = await stub.fetch(req);
@@ -1974,6 +1978,7 @@ const MatchWorkerApiController = createMatchWorkerApiController({
     corsHeaders: CORS_HEADERS,
     leaderboardRoomId: LEADERBOARD_ROOM_ID,
     lobbyRoomId: MATCH_LOBBY_ROOM_ID,
+    playerIdentityRoomId: PLAYER_IDENTITY_ROOM_ID,
     normalizeRoomId,
     jsonResponse,
     withCORS,
@@ -2065,6 +2070,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     heartbeatTimerId: ReturnType<typeof setTimeout> | null;
     sseEventBuffer: MatchAuthorityBufferedSseEventRecord[];
     leaderboardRoomController: ReturnType<typeof createMatchWorkerLeaderboardRoomController> | null;
+    playerIdentityController: ReturnType<typeof createMatchWorkerPlayerIdentityController> | null;
     broadcastController: ReturnType<typeof createMatchWorkerBroadcastController> | null;
     chatController: ReturnType<typeof createMatchWorkerChatController> | null;
     streamController: ReturnType<typeof createMatchWorkerStreamController> | null;
@@ -2084,6 +2090,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.heartbeatTimerId = null;
         this.sseEventBuffer = [];
         this.leaderboardRoomController = null;
+        this.playerIdentityController = null;
         this.broadcastController = null;
         this.chatController = null;
         this.streamController = null;
@@ -2108,6 +2115,17 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             });
         }
         return this.leaderboardRoomController;
+    }
+
+    getPlayerIdentityController() {
+        if (!this.playerIdentityController) {
+            this.playerIdentityController = createMatchWorkerPlayerIdentityController({
+                storage: this.state.storage,
+                storageKey: PLAYER_IDENTITY_STORAGE_KEY,
+                jsonResponse
+            });
+        }
+        return this.playerIdentityController;
     }
 
     getBroadcastController() {
@@ -3411,6 +3429,22 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return this.handleLeaderboardList(urlObj);
         }
 
+        if (request.method === 'POST' && pathname === '/api/player/identity/create') {
+            return this.getPlayerIdentityController().handleCreate();
+        }
+
+        if (request.method === 'POST' && pathname === '/api/player/identity/verify') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.getPlayerIdentityController().handleVerify(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/player/identity/recover') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.getPlayerIdentityController().handleRecover(parsed || {});
+        }
+
         if (request.method === 'POST' && pathname === '/internal/create') {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
@@ -3528,6 +3562,10 @@ const matchWorkerEntrypoint: MatchWorkerEntrypoint = assertMatchWorkerEntrypoint
         const urlObj = new URL(request.url);
 
         if (urlObj.pathname.startsWith('/api/match/')) {
+            return handleMatchApi(request, env);
+        }
+
+        if (urlObj.pathname.startsWith('/api/player/identity/')) {
             return handleMatchApi(request, env);
         }
 
