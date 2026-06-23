@@ -1,4 +1,6 @@
 import { JSDOM } from 'jsdom';
+import fs from 'fs';
+import path from 'path';
 
 describe('manifest effect panel', () => {
   let dom: JSDOM | null = null;
@@ -47,6 +49,27 @@ describe('manifest effect panel', () => {
     diffRenderer.renderBoardDiff(document.getElementById('board'));
     return document.getElementById('manifest-effect-panel') as HTMLElement | null;
   }
+
+  test('last used card tags opt back into pointer events inside the passive left HUD panel', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout-info.css'), 'utf8');
+    const blocksFor = (selector: string) => {
+      const blocks: string[] = [];
+      const rulePattern = /([^{}]+)\{([^{}]*)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = rulePattern.exec(css)) !== null) {
+        const selectors = match[1].split(',').map((item) => item.trim());
+        if (selectors.includes(selector)) blocks.push(match[2]);
+      }
+      return blocks;
+    };
+    const hasDeclaration = (selector: string, declaration: RegExp) => (
+      blocksFor(selector).some((block) => declaration.test(block))
+    );
+
+    expect(hasDeclaration('#manifest-effect-panel', /pointer-events:\s*none;/)).toBe(true);
+    expect(hasDeclaration('#manifest-effect-tags', /pointer-events:\s*auto;/)).toBe(true);
+    expect(hasDeclaration('#manifest-effect-tags .card-detail-effect-tag-button', /pointer-events:\s*auto;/)).toBe(true);
+  });
 
   test('shows an empty panel when no manifestation stone or used card exists', () => {
     const panel = renderOnce();

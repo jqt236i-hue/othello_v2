@@ -961,6 +961,11 @@
     gap: calc(5px * var(--layout-stage-scale));
     margin-top: calc(8px * var(--layout-stage-scale));
     padding-left: calc(2px * var(--layout-stage-scale));
+    pointer-events: auto;
+}
+
+#manifest-effect-tags .card-detail-effect-tag-button {
+    pointer-events: auto;
 }
 
 .manifest-effect-line {
