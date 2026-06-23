@@ -2127,6 +2127,7 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
                 _clearSelectedCardSelection();
             }
             _renderCardUiSafely();
+            _requestImmediateBoardRefresh();
             const rootRef = _getUiRootRef();
             const globalRef: CardInteractionRuntimeRoot | null = (typeof globalThis !== 'undefined' && globalThis) ? (globalThis as CardInteractionRuntimeRoot) : null;
             const clickHandler = (typeof handleCellClick === 'function')

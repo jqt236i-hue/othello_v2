@@ -634,6 +634,7 @@ describe('card use source element selection', () => {
     expect(global.cardState.selectedCardOwnerKey).toBeNull();
     expect(global.window.isProcessing).toBe(false);
     expect(global.window.isCardAnimating).toBe(false);
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
     expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
