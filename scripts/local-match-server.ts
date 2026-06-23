@@ -1632,6 +1632,28 @@ async function handlePlayerIdentityRecover(req: any, res: any) {
     });
 }
 
+async function handlePlayerIdentityRegenerateRecovery(req: any, res: any) {
+    const body = await parseBody(req);
+    const playerId = PlayerIdentityContract.normalizePlayerId(body.playerId);
+    const playerToken = PlayerIdentityContract.normalizePlayerToken(body.playerToken);
+    if (!playerId || !playerToken) {
+        writeJson(res, 403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        return;
+    }
+    const record = playerIdentityRecords.get(playerId);
+    const tokenHash = sha256HexLocal(playerToken);
+    if (!record || !equalHexLocal(String(record.tokenHash || ''), tokenHash)) {
+        writeJson(res, 403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        return;
+    }
+    const recoveryCode = makeLocalRecoveryCode();
+    const nowMs = Date.now();
+    record.recoveryHash = sha256HexLocal(recoveryCode);
+    record.updatedAt = nowMs;
+    record.lastSeenAt = nowMs;
+    writeJson(res, 200, { ok: true, playerId, recoveryCode, serverTime: nowMs });
+}
+
 async function handleCreate(req: any, res: any) {
     const body = await parseBody(req);
     const verifiedIdentity = verifyLocalPlayerIdentityFromBody(body);
@@ -2789,6 +2811,11 @@ function createLocalMatchServer() {
 
             if (req.method === 'POST' && pathname === '/api/player/identity/recover') {
                 await handlePlayerIdentityRecover(req, res);
+                return;
+            }
+
+            if (req.method === 'POST' && pathname === '/api/player/identity/recovery/regenerate') {
+                await handlePlayerIdentityRegenerateRecovery(req, res);
                 return;
             }
 

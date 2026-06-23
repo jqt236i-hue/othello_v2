@@ -76,6 +76,35 @@ describe('local match server anonymous player identity', () => {
     }
   });
 
+  test('local server regenerates recovery code with current player token', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    try {
+      const created = await requestJson(port, 'POST', '/api/player/identity/create', {});
+      const reissued = await requestJson(port, 'POST', '/api/player/identity/recovery/regenerate', {
+        playerId: created.data.playerId,
+        playerToken: created.data.playerToken
+      });
+      const oldRecover = await requestJson(port, 'POST', '/api/player/identity/recover', {
+        recoveryCode: created.data.recoveryCode
+      });
+      const newRecover = await requestJson(port, 'POST', '/api/player/identity/recover', {
+        recoveryCode: reissued.data.recoveryCode
+      });
+
+      expect(reissued.status).toBe(200);
+      expect(reissued.data.playerId).toBe(created.data.playerId);
+      expect(reissued.data.recoveryCode).toMatch(/^CR-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}$/);
+      expect(reissued.data.recoveryCode).not.toBe(created.data.recoveryCode);
+      expect(oldRecover.status).toBe(403);
+      expect(oldRecover.data.reason).toBe('RECOVERY_CODE_INVALID');
+      expect(newRecover.status).toBe(200);
+      expect(newRecover.data.playerId).toBe(created.data.playerId);
+    } finally {
+      server.close();
+    }
+  });
+
   test('room create and join expose public seatPlayerIds without secrets', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

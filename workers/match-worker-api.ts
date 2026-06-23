@@ -210,6 +210,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             pathname === '/api/player/identity/create'
             || pathname === '/api/player/identity/verify'
             || pathname === '/api/player/identity/recover'
+            || pathname === '/api/player/identity/recovery/regenerate'
         )) {
             const parsed = await parsePostBody(request);
             if (!parsed.ok) return parsed.response;

@@ -172,9 +172,39 @@ export function createMatchWorkerPlayerIdentityController(config: IdentityContro
         });
     }
 
+    async function handleRegenerateRecovery(body: Record<string, unknown>): Promise<Response> {
+        const playerId = Contract.normalizePlayerId(body.playerId);
+        const playerToken = Contract.normalizePlayerToken(body.playerToken);
+        if (!playerId || !playerToken) {
+            return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        }
+
+        const record = await loadRecord(playerId);
+        const tokenHash = await sha256Hex(playerToken, cryptoLike);
+        if (!record || !equalHex(record.tokenHash, tokenHash)) {
+            return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        }
+
+        const previousRecoveryHash = record.recoveryHash;
+        const recoveryCode = makeRecoveryCode(cryptoLike);
+        record.recoveryHash = await sha256Hex(recoveryCode, cryptoLike);
+        record.updatedAt = now();
+        record.lastSeenAt = record.updatedAt;
+        await saveRecord(record);
+        await deleteRecoveryIndex(previousRecoveryHash);
+        await saveRecoveryIndex(record.recoveryHash, playerId);
+        return cfg.jsonResponse(200, {
+            ok: true,
+            playerId,
+            recoveryCode,
+            serverTime: record.updatedAt
+        });
+    }
+
     return {
         handleCreate,
         handleVerify,
-        handleRecover
+        handleRecover,
+        handleRegenerateRecovery
     };
 }

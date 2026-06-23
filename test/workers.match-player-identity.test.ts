@@ -172,6 +172,53 @@ describe('match worker anonymous player identity', () => {
     expect(result.recovered.playerId).toBe(result.created.playerId);
   });
 
+  test('recovery code can be reissued with current player token without changing playerId', () => {
+    const result = runWorkerScenario(`
+  const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+  const created = await createResponse.json();
+
+  const reissueResponse = await worker.fetch(new Request('https://worker/api/player/identity/recovery/regenerate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerId: created.playerId, playerToken: created.playerToken })
+  }), env);
+  const reissued = await reissueResponse.json();
+
+  const oldRecoverResponse = await worker.fetch(new Request('https://worker/api/player/identity/recover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recoveryCode: created.recoveryCode })
+  }), env);
+  const oldRecover = await oldRecoverResponse.json();
+
+  const newRecoverResponse = await worker.fetch(new Request('https://worker/api/player/identity/recover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recoveryCode: reissued.recoveryCode })
+  }), env);
+  const newRecover = await newRecoverResponse.json();
+
+  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({
+    created,
+    reissueStatus: reissueResponse.status,
+    reissued,
+    oldRecoverStatus: oldRecoverResponse.status,
+    oldRecover,
+    newRecoverStatus: newRecoverResponse.status,
+    newRecover
+  }));
+`);
+
+    expect(result.reissueStatus).toBe(200);
+    expect(result.reissued.playerId).toBe(result.created.playerId);
+    expect(result.reissued.recoveryCode).toMatch(/^CR-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}$/);
+    expect(result.reissued.recoveryCode).not.toBe(result.created.recoveryCode);
+    expect(result.oldRecoverStatus).toBe(403);
+    expect(result.oldRecover.reason).toBe('RECOVERY_CODE_INVALID');
+    expect(result.newRecoverStatus).toBe(200);
+    expect(result.newRecover.playerId).toBe(result.created.playerId);
+  });
+
   test('leaderboard submit verifies playerToken before forwarding sanitized playerId', () => {
     const result = runWorkerScenario(`
   const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);

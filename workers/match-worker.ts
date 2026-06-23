@@ -3454,6 +3454,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return this.getPlayerIdentityController().handleRecover(parsed || {});
         }
 
+        if (request.method === 'POST' && pathname === '/api/player/identity/recovery/regenerate') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.getPlayerIdentityController().handleRegenerateRecovery(parsed || {});
+        }
+
         if (request.method === 'POST' && pathname === '/internal/create') {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
