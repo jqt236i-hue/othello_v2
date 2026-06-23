@@ -54,6 +54,50 @@ describe('PresentationHandler playback claim', () => {
     ]);
   });
 
+  test('requests board sync again after releasing playback claim', async () => {
+    const order: string[] = [];
+    const claim = { id: 9 };
+    let claimActive = false;
+    (global as any).GameEvents = {
+      gameEvents: {
+        on: jest.fn()
+      }
+    };
+    (global as any).emitBoardUpdate = jest.fn(() => {
+      order.push(`emit:${claimActive}`);
+      return true;
+    });
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => {
+        claimActive = true;
+        order.push('claim');
+        return claim;
+      }),
+      releaseVisualPlaybackClaim: jest.fn((token) => {
+        expect(token).toBe(claim);
+        claimActive = false;
+        order.push('release');
+        return true;
+      })
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async () => {
+        order.push('play');
+        (global as any).emitBoardUpdate();
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'spawn', phase: 1, targets: [{ r: 2, col: 3 }] }],
+      meta: { source: 'unit-test' }
+    });
+
+    expect(order).toEqual(['claim', 'play', 'emit:true', 'release', 'emit:false']);
+  });
+
   test('does not claim suppressed playback batches', async () => {
     (global as any).GameEvents = {
       gameEvents: {

@@ -508,6 +508,42 @@ function releasePlaybackClaimForPresentation(claim: any): boolean {
   return manager.releaseVisualPlaybackClaim(claim);
 }
 
+function hasActivePlaybackClaimForPresentation(): boolean {
+  const manager = resolvePlaybackStateManagerForPresentation();
+  if (manager && typeof manager.hasClaimedVisualPlayback === 'function') {
+    try { return manager.hasClaimedVisualPlayback() === true; } catch (e) { /* ignore */ }
+  }
+  return false;
+}
+
+function requestBoardSyncAfterPlaybackClaimRelease(reason: string): boolean {
+  const payload = {
+    source: 'ui.presentation-handler',
+    reason: reason || 'playback_claim_released'
+  };
+  const emitBoardUpdate = resolveFromGlobal('emitBoardUpdate');
+  if (typeof emitBoardUpdate === 'function') {
+    try { return emitBoardUpdate(payload) !== false; } catch (e) { return false; }
+  }
+  const renderScheduler = resolveFromGlobal('RenderScheduler');
+  if (renderScheduler && typeof renderScheduler.requestBoardRender === 'function') {
+    try { return renderScheduler.requestBoardRender(payload) !== false; } catch (e) { return false; }
+  }
+  const renderBoard = resolveFromGlobal('renderBoard');
+  if (typeof renderBoard === 'function') {
+    try { renderBoard(); return true; } catch (e) { return false; }
+  }
+  return false;
+}
+
+function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: string): boolean {
+  const released = releasePlaybackClaimForPresentation(claim);
+  if (released && !hasActivePlaybackClaimForPresentation()) {
+    requestBoardSyncAfterPlaybackClaimRelease(reason);
+  }
+  return released;
+}
+
 async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
   const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
   if (!payload.length) return;
@@ -616,7 +652,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
       }
     }
   } finally {
-    releasePlaybackClaimForPresentation(playbackClaim);
+    releasePlaybackClaimAndRequestBoardSync(playbackClaim, 'playback_batch_claim_released');
   }
 }
 
@@ -757,7 +793,7 @@ async function flushBoardPresentationEvents(): Promise<void> {
   } catch (e) {
     console.error('[PresentationHandler] onBoardUpdated error', e);
   } finally {
-    releasePlaybackClaimForPresentation(drainClaim);
+    releasePlaybackClaimAndRequestBoardSync(drainClaim, 'presentation_drain_claim_released');
   }
 }
 
