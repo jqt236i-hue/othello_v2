@@ -120,6 +120,7 @@ const REQUIRED_BOOT_MODULE_KEYS = new Set([
     'ui/bootstrap',
     'ui/network-client',
     'ui/board-renderer',
+    'ui/debug-card-search',
     'ui/presentation-handler'
 ]);
 
