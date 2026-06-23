@@ -11,8 +11,12 @@ describe('leaderboard client shortest turns category', () => {
       getItem: jest.fn((key: string) => storage.get(key) || null),
       setItem: jest.fn((key: string, value: string) => void storage.set(key, value))
     };
-    storage.set('shared_leaderboard_player_id_v1', 'player_alpha_0001');
     storage.set('shared_leaderboard_player_name_v1', 'アルファ');
+    storage.set('card_reversi_player_identity_v1', JSON.stringify({
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+      recoveryCode: 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23'
+    }));
   });
 
   afterEach(() => {
@@ -66,6 +70,14 @@ describe('leaderboard client shortest turns category', () => {
       status: 200,
       json: async () => ({
         ok: true,
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001'
+      })
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
         updated: true,
         bestTurnCount: 37,
         rank: 1,
@@ -79,9 +91,11 @@ describe('leaderboard client shortest turns category', () => {
       { mode: 'cpu', cpuLevel: 6, boardConfig: { rows: 8, cols: 8, standard8x8: true } }
     );
 
-    const [, requestInit] = fetchMock.mock.calls[0];
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/player/identity/verify');
+    const [, requestInit] = fetchMock.mock.calls[1];
     expect(JSON.parse(requestInit.body)).toMatchObject({
-      playerId: 'player_alpha_0001',
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
       playerName: 'アルファ',
       category: 'shortestTurns',
       turnCount: 37,

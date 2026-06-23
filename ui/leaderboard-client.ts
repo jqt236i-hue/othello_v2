@@ -6,11 +6,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const PlayerIdentity = _require('./player-identity');
+const IdentityContract = _require('../shared/player-identity-contract');
+
 const PLAYER_NAME_STORAGE_KEY = 'shared_leaderboard_player_name_v1';
-const PLAYER_ID_STORAGE_KEY = 'shared_leaderboard_player_id_v1';
 const PLAYER_NAME_MAX = 7;
 const DEFAULT_PLAYER_NAME = 'ななし';
-const PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const LEADERBOARD_FETCH_LIMIT_MAX = 100;
 const LEADERBOARD_FETCH_MODES = new Set(['all', 'network', 'cpu']);
 
@@ -26,25 +27,6 @@ function normalizePlayerName(value: any): string {
   const normalized = String(value || '').replace(/\s+/g, ' ').trim();
   const clipped = Array.from(normalized).slice(0, PLAYER_NAME_MAX).join('');
   return clipped || DEFAULT_PLAYER_NAME;
-}
-
-function normalizePlayerId(value: any): string | null {
-  const normalized = String(value || '').trim();
-  if (!PLAYER_ID_RE.test(normalized)) return null;
-  return normalized;
-}
-
-function makePlayerId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && crypto && typeof crypto.getRandomValues === 'function') {
-      const bytes = new Uint8Array(16);
-      crypto.getRandomValues(bytes);
-      return Array.from(bytes).map((one) => one.toString(16).padStart(2, '0')).join('');
-    }
-  } catch (e) { /* ignore */ }
-
-  const fallback = `${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-  return String(fallback).replace(/[^0-9a-zA-Z_-]/g, '');
 }
 
 function withTrailingSlashRemoved(url: string): string {
@@ -92,21 +74,12 @@ function setPlayerName(value: string): string {
   return name;
 }
 
-function getPlayerId(): string {
-  if (canUseStorage()) {
-    try {
-      const stored = normalizePlayerId(localStorage.getItem(PLAYER_ID_STORAGE_KEY));
-      if (stored) return stored;
-    } catch (e) { /* ignore */ }
+function getPlayerId(): string | null {
+  try {
+    return typeof PlayerIdentity.getPlayerId === 'function' ? PlayerIdentity.getPlayerId() : null;
+  } catch (e) {
+    return null;
   }
-
-  const created = normalizePlayerId(makePlayerId()) || normalizePlayerId(`p_${Date.now()}_${Math.floor(Math.random() * 100000)}`) || 'player_fallback';
-  if (canUseStorage()) {
-    try {
-      localStorage.setItem(PLAYER_ID_STORAGE_KEY, created);
-    } catch (e) { /* ignore */ }
-  }
-  return created;
 }
 
 async function requestJson(method: string, path: string, payload?: any, options?: any): Promise<any> {
@@ -161,7 +134,7 @@ function normalizeEntry(entry: any): any {
 
   return {
     rank,
-    playerId: normalizePlayerId(entry.playerId) || null,
+    playerId: IdentityContract.normalizeLeaderboardDisplayPlayerId(entry.playerId) || null,
     playerName: normalizePlayerName(entry.playerName),
     category,
     bestScore: score,
@@ -171,6 +144,22 @@ function normalizeEntry(entry: any): any {
     cpuLevel,
     updatedAt
   };
+}
+
+async function appendVerifiedIdentity(payload: Record<string, any>, options?: any): Promise<boolean> {
+  try {
+    const identity = PlayerIdentity && typeof PlayerIdentity.ensurePlayerIdentity === 'function'
+      ? await PlayerIdentity.ensurePlayerIdentity(options)
+      : null;
+    const playerId = IdentityContract.normalizePlayerId(identity && identity.playerId);
+    const playerToken = IdentityContract.normalizePlayerToken(identity && identity.playerToken);
+    if (!playerId || !playerToken) return false;
+    payload.playerId = playerId;
+    payload.playerToken = playerToken;
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function normalizeBoardConfig(value: any): any {
@@ -236,7 +225,6 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
   }
 
   const payload = {
-    playerId: getPlayerId(),
     playerName: getPlayerName(),
     score,
     scoreVersion: Number.isFinite(Number(summary.version)) ? Math.trunc(Number(summary.version)) : null,
@@ -249,6 +237,9 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  if (!await appendVerifiedIdentity(payload, opts)) {
+    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
+  }
 
   const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
   if (!res.ok) {
@@ -279,7 +270,6 @@ async function submitTimeAttack(summary: any, options?: any): Promise<any> {
   }
 
   const payload = {
-    playerId: getPlayerId(),
     playerName: getPlayerName(),
     category: 'timeAttack',
     elapsedMs,
@@ -291,6 +281,9 @@ async function submitTimeAttack(summary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  if (!await appendVerifiedIdentity(payload, opts)) {
+    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
+  }
 
   const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
   if (!res.ok) {
@@ -321,7 +314,6 @@ async function submitTimeDefense(summary: any, options?: any): Promise<any> {
   }
 
   const payload = {
-    playerId: getPlayerId(),
     playerName: getPlayerName(),
     category: 'timeDefense',
     turnCount,
@@ -333,6 +325,9 @@ async function submitTimeDefense(summary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  if (!await appendVerifiedIdentity(payload, opts)) {
+    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
+  }
 
   const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
   if (!res.ok) {
@@ -363,7 +358,6 @@ async function submitShortestTurns(summary: any, options?: any): Promise<any> {
   }
 
   const payload = {
-    playerId: getPlayerId(),
     playerName: getPlayerName(),
     category: 'shortestTurns',
     turnCount,
@@ -375,6 +369,9 @@ async function submitShortestTurns(summary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  if (!await appendVerifiedIdentity(payload, opts)) {
+    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
+  }
 
   const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
   if (!res.ok) {
