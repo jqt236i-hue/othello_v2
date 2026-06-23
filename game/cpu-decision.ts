@@ -3430,6 +3430,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectCloneWillWithPolicy,
         cpuSelectReverseWillWithPolicy,
         cpuSelectTemptWillWithPolicy,
+        cpuSelectStrongWindWillWithPolicy,
         computeCpuAction,
         setCpuRng,
         setCpuTimerService,
