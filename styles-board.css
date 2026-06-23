@@ -19,6 +19,9 @@
     --board-bonus-number-highlight: rgba(238, 255, 236, 0.24);
     --board-bonus-number-shadow: rgba(0, 0, 0, 0.74);
     --board-bonus-number-glow: rgba(112, 212, 184, 0.24);
+    --board-legal-ring-color: rgba(159, 255, 232, 0.56);
+    --board-legal-ring-highlight: rgba(230, 255, 249, 0.34);
+    --board-legal-ring-glow: rgba(105, 255, 222, 0.20);
     --board-surface-base-color: #07110f;
     --board-surface-texture-image: url("assets/images/board/board-surface-bluegreen-felt-v1.png");
     --board-surface-base-image:
@@ -529,6 +532,28 @@
         inset calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48);
 }
 
+.cell.legal::before,
+.cell.legal-free::before,
+#board-expansion-layer .cell-expanded.legal::before,
+#board-expansion-layer .cell-expanded.legal-free::before {
+    content: "";
+    position: absolute;
+    inset: 10%;
+    border-radius: 50%;
+    border: calc(2px * var(--layout-stage-scale)) solid var(--board-legal-ring-color);
+    box-sizing: border-box;
+    background:
+        radial-gradient(circle at 50% 48%, rgba(184, 255, 238, 0.08), transparent 46%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.02));
+    box-shadow:
+        0 0 calc(8px * var(--layout-stage-scale)) var(--board-legal-ring-glow),
+        inset 0 0 calc(10px * var(--layout-stage-scale)) rgba(201, 255, 241, 0.08),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 var(--board-legal-ring-highlight);
+    opacity: 0.92;
+    pointer-events: none;
+    z-index: 3;
+}
+
 #board-expansion-layer .cell-expanded.legal,
 #board-expansion-layer .cell-expanded.legal-free,
 #board-expansion-layer .cell-expanded.selectable-friendly {
@@ -908,6 +933,15 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
     .cell.selectable-friendly:hover {
         cursor: pointer;
         background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .cell.legal:hover::before,
+    .cell.legal-free:hover::before {
+        border-color: rgba(190, 255, 239, 0.72);
+        box-shadow:
+            0 0 calc(13px * var(--layout-stage-scale)) rgba(105, 255, 222, 0.30),
+            inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(218, 255, 246, 0.11),
+            inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(244, 255, 252, 0.42);
     }
 }
 
@@ -1509,6 +1543,11 @@ html.stone-images-loaded .disc.white {
 #board.selection-mode .cell.legal-free {
     background-color: transparent;
     box-shadow: none;
+}
+
+#board.selection-mode .cell.legal::before,
+#board.selection-mode .cell.legal-free::before {
+    content: none;
 }
 
 body.reversi-mode-active .board-bonus-number,
