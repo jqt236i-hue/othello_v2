@@ -953,6 +953,17 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         });
     }
 
+    function resolveBoardBonusGain(CardLogic: any, cardState: any, playerKey: any, row: any, col: any, options: any) {
+        if (!(TurnBoardChargeModule && typeof TurnBoardChargeModule.resolveBoardBonusGain === 'function')) {
+            throw new Error('TurnPipeline board charge module unavailable');
+        }
+        return TurnBoardChargeModule.resolveBoardBonusGain(CardLogic, cardState, playerKey, row, col, options, {
+            CardUtilsModule,
+            chargeMax: CHARGE_MAX,
+            emitBoardChargeBubblePresentation
+        });
+    }
+
     function getTurnPhaseMarkers(nextCardState: any): any[] {
         return (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
             ? MarkersAdapter.getMarkers(nextCardState)
@@ -1368,6 +1379,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         clearPendingForActionPhase,
                         transferChargeBetweenPlayers,
                         applyPostFlipRevives,
+                        resolveBoardBonusGain,
                         awardBoardChargeGain,
                         emitHandRemovePresentation
                     });
@@ -1644,6 +1656,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                             }
                         });
                     },
+                    resolveBoardBonusGain,
                     applyPlacementBoardBonusGain,
                     applyPostFlipRevives,
                     isOthelloMode: () => isOthelloModeForTurnPipelinePhases()

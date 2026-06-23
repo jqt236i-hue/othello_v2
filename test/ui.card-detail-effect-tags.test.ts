@@ -493,7 +493,7 @@ describe('card detail effect tags', () => {
       name: '増援の意志',
       type: 'REINFORCEMENT_WILL',
       cost: 4,
-      desc: '盤面の角辺以外で石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。'
+      desc: '盤面の石に隣接する空きマスからランダム1マスへ、自分色の通常石を1個配置する。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -516,7 +516,7 @@ describe('card detail effect tags', () => {
       id: 'support_troops_01',
       name: '援軍の意志',
       type: 'SUPPORT_TROOPS_WILL',
-      cost: 14,
+      cost: 16,
       desc: '既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)'
     };
 

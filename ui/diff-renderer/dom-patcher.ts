@@ -1,3 +1,31 @@
+function canShowSelectableFriendlyForState(state: any): boolean {
+    if (!state || !state.isSelectableFriendly || state.frozen) return false;
+    if (!state.blockade) return true;
+    return String(state.blockade.type || '').toUpperCase() === 'METEOR_HOLE';
+}
+
+const TRANSIENT_CELL_HIGHLIGHT_CLASSES = Object.freeze([
+    'effect-target-highlight',
+    'effect-target-highlight-positive',
+    'effect-target-highlight-placement'
+]);
+
+function getActiveTransientCellHighlightClass(cell: any): string | null {
+    const value = String(
+        cell &&
+        cell.dataset &&
+        cell.dataset.transientCellHighlightClass ||
+        ''
+    ).trim();
+    return TRANSIENT_CELL_HIGHLIGHT_CLASSES.indexOf(value) >= 0 ? value : null;
+}
+
+function applyActiveTransientCellHighlight(cell: any): void {
+    const className = getActiveTransientCellHighlightClass(cell);
+    if (!className || !cell || !cell.classList) return;
+    cell.classList.add(className);
+}
+
 function updateCellDOM(deps: any, cell: any, state: any, row: any, col: any, prevState: any) {
     const {
         _getBoardShapeForDiff,
@@ -157,12 +185,13 @@ function updateCellDOM(deps: any, cell: any, state: any, row: any, col: any, pre
     if (state.isRandomSpawnPreview && !state.blockade && !state.frozen) {
         cell.classList.add('random-spawn-preview');
     }
-    if (state.isSelectableFriendly && !state.blockade && !state.frozen) {
+    if (canShowSelectableFriendlyForState(state)) {
         cell.classList.add('selectable-friendly');
     }
     if (state.isExtendLifeTarget && !state.blockade && !state.frozen) {
         cell.classList.add('selectable-friendly-no-circle');
     }
+    applyActiveTransientCellHighlight(cell);
     _applyTimeStopLegalEmphasisForDiff(cell);
 
     if (state.blockade) {

@@ -53,6 +53,7 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
             'cloneTarget',
             'blockadeTarget',
             'meteorTarget',
+            'causalReplayTarget',
             'freezeTarget',
             'seedTarget',
             'teleportTarget',

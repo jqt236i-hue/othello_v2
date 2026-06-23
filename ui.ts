@@ -795,6 +795,20 @@ export function updateBgmButtons() {
  * Log entry delegation shim: prefer global implementation
  */
 export function addLog(text: string) {
+    try {
+        const uiBootstrap = require('./ui/bootstrap');
+        if (uiBootstrap && typeof uiBootstrap.addLog === 'function' && uiBootstrap.addLog !== addLog) {
+            return uiBootstrap.addLog(text);
+        }
+    } catch (e) { /* ignore in non-module contexts */ }
+    try {
+        if (typeof window !== 'undefined'
+            && (window as any).UIBootstrap
+            && typeof (window as any).UIBootstrap.addLog === 'function'
+            && (window as any).UIBootstrap.addLog !== addLog) {
+            return (window as any).UIBootstrap.addLog(text);
+        }
+    } catch (e) { /* ignore */ }
     if (typeof window !== 'undefined' && typeof (window as any).addLog === 'function' && (window as any).addLog !== addLog) {
         return (window as any).addLog(text);
     }

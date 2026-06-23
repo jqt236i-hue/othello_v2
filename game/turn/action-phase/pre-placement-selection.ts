@@ -710,6 +710,26 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
         throw new Error('METEOR_WILL requires meteorTarget before placement');
     }
 
+    if (pending && pending.type === 'CAUSAL_REPLAY_WILL' && action.causalReplayTarget) {
+        const res = opts.CardLogic.applyCausalReplayWill(
+            opts.cardState,
+            opts.gameState,
+            opts.playerKey,
+            action.causalReplayTarget.row,
+            action.causalReplayTarget.col
+        );
+        opts.events.push({
+            type: 'causal_replay_selected',
+            player: opts.playerKey,
+            target: action.causalReplayTarget,
+            applied: !!(res && res.applied),
+            restored: !!(res && res.restored)
+        });
+        return true;
+    } else if (pending && pending.type === 'CAUSAL_REPLAY_WILL' && action.causalReplayTarget == null) {
+        throw new Error('CAUSAL_REPLAY_WILL requires causalReplayTarget before placement');
+    }
+
     if (pending && pending.type === 'FREEZE_WILL' && action.freezeTarget) {
         const res = opts.CardLogic.applyFreezeWill(
             opts.cardState,

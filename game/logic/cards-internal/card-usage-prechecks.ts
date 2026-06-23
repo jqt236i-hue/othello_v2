@@ -316,6 +316,8 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getBlockadeTargets', 1) ? result : buildFailureResult();
         case 'METEOR_WILL':
             return validateSelectionTargets(context, 'getMeteorTargets', 1) ? result : buildFailureResult();
+        case 'CAUSAL_REPLAY_WILL':
+            return validateSelectionTargets(context, 'getCausalReplayTargets', 1) ? result : buildFailureResult();
         case 'FREEZE_WILL':
             return validateSelectionTargets(context, 'getFreezeTargets', 1) ? result : buildFailureResult();
         case 'SEED_WILL':

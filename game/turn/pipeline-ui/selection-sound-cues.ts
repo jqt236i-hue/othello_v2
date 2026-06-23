@@ -261,6 +261,21 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
         deps.pushSoundCue(ctx, 'meteor_hole', meteorHolePhase, 'meteor_hole');
     }
 
+    const causalReplayRestorePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => (
+            ev &&
+            ev.type === 'status_removed' &&
+            ev.meta &&
+            String(ev.meta.special || '').toUpperCase() === 'METEOR_HOLE' &&
+            String(ev.meta.cellRestorationCause || '').toUpperCase() === 'CAUSAL_REPLAY_WILL'
+        ),
+        ctx.fallbackPhase
+    );
+    if (causalReplayRestorePhase !== ctx.fallbackPhase) {
+        deps.pushSoundCue(ctx, 'causal_replay_restore', causalReplayRestorePhase, 'causal_replay_restore');
+    }
+
     const hasBoardShrinkDestroyPlayback = ctx.base.some((ev: any) => (
         ev &&
         ev.type === 'destroy' &&

@@ -460,22 +460,25 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectSoundFiles.living_will_selected).toBe('生きる意志を付与するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.board_shrink_selected).toBe('盤面縮小するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.meteor_hole).toBe('因果抹消で穴化するタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.causal_replay_restore).toBe('因果再生で穴マスを通常マスに再生するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.position_swap_move).toBe('入替の意志で石が入れ替わるタイミング.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
+    expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);
   });
 
   test('startup default track points to c-reversi', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.playlist).toHaveLength(6);
+    expect(soundEngine.playlist).toHaveLength(7);
     expect(soundEngine.playlist.map((track) => track.name)).toEqual([
       'c-reversi',
       'c-reversi-2',
       '盤喰いの小鬼戦',
       '幻想即興曲',
       'ノクターン',
-      'The Observer’s Tears'
+      'The Observer’s Tears',
+      '犠牲のテーマ'
     ]);
     expect(soundEngine.currentTrackIndex).toBe(0);
     expect(soundEngine.playlist[soundEngine.currentTrackIndex]).toEqual({
@@ -502,6 +505,11 @@ describe('SoundEngine default BGM', () => {
       name: 'The Observer’s Tears',
       file: 'assets/audio/bgm/The Observer’s Tears.mp3',
       loopEnd: 58.434783
+    });
+    expect(soundEngine.playlist[6]).toEqual({
+      name: '犠牲のテーマ',
+      file: 'assets/audio/bgm/sacrifice.mp3',
+      loopEnd: 40
     });
   });
 

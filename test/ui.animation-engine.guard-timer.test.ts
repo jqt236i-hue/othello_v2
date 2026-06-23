@@ -865,6 +865,47 @@ describe('animation-engine guard timer rendering', () => {
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
   });
 
+  test('causal replay STATUS_REMOVED clears hole styling before holding purple highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+    const cell = document.createElement('div');
+    cell.className = 'cell selectable-friendly blocked-cell board-shrink-hole-cell';
+    cell.dataset.row = '1';
+    cell.dataset.col = '2';
+
+    const holeMark = document.createElement('div');
+    holeMark.className = 'board-shrink-hole-mark';
+    cell.appendChild(holeMark);
+    board.appendChild(cell);
+
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockImplementation(async () => {
+      expect(cell.classList.contains('effect-target-highlight-positive')).toBe(true);
+      expect(cell.classList.contains('blocked-cell')).toBe(false);
+      expect(cell.classList.contains('board-shrink-hole-cell')).toBe(false);
+      expect(cell.classList.contains('meteor-hole-cell')).toBe(false);
+      expect(cell.classList.contains('selectable-friendly')).toBe(false);
+      expect(cell.querySelector('.board-shrink-hole-mark')).toBeNull();
+      expect(cell.querySelector('.meteor-hole-mark')).toBeNull();
+    });
+
+    await engine.handleStatusChange({
+      type: 'status_removed',
+      rawType: 'STATUS_REMOVED',
+      targets: [{ r: 1, col: 2, after: { color: 0, special: null, timer: null, owner: null } }],
+      meta: {
+        special: 'METEOR_HOLE',
+        reason: 'causal_replay_selected',
+        cellRestorationCause: 'CAUSAL_REPLAY_WILL',
+        restoredAs: 'normal_empty_cell',
+        highlightTone: 'positive'
+      }
+    });
+
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    sleepSpy.mockRestore();
+  });
+
   test('special stone duration_end の STATUS_REMOVED は通常石へクロスフェードする', async () => {
     const crossfadeSpy = jest.fn(async (disc, opts = {}) => {
       disc.dataset.effectKey = String(opts.effectKey || '');

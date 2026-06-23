@@ -107,7 +107,7 @@ describe('presentation handler CPU scheduling', () => {
       events: [{
         type: 'card_use_animation',
         phase: 1,
-        targets: [{ owner: 'black', cardId: 'swap_01', cost: 17, name: '交換の意志' }]
+        targets: [{ owner: 'black', cardId: 'swap_01', cost: 15, name: '交換の意志' }]
       }]
     });
 
@@ -146,7 +146,7 @@ describe('presentation handler CPU scheduling', () => {
       meta: {
         owner: 'black',
         cardType: 'SWAP_WITH_ENEMY',
-        cost: 17,
+        cost: 15,
         name: '交換の意志'
       }
     });
@@ -179,7 +179,7 @@ describe('presentation handler CPU scheduling', () => {
       events: [{
         type: 'card_use_animation',
         phase: 1,
-        targets: [{ owner: ' BLACK ', cardId: 'swap_02', cost: 17, name: '交換の意志' }]
+        targets: [{ owner: ' BLACK ', cardId: 'swap_02', cost: 15, name: '交換の意志' }]
       }]
     });
 

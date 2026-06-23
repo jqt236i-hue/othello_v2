@@ -330,6 +330,7 @@ const {
         'cloneTarget',
         'blockadeTarget',
         'meteorTarget',
+        'causalReplayTarget',
         'freezeTarget',
         'seedTarget',
         'teleportTarget',

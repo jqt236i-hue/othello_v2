@@ -921,10 +921,51 @@
     transform: rotate(45deg);
 }
 
+.manifest-effect-owner-stone {
+    display: inline-block;
+    width: max(calc(13px * var(--layout-stage-scale)), 13px);
+    height: max(calc(13px * var(--layout-stage-scale)), 13px);
+    flex: 0 0 auto;
+    margin-left: auto;
+    border-radius: 50%;
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28),
+        inset 0 calc(-2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42),
+        0 0 calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46);
+}
+
+.manifest-effect-owner-stone.is-black {
+    background:
+        radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.16), transparent 25%),
+        radial-gradient(circle at 50% 54%, #202020 0%, #050505 72%, #000 100%);
+    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.18);
+}
+
+.manifest-effect-owner-stone.is-white {
+    background:
+        radial-gradient(circle at 34% 28%, #ffffff 0%, #f2f2ee 34%, #cfcfc9 78%, #a9aaa5 100%);
+    border: var(--layout-size-border-thin) solid rgba(28, 28, 24, 0.34);
+}
+
 #manifest-effect-lines {
     display: flex;
     flex-direction: column;
     gap: calc(4px * var(--layout-stage-scale));
+}
+
+#manifest-effect-tags {
+    display: none;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+    gap: calc(5px * var(--layout-stage-scale));
+    margin-top: calc(8px * var(--layout-stage-scale));
+    padding-left: calc(2px * var(--layout-stage-scale));
+    pointer-events: auto;
+}
+
+#manifest-effect-tags .card-detail-effect-tag-button {
+    pointer-events: auto;
 }
 
 .manifest-effect-line {

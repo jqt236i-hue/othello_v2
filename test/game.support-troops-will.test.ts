@@ -64,26 +64,23 @@ function getSupportTroopsFlipEvents(result) {
 describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
   const supportTroopsDef = getSupportTroopsDef();
 
-  test('候補条件は増援の意志と同じで、角辺以外で石に隣接する空きマスだけを候補にする', () => {
+  test('候補条件は増援の意志と同じで、角辺を含めて石に隣接する空きマスだけを候補にする', () => {
     expect(supportTroopsDef).toBeTruthy();
 
     const board = createBoard();
-    board[3][3] = Shared.BLACK;
+    board[0][1] = Shared.BLACK;
 
     const gameState = createGameState(board);
     const cardState = createCardState(createPrng([0]), supportTroopsDef.id, supportTroopsDef.cost);
 
     expect(CardLogic.getSupportTroopsWillTargets(cardState, gameState, 'black')).toEqual([
-      { row: 2, col: 2 },
-      { row: 2, col: 3 },
-      { row: 2, col: 4 },
-      { row: 3, col: 2 },
-      { row: 3, col: 4 },
-      { row: 4, col: 2 },
-      { row: 4, col: 3 },
-      { row: 4, col: 4 }
+      { row: 0, col: 0 },
+      { row: 0, col: 2 },
+      { row: 1, col: 0 },
+      { row: 1, col: 1 },
+      { row: 1, col: 2 }
     ]);
-    expect(CardLogic.getSupportTroopsWillTargetCount(cardState, gameState, 'black')).toBe(8);
+    expect(CardLogic.getSupportTroopsWillTargetCount(cardState, gameState, 'black')).toBe(5);
     expect(CardLogic.canUseSupportTroopsWillForPlayer(cardState, gameState, 'black')).toBe(true);
     expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain(supportTroopsDef.id);
   });
@@ -263,5 +260,54 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     ]));
     expect(gameState.board[2][3]).toBe(Shared.BLACK);
     expect(result.cardState.totalFlipCountByPlayer.black).toBe(1);
+  });
+
+  test('配置先の数字マスを複数まとめて通常配置と同じく獲得する', () => {
+    expect(supportTroopsDef).toBeTruthy();
+
+    const board = createBoard();
+    board[3][3] = Shared.BLACK;
+
+    const prng = createPrng([0, 0, 0]);
+    const cardState = createCardState(prng, supportTroopsDef.id, supportTroopsDef.cost);
+    cardState.charge.black = supportTroopsDef.cost;
+    cardState.boardBonusByCell = { '2,2': 4, '2,3': 5, '2,4': 6 };
+    const gameState = createGameState(board);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: supportTroopsDef.id },
+      prng
+    );
+
+    const bonusEvents = result.events.filter((event) => event && event.type === 'board_bonus_gain');
+    const chargeBubbles = (result.presentationEvents || []).filter((event) => (
+      event &&
+      event.type === 'CHARGE_BUBBLE' &&
+      event.meta &&
+      event.meta.sourceType === 'number_cell_gain'
+    ));
+
+    expect(result.events.find((event) => event && event.type === 'support_troops_will_resolved')).toMatchObject({
+      spawnedCount: 3,
+      flippedCount: 0
+    });
+    expect(bonusEvents.map((event) => [event.row, event.col, event.gained])).toEqual([
+      [2, 2, 4],
+      [2, 3, 5],
+      [2, 4, 6]
+    ]);
+    expect(chargeBubbles.map((event) => [event.row, event.col, event.gained])).toEqual([
+      [2, 2, 4],
+      [2, 3, 5],
+      [2, 4, 6]
+    ]);
+    expect(cardState.charge.black).toBe(15);
+    expect(cardState.boardBonusConsumedByCell['2,2']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['2,3']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['2,4']).toBe(true);
+    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(15);
   });
 });

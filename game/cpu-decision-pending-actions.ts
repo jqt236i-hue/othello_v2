@@ -538,6 +538,18 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectCausalReplayWillWithPolicy(playerKey: any): Promise<any> {
+        return runTargetAction({
+            playerKey,
+            pendingType: 'CAUSAL_REPLAY_WILL',
+            targets: getTargetsByMethod(playerKey, 'getCausalReplayTargets'),
+            noTargetLabel: '因果再生対象なし',
+            targetLabel: '因果再生ターゲット',
+            payloadKey: 'causalReplayTarget',
+            applyMethodName: 'applyCausalReplayWill'
+        });
+    }
+
     async function cpuSelectFreezeWillWithPolicy(playerKey: any): Promise<any> {
         return runTargetAction({
             playerKey,
@@ -968,6 +980,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectBoardShrinkWithPolicy,
         cpuSelectBuoyancyWillWithPolicy,
         cpuSelectCaptureWillWithPolicy,
+        cpuSelectCausalReplayWillWithPolicy,
         cpuSelectCellTeleportWillWithPolicy,
         cpuSelectCondemnWillWithPolicy,
         cpuSelectCloneWillWithPolicy,

@@ -967,6 +967,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'BOARD_SHRINK_GOD' && !requireLocalTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'BLOCKADE_WILL' && !requireLocalTargets(context, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'METEOR_WILL' && !requireLocalTargets(context, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'CAUSAL_REPLAY_WILL' && !requireLocalTargets(context, 'getCausalReplayTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'FREEZE_WILL' && !requireLocalTargets(context, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'SEED_WILL' && !requireLocalTargets(context, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
 
@@ -992,6 +993,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'BOARD_SHRINK_GOD' && !requireModuleTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'BLOCKADE_WILL' && !requireModuleTargets(context, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'METEOR_WILL' && !requireModuleTargets(context, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'CAUSAL_REPLAY_WILL' && !requireModuleTargets(context, 'getCausalReplayTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'FREEZE_WILL' && !requireModuleTargets(context, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'SEED_WILL' && !requireModuleTargets(context, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
         }

@@ -41,6 +41,18 @@ describe('legal hint styles', () => {
     expect(css).toMatch(/\.cell\.effect-target-highlight-placement\s*\{[\s\S]*?background:\s*[\s\S]*?rgba\(102,\s*164,\s*255,\s*0\.38\)[\s\S]*?outline:\s*calc\(2px \* var\(--layout-stage-scale\)\) solid rgba\(154,\s*198,\s*255,\s*0\.9\)[\s\S]*?box-shadow:\s*[\s\S]*?inset 0 0 0 calc\(2px \* var\(--layout-stage-scale\)\) rgba\(138,\s*184,\s*255,\s*0\.76\)[\s\S]*?\}/);
   });
 
+  test('styles-board.css shows causal replay selectable rings above meteor hole marks', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+
+    expect(css).toMatch(/\.cell\.blocked-cell\.meteor-hole-cell\.selectable-friendly::before,\s*\.cell\.blocked-cell\.board-shrink-hole-cell\.selectable-friendly::before\s*\{[\s\S]*?content:\s*""[\s\S]*?border:\s*calc\(1\.5px \* var\(--layout-stage-scale\)\) solid var\(--board-legal-ring-color\)[\s\S]*?z-index:\s*11[\s\S]*?\}/);
+  });
+
+  test('styles-board.css shows causal replay selectable rings above board shrink hole marks', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+
+    expect(css).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell\.selectable-friendly::before\s*\{[\s\S]*?content:\s*""[\s\S]*?border:\s*calc\(1\.5px \* var\(--layout-stage-scale\)\) solid var\(--board-legal-ring-color\)[\s\S]*?z-index:\s*11[\s\S]*?\}/);
+  });
+
   test('styles-responsive.css does not restore legal hint circle hover styles', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-responsive.css'), 'utf8');
 

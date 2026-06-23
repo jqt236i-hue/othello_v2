@@ -59,6 +59,7 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     FREEZE_WILL: '凍結するマスを選んでください',
     SEED_WILL: '種をまく空きマスを選んでください',
     METEOR_WILL: '因果抹消で破壊するマスを選んでください',
+    CAUSAL_REPLAY_WILL: '再生する穴マスを選んでください',
     TIME_BOMB: '時限爆弾にする自分の石を選んでください',
     HEAVEN_BLESSING: '候補5枚から1枚選択してください',
     CONDEMN_WILL: '相手手札から破壊する1枚を選択してください',

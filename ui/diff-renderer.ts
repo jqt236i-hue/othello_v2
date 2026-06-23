@@ -3422,6 +3422,34 @@ function reconcileCellHasDiscClasses(boardEl: any) {
     });
 }
 
+function canShowSelectableFriendlyForState(state: any): boolean {
+    if (!state || !state.isSelectableFriendly || state.frozen) return false;
+    if (!state.blockade) return true;
+    return String(state.blockade.type || '').toUpperCase() === 'METEOR_HOLE';
+}
+
+const TRANSIENT_CELL_HIGHLIGHT_CLASSES_FOR_DIFF = Object.freeze([
+    'effect-target-highlight',
+    'effect-target-highlight-positive',
+    'effect-target-highlight-placement'
+]);
+
+function getActiveTransientCellHighlightClassForDiff(cell: any): string | null {
+    const value = String(
+        cell &&
+        cell.dataset &&
+        cell.dataset.transientCellHighlightClass ||
+        ''
+    ).trim();
+    return TRANSIENT_CELL_HIGHLIGHT_CLASSES_FOR_DIFF.indexOf(value) >= 0 ? value : null;
+}
+
+function applyActiveTransientCellHighlightForDiff(cell: any): void {
+    const className = getActiveTransientCellHighlightClassForDiff(cell);
+    if (!className || !cell || !cell.classList) return;
+    cell.classList.add(className);
+}
+
 function reconcileCellHintClasses(boardEl: any, currentState: any) {
     if (!boardEl || !currentState || typeof currentState !== 'object') return;
     const boardShape = _getStateBoardShapeForDiff(currentState);
@@ -3447,8 +3475,9 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
             const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
             const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
-            const shouldShowSelectable = !!(canShowHint && state && state.isSelectableFriendly);
+            const shouldShowSelectable = canShowSelectableFriendlyForState(state);
             const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
+            const transientHighlightClass = getActiveTransientCellHighlightClassForDiff(cell);
             const shouldRaiseRegenBadge = !!(
                 state &&
                 state.special &&
@@ -3458,8 +3487,9 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
 
             cell.classList.toggle('legal-free', shouldShowLegalFree);
             cell.classList.toggle('legal', shouldShowLegal);
-            cell.classList.toggle('effect-target-highlight', false);
-            cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal);
+            cell.classList.toggle('effect-target-highlight', transientHighlightClass === 'effect-target-highlight');
+            cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal || transientHighlightClass === 'effect-target-highlight-positive');
+            cell.classList.toggle('effect-target-highlight-placement', transientHighlightClass === 'effect-target-highlight-placement');
             cell.classList.toggle('random-spawn-preview', shouldShowRandomSpawnPreview);
             cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
             cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);

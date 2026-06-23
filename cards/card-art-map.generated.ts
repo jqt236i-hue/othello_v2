@@ -82,6 +82,7 @@ export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freez
     "board_shrink_god_01": "81_盤面縮小神.png",
     "blockade_01": "82_封鎖の意志.png",
     "meteor_01": "83_因果抹消.png",
+    "causal_replay_01": "93_因果再生.png",
     "freeze_01": "84_凍結の意志.png",
     "salvation_01": "85_救済の意志.png",
     "living_will_01": "86_生きる意志.png",

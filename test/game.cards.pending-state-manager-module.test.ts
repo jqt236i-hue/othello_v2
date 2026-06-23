@@ -7,6 +7,7 @@ describe('CardPendingStateManager', () => {
     expect(PendingStateManager.requiresTargetSelection('BOARD_SHRINK_WILL')).toBe(true);
     expect(PendingStateManager.requiresTargetSelection('BOARD_SHRINK_GOD')).toBe(true);
     expect(PendingStateManager.requiresTargetSelection('LIVING_WILL')).toBe(true);
+    expect(PendingStateManager.requiresTargetSelection('CAUSAL_REPLAY_WILL')).toBe(true);
     expect(PendingStateManager.requiresTargetSelection('DOUBLE_CHAIN_WILL')).toBe(false);
     expect(PendingStateManager.requiresTargetSelection('')).toBe(false);
   });
@@ -113,6 +114,7 @@ describe('CardPendingStateManager', () => {
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_SHRINK_WILL')).toBe('board_shrink');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_SHRINK_GOD')).toBe('board_shrink');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('LIVING_WILL')).toBe('living_will');
+    expect(PendingStateManager.resolvePendingSelectionDispatchKey('CAUSAL_REPLAY_WILL')).toBe('causal_replay');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('HEAVEN_BLESSING')).toBe('heaven_blessing');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('')).toBeNull();
   });
@@ -121,6 +123,7 @@ describe('CardPendingStateManager', () => {
     const cases = [
       ['DESTROY_ONE_STONE', { requiresTarget: true, cancellable: true, dispatchKey: 'destroy' }],
       ['CAPTURE_WILL', { requiresTarget: true, cancellable: false, dispatchKey: 'capture' }],
+      ['CAUSAL_REPLAY_WILL', { requiresTarget: true, cancellable: true, dispatchKey: 'causal_replay' }],
       ['BOARD_SHRINK_GOD', { requiresTarget: true, cancellable: true, dispatchKey: 'board_shrink' }],
       ['CONDEMN_WILL', { requiresTarget: true, cancellable: false, dispatchKey: 'condemn' }],
       ['DOUBLE_CHAIN_WILL', { requiresTarget: false, cancellable: false, dispatchKey: null }]

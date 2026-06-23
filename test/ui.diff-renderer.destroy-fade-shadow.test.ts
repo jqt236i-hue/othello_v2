@@ -123,6 +123,66 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(cell.classList.contains('time-stop-legal-emphasis')).toBe(false);
   });
 
+  test('preserves active transient positive highlight while reconciling stale hint classes', () => {
+    const diff = require('../ui/diff-renderer.js');
+    diff.renderBoardDiff(boardEl);
+
+    const cell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(cell).toBeTruthy();
+
+    cell.dataset.transientCellHighlightClass = 'effect-target-highlight-positive';
+    cell.classList.add(
+      'legal',
+      'effect-target-highlight',
+      'effect-target-highlight-positive',
+      'selectable-friendly'
+    );
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(cell.classList.contains('legal')).toBe(false);
+    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(cell.classList.contains('selectable-friendly')).toBe(false);
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(true);
+
+    delete cell.dataset.transientCellHighlightClass;
+    diff.renderBoardDiff(boardEl);
+
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
+  });
+
+  test('preserves active transient positive highlight after causal replay restores a hole cell', () => {
+    const diff = require('../ui/diff-renderer.js');
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
+    global.cardState.markers = [
+      { id: 'hole-1', kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'METEOR_HOLE' } }
+    ];
+    global.cardState.pendingEffectByPlayer = {
+      black: { type: 'CAUSAL_REPLAY_WILL', stage: 'selectTarget', cardId: 'causal_replay_01' },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    const holeCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(holeCell).toBeTruthy();
+    expect(holeCell.classList.contains('meteor-hole-cell')).toBe(true);
+    expect(holeCell.classList.contains('selectable-friendly')).toBe(true);
+
+    holeCell.dataset.transientCellHighlightClass = 'effect-target-highlight-positive';
+    holeCell.classList.add('effect-target-highlight-positive');
+    global.CardLogic.getSelectableTargets = () => [];
+    global.cardState.markers = [];
+    global.cardState.pendingEffectByPlayer = { black: null, white: null };
+
+    diff.renderBoardDiff(boardEl);
+
+    expect(holeCell.classList.contains('meteor-hole-cell')).toBe(false);
+    expect(holeCell.classList.contains('blocked-cell')).toBe(false);
+    expect(holeCell.classList.contains('selectable-friendly')).toBe(false);
+    expect(holeCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+  });
+
   test('suppresses normal legal hints during BLOCKADE_WILL target selection while keeping selectable targets', () => {
     global.getLegalMoves = () => [{ row: 0, col: 0 }];
     global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
@@ -140,6 +200,29 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(selectableCell).toBeTruthy();
     expect(legalCell.classList.contains('legal')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
+  test('shows causal replay hole target with selectable-friendly while keeping meteor hole styling', () => {
+    const diff = require('../ui/diff-renderer.js');
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
+    global.cardState.markers = [
+      { id: 'hole-1', kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'METEOR_HOLE' } }
+    ];
+    global.cardState.pendingEffectByPlayer = {
+      black: { type: 'CAUSAL_REPLAY_WILL', stage: 'selectTarget', cardId: 'causal_replay_01' },
+      white: null
+    };
+
+    diff.renderBoardDiff(boardEl);
+
+    const normalCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const holeCell = boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(normalCell).toBeTruthy();
+    expect(holeCell).toBeTruthy();
+    expect(normalCell.classList.contains('selectable-friendly')).toBe(false);
+    expect(holeCell.classList.contains('meteor-hole-cell')).toBe(true);
+    expect(holeCell.classList.contains('blocked-cell')).toBe(true);
+    expect(holeCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
   test('updates POSITION_SWAP_WILL first-target highlight as pending selection changes', () => {

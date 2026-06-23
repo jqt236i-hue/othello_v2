@@ -105,7 +105,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   METEOR_GOD: '因果抹消神で敵石を穴にする',
   FREEZE_WILL: 'マスを凍結する',
   SALVATION_WILL: '破壊された石を救済する',
-  REINFORCEMENT_WILL: '内側空きマスへ増援する',
+  REINFORCEMENT_WILL: '隣接空きマスへ増援する',
   SUPPORT_TROOPS_WILL: '既存石の近くへ援軍を出す',
   EQUALITY_WILL: '相手の布石を奪う'
 });

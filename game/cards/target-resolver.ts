@@ -601,17 +601,6 @@ const Flips = CardFlips || {};
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
-    function isInnerPlayableCellForReinforcement(cardState: any, gameState: any, row: any, col: any) {
-        if (!hasBoardShapeCell(gameState, row, col)) return false;
-        const orthogonal = [
-            [row - 1, col],
-            [row + 1, col],
-            [row, col - 1],
-            [row, col + 1]
-        ];
-        return orthogonal.every((pos) => hasBoardShapeCell(gameState, pos[0], pos[1]));
-    }
-
     function isAdjacentToAnyStoneForReinforcement(cardState: any, gameState: any, row: any, col: any) {
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
@@ -814,6 +803,7 @@ const Flips = CardFlips || {};
             getBoardShrinkTargets,
             getBlockadeTargets,
             getMeteorTargets,
+            getCausalReplayTargets,
             getFreezeTargets,
             getSeedTargets,
             getTemptTargets,
@@ -1061,6 +1051,19 @@ const Flips = CardFlips || {};
         return res;
     }
 
+    function getCausalReplayTargets(cardState: any, gameState: any, playerKey: any) {
+        if (typeof Selectors.getCausalReplayTargets === 'function') {
+            return Selectors.getCausalReplayTargets(cardState, gameState);
+        }
+        if (!gameState || !gameState.board) return [];
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (r: any, c: any) => {
+            if (!isMeteorHoleCell(cardState, r, c)) return;
+            res.push({ row: r, col: c });
+        });
+        return res;
+    }
+
     function getFreezeTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getFreezeTargets === 'function') {
             return Selectors.getFreezeTargets(cardState, gameState);
@@ -1175,7 +1178,6 @@ const Flips = CardFlips || {};
                 const row = Number(cell && cell.row);
                 const col = Number(cell && cell.col);
                 if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-                if (!isInnerPlayableCellForReinforcement(cardState, gameState, row, col)) return false;
                 return isAdjacentToAnyStoneForReinforcement(cardState, gameState, row, col);
             });
     }
@@ -1321,6 +1323,7 @@ export = {
     getCloneTargets,
     getBreedingTargets,
     getMeteorTargets,
+    getCausalReplayTargets,
     getFreezeTargets,
     getBlockadeTargets,
     getCellTeleportTargets,

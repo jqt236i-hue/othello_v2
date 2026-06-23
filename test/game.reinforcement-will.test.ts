@@ -64,24 +64,21 @@ function getReinforcementFlipEvents(result) {
 describe('REINFORCEMENT_WILL（増援の意志）', () => {
   const reinforcementDef = getReinforcementDef();
 
-  test('角辺以外で石に隣接する空きマスだけを候補にする', () => {
+  test('角辺を含めて石に隣接する空きマスだけを候補にする', () => {
     expect(reinforcementDef).toBeTruthy();
 
     const board = createBoard();
-    board[3][3] = Shared.BLACK;
+    board[0][1] = Shared.BLACK;
 
     const gameState = createGameState(board);
     const cardState = createCardState(createPrng([0]), reinforcementDef.id, reinforcementDef.cost);
 
     expect(CardLogic.getReinforcementWillTargets(cardState, gameState, 'black')).toEqual([
-      { row: 2, col: 2 },
-      { row: 2, col: 3 },
-      { row: 2, col: 4 },
-      { row: 3, col: 2 },
-      { row: 3, col: 4 },
-      { row: 4, col: 2 },
-      { row: 4, col: 3 },
-      { row: 4, col: 4 }
+      { row: 0, col: 0 },
+      { row: 0, col: 2 },
+      { row: 1, col: 0 },
+      { row: 1, col: 1 },
+      { row: 1, col: 2 }
     ]);
     expect(CardLogic.canUseReinforcementWillForPlayer(cardState, gameState, 'black')).toBe(true);
     expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain(reinforcementDef.id);
@@ -216,5 +213,54 @@ describe('REINFORCEMENT_WILL（増援の意志）', () => {
     expect(gameState.board[2][4]).toBe(Shared.BLACK);
     expect(gameState.board[2][5]).toBe(Shared.BLACK);
     expect(result.cardState.totalFlipCountByPlayer.black).toBe(2);
+  });
+
+  test('配置先が数字マスなら通常配置と同じく布石と理論進捗を獲得する', () => {
+    expect(reinforcementDef).toBeTruthy();
+
+    const board = createBoard();
+    board[3][3] = Shared.BLACK;
+
+    const prng = createPrng([0]);
+    const cardState = createCardState(prng, reinforcementDef.id, reinforcementDef.cost);
+    cardState.charge.black = reinforcementDef.cost;
+    cardState.boardBonusByCell = { '2,2': 7 };
+    const gameState = createGameState(board);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: reinforcementDef.id },
+      prng
+    );
+
+    const bonusEvent = result.events.find((event) => event && event.type === 'board_bonus_gain');
+    const chargeBubble = (result.presentationEvents || []).find((event) => (
+      event &&
+      event.type === 'CHARGE_BUBBLE' &&
+      event.row === 2 &&
+      event.col === 2 &&
+      event.gained === 7
+    ));
+
+    expect(result.events.find((event) => event && event.type === 'reinforcement_will_resolved')).toMatchObject({
+      spawnedCount: 1,
+      flippedCount: 0
+    });
+    expect(bonusEvent).toMatchObject({
+      type: 'board_bonus_gain',
+      player: 'black',
+      row: 2,
+      col: 2,
+      bonus: 7,
+      gained: 7,
+      multiplier: 1,
+      boostedBy: null
+    });
+    expect(chargeBubble).toMatchObject({ player: 'black', row: 2, col: 2, gained: 7 });
+    expect(cardState.charge.black).toBe(7);
+    expect(cardState.boardBonusConsumedByCell['2,2']).toBe(true);
+    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(7);
   });
 });

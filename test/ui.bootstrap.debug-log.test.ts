@@ -84,4 +84,25 @@ describe('ui bootstrap debug logging', () => {
 
     dom.window.close();
   });
+
+  test('window.addLog keeps routing to the bootstrap DOM logger after ui exports are mirrored onto window', () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="board"></div><div id="log"></div></body></html>', {
+      url: 'http://localhost/'
+    });
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.location = dom.window.location;
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const bootstrap = require('../ui/bootstrap.js');
+    const uiModule = require('../ui.ts');
+    Object.assign(global.window, uiModule);
+
+    global.window.addLog('window routed entry');
+
+    expect(Array.from(document.querySelectorAll('#log .logEntry')).map((el) => el.textContent)).toEqual(['window routed entry']);
+    expect(logSpy).not.toHaveBeenCalled();
+
+    dom.window.close();
+  });
 });

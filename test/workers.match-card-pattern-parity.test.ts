@@ -76,6 +76,7 @@ const EXPECTED_PENDING_TYPE_BY_CARD_ID = Object.freeze({
   board_expand_god_01: 'BOARD_EXPANSION_GOD',
   board_shrink_01: 'BOARD_SHRINK_WILL',
   meteor_01: 'METEOR_WILL',
+  causal_replay_01: 'CAUSAL_REPLAY_WILL',
   board_shrink_god_01: 'BOARD_SHRINK_GOD'
 });
 
@@ -658,6 +659,101 @@ describe('worker card pattern parity', () => {
     expect(workerPlace.payload.effectLogs).toEqual(expect.arrayContaining([
       expect.stringContaining('因果抹消'),
       expect.stringContaining('マスごと破壊')
+    ]));
+  }, 90000);
+
+  test('causal replay network pending follow-up restores a meteor hole without requiring a legal placement cell', () => {
+    const cardId = 'causal_replay_01';
+    const runtime = createCardUseRuntime(cardId, 71);
+    const runtimeSnapshot = runtime.getSnapshot();
+    runtimeSnapshot.cardState.debugHandFilled = true;
+    runtimeSnapshot.cardState.debugNoDraw = true;
+    runtimeSnapshot.cardState.markers.push({
+      id: 'hole_for_replay',
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE' }
+    });
+    runtimeSnapshot.gameState.board[0][0] = Core.EMPTY;
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
+
+    const initialSnapshot = clone(runtime.getSnapshot());
+    const initialVersion = runtime.getRoom().stateVersion;
+    const useBody = buildUseCardBody(runtime, cardId, 'op_worker_pattern_causal_replay_followup_use');
+    useBody.params.debugOptions = { ignoreCost: true, noConsume: true };
+    useBody.action.debugOptions = { ignoreCost: true, noConsume: true };
+    const workerUse = runWorkerPublish(initialSnapshot, initialVersion, clone(useBody), 71);
+    expect(workerUse.status).toBe(200);
+    expect(workerUse.payload && workerUse.payload.ok).toBe(true);
+
+    const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+    const pending = workerSnapshotAfterUse.cardState.pendingEffectByPlayer.black;
+    expect(pending).toEqual(expect.objectContaining({
+      type: 'CAUSAL_REPLAY_WILL',
+      stage: 'selectTarget'
+    }));
+
+    const pendingSelectionState = {
+      type: 'CAUSAL_REPLAY_WILL',
+      stage: 'selectTarget',
+      cardId,
+      pendingEffectId: pending.pendingEffectId
+    };
+    const workerPlaceTurnIndex = Number(workerSnapshotAfterUse && workerSnapshotAfterUse.cardState && workerSnapshotAfterUse.cardState.turnIndex) || 0;
+    const workerPlaceBody = {
+      seatKey: 'black',
+      playerKey: 'black',
+      baseVersion: Number(workerUse.payload.stateVersion),
+      operationId: 'op_worker_pattern_causal_replay_followup_place',
+      actionType: 'place',
+      actor: 'black',
+      params: {
+        causalReplayTarget: { row: 0, col: 0 },
+        player: 'black',
+        pendingSelectionState,
+        row: 0,
+        col: 0
+      },
+      turnIndex: workerPlaceTurnIndex,
+      action: {
+        type: 'place',
+        causalReplayTarget: { row: 0, col: 0 },
+        player: 'black',
+        deferNetworkPublish: true,
+        pendingSelectionState,
+        row: 0,
+        col: 0,
+        turnIndex: workerPlaceTurnIndex
+      }
+    };
+    const workerPlace = runWorkerPublish(workerSnapshotAfterUse, Number(workerUse.payload.stateVersion), workerPlaceBody, 71);
+    expect(workerPlace.status).toBe(200);
+    expect(workerPlace.payload && workerPlace.payload.ok).toBe(true);
+    expect(workerPlace.payload.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(workerPlace.payload.snapshot.cardState.markers).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 0,
+        data: expect.objectContaining({ type: 'METEOR_HOLE' })
+      })
+    ]));
+    expect(workerPlace.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_removed',
+        rawType: 'STATUS_REMOVED',
+        meta: expect.objectContaining({
+          special: 'METEOR_HOLE',
+          cellRestorationCause: 'CAUSAL_REPLAY_WILL'
+        })
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ soundKey: 'causal_replay_restore' })
+        ])
+      })
     ]));
   }, 90000);
 

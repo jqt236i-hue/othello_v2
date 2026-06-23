@@ -36,7 +36,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'TELEPORT_WILL',
         'CELL_TELEPORT_WILL',
         'CLONE_WILL',
-        'METEOR_WILL'
+        'METEOR_WILL',
+        'CAUSAL_REPLAY_WILL'
     ]);
 
     function getNetworkTurnHandoff() {

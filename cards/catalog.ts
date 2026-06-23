@@ -88,7 +88,7 @@ const CardCatalog = {
       "id": "swap_01",
       "name_ja": "交換の意志",
       "type": "SWAP_WITH_ENEMY",
-      "cost": 17,
+      "cost": 15,
       "desc_ja": "相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。",
       "display_type_ja": "執行",
       "name": "交換の意志",
@@ -281,7 +281,7 @@ const CardCatalog = {
       "id": "destroy_01",
       "name_ja": "破壊の意志",
       "type": "DESTROY_ONE_STONE",
-      "cost": 19,
+      "cost": 17,
       "desc_ja": "盤上の石1つを破壊する。",
       "display_type_ja": "執行",
       "name": "破壊の意志",
@@ -821,6 +821,16 @@ const CardCatalog = {
       "desc": "マスを1つ選んで石ごと抹消し、穴マスにする。"
     },
     {
+      "id": "causal_replay_01",
+      "name_ja": "因果再生",
+      "type": "CAUSAL_REPLAY_WILL",
+      "cost": 12,
+      "desc_ja": "盤面に穴マスがある時のみ使用可能。穴マスを1つ選び、空の通常マスとして再生する。",
+      "display_type_ja": "禁忌",
+      "name": "因果再生",
+      "desc": "盤面に穴マスがある時のみ使用可能。穴マスを1つ選び、空の通常マスとして再生する。"
+    },
+    {
       "id": "freeze_01",
       "name_ja": "凍結の意志",
       "type": "FREEZE_WILL",
@@ -864,7 +874,7 @@ const CardCatalog = {
       "id": "support_troops_01",
       "name_ja": "援軍の意志",
       "type": "SUPPORT_TROOPS_WILL",
-      "cost": 14,
+      "cost": 16,
       "desc_ja": "既存石の近くの空きマスに、自分の通常石を3個ランダム配置(反転可)",
       "display_type_ja": "繁栄",
       "name": "援軍の意志",

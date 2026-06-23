@@ -357,6 +357,18 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseMeteorTarget', field: 'meteorTarget' },
         cpuHandlerNames: ['cpuSelectMeteorWillWithPolicy']
     },
+    CAUSAL_REPLAY_WILL: {
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
+        deferNetworkPublish: true,
+        waitForPlaybackIdle: true,
+        needsTargetSelection: true,
+        cancellable: true,
+        dispatchKey: 'causal_replay',
+        target: { method: 'getCausalReplayTargets', argsKey: 'player' },
+        action: { policyMethod: 'chooseCausalReplayTarget', field: 'causalReplayTarget' },
+        cpuHandlerNames: ['cpuSelectCausalReplayWillWithPolicy']
+    },
     TIME_BOMB: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',

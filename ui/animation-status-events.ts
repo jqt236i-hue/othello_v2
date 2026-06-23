@@ -20,6 +20,38 @@ type AnimationStatusEventDeps = {
     syncDiscVisual: (disc: any, visualAfter: any) => any;
 };
 
+function isCausalReplayCellRestoration(ev: any): boolean {
+    const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+    const cause = String(meta.cellRestorationCause || '').toUpperCase();
+    if (cause === 'CAUSAL_REPLAY_WILL') return true;
+    const reason = String(meta.reason || ev && ev.reason || '').toLowerCase();
+    const restoredAs = String(meta.restoredAs || '').toLowerCase();
+    return reason === 'causal_replay_selected' && restoredAs === 'normal_empty_cell';
+}
+
+function clearRestoredHoleCellPresentation(cell: any): void {
+    if (!cell || !cell.classList) return;
+    try {
+        cell.classList.remove(
+            'blocked-cell',
+            'meteor-hole-cell',
+            'board-shrink-hole-cell',
+            'selectable-friendly',
+            'selectable-friendly-no-circle'
+        );
+    } catch (e) { /* ignore */ }
+    try {
+        const marks = cell.querySelectorAll
+            ? cell.querySelectorAll('.meteor-hole-mark, .board-shrink-hole-mark, .blockade-mark')
+            : [];
+        marks.forEach((mark: any) => {
+            try {
+                if (mark && mark.parentNode) mark.parentNode.removeChild(mark);
+            } catch (e) { /* ignore */ }
+        });
+    } catch (e) { /* ignore */ }
+}
+
 async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) {
     const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
     const promises = targets.map(async (target: any) => {
@@ -57,6 +89,11 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
 
                 if (isFreezeDurationEnd) {
                     await deps.fadeOutFreezeOverlay(cell, deps.overlayCrossfadeMs);
+                    return;
+                }
+
+                if (isCausalReplayCellRestoration(ev)) {
+                    clearRestoredHoleCellPresentation(cell);
                     return;
                 }
 

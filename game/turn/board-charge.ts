@@ -4,6 +4,12 @@ type BoardChargeDeps = {
     emitBoardChargeBubblePresentation?: (CardLogic: any, cardState: any, payload: any) => void;
 };
 
+type BoardBonusGainOptions = {
+    othelloMode?: boolean;
+    numberCellMultiplierConfig?: any;
+    flipCount?: any;
+};
+
 function buildBoardChargeDeltaMeta(row: any, col: any, sourceType: any) {
     const anchorRow = Number(row);
     const anchorCol = Number(col);
@@ -153,6 +159,58 @@ function applyPlacementBoardBonusGain(CardLogic: any, cardState: any, playerKey:
     return gained;
 }
 
+function resolveBoardBonusGain(CardLogic: any, cardState: any, playerKey: any, row: any, col: any, options: BoardBonusGainOptions, deps: BoardChargeDeps) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const targetRow = Number(row);
+    const targetCol = Number(col);
+    if (!Number.isInteger(targetRow) || !Number.isInteger(targetCol)) return null;
+    if (opts.othelloMode === true) return null;
+
+    const bonusKey = `${targetRow},${targetCol}`;
+    const bonusMap = (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
+        ? cardState.boardBonusByCell
+        : null;
+    const bonusValue = bonusMap ? Number(bonusMap[bonusKey] || 0) : 0;
+    if (!(bonusValue > 0)) return null;
+
+    if (!cardState.boardBonusConsumedByCell || typeof cardState.boardBonusConsumedByCell !== 'object') {
+        cardState.boardBonusConsumedByCell = {};
+    }
+    const consumedMap = cardState.boardBonusConsumedByCell;
+    if (consumedMap[bonusKey] === true) return null;
+
+    consumedMap[bonusKey] = true;
+    const numberCellMultiplierConfig = opts.numberCellMultiplierConfig || null;
+    const multiplier = numberCellMultiplierConfig
+        ? Number(numberCellMultiplierConfig.multiplier || 1)
+        : 1;
+    const appliedBonus = bonusValue * multiplier;
+    if (CardLogic && typeof CardLogic.addNumberCellCollectedTotal === 'function') {
+        CardLogic.addNumberCellCollectedTotal(cardState, playerKey, appliedBonus);
+    }
+    const gained = applyPlacementBoardBonusGain(
+        CardLogic,
+        cardState,
+        playerKey,
+        targetRow,
+        targetCol,
+        appliedBonus,
+        Number(opts.flipCount) || 0,
+        deps
+    );
+    return {
+        player: playerKey,
+        row: targetRow,
+        col: targetCol,
+        bonus: bonusValue,
+        gained,
+        multiplier,
+        boostedBy: numberCellMultiplierConfig
+            ? (numberCellMultiplierConfig.boostedBy || null)
+            : null
+    };
+}
+
 function buildPlacementChargeBubblePayload(playerKey: any, row: any, col: any, flipCount: any, boardBonusGained: any, effects: any) {
     const flipGain = Number(effects && effects.chargeGained) || 0;
     const mergedBoardBonus = flipCount > 0 ? (Number(boardBonusGained) || 0) : 0;
@@ -214,6 +272,7 @@ function transferChargeBetweenPlayers(cardState: any, fromPlayerKey: any, toPlay
 const TurnBoardChargeModule = {
     addChargeWithTotal,
     applyPlacementBoardBonusGain,
+    resolveBoardBonusGain,
     buildPlacementChargeBubblePayload,
     awardBoardChargeGain,
     transferChargeBetweenPlayers

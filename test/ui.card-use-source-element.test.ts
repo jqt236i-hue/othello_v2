@@ -371,14 +371,14 @@ describe('card use source element selection', () => {
     global.gameState.currentPlayer = global.BLACK;
     global.cardState.selectedCardId = 'support_troops_01';
     global.cardState.selectedCardOwnerKey = 'black';
-    global.cardState.charge.black = 14;
+    global.cardState.charge.black = 16;
     global.cardState.hands.black = ['support_troops_01'];
     global.cardState.handCostAdjustmentsByPlayer = {
       black: [{ delta: 5 }],
       white: []
     };
     global.CardLogic = {
-      getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 14 }),
+      getCardDef: (id) => ({ id, type: 'SUPPORT_TROOPS_WILL', name: '援軍の意志', desc: 'd', cost: 16 }),
       getUsableCardIds: () => ['support_troops_01']
     };
 
@@ -386,7 +386,7 @@ describe('card use source element selection', () => {
     window.useSelectedCard();
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
-    expect(global.addLog).toHaveBeenCalledWith('布石不足: 援軍の意志 (必要: 19, 所持: 14)');
+    expect(global.addLog).toHaveBeenCalledWith('布石不足: 援軍の意志 (必要: 21, 所持: 16)');
   });
 
   test('network mode allows observer will stolen cards with projected zero cost', () => {

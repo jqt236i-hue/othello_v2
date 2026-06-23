@@ -65,7 +65,7 @@ describe('game cpu turn handler presentation runtime', () => {
     const entry = await PresentationRuntime.requestEnemyCardCommentaryFromPlayback([{
       type: 'card_use_animation',
       phase: 1,
-      targets: [{ owner: ' BLACK ', cardId: 'swap_01', cost: 17, name: '交換の意志' }]
+      targets: [{ owner: ' BLACK ', cardId: 'swap_01', cost: 15, name: '交換の意志' }]
     }]);
 
     expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({

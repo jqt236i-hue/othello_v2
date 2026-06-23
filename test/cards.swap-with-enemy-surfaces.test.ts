@@ -6,7 +6,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'swap_01',
   name_ja: '交換の意志',
   type: 'SWAP_WITH_ENEMY',
-  cost: 17,
+  cost: 15,
   desc_ja: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。',
   display_type_ja: '執行'
 });

@@ -509,6 +509,13 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             score += destructiveMarkerScore * 1.4;
             score += (oppAdj - ownAdj) * 90;
             return score;
+        case 'CAUSAL_REPLAY_WILL':
+            score += 80;
+            if (corner) score += 1800;
+            else if (edge) score += 420;
+            score += Math.max(0, seatValue) * 0.18;
+            score += bonus * 100;
+            return score;
         case 'BOARD_SHRINK_WILL':
             if (Array.isArray(target.lineCells) && target.lineCells.length > 0) {
                 return scoreBoardShrinkLine(target.lineCells);

@@ -298,6 +298,27 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(shrinkCue).toBeUndefined();
   });
 
+  test('CAUSAL_REPLAY_WILL の穴再生は METEOR_HOLE の status_removed phase で causal_replay_restore を再生する', () => {
+    const base = [{
+      type: 'status_removed',
+      phase: 21,
+      targets: [{ r: 2, col: 2, before: { special: 'METEOR_HOLE' } }],
+      meta: {
+        special: 'METEOR_HOLE',
+        cellRestorationCause: 'CAUSAL_REPLAY_WILL',
+        restoredAs: 'normal_empty_cell'
+      }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const replayCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'causal_replay_restore');
+    const meteorCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'meteor_hole');
+
+    expect(replayCue).toBeTruthy();
+    expect(replayCue.phase).toBe(21);
+    expect(meteorCue).toBeUndefined();
+  });
+
   test('BOARD_SHRINK_WILL の穴化は meteor_hole を再生せず board_shrink_selected のままにする', () => {
     const base = [
       {

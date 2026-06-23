@@ -41,6 +41,8 @@ const {
     const EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS = 'effect-target-highlight-positive';
     const EFFECT_TARGET_PLACEMENT_HIGHLIGHT_CLASS = 'effect-target-highlight-placement';
     const EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS = 'effect-target-highlight-spawn';
+    const TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY = 'transientCellHighlightClass';
+    const TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY = 'transientCellHighlightToken';
     const RANDOM_SPAWN_PREVIEW_CLASS = 'random-spawn-preview';
     const HIGHLIGHT_TONE_NEGATIVE = 'negative';
     const HIGHLIGHT_TONE_POSITIVE = 'positive';
@@ -1055,7 +1057,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
                 : 0;
             const startedAt = Date.now();
+            const transientToken = `${baseHighlightClass}:${startedAt}:${Math.random()}`;
             try {
+                if (cell.dataset) {
+                    cell.dataset[TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY] = baseHighlightClass;
+                    cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY] = transientToken;
+                }
                 cell.classList.add(baseHighlightClass);
                 for (const className of transientClasses) {
                     cell.classList.add(className);
@@ -1074,10 +1081,21 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     }
                 }
                 if (highlighted) {
-                    for (const className of transientClasses) {
-                        try { cell.classList.remove(className); } catch (e: any) { /* ignore */ }
+                    const stillOwnsTransientHighlight = !cell.dataset
+                        || !cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY]
+                        || cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY] === transientToken;
+                    if (stillOwnsTransientHighlight && cell.dataset) {
+                        try {
+                            delete cell.dataset[TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY];
+                            delete cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY];
+                        } catch (e: any) { /* ignore */ }
                     }
-                    try { cell.classList.remove(baseHighlightClass); } catch (e: any) { /* ignore */ }
+                    if (stillOwnsTransientHighlight) {
+                        for (const className of transientClasses) {
+                            try { cell.classList.remove(className); } catch (e: any) { /* ignore */ }
+                        }
+                        try { cell.classList.remove(baseHighlightClass); } catch (e: any) { /* ignore */ }
+                    }
                 }
             }
         }

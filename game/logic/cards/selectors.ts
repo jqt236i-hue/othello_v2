@@ -1325,6 +1325,18 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
     return res;
 }
 
+// Return causal replay targets: existing meteor holes only.
+function getCausalReplayTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    const gs = gameState as any;
+    if (!gs || !gs.board) return [];
+    const res: TargetCell[] = [];
+    forEachBoardShapeCell(gameState, (r, c) => {
+        if (!isMeteorHoleCell(cardState, r, c)) return;
+        res.push({ row: r, col: c });
+    });
+    return res;
+}
+
 function getBoardShrinkTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
     const board = getShapeAwareBoard(cardState, gameState);
     if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getPerimeterCells !== 'function') return [];
@@ -1448,6 +1460,7 @@ export = {
     getBoardExpansionGodTargets,
     getBlockadeTargets,
     getMeteorTargets,
+    getCausalReplayTargets,
     getBoardShrinkTargets,
     getBoardShrinkGodTargets,
     getFreezeTargets,

@@ -114,7 +114,8 @@ const SoundEngine = {
         { name: '盤喰いの小鬼戦', file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3', loopStart: 1.655 },
         { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
         { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' },
-        { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3', loopEnd: 58.434783 }
+        { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3', loopEnd: 58.434783 },
+        { name: '犠牲のテーマ', file: 'assets/audio/bgm/sacrifice.mp3', loopEnd: 40 }
     ] as BgmTrack[],
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {
@@ -132,6 +133,7 @@ const SoundEngine = {
         board_expansion_reveal: '盤面が拡張されたタイミング.mp3',
         board_shrink_selected: '盤面縮小するタイミング.mp3',
         meteor_hole: '因果抹消で穴化するタイミング.mp3',
+        causal_replay_restore: '因果再生で穴マスを通常マスに再生するタイミング.mp3',
         strong_wind_move: '強風で石が移動したタイミング.mp3',
         position_swap_move: '入替の意志で石が入れ替わるタイミング.mp3',
         super_buoyancy_move: '浮力系で石が浮上したタイミング.mp3',
@@ -169,7 +171,8 @@ const SoundEngine = {
         stone_place: 10 / 7,
         stone_destroy: 0.7,
         board_shrink_selected: 0.7,
-        meteor_hole: 0.7
+        meteor_hole: 0.7,
+        causal_replay_restore: 0.7
     } as EffectVolumeScales,
     _missingEffectWarned: {} as Record<string, boolean>,
 

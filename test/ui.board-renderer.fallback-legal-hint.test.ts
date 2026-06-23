@@ -180,6 +180,32 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
+  test('renderBoardFull shows causal replay hole targets as selectable while preserving hole styling', () => {
+    global.getLegalMoves.mockReturnValue([{ row: 0, col: 0 }]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1 }]);
+    global.cardState.markers = [
+      { id: 'hole-1', kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'METEOR_HOLE' } }
+    ];
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'CAUSAL_REPLAY_WILL',
+      stage: 'selectTarget',
+      cardId: 'causal_replay_01'
+    };
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    const normalCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const holeCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(normalCell).toBeTruthy();
+    expect(holeCell).toBeTruthy();
+    expect(normalCell.classList.contains('legal')).toBe(false);
+    expect(normalCell.classList.contains('selectable-friendly')).toBe(false);
+    expect(holeCell.classList.contains('meteor-hole-cell')).toBe(true);
+    expect(holeCell.classList.contains('blocked-cell')).toBe(true);
+    expect(holeCell.classList.contains('selectable-friendly')).toBe(true);
+  });
+
   test('renderBoardFull previews random spawn targets for REINFORCEMENT_WILL without using selectable target styling', () => {
     global.CardLogic.getCardDef = jest.fn(() => ({ type: 'REINFORCEMENT_WILL' }));
     global.CardLogic.getReinforcementWillTargets = jest.fn(() => [{ row: 0, col: 1 }, { row: 1, col: 1 }]);

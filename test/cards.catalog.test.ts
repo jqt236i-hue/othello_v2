@@ -127,10 +127,10 @@ describe('cards catalog consistency', () => {
     }
   });
 
-  test('swap/position-swap costs are reversed as specified', () => {
+  test('swap/position-swap costs are configured as specified', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
-    expect(Number(byId.get('swap_01').cost)).toBe(17);
+    expect(Number(byId.get('swap_01').cost)).toBe(15);
     expect(Number(byId.get('position_swap_01').cost)).toBe(13);
   });
 
@@ -156,7 +156,7 @@ describe('cards catalog consistency', () => {
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     expect(byId.has('support_troops_01')).toBe(true);
     expect(byId.get('support_troops_01').type).toBe('SUPPORT_TROOPS_WILL');
-    expect(Number(byId.get('support_troops_01').cost)).toBe(14);
+    expect(Number(byId.get('support_troops_01').cost)).toBe(16);
     expect(byId.get('support_troops_01').display_type_ja).toBe('繁栄');
   });
 

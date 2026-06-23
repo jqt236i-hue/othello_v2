@@ -3288,6 +3288,10 @@ async function cpuSelectMeteorWillWithPolicy(playerKey: any): Promise<any> {
     return CpuDecisionPendingActions.cpuSelectMeteorWillWithPolicy(playerKey);
 }
 
+async function cpuSelectCausalReplayWillWithPolicy(playerKey: any): Promise<any> {
+    return CpuDecisionPendingActions.cpuSelectCausalReplayWillWithPolicy(playerKey);
+}
+
 /**
  * 凍結の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
@@ -3425,6 +3429,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectBoardShrinkWithPolicy,
         cpuSelectBlockadeWillWithPolicy,
         cpuSelectMeteorWillWithPolicy,
+        cpuSelectCausalReplayWillWithPolicy,
         cpuSelectFreezeWillWithPolicy,
         cpuSelectSeedWillWithPolicy,
         cpuSelectCloneWillWithPolicy,

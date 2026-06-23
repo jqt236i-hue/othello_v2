@@ -10,6 +10,7 @@ type ResolveImmediateCardUsageEffectsOptions = {
     clearPendingForActionPhase: (cardState: any, playerKey: any) => any;
     transferChargeBetweenPlayers: (cardState: any, fromPlayerKey: any, toPlayerKey: any, amount: any, reasonKey: any) => any;
     applyPostFlipRevives: (CardLogic: any, cardState: any, gameState: any, flips: any, ownerKey: any) => any;
+    resolveBoardBonusGain: (CardLogic: any, cardState: any, playerKey: any, row: any, col: any, options: any) => any;
     awardBoardChargeGain: (CardLogic: any, cardState: any, playerKey: any, amount: any, options: any) => void;
     emitHandRemovePresentation: (CardLogic: any, cardState: any, payload: any) => void;
 };
@@ -62,6 +63,36 @@ function resetConsecutivePassesAfterBoardMutation(gameState: any, result: any): 
     const flippedCount = Number(result.flippedCount) || (Array.isArray(result.flipped) ? result.flipped.length : 0);
     if (spawnedCount > 0 || flippedCount > 0) {
         gameState.consecutivePasses = 0;
+    }
+}
+
+function applySpawnedNumberCellGains(options: ResolveImmediateCardUsageEffectsOptions, result: any): void {
+    if (!result || !Array.isArray(result.spawned) || !result.spawned.length) {
+        return;
+    }
+    if (typeof options.resolveBoardBonusGain !== 'function') {
+        return;
+    }
+    for (const spawned of result.spawned) {
+        const row = Number(spawned && spawned.row);
+        const col = Number(spawned && spawned.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        const bonusGain = options.resolveBoardBonusGain(
+            options.CardLogic,
+            options.cardState,
+            options.playerKey,
+            row,
+            col,
+            {
+                othelloMode: false,
+                flipCount: 0
+            }
+        );
+        if (bonusGain) {
+            options.events.push(Object.assign({
+                type: 'board_bonus_gain'
+            }, bonusGain));
+        }
     }
 }
 
@@ -127,6 +158,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
             throw new Error('REINFORCEMENT_WILL resolve failed');
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
+        applySpawnedNumberCellGains(opts, res);
         applyImmediateFlipResolutionFollowups(opts, res, 'reinforcement_will_immediate');
         resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
@@ -148,6 +180,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
             throw new Error('SUPPORT_TROOPS_WILL resolve failed');
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
+        applySpawnedNumberCellGains(opts, res);
         applyImmediateFlipResolutionFollowups(opts, res, 'support_troops_will_immediate');
         resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({

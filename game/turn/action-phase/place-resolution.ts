@@ -14,6 +14,7 @@ type ResolvePlacementActionOptions = {
     getPendingEffectTypeForActionPhase: (CardLogic: any, cardState: any, playerKey: any) => any;
     applyTrapEffectsAfterSelection: () => void;
     handOffTurnAfterSelection: () => void;
+    resolveBoardBonusGain: (CardLogic: any, cardState: any, playerKey: any, row: any, col: any, options: any) => any;
     applyPlacementBoardBonusGain: (CardLogic: any, cardState: any, playerKey: any, row: any, col: any, bonus: any, flipCount: any) => any;
     applyPostFlipRevives: (CardLogic: any, cardState: any, gameState: any, flips: any, ownerKey: any) => any;
     isOthelloMode: () => boolean;
@@ -272,10 +273,6 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     }
 
     const othelloMode = opts.isOthelloMode();
-    const bonusKey = `${action.row},${action.col}`;
-    const bonusMap = (opts.cardState && opts.cardState.boardBonusByCell && typeof opts.cardState.boardBonusByCell === 'object')
-        ? opts.cardState.boardBonusByCell
-        : null;
     const pendingPlacementType = opts.getPendingEffectTypeForActionPhase(opts.CardLogic, opts.cardState, opts.playerKey);
     const pendingNumberCellMultiplierConfig = (
         pendingPlacementType &&
@@ -289,41 +286,23 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
             : null
     );
     let boardBonusGained = 0;
-    if (!opts.cardState.boardBonusConsumedByCell || typeof opts.cardState.boardBonusConsumedByCell !== 'object') {
-        opts.cardState.boardBonusConsumedByCell = {};
-    }
-    const consumedMap = opts.cardState.boardBonusConsumedByCell;
-    const bonusValue = bonusMap ? Number(bonusMap[bonusKey] || 0) : 0;
-    if (!othelloMode && bonusValue > 0 && consumedMap[bonusKey] !== true) {
-        consumedMap[bonusKey] = true;
-        const appliedBonus = numberCellMultiplierConfig
-            ? bonusValue * Number(numberCellMultiplierConfig.multiplier || 1)
-            : bonusValue;
-        if (opts.CardLogic && typeof opts.CardLogic.addNumberCellCollectedTotal === 'function') {
-            opts.CardLogic.addNumberCellCollectedTotal(opts.cardState, opts.playerKey, appliedBonus);
-        }
-        const gained = opts.applyPlacementBoardBonusGain(
-            opts.CardLogic,
-            opts.cardState,
-            opts.playerKey,
-            action.row,
-            action.col,
-            appliedBonus,
+    const boardBonusGain = opts.resolveBoardBonusGain(
+        opts.CardLogic,
+        opts.cardState,
+        opts.playerKey,
+        action.row,
+        action.col,
+        {
+            othelloMode,
+            numberCellMultiplierConfig,
             flipCount
-        );
-        boardBonusGained = gained;
-        opts.events.push({
-            type: 'board_bonus_gain',
-            player: opts.playerKey,
-            row: action.row,
-            col: action.col,
-            bonus: bonusValue,
-            gained,
-            multiplier: numberCellMultiplierConfig ? Number(numberCellMultiplierConfig.multiplier || 1) : 1,
-            boostedBy: numberCellMultiplierConfig
-                ? (numberCellMultiplierConfig.boostedBy || pendingPlacementType || null)
-                : null
-        });
+        }
+    );
+    if (boardBonusGain) {
+        boardBonusGained = Number(boardBonusGain.gained) || 0;
+        opts.events.push(Object.assign({
+            type: 'board_bonus_gain'
+        }, boardBonusGain));
     }
 
     if (!tabooReverseApplied && flipCount > 0 && typeof opts.CardLogic.applyRegenAfterFlips === 'function') {

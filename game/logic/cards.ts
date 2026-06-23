@@ -704,6 +704,7 @@ const {
     const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
     /** @type {any} */
     const CardMeteorModule = resolveRequiredCardModule('./cards/meteor', 'CardMeteor');
+    const CardCausalReplayModule = resolveRequiredCardModule('./cards/causal_replay', 'CardCausalReplay');
     const CardMeteorGodModule = resolveRequiredCardModule('./cards/meteor_god', 'CardMeteorGod');
     /** @type {any} */
     const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
@@ -1144,6 +1145,7 @@ const {
                 getBoardShrinkGodTargets,
                 getBlockadeTargets,
                 getMeteorTargets,
+                getCausalReplayTargets,
                 getFreezeTargets,
                 getSeedTargets,
                 resolveCardBoardConfig,
@@ -2490,6 +2492,7 @@ const {
             getBoardShrinkGodTargets,
             getBlockadeTargets,
             getMeteorTargets,
+            getCausalReplayTargets,
             getFreezeTargets,
             getSeedTargets,
             getTimeStopGodDestroyableCount,
@@ -2746,6 +2749,10 @@ const {
 
     function getMeteorTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getMeteorTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
+    }
+
+    function getCausalReplayTargets(cardState: any, gameState: any, playerKey: any) {
+        return CardTargetAccessModule.getCausalReplayTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
     function getFreezeTargets(cardState: any, gameState: any, playerKey: any) {
@@ -3042,6 +3049,19 @@ const {
             removeMarkersAt,
             addMarker,
             random: prng || defaultPrng
+        });
+    }
+
+    function applyCausalReplayWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        return CardCausalReplayModule.applyCausalReplayWill(cardState, gameState, playerKey, row, col, {
+            getCausalReplayTargets,
+            setCellValueForCard,
+            clearStoneIdAtForCard,
+            removeMarkersAt,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            MARKER_KINDS,
+            EMPTY
         });
     }
 
@@ -4766,6 +4786,7 @@ const cardsApi: any = {
         getBoardShrinkGodTargets,
         getBlockadeTargets,
         getMeteorTargets,
+        getCausalReplayTargets,
         getFreezeTargets,
         getSeedTargets,
         getSniperTargets,
@@ -4786,6 +4807,7 @@ const cardsApi: any = {
         getTrapTargets,
         applyTrapWill,
         processTrapEffects,
+        applyCausalReplayWill,
         clearHyperactiveAtPositions,
         resolveHyperactiveFlipEvasion,
         processHyperactiveMoves,

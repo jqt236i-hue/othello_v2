@@ -2254,6 +2254,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             seed: 'handleSeedSelection',
                             position_swap: 'handlePositionSwapSelection',
                             meteor: 'handleMeteorSelection',
+                            causal_replay: 'handleCausalReplaySelection',
                             time_bomb: 'handleTimeBombSelection',
                             swap_with_enemy: 'handleSwapSelection'
                         };
