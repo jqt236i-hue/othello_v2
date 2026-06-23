@@ -83,6 +83,7 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-layout-result.css',
     'styles-layout-characters.css',
     'styles-leaderboard.css',
+    'styles-profile.css',
     'styles-responsive.css',
     'styles-stone-shadows.css',
     'styles-variables.css',
