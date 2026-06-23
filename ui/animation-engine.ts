@@ -41,6 +41,7 @@ const {
     const EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS = 'effect-target-highlight-positive';
     const EFFECT_TARGET_PLACEMENT_HIGHLIGHT_CLASS = 'effect-target-highlight-placement';
     const EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS = 'effect-target-highlight-spawn';
+    const RANDOM_SPAWN_PREVIEW_CLASS = 'random-spawn-preview';
     const HIGHLIGHT_TONE_NEGATIVE = 'negative';
     const HIGHLIGHT_TONE_POSITIVE = 'positive';
     const HIGHLIGHT_TONE_PLACEMENT = 'placement';
@@ -879,6 +880,53 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             ));
             if (!shouldKeepVisible) return 0;
             return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
+        }
+
+        _isRandomSpawnPreviewSettlingTarget(target: any) {
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            return (cause === 'REINFORCEMENT_WILL' && reason.indexOf('reinforcement_will_spawn') === 0) ||
+                (cause === 'SUPPORT_TROOPS_WILL' && reason.indexOf('support_troops_will_spawn') === 0);
+        }
+
+        _shouldClearRandomSpawnPreviewForSpawnEvent(ev: any) {
+            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
+            return targets.some((target: any) => this._isRandomSpawnPreviewSettlingTarget(target));
+        }
+
+        _clearRandomSpawnPreviewHints() {
+            const roots: any[] = [];
+            const pushRoot = (root: any) => {
+                if (root && roots.indexOf(root) < 0) roots.push(root);
+            };
+            pushRoot(this.boardEl);
+            try {
+                const boardStack = this.boardEl && typeof this.boardEl.closest === 'function'
+                    ? this.boardEl.closest('#board-stack')
+                    : null;
+                const scopedLayer = boardStack && typeof boardStack.querySelector === 'function'
+                    ? boardStack.querySelector('#board-expansion-layer')
+                    : null;
+                pushRoot(scopedLayer);
+            } catch (e: any) { /* ignore */ }
+            try {
+                const docLayer = typeof document !== 'undefined' && document && typeof document.getElementById === 'function'
+                    ? document.getElementById('board-expansion-layer')
+                    : null;
+                pushRoot(docLayer);
+            } catch (e: any) { /* ignore */ }
+
+            for (const root of roots) {
+                try {
+                    if (root.classList && root.classList.contains(RANDOM_SPAWN_PREVIEW_CLASS)) {
+                        root.classList.remove(RANDOM_SPAWN_PREVIEW_CLASS);
+                    }
+                    if (typeof root.querySelectorAll !== 'function') continue;
+                    root.querySelectorAll(`.${RANDOM_SPAWN_PREVIEW_CLASS}`).forEach((cell: any) => {
+                        try { cell.classList.remove(RANDOM_SPAWN_PREVIEW_CLASS); } catch (e: any) { /* ignore */ }
+                    });
+                } catch (e: any) { /* ignore */ }
+            }
         }
 
         _resolveStatusChangeHighlightMinimumMs(highlightTone: any) {
@@ -1756,6 +1804,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         _handleSpawnPlaybackEvent(ev: any) {
             if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.handleSpawnEvent === 'function')) {
                 throw new Error('AnimationEngine placement events module unavailable');
+            }
+            if (this._shouldClearRandomSpawnPreviewForSpawnEvent(ev)) {
+                this._clearRandomSpawnPreviewHints();
             }
             return AnimationPlacementEvents.handleSpawnEvent(ev, {
                 eventTypes: EVENT_TYPES,

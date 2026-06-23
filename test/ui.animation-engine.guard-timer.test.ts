@@ -2523,10 +2523,16 @@ describe('animation-engine guard timer rendering', () => {
     const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
-    targetCell.className = 'cell';
+    targetCell.className = 'cell random-spawn-preview';
     targetCell.dataset.row = '4';
     targetCell.dataset.col = '6';
     board.appendChild(targetCell);
+
+    const otherPreviewCell = document.createElement('div');
+    otherPreviewCell.className = 'cell random-spawn-preview';
+    otherPreviewCell.dataset.row = '4';
+    otherPreviewCell.dataset.col = '5';
+    board.appendChild(otherPreviewCell);
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
@@ -2550,11 +2556,51 @@ describe('animation-engine guard timer rendering', () => {
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('random-spawn-preview')).toBe(false);
+    expect(otherPreviewCell.classList.contains('random-spawn-preview')).toBe(false);
     expect(sleepSpy).toHaveBeenCalled();
     expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
+  test('Support Troops Will spawn clears random spawn preview hints', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell random-spawn-preview';
+    targetCell.dataset.row = '3';
+    targetCell.dataset.col = '6';
+    board.appendChild(targetCell);
+
+    const otherPreviewCell = document.createElement('div');
+    otherPreviewCell.className = 'cell random-spawn-preview';
+    otherPreviewCell.dataset.row = '3';
+    otherPreviewCell.dataset.col = '5';
+    board.appendChild(otherPreviewCell);
+
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 3,
+        col: 6,
+        cause: 'SUPPORT_TROOPS_WILL',
+        reason: 'support_troops_will_spawn',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(targetCell.classList.contains('random-spawn-preview')).toBe(false);
+    expect(otherPreviewCell.classList.contains('random-spawn-preview')).toBe(false);
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(sleepSpy).toHaveBeenCalled();
+
     sleepSpy.mockRestore();
   });
 
