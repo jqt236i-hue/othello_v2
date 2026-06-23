@@ -543,7 +543,7 @@ const CardCatalog = {
       "id": "infinite_01",
       "name_ja": "無限投石",
       "type": "INFINITE_PLACE",
-      "cost": 22,
+      "cost": 24,
       "desc_ja": "使用ターンだけ合法手がなくなるまで石を連続で置ける。置けなくなった時点で終了する。",
       "enabled": false,
       "display_type_ja": "禁忌",

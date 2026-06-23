@@ -215,6 +215,7 @@ describe('card surface layout contract', () => {
     expectCssBlockToContain(cardsCss, '.card-item.visible', /clip-path:\s*var\(--card-frame-pentagon\)/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible.cost-tier-special', /clip-path:/);
     expectCssBlockNotToContain(cardsCss, '.card-item.visible[data-card-id="rainbow_stone"]', /clip-path:/);
+    expectCssBlockNotToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"])', /clip-path:/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face', /clip-path:\s*var\(--special-card-stone-shape\)/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.special-card-face::after', /clip-path:\s*var\(--special-card-inner-stone-shape\)/);
     expectCssBlockToContain(cardsCss, '.card-item.hidden', /clip-path:\s*var\(--card-frame-pentagon\)/);
@@ -267,7 +268,7 @@ describe('card surface layout contract', () => {
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*z-index:\s*3/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*opacity:\s*var\(--card-special-art-opacity,\s*0\.76\)/);
     expect(cardsCss).toMatch(/\.card-special-art[\s\S]*background-position:\s*center,\s*center 50%/);
-    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-special \.card-special-art,[\s\S]*--card-special-art-opacity:\s*0\.70/);
+    expect(cardsCss).toMatch(/\.card-item\.visible\.cost-tier-special \.card-special-art,[\s\S]*?\.card-item\.visible:is\(\[data-card-id="rainbow_stone"\],\s*\[data-card-id="infinite_chain_01"\],\s*\[data-card-id="infinite_01"\]\) \.card-special-art\s*\{[\s\S]*--card-special-art-opacity:\s*0\.70/);
     expect(cardsCss).toMatch(/\.card-name\s*\{[\s\S]*top:\s*auto[\s\S]*bottom:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
 

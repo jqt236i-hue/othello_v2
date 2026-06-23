@@ -566,7 +566,7 @@ describe('card detail effect tags', () => {
         id: 'infinite_01',
         name: '無限投石',
         type: 'INFINITE_PLACE',
-        cost: 22,
+        cost: 24,
         desc: '使用ターンだけ合法手がなくなるまで石を連続で置ける。置けなくなった時点で終了する。'
       }
     ];
