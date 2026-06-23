@@ -48,12 +48,16 @@ describe('manifest effect panel', () => {
     return document.getElementById('manifest-effect-panel') as HTMLElement | null;
   }
 
-  test('hides the panel when no manifestation stone is active', () => {
+  test('shows an empty panel when no manifestation stone or used card exists', () => {
     const panel = renderOnce();
 
     expect(panel).not.toBeNull();
-    expect(panel?.classList.contains('is-visible')).toBe(false);
-    expect(panel?.getAttribute('aria-hidden')).toBe('true');
+    expect(panel?.classList.contains('is-visible')).toBe(true);
+    expect(panel?.getAttribute('aria-hidden')).toBe('false');
+    expect(panel?.getAttribute('data-manifest-effect-type')).toBeNull();
+    expect(panel?.getAttribute('data-manifest-effect-source')).toBeNull();
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('');
+    expect(document.getElementById('manifest-effect-lines')?.textContent).toBe('');
   });
 
   test('renders last used card when no manifestation stone is active', () => {

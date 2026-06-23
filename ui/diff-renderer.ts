@@ -621,6 +621,17 @@ function _hideManifestEffectPanelForDiff() {
     refs.panel.removeAttribute('data-manifest-effect-source');
 }
 
+function _showEmptyManifestEffectPanelForDiff() {
+    const refs = _ensureManifestEffectPanelForDiff();
+    if (!refs) return;
+    refs.panel.classList.add('is-visible');
+    refs.panel.setAttribute('aria-hidden', 'false');
+    refs.title.textContent = '';
+    refs.lines.textContent = '';
+    refs.panel.removeAttribute('data-manifest-effect-type');
+    refs.panel.removeAttribute('data-manifest-effect-source');
+}
+
 function _getManifestEffectHandCount(cardStateValue: any, ownerKey: string) {
     const hands = cardStateValue && cardStateValue.hands && typeof cardStateValue.hands === 'object'
         ? cardStateValue.hands
@@ -846,7 +857,7 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
         panelEntry = content;
     }
     if (!content) {
-        _hideManifestEffectPanelForDiff();
+        _showEmptyManifestEffectPanelForDiff();
         return;
     }
 
