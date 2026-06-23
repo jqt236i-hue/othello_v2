@@ -1,6 +1,7 @@
 'use strict';
 
 const MatchRoomLobby = require('./match-room-lobby');
+const IdentityContract = require('./player-identity-contract');
 
 interface MatchEntryPayloadHelpers {
   normalizePlayerName?: (value: unknown) => string;
@@ -9,6 +10,7 @@ interface MatchEntryPayloadHelpers {
   sanitizeDeckCode?: (value: unknown) => unknown;
   cloneData?: (value: unknown) => unknown;
   readSelectedHandSkinId?: () => unknown;
+  readPlayerIdentity?: () => { playerId?: unknown; playerToken?: unknown } | null;
   readSeatClaim?: (roomId: string) => unknown;
   roomIdPattern?: RegExp;
   defaultSelectedHandSkinId?: unknown;
@@ -125,6 +127,17 @@ function appendSelectedHandSkinId(payload: Record<string, unknown>, helpers?: Ma
   return Object.prototype.hasOwnProperty.call(payload, 'selectedHandSkinId');
 }
 
+function appendOptionalPlayerIdentity(payload: Record<string, unknown>, helpers?: MatchEntryPayloadHelpers): void {
+  const h = resolveHelpers(helpers);
+  const identity = typeof h.readPlayerIdentity === 'function' ? h.readPlayerIdentity() : null;
+  const playerId = IdentityContract.normalizePlayerId(identity && identity.playerId);
+  const playerToken = IdentityContract.normalizePlayerToken(identity && identity.playerToken);
+  if (playerId && playerToken) {
+    payload.playerId = playerId;
+    payload.playerToken = playerToken;
+  }
+}
+
 function getRoomIdPattern(helpers?: MatchEntryPayloadHelpers): RegExp {
   const h = resolveHelpers(helpers);
   return h.roomIdPattern instanceof RegExp ? h.roomIdPattern : /^[A-Z0-9]{3}$/;
@@ -174,6 +187,7 @@ function buildCreateRoomPayload(
     payload.roomBoardConfig = cloneData(opts.roomBoardConfig, h);
   }
   appendSelectedHandSkinId(payload, h);
+  appendOptionalPlayerIdentity(payload, h);
 
   return {
     ok: true,
@@ -220,6 +234,7 @@ function buildJoinRoomPayload(
   if (roomPassword) {
     payload.roomPassword = roomPassword;
   }
+  appendOptionalPlayerIdentity(payload, h);
   const storedClaim = typeof h.readSeatClaim === 'function' ? h.readSeatClaim(normalizedRoomId) : null;
   let usedStoredClaim = false;
   if (storedClaim && typeof storedClaim === 'object') {
@@ -293,6 +308,12 @@ function buildJoinRetryPayload(entry: MatchEntryPayloadResult | Record<string, u
   const roomPassword = normalizeRoomPassword(payload.roomPassword);
   if (roomPassword) {
     retryPayload.roomPassword = roomPassword;
+  }
+  const playerId = IdentityContract.normalizePlayerId(payload.playerId);
+  const playerToken = IdentityContract.normalizePlayerToken(payload.playerToken);
+  if (playerId && playerToken) {
+    retryPayload.playerId = playerId;
+    retryPayload.playerToken = playerToken;
   }
   return retryPayload;
 }

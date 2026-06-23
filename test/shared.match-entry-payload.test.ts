@@ -87,6 +87,25 @@ describe('MatchEntryPayload', () => {
     }));
   });
 
+  test('create payload includes verified player identity when provided', () => {
+    const result = MatchEntryPayload.buildCreateRoomPayload(
+      { playerName: 'テスト' },
+      {
+        readSelectedHandSkinId: () => 'default',
+        readPlayerIdentity: () => ({
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
+        })
+      }
+    );
+
+    expect(result.payload).toEqual(expect.objectContaining({
+      playerName: 'テスト',
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
+    }));
+  });
+
   test('join payload validates room, adds default hand skin, and preserves stored seat claim', () => {
     const result = MatchEntryPayload.buildJoinRoomPayload(
       'abc',
@@ -117,7 +136,11 @@ describe('MatchEntryPayload', () => {
       { playerName: 'テスト', deckCode: 'D1C1:TEST' },
       {
         readSelectedHandSkinId: () => 'red',
-        readSeatClaim: () => ({ seatKey: 'white', seatToken: 'stale_token' })
+        readSeatClaim: () => ({ seatKey: 'white', seatToken: 'stale_token' }),
+        readPlayerIdentity: () => ({
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
+        })
       }
     );
 
@@ -125,7 +148,9 @@ describe('MatchEntryPayload', () => {
       roomId: 'ABC',
       playerName: 'テスト',
       selectedHandSkinId: 'red',
-      deckCode: 'D1C1:TEST'
+      deckCode: 'D1C1:TEST',
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
     });
   });
 

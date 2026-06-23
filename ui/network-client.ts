@@ -459,6 +459,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkDebugTraceModule: any = null;
     let networkIntakeEnvelopeModule: any = null;
     let networkIntakeCoordinatorModule: any = null;
+    let playerIdentityModule: any = null;
     let animationFeedbackEventsModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
@@ -510,6 +511,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkDebugTraceModule = resolveNetworkClientModule('./network/debug-trace', null);
     networkIntakeEnvelopeModule = resolveNetworkClientModule('./network/intake-envelope', null);
     networkIntakeCoordinatorModule = resolveNetworkClientModule('./network/intake-coordinator', null);
+    playerIdentityModule = resolveNetworkClientModule('./player-identity', resolveNetworkClientGlobal('PlayerIdentity'));
     networkDebugTrace = networkDebugTraceModule
         && typeof networkDebugTraceModule.createNetworkDebugTrace === 'function'
         ? networkDebugTraceModule.createNetworkDebugTrace({ limit: 250 })
@@ -550,6 +552,21 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
         networkSessionLifecycleModule = resolveNetworkClientGlobal('NetworkSessionLifecycleModule');
         return networkSessionLifecycleModule;
+    }
+
+    function resolvePlayerIdentityModule() {
+        if (playerIdentityModule) return playerIdentityModule;
+
+        playerIdentityModule = resolveNetworkClientGlobal('PlayerIdentity');
+        return playerIdentityModule;
+    }
+
+    function ensurePlayerIdentityForNetworkEntry(options?: any) {
+        const mod = resolvePlayerIdentityModule();
+        if (mod && typeof mod.ensurePlayerIdentity === 'function') {
+            return mod.ensurePlayerIdentity(options);
+        }
+        return Promise.resolve(null);
     }
 
     function resolveNetworkCommandPayloadModule() {
@@ -1078,6 +1095,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playerNameMax: PLAYER_NAME_MAX,
             cloneData: cloneDataForCommandPayload,
             readSelectedHandSkinId,
+            ensurePlayerIdentity: ensurePlayerIdentityForNetworkEntry,
             requestJson,
             isMatchApiMissing,
             emitStatus,

@@ -41,7 +41,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
   }
 
-  function createEntryPayloadHelpers(): any {
+  function createEntryPayloadHelpers(playerIdentity?: any): any {
     return {
       normalizePlayerName: cfg.normalizePlayerName,
       normalizeRoomId: cfg.normalizeRoomId,
@@ -49,10 +49,20 @@ function createNetworkSessionLifecycleController(config: any): any {
       sanitizeDeckCode: cfg.sanitizeDeckCode,
       cloneData: cfg.cloneData,
       readSelectedHandSkinId: cfg.readSelectedHandSkinId,
+      readPlayerIdentity: () => playerIdentity || null,
       readSeatClaim: cfg.readSeatClaim,
       roomIdPattern: roomIdPattern,
       defaultSelectedHandSkinId: 'default'
     };
+  }
+
+  async function ensureEntryPlayerIdentity(options?: any): Promise<any> {
+    if (typeof cfg.ensurePlayerIdentity !== 'function') return null;
+    try {
+      return await cfg.ensurePlayerIdentity(options);
+    } catch (e) {
+      return null;
+    }
   }
 
   function emitEntryPayloadFailure(reason: any): any {
@@ -293,15 +303,16 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
-    const entryPayload = MatchEntryPayload.buildCreateRoomPayload(opts, createEntryPayloadHelpers());
-    if (!entryPayload.ok) {
-      return emitEntryPayloadFailure(entryPayload.reason);
-    }
-    emitDeckCodeFallbackIfNeeded(entryPayload);
-
     createRoomInProgress = true;
     let res: any;
+    let entryPayload: any;
     try {
+      const playerIdentity = await ensureEntryPlayerIdentity(opts);
+      entryPayload = MatchEntryPayload.buildCreateRoomPayload(opts, createEntryPayloadHelpers(playerIdentity));
+      if (!entryPayload.ok) {
+        return emitEntryPayloadFailure(entryPayload.reason);
+      }
+      emitDeckCodeFallbackIfNeeded(entryPayload);
       res = await cfg.requestJson('POST', '/api/match/create', entryPayload.payload);
     } finally {
       createRoomInProgress = false;
@@ -373,7 +384,8 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
-    const entryPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers());
+    const playerIdentity = await ensureEntryPlayerIdentity(opts);
+    const entryPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers(playerIdentity));
     if (!entryPayload.ok) {
       return emitEntryPayloadFailure(entryPayload.reason);
     }

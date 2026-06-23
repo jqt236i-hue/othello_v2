@@ -31,6 +31,10 @@ describe('NetworkSessionLifecycleController', () => {
       normalizePlayerName: jest.fn((name) => String(name || '').trim()),
       normalizeRoomId: jest.fn((id) => String(id || '').trim().toUpperCase()),
       sanitizeDeckCode: jest.fn((deckCode) => ({ value: String(deckCode || '').trim(), invalid: false })),
+      ensurePlayerIdentity: jest.fn(async () => ({
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
+      })),
       requestJson: jest.fn(),
       emitStatus: jest.fn(),
       activateSessionFromResponse: jest.fn((data) => {
@@ -152,7 +156,9 @@ describe('NetworkSessionLifecycleController', () => {
         '/api/match/create',
         expect.objectContaining({
           deckCode: 'TEST001',
-          roomBoardConfig: { rows: 7, cols: 7 }
+          roomBoardConfig: { rows: 7, cols: 7 },
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
         })
       );
     });
@@ -199,6 +205,7 @@ describe('NetworkSessionLifecycleController', () => {
       const secondCreate = await controller.createRoom({ playerName: 'テスト' });
 
       expect(secondCreate).toEqual({ ok: false, reason: 'CREATE_IN_PROGRESS' });
+      await Promise.resolve();
       expect(mockConfig.requestJson).toHaveBeenCalledTimes(1);
       expect(mockConfig.emitStatus).toHaveBeenCalledWith('部屋作成中です', false);
 
@@ -318,7 +325,9 @@ describe('NetworkSessionLifecycleController', () => {
         '/api/match/join',
         expect.objectContaining({
           seatKey: 'black',
-          seatToken: 'stored_token'
+          seatToken: 'stored_token',
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
         })
       );
     });
