@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give every browser user a stable local `playerId` and carry that identifier through network room create/join/state payloads so future rating and auto-matchmaking can identify black/white participants without adding login.
+**Goal:** Give every browser user a stable local `playerId`, carry that identifier through network room create/join/state payloads, and show a short ID beside player names in the current ranking UI so future rating and auto-matchmaking can identify black/white participants without adding login.
 
-**Architecture:** Add a pure shared `playerId` contract, extract the existing leaderboard local identity code into a UI identity module, and inject that identity into network room entry payloads. Store normalized black/white IDs in the Worker and local match server room authority state, then project them through explicit public payload fields without making `playerId` an authentication secret.
+**Architecture:** Add a pure shared `playerId` contract, extract the existing leaderboard local identity code into a UI identity module, and inject that identity into network room entry payloads. Store normalized black/white IDs in the Worker and local match server room authority state, then project them through explicit public payload fields without making `playerId` an authentication secret. The leaderboard renderer consumes existing entry `playerId` values and appends a compact suffix inside the shared player-name label, preserving the current table columns.
 
 **Tech Stack:** TypeScript, CommonJS compatibility wrappers, Jest, existing `ui/network/session-lifecycle.ts`, `shared/match-entry-payload.ts`, `utils/match-authority.ts`, `workers/match-worker.ts`, `scripts/local-match-server.ts`, generated `public/module-registry.js`, and `worker-public/` mirror via existing scripts.
 
@@ -70,6 +70,9 @@ Non-goals:
 
 - Lobby room list must not add `playerId`; list rows remain display-oriented.
 - Spectators do not get a `playerId` assignment in this pass.
+- Existing ranking rows and podium cards show a short `playerId` suffix to the right of the player name when an entry has a valid `playerId`. Use the same display treatment everywhere the leaderboard renders a player name.
+- The visible suffix is the last 4 normalized ID characters prefixed by `#`, for example `player_alpha_0001` displays as `#0001`.
+- The full `playerId` is exposed only as `title` / `aria-label` metadata on the suffix, not as a wide table column.
 
 ## File Structure
 
@@ -87,6 +90,9 @@ Modify:
 
 - `ui/leaderboard-client.ts`: Replace duplicate local identity functions with `ui/player-identity.ts` while preserving public `LeaderboardClient.getPlayerId()`, `getPlayerName()`, and `setPlayerName()`.
 - `test/ui.leaderboard-client.test.ts`: Verify existing storage key and submit payload behavior still use the same ID.
+- `ui/handlers/match-mode/leaderboard-controller.ts`: Render a short `playerId` suffix immediately to the right of each leaderboard player name.
+- `styles-leaderboard.css`: Style the suffix as compact secondary text without widening the table layout.
+- `test/ui.match-mode.leaderboard-limit.test.ts`: Verify row and podium player names include short player ID suffixes.
 - `shared/match-entry-payload.ts`: Add `readPlayerId` helper and carry `playerId` through create/join/retry payloads.
 - `test/shared.match-entry-payload.test.ts`: Pin create/join/retry payload shape with `playerId`.
 - `ui/network-client.ts`: Resolve `ui/player-identity` and inject `readPlayerId` into the session lifecycle controller. Add readable state getters for `playerId` and `seatPlayerIds`.
@@ -1447,7 +1453,182 @@ git add -- ui/network-client.ts ui/network/session-seat.ts test/ui.network-sessi
 git commit -m "Track player ids in network client state"
 ```
 
-## Task 7: Generated Browser And Worker Surfaces
+## Task 7: Display Player IDs Beside Ranking Names
+
+**Files:**
+
+- Modify: `ui/handlers/match-mode/leaderboard-controller.ts`
+- Modify: `styles-leaderboard.css`
+- Test: `test/ui.match-mode.leaderboard-limit.test.ts`
+
+- [ ] **Step 1: Add failing leaderboard display expectations**
+
+In `test/ui.match-mode.leaderboard-limit.test.ts`, add assertions to the existing render test that opens the leaderboard and checks player names:
+
+```ts
+const list = document.getElementById('leaderboardList');
+const podium = document.getElementById('leaderboardPodium');
+
+expect(list?.querySelector('.leaderboard-name-id')?.textContent).toMatch(/^#\w{4}$/);
+expect(list?.textContent).toContain('アルファ');
+expect(list?.textContent).toContain('#0001');
+expect(podium?.textContent).toContain('ざわた');
+expect(podium?.textContent).toContain('#0002');
+```
+
+Add a focused assertion that missing `playerId` does not render a suffix:
+
+```ts
+fetchLeaderboard.mockResolvedValueOnce({
+  ok: true,
+  entries: [
+    {
+      rank: 1,
+      playerId: null,
+      playerName: 'ななし',
+      bestScore: 1234,
+      mode: 'cpu',
+      cpuLevel: 1,
+      category: 'score'
+    }
+  ],
+  updatedAt: Date.now()
+});
+
+await window.MatchModeHandlers.openLeaderboardPanel();
+
+const suffixes = Array.from(document.querySelectorAll('.leaderboard-name-id'));
+expect(suffixes).toHaveLength(0);
+expect(document.getElementById('leaderboardList')?.textContent).toContain('ななし');
+```
+
+- [ ] **Step 2: Run failing leaderboard UI test**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.match-mode.leaderboard-limit.test.ts
+```
+
+Expected: FAIL because `.leaderboard-name-id` does not exist and short IDs are not rendered.
+
+- [ ] **Step 3: Add short player ID formatting helper**
+
+In `ui/handlers/match-mode/leaderboard-controller.ts`, add near `collectDuplicateLeaderboardNames()`:
+
+```ts
+    function normalizeLeaderboardPlayerId(value: any): string {
+        const normalized = String(value || '').trim();
+        return /^[A-Za-z0-9_-]{8,80}$/.test(normalized) ? normalized : '';
+    }
+
+    function formatLeaderboardPlayerIdSuffix(value: any): string {
+        const playerId = normalizeLeaderboardPlayerId(value);
+        if (!playerId) return '';
+        return `#${playerId.slice(-4)}`;
+    }
+```
+
+- [ ] **Step 4: Render suffix inside the shared name label**
+
+Replace `createLeaderboardNameLabel(entry, duplicateNames)` with:
+
+```ts
+    function createLeaderboardNameLabel(entry: any, duplicateNames: any) {
+        const name = document.createElement('span');
+        name.className = 'leaderboard-name';
+        const normalizedName = normalizePlayerName(entry.playerName) || DEFAULT_PLAYER_NAME;
+
+        const text = document.createElement('span');
+        text.className = 'leaderboard-name-text';
+        text.textContent = normalizedName;
+        name.appendChild(text);
+
+        const playerId = normalizeLeaderboardPlayerId(entry && entry.playerId);
+        const suffixText = formatLeaderboardPlayerIdSuffix(playerId);
+        if (suffixText) {
+            const id = document.createElement('span');
+            id.className = 'leaderboard-name-id';
+            id.textContent = suffixText;
+            id.title = `playerId: ${playerId}`;
+            id.setAttribute('aria-label', `playerId ${playerId}`);
+            name.appendChild(id);
+        }
+
+        return name;
+    }
+```
+
+Do not add a separate table column. The existing row append order stays:
+
+```ts
+        row.appendChild(rankWrap);
+        row.appendChild(name);
+        row.appendChild(score);
+        row.appendChild(mode);
+```
+
+This keeps the suffix right beside the name in both list rows and podium cards because both use `createLeaderboardNameLabel()`.
+
+- [ ] **Step 5: Add compact suffix CSS**
+
+In `styles-leaderboard.css`, add near the existing `.leaderboard-name` rules:
+
+```css
+.leaderboard-name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(8px * var(--layout-stage-scale));
+    min-width: 0;
+}
+
+.leaderboard-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.leaderboard-name-id {
+    flex: 0 0 auto;
+    color: rgba(125, 247, 255, 0.62);
+    font-family: var(--selected-app-font-readable-family);
+    font-size: calc(14px * var(--layout-stage-scale));
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+.leaderboard-podium-name .leaderboard-name-id {
+    font-size: calc(13px * var(--layout-stage-scale));
+    color: rgba(240, 198, 107, 0.72);
+}
+```
+
+If `.leaderboard-name` already has a display rule, merge these declarations into that existing block rather than duplicating the selector.
+
+- [ ] **Step 6: Verify leaderboard display**
+
+Run:
+
+```powershell
+npx jest --runInBand --runTestsByPath test/ui.match-mode.leaderboard-limit.test.ts
+```
+
+Expected: PASS. Player names and short IDs are rendered in rows and podium cards.
+
+- [ ] **Step 7: Commit ranking display**
+
+Run:
+
+```powershell
+git diff -- ui/handlers/match-mode/leaderboard-controller.ts styles-leaderboard.css test/ui.match-mode.leaderboard-limit.test.ts
+git diff --check -- ui/handlers/match-mode/leaderboard-controller.ts styles-leaderboard.css test/ui.match-mode.leaderboard-limit.test.ts
+git add -- ui/handlers/match-mode/leaderboard-controller.ts styles-leaderboard.css test/ui.match-mode.leaderboard-limit.test.ts
+git commit -m "Show player ids beside ranking names"
+```
+
+## Task 8: Generated Browser And Worker Surfaces
 
 **Files:**
 
@@ -1460,6 +1641,7 @@ Run:
 
 ```powershell
 npx jest --runInBand --runTestsByPath test/shared.player-id.test.ts test/ui.player-identity.test.ts test/shared.match-entry-payload.test.ts test/ui.leaderboard-client.test.ts test/ui.network-session-lifecycle.test.ts test/utils.match-authority.player-id.test.ts test/workers.match-player-id.test.ts test/local-match-server.player-id.test.ts
+npx jest --runInBand --runTestsByPath test/ui.match-mode.leaderboard-limit.test.ts
 ```
 
 Expected: PASS.
@@ -1544,7 +1726,7 @@ git commit -m "Regenerate player id network assets"
 
 If `worker-public/**` or `public/module-registry.js` had pre-existing unrelated dirty changes before this task, do not stage those files. Report the exact paths and keep the generated commit unmade.
 
-## Task 8: Final Verification And Documentation Check
+## Task 9: Final Verification And Documentation Check
 
 **Files:**
 
@@ -1568,6 +1750,7 @@ Run:
 
 ```powershell
 npx jest --runInBand --runTestsByPath test/shared.player-id.test.ts test/ui.player-identity.test.ts test/shared.match-entry-payload.test.ts test/ui.leaderboard-client.test.ts test/ui.network-session-lifecycle.test.ts test/utils.match-authority.player-id.test.ts test/workers.match-player-id.test.ts test/local-match-server.player-id.test.ts
+npx jest --runInBand --runTestsByPath test/ui.match-mode.leaderboard-limit.test.ts
 npm run typecheck
 npm run build:browser
 npm run test:network:parity
@@ -1605,8 +1788,9 @@ Spec coverage:
 - Reuse existing leaderboard ID: Task 2.
 - Send ID during network create/join: Task 3.
 - Store black/white IDs server-side: Task 5.
-- Keep Worker/local parity: Task 5 and Task 7.
+- Keep Worker/local parity: Task 5 and Task 8.
 - Public projection for future rating/matchmaking: Task 4, Task 5, Task 6.
+- Ranking player name right-side ID display: Task 7.
 - No login/rating/matchmaking implementation: Non-goals and task scope.
 
 Placeholder scan:
