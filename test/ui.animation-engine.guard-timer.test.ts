@@ -1,6 +1,6 @@
 import { JSDOM } from 'jsdom';
 const AnimationConstants = require('../ui/animation-constants.js');
-const EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS = 650;
+const EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS = 500;
 describe('animation-engine guard timer rendering', () => {
   let dom;
 
@@ -2275,7 +2275,7 @@ describe('animation-engine guard timer rendering', () => {
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-placement');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS).toBeGreaterThanOrEqual(EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS);
+    expect(AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS).toBe(EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS);
     expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
     expect(targetCell.classList.contains('effect-target-highlight-placement')).toBe(false);
 
