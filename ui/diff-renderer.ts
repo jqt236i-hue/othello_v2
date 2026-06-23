@@ -70,6 +70,8 @@ let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
 let DiffRendererManifestStoneRegistryModule: any = null;
 let BoardHintProjectionModule: any = null;
+let LastUsedPanelCopyModuleForDiff: any = null;
+let CardCatalogModuleForDiff: any = null;
 let lastActiveManifestWorldBackgroundForDiff: any = null;
 let manifestWorldBackgroundEndTimerForDiff: any = null;
 let lastActiveManifestBgmForDiff: any = null;
@@ -682,6 +684,116 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
     return null;
 }
 
+function _getLastUsedPanelCopyModuleForDiff() {
+    if (LastUsedPanelCopyModuleForDiff) return LastUsedPanelCopyModuleForDiff;
+    try {
+        LastUsedPanelCopyModuleForDiff = _require('../cards/card-last-used-panel-copy');
+        return LastUsedPanelCopyModuleForDiff;
+    } catch (e: any) { /* ignore */ }
+    try {
+        const globalScope = _getGlobalScopeForDiff();
+        if (globalScope && globalScope.LastUsedPanelCopy) {
+            LastUsedPanelCopyModuleForDiff = globalScope.LastUsedPanelCopy;
+            return LastUsedPanelCopyModuleForDiff;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _getCardCatalogForDiff() {
+    if (CardCatalogModuleForDiff) return CardCatalogModuleForDiff;
+    try {
+        CardCatalogModuleForDiff = _require('../cards/catalog');
+        return CardCatalogModuleForDiff;
+    } catch (e: any) { /* ignore */ }
+    try {
+        const globalScope = _getGlobalScopeForDiff();
+        if (globalScope && globalScope.CardCatalog) {
+            CardCatalogModuleForDiff = globalScope.CardCatalog;
+            return CardCatalogModuleForDiff;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _normalizeLastUsedCardIdForDiff(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'object') {
+        return String(value.id || value.cardId || '').trim();
+    }
+    return String(value).trim();
+}
+
+function _findLastUsedCardByPlayerEntryForDiff(cardStateValue: any, cardId: string) {
+    const byPlayer = cardStateValue && cardStateValue.lastUsedCardByPlayer && typeof cardStateValue.lastUsedCardByPlayer === 'object'
+        ? cardStateValue.lastUsedCardByPlayer
+        : null;
+    if (!byPlayer) return null;
+    const entries = ['black', 'white']
+        .map((key) => byPlayer[key])
+        .filter((entry) => !!_normalizeLastUsedCardIdForDiff(entry));
+    if (!entries.length) return null;
+    if (cardId) {
+        return entries.find((entry) => _normalizeLastUsedCardIdForDiff(entry) === cardId) || null;
+    }
+    return entries.length === 1 ? entries[0] : null;
+}
+
+function _findLastDiscardCardIdForDiff(cardStateValue: any): string {
+    const discard = Array.isArray(cardStateValue && cardStateValue.discard) ? cardStateValue.discard : [];
+    for (let i = discard.length - 1; i >= 0; i -= 1) {
+        const cardId = _normalizeLastUsedCardIdForDiff(discard[i]);
+        if (cardId) return cardId;
+    }
+    return '';
+}
+
+function _resolveLastUsedPanelCopyForDiff(cardId: string): string {
+    const copyModule = _getLastUsedPanelCopyModuleForDiff();
+    if (copyModule && typeof copyModule.getLastUsedPanelCopy === 'function') {
+        return String(copyModule.getLastUsedPanelCopy(cardId) || '').trim();
+    }
+    const copyMap = copyModule && copyModule.LAST_USED_PANEL_COPY_BY_CARD_ID && typeof copyModule.LAST_USED_PANEL_COPY_BY_CARD_ID === 'object'
+        ? copyModule.LAST_USED_PANEL_COPY_BY_CARD_ID
+        : null;
+    return copyMap ? String(copyMap[cardId] || '').trim() : '';
+}
+
+function _resolveCardNameForDiff(cardId: string, lastUsedEntry: any): string {
+    if (lastUsedEntry && typeof lastUsedEntry === 'object') {
+        const directName = String(lastUsedEntry.name || lastUsedEntry.name_ja || '').trim();
+        if (directName) return directName;
+    }
+    const catalogModule = _getCardCatalogForDiff();
+    const catalog = catalogModule && (catalogModule.default || catalogModule.CardCatalog || catalogModule);
+    const cards = catalog && Array.isArray(catalog.cards) ? catalog.cards : [];
+    const card = cards.find((entry: any) => entry && String(entry.id || '').trim() === cardId);
+    const catalogName = String((card && (card.name_ja || card.name)) || '').trim();
+    return catalogName || cardId;
+}
+
+function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {
+    let cardId = _findLastDiscardCardIdForDiff(cardStateValue);
+    let lastUsedEntry = _findLastUsedCardByPlayerEntryForDiff(cardStateValue, cardId);
+    if (!cardId && lastUsedEntry) {
+        cardId = _normalizeLastUsedCardIdForDiff(lastUsedEntry);
+    }
+    if (!cardId) return null;
+    const copy = _resolveLastUsedPanelCopyForDiff(cardId);
+    if (!copy) return null;
+    const name = _resolveCardNameForDiff(cardId, lastUsedEntry);
+    return {
+        title: '最後に使ったカード',
+        lines: [
+            `カード: ${name}`,
+            `効果: ${copy}`
+        ],
+        dynamicStartIndex: -1,
+        typeKey: 'LAST_USED_CARD',
+        source: 'last-used-card'
+    };
+}
+
 function _appendManifestEffectValueText(parent: HTMLElement, text: string): void {
     const source = String(text || '');
     const strongPattern = /(x\d+|[+-]\d+|手札\d+枚|コスト\s*[+＋]\d+)/g;
@@ -727,7 +839,12 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     const refs = _ensureManifestEffectPanelForDiff();
     if (!refs) return;
     const active = _findManifestEffectPanelEntry(cardStateValue);
-    const content = _buildManifestEffectPanelContent(cardStateValue, active);
+    let content: any = _buildManifestEffectPanelContent(cardStateValue, active);
+    let panelEntry: any = active;
+    if (!content) {
+        content = _buildLastUsedCardPanelContentForDiff(cardStateValue);
+        panelEntry = content;
+    }
     if (!content) {
         _hideManifestEffectPanelForDiff();
         return;
@@ -747,8 +864,8 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     });
     refs.panel.classList.add('is-visible');
     refs.panel.setAttribute('aria-hidden', 'false');
-    refs.panel.setAttribute('data-manifest-effect-type', String(active && active.typeKey || ''));
-    refs.panel.setAttribute('data-manifest-effect-source', String(active && active.source || 'marker'));
+    refs.panel.setAttribute('data-manifest-effect-type', String(panelEntry && panelEntry.typeKey || ''));
+    refs.panel.setAttribute('data-manifest-effect-source', String(panelEntry && panelEntry.source || 'marker'));
 }
 
 function _clearManifestEndingOverlayForDiff() {

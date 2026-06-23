@@ -56,6 +56,53 @@ describe('manifest effect panel', () => {
     expect(panel?.getAttribute('aria-hidden')).toBe('true');
   });
 
+  test('renders last used card when no manifestation stone is active', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      markers: [],
+      discard: ['chest_01'],
+      lastUsedCardByPlayer: {
+        black: { id: 'chest_01', name: '宝箱', desc: '使用時に布石を1〜6ランダムで獲得する。' },
+        white: null
+      }
+    };
+
+    const panel = renderOnce();
+
+    expect(panel?.classList.contains('is-visible')).toBe(true);
+    expect(panel?.getAttribute('aria-hidden')).toBe('false');
+    expect(panel?.getAttribute('data-manifest-effect-type')).toBe('LAST_USED_CARD');
+    expect(panel?.getAttribute('data-manifest-effect-source')).toBe('last-used-card');
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('最後に使ったカード');
+    expect(panel?.textContent).toContain('カード: 宝箱');
+    expect(panel?.textContent).toContain('効果: 布石を1〜6獲得する。序盤のカード使用を早められる。');
+  });
+
+  test('keeps manifestation territory above last used card', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      discard: ['chest_01'],
+      lastUsedCardByPlayer: {
+        black: { id: 'chest_01', name: '宝箱', desc: '使用時に布石を1〜6ランダムで獲得する。' },
+        white: null
+      },
+      markers: [{
+        kind: 'manifestStone',
+        owner: 'white',
+        data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 3 }
+      }]
+    };
+
+    const panel = renderOnce();
+
+    expect(panel?.classList.contains('is-visible')).toBe(true);
+    expect(panel?.getAttribute('data-manifest-effect-type')).toBe('OBSERVER_WILL');
+    expect(panel?.getAttribute('data-manifest-effect-source')).toBe('marker');
+    expect(panel?.textContent).toContain('観測領域');
+    expect(panel?.textContent).not.toContain('最後に使ったカード');
+    expect(panel?.textContent).not.toContain('カード: 宝箱');
+  });
+
   test('renders board executor territory and updates hand tax from current hand counts', () => {
     (global as any).cardState = {
       hands: {
