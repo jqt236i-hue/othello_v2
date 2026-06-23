@@ -21,6 +21,7 @@ const CardMarkersModule = safeRequire('../cards/markers');
 const ManifestStoneRegistryModule = safeRequire('../../../shared/manifest-stone-registry');
 const SpecialCardRegistryModule = safeRequire('../../../shared/special-card-registry');
 const BoardExecutorResolutionModule = safeRequire('../card-resolution/board-executor');
+const CardUsagePrechecksModule = safeRequire('./card-usage-prechecks');
 
 interface Context {
     constants?: any;
@@ -529,6 +530,97 @@ function requireModuleTargets(context: Context, methodName: string, args: any[],
     return targets === null ? true : hasTargets(targets, minimumCount);
 }
 
+const USAGE_PRECHECK_TARGET_METHODS = [
+    'getDestroyTargets',
+    'getReverseWillTargets',
+    'getTemptWillTargets',
+    'getCaptureWillTargets',
+    'getStrongWindTargets',
+    'getBuoyancyTargets',
+    'getSuperBuoyancyTargets',
+    'getGravityTargets',
+    'getSuperGravityTargets',
+    'getSuperAttractionTargets',
+    'getTrapTargets',
+    'getGuardTargets',
+    'getLivingWillTargets',
+    'getExtendLifeTargets',
+    'getCorrosionTargets',
+    'getTimeBombTargets',
+    'getTeleportTargets',
+    'getCellTeleportTargets',
+    'getCloneTargets',
+    'getSwapTargets',
+    'getPositionSwapTargets',
+    'getBoardExpansionTargets',
+    'getBoardExpansionGodTargets',
+    'getBoardShrinkTargets',
+    'getBoardShrinkGodTargets',
+    'getBlockadeTargets',
+    'getMeteorTargets',
+    'getCausalReplayTargets',
+    'getFreezeTargets',
+    'getSeedTargets'
+];
+
+function resolveUsagePrecheckTargetResolver(context: Context, methodName: string): any {
+    const helpers = getHelpers(context);
+    if (typeof helpers[methodName] === 'function') {
+        return helpers[methodName];
+    }
+    const selectorsModule = getCardSelectorsModule(context);
+    if (selectorsModule && typeof selectorsModule[methodName] === 'function') {
+        return function moduleTargetResolver(...args: any[]) {
+            return selectorsModule[methodName].apply(selectorsModule, args);
+        };
+    }
+    return undefined;
+}
+
+function buildUsagePrecheckTargetResolvers(context: Context): Record<string, any> {
+    const resolvers: Record<string, any> = {};
+    for (const methodName of USAGE_PRECHECK_TARGET_METHODS) {
+        const resolver = resolveUsagePrecheckTargetResolver(context, methodName);
+        if (typeof resolver === 'function') {
+            resolvers[methodName] = resolver;
+        }
+    }
+    return resolvers;
+}
+
+function passesUsagePreconditionsForUsableList(
+    cardState: any,
+    gameState: any,
+    playerKey: string,
+    cardId: string,
+    cardType: string,
+    context: Context
+): boolean {
+    if (!CardUsagePrechecksModule || typeof CardUsagePrechecksModule.validateCardUsagePreconditions !== 'function') {
+        return true;
+    }
+    const helpers = getHelpers(context);
+    const { RIBO_WILL_UNLOCK_TURN_INDEX } = getConstants(context);
+    const heavenSeedHint = typeof helpers.buildHeavenBlessingSeedHint === 'function'
+        ? helpers.buildHeavenBlessingSeedHint(cardState, playerKey)
+        : '';
+    const result = CardUsagePrechecksModule.validateCardUsagePreconditions({
+        ...helpers,
+        ...buildUsagePrecheckTargetResolvers(context),
+        cardState,
+        gameState,
+        playerKey,
+        cardId,
+        cardType,
+        prng: helpers.prng || helpers.defaultPrng || null,
+        heavenSeedHint,
+        turnIndex: Number(cardState && cardState.turnIndex),
+        riboUnlockTurnIndex: RIBO_WILL_UNLOCK_TURN_INDEX,
+        CardBoardExecutorResolutionModule: getBoardExecutorResolutionModule(context)
+    });
+    return result && result.ok === true;
+}
+
 function dealInitialHands(cardState: any, prng: any, context: Context): void {
     if (!cardState || typeof cardState !== 'object') return;
     if (!cardState.turnCountByPlayer || typeof cardState.turnCountByPlayer !== 'object') {
@@ -779,6 +871,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
         const def = getCardDef(cardId, context);
         if (!def) continue;
         const type = def.type;
+        if (gameState && !passesUsagePreconditionsForUsableList(cardState, gameState, playerKey, cardId, type, context)) continue;
 
         if (type === 'EQUALITY_WILL') {
             if (typeof helpers.canUseEqualityWillForPlayer !== 'function') continue;

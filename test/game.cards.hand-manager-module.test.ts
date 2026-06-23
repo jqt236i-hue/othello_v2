@@ -99,6 +99,76 @@ describe('CardHandManager module', () => {
     expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual(['ribo_card', 'destroy_card', 'living_card']);
   });
 
+  test('getUsableCardIds follows final usage prechecks for target, offer, and turn gated cards', () => {
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
+    const defsById = {
+      observer_card: { id: 'observer_card', type: 'OBSERVER_WILL', cost: 0, name: 'Observer' },
+      capture_card: { id: 'capture_card', type: 'CAPTURE_WILL', cost: 0, name: 'Capture' },
+      reverse_card: { id: 'reverse_card', type: 'REVERSE_WILL', cost: 0, name: 'Reverse' },
+      heaven_card: { id: 'heaven_card', type: 'HEAVEN_BLESSING', cost: 0, name: 'Heaven' },
+      condemn_card: { id: 'condemn_card', type: 'CONDEMN_WILL', cost: 0, name: 'Condemn' },
+      loss_card: { id: 'loss_card', type: 'LOSS_WILL', cost: 0, name: 'Loss' },
+      normal_card: { id: 'normal_card', type: 'NORMAL_CARD', cost: 0, name: 'Normal' }
+    };
+    const context = {
+      constants: {
+        MAX_HAND_SIZE: 10,
+        RIBO_WILL_UNLOCK_TURN_INDEX: 19
+      },
+      modules: {
+        CardDefsModule: {
+          getCardDef: (cardId) => defsById[cardId] || null,
+          getCardType: (cardId) => (defsById[cardId] ? defsById[cardId].type : null)
+        },
+        CardCostsModule: {
+          getCardCost: () => 0
+        }
+      },
+      helpers: {
+        getCaptureWillTargets: jest.fn(() => []),
+        getReverseWillTargets: jest.fn(() => []),
+        buildHeavenBlessingOffers: jest.fn(() => []),
+        buildObserverWillOffers: jest.fn(() => []),
+        buildCondemnOffers: jest.fn(() => []),
+        getLossWillRemovableCount: jest.fn(() => 0)
+      }
+    };
+    const cardState = {
+      hands: {
+        black: ['observer_card', 'capture_card', 'reverse_card', 'heaven_card', 'condemn_card', 'loss_card'],
+        white: ['observer_card']
+      },
+      charge: { black: 10, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      turnIndex: 10
+    };
+    const gameState = {
+      board: Array(64).fill(null),
+      turnNumber: 10
+    };
+
+    expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual([]);
+
+    context.helpers.getCaptureWillTargets.mockReturnValue([{ row: 0, col: 0 }]);
+    context.helpers.getReverseWillTargets.mockReturnValue([{ row: 1, col: 1 }]);
+    context.helpers.buildHeavenBlessingOffers.mockReturnValue([{ cardId: 'normal_card' }]);
+    context.helpers.buildObserverWillOffers.mockReturnValue([{ cardId: 'normal_card' }]);
+    context.helpers.buildCondemnOffers.mockReturnValue([{ cardId: 'normal_card' }]);
+    context.helpers.getLossWillRemovableCount.mockReturnValue(1);
+    cardState.hands.white = ['normal_card'];
+    cardState.turnIndex = 18;
+    gameState.turnNumber = 18;
+
+    expect(CardHandManager.getUsableCardIds(cardState, gameState, 'black', context)).toEqual([
+      'observer_card',
+      'capture_card',
+      'reverse_card',
+      'heaven_card',
+      'condemn_card',
+      'loss_card'
+    ]);
+  });
+
   test('copy ids keep reveal ledger stable across destroy, redraw, and discard restore', () => {
     const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const context = {
