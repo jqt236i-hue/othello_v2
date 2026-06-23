@@ -888,6 +888,32 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 : PHASE_GAP_MS;
         }
 
+        _isPlacementLikeHighlightTarget(eventType: any, target: any, highlightTone: any) {
+            if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE) return false;
+            if (highlightTone === HIGHLIGHT_TONE_PLACEMENT) return true;
+            if (highlightTone !== HIGHLIGHT_TONE_POSITIVE) return false;
+            const meta = this._getTargetMeta(target);
+            const placementKind = String(meta.placementKind || '').trim().toLowerCase();
+            if (placementKind === 'effect_placement') return true;
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            return (
+                cause === 'FREE_PLACEMENT' ||
+                reason === 'free_placement_place' ||
+                (cause === 'SYSTEM' && reason === 'standard_place' && this._hasSpecialPlacementVisual(target))
+            );
+        }
+
+        _resolveEffectTargetHighlightMinimumMs(eventType: any, target: any, highlightTone: any, minimumVisibleMs: any) {
+            const requestedMinimum = Number.isFinite(Number(minimumVisibleMs))
+                ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
+                : 0;
+            if (requestedMinimum > 0) return requestedMinimum;
+            return this._isPlacementLikeHighlightTarget(eventType, target, highlightTone)
+                ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS
+                : requestedMinimum;
+        }
+
         _isHyperactiveLikeMoveEvent(ev: any) {
             if (!ev || ev.type !== EVENT_TYPES.MOVE || !Array.isArray(ev.targets)) return false;
             return ev.targets.some((target: any) => {
@@ -947,10 +973,11 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (!cell || typeof runner !== 'function') return undefined;
 
             const highlightTone = this._resolveEffectTargetHighlightTone(eventType, target);
+            const resolvedMinimumMs = this._resolveEffectTargetHighlightMinimumMs(eventType, target, highlightTone, minimumVisibleMs);
             const extraClasses = highlightTone === HIGHLIGHT_TONE_NEGATIVE && eventType === EVENT_TYPES.SPAWN
                 ? [EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS]
                 : [];
-            return this._runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses);
+            return this._runWithTransientCellHighlight(cell, highlightTone, runner, resolvedMinimumMs, extraClasses);
         }
 
         _resolveStatusChangeHighlightTone(ev: any, target: any) {

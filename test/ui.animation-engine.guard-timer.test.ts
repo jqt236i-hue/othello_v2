@@ -2250,6 +2250,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2267,10 +2268,12 @@ describe('animation-engine guard timer rendering', () => {
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-placement');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
     expect(targetCell.classList.contains('effect-target-highlight-placement')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+    sleepSpy.mockRestore();
   });
 
   test('standard special-stone placement spawn keeps purple cell highlight', async () => {
