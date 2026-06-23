@@ -16,6 +16,8 @@ type StoredPlayerIdentity = {
   recoveryCode: string;
 };
 
+type VerifyPlayerIdentityResult = 'valid' | 'invalid' | 'unavailable';
+
 function canUseStorage(): boolean {
   try {
     return typeof localStorage !== 'undefined' && !!localStorage;
@@ -135,20 +137,26 @@ async function createPlayerIdentity(options?: any): Promise<StoredPlayerIdentity
   return identity;
 }
 
-async function verifyPlayerIdentity(identity: StoredPlayerIdentity, options?: any): Promise<boolean> {
+async function verifyPlayerIdentity(identity: StoredPlayerIdentity, options?: any): Promise<VerifyPlayerIdentityResult> {
   const res = await requestJson('POST', '/api/player/identity/verify', {
     playerId: identity.playerId,
     playerToken: identity.playerToken
   }, options);
-  return res.ok === true;
+  if (res.ok === true) return 'valid';
+  if (res.status === 403 && String(res.reason || '') === 'PLAYER_ID_TOKEN_INVALID') return 'invalid';
+  return 'unavailable';
 }
 
 async function ensurePlayerIdentity(options?: any): Promise<StoredPlayerIdentity> {
   const stored = readStoredIdentity();
-  if (stored && await verifyPlayerIdentity(stored, options)) {
-    return stored;
+  if (stored) {
+    const verifyResult = await verifyPlayerIdentity(stored, options);
+    if (verifyResult === 'valid') return stored;
+    if (verifyResult === 'unavailable') {
+      throw new Error('PLAYER_IDENTITY_VERIFY_UNAVAILABLE');
+    }
+    clearStoredIdentity();
   }
-  if (stored) clearStoredIdentity();
   return createPlayerIdentity(options);
 }
 

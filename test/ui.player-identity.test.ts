@@ -72,6 +72,27 @@ describe('browser player identity client', () => {
     expect(identity.playerId).toBe('p_ABCDEFGHIJKLMNOPQRSTUV0001');
   });
 
+  test('ensurePlayerIdentity keeps stored credentials when verification is temporarily unavailable', async () => {
+    const storedIdentity = {
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+      recoveryCode: 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23'
+    };
+    storage.set('card_reversi_player_identity_v1', JSON.stringify(storedIdentity));
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ ok: false, reason: 'INTERNAL_ERROR' })
+    });
+
+    const client = require('../ui/player-identity.js');
+
+    await expect(client.ensurePlayerIdentity()).rejects.toThrow('PLAYER_IDENTITY_VERIFY_UNAVAILABLE');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((global as any).localStorage.removeItem).not.toHaveBeenCalled();
+    expect(JSON.parse(storage.get('card_reversi_player_identity_v1') || '{}')).toEqual(storedIdentity);
+  });
+
   test('recoverPlayerIdentity rotates stored token and recovery code', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,

@@ -17,6 +17,7 @@ function runWorkerScenario(scenarioSource: string): any {
     const storage = new Map();
     let alarm = null;
     return {
+      __storage: storage,
       storage: {
         get: async (key) => storage.get(key),
         put: async (key, value) => storage.set(key, globalThis.structuredClone ? globalThis.structuredClone(value) : JSON.parse(JSON.stringify(value))),
@@ -29,11 +30,16 @@ function runWorkerScenario(scenarioSource: string): any {
   }
 
   const rooms = new Map();
+  const roomStates = new Map();
   const env = {
     MATCH_ROOM: {
       idFromName: (roomId) => String(roomId || ''),
       get: (roomId) => {
-        if (!rooms.has(roomId)) rooms.set(roomId, new MatchRoomDurableObject(createStateStore(), env));
+        if (!rooms.has(roomId)) {
+          const state = createStateStore();
+          roomStates.set(roomId, state);
+          rooms.set(roomId, new MatchRoomDurableObject(state, env));
+        }
         return { fetch: (request) => rooms.get(roomId).fetch(request) };
       }
     }
@@ -109,6 +115,61 @@ describe('match worker anonymous player identity', () => {
     expect(result.recovered.playerToken).not.toBe(result.created.playerToken);
     expect(result.oldVerifyStatus).toBe(403);
     expect(result.oldVerified.reason).toBe('PLAYER_ID_TOKEN_INVALID');
+  });
+
+  test('identity records use per-player keys and recovery index keys', () => {
+    const result = runWorkerScenario(`
+  const firstResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+  const first = await firstResponse.json();
+  const secondResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+  const second = await secondResponse.json();
+
+  const identityState = roomStates.get('__player_identity__');
+  const storageKeys = Array.from(identityState.__storage.keys()).sort();
+
+  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({
+    first,
+    second,
+    storageKeys
+  }));
+`);
+
+    expect(result.first.playerId).toMatch(/^p_[A-Za-z0-9_-]{26}$/);
+    expect(result.second.playerId).toMatch(/^p_[A-Za-z0-9_-]{26}$/);
+    expect(result.storageKeys).not.toContain('player_identity_store_v1');
+    expect(result.storageKeys.filter((key: string) => key.startsWith('player_identity_store_v1:identity:'))).toHaveLength(2);
+    expect(result.storageKeys.filter((key: string) => key.startsWith('player_identity_store_v1:recovery:'))).toHaveLength(2);
+  });
+
+  test('recover resolves through the recovery index and rotates that index', () => {
+    const result = runWorkerScenario(`
+  const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+  const created = await createResponse.json();
+  const beforeKeys = Array.from(roomStates.get('__player_identity__').__storage.keys()).sort();
+
+  const recoverResponse = await worker.fetch(new Request('https://worker/api/player/identity/recover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recoveryCode: created.recoveryCode })
+  }), env);
+  const recovered = await recoverResponse.json();
+  const afterEntries = Array.from(roomStates.get('__player_identity__').__storage.entries()).sort(([left], [right]) => String(left).localeCompare(String(right)));
+
+  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({
+    created,
+    recovered,
+    beforeKeys,
+    afterEntries
+  }));
+`);
+
+    const beforeRecoveryKeys = result.beforeKeys.filter((key: string) => key.startsWith('player_identity_store_v1:recovery:'));
+    const afterRecoveryEntries = result.afterEntries.filter(([key]: [string, unknown]) => key.startsWith('player_identity_store_v1:recovery:'));
+    expect(beforeRecoveryKeys).toHaveLength(1);
+    expect(afterRecoveryEntries).toHaveLength(1);
+    expect(afterRecoveryEntries[0][0]).not.toBe(beforeRecoveryKeys[0]);
+    expect(afterRecoveryEntries[0][1]).toBe(result.created.playerId);
+    expect(result.recovered.playerId).toBe(result.created.playerId);
   });
 
   test('leaderboard submit verifies playerToken before forwarding sanitized playerId', () => {

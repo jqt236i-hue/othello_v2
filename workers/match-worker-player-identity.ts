@@ -11,11 +11,6 @@ type IdentityRecord = {
     lastSeenAt: number;
 };
 
-type IdentityStore = {
-    version: 1;
-    records: Record<string, IdentityRecord>;
-};
-
 type IdentityControllerConfig = {
     storage: DurableObjectStateLike['storage'];
     storageKey: string;
@@ -66,28 +61,59 @@ export function createMatchWorkerPlayerIdentityController(config: IdentityContro
     const now = typeof cfg.now === 'function' ? cfg.now : () => Date.now();
     const cryptoLike = cfg.crypto || globalThis.crypto;
 
-    async function loadStore(): Promise<IdentityStore> {
-        const raw = await cfg.storage.get(cfg.storageKey);
-        const source = raw && typeof raw === 'object' ? raw as Partial<IdentityStore> : {};
+    function identityKey(playerId: string): string {
+        return `${cfg.storageKey}:identity:${playerId}`;
+    }
+
+    function recoveryKey(recoveryHash: string): string {
+        return `${cfg.storageKey}:recovery:${recoveryHash}`;
+    }
+
+    function normalizeRecord(value: unknown): IdentityRecord | null {
+        const source = value && typeof value === 'object' ? value as Partial<IdentityRecord> : {};
+        const playerId = Contract.normalizePlayerId(source.playerId);
+        const tokenHash = String(source.tokenHash || '').trim();
+        const recoveryHash = String(source.recoveryHash || '').trim();
+        if (!playerId || !tokenHash || !recoveryHash) return null;
         return {
-            version: 1,
-            records: source.records && typeof source.records === 'object' ? source.records : {}
+            playerId,
+            tokenHash,
+            recoveryHash,
+            createdAt: Number.isFinite(Number(source.createdAt)) ? Number(source.createdAt) : 0,
+            updatedAt: Number.isFinite(Number(source.updatedAt)) ? Number(source.updatedAt) : 0,
+            lastSeenAt: Number.isFinite(Number(source.lastSeenAt)) ? Number(source.lastSeenAt) : 0
         };
     }
 
-    async function saveStore(store: IdentityStore): Promise<void> {
-        await cfg.storage.put(cfg.storageKey, store);
+    async function loadRecord(playerId: string): Promise<IdentityRecord | null> {
+        return normalizeRecord(await cfg.storage.get(identityKey(playerId)));
+    }
+
+    async function saveRecord(record: IdentityRecord): Promise<void> {
+        await cfg.storage.put(identityKey(record.playerId), record);
+    }
+
+    async function saveRecoveryIndex(recoveryHash: string, playerId: string): Promise<void> {
+        await cfg.storage.put(recoveryKey(recoveryHash), playerId);
+    }
+
+    async function deleteRecoveryIndex(recoveryHash: string): Promise<void> {
+        await cfg.storage.delete(recoveryKey(recoveryHash));
+    }
+
+    async function loadRecoveryPlayerId(recoveryHash: string): Promise<string | null> {
+        const raw = await cfg.storage.get(recoveryKey(recoveryHash));
+        return Contract.normalizePlayerId(raw);
     }
 
     async function handleCreate(): Promise<Response> {
-        const store = await loadStore();
         let playerId = makePlayerId(cryptoLike);
-        while (store.records[playerId]) playerId = makePlayerId(cryptoLike);
+        while (await loadRecord(playerId)) playerId = makePlayerId(cryptoLike);
 
         const playerToken = makePlayerToken(cryptoLike);
         const recoveryCode = makeRecoveryCode(cryptoLike);
         const timestamp = now();
-        store.records[playerId] = {
+        const record = {
             playerId,
             tokenHash: await sha256Hex(playerToken, cryptoLike),
             recoveryHash: await sha256Hex(recoveryCode, cryptoLike),
@@ -95,7 +121,8 @@ export function createMatchWorkerPlayerIdentityController(config: IdentityContro
             updatedAt: timestamp,
             lastSeenAt: timestamp
         };
-        await saveStore(store);
+        await saveRecord(record);
+        await saveRecoveryIndex(record.recoveryHash, playerId);
         return cfg.jsonResponse(200, { ok: true, playerId, playerToken, recoveryCode, serverTime: timestamp });
     }
 
@@ -104,15 +131,14 @@ export function createMatchWorkerPlayerIdentityController(config: IdentityContro
         const playerToken = Contract.normalizePlayerToken(body.playerToken);
         if (!playerId || !playerToken) return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
 
-        const store = await loadStore();
-        const record = store.records[playerId];
+        const record = await loadRecord(playerId);
         const tokenHash = await sha256Hex(playerToken, cryptoLike);
         if (!record || !equalHex(record.tokenHash, tokenHash)) {
             return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
         }
         record.lastSeenAt = now();
         record.updatedAt = record.lastSeenAt;
-        await saveStore(store);
+        await saveRecord(record);
         return cfg.jsonResponse(200, { ok: true, playerId, serverTime: record.lastSeenAt });
     }
 
@@ -121,17 +147,22 @@ export function createMatchWorkerPlayerIdentityController(config: IdentityContro
         if (!recoveryCode) return cfg.jsonResponse(403, { ok: false, reason: 'RECOVERY_CODE_INVALID' });
 
         const recoveryHash = await sha256Hex(recoveryCode, cryptoLike);
-        const store = await loadStore();
-        const record = Object.values(store.records).find((entry) => equalHex(entry.recoveryHash, recoveryHash));
-        if (!record) return cfg.jsonResponse(403, { ok: false, reason: 'RECOVERY_CODE_INVALID' });
+        const playerId = await loadRecoveryPlayerId(recoveryHash);
+        const record = playerId ? await loadRecord(playerId) : null;
+        if (!record || !equalHex(record.recoveryHash, recoveryHash)) {
+            return cfg.jsonResponse(403, { ok: false, reason: 'RECOVERY_CODE_INVALID' });
+        }
 
         const playerToken = makePlayerToken(cryptoLike);
         const nextRecoveryCode = makeRecoveryCode(cryptoLike);
+        const previousRecoveryHash = record.recoveryHash;
         record.tokenHash = await sha256Hex(playerToken, cryptoLike);
         record.recoveryHash = await sha256Hex(nextRecoveryCode, cryptoLike);
         record.updatedAt = now();
         record.lastSeenAt = record.updatedAt;
-        await saveStore(store);
+        await saveRecord(record);
+        await deleteRecoveryIndex(previousRecoveryHash);
+        await saveRecoveryIndex(record.recoveryHash, record.playerId);
         return cfg.jsonResponse(200, {
             ok: true,
             playerId: record.playerId,
