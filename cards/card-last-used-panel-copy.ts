@@ -74,7 +74,7 @@ export const LAST_USED_PANEL_COPY_BY_CARD_ID: Readonly<Record<string, string>> =
   lightning_01: '次の石は落雷石になり、配置時と自ターン開始時に敵石を破壊する。',
   udg_01: '自由配置の破壊神を出し、配置時と自ターン開始時に周囲を破壊する。',
   ultimate_hyperactive_01: '次の石は究極多動神になり、毎ターン直線移動を2回行う。',
-  board_expand_01: '盤面の左右どちらか外側に、1対局1回だけマスを追加する。',
+  board_expand_01: '左右端から1マス選び、盤面の外側へ新しいマスを広げる。',
   board_expand_god_01: '初期角を選び、その外側に複数の拡張マスをまとめて追加する。',
   board_shrink_01: '外周から連続3マスを選び、石ごと穴にして盤面を縮小する。',
   board_shrink_god_01: '角を含む外周1列を選び、石ごと穴にして盤面を縮小する。',
