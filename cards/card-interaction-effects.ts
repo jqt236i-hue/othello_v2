@@ -140,7 +140,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   SHIELD_WILL: '次に置く石を1ターン保護',
   PROTECTED_NEXT_STONE: '次に置く石を弱い石化。次の相手ターン中だけ反転されず、特殊石として扱う',
   GHOST_WILL: '次に置く石を幽体石化。反転・破壊だけを受け流す',
-  SACRIFICE_WILL: '次に置く石を犠牲石にする',
+  SACRIFICE_WILL: '次に置く石を犠牲石にする。盤面にいる間、相手がカードを使用すると自らを犠牲にしてそのカードを無効化する。',
   AFTERIMAGE_WILL: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石。',
   SWAP_WITH_ENEMY: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。',
   POSITION_SWAP_WILL: '盤面の石2つを入れ替える',

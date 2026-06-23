@@ -7,7 +7,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '犠牲の意志',
   type: 'SACRIFICE_WILL',
   cost: 14,
-  desc_ja: '次に置く自分の石を5ターン持続の犠牲石にする。犠牲石が盤面にいる間、相手が通常カードを使うと自壊してそのカード効果を無効化する。特殊カードは対象外。',
+  desc_ja: '次に置く石を犠牲石にする。盤面にいる間、相手がカードを使用すると自らを犠牲にしてそのカードを無効化する。',
   display_type_ja: '特殊石'
 });
 
@@ -17,7 +17,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
   desc: EXPECTED_BASE_CARD.desc_ja
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を犠牲石にする';
+const EXPECTED_QUICK_TEXT = '次に置く石を犠牲石にする。盤面にいる間、相手がカードを使用すると自らを犠牲にしてそのカードを無効化する。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
