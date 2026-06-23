@@ -1426,7 +1426,7 @@ describe('animation-utils hand fallback', () => {
     const keyframesText = JSON.stringify(animateMock.mock.calls.map((call) => call[0]));
     const absorbCalls = animateMock.mock.calls.filter((call) => {
       const options = call[1] || {};
-      return options && options.duration === 980;
+      return options && options.duration === 2600;
     });
     expect(keyframesText).toContain('scale(0.08)');
     expect(keyframesText).toContain('translate(-558px, 142px) scale(0.08)');
