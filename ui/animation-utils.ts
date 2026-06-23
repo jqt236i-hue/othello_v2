@@ -2240,14 +2240,14 @@ function _resolveSacrificeAbsorbTargetRect(data: any) {
 
 async function _playSacrificeAbsorbVanish(movingCard: any, playbackScope: any, data: any, geometry: any) {
     if (!movingCard) return;
-    const SACRIFICE_ABSORB_MS = 620;
+    const SACRIFICE_ABSORB_MS = 780;
     const targetRect = _resolveSacrificeAbsorbTargetRect(data);
     if (!targetRect || !geometry) {
         await _animateCompat(movingCard, [
             { opacity: 1 },
             { opacity: 0, transform: `translate(${geometry && geometry.currentDx || 0}px, ${geometry && geometry.currentDy || 0}px) scale(0.18)` }
         ], {
-            duration: 420,
+            duration: 540,
             easing: 'ease-out',
             fill: 'forwards'
         }, playbackScope);
