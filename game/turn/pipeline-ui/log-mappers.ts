@@ -438,6 +438,14 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             else push('労働石: 効果終了');
             continue;
         }
+        if (ev.type === 'SPECIAL_STONE_BUBBLE') {
+            const special = String(ev.special || (ev.meta && ev.meta.special) || '').trim().toUpperCase();
+            const scenario = String(ev.scenario || (ev.meta && ev.meta.scenario) || '').trim().toLowerCase();
+            if (special === 'SACRIFICE' && scenario === 'card_nullified') {
+                logs.push('犠牲の意志がカードを無効化');
+                continue;
+            }
+        }
         if (!ev || ev.type !== 'STATUS_TICK' || !ev.meta) continue;
         const special = String(ev.meta.special || '');
         const timer = ev.meta.timer;

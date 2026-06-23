@@ -270,6 +270,100 @@ describe('CardEffectTiming module', () => {
     expect(cardState.extraPlaceRemainingByPlayer.black).toBe(1);
   });
 
+  test('applyPlacementEffects places SACRIFICE marker with five owner turns', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
+    const addMarker = jest.fn((cardState, kind, row, col, owner, data) => {
+      if (!Array.isArray(cardState.markers)) cardState.markers = [];
+      cardState.markers.push({ kind, row, col, owner, data });
+    });
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: { type: 'SACRIFICE_WILL' }, white: null },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      workNextPlacementArmedByPlayer: { black: false, white: false }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 2, 5, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' },
+        SACRIFICE_WILL_TURNS: 5
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker,
+        workDebugLog: jest.fn(),
+        workDebugError: jest.fn()
+      },
+      modules: {}
+    });
+
+    expect(effects).toMatchObject({ sacrificePlaced: true });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cardState.markers).toEqual([
+      expect.objectContaining({
+        kind: 'specialStone',
+        row: 2,
+        col: 5,
+        owner: 'black',
+        data: { type: 'SACRIFICE', remainingOwnerTurns: 5 }
+      })
+    ]);
+  });
+
+  test('processTurnStartStatusMarkerAnchor expires SACRIFICE marker without clearing board stone', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
+    const removeMarkersAt = jest.fn();
+    const emitPresentationEvent = jest.fn();
+    const marker = {
+      kind: 'specialStone',
+      row: 3,
+      col: 4,
+      owner: 'black',
+      data: { type: 'SACRIFICE', remainingOwnerTurns: 1 }
+    };
+    const cardState = { markers: [marker], presentationEvents: [] };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+    gameState.board[3][4] = 1;
+
+    const result = CardEffectTiming.processTurnStartStatusMarkerAnchor(cardState, gameState, 'black', marker, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+      },
+      helpers: {
+        removeMarkersAt,
+        emitPresentationEvent
+      },
+      modules: {}
+    });
+
+    expect(result).toMatchObject({
+      processed: true,
+      expired: [{ row: 3, col: 4, owner: 'black', type: 'SACRIFICE' }]
+    });
+    expect(gameState.board[3][4]).toBe(1);
+    expect(removeMarkersAt).toHaveBeenCalledWith(cardState, 3, 4, {
+      kind: 'specialStone',
+      type: 'SACRIFICE',
+      owner: 'black'
+    });
+    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, expect.objectContaining({
+      type: 'STATUS_REMOVED',
+      row: 3,
+      col: 4,
+      reason: 'duration_end',
+      meta: expect.objectContaining({ special: 'SACRIFICE', reason: 'duration_end' })
+    }));
+  });
+
   test('onTurnStart uses injected CardWorkModule when available', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const processWorkEffects = jest.fn(() => ({

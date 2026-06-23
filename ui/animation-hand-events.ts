@@ -130,6 +130,8 @@ function handleCardUseAnimationEvent(ev: any, deps: AnimationHandEventDeps) {
         visualDescriptor: target.visualDescriptor || null,
         cost: target.cost,
         name: target.name,
+        nullifiedBySacrificeWill: target.nullifiedBySacrificeWill === true,
+        cardUseVanishEffect: target.cardUseVanishEffect || null,
         disappearSoundKey: target.disappearSoundKey || null,
         onDisappear: disappearPlaybackEvents.length > 0
             ? () => Promise.all(disappearPlaybackEvents.map((one: any) => deps.executeEvent(one)))

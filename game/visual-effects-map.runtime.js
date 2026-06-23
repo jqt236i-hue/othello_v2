@@ -223,6 +223,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    sacrificeStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/SACRIFICE_WILL-black.png',
+            '-1': 'assets/images/special-stones/SACRIFICE_WILL-white.png'
+        },
+        dataAttributes: {}
+    },
     willHunterKingStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -373,6 +382,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'METEOR_GOD': 'meteorGodStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
+    'SACRIFICE_WILL': 'sacrificeStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON_WILL': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE_GOD': 'ultimateHyperactiveGod',
@@ -525,6 +535,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'METEOR_GOD': 'meteorGodStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
+    'SACRIFICE': 'sacrificeStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE': 'ultimateHyperactiveGod',

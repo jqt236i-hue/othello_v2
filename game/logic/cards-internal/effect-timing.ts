@@ -66,6 +66,7 @@ interface Constants {
     LIGHTNING_WILL_TURNS: any;
     METEOR_GOD_TURNS: any;
     GHOST_WILL_TURNS: any;
+    SACRIFICE_WILL_TURNS: any;
     PROLIFERATION_WILL_TURNS: any;
     SEED_WILL_TURNS: number;
     WILL_HUNTER_KING_TURNS: any;
@@ -161,6 +162,7 @@ function getConstants(context: Context): Constants {
         LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
         METEOR_GOD_TURNS: constants.METEOR_GOD_TURNS,
         GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
+        SACRIFICE_WILL_TURNS: constants.SACRIFICE_WILL_TURNS,
         PROLIFERATION_WILL_TURNS: constants.PROLIFERATION_WILL_TURNS,
         SEED_WILL_TURNS: Number.isFinite(Number(constants.SEED_WILL_TURNS))
             ? Number(constants.SEED_WILL_TURNS)
@@ -568,6 +570,7 @@ const ANCHOR_SCOPED_STATUS_DURATION_TYPES = new Set([
     'BLOCKADE',
     'FREEZE',
     'GHOST',
+    'SACRIFICE',
     'PROLIFERATION',
     'STONE_SALVATION_GOD'
 ]);
@@ -1135,6 +1138,17 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.GHOST_WILL_TURNS
         });
         effects.ghostPlaced = true;
+    }
+
+    if (pending && pending.type === 'SACRIFICE_WILL' && typeof helpers.addMarker === 'function') {
+        const remainingOwnerTurns = Number.isFinite(Number(constants.SACRIFICE_WILL_TURNS))
+            ? Math.max(1, Math.trunc(Number(constants.SACRIFICE_WILL_TURNS)))
+            : 5;
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'SACRIFICE',
+            remainingOwnerTurns
+        });
+        effects.sacrificePlaced = true;
     }
 
     if (pending && pending.type === 'AFTERIMAGE_WILL' && typeof helpers.addMarker === 'function') {

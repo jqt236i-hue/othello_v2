@@ -284,6 +284,21 @@ describe('visual-effects map shared between game/ui', () => {
     expect(afterimageMap.imagePathByOwner['-1']).toContain('ZAN-WHITE.png');
   });
 
+  test('SACRIFICE_WILL と SACRIFICE が犠牲石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.SACRIFICE_WILL).toBe('sacrificeStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.SACRIFICE).toBe('sacrificeStone');
+
+    const sacrificeMap = shared.STONE_VISUAL_EFFECTS.sacrificeStone;
+    expect(sacrificeMap).toBeTruthy();
+    expect(sacrificeMap.imagePathByOwner['1']).toContain('SACRIFICE_WILL-black.png');
+    expect(sacrificeMap.imagePathByOwner['-1']).toContain('SACRIFICE_WILL-white.png');
+  });
+
   test('ABSOLUTE_PROTECTED が昇格後の絶対保護石画像へ解決される', () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

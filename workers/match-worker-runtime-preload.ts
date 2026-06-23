@@ -133,6 +133,7 @@ installRuntimeModule('CardWillHunterKing', () => require('../game/logic/cards/wi
 installRuntimeModule('CardDestroyDragon', () => require('../game/logic/cards/destroy_dragon.js'));
 installRuntimeModule('CardSelectors', () => require('../game/logic/cards/selectors.js'));
 installRuntimeModule('CardWork', () => require('../game/logic/cards/work_will.js'));
+installRuntimeModule('CardSacrificeWill', () => require('../game/logic/cards/sacrifice_will.js'));
 installRuntimeModule('CardMarkers', () => require('../game/logic/cards/markers.js'));
 installRuntimeModule('BoardOps', () => require('../game/logic/board_ops.js'));
 installRuntimeModule('DestroyOneStoneEffects', () => require('../game/logic/effects/destroy_one_stone.js'));

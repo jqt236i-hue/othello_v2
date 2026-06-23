@@ -195,6 +195,8 @@ function mapCardUsed(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybac
         cardType: (evMeta && evMeta.cardType) ? evMeta.cardType : null,
         cost: (evMeta && Number.isFinite(evMeta.cost)) ? evMeta.cost : null,
         name: (evMeta && evMeta.name) ? evMeta.name : null,
+        nullifiedBySacrificeWill: !!(evMeta && evMeta.nullifiedBySacrificeWill === true),
+        cardUseVanishEffect: (evMeta && evMeta.cardUseVanishEffect) ? evMeta.cardUseVanishEffect : null,
         visualDescriptor
     }];
     ctx.phaseState.currentPhase++;

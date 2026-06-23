@@ -7,6 +7,7 @@ const FALLBACK_TURNS = Object.freeze({
     PROTECTED_NEXT_STONE: 1,
     PERMA_PROTECT_NEXT_STONE: 20,
     GHOST_WILL: 8,
+    SACRIFICE_WILL: 5,
     BREEDING_WILL: 5,
     PROLIFERATION_WILL: 10,
     ULTIMATE_REVERSE_DRAGON: 8,
@@ -70,6 +71,11 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
             return {
                 type: readRegistryMarkerType(type, deps) || 'GHOST',
                 remainingOwnerTurns: readPositiveInt(constants.GHOST_WILL_TURNS, FALLBACK_TURNS.GHOST_WILL)
+            };
+        case 'SACRIFICE_WILL':
+            return {
+                type: readRegistryMarkerType(type, deps) || 'SACRIFICE',
+                remainingOwnerTurns: readPositiveInt(constants.SACRIFICE_WILL_TURNS, FALLBACK_TURNS.SACRIFICE_WILL)
             };
         case 'AFTERIMAGE_WILL':
             return {

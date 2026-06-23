@@ -2203,6 +2203,72 @@ function playTrapPlacementFlash(row: any, col: any, playerKey: any) {
     void playerKey;
 }
 
+function _isSacrificeSealBurnCardUse(data: any): boolean {
+    if (!data || typeof data !== 'object') return false;
+    if (data.nullifiedBySacrificeWill === true) return true;
+    return String(data.cardUseVanishEffect || '').trim().toLowerCase() === 'sacrifice_seal_burn';
+}
+
+function _appendSacrificeSealBurnOverlay(movingCard: any) {
+    if (!movingCard || typeof document === 'undefined') return null;
+    const overlay = document.createElement('div');
+    overlay.className = 'card-use-sacrifice-seal-burn-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.style.position = 'absolute';
+    overlay.style.inset = '0';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.borderRadius = 'inherit';
+    overlay.style.opacity = '0';
+    overlay.style.mixBlendMode = 'screen';
+    overlay.style.background = [
+        'linear-gradient(135deg, transparent 0 29%, rgba(255, 42, 42, 0.72) 30% 32%, transparent 33% 100%)',
+        'linear-gradient(42deg, transparent 0 47%, rgba(255, 210, 210, 0.68) 48% 49%, transparent 50% 100%)',
+        'repeating-linear-gradient(0deg, rgba(255, 0, 0, 0.12) 0 1px, transparent 1px 5px)'
+    ].join(',');
+    try { movingCard.style.overflow = 'hidden'; } catch (e: any) { /* ignore */ }
+    movingCard.appendChild(overlay);
+    return overlay;
+}
+
+async function _playSacrificeSealBurnVanish(movingCard: any, playbackScope: any) {
+    if (!movingCard) return;
+    try { movingCard.classList.add('sacrifice-seal-burn'); } catch (e: any) { /* ignore */ }
+    const overlay = _appendSacrificeSealBurnOverlay(movingCard);
+    const burnCard = _animateCompat(movingCard, [
+        {
+            opacity: 1,
+            filter: 'none',
+            boxShadow: movingCard.style.boxShadow || ''
+        },
+        {
+            opacity: 0.88,
+            filter: 'sepia(0.45) saturate(2.4) hue-rotate(-28deg) brightness(1.08)',
+            boxShadow: '0 0 18px rgba(255, 38, 38, 0.82), 0 0 4px rgba(255, 210, 210, 0.68)'
+        },
+        {
+            opacity: 0,
+            filter: 'sepia(0.8) saturate(3.2) hue-rotate(-36deg) brightness(1.25) contrast(1.2)',
+            boxShadow: '0 0 26px rgba(255, 0, 0, 0.92), 0 0 8px rgba(255, 255, 255, 0.38)'
+        }
+    ], {
+        duration: 460,
+        easing: 'cubic-bezier(0.22, 0.68, 0.18, 1)',
+        fill: 'forwards'
+    }, playbackScope);
+    const burnOverlay = overlay
+        ? _animateCompat(overlay, [
+            { opacity: 0, transform: 'scale(0.98)' },
+            { opacity: 0.82, transform: 'scale(1.01)' },
+            { opacity: 0, transform: 'scale(1.04)' }
+        ], {
+            duration: 420,
+            easing: 'ease-out',
+            fill: 'forwards'
+        }, playbackScope)
+        : Promise.resolve();
+    await Promise.all([burnCard, burnOverlay]);
+}
+
 /**
  * カード使用時のハンド搬送演出
  * Hand carries a used card from hand side to charge UI.
@@ -2401,14 +2467,18 @@ function playCardUseHandAnimation(payload: any) {
 
             await waitHold();
 
-            await _animateCompat(movingCard, [
-                { opacity: 1 },
-                { opacity: 0 }
-            ], {
-                duration: FADE_MS,
-                easing: 'ease-out',
-                fill: 'forwards'
-            }, sc);
+            if (_isSacrificeSealBurnCardUse(data)) {
+                await _playSacrificeSealBurnVanish(movingCard, sc);
+            } else {
+                await _animateCompat(movingCard, [
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ], {
+                    duration: FADE_MS,
+                    easing: 'ease-out',
+                    fill: 'forwards'
+                }, sc);
+            }
         })().catch(() => {
             // no-op
         }).finally(() => {

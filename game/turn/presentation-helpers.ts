@@ -24,6 +24,7 @@ const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'sniperPlaced', special: 'SNIPER' }),
     Object.freeze({ flag: 'ghostPlaced', special: 'GHOST' }),
     Object.freeze({ flag: 'afterimagePlaced', special: 'AFTERIMAGE_WILL' }),
+    Object.freeze({ flag: 'sacrificePlaced', special: 'SACRIFICE' }),
     Object.freeze({ flag: 'timeStopPlaced', special: 'TIME_STOP' }),
     Object.freeze({ flag: 'willHunterKingPlaced', special: 'WILL_HUNTER_KING' }),
     Object.freeze({ flag: 'destroyDragonPlaced', special: 'DESTROY_DRAGON' }),

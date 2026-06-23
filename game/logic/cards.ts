@@ -273,6 +273,7 @@ const {
     const LIGHTNING_WILL_TURNS = 6;
     const METEOR_GOD_TURNS = 6;
     const GHOST_WILL_TURNS = 8;
+    const SACRIFICE_WILL_TURNS = 5;
     const PROLIFERATION_WILL_TURNS = 10;
     const WILL_HUNTER_KING_TURNS = 8;
     const ROBOT_VACUUM_TURNS = 5;
@@ -1073,6 +1074,7 @@ const {
                 LIGHTNING_WILL_TURNS,
                 METEOR_GOD_TURNS,
                 GHOST_WILL_TURNS,
+                SACRIFICE_WILL_TURNS,
                 SEED_WILL_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS,
@@ -1927,6 +1929,7 @@ const {
             CARD_DEFS,
             constants: {
                 GHOST_WILL_TURNS,
+                SACRIFICE_WILL_TURNS,
                 AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
                 AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
                 PROLIFERATION_WILL_TURNS,
@@ -2502,6 +2505,11 @@ const {
             getCardDef,
             getCardDisplayName,
             isCardPlayLockedForPlayer,
+            BoardOpsModule,
+            MARKER_KINDS,
+            getCellValueForCard,
+            getSpecialMarkers,
+            SpecialCardRegistryModule: SpecialCardRegistry,
             CardPendingStateManagerModule,
             CardUsagePrechecksModule,
             CardBoardExecutorResolutionModule,
@@ -4530,6 +4538,7 @@ const cardsApi: any = {
         LIGHTNING_WILL_TURNS,
         METEOR_GOD_TURNS,
         GHOST_WILL_TURNS,
+        SACRIFICE_WILL_TURNS,
         STRONG_WILL_PROMOTION_OWNER_TURNS,
         SEED_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,

@@ -1366,6 +1366,62 @@ describe('animation-utils hand fallback', () => {
     expect(onDisappear).toHaveBeenCalledTimes(1);
   });
 
+  test('playCardUseHandAnimation uses red seal burn vanish for sacrifice nullification', async () => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-white');
+    const chargeEl = document.getElementById('charge-white');
+    handEl.getBoundingClientRect = () => ({
+      left: 720,
+      top: 120,
+      width: 260,
+      height: 140,
+      right: 980,
+      bottom: 260
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 980,
+      top: 150,
+      width: 100,
+      height: 40,
+      right: 1080,
+      bottom: 190
+    });
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'white',
+      owner: 'white',
+      cardId: 'destroy_01',
+      cost: 8,
+      name: '破壊の意志',
+      nullifiedBySacrificeWill: true,
+      cardUseVanishEffect: 'sacrifice_seal_burn'
+    });
+
+    await Promise.resolve();
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    jest.advanceTimersByTime(900);
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    const keyframesText = JSON.stringify(animateMock.mock.calls.map((call) => call[0]));
+    expect(keyframesText).toContain('rgba(255, 38, 38');
+    expect(keyframesText).toContain('sepia(0.45)');
+
+    jest.advanceTimersByTime(4000);
+    await Promise.resolve();
+    await expect(promise).resolves.toBeUndefined();
+  });
+
   test('playCardUseHandAnimation passes ownerKey into createCardFaceElement for moving cards', async () => {
     jest.useFakeTimers();
 

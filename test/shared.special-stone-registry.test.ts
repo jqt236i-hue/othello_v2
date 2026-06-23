@@ -25,6 +25,7 @@ describe('special stone registry rule classification', () => {
     'STONE_SALVATION_GOD',
     'TIME_STOP',
     'WILL_HUNTER_KING',
+    'SACRIFICE',
     'TRAP',
     'TIME_BOMB'
   ];
@@ -37,6 +38,7 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PERMA_PROTECTED')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('ABSOLUTE_PROTECTED')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('GHOST')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('SACRIFICE')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('AFTERIMAGE_WILL')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('REGEN')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('TIME_BOMB')).toBe('bomb');
@@ -141,7 +143,8 @@ describe('special stone registry rule classification', () => {
       ['lightning_01', 'LIGHTNING_WILL', 'LIGHTNING'],
       ['udg_01', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_DESTROY_GOD'],
       ['ultimate_hyperactive_01', 'ULTIMATE_HYPERACTIVE_GOD', 'ULTIMATE_HYPERACTIVE'],
-      ['meteor_god_01', 'METEOR_GOD', 'METEOR_GOD']
+      ['meteor_god_01', 'METEOR_GOD', 'METEOR_GOD'],
+      ['sacrifice_will_01', 'SACRIFICE_WILL', 'SACRIFICE']
     ];
 
     for (const [cardId, cardType, markerType] of expected) {
@@ -154,6 +157,9 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.getSpecialStoneCardDefinition('PERMA_PROTECT_NEXT_STONE')).toEqual(
       expect.objectContaining({ promotedMarkerType: 'ABSOLUTE_PROTECTED' })
     );
+    expect(SpecialStoneRegistry.getSpecialStoneDisplayName('SACRIFICE')).toBe('犠牲石');
+    expect(SpecialStoneRegistry.countsAsSpecialStone('SACRIFICE')).toBe(true);
+    expect(SpecialStoneRegistry.isTargetableSpecialStone('SACRIFICE')).toBe(true);
   });
 
   test('exposes purpose-specific special-stone targeting traits', () => {

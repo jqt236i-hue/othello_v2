@@ -33,6 +33,7 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       'proliferation_triggered',
       'time_stop_triggered',
       'regen_triggered',
+      'card_nullified',
       'ghost_protected',
       'inherit_selected',
       'inherit_applied',
@@ -96,6 +97,15 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       '追うほど手元がずれるよ。',
       '揺らいだ輪郭で惑わせる。',
       'まずは見失ってもらおうか。'
+    ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('SACRIFICE', 'place')).toEqual([
+      'この石が、次の意志を引き受ける。'
+    ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('SACRIFICE', 'card_nullified')).toEqual([
+      'その一手は、ここで断つ。'
+    ]);
+    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('SACRIFICE', 'duration_end')).toEqual([
+      '役目を待たず、意志は静かに尽きた。'
     ]);
   });
 

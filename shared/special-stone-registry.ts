@@ -362,6 +362,11 @@
             desc: '反転や破壊の対象になるが、その効果を受けない。',
             ghost: true
         }),
+        SACRIFICE: Object.freeze({
+            name: '犠牲石',
+            desc: '相手の通常カード使用時に自壊し、そのカード効果を無効化する。5ターン持続。',
+            timerClass: 'special-timer'
+        }),
         AFTERIMAGE_WILL: Object.freeze({
             name: '残像石',
             desc: '反転や破壊を回避する。',
@@ -391,6 +396,7 @@
         PERMA_PROTECT_NEXT_STONE: Object.freeze({ cardId: 'perma_01', cardNameJa: '強い意志', cardType: 'PERMA_PROTECT_NEXT_STONE', markerType: 'PERMA_PROTECTED', promotedMarkerType: 'ABSOLUTE_PROTECTED' }),
         SNIPER_WILL: Object.freeze({ cardId: 'sniper_01', cardNameJa: '狙撃の意志', cardType: 'SNIPER_WILL', markerType: 'SNIPER' }),
         GHOST_WILL: Object.freeze({ cardId: 'ghost_01', cardNameJa: '幽霊の意志', cardType: 'GHOST_WILL', markerType: 'GHOST' }),
+        SACRIFICE_WILL: Object.freeze({ cardId: 'sacrifice_will_01', cardNameJa: '犠牲の意志', cardType: 'SACRIFICE_WILL', markerType: 'SACRIFICE' }),
         AFTERIMAGE_WILL: Object.freeze({ cardId: 'afterimage_will_01', cardNameJa: '避ける意志', cardType: 'AFTERIMAGE_WILL', markerType: 'AFTERIMAGE_WILL' }),
         TRAP_WILL: Object.freeze({ cardId: 'trap_01', cardNameJa: '罠の意志', cardType: 'TRAP_WILL', markerType: 'TRAP' }),
         TIME_BOMB: Object.freeze({ cardId: 'bomb_01', cardNameJa: '時限爆弾', cardType: 'TIME_BOMB', markerType: 'TIME_BOMB' }),

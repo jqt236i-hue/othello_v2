@@ -53,6 +53,14 @@ window.CardCatalog = {
       "display_type_ja": "守護"
     },
     {
+      "id": "sacrifice_will_01",
+      "name_ja": "犠牲の意志",
+      "type": "SACRIFICE_WILL",
+      "cost": 14,
+      "desc_ja": "次に置く自分の石を5ターン持続の犠牲石にする。犠牲石が盤面にいる間、相手が通常カードを使うと自壊してそのカード効果を無効化する。特殊カードは対象外。",
+      "display_type_ja": "特殊石"
+    },
+    {
       "id": "afterimage_will_01",
       "name_ja": "避ける意志",
       "type": "AFTERIMAGE_WILL",

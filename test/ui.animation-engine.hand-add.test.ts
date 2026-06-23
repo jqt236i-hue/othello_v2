@@ -171,6 +171,29 @@ describe('animation-engine hand_add', () => {
     );
   });
 
+  test('delegates sacrifice nullified card-use vanish effect to hand animation helper', async () => {
+    const engine = require('../ui/animation-engine.js');
+    await engine.executeEvent({
+      type: 'card_use_animation',
+      targets: [{
+        player: 'white',
+        owner: 'white',
+        cardId: 'destroy_01',
+        cost: 8,
+        name: '破壊の意志',
+        nullifiedBySacrificeWill: true,
+        cardUseVanishEffect: 'sacrifice_seal_burn'
+      }]
+    });
+
+    expect(global.window.playCardUseHandAnimation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nullifiedBySacrificeWill: true,
+        cardUseVanishEffect: 'sacrifice_seal_burn'
+      })
+    );
+  });
+
   test('delegates place_hand_animation to placement hand helper for remote network moves', async () => {
     const engine = require('../ui/animation-engine.js');
     global.window.MATCH_MODE = 'network';

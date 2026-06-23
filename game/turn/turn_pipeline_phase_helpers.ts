@@ -5,6 +5,7 @@ const SPECIAL_STONE_BUBBLE_SCENARIO_KEYS = Object.freeze([
     'proliferation_triggered',
     'time_stop_triggered',
     'regen_triggered',
+    'card_nullified',
     'ghost_protected',
     'inherit_selected',
     'inherit_applied',
@@ -51,6 +52,11 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
     AFTERIMAGE_WILL: Object.freeze({
         place: Object.freeze(['本物はひとつ、でも見切れるかな。', '先に見えるのは残像の方だ。', '追うほど手元がずれるよ。', '揺らいだ輪郭で惑わせる。', 'まずは見失ってもらおうか。']),
         destroy: Object.freeze(['断たれたのは残像だけじゃない、置き忘れた面影までだ。', '揺らぎが消えると、本当に会いたかった顔が残る。', '幻もいつかは掴まれるね。', 'ここまで見切られると潔い。', '影遊びは終わりだ。'])
+    }),
+    SACRIFICE: Object.freeze({
+        place: Object.freeze(['この石が、次の意志を引き受ける。']),
+        card_nullified: Object.freeze(['その一手は、ここで断つ。']),
+        duration_end: Object.freeze(['役目を待たず、意志は静かに尽きた。'])
     }),
     ESCAPE_HYPERACTIVE: Object.freeze({
         place: Object.freeze(['近寄らないで！ 私、逃げるから！', '生き残るためなら何だってするよ！', '追われる前に走るのが一番だよ！', 'ここから先は逃走劇だよ！', '捕まるわけにはいかないの！']),

@@ -70,8 +70,10 @@ const CardUsagePrechecksModule = loadRuntimeModule('../logic/cards-internal/card
 const PendingSelectionRegistryModule = loadRuntimeModule('../logic/cards-internal/pending-selection-registry', 'PendingSelectionRegistry', {});
 const CardMarkersModule = loadRuntimeModule('../logic/cards/markers', 'CardMarkers', null);
 const SpecialStoneRegistry = loadRuntimeModule('../../shared/special-stone-registry', 'SpecialStoneRegistry', null);
+const SpecialCardRegistry = loadRuntimeModule('../../shared/special-card-registry', 'SpecialCardRegistry', null);
 const ManifestStoneRegistry = loadRuntimeModule('../../shared/manifest-stone-registry', 'ManifestStoneRegistry', null);
 const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext', null);
+const CardSacrificeWillModule = loadRuntimeModule('../logic/cards/sacrifice_will', 'CardSacrificeWill', null);
 
 const {
   CARD_DEFS,
@@ -122,6 +124,30 @@ function insertCardUsedPresentationBeforeBoardExecutorHoleEvents(cardState: any,
   emitCardUsed();
   moveLastCardUsedBeforeBoardExecutorHoleEvents(cardState && cardState.presentationEvents);
   moveLastCardUsedBeforeBoardExecutorHoleEvents(cardState && cardState._presentationEventsPersist);
+}
+
+function moveLastCardUsedToIndex(events: any, targetIndex: any): void {
+  if (!Array.isArray(events) || events.length <= 1) return;
+  const insertIndex = Number.isFinite(Number(targetIndex))
+    ? Math.max(0, Math.min(events.length, Math.trunc(Number(targetIndex))))
+    : 0;
+  let cardUsedIndex = -1;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index] && events[index].type === 'CARD_USED') {
+      cardUsedIndex = index;
+      break;
+    }
+  }
+  if (cardUsedIndex < 0 || cardUsedIndex <= insertIndex) return;
+  const [cardUsedEvent] = events.splice(cardUsedIndex, 1);
+  events.splice(insertIndex, 0, cardUsedEvent);
+}
+
+function insertCardUsedPresentationAtEventIndexes(cardState: any, emitCardUsed: () => void, presentationIndex: any, persistIndex: any): void {
+  if (typeof emitCardUsed !== 'function') return;
+  emitCardUsed();
+  moveLastCardUsedToIndex(cardState && cardState.presentationEvents, presentationIndex);
+  moveLastCardUsedToIndex(cardState && cardState._presentationEventsPersist, persistIndex);
 }
 
 const MAX_HAND_SIZE = 5;
@@ -311,6 +337,7 @@ function getCardEffectTimingContext(deps: any) {
     LIGHTNING_WILL_TURNS,
     METEOR_GOD_TURNS,
     GHOST_WILL_TURNS,
+    SACRIFICE_WILL_TURNS,
     STRONG_WILL_PROMOTION_OWNER_TURNS,
     SEED_WILL_TURNS,
     WILL_HUNTER_KING_TURNS,
@@ -347,6 +374,7 @@ function getCardEffectTimingContext(deps: any) {
       LIGHTNING_WILL_TURNS,
       METEOR_GOD_TURNS,
       GHOST_WILL_TURNS,
+      SACRIFICE_WILL_TURNS,
       STRONG_WILL_PROMOTION_OWNER_TURNS,
       SEED_WILL_TURNS,
       WILL_HUNTER_KING_TURNS,
@@ -522,6 +550,11 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     getCardDef: getCardDefFn,
     getCardDisplayName: getCardDisplayNameFn,
     isCardPlayLockedForPlayer,
+    BoardOpsModule,
+    MARKER_KINDS,
+    getCellValueForCard,
+    getSpecialMarkers,
+    SpecialCardRegistryModule,
     CardPendingStateManagerModule: CardPendingStateManagerModuleLocal,
     CardUsagePrechecksModule: CardUsagePrechecksModuleLocal,
     CardBoardExecutorResolutionModule,
@@ -654,6 +687,115 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
   cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
   clearUsedSelectedCard(cardState, cardId, handKey);
 
+  const defFn = typeof getCardDefFn === 'function' ? getCardDefFn : getCardDef;
+  const usedCardDef = defFn(cardId);
+  let didEmitCardUsedPresentation = false;
+  const emitCardUsedPresentationOnce = (extraMeta?: any) => {
+    if (didEmitCardUsedPresentation || typeof emitPresentationEvent !== 'function') return;
+    didEmitCardUsedPresentation = true;
+    const baseMeta: any = {
+      owner: handKey,
+      cost: Number.isFinite(cost) ? cost : null,
+      name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null,
+      cardType: (usedCardDef && usedCardDef.type) ? usedCardDef.type : null
+    };
+    try {
+      emitPresentationEvent(cardState, {
+        type: 'CARD_USED',
+        player: chargeOwnerKey,
+        cardId: cardId,
+        meta: Object.assign(baseMeta, (extraMeta && typeof extraMeta === 'object') ? extraMeta : {})
+      });
+    } catch (e) { /* ignore presentation emission failures */ }
+  };
+
+  if (
+    CardSacrificeWillModule &&
+    typeof CardSacrificeWillModule.shouldSacrificeNullifyCard === 'function' &&
+    typeof CardSacrificeWillModule.findTriggeringSacrificeMarker === 'function' &&
+    typeof CardSacrificeWillModule.applySacrificeNullification === 'function' &&
+    CardSacrificeWillModule.shouldSacrificeNullifyCard(cardId, cardType, {
+      SpecialCardRegistry: SpecialCardRegistryModule || SpecialCardRegistry
+    })
+  ) {
+    const sacrificeDeps = {
+      BoardOpsModule,
+      SpecialCardRegistry: SpecialCardRegistryModule || SpecialCardRegistry,
+      MARKER_KINDS,
+      getCellValueForCard,
+      getSpecialMarkers,
+      EMPTY,
+      gameState: _gameState
+    };
+    const sacrifice = CardSacrificeWillModule.findTriggeringSacrificeMarker(
+      cardState,
+      chargeOwnerKey,
+      sacrificeDeps
+    );
+    if (sacrifice) {
+      const presentationStartIndex = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
+      const persistStartIndex = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
+      const nullificationRes = CardSacrificeWillModule.applySacrificeNullification(
+        cardState,
+        _gameState,
+        {
+          cardId,
+          cardType,
+          cardUserKey: chargeOwnerKey,
+          sacrifice
+        },
+        sacrificeDeps
+      );
+      if (nullificationRes && nullificationRes.applied === true) {
+        if (typeof writeCardPendingEffect === 'function') {
+          writeCardPendingEffect(cardState, chargeOwnerKey, null);
+        } else if (cardState.pendingEffectByPlayer) {
+          cardState.pendingEffectByPlayer[chargeOwnerKey] = null;
+        }
+        insertCardUsedPresentationAtEventIndexes(
+          cardState,
+          () => emitCardUsedPresentationOnce({
+            nullifiedBySacrificeWill: true,
+            cardUseVanishEffect: CardSacrificeWillModule.SACRIFICE_SEAL_BURN_EFFECT || 'sacrifice_seal_burn',
+            sacrificeWill: {
+              row: sacrifice.row,
+              col: sacrifice.col,
+              owner: sacrifice.owner,
+              special: 'SACRIFICE'
+            }
+          }),
+          presentationStartIndex,
+          persistStartIndex
+        );
+        if (typeof emitPresentationEvent === 'function') {
+          try {
+            emitPresentationEvent(cardState, {
+              type: 'SPECIAL_STONE_BUBBLE',
+              special: 'SACRIFICE',
+              scenario: 'card_nullified',
+              player: sacrifice.owner,
+              row: sacrifice.row,
+              col: sacrifice.col,
+              text: CardSacrificeWillModule.SACRIFICE_TRIGGER_TEXT || 'その一手は、ここで断つ。',
+              reason: 'card_nullified',
+              cause: 'SACRIFICE_WILL',
+              meta: {
+                owner: sacrifice.owner,
+                special: 'SACRIFICE',
+                scenario: 'card_nullified',
+                reason: 'card_nullified',
+                nullifiedCardId: cardId,
+                nullifiedCardType: cardType,
+                nullifiedCardUser: chargeOwnerKey
+              }
+            });
+          } catch (e) { /* ignore presentation emission failures */ }
+        }
+        return true;
+      }
+    }
+  }
+
   if (cardType === 'THEORY_INCARNATION') {
     if (typeof applyTheoryIncarnationUsage !== 'function') return false;
     const theoryRes = applyTheoryIncarnationUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
@@ -733,27 +875,6 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       workDebugLog(cardState, '[WORK_DEBUG] Card played: WORK_WILL armed for', chargeOwnerKey);
     }
   }
-
-  const defFn = typeof getCardDefFn === 'function' ? getCardDefFn : getCardDef;
-  const usedCardDef = defFn(cardId);
-  let didEmitCardUsedPresentation = false;
-  const emitCardUsedPresentationOnce = () => {
-    if (didEmitCardUsedPresentation || typeof emitPresentationEvent !== 'function') return;
-    didEmitCardUsedPresentation = true;
-    try {
-      emitPresentationEvent(cardState, {
-        type: 'CARD_USED',
-        player: chargeOwnerKey,
-        cardId: cardId,
-        meta: {
-          owner: handKey,
-          cost: Number.isFinite(cost) ? cost : null,
-          name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null,
-          cardType: (usedCardDef && usedCardDef.type) ? usedCardDef.type : null
-        }
-      });
-    } catch (e) { /* ignore presentation emission failures */ }
-  };
 
   if (cardType === 'BOARD_EXECUTOR') {
     insertCardUsedPresentationBeforeBoardExecutorHoleEvents(
