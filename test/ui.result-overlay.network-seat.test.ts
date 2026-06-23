@@ -48,6 +48,12 @@ describe('result overlay seat perspective', () => {
     delete global.resetGame;
     delete global.isGameOver;
     delete global.SoundEngine;
+    delete global.LeaderboardClient;
+    delete global.loadLazyRuntimeGroup;
+    delete global.LazyRuntimeLoaderModule;
+    delete global.window?.LeaderboardClient;
+    delete global.window?.loadLazyRuntimeGroup;
+    delete global.window?.LazyRuntimeLoaderModule;
     delete global.window?.NetworkMatchClient;
   });
 
@@ -596,6 +602,43 @@ describe('result overlay seat perspective', () => {
     }));
     expect((document.querySelector('.result-time-attack') || {}).textContent || '').toContain('速攻 03:02.34');
     expect((document.querySelector('.result-time-defense') || {}).textContent || '').toContain('42手で勝利');
+    nowSpy.mockRestore();
+  });
+
+  test('LeaderboardClient未読込でも終局時にlazy runtimeを読んでランキング送信する', async () => {
+    const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const submitShortestTurns = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
+    const lazyClient = {
+      submitScore,
+      submitTimeAttack,
+      submitTimeDefense,
+      submitShortestTurns,
+      resolveServerBaseUrl: () => 'https://card.reversi-0.workers.dev'
+    };
+    const loadLazyRuntimeGroup = jest.fn(() => {
+      window.LeaderboardClient = lazyClient;
+      global.LeaderboardClient = lazyClient;
+      return Promise.resolve(true);
+    });
+    window.loadLazyRuntimeGroup = loadLazyRuntimeGroup;
+    global.loadLazyRuntimeGroup = loadLazyRuntimeGroup;
+    global.gameState.boardConfig = { rows: 8, cols: 8, standard8x8: true };
+    global.cardState.turnCountByPlayer = { black: 24, white: 18 };
+    global.countDiscs.mockReturnValue({ black: 44, white: 20 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.markTimeAttackStarted(1000);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(61000);
+    mod.showResultOverlay();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(loadLazyRuntimeGroup).toHaveBeenCalledWith('leaderboard');
+    expect(submitScore).toHaveBeenCalled();
+    expect(submitTimeAttack).toHaveBeenCalled();
+    expect(submitTimeDefense).toHaveBeenCalled();
+    expect(submitShortestTurns).toHaveBeenCalled();
     nowSpy.mockRestore();
   });
 

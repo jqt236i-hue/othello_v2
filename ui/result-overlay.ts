@@ -41,6 +41,7 @@ const RESULT_REOPEN_CONTAINER_CLASS = 'has-result-reopen-button';
 let _pendingResultToken: any = null;
 let _resultPresentationActive = false;
 let _timeAttackStartedAt: number | null = null;
+let _leaderboardClientLoadPromise: Promise<any> | null = null;
 
 function markTimeAttackStarted(startedAt?: any) {
     if (_timeAttackStartedAt !== null) return _timeAttackStartedAt;
@@ -84,6 +85,96 @@ const ResultOverlayGachaProgressModule = resolveResultOverlayModuleOrNull('./sto
 const ResultOverlayBoardUtilsModule = resolveResultOverlayModuleOrNull('../shared/shared-board-utils', 'SharedBoardUtils');
 const ResultOverlayBoardUtilsNewModule = resolveResultOverlayModuleOrNull('../shared/board-utils', 'BoardUtils');
 const ResultOverlaySoundEngineAccessModule = resolveResultOverlayModuleOrNull('./sound-engine-access', 'SoundEngineAccessModule');
+
+function resolveResultLeaderboardClient(allowRequire = true): any {
+    try {
+        if (typeof window !== 'undefined' && window && (window as any).LeaderboardClient) {
+            return (window as any).LeaderboardClient;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).LeaderboardClient) {
+            return (globalThis as any).LeaderboardClient;
+        }
+    } catch (e: any) { /* ignore */ }
+    if (allowRequire !== true) return null;
+    try {
+        const moduleRef = require('./leaderboard-client');
+        if (moduleRef) {
+            try {
+                if (typeof window !== 'undefined' && window && !(window as any).LeaderboardClient) {
+                    (window as any).LeaderboardClient = moduleRef;
+                }
+            } catch (e: any) { /* ignore */ }
+            try {
+                if (typeof globalThis !== 'undefined' && !(globalThis as any).LeaderboardClient) {
+                    (globalThis as any).LeaderboardClient = moduleRef;
+                }
+            } catch (e: any) { /* ignore */ }
+            return moduleRef;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function resolveResultLazyRuntimeGroupLoader(): any {
+    try {
+        if (typeof window !== 'undefined' && window && typeof (window as any).loadLazyRuntimeGroup === 'function') {
+            return (window as any).loadLazyRuntimeGroup.bind(window);
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).loadLazyRuntimeGroup === 'function') {
+            return (globalThis as any).loadLazyRuntimeGroup;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (
+            typeof globalThis !== 'undefined'
+            && (globalThis as any).LazyRuntimeLoaderModule
+            && typeof (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup === 'function'
+        ) {
+            return (globalThis as any).LazyRuntimeLoaderModule.loadLazyRuntimeGroup;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        const moduleRef = require('./bootstrap/lazy-runtime-loader');
+        if (moduleRef && typeof moduleRef.loadLazyRuntimeGroup === 'function') {
+            return moduleRef.loadLazyRuntimeGroup;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function ensureResultLeaderboardClient(methodName: string = 'submitScore'): Promise<any> {
+    const existing = resolveResultLeaderboardClient(false);
+    if (existing && typeof existing[methodName] === 'function') return Promise.resolve(existing);
+
+    if (!_leaderboardClientLoadPromise) {
+        const loadLazyRuntimeGroup = resolveResultLazyRuntimeGroupLoader();
+        if (typeof loadLazyRuntimeGroup === 'function') {
+            _leaderboardClientLoadPromise = Promise.resolve(loadLazyRuntimeGroup('leaderboard'))
+                .then(() => resolveResultLeaderboardClient(true))
+                .catch(() => null)
+                .finally(() => {
+                    if (!resolveResultLeaderboardClient(false)) {
+                        _leaderboardClientLoadPromise = null;
+                    }
+                });
+        } else {
+            _leaderboardClientLoadPromise = Promise.resolve(resolveResultLeaderboardClient(true)).finally(() => {
+                if (!resolveResultLeaderboardClient(false)) {
+                    _leaderboardClientLoadPromise = null;
+                }
+            });
+        }
+    }
+
+    return _leaderboardClientLoadPromise.then((client: any) => {
+        if (client && typeof client[methodName] === 'function') return client;
+        return null;
+    });
+}
 
 function createEmptyResultPresentationState() {
     return {
@@ -923,12 +1014,28 @@ function submitSharedLeaderboardScore(scoreSummary: any, viewerKey: any) {
         if (typeof window === 'undefined') return;
         if (!isResultRankingBoardEligible()) return;
         if (isDebugScoreSuppressed()) return;
-        const client = window.LeaderboardClient;
-        if (!canAutoSubmitSharedLeaderboard(client)) return;
-
         const mode = resolveCurrentMatchMode();
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, boardConfig: resolveResultBoardConfig() })
+        const immediateClient = resolveResultLeaderboardClient(false);
+        if (immediateClient) {
+            if (!canAutoSubmitSharedLeaderboard(immediateClient)) return;
+            immediateClient.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, boardConfig: resolveResultBoardConfig() })
+                .then((result: any) => {
+                    if (result && result.ok) {
+                        notifySharedLeaderboardUpdated({
+                            updated: !!result.updated,
+                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                        });
+                    }
+                })
+                .catch(() => {});
+            return;
+        }
+        ensureResultLeaderboardClient('submitScore')
+            .then((client: any) => {
+                if (!canAutoSubmitSharedLeaderboard(client)) return null;
+                return client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, boardConfig: resolveResultBoardConfig() });
+            })
             .then((result: any) => {
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
@@ -959,17 +1066,40 @@ function submitSharedLeaderboardTimeAttack(timeAttackSummary: any, viewerKey: an
         const mode = resolveCurrentMatchMode();
         if (mode !== 'cpu') return;
         if (isDebugScoreSuppressed()) return;
-        const client = window.LeaderboardClient;
-        if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeAttack')) return;
-
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        client.submitTimeAttack({ elapsedMs: timeAttackSummary.elapsedMs }, {
-            mode,
-            cpuLevel,
-            limit: 10,
-            debug: isDebugScoreSuppressed(),
-            boardConfig: resolveResultBoardConfig()
-        })
+        const immediateClient = resolveResultLeaderboardClient(false);
+        if (immediateClient) {
+            if (!canAutoSubmitSharedLeaderboard(immediateClient, 'submitTimeAttack')) return;
+            immediateClient.submitTimeAttack({ elapsedMs: timeAttackSummary.elapsedMs }, {
+                mode,
+                cpuLevel,
+                limit: 10,
+                debug: isDebugScoreSuppressed(),
+                boardConfig: resolveResultBoardConfig()
+            })
+                .then((result: any) => {
+                    if (result && result.ok) {
+                        notifySharedLeaderboardUpdated({
+                            category: 'timeAttack',
+                            updated: !!result.updated,
+                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                        });
+                    }
+                })
+                .catch(() => {});
+            return;
+        }
+        ensureResultLeaderboardClient('submitTimeAttack')
+            .then((client: any) => {
+                if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeAttack')) return null;
+                return client.submitTimeAttack({ elapsedMs: timeAttackSummary.elapsedMs }, {
+                    mode,
+                    cpuLevel,
+                    limit: 10,
+                    debug: isDebugScoreSuppressed(),
+                    boardConfig: resolveResultBoardConfig()
+                });
+            })
             .then((result: any) => {
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
@@ -991,17 +1121,40 @@ function submitSharedLeaderboardTimeDefense(timeDefenseSummary: any, viewerKey: 
         const mode = resolveCurrentMatchMode();
         if (mode !== 'cpu') return;
         if (isDebugScoreSuppressed()) return;
-        const client = window.LeaderboardClient;
-        if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeDefense')) return;
-
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        client.submitTimeDefense({ turnCount: timeDefenseSummary.turnCount }, {
-            mode,
-            cpuLevel,
-            limit: 10,
-            debug: isDebugScoreSuppressed(),
-            boardConfig: resolveResultBoardConfig()
-        })
+        const immediateClient = resolveResultLeaderboardClient(false);
+        if (immediateClient) {
+            if (!canAutoSubmitSharedLeaderboard(immediateClient, 'submitTimeDefense')) return;
+            immediateClient.submitTimeDefense({ turnCount: timeDefenseSummary.turnCount }, {
+                mode,
+                cpuLevel,
+                limit: 10,
+                debug: isDebugScoreSuppressed(),
+                boardConfig: resolveResultBoardConfig()
+            })
+                .then((result: any) => {
+                    if (result && result.ok) {
+                        notifySharedLeaderboardUpdated({
+                            category: 'timeDefense',
+                            updated: !!result.updated,
+                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                        });
+                    }
+                })
+                .catch(() => {});
+            return;
+        }
+        ensureResultLeaderboardClient('submitTimeDefense')
+            .then((client: any) => {
+                if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeDefense')) return null;
+                return client.submitTimeDefense({ turnCount: timeDefenseSummary.turnCount }, {
+                    mode,
+                    cpuLevel,
+                    limit: 10,
+                    debug: isDebugScoreSuppressed(),
+                    boardConfig: resolveResultBoardConfig()
+                });
+            })
             .then((result: any) => {
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
@@ -1023,17 +1176,40 @@ function submitSharedLeaderboardShortestTurns(timeDefenseSummary: any, viewerKey
         const mode = resolveCurrentMatchMode();
         if (mode !== 'cpu') return;
         if (isDebugScoreSuppressed()) return;
-        const client = window.LeaderboardClient;
-        if (!canAutoSubmitSharedLeaderboard(client, 'submitShortestTurns')) return;
-
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        client.submitShortestTurns({ turnCount: timeDefenseSummary.turnCount }, {
-            mode,
-            cpuLevel,
-            limit: 10,
-            debug: isDebugScoreSuppressed(),
-            boardConfig: resolveResultBoardConfig()
-        })
+        const immediateClient = resolveResultLeaderboardClient(false);
+        if (immediateClient) {
+            if (!canAutoSubmitSharedLeaderboard(immediateClient, 'submitShortestTurns')) return;
+            immediateClient.submitShortestTurns({ turnCount: timeDefenseSummary.turnCount }, {
+                mode,
+                cpuLevel,
+                limit: 10,
+                debug: isDebugScoreSuppressed(),
+                boardConfig: resolveResultBoardConfig()
+            })
+                .then((result: any) => {
+                    if (result && result.ok) {
+                        notifySharedLeaderboardUpdated({
+                            category: 'shortestTurns',
+                            updated: !!result.updated,
+                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
+                        });
+                    }
+                })
+                .catch(() => {});
+            return;
+        }
+        ensureResultLeaderboardClient('submitShortestTurns')
+            .then((client: any) => {
+                if (!canAutoSubmitSharedLeaderboard(client, 'submitShortestTurns')) return null;
+                return client.submitShortestTurns({ turnCount: timeDefenseSummary.turnCount }, {
+                    mode,
+                    cpuLevel,
+                    limit: 10,
+                    debug: isDebugScoreSuppressed(),
+                    boardConfig: resolveResultBoardConfig()
+                });
+            })
             .then((result: any) => {
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
