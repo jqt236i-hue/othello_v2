@@ -19,6 +19,11 @@ export interface MatchAuthoritySeatHandSkins {
     white: string;
 }
 
+export interface MatchAuthoritySeatPlayerIds {
+    black: string;
+    white: string;
+}
+
 export interface MatchAuthoritySeatTokens {
     black?: string;
     white?: string;
@@ -130,6 +135,7 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     seats?: Partial<MatchAuthorityPublicSeats> | null;
     seatNames?: Partial<MatchAuthoritySeatNames> | null;
     seatHandSkins?: Partial<MatchAuthoritySeatHandSkins> | null;
+    seatPlayerIds?: Partial<MatchAuthoritySeatPlayerIds> | null;
     seatTokens?: MatchAuthoritySeatTokens | null;
     spectators?: MatchAuthoritySpectators | null;
     lastAcceptedOperationBySeat?: Partial<MatchAuthorityAcceptedOperationsBySeat> | null;
@@ -172,6 +178,7 @@ export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObje
     seats?: unknown;
     seatNames?: unknown;
     seatHandSkins?: unknown;
+    seatPlayerIds?: unknown;
     roomDeck?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: unknown;
@@ -220,6 +227,7 @@ export interface MatchAuthorityRoomPayload extends MatchAuthorityJsonObject {
     seats?: MatchAuthorityPublicSeats;
     seatNames?: MatchAuthoritySeatNames;
     seatHandSkins?: MatchAuthoritySeatHandSkins;
+    seatPlayerIds?: MatchAuthoritySeatPlayerIds;
     roomDeck?: unknown;
     roomBoardConfig?: unknown;
     networkDebugEnabled?: boolean;
@@ -351,6 +359,7 @@ export interface MatchAuthoritySeatLeaveResult {
     seats: Partial<MatchAuthorityPublicSeats>;
     seatNames: Partial<MatchAuthoritySeatNames>;
     seatHandSkins: Partial<MatchAuthoritySeatHandSkins>;
+    seatPlayerIds: Partial<MatchAuthoritySeatPlayerIds>;
 }
 
 export type MatchAuthoritySeatTokenRejectionReason = 'SEAT_TOKEN_MISMATCH' | 'SEAT_TOKEN_REQUIRED';

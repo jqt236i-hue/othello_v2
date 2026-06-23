@@ -35,6 +35,7 @@ import type {
     MatchAuthoritySeatKey,
     MatchAuthoritySeatLeaveOptions,
     MatchAuthoritySeatLeaveResult,
+    MatchAuthoritySeatPlayerIds,
     MatchAuthoritySeatTokenRejectionReason,
     MatchAuthoritySnapshotPayloadFromRoomOptions,
     MatchAuthoritySpectatorJoinOptions,
@@ -104,6 +105,10 @@ const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHan
 const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
 const PlaybackDigest = loadOptionalCommonJsModule<MatchAuthorityPlaybackDigest>('../shared/playback-digest');
 const ManifestStoneRegistry = loadOptionalCommonJsModule<MatchAuthorityManifestStoneRegistry>('../shared/manifest-stone-registry');
+const PlayerIdentityContract = loadOptionalCommonJsModule<{
+    normalizePlayerId?: (value: unknown) => string | null;
+    normalizeSeatPlayerIds?: (value: unknown) => MatchAuthoritySeatPlayerIds;
+}>('../shared/player-identity-contract');
 
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
@@ -258,6 +263,25 @@ function normalizeSeatHandSkins(value: unknown): { black: string; white: string 
     };
 }
 
+function normalizePublicPlayerId(value: unknown): string {
+    if (PlayerIdentityContract && typeof PlayerIdentityContract.normalizePlayerId === 'function') {
+        return PlayerIdentityContract.normalizePlayerId(value) || '';
+    }
+    const normalized = String(value || '').trim();
+    return /^p_[A-Za-z0-9_-]{26}$/.test(normalized) ? normalized : '';
+}
+
+function normalizeSeatPlayerIds(value: unknown): MatchAuthoritySeatPlayerIds {
+    if (PlayerIdentityContract && typeof PlayerIdentityContract.normalizeSeatPlayerIds === 'function') {
+        return PlayerIdentityContract.normalizeSeatPlayerIds(value);
+    }
+    const source = asRecord(value);
+    return {
+        black: normalizePublicPlayerId(source.black),
+        white: normalizePublicPlayerId(source.white)
+    };
+}
+
 function normalizeNetworkPlayerName(value: unknown): string {
     const normalized = String(value || '').replace(/\s+/g, ' ').trim();
     return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
@@ -301,6 +325,7 @@ function buildPublicSeatMetadata(value: unknown): {
     seats: { black: boolean; white: boolean };
     seatNames: { black: string; white: string };
     seatHandSkins: { black: string; white: string };
+    seatPlayerIds: MatchAuthoritySeatPlayerIds;
 } {
     const source = asRecord(value);
     const seatNames = asRecord(source.seatNames);
@@ -310,7 +335,8 @@ function buildPublicSeatMetadata(value: unknown): {
             black: normalizeNetworkPlayerName(seatNames.black),
             white: normalizeNetworkPlayerName(seatNames.white)
         },
-        seatHandSkins: normalizeSeatHandSkins(source.seatHandSkins)
+        seatHandSkins: normalizeSeatHandSkins(source.seatHandSkins),
+        seatPlayerIds: normalizeSeatPlayerIds(source.seatPlayerIds)
     };
 }
 
@@ -1001,7 +1027,8 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     const hasSeats = opts.seats && typeof opts.seats === 'object';
     const hasSeatNames = opts.seatNames && typeof opts.seatNames === 'object';
     const hasSeatHandSkins = opts.seatHandSkins && typeof opts.seatHandSkins === 'object';
-    const publicSeatMetadata = (hasSeats || hasSeatNames || hasSeatHandSkins)
+    const hasSeatPlayerIds = opts.seatPlayerIds && typeof opts.seatPlayerIds === 'object';
+    const publicSeatMetadata = (hasSeats || hasSeatNames || hasSeatHandSkins || hasSeatPlayerIds)
         ? buildPublicSeatMetadata(opts)
         : null;
     const payload: MatchAuthorityRoomPayload = {
@@ -1030,6 +1057,9 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     }
     if (publicSeatMetadata && hasSeatHandSkins) {
         payload.seatHandSkins = publicSeatMetadata.seatHandSkins;
+    }
+    if (publicSeatMetadata && hasSeatPlayerIds) {
+        payload.seatPlayerIds = publicSeatMetadata.seatPlayerIds;
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'roomDeck')) {
         payload.roomDeck = opts.roomDeck;
@@ -1174,6 +1204,9 @@ function buildRoomPayloadFromRoom(
     }
     if (!Object.prototype.hasOwnProperty.call(source, 'seatHandSkins') && hasRoomSeats) {
         source.seatHandSkins = normalizeSeatHandSkins(room.seatHandSkins);
+    }
+    if (!Object.prototype.hasOwnProperty.call(source, 'seatPlayerIds') && hasRoomSeats) {
+        source.seatPlayerIds = normalizeSeatPlayerIds(room.seatPlayerIds);
     }
     if (!Object.prototype.hasOwnProperty.call(source, 'networkAutoEnabled')) {
         source.networkAutoEnabled = room.networkAutoEnabled === true;
@@ -1361,6 +1394,7 @@ function applySeatLeaveToRoom(
         ? room.seatNames
         : { black: '', white: '' };
     room.seatHandSkins = normalizeSeatHandSkins(room.seatHandSkins);
+    room.seatPlayerIds = normalizeSeatPlayerIds(room.seatPlayerIds);
     room.seatTokens = (room.seatTokens && typeof room.seatTokens === 'object')
         ? room.seatTokens
         : {};
@@ -1368,6 +1402,7 @@ function applySeatLeaveToRoom(
     room.seats[seatKey] = false;
     room.seatNames[seatKey] = '';
     room.seatHandSkins[seatKey] = '';
+    room.seatPlayerIds[seatKey] = '';
     if (createSeatToken) {
         room.seatTokens[seatKey] = createSeatToken();
     }
@@ -1379,7 +1414,8 @@ function applySeatLeaveToRoom(
         seatToken: room.seatTokens[seatKey] || '',
         seats: room.seats,
         seatNames: room.seatNames,
-        seatHandSkins: room.seatHandSkins
+        seatHandSkins: room.seatHandSkins,
+        seatPlayerIds: room.seatPlayerIds
     };
 }
 

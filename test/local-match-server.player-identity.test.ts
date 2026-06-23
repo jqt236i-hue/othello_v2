@@ -75,4 +75,62 @@ describe('local match server anonymous player identity', () => {
       server.close();
     }
   });
+
+  test('room create and join expose public seatPlayerIds without secrets', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    try {
+      const black = await requestJson(port, 'POST', '/api/player/identity/create', {});
+      const white = await requestJson(port, 'POST', '/api/player/identity/create', {});
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        playerId: black.data.playerId,
+        playerToken: black.data.playerToken
+      });
+      const invalidJoin = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'しろ',
+        playerId: white.data.playerId,
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno99'
+      });
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'しろ',
+        playerId: white.data.playerId,
+        playerToken: white.data.playerToken
+      });
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(created.data.roomId)}&seatKey=white&seatToken=${encodeURIComponent(joined.data.seatToken)}`
+      );
+      const publicPayloadText = JSON.stringify({
+        created: created.data,
+        joined: joined.data,
+        state: state.data
+      });
+
+      expect(created.status).toBe(200);
+      expect(created.data.seatPlayerIds).toEqual({
+        black: black.data.playerId,
+        white: ''
+      });
+      expect(invalidJoin.status).toBe(403);
+      expect(invalidJoin.data.reason).toBe('PLAYER_ID_TOKEN_INVALID');
+      expect(joined.status).toBe(200);
+      expect(joined.data.seatPlayerIds).toEqual({
+        black: black.data.playerId,
+        white: white.data.playerId
+      });
+      expect(state.status).toBe(200);
+      expect(state.data.seatPlayerIds).toEqual({
+        black: black.data.playerId,
+        white: white.data.playerId
+      });
+      expect(publicPayloadText).not.toContain('playerToken');
+      expect(publicPayloadText).not.toContain('recoveryCode');
+    } finally {
+      server.close();
+    }
+  });
 });

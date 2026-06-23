@@ -38,6 +38,7 @@ import type {
 
 const ModuleExportUtils = require('../shared/module-export-utils');
 const MatchRoomLobby = require('../shared/match-room-lobby');
+const PlayerIdentityContract = require('../shared/player-identity-contract');
 const TurnPipelineFactory = require('../game/turn/turn_pipeline_factory');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
@@ -2673,6 +2674,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             seats: { black: false, white: false },
             seatNames: { black: '', white: '' },
             seatHandSkins: { black: '', white: '' },
+            seatPlayerIds: { black: '', white: '' },
             seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
             spectators: {},
             maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
@@ -2744,6 +2746,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             ? payload.snapshot as MatchWorkerPublicSnapshot
             : null;
         const playerName = normalizeNetworkPlayerName(payload.playerName) || MatchRoomLobby.createRandomPlayerName();
+        const playerId = PlayerIdentityContract.normalizePlayerId(payload.playerId) || '';
         const selectedHandSkinId = normalizeSeatHandSkinId(payload.selectedHandSkinId);
         const initialDeckCardIdsByPlayer = (payload.initialDeckCardIdsByPlayer && typeof payload.initialDeckCardIdsByPlayer === 'object')
             ? cloneInitialDeckCardIdsByPlayer(payload.initialDeckCardIdsByPlayer)
@@ -2795,9 +2798,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         publicSeatState.seats.black = true;
         publicSeatState.seatNames.black = playerName;
         publicSeatState.seatHandSkins.black = selectedHandSkinId;
+        publicSeatState.seatPlayerIds.black = playerId;
         room.seats = publicSeatState.seats;
         room.seatNames = publicSeatState.seatNames;
         room.seatHandSkins = publicSeatState.seatHandSkins;
+        room.seatPlayerIds = publicSeatState.seatPlayerIds;
         room.updatedAt = Date.now();
         await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: false });
         await this.syncWaitingRoomExpiryAlarm(room.updatedAt);
@@ -2841,6 +2846,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
 
         const playerName = normalizeNetworkPlayerName(body.playerName);
+        const playerId = PlayerIdentityContract.normalizePlayerId(body.playerId) || '';
         const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
         if (!playerName) {
             return jsonResponse(400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
@@ -2872,6 +2878,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         room.seatNames[seatKey] = playerName;
         room.seatHandSkins = toPublicSeatHandSkins(room);
         room.seatHandSkins[seatKey] = selectedHandSkinId;
+        const seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(room.seatPlayerIds);
+        seatPlayerIds[seatKey] = playerId;
+        room.seatPlayerIds = seatPlayerIds;
         if (!isAllCardsDeckRoom(room) && deckSelection.hasCustomDeck) {
             assignRoomDeckSelection(room, seatKey, deckSelection);
         }

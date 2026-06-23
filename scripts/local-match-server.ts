@@ -1390,6 +1390,7 @@ function makeRoom(options: any) {
         seats: { black: false, white: false },
         seatNames: { black: '', white: '' },
         seatHandSkins: { black: '', white: '' },
+        seatPlayerIds: { black: '', white: '' },
         seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
         spectators: {},
         maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
@@ -1564,6 +1565,17 @@ function verifyLocalPlayerIdentity(playerIdValue: any, playerTokenValue: any) {
     return playerId;
 }
 
+function verifyLocalPlayerIdentityFromBody(body: any) {
+    const playerId = PlayerIdentityContract.normalizePlayerId(body && body.playerId);
+    const playerToken = PlayerIdentityContract.normalizePlayerToken(body && body.playerToken);
+    if (!playerId && !playerToken) return { ok: true, playerId: '' };
+    if (!playerId || !playerToken) return { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' };
+    const verifiedPlayerId = verifyLocalPlayerIdentity(playerId, playerToken);
+    return verifiedPlayerId
+        ? { ok: true, playerId: verifiedPlayerId }
+        : { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' };
+}
+
 async function handlePlayerIdentityCreate(req: any, res: any) {
     await parseBody(req);
     let playerId = makeLocalPlayerId();
@@ -1622,6 +1634,11 @@ async function handlePlayerIdentityRecover(req: any, res: any) {
 
 async function handleCreate(req: any, res: any) {
     const body = await parseBody(req);
+    const verifiedIdentity = verifyLocalPlayerIdentityFromBody(body);
+    if (!verifiedIdentity.ok) {
+        writeJson(res, 403, { ok: false, reason: verifiedIdentity.reason });
+        return;
+    }
     const playerName = normalizeNetworkPlayerName(body.playerName) || MatchRoomLobby.createRandomPlayerName();
     const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
     const networkDebugEnabled = body.networkDebugEnabled === true;
@@ -1658,6 +1675,8 @@ async function handleCreate(req: any, res: any) {
     room.seats.black = true;
     room.seatNames.black = playerName;
     room.seatHandSkins.black = selectedHandSkinId;
+    room.seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(room.seatPlayerIds);
+    room.seatPlayerIds.black = verifiedIdentity.playerId;
     if (!allCardsDeckEnabled && deckSelection.hasCustomDeck) {
         assignRoomDeckSelection(room, 'black', deckSelection);
     }
@@ -1682,6 +1701,11 @@ async function handleCreate(req: any, res: any) {
 
 async function handleJoin(req: any, res: any) {
     const body = await parseBody(req);
+    const verifiedIdentity = verifyLocalPlayerIdentityFromBody(body);
+    if (!verifiedIdentity.ok) {
+        writeJson(res, 403, { ok: false, reason: verifiedIdentity.reason });
+        return;
+    }
     const roomId = String(body.roomId || '').trim().toUpperCase();
     const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
     const providedToken = String(body.seatToken || '').trim();
@@ -1732,6 +1756,8 @@ async function handleJoin(req: any, res: any) {
     room.seatNames[seatKey] = playerName;
     room.seatHandSkins = toPublicSeatHandSkins(room);
     room.seatHandSkins[seatKey] = selectedHandSkinId;
+    room.seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(room.seatPlayerIds);
+    room.seatPlayerIds[seatKey] = verifiedIdentity.playerId;
     if (!isAllCardsDeckRoom(room) && deckSelection.hasCustomDeck) {
         assignRoomDeckSelection(room, seatKey, deckSelection);
     }

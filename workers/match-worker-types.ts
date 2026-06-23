@@ -5,6 +5,7 @@ import type {
     MatchAuthorityPublicSeats,
     MatchAuthoritySeatHandSkins,
     MatchAuthoritySeatNames,
+    MatchAuthoritySeatPlayerIds,
     MatchAuthorityRoomState,
     MatchAuthoritySeatKey,
     MatchAuthorityViewer
@@ -51,6 +52,7 @@ export interface MatchWorkerPublicSeatState {
     seats: MatchAuthorityPublicSeats;
     seatNames: MatchAuthoritySeatNames;
     seatHandSkins: MatchAuthoritySeatHandSkins;
+    seatPlayerIds: MatchAuthoritySeatPlayerIds;
 }
 
 export interface MatchWorkerPreparedSnapshotBroadcast {
