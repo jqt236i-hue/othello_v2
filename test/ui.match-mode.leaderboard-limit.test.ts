@@ -17,7 +17,7 @@ describe('match-mode shared leaderboard panel', () => {
       },
       {
         rank: 2,
-        playerId: 'player_gamma_0003',
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0002',
         playerName: 'すわわわん',
         bestScore: 9013,
         mode: 'cpu',
@@ -85,7 +85,7 @@ describe('match-mode shared leaderboard panel', () => {
       },
       {
         rank: 2,
-        playerId: 'player_gamma_0003',
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0002',
         playerName: 'すわわわん',
         bestScore: 9013,
         mode: 'cpu',
@@ -412,8 +412,13 @@ describe('match-mode shared leaderboard panel', () => {
     expect(podium?.textContent).toContain('ざわた');
     expect(podium?.textContent).toContain('すわわわん');
     expect(podium?.textContent).toContain('swqp');
+    expect(podium?.textContent).toContain('#0002');
     expect(list?.textContent).toContain('なれ。');
     expect(list?.textContent).toContain('アルファ');
+    expect(list?.textContent).toContain('#0001');
+    const idSuffix = list?.querySelector('.leaderboard-name-id');
+    expect(idSuffix?.getAttribute('title')).toContain('player_');
+    expect(podium?.querySelector('.leaderboard-name-id')?.getAttribute('title')).toContain('p_ABCDEFGHIJKLMNOPQRSTUV0002');
   });
 
   test('ランキング種別タブは2列2段で配置するCSSにする', () => {

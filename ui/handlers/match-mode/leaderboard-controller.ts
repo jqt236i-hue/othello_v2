@@ -5,6 +5,13 @@ const LeaderboardStylesModule = (() => {
         return null;
     }
 })();
+const PlayerIdentityContract = (() => {
+    try {
+        return require('../../../shared/player-identity-contract');
+    } catch (e: any) {
+        return null;
+    }
+})();
 
 function resolveLazyRuntimeGroupLoader(root: any): any {
     try {
@@ -577,7 +584,25 @@ function createLeaderboardController(context: any) {
         const name = document.createElement('span');
         name.className = 'leaderboard-name';
         const normalizedName = normalizePlayerName(entry.playerName) || DEFAULT_PLAYER_NAME;
-        name.textContent = normalizedName;
+        const text = document.createElement('span');
+        text.className = 'leaderboard-name-text';
+        text.textContent = normalizedName;
+        name.appendChild(text);
+
+        const playerId = PlayerIdentityContract && typeof PlayerIdentityContract.normalizeLeaderboardDisplayPlayerId === 'function'
+            ? PlayerIdentityContract.normalizeLeaderboardDisplayPlayerId(entry && entry.playerId)
+            : null;
+        const suffixText = PlayerIdentityContract && typeof PlayerIdentityContract.formatShortPlayerId === 'function'
+            ? PlayerIdentityContract.formatShortPlayerId(playerId)
+            : '';
+        if (playerId && suffixText) {
+            const id = document.createElement('span');
+            id.className = 'leaderboard-name-id';
+            id.textContent = suffixText;
+            id.title = `playerId: ${playerId}`;
+            id.setAttribute('aria-label', `playerId ${playerId}`);
+            name.appendChild(id);
+        }
         return name;
     }
 

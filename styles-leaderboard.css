@@ -728,6 +728,9 @@
 }
 
 .leaderboard-name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(8px * var(--layout-stage-scale));
     min-width: 0;
     color: #f1ece0;
     font-size: calc(22px * var(--layout-stage-scale));
@@ -735,6 +738,28 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.leaderboard-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.leaderboard-name-id {
+    flex: 0 0 auto;
+    color: rgba(125, 247, 255, 0.62);
+    font-family: var(--selected-app-font-readable-family);
+    font-size: calc(14px * var(--layout-stage-scale));
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+.leaderboard-podium-name .leaderboard-name-id {
+    color: rgba(240, 198, 107, 0.72);
+    font-size: calc(13px * var(--layout-stage-scale));
 }
 
 .leaderboard-score {
