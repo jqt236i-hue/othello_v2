@@ -2035,14 +2035,14 @@
 }
 
 #deckBuilderModal .deck-builder-preset-card > .deck-builder-actions-row .btn-small:first-child {
-    background: linear-gradient(180deg, rgba(255, 214, 122, 0.16), rgba(74, 55, 22, 0.78));
-    border-color: rgba(255, 214, 122, 0.24);
-    color: rgba(255, 239, 203, 0.96);
+    background: linear-gradient(180deg, rgba(86, 226, 210, 0.17), rgba(14, 64, 65, 0.82));
+    border-color: rgba(86, 226, 210, 0.3);
+    color: rgba(224, 255, 250, 0.96);
 }
 
 #deckBuilderModal .deck-builder-preset-card > .deck-builder-actions-row .btn-small:first-child:hover:not(:disabled) {
-    border-color: rgba(255, 214, 122, 0.34);
-    background: linear-gradient(180deg, rgba(255, 214, 122, 0.22), rgba(88, 65, 24, 0.84));
+    border-color: rgba(107, 243, 226, 0.42);
+    background: linear-gradient(180deg, rgba(86, 226, 210, 0.24), rgba(18, 78, 78, 0.88));
 }
 
 #deckBuilderModal .deck-builder-preset-card > .deck-builder-actions-row .btn-small + .btn-small {
@@ -2413,19 +2413,52 @@ body.time-stop-active {
 }
 
 .btn-small {
-    background: linear-gradient(to bottom, #5d4037, #3e2723);
-    color: #d7ccc8;
-    border: var(--layout-size-border-thin) solid #4a3828;
+    background: linear-gradient(180deg, rgba(38, 70, 82, 0.96), rgba(12, 33, 46, 0.94));
+    color: rgba(231, 247, 250, 0.96);
+    border: var(--layout-size-border-thin) solid rgba(116, 214, 224, 0.28);
     padding: var(--layout-size-control-btn-pad-y) var(--layout-size-control-btn-pad-x);
     border-radius: var(--layout-size-control-radius);
     cursor: pointer;
     font-size: var(--layout-size-control-font);
     font-family: inherit;
+    box-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.22),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.08);
+    transition:
+        transform 0.12s ease,
+        border-color 0.12s ease,
+        background 0.12s ease,
+        color 0.12s ease,
+        box-shadow 0.12s ease;
 }
 
-.btn-small:hover {
-    border-color: #8d6e63;
-    background: linear-gradient(to bottom, #6d4c41, #4e342e);
+.btn-small:hover:not(:disabled),
+.btn-small:focus-visible {
+    border-color: rgba(95, 205, 220, 0.42);
+    background: linear-gradient(180deg, rgba(44, 91, 105, 0.98), rgba(14, 43, 59, 0.96));
+    color: rgba(244, 253, 255, 0.98);
+    box-shadow:
+        0 calc(2px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(95, 205, 220, 0.08),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.11);
+}
+
+.btn-small:focus-visible {
+    outline: calc(2px * var(--layout-stage-scale)) solid rgba(104, 225, 238, 0.42);
+    outline-offset: calc(2px * var(--layout-stage-scale));
+}
+
+.btn-small:active:not(:disabled) {
+    transform: translateY(calc(1px * var(--layout-stage-scale)));
+    box-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.26),
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.22);
+}
+
+.btn-small:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    filter: saturate(0.65);
 }
 
 #leftActionButtons {

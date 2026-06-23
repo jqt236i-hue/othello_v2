@@ -35,9 +35,20 @@ describe('deck builder layout CSS', () => {
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-preset-card\s*>\s*\.deck-builder-actions-row\s+\.btn-small\s*\{[\s\S]*border-radius:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*rgba\(255,\s*255,\s*255,\s*0\.12\)[\s\S]*rgba\(16,\s*24,\s*34,\s*0\.92\)/);
-    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-preset-card\s*>\s*\.deck-builder-actions-row\s+\.btn-small:first-child\s*\{[\s\S]*rgba\(255,\s*214,\s*122,\s*0\.16\)[\s\S]*border-color:\s*rgba\(255,\s*214,\s*122,\s*0\.24\)[\s\S]*color:\s*rgba\(255,\s*239,\s*203,\s*0\.96\)/);
+    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-preset-card\s*>\s*\.deck-builder-actions-row\s+\.btn-small:first-child\s*\{[\s\S]*rgba\(86,\s*226,\s*210,\s*0\.17\)[\s\S]*border-color:\s*rgba\(86,\s*226,\s*210,\s*0\.3\)[\s\S]*color:\s*rgba\(224,\s*255,\s*250,\s*0\.96\)/);
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-preset-card\s*>\s*\.deck-builder-actions-row\s+\.btn-small\s*\+\s*\.btn-small\s*\{[\s\S]*rgba\(124,\s*184,\s*255,\s*0\.14\)[\s\S]*border-color:\s*rgba\(124,\s*184,\s*255,\s*0\.22\)[\s\S]*color:\s*rgba\(223,\s*236,\s*255,\s*0\.94\)/);
     expect(css).toMatch(/\.deck-builder-built-in-preset-grid\s+\.deck-builder-actions-row\s*\{[\s\S]*gap:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/\.deck-builder-built-in-preset-grid\s+\.deck-builder-actions-row\s+\.btn-small\s*\{[\s\S]*opacity:\s*1/);
+  });
+
+  test('generic small buttons use the cool dark style instead of the old brown default', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    const block = css.match(/^\.btn-small\s*\{([\s\S]*?)^\}/m)?.[1] || '';
+
+    expect(block).toMatch(/rgba\(38,\s*70,\s*82,\s*0\.96\)/);
+    expect(block).toMatch(/rgba\(116,\s*214,\s*224,\s*0\.28\)/);
+    expect(block).not.toMatch(/#5d4037|#3e2723|#4a3828|#8d6e63|#6d4c41|#4e342e/);
+    expect(css).toMatch(/^\.btn-small:hover:not\(:disabled\),\s*\n\.btn-small:focus-visible\s*\{[\s\S]*rgba\(95,\s*205,\s*220,\s*0\.42\)/m);
   });
 });
