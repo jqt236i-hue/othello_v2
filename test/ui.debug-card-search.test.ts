@@ -18,7 +18,7 @@ describe('debug card search UI', () => {
       getDocumentRef: () => dom.window.document,
       getCardStateValue: () => ({
         hands: {
-          black: ['super_gravity_01', 'super_attraction_01', 'gravity_01'],
+          black: ['super_gravity_01', 'super_attraction_01', 'gravity_01', 'sacrifice_will_01'],
           white: ['guard_01']
         }
       }),
@@ -26,6 +26,7 @@ describe('debug card search UI', () => {
         super_gravity_01: { id: 'super_gravity_01', name: '超重力', cost: 14 },
         super_attraction_01: { id: 'super_attraction_01', name: '超引力', cost: 9 },
         gravity_01: { id: 'gravity_01', name: '重力', cost: 7 },
+        sacrifice_will_01: { id: 'sacrifice_will_01', name: '犠牲の意志', cost: 14 },
         guard_01: { id: 'guard_01', name: '守る意志', cost: 3 }
       } as any)[cardId] || null,
       isDebugEnabled: () => true,
@@ -42,6 +43,14 @@ describe('debug card search UI', () => {
     const results = controller.search('black', 'ち');
 
     expect(results.map((result: any) => result.name)).toEqual(['超重力', '超引力']);
+  });
+
+  test('matches sacrifice will by hiragana reading', () => {
+    const { controller } = createController();
+
+    const results = controller.search('black', 'ぎせい');
+
+    expect(results.map((result: any) => result.cardId)).toEqual(['sacrifice_will_01']);
   });
 
   test('does not fall back to card ids when display names are unavailable', () => {
