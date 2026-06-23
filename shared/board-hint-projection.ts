@@ -58,6 +58,12 @@ function resolveSelectedCardOwnerKeyForPreview(cardStateValue: any, fallbackPlay
     : null;
 }
 
+function hasSelectedOwnerUsedCardThisTurn(cardStateValue: any, ownerKey: string | null): boolean {
+  if (!cardStateValue || !ownerKey) return false;
+  const usedByPlayer = cardStateValue.hasUsedCardThisTurnByPlayer;
+  return !!(usedByPlayer && usedByPlayer[ownerKey] === true);
+}
+
 function resolveRandomSpawnPreviewTargets(input: BoardHintProjectionInput): any[] {
   const cardLogic = input.cardLogic;
   const cardStateValue = input.cardState;
@@ -107,6 +113,7 @@ function collectRandomSpawnPreviewHighlightKeys(input: BoardHintProjectionInput,
   if (pending) return out;
   const selectedOwnerKey = resolveSelectedCardOwnerKeyForPreview(input.cardState, input.playerKey);
   if (!selectedOwnerKey || selectedOwnerKey !== input.playerKey) return out;
+  if (hasSelectedOwnerUsedCardThisTurn(input.cardState, selectedOwnerKey)) return out;
 
   const targets = resolveRandomSpawnPreviewTargets(input);
   for (const target of Array.isArray(targets) ? targets : []) {

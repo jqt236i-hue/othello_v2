@@ -39,6 +39,32 @@ describe('board hint projection', () => {
     expect(toArray(projection.legalSet)).toEqual([]);
   });
 
+  test('restores normal legal hints when a stale random spawn selection has already been used', () => {
+    const projection = BoardHintProjection.buildBoardHintProjection({
+      gameState: { board: [[0]], currentPlayer: 1 },
+      cardState: {
+        selectedCardId: 'support_troops_01',
+        selectedCardOwnerKey: 'black',
+        hasUsedCardThisTurnByPlayer: { black: true },
+        pendingEffectByPlayer: { black: null }
+      },
+      playerKey: 'black',
+      boardShape: { rows: 1, cols: 1 },
+      canControlCurrentTurn: true,
+      isHumanTurn: true,
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => []),
+        getCardType: jest.fn(() => 'SUPPORT_TROOPS_WILL'),
+        getSupportTroopsWillTargets: jest.fn(() => [{ row: 0, col: 0 }])
+      },
+      getLegalMoves: jest.fn(() => [{ row: 0, col: 0 }])
+    });
+
+    expect(toArray(projection.randomSpawnPreviewSet)).toEqual([]);
+    expect(projection.showLegalHints).toBe(true);
+    expect(toArray(projection.legalSet)).toEqual(['0,0']);
+  });
+
   test('combines normal legal hints and taboo reverse candidates', () => {
     const projection = BoardHintProjection.buildBoardHintProjection({
       gameState: {
