@@ -47,6 +47,12 @@ describe('card CSS medallion frame treatment', () => {
     expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-special', /--card-tier-bg-a:\s*#7a1f12/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-purple', /--card-tier-bg-a:\s*#43156f/);
     expectCssBlockToContain(cardsCss, '.card-item.visible.cost-tier-gold', /--card-tier-bg-a:\s*#6d4708/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"])', /--card-tier-bg-a:\s*#050403/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"])', /--card-tier-bg-b:\s*#0c0905/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"])', /--card-tier-bg-c:\s*#1f1608/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"])', /--card-tier-border:\s*#d7b35a/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"]) .card-special-art', /--card-special-art-opacity:\s*0\.36/);
+    expectCssBlockToContain(cardsCss, '.card-item.visible:is([data-card-id="infinite_chain_01"], [data-card-id="infinite_01"]) .card-special-art', /brightness\(0\.46\)/);
   });
 
   test('special card face uses a distinct stone slab treatment', () => {
