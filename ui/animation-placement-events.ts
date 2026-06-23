@@ -23,6 +23,12 @@ function getSpawnFadeInMs(target: any, deps: Pick<AnimationPlacementEventDeps, '
     return 0;
 }
 
+function getHighlightTarget(target: any, ev: any) {
+    if (!target || target.meta) return target;
+    const eventMeta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
+    return eventMeta ? Object.assign({}, target, { meta: eventMeta }) : target;
+}
+
 async function handlePlaceEvent(ev: any, deps: AnimationPlacementEventDeps) {
     const eventType = (ev && ev.type) ? ev.type : deps.eventTypes.PLACE;
     for (const target of ev.targets) {
@@ -32,7 +38,7 @@ async function handlePlaceEvent(ev: any, deps: AnimationPlacementEventDeps) {
             ? deps.resolveSpawnTargetHighlightMinimumMs(target)
             : 0;
 
-        await deps.runWithEffectTargetHighlight(cell, eventType, target, async () => {
+        await deps.runWithEffectTargetHighlight(cell, eventType, getHighlightTarget(target, ev), async () => {
             const after = target.after || {};
             const disc = deps.createDisc(after);
 

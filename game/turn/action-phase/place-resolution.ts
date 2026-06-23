@@ -60,6 +60,18 @@ function buildNumberCellMultiplierConfig(pendingConfig: any): any {
     return pendingConfig || null;
 }
 
+function normalizePendingType(value: any): string {
+    return String(value || '').trim().toUpperCase();
+}
+
+function resolvePlacementKindForHighlight(pendingType: any, preExtra: any): 'normal_placement' | 'effect_placement' {
+    const pendingTypeKey = normalizePendingType(pendingType);
+    const extraRemaining = Number(preExtra || 0);
+    return !pendingTypeKey && extraRemaining <= 0
+        ? 'normal_placement'
+        : 'effect_placement';
+}
+
 function resolvePlacementAction(options: ResolvePlacementActionOptions): ResolvePlacementActionResult {
     const opts = (options && typeof options === 'object') ? options : ({} as ResolvePlacementActionOptions);
     const action = opts.action || {};
@@ -132,7 +144,9 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     let flipEvadeResult = null;
     const spawnCause = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'FREE_PLACEMENT' : 'SYSTEM';
     const spawnReason = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'free_placement_place' : 'standard_place';
-    const spawnMeta: Record<string, any> = {};
+    const spawnMeta: Record<string, any> = {
+        placementKind: resolvePlacementKindForHighlight(pendingType, preExtra)
+    };
     if (pendingType === 'GOLD_STONE') {
         spawnMeta.special = 'GOLD';
         spawnMeta.owner = opts.playerKey;

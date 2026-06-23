@@ -79,6 +79,24 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     });
   });
 
+  test('maps SPAWN metadata to playback event for placement highlight classification', () => {
+    const out = mapPlaybackEvents([{
+      type: 'SPAWN',
+      row: 2,
+      col: 3,
+      stoneId: 's-place',
+      ownerAfter: 'black',
+      cause: 'SYSTEM',
+      reason: 'standard_place',
+      meta: { placementKind: 'normal_placement' }
+    }]);
+
+    expect(out).toHaveLength(1);
+    expect(out[0].meta).toEqual(expect.objectContaining({
+      placementKind: 'normal_placement'
+    }));
+  });
+
   test('maps theory incarnation SPAWN roulette metadata to dedicated playback event', () => {
     const out = mapPlaybackEvents([{
       type: 'SPAWN',

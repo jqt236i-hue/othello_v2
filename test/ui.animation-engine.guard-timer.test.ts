@@ -2238,6 +2238,111 @@ describe('animation-engine guard timer rendering', () => {
     removeSpy.mockRestore();
   });
 
+  test('standard normal-stone placement spawn applies and clears blue cell highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '3';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 2,
+        col: 3,
+        cause: 'SYSTEM',
+        reason: 'standard_place',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-placement');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-placement');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(targetCell.classList.contains('effect-target-highlight-placement')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('standard special-stone placement spawn keeps purple cell highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '4';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 2,
+        col: 4,
+        cause: 'SYSTEM',
+        reason: 'standard_place',
+        ownerAfter: 'black',
+        meta: { special: 'GOLD', owner: 'black' },
+        after: { color: 1, special: 'GOLD', timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-placement');
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  test('standard effect placement spawn with event metadata keeps purple cell highlight', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '5';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      meta: { placementKind: 'effect_placement' },
+      targets: [{
+        r: 2,
+        col: 5,
+        cause: 'SYSTEM',
+        reason: 'standard_place',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-placement');
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
   test('Seed Will sprout spawn keeps purple cell highlight visible briefly', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;

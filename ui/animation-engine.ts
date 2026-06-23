@@ -39,9 +39,11 @@ const {
     const REGEN_TRIGGER_REASON = 'regen_triggered';
     const EFFECT_TARGET_HIGHLIGHT_CLASS = 'effect-target-highlight';
     const EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS = 'effect-target-highlight-positive';
+    const EFFECT_TARGET_PLACEMENT_HIGHLIGHT_CLASS = 'effect-target-highlight-placement';
     const EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS = 'effect-target-highlight-spawn';
     const HIGHLIGHT_TONE_NEGATIVE = 'negative';
     const HIGHLIGHT_TONE_POSITIVE = 'positive';
+    const HIGHLIGHT_TONE_PLACEMENT = 'placement';
     const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
     const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
@@ -777,6 +779,39 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return !!cause && cause !== 'SYSTEM';
         }
 
+        _getTargetMeta(target: any) {
+            return target && target.meta && typeof target.meta === 'object'
+                ? target.meta
+                : {};
+        }
+
+        _hasSpecialPlacementVisual(target: any) {
+            const meta = this._getTargetMeta(target);
+            const after = target && target.after && typeof target.after === 'object'
+                ? target.after
+                : {};
+            return !!(
+                String(meta.special || '').trim() ||
+                String(after.special || '').trim() ||
+                String(target && target.special ? target.special : '').trim()
+            );
+        }
+
+        _resolvePlacementHighlightTone(eventType: any, target: any) {
+            if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE) return null;
+            const meta = this._getTargetMeta(target);
+            const placementKind = String(meta.placementKind || '').trim().toLowerCase();
+            if (placementKind === 'normal_placement') return HIGHLIGHT_TONE_PLACEMENT;
+            if (placementKind === 'effect_placement') return HIGHLIGHT_TONE_POSITIVE;
+
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            if (cause !== 'SYSTEM' || reason !== 'standard_place') return null;
+            return this._hasSpecialPlacementVisual(target)
+                ? HIGHLIGHT_TONE_POSITIVE
+                : HIGHLIGHT_TONE_PLACEMENT;
+        }
+
         _resolveEffectTargetHighlightTone(eventType: any, target: any) {
             if (_isNoAnim()) return null;
             const cause = this._getTargetCause(target);
@@ -790,6 +825,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     ? HIGHLIGHT_TONE_NEGATIVE
                     : HIGHLIGHT_TONE_POSITIVE;
             }
+            const placementTone = this._resolvePlacementHighlightTone(eventType, target);
+            if (placementTone) return placementTone;
             if (!this._isCardEffectCause(cause)) return null;
             if (eventType === EVENT_TYPES.DESTROY) return HIGHLIGHT_TONE_NEGATIVE;
             if (eventType === EVENT_TYPES.MOVE) {
@@ -948,7 +985,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (!cell || typeof runner !== 'function') return undefined;
             const baseHighlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
                 ? EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS
-                : (highlightTone === HIGHLIGHT_TONE_NEGATIVE ? EFFECT_TARGET_HIGHLIGHT_CLASS : null);
+                : (highlightTone === HIGHLIGHT_TONE_PLACEMENT
+                    ? EFFECT_TARGET_PLACEMENT_HIGHLIGHT_CLASS
+                    : (highlightTone === HIGHLIGHT_TONE_NEGATIVE ? EFFECT_TARGET_HIGHLIGHT_CLASS : null));
             if (!baseHighlightClass) {
                 return runner();
             }

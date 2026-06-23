@@ -42,6 +42,69 @@ describe('free-placement-like pending cards', () => {
     delete global.cardState;
   });
 
+  test('applyActionPhase tags plain normal placement spawn metadata', () => {
+    const { cardState, gameState } = createStates();
+    gameState.board[0][1] = Core.WHITE;
+    gameState.board[0][2] = Core.BLACK;
+
+    const spawnSpy = jest.spyOn(BoardOps, 'spawnAt');
+
+    try {
+      TurnPipelinePhases.applyActionPhase(
+        CardLogic,
+        Core,
+        cardState,
+        gameState,
+        'black',
+        { type: 'place', row: 0, col: 0 },
+        [],
+        createPrng(),
+        BoardOps
+      );
+    } finally {
+      expect(spawnSpy).toHaveBeenCalled();
+      const first = spawnSpy.mock.calls[0];
+      expect(first[5]).toBe('SYSTEM');
+      expect(first[6]).toBe('standard_place');
+      expect(first[7]).toEqual(expect.objectContaining({
+        placementKind: 'normal_placement'
+      }));
+      spawnSpy.mockRestore();
+    }
+  });
+
+  test('applyActionPhase tags extra placement spawn metadata as effect placement', () => {
+    const { cardState, gameState } = createStates();
+    cardState.extraPlaceRemainingByPlayer.black = 1;
+    gameState.board[0][1] = Core.WHITE;
+    gameState.board[0][2] = Core.BLACK;
+
+    const spawnSpy = jest.spyOn(BoardOps, 'spawnAt');
+
+    try {
+      TurnPipelinePhases.applyActionPhase(
+        CardLogic,
+        Core,
+        cardState,
+        gameState,
+        'black',
+        { type: 'place', row: 0, col: 0 },
+        [],
+        createPrng(),
+        BoardOps
+      );
+    } finally {
+      expect(spawnSpy).toHaveBeenCalled();
+      const first = spawnSpy.mock.calls[0];
+      expect(first[5]).toBe('SYSTEM');
+      expect(first[6]).toBe('standard_place');
+      expect(first[7]).toEqual(expect.objectContaining({
+        placementKind: 'effect_placement'
+      }));
+      spawnSpy.mockRestore();
+    }
+  });
+
   test.each([
     ['ULTIMATE_REVERSE_DRAGON', 'DRAGON'],
     ['ULTIMATE_DESTROY_GOD', 'ULTIMATE_DESTROY_GOD']
@@ -97,6 +160,9 @@ describe('free-placement-like pending cards', () => {
       const first = spawnSpy.mock.calls[0];
       expect(first[5]).toBe('SYSTEM');
       expect(first[6]).toBe('standard_place');
+      expect(first[7]).toEqual(expect.objectContaining({
+        placementKind: 'effect_placement'
+      }));
       spawnSpy.mockRestore();
     }
 
