@@ -1,6 +1,6 @@
 {
   "version": "2026-06-23",
-  "generatedAt": "2026-06-23T03:08:54.502Z",
+  "generatedAt": "2026-06-23T03:58:15.824Z",
   "files": [
     {
       "path": "assets/images/special-stones/absolute_protect_next_stone-black.png",
@@ -153,6 +153,14 @@
     {
       "path": "assets/images/special-stones/ROBOT_VACUUM_WILL-white.png",
       "sha256": "7555fc92f55d79aff75236685ea3e7f5f25292eab4740c8905b0def2eaa63c03"
+    },
+    {
+      "path": "assets/images/special-stones/SACRIFICE_WILL-black.png",
+      "sha256": "047cfac43fdbae93a46fbe8bfd90e78e50f595fec10d993be78bdcf599e8b456"
+    },
+    {
+      "path": "assets/images/special-stones/SACRIFICE_WILL-white.png",
+      "sha256": "e6f4c2cb6f0fe5efe68dc1e52b7cbf58e13c66742e5eb09c1e3c68a78cff42bd"
     },
     {
       "path": "assets/images/special-stones/silver.stone.png",
@@ -837,6 +845,10 @@
     {
       "path": "assets/audio/sound-effect/出稼ぎの意志が除去されたタイミング.mp3",
       "sha256": "2473cd4923bcd814c30f8da58c9827631ce99dcc728ce8fd539c0df1cf89c499"
+    },
+    {
+      "path": "assets/audio/sound-effect/因果再生で穴マスを通常マスに再生するタイミング.mp3",
+      "sha256": "ee0cb7bf137ec2ce096253a5b0d82be04a5ec79a46947180495886ebe0fad229"
     },
     {
       "path": "assets/audio/sound-effect/因果抹消で穴化するタイミング.mp3",

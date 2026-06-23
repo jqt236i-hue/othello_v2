@@ -34,7 +34,7 @@ const EXPECTED_CARDS = Object.freeze([
     id: 'infinite_chain_01',
     name_ja: '無限連鎖の意志',
     type: 'INFINITE_CHAIN_WILL',
-    cost: 50,
+    cost: 22,
     desc_ja: '反転後新たに挟める列ができた場合、可能な限り追加反転する。',
     display_type_ja: '禁忌',
     detail: 'この手の通常反転を起点に、追加反転を可能な限り続ける。\n追加反転できなくなった時点で終了する。'
