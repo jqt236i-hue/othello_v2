@@ -115,4 +115,56 @@ describe('browser player identity client', () => {
     expect(client.getPlayerId()).toBe('p_ABCDEFGHIJKLMNOPQRSTUV0001');
     expect(identity.playerToken).toBe('pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno34');
   });
+
+  test('getRecoveryCode reads the stored recovery code without exposing playerToken', () => {
+    storage.set('card_reversi_player_identity_v1', JSON.stringify({
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+      recoveryCode: 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23'
+    }));
+
+    const client = require('../ui/player-identity.js');
+
+    expect(client.getRecoveryCode()).toBe('CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23');
+  });
+
+  test('regenerateRecoveryCode verifies stored identity and stores the new recovery code', async () => {
+    storage.set('card_reversi_player_identity_v1', JSON.stringify({
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+      recoveryCode: 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23'
+    }));
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001' })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          recoveryCode: 'CR-ZYXWV-UTSRQ-PNMKJ-HGFED-CBA32'
+        })
+      });
+
+    const client = require('../ui/player-identity.js');
+    const identity = await client.regenerateRecoveryCode();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://card.example/api/player/identity/recovery/regenerate', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
+      })
+    }));
+    expect(identity).toEqual({
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+      recoveryCode: 'CR-ZYXWV-UTSRQ-PNMKJ-HGFED-CBA32'
+    });
+    expect(JSON.parse(storage.get('card_reversi_player_identity_v1') || '{}').recoveryCode).toBe('CR-ZYXWV-UTSRQ-PNMKJ-HGFED-CBA32');
+  });
 });

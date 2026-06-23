@@ -100,6 +100,11 @@ function getPlayerId(): string | null {
   return identity ? identity.playerId : null;
 }
 
+function getRecoveryCode(): string | null {
+  const identity = readStoredIdentity();
+  return identity ? identity.recoveryCode : null;
+}
+
 async function requestJson(method: string, path: string, payload?: any, options?: any): Promise<any> {
   if (typeof fetch !== 'function') {
     return { ok: false, reason: 'FETCH_UNAVAILABLE', status: 0, data: null };
@@ -173,13 +178,36 @@ async function recoverPlayerIdentity(recoveryCodeValue: any, options?: any): Pro
   return identity;
 }
 
+async function regenerateRecoveryCode(options?: any): Promise<StoredPlayerIdentity> {
+  const stored = await ensurePlayerIdentity(options);
+  const res = await requestJson('POST', '/api/player/identity/recovery/regenerate', {
+    playerId: stored.playerId,
+    playerToken: stored.playerToken
+  }, options);
+  const recoveryCode = res.ok ? Contract.normalizeRecoveryCode(res.data && res.data.recoveryCode) : null;
+  if (!recoveryCode) {
+    throw new Error(String(res.reason || 'PLAYER_IDENTITY_RECOVERY_REGENERATE_FAILED'));
+  }
+  const identity = writeStoredIdentity({
+    playerId: stored.playerId,
+    playerToken: stored.playerToken,
+    recoveryCode
+  });
+  if (!identity) {
+    throw new Error('PLAYER_IDENTITY_RECOVERY_STORE_FAILED');
+  }
+  return identity;
+}
+
 const PlayerIdentity = {
   PLAYER_IDENTITY_STORAGE_KEY,
   getPlayerIdentity,
   getPlayerId,
+  getRecoveryCode,
   ensurePlayerIdentity,
   createPlayerIdentity,
   recoverPlayerIdentity,
+  regenerateRecoveryCode,
   clearStoredIdentity,
   resolveServerBaseUrl
 };
