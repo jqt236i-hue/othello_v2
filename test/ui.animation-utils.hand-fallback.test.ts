@@ -1424,9 +1424,14 @@ describe('animation-utils hand fallback', () => {
       await Promise.resolve();
     }
     const keyframesText = JSON.stringify(animateMock.mock.calls.map((call) => call[0]));
+    const absorbCalls = animateMock.mock.calls.filter((call) => {
+      const options = call[1] || {};
+      return options && options.duration === 620;
+    });
     expect(keyframesText).toContain('scale(0.08)');
     expect(keyframesText).toContain('translate(-558px, 142px) scale(0.08)');
     expect(keyframesText).toContain('drop-shadow(0 0 16px rgba(255, 55, 55, 0.88))');
+    expect(absorbCalls).toHaveLength(2);
 
     jest.advanceTimersByTime(4000);
     await Promise.resolve();
