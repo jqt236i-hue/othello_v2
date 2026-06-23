@@ -82,6 +82,34 @@ describe('manifest effect panel', () => {
     expect(panel?.textContent).toContain('効果: 布石を1〜6獲得する。序盤のカード使用を早められる。');
   });
 
+  test('renders clickable effect tags for the last used card', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      markers: [],
+      discard: ['meteor_god_01'],
+      lastUsedCardByPlayer: {
+        black: { id: 'meteor_god_01', name: '因果抹消神' },
+        white: null
+      }
+    };
+
+    const panel = renderOnce();
+
+    const tagButtons = Array.from(panel?.querySelectorAll('#manifest-effect-tags .card-detail-effect-tag-button') || []) as HTMLElement[];
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス', '抹消']);
+
+    const holeTag = tagButtons.find((el) => el.textContent === '穴マス');
+    expect(holeTag).toBeTruthy();
+    holeTag?.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const popup = document.getElementById('manifest-effect-tag-popover');
+    expect(popup).not.toBeNull();
+    expect(popup?.classList.contains('is-open')).toBe(true);
+    expect(popup?.getAttribute('aria-hidden')).toBe('false');
+    expect(document.getElementById('manifest-effect-tag-popover-title')?.textContent).toBe('穴マス');
+    expect(document.getElementById('manifest-effect-tag-popover-body')?.textContent).toContain('穴マスには誰も置けず');
+  });
+
   test('keeps manifestation territory above last used card', () => {
     (global as any).cardState = {
       hands: { black: [], white: [] },

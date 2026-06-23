@@ -927,6 +927,16 @@
     gap: calc(4px * var(--layout-stage-scale));
 }
 
+#manifest-effect-tags {
+    display: none;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+    gap: calc(5px * var(--layout-stage-scale));
+    margin-top: calc(8px * var(--layout-stage-scale));
+    padding-left: calc(2px * var(--layout-stage-scale));
+}
+
 .manifest-effect-line {
     position: relative;
     z-index: 1;

@@ -72,6 +72,10 @@ let DiffRendererManifestStoneRegistryModule: any = null;
 let BoardHintProjectionModule: any = null;
 let LastUsedPanelCopyModuleForDiff: any = null;
 let CardCatalogModuleForDiff: any = null;
+let CardInteractionEffectsModuleForDiff: any = null;
+let GameTermGlossaryModuleForDiff: any = null;
+let ManifestEffectTagPopoverElForDiff: any = null;
+let manifestEffectTagPopoverDismissBoundForDiff = false;
 let lastActiveManifestWorldBackgroundForDiff: any = null;
 let manifestWorldBackgroundEndTimerForDiff: any = null;
 let lastActiveManifestBgmForDiff: any = null;
@@ -595,7 +599,8 @@ function _ensureManifestEffectPanelForDiff() {
         panel.setAttribute('aria-hidden', 'true');
         panel.innerHTML = [
             '<div id="manifest-effect-title"></div>',
-            '<div id="manifest-effect-lines"></div>'
+            '<div id="manifest-effect-lines"></div>',
+            '<div id="manifest-effect-tags" aria-label="カード効果タグ"></div>'
         ].join('');
         const effectPanel = document.getElementById('effect-live-panel');
         if (effectPanel && effectPanel.parentNode) {
@@ -606,8 +611,16 @@ function _ensureManifestEffectPanelForDiff() {
     }
     const title = panel.querySelector('#manifest-effect-title');
     const lines = panel.querySelector('#manifest-effect-lines');
-    if (!title || !lines) return null;
-    return { panel, title, lines };
+    let tags = panel.querySelector('#manifest-effect-tags');
+    if (!tags) {
+        tags = document.createElement('div');
+        tags.id = 'manifest-effect-tags';
+        tags.setAttribute('aria-label', 'カード効果タグ');
+        panel.appendChild(tags);
+    }
+    _bindManifestEffectTagClickEvents(tags);
+    if (!title || !lines || !tags) return null;
+    return { panel, title, lines, tags };
 }
 
 function _hideManifestEffectPanelForDiff() {
@@ -617,6 +630,7 @@ function _hideManifestEffectPanelForDiff() {
     refs.panel.setAttribute('aria-hidden', 'true');
     refs.title.textContent = '';
     refs.lines.textContent = '';
+    _renderManifestEffectTagsForDiff(refs.tags, []);
     refs.panel.removeAttribute('data-manifest-effect-type');
     refs.panel.removeAttribute('data-manifest-effect-source');
 }
@@ -628,6 +642,7 @@ function _showEmptyManifestEffectPanelForDiff() {
     refs.panel.setAttribute('aria-hidden', 'false');
     refs.title.textContent = '';
     refs.lines.textContent = '';
+    _renderManifestEffectTagsForDiff(refs.tags, []);
     refs.panel.removeAttribute('data-manifest-effect-type');
     refs.panel.removeAttribute('data-manifest-effect-source');
 }
@@ -727,6 +742,38 @@ function _getCardCatalogForDiff() {
     return null;
 }
 
+function _getCardInteractionEffectsForDiff() {
+    if (CardInteractionEffectsModuleForDiff) return CardInteractionEffectsModuleForDiff;
+    try {
+        CardInteractionEffectsModuleForDiff = _require('../cards/card-interaction-effects');
+        return CardInteractionEffectsModuleForDiff;
+    } catch (e: any) { /* ignore */ }
+    try {
+        const globalScope = _getGlobalScopeForDiff();
+        if (globalScope && globalScope.CardInteractionEffects) {
+            CardInteractionEffectsModuleForDiff = globalScope.CardInteractionEffects;
+            return CardInteractionEffectsModuleForDiff;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _getGameTermGlossaryForDiff() {
+    if (GameTermGlossaryModuleForDiff) return GameTermGlossaryModuleForDiff;
+    try {
+        GameTermGlossaryModuleForDiff = _require('../shared/game-term-glossary');
+        return GameTermGlossaryModuleForDiff;
+    } catch (e: any) { /* ignore */ }
+    try {
+        const globalScope = _getGlobalScopeForDiff();
+        if (globalScope && globalScope.GameTermGlossary) {
+            GameTermGlossaryModuleForDiff = globalScope.GameTermGlossary;
+            return GameTermGlossaryModuleForDiff;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 function _normalizeLastUsedCardIdForDiff(value: any): string {
     if (!value) return '';
     if (typeof value === 'object') {
@@ -770,17 +817,45 @@ function _resolveLastUsedPanelCopyForDiff(cardId: string): string {
     return copyMap ? String(copyMap[cardId] || '').trim() : '';
 }
 
+function _resolveCardDefForDiff(cardId: string) {
+    const normalizedCardId = String(cardId || '').trim();
+    if (!normalizedCardId) return null;
+    const catalogModule = _getCardCatalogForDiff();
+    const catalog = catalogModule && (catalogModule.default || catalogModule.CardCatalog || catalogModule);
+    const cards = catalog && Array.isArray(catalog.cards) ? catalog.cards : [];
+    return cards.find((entry: any) => entry && String(entry.id || '').trim() === normalizedCardId) || null;
+}
+
 function _resolveCardNameForDiff(cardId: string, lastUsedEntry: any): string {
     if (lastUsedEntry && typeof lastUsedEntry === 'object') {
         const directName = String(lastUsedEntry.name || lastUsedEntry.name_ja || '').trim();
         if (directName) return directName;
     }
-    const catalogModule = _getCardCatalogForDiff();
-    const catalog = catalogModule && (catalogModule.default || catalogModule.CardCatalog || catalogModule);
-    const cards = catalog && Array.isArray(catalog.cards) ? catalog.cards : [];
-    const card = cards.find((entry: any) => entry && String(entry.id || '').trim() === cardId);
+    const card = _resolveCardDefForDiff(cardId);
     const catalogName = String((card && (card.name_ja || card.name)) || '').trim();
     return catalogName || cardId;
+}
+
+function _resolveLastUsedCardTagsForDiff(cardId: string) {
+    const cardDef = _resolveCardDefForDiff(cardId);
+    if (!cardDef) return [];
+    const effectsModule = _getCardInteractionEffectsForDiff();
+    if (!effectsModule || typeof effectsModule.resolveCardEffectTags !== 'function') return [];
+    const rawTags = effectsModule.resolveCardEffectTags(cardDef);
+    if (!Array.isArray(rawTags)) return [];
+    const seen = new Set<string>();
+    const tags = [];
+    for (const rawTag of rawTags) {
+        if (!rawTag || typeof rawTag !== 'object') continue;
+        const label = String(rawTag.label || '').trim();
+        if (!label) continue;
+        const kind = String(rawTag.kind || '').trim().toLowerCase();
+        const dedupeKey = `${kind}:${label}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        tags.push({ kind, label });
+    }
+    return tags;
 }
 
 function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {
@@ -799,6 +874,7 @@ function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {
             `カード: ${name}`,
             `効果: ${copy}`
         ],
+        tags: _resolveLastUsedCardTagsForDiff(cardId),
         dynamicStartIndex: -1,
         typeKey: 'LAST_USED_CARD',
         source: 'last-used-card'
@@ -844,6 +920,173 @@ function _renderManifestEffectLineText(el: HTMLElement, line: string): void {
     el.appendChild(label);
     el.appendChild(document.createTextNode(' '));
     el.appendChild(value);
+}
+
+function _getManifestEffectTagKindClassForDiff(kind: any) {
+    const normalizedKind = String(kind || '').trim().toLowerCase();
+    if (!normalizedKind) return '';
+    return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
+}
+
+function _renderManifestEffectTagsForDiff(tagsEl: any, tags: any) {
+    if (!tagsEl || typeof document === 'undefined') return;
+    tagsEl.textContent = '';
+    const normalizedTags = Array.isArray(tags) ? tags : [];
+    if (normalizedTags.length === 0) {
+        tagsEl.style.display = 'none';
+        _closeManifestEffectTagPopoverForDiff();
+        return;
+    }
+    for (const tag of normalizedTags) {
+        if (!tag || typeof tag !== 'object') continue;
+        const label = String(tag.label || '').trim();
+        if (!label) continue;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'card-detail-effect-tag card-detail-effect-tag-button';
+        const kindClass = _getManifestEffectTagKindClassForDiff(tag.kind);
+        if (kindClass) chip.classList.add(kindClass);
+        chip.textContent = label;
+        chip.setAttribute('data-card-tag-kind', String(tag.kind || ''));
+        chip.setAttribute('data-card-tag-label', label);
+        chip.setAttribute('aria-label', `${label}の説明を表示`);
+        tagsEl.appendChild(chip);
+    }
+    tagsEl.style.display = tagsEl.childNodes.length > 0 ? 'flex' : 'none';
+}
+
+function _ensureManifestEffectTagPopoverForDiff() {
+    if (typeof document === 'undefined' || !document || !document.body) return null;
+    if (ManifestEffectTagPopoverElForDiff && ManifestEffectTagPopoverElForDiff.isConnected) {
+        return ManifestEffectTagPopoverElForDiff;
+    }
+    let popover = document.getElementById('manifest-effect-tag-popover');
+    if (!popover) {
+        popover = document.createElement('div');
+        popover.id = 'manifest-effect-tag-popover';
+        popover.className = 'card-detail-tag-popover';
+        popover.setAttribute('role', 'dialog');
+        popover.setAttribute('aria-modal', 'false');
+        popover.setAttribute('aria-hidden', 'true');
+        popover.setAttribute('aria-labelledby', 'manifest-effect-tag-popover-title');
+        popover.innerHTML = [
+            '<div class="card-detail-tag-popover-header">',
+            '  <div id="manifest-effect-tag-popover-title" class="card-detail-tag-popover-title"></div>',
+            '  <button type="button" class="card-detail-tag-popover-close" aria-label="効果タグ説明を閉じる">×</button>',
+            '</div>',
+            '<div id="manifest-effect-tag-popover-body" class="card-detail-tag-popover-body"></div>'
+        ].join('');
+        document.body.appendChild(popover);
+    }
+    const closeButton = popover.querySelector('.card-detail-tag-popover-close');
+    if (closeButton && closeButton.dataset.boundManifestEffectTagClose !== '1') {
+        closeButton.addEventListener('click', () => {
+            _closeManifestEffectTagPopoverForDiff();
+        });
+        closeButton.dataset.boundManifestEffectTagClose = '1';
+    }
+    ManifestEffectTagPopoverElForDiff = popover;
+    _bindManifestEffectTagPopoverAutoDismissForDiff();
+    return popover;
+}
+
+function _closeManifestEffectTagPopoverForDiff() {
+    const popover = ManifestEffectTagPopoverElForDiff;
+    if (!popover || !popover.classList) return false;
+    popover.classList.remove('is-open');
+    popover.setAttribute('aria-hidden', 'true');
+    popover.removeAttribute('data-card-tag-key');
+    return true;
+}
+
+function _isManifestEffectTagPopoverOpenForDiff(key: any) {
+    const popover = ManifestEffectTagPopoverElForDiff;
+    return !!(
+        popover &&
+        popover.classList &&
+        popover.classList.contains('is-open') &&
+        String(popover.getAttribute('data-card-tag-key') || '') === String(key || '')
+    );
+}
+
+function _resolveManifestEffectTagMeaningKeyForDiff(tag: any) {
+    const key = String(tag || '').trim();
+    if (!key) return '';
+    if (key.indexOf('反転回避') === 0) return '反転回避';
+    if (key.indexOf('破壊回避') === 0) return '破壊回避';
+    if (/^\d+ターン持続$/.test(key)) return '持続ターン';
+    return key;
+}
+
+function _resolveManifestEffectTagMeaningTextForDiff(meaningKey: any, fallbackKey: any) {
+    const key = String(meaningKey || '').trim();
+    const glossaryModule = _getGameTermGlossaryForDiff();
+    if (key && glossaryModule && typeof glossaryModule.resolveGameTermDescriptionByLabel === 'function') {
+        const sharedDescription = glossaryModule.resolveGameTermDescriptionByLabel(key);
+        if (String(sharedDescription || '').trim()) return String(sharedDescription);
+    }
+    return `${String(fallbackKey || key || '').trim()}の説明は未登録です。`;
+}
+
+function _toggleManifestEffectTagExplanationForDiff(tag: any) {
+    const key = String(tag || '').trim();
+    if (!key) return false;
+    if (_isManifestEffectTagPopoverOpenForDiff(key)) {
+        return _closeManifestEffectTagPopoverForDiff();
+    }
+    const popover = _ensureManifestEffectTagPopoverForDiff();
+    if (!popover) return false;
+    const titleEl = document.getElementById('manifest-effect-tag-popover-title');
+    const bodyEl = document.getElementById('manifest-effect-tag-popover-body');
+    const meaningKey = _resolveManifestEffectTagMeaningKeyForDiff(key);
+    const meaning = _resolveManifestEffectTagMeaningTextForDiff(meaningKey, key);
+    if (titleEl) titleEl.textContent = key;
+    if (bodyEl) bodyEl.textContent = meaning;
+    popover.setAttribute('data-card-tag-key', key);
+    popover.setAttribute('aria-hidden', 'false');
+    popover.classList.add('is-open');
+    return true;
+}
+
+function _bindManifestEffectTagClickEvents(tagsEl: any) {
+    if (!tagsEl || tagsEl.dataset.boundManifestEffectTagClick === '1') return;
+    tagsEl.addEventListener('click', (event: any) => {
+        const rawTarget = event ? event.target : null;
+        const targetEl = rawTarget && rawTarget.nodeType === 1
+            ? rawTarget
+            : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        const chip = targetEl && typeof targetEl.closest === 'function'
+            ? targetEl.closest('.card-detail-effect-tag-button')
+            : null;
+        if (!chip || !tagsEl.contains(chip)) return;
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+        const label = String(chip.getAttribute('data-card-tag-label') || chip.textContent || '').trim();
+        _toggleManifestEffectTagExplanationForDiff(label);
+    });
+    tagsEl.dataset.boundManifestEffectTagClick = '1';
+}
+
+function _bindManifestEffectTagPopoverAutoDismissForDiff() {
+    if (manifestEffectTagPopoverDismissBoundForDiff || typeof document === 'undefined') return;
+    document.addEventListener('pointerdown', (event: any) => {
+        const popover = ManifestEffectTagPopoverElForDiff;
+        if (!popover || !popover.classList || !popover.classList.contains('is-open')) return;
+        const rawTarget = event ? event.target : null;
+        const targetEl = rawTarget && rawTarget.nodeType === 1
+            ? rawTarget
+            : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        if (targetEl && typeof targetEl.closest === 'function') {
+            if (targetEl.closest('#manifest-effect-tag-popover')) return;
+            if (targetEl.closest('#manifest-effect-tags')) return;
+        }
+        _closeManifestEffectTagPopoverForDiff();
+    }, true);
+    document.addEventListener('keydown', (event: any) => {
+        if (!event || event.key !== 'Escape') return;
+        _closeManifestEffectTagPopoverForDiff();
+    });
+    manifestEffectTagPopoverDismissBoundForDiff = true;
 }
 
 function _syncManifestEffectPanelForDiff(cardStateValue: any) {
