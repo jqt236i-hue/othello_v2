@@ -670,6 +670,31 @@ function _formatManifestEffectTitleWithRemainingTurns(title: string, active: any
     return `${title}　残り${turns}ターン`;
 }
 
+function _normalizeManifestCardEffectTagsForDiff(rawTags: any) {
+    if (!Array.isArray(rawTags)) return [];
+    const seen = new Set<string>();
+    const tags = [];
+    for (const rawTag of rawTags) {
+        if (!rawTag || typeof rawTag !== 'object') continue;
+        const label = String(rawTag.label || '').trim();
+        if (!label) continue;
+        const kind = String(rawTag.kind || '').trim().toLowerCase();
+        const dedupeKey = `${kind}:${label}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        tags.push({ kind, label });
+    }
+    return tags;
+}
+
+function _resolveCardTagsForTypeKeyForDiff(typeKey: string) {
+    const normalizedTypeKey = String(typeKey || '').trim().toUpperCase();
+    if (!normalizedTypeKey) return [];
+    const effectsModule = _getCardInteractionEffectsForDiff();
+    if (!effectsModule || typeof effectsModule.resolveCardEffectTags !== 'function') return [];
+    return _normalizeManifestCardEffectTagsForDiff(effectsModule.resolveCardEffectTags({ type: normalizedTypeKey }));
+}
+
 function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
     const typeKey = String(active && active.typeKey || '').trim().toUpperCase();
     if (typeKey === 'BOARD_EXECUTOR') {
@@ -683,6 +708,7 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
                 `黒: 手札${blackHandCount}枚 → 次開始 -${_getBoardExecutorHandTaxAmount(blackHandCount)}`,
                 `白: 手札${whiteHandCount}枚 → 次開始 -${_getBoardExecutorHandTaxAmount(whiteHandCount)}`
             ],
+            tags: _resolveCardTagsForTypeKeyForDiff(typeKey),
             dynamicStartIndex: 2
         };
     }
@@ -693,6 +719,7 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
                 '所有者: 相手手札を常時観測',
                 '観測済みカード: コスト +5'
             ],
+            tags: _resolveCardTagsForTypeKeyForDiff(typeKey),
             dynamicStartIndex: -1
         };
     }
@@ -704,6 +731,7 @@ function _buildManifestEffectPanelContent(cardStateValue: any, active: any) {
                 '空きマスを理論数字マス化',
                 '所有者の通常配置後に特殊石が出現'
             ],
+            tags: _resolveCardTagsForTypeKeyForDiff(typeKey),
             dynamicStartIndex: -1
         };
     }
@@ -859,21 +887,7 @@ function _resolveLastUsedCardTagsForDiff(cardId: string) {
     if (!cardDef) return [];
     const effectsModule = _getCardInteractionEffectsForDiff();
     if (!effectsModule || typeof effectsModule.resolveCardEffectTags !== 'function') return [];
-    const rawTags = effectsModule.resolveCardEffectTags(cardDef);
-    if (!Array.isArray(rawTags)) return [];
-    const seen = new Set<string>();
-    const tags = [];
-    for (const rawTag of rawTags) {
-        if (!rawTag || typeof rawTag !== 'object') continue;
-        const label = String(rawTag.label || '').trim();
-        if (!label) continue;
-        const kind = String(rawTag.kind || '').trim().toLowerCase();
-        const dedupeKey = `${kind}:${label}`;
-        if (seen.has(dedupeKey)) continue;
-        seen.add(dedupeKey);
-        tags.push({ kind, label });
-    }
-    return tags;
+    return _normalizeManifestCardEffectTagsForDiff(effectsModule.resolveCardEffectTags(cardDef));
 }
 
 function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {

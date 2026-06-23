@@ -283,6 +283,15 @@ describe('manifest effect panel', () => {
     expect(document.getElementById('manifest-effect-title')?.textContent).toBe('観測領域　残り3ターン');
     expect(panel?.textContent).toContain('所有者: 相手手札を常時観測');
     expect(panel?.textContent).toContain('観測済みカード: コスト +5');
+    const tagLabels = () => Array.from(panel?.querySelectorAll('#manifest-effect-tags .card-detail-effect-tag-button') || [])
+      .map((el) => el.textContent);
+    expect(tagLabels()).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
+
+    (global as any).cardState.markers[0].data.remainingOwnerTurns = 2;
+    renderOnce();
+
+    expect(document.getElementById('manifest-effect-title')?.textContent).toBe('観測領域　残り2ターン');
+    expect(tagLabels()).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
   });
 
   test('renders theory territory text while theory incarnation is active', () => {
