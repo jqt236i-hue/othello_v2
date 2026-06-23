@@ -4,7 +4,7 @@
 
 **Goal:** Add a login-free, server-issued anonymous player identity made of public `playerId`, private `playerToken`, and user-held `recoveryCode`; use it for leaderboard identity, network room identity, and short ID display beside ranking player names.
 
-**Architecture:** A special Worker Durable Object room owns anonymous identity records and issues all IDs/secrets. Browser code stores credentials locally and can recover the same `playerId` with a recovery code; Worker/local server code verifies `playerId + playerToken` before accepting identity-bound leaderboard or network metadata. The current ranking UI keeps its existing columns and appends a compact short ID suffix inside the player-name label.
+**Architecture:** A special Worker Durable Object room owns anonymous identity records and issues all IDs/secrets. Browser code stores credentials locally and can recover the same `playerId` with a recovery code; Worker API and local server code verify `playerId + playerToken` before forwarding sanitized leaderboard or network metadata. The current ranking UI keeps its existing columns and appends a compact short ID suffix inside the player-name label, including legacy leaderboard IDs already stored before this migration.
 
 **Tech Stack:** TypeScript, CommonJS compatibility wrappers, Cloudflare Worker Durable Objects, local match server parity, Jest, existing `ui/leaderboard-client.ts`, `ui/network/session-lifecycle.ts`, `shared/match-entry-payload.ts`, `workers/match-worker.ts`, `workers/match-worker-api.ts`, `scripts/local-match-server.ts`, generated `public/module-registry.js`, and `worker-public/` mirror via existing scripts.
 
@@ -39,12 +39,15 @@ Non-goals:
 - Public `playerId` format is `p_` plus 26 URL-safe random characters: `^p_[A-Za-z0-9_-]{26}$`.
 - Private `playerToken` format is `pt_` plus 43 URL-safe random characters: `^pt_[A-Za-z0-9_-]{43}$`.
 - User-held `recoveryCode` format is `CR-` plus five groups of 5 uppercase base32 characters, for example `CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23`.
+- Existing leaderboard rows may contain legacy browser-generated IDs matching `^[A-Za-z0-9_-]{8,80}$`. They remain listable and displayable only; new identity-bound submissions and network seats require IDs matching `^p_[A-Za-z0-9_-]{26}$`.
 - The Worker stores only hashes for `playerToken` and `recoveryCode`, never the raw secret strings.
 - The browser stores `playerId`, `playerToken`, and the latest `recoveryCode` in localStorage so it can show/copy the code while site data remains. If localStorage is cleared, recovery requires the user to have copied the recovery code elsewhere.
 - `/api/player/identity/create` creates a new identity.
 - `/api/player/identity/verify` verifies a stored `playerId + playerToken`.
 - `/api/player/identity/recover` verifies a `recoveryCode`, rotates `playerToken`, rotates `recoveryCode`, and returns the same `playerId` with new secrets.
 - Network room create/join sends `playerId + playerToken` after the browser identity module has ensured a valid identity.
+- Worker public API verifies network create/join and leaderboard submit credentials through the identity Durable Object before forwarding. Match-room and leaderboard Durable Objects receive sanitized payloads containing public `playerId` only.
+- Local server mirrors the same verification in process before updating network room state.
 - Worker/local server room state stores public `seatPlayerIds` only. It must not store raw `playerToken` or `recoveryCode`.
 - Missing identity from older clients remains accepted for casual play and stores empty seat IDs. Invalid non-empty identity is rejected with `PLAYER_ID_TOKEN_INVALID`.
 - Leaderboard submit sends `playerId + playerToken`. Verified entries keep the public `playerId`; rejected identity submissions return `PLAYER_ID_TOKEN_INVALID`.
@@ -68,8 +71,8 @@ Create:
 
 Modify:
 
-- `workers/match-worker-api.ts`: Route `/api/player/identity/*` to a special identity Durable Object.
-- `workers/match-worker.ts`: Register identity controller in the existing special-room Durable Object class, verify player credentials for room create/join metadata, and project public `seatPlayerIds`.
+- `workers/match-worker-api.ts`: Route `/api/player/identity/*` to a special identity Durable Object, verify identity-bound public API requests, strip secrets, and forward sanitized payloads.
+- `workers/match-worker.ts`: Register identity controller in the existing Durable Object class, include sanitized `playerId` in internal create/join handling, and project public `seatPlayerIds`.
 - `workers/match-worker-types.ts`: Add identity payload/store types and public `seatPlayerIds` type if not inherited clearly enough.
 - `scripts/local-match-server.ts`: Mirror identity create/verify/recover and network room playerId behavior with an in-memory identity store.
 - `shared/match-entry-payload.ts`: Carry `playerId` and `playerToken` through create/join/retry payloads.
@@ -166,6 +169,7 @@ describe('player identity contract', () => {
 
   test('formats short display IDs from the public playerId', () => {
     expect(Contract.formatShortPlayerId('p_ABCDEFGHIJKLMNOPQRSTUV0001')).toBe('#0001');
+    expect(Contract.formatShortPlayerId('player_alpha_0001')).toBe('#0001');
     expect(Contract.formatShortPlayerId('bad')).toBe('');
   });
 
@@ -200,6 +204,7 @@ Create `shared/player-identity-contract.ts`:
 'use strict';
 
 const PLAYER_ID_RE = /^p_[A-Za-z0-9_-]{26}$/;
+const LEGACY_LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const PLAYER_TOKEN_RE = /^pt_[A-Za-z0-9_-]{43}$/;
 const RECOVERY_CODE_RE = /^CR-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}-[A-Z2-7]{5}$/;
 
@@ -211,6 +216,12 @@ type SeatPlayerIds = {
 function normalizePlayerId(value: unknown): string | null {
   const normalized = String(value || '').trim();
   return PLAYER_ID_RE.test(normalized) ? normalized : null;
+}
+
+function normalizeLeaderboardDisplayPlayerId(value: unknown): string | null {
+  const normalized = String(value || '').trim();
+  if (PLAYER_ID_RE.test(normalized)) return normalized;
+  return LEGACY_LEADERBOARD_PLAYER_ID_RE.test(normalized) ? normalized : null;
 }
 
 function normalizePlayerToken(value: unknown): string | null {
@@ -232,15 +243,17 @@ function normalizeSeatPlayerIds(value: unknown): SeatPlayerIds {
 }
 
 function formatShortPlayerId(value: unknown): string {
-  const playerId = normalizePlayerId(value);
+  const playerId = normalizeLeaderboardDisplayPlayerId(value);
   return playerId ? `#${playerId.slice(-4)}` : '';
 }
 
 export = {
   PLAYER_ID_RE,
+  LEGACY_LEADERBOARD_PLAYER_ID_RE,
   PLAYER_TOKEN_RE,
   RECOVERY_CODE_RE,
   normalizePlayerId,
+  normalizeLeaderboardDisplayPlayerId,
   normalizePlayerToken,
   normalizeRecoveryCode,
   normalizeSeatPlayerIds,
@@ -293,33 +306,61 @@ git commit -m "Add anonymous player identity contract"
 
 - [ ] **Step 1: Write failing Worker identity API tests**
 
-Create `test/workers.match-player-identity.test.ts` following the Worker harness pattern used by nearby `test/workers.match-leaderboard.test.ts`:
+Create `test/workers.match-player-identity.test.ts` following the Worker public API harness pattern used by nearby `test/workers.match-lobby.test.ts`. In the runner, create an in-memory Durable Object namespace and call `worker.fetch(request, env)`:
+
+```ts
+const workerModule = await import(modulePath);
+const worker = workerModule.default;
+const { MatchRoomDurableObject } = workerModule;
+
+function createStateStore() {
+  const storage = new Map();
+  return {
+    storage: {
+      get: async (key) => storage.get(key),
+      put: async (key, value) => storage.set(key, globalThis.structuredClone ? globalThis.structuredClone(value) : JSON.parse(JSON.stringify(value))),
+      delete: async (key) => storage.delete(key)
+    }
+  };
+}
+
+const rooms = new Map();
+const env = {
+  MATCH_ROOM: {
+    idFromName: (roomId) => String(roomId || ''),
+    get: (roomId) => {
+      if (!rooms.has(roomId)) rooms.set(roomId, new MatchRoomDurableObject(createStateStore(), env));
+      return { fetch: (request) => rooms.get(roomId).fetch(request) };
+    }
+  }
+};
+```
 
 ```ts
 test('identity create, verify, and recover keep the same public playerId', async () => {
   const result = await runWorkerScenario(`
-    const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }));
+    const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
     const created = await createResponse.json();
 
     const verifyResponse = await worker.fetch(new Request('https://worker/api/player/identity/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId: created.playerId, playerToken: created.playerToken })
-    }));
+    }), env);
     const verified = await verifyResponse.json();
 
     const recoverResponse = await worker.fetch(new Request('https://worker/api/player/identity/recover', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recoveryCode: created.recoveryCode })
-    }));
+    }), env);
     const recovered = await recoverResponse.json();
 
     const oldVerifyResponse = await worker.fetch(new Request('https://worker/api/player/identity/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId: created.playerId, playerToken: created.playerToken })
-    }));
+    }), env);
     const oldVerified = await oldVerifyResponse.json();
 
     process.stdout.write(JSON.stringify({
@@ -348,6 +389,64 @@ test('identity create, verify, and recover keep the same public playerId', async
 });
 ```
 
+Add a public API leaderboard gate test in the same file:
+
+```ts
+test('leaderboard submit verifies playerToken before forwarding sanitized playerId', async () => {
+  const result = await runWorkerScenario(`
+    const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
+    const created = await createResponse.json();
+
+    const okSubmitResponse = await worker.fetch(new Request('https://worker/api/leaderboard/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerId: created.playerId,
+        playerToken: created.playerToken,
+        playerName: 'さかな',
+        score: 9412,
+        mode: 'cpu',
+        cpuLevel: 1
+      })
+    }), env);
+    const okSubmit = await okSubmitResponse.json();
+
+    const invalidSubmitResponse = await worker.fetch(new Request('https://worker/api/leaderboard/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerId: created.playerId,
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno99',
+        playerName: 'さかな',
+        score: 9999,
+        mode: 'cpu',
+        cpuLevel: 1
+      })
+    }), env);
+    const invalidSubmit = await invalidSubmitResponse.json();
+
+    const listResponse = await worker.fetch(new Request('https://worker/api/leaderboard/list?limit=10'), env);
+    const list = await listResponse.json();
+
+    process.stdout.write(JSON.stringify({
+      okSubmitStatus: okSubmitResponse.status,
+      okSubmit,
+      invalidSubmitStatus: invalidSubmitResponse.status,
+      invalidSubmit,
+      list
+    }));
+  `);
+
+  expect(result.okSubmitStatus).toBe(200);
+  expect(result.okSubmit.ok).toBe(true);
+  expect(result.okSubmit.playerId).toMatch(/^p_[A-Za-z0-9_-]{26}$/);
+  expect(result.invalidSubmitStatus).toBe(403);
+  expect(result.invalidSubmit.reason).toBe('PLAYER_ID_TOKEN_INVALID');
+  expect(result.list.entries).toHaveLength(1);
+  expect(result.list.entries[0]).not.toHaveProperty('playerToken');
+});
+```
+
 - [ ] **Step 2: Write failing local identity parity tests**
 
 Create `test/local-match-server.player-identity.test.ts` with the local server request helper pattern:
@@ -369,6 +468,7 @@ test('local server identity create verify and recover mirrors Worker contract', 
   expect(recovered.data.playerId).toBe(created.data.playerId);
   expect(recovered.data.playerToken).not.toBe(created.data.playerToken);
 });
+
 ```
 
 - [ ] **Step 3: Run failing identity API tests**
@@ -566,6 +666,20 @@ if (request.method === 'POST' && pathname === '/api/player/identity/recover') {
 In `workers/match-worker-api.ts`, add `playerIdentityRoomId` to the config and route these public paths to that special room:
 
 ```ts
+type MatchWorkerApiControllerConfig = {
+    corsHeaders: Record<string, string>;
+    leaderboardRoomId: string;
+    lobbyRoomId?: string;
+    playerIdentityRoomId?: string;
+    normalizeRoomId: (value: unknown) => string;
+    jsonResponse: (statusCode: number, payload: unknown) => Response;
+    withCORS: (response: Response) => Response;
+    handleCreate: (env: MatchWorkerEnv, options: unknown) => Promise<Response>;
+    afterRoomMutation?: (env: MatchWorkerEnv, pathname: string, roomId: string, response: Response) => Promise<void> | void;
+};
+```
+
+```ts
 if (request.method === 'POST' && (
     pathname === '/api/player/identity/create'
     || pathname === '/api/player/identity/verify'
@@ -573,7 +687,95 @@ if (request.method === 'POST' && (
 )) {
     const parsed = await parsePostBody(request);
     if (!parsed.ok) return parsed.response;
-    return forwardJsonToRoom(env, cfg.playerIdentityRoomId, pathname, parsed.body || {});
+    return forwardJsonToRoom(env, cfg.playerIdentityRoomId || '__player_identity__', pathname, parsed.body || {});
+}
+```
+
+Add an internal identity verifier in `workers/match-worker-api.ts`. Use it for identity-bound public API routes before forwarding payloads to room Durable Objects:
+
+```ts
+const IdentityContract = require('../shared/player-identity-contract');
+
+async function verifyPlayerIdentityForPublicApi(env: MatchWorkerEnv, body: Record<string, unknown>): Promise<
+    { ok: true; playerId: string | null }
+    | { ok: false; response: Response }
+> {
+    const playerId = IdentityContract.normalizePlayerId(body.playerId);
+    const playerToken = IdentityContract.normalizePlayerToken(body.playerToken);
+    if (!playerId && !playerToken) return { ok: true, playerId: null };
+    if (!playerId || !playerToken) {
+        return { ok: false, response: cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' }) };
+    }
+    const stub = getRoomStub(env, cfg.playerIdentityRoomId || '__player_identity__');
+    const verifyResponse = await stub.fetch(new Request('https://room/api/player/identity/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId, playerToken })
+    }));
+    if (!verifyResponse.ok) {
+        return { ok: false, response: cfg.withCORS(verifyResponse) };
+    }
+    return { ok: true, playerId };
+}
+```
+
+For `/api/leaderboard/submit`, require a verified identity and forward only public metadata:
+
+```ts
+if (request.method === 'POST' && pathname === '/api/leaderboard/submit') {
+    const parsed = await parsePostBody(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body || {};
+    const verified = await verifyPlayerIdentityForPublicApi(env, body);
+    if (!verified.ok) return verified.response;
+    if (!verified.playerId) return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+    body.playerId = verified.playerId;
+    delete body.playerToken;
+    delete body.recoveryCode;
+    return forwardJsonToLeaderboard(env, pathname, body);
+}
+```
+
+For `/api/match/create` and `/api/match/join`, verify when credentials are present, strip secrets before forwarding, and preserve missing identity for older clients:
+
+```ts
+const verified = await verifyPlayerIdentityForPublicApi(env, body);
+if (!verified.ok) return verified.response;
+body.playerId = verified.playerId || '';
+delete body.playerToken;
+delete body.recoveryCode;
+```
+
+In `workers/match-worker.ts`, pass the sanitized `playerId` from create options into the room create body:
+
+```ts
+playerId: opts.playerId,
+```
+
+Also pass the special room ID into the API controller:
+
+```ts
+const MatchWorkerApiController = createMatchWorkerApiController({
+    corsHeaders: CORS_HEADERS,
+    leaderboardRoomId: LEADERBOARD_ROOM_ID,
+    lobbyRoomId: MATCH_LOBBY_ROOM_ID,
+    playerIdentityRoomId: PLAYER_IDENTITY_ROOM_ID,
+    normalizeRoomId,
+    jsonResponse,
+    withCORS,
+    handleCreate,
+    afterRoomMutation: async (env, pathname, roomId, response) => {
+        if (pathname !== '/api/match/join' && pathname !== '/api/match/leave') return;
+        await syncLobbyFromResponse(env, roomId, response);
+    }
+});
+```
+
+In the Worker entrypoint, route identity API requests into the same public API controller:
+
+```ts
+if (urlObj.pathname.startsWith('/api/player/identity/')) {
+    return handleMatchApi(request, env);
 }
 ```
 
@@ -1122,9 +1324,11 @@ const PlayerIdentityContract = loadOptionalCommonJsModule<{
 
 Add `playerId` and `seatPlayerIds` support to `buildRoomPayload()`.
 
-- [ ] **Step 4: Verify credentials before storing public IDs**
+- [ ] **Step 4: Store verified public IDs without storing secrets**
 
-In Worker and local server create/join paths:
+In Worker public API create/join paths, use `verifyPlayerIdentityForPublicApi()` from Task 2 before forwarding. The room Durable Object receives sanitized `body.playerId` only.
+
+In local server create/join paths, verify directly against the in-memory identity store:
 
 ```ts
 const verifiedIdentity = await verifyPlayerIdentityFromBody(body);
@@ -1133,16 +1337,17 @@ if (verifiedIdentity.rejected) {
 }
 ```
 
-Store:
+Store only the verified public ID:
 
 ```ts
 room.seatPlayerIds = normalizeSeatPlayerIds(room.seatPlayerIds);
-if (verifiedIdentity.playerId) {
-    room.seatPlayerIds[seatKey] = verifiedIdentity.playerId;
+const playerId = IdentityContract.normalizePlayerId(body.playerId);
+if (playerId) {
+    room.seatPlayerIds[seatKey] = playerId;
 }
 ```
 
-Never store:
+Never forward, store, project, or log:
 
 ```ts
 body.playerToken
@@ -1261,7 +1466,7 @@ Replace `createLeaderboardNameLabel()` with:
         text.textContent = normalizePlayerName(entry.playerName) || DEFAULT_PLAYER_NAME;
         name.appendChild(text);
 
-        const playerId = PlayerIdentityContract.normalizePlayerId(entry && entry.playerId);
+        const playerId = PlayerIdentityContract.normalizeLeaderboardDisplayPlayerId(entry && entry.playerId);
         const suffixText = PlayerIdentityContract.formatShortPlayerId(playerId);
         if (suffixText) {
             const id = document.createElement('span');
@@ -1489,10 +1694,11 @@ Spec coverage:
 - Server-issued anonymous identity: Task 2.
 - Secret token verification: Task 2, Task 3, Task 4, Task 5.
 - Recovery code and token rotation: Task 2, Task 3.
-- Leaderboard identity submit: Task 3.
+- Leaderboard identity submit and server-side token gate: Task 2, Task 3.
 - Network create/join identity: Task 4, Task 5.
 - Room public `seatPlayerIds`: Task 5, Task 6.
 - Ranking name right-side short ID display: Task 6.
+- Legacy leaderboard ID display compatibility: Task 1, Task 6.
 - Generated browser/Worker surfaces: Task 7.
 - No login/rating/matchmaking implementation: Non-goals and task scope.
 
@@ -1505,6 +1711,7 @@ Placeholder scan:
 Type consistency:
 
 - Public `playerId` is `string | null` in payloads.
+- `normalizePlayerId()` accepts only IDs matching `^p_[A-Za-z0-9_-]{26}$`; `normalizeLeaderboardDisplayPlayerId()` additionally accepts legacy leaderboard IDs for display only.
 - Private `playerToken` is sent only in request payloads and never projected in public room/state responses.
 - `recoveryCode` is returned only from identity create/recover endpoints.
 - `seatPlayerIds` is always `{ black: string; white: string }`.
