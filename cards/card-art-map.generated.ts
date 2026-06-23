@@ -7,6 +7,7 @@ export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freez
     "sniper_01": "04_狙撃の意志.png",
     "hard_01": "05_弱い意志.png",
     "ghost_01": "06_幽霊の意志.png",
+    "sacrifice_will_01": "92_犠牲の意志.png",
     "afterimage_will_01": "07_避ける意志.png",
     "swap_01": "08_交換の意志.png",
     "position_swap_01": "09_入替の意志.png",

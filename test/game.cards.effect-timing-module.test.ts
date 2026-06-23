@@ -162,6 +162,87 @@ describe('CardEffectTiming module', () => {
     });
   });
 
+  test('onTurnStart decrements and expires SACRIFICE markers in direct path without clearing board stone', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
+    const emitPresentationEvent = jest.fn();
+    const cardState = {
+      turnCountByPlayer: { black: 0, white: 0 },
+      turnIndex: 0,
+      lastTurnStartedFor: null,
+      breedingSproutByOwner: { black: [], white: [] },
+      _breedingSproutClearedTokenByOwner: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      presentationEvents: [],
+      debugNoDraw: true,
+      markers: [
+        { kind: 'specialStone', row: 3, col: 4, owner: 'black', data: { type: 'SACRIFICE', remainingOwnerTurns: 1 } },
+        { kind: 'specialStone', row: 2, col: 5, owner: 'black', data: { type: 'SACRIFICE', remainingOwnerTurns: 5 } },
+        { kind: 'specialStone', row: 1, col: 1, owner: 'white', data: { type: 'SACRIFICE', remainingOwnerTurns: 1 } }
+      ]
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+    gameState.board[3][4] = 1;
+    gameState.board[2][5] = 1;
+    gameState.board[1][1] = -1;
+    const removeMarkersAt = jest.fn((state, row, col, opts) => {
+      state.markers = state.markers.filter((marker) => !(
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        marker.kind === opts.kind &&
+        marker.owner === opts.owner &&
+        marker.data &&
+        marker.data.type === opts.type
+      ));
+    });
+
+    CardEffectTiming.onTurnStart(cardState, 'black', gameState, null, {
+      defaultPrng: { next: () => 0.5 },
+      constants: {
+        EMPTY: 0,
+        DRAW_INTERVAL: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+      },
+      helpers: {
+        ensureHandDestroyFlags: jest.fn(),
+        processRiboWillTurnStartEffects: jest.fn(() => null),
+        commitDraw: jest.fn(),
+        getSpecialMarkers: jest.fn((state) => state.markers),
+        removeMarkersAt,
+        isFrozenCellForCard: jest.fn(() => false),
+        emitPresentationEvent
+      },
+      modules: {}
+    });
+
+    expect(gameState.board[3][4]).toBe(1);
+    expect(removeMarkersAt).toHaveBeenCalledWith(cardState, 3, 4, {
+      kind: 'specialStone',
+      type: 'SACRIFICE',
+      owner: 'black'
+    });
+    expect(cardState.markers).not.toContainEqual(expect.objectContaining({ row: 3, col: 4 }));
+    expect(cardState.markers).toContainEqual(expect.objectContaining({
+      row: 2,
+      col: 5,
+      data: { type: 'SACRIFICE', remainingOwnerTurns: 4 }
+    }));
+    expect(cardState.markers).toContainEqual(expect.objectContaining({
+      row: 1,
+      col: 1,
+      data: { type: 'SACRIFICE', remainingOwnerTurns: 1 }
+    }));
+    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, expect.objectContaining({
+      type: 'STATUS_REMOVED',
+      row: 3,
+      col: 4,
+      reason: 'duration_end',
+      meta: expect.objectContaining({ special: 'SACRIFICE', reason: 'duration_end' })
+    }));
+  });
+
   test('onTurnStart promotes owner PERMA_PROTECTED into ABSOLUTE_PROTECTED on threshold', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const emitPresentationEvent = jest.fn();
