@@ -41,7 +41,7 @@ const getTiming = (key: string, fallback: number): number => {
 };
 
 const PHASE_GAP_MS = 200;
-const POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS = Math.round(PHASE_GAP_MS * 1.5);
+const POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS = 650;
 
 const AnimationConstants = {
   // Timing (ms)

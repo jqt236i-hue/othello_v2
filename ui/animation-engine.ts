@@ -883,25 +883,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
         _resolveStatusChangeHighlightMinimumMs(highlightTone: any) {
             if (!highlightTone) return 0;
-            return highlightTone === HIGHLIGHT_TONE_POSITIVE
-                ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS
-                : PHASE_GAP_MS;
-        }
-
-        _isPlacementLikeHighlightTarget(eventType: any, target: any, highlightTone: any) {
-            if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE) return false;
-            if (highlightTone === HIGHLIGHT_TONE_PLACEMENT) return true;
-            if (highlightTone !== HIGHLIGHT_TONE_POSITIVE) return false;
-            const meta = this._getTargetMeta(target);
-            const placementKind = String(meta.placementKind || '').trim().toLowerCase();
-            if (placementKind === 'effect_placement') return true;
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            return (
-                cause === 'FREE_PLACEMENT' ||
-                reason === 'free_placement_place' ||
-                (cause === 'SYSTEM' && reason === 'standard_place' && this._hasSpecialPlacementVisual(target))
-            );
+            return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
         }
 
         _resolveEffectTargetHighlightMinimumMs(eventType: any, target: any, highlightTone: any, minimumVisibleMs: any) {
@@ -909,9 +891,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
                 : 0;
             if (requestedMinimum > 0) return requestedMinimum;
-            return this._isPlacementLikeHighlightTarget(eventType, target, highlightTone)
-                ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS
-                : requestedMinimum;
+            return highlightTone ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS : requestedMinimum;
         }
 
         _isHyperactiveLikeMoveEvent(ev: any) {

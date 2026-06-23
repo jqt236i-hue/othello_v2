@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 const AnimationConstants = require('../ui/animation-constants.js');
+const EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS = 650;
 describe('animation-engine guard timer rendering', () => {
   let dom;
 
@@ -2113,6 +2114,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -2127,10 +2129,12 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
     expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+    sleepSpy.mockRestore();
     delete global.animateFadeOutAt;
   });
 
@@ -2217,6 +2221,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2232,10 +2237,12 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
     expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+    sleepSpy.mockRestore();
   });
 
   test('standard normal-stone placement spawn applies and clears blue cell highlight', async () => {
@@ -2268,7 +2275,8 @@ describe('animation-engine guard timer rendering', () => {
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-placement');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
+    expect(AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS).toBeGreaterThanOrEqual(EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS);
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
     expect(targetCell.classList.contains('effect-target-highlight-placement')).toBe(false);
 
     addSpy.mockRestore();
@@ -2562,6 +2570,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
 
     await engine.handlePlace({
       type: 'place',
@@ -2577,10 +2586,12 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
     expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+    sleepSpy.mockRestore();
   });
 
   test('normal place event inserts the disc immediately without fade setup', async () => {
