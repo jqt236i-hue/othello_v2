@@ -100,6 +100,22 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', supportTroopsDef.id)).toBe(false);
   });
 
+  test('使用が確定したらカード選択状態を残さない', () => {
+    expect(supportTroopsDef).toBeTruthy();
+
+    const board = createBoard();
+    board[3][3] = Shared.BLACK;
+    const gameState = createGameState(board);
+    const cardState = createCardState(createPrng([0]), supportTroopsDef.id, supportTroopsDef.cost);
+    cardState.selectedCardId = supportTroopsDef.id;
+    cardState.selectedCardOwnerKey = 'black';
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', supportTroopsDef.id)).toBe(true);
+
+    expect(cardState.selectedCardId).toBeNull();
+    expect(cardState.selectedCardOwnerKey).toBeNull();
+  });
+
   test('use_cardで即時解決し、候補が十分あれば通常石を3個配置できる', () => {
     expect(supportTroopsDef).toBeTruthy();
 

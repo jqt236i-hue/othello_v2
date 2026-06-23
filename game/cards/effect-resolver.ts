@@ -439,6 +439,15 @@ function getCardContext(cardState: any, deps: any) {
   });
 }
 
+function clearUsedSelectedCard(cardState: any, cardId: string, ownerKey: string) {
+  if (!cardState || !cardId) return;
+  if (cardState.selectedCardId !== cardId) return;
+  const selectedOwnerKey = cardState.selectedCardOwnerKey;
+  if (selectedOwnerKey && selectedOwnerKey !== ownerKey) return;
+  cardState.selectedCardId = null;
+  cardState.selectedCardOwnerKey = null;
+}
+
 /**
  * Apply card usage (Remove from hand, consume charge, set pending effect)
  */
@@ -643,6 +652,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     cardState.cardUseCountByPlayer[chargeOwnerKey] = (cardState.cardUseCountByPlayer[chargeOwnerKey] || 0) + 1;
   }
   cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
+  clearUsedSelectedCard(cardState, cardId, handKey);
 
   if (cardType === 'THEORY_INCARNATION') {
     if (typeof applyTheoryIncarnationUsage !== 'function') return false;
