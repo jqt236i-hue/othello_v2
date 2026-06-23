@@ -84,6 +84,33 @@ function findCardUseTarget(ctx: any): any {
     return targets.length > 0 && targets[0] && typeof targets[0] === 'object' ? targets[0] : {};
 }
 
+function isSacrificeNullifiedCardUse(ctx: any): boolean {
+    const cardUseTarget = findCardUseTarget(ctx);
+    if (cardUseTarget.nullifiedBySacrificeWill === true) return true;
+    if (String(cardUseTarget.cardUseVanishEffect || '').trim().toLowerCase() === 'sacrifice_seal_burn') return true;
+    return ctx.pres.some((ev: any) => {
+        if (!ev || ev.type !== 'SPECIAL_STONE_BUBBLE') return false;
+        const special = String(ev.special || (ev.meta && ev.meta.special) || '').trim().toUpperCase();
+        const scenario = String(
+            ev.scenario ||
+            ev.reason ||
+            (ev.meta && (ev.meta.scenario || ev.meta.reason)) ||
+            ''
+        ).trim().toLowerCase();
+        return special === 'SACRIFICE' && scenario === 'card_nullified';
+    });
+}
+
+function isSacrificeNullifiedDestroyPlaybackEvent(ev: any): boolean {
+    if (!ev || ev.type !== 'destroy') return false;
+    const targets = Array.isArray(ev.targets) ? ev.targets : [];
+    return targets.some((target: any) => {
+        const cause = String(target && target.cause ? target.cause : '').trim().toUpperCase();
+        const reason = String(target && target.reason ? target.reason : '').trim().toLowerCase();
+        return cause === 'SACRIFICE_WILL' && reason === 'card_nullified';
+    });
+}
+
 function pushSpecialCardCinematicCue(ctx: any, deps: CardEconomySoundCueDeps, cardId: any, phase: any) {
     const meta = getSpecialCardPresentation(cardId);
     if (!meta) return;
@@ -154,6 +181,15 @@ function planCardAndEconomySoundCues(ctx: any, deps: CardEconomySoundCueDeps) {
     ));
     if (hasRoundBonusBanner) {
         deps.pushSoundCue(ctx, 'round_bonus', roundBonusBannerPhase, 'round_bonus');
+    }
+
+    if (isSacrificeNullifiedCardUse(ctx)) {
+        deps.tagCardUseAnimationPlaybackTarget(ctx, { disappearSoundKey: 'stone_destroy' });
+        deps.movePlaybackEventsIntoCardUseAnimationTarget(
+            ctx,
+            (ev: any) => isSacrificeNullifiedDestroyPlaybackEvent(ev),
+            'disappearPlaybackEvents'
+        );
     }
 
     if (deps.hasRawEvent(ctx.raw, 'loss_will_resolved', (ev: any) => Number(ev && ev.removedCount) > 0)) {

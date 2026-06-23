@@ -748,7 +748,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       );
       if (nullificationRes && nullificationRes.applied === true) {
         if (typeof writeCardPendingEffect === 'function') {
-          writeCardPendingEffect(cardState, chargeOwnerKey, null);
+          writeCardPendingEffect(cardState, chargeOwnerKey, null, { clearSelectionAction: true });
         } else if (cardState.pendingEffectByPlayer) {
           cardState.pendingEffectByPlayer[chargeOwnerKey] = null;
         }

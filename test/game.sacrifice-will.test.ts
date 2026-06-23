@@ -2,6 +2,7 @@ import * as SharedConstants from '../shared-constants.js';
 
 const CardLogic = require('../game/logic/cards.js');
 const PipelineUIAdapter = require('../game/turn/pipeline_ui_adapter.js');
+const PendingCoordinator = require('../game/turn/pending-coordinator.js');
 const SacrificeWill = require('../game/logic/cards/sacrifice_will.js');
 const SpecialCardRegistry = require('../shared/special-card-registry.js');
 
@@ -46,6 +47,10 @@ function markerTypes(cardState: any) {
 }
 
 describe('犠牲の意志 card nullification', () => {
+  afterEach(() => {
+    PendingCoordinator.clearPendingSelectionActionCache();
+  });
+
   test('opponent normal card is consumed, nullified, and destroys the sacrifice stone without pending effect', () => {
     const cardState = createCardState();
     const gameState = createEmptyGameState();
@@ -98,6 +103,26 @@ describe('犠牲の意志 card nullification', () => {
         text: 'その一手は、ここで断つ。'
       })
     ]));
+  });
+
+  test('nullification clears deferred pending selection action cache for the card user', () => {
+    const cardState = createCardState();
+    const gameState = createEmptyGameState();
+    addSacrificeStone(cardState, gameState, 'black', 2, 2);
+
+    cardState.hands.white = ['destroy_01'];
+    cardState.charge.white = 99;
+    PendingCoordinator.storePendingSelectionAction(
+      'white',
+      { type: 'pending_selection', cardId: 'destroy_01', turnIndex: cardState.turnIndex || 0 },
+      'DESTROY_ONE_STONE'
+    );
+
+    const ok = CardLogic.applyCardUsage(cardState, gameState, 'white', 'destroy_01');
+
+    expect(ok).toBe(true);
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(PendingCoordinator.readPendingSelectionAction('white')).toBeNull();
   });
 
   test('special cards are excluded from sacrifice nullification', () => {

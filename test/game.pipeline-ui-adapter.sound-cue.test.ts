@@ -1542,6 +1542,74 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(resetStatus).toBeUndefined();
   });
 
+  test('犠牲の意志で無効化された destroy は card_use_animation の消失時へ寄せる', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 5,
+        targets: [{
+          cardId: 'destroy_01',
+          owner: 'white',
+          nullifiedBySacrificeWill: true,
+          cardUseVanishEffect: 'sacrifice_seal_burn',
+          sacrificeWill: { row: 2, col: 2, owner: 'black', special: 'SACRIFICE' }
+        }]
+      },
+      {
+        type: 'destroy',
+        phase: 6,
+        targets: [{
+          r: 2,
+          col: 2,
+          cause: 'SACRIFICE_WILL',
+          reason: 'card_nullified',
+          ownerBefore: 'black',
+          meta: { owner: 'black', special: 'SACRIFICE', reason: 'card_nullified' }
+        }]
+      }
+    ];
+    const pres = [
+      {
+        type: 'CARD_USED',
+        player: 'white',
+        cardId: 'destroy_01',
+        meta: {
+          owner: 'white',
+          cost: 8,
+          name: '破壊の意志',
+          cardType: 'DESTROY_ONE_STONE',
+          nullifiedBySacrificeWill: true,
+          cardUseVanishEffect: 'sacrifice_seal_burn',
+          sacrificeWill: { row: 2, col: 2, owner: 'black', special: 'SACRIFICE' }
+        }
+      },
+      {
+        type: 'SPECIAL_STONE_BUBBLE',
+        special: 'SACRIFICE',
+        scenario: 'card_nullified',
+        row: 2,
+        col: 2,
+        meta: { owner: 'black', special: 'SACRIFICE', reason: 'card_nullified' }
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
+    const destroyEv = out.find((ev) => ev && ev.type === 'destroy' && ev.targets && ev.targets[0] && ev.targets[0].cause === 'SACRIFICE_WILL');
+    const destroyCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(cardUseEv).toBeTruthy();
+    expect(cardUseEv.targets[0].disappearSoundKey).toBe('stone_destroy');
+    expect(cardUseEv.targets[0].disappearPlaybackEvents).toEqual([
+      expect.objectContaining({
+        type: 'destroy',
+        targets: [expect.objectContaining({ cause: 'SACRIFICE_WILL', reason: 'card_nullified', r: 2, col: 2 })]
+      })
+    ]);
+    expect(destroyEv).toBeUndefined();
+    expect(destroyCue).toBeUndefined();
+  });
+
   test('reinforcement_will_resolved は最初の spawn と breeding_spawn を card_use_animation の消失時へ寄せる', () => {
     const base = [
       {
