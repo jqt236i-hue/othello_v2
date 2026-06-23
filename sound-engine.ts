@@ -131,7 +131,7 @@ const SoundEngine = {
         trap_misfire: '罠が不発で消えたタイミング.mp3',
         board_expansion_reveal: '盤面が拡張されたタイミング.mp3',
         board_shrink_selected: '盤面縮小するタイミング.mp3',
-        meteor_hole: '隕石で穴化するタイミング.mp3',
+        meteor_hole: '因果抹消で穴化するタイミング.mp3',
         strong_wind_move: '強風で石が移動したタイミング.mp3',
         position_swap_move: '入替の意志で石が入れ替わるタイミング.mp3',
         super_buoyancy_move: '浮力系で石が浮上したタイミング.mp3',

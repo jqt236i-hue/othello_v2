@@ -459,7 +459,7 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.effectSoundFiles.living_will_selected).toBe('生きる意志を付与するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.board_shrink_selected).toBe('盤面縮小するタイミング.mp3');
-    expect(soundEngine.effectSoundFiles.meteor_hole).toBe('隕石で穴化するタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.meteor_hole).toBe('因果抹消で穴化するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.position_swap_move).toBe('入替の意志で石が入れ替わるタイミング.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
