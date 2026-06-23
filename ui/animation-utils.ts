@@ -2209,64 +2209,95 @@ function _isSacrificeSealBurnCardUse(data: any): boolean {
     return String(data.cardUseVanishEffect || '').trim().toLowerCase() === 'sacrifice_seal_burn';
 }
 
-function _appendSacrificeSealBurnOverlay(movingCard: any) {
-    if (!movingCard || typeof document === 'undefined') return null;
-    const overlay = document.createElement('div');
-    overlay.className = 'card-use-sacrifice-seal-burn-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
-    overlay.style.position = 'absolute';
-    overlay.style.inset = '0';
-    overlay.style.pointerEvents = 'none';
-    overlay.style.borderRadius = 'inherit';
-    overlay.style.opacity = '0';
-    overlay.style.mixBlendMode = 'screen';
-    overlay.style.background = [
-        'linear-gradient(135deg, transparent 0 29%, rgba(255, 42, 42, 0.72) 30% 32%, transparent 33% 100%)',
-        'linear-gradient(42deg, transparent 0 47%, rgba(255, 210, 210, 0.68) 48% 49%, transparent 50% 100%)',
-        'repeating-linear-gradient(0deg, rgba(255, 0, 0, 0.12) 0 1px, transparent 1px 5px)'
-    ].join(',');
-    try { movingCard.style.overflow = 'hidden'; } catch (e: any) { /* ignore */ }
-    movingCard.appendChild(overlay);
-    return overlay;
+function _resolveSacrificeAbsorbCell(data: any) {
+    const sacrificeWill = data && data.sacrificeWill && typeof data.sacrificeWill === 'object'
+        ? data.sacrificeWill
+        : null;
+    const row = Number(sacrificeWill && sacrificeWill.row);
+    const col = Number(sacrificeWill && sacrificeWill.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    try {
+        const boardRef = _resolveTrapPlacementBoardElement();
+        if (boardRef && typeof boardRef.querySelector === 'function') {
+            return boardRef.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+            return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
 }
 
-async function _playSacrificeSealBurnVanish(movingCard: any, playbackScope: any) {
+function _resolveSacrificeAbsorbTargetRect(data: any) {
+    const cell = _resolveSacrificeAbsorbCell(data);
+    if (!cell || typeof cell.getBoundingClientRect !== 'function') return null;
+    const rect = _snapRectToWholePixels(cell.getBoundingClientRect());
+    if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
+    return rect;
+}
+
+async function _playSacrificeAbsorbVanish(movingCard: any, playbackScope: any, data: any, geometry: any) {
     if (!movingCard) return;
-    try { movingCard.classList.add('sacrifice-seal-burn'); } catch (e: any) { /* ignore */ }
-    const overlay = _appendSacrificeSealBurnOverlay(movingCard);
-    const burnCard = _animateCompat(movingCard, [
+    const targetRect = _resolveSacrificeAbsorbTargetRect(data);
+    if (!targetRect || !geometry) {
+        await _animateCompat(movingCard, [
+            { opacity: 1 },
+            { opacity: 0, transform: `translate(${geometry && geometry.currentDx || 0}px, ${geometry && geometry.currentDy || 0}px) scale(0.18)` }
+        ], {
+            duration: 360,
+            easing: 'ease-out',
+            fill: 'forwards'
+        }, playbackScope);
+        return;
+    }
+
+    const absorbX = (targetRect.left + targetRect.width / 2 - geometry.cardWidth / 2) - geometry.startX;
+    const absorbY = (targetRect.top + targetRect.height / 2 - geometry.cardHeight / 2) - geometry.startY;
+    try {
+        movingCard.classList.add('sacrifice-card-absorb');
+        movingCard.style.transformOrigin = 'center center';
+    } catch (e: any) { /* ignore */ }
+
+    const cell = _resolveSacrificeAbsorbCell(data);
+    const cellPulse = cell
+        ? _animateCompat(cell, [
+            { filter: 'none' },
+            { filter: 'drop-shadow(0 0 16px rgba(255, 55, 55, 0.88)) brightness(1.12)' },
+            { filter: 'none' }
+        ], {
+            duration: 520,
+            easing: 'ease-out',
+            fill: 'none'
+        }, playbackScope)
+        : Promise.resolve();
+
+    const cardAbsorb = _animateCompat(movingCard, [
         {
             opacity: 1,
             filter: 'none',
+            transform: `translate(${geometry.currentDx}px, ${geometry.currentDy}px) scale(1)`,
             boxShadow: movingCard.style.boxShadow || ''
         },
         {
-            opacity: 0.88,
-            filter: 'sepia(0.45) saturate(2.4) hue-rotate(-28deg) brightness(1.08)',
-            boxShadow: '0 0 18px rgba(255, 38, 38, 0.82), 0 0 4px rgba(255, 210, 210, 0.68)'
+            opacity: 0.72,
+            filter: 'brightness(1.18) saturate(1.35)',
+            transform: `translate(${Math.round((geometry.currentDx + absorbX) / 2)}px, ${Math.round((geometry.currentDy + absorbY) / 2)}px) scale(0.58)`,
+            boxShadow: '0 0 22px rgba(255, 56, 56, 0.76)'
         },
         {
             opacity: 0,
-            filter: 'sepia(0.8) saturate(3.2) hue-rotate(-36deg) brightness(1.25) contrast(1.2)',
-            boxShadow: '0 0 26px rgba(255, 0, 0, 0.92), 0 0 8px rgba(255, 255, 255, 0.38)'
+            filter: 'brightness(1.35) saturate(1.7)',
+            transform: `translate(${Math.round(absorbX)}px, ${Math.round(absorbY)}px) scale(0.08)`,
+            boxShadow: '0 0 30px rgba(255, 35, 35, 0.82)'
         }
     ], {
-        duration: 460,
-        easing: 'cubic-bezier(0.22, 0.68, 0.18, 1)',
+        duration: 520,
+        easing: 'cubic-bezier(0.2, 0.72, 0.12, 1)',
         fill: 'forwards'
     }, playbackScope);
-    const burnOverlay = overlay
-        ? _animateCompat(overlay, [
-            { opacity: 0, transform: 'scale(0.98)' },
-            { opacity: 0.82, transform: 'scale(1.01)' },
-            { opacity: 0, transform: 'scale(1.04)' }
-        ], {
-            duration: 420,
-            easing: 'ease-out',
-            fill: 'forwards'
-        }, playbackScope)
-        : Promise.resolve();
-    await Promise.all([burnCard, burnOverlay]);
+    await Promise.all([cardAbsorb, cellPulse]);
 }
 
 /**
@@ -2468,7 +2499,14 @@ function playCardUseHandAnimation(payload: any) {
             await waitHold();
 
             if (_isSacrificeSealBurnCardUse(data)) {
-                await _playSacrificeSealBurnVanish(movingCard, sc);
+                await _playSacrificeAbsorbVanish(movingCard, sc, data, {
+                    startX,
+                    startY,
+                    cardWidth,
+                    cardHeight,
+                    currentDx: dx,
+                    currentDy: dy
+                });
             } else {
                 await _animateCompat(movingCard, [
                     { opacity: 1 },

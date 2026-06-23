@@ -182,14 +182,16 @@ describe('animation-engine hand_add', () => {
         cost: 8,
         name: '破壊の意志',
         nullifiedBySacrificeWill: true,
-        cardUseVanishEffect: 'sacrifice_seal_burn'
+        cardUseVanishEffect: 'sacrifice_seal_burn',
+        sacrificeWill: { row: 2, col: 3, owner: 'black', special: 'SACRIFICE' }
       }]
     });
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalledWith(
       expect.objectContaining({
         nullifiedBySacrificeWill: true,
-        cardUseVanishEffect: 'sacrifice_seal_burn'
+        cardUseVanishEffect: 'sacrifice_seal_burn',
+        sacrificeWill: { row: 2, col: 3, owner: 'black', special: 'SACRIFICE' }
       })
     );
   });

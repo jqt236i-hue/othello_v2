@@ -1366,7 +1366,7 @@ describe('animation-utils hand fallback', () => {
     expect(onDisappear).toHaveBeenCalledTimes(1);
   });
 
-  test('playCardUseHandAnimation uses red seal burn vanish for sacrifice nullification', async () => {
+  test('playCardUseHandAnimation absorbs sacrifice-nullified cards into the sacrifice stone', async () => {
     jest.useFakeTimers();
 
     const animateMock = jest.fn(() => ({
@@ -1393,6 +1393,15 @@ describe('animation-utils hand fallback', () => {
       right: 1080,
       bottom: 190
     });
+    const sacrificeCell = document.querySelector('.cell[data-row="0"][data-col="0"]');
+    sacrificeCell.getBoundingClientRect = () => ({
+      left: 260,
+      top: 300,
+      width: 64,
+      height: 64,
+      right: 324,
+      bottom: 364
+    });
 
     const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
@@ -1402,7 +1411,8 @@ describe('animation-utils hand fallback', () => {
       cost: 8,
       name: '破壊の意志',
       nullifiedBySacrificeWill: true,
-      cardUseVanishEffect: 'sacrifice_seal_burn'
+      cardUseVanishEffect: 'sacrifice_seal_burn',
+      sacrificeWill: { row: 0, col: 0, owner: 'black', special: 'SACRIFICE' }
     });
 
     await Promise.resolve();
@@ -1414,8 +1424,9 @@ describe('animation-utils hand fallback', () => {
       await Promise.resolve();
     }
     const keyframesText = JSON.stringify(animateMock.mock.calls.map((call) => call[0]));
-    expect(keyframesText).toContain('rgba(255, 38, 38');
-    expect(keyframesText).toContain('sepia(0.45)');
+    expect(keyframesText).toContain('scale(0.08)');
+    expect(keyframesText).toContain('translate(-558px, 142px) scale(0.08)');
+    expect(keyframesText).toContain('drop-shadow(0 0 16px rgba(255, 55, 55, 0.88))');
 
     jest.advanceTimersByTime(4000);
     await Promise.resolve();
