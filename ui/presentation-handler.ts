@@ -712,6 +712,9 @@ function handlePresentationEvent(ev: any): any {
 
     if (ev.type === 'CARD_USED') {
       const owner = (ev.meta && ev.meta.owner) ? ev.meta.owner : (ev.player || null);
+      const sacrificeWill = (ev.meta && ev.meta.sacrificeWill && typeof ev.meta.sacrificeWill === 'object')
+        ? ev.meta.sacrificeWill
+        : null;
       const playback = [{
         type: 'card_use_animation',
         phase: 1,
@@ -720,7 +723,10 @@ function handlePresentationEvent(ev: any): any {
           owner: owner,
           cardId: ev.cardId || null,
           cost: (ev.meta && Number.isFinite(ev.meta.cost)) ? ev.meta.cost : null,
-          name: (ev.meta && ev.meta.name) ? ev.meta.name : null
+          name: (ev.meta && ev.meta.name) ? ev.meta.name : null,
+          nullifiedBySacrificeWill: !!(ev.meta && ev.meta.nullifiedBySacrificeWill === true),
+          cardUseVanishEffect: (ev.meta && ev.meta.cardUseVanishEffect) ? ev.meta.cardUseVanishEffect : null,
+          sacrificeWill
         }]
       }];
       emitCpuReactionToEnemyCard(ev);

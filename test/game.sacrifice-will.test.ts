@@ -73,7 +73,13 @@ describe('犠牲の意志 card nullification', () => {
         player: 'white',
         meta: expect.objectContaining({
           nullifiedBySacrificeWill: true,
-          cardUseVanishEffect: 'sacrifice_seal_burn'
+          cardUseVanishEffect: 'sacrifice_seal_burn',
+          sacrificeWill: {
+            row: 2,
+            col: 2,
+            owner: 'black',
+            special: 'SACRIFICE'
+          }
         })
       }),
       expect.objectContaining({
@@ -136,7 +142,13 @@ describe('犠牲の意志 card nullification', () => {
           name: '破壊の意志',
           cardType: 'DESTROY_ONE_STONE',
           nullifiedBySacrificeWill: true,
-          cardUseVanishEffect: 'sacrifice_seal_burn'
+          cardUseVanishEffect: 'sacrifice_seal_burn',
+          sacrificeWill: {
+            row: 2,
+            col: 2,
+            owner: 'black',
+            special: 'SACRIFICE'
+          }
         }
       },
       {
@@ -172,7 +184,13 @@ describe('犠牲の意志 card nullification', () => {
     expect(destroy).toBeTruthy();
     expect(cardUse.targets[0]).toMatchObject({
       nullifiedBySacrificeWill: true,
-      cardUseVanishEffect: 'sacrifice_seal_burn'
+      cardUseVanishEffect: 'sacrifice_seal_burn',
+      sacrificeWill: {
+        row: 2,
+        col: 2,
+        owner: 'black',
+        special: 'SACRIFICE'
+      }
     });
     expect(destroy.phase).toBeGreaterThan(cardUse.phase);
   });

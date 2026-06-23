@@ -34,6 +34,12 @@ function getEventMeta(ev: any) {
     return (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
 }
 
+function getSacrificeWillMeta(meta: any) {
+    return (meta && meta.sacrificeWill && typeof meta.sacrificeWill === 'object')
+        ? meta.sacrificeWill
+        : null;
+}
+
 function getBubbleOwner(ev: any) {
     return ev.owner || ev.player || (ev.meta && ev.meta.owner) || null;
 }
@@ -197,6 +203,7 @@ function mapCardUsed(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybac
         name: (evMeta && evMeta.name) ? evMeta.name : null,
         nullifiedBySacrificeWill: !!(evMeta && evMeta.nullifiedBySacrificeWill === true),
         cardUseVanishEffect: (evMeta && evMeta.cardUseVanishEffect) ? evMeta.cardUseVanishEffect : null,
+        sacrificeWill: getSacrificeWillMeta(evMeta),
         visualDescriptor
     }];
     ctx.phaseState.currentPhase++;
