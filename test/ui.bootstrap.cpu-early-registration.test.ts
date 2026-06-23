@@ -467,7 +467,7 @@ describe('UI bootstrap early CPU registration', () => {
   test('resetTransientUIState clears lingering fx ghosts and stale has-disc shadows', () => {
     const dom = new JSDOM(`<!doctype html><html><body>
       <div id="board" class="playback-locked">
-        <div class="cell has-disc legal keyboard-legal-cursor effect-target-highlight-positive" data-row="0" data-col="0"></div>
+        <div class="cell has-disc legal keyboard-legal-cursor random-spawn-preview effect-target-highlight-positive" data-row="0" data-col="0"></div>
       </div>
       <div id="board-expansion-layer">
         <div class="cell-expanded legal-free" data-row="-1" data-col="0"></div>
@@ -513,6 +513,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(uiImpl.clearLegalMoveHints()).toBe(true);
     expect(cell.classList.contains('legal')).toBe(false);
     expect(cell.classList.contains('keyboard-legal-cursor')).toBe(false);
+    expect(cell.classList.contains('random-spawn-preview')).toBe(false);
     expect(cell.classList.contains('effect-target-highlight-positive')).toBe(true);
     expect(expansionCell.classList.contains('legal-free')).toBe(false);
 

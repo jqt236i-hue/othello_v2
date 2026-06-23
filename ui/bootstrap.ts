@@ -1041,10 +1041,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             ['board', 'board-expansion-layer'].forEach((id) => {
                 const root = doc.getElementById(id);
                 if (!root || typeof root.querySelectorAll !== 'function') return;
-                root.querySelectorAll('.legal, .legal-free, .keyboard-legal-cursor').forEach((el: any) => {
+                root.querySelectorAll('.legal, .legal-free, .keyboard-legal-cursor, .random-spawn-preview').forEach((el: any) => {
                     try {
                         if (!el || !el.classList) return;
-                        el.classList.remove('legal', 'legal-free', 'keyboard-legal-cursor');
+                        el.classList.remove('legal', 'legal-free', 'keyboard-legal-cursor', 'random-spawn-preview');
                         cleared = true;
                     } catch (e: any) { /* ignore */ }
                 });
