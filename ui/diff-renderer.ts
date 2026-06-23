@@ -782,28 +782,46 @@ function _normalizeLastUsedCardIdForDiff(value: any): string {
     return String(value).trim();
 }
 
-function _findLastUsedCardByPlayerEntryForDiff(cardStateValue: any, cardId: string) {
+function _normalizeLastUsedOwnerKeyForDiff(value: any): string {
+    if (value && typeof value === 'object') {
+        return _normalizeLastUsedOwnerKeyForDiff(
+            value.ownerKey || value.useCardOwnerKey || value.playerKey || value.owner || value.player || value.color
+        );
+    }
+    const key = String(value || '').trim().toLowerCase();
+    if (!key) return '';
+    if (key === 'black' || key === 'b' || key === '1' || key === '黒') return 'black';
+    if (key === 'white' || key === 'w' || key === '-1' || key === '白') return 'white';
+    return '';
+}
+
+function _findLastUsedCardByPlayerEntryInfoForDiff(cardStateValue: any, cardId: string) {
     const byPlayer = cardStateValue && cardStateValue.lastUsedCardByPlayer && typeof cardStateValue.lastUsedCardByPlayer === 'object'
         ? cardStateValue.lastUsedCardByPlayer
         : null;
     if (!byPlayer) return null;
     const entries = ['black', 'white']
-        .map((key) => byPlayer[key])
-        .filter((entry) => !!_normalizeLastUsedCardIdForDiff(entry));
+        .map((ownerKey) => ({ ownerKey, entry: byPlayer[ownerKey] }))
+        .filter((item) => !!_normalizeLastUsedCardIdForDiff(item.entry));
     if (!entries.length) return null;
     if (cardId) {
-        return entries.find((entry) => _normalizeLastUsedCardIdForDiff(entry) === cardId) || null;
+        return entries.find((item) => _normalizeLastUsedCardIdForDiff(item.entry) === cardId) || null;
     }
     return entries.length === 1 ? entries[0] : null;
 }
 
-function _findLastDiscardCardIdForDiff(cardStateValue: any): string {
+function _findLastDiscardCardEntryForDiff(cardStateValue: any) {
     const discard = Array.isArray(cardStateValue && cardStateValue.discard) ? cardStateValue.discard : [];
     for (let i = discard.length - 1; i >= 0; i -= 1) {
-        const cardId = _normalizeLastUsedCardIdForDiff(discard[i]);
-        if (cardId) return cardId;
+        const entry = discard[i];
+        const cardId = _normalizeLastUsedCardIdForDiff(entry);
+        if (cardId) return entry;
     }
-    return '';
+    return null;
+}
+
+function _findLastDiscardCardIdForDiff(cardStateValue: any): string {
+    return _normalizeLastUsedCardIdForDiff(_findLastDiscardCardEntryForDiff(cardStateValue));
 }
 
 function _resolveLastUsedPanelCopyForDiff(cardId: string): string {
@@ -859,8 +877,14 @@ function _resolveLastUsedCardTagsForDiff(cardId: string) {
 }
 
 function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {
-    let cardId = _findLastDiscardCardIdForDiff(cardStateValue);
-    let lastUsedEntry = _findLastUsedCardByPlayerEntryForDiff(cardStateValue, cardId);
+    const lastDiscardEntry = _findLastDiscardCardEntryForDiff(cardStateValue);
+    let cardId = _normalizeLastUsedCardIdForDiff(lastDiscardEntry);
+    let ownerKey = _normalizeLastUsedOwnerKeyForDiff(lastDiscardEntry);
+    let lastUsedInfo = _findLastUsedCardByPlayerEntryInfoForDiff(cardStateValue, cardId);
+    let lastUsedEntry = lastUsedInfo && lastUsedInfo.entry;
+    if (!ownerKey && lastUsedInfo && lastUsedInfo.ownerKey) {
+        ownerKey = lastUsedInfo.ownerKey;
+    }
     if (!cardId && lastUsedEntry) {
         cardId = _normalizeLastUsedCardIdForDiff(lastUsedEntry);
     }
@@ -875,6 +899,7 @@ function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {
             `効果: ${copy}`
         ],
         tags: _resolveLastUsedCardTagsForDiff(cardId),
+        ownerKey,
         dynamicStartIndex: -1,
         typeKey: 'LAST_USED_CARD',
         source: 'last-used-card'
@@ -920,6 +945,18 @@ function _renderManifestEffectLineText(el: HTMLElement, line: string): void {
     el.appendChild(label);
     el.appendChild(document.createTextNode(' '));
     el.appendChild(value);
+}
+
+function _renderManifestEffectTitleForDiff(titleEl: any, content: any) {
+    if (!titleEl || typeof document === 'undefined') return;
+    titleEl.textContent = '';
+    titleEl.appendChild(document.createTextNode(String(content && content.title || '')));
+    const ownerKey = _normalizeLastUsedOwnerKeyForDiff(content && content.ownerKey);
+    if (!ownerKey) return;
+    const stone = document.createElement('span');
+    stone.className = `manifest-effect-owner-stone is-${ownerKey}`;
+    stone.setAttribute('aria-hidden', 'true');
+    titleEl.appendChild(stone);
 }
 
 function _getManifestEffectTagKindClassForDiff(kind: any) {
@@ -1104,7 +1141,7 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
         return;
     }
 
-    refs.title.textContent = content.title;
+    _renderManifestEffectTitleForDiff(refs.title, content);
     refs.lines.textContent = '';
     const dynamicStartIndex = Number(content.dynamicStartIndex);
     content.lines.forEach((line: string, index: number) => {
@@ -1116,6 +1153,7 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
         _renderManifestEffectLineText(el, line);
         refs.lines.appendChild(el);
     });
+    _renderManifestEffectTagsForDiff(refs.tags, content.tags);
     refs.panel.classList.add('is-visible');
     refs.panel.setAttribute('aria-hidden', 'false');
     refs.panel.setAttribute('data-manifest-effect-type', String(panelEntry && panelEntry.typeKey || ''));

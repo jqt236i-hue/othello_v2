@@ -78,8 +78,33 @@ describe('manifest effect panel', () => {
     expect(panel?.getAttribute('data-manifest-effect-type')).toBe('LAST_USED_CARD');
     expect(panel?.getAttribute('data-manifest-effect-source')).toBe('last-used-card');
     expect(document.getElementById('manifest-effect-title')?.textContent).toBe('最後に使ったカード');
+    const ownerStone = document.getElementById('manifest-effect-title')?.querySelector('.manifest-effect-owner-stone') as HTMLElement | null;
+    expect(ownerStone).not.toBeNull();
+    expect(ownerStone?.classList.contains('is-black')).toBe(true);
+    expect(ownerStone?.textContent).toBe('');
     expect(panel?.textContent).toContain('カード: 宝箱');
     expect(panel?.textContent).toContain('効果: 布石を1〜6獲得する。序盤のカード使用を早められる。');
+  });
+
+  test('renders a white stone marker when the last used card belongs to white', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      markers: [],
+      discard: ['guard_01'],
+      lastUsedCardByPlayer: {
+        black: null,
+        white: { id: 'guard_01', name: '守る意志' }
+      }
+    };
+
+    renderOnce();
+
+    const title = document.getElementById('manifest-effect-title');
+    const ownerStone = title?.querySelector('.manifest-effect-owner-stone') as HTMLElement | null;
+    expect(title?.textContent).toBe('最後に使ったカード');
+    expect(ownerStone).not.toBeNull();
+    expect(ownerStone?.classList.contains('is-white')).toBe(true);
+    expect(ownerStone?.textContent).toBe('');
   });
 
   test('renders clickable effect tags for the last used card', () => {
