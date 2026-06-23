@@ -389,9 +389,27 @@ function createNetworkSnapshotPlaybackController(deps: any): any {
 
     function clearBusyStateAndPlaybackLock(): boolean {
         const runtime = deps && deps.runtime;
+        const playbackState = resolvePlaybackStateModule();
+        let preservedBoardUpdateContext: any = null;
+        try {
+            if (playbackState && typeof playbackState.getBoardUpdateContext === 'function') {
+                preservedBoardUpdateContext = playbackState.getBoardUpdateContext();
+            }
+        } catch (e) { /* ignore */ }
+
         if (runtime && typeof runtime.clearBusyStateAndPlaybackLock === 'function') {
             runtime.clearBusyStateAndPlaybackLock();
         }
+
+        try {
+            if (
+                preservedBoardUpdateContext
+                && playbackState
+                && typeof playbackState.armBoardUpdateContext === 'function'
+            ) {
+                playbackState.armBoardUpdateContext(preservedBoardUpdateContext);
+            }
+        } catch (e) { /* ignore */ }
 
         try {
             if (typeof document !== 'undefined') {

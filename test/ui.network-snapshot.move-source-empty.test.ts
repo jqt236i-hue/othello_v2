@@ -46,6 +46,13 @@ function createPlaybackMove(fromRow, fromCol, toRow, toCol, cause, reason) {
   }];
 }
 
+function withUnclaimedPlaybackSettlement(options) {
+  return Object.assign({
+    releaseUnclaimedPlayback: true,
+    clearUndrainedPlayback: true
+  }, options || {});
+}
+
 function createSpecialMarker(row, col, type, extraData) {
   return {
     kind: 'specialStone',
@@ -276,9 +283,9 @@ describe('Network snapshot move-source empty handling', () => {
     afterBoard[dest.row][dest.col] = global.BLACK;
     const applied = controller.applySnapshot(
       createSnapshot(2, afterBoard, afterMarkers),
-      {
+      withUnclaimedPlaybackSettlement({
         playbackEvents: createPlaybackMove(source.row, source.col, dest.row, dest.col, cause, reason)
-      }
+      })
     );
 
     expect(applied).toBe(true);
@@ -317,9 +324,9 @@ describe('Network snapshot move-source empty handling', () => {
       createSnapshot(2, afterBoard, [
         createSpecialMarker(3, 4, 'ROBOT_VACUUM', { remainingOwnerTurns: 5 })
       ]),
-      {
+      withUnclaimedPlaybackSettlement({
         shadowPlaybackEvents: createPlaybackMove(source.row, source.col, dest.row, dest.col, 'ROBOT_VACUUM_WILL', 'robot_vacuum_move')
-      }
+      })
     );
 
     expect(applied).toBe(true);
@@ -363,7 +370,7 @@ describe('Network snapshot move-source empty handling', () => {
       createSnapshot(2, afterBoard, [
         createSpecialMarker(dest.row, dest.col, 'EXTREME_HYPERACTIVE', { remainingOwnerTurns: 8, flipEvadeRemaining: 5, destroyEvadeRemaining: 5 })
       ]),
-      {
+      withUnclaimedPlaybackSettlement({
         playbackEvents: [{
           type: 'move',
           phase: 1,
@@ -384,7 +391,7 @@ describe('Network snapshot move-source empty handling', () => {
             after: { color: -1, special: null, timer: null, owner: 'white' }
           }]
         }]
-      }
+      })
     );
 
     expect(applied).toBe(true);
@@ -422,9 +429,9 @@ describe('Network snapshot move-source empty handling', () => {
     afterBoard[4][4] = global.BLACK;
     const applied = controller.applySnapshot(
       createSnapshot(2, afterBoard, []),
-      {
+      withUnclaimedPlaybackSettlement({
         playbackEvents: createPlaybackMove(3, 3, 4, 4, 'STRONG_WIND_WILL', 'strong_wind_move')
-      }
+      })
     );
 
     expect(applied).toBe(true);

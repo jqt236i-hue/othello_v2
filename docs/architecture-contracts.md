@@ -381,7 +381,8 @@ Changes here must be treated as contract changes because they affect canonical s
 
 Shared backend ownership for those contracts is:
 
-- `utils/match-authority.ts` owns shared room-identity, seat-token, join/leave, publish-response, and buffered-SSE payload rules; the adjacent `.js` file is a compatibility wrapper.
+- `utils/match-authority.ts` owns shared room-identity, public seat `playerId`, seat-token, join/leave, publish-response, and buffered-SSE payload rules; the adjacent `.js` file is a compatibility wrapper.
+- Anonymous identity secrets (`playerToken`, `recoveryCode`) are verified at worker/local-server API boundaries and must not be stored in room state, ranking entries, snapshots, SSE payloads, or public seat metadata.
 - `scripts/local-match-server.ts` and `workers/match-worker.ts` are the canonical runtime adapters over that shared authority contract; `scripts/local-match-server.js` and `workers/match-worker.mjs` remain thin runtime entry wrappers.
 - runtime-specific code should stay limited to HTTP / Durable Object storage / connection management differences, not duplicate publish or seat-claim semantics
 

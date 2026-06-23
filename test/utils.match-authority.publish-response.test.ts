@@ -24,7 +24,8 @@ describe('match authority publish response payload', () => {
     })).toEqual({
       seats: { black: true, white: false },
       seatNames: { black: 'Alpha B', white: '' },
-      seatHandSkins: { black: 'fancy-hand', white: '' }
+      seatHandSkins: { black: 'fancy-hand', white: '' },
+      seatPlayerIds: { black: '', white: '' }
     });
   });
 
@@ -36,7 +37,8 @@ describe('match authority publish response payload', () => {
     })).toEqual({
       seats: { black: true, white: true },
       seatNames: { black: 'くろ', white: 'しろ' },
-      seatHandSkins: { black: 'gacha__n__陽気な手', white: 'gacha__n__人の手' }
+      seatHandSkins: { black: 'gacha__n__陽気な手', white: 'gacha__n__人の手' },
+      seatPlayerIds: { black: '', white: '' }
     });
   });
 

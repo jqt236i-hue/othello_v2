@@ -384,6 +384,11 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
+    const validationPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers(null));
+    if (!validationPayload.ok) {
+      return emitEntryPayloadFailure(validationPayload.reason);
+    }
+
     const playerIdentity = await ensureEntryPlayerIdentity(opts);
     const entryPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers(playerIdentity));
     if (!entryPayload.ok) {

@@ -322,7 +322,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.observerWillTargetIndex != null ? { observerWillTargetIndex: action.observerWillTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.reverseWillTarget ? { reverseWillTarget: action.reverseWillTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.expansionTarget ? { expansionTarget: action.expansionTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.observerWillTargetIndex != null ? { observerWillTargetIndex: action.observerWillTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.reverseWillTarget ? { reverseWillTarget: action.reverseWillTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.expansionTarget ? { expansionTarget: action.expansionTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.causalReplayTarget ? { causalReplayTarget: action.causalReplayTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -1136,6 +1136,20 @@ function buildPlaybackParityFixtures() {
         { row: 2, col: 4, owner: 'black' }
       ]
     }),
+    buildSimplePendingSelectionFixture({
+      cardId: 'causal_replay_01',
+      pendingType: 'CAUSAL_REPLAY_WILL',
+      actionKey: 'causalReplayTarget',
+      target: { row: 2, col: 2 },
+      markers: [{
+        id: 72,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE', sourceType: 'METEOR_WILL', sourceCardId: 'meteor_01' }
+      }]
+    }),
     buildHandOverlaySelectionFixture({
       cardId: 'heaven_01',
       pendingType: 'HEAVEN_BLESSING',
@@ -1492,6 +1506,7 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.observerWillTargetIndex != null ? { observerWillTargetIndex: fixture.action.observerWillTargetIndex } : {}),
         ...(fixture.action.expansionTarget ? { expansionTarget: fixture.action.expansionTarget } : {}),
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
+        ...(fixture.action.causalReplayTarget ? { causalReplayTarget: fixture.action.causalReplayTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
         ...(fixture.action.teleportTarget ? { teleportTarget: fixture.action.teleportTarget } : {}),
