@@ -183,7 +183,7 @@ function setupPlayerProfilePanel(opts?: any): any {
     if (refs.nameInput) refs.nameInput.value = saved.displayName;
     if (refs.bioInput) refs.bioInput.value = saved.bio;
     if (refs.leaderboardNameInput) refs.leaderboardNameInput.value = saved.displayName;
-    if (refs.networkPlayerNameInput && !refs.networkPlayerNameInput.value.trim()) {
+    if (refs.networkPlayerNameInput) {
       refs.networkPlayerNameInput.value = saved.displayName;
     }
     try {

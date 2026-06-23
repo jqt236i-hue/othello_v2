@@ -213,4 +213,42 @@ describe('game keyboard shortcuts', () => {
     expect(clicks).toEqual([]);
     expect(dom.window.document.querySelector('.keyboard-legal-cursor')).toBeNull();
   });
+
+  test('shortcuts are ignored while profile overlay is open even with button focus', () => {
+    const dom = buildDom('<div id="profileOverlay" class="is-open"><button id="profileTabProfile" type="button"></button></div>');
+    const { placed, used, destroyed, clicks } = createController(dom);
+    const profileButton = dom.window.document.getElementById('profileTabProfile') as HTMLButtonElement;
+    profileButton.focus();
+
+    profileButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+      code: 'KeyD',
+      key: 'd',
+      bubbles: true,
+      cancelable: true
+    }));
+    profileButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+      code: 'Space',
+      key: ' ',
+      bubbles: true,
+      cancelable: true
+    }));
+    profileButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true
+    }));
+    profileButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+      code: 'KeyD',
+      key: 'D',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    }));
+
+    expect(placed).toEqual([]);
+    expect(used).toEqual([]);
+    expect(destroyed).toEqual([]);
+    expect(clicks).toEqual([]);
+    expect(dom.window.document.querySelector('.keyboard-legal-cursor')).toBeNull();
+  });
 });

@@ -29,6 +29,7 @@ const BLOCKING_UI_SELECTORS = [
     '#handSkinPanel.is-open',
     '#networkOverlay.is-open',
     '#leaderboardOverlay.is-open',
+    '#profileOverlay.is-open',
     '#gachaOverlay.is-open',
     '#deckBuilderOverlay.is-open'
 ];

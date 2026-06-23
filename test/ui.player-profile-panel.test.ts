@@ -84,11 +84,15 @@ describe('player profile panel controller', () => {
 
   test('opens, saves profile fields, and updates identity controls', async () => {
     const panel = require('../ui/player-profile-panel.js');
+    (window as any).LeaderboardClient = {
+      setPlayerName: jest.fn()
+    };
     panel.setupPlayerProfilePanel({ root: window });
 
     document.getElementById('profileOpenBtn')!.click();
     expect(document.getElementById('profileOverlay')!.classList.contains('is-open')).toBe(true);
 
+    (document.getElementById('networkPlayerNameInput') as HTMLInputElement).value = '古い名前';
     (document.getElementById('profileNameInput') as HTMLInputElement).value = 'さかな';
     (document.getElementById('profileBioInput') as HTMLTextAreaElement).value = 'よろしく';
     (document.querySelector('[data-avatar-stone-type="SNIPER"]') as HTMLButtonElement).click();
@@ -98,6 +102,7 @@ describe('player profile panel controller', () => {
     expect(storedProfile).toMatchObject({ displayName: 'さかな', avatarStoneType: 'SNIPER', bio: 'よろしく' });
     expect((document.getElementById('leaderboardNameInput') as HTMLInputElement).value).toBe('さかな');
     expect((document.getElementById('networkPlayerNameInput') as HTMLInputElement).value).toBe('さかな');
+    expect((window as any).LeaderboardClient.setPlayerName).toHaveBeenCalledWith('さかな');
 
     document.getElementById('profileEnsureIdentityBtn')!.click();
     await Promise.resolve();
