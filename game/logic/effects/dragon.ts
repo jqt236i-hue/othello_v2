@@ -70,6 +70,7 @@ interface DragonDeps {
     moveCoexistingSpecialMarkers?: (cardState: any, anchorEntry: any, fromRow: number, fromCol: number, toRow: number, toCol: number) => void;
     selectRandomEmptyBoardShapeDestination?: (cardState: any, gameState: any, fromRow: number, fromCol: number, randomSource: any) => { row: number; col: number } | null;
     randomSource?: any;
+    resolveFlipEvasion?: (cardState: any, gameState: any, flipCells: Array<{ row: number; col: number }>, ownerAfterKey: string, randomSource: any) => any;
 }
 
 interface DragonEffectResult {
@@ -234,6 +235,63 @@ function isBombCategoryMarker(marker: any): boolean {
     );
 }
 
+function normalizeFlipCell(cell: any): { row: number; col: number } | null {
+    if (Array.isArray(cell) && Number.isInteger(cell[0]) && Number.isInteger(cell[1])) {
+        return { row: cell[0], col: cell[1] };
+    }
+    if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) {
+        return { row: cell.row, col: cell.col };
+    }
+    return null;
+}
+
+function resolveDragonFlipEvasion(cardState: any, gameState: any, targets: Array<{ row: number; col: number }>, playerKey: string, deps: DragonDeps): Array<{ row: number; col: number }> {
+    if (!targets.length || !(deps && typeof deps.resolveFlipEvasion === 'function')) {
+        return targets.slice();
+    }
+    const result = deps.resolveFlipEvasion(cardState, gameState, targets, playerKey, deps.randomSource);
+    if (!result || !Array.isArray(result.remainingFlips)) {
+        return targets.slice();
+    }
+    return result.remainingFlips
+        .map((cell: any) => normalizeFlipCell(cell))
+        .filter((cell: { row: number; col: number } | null): cell is { row: number; col: number } => !!cell);
+}
+
+function collectDragonConversionTargets(gameState: any, row: number, col: number, opponent: number, protectedSet: Set<string>): Array<{ row: number; col: number }> {
+    const targets: Array<{ row: number; col: number }> = [];
+    forEachNeighborCell(gameState, row, col, (r, c, value) => {
+        if (value !== opponent) return;
+        const key = `${r},${c}`;
+        if (protectedSet.has(key)) return;
+        targets.push({ row: r, col: c });
+    });
+    return targets;
+}
+
+function applyDragonConversions(cardState: any, gameState: any, playerKey: string, player: number, opponent: number, row: number, col: number, reason: string, protectedSet: Set<string>, clearBombAt: (row: number, col: number) => void, deps: DragonDeps): Array<{ row: number; col: number }> {
+    const BoardOps = deps.BoardOps;
+    const targets = collectDragonConversionTargets(gameState, row, col, opponent, protectedSet);
+    const remainingTargets = resolveDragonFlipEvasion(cardState, gameState, targets, playerKey, deps);
+    const converted: Array<{ row: number; col: number }> = [];
+
+    for (const target of remainingTargets) {
+        if (getCellValue(gameState, target.row, target.col) !== opponent) continue;
+        let changed = true;
+        if (BoardOps && typeof BoardOps.changeAt === 'function') {
+            const changeResult = BoardOps.changeAt(cardState, gameState, target.row, target.col, playerKey, 'DRAGON', reason);
+            changed = !!(changeResult && changeResult.changed);
+        } else {
+            changed = setCellValue(gameState, target.row, target.col, player);
+        }
+        if (!changed) continue;
+        clearBombAt(target.row, target.col);
+        converted.push({ row: target.row, col: target.col });
+    }
+
+    return converted;
+}
+
 function processDragonEffects(cardState: any, gameState: any, playerKey: string, deps: DragonDeps = {}): DragonEffectResult {
     const BoardOps = deps.BoardOps;
     const converted: { row: number; col: number }[] = [];
@@ -276,19 +334,19 @@ function processDragonEffects(cardState: any, gameState: any, playerKey: string,
         if (afterDec < 0) continue;
         anchors.push({ row: dragon.row, col: dragon.col, remainingNow: afterDec });
 
-        forEachNeighborCell(gameState, dragon.row, dragon.col, (r, c, value) => {
-            if (value === opponent) {
-                const key = `${r},${c}`;
-                if (protectedSet.has(key)) return;
-                if (BoardOps && typeof BoardOps.changeAt === 'function') {
-                    BoardOps.changeAt(cardState, gameState, r, c, playerKey, 'DRAGON', 'dragon_convert');
-                } else {
-                    setCellValue(gameState, r, c, player);
-                }
-                clearBombAt(r, c);
-                converted.push({ row: r, col: c });
-            }
-        });
+        converted.push(...applyDragonConversions(
+            cardState,
+            gameState,
+            playerKey,
+            player,
+            opponent,
+            dragon.row,
+            dragon.col,
+            'dragon_convert',
+            protectedSet,
+            clearBombAt,
+            deps
+        ));
 
         if (afterDec === 0) {
             destroyed.push({ row: dragon.row, col: dragon.col, owner: playerKey, reason: 'anchor_expired' });
@@ -344,7 +402,6 @@ function processDragonEffects(cardState: any, gameState: any, playerKey: string,
 }
 
 function processDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey: string, row: number, col: number, deps: DragonDeps = {}): Omit<DragonEffectResult, 'anchors'> {
-    const BoardOps = deps.BoardOps;
     const converted: { row: number; col: number }[] = [];
     const destroyed: { row: number; col: number; owner: string; reason: string }[] = [];
 
@@ -365,18 +422,19 @@ function processDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey:
         (cardState as any).markers = (cardState as any).markers.filter((x: any) => !(isBombCategoryMarker(x) && x.row === r && x.col === c));
     };
 
-    forEachNeighborCell(gameState, row, col, (r, c, value) => {
-        if (value !== opponent) return;
-        const key = `${r},${c}`;
-        if (protectedSet.has(key)) return;
-        if (BoardOps && typeof BoardOps.changeAt === 'function') {
-            BoardOps.changeAt(cardState, gameState, r, c, playerKey, 'DRAGON', 'dragon_convert_immediate');
-        } else {
-            setCellValue(gameState, r, c, player);
-        }
-        clearBombAt(r, c);
-        converted.push({ row: r, col: c });
-    });
+    converted.push(...applyDragonConversions(
+        cardState,
+        gameState,
+        playerKey,
+        player,
+        opponent,
+        row,
+        col,
+        'dragon_convert_immediate',
+        protectedSet,
+        clearBombAt,
+        deps
+    ));
 
     if (converted.length > 0 && (cardState as any).markers) {
         const removeSet = new Set(converted.map(p => `${p.row},${p.col}`));
@@ -464,19 +522,19 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
         (cardState as any).markers = (cardState as any).markers.filter((x: any) => !(isBombCategoryMarker(x) && x.row === r && x.col === c));
     };
 
-    forEachNeighborCell(gameState, anchorRow, anchorCol, (r, c, value) => {
-        if (value === opponent) {
-            const key = `${r},${c}`;
-            if (protectedSet.has(key)) return;
-            if (BoardOps && typeof BoardOps.changeAt === 'function') {
-                BoardOps.changeAt(cardState, gameState, r, c, playerKey, 'DRAGON', 'dragon_convert');
-            } else {
-                setCellValue(gameState, r, c, player);
-            }
-            clearBombAt(r, c);
-            converted.push({ row: r, col: c });
-        }
-    });
+    converted.push(...applyDragonConversions(
+        cardState,
+        gameState,
+        playerKey,
+        player,
+        opponent,
+        anchorRow,
+        anchorCol,
+        'dragon_convert',
+        protectedSet,
+        clearBombAt,
+        deps
+    ));
 
     if (afterDec === 0) {
         destroyed.push({ row: anchorRow, col: anchorCol, owner: playerKey, reason: 'anchor_expired' });

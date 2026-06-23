@@ -3859,8 +3859,19 @@ const {
             BoardOpsModule,
             getCardContext,
             selectRandomEmptyBoardShapeDestination,
-            moveCoexistingSpecialMarkers
+            moveCoexistingSpecialMarkers,
+            resolveFlipEvasion: resolveDragonFlipEvasionForEffect
         });
+    }
+
+    function resolveDragonFlipEvasionForEffect(cardStateArg: any, gameStateArg: any, flipCells: any, ownerAfterKey: any, randomSource: any) {
+        return resolveHyperactiveFlipEvasion(
+            cardStateArg,
+            gameStateArg,
+            flipCells,
+            ownerAfterKey,
+            randomSource || getCurrentActionRandomSource(cardStateArg)
+        );
     }
 
 
@@ -3869,12 +3880,14 @@ const {
      * Does NOT decrement remainingOwnerTurns (only owner turn starts decrement).
      * @returns {Object} { converted: [...], destroyed: [...] }
      */
-    function processDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+    function processDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts: any = {}) {
         const dragonDeps = {
             BoardOps: BoardOpsModule,
             getCardContext,
             selectRandomEmptyBoardShapeDestination,
-            moveCoexistingSpecialMarkers
+            moveCoexistingSpecialMarkers,
+            randomSource: opts.randomSource ?? null,
+            resolveFlipEvasion: resolveDragonFlipEvasionForEffect
         };
         return DragonEffectsModule.processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
     }
@@ -3885,7 +3898,8 @@ const {
             getCardContext,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers,
-            randomSource: opts.randomSource ?? null
+            randomSource: opts.randomSource ?? null,
+            resolveFlipEvasion: resolveDragonFlipEvasionForEffect
         }, opts);
         return DragonEffectsModule.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
     }

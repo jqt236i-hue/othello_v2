@@ -195,13 +195,15 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
 }
 
 function processDragonEffects(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
-    const { BoardOpsModule, getCardContext, selectRandomEmptyBoardShapeDestination, moveCoexistingSpecialMarkers } = deps || {};
+    const { BoardOpsModule, getCardContext, selectRandomEmptyBoardShapeDestination, moveCoexistingSpecialMarkers, resolveFlipEvasion, randomSource } = deps || {};
     const DragonEffectsModule = getDragonEffectsModule();
     const dragonDeps = {
         BoardOps: BoardOpsModule,
         getCardContext,
         selectRandomEmptyBoardShapeDestination,
-        moveCoexistingSpecialMarkers
+        moveCoexistingSpecialMarkers,
+        resolveFlipEvasion,
+        randomSource
     };
     return DragonEffectsModule.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
 }

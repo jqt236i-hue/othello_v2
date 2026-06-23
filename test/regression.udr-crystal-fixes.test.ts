@@ -189,6 +189,95 @@ describe('UDR and Crystal regressions', () => {
         expect(movePresentation).toBeTruthy();
     });
 
+    test('ULTIMATE_REVERSE_DRAGON immediate conversion lets flip-evasion stones dodge instead of flipping', () => {
+        const { cardState, gameState } = createStates(0);
+
+        gameState.board[4][4] = Core.BLACK;
+        gameState.board[4][5] = Core.WHITE;
+        cardState.markers.push(
+            {
+                id: 903,
+                kind: 'specialStone',
+                row: 4,
+                col: 4,
+                owner: 'black',
+                data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+            },
+            {
+                id: 904,
+                kind: 'specialStone',
+                row: 4,
+                col: 5,
+                owner: 'white',
+                data: { type: 'AFTERIMAGE_WILL', flipEvadeRemaining: 3, destroyEvadeRemaining: 3 }
+            }
+        );
+
+        const out = CardLogic.processDragonEffectsAtAnchor(cardState, gameState, 'black', 4, 4, {
+            randomSource: createPrng(0)
+        });
+
+        const marker = cardState.markers.find((entry) => entry && entry.id === 904);
+        expect(gameState.board[4][5]).toBe(Core.EMPTY);
+        expect(marker).toBeTruthy();
+        expect(marker.row === 4 && marker.col === 5).toBe(false);
+        expect(gameState.board[marker.row][marker.col]).toBe(Core.WHITE);
+        expect(marker.data.flipEvadeRemaining).toBe(2);
+        expect(marker.data.destroyEvadeRemaining).toBe(3);
+        expect(out.converted).toEqual([]);
+    });
+
+    test('ULTIMATE_REVERSE_DRAGON turn-start conversion lets flip-evasion stones dodge after anchor movement', () => {
+        const { cardState, gameState } = createStates(0);
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                gameState.board[row][col] = Core.BLACK;
+            }
+        }
+        gameState.board[0][0] = Core.EMPTY;
+        gameState.board[0][1] = Core.WHITE;
+        gameState.board[2][2] = Core.EMPTY;
+        gameState.board[4][4] = Core.BLACK;
+        cardState.markers.push(
+            {
+                id: 905,
+                kind: 'specialStone',
+                row: 4,
+                col: 4,
+                owner: 'black',
+                data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+            },
+            {
+                id: 906,
+                kind: 'specialStone',
+                row: 0,
+                col: 1,
+                owner: 'white',
+                data: { type: 'AFTERIMAGE_WILL', flipEvadeRemaining: 3, destroyEvadeRemaining: 3 }
+            }
+        );
+
+        const out = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, {
+            randomSource: createPrng(0)
+        });
+
+        const marker = cardState.markers.find((entry) => entry && entry.id === 906);
+        expect(out.moved).toEqual([
+            {
+                from: { row: 4, col: 4 },
+                to: { row: 0, col: 0 }
+            }
+        ]);
+        expect(gameState.board[0][1]).toBe(Core.EMPTY);
+        expect(marker).toBeTruthy();
+        expect(marker.row === 0 && marker.col === 1).toBe(false);
+        expect(gameState.board[marker.row][marker.col]).toBe(Core.WHITE);
+        expect(marker.data.flipEvadeRemaining).toBe(2);
+        expect(marker.data.destroyEvadeRemaining).toBe(3);
+        expect(out.converted).toEqual([]);
+    });
+
     test('selfplay runner passes the same Crystal evaluation metrics as the in-game CPU context', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
