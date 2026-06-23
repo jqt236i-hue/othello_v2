@@ -1033,6 +1033,26 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
     }
 
+    function clearLegalMoveHintsForTurnManager() {
+        const doc = getTransientUIResetDocument();
+        if (!doc) return false;
+        let cleared = false;
+        try {
+            ['board', 'board-expansion-layer'].forEach((id) => {
+                const root = doc.getElementById(id);
+                if (!root || typeof root.querySelectorAll !== 'function') return;
+                root.querySelectorAll('.legal, .legal-free, .keyboard-legal-cursor').forEach((el: any) => {
+                    try {
+                        if (!el || !el.classList) return;
+                        el.classList.remove('legal', 'legal-free', 'keyboard-legal-cursor');
+                        cleared = true;
+                    } catch (e: any) { /* ignore */ }
+                });
+            });
+        } catch (e: any) { /* ignore */ }
+        return cleared;
+    }
+
     function resetBoardCellTransientState(cell: any) {
         if (!cell || !cell.querySelectorAll) return;
         try {
@@ -2078,6 +2098,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     writeRuntimeValue: (key: string, value: any) => {
                         try { if (typeof globalThis !== 'undefined') (globalThis as any)[key] = value; } catch (e: any) { /* ignore */ }
                     },
+                    clearLegalMoveHints: clearLegalMoveHintsForTurnManager,
                     readProcessing: () => {
                         try {
                             const playbackState = getPlaybackStateModuleForReset();

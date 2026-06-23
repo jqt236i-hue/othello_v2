@@ -175,6 +175,15 @@ function clearPlaybackLockForTurnManager() {
     });
 }
 
+function clearLegalMoveHintsForTurnManager() {
+    try {
+        const impl = getUIImpl();
+        if (impl && typeof impl.clearLegalMoveHints === 'function') {
+            impl.clearLegalMoveHints();
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function getPlaybackStartedAtForTurnManager() {
     try {
         const impl = getUIImpl();
@@ -737,6 +746,7 @@ function handleCellClick(row: number, col: number) {
         });
     }
 
+    clearLegalMoveHintsForTurnManager();
     callTurnManagerRuntimeFunction('onTimeAttackFirstMove', { row, col, playerKey });
 
     if (isNetworkModeForTurnManager()) {

@@ -233,6 +233,37 @@ describe('turn-manager scheduling', () => {
     spy.mockRestore();
   });
 
+  test('handleCellClick clears legal move hints before executing an accepted move', () => {
+    const clearLegalMoveHints = jest.fn();
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      ...buildTurnManagerUIBridge(),
+      clearLegalMoveHints
+    });
+
+    rm.handleCellClick(0, 0);
+
+    expect(clearLegalMoveHints).toHaveBeenCalledTimes(1);
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+    expect(clearLegalMoveHints.mock.invocationCallOrder[0])
+      .toBeLessThan(global.executeMove.mock.invocationCallOrder[0]);
+  });
+
+  test('handleCellClick keeps legal move hints when the clicked cell is not legal', () => {
+    const clearLegalMoveHints = jest.fn();
+    global.findMoveForCell = jest.fn(() => null);
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      ...buildTurnManagerUIBridge(),
+      clearLegalMoveHints
+    });
+
+    rm.handleCellClick(0, 0);
+
+    expect(clearLegalMoveHints).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
   test('network mode skips local place-hand animation and executes move immediately', () => {
     global.MATCH_MODE = 'network';
     global.NetworkMatchClient = { getSeatKey: () => 'black' };
