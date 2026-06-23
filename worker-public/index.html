@@ -253,7 +253,7 @@
                             <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
                             <li>盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。</li>
                             <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
-                            <li>左下メニューで「CPU」/「リバーシ」/「ネット対戦」を切り替えられます。</li>
+                            <li>左下メニューの「CPU」「ネット対戦」と、設定パネル内の「リバーシ」で対戦モードを切り替えられます。</li>
                             <li>音量やBGMはクイック操作や設定から調整できます。</li>
                             <li>石情報は、マウスでは石にカーソルを合わせるだけで、タッチでは石を1回タップすると確認できます。</li>
                         </ol>
@@ -482,10 +482,6 @@
             <span class="left-action-icon left-action-icon-cpu" aria-hidden="true"></span>
             <span class="left-action-label">CPU</span>
         </button>
-        <button id="modeReversiBtn" class="btn-small left-action-btn" type="button">
-            <span class="left-action-icon left-action-icon-reversi" aria-hidden="true"></span>
-            <span class="left-action-label">リバーシ</span>
-        </button>
         <button id="modeNetworkBtn" class="btn-small left-action-btn" type="button" aria-controls="networkOverlay" aria-expanded="false">
             <span class="left-action-icon left-action-icon-network" aria-hidden="true"></span>
             <span class="left-action-label">ネット対戦</span>
@@ -689,6 +685,10 @@
                 <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
                     style="background-color: #4a3828; color: #d7ccc8;">DEBUG: OFF</button>
                 <button id="logToggleBtn" class="btn-small" type="button" aria-controls="log" aria-expanded="false" title="ログ">ログ</button>
+            </div>
+            <div class="control-group mode-shortcut-group">
+                <div class="control-label">MODE</div>
+                <button id="modeReversiBtn" class="btn-small" type="button">リバーシ</button>
             </div>
             <div class="control-group board-size-group">
                 <div class="control-label">BOARD</div>

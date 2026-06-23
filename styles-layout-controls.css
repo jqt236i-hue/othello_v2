@@ -51,6 +51,7 @@
 }
 
 #modeCpuBtn,
+#modeReversiBtn,
 #modeNetworkBtn,
 #debugModeBtn {
     flex: 0 0 auto;
@@ -2718,15 +2719,6 @@ body.time-stop-active {
     --left-action-icon-bottom: #b8f2a6;
 }
 
-#leftActionButtons #modeReversiBtn {
-    --left-action-tone: rgba(238, 232, 213, 0.18);
-    --left-action-tone-strong: rgba(238, 232, 213, 0.42);
-    --left-action-tone-soft: rgba(255, 255, 255, 0.12);
-    --left-action-border: rgba(238, 232, 213, 0.26);
-    --left-action-icon-top: #fff8e8;
-    --left-action-icon-bottom: #d6d0bf;
-}
-
 #leftActionButtons #modeNetworkBtn {
     --left-action-tone: rgba(93, 171, 255, 0.24);
     --left-action-tone-strong: rgba(93, 171, 255, 0.58);
@@ -3347,7 +3339,6 @@ input[type=range].compact-slider.quick-volume-slider::-moz-range-thumb {
 }
 
 #leftActionButtons #modeCpuBtn,
-#leftActionButtons #modeReversiBtn,
 #leftActionButtons #modeNetworkBtn,
 #leftActionButtons #gachaOpenBtn,
 #leftActionButtons #deckBuilderOpenBtn,
@@ -3493,6 +3484,8 @@ body #control-panel {
         repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.024) 0 1px, transparent 1px 5px),
         repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 9px),
         linear-gradient(180deg, rgba(21, 23, 19, 0.95), rgba(7, 10, 9, 0.97) 58%, rgba(5, 9, 8, 0.98));
+    width: min(100%, calc(206px * var(--layout-stage-scale)));
+    max-width: calc(206px * var(--layout-stage-scale));
     box-shadow:
         0 calc(16px * var(--layout-stage-scale)) calc(32px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
         0 0 0 calc(1px * var(--layout-stage-scale)) rgba(16, 12, 8, 0.92),
@@ -3541,10 +3534,28 @@ body #control-panel .control-group {
     --settings-row-rgb: 185, 154, 87;
     min-height: calc(26px * var(--layout-stage-scale));
     padding: calc(3px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    row-gap: calc(6px * var(--layout-stage-scale));
+    column-gap: calc(6px * var(--layout-stage-scale));
     border-left: calc(2px * var(--layout-stage-scale)) solid rgba(var(--settings-row-rgb), 0.42);
     border-radius: calc(2px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(var(--settings-row-rgb), 0.12), transparent 34%, rgba(91, 126, 96, 0.035));
+}
+
+body #control-panel .control-group.mode-shortcut-group {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+body #control-panel .control-group.mode-shortcut-group .control-label {
+    width: 100%;
+}
+
+body #control-panel .control-group:has(#modeReversiBtn) {
+    --settings-row-rgb: 145, 136, 108;
 }
 
 body #control-panel .control-group:has(#debugModeBtn) {
@@ -3605,7 +3616,7 @@ body #control-panel :is(.btn-small, select.compact-select, .compact-number-input
         inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(var(--settings-control-rgb), 0.28);
 }
 
-body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #bgmPlayBtn, #bgmPauseBtn) {
+body #control-panel :is(#modeReversiBtn, #debugModeBtn, #logToggleBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #bgmPlayBtn, #bgmPauseBtn) {
     background:
         linear-gradient(180deg, rgba(var(--settings-control-rgb), 0.20), transparent 46%),
         repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
@@ -3614,7 +3625,7 @@ body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeOpenBtn, #boardS
     border-color: rgba(var(--settings-control-rgb), 0.56);
 }
 
-body #control-panel :is(#boardSizeOpenBtn, #bgmPlayBtn, #bgmPauseBtn):hover,
+body #control-panel :is(#modeReversiBtn, #boardSizeOpenBtn, #bgmPlayBtn, #bgmPauseBtn):hover,
 body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeCloseBtn):hover {
     border-color: rgba(var(--settings-control-rgb), 0.74);
     filter: brightness(1.05);
@@ -3640,6 +3651,13 @@ body #control-panel #debugModeBtn {
     --settings-control-rgb: 174, 100, 79;
 }
 
+body #control-panel #modeReversiBtn {
+    --settings-control-rgb: 145, 136, 108;
+    width: 100%;
+    min-height: calc(30px * var(--layout-stage-scale));
+    font-weight: 800;
+}
+
 body #control-panel #logToggleBtn {
     --settings-control-rgb: 148, 132, 95;
 }
@@ -3658,12 +3676,31 @@ body #control-panel #smartWhite {
     color: rgba(249, 242, 222, 0.98);
 }
 
+body #control-panel :is(#smartBlack, #smartWhite) {
+    flex: 1 1 calc(78px * var(--layout-stage-scale));
+    min-width: 0;
+    width: auto !important;
+}
+
 body #control-panel #seTypeSelect {
     --settings-control-rgb: 103, 143, 158;
+    flex: 1 1 calc(110px * var(--layout-stage-scale));
+    min-width: 0;
 }
 
 body #control-panel :is(#bgmPlayBtn, #bgmPauseBtn, #bgmTrackSelect, #bgmVolSlider) {
     --settings-control-rgb: 190, 155, 78;
+}
+
+body #control-panel #bgmTrackSelect {
+    flex: 1 1 calc(90px * var(--layout-stage-scale));
+    min-width: 0;
+    max-width: none !important;
+}
+
+body #control-panel #bgmVolSlider {
+    flex: 1 1 100%;
+    min-width: 0;
 }
 
 body #control-panel .board-size-control-summary {

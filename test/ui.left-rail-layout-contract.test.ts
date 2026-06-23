@@ -79,12 +79,23 @@ describe('left action rail layout contract', () => {
   test('left action rail exposes mode and utility buttons in index markup', () => {
     const html = readRepoTextFile('index.html');
 
-    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeReversiBtn"[\s\S]*id="modeNetworkBtn"/);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeNetworkBtn"/);
+    expect(html).not.toMatch(/id="modeReversiBtn"\s+class="btn-small left-action-btn"/);
+    expect(html).toMatch(/id="control-panel"[\s\S]*id="modeReversiBtn"[\s\S]*>リバーシ</);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定</);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leftRailVisibilityBtn"[\s\S]*>非表示</);
     expect(html).toMatch(/class="left-action-icon left-action-icon-gacha"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-deck"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
+  });
+
+  test('settings panel keeps a narrower vertical layout with an internal reversi shortcut', () => {
+    const layoutCss = readLayoutCssSurface();
+
+    expect(layoutCss).toMatch(/body #control-panel[\s\S]*max-width:\s*calc\(206px \* var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/body #control-panel \.control-group[\s\S]*flex-wrap:\s*wrap/);
+    expect(layoutCss).toMatch(/body #control-panel \.control-group\.mode-shortcut-group[\s\S]*flex-direction:\s*column/);
+    expect(layoutCss).toMatch(/body #control-panel #modeReversiBtn[\s\S]*width:\s*100%/);
   });
 
   test('left action rail can collapse to its visibility toggle', () => {
