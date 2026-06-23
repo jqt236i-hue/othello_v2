@@ -1,2 +1,5 @@
-const path = require('path');
-module.exports = require(path.join(process.cwd(), 'dist', 'ui', 'leaderboard-client.js'));
+'use strict';
+
+module.exports = process.env.JEST_WORKER_ID
+  ? require('./leaderboard-client.ts')
+  : require('../dist/ui/leaderboard-client');
