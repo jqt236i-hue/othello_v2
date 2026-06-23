@@ -88,7 +88,7 @@ export const LAST_USED_PANEL_COPY_BY_CARD_ID: Readonly<Record<string, string>> =
   support_troops_01: '既存石の近くの空きマスに、自分の通常石を3個配置する。',
   equality_will_01: '自分の布石が0の時だけ、相手の布石を最大10奪う。',
   fate_will_01: '次の相手ターンを、自分が代わりに操作できるようにする。',
-  meteor_god_01: '次の石は因果抹消神になり、敵石を選んで穴マスにする。'
+  meteor_god_01: '次の石は因果抹消神になり、敵石をランダムに抹消して穴にする。'
 });
 
 export function getLastUsedPanelCopy(cardId: unknown): string {
