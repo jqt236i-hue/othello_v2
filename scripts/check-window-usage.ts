@@ -5,6 +5,18 @@ import * as ts from 'typescript';
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const root = path.resolve(__dirname, '..', '..');
+const SKIP_DIRS = new Set([
+    '.git',
+    '.sisyphus',
+    '.wrangler',
+    '.venv',
+    'assets',
+    'coverage',
+    'dist',
+    'node_modules',
+    'tmp',
+    'worker-public'
+]);
 
 type Violation = { file: string; line: number; label: string };
 type PatternViolation = { pattern: RegExp; label: string };
@@ -89,9 +101,15 @@ function walk(dir: string): string[] {
     const list = fs.readdirSync(dir);
     list.forEach(file => {
         const filePath = path.join(dir, file);
-        const stat = fs.statSync(filePath);
+        const relPath = path.relative(root, filePath).replace(/\\/g, '/');
+        const firstSegment = relPath.split('/')[0];
+        if (SKIP_DIRS.has(file) || SKIP_DIRS.has(firstSegment)) return;
+        const stat = fs.lstatSync(filePath);
+        if (stat.isSymbolicLink()) return;
         if (stat && stat.isDirectory()) {
-            results.push(...walk(filePath));
+            for (const child of walk(filePath)) {
+                results.push(child);
+            }
         } else {
             results.push(filePath);
         }

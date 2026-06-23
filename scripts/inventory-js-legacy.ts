@@ -87,7 +87,7 @@ function classify(relPath: string, content: string): JsCategory {
     return 'test-fixture';
   }
 
-  if (relPath === 'public/module-registry.js' && content.includes('Auto-generated module registry')) return 'generated';
+  if ((relPath === 'public/module-registry.js' || relPath === 'public/module-registry.optional.js') && content.includes('Auto-generated module registry')) return 'generated';
 
   if (
     relPath === 'entry-browser.js'
