@@ -2544,32 +2544,32 @@
     }
 
     #leaderboardSummary {
-        grid-template-columns: 1fr;
-        gap: calc(9px * var(--layout-stage-scale));
-        margin-top: calc(8px * var(--layout-stage-scale));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: calc(7px * var(--layout-stage-scale));
+        margin-top: calc(4px * var(--layout-stage-scale));
     }
 
     .leaderboard-summary-card {
-        min-height: calc(84px * var(--layout-stage-scale));
+        min-height: calc(52px * var(--layout-stage-scale));
         padding:
-            calc(10px * var(--layout-stage-scale))
-            calc(13px * var(--layout-stage-scale))
-            calc(9px * var(--layout-stage-scale))
-            calc(84px * var(--layout-stage-scale));
+            calc(7px * var(--layout-stage-scale))
+            calc(4px * var(--layout-stage-scale))
+            calc(6px * var(--layout-stage-scale));
+        text-align: center;
     }
 
     .leaderboard-summary-card::before {
-        left: calc(19px * var(--layout-stage-scale));
-        width: calc(48px * var(--layout-stage-scale));
-        height: calc(48px * var(--layout-stage-scale));
+        display: none;
     }
 
     .leaderboard-summary-label {
-        font-size: calc(13px * var(--layout-stage-scale));
+        font-size: calc(8px * var(--layout-stage-scale));
+        line-height: 1.15;
     }
 
     .leaderboard-summary-value {
-        font-size: calc(30px * var(--layout-stage-scale));
+        font-size: calc(17px * var(--layout-stage-scale));
+        line-height: 1.05;
     }
 
     #leaderboardFilterTabs {
@@ -2679,6 +2679,10 @@
         font-size: calc(20px * var(--layout-stage-scale));
     }
 
+    .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::after {
+        transform: translate(0, 0);
+    }
+
     .leaderboard-podium-card.is-rank-2 .leaderboard-podium-name,
     .leaderboard-podium-card.is-rank-3 .leaderboard-podium-name {
         top: calc(43px * var(--layout-stage-scale));
@@ -2721,6 +2725,72 @@
     }
 
     #leaderboardListViewport {
-        min-height: calc(132px * var(--layout-stage-scale));
+        min-height: calc(230px * var(--layout-stage-scale));
+    }
+
+    .leaderboard-row {
+        grid-template-columns:
+            calc(30px * var(--layout-stage-scale))
+            minmax(0, 1fr)
+            minmax(calc(58px * var(--layout-stage-scale)), auto);
+        grid-template-areas:
+            "rank name score"
+            "rank mode score";
+        gap:
+            calc(2px * var(--layout-stage-scale))
+            calc(7px * var(--layout-stage-scale));
+        min-height: calc(38px * var(--layout-stage-scale));
+        padding:
+            calc(3px * var(--layout-stage-scale))
+            calc(8px * var(--layout-stage-scale));
+    }
+
+    .leaderboard-rank-wrap {
+        grid-area: rank;
+        align-self: center;
+    }
+
+    .leaderboard-rank-badge {
+        min-width: calc(24px * var(--layout-stage-scale));
+        height: calc(24px * var(--layout-stage-scale));
+        padding: 0;
+        border-radius: 50%;
+        font-size: calc(14px * var(--layout-stage-scale));
+    }
+
+    .leaderboard-name {
+        grid-area: name;
+        align-self: end;
+        gap: calc(4px * var(--layout-stage-scale));
+        font-size: calc(13px * var(--layout-stage-scale));
+        line-height: 1.05;
+        white-space: nowrap;
+    }
+
+    .leaderboard-name-id {
+        font-size: calc(9px * var(--layout-stage-scale));
+    }
+
+    .leaderboard-score {
+        grid-area: score;
+        align-self: center;
+        font-size: calc(17px * var(--layout-stage-scale));
+        line-height: 1;
+        text-align: right;
+    }
+
+    .leaderboard-mode-chip {
+        grid-area: mode;
+        justify-content: flex-start;
+        align-self: start;
+        gap: calc(4px * var(--layout-stage-scale));
+        font-size: calc(10px * var(--layout-stage-scale));
+        line-height: 1.05;
+    }
+
+    .leaderboard-mode-chip::before {
+        width: calc(11px * var(--layout-stage-scale));
+        height: calc(11px * var(--layout-stage-scale));
+        font-size: calc(9px * var(--layout-stage-scale));
     }
 }
