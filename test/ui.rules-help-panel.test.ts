@@ -609,6 +609,64 @@ describe('rules help panel', () => {
     expect(html).toMatch(/id="rules-help-card-filter-clear"/);
   });
 
+  test('index html includes slide-based rules guide controls', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/id="rules-help-guide-slide-img"/);
+    expect(html).toMatch(/src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
+    expect(html).toMatch(/id="rules-help-guide-prev"/);
+    expect(html).toMatch(/id="rules-help-guide-next"/);
+    expect(html).toMatch(/id="rules-help-guide-page-status"/);
+  });
+
+  test('rules guide next and previous buttons page through slide images', () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab is-active" type="button"></button>
+        <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page">
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page is-active">
+          <button id="rules-help-guide-prev" type="button">前へ</button>
+          <span id="rules-help-guide-page-status"></span>
+          <button id="rules-help-guide-next" type="button">次へ</button>
+          <img id="rules-help-guide-slide-img" src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png" alt="カードリバーシ説明スライド 1 / 8">
+        </section>
+      </div>
+    </body></html>`);
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+
+    const img = document.getElementById('rules-help-guide-slide-img') as HTMLImageElement;
+    const prev = document.getElementById('rules-help-guide-prev') as HTMLButtonElement;
+    const next = document.getElementById('rules-help-guide-next') as HTMLButtonElement;
+    const status = document.getElementById('rules-help-guide-page-status') as HTMLElement;
+
+    expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-01.png');
+    expect(img.getAttribute('alt')).toBe('カードリバーシ説明スライド 1 / 8');
+    expect(status.textContent).toBe('1 / 8');
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(false);
+
+    next.click();
+    expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-02.png');
+    expect(img.getAttribute('alt')).toBe('カードリバーシ説明スライド 2 / 8');
+    expect(status.textContent).toBe('2 / 8');
+    expect(prev.disabled).toBe(false);
+
+    prev.click();
+    expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-01.png');
+    expect(status.textContent).toBe('1 / 8');
+    expect(prev.disabled).toBe(true);
+  });
+
   test('index html and css include rules help backdrop layer', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     const css = fs.readFileSync(path.resolve(__dirname, '../styles-layout-info.css'), 'utf8');
@@ -625,7 +683,7 @@ describe('rules help panel', () => {
     expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
     expect(html).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
     expect(html).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
-    expect(html).toMatch(/盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。/);
+    expect(html).toMatch(/id="rules-help-guide-slide-img"/);
     expect(html).toMatch(/完全保護の残りターン/);
     expect(html).toMatch(/特殊石本体の持続ターン/);
     expect(html).toMatch(/中央左のピンクハートバッジ/);
@@ -687,12 +745,15 @@ describe('rules help panel', () => {
     }
   });
 
-  test('index html guide copy points to current menu and stone-info controls', () => {
+  test('index html guide uses slide deck instead of static rule copy', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/左下メニューで「CPU」\/「リバーシ」\/「ネット対戦」を切り替えられます。/);
-    expect(html).toMatch(/音量やBGMはクイック操作や設定から調整できます。/);
-    expect(html).toMatch(/石情報は、マウスでは石にカーソルを合わせるだけで、タッチでは石を1回タップすると確認できます。/);
-    expect(html).toMatch(/数字の詳しい意味も、石情報で確認できます。/);
+    expect(html).toMatch(/id="rules-help-guide-slide-frame"/);
+    expect(html).toMatch(/aria-label="カードリバーシ説明スライド"/);
+    expect(html).toMatch(/alt="カードリバーシ説明スライド 1 \/ 8"/);
+    expect(html).toMatch(/前へ/);
+    expect(html).toMatch(/次へ/);
+    expect(html).not.toMatch(/id="rules-help-rules-list"/);
+    expect(html).not.toMatch(/id="rules-help-controls-list"/);
     expect(html).not.toMatch(/右下パネルで「CPU \/ ネット対戦」、音量、BGMを調整できます。/);
     expect(html).not.toMatch(/長押しすると/);
   });

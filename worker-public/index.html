@@ -230,31 +230,19 @@
             </section>
             <section id="rules-help-page-guide" class="rules-help-page" data-help-page="guide" aria-hidden="true">
                 <div id="rules-help-guide-layout">
-                    <section class="rules-help-guide-section" aria-labelledby="rules-help-guide-rules-title">
-                        <div id="rules-help-guide-rules-title" class="rules-help-guide-title">ルール</div>
-                        <ul id="rules-help-rules-list">
-                            <li>このゲームは、通常のリバーシにカード効果を加えた対戦です。</li>
-                            <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
-                            <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
-                            <li>10ラウンドごとに、ラウンド開始時の両者へ同時にラウンド数の半分の布石が入ります。</li>
-                            <li>カードは布石を消費して使います。手札上限は5枚です。</li>
-                            <li>置ける場所がないときは、カードを使うかパスを選びます。</li>
-                            <li>両者が連続でパスすると終局です。盤面が埋まっただけでは終局しません。</li>
-                            <li>最終的に石の数が多い側が勝利です。</li>
-                        </ul>
-                    </section>
-                    <section class="rules-help-guide-section" aria-labelledby="rules-help-guide-controls-title">
-                        <div id="rules-help-guide-controls-title" class="rules-help-guide-title">操作</div>
-                        <ol id="rules-help-controls-list">
-                            <li>手札からカードを押すと、右のカード詳細で効果を確認できます。</li>
-                            <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
-                            <li>盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。</li>
-                            <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
-                            <li>左下メニューの「CPU」「ネット対戦」と、設定パネル内の「リバーシ」で対戦モードを切り替えられます。</li>
-                            <li>音量やBGMはクイック操作や設定から調整できます。</li>
-                            <li>石情報は、マウスでは石にカーソルを合わせるだけで、タッチでは石を1回タップすると確認できます。</li>
-                        </ol>
-                    </section>
+                    <div id="rules-help-guide-slide-frame" role="group" aria-label="カードリバーシ説明スライド">
+                        <img
+                            id="rules-help-guide-slide-img"
+                            src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png"
+                            alt="カードリバーシ説明スライド 1 / 8"
+                            draggable="false"
+                            decoding="async">
+                    </div>
+                    <div id="rules-help-guide-controls" aria-label="説明スライドのページ操作">
+                        <button id="rules-help-guide-prev" class="btn-small" type="button">前へ</button>
+                        <div id="rules-help-guide-page-status" aria-live="polite" aria-atomic="true">1 / 8</div>
+                        <button id="rules-help-guide-next" class="btn-small" type="button">次へ</button>
+                    </div>
                 </div>
             </section>
             <section id="rules-help-page-counters" class="rules-help-page" data-help-page="counters"
@@ -1040,7 +1028,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=160901154268640"></script>
+    <script src="public/module-registry.js?v=198405174314576"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=75638186966350"></script>
 </body>

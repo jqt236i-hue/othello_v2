@@ -40,6 +40,13 @@ const GAME_TERM_GLOSSARY = _textTermHighlighterModule && typeof _textTermHighlig
 const GAME_TERM_GLOSSARY_BY_LABEL = new Map<string, any>(
   (GAME_TERM_GLOSSARY as any).map((entry: any) => [entry.label, entry])
 );
+const RULES_HELP_GUIDE_SLIDE_COUNT = 8;
+const RULES_HELP_GUIDE_SLIDE_BASE_PATH = 'assets/images/help/player-guide';
+
+function formatRulesHelpGuideSlideSrc(index: number): string {
+  const slideNumber = Math.max(1, Math.min(RULES_HELP_GUIDE_SLIDE_COUNT, Math.floor(index) + 1));
+  return `${RULES_HELP_GUIDE_SLIDE_BASE_PATH}/card-reversi-player-guide-slide-${String(slideNumber).padStart(2, '0')}.png`;
+}
 
 function _renderHelpText(targetEl: any, text: string): void {
   if (!targetEl) return;
@@ -305,6 +312,10 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   const filterStatusEl = rulesHelpPanel.querySelector('#rules-help-card-filter-status') as HTMLElement | null;
   const filterClearBtn = rulesHelpPanel.querySelector('#rules-help-card-filter-clear') as HTMLButtonElement | null;
   const effectsListEl = rulesHelpPanel.querySelector('#rules-help-effects-list') as HTMLElement | null;
+  const guideSlideImg = rulesHelpPanel.querySelector('#rules-help-guide-slide-img') as HTMLImageElement | null;
+  const guideSlidePrevBtn = rulesHelpPanel.querySelector('#rules-help-guide-prev') as HTMLButtonElement | null;
+  const guideSlideNextBtn = rulesHelpPanel.querySelector('#rules-help-guide-next') as HTMLButtonElement | null;
+  const guideSlideStatusEl = rulesHelpPanel.querySelector('#rules-help-guide-page-status') as HTMLElement | null;
   const catalogCards = _readCatalogCards();
   const cardDescriptionTextsById = new Map<string, any>();
   const cardSearchTextById = new Map<string, string>();
@@ -313,6 +324,39 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   let isOpen = false;
   let selectedCardId: string | null = null;
   let tagPopoverEl: HTMLElement | null = null;
+  let guideSlideIndex = 0;
+
+  function updateGuideSlide(): void {
+    const totalSlides = RULES_HELP_GUIDE_SLIDE_COUNT;
+    guideSlideIndex = Math.max(0, Math.min(totalSlides - 1, guideSlideIndex));
+    const currentSlide = guideSlideIndex + 1;
+    if (guideSlideImg) {
+      guideSlideImg.setAttribute('src', formatRulesHelpGuideSlideSrc(guideSlideIndex));
+      guideSlideImg.setAttribute('alt', `カードリバーシ説明スライド ${currentSlide} / ${totalSlides}`);
+    }
+    if (guideSlideStatusEl) {
+      guideSlideStatusEl.textContent = `${currentSlide} / ${totalSlides}`;
+    }
+    if (guideSlidePrevBtn) {
+      guideSlidePrevBtn.disabled = guideSlideIndex <= 0;
+      guideSlidePrevBtn.setAttribute('aria-disabled', guideSlidePrevBtn.disabled ? 'true' : 'false');
+    }
+    if (guideSlideNextBtn) {
+      guideSlideNextBtn.disabled = guideSlideIndex >= totalSlides - 1;
+      guideSlideNextBtn.setAttribute('aria-disabled', guideSlideNextBtn.disabled ? 'true' : 'false');
+    }
+  }
+
+  function setGuideSlide(index: number): void {
+    guideSlideIndex = index;
+    updateGuideSlide();
+  }
+
+  function isGuideTabActive(): boolean {
+    return tabPages.some((page: any) => (
+      page.getAttribute('data-help-page') === 'guide' && page.classList.contains('is-active')
+    ));
+  }
 
   function getCardDescriptionTexts(card: any): any {
     const cardId = _safeText(card && card.id, '');
@@ -915,6 +959,20 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     });
   }
 
+  if (guideSlidePrevBtn) {
+    guideSlidePrevBtn.addEventListener('click', (event: Event) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setGuideSlide(guideSlideIndex - 1);
+    });
+  }
+
+  if (guideSlideNextBtn) {
+    guideSlideNextBtn.addEventListener('click', (event: Event) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setGuideSlide(guideSlideIndex + 1);
+    });
+  }
+
   document.addEventListener('pointerdown', (event: PointerEvent) => {
     if (!isOpen) return;
     const target = event ? event.target as Node : null;
@@ -925,7 +983,13 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
   document.addEventListener('keydown', (event: KeyboardEvent) => {
     if (!isOpen) return;
-    if (!event || event.key !== 'Escape') return;
+    if (!event) return;
+    if (isGuideTabActive() && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault();
+      setGuideSlide(guideSlideIndex + (event.key === 'ArrowRight' ? 1 : -1));
+      return;
+    }
+    if (event.key !== 'Escape') return;
     if (tagPopoverEl && tagPopoverEl.getAttribute('aria-hidden') === 'false') {
       event.preventDefault();
       closeTagPopover();
@@ -955,6 +1019,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   renderTagFilters();
   renderEffectsList();
   renderCatalogCards();
+  updateGuideSlide();
   if (tabButtons.length > 0) {
     const activeTab = tabButtons.find((button: any) => button.classList.contains('is-active'));
     activateTab(activeTab ? activeTab.getAttribute('data-help-tab') as string : tabButtons[0].getAttribute('data-help-tab') as string);

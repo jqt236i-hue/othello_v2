@@ -2461,63 +2461,63 @@
 }
 
 #rules-help-guide-layout {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: calc(10px * var(--layout-stage-scale));
-    max-height: min(62vh, 560px);
-    overflow-y: auto;
-    padding-right: calc(2px * var(--layout-stage-scale));
+    min-height: 0;
 }
 
-.rules-help-guide-section {
-    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.12);
+#rules-help-guide-slide-frame {
+    display: grid;
+    place-items: center;
+    min-height: 0;
+    padding: calc(8px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 236, 179, 0.22);
     border-radius: calc(8px * var(--layout-stage-scale));
-    background: rgba(0, 0, 0, 0.2);
-    padding: calc(10px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.28);
+    box-shadow:
+        inset 0 0 0 var(--layout-size-border-thin) rgba(255, 255, 255, 0.05),
+        0 calc(4px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
 }
 
-.rules-help-guide-title {
-    color: var(--color-text-gold);
-    font-size: calc(15px * var(--layout-stage-scale));
+#rules-help-guide-slide-img {
+    display: block;
+    width: 100%;
+    max-width: min(100%, calc(960px * var(--layout-stage-scale)));
+    max-height: min(56vh, calc(560px * var(--layout-stage-scale)));
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.22);
+    user-select: none;
+}
+
+#rules-help-guide-controls {
+    display: grid;
+    grid-template-columns: minmax(calc(82px * var(--layout-stage-scale)), auto) 1fr minmax(calc(82px * var(--layout-stage-scale)), auto);
+    align-items: center;
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+#rules-help-guide-page-status {
+    justify-self: center;
+    min-width: calc(70px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 236, 179, 0.24);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--color-text-bright);
+    font-size: calc(13px * var(--layout-stage-scale));
     font-weight: 700;
-    margin-bottom: calc(8px * var(--layout-stage-scale));
+    line-height: 1.2;
+    text-align: center;
 }
 
-#rules-help-guide-layout #rules-help-rules-list,
-#rules-help-guide-layout #rules-help-controls-list {
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
+#rules-help-guide-prev:disabled,
+#rules-help-guide-next:disabled {
+    opacity: 0.42;
+    cursor: default;
 }
-
-#rules-help-rules-list {
-    margin: 0;
-    padding-left: 0.9em;
-    color: var(--color-text-bright);
-    font-size: calc(14px * var(--layout-stage-scale));
-    line-height: 1.45;
-    max-height: min(62vh, 560px);
-    overflow-y: auto;
-}
-
-#rules-help-rules-list li {
-    margin-bottom: calc(6px * var(--layout-stage-scale));
-}
-
-#rules-help-controls-list {
-    margin: 0;
-    padding-left: 1.1em;
-    color: var(--color-text-bright);
-    font-size: calc(14px * var(--layout-stage-scale));
-    line-height: 1.5;
-    max-height: min(62vh, 560px);
-    overflow-y: auto;
-}
-
-#rules-help-controls-list li {
-    margin-bottom: calc(7px * var(--layout-stage-scale));
-}
-
 #rules-help-counters-layout {
     display: flex;
     flex-direction: column;

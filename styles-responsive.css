@@ -136,9 +136,9 @@
 
     #rules-help-panel {
         --rules-help-page-min-height: min(34dvh, calc(260px * var(--layout-stage-scale)));
-        width: min(calc(760px * var(--layout-stage-scale)), calc(100vw - calc(20px * var(--layout-stage-scale))));
-        max-height: min(86dvh, calc(660px * var(--layout-stage-scale)));
-        padding: calc(10px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+        width: min(760px, calc(100vw - 16px));
+        max-height: 86dvh;
+        padding: 10px;
     }
 
     #rules-help-catalog-layout {
@@ -165,6 +165,26 @@
 
     #rules-help-guide-layout {
         grid-template-columns: 1fr;
+        max-height: none;
+    }
+
+    #rules-help-guide-slide-img {
+        width: 100%;
+        max-width: 100%;
+        max-height: min(52dvh, 520px);
+    }
+
+    #rules-help-guide-prev,
+    #rules-help-guide-next {
+        min-height: 30px;
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    #rules-help-guide-page-status {
+        min-width: 64px;
+        padding: 5px 10px;
+        font-size: 12px;
     }
 
     .rules-help-counter-summary,
@@ -964,8 +984,9 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
     #rules-help-panel {
         --rules-help-page-min-height: min(46dvh, calc(320px * var(--layout-stage-scale)));
-        width: min(calc(760px * var(--layout-stage-scale)), calc(100vw - calc(16px * var(--layout-stage-scale))));
-        max-height: min(92dvh, calc(620px * var(--layout-stage-scale)));
+        width: min(760px, calc(100vw - 16px));
+        max-height: 92dvh;
+        padding: 10px;
     }
 
     #rules-help-tabs {
@@ -973,8 +994,31 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 
     .rules-help-tab {
-        font-size: calc(11px * var(--layout-stage-scale));
-        padding: calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+
+    #rules-help-guide-layout {
+        max-height: none;
+    }
+
+    #rules-help-guide-slide-img {
+        width: 100%;
+        max-width: 100%;
+        max-height: min(52dvh, 520px);
+    }
+
+    #rules-help-guide-prev,
+    #rules-help-guide-next {
+        min-height: 30px;
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    #rules-help-guide-page-status {
+        min-width: 64px;
+        padding: 5px 10px;
+        font-size: 12px;
     }
 
     #rules-help-catalog-layout {
