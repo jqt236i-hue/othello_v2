@@ -14,6 +14,15 @@ const ROULETTE_TRAIL_CLASS = 'theory-spawn-roulette-trail';
 const ROULETTE_SELECTED_CLASS = 'theory-spawn-roulette-selected';
 const MATERIALIZE_CLASS = 'theory-spawn-materialize';
 const MATERIALIZED_DISC_CLASS = 'theory-spawn-materialized-disc';
+const EFFECT_TARGET_HIGHLIGHT_CLASSES = Object.freeze([
+    'effect-target-highlight',
+    'effect-target-highlight-positive',
+    'effect-target-highlight-placement',
+    'effect-target-highlight-spawn',
+    'random-spawn-preview'
+]);
+const TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY = 'transientCellHighlightClass';
+const TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY = 'transientCellHighlightToken';
 const THEORY_ROULETTE_BASE_DURATION_MS = 2500;
 const THEORY_MATERIALIZE_BASE_DURATION_MS = 2000;
 const THEORY_ROULETTE_DELAYS_MS = [
@@ -65,7 +74,12 @@ function clearRouletteClasses(entries: any[]) {
     for (const entry of entries) {
         try {
             entry.element.classList.remove(ROULETTE_CLASS, ROULETTE_TRAIL_CLASS, ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
+            entry.element.classList.remove(...EFFECT_TARGET_HIGHLIGHT_CLASSES);
             entry.element.style.removeProperty('--theory-roulette-index');
+            if (entry.element.dataset) {
+                delete entry.element.dataset[TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY];
+                delete entry.element.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY];
+            }
         } catch (e) { /* ignore */ }
     }
 }
@@ -165,6 +179,11 @@ function hidePreRenderedSpawnStone(selectedEntry: any) {
         }
         if (element.classList && typeof element.classList.remove === 'function') {
             element.classList.remove('has-disc', ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
+            element.classList.remove(...EFFECT_TARGET_HIGHLIGHT_CLASSES);
+        }
+        if (element.dataset) {
+            delete element.dataset[TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY];
+            delete element.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY];
         }
     } catch (e) { /* ignore */ }
 }

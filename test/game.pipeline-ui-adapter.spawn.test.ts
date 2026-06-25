@@ -248,6 +248,65 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     expect(chaosSound?.phase).toBe(roulette.phase);
   });
 
+  test('does not run chaos summon status highlight in the roulette phase', () => {
+    const out = adapter.appendSoundEffectPlaybackEvents([
+      {
+        type: 'theory_incarnation_spawn_roulette',
+        phase: 2,
+        rawType: 'SPAWN',
+        targets: [{
+          row: 1,
+          col: 7,
+          cause: 'CHAOS_SUMMON',
+          reason: 'chaos_summon_spawn',
+          sourceCardType: 'SNIPER_WILL'
+        }]
+      },
+      {
+        type: 'status_applied',
+        phase: 2,
+        rawType: 'STATUS_APPLIED',
+        targets: [{ r: 1, row: 1, col: 7 }]
+      },
+      {
+        type: 'card_use_animation',
+        phase: 3,
+        rawType: 'CARD_USED',
+        targets: [{
+          player: 'black',
+          owner: 'black',
+          cardId: 'chaos_summon_01',
+          cardType: 'CHAOS_SUMMON',
+          name: '混沌召喚'
+        }]
+      }
+    ], [{
+      type: 'SPAWN',
+      row: 1,
+      col: 7,
+      cause: 'CHAOS_SUMMON',
+      reason: 'chaos_summon_spawn'
+    }, {
+      type: 'STATUS_APPLIED',
+      row: 1,
+      col: 7,
+      cause: 'CHAOS_SUMMON',
+      reason: 'chaos_summon_spawn'
+    }], [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'chaos_summon_01',
+      meta: { owner: 'black', cost: 15, name: '混沌召喚', cardType: 'CHAOS_SUMMON' }
+    }]);
+
+    const roulette = out.find((ev) => ev && ev.type === 'theory_incarnation_spawn_roulette');
+    const statusApplied = out.find((ev) => ev && ev.type === 'status_applied');
+
+    expect(roulette).toBeTruthy();
+    expect(statusApplied).toBeTruthy();
+    expect(statusApplied.phase).toBeGreaterThan(roulette.phase);
+  });
+
   test('gives Salvation Will spawns sequential phases so each stone appears one by one', () => {
     const out = mapPlaybackEvents([
       {

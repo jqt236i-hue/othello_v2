@@ -1387,18 +1387,62 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         });
     }
 
+    function _readPlaybackTargetRow(target: any) {
+        const row = Number(target && (target.row ?? target.r));
+        return Number.isInteger(row) ? row : null;
+    }
+
+    function _readPlaybackTargetCol(target: any) {
+        const col = Number(target && target.col);
+        return Number.isInteger(col) ? col : null;
+    }
+
+    function _targetMatchesPlaybackCell(target: any, cell: any) {
+        if (!cell) return false;
+        return _readPlaybackTargetRow(target) === cell.row && _readPlaybackTargetCol(target) === cell.col;
+    }
+
+    function _collectChaosSummonRouletteCells(playbackEvents: any) {
+        const cells: any[] = [];
+        if (!Array.isArray(playbackEvents)) return cells;
+        for (const ev of playbackEvents) {
+            if (!_isChaosSummonRoulettePlaybackEvent(ev)) continue;
+            const phase = _phaseNum(ev && ev.phase);
+            if (!Number.isFinite(phase)) continue;
+            for (const target of (Array.isArray(ev.targets) ? ev.targets : [])) {
+                const row = _readPlaybackTargetRow(target);
+                const col = _readPlaybackTargetCol(target);
+                if (row === null || col === null) continue;
+                cells.push({ row, col, phase });
+            }
+        }
+        return cells;
+    }
+
     function _alignChaosSummonCardUseBeforeRoulette(playbackEvents: any) {
         if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return [];
-        const roulettePhases = playbackEvents
-            .filter((ev: any) => _isChaosSummonRoulettePlaybackEvent(ev))
-            .map((ev: any) => _phaseNum(ev && ev.phase))
-            .filter((phase: any) => Number.isFinite(phase));
+        const rouletteCells = _collectChaosSummonRouletteCells(playbackEvents);
+        const roulettePhases = rouletteCells.map((cell: any) => cell.phase);
         if (roulettePhases.length <= 0) return playbackEvents;
         const firstRoulettePhase = Math.min(...roulettePhases);
         if (!Number.isFinite(firstRoulettePhase) || firstRoulettePhase <= 1) return playbackEvents;
         const cardUsePhase = firstRoulettePhase - 1;
         let changed = false;
         const aligned = playbackEvents.map((ev: any) => {
+            if (ev && ev.type === 'status_applied') {
+                const phase = _phaseNum(ev && ev.phase);
+                const matchingCell = rouletteCells.find((cell: any) => (
+                    Number.isFinite(phase) &&
+                    phase === cell.phase &&
+                    Array.isArray(ev.targets) &&
+                    ev.targets.some((target: any) => _targetMatchesPlaybackCell(target, cell))
+                ));
+                if (matchingCell) {
+                    changed = true;
+                    return _clonePlaybackEventWithPhase(ev, matchingCell.phase + 1);
+                }
+                return ev;
+            }
             if (!_isChaosSummonCardUsePlaybackEvent(ev)) return ev;
             const phase = _phaseNum(ev && ev.phase);
             if (Number.isFinite(phase) && phase < firstRoulettePhase) return ev;

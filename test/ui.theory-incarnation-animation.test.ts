@@ -302,7 +302,7 @@ describe('theory incarnation spawn roulette animation', () => {
         <body>
           <div id="board">
             <div class="cell" data-row="0" data-col="0"></div>
-            <div class="cell has-disc theory-spawn-roulette-selected theory-spawn-materialize" data-row="0" data-col="1">
+            <div class="cell has-disc theory-spawn-roulette-selected theory-spawn-materialize effect-target-highlight-positive" data-row="0" data-col="1">
               <div class="disc stale-spawn"></div>
             </div>
           </div>
@@ -364,6 +364,7 @@ describe('theory incarnation spawn roulette animation', () => {
     expect(selectedCell.classList.contains('has-disc')).toBe(false);
     expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
     expect(selectedCell.classList.contains('theory-spawn-materialize')).toBe(false);
+    expect(selectedCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     while (timers.length > 0) {
       const next = timers.shift();
