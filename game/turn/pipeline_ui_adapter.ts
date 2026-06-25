@@ -1367,6 +1367,47 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return true;
     }
 
+    function _isChaosSummonCardUsePlaybackEvent(ev: any) {
+        if (!ev || ev.type !== 'card_use_animation' || !Array.isArray(ev.targets)) return false;
+        return ev.targets.some((target: any) => {
+            const cardId = String(target && target.cardId ? target.cardId : '').trim().toLowerCase();
+            const cardType = String(target && target.cardType ? target.cardType : '').trim().toUpperCase();
+            const name = String(target && target.name ? target.name : '').trim();
+            return cardType === 'CHAOS_SUMMON' || cardId === 'chaos_summon_01' || name === '混沌召喚';
+        });
+    }
+
+    function _isChaosSummonRoulettePlaybackEvent(ev: any) {
+        if (!ev || ev.type !== 'theory_incarnation_spawn_roulette' || !Array.isArray(ev.targets)) return false;
+        return ev.targets.some((target: any) => {
+            const cause = String(target && (target.cause || target.spawnCause) ? (target.cause || target.spawnCause) : '').trim().toUpperCase();
+            const reason = String(target && (target.reason || target.spawnReason) ? (target.reason || target.spawnReason) : '').trim().toLowerCase();
+            const sourceCardType = String(target && target.sourceCardType ? target.sourceCardType : '').trim().toUpperCase();
+            return cause === 'CHAOS_SUMMON' || reason === 'chaos_summon_spawn' || sourceCardType === 'CHAOS_SUMMON';
+        });
+    }
+
+    function _alignChaosSummonCardUseBeforeRoulette(playbackEvents: any) {
+        if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return [];
+        const roulettePhases = playbackEvents
+            .filter((ev: any) => _isChaosSummonRoulettePlaybackEvent(ev))
+            .map((ev: any) => _phaseNum(ev && ev.phase))
+            .filter((phase: any) => Number.isFinite(phase));
+        if (roulettePhases.length <= 0) return playbackEvents;
+        const firstRoulettePhase = Math.min(...roulettePhases);
+        if (!Number.isFinite(firstRoulettePhase) || firstRoulettePhase <= 1) return playbackEvents;
+        const cardUsePhase = firstRoulettePhase - 1;
+        let changed = false;
+        const aligned = playbackEvents.map((ev: any) => {
+            if (!_isChaosSummonCardUsePlaybackEvent(ev)) return ev;
+            const phase = _phaseNum(ev && ev.phase);
+            if (Number.isFinite(phase) && phase < firstRoulettePhase) return ev;
+            changed = true;
+            return _clonePlaybackEventWithPhase(ev, cardUsePhase);
+        });
+        return changed ? aligned : playbackEvents;
+    }
+
     function getPipelineUISoundCueAssemblerDeps() {
         return {
             bombDestroyCauses: BOMB_DESTROY_CAUSES,
@@ -1412,8 +1453,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (!(PipelineUISoundCueAssemblerModule && typeof PipelineUISoundCueAssemblerModule.appendSoundEffectPlaybackEvents === 'function')) {
             throw new Error('PipelineUIAdapter sound cue assembler module unavailable');
         }
+        const phaseAlignedPlaybackEvents = _alignChaosSummonCardUseBeforeRoulette(playbackEvents);
         return PipelineUISoundCueAssemblerModule.appendSoundEffectPlaybackEvents(
-            playbackEvents,
+            phaseAlignedPlaybackEvents,
             rawEvents,
             presentationEvents,
             getPipelineUISoundCueAssemblerDeps()

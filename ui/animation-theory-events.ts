@@ -64,7 +64,7 @@ function collectCandidateCells(target: any, deps: TheoryAnimationDeps) {
 function clearRouletteClasses(entries: any[]) {
     for (const entry of entries) {
         try {
-            entry.element.classList.remove(ROULETTE_CLASS, ROULETTE_TRAIL_CLASS, ROULETTE_SELECTED_CLASS);
+            entry.element.classList.remove(ROULETTE_CLASS, ROULETTE_TRAIL_CLASS, ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
             entry.element.style.removeProperty('--theory-roulette-index');
         } catch (e) { /* ignore */ }
     }
@@ -164,7 +164,7 @@ function hidePreRenderedSpawnStone(selectedEntry: any) {
             } catch (e) { /* ignore */ }
         }
         if (element.classList && typeof element.classList.remove === 'function') {
-            element.classList.remove('has-disc');
+            element.classList.remove('has-disc', ROULETTE_SELECTED_CLASS, MATERIALIZE_CLASS);
         }
     } catch (e) { /* ignore */ }
 }
@@ -277,6 +277,7 @@ async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAn
         const entries = collectCandidateCells(target, deps);
         const selected = normalizeCell(target && (target.selectedCell || { row: target.row ?? target.r, col: target.col }));
         const selectedEntry = findEntryForCell(entries, selected);
+        clearRouletteClasses(entries);
         hidePreRenderedSpawnStone(selectedEntry);
         applyTemporaryNumberLabels(entries);
 

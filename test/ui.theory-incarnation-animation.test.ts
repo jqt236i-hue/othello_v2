@@ -293,4 +293,88 @@ describe('theory incarnation spawn roulette animation', () => {
     delete global.window;
     delete global.document;
   });
+
+  test('clears pre-rendered selected spawn visuals before the roulette starts', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="0" data-col="0"></div>
+            <div class="cell has-disc theory-spawn-roulette-selected theory-spawn-materialize" data-row="0" data-col="1">
+              <div class="disc stale-spawn"></div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => {
+      cb();
+      return 0;
+    };
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+
+    const timers: Array<{ fn: () => void; ms: number }> = [];
+    const handler = require('../ui/animation-theory-events.js');
+    const createDisc = jest.fn((state) => {
+      const disc = dom.window.document.createElement('div');
+      disc.className = 'disc';
+      disc.dataset.special = state.special || '';
+      return disc;
+    });
+    const waitForOpacityTransition = jest.fn(async (disc, durationMs, bufferMs, starter, cleanup) => {
+      starter();
+      cleanup();
+    });
+
+    const animationPromise = handler.handleTheoryIncarnationSpawnRouletteEvent({
+      type: 'theory_incarnation_spawn_roulette',
+      durationMs: 2500,
+      materializeMs: 2000,
+      targets: [{
+        row: 0,
+        col: 1,
+        ownerAfter: 'black',
+        spawnedMarkerType: 'GHOST',
+        candidateCells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+        after: { color: 1, special: 'GHOST', owner: 'black' }
+      }]
+    }, {
+      isNoAnim: () => false,
+      getCellEl: (row, col) => dom.window.document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`),
+      createDisc,
+      waitForOpacityTransition,
+      timer: () => ({
+        setTimeout: (fn, ms) => {
+          timers.push({ fn, ms });
+          return timers.length;
+        }
+      }),
+      playbackScope: null
+    });
+
+    await Promise.resolve();
+
+    const selectedCell = dom.window.document.querySelector('.cell[data-row="0"][data-col="1"]');
+    expect(selectedCell.querySelector('.stale-spawn')).toBe(null);
+    expect(selectedCell.classList.contains('has-disc')).toBe(false);
+    expect(selectedCell.classList.contains('theory-spawn-roulette-selected')).toBe(false);
+    expect(selectedCell.classList.contains('theory-spawn-materialize')).toBe(false);
+
+    while (timers.length > 0) {
+      const next = timers.shift();
+      next.fn();
+      await Promise.resolve();
+    }
+    await animationPromise;
+
+    dom.window.close();
+    delete global.requestAnimationFrame;
+    delete global.window;
+    delete global.document;
+  });
 });

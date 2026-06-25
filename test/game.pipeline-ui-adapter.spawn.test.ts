@@ -151,6 +151,103 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     expect(out[0].materializeMs).toBe(2000);
   });
 
+  test('plays chaos summon roulette after the card use animation phase', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'CARD_USED',
+        player: 'black',
+        cardId: 'chaos_summon_01',
+        meta: { owner: 'black', cost: 15, name: '混沌召喚', cardType: 'CHAOS_SUMMON' }
+      },
+      {
+        type: 'SPAWN',
+        row: 2,
+        col: 7,
+        stoneId: 'chaos-spawn-1',
+        ownerAfter: 'black',
+        cause: 'CHAOS_SUMMON',
+        reason: 'chaos_summon_spawn',
+        meta: {
+          special: 'PERMA_PROTECTED',
+          owner: 'black',
+          sourceCardId: 'perma_01',
+          sourceCardType: 'PERMA_PROTECT_NEXT_STONE',
+          theorySpawnRoulette: {
+            durationMs: 2500,
+            materializeMs: 700,
+            candidateCells: [{ row: 2, col: 6 }, { row: 2, col: 7 }],
+            selectedCell: { row: 2, col: 7 },
+            spawnedMarkerType: 'PERMA_PROTECTED',
+            sourceCardId: 'perma_01',
+            sourceCardType: 'PERMA_PROTECT_NEXT_STONE'
+          }
+        }
+      }
+    ]);
+
+    const cardUseEvents = out.filter((ev) => ev && ev.type === 'card_use_animation');
+    const roulette = out.find((ev) => ev && ev.type === 'theory_incarnation_spawn_roulette');
+
+    expect(cardUseEvents).toHaveLength(1);
+    expect(roulette).toBeTruthy();
+    expect(roulette.phase).toBeGreaterThan(cardUseEvents[0].phase);
+  });
+
+  test('keeps chaos summon card-use phase before raw-board roulette fallback', () => {
+    const out = adapter.appendSoundEffectPlaybackEvents([
+      {
+        type: 'theory_incarnation_spawn_roulette',
+        phase: 2,
+        rawType: 'SPAWN',
+        targets: [{
+          row: 1,
+          col: 7,
+          cause: 'CHAOS_SUMMON',
+          reason: 'chaos_summon_spawn',
+          sourceCardType: 'SNIPER_WILL'
+        }]
+      },
+      {
+        type: 'status_applied',
+        phase: 2,
+        rawType: 'STATUS_APPLIED',
+        targets: [{ r: 1, col: 7 }]
+      },
+      {
+        type: 'card_use_animation',
+        phase: 3,
+        rawType: 'CARD_USED',
+        targets: [{
+          player: 'black',
+          owner: 'black',
+          cardId: 'chaos_summon_01',
+          cardType: 'CHAOS_SUMMON',
+          name: '混沌召喚'
+        }]
+      }
+    ], [{
+      type: 'SPAWN',
+      row: 1,
+      col: 7,
+      cause: 'CHAOS_SUMMON',
+      reason: 'chaos_summon_spawn'
+    }], [{
+      type: 'CARD_USED',
+      player: 'black',
+      cardId: 'chaos_summon_01',
+      meta: { owner: 'black', cost: 15, name: '混沌召喚', cardType: 'CHAOS_SUMMON' }
+    }]);
+
+    const cardUse = out.find((ev) => ev && ev.type === 'card_use_animation');
+    const roulette = out.find((ev) => ev && ev.type === 'theory_incarnation_spawn_roulette');
+    const chaosSound = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets?.[0]?.soundKey === 'chaos_summon_spawn');
+
+    expect(cardUse).toBeTruthy();
+    expect(roulette).toBeTruthy();
+    expect(cardUse.phase).toBeLessThan(roulette.phase);
+    expect(chaosSound?.phase).toBe(roulette.phase);
+  });
+
   test('gives Salvation Will spawns sequential phases so each stone appears one by one', () => {
     const out = mapPlaybackEvents([
       {

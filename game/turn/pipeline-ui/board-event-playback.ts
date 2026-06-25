@@ -184,6 +184,27 @@ function createTheorySpawnRoulettePlaybackPlan(phase: any, ev: any, spawnMeta: a
     };
 }
 
+function isChaosSummonRouletteSpawn(ev: any, spawnMeta: any) {
+    const roulette = spawnMeta && spawnMeta.theorySpawnRoulette && typeof spawnMeta.theorySpawnRoulette === 'object'
+        ? spawnMeta.theorySpawnRoulette
+        : null;
+    if (!roulette) return false;
+    const cause = String(ev && ev.cause ? ev.cause : '').trim().toUpperCase();
+    const reason = String(ev && ev.reason ? ev.reason : '').trim().toLowerCase();
+    const spawnCause = String(spawnMeta && spawnMeta.spawnCause ? spawnMeta.spawnCause : '').trim().toUpperCase();
+    const spawnReason = String(spawnMeta && spawnMeta.spawnReason ? spawnMeta.spawnReason : '').trim().toLowerCase();
+    const sourceCardType = String(
+        roulette.sourceCardType ||
+        (spawnMeta && spawnMeta.sourceCardType) ||
+        ''
+    ).trim().toUpperCase();
+    return cause === 'CHAOS_SUMMON'
+        || spawnCause === 'CHAOS_SUMMON'
+        || sourceCardType === 'CHAOS_SUMMON'
+        || reason === 'chaos_summon_spawn'
+        || spawnReason === 'chaos_summon_spawn';
+}
+
 function isCloneLikeSpawnPresentationEvent(ev: any, spawnMeta: any) {
     const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
     return (
@@ -496,6 +517,11 @@ function planSpawnPlayback(phaseState: any, ev: any, playbackBase: any, followsP
         phase = phaseState.currentPhase;
     }
     if (deps.isLivingWillRestorePresentationEvent(ev)) {
+        phaseState.currentPhase++;
+        phase = phaseState.currentPhase;
+    }
+
+    if (isChaosSummonRouletteSpawn(ev, spawnMeta)) {
         phaseState.currentPhase++;
         phase = phaseState.currentPhase;
     }
