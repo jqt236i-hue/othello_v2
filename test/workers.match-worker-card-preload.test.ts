@@ -14,6 +14,7 @@ describe('match worker card module preload', () => {
     const swapWithEnemyIndex = source.indexOf("installRuntimeModule('SwapWithEnemyEffects'");
     const statusCellsIndex = source.indexOf("installRuntimeModule('CardStatusCellsEffects'");
     const observerWillResolutionIndex = source.indexOf("installRuntimeModule('CardObserverWillResolution'");
+    const chaosSummonResolutionIndex = source.indexOf("installRuntimeModule('CardChaosSummonResolution'");
     const stateManagerIndex = source.indexOf("installRuntimeModule('CardStateManager'");
     const effectResolverIndex = source.indexOf("installRuntimeModule('CardEffectResolver'");
     const timingProcessorIndex = source.indexOf("installRuntimeModule('CardTimingProcessor'");
@@ -29,6 +30,7 @@ describe('match worker card module preload', () => {
     expect(swapWithEnemyIndex).toBeGreaterThanOrEqual(0);
     expect(statusCellsIndex).toBeGreaterThanOrEqual(0);
     expect(observerWillResolutionIndex).toBeGreaterThanOrEqual(0);
+    expect(chaosSummonResolutionIndex).toBeGreaterThanOrEqual(0);
     expect(stateManagerIndex).toBeGreaterThanOrEqual(0);
     expect(effectResolverIndex).toBeGreaterThanOrEqual(0);
     expect(timingProcessorIndex).toBeGreaterThanOrEqual(0);
@@ -39,6 +41,7 @@ describe('match worker card module preload', () => {
     expect(source).toContain("require('../cards/catalog.js')");
     expect(source).toContain("require('../game/logic/card-resolution/status-cells.js')");
     expect(source).toContain("require('../game/logic/card-resolution/observer-will.js')");
+    expect(source).toContain("require('../game/logic/card-resolution/chaos-summon.js')");
   });
 
   test('worker global importer unwraps nested module exports and prefers usable runtime modules', () => {
@@ -60,10 +63,12 @@ describe('match worker card module preload', () => {
     expect(source).toContain("'../game/logic/effects/swap_with_enemy.js': () => require('../game/logic/effects/swap_with_enemy.js')");
     expect(source).toContain("'../game/logic/card-resolution/status-cells': () => require('../game/logic/card-resolution/status-cells')");
     expect(source).toContain("'../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will')");
+    expect(source).toContain("'../game/logic/card-resolution/chaos-summon': () => require('../game/logic/card-resolution/chaos-summon')");
     expect(source).toContain("['../game/logic/board_ops.js', 'BoardOps']");
     expect(source).toContain("['../game/cards/effect-resolver.js', 'CardEffectResolver']");
     expect(source).toContain("['../game/logic/card-resolution/status-cells', 'CardStatusCellsEffects']");
     expect(source).toContain("['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution']");
+    expect(source).toContain("['../game/logic/card-resolution/chaos-summon', 'CardChaosSummonResolution']");
     expect(source).toContain('requiredGlobals.reduce(');
   });
 });

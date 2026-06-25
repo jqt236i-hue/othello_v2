@@ -209,6 +209,7 @@ const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLo
     '../game/logic/card-resolution/hand-effects': () => require('../game/logic/card-resolution/hand-effects'),
     '../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will'),
     '../game/logic/card-resolution/theory-incarnation': () => require('../game/logic/card-resolution/theory-incarnation'),
+    '../game/logic/card-resolution/chaos-summon': () => require('../game/logic/card-resolution/chaos-summon'),
     '../game/logic/card-resolution/board-executor': () => require('../game/logic/card-resolution/board-executor'),
     '../game/logic/card-resolution/special-stone-marker-factory': () => require('../game/logic/card-resolution/special-stone-marker-factory'),
     '../game/logic/card-resolution/position-swap': () => require('../game/logic/card-resolution/position-swap'),
@@ -611,6 +612,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/card-resolution/hand-effects', 'CardHandEffects'],
             ['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution'],
             ['../game/logic/card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution'],
+            ['../game/logic/card-resolution/chaos-summon', 'CardChaosSummonResolution'],
             ['../game/logic/card-resolution/board-executor', 'CardBoardExecutorResolution'],
             ['../game/logic/card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory'],
             ['../game/logic/card-resolution/position-swap', 'CardPositionSwapEffects']

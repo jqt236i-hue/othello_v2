@@ -150,6 +150,14 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
+    if (cardType === 'CHAOS_SUMMON') {
+        if (!context || !context.gameState || typeof context.canUseChaosSummon !== 'function') {
+            return buildFailureResult();
+        }
+        return context.canUseChaosSummon(context.cardState, context.gameState, context.playerKey)
+            ? result
+            : buildFailureResult();
+    }
     if (cardType === 'LAST_RESORT') {
         if (!context || !context.gameState || typeof context.canUseLastResortForPlayer !== 'function') {
             return buildFailureResult();

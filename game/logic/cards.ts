@@ -1105,6 +1105,7 @@ const {
                 canUseReinforcementWillForPlayer,
                 canUseSupportTroopsWillForPlayer,
                 canUseTimeStopGodForPlayer,
+                canUseChaosSummon,
                 buildHeavenBlessingSeedHint,
                 buildHeavenBlessingOffers,
                 buildCondemnOffers,
@@ -2049,6 +2050,15 @@ const {
         return CardTheoryIncarnationResolutionModule.canUseTheoryIncarnation(cardState, playerKey);
     }
 
+    function canUseChaosSummon(cardState: any, gameState: any, playerKey: any) {
+        return CardChaosSummonResolutionModule.canUseChaosSummon(
+            cardState,
+            gameState,
+            playerKey,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
     function applyTheoryIncarnationUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
         return CardTheoryIncarnationResolutionModule.applyTheoryIncarnationUsage(
             cardState,
@@ -2466,6 +2476,7 @@ const {
             canUseReinforcementWillForPlayer,
             canUseSupportTroopsWillForPlayer,
             canUseTimeStopGodForPlayer,
+            canUseChaosSummon,
             countOpponentOccupiedCornersForPlayer,
             getDestroyTargets,
             getReverseWillTargets,
@@ -4606,6 +4617,7 @@ const cardsApi: any = {
         addNumberCellCollectedTotal,
         canUseTheoryIncarnation,
         applyChaosSummonUsage,
+        canUseChaosSummon,
         canUseBoardExecutor,
         processBoardExecutorMarkerAtTurnStart,
         processBoardExecutorHandTaxAtTurnStart,

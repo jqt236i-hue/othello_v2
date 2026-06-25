@@ -2,6 +2,7 @@ import * as ChaosSummon from '../game/logic/card-resolution/chaos-summon';
 import * as SpecialStoneMarkerFactory from '../game/logic/card-resolution/special-stone-marker-factory';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry';
 import * as EffectResolver from '../game/cards/effect-resolver';
+import * as CardHandManager from '../game/logic/cards-internal/hand-manager';
 
 function createDeps(overrides: any = {}) {
   return {
@@ -113,6 +114,32 @@ describe('混沌召喚', () => {
     );
   });
 
+  test('理論数字マスが候補に含まれてもルーレット payload に value を含めない', () => {
+    const deps = createDeps();
+    const cardState: any = {
+      boardBonusByCell: {
+        '0,1': 42
+      }
+    };
+    const gameState: any = {
+      board: [
+        [0, 0],
+        [0, 0]
+      ]
+    };
+
+    ChaosSummon.applyChaosSummonUsage(cardState, gameState, 'black', { random: () => 0 }, deps);
+
+    const spawnArg = deps.spawnAndFlipPlacement.mock.calls[0][0];
+    expect(spawnArg.spawnMeta.theorySpawnRoulette.candidateCells).toEqual([
+      { row: 0, col: 0 },
+      { row: 0, col: 1 },
+      { row: 1, col: 0 },
+      { row: 1, col: 1 }
+    ]);
+    expect(spawnArg.spawnMeta.theorySpawnRoulette.candidateCells.some((cell: any) => 'value' in cell)).toBe(false);
+  });
+
   test('カード使用 resolver から混沌召喚解決処理を呼ぶ', () => {
     const cardState: any = {
       hands: { black: ['chaos_summon_01'], white: [] },
@@ -132,6 +159,7 @@ describe('混沌召喚', () => {
       getCardDef: () => ({ id: 'chaos_summon_01', type: 'CHAOS_SUMMON', name: '混沌召喚' }),
       getHandCopyIdAt: () => null,
       getEffectiveCardCostForCopy: () => 15,
+      canUseChaosSummon: () => true,
       applyChaosSummonUsage,
       writeCardPendingEffect: (state: any, owner: string, pending: any) => {
         state.pendingEffectByPlayer[owner] = pending;
@@ -144,5 +172,78 @@ describe('混沌召喚', () => {
       type: 'CHAOS_SUMMON',
       cardId: 'chaos_summon_01'
     }));
+  });
+
+  test('混沌召喚が使用前条件を満たさない場合は手札と布石を消費しない', () => {
+    const cardState: any = {
+      hands: { black: ['chaos_summon_01'], white: [] },
+      charge: { black: 15, white: 0 },
+      discardPile: [],
+      pendingEffectByPlayer: {},
+      lastUsedCardByPlayer: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      selectedCardId: null,
+      selectedCardOwnerKey: null
+    };
+    const applyChaosSummonUsage = jest.fn(() => ({ applied: false, reason: 'no_empty_cell' }));
+    const removeHandCardAt = jest.fn((state: any, owner: string, index: number) => {
+      const [cardId] = state.hands[owner].splice(index, 1);
+      return { cardId, handIndex: index, cardCopyId: null };
+    });
+    const addChargeValue = jest.fn((state: any, owner: string, amount: number) => {
+      state.charge[owner] += amount;
+    });
+
+    const applied = EffectResolver.applyCardUsage(cardState, 'black', 'chaos_summon_01', {
+      gameState: { board: [[1]] },
+      opts: { prng: { random: () => 0 } },
+      getCardCost: () => 15,
+      getCardType: () => 'CHAOS_SUMMON',
+      getCardDef: () => ({ id: 'chaos_summon_01', type: 'CHAOS_SUMMON', name: '混沌召喚' }),
+      getHandCopyIdAt: () => null,
+      getEffectiveCardCostForCopy: () => 15,
+      canUseChaosSummon: () => false,
+      applyChaosSummonUsage,
+      removeHandCardAt,
+      addChargeValue,
+      writeCardPendingEffect: (state: any, owner: string, pending: any) => {
+        state.pendingEffectByPlayer[owner] = pending;
+      }
+    });
+
+    expect(applied).toBe(false);
+    expect(cardState.hands.black).toEqual(['chaos_summon_01']);
+    expect(cardState.charge.black).toBe(15);
+    expect(cardState.hasUsedCardThisTurnByPlayer.black).toBe(false);
+    expect(removeHandCardAt).not.toHaveBeenCalled();
+    expect(addChargeValue).not.toHaveBeenCalled();
+    expect(applyChaosSummonUsage).not.toHaveBeenCalled();
+  });
+
+  test('使用可能カード一覧でも混沌召喚の使用前条件を反映する', () => {
+    const cardState: any = {
+      hands: { black: ['chaos_summon_01'], white: [] },
+      charge: { black: 15, white: 0 },
+      turnIndex: 0
+    };
+    const gameState: any = { board: [[1]] };
+    const context: any = {
+      constants: {
+        CARD_DEFS: [
+          { id: 'chaos_summon_01', type: 'CHAOS_SUMMON', cost: 15, name: '混沌召喚' }
+        ],
+        CARD_TYPE_BY_ID: { chaos_summon_01: 'CHAOS_SUMMON' },
+        MAX_HAND_SIZE: 5,
+        RIBO_WILL_UNLOCK_TURN_INDEX: 19
+      },
+      helpers: {
+        canUseChaosSummon: jest.fn(() => false)
+      }
+    };
+
+    const usable = CardHandManager.getUsableCardIds(cardState, gameState, 'black', context);
+
+    expect(usable).toEqual([]);
+    expect(context.helpers.canUseChaosSummon).toHaveBeenCalledWith(cardState, gameState, 'black');
   });
 });

@@ -90,7 +90,8 @@ export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freez
     "support_troops_01": "88_援軍の意志.png",
     "equality_will_01": "89_平等の意志.png",
     "fate_will_01": "90_運命の意志.png",
-    "meteor_god_01": "91_因果抹消神.png"
+    "meteor_god_01": "91_因果抹消神.png",
+    "chaos_summon_01": "94_混沌召喚.png"
 });
 
 export default CARD_FACE_ART_FILENAME_BY_ID;

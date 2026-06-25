@@ -71,10 +71,35 @@ function buildChaosSummonEntries(cardDefs: any, deps: any = {}, ownerKey: Player
 
 function sampleOne(items: any[], prng: any, deps: any): any | null {
     if (!Array.isArray(items) || items.length <= 0) return null;
-    const pickedList = typeof deps.sampleRandomPositions === 'function'
+    const pickedList = deps && typeof deps.sampleRandomPositions === 'function'
         ? deps.sampleRandomPositions(items, 1, prng)
         : [items[0]];
     return pickedList && pickedList[0] ? pickedList[0] : null;
+}
+
+function stripTheoryNumberValuesFromRoulette(roulette: any): any {
+    if (!roulette || typeof roulette !== 'object') return roulette;
+    if (Array.isArray(roulette.candidateCells)) {
+        roulette.candidateCells = roulette.candidateCells
+            .map((cell: any) => ({
+                row: Number(cell && cell.row),
+                col: Number(cell && cell.col)
+            }))
+            .filter((cell: any) => Number.isInteger(cell.row) && Number.isInteger(cell.col));
+    }
+    if (roulette.selectedCell && typeof roulette.selectedCell === 'object') {
+        roulette.selectedCell = {
+            row: Number(roulette.selectedCell.row),
+            col: Number(roulette.selectedCell.col)
+        };
+    }
+    return roulette;
+}
+
+function canUseChaosSummon(cardState: any, gameState: GameState, playerKey: any, deps: any): boolean {
+    const ownerKey = ownerKeyOf(playerKey);
+    return getChaosSummonAvailableCells(cardState, gameState, deps).length > 0
+        && buildChaosSummonEntries(deps && deps.CARD_DEFS, deps, ownerKey).length > 0;
 }
 
 function applyChaosSummonUsage(cardState: any, gameState: GameState, playerKey: any, prng: any, deps: any): any {
@@ -106,6 +131,7 @@ function applyChaosSummonUsage(cardState: any, gameState: GameState, playerKey: 
         pickedCell,
         markerData
     );
+    stripTheoryNumberValuesFromRoulette(roulette);
     roulette.sourceCardId = pickedEntry.cardId || markerData.sourceCardId || null;
     roulette.sourceCardType = pickedEntry.cardType || markerData.sourceCardType || null;
 
@@ -197,5 +223,6 @@ export = {
     buildChaosSummonEntries,
     getChaosSummonAvailableCells,
     isChaosSummonAvailableCell,
+    canUseChaosSummon,
     applyChaosSummonUsage
 };

@@ -146,6 +146,7 @@ installRuntimeModule('CardBoardExpansionApply', () => require('../game/logic/car
 installRuntimeModule('CardHandEffects', () => require('../game/logic/card-resolution/hand-effects.js'));
 installRuntimeModule('CardObserverWillResolution', () => require('../game/logic/card-resolution/observer-will.js'));
 installRuntimeModule('CardTheoryIncarnationResolution', () => require('../game/logic/card-resolution/theory-incarnation.js'));
+installRuntimeModule('CardChaosSummonResolution', () => require('../game/logic/card-resolution/chaos-summon.js'));
 installRuntimeModule('CardBoardExecutorResolution', () => require('../game/logic/card-resolution/board-executor.js'));
 installRuntimeModule('SpecialStoneMarkerFactory', () => require('../game/logic/card-resolution/special-stone-marker-factory.js'));
 installRuntimeModule('CardPositionSwapEffects', () => require('../game/logic/card-resolution/position-swap.js'));

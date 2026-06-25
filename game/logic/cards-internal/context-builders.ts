@@ -29,6 +29,7 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 canUseReinforcementWillForPlayer: helpers.canUseReinforcementWillForPlayer,
                 canUseSupportTroopsWillForPlayer: helpers.canUseSupportTroopsWillForPlayer,
                 canUseTimeStopGodForPlayer: helpers.canUseTimeStopGodForPlayer,
+                canUseChaosSummon: helpers.canUseChaosSummon,
                 buildHeavenBlessingSeedHint: helpers.buildHeavenBlessingSeedHint,
                 buildHeavenBlessingOffers: helpers.buildHeavenBlessingOffers,
                 buildCondemnOffers: helpers.buildCondemnOffers,
