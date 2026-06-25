@@ -27,6 +27,7 @@ type MatchWorkerStreamControllerConfig = {
     buildHeartbeatPayload: (room: MatchWorkerRoomState, serverTime: unknown) => Record<string, unknown>;
     saveRoom: () => Promise<void>;
     onStreamCountChanged?: (streamCount: number) => Promise<void> | void;
+    onStreamClosed?: (stream: MatchWorkerSseStreamInfo, streamId: string) => Promise<void> | void;
     sseChunk: (eventName: unknown, payload: unknown, eventId?: unknown) => string;
     heartbeatIntervalMs: number;
     writeTimeoutMs: number;
@@ -78,6 +79,9 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
         const stream = streams.get(streamId);
         if (!stream) return;
         streams.delete(streamId);
+        if (typeof cfg.onStreamClosed === 'function') {
+            await cfg.onStreamClosed(stream, streamId);
+        }
         if (streams.size === 0 && cfg.getHeartbeatTimerId() !== null) {
             try { clearTimeoutFn(cfg.getHeartbeatTimerId()); } catch (e) { /* ignore */ }
             cfg.setHeartbeatTimerId(null);

@@ -33,7 +33,7 @@ function getMarkersAt(cardState: any, row: number, col: number): any[] {
 function blocksTemptMarker(marker: any): boolean {
     const type = getMarkerType(marker);
     if (!type) return false;
-    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return true;
+    if (type === 'GUARD') return true;
     return !!(
         SpecialStoneRegistry &&
         typeof SpecialStoneRegistry.blocksTempt === 'function' &&

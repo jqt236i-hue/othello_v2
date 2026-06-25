@@ -94,7 +94,7 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
       row: 4,
       col: 5,
       owner: 'white',
-      data: { type: 'BOARD_EXECUTOR', absoluteProtected: true, remainingOwnerTurns: 4 }
+      data: { type: 'BOARD_EXECUTOR', inviolable: true, remainingOwnerTurns: 4 }
     });
 
     expect(CardLogic.getSwapTargets(cardState, gameState, 'black')).not.toEqual(expect.arrayContaining([{ row: 4, col: 5 }]));
@@ -176,7 +176,7 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
       row: 4,
       col: 3,
       owner: 'white',
-      data: { type: 'BOARD_EXECUTOR', absoluteProtected: true, remainingOwnerTurns: 4 }
+      data: { type: 'BOARD_EXECUTOR', inviolable: true, remainingOwnerTurns: 4 }
     });
 
     const ok = CardLogic.applySwapEffect(cardState, gameState, 'black', 4, 4);

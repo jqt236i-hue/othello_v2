@@ -41,7 +41,7 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 4, 5, 'black', {
       type: 'OBSERVER_WILL',
       remainingOwnerTurns: 5,
-      absoluteProtected: true,
+      inviolable: true,
       visualEffectKey: 'observerWillStone'
     });
 

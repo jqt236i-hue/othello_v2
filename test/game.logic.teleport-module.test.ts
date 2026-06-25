@@ -63,7 +63,7 @@ describe('CardTeleport module', () => {
       'CELL_TELEPORT_WILL',
       'cell_teleport_source_cell_remove',
       expect.objectContaining({
-        removalPolicy: 'absolute_only',
+        removalPolicy: 'cell_removal',
         removalKind: 'meteor_hole'
       })
     );

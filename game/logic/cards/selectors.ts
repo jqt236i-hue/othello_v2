@@ -175,9 +175,9 @@ function isGuardProtectedCell(cardState: CardState, row: number, col: number): b
     ));
 }
 
-function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number): boolean {
-    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isAbsoluteProtectedCell === 'function') {
-        return SelectorsCoreUtils.isAbsoluteProtectedCell(cardState, row, col);
+function isInviolableCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isInviolableCell === 'function') {
+        return SelectorsCoreUtils.isInviolableCell(cardState, row, col);
     }
     if (CardUtils && typeof CardUtils.isManifestStoneAt === 'function' && CardUtils.isManifestStoneAt(cardState, row, col)) {
         return true;
@@ -193,10 +193,7 @@ function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number)
             (
                 m.kind === 'specialStone' &&
                 m.data &&
-                (
-                    m.data.type === 'ABSOLUTE_PROTECTED' ||
-                    isManifestStoneMarkerForSelectors(m)
-                )
+                isManifestStoneMarkerForSelectors(m)
             )
         )
     ));
@@ -233,7 +230,7 @@ function isPositionSwapProtectedCell(cardState: CardState, row: number, col: num
         return SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col);
     }
     if (isFrozenCell(cardState, row, col)) return true;
-    if (isAbsoluteProtectedCell(cardState, row, col)) return true;
+    if (isInviolableCell(cardState, row, col)) return true;
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     const marker = markers.find((m: any) => (
@@ -340,7 +337,7 @@ function hasShrinkGodHoleCandidate(cardState: CardState, lineDescriptor: LineDes
         cell &&
         Number.isInteger(cell.row) &&
         Number.isInteger(cell.col) &&
-        !isAbsoluteProtectedCell(cardState, cell.row, cell.col)
+        !isInviolableCell(cardState, cell.row, cell.col)
     ));
 }
 
@@ -394,7 +391,7 @@ function getDestroyTargets(cardState: CardState, gameState: GameState): TargetCe
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         const guarded = markers.some((m: any) =>
             m &&
             m.kind === 'specialStone' &&
@@ -428,7 +425,7 @@ function getSwapTargets(cardState: CardState, gameState: GameState, playerKey: P
 
     const canSwapCell = (row: number, col: number, ownerValue: number) => {
         if (ownerValue !== opVal) return;
-        if (isAbsoluteProtectedCell(cardState, row, col)) return;
+        if (isInviolableCell(cardState, row, col)) return;
         const hasSpecialOrBomb = markers.some((m: any) => {
             if (!m || m.row !== row || m.col !== col) return false;
             if (m.kind !== 'specialStone') return false;
@@ -501,7 +498,7 @@ function getStrongWindTargets(cardState: CardState, gameState: GameState): Targe
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         let movable = false;
         for (const d of [[0, -1], [0, 1]]) {
             if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d[0], d[1])) {
@@ -596,7 +593,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
     if (first && Number.isInteger(first.row) && Number.isInteger(first.col)) {
         const firstOwner = getCellValue(gameState, first.row, first.col);
         if (firstOwner === null || firstOwner === P_EMPTY) return res;
-        if (isAbsoluteProtectedCell(cardState, first.row, first.col)) return res;
+        if (isInviolableCell(cardState, first.row, first.col)) return res;
         forEachBoardShapeCell(gameState, (r, c) => {
             if (r === first.row && c === first.col) return;
             if (canSuperAttractionTravelTo(cardState, gameState, first.row, first.col, r, c)) {
@@ -608,7 +605,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
 
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         if (hasSuperAttractionDestination(cardState, gameState, r, c)) {
             res.push({ row: r, col: c });
         }
@@ -683,7 +680,7 @@ function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
         if (destination.row === r && destination.col === c) return;
@@ -696,7 +693,7 @@ function _getVerticalSlideTargets(cardState: CardState, gameState: GameState, dr
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         const destination = _collectVerticalSlideDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
         res.push({ row: r, col: c });
@@ -720,7 +717,7 @@ function getGravityTargets(cardState: CardState, gameState: GameState): TargetCe
     return _getVerticalSlideTargets(cardState, gameState, 1);
 }
 
-// Return trap targets: own stones (including special stones), excluding bombs/own existing trap/absolute-protected.
+// Return trap targets: own stones (including special stones), excluding bombs/own existing trap/inviolable cells.
 function getTrapTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
     const res: TargetCell[] = [];
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
@@ -731,7 +728,7 @@ function getTrapTargets(cardState: CardState, gameState: GameState, playerKey: P
         if (owner !== playerVal) return;
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         const hasOwnTrap = markers.some((m: any) => (
             m &&
             m.row === r &&
@@ -747,7 +744,7 @@ function getTrapTargets(cardState: CardState, gameState: GameState, playerKey: P
     return res;
 }
 
-// Return guard targets: own stones (normal/special both allowed), excluding bombs/absolute-protected.
+// Return guard targets: own stones (normal/special both allowed), excluding bombs/inviolable cells.
 function getGuardTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
     const res: TargetCell[] = [];
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
@@ -757,7 +754,7 @@ function getGuardTargets(cardState: CardState, gameState: GameState, playerKey: 
         if (owner !== playerVal) return;
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -772,7 +769,7 @@ function getLivingWillTargets(cardState: CardState, gameState: GameState, player
         if (owner !== playerVal) return;
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         const hasLivingWill = markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
@@ -866,7 +863,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isFrozenCell(cardState, r, c)) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -905,7 +902,7 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -1182,7 +1179,7 @@ function getCellTeleportTargets(cardState: CardState, gameState: GameState): Tar
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isFrozenCell(cardState, r, c)) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         if (isMeteorHoleCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
@@ -1319,7 +1316,7 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isMeteorHoleCell(cardState, r, c)) return;
-        if (isAbsoluteProtectedCell(cardState, r, c)) return;
+        if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;

@@ -229,7 +229,7 @@ function unwrapMarkerEntry(markerEntry: any): any | null {
 function isFallbackTemptTargetableMarker(cardUtils: any, marker: any): boolean {
     if (!marker || !marker.data) return false;
     const type = normalizeMarkerType(marker);
-    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
+    if (type === 'GUARD') return false;
     const ruleClass = cardUtils && typeof cardUtils.getMarkerRuleClass === 'function'
         ? cardUtils.getMarkerRuleClass(marker)
         : null;
@@ -249,7 +249,6 @@ function isCaptureTargetableMarkerForCard(cardUtils: any, marker: any): boolean 
     if (cardUtils && typeof cardUtils.isCaptureTargetableMarker === 'function') {
         return cardUtils.isCaptureTargetableMarker(marker) === true;
     }
-    if (normalizeMarkerType(marker) === 'ABSOLUTE_PROTECTED') return false;
     if (isGhostStoneStatusMarker(cardUtils, marker)) return true;
     const ruleClass = cardUtils && typeof cardUtils.getMarkerRuleClass === 'function'
         ? cardUtils.getMarkerRuleClass(marker)
@@ -276,7 +275,7 @@ function blocksTemptAt(cardUtils: any, cardState: any, row: number, col: number)
         marker.row === row &&
         marker.col === col &&
         marker.data &&
-        (marker.data.type === 'GUARD' || marker.data.type === 'ABSOLUTE_PROTECTED')
+        marker.data.type === 'GUARD'
     ));
 }
 

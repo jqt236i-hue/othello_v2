@@ -2,7 +2,7 @@
 
 ## 目的
 
-`盤理の観測者` (`observer_will_01`, `OBSERVER_WILL`) を、特殊カード基盤の上に実装する。カード使用直後に相手手札から1枚を奪い、その後に次配置石を5T絶対保護の観測石へ変える。観測石が盤面にある間は相手手札を常時表表示し、観測石が持続終了で消滅した所有者ターン開始時に奪ったカードに対する初回返済を開始する。
+`盤理の観測者` (`observer_will_01`, `OBSERVER_WILL`) を、特殊カード基盤の上に実装する。カード使用直後に相手手札から1枚を奪い、その後に次配置石を5T不可侵の観測顕現石へ変える。観測顕現石が盤面にある間は相手手札を常時表表示し、持続終了で消滅した所有者ターン開始時に奪ったカードに対する初回返済を開始する。
 
 この設計では、使用直後の選択を既存の `HEAVEN_BLESSING` / `CONDEMN_WILL` 系 pending selection に寄せ、5T後に突然UI選択を発生させる複雑さを避ける。
 
@@ -24,7 +24,7 @@
 - 観測石:
   - 次の自分の配置石として出る。
   - 5T持続。
-  - 絶対保護。
+  - 不可侵。
   - 盤面にある間、相手手札を常時表表示する。
   - 持続終了時は通常石に戻る。
 - 返済:
@@ -56,7 +56,7 @@
 - `type: 'OBSERVER_WILL'`
 - `owner`
 - `remainingOwnerTurns: 5`
-- `absoluteProtected: true`
+- `inviolable: true`
 - `visualEffectKey: 'observerWillStone'`
 - 返済予約IDまたは返済 entry 参照
 
@@ -94,7 +94,7 @@ CPU/ローカル表示でも同じ headless 判定を参照し、UIだけで相�
 - `CONDEMN_WILL`: 相手手札 offers、handIndex selection、ネットワーク投影、CPU target selection。
 - `REVEAL_HAND_WILL`: hand copyId と hidden token の考え方。ただし常時公開処理そのものは marker 条件の projection で新規実装する。
 - `RIBO_WILL`: turn-start 返済、布石不足時のランダム自石破壊、返済 summary / playback の構造。
-- 特殊カード基盤: `OBSERVER_WILL` marker metadata、絶対保護、visual key、特殊カードのデッキ制約。
+- 特殊カード基盤: `OBSERVER_WILL` marker metadata、不可侵、visual key、特殊カードのデッキ制約。
 
 ## UI / Network
 
@@ -117,7 +117,7 @@ CPU は以下を追加する。
 - usage: 18手未満では使えず、18手以上で相手手札 offers pending が作られる。
 - selection: 選択カードが相手手札から自分手札へ移り、0コスト化され、未選択カードが+5される。
 - placement: 選択後の次配置石が `OBSERVER_WILL` marker になる。
-- marker: 5T絶対保護で、duration end で通常石に戻る。
+- marker: 5T不可侵で、duration end で通常石に戻る。
 - reveal: marker がある間だけ owner から相手手札が見え、marker 消滅後は通常の hidden projection に戻る。
 - repayment: marker が持続終了で消滅した所有者ターン開始時から9回返済し、布石不足時は自石4個破壊する。
 - network: Worker projection で observer owner だけに相手手札を公開し、hidden token を canonical state に混ぜない。

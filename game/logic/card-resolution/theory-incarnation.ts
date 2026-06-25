@@ -141,7 +141,7 @@ function applyTheoryIncarnationStoneReservation(cardState: CardState, playerKey:
         : {
             type: THEORY_MARKER_TYPE,
             remainingOwnerTurns: THEORY_DURATION_OWNER_TURNS,
-            absoluteProtected: true,
+            inviolable: true,
             sourceType: THEORY_MARKER_TYPE,
             sessionId: reservation.sessionId || null,
             visualEffectKey: 'theoryIncarnationStone'

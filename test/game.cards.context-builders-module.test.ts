@@ -111,7 +111,6 @@ describe('CardContextBuilders module', () => {
         addChargeWithTotal: jest.fn(),
         addMarker: jest.fn(),
         applyStrongWill: jest.fn(),
-        applyAbsoluteProtect: jest.fn(),
         applyRegenWill: jest.fn(),
         workDebugLog: jest.fn(),
         workDebugError: jest.fn(),

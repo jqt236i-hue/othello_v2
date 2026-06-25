@@ -1721,33 +1721,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(topLevelCues).toHaveLength(0);
   });
 
-  test('strong_will_promoted は status_applied の phase で進化音を再生する', () => {
-    const base = [{
-      type: 'status_applied',
-      phase: 7,
-      targets: [{ r: 2, col: 3 }],
-      meta: { special: 'ABSOLUTE_PROTECTED', reason: 'strong_will_promoted', promotedFrom: 'PERMA_PROTECTED' }
-    }];
-    const pres = [{
-      type: 'STATUS_APPLIED',
-      row: 2,
-      col: 3,
-      reason: 'strong_will_promoted',
-      meta: {
-        special: 'ABSOLUTE_PROTECTED',
-        owner: 'black',
-        reason: 'strong_will_promoted',
-        promotedFrom: 'PERMA_PROTECTED'
-      }
-    }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'strong_will_promoted');
-
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(7);
-  });
-
   test('種まきの意志の芽生えは seed_sprout の専用音を再生する', () => {
     const base = [{
       type: 'spawn',

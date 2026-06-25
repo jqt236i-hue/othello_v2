@@ -161,18 +161,18 @@ function isManifestTarget(cardState: any, row: number, col: number): boolean {
     ));
 }
 
-function isAbsoluteProtectedTarget(cardState: any, row: number, col: number): boolean {
-    if (CardUtilsModule && typeof CardUtilsModule.isAbsoluteProtectedStoneAt === 'function') {
-        return CardUtilsModule.isAbsoluteProtectedStoneAt(cardState, row, col) === true;
+function isInviolableTarget(cardState: any, row: number, col: number): boolean {
+    if (CardUtilsModule && typeof CardUtilsModule.isInviolableStoneAt === 'function') {
+        return CardUtilsModule.isInviolableStoneAt(cardState, row, col) === true;
     }
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     return markers.some((marker: any) => {
         if (!marker || marker.row !== row || marker.col !== col || !marker.data) return false;
         const type = String(marker.data.type || '').toUpperCase();
-        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isAbsoluteProtectedSpecialType === 'function') {
-            return SpecialStoneRegistry.isAbsoluteProtectedSpecialType(type) === true;
+        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isInviolableSpecialType === 'function') {
+            return SpecialStoneRegistry.isInviolableSpecialType(type) === true;
         }
-        return type === 'ABSOLUTE_PROTECTED';
+        return false;
     });
 }
 
@@ -187,7 +187,7 @@ function isGuardProtectedTarget(cardState: any, row: number, col: number): boole
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.blocksTempt === 'function') {
             return SpecialStoneRegistry.blocksTempt(type, marker.data) === true;
         }
-        return type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
+        return type === 'GUARD';
     });
 }
 
@@ -201,7 +201,7 @@ function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: n
                 continue;
             if (isManifestTarget(cardState, row, col))
                 continue;
-            if (isAbsoluteProtectedTarget(cardState, row, col))
+            if (isInviolableTarget(cardState, row, col))
                 continue;
             if (isGuardProtectedTarget(cardState, row, col))
                 continue;
@@ -219,7 +219,7 @@ function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: n
             continue;
         if (isManifestTarget(cardState, cell.row, cell.col))
             continue;
-        if (isAbsoluteProtectedTarget(cardState, cell.row, cell.col))
+        if (isInviolableTarget(cardState, cell.row, cell.col))
             continue;
         if (isGuardProtectedTarget(cardState, cell.row, cell.col))
             continue;

@@ -74,6 +74,12 @@ const REQUIRED_UI_CONTROL_SMOKE_TARGETS: UiControlSmokeTarget[] = [
     selector: '#modeNetworkBtn',
     panelSelector: '#networkOverlay',
     closeSelector: '#networkCloseBtn'
+  },
+  {
+    name: 'ratedMatch',
+    selector: '#ratedMatchOpenBtn',
+    panelSelector: '#ratedMatchOverlay',
+    closeSelector: '#ratedMatchCloseBtn'
   }
 ];
 

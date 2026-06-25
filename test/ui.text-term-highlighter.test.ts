@@ -17,7 +17,7 @@ describe('text term highlighter', () => {
       '通常石',
       '反転保護',
       '完全保護',
-      '絶対保護',
+      '不可侵',
       '自由配置',
       '観測の代償'
     ]));
@@ -25,10 +25,9 @@ describe('text term highlighter', () => {
 
   test('shares effect tag descriptions with highlighted game terms', () => {
     const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス');
-    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。');
+    expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。');
     const erase = getGameTermGlossary().find((entry) => entry.label === '抹消');
-    expect(erase?.description).toContain('完全保護や反転保護でも防げません');
-    expect(erase?.description).toContain('絶対保護だけは防げます');
+    expect(erase?.description).toContain('完全保護や反転保護では防げません');
   });
 
   test('catalogs free placement as a placement action term', () => {
@@ -142,14 +141,14 @@ describe('text term highlighter', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="target"></div></body></html>');
     const target = dom.window.document.getElementById('target') as HTMLElement;
 
-    renderTextWithGameTermHighlights(target, '特殊石と絶対保護', {
+    renderTextWithGameTermHighlights(target, '特殊石と不可侵', {
       documentRef: dom.window.document,
       interactive: true
     });
 
     const terms = Array.from(target.querySelectorAll('.game-term-highlight')) as HTMLElement[];
     expect(terms.map((term) => term.tagName)).toEqual(['BUTTON', 'BUTTON']);
-    expect(terms.map((term) => term.textContent)).toEqual(['特殊石', '絶対保護']);
+    expect(terms.map((term) => term.textContent)).toEqual(['特殊石', '不可侵']);
     expect(terms[0].getAttribute('type')).toBe('button');
     expect(terms[0].classList.contains('game-term-highlight-button')).toBe(true);
     expect(terms[0].getAttribute('aria-label')).toBe('特殊石の意味を表示');

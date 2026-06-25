@@ -48,7 +48,6 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'X_BOMB') return 'クロス爆弾';
     if (s === 'PROTECTED') return '反転保護';
     if (s === 'PERMA_PROTECTED') return '永続反転保護';
-    if (s === 'ABSOLUTE_PROTECTED') return '絶対保護';
     if (s === 'GUARD') return '守る石';
     if (s === 'TRAP' || s === 'TRAP_REVEAL') return '罠石';
     if (s === 'BLOCKADE') return '封鎖マス';

@@ -80,20 +80,6 @@ const GAME_STONE_VISUAL_EFFECTS = {
             'background-color': 'transparent'
         }
     },
-    // 絶対保護（最強の意志）
-    absoluteProtectedStone: {
-        cssClass: 'absolute-protected-stone',
-        cssMethod: 'background',
-        imagePathByOwner: {
-            '1': 'assets/images/special-stones/absolute_protect_next_stone-black.png',   // BLACK owner
-            '-1': 'assets/images/special-stones/absolute_protect_next_stone-white.png'   // WHITE owner
-        },
-        backgroundSize: '100% 100%',
-        dataAttributes: {},
-        clearStyles: {
-            'background-color': 'transparent'
-        }
-    },
     theoryIncarnationStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -558,8 +544,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'TRAP_REVEAL': 'trapStone',
     'THEORY_INCARNATION': 'theoryIncarnationStone',
     'BOARD_EXECUTOR': 'boardExecutorStone',
-    'OBSERVER_WILL': 'observerWillStone',
-    'ABSOLUTE_PROTECTED': 'absoluteProtectedStone'
+    'OBSERVER_WILL': 'observerWillStone'
 };
 
 function normalizeStoneVisualDefinitions(map) {

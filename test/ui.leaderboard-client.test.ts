@@ -12,6 +12,13 @@ describe('leaderboard client shortest turns category', () => {
       setItem: jest.fn((key: string, value: string) => void storage.set(key, value))
     };
     storage.set('shared_leaderboard_player_name_v1', 'アルファ');
+    storage.set('card_reversi_player_profile_v1', JSON.stringify({
+      version: 1,
+      displayName: 'アルファ',
+      avatarStoneType: 'LIGHTNING',
+      bio: 'よろしくお願いします',
+      updatedAt: 1000
+    }));
     storage.set('card_reversi_player_identity_v1', JSON.stringify({
       playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
       playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
@@ -36,6 +43,8 @@ describe('leaderboard client shortest turns category', () => {
             rank: 1,
             playerId: 'player_alpha_0001',
             playerName: 'アルファ',
+            avatarStoneType: 'GHOST',
+            bio: '最短狙い',
             category: 'shortestTurns',
             turnCount: 37,
             mode: 'cpu',
@@ -57,10 +66,54 @@ describe('leaderboard client shortest turns category', () => {
       entries: [
         {
           playerName: 'アルファ',
+          avatarStoneType: 'GHOST',
+          bio: '最短狙い',
           category: 'shortestTurns',
           turnCount: 37
         }
       ]
+    });
+  });
+
+  test('getRatedLeaderboard fetches rated leaderboard from rating endpoint', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        updatedAt: 1000,
+        entries: [{
+          rank: 1,
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerName: 'アルファ',
+          avatarStoneType: 'LIGHTNING',
+          bio: 'よろしくお願いします',
+          displayRating: 1662,
+          ratedGames: 1,
+          wins: 1,
+          draws: 0,
+          losses: 0
+        }]
+      })
+    });
+
+    const client = require('../ui/leaderboard-client.js');
+    const result = await client.getRatedLeaderboard(25);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/rating/leaderboard?pool=card_ranked_v1&limit=25', expect.objectContaining({
+      method: 'GET'
+    }));
+    expect(result).toMatchObject({
+      ok: true,
+      category: 'rated',
+      entries: [{
+        playerName: 'アルファ',
+        displayRating: 1662,
+        ratedGames: 1,
+        wins: 1,
+        draws: 0,
+        losses: 0
+      }]
     });
   });
 
@@ -97,6 +150,8 @@ describe('leaderboard client shortest turns category', () => {
       playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
       playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
       playerName: 'アルファ',
+      avatarStoneType: 'LIGHTNING',
+      bio: 'よろしくお願いします',
       category: 'shortestTurns',
       turnCount: 37,
       mode: 'cpu',

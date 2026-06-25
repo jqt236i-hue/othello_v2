@@ -105,7 +105,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 3, 3, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION',
       sessionId: 'theory_black_1'
     });
@@ -167,7 +167,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
@@ -251,7 +251,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
@@ -303,7 +303,6 @@ describe('理論の化身', () => {
       SpecialStoneRegistry,
       ownerKey: 'black',
       constants: {
-        STRONG_WILL_PROMOTION_OWNER_TURNS: 20,
         ULTIMATE_DESTROY_GOD_TURNS: 6,
         ULTIMATE_HYPERACTIVE_TURNS: 12,
         STONE_SALVATION_GOD_TURNS: 12,
@@ -320,7 +319,7 @@ describe('理論の化身', () => {
       expect.objectContaining({
         cardType: 'PERMA_PROTECT_NEXT_STONE',
         cardCost: 16,
-        markerData: expect.objectContaining({ type: 'PERMA_PROTECTED', strongWillPromotionThreshold: 20 })
+        markerData: expect.objectContaining({ type: 'PERMA_PROTECTED' })
       }),
       expect.objectContaining({
         cardType: 'DESTROY_DRAGON_WILL',
@@ -388,6 +387,9 @@ describe('理論の化身', () => {
       'TRAP_WILL',
       'INSTANT_HYPERACTIVE_WILL'
     ]));
+    const strongWillEntry = table.find((entry: any) => entry && entry.cardType === 'PERMA_PROTECT_NEXT_STONE');
+    expect(strongWillEntry.markerData).not.toHaveProperty('strongWillPromotionOwnerTurnStarts');
+    expect(strongWillEntry.markerData).not.toHaveProperty('strongWillPromotionThreshold');
   });
 
   test('数字マス合計42で使用可能になり、演算の意志の2倍後の数字マス布石が進捗になる', () => {
@@ -442,7 +444,7 @@ describe('理論の化身', () => {
     expect(placed.events).toContainEqual(expect.objectContaining({ type: 'theory_incarnation_marker_applied' }));
     const marker = cardState.markers.find((entry: any) => entry && entry.data && entry.data.type === 'THEORY_INCARNATION');
     expect(marker).toEqual(expect.objectContaining({ row: 2, col: 3, owner: 'black', kind: 'manifestStone' }));
-    expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 4, absoluteProtected: true }));
+    expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 4, inviolable: true }));
     expect(CardLogic.isPlacementLockedForPlayer(cardState, 'black')).toBe(false);
     expect(CardLogic.isCardPlayLockedForPlayer(cardState, 'black')).toBe(true);
   });
@@ -456,7 +458,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 0, 0, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 2,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
     expect(CardLogic.isPlacementLockedForPlayer(cardState, 'black')).toBe(false);
@@ -513,7 +515,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 0, 7, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION',
       sessionId
     });
@@ -636,7 +638,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
@@ -702,7 +704,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION',
       sessionId: 'theory_black_empty'
     });
@@ -765,7 +767,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
@@ -1032,7 +1034,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
@@ -1100,7 +1102,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 
@@ -1167,7 +1169,7 @@ describe('理論の化身', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 1,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION'
     });
 

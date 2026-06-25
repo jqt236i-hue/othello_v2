@@ -299,22 +299,6 @@ describe('visual-effects map shared between game/ui', () => {
     expect(sacrificeMap.imagePathByOwner['-1']).toContain('SACRIFICE_WILL-white.png');
   });
 
-  test('ABSOLUTE_PROTECTED が昇格後の絶対保護石画像へ解決される', () => {
-    require('../ui/visual-effects-map');
-    require('../game/visual-effects-map');
-
-    const shared = window.GameVisualEffectsMap;
-    expect(shared).toBeTruthy();
-
-    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.ABSOLUTE_PROTECT_NEXT_STONE).toBeUndefined();
-    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.ABSOLUTE_PROTECTED).toBe('absoluteProtectedStone');
-
-    const map = shared.STONE_VISUAL_EFFECTS.absoluteProtectedStone;
-    expect(map).toBeTruthy();
-    expect(map.imagePathByOwner['1']).toContain('absolute_protect_next_stone-black.png');
-    expect(map.imagePathByOwner['-1']).toContain('absolute_protect_next_stone-white.png');
-  });
-
   test('shared card art helpers resolve owner-specific and fallback card images', () => {
     require('../game/visual-effects-map');
 

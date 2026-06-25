@@ -32,7 +32,6 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   ABSOLUTE_EXECUTION: 'absolute-execution',
   FLIP_PROTECTION: 'flip-protection',
   FULL_PROTECTION: 'full-protection',
-  ABSOLUTE_PROTECTION: 'absolute-protection',
   INVIOLABLE: 'inviolable',
   FLIP_EVASION: 'flip-evasion',
   DESTROY_EVASION: 'destroy-evasion',
@@ -75,9 +74,6 @@ function buildCardEffectTag(kind: string, value?: number) {
   if (normalizedKind === CARD_EFFECT_TAG_KIND.FULL_PROTECTION) {
     return Object.freeze({ kind: normalizedKind, label: '完全保護' });
   }
-  if (normalizedKind === CARD_EFFECT_TAG_KIND.ABSOLUTE_PROTECTION) {
-    return Object.freeze({ kind: normalizedKind, label: '絶対保護' });
-  }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.INVIOLABLE) {
     return Object.freeze({ kind: normalizedKind, label: '不可侵' });
   }
@@ -116,7 +112,6 @@ const holeCellTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.HOLE_CELL);
 const erasureTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ERASURE);
 const absoluteExecutionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_EXECUTION);
 const fullProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FULL_PROTECTION);
-const absoluteProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_PROTECTION);
 const inviolableTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.INVIOLABLE);
 const flipEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_EVASION, value);
 const destroyEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DESTROY_EVASION, value);
@@ -145,7 +140,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   SWAP_WITH_ENEMY: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。',
   POSITION_SWAP_WILL: '盤面の石2つを入れ替える',
   ANCHOR_WILL: '次に置く石を完全固定',
-  PERMA_PROTECT_NEXT_STONE: '次に置く石を強い石化。ずっと反転されず、特殊石として扱う。20ターン経過で絶対保護石へ進化。',
+  PERMA_PROTECT_NEXT_STONE: '次に置く石を強い石化。ずっと反転されず、特殊石として扱う。進化しない。',
   STRONG_WIND_WILL: '選択した石を左右どちらかランダム方向へ端まで移動させる。',
   BUOYANCY_WILL: '石1つ選び上方向の端まで移動させる',
   SUPER_BUOYANCY_WILL: '石1つを上端まで押し上げ、進路上の石を破壊',
@@ -240,7 +235,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   SWAP_WITH_ENEMY: '相手の通常石1つを自分色に交換する。\n交換後、その位置を起点に挟める相手石を通常反転する。\nそのターンは石を置かず、そこで手番終了する。',
   POSITION_SWAP_WILL: '対象は通常石・特殊石・爆弾を問わない。',
   ANCHOR_WILL: '反転保護はターンをまたいで継続する。\n置いた石は相手ターンでも反転されない。',
-  PERMA_PROTECT_NEXT_STONE: '強い石は特殊石として扱い、誘惑・捕獲・意志の喪失の対象になる。\n昇格前は反転だけを防ぎ、交換・破壊・誘惑・捕獲・意志の喪失までは防がない。\n所有者ターン開始20回で絶対保護石へ昇格する。\n絶対保護石も特殊石だが、対象効果は絶対保護で受けない。',
+  PERMA_PROTECT_NEXT_STONE: '強い石は特殊石として扱い、誘惑・捕獲・意志の喪失の対象になる。\n反転と通常の交換対象化を防ぐ。\n破壊・誘惑・捕獲・意志の喪失は防がない。\n所有者ターン開始回数による進化はしない。',
   STRONG_WIND_WILL: '移動方向は左右どちらかランダムで決まる。\n進路上の空きマスを進み、端または進入できないマスの直前で止まる。',
   BUOYANCY_WILL: '選んだ石を同じ列の上方向へ移動させる。\n進路上の空きマスを進み、上端または進入できないマスの直前で止まる。',
   SUPER_BUOYANCY_WILL: '盤面上の石を1つ選び、上方向へ限界まで移動させる。\n移動経路にある石は衝突時にすべて破壊する。\n封鎖マス・穴マスには入れない。',
@@ -250,8 +245,8 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   TELEPORT_WILL: '対象は敵味方・通常石・特殊石・爆弾を問わない。',
   CELL_TELEPORT_WILL: '現在の盤面上に存在する石のあるマスを1つ選ぶ。\n選ばれた石を、盤面拡張・盤面拡張神で追加可能な外側マスのうち空いている1マスへランダムにテレポートさせる。\n移動先が未生成ならその拡張マスを作ってから移動し、元マスをセル消滅で永続の穴マスにする。\n元マスが穴マスになる処理は石破壊ではなく、生きる意志・復活の意志・破壊回避では残らない。\n対象は敵味方・通常石・特殊石・爆弾を問わない。',
   TRAP_WILL: 'そのターンは石を置かない。\n次の相手ターン中に反転されると、相手の布石を最大10奪い相手手札を全破壊する。\n反転されなければ不発で終了する。',
-  TEMPT_WILL: '対象は相手の誘惑可能な石効果。\n特殊石、罠石、時限爆弾、生きる意志を対象に含む。\n弱い石・強い石・幽体石は特殊石として対象に含まれる。\n完全保護中の石と絶対保護石は対象効果を受けない。\n顕現石・盤面マーカー・配置時効果は対象外。\n残りターンなどの状態を維持したまま自分側になる。',
-  CAPTURE_WILL: '盤面から取り除き、その特殊石の元になったカードとして自分の手札へ加える。\n弱い石・強い石・幽体石は対象に含まれる。\n完全保護が付いた相手特殊石と絶対保護石は対象効果を受けない。\n幽体石にも通常どおり成立する。',
+  TEMPT_WILL: '対象は相手の誘惑可能な石効果。\n特殊石、罠石、時限爆弾、生きる意志を対象に含む。\n弱い石・強い石・幽体石は特殊石として対象に含まれる。\n完全保護中の石、顕現石、盤面マーカー、配置時効果は対象外。\n残りターンなどの状態を維持したまま自分側になる。',
+  CAPTURE_WILL: '盤面から取り除き、その特殊石の元になったカードとして自分の手札へ加える。\n弱い石・強い石・幽体石は対象に含まれる。\n完全保護中の石、顕現石、盤面マーカー、配置時効果は対象外。\n幽体石にも通常どおり成立する。',
   DOUBLE_CHAIN_WILL: 'この手の通常反転を起点に、追加反転を1回行う。\n使用後、三連鎖の意志が手札に加わる。',
   TRIPLE_CHAIN_WILL: 'この手の通常反転を起点に、追加反転を2回行う。\n使用後、四連鎖の意志が手札に加わる。',
   QUAD_CHAIN_WILL: 'この手の通常反転を起点に、追加反転を3回行う。\n使用後、無限連鎖の意志が手札に加わる。',
@@ -322,7 +317,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   REINFORCEMENT_WILL: '使用時、盤面の空きマスのうち、いずれかの石に隣接1マス（周囲8マス）で接している候補だけを集める。\n候補からランダム1マスを選び、自分色の通常石を1個配置する。\n候補条件に通常反転の可否は含めず、配置後は通常配置と同じ反転処理を行う。\n配置先が未消費の数字マスなら通常配置と同じく数字マスを消費し、布石と理論の化身の数字マス獲得進捗を得る。\n候補が無い局面では使用できない。',
   SUPPORT_TROOPS_WILL: '使用時、盤面の空きマスのうち、いずれかの石に隣接1マス（周囲8マス）で接している候補だけを集める。\n候補からランダムに最大3マスを選び、自分色の通常石を1個ずつ配置する。\n候補条件に通常反転の可否は含めず、各配置後は通常配置と同じ反転処理を行う。\n各配置先が未消費の数字マスなら通常配置と同じく数字マスを消費し、布石と理論の化身の数字マス獲得進捗を得る。\n候補が1〜2マスしか無い場合は、その数だけ配置する。',
   RIBO_WILL: '使用時に布石を30得る。\nその後9回の自ターン開始ごとに4布石を返済する。\n返済に必要な布石が足りない場合は、自石をランダム4個消滅させる。',
-  LOSS_WILL: '盤面上の特殊石を全て通常石に戻す。\n自分の手札を全て破壊して使用。\n幽体石・残像石・復活石・罠石も特殊石として通常石化する。\n絶対保護石は特殊石だが、対象効果を受けない。\n守る石・生きる意志・盤面マーカー・配置時効果は対象外。\n完全保護中の石は対象外。\n解除できる特殊石も爆弾も無い局面では使用できない。',
+  LOSS_WILL: '盤面上の特殊石を全て通常石に戻す。\n自分の手札を全て破壊して使用。\n弱い石・強い石・幽体石・残像石・復活石・罠石は通常石化する。\n守る石・生きる意志・盤面マーカー・配置時効果は対象外。\n完全保護中の石と顕現石は対象外。\n解除できる特殊石も爆弾も無い局面では使用できない。',
   SALVATION_WILL: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。\n対象0枚の時は使用不可。\n対象は自分・相手、通常石・特殊石を問わない。\n各復活石は、そのマスを起点に通常の挟み反転を行う。',
   STONE_SALVATION_GOD: '次に置く石を救済神にする。\n救済神は反転されないが、破壊は通常どおり受ける。\n救済神が盤面にいる間、破壊された石を救済神の持ち主の通常石としてランダムな空きマスへ復活させる。\n両プレイヤーの救済神がいる場合は、破壊された石の元所有者側を優先する。\n救済神自身が破壊された場合、その救済神は復活せず効果も終了する。',
   FATE_WILL: '次の相手ターン1回だけ操作権を得る。\n相手の手札を見て、カード使用や石配置まで行える。\n配置可能マスが無ければ通常のパスとして終了する。\n発動中に再び使っても重ならず、その回の制御だけで終わる。'
@@ -335,7 +330,7 @@ const cardEffectTagsByType = Object.freeze({
   GHOST_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(8)]),
   SACRIFICE_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
   AFTERIMAGE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(3), destroyEvasionTag(3)]),
-  PERMA_PROTECT_NEXT_STONE: freezeCardEffectTags([specialStoneTag(), flipProtectionTag(), delayedActivationTurnsTag(20)]),
+  PERMA_PROTECT_NEXT_STONE: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
   TRAP_WILL: freezeCardEffectTags([specialStoneTag()]),
   TIME_BOMB: freezeCardEffectTags([specialStoneTag(), delayedActivationTurnsTag(3)]),
   TIME_STOP_GOD: freezeCardEffectTags([specialStoneTag(), delayedActivationTurnsTag(5)]),

@@ -233,7 +233,7 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('udg_01').cost)).toBe(30);
   });
 
-  test('perma_01 (強い意志) describes evolution into 最強の意志 after 20 turns', () => {
+  test('perma_01 (強い意志) describes non-promoting strong stone behavior', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     const card = byId.get('perma_01');
@@ -241,14 +241,6 @@ describe('cards catalog consistency', () => {
     expect(card.type).toBe('PERMA_PROTECT_NEXT_STONE');
     expect(Number(card.cost)).toBe(16);
     expect(card.name_ja).toBe('強い意志');
-    expect(card.desc_ja).toContain('20ターン');
-    expect(card.desc_ja).toContain('最強の意志');
-    expect(card.desc_ja).toContain('絶対保護');
-  });
-
-  test('absolute_protect_01 (最強の意志) is no longer a playable catalog card', () => {
-    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
-    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
-    expect(byId.has('absolute_protect_01')).toBe(false);
+    expect(card.desc_ja).toBe('次に置く石はずっと反転されない強い石になる。強い石は特殊石として扱い、進化しない。');
   });
 });

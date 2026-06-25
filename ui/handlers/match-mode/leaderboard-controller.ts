@@ -12,6 +12,13 @@ const PlayerIdentityContract = (() => {
         return null;
     }
 })();
+const PlayerProfileAvatarOptions = (() => {
+    try {
+        return require('../../player-profile-avatar-options');
+    } catch (e: any) {
+        return null;
+    }
+})();
 
 function resolveLazyRuntimeGroupLoader(root: any): any {
     try {
@@ -73,7 +80,8 @@ function createLeaderboardController(context: any) {
         normalizePlayerName,
         getSharedPlayerName,
         setNetworkOverlayVisible,
-        isNetworkOverlayOpen
+        isNetworkOverlayOpen,
+        openRatedMatchOverlay
     } = context;
 
     const SHARED_LEADERBOARD_PANEL_LIMIT = 100;
@@ -85,6 +93,7 @@ function createLeaderboardController(context: any) {
     const LEADERBOARD_CATEGORY_TIME_ATTACK = 'timeAttack';
     const LEADERBOARD_CATEGORY_TIME_DEFENSE = 'timeDefense';
     const LEADERBOARD_CATEGORY_SHORTEST_TURNS = 'shortestTurns';
+    const LEADERBOARD_CATEGORY_RATED = 'rated';
     const LEADERBOARD_CPU_LEVEL_NAMES = [
         '',
         '盤喰いの小鬼',
@@ -107,6 +116,7 @@ function createLeaderboardController(context: any) {
     let leaderboardCpuLevelMenuOpen = false;
     let leaderboardModeMenuOpen = false;
     let leaderboardDetailsOpen = false;
+    let leaderboardProfilePopupOpen = false;
     let leaderboardClientLoad: Promise<any> | null = null;
 
     function ensureLeaderboardClient(): Promise<any> {
@@ -162,6 +172,12 @@ function createLeaderboardController(context: any) {
     function setLeaderboardOverlayVisible(visible: any) {
         if (!uiRefs.leaderboardOverlay) return;
         const open = !!visible;
+        const returnToRatedMatch = !open
+            && root
+            && root.__returnToRatedMatchAfterLeaderboard === true;
+        if (returnToRatedMatch) {
+            try { root.__returnToRatedMatchAfterLeaderboard = false; } catch (e) { /* ignore */ }
+        }
         uiRefs.leaderboardOverlay.classList.toggle('is-open', open);
         uiRefs.leaderboardOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
 
@@ -169,12 +185,26 @@ function createLeaderboardController(context: any) {
             uiRefs.leaderboardOpenBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
         }
 
+        if (!open) closeLeaderboardProfilePopup();
+
         if (open && uiRefs.leaderboardNameInput && typeof uiRefs.leaderboardNameInput.focus === 'function') {
             try {
                 uiRefs.leaderboardNameInput.focus({ preventScroll: true });
             } catch (e) {
                 try { uiRefs.leaderboardNameInput.focus(); } catch (_e) { /* ignore */ }
             }
+        }
+        if (returnToRatedMatch) {
+            try {
+                if (typeof openRatedMatchOverlay === 'function') {
+                    openRatedMatchOverlay();
+                    return;
+                }
+                const ratedOpenBtn = root.document && root.document.getElementById('ratedMatchOpenBtn');
+                if (ratedOpenBtn && typeof ratedOpenBtn.click === 'function') {
+                    ratedOpenBtn.click();
+                }
+            } catch (e) { /* ignore missing rated match UI */ }
         }
     }
 
@@ -204,6 +234,7 @@ function createLeaderboardController(context: any) {
     }
 
     function normalizeLeaderboardCategory(value: any) {
+        if (value === LEADERBOARD_CATEGORY_RATED) return LEADERBOARD_CATEGORY_RATED;
         if (value === LEADERBOARD_CATEGORY_TIME_ATTACK) return LEADERBOARD_CATEGORY_TIME_ATTACK;
         if (value === LEADERBOARD_CATEGORY_TIME_DEFENSE) return LEADERBOARD_CATEGORY_TIME_DEFENSE;
         if (value === LEADERBOARD_CATEGORY_SHORTEST_TURNS) return LEADERBOARD_CATEGORY_SHORTEST_TURNS;
@@ -250,6 +281,10 @@ function createLeaderboardController(context: any) {
         return leaderboardActiveCategory === LEADERBOARD_CATEGORY_SHORTEST_TURNS;
     }
 
+    function isRatedLeaderboardActive(): boolean {
+        return leaderboardActiveCategory === LEADERBOARD_CATEGORY_RATED;
+    }
+
     function isTurnCountLeaderboardActive(): boolean {
         return isTimeDefenseLeaderboardActive() || isShortestTurnsLeaderboardActive();
     }
@@ -265,6 +300,10 @@ function createLeaderboardController(context: any) {
     }
 
     function getLeaderboardEntryValueText(entry: any): string {
+        if (isRatedLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_RATED)) {
+            const rating = Number(entry && entry.displayRating);
+            return Number.isFinite(rating) ? `${Math.round(rating)}` : '1500';
+        }
         if (isTimeAttackLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_ATTACK)) {
             return formatLeaderboardDuration(entry && entry.bestTimeMs);
         }
@@ -279,12 +318,14 @@ function createLeaderboardController(context: any) {
     }
 
     function getLeaderboardValueHeaderLabel(): string {
+        if (isRatedLeaderboardActive()) return 'レート';
         if (isTimeAttackLeaderboardActive()) return 'タイム';
         if (isTurnCountLeaderboardActive()) return '手数';
         return 'スコア';
     }
 
     function getLeaderboardSummaryBestLabel(): string {
+        if (isRatedLeaderboardActive()) return 'あなたのレート';
         if (isTimeAttackLeaderboardActive()) return 'あなたの最速記録';
         if (isTimeDefenseLeaderboardActive()) return 'あなたの最長記録';
         if (isShortestTurnsLeaderboardActive()) return 'あなたの最短記録';
@@ -292,6 +333,13 @@ function createLeaderboardController(context: any) {
     }
 
     function createLeaderboardModeLabel(entry: any) {
+        if (entry && entry.category === LEADERBOARD_CATEGORY_RATED) {
+            const games = Number.isFinite(Number(entry.ratedGames)) ? Math.max(0, Math.trunc(Number(entry.ratedGames))) : 0;
+            const wins = Number.isFinite(Number(entry.wins)) ? Math.max(0, Math.trunc(Number(entry.wins))) : 0;
+            const draws = Number.isFinite(Number(entry.draws)) ? Math.max(0, Math.trunc(Number(entry.draws))) : 0;
+            const losses = Number.isFinite(Number(entry.losses)) ? Math.max(0, Math.trunc(Number(entry.losses))) : 0;
+            return `${games}戦 ${wins}勝 ${draws}分 ${losses}敗`;
+        }
         const cpuSuffix = Number.isFinite(Number(entry && entry.cpuLevel)) ? ` Lv${entry.cpuLevel}` : '';
         return entry && entry.mode === 'network' ? '対人' : `CPU${cpuSuffix}`;
     }
@@ -299,6 +347,9 @@ function createLeaderboardController(context: any) {
     function createLeaderboardModeChip(entry: any) {
         const chip = document.createElement('span');
         chip.className = 'leaderboard-mode-chip';
+        if (entry && entry.category === LEADERBOARD_CATEGORY_RATED) {
+            chip.classList.add('leaderboard-rating-record');
+        }
         chip.dataset.mode = entry && entry.mode === 'network' ? 'network' : 'cpu';
         chip.textContent = createLeaderboardModeLabel(entry);
         return chip;
@@ -354,15 +405,16 @@ function createLeaderboardController(context: any) {
 
             const tabDefs = [
                 { id: 'leaderboardCategoryScore', label: 'スコアランキング', category: LEADERBOARD_CATEGORY_SCORE },
+                { id: 'leaderboardCategoryRated', label: 'レートランキング', category: LEADERBOARD_CATEGORY_RATED },
                 { id: 'leaderboardCategoryTimeAttack', label: 'タイムアタック', category: LEADERBOARD_CATEGORY_TIME_ATTACK },
-                { id: 'leaderboardCategoryTimeDefense', label: '最長手数', category: LEADERBOARD_CATEGORY_TIME_DEFENSE },
-                { id: 'leaderboardCategoryShortestTurns', label: '最短手数', category: LEADERBOARD_CATEGORY_SHORTEST_TURNS }
+                { id: 'leaderboardCategoryTimeDefense', label: '最長手数', category: LEADERBOARD_CATEGORY_TIME_DEFENSE, compact: true },
+                { id: 'leaderboardCategoryShortestTurns', label: '最短手数', category: LEADERBOARD_CATEGORY_SHORTEST_TURNS, compact: true }
             ];
             tabDefs.forEach((tabDef) => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.id = tabDef.id;
-                button.className = 'leaderboard-filter-tab';
+                button.className = tabDef.compact ? 'leaderboard-filter-tab is-compact' : 'leaderboard-filter-tab';
                 button.dataset.category = tabDef.category;
                 button.textContent = tabDef.label;
                 button.setAttribute('aria-pressed', 'false');
@@ -479,7 +531,7 @@ function createLeaderboardController(context: any) {
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。最長手数は勝利までの手数が多いほど上位。最短手数は勝利までの手数が少ないほど上位。CPUはLv別に絞り込み可能。15:00超過はタイムアタック対象外。敗北、引き分け、デバッグモードはタイム系ランキング対象外。';
+            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、既存スコアランキングとは分離する。スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。最長手数は勝利までの手数が多いほど上位。最短手数は勝利までの手数が少ないほど上位。CPUはLv別に絞り込み可能。15:00超過はタイムアタック対象外。敗北、引き分け、デバッグモードはタイム系ランキング対象外。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');
@@ -542,6 +594,7 @@ function createLeaderboardController(context: any) {
         uiRefs.leaderboardList = list;
         uiRefs.leaderboardNameInput = uiRefs.leaderboardPanel.querySelector('#leaderboardNameInput');
         uiRefs.leaderboardReloadBtn = uiRefs.leaderboardPanel.querySelector('#leaderboardReloadBtn');
+        const profileOverlay = ensureLeaderboardProfilePopup();
 
         return {
             summary,
@@ -556,6 +609,7 @@ function createLeaderboardController(context: any) {
             table,
             status,
             list,
+            profileOverlay,
             infoBtn: uiRefs.leaderboardPanel.querySelector('#leaderboardInfoBtn')
         };
     }
@@ -606,6 +660,150 @@ function createLeaderboardController(context: any) {
         return name;
     }
 
+    function resolveLeaderboardProfileAvatar(entry: any): any {
+        try {
+            if (PlayerProfileAvatarOptions && typeof PlayerProfileAvatarOptions.getProfileAvatarOption === 'function') {
+                return PlayerProfileAvatarOptions.getProfileAvatarOption(entry && entry.avatarStoneType);
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function getLeaderboardProfileAvatarPath(entry: any): string {
+        const option = resolveLeaderboardProfileAvatar(entry);
+        return option && option.imagePath ? String(option.imagePath) : '';
+    }
+
+    function getLeaderboardProfileName(entry: any): string {
+        return normalizePlayerName(entry && entry.playerName) || DEFAULT_PLAYER_NAME;
+    }
+
+    function getLeaderboardProfilePlayerId(entry: any): string {
+        if (PlayerIdentityContract && typeof PlayerIdentityContract.normalizeLeaderboardDisplayPlayerId === 'function') {
+            return PlayerIdentityContract.normalizeLeaderboardDisplayPlayerId(entry && entry.playerId) || '';
+        }
+        return String((entry && entry.playerId) || '').trim();
+    }
+
+    function ensureLeaderboardProfilePopup(): any {
+        if (!uiRefs.leaderboardOverlay) return null;
+        let overlay = uiRefs.leaderboardOverlay.querySelector('#leaderboardProfileOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'leaderboardProfileOverlay';
+            overlay.className = 'leaderboard-profile-overlay';
+            overlay.setAttribute('aria-hidden', 'true');
+
+            const card = document.createElement('div');
+            card.className = 'leaderboard-profile-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+            card.setAttribute('aria-labelledby', 'leaderboardProfileName');
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'leaderboard-profile-close';
+            closeBtn.setAttribute('aria-label', 'プロフィールを閉じる');
+            closeBtn.textContent = '×';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'leaderboard-profile-avatar';
+            const avatarImg = document.createElement('img');
+            avatarImg.className = 'leaderboard-profile-avatar-img';
+            avatarImg.alt = '';
+            avatar.appendChild(avatarImg);
+
+            const body = document.createElement('div');
+            body.className = 'leaderboard-profile-body';
+
+            const name = document.createElement('div');
+            name.id = 'leaderboardProfileName';
+            name.className = 'leaderboard-profile-name';
+
+            const playerId = document.createElement('div');
+            playerId.className = 'leaderboard-profile-id';
+
+            const bio = document.createElement('div');
+            bio.className = 'leaderboard-profile-bio';
+
+            body.appendChild(name);
+            body.appendChild(playerId);
+            body.appendChild(bio);
+            card.appendChild(closeBtn);
+            card.appendChild(avatar);
+            card.appendChild(body);
+            overlay.appendChild(card);
+            uiRefs.leaderboardOverlay.appendChild(overlay);
+        }
+
+        if (!(overlay as any).__leaderboardProfileBound) {
+            (overlay as any).__leaderboardProfileBound = true;
+            overlay.addEventListener('click', (event: any) => {
+                if (event && event.target === overlay) closeLeaderboardProfilePopup();
+            });
+            const closeBtn = overlay.querySelector('.leaderboard-profile-close');
+            if (closeBtn) closeBtn.addEventListener('click', () => closeLeaderboardProfilePopup());
+        }
+
+        return overlay;
+    }
+
+    function openLeaderboardProfilePopup(entry: any): void {
+        if (!entry || typeof entry !== 'object') return;
+        const overlay = ensureLeaderboardProfilePopup();
+        if (!overlay) return;
+        const nameText = getLeaderboardProfileName(entry);
+        const playerId = getLeaderboardProfilePlayerId(entry);
+        const avatarPath = getLeaderboardProfileAvatarPath(entry);
+        const bioText = String((entry && entry.bio) || '').trim() || '自己紹介は未設定です';
+        const avatarImg = overlay.querySelector('.leaderboard-profile-avatar-img') as HTMLImageElement | null;
+        const name = overlay.querySelector('.leaderboard-profile-name');
+        const id = overlay.querySelector('.leaderboard-profile-id');
+        const bio = overlay.querySelector('.leaderboard-profile-bio');
+
+        if (avatarImg) {
+            avatarImg.src = avatarPath || '';
+            avatarImg.alt = avatarPath ? `${nameText}のアイコン` : '';
+            avatarImg.hidden = !avatarPath;
+        }
+        if (name) name.textContent = nameText;
+        if (id) id.textContent = playerId ? `playerId ${playerId}` : 'playerId 未設定';
+        if (bio) bio.textContent = bioText;
+
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden', 'false');
+        leaderboardProfilePopupOpen = true;
+        const closeBtn = overlay.querySelector('.leaderboard-profile-close') as HTMLElement | null;
+        if (closeBtn && typeof closeBtn.focus === 'function') {
+            try { closeBtn.focus({ preventScroll: true }); } catch (e) { try { closeBtn.focus(); } catch (_e) { /* ignore */ } }
+        }
+    }
+
+    function closeLeaderboardProfilePopup(): void {
+        const overlay = uiRefs.leaderboardOverlay
+            ? uiRefs.leaderboardOverlay.querySelector('#leaderboardProfileOverlay')
+            : null;
+        if (overlay) {
+            overlay.classList.remove('is-open');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+        leaderboardProfilePopupOpen = false;
+    }
+
+    function makeLeaderboardProfileOpenable(element: HTMLElement, entry: any): void {
+        if (!element || !entry || typeof entry !== 'object') return;
+        element.classList.add('is-profile-openable');
+        element.setAttribute('role', 'button');
+        element.setAttribute('tabindex', '0');
+        element.setAttribute('aria-label', `${getLeaderboardProfileName(entry)}のプロフィールを開く`);
+        element.addEventListener('click', () => openLeaderboardProfilePopup(entry));
+        element.addEventListener('keydown', (event: any) => {
+            if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
+            event.preventDefault();
+            openLeaderboardProfilePopup(entry);
+        });
+    }
+
     function createLeaderboardRow(entry: any, selfPlayerId: any, duplicateNames: any) {
         const row = document.createElement('div');
         row.className = 'leaderboard-row';
@@ -639,6 +837,7 @@ function createLeaderboardController(context: any) {
         row.appendChild(name);
         row.appendChild(score);
         row.appendChild(mode);
+        makeLeaderboardProfileOpenable(row, entry);
         return row;
     }
 
@@ -647,6 +846,15 @@ function createLeaderboardController(context: any) {
         card.className = `leaderboard-podium-card is-rank-${displayRank || 0}`;
         if (selfPlayerId && entry && entry.playerId === selfPlayerId) {
             card.classList.add('is-self');
+        }
+
+        const avatarPath = getLeaderboardProfileAvatarPath(entry);
+        if (avatarPath) {
+            const avatarBg = document.createElement('span');
+            avatarBg.className = 'leaderboard-podium-avatar-bg';
+            avatarBg.setAttribute('aria-hidden', 'true');
+            avatarBg.style.backgroundImage = `url("${avatarPath.replace(/"/g, '\\"')}")`;
+            card.appendChild(avatarBg);
         }
 
         const badge = document.createElement('div');
@@ -667,6 +875,7 @@ function createLeaderboardController(context: any) {
         card.appendChild(name);
         card.appendChild(score);
         card.appendChild(mode);
+        makeLeaderboardProfileOpenable(card, entry);
         return card;
     }
 
@@ -736,14 +945,20 @@ function createLeaderboardController(context: any) {
         if (!uiRefs.leaderboardPanel) return;
         const button = uiRefs.leaderboardPanel.querySelector('#leaderboardModeBtn');
         const menu = uiRefs.leaderboardPanel.querySelector('#leaderboardModeMenu');
+        const control = uiRefs.leaderboardPanel.querySelector('#leaderboardModeControl');
+        const visible = !isRatedLeaderboardActive();
+        if (control) {
+            control.classList.toggle('is-visible', visible);
+            control.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        }
         if (button) {
             button.textContent = getLeaderboardModeButtonLabel();
             button.setAttribute('aria-label', `表示モード: ${getLeaderboardModeLabel(leaderboardActiveFilter)}`);
-            button.setAttribute('aria-expanded', leaderboardModeMenuOpen ? 'true' : 'false');
+            button.setAttribute('aria-expanded', leaderboardModeMenuOpen && visible ? 'true' : 'false');
         }
         if (menu) {
-            menu.classList.toggle('is-open', leaderboardModeMenuOpen);
-            menu.setAttribute('aria-hidden', leaderboardModeMenuOpen ? 'false' : 'true');
+            menu.classList.toggle('is-open', leaderboardModeMenuOpen && visible);
+            menu.setAttribute('aria-hidden', leaderboardModeMenuOpen && visible ? 'false' : 'true');
             const options = Array.from(menu.querySelectorAll('.leaderboard-mode-option'));
             options.forEach((option: any) => {
                 const active = normalizeLeaderboardFilter(option && option.dataset ? option.dataset.filter : '') === leaderboardActiveFilter;
@@ -757,7 +972,9 @@ function createLeaderboardController(context: any) {
         if (!uiRefs.leaderboardPanel) return;
         const header = uiRefs.leaderboardPanel.querySelector('#leaderboardTableHeader');
         if (!header) return;
-        const labels = ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), 'モード'];
+        const labels = isRatedLeaderboardActive()
+            ? ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), '対戦数 / 勝分敗']
+            : ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), 'モード'];
         const cells = Array.from(header.querySelectorAll('.leaderboard-table-header-cell'));
         cells.forEach((cell: any, index) => {
             cell.textContent = labels[index] || '';
@@ -769,7 +986,7 @@ function createLeaderboardController(context: any) {
         const control = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelControl');
         const button = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelBtn');
         const menu = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelMenu');
-        const cpuActive = leaderboardActiveFilter === LEADERBOARD_FILTER_CPU;
+        const cpuActive = leaderboardActiveFilter === LEADERBOARD_FILTER_CPU && !isRatedLeaderboardActive();
         if (control) {
             control.classList.toggle('is-visible', cpuActive);
             control.setAttribute('aria-hidden', cpuActive ? 'false' : 'true');
@@ -916,23 +1133,27 @@ function createLeaderboardController(context: any) {
         }
         if (token !== leaderboardRefreshToken) return;
 
-        if (!leaderboardClient || typeof leaderboardClient.fetchLeaderboard !== 'function') {
+        if (!leaderboardClient || (isRatedLeaderboardActive() ? typeof leaderboardClient.getRatedLeaderboard !== 'function' : typeof leaderboardClient.fetchLeaderboard !== 'function')) {
             writeLeaderboardStatus('ランキング機能を利用できません', true);
             return;
         }
 
         let result = null;
         try {
-            const fetchOptions = Object.assign({ limit: SHARED_LEADERBOARD_PANEL_LIMIT, mode: requestedFilter, category: leaderboardActiveCategory }, opts);
-            delete fetchOptions.force;
-            fetchOptions.mode = requestedFilter;
-            fetchOptions.category = leaderboardActiveCategory;
-            if (requestedFilter === LEADERBOARD_FILTER_CPU && leaderboardCpuLevelFilter !== null) {
-                fetchOptions.cpuLevel = leaderboardCpuLevelFilter;
+            if (isRatedLeaderboardActive()) {
+                result = await leaderboardClient.getRatedLeaderboard(SHARED_LEADERBOARD_PANEL_LIMIT, opts);
             } else {
-                delete fetchOptions.cpuLevel;
+                const fetchOptions = Object.assign({ limit: SHARED_LEADERBOARD_PANEL_LIMIT, mode: requestedFilter, category: leaderboardActiveCategory }, opts);
+                delete fetchOptions.force;
+                fetchOptions.mode = requestedFilter;
+                fetchOptions.category = leaderboardActiveCategory;
+                if (requestedFilter === LEADERBOARD_FILTER_CPU && leaderboardCpuLevelFilter !== null) {
+                    fetchOptions.cpuLevel = leaderboardCpuLevelFilter;
+                } else {
+                    delete fetchOptions.cpuLevel;
+                }
+                result = await leaderboardClient.fetchLeaderboard(fetchOptions);
             }
-            result = await leaderboardClient.fetchLeaderboard(fetchOptions);
         } catch (e) {
             result = { ok: false, reason: 'LIST_FAILED', entries: [] };
         }
@@ -950,6 +1171,22 @@ function createLeaderboardController(context: any) {
         renderLeaderboardView();
         const timeLabel = formatLeaderboardTime(result.updatedAt);
         writeLeaderboardStatus(timeLabel ? `最終更新 ${timeLabel}` : 'ランキングを表示中', false);
+    }
+
+    function openLeaderboard(options?: any) {
+        const opts = options || {};
+        leaderboardActiveCategory = normalizeLeaderboardCategory(opts.category || leaderboardActiveCategory);
+        if (opts.mode) {
+            leaderboardActiveFilter = normalizeLeaderboardFilter(opts.mode);
+        }
+        leaderboardCpuLevelMenuOpen = false;
+        leaderboardModeMenuOpen = false;
+        setNetworkOverlayVisible(false);
+        setLeaderboardOverlayVisible(true);
+        syncLeaderboardFilterButtons();
+        syncLeaderboardModeControl();
+        syncLeaderboardCpuLevelControl();
+        refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
     }
 
     function bindLeaderboardControls() {
@@ -1066,6 +1303,10 @@ function createLeaderboardController(context: any) {
         if (typeof root.addEventListener === 'function') {
             root.addEventListener('keydown', (event: any) => {
                 if (!event || event.key !== 'Escape') return;
+                if (leaderboardProfilePopupOpen) {
+                    closeLeaderboardProfilePopup();
+                    return;
+                }
                 if (leaderboardCpuLevelMenuOpen) {
                     leaderboardCpuLevelMenuOpen = false;
                     syncLeaderboardCpuLevelControl();
@@ -1157,6 +1398,7 @@ function createLeaderboardController(context: any) {
         bindControls: bindLeaderboardControls,
         isOverlayOpen: isLeaderboardOverlayOpen,
         setOverlayVisible: setLeaderboardOverlayVisible,
+        openLeaderboard,
         refreshPanel: refreshLeaderboardPanel
     };
 }

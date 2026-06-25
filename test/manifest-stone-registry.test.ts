@@ -13,7 +13,7 @@ describe('ManifestStoneRegistry', () => {
       displayName: '盤理の観測者',
       displayCategoryName: '顕現石',
       durationOwnerTurns: 5,
-      absoluteProtected: true,
+      inviolable: true,
       visualEffectKey: 'observerWillStone'
     });
   });
@@ -39,6 +39,6 @@ describe('ManifestStoneRegistry', () => {
       kind: 'specialStone',
       data: { type: 'OBSERVER_WILL' }
     })).toBe(false);
-    expect(SpecialStoneRegistry.isAbsoluteProtectedSpecialType('OBSERVER_WILL')).toBe(true);
+    expect(SpecialStoneRegistry.isInviolableSpecialType('OBSERVER_WILL')).toBe(true);
   });
 });

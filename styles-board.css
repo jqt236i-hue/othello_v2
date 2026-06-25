@@ -2307,14 +2307,14 @@ body.debug-layout .debug-card-search-control {
 
 /* Mossed stone HUD skin: visual-only overlay for the stone information panel. */
 .stone-info-panel {
-    --left-hud-accent: #8ed7ac;
-    --left-hud-accent-warm: #b99a57;
-    --left-hud-text-title: #eef6e8;
-    --left-hud-text-body: rgba(232, 230, 205, 0.92);
-    --left-hud-text-label: #d5bb78;
-    --left-hud-text-value: #dcefd8;
-    --left-hud-text-muted: rgba(213, 222, 196, 0.70);
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(127, 112, 70, 0.58);
+    --left-hud-accent: #9fdcba;
+    --left-hud-accent-warm: #d5bb78;
+    --left-hud-text-title: #f2fff5;
+    --left-hud-text-body: rgba(226, 243, 226, 0.92);
+    --left-hud-text-label: #c7dca8;
+    --left-hud-text-value: #e7f8df;
+    --left-hud-text-muted: rgba(202, 224, 197, 0.70);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(126, 173, 125, 0.62);
     border-radius: calc(3px * var(--layout-stage-scale));
     clip-path: polygon(
         calc(7px * var(--layout-stage-scale)) 0,
@@ -2327,16 +2327,18 @@ body.debug-layout .debug-card-search-control {
         0 calc(7px * var(--layout-stage-scale))
     );
     background:
-        radial-gradient(130% 90% at 14% 0%, rgba(91, 126, 96, 0.22), transparent 40%),
-        radial-gradient(96% 80% at 92% 100%, rgba(116, 88, 45, 0.18), transparent 52%),
-        repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.024) 0 1px, transparent 1px 5px),
+        radial-gradient(130% 90% at 14% 0%, rgba(102, 151, 102, 0.24), transparent 40%),
+        radial-gradient(96% 80% at 92% 100%, rgba(176, 201, 138, 0.12), transparent 52%),
+        repeating-linear-gradient(0deg, rgba(236, 255, 226, 0.024) 0 1px, transparent 1px 5px),
         repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 9px),
-        linear-gradient(180deg, rgba(18, 23, 20, 0.95), rgba(5, 10, 9, 0.97) 58%, rgba(7, 11, 9, 0.98));
+        linear-gradient(180deg, rgba(15, 24, 17, 0.96), rgba(5, 10, 8, 0.98) 58%, rgba(6, 12, 8, 0.98));
     box-shadow:
         0 calc(16px * var(--layout-stage-scale)) calc(32px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(16, 12, 8, 0.92),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(226, 198, 132, 0.08),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 244, 198, 0.08),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(10, 16, 9, 0.94),
+        0 0 calc(14px * var(--layout-stage-scale)) rgba(143, 213, 161, 0.10),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(222, 255, 223, 0.08),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(240, 255, 232, 0.08),
+        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(143, 213, 161, 0.22),
         inset 0 calc(-10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
     backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
     -webkit-backdrop-filter: blur(calc(3px * var(--layout-stage-scale))) saturate(0.82);
@@ -2348,14 +2350,14 @@ body.debug-layout .debug-card-search-control {
     right: calc(5px * var(--layout-stage-scale));
     bottom: calc(5px * var(--layout-stage-scale));
     width: auto;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(185, 154, 87, 0.18);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(143, 213, 161, 0.22);
     border-radius: calc(2px * var(--layout-stage-scale));
     background:
-        linear-gradient(90deg, rgba(185, 154, 87, 0.12), transparent 18%, transparent 82%, rgba(91, 126, 96, 0.10)),
-        linear-gradient(180deg, rgba(255, 248, 212, 0.035), transparent 38%);
+        linear-gradient(90deg, rgba(143, 213, 161, 0.14), transparent 18%, transparent 82%, rgba(182, 201, 132, 0.10)),
+        linear-gradient(180deg, rgba(236, 255, 226, 0.036), transparent 38%);
     box-shadow:
-        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(185, 154, 87, 0.18),
-        inset calc(-1px * var(--layout-stage-scale)) 0 0 rgba(102, 130, 101, 0.14);
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(143, 213, 161, 0.24),
+        inset calc(-1px * var(--layout-stage-scale)) 0 0 rgba(170, 191, 116, 0.12);
 }
 
 .stone-info-panel::after {
@@ -2363,50 +2365,50 @@ body.debug-layout .debug-card-search-control {
     border: 0;
     border-radius: 0;
     background:
-        radial-gradient(circle, rgba(218, 188, 108, 0.72) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
-        radial-gradient(circle, rgba(218, 188, 108, 0.62) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
-        radial-gradient(circle, rgba(218, 188, 108, 0.54) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
-        radial-gradient(circle, rgba(218, 188, 108, 0.50) 0 calc(2px * var(--layout-stage-scale)), rgba(41, 31, 18, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
-        linear-gradient(90deg, transparent, rgba(185, 154, 87, 0.46), transparent) top calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat,
-        linear-gradient(90deg, transparent, rgba(92, 122, 94, 0.28), transparent) bottom calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat;
+        radial-gradient(circle, rgba(158, 213, 151, 0.76) 0 calc(2px * var(--layout-stage-scale)), rgba(17, 35, 22, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(158, 213, 151, 0.66) 0 calc(2px * var(--layout-stage-scale)), rgba(17, 35, 22, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right top / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(158, 213, 151, 0.56) 0 calc(2px * var(--layout-stage-scale)), rgba(17, 35, 22, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) left bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        radial-gradient(circle, rgba(158, 213, 151, 0.52) 0 calc(2px * var(--layout-stage-scale)), rgba(17, 35, 22, 0.95) calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)), transparent calc(3px * var(--layout-stage-scale))) right bottom / calc(13px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(143, 213, 161, 0.50), transparent) top calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat,
+        linear-gradient(90deg, transparent, rgba(176, 201, 138, 0.28), transparent) bottom calc(2px * var(--layout-stage-scale)) center / calc(86% - calc(20px * var(--layout-stage-scale))) calc(1px * var(--layout-stage-scale)) no-repeat;
     opacity: 0.78;
 }
 
 .stone-info-name {
-    color: #eef6e8;
+    color: #f2fff5;
     text-shadow:
         0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88),
-        0 0 calc(6px * var(--layout-stage-scale)) rgba(142, 215, 172, 0.12);
+        0 0 calc(6px * var(--layout-stage-scale)) rgba(143, 213, 161, 0.16);
 }
 
 .stone-info-name::before {
     background:
-        radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.90) 0%, rgba(206, 238, 215, 0.82) 34%, rgba(91, 148, 107, 0.86) 62%, rgba(34, 54, 41, 0.96) 100%);
+        radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.92) 0%, rgba(217, 244, 223, 0.84) 34%, rgba(143, 213, 161, 0.86) 62%, rgba(38, 79, 49, 0.96) 100%);
     box-shadow:
-        0 0 calc(6px * var(--layout-stage-scale)) rgba(142, 215, 172, 0.24),
+        0 0 calc(6px * var(--layout-stage-scale)) rgba(143, 213, 161, 0.34),
         inset 0 0 calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
 }
 
 .stone-info-desc {
-    color: rgba(232, 230, 205, 0.92);
+    color: rgba(226, 243, 226, 0.92);
 }
 
 .stone-info-effect-tag {
-    color: rgba(226, 239, 215, 0.92);
-    border-color: rgba(128, 166, 117, 0.42);
+    color: rgba(229, 246, 222, 0.92);
+    border-color: rgba(143, 213, 161, 0.42);
     border-radius: calc(3px * var(--layout-stage-scale));
     background:
-        linear-gradient(180deg, rgba(255, 244, 210, 0.055), transparent 48%),
-        linear-gradient(180deg, rgba(36, 56, 42, 0.76), rgba(9, 17, 13, 0.78));
+        linear-gradient(180deg, rgba(236, 255, 226, 0.055), transparent 48%),
+        linear-gradient(180deg, rgba(35, 58, 37, 0.76), rgba(8, 17, 10, 0.78));
     box-shadow:
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.07),
-        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(128, 166, 117, 0.24);
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(143, 213, 161, 0.24);
 }
 
 .stone-info-effect-tag-button:hover {
-    color: #fff4d4;
-    border-color: rgba(185, 154, 87, 0.58);
+    color: #f7ffe8;
+    border-color: rgba(200, 218, 136, 0.56);
     background:
-        linear-gradient(180deg, rgba(185, 154, 87, 0.16), transparent 48%),
-        linear-gradient(180deg, rgba(42, 45, 31, 0.82), rgba(10, 14, 11, 0.84));
+        linear-gradient(180deg, rgba(200, 218, 136, 0.14), transparent 48%),
+        linear-gradient(180deg, rgba(41, 54, 35, 0.82), rgba(9, 14, 9, 0.84));
 }

@@ -52,7 +52,6 @@ function getDestroyProtectionReasonForType(rawType: unknown, options: ResolveOpt
     const type = normalizeSpecialStoneType(rawType);
     if (!type) return null;
     if (type === 'GUARD') return options.ignoreGuard === true ? null : 'guard_protected';
-    if (type === 'ABSOLUTE_PROTECTED') return 'absolute_protected';
 
     const info = getSpecialStoneInfo(options.SpecialStoneRegistry, type);
     if (info && info.destroyProtected === true) return 'destroy_protected';

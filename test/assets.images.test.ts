@@ -16,11 +16,6 @@ describe('stone image assets', () => {
     assert.ok(fs.existsSync(path.join(specialStonesDir, 'TIME_STOP-white.png')));
   });
 
-  it('includes the promoted strongest-stone PNGs used after 強い意志 evolves', () => {
-    assert.ok(fs.existsSync(path.join(specialStonesDir, 'absolute_protect_next_stone-black.png')));
-    assert.ok(fs.existsSync(path.join(specialStonesDir, 'absolute_protect_next_stone-white.png')));
-  });
-
   it('declares CSS variables for the normal stone images', () => {
     const variablesCss = fs.readFileSync(path.join(__dirname, '..', 'styles-variables.css'), 'utf8');
     assert.ok(variablesCss.includes('--normal-stone-black-image'));

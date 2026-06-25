@@ -244,7 +244,7 @@ interface HyperactiveDeps {
     BoardOps?: any;
     destroyAt?: (cardState: CardState, gameState: GameState, row: number, col: number, ...args: any[]) => boolean;
     isFrozenCell?: (cardState: CardState, row: number, col: number) => boolean;
-    isAbsoluteProtectedCell?: (cardState: CardState, row: number, col: number) => boolean;
+    isInviolableCell?: (cardState: CardState, row: number, col: number) => boolean;
     isManifestStoneAt?: (cardState: CardState, row: number, col: number) => boolean;
     clearHyperactiveAtPositions?: (cardState: CardState, positions: Position[]) => void;
     clearBombAt?: (cardState: CardState, row: number, col: number) => void;
@@ -702,7 +702,7 @@ function canExtremeHyperactiveSwapCell(cardState: CardState, row: number, col: n
     if (deps && typeof deps.isFrozenCell === 'function' && deps.isFrozenCell(cardState, row, col)) {
         return false;
     }
-    if (deps && typeof deps.isAbsoluteProtectedCell === 'function' && deps.isAbsoluteProtectedCell(cardState, row, col)) {
+    if (deps && typeof deps.isInviolableCell === 'function' && deps.isInviolableCell(cardState, row, col)) {
         return false;
     }
     return true;

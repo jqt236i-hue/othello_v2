@@ -7,12 +7,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const AvatarOptions = _require('./player-profile-avatar-options');
+const PlayerProfileContract = _require('../shared/player-profile-contract');
 
 const PLAYER_PROFILE_STORAGE_KEY = 'card_reversi_player_profile_v1';
 const PLAYER_PROFILE_VERSION = 1;
-const PLAYER_PROFILE_NAME_MAX = 7;
-const PLAYER_PROFILE_BIO_MAX = 120;
-const DEFAULT_AVATAR_STONE_TYPE = 'REGEN';
+const PLAYER_PROFILE_NAME_MAX = PlayerProfileContract.PLAYER_PROFILE_NAME_MAX;
+const PLAYER_PROFILE_BIO_MAX = PlayerProfileContract.PLAYER_PROFILE_BIO_MAX;
+const DEFAULT_AVATAR_STONE_TYPE = PlayerProfileContract.DEFAULT_PROFILE_AVATAR_STONE_TYPE;
 
 type PlayerProfile = {
   version: number;
@@ -30,19 +31,18 @@ function canUseStorage(): boolean {
   }
 }
 
-function clipCharacters(value: string, max: number): string {
-  return Array.from(String(value || '')).slice(0, max).join('');
-}
-
 function normalizeDisplayName(value: unknown): string {
-  return clipCharacters(String(value || '').replace(/\s+/g, ' ').trim(), PLAYER_PROFILE_NAME_MAX);
+  return PlayerProfileContract.normalizeProfileDisplayName(value);
 }
 
 function normalizeBio(value: unknown): string {
-  return clipCharacters(String(value || '').replace(/\r\n?/g, '\n').trim(), PLAYER_PROFILE_BIO_MAX);
+  return PlayerProfileContract.normalizeProfileBio(value);
 }
 
 function normalizeAvatarStoneType(value: unknown): string {
+  if (PlayerProfileContract && typeof PlayerProfileContract.normalizeProfileAvatarStoneType === 'function') {
+    return PlayerProfileContract.normalizeProfileAvatarStoneType(value);
+  }
   if (AvatarOptions && typeof AvatarOptions.normalizeProfileAvatarStoneType === 'function') {
     return AvatarOptions.normalizeProfileAvatarStoneType(value);
   }
@@ -80,6 +80,10 @@ function readPlayerProfile(): PlayerProfile {
   } catch (e) {
     return getDefaultPlayerProfile();
   }
+}
+
+function readPublicPlayerProfile(): { avatarStoneType: string; bio: string } {
+  return PlayerProfileContract.normalizePublicPlayerProfile(readPlayerProfile());
 }
 
 function writePlayerProfile(profile: unknown): PlayerProfile {
@@ -122,6 +126,7 @@ const PlayerProfileModel = {
   normalizeDisplayName,
   normalizeBio,
   readPlayerProfile,
+  readPublicPlayerProfile,
   writePlayerProfile,
   savePlayerProfile,
   updatePlayerProfile,

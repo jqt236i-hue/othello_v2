@@ -7,7 +7,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const PlayerIdentity = _require('./player-identity');
+const PlayerProfile = _require('./player-profile');
 const IdentityContract = _require('../shared/player-identity-contract');
+const PlayerProfileContract = _require('../shared/player-profile-contract');
 
 const PLAYER_NAME_STORAGE_KEY = 'shared_leaderboard_player_name_v1';
 const PLAYER_NAME_MAX = 7;
@@ -82,6 +84,15 @@ function getPlayerId(): string | null {
   }
 }
 
+function getPublicPlayerProfile(): { avatarStoneType: string; bio: string } {
+  try {
+    if (PlayerProfile && typeof PlayerProfile.readPublicPlayerProfile === 'function') {
+      return PlayerProfile.readPublicPlayerProfile();
+    }
+  } catch (e) { /* ignore */ }
+  return PlayerProfileContract.normalizePublicPlayerProfile(null);
+}
+
 async function requestJson(method: string, path: string, payload?: any, options?: any): Promise<any> {
   if (typeof fetch !== 'function') {
     return { ok: false, reason: 'FETCH_UNAVAILABLE', status: 0, data: null };
@@ -142,8 +153,39 @@ function normalizeEntry(entry: any): any {
     turnCount,
     mode,
     cpuLevel,
+    avatarStoneType: PlayerProfileContract.normalizeProfileAvatarStoneType(entry.avatarStoneType),
+    bio: PlayerProfileContract.normalizeProfileBio(entry.bio),
     updatedAt
   };
+}
+
+function normalizeRatedEntry(entry: any): any {
+  if (!entry || typeof entry !== 'object') return null;
+  const rating = Number(entry.displayRating);
+  const ratedGames = Number(entry.ratedGames);
+  const wins = Number(entry.wins);
+  const draws = Number(entry.draws);
+  const losses = Number(entry.losses);
+  return {
+    rank: Number.isFinite(Number(entry.rank)) ? Math.max(1, Math.trunc(Number(entry.rank))) : null,
+    playerId: IdentityContract.normalizeLeaderboardDisplayPlayerId(entry.playerId) || null,
+    playerName: normalizePlayerName(entry.playerName),
+    category: 'rated',
+    displayRating: Number.isFinite(rating) ? Math.round(rating) : 1500,
+    ratedGames: Number.isFinite(ratedGames) ? Math.max(0, Math.trunc(ratedGames)) : 0,
+    wins: Number.isFinite(wins) ? Math.max(0, Math.trunc(wins)) : 0,
+    draws: Number.isFinite(draws) ? Math.max(0, Math.trunc(draws)) : 0,
+    losses: Number.isFinite(losses) ? Math.max(0, Math.trunc(losses)) : 0,
+    avatarStoneType: PlayerProfileContract.normalizeProfileAvatarStoneType(entry.avatarStoneType),
+    bio: PlayerProfileContract.normalizeProfileBio(entry.bio),
+    updatedAt: Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : 0
+  };
+}
+
+function appendPublicPlayerProfile(payload: Record<string, any>): void {
+  const publicProfile = getPublicPlayerProfile();
+  payload.avatarStoneType = publicProfile.avatarStoneType;
+  payload.bio = publicProfile.bio;
 }
 
 async function appendVerifiedIdentity(payload: Record<string, any>, options?: any): Promise<boolean> {
@@ -215,6 +257,28 @@ async function fetchLeaderboard(options?: any): Promise<any> {
   };
 }
 
+async function getRatedLeaderboard(limitValue = 50, options?: any): Promise<any> {
+  const limit = Number.isFinite(Number(limitValue))
+    ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(limitValue))))
+    : 50;
+  const res = await requestJson('GET', `/api/rating/leaderboard?pool=card_ranked_v1&limit=${limit}`, null, options || {});
+  if (!res.ok) {
+    return { ok: false, reason: res.reason || 'RATED_LIST_FAILED', entries: [], updatedAt: 0, category: 'rated' };
+  }
+
+  const entries = Array.isArray(res.data && res.data.entries)
+    ? res.data.entries.map((entry: any) => normalizeRatedEntry(entry)).filter(Boolean)
+    : [];
+
+  return {
+    ok: true,
+    entries,
+    category: 'rated',
+    pool: 'card_ranked_v1',
+    updatedAt: Number.isFinite(Number(res.data && res.data.updatedAt)) ? Number(res.data.updatedAt) : 0
+  };
+}
+
 async function submitScore(scoreSummary: any, options?: any): Promise<any> {
   const summary = scoreSummary || {};
   const opts = options || {};
@@ -237,6 +301,7 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  appendPublicPlayerProfile(payload);
   if (!await appendVerifiedIdentity(payload, opts)) {
     return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
   }
@@ -281,6 +346,7 @@ async function submitTimeAttack(summary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  appendPublicPlayerProfile(payload);
   if (!await appendVerifiedIdentity(payload, opts)) {
     return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
   }
@@ -325,6 +391,7 @@ async function submitTimeDefense(summary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  appendPublicPlayerProfile(payload);
   if (!await appendVerifiedIdentity(payload, opts)) {
     return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
   }
@@ -369,6 +436,7 @@ async function submitShortestTurns(summary: any, options?: any): Promise<any> {
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
   };
+  appendPublicPlayerProfile(payload);
   if (!await appendVerifiedIdentity(payload, opts)) {
     return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
   }
@@ -395,7 +463,9 @@ const LeaderboardClient = {
   getPlayerName,
   setPlayerName,
   getPlayerId,
+  getPublicPlayerProfile,
   fetchLeaderboard,
+  getRatedLeaderboard,
   submitScore,
   submitTimeAttack,
   submitTimeDefense,

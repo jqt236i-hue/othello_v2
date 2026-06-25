@@ -203,7 +203,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         if (typeUpper === 'ULTIMATE_DESTROY_GOD') return 'stone-timer udg-timer';
         if (typeUpper === 'BREEDING') return 'stone-timer breeding-timer';
         if (typeUpper === 'WORK') return 'stone-timer work-timer';
-        if (typeUpper === 'TIME_STOP' || typeUpper === 'PERMA_PROTECTED') return 'countdown-timer';
+        if (typeUpper === 'TIME_STOP') return 'countdown-timer';
         return 'stone-timer special-timer';
     }
 
@@ -2332,6 +2332,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
             const specialType = String(state.special || '').toUpperCase();
             let primaryTimerValue = Number(state.timer);
+            if (specialType === 'PERMA_PROTECTED') {
+                primaryTimerValue = NaN;
+            }
             const parseCounterOrNaN = (raw: any) => {
                 if (raw === null || raw === undefined || raw === '') return NaN;
                 const parsed = Number(raw);

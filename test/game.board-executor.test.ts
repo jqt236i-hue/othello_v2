@@ -100,7 +100,7 @@ describe('盤界の執行者', () => {
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
   });
 
-  test('使用時に罠・爆弾・絶対保護特殊石を含む全特殊石を穴にする', () => {
+  test('使用時に罠・爆弾・強い石を含む全特殊石を穴にする', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -108,7 +108,7 @@ describe('盤界の執行者', () => {
     cardState.charge.black = 0;
 
     addStone(cardState, gameState, 1, 1, 'black', 'PROTECTED');
-    addStone(cardState, gameState, 2, 2, 'white', 'ABSOLUTE_PROTECTED', 'specialStone', { remainingOwnerTurns: 5 });
+    addStone(cardState, gameState, 2, 2, 'white', 'PERMA_PROTECTED');
     addStone(cardState, gameState, 3, 3, 'white', 'TRAP', 'specialStone', { hidden: true });
     addStone(cardState, gameState, 4, 4, 'white', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
 
@@ -118,7 +118,7 @@ describe('盤界の執行者', () => {
       expect(gameState.board[row][col]).toBe(Shared.EMPTY);
     }
     expect(hasMarker(cardState, 'PROTECTED')).toBe(false);
-    expect(hasMarker(cardState, 'ABSOLUTE_PROTECTED')).toBe(false);
+    expect(hasMarker(cardState, 'PERMA_PROTECTED')).toBe(false);
     expect(hasMarker(cardState, 'TRAP')).toBe(false);
     expect(hasMarker(cardState, 'TIME_BOMB')).toBe(false);
     expect((cardState.markers || []).filter((marker: any) => marker && marker.data && marker.data.type === 'METEOR_HOLE')).toHaveLength(4);
@@ -185,7 +185,7 @@ describe('盤界の執行者', () => {
     expect(placed.events).toContainEqual(expect.objectContaining({ type: 'board_executor_marker_applied' }));
     const marker = cardState.markers.find((entry: any) => entry && entry.data && entry.data.type === 'BOARD_EXECUTOR');
     expect(marker).toEqual(expect.objectContaining({ kind: 'manifestStone', row: 2, col: 3, owner: 'black' }));
-    expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 4, absoluteProtected: true }));
+    expect(marker.data).toEqual(expect.objectContaining({ remainingOwnerTurns: 4, inviolable: true }));
     expect(CardLogic.canUseCard(cardState, 'black', 'guard_01')).toBe(false);
     expect(CardLogic.canUseCard(cardState, 'white', 'guard_01')).toBe(false);
   });
@@ -229,7 +229,7 @@ describe('盤界の執行者', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true }
+      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
     });
 
     CardLogic.onTurnStart(cardState, 'white', gameState, prng);
@@ -263,7 +263,7 @@ describe('盤界の執行者', () => {
         row: 0,
         col: 0,
         owner: 'black',
-        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true }
+        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
       });
 
       const res = CardLogic.processBoardExecutorHandTaxAtTurnStart(cardState, gameState, 'black', prng);
@@ -289,7 +289,7 @@ describe('盤界の執行者', () => {
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true }
+      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
     });
 
     const placementEffects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 2, 3, 3, prng);
@@ -324,7 +324,7 @@ describe('盤界の執行者', () => {
         row: 0,
         col: 0,
         owner: 'black',
-        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, absoluteProtected: true }
+        data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
       });
 
       const gained = BoardCharge.awardBoardChargeGain(CardLogic, cardState, 'black', 2, {

@@ -16,11 +16,11 @@ function createGameState() {
 }
 
 describe('special stone visual rule', () => {
-  test('顕現石は特殊石本体ではないが絶対保護として扱われる', () => {
+  test('顕現石は特殊石本体ではないが不可侵セルとして扱われる', () => {
     const CardMarkers = require('../game/logic/cards/markers');
     const cardState = {
       markers: [
-        { id: 1, kind: 'manifestStone', row: 2, col: 2, owner: 'black', data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true } },
+        { id: 1, kind: 'manifestStone', row: 2, col: 2, owner: 'black', data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, inviolable: true } },
         { id: 2, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'DRAGON', remainingOwnerTurns: 5 } }
       ]
     };
@@ -28,7 +28,7 @@ describe('special stone visual rule', () => {
     expect(CardMarkers.isManifestStoneAt(cardState, 2, 2)).toBe(true);
     expect(CardMarkers.isSpecialStoneAt(cardState, 2, 2)).toBe(false);
     expect(CardMarkers.isTrueSpecialStoneAt(cardState, 2, 2)).toBe(false);
-    expect(CardMarkers.isAbsoluteProtectedCell(cardState, 2, 2)).toBe(true);
+    expect(CardMarkers.isInviolableCell(cardState, 2, 2)).toBe(true);
     expect(CardMarkers.isSpecialStoneAt(cardState, 3, 3)).toBe(true);
   });
 
@@ -268,7 +268,7 @@ describe('special stone visual rule', () => {
     ]));
   });
 
-  test('TEMPT_WILL は弱い石・強い石を特殊石対象にし、絶対保護石は対象一覧から除外する', () => {
+  test('TEMPT_WILL は弱い石・強い石を特殊石対象にし、不可侵の顕現石は対象一覧から除外する', () => {
     const prng = { shuffle: (arr) => arr, random: () => 0 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -279,7 +279,7 @@ describe('special stone visual rule', () => {
     cardState.markers.push(
       {
         id: 20,
-        kind: 'specialStone',
+        kind: 'manifestStone',
         row: 5,
         col: 1,
         owner: 'white',
@@ -299,14 +299,14 @@ describe('special stone visual rule', () => {
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'ABSOLUTE_PROTECTED', sourceType: 'PERMA_PROTECT_NEXT_STONE', sourceCardId: 'perma_01' }
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
       }
     );
 
     expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 1)).toBe(true);
     expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 2)).toBe(true);
-    expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 3)).toBe(true);
-    expect(CardUtils.isAbsoluteProtectedStoneAt(cardState, 5, 3)).toBe(true);
+    expect(CardUtils.isTrueSpecialStoneAt(cardState, 5, 3)).toBe(false);
+    expect(CardUtils.isInviolableStoneAt(cardState, 5, 3)).toBe(true);
     expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([
       { row: 5, col: 1 },
       { row: 5, col: 2 }
@@ -314,7 +314,7 @@ describe('special stone visual rule', () => {
 
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 5, 3)).toMatchObject({
       applied: false,
-      reason: 'absolute_protected'
+      reason: 'inviolable'
     });
   });
 

@@ -489,7 +489,7 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
     expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・絶対保護・不可侵には効かない。<\/dd>/);
+    expect(html).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。<\/dd>/);
   });
 
   test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
@@ -578,9 +578,9 @@ describe('rules help panel', () => {
     expect(cardDescEl.querySelectorAll('[data-term-label="反転"]')).toHaveLength(0);
   });
 
-  test('effect glossary explains taboo reverse absolute-protection exception', () => {
+  test('effect glossary explains taboo reverse behavior', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/<dt>\s*禁忌反転\s*<\/dt>\s*<dd>挟めなくても反転可能。絶対保護を除いて強制反転し、実際に反転する枚数が最大の列1方向のみ選ぶ。<\/dd>/);
+    expect(html).toMatch(/<dt>\s*禁忌反転\s*<\/dt>\s*<dd>挟めなくても反転可能。実際に反転する枚数が最大の列1方向のみ選ぶ。<\/dd>/);
   });
 
   test('rules-help.js EFFECT_GLOSSARY_TERMS includes glossary highlight additions', () => {
@@ -588,7 +588,7 @@ describe('rules help panel', () => {
     // The module uses EFFECT_GLOSSARY_TERMS to highlight card descriptions.
     // This test verifies newly documented terms are registered for highlight.
     const source = fs.readFileSync(path.resolve(__dirname, '../ui/handlers/rules-help.js'), 'utf8');
-    expect(source).toContain('絶対保護');
+    expect(source).toContain('不可侵');
     expect(source).toContain('封鎖');
     expect(source).toContain('凍結');
     expect(source).toContain('時間停止');

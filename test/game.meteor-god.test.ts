@@ -132,7 +132,7 @@ describe('METEOR_GOD（因果抹消神）', () => {
     expect(marker.data.remainingOwnerTurns).toBe(5);
   });
 
-  test('穴化できない敵石を引いても再抽選せず残りターンだけ進む', () => {
+  test('不可侵の顕現石を因果抹消神の候補にしない', () => {
     const { cardState, gameState } = createStates(0);
 
     gameState.board[3][3] = Shared.BLACK;
@@ -149,20 +149,21 @@ describe('METEOR_GOD（因果抹消神）', () => {
       },
       {
         id: 9203,
-        kind: 'specialStone',
+        kind: 'manifestStone',
         row: 0,
         col: 0,
         owner: 'white',
-        data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
       }
     );
 
     const out = CardLogic.processMeteorGodEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, createPrng(0));
 
-    expect((out.destroyed || [])).toHaveLength(0);
+    expect((out.destroyed || [])).toEqual([expect.objectContaining({ row: 7, col: 7 })]);
     expect(gameState.board[0][0]).toBe(Shared.WHITE);
-    expect(gameState.board[7][7]).toBe(Shared.WHITE);
-    expect((cardState.markers || []).some((m) => m && m.row === 7 && m.col === 7 && m.data && m.data.type === 'METEOR_HOLE')).toBe(false);
+    expect(gameState.board[7][7]).toBe(Shared.EMPTY);
+    expect((cardState.markers || []).some((m) => m && m.row === 0 && m.col === 0 && m.data && m.data.type === 'METEOR_HOLE')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.row === 7 && m.col === 7 && m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
     expect(cardState.markers.find((m) => m && m.id === 9202).data.remainingOwnerTurns).toBe(5);
   });
 

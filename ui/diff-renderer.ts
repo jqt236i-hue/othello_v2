@@ -643,7 +643,7 @@ function _showEmptyManifestEffectPanelForDiff() {
     refs.title.textContent = '';
     refs.lines.textContent = '';
     const emptyLine = document.createElement('div');
-    emptyLine.className = 'manifest-effect-line';
+    emptyLine.className = 'manifest-effect-line manifest-effect-line--empty';
     _renderManifestEffectLineText(emptyLine, '最後に使ったカードがここに表示されます');
     refs.lines.appendChild(emptyLine);
     _renderManifestEffectTagsForDiff(refs.tags, []);
@@ -1618,21 +1618,10 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     return patched;
 }
 
-function _resolveStrongWillDisplayTurnsForDiff(data: any) {
-    if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
-    const rawThreshold = Number(data && data.strongWillPromotionThreshold);
-    const threshold = Number.isFinite(rawThreshold) ? Math.max(1, Math.trunc(rawThreshold)) : 10;
-    const rawProgress = Number(data && data.strongWillPromotionOwnerTurnStarts);
-    const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
-    return Math.max(0, threshold - progress);
-}
-
 function _resolveSpecialDisplayTurnsForDiff(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') return undefined;
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
-    const strongWillRemaining = _resolveStrongWillDisplayTurnsForDiff(data);
-    if (strongWillRemaining !== undefined) return strongWillRemaining;
     return undefined;
 }
 
@@ -2498,13 +2487,12 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '復活': '失われた時に元の色や状態へ戻る。',
     '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。',
-    '抹消': 'そのマスの石を取り除きます。\n完全保護や反転保護でも防げません。絶対保護だけは防げます。',
-    '穴マス': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。',
+    '抹消': 'そのマスの石を取り除きます。\n完全保護や反転保護でも防げません。',
+    '穴マス': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。',
     '絶対執行': '盤界の執行者専用の抹消。全ての保護を貫通して特殊石を穴マスにする。',
     '顕現石': '特殊カードによって盤面に現れる、特殊石とは別分類の不可侵石。',
     '繁殖生成石': '繁殖の意志でそのターンに新規生成された通常石。次の同一所有者ターン開始まで小さめの双葉表示になる。',
     '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外。誘惑・捕獲は受け流し、入替や他の効果は通常どおり受ける。',
-    '絶対保護': '反転・破壊・移動・位置入替・テレポート・マス破壊を含むすべての直接効果を無効化する最上位の保護状態。',
     '不可侵': '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',

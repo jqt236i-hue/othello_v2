@@ -522,22 +522,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         workBubbleSpeech &&
         typeof workBubbleSpeech.lostLine === 'string'
     ) ? workBubbleSpeech.lostLine : FALLBACK_WORK_BUBBLE_SPEECH.lostLine;
-    function resolveStrongWillDisplayTimer(markerData: any) {
-        if (!markerData || String(markerData.type || '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
-        const rawThreshold = Number(markerData.strongWillPromotionThreshold);
-        const thresholdFallback = Number(SharedConstantsModule && SharedConstantsModule.STRONG_WILL_PROMOTION_OWNER_TURNS);
-        const threshold = Number.isFinite(rawThreshold)
-            ? Math.max(1, Math.trunc(rawThreshold))
-            : (Number.isFinite(thresholdFallback) ? Math.max(1, Math.trunc(thresholdFallback)) : 20);
-        const rawProgress = Number(markerData.strongWillPromotionOwnerTurnStarts);
-        const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
-        return Math.max(0, threshold - progress);
-    }
-
     function resolveSpecialStatusTimer(markerData: any) {
         const remainingOwnerTurns = Number(markerData && markerData.remainingOwnerTurns);
         if (Number.isFinite(remainingOwnerTurns)) return Math.max(0, Math.trunc(remainingOwnerTurns));
-        return resolveStrongWillDisplayTimer(markerData);
+        return undefined;
     }
 
     function cloneDeferredPendingSelectionValue(value: any): any {

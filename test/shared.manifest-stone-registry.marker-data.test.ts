@@ -11,7 +11,7 @@ describe('manifest stone marker data builder', () => {
       type: 'OBSERVER_WILL',
       sourceType: 'OBSERVER_WILL',
       remainingOwnerTurns: 5,
-      absoluteProtected: true,
+      inviolable: true,
       visualEffectKey: 'observerWillStone',
       repaymentId: 'repay_1',
       stolenCardId: 'meteor_01'
@@ -27,7 +27,7 @@ describe('manifest stone marker data builder', () => {
       type: 'THEORY_INCARNATION',
       sourceType: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       visualEffectKey: 'theoryIncarnationStone',
       sessionId: 'theory_black_1'
     }));

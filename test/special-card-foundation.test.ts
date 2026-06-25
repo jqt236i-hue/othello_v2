@@ -100,26 +100,26 @@ describe('special card foundation deck rules', () => {
 });
 
 describe('special card foundation marker metadata and locks', () => {
-  test('future special marker types are manifestation stones with absolute protection metadata', () => {
+  test('future special marker types are inviolable manifestation stones', () => {
     const SpecialStoneRegistry = require('../shared/special-stone-registry.ts');
     const VisualEffectsMap = require('../game/visual-effects-map.runtime.js');
 
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('THEORY_INCARNATION')).toBe('manifest_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('BOARD_EXECUTOR')).toBe('manifest_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('OBSERVER_WILL')).toBe('manifest_stone');
-    expect(SpecialStoneRegistry.isAbsoluteProtectedSpecialType('THEORY_INCARNATION')).toBe(true);
-    expect(SpecialStoneRegistry.isAbsoluteProtectedSpecialType('BOARD_EXECUTOR')).toBe(true);
-    expect(SpecialStoneRegistry.isAbsoluteProtectedSpecialType('OBSERVER_WILL')).toBe(true);
+    expect(SpecialStoneRegistry.isInviolableSpecialType('THEORY_INCARNATION')).toBe(true);
+    expect(SpecialStoneRegistry.isInviolableSpecialType('BOARD_EXECUTOR')).toBe(true);
+    expect(SpecialStoneRegistry.isInviolableSpecialType('OBSERVER_WILL')).toBe(true);
     expect(SpecialStoneRegistry.getSpecialCardMarkerMetadata('BOARD_EXECUTOR')).toMatchObject({
       displayName: '盤界の執行者',
       durationOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       visualEffectKey: 'boardExecutorStone'
     });
     expect(SpecialStoneRegistry.getSpecialCardMarkerMetadata('THEORY_INCARNATION')).toMatchObject({
       displayName: '理論の化身',
       durationOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       visualEffectKey: 'theoryIncarnationStone'
     });
     expect(VisualEffectsMap.SPECIAL_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
@@ -217,7 +217,7 @@ describe('special card foundation marker metadata and locks', () => {
     expect(() => PlaceResolution.resolvePlacementAction(options)).toThrow(/placement locked/);
   });
 
-  test('future absolute-protected marker types block board mutations', () => {
+  test('future inviolable marker types block board mutations', () => {
     const BoardOps = require('../game/logic/board_ops.ts');
     const cardState = {
       markers: [
@@ -232,15 +232,15 @@ describe('special card foundation marker metadata and locks', () => {
 
     expect(BoardOps.changeAt(cardState, gameState, 0, 0, 'white', 'card', 'test')).toEqual(expect.objectContaining({
       changed: false,
-      reason: 'absolute_protected'
+      reason: 'inviolable'
     }));
     expect(BoardOps.destroyAt(cardState, gameState, 0, 0, 'card', 'test')).toEqual(expect.objectContaining({
       destroyed: false,
-      reason: 'absolute_protected'
+      reason: 'inviolable'
     }));
     expect(BoardOps.applyCellRemovalAt(cardState, gameState, 0, 0, 'black', 'card', 'test')).toEqual(expect.objectContaining({
       applied: false,
-      reason: 'absolute_protected'
+      reason: 'inviolable'
     }));
     expect(BoardOps.getCellValue(gameState, 0, 0)).toBe(1);
   });

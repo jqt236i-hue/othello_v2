@@ -6,7 +6,7 @@ function createCardState() {
 }
 
 describe('OBSERVER_WILL marker', () => {
-  test('next own placement reservation creates a 5T absolute protected observer marker', () => {
+  test('next own placement reservation creates a 5T inviolable observer manifest marker', () => {
     const cardState = createCardState();
     cardState.nextObserverWillStoneByPlayer.black = {
       sourceType: 'OBSERVER_WILL',
@@ -29,10 +29,10 @@ describe('OBSERVER_WILL marker', () => {
     expect(marker.kind).toBe('manifestStone');
     expect(marker.data).toEqual(expect.objectContaining({
       remainingOwnerTurns: 5,
-      absoluteProtected: true,
+      inviolable: true,
       stolenCardId: 'guard_01'
     }));
-    expect(CardLogic.isAbsoluteProtectedCell(cardState, 2, 3)).toBe(true);
+    expect(CardLogic.isInviolableCell(cardState, 2, 3)).toBe(true);
   });
 
   test('owner turn start decrements observer marker and activates repayment on expiry', () => {

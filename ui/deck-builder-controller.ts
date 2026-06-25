@@ -1167,8 +1167,20 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         }
 
         function close() {
+            const returnToRatedMatch = rootRef && rootRef.__returnToRatedMatchAfterDeckBuilder === true;
+            if (returnToRatedMatch) {
+                try { rootRef.__returnToRatedMatchAfterDeckBuilder = false; } catch (e) { /* ignore */ }
+            }
             state.overlayOpen = false;
             render();
+            if (returnToRatedMatch) {
+                try {
+                    const ratedOpenBtn = rootRef.document && rootRef.document.getElementById('ratedMatchOpenBtn');
+                    if (ratedOpenBtn && typeof ratedOpenBtn.click === 'function') {
+                        ratedOpenBtn.click();
+                    }
+                } catch (e) { /* ignore missing rated match UI */ }
+            }
         }
 
         function useStandardDeck() {

@@ -423,11 +423,11 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
         if (row === 3 && col === 3) continue;
         cardState.markers.push({
           id: markerId++,
-          kind: 'specialStone',
+          kind: 'manifestStone',
           row,
           col,
           owner: 'white',
-          data: { type: 'ABSOLUTE_PROTECTED' }
+          data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
         });
       }
     }

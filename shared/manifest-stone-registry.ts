@@ -17,7 +17,7 @@
             displayName: '理論の化身',
             displayCategoryName: '顕現石',
             durationOwnerTurns: 4,
-            absoluteProtected: true,
+            inviolable: true,
             visualEffectKey: 'theoryIncarnationStone',
             imagePathByOwner: Object.freeze({
                 black: 'assets/images/special-stones/theory_incarnation-black.png',
@@ -30,7 +30,7 @@
             displayName: '盤界の執行者',
             displayCategoryName: '顕現石',
             durationOwnerTurns: 4,
-            absoluteProtected: true,
+            inviolable: true,
             visualEffectKey: 'boardExecutorStone',
             imagePathByOwner: Object.freeze({
                 black: 'assets/images/special-stones/board_executor-black.png',
@@ -43,7 +43,7 @@
             displayName: '盤理の観測者',
             displayCategoryName: '顕現石',
             durationOwnerTurns: 5,
-            absoluteProtected: true,
+            inviolable: true,
             visualEffectKey: 'observerWillStone',
             imagePathByOwner: Object.freeze({
                 black: 'assets/images/special-stones/OBSERVER_WILL-black.png',
@@ -87,9 +87,9 @@
         return true;
     }
 
-    function isAbsoluteProtectedManifestStoneType(rawType: unknown): boolean {
+    function isInviolableManifestStoneType(rawType: unknown): boolean {
         const metadata = getManifestStoneMetadata(rawType);
-        return !!(metadata && metadata.absoluteProtected === true);
+        return !!(metadata && metadata.inviolable === true);
     }
 
     function createManifestStoneMarkerData(rawType: unknown, extra?: any): any {
@@ -99,7 +99,7 @@
         const data = {
             type,
             remainingOwnerTurns: metadata.durationOwnerTurns,
-            absoluteProtected: metadata.absoluteProtected === true,
+            inviolable: metadata.inviolable === true,
             sourceType: type,
             visualEffectKey: metadata.visualEffectKey
         };
@@ -116,7 +116,7 @@
         getManifestStoneMetadata,
         isManifestStoneMarker,
         isActiveManifestStoneMarker,
-        isAbsoluteProtectedManifestStoneType,
+        isInviolableManifestStoneType,
         createManifestStoneMarkerData
     });
 }));

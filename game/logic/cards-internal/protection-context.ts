@@ -14,7 +14,6 @@ type ConstantsLike = {
 
 type SpecialStoneRegistryLike = {
     getSpecialStoneInfo(rawType: unknown): { flipProtected?: boolean } | null;
-    isAbsoluteProtectedSpecialType?(rawType: unknown): boolean;
     normalizeSpecialStoneType?(rawType: unknown): string | null;
 };
 
@@ -115,14 +114,6 @@ function isRegistryFlipProtectedMarker(marker: Marker, registry: SpecialStoneReg
     return !!(info && info.flipProtected === true);
 }
 
-function isAbsoluteProtectedMarker(marker: Marker, registry: SpecialStoneRegistryLike): boolean {
-    const type = normalizeMarkerType(marker, registry);
-    if (registry && typeof registry.isAbsoluteProtectedSpecialType === 'function') {
-        return registry.isAbsoluteProtectedSpecialType(type) === true;
-    }
-    return type === 'ABSOLUTE_PROTECTED';
-}
-
 function mapPosition(marker: Marker) {
     return { row: marker.row, col: marker.col, owner: marker.owner };
 }
@@ -155,9 +146,7 @@ function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextD
         .filter((entry) => normalizeMarkerType(entry, registry) === 'PROTECTED')
         .map(mapPosition);
 
-    const absoluteProtectedStones = specials
-        .filter((entry) => isAbsoluteProtectedMarker(entry, registry))
-        .concat(manifests)
+    const inviolableStones = manifests
         .map((entry) => mapOwnerPosition(entry, constants));
 
     const permaProtectedStones = specials
@@ -201,7 +190,7 @@ function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextD
 
     return {
         protectedStones,
-        absoluteProtectedStones,
+        inviolableStones,
         permaProtectedStones,
         bombs,
         blockedCells

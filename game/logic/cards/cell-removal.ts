@@ -35,7 +35,7 @@ function applyHoleStyleCellRemoval(
         };
     }
     const removalOptions = Object.assign({
-        removalPolicy: 'absolute_only',
+        removalPolicy: 'cell_removal',
         removalKind: 'meteor_hole'
     }, options || {});
     return deps.applyCellRemovalAt(cardState, gameState, row, col, playerKey, cause, reason, removalOptions);

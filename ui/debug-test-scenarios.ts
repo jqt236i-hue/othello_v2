@@ -308,7 +308,7 @@ function applyTheoryIncarnationSpawnReadyScenario(gameState: any, cardState: any
     data: {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 4,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION',
       visualEffectKey: 'theoryIncarnationStone'
     }

@@ -1,4 +1,3 @@
-import * as SharedConstants from '../shared-constants.js';
 import * as Core from '../game/logic/core.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
@@ -10,8 +9,8 @@ function createPrng() {
   };
 }
 
-describe('TurnPipelinePhases Strong Will timer metadata', () => {
-  test('turn start emits STATUS_TICK with Strong Will countdown after owner progress advances', () => {
+describe('TurnPipelinePhases Strong Will persistence', () => {
+  test('turn start leaves Strong Will without promotion progress or countdown events', () => {
     const prng = createPrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = Core.createGameState();
@@ -28,9 +27,7 @@ describe('TurnPipelinePhases Strong Will timer metadata', () => {
       col: 3,
       owner: 'black',
       data: {
-        type: 'PERMA_PROTECTED',
-        strongWillPromotionOwnerTurnStarts: 0,
-        strongWillPromotionThreshold: SharedConstants.STRONG_WILL_PROMOTION_OWNER_TURNS
+        type: 'PERMA_PROTECTED'
       }
     });
 
@@ -53,23 +50,16 @@ describe('TurnPipelinePhases Strong Will timer metadata', () => {
     ));
     expect(marker).toBeTruthy();
     expect(marker.data.type).toBe('PERMA_PROTECTED');
-    expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(1);
+    expect(marker.data).not.toHaveProperty('strongWillPromotionOwnerTurnStarts');
+    expect(marker.data).not.toHaveProperty('strongWillPromotionThreshold');
 
-    const timerTick = (cardState.presentationEvents || []).find((event) => (
-      event &&
-      event.type === 'STATUS_TICK' &&
-      event.row === 2 &&
-      event.col === 3
-    ));
-    expect(timerTick).toEqual(expect.objectContaining({
-      type: 'STATUS_TICK',
-      row: 2,
-      col: 3,
-      meta: expect.objectContaining({
-        special: 'PERMA_PROTECTED',
-        timer: SharedConstants.STRONG_WILL_PROMOTION_OWNER_TURNS - 1,
-        owner: 'black'
+    expect(cardState.presentationEvents || []).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'STATUS_TICK',
+        row: 2,
+        col: 3,
+        meta: expect.objectContaining({ special: 'PERMA_PROTECTED' })
       })
-    }));
+    ]));
   });
 });

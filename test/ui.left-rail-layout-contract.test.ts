@@ -26,6 +26,7 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-icon[\s\S]*mask-image/);
     expect(layoutCss).toMatch(/#modeCpuBtn[\s\S]*--left-action-tone:\s*rgba\(106,\s*255,\s*172,\s*0\.24\)/);
     expect(layoutCss).toMatch(/#modeNetworkBtn[\s\S]*--left-action-tone:\s*rgba\(93,\s*171,\s*255,\s*0\.24\)/);
+    expect(layoutCss).toMatch(/#ratedMatchOpenBtn[\s\S]*--left-action-tone:\s*rgba\(242,\s*201,\s*95,\s*0\.26\)/);
     expect(layoutCss).toMatch(/#gachaOpenBtn[\s\S]*--left-action-tone:\s*rgba\(255,\s*130,\s*92,\s*0\.20\)/);
     expect(layoutCss).toMatch(/#handSkinBtn[\s\S]*--left-action-tone:\s*rgba\(210,\s*130,\s*255,\s*0\.2\)/);
   });
@@ -33,34 +34,34 @@ describe('left action rail layout contract', () => {
   test('primary left action buttons darken their opened state', () => {
     const layoutCss = readLayoutCssSurface();
 
-    expect(layoutCss).toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn,\s*#gachaOpenBtn,\s*#deckBuilderOpenBtn,\s*#leaderboardOpenBtn\)\[aria-expanded="true"\][\s\S]*linear-gradient\(180deg,\s*rgba\(2,\s*14,\s*17,\s*0\.94\),\s*rgba\(1,\s*8,\s*10,\s*0\.96\)\)/);
-    expect(layoutCss).toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn,\s*#gachaOpenBtn,\s*#deckBuilderOpenBtn,\s*#leaderboardOpenBtn\)\[aria-expanded="true"\][\s\S]*inset calc\(3px \* var\(--layout-stage-scale\)\) 0 0 var\(--left-action-tone-strong\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn,\s*#ratedMatchOpenBtn,\s*#gachaOpenBtn,\s*#deckBuilderOpenBtn,\s*#leaderboardOpenBtn\)\[aria-expanded="true"\][\s\S]*linear-gradient\(180deg,\s*rgba\(2,\s*14,\s*17,\s*0\.94\),\s*rgba\(1,\s*8,\s*10,\s*0\.96\)\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn,\s*#ratedMatchOpenBtn,\s*#gachaOpenBtn,\s*#deckBuilderOpenBtn,\s*#leaderboardOpenBtn\)\[aria-expanded="true"\][\s\S]*inset calc\(3px \* var\(--layout-stage-scale\)\) 0 0 var\(--left-action-tone-strong\)/);
   });
 
   test('left action popups use the premium game panel skin', () => {
     const layoutCss = readLayoutCssSurface();
 
-    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*clip-path:\s*polygon\(/);
-    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*--rail-panel-accent:\s*#53d6d1/);
-    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*--rail-panel-gold:\s*#f2c95f/);
-    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(83,\s*214,\s*209/);
-    expect(layoutCss).toMatch(/:is\(#networkCloseBtn,\s*#leaderboardCloseBtn,\s*#gachaCloseBtn,\s*#deckBuilderCloseBtn,\s*#handSkinCloseBtn,\s*#rules-help-close-btn\)[\s\S]*border-radius:\s*50%/);
-    expect(layoutCss).toMatch(/:is\(#networkModalHeader,\s*#leaderboardModalHeader,\s*#gachaModalHeader,\s*#deckBuilderModalHeader,\s*#handSkinPanelHeader,\s*#rules-help-title-row\)[\s\S]*background:/);
-    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#networkRoomListViewport,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#boardSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
+    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*clip-path:\s*polygon\(/);
+    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*--rail-panel-accent:\s*#53d6d1/);
+    expect(layoutCss).toMatch(/:is\(#networkModal,\s*#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)[\s\S]*--rail-panel-gold:\s*#f2c95f/);
+    expect(layoutCss).toMatch(/:is\(#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(83,\s*214,\s*209/);
+    expect(layoutCss).toMatch(/:is\(#networkCloseBtn,\s*#ratedMatchCloseBtn,\s*#leaderboardCloseBtn,\s*#gachaCloseBtn,\s*#deckBuilderCloseBtn,\s*#handSkinCloseBtn,\s*#rules-help-close-btn\)[\s\S]*border-radius:\s*50%/);
+    expect(layoutCss).toMatch(/:is\(#networkModalHeader,\s*#ratedMatchModalHeader,\s*#leaderboardModalHeader,\s*#gachaModalHeader,\s*#deckBuilderModalHeader,\s*#handSkinPanelHeader,\s*#rules-help-title-row\)[\s\S]*background:/);
+    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#ratedMatchModalBody,\s*#networkRoomListViewport,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#boardSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
     expect(layoutCss).toMatch(/#handSkinPanel[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/#rules-help-panel[\s\S]*position:\s*fixed/);
-    expect(layoutCss).not.toMatch(/:is\(#networkModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)\s*\{[^}]*position:\s*relative/);
+    expect(layoutCss).not.toMatch(/:is\(#networkModal,\s*#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)\s*\{[^}]*position:\s*relative/);
   });
 
   test('left action popups fade in consistently when opened', () => {
     const layoutCss = readLayoutCssSurface();
 
-    const modalOverlayBlock = readCssBlock(layoutCss, ':is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay)');
+    const modalOverlayBlock = readCssBlock(layoutCss, ':is(#networkOverlay, #ratedMatchOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay)');
     expect(modalOverlayBlock).toMatch(/opacity:\s*0/);
     expect(modalOverlayBlock).toMatch(/visibility:\s*hidden/);
     expect(modalOverlayBlock).toMatch(/transition:\s*opacity\s+180ms\s+ease,\s*visibility\s+0s\s+linear\s+180ms/);
 
-    const modalOpenBlock = readCssBlock(layoutCss, ':is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open');
+    const modalOpenBlock = readCssBlock(layoutCss, ':is(#networkOverlay, #ratedMatchOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open');
     expect(modalOpenBlock).toMatch(/opacity:\s*1/);
     expect(modalOpenBlock).toMatch(/visibility:\s*visible/);
     expect(modalOpenBlock).toMatch(/transition-delay:\s*0s/);
@@ -79,12 +80,14 @@ describe('left action rail layout contract', () => {
   test('left action rail exposes mode and utility buttons in index markup', () => {
     const html = readRepoTextFile('index.html');
 
-    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeNetworkBtn"/);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeNetworkBtn"[\s\S]*id="ratedMatchOpenBtn"/);
     expect(html).not.toMatch(/id="modeReversiBtn"\s+class="btn-small left-action-btn"/);
     expect(html).toMatch(/id="control-panel"[\s\S]*id="modeReversiBtn"[\s\S]*>リバーシ</);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leaderboardOpenBtn"[\s\S]*>ランキング<[\s\S]*id="deckBuilderOpenBtn"[\s\S]*>デッキ<[\s\S]*id="gachaOpenBtn"[\s\S]*>ガチャ<[\s\S]*id="handSkinBtn"[\s\S]*>スキン<[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定<[\s\S]*id="rulesHelpBtn"[\s\S]*>ヘルプ</);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定</);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leftRailVisibilityBtn"[\s\S]*>非表示</);
     expect(html).toMatch(/class="left-action-icon left-action-icon-gacha"/);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-rated"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-deck"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
   });

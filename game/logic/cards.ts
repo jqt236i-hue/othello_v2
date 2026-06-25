@@ -88,7 +88,6 @@ const {
         BOARD_SIZE,
         CHARGE_MAX,
         INITIAL_BOARD_BONUS_DISTRIBUTION,
-        STRONG_WILL_PROMOTION_OWNER_TURNS: SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS,
         TIME_STOP_GOD_TURNS: SHARED_TIME_STOP_GOD_TURNS,
         TIME_STOP_GOD_CONSECUTIVE_TURNS: SHARED_TIME_STOP_GOD_CONSECUTIVE_TURNS,
         TIME_STOP_GOD_SELF_DESTROY_COUNT: SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT
@@ -255,9 +254,6 @@ const {
     const TIME_STOP_GOD_SELF_DESTROY_COUNT = Number.isFinite(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT))
         ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT)))
         : 3;
-    const STRONG_WILL_PROMOTION_OWNER_TURNS = Number.isFinite(Number(SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS))
-        ? Math.max(1, Math.floor(Number(SHARED_STRONG_WILL_PROMOTION_OWNER_TURNS)))
-        : 10;
     const ULTIMATE_DRAGON_TURNS = 8;
     const ULTIMATE_DESTROY_GOD_TURNS = 6;
     const ULTIMATE_HYPERACTIVE_TURNS = 12;
@@ -384,7 +380,7 @@ const {
             BoardOpsModule,
             resolveCardBoardConfig,
             isGuardProtectedCell,
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             getCellValueForCard,
             isFrozenCellForCard,
             findSpecialMarkerAt,
@@ -1175,7 +1171,6 @@ const {
                 clearBombAt,
                 clearHyperactiveAtPositions,
                 applyStrongWill,
-                applyAbsoluteProtect,
                 applyRegenWill,
                 workDebugLog,
                 workDebugError,
@@ -1301,7 +1296,7 @@ const {
             getBombMarkers,
             getMarkerRuleClass,
             canLossWillRevertMarker: requireCardMarkersMethod('canLossWillRevertMarker'),
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             ensureSalvationDestroyedLedger
         });
         return CardEffectTargetCountsCache;
@@ -1651,7 +1646,7 @@ const {
         return !!(
             isFrozenCellForCard(cardState, row, col) ||
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
-            findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED')
+            isInviolableCell(cardState, row, col)
         );
     }
 
@@ -1659,12 +1654,12 @@ const {
         return !!isFrozenCellForCard(cardState, row, col);
     }
 
-    function isAbsoluteProtectedCell(cardState: any, row: any, col: any) {
-        const fn = CardMarkersModule && CardMarkersModule.isAbsoluteProtectedCell;
+    function isInviolableCell(cardState: any, row: any, col: any) {
+        const fn = CardMarkersModule && CardMarkersModule.isInviolableCell;
         if (typeof fn === 'function') {
             return !!fn(cardState, row, col);
         }
-        return !!findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
+        return isManifestStoneAt(cardState, row, col);
     }
 
     function isManifestStoneMarker(marker: any) {
@@ -1848,7 +1843,7 @@ const {
             isManifestStoneMarker,
             removeMarkerById,
             getCellValueForCard,
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             isGuardProtectedCell,
             isFrozenCellForCard,
             sampleRandomPositions,
@@ -2767,7 +2762,7 @@ const {
         return CardTrapModule.applyTrapWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
             getTrapTargets,
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             removeMarkersAt,
             addMarker,
             clearCardPendingEffect,
@@ -2803,7 +2798,7 @@ const {
             blocksTemptAt,
             getCellValueForCard,
             getSpecialMarkers,
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             BoardOpsModule,
             setCellValueForCard,
             removeMarkersAt,
@@ -2827,7 +2822,7 @@ const {
             isCaptureTargetableMarker,
             getCellValueForCard,
             getSpecialMarkers,
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             getTrueSpecialStoneMarkerAt,
             BoardOpsModule,
             resolveCaptureSourceInfo,
@@ -2984,7 +2979,7 @@ const {
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-            isAbsoluteProtectedCell
+            isInviolableCell
         });
     }
 
@@ -3010,7 +3005,7 @@ const {
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-            isAbsoluteProtectedCell
+            isInviolableCell
         });
     }
 
@@ -3668,14 +3663,6 @@ const {
     function applyStrongWill(cardState: any, playerKey: any, row: any, col: any) {
         return CardProtectModule.applyStrongWill(cardState, playerKey, row, col, {
             getSpecialMarkers,
-            addMarker,
-            STRONG_WILL_PROMOTION_OWNER_TURNS
-        });
-    }
-
-    function applyAbsoluteProtect(cardState: any, playerKey: any, row: any, col: any) {
-        return CardProtectModule.applyAbsoluteProtect(cardState, playerKey, row, col, {
-            getSpecialMarkers,
             addMarker
         });
     }
@@ -4269,7 +4256,7 @@ const {
             clearBombAt,
             clearHyperactiveAtPositions,
             isBlockedCell,
-            isAbsoluteProtectedCell,
+            isInviolableCell,
             isFrozenCell,
             getCardContext,
             BoardOps: BoardOpsModule,
@@ -4580,7 +4567,6 @@ const cardsApi: any = {
         METEOR_GOD_TURNS,
         GHOST_WILL_TURNS,
         SACRIFICE_WILL_TURNS,
-        STRONG_WILL_PROMOTION_OWNER_TURNS,
         SEED_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
@@ -4674,7 +4660,6 @@ const cardsApi: any = {
         applySwapEffect,
         applyPositionSwapWill,
         applyStrongWill,
-        applyAbsoluteProtect,
         applyHeavenBlessingChoice,
         applyRevealHandWill,
         applyCondemnWill,
@@ -4800,7 +4785,7 @@ const cardsApi: any = {
         countOccupiedCornersForPlayer,
         isBlockedCell,
         findManifestMarkerAt,
-        isAbsoluteProtectedCell,
+        isInviolableCell,
         isCardPlayLockedForPlayer,
         isPlacementLockedForPlayer,
         isFrozenCell,

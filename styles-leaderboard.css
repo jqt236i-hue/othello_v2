@@ -242,13 +242,16 @@
 
 #leaderboardFilterTabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: calc(12px * var(--layout-stage-scale));
     margin-top: calc(4px * var(--layout-stage-scale));
 }
 
 .leaderboard-filter-tab {
+    grid-column: span 2;
     min-height: calc(62px * var(--layout-stage-scale));
+    min-width: 0;
+    padding-inline: calc(10px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.26);
     border-radius: calc(999px * var(--layout-stage-scale));
     background:
@@ -259,9 +262,16 @@
     font-size: calc(21px * var(--layout-stage-scale));
     font-weight: 800;
     letter-spacing: 0;
+    white-space: nowrap;
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.02),
         0 calc(6px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.20);
+}
+
+.leaderboard-filter-tab.is-compact {
+    grid-column: span 1;
+    padding-inline: calc(6px * var(--layout-stage-scale));
+    font-size: calc(18px * var(--layout-stage-scale));
 }
 
 .leaderboard-filter-tab:hover,
@@ -386,6 +396,10 @@
 
 .leaderboard-mode-control {
     position: relative;
+    display: none;
+}
+
+.leaderboard-mode-control.is-visible {
     display: block;
 }
 
@@ -862,7 +876,7 @@
     }
 
     #leaderboardFilterTabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     #leaderboardNameRow {
@@ -1330,7 +1344,7 @@
 }
 
 #leaderboardFilterTabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: calc(10px * var(--layout-stage-scale));
     margin-top: calc(26px * var(--layout-stage-scale));
 }
@@ -1339,6 +1353,10 @@
     min-height: calc(43px * var(--layout-stage-scale));
     font-size: calc(17px * var(--layout-stage-scale));
     border-color: rgba(188, 112, 42, 0.42);
+}
+
+.leaderboard-filter-tab.is-compact {
+    font-size: calc(15px * var(--layout-stage-scale));
 }
 
 .leaderboard-filter-tab.is-active,
@@ -1931,7 +1949,8 @@
     flex: 0 0 calc(432.65px * var(--layout-stage-scale));
     height: calc(432.65px * var(--layout-stage-scale));
     max-height: calc(432.65px * var(--layout-stage-scale));
-    padding: 0 calc(8px * var(--layout-stage-scale));
+    padding: 0 calc(8px * var(--layout-stage-scale)) calc(46px * var(--layout-stage-scale));
+    scroll-padding-bottom: calc(46px * var(--layout-stage-scale));
 }
 
 .leaderboard-row {
@@ -2260,7 +2279,7 @@
 
 #leaderboardFilterTabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: calc(10px * var(--layout-stage-scale));
     margin-top: calc(10px * var(--layout-stage-scale));
 }
@@ -2511,6 +2530,182 @@
     );
 }
 
+.leaderboard-row.is-profile-openable,
+.leaderboard-podium-card.is-profile-openable {
+    cursor: pointer;
+}
+
+.leaderboard-row.is-profile-openable:focus-visible,
+.leaderboard-podium-card.is-profile-openable:focus-visible {
+    outline: calc(2px * var(--layout-stage-scale)) solid rgba(106, 255, 249, 0.92);
+    outline-offset: calc(2px * var(--layout-stage-scale));
+}
+
+.leaderboard-podium-avatar-bg {
+    position: absolute;
+    left: 50%;
+    top: 53%;
+    z-index: 1;
+    display: block;
+    width: calc(96px * var(--layout-stage-scale));
+    height: calc(96px * var(--layout-stage-scale));
+    transform: translate(-50%, -50%);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    opacity: 0.18;
+    filter: drop-shadow(0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 219, 128, 0.28));
+    pointer-events: none;
+}
+
+.leaderboard-podium-card.is-rank-1 .leaderboard-podium-avatar-bg {
+    width: calc(132px * var(--layout-stage-scale));
+    height: calc(132px * var(--layout-stage-scale));
+    transform: translate(-50%, -50%);
+    opacity: 0.20;
+}
+
+.leaderboard-podium-card .leaderboard-podium-badge,
+.leaderboard-podium-card .leaderboard-podium-name,
+.leaderboard-podium-card .leaderboard-podium-score,
+.leaderboard-podium-card .leaderboard-podium-mode {
+    z-index: 2;
+}
+
+.leaderboard-podium-name {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0;
+    overflow: visible;
+    text-align: center;
+}
+
+.leaderboard-podium-name .leaderboard-name-text {
+    grid-column: 2;
+}
+
+.leaderboard-podium-name .leaderboard-name-id {
+    grid-column: 3;
+    justify-self: start;
+    margin-left: calc(6px * var(--layout-stage-scale));
+}
+
+.leaderboard-profile-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 60;
+    display: none;
+    place-items: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.58);
+}
+
+.leaderboard-profile-overlay.is-open {
+    display: grid;
+}
+
+.leaderboard-profile-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 18px;
+    width: min(430px, calc(100vw - 40px));
+    min-height: 176px;
+    padding: 24px 24px 22px;
+    border: 1px solid rgba(229, 168, 82, 0.78);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 216, 127, 0.78) 0 1px, transparent 1px 18px, rgba(255, 216, 127, 0.46) 18px 19px, transparent 19px) top left / 38px 38px no-repeat,
+        linear-gradient(225deg, rgba(255, 216, 127, 0.78) 0 1px, transparent 1px 18px, rgba(255, 216, 127, 0.46) 18px 19px, transparent 19px) top right / 38px 38px no-repeat,
+        linear-gradient(45deg, rgba(255, 216, 127, 0.78) 0 1px, transparent 1px 18px, rgba(255, 216, 127, 0.46) 18px 19px, transparent 19px) bottom left / 38px 38px no-repeat,
+        linear-gradient(315deg, rgba(255, 216, 127, 0.78) 0 1px, transparent 1px 18px, rgba(255, 216, 127, 0.46) 18px 19px, transparent 19px) bottom right / 38px 38px no-repeat,
+        radial-gradient(circle at 24% 22%, rgba(65, 242, 229, 0.20), transparent 38%),
+        linear-gradient(180deg, rgba(5, 31, 33, 0.98), rgba(1, 13, 15, 0.98));
+    box-shadow:
+        inset 0 0 0 4px rgba(2, 9, 10, 0.56),
+        0 18px 52px rgba(0, 0, 0, 0.55),
+        0 0 20px rgba(240, 180, 84, 0.18);
+}
+
+.leaderboard-profile-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(229, 168, 82, 0.78);
+    border-radius: 50%;
+    color: #ffe6a8;
+    background: rgba(3, 18, 20, 0.88);
+    font: 700 22px/1 serif;
+    cursor: pointer;
+}
+
+.leaderboard-profile-close:focus-visible {
+    outline: 2px solid rgba(106, 255, 249, 0.92);
+    outline-offset: 2px;
+}
+
+.leaderboard-profile-avatar {
+    align-self: center;
+    display: grid;
+    place-items: center;
+    width: 96px;
+    height: 96px;
+    border: 1px solid rgba(229, 168, 82, 0.64);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(241, 191, 96, 0.18), transparent 56%),
+        rgba(1, 13, 15, 0.88);
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 240, 190, 0.08),
+        0 0 18px rgba(77, 255, 245, 0.10);
+}
+
+.leaderboard-profile-avatar-img {
+    display: block;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+
+.leaderboard-profile-body {
+    min-width: 0;
+    align-self: center;
+    padding-right: 24px;
+}
+
+.leaderboard-profile-name {
+    color: #ffe5a0;
+    font-family: "Cinzel", "Times New Roman", serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.70);
+}
+
+.leaderboard-profile-id {
+    margin-top: 6px;
+    color: rgba(232, 219, 190, 0.72);
+    font: 600 12px/1.2 "Cinzel", "Times New Roman", serif;
+    overflow-wrap: anywhere;
+}
+
+.leaderboard-profile-bio {
+    margin-top: 16px;
+    max-height: 96px;
+    overflow: auto;
+    color: #f0dfc1;
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 560px) {
     #leaderboardModal {
         --layout-stage-scale: 0.62;
@@ -2573,7 +2768,7 @@
     }
 
     #leaderboardFilterTabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: calc(8px * var(--layout-stage-scale));
         margin-top: calc(5px * var(--layout-stage-scale));
     }
@@ -2680,7 +2875,24 @@
     }
 
     .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::after {
-        transform: translate(0, 0);
+        transform: translate(
+            calc(0.96px * var(--layout-stage-scale)),
+            calc(-0.73px * var(--layout-stage-scale))
+        );
+    }
+
+    .leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge::after {
+        transform: translate(
+            calc(0.50px * var(--layout-stage-scale)),
+            calc(0.81px * var(--layout-stage-scale))
+        );
+    }
+
+    .leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge::after {
+        transform: translate(
+            calc(0.57px * var(--layout-stage-scale)),
+            calc(0.22px * var(--layout-stage-scale))
+        );
     }
 
     .leaderboard-podium-card.is-rank-2 .leaderboard-podium-name,
@@ -2793,4 +3005,45 @@
         height: calc(11px * var(--layout-stage-scale));
         font-size: calc(9px * var(--layout-stage-scale));
     }
+}
+
+/* Number-baked podium backgrounds. Keep the original numberless files intact;
+   display only these single baked images in the ranking UI. */
+#leaderboardModal {
+    --leaderboard-asset-podium-gold-number: url("assets/images/other/leaderboard-podium-gold-number-v1.png");
+    --leaderboard-asset-podium-silver-number: url("assets/images/other/leaderboard-podium-silver-number-v1.png");
+    --leaderboard-asset-podium-bronze-number: url("assets/images/other/leaderboard-podium-bronze-number-v1.png");
+}
+
+.leaderboard-podium-card.is-rank-1 {
+    background-image: var(--leaderboard-asset-podium-gold-number) !important;
+}
+
+.leaderboard-podium-card.is-rank-2 {
+    background-image: var(--leaderboard-asset-podium-silver-number) !important;
+}
+
+.leaderboard-podium-card.is-rank-3 {
+    background-image: var(--leaderboard-asset-podium-bronze-number) !important;
+}
+
+.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge,
+.leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge,
+.leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge {
+    display: none !important;
+}
+
+.leaderboard-podium-card.is-placeholder .leaderboard-podium-mode {
+    display: none !important;
+}
+
+.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::before,
+.leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge::before,
+.leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge::before,
+.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::after,
+.leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge::after,
+.leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge::after {
+    content: none !important;
+    display: none !important;
+    background: none !important;
 }

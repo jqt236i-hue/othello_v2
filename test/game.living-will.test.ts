@@ -55,7 +55,7 @@ describe('LIVING_WILL (生きる意志)', () => {
     expect(findMarker(cardState, 2, 2, 'LIVING_WILL')).toBeUndefined();
   });
 
-  test('target selector excludes bomb, absolute protected, and already-living stones', () => {
+  test('target selector excludes bombs and already-living stones but keeps strong stones targetable', () => {
     const { cardState, gameState } = makeState();
     gameState.board[0][0] = 1;
     gameState.board[0][1] = 1;
@@ -77,7 +77,7 @@ describe('LIVING_WILL (生きる意志)', () => {
         row: 0,
         col: 1,
         owner: 'black',
-        data: { type: 'ABSOLUTE_PROTECTED' }
+        data: { type: 'PERMA_PROTECTED' }
       },
       {
         id: 3,
@@ -89,7 +89,10 @@ describe('LIVING_WILL (生きる意志)', () => {
       }
     );
 
-    expect(CardLogic.getLivingWillTargets(cardState, gameState, 'black')).toEqual([{ row: 0, col: 3 }]);
+    expect(CardLogic.getLivingWillTargets(cardState, gameState, 'black')).toEqual([
+      { row: 0, col: 1 },
+      { row: 0, col: 3 }
+    ]);
   });
 
   test('capture will is nullified by living will and does not add the captured card to hand', () => {

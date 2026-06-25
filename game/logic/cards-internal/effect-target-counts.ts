@@ -4,7 +4,7 @@ type EffectTargetCountsDeps = {
     getBombMarkers?: (cardState: any) => any[];
     getMarkerRuleClass?: (marker: any) => string | null;
     canLossWillRevertMarker?: (marker: any) => boolean;
-    isAbsoluteProtectedCell?: (cardState: any, row: any, col: any) => boolean;
+    isInviolableCell?: (cardState: any, row: any, col: any) => boolean;
     ensureSalvationDestroyedLedger?: (cardState: any) => any;
 };
 
@@ -27,11 +27,10 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
             const ruleClass = getMarkerRuleClass(marker);
             if (ruleClass) return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb';
             if (marker && marker.data && marker.data.type === 'METEOR_HOLE') return false;
-            if (marker && marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
             return true;
         });
-    const isAbsoluteProtectedCell = typeof deps?.isAbsoluteProtectedCell === 'function'
-        ? deps.isAbsoluteProtectedCell
+    const isInviolableCell = typeof deps?.isInviolableCell === 'function'
+        ? deps.isInviolableCell
         : (() => false);
     const ensureSalvationDestroyedLedger = typeof deps?.ensureSalvationDestroyedLedger === 'function'
         ? deps.ensureSalvationDestroyedLedger
@@ -53,8 +52,7 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
         );
         const removableSpecials = specials.filter((marker: any) => {
             if (!marker) return false;
-            if (Number.isInteger(marker.row) && Number.isInteger(marker.col) && isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
-            if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
+            if (Number.isInteger(marker.row) && Number.isInteger(marker.col) && isInviolableCell(cardState, marker.row, marker.col)) return false;
             if (!canLossWillRevertMarker(marker)) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             return !guardedCells.has(`${marker.row},${marker.col}`);
@@ -64,7 +62,7 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
             if (!marker) return false;
             if (removableSpecials.includes(marker)) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
-            if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
+            if (isInviolableCell(cardState, marker.row, marker.col)) return false;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
         const removed = removableSpecials.map((marker: any) => ({

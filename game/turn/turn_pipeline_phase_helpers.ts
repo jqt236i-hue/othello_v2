@@ -10,7 +10,6 @@ const SPECIAL_STONE_BUBBLE_SCENARIO_KEYS = Object.freeze([
     'inherit_selected',
     'inherit_applied',
     'escape_exploded',
-    'absolute_protected_promoted',
     'special_destroy_triggered',
     'living_will_restored'
 ]);
@@ -37,8 +36,8 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
         })
     }),
     PERMA_PROTECTED: Object.freeze({
-        place: Object.freeze(['反転ごときでは崩れない。', 'じっくり強くなる、焦るな。', '守り抜いて、次の段へ行く。', '時間は私の味方だ。', '揺るがず待つ、それが強さだ。']),
-        destroy: Object.freeze(['折られるたび、前の名を思い出しかける。', '進化を待つ未練まで、ここで断たれるのか。', '守りは厚くても、壊れる時は壊れる。', 'まだ完成前だったか。', '強さの途中で終わるのは惜しいな。'])
+        place: Object.freeze(['反転ごときでは崩れない。', 'ここからずっと踏みとどまる。', '守り抜く、ただそれだけでいい。', '時間をかけても姿は変わらない。', '揺るがないまま盤に残る。']),
+        destroy: Object.freeze(['守りは厚くても、壊れる時は壊れる。', '反転には耐えた、だが破壊までは止められない。', '強い石でも、消える時は消える。', '盤に残る力はあった、壊される覚悟は別だ。', '反転されない意志ごと、ここで砕けた。'])
     }),
     GLUTTONOUS: Object.freeze({
         place: Object.freeze(['いっぱい食べる俺が好き', '腹が減ってる、まずは一口くれ。', '食える盤なら全部うまい。', 'いただきますは言う、遠慮はしない。', '目の前の敵から順にごちそうだ。']),
@@ -130,9 +129,6 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
     WILL_HUNTER_KING: Object.freeze({
         place: Object.freeze(['王の狩場だ、異能の石から首を差し出せ。', '盤上の意志を嗅ぎ分ける、狩りの始まりだ。', '特殊石の気配がするな、王が刈り取りに来たぞ。', '目立つ力ほど狙いやすい、まずは一つ沈める。', '意志を掲げた石から順に、王の獲物になる。']),
         special_destroy_triggered: Object.freeze(['光る首ほど、刈った時によく響く。', '特殊石の断末魔は、王の耳によく馴染む。', '異能ごと断つ、それが王の狩りだ。', '盤の切り札ほど、落とす価値がある。', '珍しい石から沈む、実にいい眺めだ。'])
-    }),
-    ABSOLUTE_PROTECTED: Object.freeze({
-        absolute_protected_promoted: Object.freeze(['ここから先は、何ものも届かない。', '進化完了、もう誰にも触れさせない。', '守りは極まった、私は絶対だ。', '世界ごと拒んで立ち続ける。', '完成した、この身はもう揺るがない。'])
     }),
     DRAGON: Object.freeze({
         living_will_restored: GENERIC_LIVING_WILL_RESTORED_LINES

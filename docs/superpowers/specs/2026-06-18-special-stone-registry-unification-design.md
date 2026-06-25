@@ -13,7 +13,7 @@
 | カード | cardId | cardType | 盤面 marker type |
 | --- | --- | --- | --- |
 | 弱い意志 | `hard_01` | `PROTECTED_NEXT_STONE` | `PROTECTED` |
-| 強い意志 | `perma_01` | `PERMA_PROTECT_NEXT_STONE` | `PERMA_PROTECTED`、昇格後 `ABSOLUTE_PROTECTED` |
+| 強い意志 | `perma_01` | `PERMA_PROTECT_NEXT_STONE` | `PERMA_PROTECTED` |
 | 狙撃の意志 | `sniper_01` | `SNIPER_WILL` | `SNIPER` |
 | 幽霊の意志 | `ghost_01` | `GHOST_WILL` | `GHOST` |
 | 避ける意志 | `afterimage_will_01` | `AFTERIMAGE_WILL` | `AFTERIMAGE_WILL` |
@@ -38,7 +38,7 @@
 | 究極多動神 | `ultimate_hyperactive_01` | `ULTIMATE_HYPERACTIVE_GOD` | `ULTIMATE_HYPERACTIVE` |
 | 因果抹消神 | `meteor_god_01` | `METEOR_GOD` | `METEOR_GOD` |
 
-`ABSOLUTE_PROTECTED` は独立カードではなく `PERMA_PROTECT_NEXT_STONE` 由来の昇格 marker type として扱う。
+`PERMA_PROTECT_NEXT_STONE` は `PERMA_PROTECTED` だけを生成し、所有者ターン開始回数による別 marker への変化は行わない。
 
 ## 用語
 
@@ -114,7 +114,6 @@ type StoneEffectRule = {
 対象外:
 
 - `GUARD`
-- `ABSOLUTE_PROTECTED`
 - 顕現石
 - 盤面マーカー
 - 配置時効果
@@ -129,7 +128,7 @@ type StoneEffectRule = {
 
 ### 意志の喪失
 
-既存挙動を維持する。`lossWillRevertible` は `special_stone_body`、`TRAP`、`TIME_BOMB` を true にし、`ABSOLUTE_PROTECTED`、`GUARD`、`LIVING_WILL`、顕現石、盤面マーカー、配置時効果は false にする。
+既存挙動を維持する。`lossWillRevertible` は `special_stone_body`、`TRAP`、`TIME_BOMB` を true にし、`GUARD`、`LIVING_WILL`、顕現石、盤面マーカー、配置時効果は false にする。
 
 ### 意志狩りの王
 
@@ -161,7 +160,7 @@ type StoneEffectRule = {
   - `temptTargetable`、`captureTargetable`、`lossWillRevertible`、`willHunterPriority` の代表値を固定する。
 - `test/game.special-stone-visual-rule.test.ts`
   - `TEMPT_WILL` が `TRAP`、`TIME_BOMB`、`LIVING_WILL` を対象に含めることを確認する。
-  - `TEMPT_WILL` が `GUARD`、`ABSOLUTE_PROTECTED`、顕現石、盤面マーカー、配置時効果を対象外にすることを確認する。
+  - `TEMPT_WILL` が `GUARD`、顕現石、盤面マーカー、配置時効果を対象外にすることを確認する。
 - `test/game.capture-will.test.ts`
   - `CAPTURE_WILL` が罠、時限爆弾、`LIVING_WILL` を捕獲対象にしないことを確認する。
 - `test/game.will-hunter-king.test.ts`
@@ -189,7 +188,7 @@ type StoneEffectRule = {
 ## 完了判定
 
 - 特殊石カード 25件の cardType -> markerType 対応が registry test で固定されている。
-- 誘惑の意志が `TRAP`、`TIME_BOMB`、`LIVING_WILL` を対象にでき、`GUARD` と `ABSOLUTE_PROTECTED` は対象外になっている。
+- 誘惑の意志が `TRAP`、`TIME_BOMB`、`LIVING_WILL` を対象にでき、`GUARD` と顕現石は対象外になっている。
 - 意志狩りの王の特殊石優先が画像パスや CSS ではなく registry predicate で決まっている。
 - 意志の喪失、理論の化身、捕獲の意志の既存対象範囲が意図せず変わっていない。
 - `shared/special-stone-registry.ts` が特殊石定義の正本になり、ローカル hard-coded 分類が減っている。

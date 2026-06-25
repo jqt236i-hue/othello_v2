@@ -22,7 +22,7 @@ describe('special effects helpers', () => {
       markers: [
         special('METEOR_GOD', 0, 1),
         special('LIGHTNING', 1, 2),
-        special('ABSOLUTE_PROTECTED', 2, 3),
+        special('DRAGON', 2, 3),
         special('STONE_SALVATION_GOD', 3, 4),
         special('PROTECTED', 4, 5),
         special('REGEN', 5, 6),

@@ -204,18 +204,22 @@ const Flips = CardFlips || {};
         ));
     }
 
-    function isAbsoluteProtectedCell(cardState: any, row: number, col: number) {
-        if (Markers && typeof Markers.findSpecialMarkerAt === 'function') {
-            return !!Markers.findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
+    function isInviolableCell(cardState: any, row: number, col: number) {
+        if (Markers && typeof Markers.isInviolableCell === 'function') {
+            return !!Markers.isInviolableCell(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         return markers.some((m: any) => (
             m &&
-            m.kind === 'specialStone' &&
             m.row === row &&
             m.col === col &&
             m.data &&
-            m.data.type === 'ABSOLUTE_PROTECTED'
+            (m.kind === 'manifestStone' ||
+                (m.kind === 'specialStone' && (
+                    m.data.type === 'THEORY_INCARNATION' ||
+                    m.data.type === 'BOARD_EXECUTOR' ||
+                    m.data.type === 'OBSERVER_WILL'
+                )))
         ));
     }
 
@@ -336,6 +340,21 @@ const Flips = CardFlips || {};
         return markers.filter((m: any) => m && m.kind === 'specialStone');
     }
 
+    function getManifestMarkers(cardState: any) {
+        if (Markers && typeof Markers.getManifestMarkers === 'function') {
+            return Markers.getManifestMarkers(cardState);
+        }
+        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+        return markers.filter((m: any) => {
+            const type = String(m && m.data && m.data.type || '').toUpperCase();
+            return !!(
+                m &&
+                (m.kind === 'manifestStone' || m.kind === 'specialStone') &&
+                (type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL')
+            );
+        });
+    }
+
     function getBombMarkers(cardState: any) {
         if (Markers && typeof Markers.getBombMarkers === 'function') {
             return Markers.getBombMarkers(cardState);
@@ -394,7 +413,7 @@ const Flips = CardFlips || {};
         return !!(
             isFrozenCell(cardState, row, col) ||
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
-            findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED')
+            isInviolableCell(cardState, row, col)
         );
     }
 
@@ -429,8 +448,8 @@ const Flips = CardFlips || {};
             constants: SharedConstants,
             SpecialStoneRegistry,
             getSpecialMarkers,
-            getManifestMarkers: () => [],
-            getBombMarkers: () => [],
+            getManifestMarkers,
+            getBombMarkers,
             getBlockingMarkers: (state: any) => {
                 const specials = getSpecialMarkers(state);
                 return specials.filter((entry: any) => {
@@ -443,13 +462,13 @@ const Flips = CardFlips || {};
 
     function getTabooReverseDirectionalFlips(gameState: any, row: any, col: any, ownerVal: any, direction: any, context: any) {
         const blockedCells = context && context.blockedCells ? context.blockedCells : [];
-        const absoluteProtectedStones = context && context.absoluteProtectedStones ? context.absoluteProtectedStones : [];
+        const inviolableStones = context && context.inviolableStones ? context.inviolableStones : [];
 
         const blockedSet = blockedCells.length
             ? new Set(blockedCells.map((p: any) => `${p.row},${p.col}`))
             : null;
-        const absoluteSet = absoluteProtectedStones.length
-            ? new Set(absoluteProtectedStones.map((p: any) => `${p.row},${p.col}`))
+        const inviolableSet = inviolableStones.length
+            ? new Set(inviolableStones.map((p: any) => `${p.row},${p.col}`))
             : null;
 
         const [dr, dc] = direction;
@@ -462,7 +481,7 @@ const Flips = CardFlips || {};
             if (blockedSet && blockedSet.has(key)) {
                 return [];
             }
-            if (!(absoluteSet && absoluteSet.has(key))) {
+            if (!(inviolableSet && inviolableSet.has(key))) {
                 flips.push({ row: r, col: c });
             }
             r += dr;
@@ -629,7 +648,7 @@ const Flips = CardFlips || {};
             if (getCellValue(gameState, row, col) !== playerVal) continue;
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
-            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
+            if (isInviolableCell(cardState, row, col)) continue;
             const hasOwnTrap = markersAt(row, col).some((m: any) => (
                 m &&
                 m.kind === 'specialStone' &&
@@ -652,7 +671,7 @@ const Flips = CardFlips || {};
         if (!destinations.length) return [];
         return getOccupiedBoardShapeCells(cardState, gameState)
             .filter((cell: any) => !isFrozenCell(cardState, cell.row, cell.col))
-            .filter((cell: any) => !isAbsoluteProtectedCell(cardState, cell.row, cell.col));
+            .filter((cell: any) => !isInviolableCell(cardState, cell.row, cell.col));
     }
 
     function getBoardExpansionTargets(cardState: any, gameState: any, playerKey: any) {
@@ -947,7 +966,7 @@ const Flips = CardFlips || {};
             if (getCellValue(gameState, row, col) !== playerVal) continue;
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
-            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
+            if (isInviolableCell(cardState, row, col)) continue;
             res.push({ row, col });
         }
         return res;
@@ -1045,7 +1064,7 @@ const Flips = CardFlips || {};
         const res: any[] = [];
         forEachBoardShapeCell(gameState, (r: any, c: any) => {
             if (isMeteorHoleCell(cardState, r, c)) return;
-            if (isAbsoluteProtectedCell(cardState, r, c)) return;
+            if (isInviolableCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
         });
         return res;
@@ -1137,7 +1156,7 @@ const Flips = CardFlips || {};
         forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
             if (isFrozenCell(cardState, r, c)) return;
-            if (isAbsoluteProtectedCell(cardState, r, c)) return;
+            if (isInviolableCell(cardState, r, c)) return;
             if (isMeteorHoleCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
         });
@@ -1209,7 +1228,7 @@ const Flips = CardFlips || {};
             if (getCellValue(gameState, row, col) !== playerVal) continue;
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
-            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
+            if (isInviolableCell(cardState, row, col)) continue;
             const hasLivingWill = markersAt(row, col).some((m: any) => (
                 m &&
                 m.kind === 'specialStone' &&

@@ -135,12 +135,7 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
                 if (boardValue === null) continue;
                 const lineCorner = isCornerCell(lineRow, lineCol, board);
                 const lineEdge = !lineCorner && isEdgeCell(lineRow, lineCol, board);
-                const absProtected = hasSpecialMarkerTypeAt(lineRow, lineCol, 'ABSOLUTE_PROTECTED');
                 const frozen = hasSpecialMarkerTypeAt(lineRow, lineCol, 'FREEZE');
-                if (absProtected) {
-                    lineScore -= 260;
-                    continue;
-                }
                 if (frozen) {
                     lineScore -= 180;
                     continue;
@@ -520,7 +515,6 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             if (Array.isArray(target.lineCells) && target.lineCells.length > 0) {
                 return scoreBoardShrinkLine(target.lineCells);
             }
-            if (hasSpecialMarkerTypeAt(row, col, 'ABSOLUTE_PROTECTED')) return -5200;
             score += opp ? 220 : (own ? -280 : 60);
             if (corner) score += opp ? 1400 : (own ? -5200 : 320);
             else if (edge) score += opp ? 820 : (own ? -960 : 180);
@@ -540,7 +534,6 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
                 }
                 return bestLineScore + (target.lineTargets.length * 60);
             }
-            if (hasSpecialMarkerTypeAt(row, col, 'ABSOLUTE_PROTECTED')) score -= 420;
             score += corner ? 240 : 40;
             score += destructiveMarkerScore * 0.6;
             return score;

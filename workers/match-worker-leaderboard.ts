@@ -6,6 +6,8 @@ import type {
     MatchWorkerLeaderboardStore
 } from './match-worker-types';
 
+const PlayerProfileContract = require('../shared/player-profile-contract');
+
 type MatchWorkerLeaderboardHelperConfig = {
     storageVersion: number;
     playerNameMax: number;
@@ -32,6 +34,10 @@ type MatchWorkerLeaderboardSubmitResult =
     | MatchWorkerLeaderboardSubmitRejected;
 
 type MatchWorkerLeaderboardListMode = 'all' | MatchWorkerLeaderboardMode;
+type MatchWorkerPublicProfile = {
+    avatarStoneType: string;
+    bio: string;
+};
 const TIME_ATTACK_LIMIT_MS = 900000;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -58,6 +64,55 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const normalized = String(value || '').replace(/\s+/g, ' ').trim();
         const clipped = Array.from(normalized).slice(0, playerNameMax).join('');
         return clipped || 'ななし';
+    }
+
+    function normalizePublicProfile(value: unknown): MatchWorkerPublicProfile {
+        const normalized = PlayerProfileContract.normalizePublicPlayerProfile(value);
+        return {
+            avatarStoneType: normalized.avatarStoneType,
+            bio: normalized.bio
+        };
+    }
+
+    function hasPublicProfileFields(value: unknown): boolean {
+        return PlayerProfileContract.hasPublicPlayerProfileFields(value);
+    }
+
+    function applyPublicProfile(entry: MatchWorkerLeaderboardEntry, profile: MatchWorkerPublicProfile): MatchWorkerLeaderboardEntry {
+        return {
+            ...entry,
+            avatarStoneType: profile.avatarStoneType,
+            bio: profile.bio
+        };
+    }
+
+    function syncPublicProfileForPlayer(store: MatchWorkerLeaderboardStore, playerId: string, profile: MatchWorkerPublicProfile): void {
+        const categories = [
+            [store.players, store.playerModes, store.playerCpuLevels],
+            [store.timeAttackPlayers, store.timeAttackPlayerModes, store.timeAttackPlayerCpuLevels],
+            [store.timeDefensePlayers, store.timeDefensePlayerModes, store.timeDefensePlayerCpuLevels],
+            [store.shortestTurnsPlayers, store.shortestTurnsPlayerModes, store.shortestTurnsPlayerCpuLevels]
+        ] as const;
+
+        categories.forEach(([playersMap, modeMap, cpuLevelsMap]) => {
+            if (playersMap && playersMap[playerId]) {
+                playersMap[playerId] = applyPublicProfile(playersMap[playerId], profile);
+            }
+            const modeEntries = modeMap && modeMap[playerId];
+            if (modeEntries) {
+                (['cpu', 'network'] as MatchWorkerLeaderboardMode[]).forEach((modeKey) => {
+                    if (modeEntries[modeKey]) {
+                        modeEntries[modeKey] = applyPublicProfile(modeEntries[modeKey] as MatchWorkerLeaderboardEntry, profile);
+                    }
+                });
+            }
+            const levelEntries = cpuLevelsMap && cpuLevelsMap[playerId];
+            if (levelEntries) {
+                Object.keys(levelEntries).forEach((levelKey) => {
+                    levelEntries[levelKey] = applyPublicProfile(levelEntries[levelKey], profile);
+                });
+            }
+        });
     }
 
     function normalizeMode(value: unknown): MatchWorkerLeaderboardMode {
@@ -161,6 +216,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         return {
             playerId,
             playerName: normalizePlayerName(entry.playerName),
+            ...normalizePublicProfile(entry),
             category,
             bestScore: clampScore(entry.bestScore),
             lastScore: clampScore(entry.lastScore),
@@ -311,6 +367,24 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             if (!normalized) return;
             normalized.playerName = playerName;
             out[modeKey] = normalized;
+        });
+        return out;
+    }
+
+    function cloneModeEntriesWithPublicProfile(modeEntries: MatchWorkerLeaderboardModeEntries, profile: MatchWorkerPublicProfile): MatchWorkerLeaderboardModeEntries {
+        const out: MatchWorkerLeaderboardModeEntries = {};
+        (['cpu', 'network'] as MatchWorkerLeaderboardMode[]).forEach((modeKey) => {
+            const entry = modeEntries[modeKey];
+            if (!entry) return;
+            out[modeKey] = applyPublicProfile(entry, profile);
+        });
+        return out;
+    }
+
+    function cloneCpuLevelEntriesWithPublicProfile(entriesByLevel: Record<string, MatchWorkerLeaderboardEntry>, profile: MatchWorkerPublicProfile): Record<string, MatchWorkerLeaderboardEntry> {
+        const out: Record<string, MatchWorkerLeaderboardEntry> = {};
+        Object.keys(entriesByLevel || {}).forEach((levelKey) => {
+            out[levelKey] = applyPublicProfile(entriesByLevel[levelKey], profile);
         });
         return out;
     }
@@ -641,6 +715,8 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             rank: index + 1,
             playerId: entry.playerId,
             playerName: entry.playerName,
+            avatarStoneType: entry.avatarStoneType,
+            bio: entry.bio,
             category: entry.category,
             bestScore: entry.bestScore,
             bestTimeMs: entry.bestTimeMs,
@@ -660,6 +736,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
 
         const category = normalizeCategory(body && body.category);
         const playerName = normalizePlayerName(body && body.playerName);
+        const profileSubmitted = hasPublicProfileFields(body);
         const score = clampScore(body && body.score);
         const elapsedMs = normalizeTimeAttackMs(body && body.elapsedMs);
         const timeDefenseTurnCount = normalizeTimeDefenseTurnCount(body && body.turnCount);
@@ -734,6 +811,9 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const currentModeEntry = mode === 'cpu' && cpuLevel !== null
             ? normalizeEntry(currentCpuLevelEntries[String(cpuLevel)], playerId, 'cpu', category)
             : normalizeEntry(currentModeEntries[mode], playerId, mode, category);
+        const publicProfile = profileSubmitted
+            ? normalizePublicProfile(body)
+            : normalizePublicProfile(currentModeEntry || currentOverall || null);
         const previousBest = category === 'timeAttack'
             ? (currentModeEntry && Number.isFinite(Number(currentModeEntry.bestTimeMs)) ? Number(currentModeEntry.bestTimeMs) : null)
             : category === 'timeDefense'
@@ -766,6 +846,8 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const nextEntry: MatchWorkerLeaderboardEntry = {
             playerId,
             playerName,
+            avatarStoneType: publicProfile.avatarStoneType,
+            bio: publicProfile.bio,
             category,
             bestScore,
             lastScore: score,
@@ -781,20 +863,29 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
 
         if (mode === 'cpu' && cpuLevel !== null) {
             currentCpuLevelEntries[String(cpuLevel)] = nextEntry;
-            const cpuOverall = selectCpuOverallEntry(currentCpuLevelEntries, category);
+            const profileSyncedCpuEntries = profileSubmitted
+                ? cloneCpuLevelEntriesWithPublicProfile(currentCpuLevelEntries, publicProfile)
+                : currentCpuLevelEntries;
+            const cpuOverall = selectCpuOverallEntry(profileSyncedCpuEntries, category);
             if (cpuOverall) {
                 currentModeEntries.cpu = cpuOverall;
-                cpuLevelsMap[playerId] = currentCpuLevelEntries;
+                cpuLevelsMap[playerId] = profileSyncedCpuEntries;
             }
         } else {
             currentModeEntries[mode] = nextEntry;
         }
 
-        const nextOverall = selectOverallEntry(currentModeEntries, category);
+        const profileSyncedModeEntries = profileSubmitted
+            ? cloneModeEntriesWithPublicProfile(currentModeEntries, publicProfile)
+            : currentModeEntries;
+        const nextOverall = selectOverallEntry(profileSyncedModeEntries, category);
         if (nextOverall) {
             nextOverall.playerName = playerName;
             playersMap[playerId] = nextOverall;
-            modeMap[playerId] = currentModeEntries;
+            modeMap[playerId] = profileSyncedModeEntries;
+        }
+        if (profileSubmitted) {
+            syncPublicProfileForPlayer(nextStore, playerId, publicProfile);
         }
 
         const allRows = Object.values(playersMap)
@@ -825,6 +916,8 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
                 category,
                 playerId,
                 playerName,
+                avatarStoneType: publicProfile.avatarStoneType,
+                bio: publicProfile.bio,
                 updated,
                 previousBest,
                 bestScore,

@@ -36,7 +36,7 @@ describe('OBSERVER_WILL pending selection', () => {
       row: 2,
       col: 2,
       owner: 'white',
-      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true }
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, inviolable: true }
     });
 
     expect(CardLogic.canUseCard(cardState, 'black', 'observer_will_01')).toBe(false);
@@ -53,7 +53,7 @@ describe('OBSERVER_WILL pending selection', () => {
       row: 2,
       col: 2,
       owner: 'white',
-      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 0, absoluteProtected: true }
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 0, inviolable: true }
     });
 
     expect(CardLogic.canUseCard(cardState, 'black', 'observer_will_01')).toBe(true);

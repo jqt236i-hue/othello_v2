@@ -22,7 +22,7 @@ describe('cell removal contract', () => {
     expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: true });
 
     const res = BoardOps.applyCellRemovalAt(cardState, gameState, 2, 2, 'black', 'METEOR_WILL', 'meteor_cell_destroy', {
-      removalPolicy: 'absolute_only',
+      removalPolicy: 'cell_removal',
       removalKind: 'meteor_hole',
       randomSource: rng
     });
@@ -33,7 +33,7 @@ describe('cell removal contract', () => {
     expect((cardState.presentationEvents || []).some((ev) => ev && ev.cause === 'LIVING_WILL' && (ev.type === 'SPAWN' || ev.type === 'CHANGE'))).toBe(false);
   });
 
-  test('applyCellRemovalAt ignores regen and destroy evasion but still fails on absolute protection', () => {
+  test('applyCellRemovalAt ignores regen and destroy evasion but still fails on inviolable manifest stones', () => {
     const rng = createPrng(1);
     const cardState = CardLogic.createCardState(rng);
     const gameState = Core.createGameState();
@@ -54,16 +54,16 @@ describe('cell removal contract', () => {
       data: { type: 'AFTERIMAGE_WILL', flipEvadeRemaining: 3, destroyEvadeRemaining: 3 }
     });
     cardState.markers.push({
-      id: 'abs_1',
-      kind: 'specialStone',
+      id: 'manifest_1',
+      kind: 'manifestStone',
       row: 5,
       col: 5,
       owner: 'black',
-      data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
     });
 
     expect(BoardOps.applyCellRemovalAt(cardState, gameState, 3, 3, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: true });
     expect(BoardOps.applyCellRemovalAt(cardState, gameState, 4, 4, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: true });
-    expect(BoardOps.applyCellRemovalAt(cardState, gameState, 5, 5, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: false, reason: 'absolute_protected' });
+    expect(BoardOps.applyCellRemovalAt(cardState, gameState, 5, 5, 'black', 'METEOR_WILL', 'meteor_cell_destroy')).toMatchObject({ applied: false, reason: 'inviolable' });
   });
 });

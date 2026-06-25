@@ -131,6 +131,7 @@ interface InitDomElements {
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;
   modeNetworkBtn: HTMLElement | null;
+  ratedMatchOpenBtn: HTMLElement | null;
   controlPanel: HTMLElement | null;
   deckBuilderOpenBtn: HTMLElement | null;
   deckBuilderControlSummary: HTMLElement | null;
@@ -156,6 +157,7 @@ interface InitDomElements {
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
+  networkAllCardsDeckCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
   networkRoomSettingsBtn: HTMLElement | null;
   networkRoomSettingsBackdrop: HTMLElement | null;
@@ -169,6 +171,22 @@ interface InitDomElements {
   networkTimerStatus: HTMLElement | null;
   networkOverlay: HTMLElement | null;
   networkCloseBtn: HTMLElement | null;
+  ratedMatchOverlay: HTMLElement | null;
+  ratedMatchCloseBtn: HTMLElement | null;
+  ratedMatchQueueBtn: HTMLElement | null;
+  ratedMatchCancelBtn: HTMLElement | null;
+  ratedMatchStatus: HTMLElement | null;
+  ratedMatchQueueTimer: HTMLElement | null;
+  ratedMatchDeckOpenBtn: HTMLElement | null;
+  ratedMatchDeckNameText: HTMLElement | null;
+  ratedMatchDeckSummary: HTMLElement | null;
+  ratedMatchLeaderboardBtn: HTMLElement | null;
+  ratedMatchHistoryBtn: HTMLElement | null;
+  ratedMatchHistoryPanel: HTMLElement | null;
+  ratedMatchHistoryStatus: HTMLElement | null;
+  ratedMatchHistoryList: HTMLElement | null;
+  ratedMatchRatingText: HTMLElement | null;
+  ratedMatchIdentityText: HTMLElement | null;
   leaderboardOpenBtn: HTMLElement | null;
   leaderboardOverlay: HTMLElement | null;
   leaderboardPanel: HTMLElement | null;

@@ -263,7 +263,7 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     expect(CardLogic.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([]);
   });
 
-  test('capture target list includes protected stones and excludes absolute protected stones', () => {
+  test('capture target list includes protected stones and excludes inviolable manifest stones', () => {
     const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
     const protectedDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'PROTECTED_NEXT_STONE');
     const permaDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'PERMA_PROTECT_NEXT_STONE');
@@ -296,11 +296,11 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
       },
       {
         id: 422,
-        kind: 'specialStone',
+        kind: 'manifestStone',
         row: 6,
         col: 3,
         owner: 'white',
-        data: { type: 'ABSOLUTE_PROTECTED', sourceType: 'PERMA_PROTECT_NEXT_STONE', sourceCardId: permaDef.id }
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
       }
     );
 
@@ -323,7 +323,7 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     cardState.pendingEffectByPlayer.black = { type: 'CAPTURE_WILL', stage: 'selectTarget', cardId: captureDef.id };
     expect(CardLogic.applyCaptureWill(cardState, gameState, 'black', 6, 3)).toMatchObject({
       applied: false,
-      reason: 'absolute_protected'
+      reason: 'not_special'
     });
   });
 

@@ -11,6 +11,8 @@ describe('match-mode shared leaderboard panel', () => {
         rank: 1,
         playerId: 'player_beta_0002',
         playerName: 'ざわた',
+        avatarStoneType: 'LIGHTNING',
+        bio: '首位を狙っています',
         bestScore: 9131,
         mode: 'cpu',
         cpuLevel: 1
@@ -35,6 +37,8 @@ describe('match-mode shared leaderboard panel', () => {
         rank: 4,
         playerId: 'player_alpha_0001',
         playerName: 'アルファ',
+        avatarStoneType: 'GHOST',
+        bio: '盤面を観測中です',
         bestScore: 8543,
         mode: 'network',
         cpuLevel: null
@@ -384,7 +388,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(document.getElementById('leaderboardList').textContent).toContain('記録14');
   });
 
-  test('ランキングパネルを開くと4種別タブとMODEボタンを組み立てる', async () => {
+  test('ランキングパネルを開くと5種別タブとMODEボタンを組み立てる', async () => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
     await Promise.resolve();
@@ -402,8 +406,10 @@ describe('match-mode shared leaderboard panel', () => {
     expect(summary?.textContent).toContain('8543');
     expect(summary?.textContent).toContain('#4');
     expect(summary?.textContent).toContain('06:40');
-    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'タイムアタック', '最長手数', '最短手数']);
+    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'レートランキング', 'タイムアタック', '最長手数', '最短手数']);
     expect(document.getElementById('leaderboardCategoryScore')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.getElementById('leaderboardCategoryTimeDefense')?.classList.contains('is-compact')).toBe(true);
+    expect(document.getElementById('leaderboardCategoryShortestTurns')?.classList.contains('is-compact')).toBe(true);
     expect(modeBtn?.textContent).toBe('MODE');
     expect(modeBtn?.getAttribute('aria-label')).toBe('表示モード: 総合');
     expect(infoBtn?.textContent).toBe('ⓘ');
@@ -421,7 +427,36 @@ describe('match-mode shared leaderboard panel', () => {
     expect(podium?.querySelector('.leaderboard-name-id')?.getAttribute('title')).toContain('p_ABCDEFGHIJKLMNOPQRSTUV0002');
   });
 
-  test('ランキング種別タブは2列2段で配置するCSSにする', () => {
+  test('ランキングのプレイヤーを押すとプロフィールを表示し、上位3名には透過アイコン背景を置く', async () => {
+    document.getElementById('leaderboardOpenBtn').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const podiumBg = document.querySelector('.leaderboard-podium-card.is-rank-1 .leaderboard-podium-avatar-bg') as HTMLElement | null;
+    expect(podiumBg).toBeTruthy();
+    expect(podiumBg?.style.backgroundImage).toContain('rakurai');
+
+    const alphaRow = Array.from(document.querySelectorAll('.leaderboard-row'))
+      .find((row) => row.textContent?.includes('アルファ')) as HTMLElement | undefined;
+    expect(alphaRow).toBeTruthy();
+    expect(alphaRow?.getAttribute('role')).toBe('button');
+
+    alphaRow?.click();
+
+    const overlay = document.getElementById('leaderboardProfileOverlay');
+    expect(overlay?.classList.contains('is-open')).toBe(true);
+    expect(overlay?.getAttribute('aria-hidden')).toBe('false');
+    expect(overlay?.querySelector('.leaderboard-profile-name')?.textContent).toBe('アルファ');
+    expect(overlay?.querySelector('.leaderboard-profile-id')?.textContent).toContain('player_alpha_0001');
+    expect(overlay?.querySelector('.leaderboard-profile-bio')?.textContent).toBe('盤面を観測中です');
+    expect((overlay?.querySelector('.leaderboard-profile-avatar-img') as HTMLImageElement | null)?.src).toContain('GHOST');
+
+    (overlay?.querySelector('.leaderboard-profile-close') as HTMLElement | null)?.click();
+    expect(overlay?.classList.contains('is-open')).toBe(false);
+    expect(overlay?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  test('ランキング種別タブは通常幅と半幅タブで2段に収めるCSSにする', () => {
     const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-leaderboard.css'), 'utf8');
     const filterTabColumns = Array.from(
       css.matchAll(
@@ -430,7 +465,9 @@ describe('match-mode shared leaderboard panel', () => {
     ).map((match) => match[1]);
 
     expect(filterTabColumns.length).toBeGreaterThan(0);
-    expect(filterTabColumns).toEqual(filterTabColumns.map(() => '2'));
+    expect(filterTabColumns).toEqual(filterTabColumns.map(() => '4'));
+    expect(css).toMatch(/\.leaderboard-filter-tab\s*\{[\s\S]*grid-column:\s*span\s+2/);
+    expect(css).toMatch(/\.leaderboard-filter-tab\.is-compact\s*\{[\s\S]*grid-column:\s*span\s+1/);
   });
 
   test('ランキング種別タブ直下の入力行は大きく空けない', () => {
@@ -441,6 +478,50 @@ describe('match-mode shared leaderboard panel', () => {
 
     expect(nameRowMargins.length).toBeGreaterThan(0);
     expect(Math.max(...nameRowMargins)).toBeLessThanOrEqual(28);
+  });
+
+  test('ランキング一覧は最下行が下部フレームに隠れないスクロール余白を持つ', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-leaderboard.css'), 'utf8');
+
+    expect(css).toMatch(/#leaderboardListViewport\s*\{[\s\S]*padding:\s*0\s+calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)\s+calc\(46px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/#leaderboardListViewport\s*\{[\s\S]*scroll-padding-bottom:\s*calc\(46px\s*\*\s*var\(--layout-stage-scale\)\)/);
+  });
+
+  test('ポディウムの名前ラベルは本文だけを中央固定し player id は右側へ逃がす', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-leaderboard.css'), 'utf8');
+    const podiumNameRules = Array.from(css.matchAll(/\.leaderboard-podium-name\s*\{([^}]*)\}/g), (match) => match[1]);
+    const podiumNameTextRules = Array.from(css.matchAll(/\.leaderboard-podium-name\s+\.leaderboard-name-text\s*\{([^}]*)\}/g), (match) => match[1]);
+    const podiumNameIdRules = Array.from(css.matchAll(/\.leaderboard-podium-name\s+\.leaderboard-name-id\s*\{([^}]*)\}/g), (match) => match[1]);
+
+    expect(podiumNameRules.length).toBeGreaterThan(0);
+    expect(podiumNameTextRules.length).toBeGreaterThan(0);
+    expect(podiumNameIdRules.length).toBeGreaterThan(0);
+    expect(
+      podiumNameRules.some(
+        (rule) => /display:\s*grid;/.test(rule) && /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+minmax\(0,\s*1fr\);/.test(rule)
+      )
+    ).toBe(true);
+    expect(podiumNameTextRules.some((rule) => /grid-column:\s*2;/.test(rule))).toBe(true);
+    expect(
+      podiumNameIdRules.some(
+        (rule) => /grid-column:\s*3;/.test(rule) && /justify-self:\s*start;/.test(rule)
+      )
+    ).toBe(true);
+  });
+
+  test('ポディウムのプロフィール背景アイコンは少し下げて配置する', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-leaderboard.css'), 'utf8');
+    const podiumAvatarRules = Array.from(
+      css.matchAll(/\.leaderboard-podium-avatar-bg\s*\{([^}]*)\}/g),
+      (match) => match[1]
+    );
+
+    expect(podiumAvatarRules.length).toBeGreaterThan(0);
+    expect(
+      podiumAvatarRules.some(
+        (rule) => /top:\s*53%;/.test(rule) && /transform:\s*translate\(-50%,\s*-50%\);/.test(rule)
+      )
+    ).toBe(true);
   });
 
   test('MODEボタンで対人へ切り替えると対人記録だけを表示して全Lvを隠す', async () => {

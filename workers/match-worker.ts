@@ -9,6 +9,7 @@ import type {
     MatchWorkerDeckSelection,
     MatchWorkerEnv,
     MatchWorkerLeaderboardStore,
+    MatchWorkerRatingStore,
     MatchWorkerPlaybackAdapter,
     MatchWorkerPlaybackAssembly,
     MatchWorkerPlaybackDiagnostics,
@@ -39,6 +40,7 @@ import type {
 const ModuleExportUtils = require('../shared/module-export-utils');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
+const RatedMatchmaking = require('../shared/rated-matchmaking');
 const TurnPipelineFactory = require('../game/turn/turn_pipeline_factory');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
@@ -60,6 +62,7 @@ import { createMatchWorkerChatController } from './match-worker-chat-controller'
 import { createMatchWorkerLeaderboardHelpers } from './match-worker-leaderboard';
 import { createMatchWorkerLeaderboardRoomController } from './match-worker-leaderboard-room';
 import { createMatchWorkerPlayerIdentityController } from './match-worker-player-identity';
+import { createMatchWorkerRatingHelpers } from './match-worker-rating';
 import { createMatchWorkerStreamController } from './match-worker-stream-controller';
 import { createMatchWorkerStreamRouteController } from './match-worker-stream-route-controller';
 import { createMatchWorkerStreamSessionController } from './match-worker-stream-session-controller';
@@ -76,6 +79,9 @@ type MatchWorkerCryptoLike = {
 };
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const LOBBY_STORAGE_KEY = 'match_room_lobby_v1';
+const RATED_QUEUE_STORAGE_KEY = 'rated_match_queue_v1';
+const RATING_POOL_CARD_RANKED_ROOM_ID = '__rating_pool_card_ranked_v1__';
+const RATING_POOL_STORAGE_KEY = 'rating_pool_card_ranked_v1_store_v1';
 const CHAT_MAX_LENGTH = Number(MatchAuthority.CHAT_MAX_LENGTH);
 const CHAT_HISTORY_LIMIT = Number(MatchAuthority.CHAT_HISTORY_LIMIT);
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
@@ -1015,7 +1021,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
     if (Object.prototype.hasOwnProperty.call(options, 'autoPassNotice')) {
         payloadOptions.autoPassNotice = options.autoPassNotice || null;
     }
-    return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
+    return withPublicRatedMatchMetadata(MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions), room);
 }
 
 function captureTurnStartHandState(snapshot: unknown): MatchWorkerTurnStartHandState {
@@ -1744,7 +1750,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
     const serverTime = Date.now();
     const metaRecord = asRecord(meta);
     const viewerRole = viewer && viewer.role === 'spectator' ? 'spectator' : 'seat';
-    return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
+    return withPublicRatedMatchMetadata(MatchAuthority.buildSnapshotPayloadFromRoom(room, {
         viewerRole,
         snapshot: toPublicSnapshotForViewer(room, viewer),
         roomDeck: toPublicRoomDeck(room),
@@ -1762,7 +1768,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
         playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
         actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
         serverTime
-    });
+    }), room);
 }
 
 function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPresencePayloadMeta | null | undefined): Record<string, unknown> {
@@ -1980,6 +1986,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
 const MatchWorkerApiController = createMatchWorkerApiController({
     corsHeaders: CORS_HEADERS,
     leaderboardRoomId: LEADERBOARD_ROOM_ID,
+    ratingPoolRoomId: RATING_POOL_CARD_RANKED_ROOM_ID,
     lobbyRoomId: MATCH_LOBBY_ROOM_ID,
     playerIdentityRoomId: PLAYER_IDENTITY_ROOM_ID,
     normalizeRoomId,
@@ -2002,8 +2009,99 @@ function withPublicRoomPasswordMetadata(payloadValue: unknown, roomValue: unknow
     return payload;
 }
 
+function isRatedRoomRecord(value: unknown): boolean {
+    const record = asRecord(value);
+    if (String(record.matchType || '').trim().toLowerCase() === 'rated') return true;
+    const ratedMatch = asRecord(record.ratedMatch);
+    return ratedMatch.enabled === true;
+}
+
+function toPublicRatingSeatResult(value: unknown): Record<string, unknown> | null {
+    const source = asRecord(value);
+    const display = asRecord(source.display);
+    return {
+        playerId: String(source.playerId || '').trim(),
+        display: {
+            before: Number.isFinite(Number(display.before)) ? Math.round(Number(display.before)) : null,
+            after: Number.isFinite(Number(display.after)) ? Math.round(Number(display.after)) : null,
+            delta: Number.isFinite(Number(display.delta)) ? Math.trunc(Number(display.delta)) : null
+        }
+    };
+}
+
+function toPublicRatingResult(value: unknown): Record<string, unknown> | null {
+    const source = asRecord(value);
+    if (source.ok !== true) return null;
+    return {
+        ok: true,
+        matchId: String(source.matchId || '').trim(),
+        result: String(source.result || '').trim(),
+        black: toPublicRatingSeatResult(source.black),
+        white: toPublicRatingSeatResult(source.white)
+    };
+}
+
+function toPublicRatedMatch(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> | null {
+    if (!isRatedRoomRecord(room)) return null;
+    const source = asRecord(room && room.ratedMatch);
+    const out: Record<string, unknown> = {
+        enabled: source.enabled === true,
+        pool: String(source.pool || 'card_ranked_v1'),
+        systemVersion: Number.isFinite(Number(source.systemVersion)) ? Math.trunc(Number(source.systemVersion)) : 1,
+        matchId: String(source.matchId || '').trim(),
+        matchedAt: Number.isFinite(Number(source.matchedAt)) ? Math.trunc(Number(source.matchedAt)) : 0,
+        startedAt: typeof source.startedAt === 'string' ? source.startedAt : '',
+        finalizedAt: typeof source.finalizedAt === 'string' ? source.finalizedAt : '',
+        finalResult: typeof source.finalResult === 'string' ? source.finalResult : '',
+        finalReason: typeof source.finalReason === 'string' ? source.finalReason : '',
+        ratingStatus: typeof source.ratingStatus === 'string' ? source.ratingStatus : 'pending'
+    };
+    const publicRatingResult = toPublicRatingResult(source.ratingResult);
+    if (publicRatingResult) out.ratingResult = publicRatingResult;
+    return out;
+}
+
+function withPublicRatedMatchMetadata<T extends Record<string, unknown>>(payload: T, room: MatchWorkerRoomState | null | undefined): T {
+    const ratedMatch = toPublicRatedMatch(room);
+    if (ratedMatch) {
+        (payload as Record<string, unknown>).matchType = 'rated';
+        (payload as Record<string, unknown>).ratedMatch = ratedMatch;
+    }
+    return payload;
+}
+
+function normalizeRatedBoardOwner(value: unknown): 'black' | 'white' | null {
+    if (value === 1 || value === '1') return 'black';
+    if (value === -1 || value === '-1') return 'white';
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'black' || normalized === 'b') return 'black';
+    if (normalized === 'white' || normalized === 'w') return 'white';
+    return null;
+}
+
+function resolveRatedResultFromSnapshot(snapshotValue: unknown): 'BLACK_WIN' | 'WHITE_WIN' | 'DRAW' | null {
+    const snapshot = asRecord(snapshotValue);
+    const gameState = asRecord(snapshot.gameState || snapshot);
+    const board = Array.isArray(gameState.board) ? gameState.board : [];
+    if (!board.length) return null;
+    let black = 0;
+    let white = 0;
+    for (const row of board) {
+        if (!Array.isArray(row)) continue;
+        for (const cell of row) {
+            const owner = normalizeRatedBoardOwner(cell);
+            if (owner === 'black') black += 1;
+            if (owner === 'white') white += 1;
+        }
+    }
+    if (black > white) return 'BLACK_WIN';
+    if (white > black) return 'WHITE_WIN';
+    return 'DRAW';
+}
+
 function buildLobbyEntryFromPayload(payloadValue: unknown, fallbackRoomId: string): unknown | null {
     const payload = asRecord(payloadValue);
+    if (isRatedRoomRecord(payload)) return null;
     const entry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, payload, {
         roomId: payload.roomId || fallbackRoomId,
         roomHasPassword: payload.roomHasPassword === true
@@ -2015,6 +2113,7 @@ function buildLobbyEntryFromRoom(roomValue: unknown, fallbackRoomId: string, now
     const room = asRecord(roomValue);
     const roomId = normalizeRoomId(room.roomId || fallbackRoomId);
     if (!roomId) return null;
+    if (isRatedRoomRecord(room)) return null;
     return MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, room, {
         roomId,
         roomHasPassword: MatchRoomLobby.hasRoomPassword(room)
@@ -2063,6 +2162,10 @@ function handleLeaderboardApi(request: Request, env: MatchWorkerEnv): Promise<Re
     return MatchWorkerApiController.handleLeaderboardApi(request, env);
 }
 
+function handleRatingApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
+    return MatchWorkerApiController.handleRatingApi(request, env);
+}
+
 export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     state: DurableObjectStateLike;
     env: MatchWorkerEnv | null;
@@ -2074,6 +2177,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     sseEventBuffer: MatchAuthorityBufferedSseEventRecord[];
     leaderboardRoomController: ReturnType<typeof createMatchWorkerLeaderboardRoomController> | null;
     playerIdentityController: ReturnType<typeof createMatchWorkerPlayerIdentityController> | null;
+    ratingHelpers: ReturnType<typeof createMatchWorkerRatingHelpers> | null;
     broadcastController: ReturnType<typeof createMatchWorkerBroadcastController> | null;
     chatController: ReturnType<typeof createMatchWorkerChatController> | null;
     streamController: ReturnType<typeof createMatchWorkerStreamController> | null;
@@ -2094,6 +2198,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.sseEventBuffer = [];
         this.leaderboardRoomController = null;
         this.playerIdentityController = null;
+        this.ratingHelpers = null;
         this.broadcastController = null;
         this.chatController = null;
         this.streamController = null;
@@ -2129,6 +2234,13 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             });
         }
         return this.playerIdentityController;
+    }
+
+    getRatingHelpers() {
+        if (!this.ratingHelpers) {
+            this.ratingHelpers = createMatchWorkerRatingHelpers();
+        }
+        return this.ratingHelpers;
     }
 
     getBroadcastController() {
@@ -2186,6 +2298,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 buildHeartbeatPayload,
                 saveRoom: () => this.saveRoom(),
                 onStreamCountChanged: async () => { await this.markRoomInactiveIfIdle(); },
+                onStreamClosed: async (stream) => { await this.markRatedStreamDisconnected(stream); },
                 sseChunk,
                 heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
                 writeTimeoutMs: SSE_WRITE_TIMEOUT_MS
@@ -2228,7 +2341,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 scheduleInitialStreamDelivery: (options) => this.getStreamSessionController().scheduleInitialStreamDelivery(options),
                 closeStream: (streamId) => this.closeStream(streamId),
                 ensureHeartbeatTimer: () => this.ensureHeartbeatTimer(),
-                onStreamOpened: async () => { await this.markRoomActiveFromStream(); },
+                onStreamOpened: async (streamId) => {
+                    await this.markRatedStreamConnected(streamId);
+                    await this.markRoomActiveFromStream();
+                },
                 jsonResponse,
                 corsHeaders: CORS_HEADERS,
                 cryptoLike: crypto as unknown as MatchWorkerCryptoLike
@@ -2300,6 +2416,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 buildInitialDeckSnapshotOptions,
                 applyCommandPublishToSnapshot,
                 isSnapshotGameOver: (snapshot: MatchWorkerPublicSnapshot | null | undefined) => this.isSnapshotGameOver(snapshot),
+                finalizeRatedMatchAfterAcceptedPublish: async () => {
+                    const result = await this.resolveRatedNormalResult();
+                    if (result) await this.finalizeRatedMatchIfNeeded(result, 'normal_end');
+                },
                 refreshTurnTimer: (options: MatchWorkerTurnTimerOptions | null | undefined) => this.refreshTurnTimer(options),
                 prepareSnapshotBroadcast: (meta: MatchWorkerSnapshotPayloadMeta | null | undefined) => this.prepareSnapshotBroadcast(meta),
                 ensureInitialPresentationSnapshots,
@@ -2467,6 +2587,43 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return changed;
     }
 
+    ensureRatedPresence(): Record<string, unknown> {
+        if (!this.room) return {};
+        const existing = asRecord((this.room as Record<string, unknown>).ratedPresence);
+        const next = {
+            blackDisconnectedAt: Number.isFinite(Number(existing.blackDisconnectedAt)) ? Math.max(0, Math.trunc(Number(existing.blackDisconnectedAt))) : 0,
+            whiteDisconnectedAt: Number.isFinite(Number(existing.whiteDisconnectedAt)) ? Math.max(0, Math.trunc(Number(existing.whiteDisconnectedAt))) : 0,
+            disconnectGraceMs: Number.isFinite(Number(existing.disconnectGraceMs)) ? Math.max(1000, Math.trunc(Number(existing.disconnectGraceMs))) : 120000
+        };
+        (this.room as Record<string, unknown>).ratedPresence = next;
+        return next;
+    }
+
+    async markRatedStreamConnected(streamId: string): Promise<void> {
+        if (!this.room || !isRatedRoomRecord(this.room)) return;
+        const stream = this.streams.get(streamId);
+        const viewer = stream && stream.viewer;
+        if (!viewer || viewer.role !== 'seat') return;
+        const seatKey = parseSeatKeyOptional(viewer.seatKey);
+        if (!seatKey) return;
+        const presence = this.ensureRatedPresence();
+        presence[seatKey === 'black' ? 'blackDisconnectedAt' : 'whiteDisconnectedAt'] = 0;
+        await this.saveRoom();
+    }
+
+    async markRatedStreamDisconnected(stream: MatchWorkerSseStreamInfo | null | undefined, nowMs = Date.now()): Promise<void> {
+        if (!this.room || !isRatedRoomRecord(this.room) || !stream || !stream.viewer || stream.viewer.role !== 'seat') return;
+        const seatKey = parseSeatKeyOptional(stream.viewer.seatKey);
+        if (!seatKey) return;
+        const presence = this.ensureRatedPresence();
+        presence[seatKey === 'black' ? 'blackDisconnectedAt' : 'whiteDisconnectedAt'] = nowMs;
+        await this.saveRoom();
+        const graceMs = Number(presence.disconnectGraceMs) || 120000;
+        if (this.state.storage && typeof this.state.storage.setAlarm === 'function') {
+            await this.state.storage.setAlarm(nowMs + graceMs);
+        }
+    }
+
     async readLobbyEntries(): Promise<Record<string, unknown>> {
         const store = await this.state.storage.get(LOBBY_STORAGE_KEY);
         const source = asRecord(store);
@@ -2483,10 +2640,416 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
+    async readRatedQueueEntries(nowMs = Date.now()): Promise<Record<string, unknown>> {
+        const store = await this.state.storage.get(RATED_QUEUE_STORAGE_KEY);
+        return RatedMatchmaking.normalizeQueueStore(store, nowMs);
+    }
+
+    async writeRatedQueueEntries(entries: Record<string, unknown>, nowMs = Date.now()): Promise<void> {
+        await this.state.storage.put(RATED_QUEUE_STORAGE_KEY, {
+            version: 1,
+            entries,
+            updatedAt: nowMs
+        });
+        await this.syncRatedQueueAlarm(entries, nowMs);
+    }
+
+    async syncRatedQueueAlarm(entriesValue?: Record<string, unknown> | null, nowMs = Date.now()): Promise<void> {
+        if (this.room) return;
+        const entries = entriesValue || await this.readRatedQueueEntries(nowMs);
+        const nextExpiresAt = Object.values(entries)
+            .map((entry) => RatedMatchmaking.normalizeQueueEntry(entry))
+            .filter((entry) => entry && entry.status === 'waiting')
+            .map((entry) => Number(entry.expiresAt))
+            .filter((expiresAt) => Number.isFinite(expiresAt) && expiresAt > nowMs)
+            .sort((a, b) => a - b)[0] || 0;
+        if (!this.state.storage) return;
+        if (nextExpiresAt > 0 && typeof this.state.storage.setAlarm === 'function') {
+            await this.state.storage.setAlarm(nextExpiresAt);
+        } else if (typeof this.state.storage.deleteAlarm === 'function') {
+            await this.state.storage.deleteAlarm();
+        }
+    }
+
+    cleanupRatedQueueEntries(entriesValue: Record<string, unknown>, nowMs = Date.now()): Record<string, unknown> {
+        return RatedMatchmaking.normalizeQueueStore(entriesValue, nowMs);
+    }
+
+    async postRatingPool(pathname: string, payload: Record<string, unknown>): Promise<Response> {
+        if (!this.env || !this.env.MATCH_ROOM) {
+            return jsonResponse(500, { ok: false, reason: 'MATCH_ROOM_BINDING_REQUIRED' });
+        }
+        const stub = getRoomStub(this.env, RATING_POOL_CARD_RANKED_ROOM_ID);
+        return stub.fetch(new Request(`https://rating${pathname}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        }));
+    }
+
+    async resolveRatedNormalResult(): Promise<'BLACK_WIN' | 'WHITE_WIN' | 'DRAW' | null> {
+        if (!this.room || !isRatedRoomRecord(this.room)) return null;
+        const snapshot = asRecord(this.room.snapshot);
+        if (!await this.isSnapshotGameOver(snapshot as MatchWorkerPublicSnapshot)) return null;
+        return resolveRatedResultFromSnapshot(snapshot);
+    }
+
+    async finalizeRatedMatchIfNeeded(
+        result: 'BLACK_WIN' | 'WHITE_WIN' | 'DRAW' | 'NO_CONTEST',
+        reason: string
+    ): Promise<Record<string, unknown> | null> {
+        if (!this.room || !isRatedRoomRecord(this.room)) return null;
+        const ratedMatch = asRecord(this.room.ratedMatch);
+        const matchId = String(ratedMatch.matchId || '').trim();
+        if (!matchId) return null;
+        if (ratedMatch.ratingStatus === 'applied' || ratedMatch.ratingStatus === 'no_contest') {
+            return toPublicRatingResult(ratedMatch.ratingResult) || null;
+        }
+        const seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(this.room.seatPlayerIds);
+        const blackPlayerId = PlayerIdentityContract.normalizePlayerId(seatPlayerIds.black) || '';
+        const whitePlayerId = PlayerIdentityContract.normalizePlayerId(seatPlayerIds.white) || '';
+        if (!blackPlayerId || !whitePlayerId) return null;
+
+        const response = await this.postRatingPool('/internal/rating/finalize', {
+            matchId,
+            pool: 'card_ranked_v1',
+            blackPlayerId,
+            whitePlayerId,
+            result,
+            rulesetVersion: 'card-ranked-v1',
+            catalogVersion: 'catalog-current'
+        });
+        const body = asRecord(await response.json().catch(() => ({})));
+        if (!response.ok || body.ok === false) {
+            this.room.ratedMatch = {
+                ...ratedMatch,
+                finalReason: reason,
+                ratingStatus: 'failed',
+                ratingError: body.reason || 'RATING_FINALIZE_FAILED'
+            };
+            await this.saveRoom();
+            return null;
+        }
+
+        this.room.ratedMatch = {
+            ...ratedMatch,
+            finalResult: result,
+            finalReason: reason,
+            finalizedAt: new Date().toISOString(),
+            ratingStatus: result === 'NO_CONTEST' ? 'no_contest' : 'applied',
+            ratingResult: body
+        };
+        this.room.updatedAt = Date.now();
+        await this.saveRoom();
+        return toPublicRatingResult(body) || body;
+    }
+
+    async finalizeRatedDisconnectIfExpired(nowMs: number): Promise<boolean> {
+        if (!this.room || !isRatedRoomRecord(this.room)) return false;
+        const ratedMatch = asRecord(this.room.ratedMatch);
+        if (ratedMatch.ratingStatus === 'applied' || ratedMatch.ratingStatus === 'no_contest') return false;
+        const presence = this.ensureRatedPresence();
+        const graceMs = Number(presence.disconnectGraceMs) || 120000;
+        const blackAt = Number(presence.blackDisconnectedAt) || 0;
+        const whiteAt = Number(presence.whiteDisconnectedAt) || 0;
+        const blackExpired = blackAt > 0 && nowMs - blackAt >= graceMs;
+        const whiteExpired = whiteAt > 0 && nowMs - whiteAt >= graceMs;
+        if (blackExpired && !whiteExpired) {
+            await this.finalizeRatedMatchIfNeeded('WHITE_WIN', 'black_disconnect');
+            await this.broadcastSnapshot({ actionType: 'rated_disconnect_loss', playbackEvents: [] });
+            return true;
+        }
+        if (whiteExpired && !blackExpired) {
+            await this.finalizeRatedMatchIfNeeded('BLACK_WIN', 'white_disconnect');
+            await this.broadcastSnapshot({ actionType: 'rated_disconnect_loss', playbackEvents: [] });
+            return true;
+        }
+        if (blackExpired && whiteExpired) {
+            await this.finalizeRatedMatchIfNeeded('NO_CONTEST', 'both_disconnected');
+            await this.broadcastSnapshot({ actionType: 'rated_no_contest', playbackEvents: [] });
+            return true;
+        }
+        const nextExpiry = Math.min(
+            ...[blackAt, whiteAt]
+                .filter((value) => value > 0)
+                .map((value) => value + graceMs)
+        );
+        if (Number.isFinite(nextExpiry) && nextExpiry > nowMs && this.state.storage && typeof this.state.storage.setAlarm === 'function') {
+            await this.state.storage.setAlarm(nextExpiry);
+        }
+        return false;
+    }
+
+    async handleResign(body: Record<string, unknown>): Promise<Response> {
+        if (!this.room && !this.roomLoaded) await this.loadRoom();
+        const room = this.room;
+        if (!room) return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        const seatKey = resolveAuthenticatedSeatKey(room, parseSeatKeyOptional(body && body.seatKey), String(body && body.seatToken || '').trim());
+        if (!seatKey) return jsonResponse(403, { ok: false, reason: 'SEAT_TOKEN_INVALID' });
+        if (!isRatedRoomRecord(room)) return jsonResponse(400, { ok: false, reason: 'RESIGN_RATED_ONLY' });
+        const result = seatKey === 'black' ? 'WHITE_WIN' : 'BLACK_WIN';
+        const ratingResult = await this.finalizeRatedMatchIfNeeded(result, 'resign');
+        await this.broadcastSnapshot({ actionType: 'rated_resign', playbackEvents: [] });
+        return jsonResponse(200, { ok: true, result, ratingResult });
+    }
+
+    async createRatedRoomForPair(blackEntryValue: unknown, whiteEntryValue: unknown): Promise<Record<string, unknown>> {
+        if (!this.env || !this.env.MATCH_ROOM) {
+            return { ok: false, reason: 'MATCH_ROOM_BINDING_REQUIRED' };
+        }
+        const blackEntry = RatedMatchmaking.normalizeQueueEntry(blackEntryValue);
+        const whiteEntry = RatedMatchmaking.normalizeQueueEntry(whiteEntryValue);
+        if (!blackEntry || !whiteEntry) {
+            return { ok: false, reason: 'RATED_QUEUE_ENTRY_INVALID' };
+        }
+
+        const blackDeckSelection = await resolveDeckSelection(blackEntry.deckCode);
+        if (!blackDeckSelection.ok) {
+            return { ok: false, reason: blackDeckSelection.reason || 'BLACK_DECK_CODE_INVALID' };
+        }
+        const whiteDeckSelection = await resolveDeckSelection(whiteEntry.deckCode);
+        if (!whiteDeckSelection.ok) {
+            return { ok: false, reason: whiteDeckSelection.reason || 'WHITE_DECK_CODE_INVALID' };
+        }
+
+        const roomBoardConfig = RatedMatchmaking.cloneRatedBoardConfig();
+        const initialDeckSpecByPlayer = blackDeckSelection.hasCustomDeck
+            ? { black: blackDeckSelection.deckSpec, white: null }
+            : null;
+        const roomDeck = blackDeckSelection.hasCustomDeck
+            ? {
+                mode: 'perPlayer',
+                deckCode: '',
+                deckSize: null,
+                deckCodeByPlayer: {
+                    black: blackDeckSelection.deckCode,
+                    white: ''
+                },
+                deckSizeByPlayer: {
+                    black: blackDeckSelection.deckSize,
+                    white: null
+                },
+                source: 'room'
+            }
+            : null;
+
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+            const roomId = makeRoomId();
+            const seed = Date.now();
+            const matchedAt = Date.now();
+            const matchId = RatedMatchmaking.createRatedMatchId(matchedAt, blackEntry.playerId, whiteEntry.playerId);
+            const startedAt = new Date(matchedAt).toISOString();
+            const lockResponse = await this.postRatingPool('/internal/rating/active/claim', {
+                matchId,
+                roomId,
+                blackPlayerId: blackEntry.playerId,
+                whitePlayerId: whiteEntry.playerId,
+                blackPlayerName: blackEntry.playerName,
+                whitePlayerName: whiteEntry.playerName,
+                blackAvatarStoneType: blackEntry.avatarStoneType,
+                whiteAvatarStoneType: whiteEntry.avatarStoneType,
+                blackBio: blackEntry.bio,
+                whiteBio: whiteEntry.bio,
+                startedAt
+            });
+            if (!lockResponse.ok) {
+                const lockPayload = await lockResponse.json().catch(() => ({}));
+                return {
+                    ok: false,
+                    reason: asRecord(lockPayload).reason || 'RATED_ACTIVE_MATCH_LOCK_FAILED'
+                };
+            }
+            const snapshot = await makeInitialSnapshot(seed, {
+                initialDeckSpecByPlayer,
+                roomBoardConfig
+            });
+            const stub = getRoomStub(this.env, roomId);
+            const createResponse = await stub.fetch(new Request('https://room/internal/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId,
+                    seed,
+                    snapshot,
+                    playerName: blackEntry.playerName,
+                    selectedHandSkinId: blackEntry.selectedHandSkinId,
+                    networkDebugEnabled: false,
+                    networkAutoEnabled: false,
+                    allCardsDeckEnabled: false,
+                    publishResponseMode: '',
+                    roomName: RatedMatchmaking.RATED_ROOM_NAME,
+                    roomPassword: '',
+                    initialDeckSpecByPlayer,
+                    roomDeck,
+                    roomBoardConfig,
+                    playerId: blackEntry.playerId,
+                    matchType: 'rated',
+                    ratedMatch: {
+                        enabled: true,
+                        pool: 'card_ranked_v1',
+                        systemVersion: 1,
+                        matchId,
+                        matchedAt,
+                        startedAt,
+                        finalizedAt: '',
+                        finalResult: '',
+                        ratingStatus: 'pending',
+                        disconnectForfeitPolicy: 'grace'
+                    }
+                })
+            }));
+            if (createResponse.status === 409) {
+                await this.postRatingPool('/internal/rating/active/release', { matchId });
+                continue;
+            }
+            if (!createResponse.ok) {
+                await this.postRatingPool('/internal/rating/active/release', { matchId });
+                const createPayload = await createResponse.json().catch(() => ({}));
+                return {
+                    ok: false,
+                    reason: asRecord(createPayload).reason || 'RATED_ROOM_CREATE_FAILED'
+                };
+            }
+            const blackCreatedPayload = asRecord(await createResponse.json());
+            const roomIdFromCreate = normalizeRoomId(blackCreatedPayload.roomId || roomId);
+            const blackSeatToken = String(blackCreatedPayload.seatToken || '').trim();
+            const whiteJoinResponse = await stub.fetch(new Request('https://room/api/match/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomIdFromCreate,
+                    playerName: whiteEntry.playerName,
+                    playerId: whiteEntry.playerId,
+                    selectedHandSkinId: whiteEntry.selectedHandSkinId,
+                    deckCode: whiteEntry.deckCode
+                })
+            }));
+            if (!whiteJoinResponse.ok) {
+                await this.postRatingPool('/internal/rating/active/release', { matchId });
+                const whiteJoinPayload = await whiteJoinResponse.json().catch(() => ({}));
+                return {
+                    ok: false,
+                    reason: asRecord(whiteJoinPayload).reason || 'RATED_ROOM_JOIN_FAILED'
+                };
+            }
+            const whitePayload = await whiteJoinResponse.json();
+            const blackRejoinResponse = await stub.fetch(new Request('https://room/api/match/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: roomIdFromCreate,
+                    playerName: blackEntry.playerName,
+                    playerId: blackEntry.playerId,
+                    selectedHandSkinId: blackEntry.selectedHandSkinId,
+                    deckCode: blackEntry.deckCode,
+                    seatKey: 'black',
+                    seatToken: blackSeatToken
+                })
+            }));
+            if (!blackRejoinResponse.ok) {
+                await this.postRatingPool('/internal/rating/active/release', { matchId });
+                const blackRejoinPayload = await blackRejoinResponse.json().catch(() => ({}));
+                return {
+                    ok: false,
+                    reason: asRecord(blackRejoinPayload).reason || 'RATED_ROOM_REJOIN_FAILED'
+                };
+            }
+            const blackPayload = await blackRejoinResponse.json();
+            return {
+                ok: true,
+                roomId: roomIdFromCreate,
+                blackPayload,
+                whitePayload
+            };
+        }
+        return { ok: false, reason: 'RATED_ROOM_CREATE_RETRY_EXHAUSTED' };
+    }
+
+    async handleRatedQueueEnter(body: Record<string, unknown>): Promise<Response> {
+        const playerId = RatedMatchmaking.normalizePlayerId(body.playerId);
+        if (!playerId) return jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        const deckSelection = await resolveDeckSelection(body.deckCode);
+        if (!deckSelection.ok) {
+            return jsonResponse(400, { ok: false, reason: deckSelection.reason || 'DECK_CODE_INVALID' });
+        }
+
+        const nowMs = Date.now();
+        const entries = await this.readRatedQueueEntries(nowMs);
+        const existing = RatedMatchmaking.normalizeQueueEntry(entries[playerId]);
+        if (existing && existing.status === 'matched') {
+            return jsonResponse(200, RatedMatchmaking.toMatchedResponse(existing, nowMs));
+        }
+        if (existing && existing.status === 'waiting') {
+            return jsonResponse(200, RatedMatchmaking.toWaitingResponse(existing, nowMs));
+        }
+
+        const entry = RatedMatchmaking.createQueueEntry(body, nowMs);
+        if (!entry) return jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        const candidate = RatedMatchmaking.findWaitingCandidate(entries, entry.playerId, nowMs);
+        if (!candidate) {
+            entries[entry.playerId] = entry;
+            await this.writeRatedQueueEntries(entries, nowMs);
+            return jsonResponse(200, RatedMatchmaking.toWaitingResponse(entry, nowMs));
+        }
+
+        const match = await this.createRatedRoomForPair(candidate, entry);
+        if (match.ok !== true) {
+            delete entries[candidate.playerId];
+            await this.writeRatedQueueEntries(entries, Date.now());
+            return jsonResponse(400, { ok: false, reason: match.reason || 'RATED_MATCH_CREATE_FAILED' });
+        }
+        const matched = RatedMatchmaking.markEntriesMatched(candidate, entry, match, Date.now());
+        if (!matched) return jsonResponse(500, { ok: false, reason: 'RATED_MATCH_PAYLOAD_FAILED' });
+        entries[matched.black.playerId] = matched.black;
+        entries[matched.white.playerId] = matched.white;
+        await this.writeRatedQueueEntries(entries, Date.now());
+        return jsonResponse(200, RatedMatchmaking.toMatchedResponse(matched.white, Date.now()));
+    }
+
+    async handleRatedQueuePoll(body: Record<string, unknown>): Promise<Response> {
+        const playerId = RatedMatchmaking.normalizePlayerId(body.playerId);
+        if (!playerId) return jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        const nowMs = Date.now();
+        const entries = await this.readRatedQueueEntries(nowMs);
+        const rawEntry = entries[playerId];
+        const entry = RatedMatchmaking.normalizeQueueEntry(rawEntry);
+        if (!entry) {
+            return jsonResponse(200, RatedMatchmaking.toIdleResponse(playerId, nowMs));
+        }
+        if (RatedMatchmaking.isQueueEntryExpired(rawEntry, nowMs)) {
+            delete entries[playerId];
+            await this.writeRatedQueueEntries(entries, nowMs);
+            return jsonResponse(200, RatedMatchmaking.toExpiredResponse(playerId, nowMs));
+        }
+        return jsonResponse(200, entry.status === 'matched'
+            ? RatedMatchmaking.toMatchedResponse(entry, nowMs)
+            : RatedMatchmaking.toWaitingResponse(entry, nowMs));
+    }
+
+    async handleRatedQueueCancel(body: Record<string, unknown>): Promise<Response> {
+        const playerId = RatedMatchmaking.normalizePlayerId(body.playerId);
+        if (!playerId) return jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+        const nowMs = Date.now();
+        const entries = await this.readRatedQueueEntries(nowMs);
+        const entry = RatedMatchmaking.normalizeQueueEntry(entries[playerId]);
+        if (entry && entry.status === 'matched') {
+            return jsonResponse(200, RatedMatchmaking.toMatchedResponse(entry, nowMs));
+        }
+        delete entries[playerId];
+        await this.writeRatedQueueEntries(entries, nowMs);
+        return jsonResponse(200, Object.assign(RatedMatchmaking.toIdleResponse(playerId, nowMs), {
+            status: 'cancelled',
+            reason: String(body.reason || 'cancelled')
+        }));
+    }
+
     async handleLobbyUpsert(body: Record<string, unknown>): Promise<Response> {
         const entry = asRecord(body.entry || body);
         const roomId = normalizeRoomId(entry.roomId);
         if (!roomId) return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
+        if (isRatedRoomRecord(entry)) {
+            return this.handleLobbyRemove({ roomId });
+        }
         const publicEntry = MatchRoomLobby.toPublicRoomListEntry(Object.assign({}, entry, { roomId }), { nowMs: Date.now() });
         if (!publicEntry) {
             return this.handleLobbyRemove({ roomId });
@@ -2655,6 +3218,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
         const networkAutoEnabled = opts.networkAutoEnabled === true;
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
+        const matchType = String(opts.matchType || '').trim().toLowerCase() === 'rated' ? 'rated' : '';
+        const ratedMatch = opts.ratedMatch && typeof opts.ratedMatch === 'object'
+            ? deepClone(opts.ratedMatch)
+            : null;
         const nowMs = Date.now();
         return {
             roomId,
@@ -2671,6 +3238,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             networkDebugEnabled,
             allCardsDeckEnabled,
             networkAutoEnabled,
+            matchType,
+            ratedMatch,
             publishResponseMode,
             stateVersion: 0,
             seats: { black: false, white: false },
@@ -2719,11 +3288,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
     async alarm() {
         await this.loadRoom();
-        if (!this.room) return;
         const nowMs = Date.now();
+        if (!this.room) {
+            const entries = await this.readRatedQueueEntries(nowMs);
+            await this.writeRatedQueueEntries(entries, nowMs);
+            return;
+        }
         if (await this.expireRoomIfNeeded(nowMs)) return;
         const result = await this.applyExpiredTurnTimeoutIfNeeded({ nowMs });
         if (result && result.applied === true) return;
+        if (await this.finalizeRatedDisconnectIfExpired(nowMs)) return;
         if (MatchRoomLobby.readInactiveSince(this.room) > 0 && this.streams.size === 0) {
             await this.syncInactiveRoomExpiryAlarm(nowMs);
             return;
@@ -2770,6 +3344,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const allCardsDeckEnabled = payload.allCardsDeckEnabled === true;
         const networkAutoEnabled = payload.networkAutoEnabled === true;
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(payload.publishResponseMode);
+        const matchType = String(payload.matchType || '').trim().toLowerCase() === 'rated' ? 'rated' : '';
+        const ratedMatch = payload.ratedMatch && typeof payload.ratedMatch === 'object'
+            ? deepClone(payload.ratedMatch)
+            : null;
         const roomName = MatchRoomLobby.resolveRoomName(payload.roomName);
         const roomPassword = MatchRoomLobby.normalizeRoomPassword(payload.roomPassword);
 
@@ -2790,10 +3368,19 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             networkDebugEnabled,
             allCardsDeckEnabled,
             networkAutoEnabled,
+            matchType,
+            ratedMatch,
             publishResponseMode,
             roomName,
             roomPassword
         });
+        if (isRatedRoomRecord(room)) {
+            (room as Record<string, unknown>).ratedPresence = {
+                blackDisconnectedAt: 0,
+                whiteDisconnectedAt: 0,
+                disconnectGraceMs: 120000
+            };
+        }
         this.room = room;
         this.sseEventBuffer = [];
         const publicSeatState = buildPublicSeatState(room);
@@ -2812,7 +3399,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         const serverTime = Date.now();
 
-        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
+        const responsePayload = asRecord(withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             seatKey: 'black',
             playerName,
@@ -2825,7 +3412,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             snapshot: toPublicSnapshot(room, 'black'),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        }), room);
+        }), room));
+        withPublicRatedMatchMetadata(responsePayload, room);
         return jsonResponse(200, responsePayload);
     }
 
@@ -2927,7 +3515,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
 
         const serverTime = Date.now();
-        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
+        const responsePayload = asRecord(withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             seatKey,
             playerName,
@@ -2941,7 +3529,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             snapshot: toPublicSnapshot(room, seatKey),
             turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
-        }), room);
+        }), room));
+        withPublicRatedMatchMetadata(responsePayload, room);
         return jsonResponse(200, responsePayload);
     }
 
@@ -3343,7 +3932,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         );
         const recoveredMeta = asRecord(recoveredPayload);
 
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
+        return jsonResponse(200, withPublicRatedMatchMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             stateVersion: room.stateVersion,
             viewerRole: viewer.role,
@@ -3362,7 +3951,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             playerKey: recoveredMeta.playerKey ? normalizePlayerKey(recoveredMeta.playerKey) : null,
             actionType: recoveredMeta.actionType ? String(recoveredMeta.actionType) : null,
             serverTime
-        }));
+        }), room));
     }
 
     async handlePresentationJournal(request: Request): Promise<Response> {
@@ -3422,6 +4011,67 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return this.getLeaderboardRoomController().handleLeaderboardList(urlObj);
     }
 
+    async loadRatingStore(): Promise<MatchWorkerRatingStore> {
+        return this.getRatingHelpers().loadStore(await this.state.storage.get(RATING_POOL_STORAGE_KEY));
+    }
+
+    async saveRatingStore(store: MatchWorkerRatingStore): Promise<void> {
+        await this.state.storage.put(RATING_POOL_STORAGE_KEY, store);
+    }
+
+    async handleRatingMe(urlObj: URL): Promise<Response> {
+        const playerId = String(urlObj.searchParams.get('playerId') || '').trim();
+        const store = await this.loadRatingStore();
+        const rating = this.getRatingHelpers().getPlayerRating(store, playerId);
+        if (!rating) return jsonResponse(403, { ok: false, reason: 'PLAYER_ID_REQUIRED' });
+        return jsonResponse(200, {
+            ok: true,
+            pool: 'card_ranked_v1',
+            rating,
+            displayRating: Math.round(rating.rating)
+        });
+    }
+
+    async handleRatingLeaderboard(urlObj: URL): Promise<Response> {
+        const store = await this.loadRatingStore();
+        return jsonResponse(200, this.getRatingHelpers().listLeaderboard(store, {
+            limit: urlObj.searchParams.get('limit') || 50
+        }));
+    }
+
+    async handleRatingHistory(urlObj: URL): Promise<Response> {
+        const store = await this.loadRatingStore();
+        const result = this.getRatingHelpers().listPlayerHistory(store, {
+            playerId: urlObj.searchParams.get('playerId') || '',
+            limit: urlObj.searchParams.get('limit') || 10
+        });
+        if (!result.ok) return jsonResponse(403, result);
+        return jsonResponse(200, result);
+    }
+
+    async handleInternalRatingFinalize(body: Record<string, unknown>): Promise<Response> {
+        const store = await this.loadRatingStore();
+        const result = this.getRatingHelpers().applyRatedResult(store, body as any);
+        if (!result.ok) return jsonResponse(400, result);
+        await this.saveRatingStore(result.store);
+        return jsonResponse(200, result.payload);
+    }
+
+    async handleInternalRatingActiveClaim(body: Record<string, unknown>): Promise<Response> {
+        const store = await this.loadRatingStore();
+        const result = this.getRatingHelpers().claimActiveRatedMatch(store, body as any);
+        if (!result.ok) return jsonResponse(409, result);
+        await this.saveRatingStore(result.store);
+        return jsonResponse(200, { ok: true });
+    }
+
+    async handleInternalRatingActiveRelease(body: Record<string, unknown>): Promise<Response> {
+        const store = await this.loadRatingStore();
+        const result = this.getRatingHelpers().releaseActiveRatedMatch(store, body && body.matchId);
+        await this.saveRatingStore(result.store);
+        return jsonResponse(200, { ok: true });
+    }
+
     async fetch(request: Request): Promise<Response> {
         const urlObj = new URL(request.url);
         const pathname = urlObj.pathname;
@@ -3438,6 +4088,36 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         if (request.method === 'GET' && pathname === '/api/leaderboard/list') {
             return this.handleLeaderboardList(urlObj);
+        }
+
+        if (request.method === 'GET' && pathname === '/api/rating/me') {
+            return this.handleRatingMe(urlObj);
+        }
+
+        if (request.method === 'GET' && pathname === '/api/rating/leaderboard') {
+            return this.handleRatingLeaderboard(urlObj);
+        }
+
+        if (request.method === 'GET' && pathname === '/api/rating/history') {
+            return this.handleRatingHistory(urlObj);
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/rating/finalize') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleInternalRatingFinalize(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/rating/active/claim') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleInternalRatingActiveClaim(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/rating/active/release') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleInternalRatingActiveRelease(parsed || {});
         }
 
         if (request.method === 'POST' && pathname === '/api/player/identity/create') {
@@ -3484,6 +4164,24 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return this.handleInternalLobbyEntry(urlObj);
         }
 
+        if (request.method === 'POST' && pathname === '/api/match/rated/queue') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleRatedQueueEnter(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/rated/poll') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleRatedQueuePoll(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/rated/cancel') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleRatedQueueCancel(parsed || {});
+        }
+
         if (request.method === 'GET' && pathname === '/api/match/list') {
             return this.handleLobbyList();
         }
@@ -3516,6 +4214,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
             return this.handlePublish(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/api/match/resign') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleResign(parsed || {});
         }
 
         if (request.method === 'POST' && pathname === '/api/match/chat') {
@@ -3588,6 +4292,10 @@ const matchWorkerEntrypoint: MatchWorkerEntrypoint = assertMatchWorkerEntrypoint
 
         if (urlObj.pathname.startsWith('/api/leaderboard/')) {
             return handleLeaderboardApi(request, env);
+        }
+
+        if (urlObj.pathname.startsWith('/api/rating/')) {
+            return handleRatingApi(request, env);
         }
 
         if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {

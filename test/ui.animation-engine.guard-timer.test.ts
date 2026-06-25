@@ -41,7 +41,7 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.stone-timer')).toBeNull();
   });
 
-  test('uses countdown timer for Strong Will countdown updates', () => {
+  test('does not render a countdown timer for Strong Will stones', () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
@@ -49,8 +49,7 @@ describe('animation-engine guard timer rendering', () => {
     engine.syncDiscVisual(disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
 
     const countdownTimers = disc.querySelectorAll('.countdown-timer');
-    expect(countdownTimers.length).toBe(1);
-    expect(countdownTimers[0].textContent).toBe('9');
+    expect(countdownTimers.length).toBe(0);
     expect(disc.querySelector('.guard-timer')).toBeNull();
     expect(disc.querySelector('.special-timer')).toBeNull();
   });
@@ -217,48 +216,6 @@ describe('animation-engine guard timer rendering', () => {
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(disc.querySelector('.work-timer').textContent).toBe('2');
-  });
-
-  test('strong_will_promoted の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {
-    const crossfadeSpy = jest.fn(() => Promise.resolve());
-    jest.doMock('../ui/stone-visuals', () => ({
-      crossfadeStoneVisual: crossfadeSpy
-    }));
-
-    const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board')!;
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    cell.dataset.row = '1';
-    cell.dataset.col = '1';
-
-    const disc = document.createElement('div');
-    disc.className = 'disc black special-stone';
-    cell.appendChild(disc);
-    board.appendChild(cell);
-
-    const addSpy = jest.spyOn(cell.classList, 'add');
-    const removeSpy = jest.spyOn(cell.classList, 'remove');
-
-    await engine.handleStatusChange({
-      type: 'status_applied',
-      rawType: 'STATUS_APPLIED',
-      targets: [{ r: 1, col: 1, after: { color: 1, special: 'ABSOLUTE_PROTECTED', timer: null, owner: 'black' } }],
-      meta: {
-        special: 'ABSOLUTE_PROTECTED',
-        owner: 'black',
-        reason: 'strong_will_promoted',
-        promotedFrom: 'PERMA_PROTECTED'
-      }
-    });
-
-    expect(crossfadeSpy).toHaveBeenCalledTimes(1);
-    expect(sleepSpy).toHaveBeenCalled();
-    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
   });
 
   test('GUARD の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {

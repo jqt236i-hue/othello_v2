@@ -1462,6 +1462,20 @@ html.sim-aspect-5-4 #effect-live-panel {
     width: var(--profile-side-width);
 }
 
+#side-panel:is(.is-open, .is-closing) {
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100dvw;
+    height: 100dvh;
+}
+
+#side-panel.side-panel-collapsed {
+    visibility: hidden !important;
+    pointer-events: none;
+}
+
 #log {
     left: var(--profile-log-left);
     top: var(--profile-log-top);
@@ -1699,6 +1713,20 @@ html.sim-aspect-5-4 #effect-live-panel {
         right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
         bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-side-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
         width: calc(var(--layout-anchor-side-width) * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #side-panel:is(.is-open, .is-closing) {
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 100dvw;
+        height: 100dvh;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #side-panel.side-panel-collapsed {
+        visibility: hidden !important;
+        pointer-events: none;
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #info-panel {

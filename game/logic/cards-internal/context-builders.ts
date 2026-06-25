@@ -116,7 +116,6 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 clearBombAt: helpers.clearBombAt,
                 clearHyperactiveAtPositions: helpers.clearHyperactiveAtPositions,
                 applyStrongWill: helpers.applyStrongWill,
-                applyAbsoluteProtect: helpers.applyAbsoluteProtect,
                 applyRegenWill: helpers.applyRegenWill,
                 workDebugLog: helpers.workDebugLog,
                 workDebugError: helpers.workDebugError,

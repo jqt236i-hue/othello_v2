@@ -81,6 +81,7 @@ describe('manifest effect panel', () => {
     expect(panel?.getAttribute('data-manifest-effect-source')).toBeNull();
     expect(document.getElementById('manifest-effect-title')?.textContent).toBe('');
     expect(document.getElementById('manifest-effect-lines')?.textContent).toBe('最後に使ったカードがここに表示されます');
+    expect(document.querySelector('#manifest-effect-lines .manifest-effect-line--empty')).not.toBeNull();
   });
 
   test('renders last used card when no manifestation stone is active', () => {

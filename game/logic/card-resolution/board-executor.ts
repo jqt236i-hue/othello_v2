@@ -146,7 +146,7 @@ function applyBoardExecutorUsage(cardState: CardState, gameState: GameState, pla
                 BOARD_EXECUTOR_MARKER_TYPE,
                 'board_executor_special_stone_hole',
                 {
-                    ignoreAbsoluteProtection: true,
+                    ignoreInviolable: true,
                     removalKind: 'board_executor_hole',
                     removalPolicy: 'board_executor',
                     randomSource: prng || null,
@@ -192,7 +192,7 @@ function applyBoardExecutorStoneReservation(cardState: CardState, playerKey: Pla
         : {
             type: BOARD_EXECUTOR_MARKER_TYPE,
             remainingOwnerTurns: BOARD_EXECUTOR_DURATION_OWNER_TURNS,
-            absoluteProtected: true,
+            inviolable: true,
             sourceType: BOARD_EXECUTOR_MARKER_TYPE,
             visualEffectKey: 'boardExecutorStone'
         };

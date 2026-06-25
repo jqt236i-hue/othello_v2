@@ -798,10 +798,10 @@ function _getLivingWillRestoreDeps(meta: any): any {
     };
 }
 
-function _isAbsoluteProtectedCell(cardState: any, row: number, col: number): boolean {
+function _isInviolableCell(cardState: any, row: number, col: number): boolean {
     const cardMarkers = getCardMarkersModule();
-    if (cardMarkers && typeof cardMarkers.isAbsoluteProtectedCell === 'function') {
-        return !!cardMarkers.isAbsoluteProtectedCell(cardState, row, col);
+    if (cardMarkers && typeof cardMarkers.isInviolableCell === 'function') {
+        return !!cardMarkers.isInviolableCell(cardState, row, col);
     }
     const registry = getSpecialStoneRegistryModule();
     const markers = _getSpecialMarkersAt(cardState, row, col);
@@ -812,10 +812,10 @@ function _isAbsoluteProtectedCell(cardState: any, row: number, col: number): boo
             if (!Number.isFinite(remainingOwnerTurns) || remainingOwnerTurns <= 0) return false;
         }
         const type = String(data && data.type ? data.type : '').trim().toUpperCase();
-        if (registry && typeof registry.isAbsoluteProtectedSpecialType === 'function') {
-            return registry.isAbsoluteProtectedSpecialType(type) === true;
+        if (registry && typeof registry.isInviolableSpecialType === 'function') {
+            return registry.isInviolableSpecialType(type) === true;
         }
-        return type === 'ABSOLUTE_PROTECTED' || _isManifestStoneType(type);
+        return _isManifestStoneType(type);
     });
 }
 
@@ -1366,7 +1366,7 @@ function _removeOccupiedCellForCellRemoval(
     const removalPolicy = String(
         (options && options.removalPolicy) ||
         (options && options.policy) ||
-        'absolute_only'
+        'cell_removal'
     );
     const removalCause = String(
         (options && options.removalCause) ||
@@ -1466,8 +1466,8 @@ function applyCellRemovalAt(
 
     const prev = getCellValue(gameState, row, col);
     if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
-    if (!(options && options.ignoreAbsoluteProtection === true) && _isAbsoluteProtectedCell(cardState, row, col)) {
-        return { applied: false, reason: 'absolute_protected', row, col, destroyed: false };
+    if (!(options && options.ignoreInviolable === true) && _isInviolableCell(cardState, row, col)) {
+        return { applied: false, reason: 'inviolable', row, col, destroyed: false };
     }
 
     let destroyed = false;
@@ -2080,8 +2080,8 @@ function _prepareDestroyCoreContext(cardState: any, gameState: any, row: number,
 }
 
 function _resolveDestroyProtection(ctx: DestroyCoreContext): any {
-    if (_isAbsoluteProtectedCell(ctx.cardState, ctx.row, ctx.col)) {
-        return { destroyed: false, reason: 'absolute_protected' };
+    if (_isInviolableCell(ctx.cardState, ctx.row, ctx.col)) {
+        return { destroyed: false, reason: 'inviolable' };
     }
     const destroyProtectionContext = getDestroyProtectionContextModule();
     if (destroyProtectionContext && typeof destroyProtectionContext.resolveDestroyProtectionAt === 'function') {
@@ -2490,7 +2490,7 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
         return { changed: false, presented: true };
     }
     if (_isFrozenCell(cardState, row, col)) return { changed: false, reason: 'frozen_protected' };
-    if (_isAbsoluteProtectedCell(cardState, row, col)) return { changed: false, reason: 'absolute_protected' };
+    if (_isInviolableCell(cardState, row, col)) return { changed: false, reason: 'inviolable' };
     const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1))
         ? 'black'
         : ((prev === (SharedConstants.WHITE || -1)) ? 'white' : null);
@@ -2676,7 +2676,7 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
     if (prev === EMPTY) return { moved: false };
     if (prev === null) return { moved: false, reason: 'from_out_of_board' };
     if (_isFrozenCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'frozen_source' };
-    if (_isAbsoluteProtectedCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'absolute_protected_source' };
+    if (_isInviolableCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'inviolable_source' };
     const destVal = getCellValue(gameState, toRow, toCol);
     if (destVal === null) return { moved: false, reason: 'to_out_of_board' };
     if (destVal !== EMPTY) return { moved: false, reason: 'dest_not_empty' };
@@ -2736,7 +2736,7 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
     if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
     if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
     if (_isFrozenCell(cardState, aRow, aCol) || _isFrozenCell(cardState, bRow, bCol)) return { swapped: false, reason: 'frozen_source' };
-    if (_isAbsoluteProtectedCell(cardState, aRow, aCol) || _isAbsoluteProtectedCell(cardState, bRow, bCol)) return { swapped: false, reason: 'absolute_protected_source' };
+    if (_isInviolableCell(cardState, aRow, aCol) || _isInviolableCell(cardState, bRow, bCol)) return { swapped: false, reason: 'inviolable_source' };
 
     const stoneIdA = getStoneIdAt(cardState, gameState, aRow, aCol);
     const stoneIdB = getStoneIdAt(cardState, gameState, bRow, bCol);

@@ -2,7 +2,7 @@ import { createEffectTargetCounts } from '../game/logic/cards-internal/effect-ta
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 
 describe('card effect target counts module', () => {
-  test('collectLossWillRemovals excludes guarded cells, meteor holes, and absolute-protected bombs', () => {
+  test('collectLossWillRemovals excludes guarded cells, meteor holes, and inviolable bombs', () => {
     const counts = createEffectTargetCounts({
       ensureMarkers: jest.fn(),
       getSpecialMarkers: () => ([
@@ -13,7 +13,6 @@ describe('card effect target counts module', () => {
         { row: 2, col: 6, data: { type: 'PERMA_PROTECTED' } },
         { row: 2, col: 4, data: { type: 'GHOST', remainingOwnerTurns: 5 } },
         { row: 3, col: 3, data: { type: 'METEOR_HOLE' } },
-        { row: 4, col: 4, data: { type: 'ABSOLUTE_PROTECTED' } },
         { row: 6, col: 6, data: { type: 'BLOCKADE', remainingOwnerTurns: 2 } }
       ]),
       getBombMarkers: () => ([
@@ -21,7 +20,7 @@ describe('card effect target counts module', () => {
         { row: 5, col: 5, data: { type: 'TIME_BOMB' } }
       ]),
       getMarkerRuleClass: (marker) => SpecialStoneRegistry.classifyMarkerRuleClass(marker),
-      isAbsoluteProtectedCell: (_cardState, row, col) => row === 5 && col === 5
+      isInviolableCell: (_cardState, row, col) => row === 5 && col === 5
     });
 
     const result = counts.collectLossWillRemovals({ markers: [] });

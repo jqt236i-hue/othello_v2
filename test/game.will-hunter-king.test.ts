@@ -204,7 +204,7 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(gameState.board[3][5]).toBe(Shared.BLACK);
   });
 
-  test('絶対保護石は破壊不能なので優先対象にせず破壊可能な敵石へ移動する', () => {
+  test('不可侵の顕現石は破壊不能なので優先対象にせず破壊可能な敵石へ移動する', () => {
     const { cardState, gameState } = createState(0);
 
     gameState.board[3][3] = Shared.BLACK;
@@ -227,11 +227,11 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
       },
       {
         id: 8118,
-        kind: 'specialStone',
+        kind: 'manifestStone',
         row: 5,
         col: 3,
         owner: 'white',
-        data: { type: 'ABSOLUTE_PROTECTED' }
+        data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
       }
     );
 

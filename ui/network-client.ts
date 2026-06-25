@@ -365,6 +365,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         seatHandSkins: { black: '', white: '' },
         roomDeck: null,
         roomBoardConfig: null,
+        ratedMatch: null as any,
         networkDebugEnabled: false,
         networkAutoEnabled: false,
         serverUrl: deriveInitialServerUrl(),
@@ -1831,6 +1832,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             seatHandSkins: cloneReadableNetworkStateValue(state.seatHandSkins || { black: '', white: '' }, { black: '', white: '' }),
             roomDeck: cloneReadableNetworkStateValue(state.roomDeck, null),
             roomBoardConfig: cloneReadableNetworkStateValue(state.roomBoardConfig, null),
+            ratedMatch: cloneReadableNetworkStateValue(state.ratedMatch, null),
             networkDebugEnabled: state.networkDebugEnabled === true,
             networkAutoEnabled: state.networkAutoEnabled === true,
             stateVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null,
@@ -2798,6 +2800,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function applyPayloadSessionState(payload: any) {
         if (!payload || typeof payload !== 'object') return;
+        if (Object.prototype.hasOwnProperty.call(payload, 'ratedMatch')) {
+            state.ratedMatch = payload.ratedMatch && typeof payload.ratedMatch === 'object'
+                ? cloneReadableNetworkStateValue(payload.ratedMatch, null)
+                : null;
+        }
         updateTurnTimerFromPayload(payload);
         updateRoomSeatsFromPayload(payload);
         const snapshotMeta = getSnapshotMeta(payload.snapshot);
@@ -3227,6 +3234,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.seatHandSkins = { black: '', white: '' };
             state.roomDeck = null;
             state.roomBoardConfig = null;
+            state.ratedMatch = null;
             state.networkDebugEnabled = false;
             state.networkAutoEnabled = false;
             state.chatHistory = [];
@@ -3509,6 +3517,118 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
+    async function enterRatedQueue(payload: any) {
+        const res = await requestJson('POST', '/api/match/rated/queue', payload || {});
+        if (!res.ok || !res.data) {
+            return {
+                ok: false,
+                status: 'error',
+                reason: (res.data && res.data.reason) || 'RATED_QUEUE_FAILED',
+                httpStatus: res.status
+            };
+        }
+        return res.data;
+    }
+
+    async function pollRatedQueue(payload: any) {
+        const res = await requestJson('POST', '/api/match/rated/poll', payload || {});
+        if (!res.ok || !res.data) {
+            return {
+                ok: false,
+                status: 'error',
+                reason: (res.data && res.data.reason) || 'RATED_QUEUE_POLL_FAILED',
+                httpStatus: res.status
+            };
+        }
+        return res.data;
+    }
+
+    async function cancelRatedQueue(payload: any) {
+        const res = await requestJson('POST', '/api/match/rated/cancel', payload || {});
+        if (!res.ok || !res.data) {
+            return {
+                ok: false,
+                status: 'error',
+                reason: (res.data && res.data.reason) || 'RATED_QUEUE_CANCEL_FAILED',
+                httpStatus: res.status
+            };
+        }
+        return res.data;
+    }
+
+    async function getMyRating(playerId: any) {
+        const normalizedPlayerId = String(playerId || '').trim();
+        if (!normalizedPlayerId) return { ok: false, reason: 'PLAYER_ID_REQUIRED' };
+        const res = await requestJson('GET', `/api/rating/me?playerId=${encodeURIComponent(normalizedPlayerId)}`, null);
+        if (!res.ok || !res.data) {
+            return {
+                ok: false,
+                reason: (res.data && res.data.reason) || 'RATING_FETCH_FAILED',
+                httpStatus: res.status
+            };
+        }
+        return res.data;
+    }
+
+    async function getRatedLeaderboard(limit = 50) {
+        const normalizedLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(100, Math.trunc(Number(limit)))) : 50;
+        const res = await requestJson('GET', `/api/rating/leaderboard?pool=card_ranked_v1&limit=${encodeURIComponent(String(normalizedLimit))}`, null);
+        if (!res.ok || !res.data) {
+            return {
+                ok: false,
+                reason: (res.data && res.data.reason) || 'RATED_LEADERBOARD_FETCH_FAILED',
+                entries: [],
+                httpStatus: res.status
+            };
+        }
+        return res.data;
+    }
+
+    async function getMyRatingHistory(playerId: any, limit = 10) {
+        const normalizedPlayerId = String(playerId || '').trim();
+        const normalizedLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(10, Math.trunc(Number(limit)))) : 10;
+        if (!normalizedPlayerId) return { ok: false, reason: 'PLAYER_ID_REQUIRED', entries: [] };
+        const res = await requestJson('GET', `/api/rating/history?playerId=${encodeURIComponent(normalizedPlayerId)}&limit=${encodeURIComponent(String(normalizedLimit))}`, null);
+        if (!res.ok || !res.data) {
+            return {
+                ok: false,
+                reason: (res.data && res.data.reason) || 'RATING_HISTORY_FETCH_FAILED',
+                entries: [],
+                httpStatus: res.status
+            };
+        }
+        return res.data;
+    }
+
+    function adoptMatchedRoom(payload: any, options?: any) {
+        const data = payload && typeof payload === 'object' ? payload : {};
+        const opts = options && typeof options === 'object' ? options : {};
+        const roomId = String(data.roomId || '').trim().toUpperCase();
+        const seatKey = String(data.seatKey || '').trim();
+        const seatToken = String(data.seatToken || '').trim();
+        if (!roomId || !seatKey || !seatToken) {
+            return Promise.resolve({ ok: false, reason: 'RATED_MATCH_PAYLOAD_INVALID' });
+        }
+        if (opts.serverUrl && typeof setServerUrl === 'function') {
+            setServerUrl(opts.serverUrl);
+        }
+        if (state.roomId && state.roomId !== roomId) {
+            return Promise.resolve({ ok: false, reason: 'ALREADY_IN_ROOM', roomId: state.roomId });
+        }
+        activateSessionFromResponse(data, roomId);
+        resetNetworkTelemetry();
+        openStream({ source: opts.source || 'rated_queue' });
+        emitStatus('レート戦: マッチ成立（' + (seatKey === 'black' ? '黒' : '白') + '）', false);
+        syncQuickResetButtonForNetworkState();
+        return Promise.resolve({
+            ok: true,
+            roomId,
+            seatKey,
+            networkDebugEnabled: state.networkDebugEnabled === true,
+            networkAutoEnabled: state.networkAutoEnabled === true
+        });
+    }
+
     function getCurrentAppliedGameState() {
         try {
             if (root && root.gameState && typeof root.gameState === 'object') return root.gameState;
@@ -3756,6 +3876,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return state.networkAutoEnabled === true;
     }
 
+    function getRatedMatch() {
+        return cloneReadableNetworkStateValue(state.ratedMatch, null);
+    }
+
     function setRoomStateListener(listener: any) {
         state.roomStateListener = (typeof listener === 'function') ? listener : null;
         emitRoomStateChanged();
@@ -3966,6 +4090,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         leaveRoom,
         syncLatestState,
         restoreStoredSession,
+        enterRatedQueue,
+        pollRatedQueue,
+        cancelRatedQueue,
+        getMyRating,
+        getRatedLeaderboard,
+        getMyRatingHistory,
+        adoptMatchedRoom,
         publishCommand,
         publishSnapshot,
         requestRematch,
@@ -3979,6 +4110,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getStateVersion,
         getRoomDeck,
         getRoomBoardConfig,
+        getRatedMatch,
         getNetworkAutoEnabled,
         getNetworkTelemetry,
         dumpDiagnostics

@@ -42,7 +42,7 @@
         markerType: string;
         displayName: string;
         durationOwnerTurns: number;
-        absoluteProtected: boolean;
+        inviolable: boolean;
         visualEffectKey: string;
         imagePathByOwner: Readonly<Record<string, string>>;
     }
@@ -83,7 +83,6 @@
         cardNameJa: string;
         cardType: string;
         markerType: string;
-        promotedMarkerType?: string;
     }
 
     interface StoneEffectRule {
@@ -190,8 +189,7 @@
         PERMA_PROTECTED: Object.freeze({
             name: '強い石',
             desc: '相手の反転を受けない。',
-            flipProtected: true,
-            timerClass: 'countdown-timer'
+            flipProtected: true
         }),
         DRAGON: Object.freeze({
             name: '究極反転龍',
@@ -382,18 +380,12 @@
         METEOR_HOLE: Object.freeze({
             name: '流星穴',
             desc: '因果抹消や盤面縮小で生じた永続穴。このマスには配置・移動で入れず、反転経路も遮断する。'
-        }),
-        ABSOLUTE_PROTECTED: Object.freeze({
-            name: '絶対保護石',
-            desc: 'あらゆる効果を受けない。',
-            flipProtected: true,
-            destroyProtected: true
         })
     });
 
     const SPECIAL_STONE_CARD_DEFINITIONS: Readonly<Record<string, Readonly<SpecialStoneCardDefinition>>> = Object.freeze({
         PROTECTED_NEXT_STONE: Object.freeze({ cardId: 'hard_01', cardNameJa: '弱い意志', cardType: 'PROTECTED_NEXT_STONE', markerType: 'PROTECTED' }),
-        PERMA_PROTECT_NEXT_STONE: Object.freeze({ cardId: 'perma_01', cardNameJa: '強い意志', cardType: 'PERMA_PROTECT_NEXT_STONE', markerType: 'PERMA_PROTECTED', promotedMarkerType: 'ABSOLUTE_PROTECTED' }),
+        PERMA_PROTECT_NEXT_STONE: Object.freeze({ cardId: 'perma_01', cardNameJa: '強い意志', cardType: 'PERMA_PROTECT_NEXT_STONE', markerType: 'PERMA_PROTECTED' }),
         SNIPER_WILL: Object.freeze({ cardId: 'sniper_01', cardNameJa: '狙撃の意志', cardType: 'SNIPER_WILL', markerType: 'SNIPER' }),
         GHOST_WILL: Object.freeze({ cardId: 'ghost_01', cardNameJa: '幽霊の意志', cardType: 'GHOST_WILL', markerType: 'GHOST' }),
         SACRIFICE_WILL: Object.freeze({ cardId: 'sacrifice_will_01', cardNameJa: '犠牲の意志', cardType: 'SACRIFICE_WILL', markerType: 'SACRIFICE' }),
@@ -477,18 +469,8 @@
             if (definition && definition.markerType && !out[definition.markerType]) {
                 out[definition.markerType] = makeStoneEffectRule(definition.markerType, {});
             }
-            if (definition && definition.promotedMarkerType && !out[definition.promotedMarkerType]) {
-                out[definition.promotedMarkerType] = makeStoneEffectRule(definition.promotedMarkerType, {});
-            }
         }
 
-        out.ABSOLUTE_PROTECTED = makeStoneEffectRule('ABSOLUTE_PROTECTED', {
-            temptTargetable: false,
-            captureTargetable: false,
-            lossWillRevertible: false,
-            theorySpawnCandidate: false,
-            blocksTempt: true
-        });
         out.TRAP = makeStoneEffectRule('TRAP', {
             category: 'trap',
             captureTargetable: false,
@@ -627,12 +609,11 @@
         return SPECIAL_CARD_MARKER_METADATA[type] || null;
     }
 
-    function isAbsoluteProtectedSpecialType(rawType: unknown): boolean {
+    function isInviolableSpecialType(rawType: unknown): boolean {
         const type = normalizeSpecialStoneType(rawType);
         if (!type) return false;
-        if (type === 'ABSOLUTE_PROTECTED') return true;
         const metadata = getSpecialCardMarkerMetadata(type);
-        return !!(metadata && metadata.absoluteProtected === true);
+        return !!(metadata && metadata.inviolable === true);
     }
 
     function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {
@@ -754,7 +735,7 @@
             category,
             countsAsSpecialStone,
             targetableAsSpecialStone,
-            revertibleByLossWill: rule ? rule.lossWillRevertible : targetableAsSpecialStone && type !== 'ABSOLUTE_PROTECTED',
+            revertibleByLossWill: rule ? rule.lossWillRevertible : targetableAsSpecialStone,
             spawnableByTheoryIncarnation: rule ? rule.theorySpawnCandidate : category === 'true_special_stone' && !THEORY_INCARNATION_SPAWN_EXCLUDED_TYPES.has(type),
             inviolable
         });
@@ -844,7 +825,7 @@
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
         getSpecialCardMarkerMetadata,
-        isAbsoluteProtectedSpecialType,
+        isInviolableSpecialType,
         getSpecialStoneTimerClass,
         isOverlayOnlySpecialStoneType,
         getSpecialStoneCardDefinition,

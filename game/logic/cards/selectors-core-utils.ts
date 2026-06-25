@@ -111,7 +111,7 @@ function isGuardProtectedCell(cardState: CardState, row: number, col: number): b
     ));
 }
 
-function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number): boolean {
+function isInviolableCell(cardState: CardState, row: number, col: number): boolean {
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
@@ -123,7 +123,7 @@ function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number)
             (
                 m.kind === 'specialStone' &&
                 m.data &&
-                m.data.type === 'ABSOLUTE_PROTECTED'
+                isManifestStoneMarker(m)
             )
         )
     ));
@@ -142,7 +142,7 @@ function isPositionSwapProtectedCell(cardState: CardState, row: number, col: num
             (
                 m.kind === 'specialStone' &&
                 m.data &&
-                (m.data.type === 'GLUTTONOUS' || m.data.type === 'ABSOLUTE_PROTECTED')
+                m.data.type === 'GLUTTONOUS'
             )
         )
     ));
@@ -289,7 +289,7 @@ export = {
     isBlockedCell,
     isMeteorHoleCell,
     isGuardProtectedCell,
-    isAbsoluteProtectedCell,
+    isInviolableCell,
     isPositionSwapProtectedCell,
     getSuperAttractionPathCandidates
 };

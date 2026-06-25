@@ -85,7 +85,7 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
     const getMarkers = deps && deps.getMarkers;
-    const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
+    const isInviolableCell = deps && deps.isInviolableCell;
     const BoardOpsModule = deps && deps.BoardOpsModule;
     const setCellValueForCard = deps && deps.setCellValueForCard;
     const removeMarkersAt = deps && deps.removeMarkersAt;
@@ -114,8 +114,8 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
 
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-    if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
-        return { applied: false, reason: 'absolute_protected' };
+    if (typeof isInviolableCell === 'function' && isInviolableCell(cardState, row, col)) {
+        return { applied: false, reason: 'inviolable' };
     }
     if (blocksTemptAt(cardState, row, col)) {
         return { applied: false, reason: 'guarded' };
@@ -173,7 +173,7 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     const getTrueSpecialStoneOwnerAt = (deps && deps.getTrueSpecialStoneOwnerAt) || (deps && deps.getSpecialOwnerAt);
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
-    const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
+    const isInviolableCell = deps && deps.isInviolableCell;
     const getTrueSpecialStoneMarkerAt = (deps && deps.getTrueSpecialStoneMarkerAt) || (deps && deps.getSpecialMarkerAt);
     const BoardOpsModule = deps && deps.BoardOpsModule;
     const resolveCaptureSourceInfo = deps && deps.resolveCaptureSourceInfo;
@@ -231,8 +231,8 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
         m.data.type === 'GUARD'
     ));
     if (guarded) return { applied: false, reason: 'guarded' };
-    if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
-        return { applied: false, reason: 'absolute_protected' };
+    if (typeof isInviolableCell === 'function' && isInviolableCell(cardState, row, col)) {
+        return { applied: false, reason: 'inviolable' };
     }
 
     const markerEntry = isOpponentGhost ? ghostMarker : getTrueSpecialStoneMarkerAt(cardState, row, col);

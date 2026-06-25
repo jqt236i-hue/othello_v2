@@ -87,7 +87,7 @@ describe('TABOO_REVERSE_WILL（禁忌の反転）', () => {
     expect(candidates).toHaveLength(0);
   });
 
-  test('bypasses protected and guard stones but leaves ABSOLUTE_PROTECTED unchanged in the same taboo line', () => {
+  test('bypasses protected and guard stones but leaves an inviolable manifest stone unchanged in the same taboo line', () => {
     const { cardState, gameState } = makeState();
     cardState.pendingEffectByPlayer.black = { type: 'TABOO_REVERSE_WILL', cardId: 'taboo_reverse_01', stage: null };
 
@@ -98,7 +98,7 @@ describe('TABOO_REVERSE_WILL（禁忌の反転）', () => {
     cardState.markers = [
       { kind: 'specialStone', row: 2, col: 4, owner: 'white', data: { type: 'PROTECTED', expiresForPlayer: 'white' } },
       { kind: 'specialStone', row: 2, col: 5, owner: 'white', data: { type: 'PERMA_PROTECTED' } },
-      { kind: 'specialStone', row: 2, col: 6, owner: 'white', data: { type: 'ABSOLUTE_PROTECTED' } },
+      { kind: 'manifestStone', row: 2, col: 6, owner: 'white', data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true } },
       { kind: 'specialStone', row: 2, col: 7, owner: 'white', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
     ];
 
@@ -125,7 +125,7 @@ describe('TABOO_REVERSE_WILL（禁忌の反転）', () => {
     expect(cardState.markers).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 2, col: 4, owner: 'black', data: expect.objectContaining({ type: 'PROTECTED', expiresForPlayer: 'black' }) }),
       expect.objectContaining({ row: 2, col: 5, owner: 'black', data: expect.objectContaining({ type: 'PERMA_PROTECTED' }) }),
-      expect.objectContaining({ row: 2, col: 6, owner: 'white', data: expect.objectContaining({ type: 'ABSOLUTE_PROTECTED' }) }),
+      expect.objectContaining({ row: 2, col: 6, owner: 'white', data: expect.objectContaining({ type: 'THEORY_INCARNATION' }) }),
       expect.objectContaining({ row: 2, col: 7, owner: 'black', data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 3 }) })
     ]));
 

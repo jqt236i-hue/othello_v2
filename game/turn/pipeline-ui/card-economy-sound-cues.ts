@@ -204,20 +204,6 @@ function planCardAndEconomySoundCues(ctx: any, deps: CardEconomySoundCueDeps) {
         deps.deferFirstCardEffectSpawnIntoDisappearPlayback(ctx, profile, 'breeding_spawn');
     }
 
-    const strongWillPromotedPhase = deps.findPhase(
-        ctx.base,
-        (ev: any) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'strong_will_promoted',
-        ctx.fallbackPhase
-    );
-    const hasStrongWillPromotion = ctx.pres.some((ev: any) => (
-        ev &&
-        ev.type === 'STATUS_APPLIED' &&
-        String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() === 'strong_will_promoted'
-    ));
-    if (hasStrongWillPromotion) {
-        deps.pushSoundCue(ctx, 'strong_will_promoted', strongWillPromotedPhase, 'strong_will_promoted');
-    }
-
     const condemnPhase = deps.findPhase(
         ctx.base,
         (ev: any) => ev &&

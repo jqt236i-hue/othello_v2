@@ -10,6 +10,7 @@ import type {
     MatchAuthoritySeatKey,
     MatchAuthorityViewer
 } from '../utils/match-authority-types';
+import type { PlayerRating, RatingMatchRecord, RatedPool, RatingPublicProfile } from '../shared/rating-contract';
 
 export interface MatchWorkerEnv {
     MATCH_ROOM?: DurableObjectNamespaceLike;
@@ -90,6 +91,8 @@ export interface MatchWorkerLeaderboardModeEntries {
 export interface MatchWorkerLeaderboardEntry {
     playerId: string;
     playerName: string;
+    avatarStoneType: string;
+    bio: string;
     category: MatchWorkerLeaderboardCategory;
     bestScore: number;
     lastScore: number;
@@ -101,6 +104,25 @@ export interface MatchWorkerLeaderboardEntry {
     turnCount: number | null;
     updatedAt: number;
     submittedAt: number;
+}
+
+export interface MatchWorkerRatingStore {
+    version: number;
+    pool: RatedPool;
+    players: Record<string, PlayerRating>;
+    publicProfiles: Record<string, RatingPublicProfile>;
+    matches: Record<string, RatingMatchRecord>;
+    activeMatches: Record<string, MatchWorkerActiveRatedMatch>;
+    updatedAt: string;
+}
+
+export interface MatchWorkerActiveRatedMatch {
+    matchId: string;
+    pool: RatedPool;
+    roomId: string;
+    playerIds: string[];
+    publicProfiles?: Record<string, RatingPublicProfile>;
+    startedAt: string;
 }
 
 export interface MatchWorkerRuntimeModule {

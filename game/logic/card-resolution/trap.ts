@@ -13,7 +13,7 @@ const DEFAULT_TRAP_WILL_STEAL_MAX = 10;
 function applyTrapWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getTrapTargets = deps && deps.getTrapTargets;
-    const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
+    const isInviolableCell = deps && deps.isInviolableCell;
     const removeMarkersAt = deps && deps.removeMarkersAt;
     const addMarker = deps && deps.addMarker;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
@@ -36,8 +36,8 @@ function applyTrapWill(cardState: CardState, gameState: GameState, playerKey: Pl
     const targets = getTrapTargets(cardState, gameState, playerKey);
     const allowed = targets.some((t: any) => t.row === row && t.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
-    if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
-        return { applied: false, reason: 'absolute_protected' };
+    if (typeof isInviolableCell === 'function' && isInviolableCell(cardState, row, col)) {
+        return { applied: false, reason: 'inviolable' };
     }
 
     removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });

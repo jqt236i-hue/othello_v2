@@ -1,15 +1,7 @@
 {
-  "version": "2026-06-23",
-  "generatedAt": "2026-06-23T11:28:52.977Z",
+  "version": "2026-06-25",
+  "generatedAt": "2026-06-25T08:53:30.724Z",
   "files": [
-    {
-      "path": "assets/images/special-stones/absolute_protect_next_stone-black.png",
-      "sha256": "4e5fb0a68f355ba98778625a7dae8a2c7476976ce3ea9d3a6a1df161ad3d7bbc"
-    },
-    {
-      "path": "assets/images/special-stones/absolute_protect_next_stone-white.png",
-      "sha256": "0b7e53488e7ad90dfb6346deefd4866880eb687ec37bfd320430644b69cbc881"
-    },
     {
       "path": "assets/images/special-stones/board_executor-black.png",
       "sha256": "4778524ed5dbbdecf6a9ba3613a3350ea4a8ff00230e630301b4d831cdddb1bc"
@@ -407,8 +399,24 @@
       "sha256": "aa480902f27c234e21617dbf2775514f619b63c263f5bb0ab179df0b3847558d"
     },
     {
+      "path": "assets/images/other/leaderboard-medal-number-bronze-v1.png",
+      "sha256": "8823014852b516cfc8857065cee8b237d6d2dac22a3ab4db545a63e1d84d4384"
+    },
+    {
+      "path": "assets/images/other/leaderboard-medal-number-gold-v1.png",
+      "sha256": "75300c087b693886ce00788807bfdcb0eb3201cef522092a35b93458bb934c25"
+    },
+    {
+      "path": "assets/images/other/leaderboard-medal-number-silver-v1.png",
+      "sha256": "450690b11ebcbb751f34c33831824a4d623eff401c7196e3a37a088968f9ff18"
+    },
+    {
       "path": "assets/images/other/leaderboard-medal-silver-v1.png",
       "sha256": "4b3319df54b8c95d7d6b7c42b4a0d2bc8cd00b06375199005ab4285d1fefe776"
+    },
+    {
+      "path": "assets/images/other/leaderboard-podium-bronze-number-v1.png",
+      "sha256": "1038dcbca2ad227bbc4a618a5048cd39a1f0be2efa3ae9f0feb22286a12796e0"
     },
     {
       "path": "assets/images/other/leaderboard-podium-bronze-v1.png",
@@ -419,12 +427,20 @@
       "sha256": "75d185dde7dcd3f7c489eca1fc44fb73b94dd6e73c781e6c00d2995794035f72"
     },
     {
+      "path": "assets/images/other/leaderboard-podium-gold-number-v1.png",
+      "sha256": "8942244be6aa2c4c3ce6276dc551307b590cc1e393788b66bcba75ddade4fa46"
+    },
+    {
       "path": "assets/images/other/leaderboard-podium-gold-v1.png",
       "sha256": "1e7a49b1a039138c0de0a551389e3da3496a7a9be9dc7fc20ecbc0a87eb2a149"
     },
     {
       "path": "assets/images/other/leaderboard-podium-gold-v2.png",
       "sha256": "7e2ee8923e5307acfbc37ef37882b1077aa7a52ee3d6f9d9e208260294872130"
+    },
+    {
+      "path": "assets/images/other/leaderboard-podium-silver-number-v1.png",
+      "sha256": "940889769f0ea85a0180053f95fcec86606db250e9bb64b460b44bdeca80b6f9"
     },
     {
       "path": "assets/images/other/leaderboard-podium-silver-v1.png",
@@ -871,10 +887,6 @@
       "sha256": "25c96fdddf0a33df687f2449c8e8b48ab94e079e5379e2658c37ada6bb134a0d"
     },
     {
-      "path": "assets/audio/sound-effect/強い意志の石が進化したタイミング.mp3",
-      "sha256": "052b7313890f7d568e9bfcdc203b2994268358ebe5cba0e8287a6d69acccaf70"
-    },
-    {
       "path": "assets/audio/sound-effect/強風で石が移動したタイミング.mp3",
       "sha256": "03653e08266e12729c18731b8c018150a14aa0d339d135cf8197baf8bc8b7c40"
     },
@@ -973,6 +985,10 @@
     {
       "path": "assets/audio/sound-effect/超引力で石が引き寄せられたタイミング.mp3",
       "sha256": "ff2303c2cc95c322cac5876ba70681f24fe0aabc52205fd3081e0cb017838b75"
+    },
+    {
+      "path": "assets/audio/sound-effect/進化仮.mp3",
+      "sha256": "052b7313890f7d568e9bfcdc203b2994268358ebe5cba0e8287a6d69acccaf70"
     },
     {
       "path": "assets/audio/sound-effect/重力系で石が落下したタイミング.mp3",

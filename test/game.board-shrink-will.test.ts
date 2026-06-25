@@ -13,7 +13,7 @@ function getMarkersAt(cardState, row, col) {
 }
 
 describe('盤面縮小 / 盤面縮小神', () => {
-  test('盤面縮小は連続外周3マスを選択し、絶対保護だけ残して外周を穴化する', () => {
+  test('盤面縮小は連続外周3マスを選択し、不可侵の顕現石だけ残して外周を穴化する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -23,12 +23,12 @@ describe('盤面縮小 / 盤面縮小神', () => {
     gameState.board[0][1] = Core.WHITE;
     gameState.board[1][0] = Core.WHITE;
     cardState.markers.push({
-      id: 'abs_1',
-      kind: 'specialStone',
+      id: 'manifest_1',
+      kind: 'manifestStone',
       row: 0,
       col: 0,
       owner: 'black',
-      data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+      data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
     });
     cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_SHRINK_WILL',
@@ -81,7 +81,7 @@ describe('盤面縮小 / 盤面縮小神', () => {
       { row: 1, col: 0 }
     ]));
     expect(finalRes.skippedTargets).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 0, col: 0, reason: 'absolute_protected' })
+      expect.objectContaining({ row: 0, col: 0, reason: 'inviolable' })
     ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
@@ -232,7 +232,7 @@ describe('盤面縮小 / 盤面縮小神', () => {
     ))).toBe(false);
   });
 
-  test('盤面縮小神は角から辺方向を選び、絶対保護を残して1列を穴化する', () => {
+  test('盤面縮小神は角から辺方向を選び、不可侵の顕現石を残して1列を穴化する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -242,12 +242,12 @@ describe('盤面縮小 / 盤面縮小神', () => {
       gameState.board[0][col] = Core.WHITE;
     }
     cardState.markers.push({
-      id: 'abs_top',
-      kind: 'specialStone',
+      id: 'manifest_top',
+      kind: 'manifestStone',
       row: 0,
       col: 3,
       owner: 'white',
-      data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
     });
     cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_SHRINK_GOD',
@@ -277,7 +277,7 @@ describe('盤面縮小 / 盤面縮小神', () => {
     }));
     expect(finalRes.lineTargets).toHaveLength(8);
     expect(finalRes.skippedTargets).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 0, col: 3, reason: 'absolute_protected' })
+      expect.objectContaining({ row: 0, col: 3, reason: 'inviolable' })
     ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 

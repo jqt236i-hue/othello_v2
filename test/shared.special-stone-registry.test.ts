@@ -4,7 +4,6 @@ describe('special stone registry rule classification', () => {
   const playerSpecialStoneTypes = [
     'PROTECTED',
     'PERMA_PROTECTED',
-    'ABSOLUTE_PROTECTED',
     'REGEN',
     'GHOST',
     'AFTERIMAGE_WILL',
@@ -36,7 +35,6 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('STONE_SALVATION_GOD')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PROTECTED')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PERMA_PROTECTED')).toBe('true_special_stone');
-    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('ABSOLUTE_PROTECTED')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('GHOST')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('SACRIFICE')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('AFTERIMAGE_WILL')).toBe('true_special_stone');
@@ -78,7 +76,6 @@ describe('special stone registry rule classification', () => {
       expect(SpecialStoneRegistry.isTargetableSpecialStone(type)).toBe(true);
     }
 
-    expect(SpecialStoneRegistry.canLossWillRevert('ABSOLUTE_PROTECTED')).toBe(false);
     expect(SpecialStoneRegistry.canLossWillRevert('PROTECTED')).toBe(true);
     expect(SpecialStoneRegistry.canLossWillRevert('GHOST')).toBe(true);
     expect(SpecialStoneRegistry.canLossWillRevert('TRAP')).toBe(true);
@@ -153,10 +150,6 @@ describe('special stone registry rule classification', () => {
       );
       expect(SpecialStoneRegistry.getMarkerTypeForSpecialStoneCard(cardType)).toBe(markerType);
     }
-
-    expect(SpecialStoneRegistry.getSpecialStoneCardDefinition('PERMA_PROTECT_NEXT_STONE')).toEqual(
-      expect.objectContaining({ promotedMarkerType: 'ABSOLUTE_PROTECTED' })
-    );
     expect(SpecialStoneRegistry.getSpecialStoneDisplayName('SACRIFICE')).toBe('犠牲石');
     expect(SpecialStoneRegistry.countsAsSpecialStone('SACRIFICE')).toBe(true);
     expect(SpecialStoneRegistry.isTargetableSpecialStone('SACRIFICE')).toBe(true);
@@ -186,9 +179,6 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.blocksTempt('GUARD')).toBe(true);
     expect(SpecialStoneRegistry.isNormalVisualStoneEffect('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.canLossWillRevert('GUARD')).toBe(false);
-    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('ABSOLUTE_PROTECTED')).toBe(false);
-    expect(SpecialStoneRegistry.blocksTempt('ABSOLUTE_PROTECTED')).toBe(true);
-    expect(SpecialStoneRegistry.canLossWillRevert('ABSOLUTE_PROTECTED')).toBe(false);
 
     for (const type of ['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL', 'BLOCKADE', 'FREEZE', 'SEED', 'GOLD', 'SILVER', 'RAINBOW']) {
       expect(SpecialStoneRegistry.isTemptTargetableStoneEffect(type)).toBe(false);

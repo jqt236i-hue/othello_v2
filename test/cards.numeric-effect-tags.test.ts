@@ -24,11 +24,11 @@ describe('CardInteractionEffects effect tags', () => {
   test('delayed activation timing is exposed as a numeric tag', () => {
     expect(getEffectTagLabels('TIME_BOMB')).toEqual(['特殊石', '3ターン後に発動']);
     expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石', '5ターン後に発動']);
-    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護', '20ターン後に発動']);
+    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('SEED_WILL')).toEqual(['5ターン後に発動']);
     expect(getNumericTagLabels('TIME_BOMB')).toEqual(['3ターン後に発動']);
     expect(getNumericTagLabels('TIME_STOP_GOD')).toEqual(['5ターン後に発動']);
-    expect(getNumericTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['20ターン後に発動']);
+    expect(getNumericTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual([]);
     expect(getNumericTagLabels('SEED_WILL')).toEqual(['5ターン後に発動']);
   });
 
@@ -56,7 +56,7 @@ describe('CardInteractionEffects effect tags', () => {
 
   test('protection tag audit covers all cards that should expose 反転保護 or 完全保護', () => {
     expect(getEffectTagLabels('PROTECTED_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
-    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護', '20ターン後に発動']);
+    expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('ANCHOR_WILL')).toEqual(['反転保護']);
     expect(getEffectTagLabels('ULTIMATE_REVERSE_DRAGON')).toEqual(['特殊石', '8ターン持続', '反転保護']);
     expect(getEffectTagLabels('BREEDING_WILL')).toEqual(['特殊石', '5ターン持続', '反転保護']);

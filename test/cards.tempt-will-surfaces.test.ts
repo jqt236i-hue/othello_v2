@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。';
-const EXPECTED_DETAIL_TEXT = '対象は相手の誘惑可能な石効果。\n特殊石、罠石、時限爆弾、生きる意志を対象に含む。\n弱い石・強い石・幽体石は特殊石として対象に含まれる。\n完全保護中の石と絶対保護石は対象効果を受けない。\n顕現石・盤面マーカー・配置時効果は対象外。\n残りターンなどの状態を維持したまま自分側になる。';
+const EXPECTED_DETAIL_TEXT = '対象は相手の誘惑可能な石効果。\n特殊石、罠石、時限爆弾、生きる意志を対象に含む。\n弱い石・強い石・幽体石は特殊石として対象に含まれる。\n完全保護中の石、顕現石、盤面マーカー、配置時効果は対象外。\n残りターンなどの状態を維持したまま自分側になる。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

@@ -29,7 +29,7 @@ describe('CardMeteor module', () => {
       'METEOR_WILL',
       'meteor_cell_destroy',
       expect.objectContaining({
-        removalPolicy: 'absolute_only',
+        removalPolicy: 'cell_removal',
         removalKind: 'meteor_hole'
       })
     );
@@ -64,7 +64,7 @@ describe('CardMeteor module', () => {
       'METEOR_WILL',
       'meteor_cell_destroy',
       expect.objectContaining({
-        removalPolicy: 'absolute_only',
+        removalPolicy: 'cell_removal',
         removalKind: 'meteor_hole'
       })
     );

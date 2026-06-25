@@ -526,6 +526,107 @@ describe('match worker leaderboard helpers', () => {
     });
   });
 
+  test('公開プロフィールは自己ベスト未更新でも更新し、古い送信では消さない', () => {
+    const helpers = createHelpers();
+    let store = helpers.createEmptyStore();
+
+    const first = helpers.applySubmit(store, {
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      avatarStoneType: 'LIGHTNING',
+      bio: '初回プロフィール',
+      score: 9000,
+      scoreVersion: 5,
+      turnCount: 24,
+      mode: 'cpu',
+      cpuLevel: 9
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    store = first.store;
+
+    const profileOnly = helpers.applySubmit(store, {
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      avatarStoneType: 'GHOST',
+      bio: '更新後プロフィール',
+      score: 8000,
+      scoreVersion: 99,
+      turnCount: 80,
+      mode: 'cpu',
+      cpuLevel: 9
+    });
+    expect(profileOnly.ok).toBe(true);
+    if (!profileOnly.ok) return;
+    expect(profileOnly.payload.updated).toBe(false);
+    store = profileOnly.store;
+
+    let entries = helpers.listEntries(store, 10, 'cpu', 9);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      bestScore: 9000,
+      scoreVersion: 5,
+      turnCount: 24,
+      avatarStoneType: 'GHOST',
+      bio: '更新後プロフィール'
+    });
+
+    const legacyClient = helpers.applySubmit(store, {
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      score: 7000,
+      mode: 'cpu',
+      cpuLevel: 9
+    });
+    expect(legacyClient.ok).toBe(true);
+    if (!legacyClient.ok) return;
+
+    entries = helpers.listEntries(legacyClient.store, 10, 'cpu', 9);
+    expect(entries[0]).toMatchObject({
+      bestScore: 9000,
+      avatarStoneType: 'GHOST',
+      bio: '更新後プロフィール'
+    });
+  });
+
+  test('公開プロフィール更新は別ランキング種別の既存記録にも同期する', () => {
+    const helpers = createHelpers();
+    let store = helpers.createEmptyStore();
+
+    const timeAttack = helpers.applySubmit(store, {
+      category: 'timeAttack',
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      avatarStoneType: 'GHOST',
+      bio: '速攻',
+      elapsedMs: 180000,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(timeAttack.ok).toBe(true);
+    if (!timeAttack.ok) return;
+    store = timeAttack.store;
+
+    const score = helpers.applySubmit(store, {
+      playerId: 'player_alpha_0001',
+      playerName: 'アルファ',
+      avatarStoneType: 'LIGHTNING',
+      bio: 'スコアも狙う',
+      score: 9000,
+      mode: 'cpu',
+      cpuLevel: 9
+    });
+    expect(score.ok).toBe(true);
+    if (!score.ok) return;
+
+    const timeEntries = helpers.listEntries(score.store, 10, 'cpu', 6, 'timeAttack');
+    expect(timeEntries[0]).toMatchObject({
+      bestTimeMs: 180000,
+      avatarStoneType: 'LIGHTNING',
+      bio: 'スコアも狙う'
+    });
+  });
+
   test('Lv9とLv6はCPUレベル別ランキングで混在しない', () => {
     const helpers = createHelpers();
     let store = helpers.createEmptyStore();

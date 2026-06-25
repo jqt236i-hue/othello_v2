@@ -141,7 +141,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
     ]));
   });
 
-  test('use card: 罠・幽体・復活石は解除し、守る石・盤面マーカー・絶対保護は解除しない', () => {
+  test('use card: 罠・幽体・復活石は解除し、守る石・盤面マーカー・顕現石は解除しない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
     cardState.charge.black = LOSS_WILL_COST;
@@ -162,7 +162,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
       { id: 15, row: 1, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 15, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } },
       { id: 16, row: 1, col: 5, kind: 'specialStone', owner: 'white', createdSeq: 16, data: { type: 'GHOST', remainingOwnerTurns: 5 } },
       { id: 17, row: 1, col: 6, kind: 'specialStone', owner: 'black', createdSeq: 17, data: { type: 'REGEN', regenRemaining: 1 } },
-      { id: 18, row: 1, col: 7, kind: 'specialStone', owner: 'white', createdSeq: 18, data: { type: 'ABSOLUTE_PROTECTED' } }
+      { id: 18, row: 1, col: 7, kind: 'manifestStone', owner: 'white', createdSeq: 18, data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true } }
     ];
     cardState._nextMarkerId = 19;
     cardState._nextCreatedSeq = 19;
@@ -177,7 +177,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'REGEN')).toBe(false);
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'GUARD')).toBe(true);
     expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'BLOCKADE')).toBe(true);
-    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'ABSOLUTE_PROTECTED')).toBe(true);
+    expect((cardState.markers || []).some((m) => m && m.kind === 'manifestStone' && m.data && m.data.type === 'THEORY_INCARNATION')).toBe(true);
   });
 
   test('LOSS_WILL keeps removing traps and bombs but not living will or guard', () => {

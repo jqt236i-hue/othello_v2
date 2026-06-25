@@ -717,18 +717,6 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
 
         if (ev.type === 'STATUS_APPLIED') {
             if (!isGenericSpecialStoneBubbleType(special)) continue;
-            if (special === 'ABSOLUTE_PROTECTED' && String(reason || '').toLowerCase() === 'strong_will_promoted') {
-                emitBubble({
-                    special,
-                    scenario: 'absolute_protected_promoted',
-                    player,
-                    row,
-                    col,
-                    reason: reason || 'strong_will_promoted',
-                    cause
-                });
-                continue;
-            }
             continue;
         }
 

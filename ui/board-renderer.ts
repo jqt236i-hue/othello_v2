@@ -270,7 +270,7 @@ function _resolveSpecialTimerClassForBoard(type: any) {
         : (typeUpper === 'ULTIMATE_DESTROY_GOD' ? 'udg-timer'
             : (typeUpper === 'BREEDING' ? 'breeding-timer'
                 : (typeUpper === 'WORK' ? 'work-timer'
-                    : ((typeUpper === 'TIME_STOP' || typeUpper === 'PERMA_PROTECTED') ? 'countdown-timer' : 'special-timer'))));
+                    : (typeUpper === 'TIME_STOP' ? 'countdown-timer' : 'special-timer'))));
 }
 
 function _isManifestStoneTypeForBoardRenderer(rawType: any) {
@@ -1212,21 +1212,10 @@ function _resolveDestroyEvadeDisplayForBoard(special: any) {
         : null;
 }
 
-function _resolveStrongWillDisplayTurnsForBoard(data: any) {
-    if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
-    const rawThreshold = Number(data && data.strongWillPromotionThreshold);
-    const threshold = Number.isFinite(rawThreshold) ? Math.max(1, Math.trunc(rawThreshold)) : 10;
-    const rawProgress = Number(data && data.strongWillPromotionOwnerTurnStarts);
-    const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.trunc(rawProgress)) : 0;
-    return Math.max(0, threshold - progress);
-}
-
 function _resolveSpecialDisplayTurnsForBoard(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') return undefined;
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
-    const strongWillRemaining = _resolveStrongWillDisplayTurnsForBoard(data);
-    if (strongWillRemaining !== undefined) return strongWillRemaining;
     return undefined;
 }
 

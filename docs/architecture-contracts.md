@@ -360,6 +360,10 @@ Client projection, optimistic local state, and playback events are never canonic
 
 `ui/network/snapshot.ts` rejects snapshots when server authority metadata is missing or when `projectedForSeat` conflicts with the local seat.
 
+### 8.1.1 Rated rating authority
+
+Rated match results are finalized by the match Durable Object as server authority. Glicko-2 calculation must use the pure shared implementation in `shared/glicko2-rating.ts`; persistent rating state, idempotency, active-rated-match locks, rated match history, and rated leaderboard ordering belong to the `card_ranked_v1` rating pool Durable Object. Client-submitted rating values, win/loss counts, match history, or rating deltas are never trusted. Score leaderboards, public profiles, and rated leaderboards must keep separate storage records and may only be combined at the UI presentation layer. Recent rated-match history endpoints are read-only projections of saved `RatingMatchRecord` data.
+
 ### 8.3 Versioning and publish identity
 
 Network publishes depend on explicit version / identity contracts such as `stateVersion` and `operationId`.
@@ -469,7 +473,9 @@ This rule exists because runtime-only divergence in effect lookup previously cau
 ### 10.1 Flip-protection context
 
 `shared/special-stone-registry.ts` is the source of truth for special-stone flip protection.
-Card resolution paths that need `protectedStones`, `permaProtectedStones`, `absoluteProtectedStones`, `bombs`, or `blockedCells` must build them through `game/logic/cards-internal/protection-context.ts` or a wrapper that delegates to it.
+Card resolution paths that need `protectedStones`, `permaProtectedStones`, `inviolableStones`, `bombs`, or `blockedCells` must build them through `game/logic/cards-internal/protection-context.ts` or a wrapper that delegates to it.
+
+`inviolableStones` is for manifest stones and other explicit不可侵 boundary objects only; `強い意志` remains `PERMA_PROTECTED` and must not promote into another marker type.
 
 Do not keep local hand-written lists of flip-protected special-stone types in card effect resolution, target availability, regen fallback, turn blockers, CPU helpers, worker logic, or UI presentation.
 

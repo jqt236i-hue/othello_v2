@@ -145,7 +145,6 @@ const SoundEngine = {
         treasure_gain: '宝箱・天の恵みで獲得したタイミング.mp3',
         observer_will_capture: 'observer_will_capture.mp3',
         loss_will_reset: '意志の喪失で特殊石が解除されたタイミング.mp3',
-        strong_will_promoted: '強い意志の石が進化したタイミング.mp3',
         living_will_selected: '生きる意志を付与するタイミング.mp3',
         living_will_restored: '生きる意志で復活するタイミング.mp3',
         extend_life: '特殊石の持続ターンが延長されたタイミング.mp3',

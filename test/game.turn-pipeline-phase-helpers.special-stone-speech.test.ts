@@ -38,7 +38,6 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
       'inherit_selected',
       'inherit_applied',
       'escape_exploded',
-      'absolute_protected_promoted',
       'special_destroy_triggered',
       'living_will_restored'
     ]));
@@ -75,7 +74,6 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PROLIFERATION', 'proliferation_triggered')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('WILL_HUNTER_KING', 'special_destroy_triggered')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ABSOLUTE_PROTECTED', 'absolute_protected_promoted')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toHaveLength(5);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toEqual([
       'まだ終わらない、ここから立て直す。',
@@ -86,10 +84,10 @@ describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
     ]);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PERMA_PROTECTED', 'place')).toEqual([
       '反転ごときでは崩れない。',
-      'じっくり強くなる、焦るな。',
-      '守り抜いて、次の段へ行く。',
-      '時間は私の味方だ。',
-      '揺るがず待つ、それが強さだ。'
+      'ここからずっと踏みとどまる。',
+      '守り抜く、ただそれだけでいい。',
+      '時間をかけても姿は変わらない。',
+      '揺るがないまま盤に残る。'
     ]);
     expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('AFTERIMAGE_WILL', 'place')).toEqual([
       '本物はひとつ、でも見切れるかな。',

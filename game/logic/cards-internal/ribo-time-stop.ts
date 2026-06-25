@@ -16,7 +16,7 @@ type RiboTimeStopDeps = {
     BoardOpsModule?: any;
     resolveCardBoardConfig: (gameState: any) => any;
     isGuardProtectedCell: (cardState: any, row: any, col: any) => boolean;
-    isAbsoluteProtectedCell?: (cardState: any, row: any, col: any) => boolean;
+    isInviolableCell?: (cardState: any, row: any, col: any) => boolean;
     getCellValueForCard: (gameState: any, row: any, col: any) => any;
     isFrozenCellForCard: (cardState: any, row: any, col: any) => boolean;
     findSpecialMarkerAt: (cardState: any, row: any, col: any, type?: any, owner?: any) => any;
@@ -79,7 +79,7 @@ function getRiboExpansionDescriptors(gameState: any, deps: RiboTimeStopDeps) {
 
 function isSelfStoneDestroyableForCost(cardState: any, row: number, col: number, deps: RiboTimeStopDeps, options: any = {}) {
     if (deps.isGuardProtectedCell(cardState, row, col)) return false;
-    if (typeof deps.isAbsoluteProtectedCell === 'function' && deps.isAbsoluteProtectedCell(cardState, row, col)) return false;
+    if (typeof deps.isInviolableCell === 'function' && deps.isInviolableCell(cardState, row, col)) return false;
     if (options.excludeFrozen === true && deps.isFrozenCellForCard(cardState, row, col)) return false;
     if (options.excludeDestroyEvade === true) {
         const markers = typeof deps.getMarkers === 'function'

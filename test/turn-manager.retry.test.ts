@@ -1120,7 +1120,7 @@ describe('turn-manager scheduling', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 2, 'black', {
       type: 'THEORY_INCARNATION',
       remainingOwnerTurns: 1,
-      absoluteProtected: true,
+      inviolable: true,
       sourceType: 'THEORY_INCARNATION',
       sessionId: 'theory_black_1'
     });

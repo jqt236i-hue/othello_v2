@@ -169,7 +169,6 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     expect(getTagLabels()).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);
-    expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('0コスト化');
     expect(document.getElementById('card-detail-desc').textContent).toContain('観測の代償');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('18手');
@@ -199,7 +198,6 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続']);
-    expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('4T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大5回特殊石を出現できる');
@@ -225,7 +223,6 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     expect(getTagLabels()).toEqual(['自特殊石存在時使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
-    expect(getTagLabels()).not.toContain('絶対保護');
     expect(document.getElementById('card-detail-desc').textContent).toContain('すべての特殊石を絶対執行');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('場合のみ使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
@@ -304,7 +301,7 @@ describe('card detail effect tags', () => {
     expect(eraseTermButton).toBeTruthy();
     eraseTermButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('そのマスの石を取り除きます');
-    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('絶対保護だけは防げます');
+    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('完全保護や反転保護では防げません');
 
     const boardExecutorDef = {
       id: 'board_executor_01',
@@ -727,7 +724,7 @@ describe('card detail effect tags', () => {
     const termDescription = bodyEl.textContent;
 
     expect(termDescription).toBe(tagDescription);
-    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n絶対保護石か顕現石があるマス以外には確定で穴マスにできる。');
+    expect(termDescription).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。');
   });
 
   test('detail button panel removes duplicated quick lines when shared resolver returns extra detail', () => {

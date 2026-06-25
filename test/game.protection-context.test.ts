@@ -116,7 +116,7 @@ describe('card protection context', () => {
       getBombMarkers: (state: any) => state.markers.filter((entry: any) => entry.data && entry.data.category === 'bomb')
     });
 
-    expect(context.absoluteProtectedStones).toEqual(expect.arrayContaining([
+    expect(context.inviolableStones).toEqual(expect.arrayContaining([
       { row: 6, col: 6, owner: Shared.BLACK }
     ]));
     expect(context.permaProtectedStones).toEqual(expect.arrayContaining([

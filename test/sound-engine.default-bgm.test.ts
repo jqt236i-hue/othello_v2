@@ -878,14 +878,6 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
-  test('strong will promotion sound key resolves to the shipped filename', () => {
-    const soundEngine = loadSoundEngine();
-
-    expect(soundEngine.getEffectFilePath('strong_will_promoted')).toBe(
-      'assets/audio/sound-effect/強い意志の石が進化したタイミング.mp3'
-    );
-  });
-
   test('seed sprout sound key resolves to the shipped filename', () => {
     const soundEngine = loadSoundEngine();
 

@@ -27,7 +27,7 @@ function addManifestStone(cardState, gameState, row, col, owner = 'black', type 
     row,
     col,
     owner,
-    data: { type, remainingOwnerTurns: 4, absoluteProtected: true }
+    data: { type, remainingOwnerTurns: 4, inviolable: true }
   });
 }
 
@@ -79,7 +79,7 @@ describe('inviolable special cards in hand effects', () => {
     CardLogic.addMarker(cardState, 'manifestStone', 2, 3, 'black', {
       type: 'OBSERVER_WILL',
       remainingOwnerTurns: 4,
-      absoluteProtected: true
+      inviolable: true
     });
     CardLogic.ensureCardCopyState(cardState);
     cardState.decks.white = ['observer_will_01'];
@@ -192,7 +192,7 @@ describe('inviolable special cards in hand effects', () => {
       row: 2,
       col: 2,
       owner: 'white',
-      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true }
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, inviolable: true }
     });
 
     expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([]);
@@ -256,11 +256,11 @@ describe('inviolable special cards in hand effects', () => {
     expect(CardLogic.getDestroyTargets(cardState, gameState)).not.toContainEqual({ row: 3, col: 2 });
     expect(BoardOps.destroyAt(cardState, gameState, 3, 2, 'UNIT_TEST', 'manifest_destroy')).toEqual(expect.objectContaining({
       destroyed: false,
-      reason: 'absolute_protected'
+      reason: 'inviolable'
     }));
     expect(BoardOps.changeAt(cardState, gameState, 3, 2, 'black', 'UNIT_TEST', 'manifest_change')).toEqual(expect.objectContaining({
       changed: false,
-      reason: 'absolute_protected'
+      reason: 'inviolable'
     }));
     expect(gameState.board[3][2]).toBe(-1);
     expect(CardLogic.isManifestStoneAt(cardState, 3, 2)).toBe(true);

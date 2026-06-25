@@ -50,6 +50,7 @@ interface InitDomElements {
   modeReversiBtn: HTMLElement | null;
   modeOthelloBtn: HTMLElement | null;
   modeNetworkBtn: HTMLElement | null;
+  ratedMatchOpenBtn: HTMLElement | null;
   controlPanel: HTMLElement | null;
   deckBuilderOpenBtn: HTMLElement | null;
   deckBuilderControlSummary: HTMLElement | null;
@@ -89,6 +90,22 @@ interface InitDomElements {
   networkTimerStatus: HTMLElement | null;
   networkOverlay: HTMLElement | null;
   networkCloseBtn: HTMLElement | null;
+  ratedMatchOverlay: HTMLElement | null;
+  ratedMatchCloseBtn: HTMLElement | null;
+  ratedMatchQueueBtn: HTMLElement | null;
+  ratedMatchCancelBtn: HTMLElement | null;
+  ratedMatchStatus: HTMLElement | null;
+  ratedMatchQueueTimer: HTMLElement | null;
+  ratedMatchDeckOpenBtn: HTMLElement | null;
+  ratedMatchDeckNameText: HTMLElement | null;
+  ratedMatchDeckSummary: HTMLElement | null;
+  ratedMatchLeaderboardBtn: HTMLElement | null;
+  ratedMatchHistoryBtn: HTMLElement | null;
+  ratedMatchHistoryPanel: HTMLElement | null;
+  ratedMatchHistoryStatus: HTMLElement | null;
+  ratedMatchHistoryList: HTMLElement | null;
+  ratedMatchRatingText: HTMLElement | null;
+  ratedMatchIdentityText: HTMLElement | null;
   leaderboardOpenBtn: HTMLElement | null;
   leaderboardOverlay: HTMLElement | null;
   leaderboardPanel: HTMLElement | null;
@@ -133,6 +150,7 @@ function getInitDomElements(): InitDomElements {
     handImage: $('handImage') as HTMLImageElement | null, autoToggleBtn: $('autoToggleBtn'), smartBlack: $('smartBlack') as HTMLSelectElement | null,
     smartWhite: $('smartWhite') as HTMLSelectElement | null, debugModeBtn: $('debugModeBtn'), humanVsHumanBtn: $('humanVsHumanBtn'),
     visualTestBtn: $('visualTestBtn'), modeCpuBtn: $('modeCpuBtn'), modeReversiBtn: $('modeReversiBtn') || $('modeOthelloBtn'), modeOthelloBtn: $('modeOthelloBtn'), modeNetworkBtn: $('modeNetworkBtn'),
+    ratedMatchOpenBtn: $('ratedMatchOpenBtn'),
     controlPanel: $('control-panel'), deckBuilderOpenBtn: $('deckBuilderOpenBtn'),
     deckBuilderControlSummary: $('deckBuilderControlSummary'), deckBuilderOverlay: $('deckBuilderOverlay'),
     deckBuilderCloseBtn: $('deckBuilderCloseBtn'), deckBuilderHeaderSummary: $('deckBuilderHeaderSummary'),
@@ -153,7 +171,18 @@ function getInitDomElements(): InitDomElements {
     networkJoinBtn: $('networkJoinBtn'), networkLeaveBtn: $('networkLeaveBtn'),
     networkStatusText: $('networkStatusText'), networkDeckInfo: $('networkDeckInfo'),
     networkTimerStatus: $('networkTimerStatus'), networkOverlay: $('networkOverlay'),
-    networkCloseBtn: $('networkCloseBtn'), leaderboardOpenBtn: $('leaderboardOpenBtn'),
+    networkCloseBtn: $('networkCloseBtn'), ratedMatchOverlay: $('ratedMatchOverlay'),
+    ratedMatchCloseBtn: $('ratedMatchCloseBtn'), ratedMatchQueueBtn: $('ratedMatchQueueBtn'),
+    ratedMatchCancelBtn: $('ratedMatchCancelBtn'), ratedMatchStatus: $('ratedMatchStatus'),
+    ratedMatchQueueTimer: $('ratedMatchQueueTimer'),
+    ratedMatchDeckOpenBtn: $('ratedMatchDeckOpenBtn'),
+    ratedMatchDeckNameText: $('ratedMatchDeckNameText'),
+    ratedMatchDeckSummary: $('ratedMatchDeckSummary'), ratedMatchRatingText: $('ratedMatchRatingText'),
+    ratedMatchLeaderboardBtn: $('ratedMatchLeaderboardBtn'), ratedMatchHistoryBtn: $('ratedMatchHistoryBtn'),
+    ratedMatchHistoryPanel: $('ratedMatchHistoryPanel'), ratedMatchHistoryStatus: $('ratedMatchHistoryStatus'),
+    ratedMatchHistoryList: $('ratedMatchHistoryList'),
+    ratedMatchIdentityText: $('ratedMatchIdentityText'),
+    leaderboardOpenBtn: $('leaderboardOpenBtn'),
     leaderboardOverlay: $('leaderboardOverlay'), leaderboardPanel: $('leaderboardModal'),
     leaderboardCloseBtn: $('leaderboardCloseBtn'), leaderboardNameInput: $('leaderboardNameInput') as HTMLInputElement | null,
     leaderboardReloadBtn: $('leaderboardReloadBtn'), leaderboardStatusText: $('leaderboardStatusText'),

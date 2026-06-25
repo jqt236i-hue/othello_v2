@@ -288,6 +288,10 @@ function createMatchWorkerPublishController(config?: any): any {
     }
     await cfg.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
+    if (typeof cfg.finalizeRatedMatchAfterAcceptedPublish === 'function') {
+      await cfg.finalizeRatedMatchAfterAcceptedPublish(room);
+    }
+
     const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
       || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
     const presentationFrameEntry = typeof cfg.appendPresentationFrameForAcceptedPublish === 'function'

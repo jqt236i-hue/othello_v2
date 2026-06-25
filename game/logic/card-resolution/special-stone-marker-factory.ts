@@ -5,7 +5,6 @@
 
 const FALLBACK_TURNS = Object.freeze({
     PROTECTED_NEXT_STONE: 1,
-    PERMA_PROTECT_NEXT_STONE: 20,
     GHOST_WILL: 8,
     SACRIFICE_WILL: 5,
     BREEDING_WILL: 5,
@@ -60,12 +59,7 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
             };
         case 'PERMA_PROTECT_NEXT_STONE':
             return {
-                type: readRegistryMarkerType(type, deps) || 'PERMA_PROTECTED',
-                strongWillPromotionOwnerTurnStarts: 0,
-                strongWillPromotionThreshold: readPositiveInt(
-                    constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
-                    FALLBACK_TURNS.PERMA_PROTECT_NEXT_STONE
-                )
+                type: readRegistryMarkerType(type, deps) || 'PERMA_PROTECTED'
             };
         case 'GHOST_WILL':
             return {

@@ -5,6 +5,12 @@ interface SidePanelAnchorOptions {
   root?: Window | null;
 }
 
+const SIDE_PANEL_TRANSITION_MS = 180;
+
+type SidePanelElement = HTMLElement & {
+  __sidePanelCloseTimer?: ReturnType<typeof setTimeout> | null;
+};
+
 function getFiniteRectSize(rect: DOMRect, key: 'width' | 'height', fallback: number): number {
   const value = Number(rect && rect[key]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -30,6 +36,13 @@ function clamp(value: number, min: number, max: number): number {
 
 function syncSidePanelAnchorPosition(panelEl: HTMLElement, toggleEl: HTMLElement, root: Window | null): void {
   if (!root) return;
+  if (!panelEl.classList.contains('side-panel-collapsed')) {
+    panelEl.style.left = '';
+    panelEl.style.top = '';
+    panelEl.style.right = '';
+    panelEl.style.bottom = '';
+    return;
+  }
   if (typeof panelEl.getBoundingClientRect !== 'function' || typeof toggleEl.getBoundingClientRect !== 'function') return;
 
   const toggleRect = toggleEl.getBoundingClientRect();
@@ -84,11 +97,10 @@ function syncSidePanelAnchorPosition(panelEl: HTMLElement, toggleEl: HTMLElement
   panelEl.style.bottom = 'auto';
 }
 
-function applySidePanelCollapsedState(panelEl: HTMLElement, toggleEl: HTMLElement, collapsed: boolean, root: Window | null): void {
+function syncSidePanelToggleState(toggleEl: HTMLElement, collapsed: boolean): void {
   const isCollapsed = collapsed === true;
   const sidePanelToggleLabel = toggleEl.querySelector('.left-action-label') as HTMLElement | null;
 
-  panelEl.classList.toggle('side-panel-collapsed', isCollapsed);
   toggleEl.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
   if (sidePanelToggleLabel) sidePanelToggleLabel.textContent = '設定';
   else toggleEl.textContent = '設定';
@@ -97,7 +109,58 @@ function applySidePanelCollapsedState(panelEl: HTMLElement, toggleEl: HTMLElemen
   const label = isCollapsed ? '設定を開く' : '設定を閉じる';
   toggleEl.setAttribute('aria-label', label);
   toggleEl.title = label;
-  syncSidePanelAnchorPosition(panelEl, toggleEl, root);
+}
+
+function applySidePanelCollapsedState(panelEl: HTMLElement, toggleEl: HTMLElement, collapsed: boolean, root: Window | null): void {
+  const sidePanel = panelEl as SidePanelElement;
+  const isCollapsed = collapsed === true;
+  const wasCollapsed = panelEl.classList.contains('side-panel-collapsed');
+  const wasOpen = panelEl.classList.contains('is-open') && !wasCollapsed;
+
+  if (sidePanel.__sidePanelCloseTimer) {
+    clearTimeout(sidePanel.__sidePanelCloseTimer);
+    sidePanel.__sidePanelCloseTimer = null;
+  }
+
+  syncSidePanelToggleState(toggleEl, isCollapsed);
+
+  if (!isCollapsed) {
+    panelEl.style.visibility = '';
+    panelEl.classList.remove('side-panel-collapsed', 'is-closing');
+    panelEl.setAttribute('aria-hidden', 'false');
+    syncSidePanelAnchorPosition(panelEl, toggleEl, root);
+    const scheduleOpen = root && typeof root.requestAnimationFrame === 'function'
+      ? root.requestAnimationFrame.bind(root)
+      : (callback: FrameRequestCallback) => { callback(0); return 0; };
+    scheduleOpen(() => {
+      panelEl.classList.add('is-open');
+    });
+    return;
+  }
+
+  panelEl.classList.remove('is-open');
+  panelEl.setAttribute('aria-hidden', 'true');
+  if (wasCollapsed || !wasOpen) {
+    panelEl.classList.add('side-panel-collapsed');
+    panelEl.classList.remove('is-closing');
+    panelEl.style.visibility = 'hidden';
+    syncSidePanelAnchorPosition(panelEl, toggleEl, root);
+    return;
+  }
+
+  panelEl.classList.add('is-closing');
+  sidePanel.__sidePanelCloseTimer = setTimeout(() => {
+    panelEl.classList.add('side-panel-collapsed');
+    panelEl.classList.remove('is-closing');
+    panelEl.style.visibility = 'hidden';
+    sidePanel.__sidePanelCloseTimer = null;
+    syncSidePanelAnchorPosition(panelEl, toggleEl, root);
+  }, SIDE_PANEL_TRANSITION_MS);
+}
+
+function closeSidePanel(panelEl: HTMLElement, toggleEl: HTMLElement, root: Window | null): void {
+  if (panelEl.classList.contains('side-panel-collapsed')) return;
+  applySidePanelCollapsedState(panelEl, toggleEl, true, root);
 }
 
 function setupSidePanelAnchor(options: SidePanelAnchorOptions): void {
@@ -112,11 +175,20 @@ function setupSidePanelAnchor(options: SidePanelAnchorOptions): void {
   if (toggleEl.dataset.sidePanelToggleBound === '1') return;
 
   toggleEl.addEventListener('click', () => {
-    applySidePanelCollapsedState(panelEl, toggleEl, !panelEl.classList.contains('side-panel-collapsed'), root);
+    applySidePanelCollapsedState(panelEl, toggleEl, panelEl.classList.contains('is-open'), root);
+  });
+
+  panelEl.addEventListener('click', (event: MouseEvent) => {
+    if (event.target !== panelEl) return;
+    closeSidePanel(panelEl, toggleEl, root);
   });
 
   if (root && toggleEl.dataset.sidePanelViewportBound !== '1') {
     root.addEventListener('resize', sync);
+    root.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      closeSidePanel(panelEl, toggleEl, root);
+    });
     toggleEl.dataset.sidePanelViewportBound = '1';
   }
   toggleEl.dataset.sidePanelToggleBound = '1';

@@ -106,12 +106,12 @@
 - 狙撃の意志 (`SNIPER_WILL`), 雷撃の意志 (`LIGHTNING_WILL`), 破壊龍 (`DESTROY_DRAGON_WILL` / `DESTROY_DRAGON`), 究極破壊神 (`ULTIMATE_DESTROY_GOD`), 時限爆弾 (`TIME_BOMB`), 十字爆弾 (`CROSS_BOMB`), X爆弾 (`X_BOMB`), 悪食の意志 (`GLUTTONOUS_WILL`), 意志狩りの王 (`WILL_HUNTER_KING`), ロボット掃除機 (`ROBOT_VACUUM_WILL` / `ROBOT_VACUUM`), 隕石 (`METEOR_WILL`), 盤面縮小 (`BOARD_SHRINK_WILL` / `BOARD_SHRINK_GOD`), 破壊の意志 (`DESTROY_ONE_STONE`)。
 
 **仕様上の説明**
-- `01-rulebook.md` では破壊は石を `EMPTY` にする処理で、チャージ加算対象外。完全保護は通常破壊を防ぐが、隕石/盤面縮小の穴化は完全保護や既存マス状態を上書きし、絶対保護石があるマスだけ残す。
+- `01-rulebook.md` では破壊は石を `EMPTY` にする処理で、チャージ加算対象外。完全保護は通常破壊を防ぐが、隕石/盤面縮小の穴化は完全保護や既存マス状態を上書きし、不可侵の顕現石があるマスだけ残す。
 - 爆弾は範囲破壊、狙撃/雷撃/破壊龍/究極破壊神は turn start または配置直後のアンカー効果、悪食/意志狩り/ロボ掃除機は移動と破壊が絡む。
 
 **実装上の処理順**
 - `BoardOps.destroyAt()` は block 外から呼ばれると `runDestroyBlock()` で自動的に囲み、block 内では `_destroyAtCore()` を直接呼ぶ。単発破壊でも destroy block 用 `effectBlockId` が付く。
-- `_destroyAtCore()` は順に、座標/空き/絶対保護/Guard/Freeze/Ghost、破壊回避、増殖、Regen、Living Will、通常破壊を判定する。
+- `_destroyAtCore()` は順に、座標/空き/不可侵/Guard/Freeze/Ghost、破壊回避、増殖、Regen、Living Will、通常破壊を判定する。
 - 通常破壊では `stoneId` を null にし、セルを `EMPTY` にし、markers を削除してから `DESTROY` を emit する。
 - `runDestroyBlock()` / `runEffectBlock()` 外側終了時に救済神 queue を flush し、`SPAWN` revive を emit する。`runCellRemovalBlock()` は破壊+穴化の互換 API として、穴化後に flush する。
 - 同一効果ブロック内の破壊順は呼び出し側のループ順。爆弾・究極破壊神・時限爆弾などは各 module が `runDestroyBlock()` 内で複数 `destroyAt()` を呼ぶ。
@@ -204,7 +204,7 @@
 - `01-rulebook.md` では、移動系は空きマスへの移動、敵石マスへの進入前破壊、位置交換、移動元穴化など複数パターンがある。石移動は通常は布石獲得を伴わず、カードにより移動後反転するものとしないものがある。
 
 **実装上の処理順**
-- `BoardOps.moveAt()` は from/to を検証し、移動元の凍結/絶対保護、移動先の占有/封鎖を確認する。`swapOccupiedCells()` は交換対象 2 セルの凍結/絶対保護も確認する。
+- `BoardOps.moveAt()` は from/to を検証し、移動元の凍結/不可侵、移動先の占有/封鎖を確認する。`swapOccupiedCells()` は交換対象 2 セルの凍結/不可侵も確認する。
 - 着地点の `SEED` は `_invalidateSeedMarkerAt()` で消える。
 - `stoneId` は from から to へ移される。
 - `setCellValue()` で from を `EMPTY`、to を元 owner にし、`_moveStoneAttachedMarkers()` で stone attached marker と linked positions を移す。
@@ -286,7 +286,7 @@
 **実装上の処理順**
 - `BoardOps.changeAt()` が owner 変更の共通経路。
 - 同色の場合は通常 no-op だが `forcePresentation` で `CHANGE` を出せる。
-- 凍結/絶対保護/Ghost のブロックを判定する。Ghost が反転を防ぐ場合も `CHANGE` event に `meta.blockedByGhost` を付ける。
+- 凍結/不可侵/Ghost のブロックを判定する。Ghost が反転を防ぐ場合も `CHANGE` event に `meta.blockedByGhost` を付ける。
 - 通常 flip reason では `_consumeProliferationMarkerOnNormalFlip()` や `_consumeAfterimageMarkerOnNormalChange()` が特殊状態を消す。
 - owner 変更後、`totalFlipCountByPlayer` と corner capture count を更新し、`CHANGE` event を emit する。
 
@@ -349,7 +349,7 @@
 
 **実装上の処理順**
 - `BoardOps.applyHoleAt()` はセルを `EMPTY` にし、既存 marker を削除し、`METEOR_HOLE` marker を追加して `STATUS_APPLIED` を emit する。
-- `game/logic/cards/meteor.ts` は対象セルを `BoardOps.applyCellRemovalAt(..., 'METEOR_WILL', 'meteor_cell_destroy')` へ渡し、絶対保護石がなければ石・封鎖・凍結・種など既存状態ごと穴化する。
+- `game/logic/cards/meteor.ts` は対象セルを `BoardOps.applyCellRemovalAt(..., 'METEOR_WILL', 'meteor_cell_destroy')` へ渡し、不可侵の顕現石がなければ石・封鎖・凍結・種など既存状態ごと穴化する。
 - `game/logic/cards/shrink.ts` も `BOARD_SHRINK_*` cause と `visualVariant: BOARD_FRAME` 付きで同じセル消滅経路を使う。
 - `game/logic/cards/teleport.ts` の `CELL_TELEPORT_WILL` は移動後の空いた元マスに対して `BoardOps.applyCellRemovalAt(..., 'CELL_TELEPORT_WILL', 'cell_teleport_source_cell_remove')` を呼び、同じ穴化 metadata を使う。
 - occupied cell removal は `DESTROY` と `STATUS_APPLIED(METEOR_HOLE)` を emit し、`LIVING_WILL` / `REGEN` / 破壊回避は発火しない。
@@ -450,7 +450,7 @@
 
 **効果音の扱い**
 - 持続切れの `STATUS_REMOVED` は `special_reverted`。`stone_destroy` は追加しない。
-- 強い意志の昇格は `strong_will_promoted`。
+- 強い意志は進化しないため、専用の昇格効果音は使わない。
 
 **Event Sequence 例: 凍結の意志**
 1. `STATUS_APPLIED`

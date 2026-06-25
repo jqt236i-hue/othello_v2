@@ -249,7 +249,7 @@ function isTemptTargetableMarker(marker: any): boolean {
     if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isTemptTargetableStoneEffect === 'function') {
         return SpecialStoneRegistry.isTemptTargetableStoneEffect(type, marker.data) === true;
     }
-    if (type === 'GUARD' || type === 'ABSOLUTE_PROTECTED') return false;
+    if (type === 'GUARD') return false;
     const ruleClass = getMarkerRuleClass(marker);
     return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb' || type === 'LIVING_WILL';
 }
@@ -260,7 +260,6 @@ function isCaptureTargetableMarker(marker: any): boolean {
     if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isCaptureTargetableStoneEffect === 'function') {
         return SpecialStoneRegistry.isCaptureTargetableStoneEffect(type, marker.data) === true;
     }
-    if (type === 'ABSOLUTE_PROTECTED') return false;
     return getMarkerRuleClass(marker) === 'true_special_stone';
 }
 
@@ -271,7 +270,7 @@ function blocksTemptAt(cardState: CardState, row: number, col: number): boolean 
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.blocksTempt === 'function') {
             return SpecialStoneRegistry.blocksTempt(type, marker.data) === true;
         }
-        return type === 'GUARD' || type === 'ABSOLUTE_PROTECTED';
+        return type === 'GUARD';
     });
 }
 
@@ -279,7 +278,7 @@ function canLossWillRevertMarker(marker: any): boolean {
     if (!marker || typeof marker !== 'object') return false;
     if (isManifestStoneMarker(marker)) return false;
     const type = getNormalizedMarkerType(marker);
-    if (!type || type === 'ABSOLUTE_PROTECTED') return false;
+    if (!type) return false;
     if (SpecialStoneRegistry && typeof SpecialStoneRegistry.canLossWillRevert === 'function') {
         return SpecialStoneRegistry.canLossWillRevert(type, marker.data || null) === true;
     }
@@ -332,28 +331,23 @@ function isActiveManifestMarker(marker: any): boolean {
     return true;
 }
 
-function isAbsoluteProtectedMarker(marker: any): boolean {
+function isInviolableMarker(marker: any): boolean {
     if (isActiveManifestMarker(marker)) {
         const type = getNormalizedMarkerType(marker);
-        if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isAbsoluteProtectedManifestStoneType === 'function') {
-            return ManifestStoneRegistry.isAbsoluteProtectedManifestStoneType(type) === true;
+        if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isInviolableManifestStoneType === 'function') {
+            return ManifestStoneRegistry.isInviolableManifestStoneType(type) === true;
         }
         return isManifestStoneType(type);
     }
-    if (!isActiveSpecialMarker(marker)) return false;
-    const type = getNormalizedMarkerType(marker);
-    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isAbsoluteProtectedSpecialType === 'function') {
-        return SpecialStoneRegistry.isAbsoluteProtectedSpecialType(type) === true;
-    }
-    return type === 'ABSOLUTE_PROTECTED' || isManifestStoneType(type);
+    return false;
 }
 
-function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number): boolean {
+function isInviolableCell(cardState: CardState, row: number, col: number): boolean {
     return getMarkers(cardState).some((marker: any) => (
         marker &&
         marker.row === row &&
         marker.col === col &&
-        isAbsoluteProtectedMarker(marker)
+        isInviolableMarker(marker)
     ));
 }
 
@@ -1001,8 +995,8 @@ export = {
     isDurationAffectableMarker,
     isActiveSpecialMarker,
     isActiveManifestMarker,
-    isAbsoluteProtectedMarker,
-    isAbsoluteProtectedCell,
+    isInviolableMarker,
+    isInviolableCell,
     isCardPlayLockedForPlayer,
     isPlacementLockedForPlayer,
     getSpecialMarkers,

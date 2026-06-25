@@ -92,7 +92,7 @@ describe('METEOR_WILL（因果抹消）', () => {
     expect(meteorTargets.some((t) => t.row === 5 && t.col === -1)).toBe(false);
   });
 
-  test('絶対保護マスは因果抹消の候補に出ず、直接指定してもpendingは残る', () => {
+  test('不可侵の顕現石マスは因果抹消の候補に出ず、直接指定してもpendingは残る', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -100,12 +100,12 @@ describe('METEOR_WILL（因果抹消）', () => {
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
     gameState.board[3][3] = Core.BLACK;
     cardState.markers.push({
-      id: 'abs_1',
-      kind: 'specialStone',
+      id: 'manifest_1',
+      kind: 'manifestStone',
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'ABSOLUTE_PROTECTED', remainingOwnerTurns: 5 }
+      data: { type: 'THEORY_INCARNATION', remainingOwnerTurns: 4, inviolable: true }
     });
     cardState.pendingEffectByPlayer.black = {
       type: 'METEOR_WILL',

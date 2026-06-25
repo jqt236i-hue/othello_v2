@@ -7,6 +7,7 @@ describe('deck builder card detail button', () => {
     jest.resetModules();
     dom = new JSDOM(`<!doctype html><html><body>
       <button id="openBtn" type="button"></button>
+      <button id="ratedMatchOpenBtn" type="button"></button>
       <div id="summary"></div>
       <div id="overlay"></div>
       <button id="closeBtn" type="button"></button>
@@ -108,6 +109,20 @@ describe('deck builder card detail button', () => {
     expect(body.querySelector('.deck-builder-card-detail-popup')).toBeFalsy();
   });
 
+  test('レート戦から開いたデッキ構築は閉じるとレート戦へ戻る', () => {
+    const controller = createController();
+    const ratedOpenHandler = jest.fn();
+    document.getElementById('ratedMatchOpenBtn')?.addEventListener('click', ratedOpenHandler);
+
+    (window as any).__returnToRatedMatchAfterDeckBuilder = true;
+    controller.open();
+
+    document.getElementById('closeBtn')?.click();
+
+    expect(ratedOpenHandler).toHaveBeenCalledTimes(1);
+    expect((window as any).__returnToRatedMatchAfterDeckBuilder).toBe(false);
+  });
+
   test('候補カードの詳細ポップアップは専門用語と固有名詞を共通ハイライトで表示する', () => {
     const DeckSpecHelpers = require('../shared/deck-spec.js');
     const body = document.getElementById('body') as HTMLElement;
@@ -136,7 +151,7 @@ describe('deck builder card detail button', () => {
     expect(termLabels).toEqual(expect.arrayContaining([
       '盤界の執行者',
       '特殊石',
-      '絶対保護',
+      '不可侵',
       '顕現石'
     ]));
     expect(highlightedTerms.find((el) => el.textContent === '盤界の執行者')).toEqual(expect.objectContaining({
@@ -148,7 +163,7 @@ describe('deck builder card detail button', () => {
     expect(highlightedTerms.find((el) => el.textContent === '特殊石')).toEqual(expect.objectContaining({
       dataset: expect.objectContaining({ termCategory: 'stone' })
     }));
-    expect(highlightedTerms.find((el) => el.textContent === '絶対保護')).toEqual(expect.objectContaining({
+    expect(highlightedTerms.find((el) => el.textContent === '不可侵')).toEqual(expect.objectContaining({
       dataset: expect.objectContaining({ termCategory: 'protection' })
     }));
   });

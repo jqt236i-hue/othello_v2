@@ -44,7 +44,7 @@
         hasGuard: boolean;
         hasGhost: boolean;
         hasMobility: boolean;
-        hasAbsoluteProtection: boolean;
+        inviolable: boolean;
         hasFlipProtection: boolean;
         hasDestroyProtection: boolean;
         hasFlipEvade: boolean;
@@ -111,11 +111,11 @@
         return fallback !== undefined ? String(fallback) : 'special-timer';
     }
 
-    function isAbsoluteProtectedSpecialType(rawType: unknown): boolean {
-        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { isAbsoluteProtectedSpecialType?: (v: unknown) => boolean }).isAbsoluteProtectedSpecialType === 'function') {
-            return (SpecialStoneRegistry as { isAbsoluteProtectedSpecialType: (v: unknown) => boolean }).isAbsoluteProtectedSpecialType(rawType);
+    function isInviolableSpecialType(rawType: unknown): boolean {
+        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { isInviolableSpecialType?: (v: unknown) => boolean }).isInviolableSpecialType === 'function') {
+            return (SpecialStoneRegistry as { isInviolableSpecialType: (v: unknown) => boolean }).isInviolableSpecialType(rawType);
         }
-        return normalizeSpecialStoneType(rawType) === 'ABSOLUTE_PROTECTED';
+        return false;
     }
 
     function getEvasionStatusModule(): unknown {
@@ -251,7 +251,7 @@
         const hasGuard = source.hasGuard === true;
         const hasGhost = !!(info && info.ghost);
         const hasMobility = !!(info && info.mobility);
-        const hasAbsoluteProtection = !hasGhost && isAbsoluteProtectedSpecialType(type);
+        const inviolable = !hasGhost && isInviolableSpecialType(type);
         const hasFlipProtection = !hasGhost && (hasGuard || !!(info && info.flipProtected));
         const hasDestroyProtection = !hasGhost && (hasGuard || !!(info && info.destroyProtected));
         const hasFlipEvade = !ultimateExpired && flipEvadeRemaining !== null && flipEvadeRemaining > 0;
@@ -268,7 +268,7 @@
             hasGuard,
             hasGhost,
             hasMobility,
-            hasAbsoluteProtection,
+            inviolable,
             hasFlipProtection,
             hasDestroyProtection,
             hasFlipEvade,
@@ -322,7 +322,6 @@
         else if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
         if (destroyEvadeTotal !== null) tags.push(`破壊回避 残り${destroyEvadeTotal}回`);
         else if (snapshots.some((snapshot) => snapshot.hasDestroyEvade)) tags.push('破壊回避');
-        if (primarySnapshot && !primarySnapshot.isManifestStone && !primarySnapshot.hasGhost && primarySnapshot.hasAbsoluteProtection) tags.push('絶対保護');
         if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) tags.push('反転保護');
 
         return Array.from(new Set(tags));

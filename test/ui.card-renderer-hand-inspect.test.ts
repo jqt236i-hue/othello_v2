@@ -798,7 +798,7 @@ describe('card renderer hand inspection', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, absoluteProtected: true }
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 4, inviolable: true }
     }];
 
     window.renderCardUI();
