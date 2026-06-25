@@ -2038,15 +2038,36 @@
         linear-gradient(180deg, rgba(245, 186, 86, 0.82), transparent 18%, transparent 82%, rgba(245, 186, 86, 0.82)) top right / calc(1px * var(--layout-stage-scale)) 100% no-repeat;
 }
 
-@media (max-width: 840px), (max-height: 850px) {
+@media (max-width: 840px) {
     #leaderboardOverlay.is-open {
         padding-top: 4px;
     }
 
     #leaderboardModal {
-        --layout-stage-scale: min(0.735, calc((100vw - 20px) / 800));
+        --layout-stage-scale: 0.68;
         width: min(800px, calc(100vw - 20px));
         height: min(837px, calc(100dvh - 8px));
+    }
+}
+
+@media (min-width: 841px) and (max-height: 850px) {
+    #leaderboardOverlay.is-open {
+        padding-top: 4px;
+    }
+
+    #leaderboardModal {
+        --layout-stage-scale: 0.662;
+        width: 720px;
+        height: 753px;
+        max-height: calc(100dvh - 8px);
+    }
+}
+
+@media (min-width: 841px) and (max-height: 760px) {
+    #leaderboardModal {
+        --layout-stage-scale: 0.647;
+        width: 704px;
+        height: 737px;
     }
 }
 
@@ -3046,4 +3067,32 @@
     content: none !important;
     display: none !important;
     background: none !important;
+}
+
+@media (min-width: 841px) and (max-height: 850px) {
+    #leaderboardTable {
+        height: calc(448px * var(--layout-stage-scale));
+        min-height: calc(448px * var(--layout-stage-scale));
+    }
+
+    #leaderboardListViewport {
+        flex-basis: calc(412.65px * var(--layout-stage-scale));
+        height: calc(412.65px * var(--layout-stage-scale));
+        max-height: calc(412.65px * var(--layout-stage-scale));
+        padding-bottom: calc(30px * var(--layout-stage-scale));
+        scroll-padding-bottom: calc(30px * var(--layout-stage-scale));
+    }
+}
+
+@media (min-width: 841px) and (max-height: 760px) {
+    #leaderboardTable {
+        height: calc(438px * var(--layout-stage-scale));
+        min-height: calc(438px * var(--layout-stage-scale));
+    }
+
+    #leaderboardListViewport {
+        flex-basis: calc(402.65px * var(--layout-stage-scale));
+        height: calc(402.65px * var(--layout-stage-scale));
+        max-height: calc(402.65px * var(--layout-stage-scale));
+    }
 }

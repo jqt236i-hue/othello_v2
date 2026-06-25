@@ -1944,8 +1944,29 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled .player-area-top {
-        top: calc(-15px * var(--layout-stage-scale));
-        margin-bottom: calc(24px * var(--layout-stage-scale));
+        top: calc(-2px * var(--layout-stage-scale));
+        margin-bottom: calc(16px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #board-frame {
+        --board-frame-inner-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale) * 0.965);
+        --board-frame-padding: calc(24px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #board {
+        --board-max-size: var(--board-frame-inner-size);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled :is(#hand-black, #deck-black) {
+        transform: translateY(calc(-2px * var(--layout-stage-scale)));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-black::before {
+        --card-area-panel-height: calc(340px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #charge-white {
+        top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 2px);
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
