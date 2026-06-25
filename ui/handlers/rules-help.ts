@@ -325,10 +325,49 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   let selectedCardId: string | null = null;
   let tagPopoverEl: HTMLElement | null = null;
   let guideSlideIndex = 0;
+  let guideSlideRequestId = 0;
+  const guideSlideLoadState = new Map<string, string>();
+  const guideSlideLoadCallbacks = new Map<string, Array<() => void>>();
 
-  function updateGuideSlide(): void {
+  function preloadGuideSlideImage(src: string, onReady: () => void): void {
+    const normalizedSrc = _safeText(src, '');
+    if (!normalizedSrc) {
+      onReady();
+      return;
+    }
+    const loadState = guideSlideLoadState.get(normalizedSrc);
+    if (loadState === 'loaded' || loadState === 'failed') {
+      onReady();
+      return;
+    }
+    const callbacks = guideSlideLoadCallbacks.get(normalizedSrc) || [];
+    callbacks.push(onReady);
+    guideSlideLoadCallbacks.set(normalizedSrc, callbacks);
+    if (loadState === 'loading') return;
+    const ImageCtor = typeof Image === 'function' ? Image : null;
+    if (!ImageCtor) {
+      guideSlideLoadState.set(normalizedSrc, 'loaded');
+      const pending = guideSlideLoadCallbacks.get(normalizedSrc) || [];
+      guideSlideLoadCallbacks.delete(normalizedSrc);
+      pending.forEach((callback) => callback());
+      return;
+    }
+    guideSlideLoadState.set(normalizedSrc, 'loading');
+    const preloadImg = new ImageCtor();
+    const flushCallbacks = (state: string) => {
+      guideSlideLoadState.set(normalizedSrc, state);
+      const pending = guideSlideLoadCallbacks.get(normalizedSrc) || [];
+      guideSlideLoadCallbacks.delete(normalizedSrc);
+      pending.forEach((callback) => callback());
+    };
+    preloadImg.onload = () => flushCallbacks('loaded');
+    preloadImg.onerror = () => flushCallbacks('failed');
+    preloadImg.src = normalizedSrc;
+  }
+
+  function applyGuideSlide(index: number): void {
     const totalSlides = RULES_HELP_GUIDE_SLIDE_COUNT;
-    guideSlideIndex = Math.max(0, Math.min(totalSlides - 1, guideSlideIndex));
+    guideSlideIndex = Math.max(0, Math.min(totalSlides - 1, index));
     const currentSlide = guideSlideIndex + 1;
     if (guideSlideImg) {
       guideSlideImg.setAttribute('src', formatRulesHelpGuideSlideSrc(guideSlideIndex));
@@ -347,9 +386,23 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     }
   }
 
+  function updateGuideSlide(): void {
+    applyGuideSlide(guideSlideIndex);
+  }
+
   function setGuideSlide(index: number): void {
-    guideSlideIndex = index;
-    updateGuideSlide();
+    const totalSlides = RULES_HELP_GUIDE_SLIDE_COUNT;
+    const targetIndex = Math.max(0, Math.min(totalSlides - 1, Math.floor(index)));
+    const targetSrc = formatRulesHelpGuideSlideSrc(targetIndex);
+    if (!guideSlideImg || guideSlideImg.getAttribute('src') === targetSrc) {
+      applyGuideSlide(targetIndex);
+      return;
+    }
+    const requestId = ++guideSlideRequestId;
+    preloadGuideSlideImage(targetSrc, () => {
+      if (requestId !== guideSlideRequestId) return;
+      applyGuideSlide(targetIndex);
+    });
   }
 
   function isGuideTabActive(): boolean {

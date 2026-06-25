@@ -666,6 +666,67 @@ describe('rules help panel', () => {
     expect(status.textContent).toBe('1 / 8');
     expect(prev.disabled).toBe(true);
   });
+  test('rules guide keeps the current slide visible until the next image is loaded', () => {
+    const createdImages: Array<any> = [];
+    const originalImage = (global as any).Image;
+    class DeferredImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = '';
+
+      constructor() {
+        createdImages.push(this);
+      }
+    }
+    (global as any).Image = DeferredImage as any;
+    try {
+      setDom(`<!doctype html><html><body>
+        <button id="rulesHelpBtn" aria-expanded="false"></button>
+        <div id="rules-help-panel" aria-hidden="true">
+          <button id="rules-help-close-btn" type="button"></button>
+          <button data-help-tab="catalog" class="rules-help-tab" type="button"></button>
+          <button data-help-tab="guide" class="rules-help-tab is-active" type="button"></button>
+          <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page">
+            <div id="rules-help-card-list"></div>
+            <div id="rules-help-card-name"></div>
+            <div id="rules-help-card-desc"></div>
+          </section>
+          <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page is-active">
+            <button id="rules-help-guide-prev" type="button">前へ</button>
+            <span id="rules-help-guide-page-status"></span>
+            <button id="rules-help-guide-next" type="button">次へ</button>
+            <img id="rules-help-guide-slide-img" src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png" alt="カードリバーシ説明スライド 1 / 8">
+          </section>
+        </div>
+      </body></html>`);
+
+      const mod = require('../ui/handlers/rules-help.js');
+      const btn = document.getElementById('rulesHelpBtn');
+      const panel = document.getElementById('rules-help-panel');
+      mod.setupRulesHelp(btn, panel);
+
+      const img = document.getElementById('rules-help-guide-slide-img') as HTMLImageElement;
+      const next = document.getElementById('rules-help-guide-next') as HTMLButtonElement;
+      const status = document.getElementById('rules-help-guide-page-status') as HTMLElement;
+
+      next.click();
+      expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-01.png');
+      expect(status.textContent).toBe('1 / 8');
+
+      const pendingSlide = createdImages.find((one) => one.src.endsWith('card-reversi-player-guide-slide-02.png'));
+      expect(pendingSlide).toBeTruthy();
+      pendingSlide.onload();
+
+      expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-02.png');
+      expect(status.textContent).toBe('2 / 8');
+    } finally {
+      if (originalImage) {
+        (global as any).Image = originalImage;
+      } else {
+        try { delete (global as any).Image; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+      }
+    }
+  });
 
   test('index html and css include rules help backdrop layer', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
