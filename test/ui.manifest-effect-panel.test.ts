@@ -71,7 +71,7 @@ describe('manifest effect panel', () => {
     expect(hasDeclaration('#manifest-effect-tags .card-detail-effect-tag-button', /pointer-events:\s*auto;/)).toBe(true);
   });
 
-  test('shows an empty panel when no manifestation stone or used card exists', () => {
+  test('shows placeholder copy when no manifestation stone or used card exists', () => {
     const panel = renderOnce();
 
     expect(panel).not.toBeNull();
@@ -80,7 +80,7 @@ describe('manifest effect panel', () => {
     expect(panel?.getAttribute('data-manifest-effect-type')).toBeNull();
     expect(panel?.getAttribute('data-manifest-effect-source')).toBeNull();
     expect(document.getElementById('manifest-effect-title')?.textContent).toBe('');
-    expect(document.getElementById('manifest-effect-lines')?.textContent).toBe('');
+    expect(document.getElementById('manifest-effect-lines')?.textContent).toBe('最後に使ったカードがここに表示されます');
   });
 
   test('renders last used card when no manifestation stone is active', () => {

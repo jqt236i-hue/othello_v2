@@ -642,6 +642,10 @@ function _showEmptyManifestEffectPanelForDiff() {
     refs.panel.setAttribute('aria-hidden', 'false');
     refs.title.textContent = '';
     refs.lines.textContent = '';
+    const emptyLine = document.createElement('div');
+    emptyLine.className = 'manifest-effect-line';
+    _renderManifestEffectLineText(emptyLine, '最後に使ったカードがここに表示されます');
+    refs.lines.appendChild(emptyLine);
     _renderManifestEffectTagsForDiff(refs.tags, []);
     refs.panel.removeAttribute('data-manifest-effect-type');
     refs.panel.removeAttribute('data-manifest-effect-source');
