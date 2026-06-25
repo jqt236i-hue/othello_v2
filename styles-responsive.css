@@ -1943,9 +1943,9 @@ html.sim-aspect-5-4 #effect-live-panel {
         padding-bottom: calc(96px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled .player-area-top {
-        top: calc(-2px * var(--layout-stage-scale));
-        margin-bottom: calc(16px * var(--layout-stage-scale));
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) .player-area-top {
+        top: calc(22px * var(--layout-stage-scale));
+        margin-bottom: calc(10px * var(--layout-stage-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #board-frame {
@@ -1969,20 +1969,30 @@ html.sim-aspect-5-4 #effect-live-panel {
         top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 2px);
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
         top: auto;
         bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
-        grid-auto-rows: calc(44px * var(--layout-stage-scale));
+        grid-template-columns: repeat(6, minmax(0, calc(50px * var(--layout-stage-scale))));
+        grid-auto-rows: calc(38px * var(--layout-stage-scale));
         align-items: stretch;
-        width: min(calc(350px * var(--layout-stage-scale)), 26vw);
-        max-height: calc(104px * var(--layout-stage-scale));
-        padding: calc(5px * var(--layout-stage-scale));
-        gap: calc(5px * var(--layout-stage-scale));
+        width: min(calc(318px * var(--layout-stage-scale)), 24vw);
+        max-height: calc(88px * var(--layout-stage-scale));
+        padding: calc(4px * var(--layout-stage-scale));
+        gap: calc(4px * var(--layout-stage-scale));
         overflow-x: hidden;
         overflow-y: hidden;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #quick-controls-bar {
+        grid-template-columns: auto auto minmax(calc(116px * var(--layout-stage-scale)), calc(150px * var(--layout-stage-scale)));
+        grid-template-areas:
+            "reset bgmtoggle bgmtrack"
+            "autobtn mute volume";
+        gap: calc(5px * var(--layout-stage-scale));
+        max-width: min(calc(360px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #left-info-stack {
@@ -1998,28 +2008,28 @@ html.sim-aspect-5-4 #effect-live-panel {
         height: calc(248px * var(--layout-stage-scale) * var(--layout-character-image-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons.left-rail-collapsed {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons.left-rail-collapsed {
         display: grid;
         grid-template-columns: 1fr;
-        width: calc(58px * var(--layout-stage-scale));
-        max-height: calc(58px * var(--layout-stage-scale));
+        width: calc(48px * var(--layout-stage-scale));
+        max-height: calc(48px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-btn {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-btn {
         min-width: 0;
-        min-height: calc(44px * var(--layout-stage-scale));
-        padding: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
-        grid-template-rows: calc(16px * var(--layout-stage-scale)) auto;
-        gap: calc(3px * var(--layout-stage-scale));
+        min-height: calc(38px * var(--layout-stage-scale));
+        padding: calc(3px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+        grid-template-rows: calc(14px * var(--layout-stage-scale)) auto;
+        gap: calc(2px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-icon {
-        width: calc(16px * var(--layout-stage-scale));
-        height: calc(16px * var(--layout-stage-scale));
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-icon {
+        width: calc(14px * var(--layout-stage-scale));
+        height: calc(14px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-label {
-        font-size: calc(9px * var(--layout-stage-scale));
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-label {
+        font-size: clamp(7px, calc(8px * var(--layout-stage-scale)), 9px);
         line-height: 1.15;
     }
 

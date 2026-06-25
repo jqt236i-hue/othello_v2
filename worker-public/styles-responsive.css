@@ -1943,9 +1943,9 @@ html.sim-aspect-5-4 #effect-live-panel {
         padding-bottom: calc(96px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled .player-area-top {
-        top: calc(-2px * var(--layout-stage-scale));
-        margin-bottom: calc(16px * var(--layout-stage-scale));
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) .player-area-top {
+        top: calc(22px * var(--layout-stage-scale));
+        margin-bottom: calc(10px * var(--layout-stage-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #board-frame {
@@ -1969,20 +1969,30 @@ html.sim-aspect-5-4 #effect-live-panel {
         top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 2px);
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
         top: auto;
         bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
-        grid-auto-rows: calc(44px * var(--layout-stage-scale));
+        grid-template-columns: repeat(6, minmax(0, calc(50px * var(--layout-stage-scale))));
+        grid-auto-rows: calc(38px * var(--layout-stage-scale));
         align-items: stretch;
-        width: min(calc(350px * var(--layout-stage-scale)), 26vw);
-        max-height: calc(104px * var(--layout-stage-scale));
-        padding: calc(5px * var(--layout-stage-scale));
-        gap: calc(5px * var(--layout-stage-scale));
+        width: min(calc(318px * var(--layout-stage-scale)), 24vw);
+        max-height: calc(88px * var(--layout-stage-scale));
+        padding: calc(4px * var(--layout-stage-scale));
+        gap: calc(4px * var(--layout-stage-scale));
         overflow-x: hidden;
         overflow-y: hidden;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #quick-controls-bar {
+        grid-template-columns: auto auto minmax(calc(116px * var(--layout-stage-scale)), calc(150px * var(--layout-stage-scale)));
+        grid-template-areas:
+            "reset bgmtoggle bgmtrack"
+            "autobtn mute volume";
+        gap: calc(5px * var(--layout-stage-scale));
+        max-width: min(calc(360px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #left-info-stack {
@@ -1998,28 +2008,28 @@ html.sim-aspect-5-4 #effect-live-panel {
         height: calc(248px * var(--layout-stage-scale) * var(--layout-character-image-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons.left-rail-collapsed {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons.left-rail-collapsed {
         display: grid;
         grid-template-columns: 1fr;
-        width: calc(58px * var(--layout-stage-scale));
-        max-height: calc(58px * var(--layout-stage-scale));
+        width: calc(48px * var(--layout-stage-scale));
+        max-height: calc(48px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-btn {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-btn {
         min-width: 0;
-        min-height: calc(44px * var(--layout-stage-scale));
-        padding: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
-        grid-template-rows: calc(16px * var(--layout-stage-scale)) auto;
-        gap: calc(3px * var(--layout-stage-scale));
+        min-height: calc(38px * var(--layout-stage-scale));
+        padding: calc(3px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+        grid-template-rows: calc(14px * var(--layout-stage-scale)) auto;
+        gap: calc(2px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-icon {
-        width: calc(16px * var(--layout-stage-scale));
-        height: calc(16px * var(--layout-stage-scale));
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-icon {
+        width: calc(14px * var(--layout-stage-scale));
+        height: calc(14px * var(--layout-stage-scale));
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-label {
-        font-size: calc(9px * var(--layout-stage-scale));
+    html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-label {
+        font-size: clamp(7px, calc(8px * var(--layout-stage-scale)), 9px);
         line-height: 1.15;
     }
 
@@ -2100,6 +2110,354 @@ html.sim-aspect-5-4 #effect-live-panel {
         min-height: calc(82px * var(--layout-stage-scale));
         max-height: calc(82px * var(--layout-stage-scale));
         transform: none;
+    }
+}
+
+@media (orientation: landscape) and (min-width: 56.3125em) and (max-width: 87.5em) and (max-height: 56.25em) {
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons {
+        grid-template-columns: repeat(6, minmax(0, calc(58px * var(--layout-stage-scale))));
+        grid-auto-rows: calc(44px * var(--layout-stage-scale));
+        width: min(calc(410px * var(--layout-stage-scale)), 36vw);
+        max-height: calc(104px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons.left-rail-collapsed {
+        grid-template-columns: 1fr;
+        width: calc(58px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-btn {
+        min-width: 0;
+        min-height: calc(44px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-label {
+        font-size: clamp(8px, calc(9px * var(--layout-stage-scale)), 10px);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leftActionButtons .left-action-icon {
+        width: clamp(13px, calc(16px * var(--layout-stage-scale)), 16px);
+        height: clamp(13px, calc(16px * var(--layout-stage-scale)), 16px);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #cpu-level-label {
+        min-height: 34px;
+        padding: 5px 12px;
+        font-size: clamp(12px, calc(14px * var(--layout-stage-scale)), 15px);
+        line-height: 1.15;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #quick-controls-bar {
+        gap: max(calc(7px * var(--layout-stage-scale)), 6px);
+        max-width: min(calc(460px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        padding: max(calc(9px * var(--layout-stage-scale)), 8px) max(calc(12px * var(--layout-stage-scale)), 10px);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .quick-control-btn,
+    html.layout-profile-tablet-4x3.layout-stage-enabled #resetBtn.quick-control-btn,
+    html.layout-profile-tablet-4x3.layout-stage-enabled #quickBgmToggleBtn.quick-control-btn,
+    html.layout-profile-tablet-4x3.layout-stage-enabled #autoToggleBtn.quick-control-btn,
+    html.layout-profile-tablet-4x3.layout-stage-enabled #muteBtn.quick-control-btn {
+        min-height: 34px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #quickBgmTrackButton.quick-bgm-track-button {
+        min-height: 34px;
+        font-size: 11px;
+        line-height: 1.15;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .quick-bgm-track-option {
+        min-height: 30px;
+        font-size: 11px;
+        line-height: 1.15;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled input[type=range].compact-slider.quick-volume-slider {
+        height: 10px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled input[type=range].compact-slider.quick-volume-slider::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled input[type=range].compact-slider.quick-volume-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#rules-help-panel.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#handSkinPanel.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#networkOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#ratedMatchOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#leaderboardOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#profileOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#gachaOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#deckBuilderOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar) {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#side-panel.is-open) #quick-controls-bar {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#side-panel.is-open) #leftActionButtons {
+        z-index: calc(var(--z-floating-control) + 700);
+        grid-template-columns: 1fr;
+        width: calc(58px * var(--layout-stage-scale));
+        max-height: calc(58px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#side-panel.is-open) #leftActionButtons .left-action-btn:not(#sidePanelToggleBtn) {
+        display: none;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #side-panel {
+        padding: max(calc(18px * var(--layout-stage-scale)), 16px);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #side-panel:not(.side-panel-collapsed) #control-panel,
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel {
+        width: min(calc(620px * var(--layout-stage-scale)), calc(100vw - 64px));
+        max-width: min(calc(620px * var(--layout-stage-scale)), calc(100vw - 64px));
+        max-height: calc(100dvh - 56px);
+        padding: max(calc(16px * var(--layout-stage-scale)), 14px);
+        gap: max(calc(10px * var(--layout-stage-scale)), 9px);
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-group {
+        min-height: 0;
+        padding: max(calc(8px * var(--layout-stage-scale)), 7px) max(calc(10px * var(--layout-stage-scale)), 9px);
+        column-gap: max(calc(8px * var(--layout-stage-scale)), 7px);
+        row-gap: max(calc(8px * var(--layout-stage-scale)), 7px);
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-label {
+        flex: 0 0 100%;
+        width: 100%;
+        font-size: 12px;
+        line-height: 1.15;
+        letter-spacing: 0;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .small-label {
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 12px;
+        line-height: 1.15;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel :is(.btn-small, select.compact-select, .compact-number-input) {
+        min-height: 34px;
+        padding: 6px 10px;
+        font-size: 13px;
+        line-height: 1.15;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #bgmPlayBtn, #bgmPauseBtn) {
+        min-width: 64px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-group.mode-shortcut-group {
+        align-items: stretch;
+        flex-wrap: nowrap;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-group.mode-shortcut-group .control-label {
+        flex: 0 0 auto;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #modeReversiBtn {
+        width: auto !important;
+        max-width: 100%;
+        align-self: stretch;
+        min-height: 36px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-group:has(#smartBlack) {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-group:has(#smartBlack) .control-label {
+        grid-column: 1 / -1;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .control-group:has(#smartBlack) .small-label {
+        justify-content: flex-start;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel :is(#smartBlack, #smartWhite) {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0;
+        flex: none;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #seTypeSelect {
+        flex: 1 1 calc(240px * var(--layout-stage-scale));
+        min-width: min(240px, 100%);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #bgmTrackSelect {
+        flex: 1 1 calc(320px * var(--layout-stage-scale));
+        min-width: min(320px, 100%);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .board-size-control-summary,
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #networkTimerStatus {
+        flex: 1 1 100%;
+        min-height: 30px;
+        text-align: left;
+        font-size: 12px;
+        line-height: 1.25;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .board-size-editor {
+        width: 100%;
+        justify-content: flex-start;
+        padding: max(calc(4px * var(--layout-stage-scale)), 4px) 0 0;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel .board-size-editor-note {
+        text-align: left;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel input[type=range].compact-slider {
+        height: 10px;
+        min-height: 10px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel input[type=range].compact-slider::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel input[type=range].compact-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #rules-help-panel {
+        --rules-help-page-min-height: min(58dvh, 430px);
+        width: min(900px, calc(100vw - 48px));
+        max-height: min(88dvh, 680px);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled :is(#rules-help-close-btn, #handSkinCloseBtn, #networkRoomSettingsCloseBtn, #leaderboardCloseBtn, #profileCloseBtn, #deckBuilderCloseBtn) {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        min-height: 34px;
+        font-size: 18px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .rules-help-tab {
+        min-height: 32px;
+        padding: 6px 10px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #rules-help-card-search,
+    html.layout-profile-tablet-4x3.layout-stage-enabled #rules-help-card-filter-clear {
+        min-height: 34px;
+        font-size: 13px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #rules-help-card-tag-filters {
+        max-height: 104px;
+        overflow-y: auto;
+        align-content: start;
+        padding-right: 4px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .rules-help-card-tag-filter {
+        min-height: 30px;
+        padding: 6px 12px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .rules-help-effect-term-button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 5px 8px;
+        vertical-align: middle;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #networkRoomSettingsPopup .compact-number-input {
+        min-height: 32px;
+        font-size: 14px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #networkRoomSettingsPopup input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .hand-animation-toggle {
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled .hand-animation-toggle input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        flex: 0 0 auto;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled :is(#appearancePresetSaveBtn, #appearancePresetCodeLoadBtn) {
+        min-width: 64px;
+        min-height: 34px;
+        padding: 6px 12px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #appearancePresetNameInput {
+        min-height: 34px;
+        font-size: 13px;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #networkAdvancedSettings > summary {
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #networkAdvancedSettings:not([open]) #networkServerInput {
+        display: none;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled :is(#profileIdentitySection, #deckBuilderModal) .btn-small,
+    html.layout-profile-tablet-4x3.layout-stage-enabled #leaderboardInfoBtn {
+        min-height: 32px;
+        padding: 6px 10px;
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #deckBuilderModal .deck-builder-preset-card > .deck-builder-actions-row .btn-small {
+        min-width: 46px;
     }
 }
 
