@@ -99,6 +99,66 @@ describe('smart cpu level shortcut', () => {
     dom.window.close();
   });
 
+  test('constrains the CPU level menu inside short viewports', () => {
+    const dom = new JSDOM(
+      '<!doctype html><html><body>' +
+      '<button id="cpu-level-label" type="button" aria-expanded="false"></button>' +
+      '<select id="smartBlack"></select>' +
+      '<select id="smartWhite"></select>' +
+      '</body></html>',
+      { url: 'http://localhost/' }
+    );
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.Event = dom.window.Event;
+    global.MouseEvent = dom.window.MouseEvent;
+    global.KeyboardEvent = dom.window.KeyboardEvent;
+    global.updateCpuCharacter = jest.fn();
+    global.CpuPolicy = { loadPolicyForLevel: jest.fn().mockResolvedValue({}) };
+    global.addLog = jest.fn();
+    global.mccfrPolicy = null;
+
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 375 });
+    Object.defineProperty(dom.window, 'innerHeight', { configurable: true, value: 325 });
+
+    const shortcutEl = document.getElementById('cpu-level-label') as HTMLButtonElement;
+    shortcutEl.getBoundingClientRect = () => ({
+      x: 184, y: 96, left: 184, top: 96, right: 362, bottom: 130, width: 178, height: 34,
+      toJSON() { return {}; }
+    });
+
+    const smartModule = require(path.join(__dirname, '..', 'ui', 'handlers', 'smart.js'));
+    smartModule.setupSmartSelects(
+      document.getElementById('smartBlack'),
+      document.getElementById('smartWhite')
+    );
+
+    shortcutEl.click();
+
+    const menu = document.getElementById('cpu-level-menu') as HTMLDivElement | null;
+    expect(menu).not.toBeNull();
+    expect(menu?.hidden).toBe(false);
+
+    const top = Number.parseFloat(menu?.style.top || '');
+    const maxHeight = Number.parseFloat(menu?.style.maxHeight || '');
+    expect(Number.isFinite(top)).toBe(true);
+    expect(Number.isFinite(maxHeight)).toBe(true);
+    expect(top + maxHeight).toBeLessThanOrEqual(317);
+    expect(menu?.style.overflowY).toBe('auto');
+
+    delete global.window;
+    delete global.document;
+    delete global.Event;
+    delete global.MouseEvent;
+    delete global.KeyboardEvent;
+    delete global.updateCpuCharacter;
+    delete global.CpuPolicy;
+    delete global.addLog;
+    delete global.mccfrPolicy;
+    dom.window.close();
+  });
+
   test('opening CPU opponent changes reset the local game so profile initial options apply', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +

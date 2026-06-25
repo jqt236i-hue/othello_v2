@@ -28,6 +28,8 @@ const localCpuProfileValues: Record<string, string> = { black: '1', white: '1' }
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
 const CPU_LEVEL_MENU_ID = 'cpu-level-menu';
 const CPU_LEVEL_MENU_OFFSET_PX = 8;
+const CPU_LEVEL_MENU_VIEWPORT_MARGIN_PX = 8;
+const CPU_LEVEL_MENU_MIN_HEIGHT_PX = 96;
 const CPU_LEVEL_OPTIONS: SmartOption[] = CpuOpponentProfiles.getCpuOpponentMenuOptions()
   .map((opt: any) => ({ v: String(opt.value), t: String(opt.label) }));
 
@@ -106,14 +108,29 @@ function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement)
   const rect = shortcut.getBoundingClientRect();
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-  const top = Math.min(
-    Math.max(8, Math.round(rect.bottom + CPU_LEVEL_MENU_OFFSET_PX)),
-    Math.max(8, viewportHeight - 8)
+  const margin = CPU_LEVEL_MENU_VIEWPORT_MARGIN_PX;
+  const desiredTop = Math.round(rect.bottom + CPU_LEVEL_MENU_OFFSET_PX);
+  const belowHeight = viewportHeight - desiredTop - margin;
+  const aboveBottom = Math.round(rect.top - CPU_LEVEL_MENU_OFFSET_PX);
+  const aboveHeight = aboveBottom - margin;
+  const shouldOpenAbove = belowHeight < CPU_LEVEL_MENU_MIN_HEIGHT_PX && aboveHeight > belowHeight;
+  let top = Math.max(margin, Math.min(desiredTop, Math.max(margin, viewportHeight - margin)));
+  let availableHeight = belowHeight;
+  if (shouldOpenAbove) {
+    availableHeight = Math.max(CPU_LEVEL_MENU_MIN_HEIGHT_PX, aboveHeight);
+    top = Math.max(margin, aboveBottom - availableHeight);
+  }
+  const viewportBoundHeight = Math.max(48, viewportHeight - top - margin);
+  const maxHeight = Math.max(
+    48,
+    Math.min(Math.max(CPU_LEVEL_MENU_MIN_HEIGHT_PX, availableHeight), viewportBoundHeight)
   );
-  const right = Math.max(8, Math.round(viewportWidth - rect.right));
+  const right = Math.max(margin, Math.round(viewportWidth - rect.right));
   menu.style.top = `${top}px`;
   menu.style.right = `${right}px`;
   menu.style.left = 'auto';
+  menu.style.maxHeight = `${Math.round(maxHeight)}px`;
+  menu.style.overflowY = 'auto';
 }
 
 function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | null {

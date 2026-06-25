@@ -146,6 +146,8 @@
     top: 0;
     right: 0;
     min-width: calc(176px * var(--layout-stage-scale));
+    max-width: calc(100dvw - 16px);
+    max-height: calc(100dvh - 16px);
     display: flex;
     flex-direction: column;
     gap: calc(4px * var(--layout-stage-scale));
@@ -159,9 +161,12 @@
     box-shadow:
         0 calc(12px * var(--layout-stage-scale)) calc(28px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52),
         0 0 calc(18px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.08);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     backdrop-filter: blur(calc(8px * var(--layout-stage-scale))) saturate(1.06);
     -webkit-backdrop-filter: blur(calc(8px * var(--layout-stage-scale))) saturate(1.06);
-    z-index: 140;
+    z-index: calc(var(--z-floating-control) + 760);
 }
 
 #cpu-level-menu[hidden] {
