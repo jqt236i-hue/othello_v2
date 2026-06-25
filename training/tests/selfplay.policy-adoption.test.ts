@@ -9,6 +9,7 @@ const {
     buildSeedList,
     buildSeedBenchmarkJobPlan,
     evaluateEarlyFailure,
+    getPolicyAdoptionWorkerRetryLimit,
     runAdoptionCheck
 } = require('../scripts/benchmark-policy-adoption');
 import { POLICY_GATE_PAYLOAD_SCHEMA_VERSION } from '../scripts/policy-gate-result-utils.js';
@@ -359,6 +360,12 @@ describe('selfplay policy adoption check', () => {
             seedWorkers: 1,
             benchmarkJobsBySeed: [12]
         });
+    });
+
+    test('getPolicyAdoptionWorkerRetryLimit defaults to one retry', () => {
+        expect(getPolicyAdoptionWorkerRetryLimit({})).toBe(1);
+        expect(getPolicyAdoptionWorkerRetryLimit({ workerRetryLimit: 0 })).toBe(0);
+        expect(getPolicyAdoptionWorkerRetryLimit({ workerRetryLimit: 2.8 })).toBe(2);
     });
 
     test('evaluateEarlyFailure detects impossible remaining seed pass count', () => {

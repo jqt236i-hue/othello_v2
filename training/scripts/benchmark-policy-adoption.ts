@@ -1321,6 +1321,13 @@ function startSeedInChild(task) {
     };
 }
 
+function getPolicyAdoptionWorkerRetryLimit(options) {
+    if (Number.isFinite(options && options.workerRetryLimit)) {
+        return Math.max(0, Math.floor(Number(options.workerRetryLimit)));
+    }
+    return 1;
+}
+
 async function runSeedEvaluationsParallel(options) {
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const perSeed = new Array(seeds.length);
@@ -1363,11 +1370,27 @@ async function runSeedEvaluationsParallel(options) {
                 benchmarkJobs: jobPlan.benchmarkJobsBySeed[i] || 1,
                 startedAt
             };
-            const controller = startSeedInChild(task);
-            activeWorkers.set(i, controller);
+            const retryLimit = getPolicyAdoptionWorkerRetryLimit(options);
+            let attempt = 0;
             try {
-                perSeed[i] = await controller.promise;
-                activeWorkers.delete(i);
+                while (true) {
+                    const controller = startSeedInChild(task);
+                    activeWorkers.set(i, controller);
+                    try {
+                        perSeed[i] = await controller.promise;
+                        activeWorkers.delete(i);
+                        break;
+                    } catch (err) {
+                        activeWorkers.delete(i);
+                        if (isPolicyAdoptionAbortError(err)) throw err;
+                        if (attempt >= retryLimit) throw err;
+                        attempt += 1;
+                        const message = err && err.message ? err.message : String(err);
+                        console.warn(
+                            `[policy-adoption] seed retry ${attempt}/${retryLimit} seed=${currentSeed}: ${message}`
+                        );
+                    }
+                }
                 const seedDecisions = perSeed
                     .filter(Boolean)
                     .map((entry) => decisionSelector(entry, options));
@@ -1452,6 +1475,7 @@ export = {
     buildSeedList,
     buildSeedBenchmarkJobPlan,
     evaluateEarlyFailure,
+    getPolicyAdoptionWorkerRetryLimit,
     runSeedEvaluations,
     runAdoptionCheck,
     runAdoptionCheckParallel
