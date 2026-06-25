@@ -3,7 +3,7 @@ const CpuOpponentStartupOptions = require('../shared/cpu-opponent-startup-option
 const DeckCodecModule = require('../shared/deck-codec.js');
 const DeckSpecHelpers = require('../shared/deck-spec.js');
 
-const EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE = 'D1C1:ghost_01.perma_01.trap_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.clone_01.hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.crystal_stone*2.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.stone_salvation_god_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.meteor_god_01';
+const EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE = 'D1C1:ghost_01.perma_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.clone_01.hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.crystal_stone.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.stone_salvation_god_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.meteor_god_01.chaos_summon_01*2';
 const EXPECTED_LV8_ENDING_ASH_DECK_CODE = 'D1C1:swap_01*2.position_swap_01*2.perma_01*3.strong_wind_01.super_buoyancy_01.buoyancy_01.super_gravity_01.super_attraction_01.gravity_01.tempt_01.regen_01.destroy_01*3.udr_01.will_hunter_king_01.observer_will_01.guard_01*2.stone_salvation_god_01.board_expand_01*2.board_shrink_01.meteor_01.support_troops_01.meteor_god_01';
 
 describe('cpu opponent profiles', () => {
