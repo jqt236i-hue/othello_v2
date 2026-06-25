@@ -2300,6 +2300,7 @@
 - `CONDEMN_WILL`（断罪の意志）は「相手の高コスト札を割る」ではなく、相手の角保持・再奪還・安定維持に効く危険札を優先して破壊する
 - `EXTEND_LIFE_WILL` / `EXTEND_LIFE_GOD` / `CORROSION_WILL` の対象選択は、残りターン付き特殊石の種類・残存ターン・配置価値を加味して決める
 - `TIME_BOMB` / `STRONG_WIND_WILL` / `POSITION_SWAP_WILL` の対象選択は、爆発範囲・移動先・入替先の座席価値（角/辺/数字/特殊石）を加味して決める
+- `SEED_WILL`（種まきの意志）の対象選択は、合法な空き角がある場合、その角を強く優先する
 - `Lv6` の pending 対象選択は、production 既定では対象モデルを使わず既存の対象評価を使う。対象モデル経路は互換・研究用に限定し、採用判定や既定 profile には含めない
 - ブラウザの `Lv6` 用 `ONNX` runtime は `CPU_LV6_SHARED_PROFILE.browser.onnxRuntimeGuard` の平均/p95/max レイテンシ閾値と操作別予算を監視し、production 既定では通常置き手 `chooseMove` の推論が超過した場合にその判断結果を採用せず既存の `policy_table` / 共有方針経路へ即時縮退する。カード使用判断と pending 対象選択は通常の共有方針経路を使う
 - CPUは `GOLD_STONE` / `RAINBOW_STONE` / `SILVER_STONE` / `CRYSTAL_STONE` を、カードコスト込みの得失が必ずプラスになる局面でのみ使用する

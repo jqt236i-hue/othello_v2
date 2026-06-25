@@ -552,7 +552,7 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             return score;
         case 'SEED_WILL':
             if (!empty && onBoard) return -2400;
-            if (corner) score -= 1600;
+            if (corner) score += 12000;
             else if (edge) score += 380;
             else score += 180;
             if (cornerHint) {

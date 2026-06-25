@@ -3450,6 +3450,36 @@ describe('cpu decision refactor helpers', () => {
     expect(action.trapTarget).toEqual({ row: 2, col: 2 });
   });
 
+  test('cpuSelectSeedWillWithPolicy prefers an empty corner target over an edge target', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState.pendingEffectByPlayer.white = { type: 'SEED_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [{ row: 0, col: 3 }, { row: 0, col: 0 }],
+      applySeedWill: jest.fn(() => ({ applied: true }))
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectSeedWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.seedTarget).toEqual({ row: 0, col: 0 });
+  });
+
   test('cpuSelectDestroyWithPolicy can rerank ONNX target with value model', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
