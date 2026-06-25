@@ -912,6 +912,11 @@
     position: relative;
 }
 
+.rated-match-rating {
+    padding-top: 14px;
+    padding-bottom: 22px;
+}
+
 .rated-match-player {
     padding-left: 25px;
 }
@@ -949,6 +954,10 @@
     text-shadow:
         0 2px 0 rgba(42, 21, 4, 0.80),
         0 0 10px rgba(255, 213, 121, 0.16);
+}
+
+.rated-match-rating strong {
+    line-height: 1;
 }
 
 .rated-match-player strong {
@@ -1229,6 +1238,23 @@
         inset 0 0 20px rgba(0, 0, 0, 0.36);
 }
 
+#ratedMatchPanel.is-history-page {
+    min-height: min(430px, calc(100dvh - 190px));
+}
+
+#ratedMatchPanel.is-history-page :is(.rated-match-overview, .rated-match-rules, .rated-match-shortcuts, .rated-match-queue) {
+    display: none;
+}
+
+#ratedMatchPanel.is-history-page .rated-match-history {
+    min-height: 100%;
+}
+
+#ratedMatchPanel.is-history-page .rated-match-history-list {
+    max-height: none;
+    min-height: 0;
+}
+
 .rated-match-history[hidden] {
     display: none;
 }
@@ -1355,6 +1381,11 @@
     .rated-match-player {
         min-height: 78px;
         padding: 13px 16px 13px 70px;
+    }
+
+    .rated-match-rating {
+        padding-top: 11px;
+        padding-bottom: 16px;
     }
 
     .rated-match-player {

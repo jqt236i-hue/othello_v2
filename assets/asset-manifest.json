@@ -1,6 +1,6 @@
 {
   "version": "2026-06-25",
-  "generatedAt": "2026-06-25T08:58:14.190Z",
+  "generatedAt": "2026-06-25T10:25:02.577Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -905,6 +905,10 @@
     {
       "path": "assets/audio/sound-effect/浮力系で石が浮上したタイミング.mp3",
       "sha256": "3763fedf598e0a5a9e2611a93e00880fccb3c0875020a73cbdbfb788fad21b8c"
+    },
+    {
+      "path": "assets/audio/sound-effect/混沌召喚のルーレット効果音.mp3",
+      "sha256": "37fbdbbc339c0cbeb6a4b84f27eb13e391dc5f9749bad79b0eeb222b5e4c76af"
     },
     {
       "path": "assets/audio/sound-effect/爆弾系の石が起爆したタイミング.mp3",

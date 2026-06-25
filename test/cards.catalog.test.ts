@@ -206,6 +206,20 @@ describe('cards catalog consistency', () => {
     expect(card.desc_ja).not.toContain('反転で得る布石');
   });
 
+  test('chaos summon card is present with expected cost and type', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    const card = byId.get('chaos_summon_01');
+    expect(card).toEqual(expect.objectContaining({
+      id: 'chaos_summon_01',
+      name_ja: '混沌召喚',
+      type: 'CHAOS_SUMMON',
+      cost: 15,
+      display_type_ja: '特殊'
+    }));
+    expect(card.desc_ja).toContain('罠石と時限爆弾を除いたランダムな特殊石');
+  });
+
   test('regen/perma costs reflect latest balance', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));

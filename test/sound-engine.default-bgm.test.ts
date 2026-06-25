@@ -462,6 +462,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectSoundFiles.meteor_hole).toBe('因果抹消で穴化するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.causal_replay_restore).toBe('因果再生で穴マスを通常マスに再生するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.position_swap_move).toBe('入替の意志で石が入れ替わるタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.chaos_summon_spawn).toBe('混沌召喚のルーレット効果音.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);

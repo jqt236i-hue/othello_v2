@@ -594,6 +594,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     }));
   });
 
+  test('混沌召喚の特殊石出現ルーレットには混沌召喚専用 sound_effect を同じ phase に追加する', () => {
+    const base = [{
+      type: 'theory_incarnation_spawn_roulette',
+      phase: 7,
+      targets: [{ row: 2, col: 3, cause: 'CHAOS_SUMMON', reason: 'chaos_summon_spawn', sourceCardType: 'CHAOS_SUMMON' }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const chaosCue = out.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'chaos_summon_spawn'
+    ));
+    const theoryCue = out.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'theory_incarnation_spawn'
+    ));
+
+    expect(chaosCue).toEqual(expect.objectContaining({
+      type: 'sound_effect',
+      phase: 7,
+      targets: [expect.objectContaining({ soundKey: 'chaos_summon_spawn' })]
+    }));
+    expect(theoryCue).toBeUndefined();
+  });
+
   test('gluttonous proliferation overlap keeps stone_destroy on overlap phase and clone_spawn on next phase', () => {
     const base = [
       {

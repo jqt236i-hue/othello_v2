@@ -732,6 +732,7 @@ const {
     const CardHandEffectsModule = resolveRequiredCardModule('./card-resolution/hand-effects', 'CardHandEffects');
     const CardObserverWillResolutionModule = resolveRequiredCardModule('./card-resolution/observer-will', 'CardObserverWillResolution');
     const CardTheoryIncarnationResolutionModule = resolveRequiredCardModule('./card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution');
+    const CardChaosSummonResolutionModule = resolveRequiredCardModule('./card-resolution/chaos-summon', 'CardChaosSummonResolution');
     const CardBoardExecutorResolutionModule = resolveRequiredCardModule('./card-resolution/board-executor', 'CardBoardExecutorResolution');
     const SpecialStoneMarkerFactoryModule = resolveRequiredCardModule('./card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory');
     const CardPositionSwapModule = resolveRequiredCardModule('./card-resolution/position-swap', 'CardPositionSwapEffects');
@@ -2058,6 +2059,16 @@ const {
         );
     }
 
+    function applyChaosSummonUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardChaosSummonResolutionModule.applyChaosSummonUsage(
+            cardState,
+            gameState,
+            playerKey,
+            prng,
+            getTheoryIncarnationResolutionDeps()
+        );
+    }
+
     function applyTheoryIncarnationStoneReservation(cardState: any, playerKey: any, row: any, col: any) {
         return CardTheoryIncarnationResolutionModule.applyTheoryIncarnationStoneReservation(
             cardState,
@@ -2447,6 +2458,7 @@ const {
             buildCondemnOffers,
             buildObserverWillOffers,
             applyTheoryIncarnationUsage,
+            applyChaosSummonUsage,
             applyBoardExecutorUsage,
             hasStandardLegalMoveForPlayer,
             canUseLastResortForPlayer,
@@ -4593,6 +4605,7 @@ const cardsApi: any = {
         processTheoryIncarnationOwnerPass,
         addNumberCellCollectedTotal,
         canUseTheoryIncarnation,
+        applyChaosSummonUsage,
         canUseBoardExecutor,
         processBoardExecutorMarkerAtTurnStart,
         processBoardExecutorHandTaxAtTurnStart,

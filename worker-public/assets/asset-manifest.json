@@ -1,6 +1,6 @@
 {
   "version": "2026-06-25",
-  "generatedAt": "2026-06-25T08:53:30.724Z",
+  "generatedAt": "2026-06-25T10:25:02.577Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -887,6 +887,10 @@
       "sha256": "25c96fdddf0a33df687f2449c8e8b48ab94e079e5379e2658c37ada6bb134a0d"
     },
     {
+      "path": "assets/audio/sound-effect/強い意志の石が進化したタイミング.mp3",
+      "sha256": "052b7313890f7d568e9bfcdc203b2994268358ebe5cba0e8287a6d69acccaf70"
+    },
+    {
       "path": "assets/audio/sound-effect/強風で石が移動したタイミング.mp3",
       "sha256": "03653e08266e12729c18731b8c018150a14aa0d339d135cf8197baf8bc8b7c40"
     },
@@ -901,6 +905,10 @@
     {
       "path": "assets/audio/sound-effect/浮力系で石が浮上したタイミング.mp3",
       "sha256": "3763fedf598e0a5a9e2611a93e00880fccb3c0875020a73cbdbfb788fad21b8c"
+    },
+    {
+      "path": "assets/audio/sound-effect/混沌召喚のルーレット効果音.mp3",
+      "sha256": "37fbdbbc339c0cbeb6a4b84f27eb13e391dc5f9749bad79b0eeb222b5e4c76af"
     },
     {
       "path": "assets/audio/sound-effect/爆弾系の石が起爆したタイミング.mp3",

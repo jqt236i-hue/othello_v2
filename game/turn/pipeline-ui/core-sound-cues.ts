@@ -21,6 +21,16 @@ type CoreSoundCueDeps = {
 };
 
 function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
+    const isChaosSummonRouletteEvent = (ev: any) => {
+        if (!ev || ev.type !== 'theory_incarnation_spawn_roulette') return false;
+        const targets = Array.isArray(ev.targets) ? ev.targets : [];
+        return targets.some((target: any) => (
+            String(target && target.sourceCardType || '').toUpperCase() === 'CHAOS_SUMMON' ||
+            String(target && (target.cause || target.spawnCause) || '').toUpperCase() === 'CHAOS_SUMMON' ||
+            String(target && (target.reason || target.spawnReason) || '').toLowerCase() === 'chaos_summon_spawn'
+        ));
+    };
+
     const bombDestroyPhases = deps.collectUniquePhases(
         ctx.base,
         (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((target: any) => deps.isDestroyWithCause(target, deps.bombDestroyCauses))
@@ -52,9 +62,17 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         'breeding_spawn'
     );
 
+    const chaosSummonSpawnPhases = deps.collectUniquePhases(
+        ctx.base,
+        isChaosSummonRouletteEvent
+    );
+    if (chaosSummonSpawnPhases.length > 0) {
+        deps.pushCueForPhases(ctx, chaosSummonSpawnPhases, 'chaos_summon_spawn', 'chaos_summon_spawn');
+    }
+
     const theoryIncarnationSpawnPhases = deps.collectUniquePhases(
         ctx.base,
-        (ev: any) => ev && ev.type === 'theory_incarnation_spawn_roulette'
+        (ev: any) => ev && ev.type === 'theory_incarnation_spawn_roulette' && !isChaosSummonRouletteEvent(ev)
     );
     if (theoryIncarnationSpawnPhases.length > 0) {
         deps.pushCueForPhases(ctx, theoryIncarnationSpawnPhases, 'theory_incarnation_spawn', 'theory_incarnation_spawn');

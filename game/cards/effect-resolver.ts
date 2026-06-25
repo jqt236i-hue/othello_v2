@@ -505,6 +505,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     buildCondemnOffers,
     buildObserverWillOffers,
     applyTheoryIncarnationUsage,
+    applyChaosSummonUsage,
     applyBoardExecutorUsage,
     hasStandardLegalMoveForPlayer,
     canUseLastResortForPlayer,
@@ -814,6 +815,12 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     if (typeof applyTheoryIncarnationUsage !== 'function') return false;
     const theoryRes = applyTheoryIncarnationUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
     if (!theoryRes || theoryRes.applied !== true) return false;
+  }
+
+  if (cardType === 'CHAOS_SUMMON') {
+    if (typeof applyChaosSummonUsage !== 'function') return false;
+    const chaosRes = applyChaosSummonUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
+    if (!chaosRes || chaosRes.applied !== true) return false;
   }
 
   if (cardType === 'BOARD_EXECUTOR') {
