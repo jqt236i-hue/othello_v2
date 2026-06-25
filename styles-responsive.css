@@ -176,9 +176,11 @@
 
     #rules-help-guide-prev,
     #rules-help-guide-next {
-        min-height: 30px;
-        padding: 6px 12px;
+        min-width: 90px;
+        min-height: 34px;
+        padding: 7px 14px;
         font-size: 12px;
+        font-weight: 800;
     }
 
     #rules-help-guide-page-status {
@@ -1010,9 +1012,11 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
     #rules-help-guide-prev,
     #rules-help-guide-next {
-        min-height: 30px;
-        padding: 6px 12px;
+        min-width: 90px;
+        min-height: 34px;
+        padding: 7px 14px;
         font-size: 12px;
+        font-weight: 800;
     }
 
     #rules-help-guide-page-status {
