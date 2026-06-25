@@ -467,7 +467,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);
   });
 
-  test('startup default track points to 犠牲のテーマ', () => {
+  test('startup default track points to Observation’s Sacrifice', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.playlist).toHaveLength(7);
@@ -478,11 +478,11 @@ describe('SoundEngine default BGM', () => {
       '幻想即興曲',
       'ノクターン',
       'The Observer’s Tears',
-      '犠牲のテーマ'
+      'Observation’s Sacrifice'
     ]);
     expect(soundEngine.currentTrackIndex).toBe(6);
     expect(soundEngine.playlist[soundEngine.currentTrackIndex]).toEqual({
-      name: '犠牲のテーマ',
+      name: 'Observation’s Sacrifice',
       file: 'assets/audio/bgm/sacrifice.mp3',
       loopEnd: 40
     });
@@ -508,7 +508,7 @@ describe('SoundEngine default BGM', () => {
       loopEnd: 58.434783
     });
     expect(soundEngine.playlist[6]).toEqual({
-      name: '犠牲のテーマ',
+      name: 'Observation’s Sacrifice',
       file: 'assets/audio/bgm/sacrifice.mp3',
       loopEnd: 40
     });
