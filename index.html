@@ -854,7 +854,10 @@
                         <div id="profileAvatarPreview" class="profile-avatar-preview" role="img" aria-label="プロフィール画像"></div>
                         <label class="profile-field">
                             <span>名前</span>
-                            <input id="profileNameInput" type="text" maxlength="7" autocomplete="off" spellcheck="false">
+                            <span class="profile-name-control-row">
+                                <input id="profileNameInput" type="text" maxlength="7" autocomplete="off" spellcheck="false">
+                                <button id="profileSaveBtn" class="btn-small" type="button">保存</button>
+                            </span>
                         </label>
                     </div>
                     <div class="profile-field">
@@ -865,9 +868,6 @@
                         <span>自己紹介</span>
                         <textarea id="profileBioInput" maxlength="120" rows="4" spellcheck="false"></textarea>
                     </label>
-                    <div class="profile-actions">
-                        <button id="profileSaveBtn" class="btn-small" type="button">保存</button>
-                    </div>
                 </section>
                 <section id="profileIdentitySection" class="profile-section" role="tabpanel" aria-labelledby="profileTabIdentity" hidden>
                     <div class="profile-identity-row">
