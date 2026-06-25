@@ -71,7 +71,6 @@ interface Constants {
     SEED_WILL_TURNS: number;
     WILL_HUNTER_KING_TURNS: any;
     ROBOT_VACUUM_TURNS: any;
-    STRONG_WILL_PROMOTION_OWNER_TURNS: any;
     TIME_STOP_GOD_TURNS: number;
     DOUBLE_PLACE_EXTRA: any;
     THROW_CHAIN_CONFIG_BY_TYPE: Record<string, any>;
@@ -169,7 +168,6 @@ function getConstants(context: Context): Constants {
             : 5,
         WILL_HUNTER_KING_TURNS: constants.WILL_HUNTER_KING_TURNS,
         ROBOT_VACUUM_TURNS: constants.ROBOT_VACUUM_TURNS,
-        STRONG_WILL_PROMOTION_OWNER_TURNS: constants.STRONG_WILL_PROMOTION_OWNER_TURNS,
         TIME_STOP_GOD_TURNS: Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
             ? Number(constants.TIME_STOP_GOD_TURNS)
             : 3,
@@ -352,11 +350,6 @@ function applyArmedWorkPlacement(cardState: any, gameState: any, playerKey: stri
 
 function getSpecialStoneKind(constants: Constants): string {
     return constants.MARKER_KINDS ? constants.MARKER_KINDS.SPECIAL_STONE : 'specialStone';
-}
-
-function getStrongWillPromotionOwnerTurns(constants: Constants): number {
-    const raw = Number(constants && constants.STRONG_WILL_PROMOTION_OWNER_TURNS);
-    return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 20;
 }
 
 function getProliferationOwnerTurns(constants: Constants): number {
@@ -681,48 +674,6 @@ function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, play
     return { processed: true, expired };
 }
 
-function processStrongWillPromotionOnTurnStart(cardState: any, playerKey: string, specialMarkers: any[], helpers: any, constants: Constants): void {
-    const markers = Array.isArray(cardState && cardState.markers)
-        ? cardState.markers
-        : (Array.isArray(specialMarkers) ? specialMarkers : []);
-    if (!markers.length) return;
-
-    const threshold = getStrongWillPromotionOwnerTurns(constants);
-    for (const marker of markers) {
-        if (!marker || !marker.data || marker.data.type !== 'PERMA_PROTECTED') continue;
-        if (marker.owner !== playerKey) continue;
-        if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) continue;
-
-        const progress = Number.isFinite(Number(marker.data.strongWillPromotionOwnerTurnStarts))
-            ? Math.max(0, Math.trunc(Number(marker.data.strongWillPromotionOwnerTurnStarts)))
-            : 0;
-        const nextProgress = progress + 1;
-        marker.data.strongWillPromotionOwnerTurnStarts = nextProgress;
-        marker.data.strongWillPromotionThreshold = threshold;
-
-        if (nextProgress < threshold) continue;
-
-        marker.data.type = 'ABSOLUTE_PROTECTED';
-        delete marker.data.strongWillPromotionOwnerTurnStarts;
-        delete marker.data.strongWillPromotionThreshold;
-
-        if (typeof helpers.emitPresentationEvent === 'function') {
-            helpers.emitPresentationEvent(cardState, {
-                type: 'STATUS_APPLIED',
-                row: marker.row,
-                col: marker.col,
-                reason: 'strong_will_promoted',
-                meta: {
-                    special: 'ABSOLUTE_PROTECTED',
-                    owner: marker.owner || playerKey,
-                    reason: 'strong_will_promoted',
-                    promotedFrom: 'PERMA_PROTECTED'
-                }
-            });
-        }
-    }
-}
-
 function drawForTurnStart(cardState: any, playerKey: string, prng: any, context: Context): void {
     const helpers = getHelpers(context);
     const constants = getConstants(context);
@@ -806,8 +757,6 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
             .map((marker: any) => `${marker.row},${marker.col}`)
     );
     (cardState as any)._frozenCellsActiveAtTurnStart = frozenCellsActiveAtTurnStart;
-
-    processStrongWillPromotionOnTurnStart(cardState, playerKey, specialMarkers, helpers, constants);
 
     const specialStoneKind = getSpecialStoneKind(constants);
     for (const marker of specialMarkers) {

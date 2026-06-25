@@ -33,7 +33,7 @@ function findSpecialMarker(cardState, row, col) {
 }
 
 describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
-  test('use card -> place creates PERMA_PROTECTED marker with promotion metadata', () => {
+  test('use card -> place creates PERMA_PROTECTED marker without promotion metadata', () => {
     const def = getPermaProtectNextStoneDef();
     expect(def).toBeTruthy();
 
@@ -85,9 +85,10 @@ describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
     expect(marker.owner).toBe('black');
     expect(marker.data).toEqual(expect.objectContaining({
       type: 'PERMA_PROTECTED',
-      strongWillPromotionOwnerTurnStarts: 0,
-      strongWillPromotionThreshold: SharedConstants.STRONG_WILL_PROMOTION_OWNER_TURNS
+      sourceCardId: def.id,
+      sourceType: 'PERMA_PROTECT_NEXT_STONE'
     }));
+    expect(Object.keys(marker.data).sort()).toEqual(['sourceCardId', 'sourceType', 'type']);
 
     const withoutProtectionContext = {
       ...CardLogic.getCardContext(cardState),
@@ -102,11 +103,10 @@ describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
     expect(Core.getFlipsWithContext(gameState, 2, 2, Core.WHITE, CardLogic.getCardContext(cardState))).toEqual([]);
   });
 
-  test('owner turn starts promote PERMA_PROTECTED into ABSOLUTE_PROTECTED on the 10th owner start', () => {
+  test('owner turn starts keep PERMA_PROTECTED unchanged', () => {
     const def = getPermaProtectNextStoneDef();
     expect(def).toBeTruthy();
 
-    const promotionTurns = SharedConstants.STRONG_WILL_PROMOTION_OWNER_TURNS;
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
@@ -137,29 +137,26 @@ describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
 
     cardState.presentationEvents = [];
 
-    for (let i = 0; i < promotionTurns - 1; i += 1) {
+    for (let i = 0; i < 25; i += 1) {
       CardLogic.onTurnStart(cardState, 'white', gameState, prng);
       let marker = findSpecialMarker(cardState, 2, 3);
       expect(marker.data.type).toBe('PERMA_PROTECTED');
-      expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(i);
+      expect(Object.keys(marker.data).sort()).toEqual(['sourceCardId', 'sourceType', 'type']);
 
       CardLogic.onTurnStart(cardState, 'black', gameState, prng);
       marker = findSpecialMarker(cardState, 2, 3);
       expect(marker.data.type).toBe('PERMA_PROTECTED');
-      expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(i + 1);
+      expect(Object.keys(marker.data).sort()).toEqual(['sourceCardId', 'sourceType', 'type']);
     }
 
-    CardLogic.onTurnStart(cardState, 'white', gameState, prng);
-    let marker = findSpecialMarker(cardState, 2, 3);
-    expect(marker.data.type).toBe('PERMA_PROTECTED');
-    expect(marker.data.strongWillPromotionOwnerTurnStarts).toBe(promotionTurns - 1);
-
-    CardLogic.onTurnStart(cardState, 'black', gameState, prng);
-    marker = findSpecialMarker(cardState, 2, 3);
+    const marker = findSpecialMarker(cardState, 2, 3);
     expect(marker).toBeTruthy();
-    expect(marker.data.type).toBe('ABSOLUTE_PROTECTED');
-    expect(marker.data.strongWillPromotionOwnerTurnStarts).toBeUndefined();
-    expect(marker.data.strongWillPromotionThreshold).toBeUndefined();
+    expect(marker.data).toEqual(expect.objectContaining({
+      type: 'PERMA_PROTECTED',
+      sourceCardId: def.id,
+      sourceType: 'PERMA_PROTECT_NEXT_STONE'
+    }));
+    expect(Object.keys(marker.data).sort()).toEqual(['sourceCardId', 'sourceType', 'type']);
 
     const markerCount = (cardState.markers || []).filter((entry) => (
       entry &&
@@ -168,22 +165,6 @@ describe('PERMA_PROTECT_NEXT_STONE（強い意志）', () => {
       entry.col === 3
     )).length;
     expect(markerCount).toBe(1);
-    expect(CardLogic.isAbsoluteProtectedCell(cardState, 2, 3)).toBe(true);
-
-    const promotionEvent = (cardState.presentationEvents || []).find((event) => (
-      event &&
-      event.type === 'STATUS_APPLIED' &&
-      event.reason === 'strong_will_promoted'
-    ));
-    expect(promotionEvent).toEqual(expect.objectContaining({
-      type: 'STATUS_APPLIED',
-      row: 2,
-      col: 3,
-      reason: 'strong_will_promoted',
-      meta: expect.objectContaining({
-        special: 'ABSOLUTE_PROTECTED',
-        promotedFrom: 'PERMA_PROTECTED'
-      })
-    }));
+    expect(cardState.presentationEvents || []).toEqual([]);
   });
 });

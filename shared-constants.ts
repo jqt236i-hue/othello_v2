@@ -166,7 +166,6 @@ export const TIME_BOMB_TURNS = 3;
 export const TIME_STOP_GOD_TURNS = 5;
 export const TIME_STOP_GOD_CONSECUTIVE_TURNS = 2;
 export const TIME_STOP_GOD_SELF_DESTROY_COUNT = 3;
-export const STRONG_WILL_PROMOTION_OWNER_TURNS = 20;
 
 // Destroy fade duration (ms)
 // Used by UI animation utilities to align JS waiting with CSS animation time
@@ -192,7 +191,6 @@ if (typeof window !== 'undefined') {
     (window as any).TIME_STOP_GOD_TURNS = TIME_STOP_GOD_TURNS;
     (window as any).TIME_STOP_GOD_CONSECUTIVE_TURNS = TIME_STOP_GOD_CONSECUTIVE_TURNS;
     (window as any).TIME_STOP_GOD_SELF_DESTROY_COUNT = TIME_STOP_GOD_SELF_DESTROY_COUNT;
-    (window as any).STRONG_WILL_PROMOTION_OWNER_TURNS = STRONG_WILL_PROMOTION_OWNER_TURNS;
     (window as any).DESTROY_FADE_MS = DESTROY_FADE_MS;
     // Expose new canonical game constants for browser usage
     (window as any).BOARD_SIZE = BOARD_SIZE;
@@ -238,6 +236,5 @@ export default {
     TIME_STOP_GOD_TURNS,
     TIME_STOP_GOD_CONSECUTIVE_TURNS,
     TIME_STOP_GOD_SELF_DESTROY_COUNT,
-    STRONG_WILL_PROMOTION_OWNER_TURNS,
     DESTROY_FADE_MS,
 };

@@ -243,7 +243,7 @@ describe('CardEffectTiming module', () => {
     }));
   });
 
-  test('onTurnStart promotes owner PERMA_PROTECTED into ABSOLUTE_PROTECTED on threshold', () => {
+  test('onTurnStart keeps PERMA_PROTECTED markers unchanged', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const emitPresentationEvent = jest.fn();
     const markers = [
@@ -251,11 +251,7 @@ describe('CardEffectTiming module', () => {
         row: 2,
         col: 3,
         owner: 'black',
-        data: {
-          type: 'PERMA_PROTECTED',
-          strongWillPromotionOwnerTurnStarts: 19,
-          strongWillPromotionThreshold: 20
-        }
+        data: { type: 'PERMA_PROTECTED' }
       }
     ];
     const cardState = {
@@ -278,8 +274,7 @@ describe('CardEffectTiming module', () => {
       constants: {
         EMPTY: 0,
         DRAW_INTERVAL: 1,
-        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
-        STRONG_WILL_PROMOTION_OWNER_TURNS: 20
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
       },
       helpers: {
         ensureHandDestroyFlags: jest.fn(),
@@ -293,16 +288,11 @@ describe('CardEffectTiming module', () => {
       modules: {}
     });
 
-    expect(markers[0].data).toEqual({ type: 'ABSOLUTE_PROTECTED' });
-    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, expect.objectContaining({
+    expect(markers[0].data).toEqual({ type: 'PERMA_PROTECTED' });
+    expect(emitPresentationEvent).not.toHaveBeenCalledWith(cardState, expect.objectContaining({
       type: 'STATUS_APPLIED',
       row: 2,
-      col: 3,
-      reason: 'strong_will_promoted',
-      meta: expect.objectContaining({
-        special: 'ABSOLUTE_PROTECTED',
-        promotedFrom: 'PERMA_PROTECTED'
-      })
+      col: 3
     }));
   });
 
