@@ -467,7 +467,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);
   });
 
-  test('startup default track points to c-reversi', () => {
+  test('startup default track points to 犠牲のテーマ', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.playlist).toHaveLength(7);
@@ -480,10 +480,11 @@ describe('SoundEngine default BGM', () => {
       'The Observer’s Tears',
       '犠牲のテーマ'
     ]);
-    expect(soundEngine.currentTrackIndex).toBe(0);
+    expect(soundEngine.currentTrackIndex).toBe(6);
     expect(soundEngine.playlist[soundEngine.currentTrackIndex]).toEqual({
-      name: 'c-reversi',
-      file: 'assets/audio/bgm/c-reversi.mp3'
+      name: '犠牲のテーマ',
+      file: 'assets/audio/bgm/sacrifice.mp3',
+      loopEnd: 40
     });
     expect(soundEngine.playlist[0]).toEqual({
       name: 'c-reversi',

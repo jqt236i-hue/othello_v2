@@ -70,7 +70,7 @@ const SoundEngine = {
     bgm: null as any,
     bgmVolume: 0.548625,
     bgmOutputVolumeScale: 0.24752,
-    currentTrackIndex: 0,
+    currentTrackIndex: 6,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {
         win: { name: '勝利リザルト', file: 'assets/audio/other/勝利リザルト-bpm165.mp3', loop: false },
