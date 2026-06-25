@@ -907,10 +907,10 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.effectSoundFiles.theory_incarnation_spawn).toBe(
-      '理論の化身のルーレットの開始タイミング.mp3'
+      '理論の化身のルーレット効果音.mp3'
     );
     expect(soundEngine.getEffectFilePath('theory_incarnation_spawn')).toBe(
-      'assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3'
+      'assets/audio/sound-effect/理論の化身のルーレット効果音.mp3'
     );
   });
 
