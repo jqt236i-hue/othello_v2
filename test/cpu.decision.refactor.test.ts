@@ -148,6 +148,90 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CpuPolicyTableRuntime.getActionScoreForKey).not.toHaveBeenCalled();
   });
 
+  test('selectCardToUse evaluates low-level CPU card context as Lv6 policy', () => {
+    global.AISystem = null;
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }];
+    global.cardState = {
+      hands: { white: ['guard_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getUsableCardIds: () => ['guard_01'],
+      canUseCard: () => true,
+      getCardDef: () => ({ id: 'guard_01', name: '守る意志', type: 'GUARD_WILL' }),
+      getCardCost: () => 2
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseCardWithRiskProfile').mockImplementation((_usable, _getCost, _getDef, context) => {
+      expect(context).toEqual(expect.objectContaining({ level: 6, legalMovesCount: 1 }));
+      return { cardId: 'guard_01', cardDef: { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL' } };
+    });
+
+    const res = cpuDecision.selectCardToUse('white');
+
+    expect(res).toMatchObject({ cardId: 'guard_01' });
+  });
+
+  test('low-level CPU hand destroy enters Lv6 card policy cycle', () => {
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.getLegalMoves = () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }];
+    global.cardState = {
+      hands: { white: ['risky_01', 'keep_01'], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 14, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getUsableCardIds: () => ['keep_01'],
+      getCardDef: (id) => ({ id, name: id, type: id === 'risky_01' ? 'TIME_BOMB' : 'GUARD_WILL' }),
+      getCardCost: (id) => (id === 'risky_01' ? 10 : 2)
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseHandDestroyTargetForCycle').mockImplementation((_hand, _usable, _getCost, _getDef, context) => {
+      expect(context).toEqual(expect.objectContaining({ level: 6, legalMovesCount: 1 }));
+      return { cardId: 'risky_01', reason: 'test_low_level_policy' };
+    });
+
+    const res = cpuDecision.selectHandCardToDestroy('white');
+
+    expect(res).toMatchObject({ cardId: 'risky_01' });
+  });
+
+  test('selectCpuMoveWithPolicy keeps low-level placement policy level unchanged', () => {
+    global.cpuSmartness.white = 3;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    const candidateMoves = [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
+    ];
+    jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves, level) => {
+      expect(level).toBe(3);
+      return moves[0];
+    });
+
+    const res = cpuDecision.selectCpuMoveWithPolicy(candidateMoves, 'white');
+
+    expect(res).toBe(candidateMoves[0]);
+  });
+
   test('selectCpuMoveWithPolicy はカスタム盤面で 8x8 学習手筋を使わずコア判断へ戻す', () => {
     const board = Array.from({ length: 7 }, () => Array(9).fill(0));
     const candidateMoves = [
@@ -2378,7 +2462,7 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(candidates[0]);
   });
 
-  test('selectCpuMoveWithPolicy still prefers stable edge for GOLD_STONE pending move', () => {
+  test('selectCpuMoveWithPolicy uses profitable flip count for GOLD_STONE pending move before stability', () => {
     const candidates = [
       { row: 0, col: 3, flips: [{ row: 1, col: 3 }] },
       { row: 2, col: 4, flips: [{ row: 2, col: 3 }, { row: 3, col: 3 }, { row: 3, col: 4 }] }
@@ -2407,7 +2491,39 @@ describe('cpu decision refactor helpers', () => {
     };
 
     const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
-    expect(move).toBe(candidates[0]);
+    expect(move).toBe(candidates[1]);
+  });
+
+  test('selectCpuMoveWithPolicy uses number cell 7 or higher for CRYSTAL_STONE pending move', () => {
+    const candidates = [
+      { row: 0, col: 3, flips: [{ row: 1, col: 3 }] },
+      { row: 2, col: 4, flips: [{ row: 2, col: 3 }] }
+    ];
+    global.gameState = {
+      board: [
+        [-1, 0, 0, 0, 0, 0, 0, -1],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 1]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: { type: 'CRYSTAL_STONE', stage: 'awaitPlace' }, black: null },
+      hasUsedCardThisTurnByPlayer: { white: true, black: false },
+      charge: { white: 20, black: 10 },
+      boardBonusByCell: { '2,4': 7 },
+      boardBonusConsumedByCell: {}
+    };
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(candidates[1]);
   });
 
   test('selectCpuMoveWithPolicy prefers edge stability over open inner seat for BREEDING_WILL pending move', () => {

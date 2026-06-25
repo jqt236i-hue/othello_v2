@@ -10,6 +10,7 @@ type CpuDecisionMoveSelectionConfig = {
     filterMovesByLv6PlacementPriority: (playerKey: any, level: any, candidateMoves: any) => any;
     getAISystem: () => any;
     getCardState: () => any;
+    getBoardBonusValueAt: (row: any, col: any) => any;
     getCpuPolicyCore: () => any;
     getCpuRng: () => any;
     getCurrentCpuBoard: () => any;
@@ -31,6 +32,43 @@ type CpuDecisionMoveSelectionConfig = {
 export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionMoveSelectionConfig;
 
+    const flipProfitThresholdByPendingType: Record<string, number> = {
+        SILVER_STONE: 2,
+        GOLD_STONE: 3,
+        RAINBOW_STONE: 3
+    };
+
+    function normalizePendingType(pendingType: any): string {
+        return String(pendingType || '').trim().toUpperCase();
+    }
+
+    function getMoveFlipCount(move: any): number {
+        return Array.isArray(move && move.flips) ? move.flips.length : 0;
+    }
+
+    function getMoveBoardBonusValue(move: any): number {
+        const row = Number(move && move.row);
+        const col = Number(move && move.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col) || typeof cfg.getBoardBonusValueAt !== 'function') return 0;
+        const value = Number(cfg.getBoardBonusValueAt(row, col) || 0);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+
+    function filterPendingEconomicPlacementMoves(candidateMoves: any, pendingType: any): any {
+        if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1) return candidateMoves;
+        const type = normalizePendingType(pendingType);
+        const minFlips = flipProfitThresholdByPendingType[type];
+        if (Number.isFinite(minFlips)) {
+            const profitable = candidateMoves.filter((move: any) => getMoveFlipCount(move) >= minFlips);
+            return profitable.length > 0 ? profitable : candidateMoves;
+        }
+        if (type === 'CRYSTAL_STONE') {
+            const profitable = candidateMoves.filter((move: any) => getMoveBoardBonusValue(move) >= 7);
+            return profitable.length > 0 ? profitable : candidateMoves;
+        }
+        return candidateMoves;
+    }
+
     function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
         const rng = cfg.getCpuRng();
         const cardLevel = cfg.resolveCpuSmartnessLevel(playerKey);
@@ -45,7 +83,13 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
         const forceLv6Placement = cfg.shouldForceCardModeLv6Placement(playerKey, pendingType, board);
         const placementLevel = forceLv6Placement ? 6 : cardLevel;
 
-        let prioritizedCandidateMoves = cfg.filterMovesByLv6PlacementPriority(playerKey, placementLevel, candidateMoves);
+        const economicCandidateMoves = filterPendingEconomicPlacementMoves(candidateMoves, pendingType);
+        if (economicCandidateMoves.length > 0 && economicCandidateMoves.length < candidateMoves.length) {
+            cfg.cpuDebugLog(
+                `[CPU] Lv${cardLevel} ${playerKey}: ${normalizePendingType(pendingType)}配置を布石収支ライン以上へ補正 (${economicCandidateMoves.length}/${candidateMoves.length})`
+            );
+        }
+        let prioritizedCandidateMoves = cfg.filterMovesByLv6PlacementPriority(playerKey, placementLevel, economicCandidateMoves);
         if (Number.isFinite(placementLevel) && placementLevel >= 6) {
             prioritizedCandidateMoves = cfg.filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
         }

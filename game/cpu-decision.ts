@@ -2464,6 +2464,7 @@ const CpuDecisionMoveSelection = (CpuDecisionMoveSelectionModule && typeof CpuDe
         filterLv6OpenCornerAdjacentMoves,
         filterMovesByLv6PlacementPriority,
         getAISystem: () => ((typeof AISystem !== 'undefined') ? AISystem : null),
+        getBoardBonusValueAt,
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuPolicyCore: () => CpuPolicyCore,
         getCpuRng: () => cpuRng,
