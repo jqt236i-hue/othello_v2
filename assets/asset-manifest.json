@@ -1,6 +1,6 @@
 {
   "version": "2026-06-25",
-  "generatedAt": "2026-06-25T10:25:02.577Z",
+  "generatedAt": "2026-06-25T11:00:16.985Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -932,7 +932,7 @@
     },
     {
       "path": "assets/audio/sound-effect/理論の化身のルーレットの開始タイミング.mp3",
-      "sha256": "c9abb765f7cf8b367f527f8b17ec941953d981cae4e56b1409844dc316fd5ca4"
+      "sha256": "c8f83520ef88f239d118d716958bdc2c897c443212a0e9d683c90df50863899b"
     },
     {
       "path": "assets/audio/sound-effect/生きる意志で復活するタイミング.mp3",
