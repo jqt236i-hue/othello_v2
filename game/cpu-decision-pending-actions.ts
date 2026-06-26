@@ -25,6 +25,7 @@ type PendingActionsConfig = {
     maybeContinueCpuSelectionTurnHandoff: (playerKey: any, pendingType: any, playbackEvents: any, action?: any) => any;
     readCpuPendingEffect: (playerKey: any) => any;
     resolveCpuDecisionLevelForPlayer: (playerKey: any) => number;
+    resolveCpuCardPolicyLevelForPlayer?: (playerKey: any) => number;
     resolvePlayerValue: (playerKey: any) => any;
     resolveSharedBoardUtilsModule: () => any;
     runCpuPendingSelectionViaPipeline: (playerKey: any, actionPayload: any, pendingType: any) => Promise<any>;
@@ -60,6 +61,13 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
 
     function getCardLogic(): any {
         return cfg.getCardLogic ? cfg.getCardLogic() : null;
+    }
+
+    function resolveCardPolicyLevel(playerKey: any): number {
+        if (typeof cfg.resolveCpuCardPolicyLevelForPlayer === 'function') {
+            return cfg.resolveCpuCardPolicyLevelForPlayer(playerKey);
+        }
+        return cfg.resolveCpuDecisionLevelForPlayer(playerKey);
     }
 
     function getSelectableTargets(playerKey: any): any[] {
@@ -689,7 +697,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         let targetCardId = offers[0];
         let bestCost = -Infinity;
         let bestScore = Number.NEGATIVE_INFINITY;
-        const level = cfg.resolveCpuDecisionLevelForPlayer(playerKey);
+        const level = resolveCardPolicyLevel(playerKey);
         const cardLogic = getCardLogic();
         const policyCore = typeof cfg.getCpuPolicyCore === 'function' ? cfg.getCpuPolicyCore() : null;
         const decisionContext = buildOfferDecisionContext(playerKey, level);
@@ -768,7 +776,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         let target = offers[0];
         let bestCost = -Infinity;
         let bestScore = Number.NEGATIVE_INFINITY;
-        const level = cfg.resolveCpuDecisionLevelForPlayer(playerKey);
+        const level = resolveCardPolicyLevel(playerKey);
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const cardLogic = getCardLogic();
         const policyCore = typeof cfg.getCpuPolicyCore === 'function' ? cfg.getCpuPolicyCore() : null;

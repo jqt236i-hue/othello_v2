@@ -95,7 +95,7 @@ describe('cpu decision refactor helpers', () => {
     expect(res).toBeNull();
   });
 
-  test('selectCardToUse uses highest-cost fallback after risk profile declines', () => {
+  test('selectCardToUse uses shared card policy after risk profile declines', () => {
     global.AISystem = null;
     global.CardLogic = {
       canUseCard: jest.fn(() => true),
@@ -113,7 +113,7 @@ describe('cpu decision refactor helpers', () => {
 
     expect(res).toMatchObject({ cardId: 'expensive_card' });
     expect(cpuPolicyCore.chooseCardWithRiskProfile).toHaveBeenCalled();
-    expect(cpuPolicyCore.chooseHighestCostCard).toHaveBeenCalled();
+    expect(cpuPolicyCore.chooseHighestCostCard).not.toHaveBeenCalled();
   });
 
   test('selectCardToUse catches AISystem exceptions and falls back', () => {
@@ -3478,6 +3478,37 @@ describe('cpu decision refactor helpers', () => {
 
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.seedTarget).toEqual({ row: 0, col: 0 });
+  });
+
+  test('low-level CPU pending target selection uses Lv6 ONNX-capable policy gate', async () => {
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[3][2] = 1;
+    global.gameState.board[3][5] = 1;
+    global.cardState.pendingEffectByPlayer.white = { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[1]),
+      evaluatePosition: jest.fn(async () => 0)
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
   });
 
   test('cpuSelectDestroyWithPolicy can rerank ONNX target with value model', async () => {

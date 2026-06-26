@@ -91,7 +91,7 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         );
         const pipelineResult = cfg.runCpuHandDestroyViaPipeline(playerKey, destroyCardId);
         if (pipelineResult && pipelineResult.ok) {
-            const level = cfg.resolveCpuSmartnessLevel(playerKey);
+            const level = cfg.readCardUseDisplayLevel(playerKey);
             const cardName = (destroyCardDef && destroyCardDef.name) ? destroyCardDef.name : destroyCardId;
             cfg.cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 手札破壊 - ${cardName} (${destroyChoice.reason || 'cycle'})`);
             if (typeof cfg.emitLogAdded === 'function') {
@@ -108,7 +108,7 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         if (!direct || !direct.applied) return false;
         cfg.emitCpuSelectionStateChange();
 
-        const level = cfg.resolveCpuSmartnessLevel(playerKey);
+        const level = cfg.readCardUseDisplayLevel(playerKey);
         const cardName = (destroyCardDef && destroyCardDef.name) ? destroyCardDef.name : destroyCardId;
         cfg.cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 手札破壊(direct) - ${cardName} (${destroyChoice.reason || 'cycle'})`);
         if (typeof cfg.emitLogAdded === 'function') {

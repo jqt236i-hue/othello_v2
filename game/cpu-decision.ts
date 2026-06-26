@@ -171,6 +171,30 @@ function resolveCpuDecisionLevelForPlayer(playerKey: any): number {
     return 1;
 }
 
+function resolveCpuCardPolicyLevelValue(value: any): number {
+    const decisionLevel = resolveCpuDecisionLevelValue(value);
+    if (decisionLevel !== null) return Math.max(6, decisionLevel);
+    return 6;
+}
+
+function resolveCpuCardPolicyLevelForPlayer(playerKey: any): number {
+    try {
+        const runtime = getCpuDecisionRuntime();
+        if (runtime && typeof runtime.readCpuSmartness === 'function') {
+            const profileValues = runtime.readCpuSmartness();
+            const profileValue = profileValues && profileValues[playerKey];
+            return resolveCpuCardPolicyLevelValue(profileValue);
+        }
+    } catch (e) { /* ignore and fall back to legacy globals */ }
+    const profileValues = (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
+    if (profileValues) return resolveCpuCardPolicyLevelValue(profileValues[playerKey]);
+    return 6;
+}
+
+function resolveCpuCardPolicyLevelFromLevel(level: any): number {
+    return resolveCpuCardPolicyLevelValue(level);
+}
+
 function resolveCpuSmartnessValue(value: any): number | null {
     return resolveCpuDecisionLevelValue(value);
 }
@@ -1285,7 +1309,7 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         resolveCardLogic: () => resolveCardLogicForCpuDecision(),
         readPendingEffect: (playerKey: any) => readCpuPendingEffect(playerKey),
-        resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
+        resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuCardPolicyLevelForPlayer(playerKey),
         readCardUseDisplayLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
@@ -2034,7 +2058,7 @@ const CpuDecisionPendingScore = (CpuDecisionPendingScoreModule && typeof CpuDeci
         scoreSeatStrategicValue,
         countBoardStatsForPlayer,
         getCornerProximity,
-        getCpuSmartnessLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
+        getCpuSmartnessLevel: (playerKey: any) => resolveCpuCardPolicyLevelForPlayer(playerKey),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuPolicyCore: () => CpuPolicyCore,
         buildMovePlanContext,
@@ -2066,7 +2090,7 @@ const CpuDecisionPendingOnnx = (CpuDecisionPendingOnnxModule && typeof CpuDecisi
         choosePendingTargetWithPolicy,
         isSameMoveByCoord,
         scorePendingTargetByType,
-        getCpuSmartnessLevel: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
+        getCpuSmartnessLevel: (playerKey: any) => resolveCpuCardPolicyLevelForPlayer(playerKey),
         resolvePolicyOnnxRuntime,
         canUseStandardBoardCpuPolicy,
         resolvePendingSelectionOnnxBudgetMs,
@@ -2260,26 +2284,30 @@ function hasCornerMoveOnBoardForPlayer(board: any, playerValue: any): any {
 }
 
 function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any, context: any): any {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.buildCardQuiescenceSnapshot === 'function'
-        ? CpuDecisionCardRisk.buildCardQuiescenceSnapshot(playerKey, level, legalMoves, context)
+        ? CpuDecisionCardRisk.buildCardQuiescenceSnapshot(playerKey, policyLevel, legalMoves, context)
         : null;
 }
 
 function shouldHoldCardByQuiescence(playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any): any {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return !!(CpuDecisionCardRisk && typeof CpuDecisionCardRisk.shouldHoldCardByQuiescence === 'function'
-        ? CpuDecisionCardRisk.shouldHoldCardByQuiescence(playerKey, level, cardId, cardDef, context, snapshot)
+        ? CpuDecisionCardRisk.shouldHoldCardByQuiescence(playerKey, policyLevel, cardId, cardDef, context, snapshot)
         : false);
 }
 
 function isCardChoiceAllowedByRisk(playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any): any {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.isCardChoiceAllowedByRisk === 'function'
-        ? CpuDecisionCardRisk.isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, cardId, prebuiltContext)
+        ? CpuDecisionCardRisk.isCardChoiceAllowedByRisk(playerKey, policyLevel, legalMovesCount, cardId, prebuiltContext)
         : !!cardId;
 }
 
 function isCardChoiceAllowedByHighConfidence(playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any): any {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.isCardChoiceAllowedByHighConfidence === 'function'
-        ? CpuDecisionCardRisk.isCardChoiceAllowedByHighConfidence(playerKey, level, legalMovesCount, cardId, prebuiltContext)
+        ? CpuDecisionCardRisk.isCardChoiceAllowedByHighConfidence(playerKey, policyLevel, legalMovesCount, cardId, prebuiltContext)
         : !!cardId;
 }
 
@@ -2376,7 +2404,7 @@ const CpuDecisionCardChoice = (CpuDecisionCardChoiceModule && typeof CpuDecision
         isCardChoiceAllowedByPlan,
         isCardChoiceAllowedByRisk,
         prepareCpuTrapOnlyCard: (playerKey: any) => _prepareCpuTrapOnlyCard(playerKey),
-        resolveCpuSmartnessLevel,
+        resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuCardPolicyLevelForPlayer(playerKey),
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
@@ -2780,7 +2808,7 @@ function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerPr
 
 function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
     if (!Array.isArray(targets) || targets.length <= 0) return [];
-    const level = resolveCpuDecisionLevelForPlayer(playerKey);
+    const level = resolveCpuCardPolicyLevelForPlayer(playerKey);
     if (level < 6) return targets;
     return targets.filter((target: any) => {
         if (!target) return false;
@@ -2990,8 +3018,9 @@ function resolveCurrentLegalMovesCountForPlayer(playerKey: any): any {
 }
 
 function buildPendingTargetOnnxContext(playerKey: any, level: any, pendingType: any, targets: any): any {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.buildPendingTargetOnnxContext === 'function'
-        ? CpuDecisionPendingOnnx.buildPendingTargetOnnxContext(playerKey, level, pendingType, targets)
+        ? CpuDecisionPendingOnnx.buildPendingTargetOnnxContext(playerKey, policyLevel, pendingType, targets)
         : {};
 }
 
@@ -3008,8 +3037,9 @@ function buildPendingTargetValueContext(baseContext: any, pendingType: any, targ
 }
 
 async function evaluatePendingTargetValue(runtime: any, baseContext: any, playerKey: any, level: any, pendingType: any, target: any, budgetMs: any): Promise<any> {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.evaluatePendingTargetValue === 'function'
-        ? CpuDecisionPendingOnnx.evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, target, budgetMs)
+        ? CpuDecisionPendingOnnx.evaluatePendingTargetValue(runtime, baseContext, playerKey, policyLevel, pendingType, target, budgetMs)
         : null;
 }
 
@@ -3020,8 +3050,9 @@ function resolvePendingTargetOverrideThreshold(pendingType: any): any {
 }
 
 async function rerankOnnxPendingTargetChoice(runtime: any, selectedTarget: any, playerKey: any, level: any, pendingType: any, targets: any, pending: any, baseContext: any, budgetMs: any): Promise<any> {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.rerankOnnxPendingTargetChoice === 'function'
-        ? CpuDecisionPendingOnnx.rerankOnnxPendingTargetChoice(runtime, selectedTarget, playerKey, level, pendingType, targets, pending, baseContext, budgetMs)
+        ? CpuDecisionPendingOnnx.rerankOnnxPendingTargetChoice(runtime, selectedTarget, playerKey, policyLevel, pendingType, targets, pending, baseContext, budgetMs)
         : { target: selectedTarget, changed: false, gap: 0, selectedValue: null, fallbackValue: null };
 }
 
@@ -3058,6 +3089,7 @@ const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof Cpu
             maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, playbackEvents, action),
         readCpuPendingEffect: (playerKey: any) => readCpuPendingEffect(playerKey),
         resolveCpuDecisionLevelForPlayer: (playerKey: any) => resolveCpuDecisionLevelForPlayer(playerKey),
+        resolveCpuCardPolicyLevelForPlayer: (playerKey: any) => resolveCpuCardPolicyLevelForPlayer(playerKey),
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
