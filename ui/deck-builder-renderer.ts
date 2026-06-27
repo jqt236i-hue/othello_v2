@@ -392,12 +392,26 @@ function createButton(text: string, className: string, onClick?: () => void, opt
   return button;
 }
 
+function classifyPresetSlotState(preset: any): string {
+  if (!preset) return 'empty';
+  if (preset.isActive) return 'active';
+  if (preset.canUse) return 'filled';
+  if (preset.noteIsError) return 'invalid';
+  return 'empty';
+}
+
 function createPresetCard(preset: any, actions: HTMLElement): HTMLElement {
   const presetCard = document.createElement('div');
   presetCard.className = 'deck-builder-preset-card';
+  const slotState = classifyPresetSlotState(preset);
+  presetCard.classList.add(`is-${slotState}`);
   if (preset.isActive) {
     presetCard.classList.add('is-active');
   }
+  if (typeof preset.id === 'string' && preset.id) {
+    presetCard.dataset.presetId = preset.id;
+  }
+  presetCard.dataset.slotState = slotState;
 
   const title = document.createElement('div');
   title.className = 'deck-builder-preset-title';
@@ -433,7 +447,8 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   defaultPresetRow.className = 'deck-builder-default-preset-row';
 
   const standardCard = document.createElement('div');
-  standardCard.className = 'deck-builder-preset-card deck-builder-standard-card';
+  standardCard.className = 'deck-builder-preset-card deck-builder-standard-card is-filled';
+  standardCard.dataset.slotState = 'standard';
   const standardTitle = document.createElement('div');
   standardTitle.className = 'deck-builder-preset-title';
   standardTitle.textContent = 'デフォルトデッキ';

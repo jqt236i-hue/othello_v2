@@ -131,6 +131,8 @@
                 aria-selected="false" aria-controls="rules-help-page-effects" data-help-tab="effects">効果一覧</button>
             <button id="rules-help-tab-guide" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-guide" data-help-tab="guide">ルールと操作</button>
+            <button id="rules-help-tab-protection-map" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-protection-map" data-help-tab="protection-map">耐性貫通表</button>
             <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">石マーカー</button>
         </div>
@@ -242,6 +244,24 @@
                         <button id="rules-help-guide-prev" class="btn-small" type="button">前へ</button>
                         <div id="rules-help-guide-page-status" aria-live="polite" aria-atomic="true">1 / 8</div>
                         <button id="rules-help-guide-next" class="btn-small" type="button">次へ</button>
+                    </div>
+                </div>
+            </section>
+            <section id="rules-help-page-protection-map" class="rules-help-page" data-help-page="protection-map"
+                aria-hidden="true">
+                <div id="rules-help-protection-map-layout">
+                    <div id="rules-help-protection-map-controls" aria-label="耐性貫通表のページ操作">
+                        <button id="rules-help-protection-map-prev" class="btn-small" type="button">前へ</button>
+                        <div id="rules-help-protection-map-page-status" aria-live="polite" aria-atomic="true">1 / 2</div>
+                        <button id="rules-help-protection-map-next" class="btn-small" type="button">次へ</button>
+                    </div>
+                    <div id="rules-help-protection-map-frame" role="group" aria-label="耐性貫通表">
+                        <img
+                            id="rules-help-protection-map-img"
+                            src="assets/images/help/protection-penetration/protection-penetration-quick-reference.png"
+                            alt="耐性貫通の〇×早見表 1 / 2"
+                            draggable="false"
+                            decoding="async">
                     </div>
                 </div>
             </section>
@@ -1028,7 +1048,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=198405174314576"></script>
+    <script src="public/module-registry.js?v=44654231231186"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=75638186966350"></script>
 </body>

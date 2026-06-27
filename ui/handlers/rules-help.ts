@@ -42,6 +42,16 @@ const GAME_TERM_GLOSSARY_BY_LABEL = new Map<string, any>(
 );
 const RULES_HELP_GUIDE_SLIDE_COUNT = 8;
 const RULES_HELP_GUIDE_SLIDE_BASE_PATH = 'assets/images/help/player-guide';
+const RULES_HELP_PROTECTION_MAP_SLIDES = [
+  {
+    src: 'assets/images/help/protection-penetration/protection-penetration-quick-reference.png',
+    alt: '耐性貫通の〇×早見表'
+  },
+  {
+    src: 'assets/images/help/protection-penetration/protection-penetration-explainer.png',
+    alt: '耐性と貫通の関係図'
+  }
+];
 
 function formatRulesHelpGuideSlideSrc(index: number): string {
   const slideNumber = Math.max(1, Math.min(RULES_HELP_GUIDE_SLIDE_COUNT, Math.floor(index) + 1));
@@ -316,6 +326,10 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   const guideSlidePrevBtn = rulesHelpPanel.querySelector('#rules-help-guide-prev') as HTMLButtonElement | null;
   const guideSlideNextBtn = rulesHelpPanel.querySelector('#rules-help-guide-next') as HTMLButtonElement | null;
   const guideSlideStatusEl = rulesHelpPanel.querySelector('#rules-help-guide-page-status') as HTMLElement | null;
+  const protectionMapImg = rulesHelpPanel.querySelector('#rules-help-protection-map-img') as HTMLImageElement | null;
+  const protectionMapPrevBtn = rulesHelpPanel.querySelector('#rules-help-protection-map-prev') as HTMLButtonElement | null;
+  const protectionMapNextBtn = rulesHelpPanel.querySelector('#rules-help-protection-map-next') as HTMLButtonElement | null;
+  const protectionMapStatusEl = rulesHelpPanel.querySelector('#rules-help-protection-map-page-status') as HTMLElement | null;
   const catalogCards = _readCatalogCards();
   const cardDescriptionTextsById = new Map<string, any>();
   const cardSearchTextById = new Map<string, string>();
@@ -328,6 +342,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   let guideSlideRequestId = 0;
   const guideSlideLoadState = new Map<string, string>();
   const guideSlideLoadCallbacks = new Map<string, Array<() => void>>();
+  let protectionMapIndex = 0;
 
   function preloadGuideSlideImage(src: string, onReady: () => void): void {
     const normalizedSrc = _safeText(src, '');
@@ -405,9 +420,42 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     });
   }
 
+  function updateProtectionMapSlide(): void {
+    const totalSlides = RULES_HELP_PROTECTION_MAP_SLIDES.length;
+    protectionMapIndex = Math.max(0, Math.min(totalSlides - 1, protectionMapIndex));
+    const currentSlide = protectionMapIndex + 1;
+    const slide = RULES_HELP_PROTECTION_MAP_SLIDES[protectionMapIndex];
+    if (protectionMapImg) {
+      protectionMapImg.setAttribute('src', slide.src);
+      protectionMapImg.setAttribute('alt', `${slide.alt} ${currentSlide} / ${totalSlides}`);
+    }
+    if (protectionMapStatusEl) {
+      protectionMapStatusEl.textContent = `${currentSlide} / ${totalSlides}`;
+    }
+    if (protectionMapPrevBtn) {
+      protectionMapPrevBtn.disabled = protectionMapIndex <= 0;
+      protectionMapPrevBtn.setAttribute('aria-disabled', protectionMapPrevBtn.disabled ? 'true' : 'false');
+    }
+    if (protectionMapNextBtn) {
+      protectionMapNextBtn.disabled = protectionMapIndex >= totalSlides - 1;
+      protectionMapNextBtn.setAttribute('aria-disabled', protectionMapNextBtn.disabled ? 'true' : 'false');
+    }
+  }
+
+  function setProtectionMapSlide(index: number): void {
+    protectionMapIndex = index;
+    updateProtectionMapSlide();
+  }
+
   function isGuideTabActive(): boolean {
     return tabPages.some((page: any) => (
       page.getAttribute('data-help-page') === 'guide' && page.classList.contains('is-active')
+    ));
+  }
+
+  function isProtectionMapTabActive(): boolean {
+    return tabPages.some((page: any) => (
+      page.getAttribute('data-help-page') === 'protection-map' && page.classList.contains('is-active')
     ));
   }
 
@@ -1026,6 +1074,20 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     });
   }
 
+  if (protectionMapPrevBtn) {
+    protectionMapPrevBtn.addEventListener('click', (event: Event) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setProtectionMapSlide(protectionMapIndex - 1);
+    });
+  }
+
+  if (protectionMapNextBtn) {
+    protectionMapNextBtn.addEventListener('click', (event: Event) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setProtectionMapSlide(protectionMapIndex + 1);
+    });
+  }
+
   document.addEventListener('pointerdown', (event: PointerEvent) => {
     if (!isOpen) return;
     const target = event ? event.target as Node : null;
@@ -1040,6 +1102,11 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     if (isGuideTabActive() && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       event.preventDefault();
       setGuideSlide(guideSlideIndex + (event.key === 'ArrowRight' ? 1 : -1));
+      return;
+    }
+    if (isProtectionMapTabActive() && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault();
+      setProtectionMapSlide(protectionMapIndex + (event.key === 'ArrowRight' ? 1 : -1));
       return;
     }
     if (event.key !== 'Escape') return;
@@ -1073,6 +1140,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   renderEffectsList();
   renderCatalogCards();
   updateGuideSlide();
+  updateProtectionMapSlide();
   if (tabButtons.length > 0) {
     const activeTab = tabButtons.find((button: any) => button.classList.contains('is-active'));
     activateTab(activeTab ? activeTab.getAttribute('data-help-tab') as string : tabButtons[0].getAttribute('data-help-tab') as string);

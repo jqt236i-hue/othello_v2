@@ -103,6 +103,7 @@ describe('rules help panel', () => {
         <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="protection-map" class="rules-help-tab" type="button"></button>
         <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-card-list"></div>
@@ -111,6 +112,7 @@ describe('rules help panel', () => {
         </section>
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="protection-map" id="rules-help-page-protection-map" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
       </div>
     </body></html>`);
@@ -177,6 +179,9 @@ describe('rules help panel', () => {
 
     document.querySelector('[data-help-tab="guide"]').click();
     expect(document.getElementById('rules-help-page-guide').classList.contains('is-active')).toBe(true);
+
+    document.querySelector('[data-help-tab="protection-map"]').click();
+    expect(document.getElementById('rules-help-page-protection-map').classList.contains('is-active')).toBe(true);
 
     document.querySelector('[data-help-tab="counters"]').click();
     expect(document.getElementById('rules-help-page-counters').classList.contains('is-active')).toBe(true);
@@ -343,6 +348,7 @@ describe('rules help panel', () => {
         <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
         <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
         <button data-help-tab="guide" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="protection-map" class="rules-help-tab" type="button"></button>
         <button data-help-tab="counters" class="rules-help-tab" type="button"></button>
         <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page is-active">
           <div id="rules-help-catalog-controls">
@@ -357,6 +363,7 @@ describe('rules help panel', () => {
         </section>
         <section data-help-page="effects" id="rules-help-page-effects" class="rules-help-page"></section>
         <section data-help-page="guide" id="rules-help-page-guide" class="rules-help-page"></section>
+        <section data-help-page="protection-map" id="rules-help-page-protection-map" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
       </div>
     </body></html>`);
@@ -618,6 +625,68 @@ describe('rules help panel', () => {
     expect(html).toMatch(/id="rules-help-guide-page-status"/);
   });
 
+  test('index html includes protection penetration map help tab and image', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
+    expect(html).toMatch(/id="rules-help-page-protection-map"/);
+    expect(html).toMatch(/id="rules-help-protection-map-img"/);
+    expect(html).toMatch(/src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
+    expect(html).toMatch(/alt="耐性貫通の〇×早見表 1 \/ 2"/);
+    expect(html).toMatch(/id="rules-help-protection-map-prev"/);
+    expect(html).toMatch(/id="rules-help-protection-map-next"/);
+    expect(html).toMatch(/id="rules-help-protection-map-page-status"/);
+  });
+
+  test('protection map next and previous buttons page through explainer and quick reference images', () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab" type="button"></button>
+        <button data-help-tab="protection-map" class="rules-help-tab is-active" type="button"></button>
+        <section data-help-page="catalog" id="rules-help-page-catalog" class="rules-help-page">
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="protection-map" id="rules-help-page-protection-map" class="rules-help-page is-active">
+          <button id="rules-help-protection-map-prev" type="button">前へ</button>
+          <span id="rules-help-protection-map-page-status"></span>
+          <button id="rules-help-protection-map-next" type="button">次へ</button>
+          <img id="rules-help-protection-map-img" src="assets/images/help/protection-penetration/protection-penetration-quick-reference.png" alt="耐性貫通の〇×早見表 1 / 2">
+        </section>
+      </div>
+    </body></html>`);
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+
+    const img = document.getElementById('rules-help-protection-map-img') as HTMLImageElement;
+    const prev = document.getElementById('rules-help-protection-map-prev') as HTMLButtonElement;
+    const next = document.getElementById('rules-help-protection-map-next') as HTMLButtonElement;
+    const status = document.getElementById('rules-help-protection-map-page-status') as HTMLElement;
+
+    expect(img.getAttribute('src')).toBe('assets/images/help/protection-penetration/protection-penetration-quick-reference.png');
+    expect(img.getAttribute('alt')).toBe('耐性貫通の〇×早見表 1 / 2');
+    expect(status.textContent).toBe('1 / 2');
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(false);
+
+    next.click();
+    expect(img.getAttribute('src')).toBe('assets/images/help/protection-penetration/protection-penetration-explainer.png');
+    expect(img.getAttribute('alt')).toBe('耐性と貫通の関係図 2 / 2');
+    expect(status.textContent).toBe('2 / 2');
+    expect(prev.disabled).toBe(false);
+    expect(next.disabled).toBe(true);
+
+    prev.click();
+    expect(img.getAttribute('src')).toBe('assets/images/help/protection-penetration/protection-penetration-quick-reference.png');
+    expect(status.textContent).toBe('1 / 2');
+    expect(prev.disabled).toBe(true);
+  });
+
   test('rules guide next and previous buttons page through slide images', () => {
     setDom(`<!doctype html><html><body>
       <button id="rulesHelpBtn" aria-expanded="false"></button>
@@ -666,6 +735,7 @@ describe('rules help panel', () => {
     expect(status.textContent).toBe('1 / 8');
     expect(prev.disabled).toBe(true);
   });
+
   test('rules guide keeps the current slide visible until the next image is loaded', () => {
     const createdImages: Array<any> = [];
     const originalImage = (global as any).Image;
@@ -742,6 +812,7 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
     expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
+    expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
     expect(html).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
     expect(html).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
     expect(html).toMatch(/id="rules-help-guide-slide-img"/);

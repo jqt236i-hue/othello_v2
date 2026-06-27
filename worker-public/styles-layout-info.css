@@ -2467,7 +2467,27 @@
     min-height: 0;
 }
 
+#rules-help-protection-map-layout {
+    display: flex;
+    flex-direction: column;
+    gap: calc(10px * var(--layout-stage-scale));
+    min-height: 0;
+}
+
 #rules-help-guide-slide-frame {
+    display: grid;
+    place-items: center;
+    min-height: 0;
+    padding: calc(8px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(255, 236, 179, 0.22);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.28);
+    box-shadow:
+        inset 0 0 0 var(--layout-size-border-thin) rgba(255, 255, 255, 0.05),
+        0 calc(4px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+}
+
+#rules-help-protection-map-frame {
     display: grid;
     place-items: center;
     min-height: 0;
@@ -2492,14 +2512,28 @@
     user-select: none;
 }
 
-#rules-help-guide-controls {
+#rules-help-protection-map-img {
+    display: block;
+    width: 100%;
+    max-width: min(100%, calc(960px * var(--layout-stage-scale)));
+    max-height: min(54vh, calc(594px * var(--layout-stage-scale)));
+    aspect-ratio: 40 / 27;
+    object-fit: contain;
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.22);
+    user-select: none;
+}
+
+#rules-help-guide-controls,
+#rules-help-protection-map-controls {
     display: grid;
     grid-template-columns: minmax(calc(82px * var(--layout-stage-scale)), auto) 1fr minmax(calc(82px * var(--layout-stage-scale)), auto);
     align-items: center;
     gap: calc(8px * var(--layout-stage-scale));
 }
 
-#rules-help-guide-page-status {
+#rules-help-guide-page-status,
+#rules-help-protection-map-page-status {
     justify-self: center;
     min-width: calc(70px * var(--layout-stage-scale));
     padding: calc(4px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
@@ -2512,7 +2546,6 @@
     line-height: 1.2;
     text-align: center;
 }
-
 
 #rules-help-guide-prev,
 #rules-help-guide-next {
@@ -2545,11 +2578,29 @@
         inset 0 0 0 var(--layout-size-border-thin) rgba(255, 255, 255, 0.16);
 }
 
+#rules-help-protection-map-prev,
+#rules-help-protection-map-next {
+    min-width: 72px;
+    min-height: 28px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#rules-help-protection-map-page-status {
+    min-height: 28px;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
 #rules-help-guide-prev:disabled,
-#rules-help-guide-next:disabled {
+#rules-help-guide-next:disabled,
+#rules-help-protection-map-prev:disabled,
+#rules-help-protection-map-next:disabled {
     opacity: 0.42;
     cursor: default;
 }
+
 #rules-help-counters-layout {
     display: flex;
     flex-direction: column;

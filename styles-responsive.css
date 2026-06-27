@@ -175,7 +175,9 @@
     }
 
     #rules-help-guide-prev,
-    #rules-help-guide-next {
+    #rules-help-guide-next,
+    #rules-help-protection-map-prev,
+    #rules-help-protection-map-next {
         min-width: 90px;
         min-height: 34px;
         padding: 7px 14px;
@@ -183,7 +185,8 @@
         font-weight: 800;
     }
 
-    #rules-help-guide-page-status {
+    #rules-help-guide-page-status,
+    #rules-help-protection-map-page-status {
         min-width: 64px;
         padding: 5px 10px;
         font-size: 12px;
@@ -1011,7 +1014,9 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 
     #rules-help-guide-prev,
-    #rules-help-guide-next {
+    #rules-help-guide-next,
+    #rules-help-protection-map-prev,
+    #rules-help-protection-map-next {
         min-width: 90px;
         min-height: 34px;
         padding: 7px 14px;
@@ -1019,7 +1024,8 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         font-weight: 800;
     }
 
-    #rules-help-guide-page-status {
+    #rules-help-guide-page-status,
+    #rules-help-protection-map-page-status {
         min-width: 64px;
         padding: 5px 10px;
         font-size: 12px;
@@ -1986,6 +1992,9 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #quick-controls-bar {
+        /* Lift the floating control just above #deck-black so it no longer overlaps the player's deck slot.
+           iPad tablet card-large-height is 145px, so 153px leaves an 8px gap above the deck top edge. */
+        bottom: calc(var(--layout-stage-offset-y) + max(calc(153px * var(--layout-stage-scale)), env(safe-area-inset-bottom) + calc(137px * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift));
         grid-template-columns: auto auto minmax(calc(116px * var(--layout-stage-scale)), calc(150px * var(--layout-stage-scale)));
         grid-template-areas:
             "reset bgmtoggle bgmtrack"
