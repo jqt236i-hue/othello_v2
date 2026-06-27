@@ -54,6 +54,29 @@ function requireMoveExecutorModuleOrNull(id: string): any {
     }
 }
 
+// Lv1 CPU は応答性最優先 (cpu-turn-move-phase.ts:138) のため、
+// 着手前ウェイト (CPU_TURN_DELAY_MS フォールバック) を 0 に短縮する。
+// テスト等で CPU_TURN_DELAY_MS が明示的に設定されている場合は尊重して base を維持。
+// レベル解決に失敗した場合は安全側 (base) に倒す。
+function resolveLv1AwareCpuDelay(baseCpuDelay: any): number {
+    const base = Number.isFinite(Number(baseCpuDelay))
+        ? Math.max(0, Math.trunc(Number(baseCpuDelay)))
+        : 200;
+    if (typeof CPU_TURN_DELAY_MS !== 'undefined') {
+        return base;
+    }
+    try {
+        const CpuDecision = (typeof require === 'function') ? require('./cpu-decision') : null;
+        if (CpuDecision && typeof CpuDecision.resolveCpuDecisionLevelForPlayer === 'function') {
+            const level = Number(CpuDecision.resolveCpuDecisionLevelForPlayer('white'));
+            if (Number.isFinite(level) && Math.floor(level) === 1) {
+                return 0;
+            }
+        }
+    } catch (e) { /* fall through to base */ }
+    return base;
+}
+
 // Import event emitters from controller-events; fall back to global scope
 let emitBoardUpdate_local: any;
 let emitCardStateChange_local: any;
@@ -586,7 +609,9 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     emitMoveExecutorPlaybackHandoffBeforeStateChange(res.playbackEvents, { move, phases, effects, immediate });
 
     const humanMode = isHumanVsHumanModeEnabled();
-    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200;
+    const safeCpuDelay = resolveLv1AwareCpuDelay(
+        (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200
+    );
     const handoff = resolveMoveExecutorNetworkTurnHandoff();
     const finalizeTurn = (handoff && typeof handoff.finalizeNetworkTurnHandoff === 'function')
         ? handoff.finalizeNetworkTurnHandoff

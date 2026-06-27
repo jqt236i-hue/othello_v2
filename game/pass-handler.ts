@@ -286,6 +286,29 @@ function hasUsableWaitMs(t: any) {
     return true;
 }
 
+// Lv1 CPU は応答性最優先 (cpu-turn-move-phase.ts:138) のため、
+// 着手前ウェイト (CPU_TURN_DELAY_MS フォールバック) を 0 に短縮する。
+// テスト等で CPU_TURN_DELAY_MS が明示的に設定されている場合は尊重して base を維持。
+// レベル解決に失敗した場合は安全側 (base) に倒す。
+function resolveLv1AwareCpuDelay(baseCpuDelay: any): number {
+    const base = Number.isFinite(Number(baseCpuDelay))
+        ? Math.max(0, Math.trunc(Number(baseCpuDelay)))
+        : 200;
+    if (typeof CPU_TURN_DELAY_MS !== 'undefined') {
+        return base;
+    }
+    try {
+        const CpuDecision = (typeof require === 'function') ? require('./cpu-decision') : null;
+        if (CpuDecision && typeof CpuDecision.resolveCpuDecisionLevelForPlayer === 'function') {
+            const level = Number(CpuDecision.resolveCpuDecisionLevelForPlayer('white'));
+            if (Number.isFinite(level) && Math.floor(level) === 1) {
+                return 0;
+            }
+        }
+    } catch (e) { /* fall through to base */ }
+    return base;
+}
+
 function scheduleWithDelay(delayMs: number, callback: () => void, immediateWithoutTimers?: boolean) {
     const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
     if (hasUsableWaitMs(timers)) {
@@ -854,7 +877,9 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
             setPassHandlerProcessing(!humanMode);
             if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
             if (!humanMode) {
-                scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 200), {
+                scheduleWhiteCpuTurnGuarded(resolveLv1AwareCpuDelay(
+                    (typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 200)
+                ), {
                     nextPlayerKey
                 });
             }
@@ -870,7 +895,9 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
         setPassHandlerProcessing(!humanMode);
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue(nextPlayerKey, nextPlayer));
         if (!humanMode) {
-            scheduleWhiteCpuTurnGuarded(CPU_TURN_DELAY_MS, {
+            scheduleWhiteCpuTurnGuarded(resolveLv1AwareCpuDelay(
+                    (typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 200)
+                ), {
                 nextPlayerKey
             });
         }
@@ -899,7 +926,9 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: 
     }
 
     const humanMode = isHumanVsHumanModeEnabled();
-    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200;
+    const safeCpuDelay = resolveLv1AwareCpuDelay(
+        (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200
+    );
 
     await finalizeTurn({
         playerKey: safePublishPlayerKey,
