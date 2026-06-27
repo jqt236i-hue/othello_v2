@@ -1,0 +1,9 @@
+[worker-prepare] output: npm run worker:prepare completed successfully
+[worker-prepare] files mirrored: 825
+[worker-prepare] errors: 0
+
+Verification:
+- ROBOT_VACUUM present in worker-public/game/turn/pipeline_ui_adapter.ts: yes (lines 43, 57, 1930, 2016)
+- WILL_HUNTER_KING present in worker-public/game/turn/pipeline_ui_adapter.ts: yes (lines 62, 766, 783, 941, etc.)
+- ROBOT_VACUUM found in 12 worker-public files (46 occurrences)
+- WILL_HUNTER_KING found in 14 worker-public files (61 occurrences)

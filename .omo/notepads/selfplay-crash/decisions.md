@@ -1,0 +1,4 @@
+ - Chose the smallest valid fix: re-export the intact `worker-public` implementation from the root source and dist runtime files.
+ - Kept the scope limited to the pending coordinator module to avoid changing card behavior, CPU logic, or training settings.
+ - Restored the CLI entrypoint by invoking the dist module's `main()` from the root shim so the direct `node scripts/generate-selfplay-data.js` path actually performs work.
+ - Used the intact worker-public effect resolver as the shortest path to unblock the runtime card pipeline, since the generated dist shim was the immediate source of the self-play failure.

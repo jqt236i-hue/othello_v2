@@ -1,0 +1,97 @@
+ts-jest[ts-jest-transformer] (WARN) Define `ts-jest` config under `globals` is deprecated. Please do
+transform: {
+    <transform_regex>: ['ts-jest', { /* ts-jest config goes here in Jest */ }],
+},
+See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/presets#advanced
+FAIL test/game.pipeline-ui-adapter.sound-cue.test.ts
+  pipeline_ui_adapter sound cue mapping
+    竏・trap_selected 縺九ｉ trap_select 縺ｮ sound_effect 繧定ｿｽ蜉縺吶ｋ (2 ms)
+    竏・time_bomb_selected 謌仙粥譎ゅ・ TIME_BOMB 縺ｮ status_applied phase 縺ｧ trap_select 繧貞・逕溘☆繧・(1 ms)
+    竏・time_bomb_selected 縺御ｸ肴・遶九↑繧・trap_select 繧貞・逕溘＠縺ｪ縺・    竏・guard_selected 謌仙粥譎ゅ・ GUARD 縺ｮ status_applied phase 縺ｧ guard_select 繧貞・逕溘☆繧・(1 ms)
+    竏・guard_selected 縺御ｸ肴・遶九↑繧・guard_select 繧貞・逕溘＠縺ｪ縺・    竏・living_will_selected 謌仙粥譎ゅ・ LIVING_WILL 縺ｮ status_applied phase 縺ｧ living_will_selected 繧貞・逕溘☆繧・    竏・living_will_selected 縺御ｸ肴・遶九↑繧・living_will_selected 繧貞・逕溘＠縺ｪ縺・    竏・hyperactive_inherit_selected 謌仙粥譎ゅ・ INHERITED_HYPERACTIVE 縺ｮ status_applied phase 縺ｧ guard_select 繧貞・逕溘☆繧・    竏・hyperactive_inherit_selected 縺御ｸ肴・遶九↑繧・guard_select 繧貞・逕溘＠縺ｪ縺・    竏・freeze_selected 謌仙粥譎ゅ・ FREEZE 縺ｮ status_applied phase 縺ｧ freeze_select 繧貞・逕溘☆繧・    竏・freeze_selected 縺御ｸ肴・遶九↑繧・freeze_select 繧貞・逕溘＠縺ｪ縺・    竏・condemn_selected 縺ｯ逶ｸ謇区焔譛ｭ縺ｮ hand_remove phase 縺ｧ stone_destroy 繧貞・逕溘☆繧・(1 ms)
+    竏・board_shrink_selected 謌仙粥譎ゅ・ METEOR_HOLE 縺ｮ status_applied phase 縺ｧ board_shrink_selected 繧貞・逕溘☆繧・    竏・board_shrink_selected 縺御ｸ肴・遶九↑繧・board_shrink_selected 繧貞・逕溘＠縺ｪ縺・    竏・BOARD_SHRINK_WILL 縺ｮ destroy playback 縺ｯ board_shrink_selected 縺縺代ｒ蜀咲函縺・stone_destroy 縺ｯ霑ｽ蜉縺励↑縺・    竏・ROUND_BONUS_BANNER presentation event 縺九ｉ round_bonus 縺ｮ sound_effect 繧定ｿｽ蜉縺吶ｋ
+    竏・trap_expired 縺ｯ trap_misfire 繧貞・逕溘＠ special_reverted/stone_destroy 縺ｯ霑ｽ蜉縺励↑縺・(1 ms)
+    竏・trap_disarmed 縺ｯ trap_misfire 繧貞・逕溘＠ special_reverted/stone_destroy 縺ｯ霑ｽ蜉縺励↑縺・    竏・trap_triggered 縺ｯ逋ｺ蜍輔そ繝ｫ縺ｮ flip phase 縺ｧ蟆ら畑髻ｳ繧貞・逕溘☆繧・    竏・trap_triggered 縺ｧ逋ｺ蜍輔そ繝ｫ縺ｮ flip 縺檎┌縺・ｴ蜷医・ fallback phase 縺ｧ蜀咲函縺吶ｋ
+    竏・clone_selected 縺ｮ sound_effect 繧・clone move 縺ｮ phase 縺ｫ蜷医ｏ縺帙ｋ (1 ms)
+    竏・proliferation spawn 繧・clone_spawn sound 繧・move phase 縺ｫ蜷医ｏ縺帙ｋ
+    ﾃ・breeding spawn 繧剃ｿ昴■縺､縺､ Equality Will 縺ｮ蜷・spawn phase 縺ｫ breeding_spawn 繧帝㍾縺ｭ繧・(2 ms)
+    竏・gluttonous proliferation overlap keeps stone_destroy on overlap phase and clone_spawn on next phase (1 ms)
+    竏・strong_wind_selected 謌仙粥譎ゅ・ strong wind move 縺ｮ phase 縺ｧ蜀咲函縺吶ｋ
+    竏・strong_wind_selected 縺御ｸ肴・遶九↑繧・strong_wind_move 繧貞・逕溘＠縺ｪ縺・    竏・teleport_selected 謌仙粥譎ゅ・ teleport move 縺ｮ phase 縺ｧ teleport_select 繧貞・逕溘☆繧・(1 ms)
+    竏・teleport_selected 縺御ｸ肴・遶九↑繧・teleport_select 繧貞・逕溘＠縺ｪ縺・    竏・繝槭せ繝・Ξ繝昴・繝域・蜉滓凾繧・teleport move 縺ｮ phase 縺ｧ teleport_select 繧貞・逕溘☆繧・    竏・super_buoyancy_selected 謌仙粥譎ゅ・ super move 縺ｮ phase 縺ｧ super_buoyancy_move 繧貞・逕溘☆繧・    竏・super_gravity_selected 謌仙粥譎ゅ・ super move 縺ｮ phase 縺ｧ super_gravity_move 繧貞・逕溘☆繧・    竏・tempt_selected 謌仙粥譎ゅ・ tempt_applied 縺ｮ flip phase 縺ｧ隱俶ヱ髻ｳ縺ｨ card_effect_flip 繧貞・逕溘☆繧・(1 ms)
+    竏・tempt_selected 縺御ｸ肴・遶九↑繧芽ｪ俶ヱ髻ｳ繧・card_effect_flip 繧ょ・逕溘＠縺ｪ縺・    竏・capture_selected 謌仙粥譎ゅ・ capture_to_hand_animation phase 縺ｧ隱俶ヱ髻ｳ繧貞・逕溘☆繧・    竏・dragon_converted_start 縺ｯ DRAGON 蜿崎ｻ｢縺ｮ flip phase 縺ｧ card_effect_flip 繧貞・逕溘☆繧・    竏・dragon_converted 邉ｻ縺ｧ蟇ｾ蠢・flip 縺檎┌縺・ｴ蜷医・ fallback phase 縺ｧ card_effect_flip 繧貞・逕溘☆繧・    竏・chain_flipped 縺ｯ蜷・｣骼悶Μ繝ｳ繧ｯ縺ｮ flip phase 縺ｧ card_effect_flip 繧貞・逕溘☆繧・    竏・chain_flipped 縺ｧ蟇ｾ蠢・flip 縺檎┌縺・ｴ蜷医・ fallback phase 縺ｧ card_effect_flip 繧貞・逕溘☆繧・    竏・card effect driven flip phases 縺ｯ taboo/regen/swap/equality/salvation/breeding/hyperactive 邉ｻ縺ｧ繧・card_effect_flip 繧貞・逕溘☆繧・(1 ms)
+    竏・condemn_selected 謌仙粥譎ゅ・ card_use_animation 縺ｮ phase 縺ｧ stone_destroy 繧貞・逕溘☆繧・    竏・騾壼ｸｸ繧ｫ繝ｼ繝峨・ CARD_USED 縺ｯ card_use_animation 縺ｮ phase 縺ｧ card_use_button 繧貞・逕溘☆繧・    竏・螳晉ｮｱ縺ｮ CARD_USED 繧・card_use_animation 縺ｮ phase 縺ｧ card_use_button 繧貞・逕溘☆繧・    竏・corrosion_will_resolved 縺ｯ card_use_animation 縺ｮ phase 縺ｧ corrosion_tick 繧貞・逕溘☆繧・    竏・condemn_selected 縺御ｸ肴・遶九↑繧・stone_destroy 繧貞・逕溘＠縺ｪ縺・    竏・treasure_box_gain 縺後≠繧九ち繝ｼ繝ｳ縺ｯ treasure_gain 繧貞━蜈医＠ charge_gain_common 繧貞酔譎ょ・逕溘＠縺ｪ縺・(1 ms)
+    竏・螳晉ｮｱ菴ｿ逕ｨ譎ゅ・ card_use_button 縺ｨ treasure_gain 繧帝・↓蜀咲函縺吶ｋ
+    竏・loss_will_resolved 縺ｯ card_use_animation 縺ｫ豸亥､ｱ譎・sound key 繧剃ｻ倅ｸ弱☆繧・    ﾃ・equality_will_resolved 縺ｯ譛蛻昴・ spawn 縺ｨ breeding_spawn 繧・card_use_animation 縺ｮ豸亥､ｱ譎ゅ∈蟇・○繧・(1 ms)
+    竏・reinforcement_will_resolved 縺ｯ譛蛻昴・ spawn 縺ｨ breeding_spawn 繧・card_use_animation 縺ｮ豸亥､ｱ譎ゅ∈蟇・○繧・(1 ms)
+    竏・strong_will_promoted 縺ｯ status_applied 縺ｮ phase 縺ｧ騾ｲ蛹夜浹繧貞・逕溘☆繧・    竏・遞ｮ縺ｾ縺阪・諢丞ｿ励・闃ｽ逕溘∴縺ｯ seed_sprout 縺ｮ蟆ら畑髻ｳ繧貞・逕溘☆繧・    竏・逕溘″繧区э蠢励・蠕ｩ豢ｻ縺ｯ spawn 縺ｨ flip 縺ｮ荳｡譁ｹ縺ｧ蟆ら畑髻ｳ繧貞・逕溘☆繧・(1 ms)
+    竏・驥代・諢丞ｿ励・閾ｪ蟾ｱ遐ｴ螢翫・ stone_destroy 縺ｧ縺ｯ縺ｪ縺・charge_gain_common 繧貞・逕溘☆繧・    竏・驫縺ｮ諢丞ｿ励・閾ｪ蟾ｱ遐ｴ螢翫・ stone_destroy 縺ｧ縺ｯ縺ｪ縺・charge_gain_common 繧貞・逕溘☆繧・    竏・陌ｹ縺ｮ諢丞ｿ励・閾ｪ蟾ｱ遐ｴ螢翫・ stone_destroy 縺ｧ縺ｯ縺ｪ縺・charge_gain_common 繧貞・逕溘☆繧・    竏・豌ｴ譎ｶ縺ｮ諢丞ｿ励・閾ｪ蟾ｱ遐ｴ螢翫・ stone_destroy 縺ｧ縺ｯ縺ｪ縺・charge_gain_common 繧貞・逕溘☆繧・    竏・generic destroy 縺ｯ辷・ｼｾ逕ｱ譚･繧帝勁螟悶＠縲・壼ｸｸ遐ｴ螢翫・縺ｿ stone_destroy 繧定ｿｽ蜉縺吶ｋ (1 ms)
+    竏・regenerated destroy 縺ｯ generic destroy 縺ｧ繧・stone_destroy 繧定ｿｽ蜉縺励↑縺・    竏・謖∫ｶ壹ち繝ｼ繝ｳ蛻・ｌ縺ｮ status_removed 縺ｯ special_reverted 繧貞・逕溘＠ stone_destroy 繧定ｿｽ蜉縺励↑縺・    竏・ROBOT_VACUUM 縺ｮ status_removed 縺ｧ繧・special_reverted 繧貞・逕溘＠ stone_destroy 繧定ｿｽ蜉縺励↑縺・    竏・ROBOT_VACUUM 縺ｮ蜷ｸ縺・ｾｼ縺ｿ遐ｴ螢翫・ robot_vacuum_suck 縺縺代ｒ蜀咲函縺・stone_destroy 縺ｯ霑ｽ蜉縺励↑縺・    竏・蜷後§ phase 縺ｫ隍・焚縺ｮ蜷ｸ縺・ｾｼ縺ｿ遐ｴ螢翫′縺ゅ▲縺ｦ繧・robot_vacuum_suck 縺ｯ1蝗槭□縺大・逕溘☆繧・    竏・SNIPER_WILL 縺ｮ sniper_shot 縺瑚､・焚縺ゅｋ蝣ｴ蜷医・蜻ｽ荳ｭ謨ｰ縺ｶ繧・stone_destroy 繧貞・逕溘☆繧・(1 ms)
+    竏・SNIPER_WILL 縺ｮ regen蠕ｩ豢ｻ蟇ｾ雎｡縺ｫ縺ｯ stone_destroy 繧貞・逕溘＠縺ｪ縺・    竏・LIGHTNING_WILL 縺ｮ lightning_destroyed 縺瑚､・焚縺ゅｋ蝣ｴ蜷医・蜻ｽ荳ｭ謨ｰ縺ｶ繧・stone_destroy 繧貞・逕溘☆繧・    竏・LIGHTNING_WILL 縺ｮ regen蠕ｩ豢ｻ蟇ｾ雎｡縺ｫ縺ｯ stone_destroy 繧貞・逕溘＠縺ｪ縺・    竏・LIGHTNING_WILL 縺ｮ status_removed 縺ｯ special_reverted 繧貞・逕溘＠ stone_destroy 繧定ｿｽ蜉縺励↑縺・(1 ms)
+    竏・GHOST 縺ｮ status_removed duration_end 縺ｯ special_reverted 繧貞・逕溘＠ stone_destroy 繧定ｿｽ蜉縺励↑縺・    竏・TIME_STOP 縺ｮ status_removed duration_end 縺ｧ繧・special_reverted 繧貞・逕溘＠ stone_destroy 繧定ｿｽ蜉縺励↑縺・    竏・WORK 縺ｮ status_removed duration_end 縺ｧ繧・special_reverted 繧貞・逕溘＠ stone_destroy 繧定ｿｽ蜉縺励↑縺・    竏・CROSS_BOMB 縺ｮ辷・匱縺ｯ destroy 縺ｨ蜷後§ phase 縺ｧ bomb_explode 繧貞・逕溘＠縲《tone_destroy 縺ｯ蜀咲函縺励↑縺・(1 ms)
+    竏・ESCAPE_HYPERACTIVE 縺ｮ遘ｻ蜍穂ｸ崎・辷・匱縺ｯ destroy 縺ｨ蜷後§ phase 縺ｧ bomb_explode 繧貞・逕溘＠縲《tone_destroy 縺ｯ蜀咲函縺励↑縺・    竏・辷・匱 destroy 縺瑚､・焚 phase 縺ｫ蛻・°繧後ｋ蝣ｴ蜷医・ phase 縺斐→縺ｫ bomb_explode 繧貞・逕溘☆繧・    竏・WORK_INCOME 縺ｯ charge_gain_common 繧貞酔縺・phase 縺ｧ蜀咲函縺吶ｋ (1 ms)
+    竏・WORK_INCOME 縺・6迯ｲ蠕励↑繧・work_income_16 繧貞酔縺・phase 縺ｧ蜀咲函縺吶ｋ
+    竏・WORK_REMOVED・亥渚霆｢/遐ｴ螢願ｵｷ蝗・峨〒縺ｯ work_removed 繧貞酔縺・phase 縺ｧ蜀咲函縺吶ｋ
+    竏・WORK_INCOME 縺ｮ removed=true・域戟邯壹ち繝ｼ繝ｳ蛻・ｌ・峨〒縺ｯ work_removed 繧貞・逕溘＠縺ｪ縺・    竏・WORK_INCOME 縺ｮ gained 縺・莉･荳九↑繧・charge_gain_common 繧貞・逕溘＠縺ｪ縺・    竏・螟壼虚邉ｻ縺ｯ遘ｻ蜍・蝗槭＃縺ｨ縺ｫ hyperactive_move 繧定ｿｽ蜉縺吶ｋ・育椪髢・遨ｶ讌ｵ蜷ｫ繧・・(1 ms)
+    竏・AFTERIMAGE_WILL 縺ｮ蜿崎ｻ｢蝗樣∩ move 縺ｫ繧・hyperactive_move 繧定ｿｽ蜉縺吶ｋ
+    竏・destroy_evade_move 縺ｫ繧・hyperactive_move 繧定ｿｽ蜉縺吶ｋ
+    竏・ROBOT_VACUUM 縺ｮ遘ｻ蜍輔↓繧・hyperactive_move 繧定ｿｽ蜉縺吶ｋ
+    竏・WILL_HUNTER_KING 縺ｮ遘ｻ蜍輔↓縺ｯ ultimate_anchor_move 繧定ｿｽ蜉縺・hyperactive_move 縺ｯ霑ｽ蜉縺励↑縺・    竏・DESTROY_EVADE 縺九▽ meta.special=WILL_HUNTER_KING 縺ｧ繧・hyperactive_move 繧貞・逕溘☆繧具ｼ亥屓蟶ｰ・・(1 ms)
+    竏・遨ｶ讌ｵ蜿崎ｻ｢鮴・/ 遨ｶ讌ｵ遐ｴ螢顔･槭・ owner-turn move 縺ｫ縺ｯ蟆ら畑 SE 繧定ｿｽ蜉縺吶ｋ
+
+  笳・pipeline_ui_adapter sound cue mapping 窶ｺ breeding spawn 繧剃ｿ昴■縺､縺､ Equality Will 縺ｮ蜷・spawn phase 縺ｫ breeding_spawn 繧帝㍾縺ｭ繧・
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 12
+    + Received  +  0
+
+      Array [
+        Object {
+          "phase": 2,
+          "sourceType": "breeding_spawned",
+        },
+    -   Object {
+    -     "phase": 4,
+    -     "sourceType": "equality_will_spawn",
+    -   },
+    -   Object {
+    -     "phase": 5,
+    -     "sourceType": "equality_will_spawn",
+    -   },
+    -   Object {
+    -     "phase": 6,
+    -     "sourceType": "equality_will_spawn",
+    -   },
+      ]
+
+      453 |       .map((ev) => ({ phase: ev.phase, sourceType: ev.meta && ev.meta.sourceType }));
+      454 |
+    > 455 |     expect(breedingCues).toEqual([
+          |                          ^
+      456 |       { phase: 2, sourceType: 'breeding_spawned' },
+      457 |       { phase: 4, sourceType: 'equality_will_spawn' },
+      458 |       { phase: 5, sourceType: 'equality_will_spawn' },
+
+      at Object.<anonymous> (test/game.pipeline-ui-adapter.sound-cue.test.ts:455:26)
+
+  笳・pipeline_ui_adapter sound cue mapping 窶ｺ equality_will_resolved 縺ｯ譛蛻昴・ spawn 縺ｨ breeding_spawn 繧・card_use_animation 縺ｮ豸亥､ｱ譎ゅ∈蟇・○繧・
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: [ObjectContaining {"targets": [ObjectContaining {"cause": "EQUALITY_WILL", "col": 2, "r": 2, "reason": "equality_will_spawn"}], "type": "spawn"}, ObjectContaining {"meta": ObjectContaining {"sourceType": "equality_will_spawn"}, "targets": [ObjectContaining {"soundKey": "breeding_spawn"}], "type": "sound_effect"}]
+    Received: undefined
+
+      1018 |
+      1019 |     expect(cardUseEv).toBeTruthy();
+    > 1020 |     expect(disappearEvents).toEqual([
+           |                             ^
+      1021 |       expect.objectContaining({
+      1022 |         type: 'spawn',
+      1023 |         targets: [expect.objectContaining({ cause: 'EQUALITY_WILL', reason: 'equality_will_spawn', r: 2, col: 2 })]
+
+      at Object.<anonymous> (test/game.pipeline-ui-adapter.sound-cue.test.ts:1020:29)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 83 passed, 85 total
+Snapshots:   0 total
+Time:        1.836 s, estimated 4 s
+Ran all test suites matching /test\\game.pipeline-ui-adapter.sound-cue.test.ts/i.

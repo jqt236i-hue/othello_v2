@@ -1,0 +1,4 @@
+
+> othello@1.0.0 build:ts
+> tsc
+

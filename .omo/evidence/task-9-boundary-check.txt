@@ -1,0 +1,22 @@
+Task 9 boundary check
+Generated: 2026-04-30
+
+Scope:
+- game/**/*.ts/js
+- cpu/**/*.ts/js
+
+Checks:
+- Import/require/dynamic import specifiers from game/ or cpu/ to ui/.
+- Direct DOM global access via window.* or document.* after stripping comments.
+
+Result:
+- game_cpu_to_ui_or_dom_violations=0
+- PASS: deletion of stale JS shims did not add game -> ui imports or DOM access to game/cpu.
+
+Verification commands:
+- npm run build:ts: PASS
+- npm run typecheck: PASS
+
+LSP diagnostics:
+- Attempted on game/, ui/, shared/, cards/, constants/, utils/, cpu/.
+- Not available in this environment: typescript-language-server command is not installed.
