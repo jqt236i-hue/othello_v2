@@ -157,7 +157,7 @@ Lane promotion and root deployment are separate phases:
 - Root deployment archives the existing root model under `data/models/archive/<deployId>/` before overwriting.
 - `data/models/deploy-manifest.json` (schema `root_deploy_manifest.v1`) records the deployed model provenance, source lane, source promotionId, and deployment timestamp.
 - Root deployment does not modify lane-local promotion metadata or deploy truth.
-- After root deployment, `npm run worker:prepare` must be run to sync the worker-public mirror.
+- Root デプロイ後の `worker-public/` 同期は `npm run worker:deploy` (および `npm run worker:dev`) が `npm run worker:prepare` を `&&` で連結しているため自動。`npx wrangler deploy` を直接叩く場合のみ個別実行する。
 
 ## 6. Core state contracts
 
@@ -514,9 +514,9 @@ The current asset contract is:
 
 - worker entry: `workers/match-worker.mjs`
 - asset directory: `worker-public/`
-- sync command: `npm run worker:prepare`
+- sync command: `npm run worker:prepare` (通常は `npm run worker:dev` / `npm run worker:deploy` が `&&` で連結して自動実行する)
 
-Path changes or root file changes that affect the worker-served static surface must be reflected by running `npm run worker:prepare`.
+Path changes or root file changes that affect the worker-served static surface are reflected automatically by `npm run worker:dev` / `npm run worker:deploy`, both of which run `npm run worker:prepare` via `&&`. Run `npm run worker:prepare` explicitly only when invoking `npx wrangler dev` / `npx wrangler deploy` directly.
 
 ## 12. Validation matrix
 

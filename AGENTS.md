@@ -178,7 +178,7 @@ npm run test:jest
 npm run test:network:parity
 npm run test:visual
 npm run match:check
-npm run worker:prepare
+npm run worker:prepare     # 自動: npm run worker:dev / npm run worker:deploy に && で連結済み。直接 wrangler を叩く時のみ個別実行
 ```
 
 ## NOTES
@@ -186,5 +186,5 @@ npm run worker:prepare
 - `npm test` runs `pretest` → `npm run checkall` before Jest.
 - Network parity has an explicit package script; prefer it over ad-hoc broad runs for publish/snapshot/reconnect changes.
 - Docs-only changes still need role-overlap, reference, frontmatter / `applyTo`, and file-existence checks.
-- After root model deployment or any root-to-worker mirror impact, run `npm run worker:prepare`.
+- `npm run worker:dev` / `npm run worker:deploy` は内部で `npm run worker:prepare` を走らせるため、root 変更後に手動で `worker:prepare` を呼ぶ必要はない。`npx wrangler dev` / `npx wrangler deploy` を直接叩く時のみ個別実行する。
 - User-facing reports should use Japanese display names from the screen or `01-rulebook.md` first; code IDs are secondary.
