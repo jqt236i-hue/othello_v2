@@ -444,7 +444,7 @@
         const scheduleCpuTurn = (typeof opts.scheduleCpuTurn === 'function') ? opts.scheduleCpuTurn : null;
         const cpuDelayMs = Number.isFinite(Number(opts.cpuDelayMs))
             ? Math.max(0, Math.trunc(Number(opts.cpuDelayMs)))
-            : ((root && Number.isFinite(Number(root.CPU_TURN_DELAY_MS))) ? Math.max(0, Math.trunc(Number(root.CPU_TURN_DELAY_MS))) : 600);
+            : ((root && Number.isFinite(Number(root.CPU_TURN_DELAY_MS))) ? Math.max(0, Math.trunc(Number(root.CPU_TURN_DELAY_MS))) : 200);
 
         if (isGameOverNow(opts.isGameOver, snapshotOverride)) {
             if (resultOrder === 'beforePublish') showResultIfAvailable(opts.showResult);

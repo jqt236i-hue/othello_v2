@@ -854,7 +854,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
             setPassHandlerProcessing(!humanMode);
             if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
             if (!humanMode) {
-                scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 600), {
+                scheduleWhiteCpuTurnGuarded((typeof CPU_TURN_DELAY_MS !== 'undefined' ? CPU_TURN_DELAY_MS : 200), {
                     nextPlayerKey
                 });
             }
@@ -899,7 +899,7 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: 
     }
 
     const humanMode = isHumanVsHumanModeEnabled();
-    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
+    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200;
 
     await finalizeTurn({
         playerKey: safePublishPlayerKey,

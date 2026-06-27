@@ -586,7 +586,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     emitMoveExecutorPlaybackHandoffBeforeStateChange(res.playbackEvents, { move, phases, effects, immediate });
 
     const humanMode = isHumanVsHumanModeEnabled();
-    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
+    const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200;
     const handoff = resolveMoveExecutorNetworkTurnHandoff();
     const finalizeTurn = (handoff && typeof handoff.finalizeNetworkTurnHandoff === 'function')
         ? handoff.finalizeNetworkTurnHandoff
