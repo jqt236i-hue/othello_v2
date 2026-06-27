@@ -26,7 +26,7 @@ describe('debug card search UI', () => {
         super_gravity_01: { id: 'super_gravity_01', name: '超重力', cost: 14 },
         super_attraction_01: { id: 'super_attraction_01', name: '超引力', cost: 9 },
         gravity_01: { id: 'gravity_01', name: '重力', cost: 7 },
-        sacrifice_will_01: { id: 'sacrifice_will_01', name: '犠牲の意志', cost: 14 },
+        sacrifice_will_01: { id: 'sacrifice_will_01', name: '犠牲の意志', cost: 6 },
         chaos_summon_01: { id: 'chaos_summon_01', name: '混沌召喚', cost: 15 },
         guard_01: { id: 'guard_01', name: '守る意志', cost: 3 }
       } as any)[cardId] || null,

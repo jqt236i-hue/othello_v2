@@ -54,7 +54,7 @@
       "id": "sacrifice_will_01",
       "name_ja": "犠牲の意志",
       "type": "SACRIFICE_WILL",
-      "cost": 14,
+      "cost": 6,
       "desc_ja": "次に置く石を犠牲石にする。盤面にいる間、相手がカードを使用すると自らを犠牲にしてそのカードを無効化する。",
       "display_type_ja": "特殊石"
     },
