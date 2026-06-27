@@ -1992,16 +1992,16 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled:not(.layout-profile-phone-portrait) #quick-controls-bar {
-        /* Lift the floating control just above #deck-black so it no longer overlaps the player's deck slot.
-           iPad tablet card-large-height is 145px, so 153px leaves an 8px gap above the deck top edge. */
-        bottom: calc(var(--layout-stage-offset-y) + max(calc(153px * var(--layout-stage-scale)), env(safe-area-inset-bottom) + calc(137px * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift));
-        grid-template-columns: auto auto minmax(calc(116px * var(--layout-stage-scale)), calc(150px * var(--layout-stage-scale)));
+        /* Keep base bottom offset (no upward shift), shrink the footprint, and nudge closer to the right edge so the bar sits beside #deck-black with less visual overlap.
+           BGM track column widened + font tightened so the long track name ("Observation's Sacrifice") no longer truncates to "Observa...". */
+        right: calc(var(--layout-stage-offset-x) + max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right)));
+        grid-template-columns: auto auto minmax(calc(96px * var(--layout-stage-scale)), calc(140px * var(--layout-stage-scale)));
         grid-template-areas:
             "reset bgmtoggle bgmtrack"
             "autobtn mute volume";
-        gap: calc(5px * var(--layout-stage-scale));
-        max-width: min(calc(360px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
-        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+        gap: calc(3px * var(--layout-stage-scale));
+        max-width: min(calc(320px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+        padding: calc(4px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #left-info-stack {
@@ -2175,8 +2175,8 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled #quickBgmTrackButton.quick-bgm-track-button {
-        min-height: 34px;
-        font-size: 11px;
+        min-height: 32px;
+        font-size: 10px;
         line-height: 1.15;
     }
 
