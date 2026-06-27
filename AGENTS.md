@@ -4,6 +4,8 @@
 
 カードリバーシは、ブラウザ UI・headless game logic・network Worker・selfplay/CPU training を同じ repo で扱う JavaScript/TypeScript 中心のゲームです。仕様正本は `01-rulebook.md`、内部構造の正本は `docs/architecture-contracts.md`、root 実装が正本で `worker-public/` は mirror です。
 
+人間 (非技術ユーザー) 向けの判断軸・運用ルールは `docs/HUMAN-DEV-GUIDE.md` に分離してあります。AI エージェントはこのファイルを直接編集せず、ユーザー (= 人間) の運用判断材料としてのみ参照してください。
+
 ## STRUCTURE
 
 ```text
