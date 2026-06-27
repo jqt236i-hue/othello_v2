@@ -135,22 +135,37 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         }
 
         let move = null;
-        const selectMoveFromOnnx = cfg.getSelectMoveFromOnnxFn();
-        if (cfg.shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnx === 'function') {
-            try {
-                move = await selectMoveFromOnnx(candidateMoves, playerKey, level);
-                if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_onnx_move_decision')) {
-                    return { status: 'handled' };
-                }
-            } catch (e) {
-                cfg.debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
+        // Lv1 fast path: 強さを犠牲にして即ランダム着手 (応答性最優先)
+        // ONNX 試行・CpuPolicy 経路を全てスキップするため move は同期的に確定する。
+        const cardLevel = Number(level);
+        if (Number.isFinite(cardLevel) && cardLevel === 1 && candidateMoves.length > 0) {
+            move = candidateMoves[Math.floor(Math.random() * candidateMoves.length)];
+            if (cfg.isCpuDebugLogAvailable()) {
+                cfg.emitCpuDebugLog(`[CPU] Lv1 ${playerKey}: fast random move (${move.row},${move.col})`, 'info', {
                     playerKey,
-                    error: e && (e as any).message ? (e as any).message : String(e)
+                    selectedMove: { row: move.row, col: move.col },
+                    candidateCount: candidateMoves.length
                 });
             }
         }
         if (!move) {
-            move = cfg.selectCpuMoveSafe(candidateMoves, playerKey);
+            const selectMoveFromOnnx = cfg.getSelectMoveFromOnnxFn();
+            if (cfg.shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnx === 'function') {
+                try {
+                    move = await selectMoveFromOnnx(candidateMoves, playerKey, level);
+                    if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_onnx_move_decision')) {
+                        return { status: 'handled' };
+                    }
+                } catch (e) {
+                    cfg.debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
+                        playerKey,
+                        error: e && (e as any).message ? (e as any).message : String(e)
+                    });
+                }
+            }
+            if (!move) {
+                move = cfg.selectCpuMoveSafe(candidateMoves, playerKey);
+            }
         }
         if (!move) {
             const passFn = cfg.resolveProcessPassTurn();
