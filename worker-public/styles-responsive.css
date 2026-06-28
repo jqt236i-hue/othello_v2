@@ -586,7 +586,7 @@ html.layout-profile-phone-portrait #networkRoomListViewport {
 }
 
 html.layout-profile-phone-portrait .network-room-list-entry {
-    min-height: calc(300px * var(--layout-stage-scale));
+    min-height: calc(250px * var(--layout-stage-scale));
 }
 
 @media (max-width: 57.5em) and (orientation: landscape) {
