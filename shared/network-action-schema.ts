@@ -75,7 +75,7 @@
 
         const payload: SerializedAction = {
             actionType,
-            actor: normalizePlayerKey((action as Record<string, unknown>).actor || (action as Record<string, unknown>).playerKey, fallbackActor),
+            actor: normalizePlayerKey(fallbackActor, (action as Record<string, unknown>).actor || (action as Record<string, unknown>).playerKey),
             params: {}
         };
 
@@ -130,7 +130,7 @@
                 : {});
 
         const action: Record<string, unknown> = Object.assign({ type: actionType }, params || {});
-        const actor = normalizePlayerKey(source.actor || (explicitAction && explicitAction.playerKey), fallbackActor);
+        const actor = normalizePlayerKey(fallbackActor, source.actor || (explicitAction && explicitAction.playerKey));
         const actionId = source.actionId || (explicitAction && explicitAction.actionId);
         const turnIndex = Number.isFinite(Number(source.turnIndex))
             ? Math.trunc(Number(source.turnIndex))

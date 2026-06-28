@@ -63,7 +63,7 @@ function serializeActionForCommandPayload(action: any, fallbackPlayerKey?: any, 
 
   const payload: any = {
     actionType: actionType,
-    actor: normalizePlayerKey(action.actor || action.playerKey || fallbackPlayerKey, 'black', opts.normalizePlayerKey),
+    actor: normalizePlayerKey(fallbackPlayerKey || action.actor || action.playerKey, 'black', opts.normalizePlayerKey),
     params: {}
   };
   if (action.actionId) payload.actionId = String(action.actionId);

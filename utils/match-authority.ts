@@ -2143,7 +2143,23 @@ function validatePendingSelectionPublish(snapshotValue: unknown, playerKey: unkn
     const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
         ? asRecord(cardState.pendingEffectByPlayer)
         : null;
-    const expectedPending = pendingByPlayer ? asRecord(pendingByPlayer[normalizePlayerKey(playerKey)]) : null;
+    let expectedPending = pendingByPlayer ? asRecord(pendingByPlayer[normalizePlayerKey(playerKey)]) : null;
+    // FATE_WILL controller publishes a cell-click action on behalf of the owner.
+    // The pending effect is stored under the OWNER side per 正本/カード仕様正本.md 運命の意志
+    // ("石置・反転・カード使用・終端消費・手札消費は相手側の行動として処理").
+    // When playerKey is the FATE_WILL controller for the current turn owner,
+    // fall back to the owner-side pending before falling back to compatibility context.
+    if (!expectedPending || !expectedPending.type) {
+        if (isFateWillControllerForCurrentTurn(snapshotValue, normalizePlayerKey(playerKey))) {
+            const ownerKey = getCurrentPlayerKey(snapshot && snapshot.gameState as Partial<GameState> | null);
+            if (ownerKey) {
+                const ownerPending = pendingByPlayer ? asRecord(pendingByPlayer[ownerKey]) : null;
+                if (ownerPending && ownerPending.type) {
+                    expectedPending = ownerPending;
+                }
+            }
+        }
+    }
     if (!expectedPending || !expectedPending.type) {
         const hasCompatibilityCardContext = !!(
             action
