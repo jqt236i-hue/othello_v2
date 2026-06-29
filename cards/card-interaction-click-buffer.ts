@@ -22,9 +22,7 @@ function getServerAuthoredCardUseClickBuffer(deps: ClickBufferDeps) {
             const buffer = rootRef.__serverAuthoredCardUseClickBuffer;
             if (!buffer || buffer.active !== true) return false;
             const normalizedPlayer = deps.normalizeOwnerKey(playerKey);
-            const matchesPlayerKey = !buffer.playerKey || !normalizedPlayer || buffer.playerKey === normalizedPlayer;
-            const matchesOwnerKey = !buffer.ownerKey || !normalizedPlayer || buffer.ownerKey === normalizedPlayer;
-            if (!matchesPlayerKey && !matchesOwnerKey) return false;
+            if (buffer.playerKey && normalizedPlayer && buffer.playerKey !== normalizedPlayer) return false;
             if (!Number.isFinite(Number(row)) || !Number.isFinite(Number(col))) return false;
             buffer.click = {
                 row: Math.trunc(Number(row)),
