@@ -34,6 +34,7 @@
 
 | Skill | 使う時 |
 | --- | --- |
+| `harsh-critic` | コード、文書、デザイン、設定、計画などの具体的な成果物に対して、辛口で欠点を洗い出すレビューを求められた時 |
 | `card-reversi-browser-new-card` | ブラウザ版の新カードを catalog / headless effect / pending selection / CPU / presentation / docs / tests まで end-to-end で追加する時 |
 | `card-reversi-browser-card-change` | ブラウザ版の既存カードの挙動、target、timing、availability、CPU 影響、presentation、rules help を変更する時 |
 | `card-reversi-browser-card-text-change` | ブラウザ版の既存カードの表示名、簡易説明、詳細説明、help copy だけを変え、ゲーム挙動は変えない時 |
@@ -52,6 +53,7 @@
 - ブラウザ版の本番 network battle 確認: `card-reversi-browser-live-network-check`
 - Unity 版の UI / presentation 変更: `card-reversi-unity-ui-change`
 - 挙動維持の refactor / cleanup: `safe-refactor-lifecycle`
+- 辛口のダメ出しレビュー: `harsh-critic`
 - AI 向け instruction / skill index の棚卸し: `repo-instruction-auditor`
 
 ## 5. 補足
