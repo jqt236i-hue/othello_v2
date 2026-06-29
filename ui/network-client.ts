@@ -1342,6 +1342,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!mod || typeof mod.createNetworkPublishFlowController !== 'function') return null;
         networkPublishFlowController = mod.createNetworkPublishFlowController({
             getState: () => state,
+            getCardState: () => (root && root.cardState) || null,
             isActive,
             normalizePlayerKey,
             emitStatus,

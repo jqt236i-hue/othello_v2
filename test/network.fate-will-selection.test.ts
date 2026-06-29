@@ -396,3 +396,191 @@ describe('applyTurnSafe: FATE_WILL controller publishes selection without OUT_OF
         expect(result.rejectedReason).toBe('OUT_OF_TURN');
     });
 });
+
+describe('client-side publish gate: FATE_WILL controller can publish owner-side actions', () => {
+    // This is the actual blocker discovered after the first deploy: ui/network/publish-flow.ts
+    // had a `playerKey !== state.seatKey` early return (SEAT_MISMATCH_LOCAL) that rejected
+    // the cell-click publish BEFORE the HTTP request was sent. Server-side fixes are
+    // irrelevant if the request never leaves the client.
+    const PublishFlow = loadModule<any>('ui/network/publish-flow');
+
+    function makeController(cfg: any) {
+        return PublishFlow.createNetworkPublishFlowController({
+            getState: () => cfg.state,
+            isActive: () => true,
+            normalizePlayerKey: (value: any) => {
+                const v = String(value || '').toLowerCase();
+                if (v === 'black' || v === '1' || v === '+1') return 'black';
+                if (v === 'white' || v === '-1') return 'white';
+                return 'black';
+            },
+            emitStatus: cfg.emitStatus || (() => {}),
+            getCardState: () => cfg.cardState || null,
+            // The rest of cfg overrides below; anything that publishSnapshot may reach
+            // is supplied to keep the test isolated to the seat-mismatch gate.
+            createOperationId: () => 'op_test',
+            resolveNetworkPublishRequestModule: () => ({
+                buildPublishRequest: () => ({
+                    commandPayload: { actor: 'black', params: {} },
+                    requestPayload: { actionType: 'place' },
+                    queuedActionType: 'place'
+                })
+            }),
+            getCurrentPublishTurnIndex: () => 1,
+            createTrackedPublish: () => ({ sequence: 1 }),
+            publishRequestWithRetry: cfg.publishRequestWithRetry || (async () => ({ ok: true, data: { ok: true, operationId: 'op_test', stateVersion: 1, snapshot: { stateVersion: 1 }, playbackEvents: [] } })),
+            getSnapshotStateVersion: (snapshot: any) => snapshot && snapshot.stateVersion,
+            recordNetworkTelemetry: () => {}
+        });
+    }
+
+    test('FATE_WILL controller (black) publishing an owner-side (white) action is allowed', async () => {
+        // Player is black (controller), operates white's turn under FATE_WILL.
+        // The select_target cell click sends info.playerKey='white' (= owner).
+        // The publish gate must allow this when the local seat is the controller.
+        const publishRequestWithRetry = jest.fn(async () => ({
+            ok: true,
+            data: { ok: true, operationId: 'op_fw', stateVersion: 2, snapshot: { stateVersion: 2 }, playbackEvents: [] }
+        }));
+        const controller = makeController({
+            state: {
+                roomId: 'R1',
+                seatKey: 'black',  // local seat = controller
+                seatToken: 'tok',
+                stateVersion: 1,
+                publishChain: Promise.resolve()
+            },
+            cardState: {
+                fateWillControllerByTurnOwner: { black: null, white: 'black' }
+            },
+            emitStatus: () => {},
+            publishRequestWithRetry
+        });
+        const result = await controller.publishSnapshot({
+            playerKey: 'white',  // owner
+            actionType: 'place',
+            action: {
+                type: 'place',
+                playerKey: 'white',
+                source: { row: 2, col: 3 },
+                pendingSelectionState: { type: 'HYPER_GRAVITY', stage: 'selectTarget' }
+            }
+        });
+        expect(result.ok).toBe(true);
+        expect(publishRequestWithRetry).toHaveBeenCalled();
+    });
+
+    test('non-FATE_WILL controller (black) publishing a white action is still rejected (SEAT_MISMATCH_LOCAL)', async () => {
+        // No FATE_WILL controller registered → black publishing a white action is a real
+        // seat mismatch (impersonation) and must continue to be rejected.
+        const publishRequestWithRetry = jest.fn();
+        const emitStatus = jest.fn();
+        const controller = makeController({
+            state: {
+                roomId: 'R1',
+                seatKey: 'black',
+                seatToken: 'tok',
+                stateVersion: 1,
+                publishChain: Promise.resolve()
+            },
+            cardState: {
+                fateWillControllerByTurnOwner: { black: null, white: null }  // no controller
+            },
+            emitStatus,
+            publishRequestWithRetry
+        });
+        const result = await controller.publishSnapshot({
+            playerKey: 'white',
+            actionType: 'place',
+            action: { type: 'place', playerKey: 'white' }
+        });
+        expect(result).toEqual({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
+        expect(publishRequestWithRetry).not.toHaveBeenCalled();
+        expect(emitStatus).toHaveBeenCalledWith(expect.stringContaining('操作主体が座席と不一致'), true);
+    });
+
+    test('regression: same-seat (black publishes black) is allowed', async () => {
+        const publishRequestWithRetry = jest.fn(async () => ({
+            ok: true,
+            data: { ok: true, operationId: 'op_self', stateVersion: 2, snapshot: { stateVersion: 2 }, playbackEvents: [] }
+        }));
+        const controller = makeController({
+            state: {
+                roomId: 'R1',
+                seatKey: 'black',
+                seatToken: 'tok',
+                stateVersion: 1,
+                publishChain: Promise.resolve()
+            },
+            cardState: {
+                fateWillControllerByTurnOwner: { black: null, white: null }
+            },
+            emitStatus: () => {},
+            publishRequestWithRetry
+        });
+        const result = await controller.publishSnapshot({
+            playerKey: 'black',
+            actionType: 'use_card',
+            action: { type: 'use_card', useCardId: 'super_attraction' }
+        });
+        expect(result.ok).toBe(true);
+        expect(publishRequestWithRetry).toHaveBeenCalled();
+    });
+
+    test('regression: white seat publishing white action is allowed', async () => {
+        const publishRequestWithRetry = jest.fn(async () => ({
+            ok: true,
+            data: { ok: true, operationId: 'op_white', stateVersion: 2, snapshot: { stateVersion: 2 }, playbackEvents: [] }
+        }));
+        const controller = makeController({
+            state: {
+                roomId: 'R1',
+                seatKey: 'white',
+                seatToken: 'tok',
+                stateVersion: 1,
+                publishChain: Promise.resolve()
+            },
+            cardState: {
+                fateWillControllerByTurnOwner: { black: null, white: null }
+            },
+            emitStatus: () => {},
+            publishRequestWithRetry
+        });
+        const result = await controller.publishSnapshot({
+            playerKey: 'white',
+            actionType: 'use_card',
+            action: { type: 'use_card', useCardId: 'super_attraction' }
+        });
+        expect(result.ok).toBe(true);
+        expect(publishRequestWithRetry).toHaveBeenCalled();
+    });
+
+    test('white controller (white seat) publishing a black action under FATE_WILL is allowed', async () => {
+        // Mirror scenario: white seat is the controller, operates black's turn.
+        const publishRequestWithRetry = jest.fn(async () => ({
+            ok: true,
+            data: { ok: true, operationId: 'op_white_ctl', stateVersion: 2, snapshot: { stateVersion: 2 }, playbackEvents: [] }
+        }));
+        const controller = makeController({
+            state: {
+                roomId: 'R1',
+                seatKey: 'white',  // local seat = controller
+                seatToken: 'tok',
+                stateVersion: 1,
+                publishChain: Promise.resolve()
+            },
+            cardState: {
+                fateWillControllerByTurnOwner: { black: 'white', white: null }  // black's turn controlled by white
+            },
+            emitStatus: () => {},
+            publishRequestWithRetry
+        });
+        const result = await controller.publishSnapshot({
+            playerKey: 'black',  // owner of the action
+            actionType: 'place',
+            action: { type: 'place', playerKey: 'black' }
+        });
+        expect(result.ok).toBe(true);
+        expect(publishRequestWithRetry).toHaveBeenCalled();
+    });
+});

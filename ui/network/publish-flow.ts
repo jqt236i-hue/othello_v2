@@ -11,6 +11,13 @@ function createNetworkPublishFlowController(config?: any): any {
     return typeof cfg.isActive === 'function' ? cfg.isActive() === true : false;
   }
 
+  function getCardState(): any {
+    if (typeof cfg.getCardState === 'function') {
+      try { return cfg.getCardState(); } catch (e) { return null; }
+    }
+    return null;
+  }
+
   function normalizePlayerKey(value: any): string {
     if (typeof cfg.normalizePlayerKey === 'function') {
       return cfg.normalizePlayerKey(value);
@@ -61,8 +68,17 @@ function createNetworkPublishFlowController(config?: any): any {
     const info = meta || {};
     const playerKey = normalizePlayerKey(info.playerKey || state.seatKey);
     if (playerKey !== state.seatKey) {
-      emitStatus(`ネット対戦: 操作主体が座席と不一致です (${playerKey} != ${state.seatKey})`, true);
-      return Promise.resolve({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
+      // FATE_WILL controller publishes an action for the turn owner (playerKey = owner).
+      // Allow it when the local seat is the FATE_WILL controller for that owner.
+      // Symmetric with the server-side validatePendingSelectionPublish fallback in utils/match-authority.ts.
+      const cardStateRef = getCardState();
+      const fateWillControllerByTurnOwner = cardStateRef && cardStateRef.fateWillControllerByTurnOwner;
+      const fateWillController = fateWillControllerByTurnOwner && fateWillControllerByTurnOwner[playerKey];
+      const isFateWillController = fateWillController === state.seatKey;
+      if (!isFateWillController) {
+        emitStatus('ネット対戦: 操作主体が座席と不一致です (' + playerKey + ' != ' + state.seatKey + ')', true);
+        return Promise.resolve({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
+      }
     }
 
     const operationId = (typeof cfg.createOperationId === 'function')
