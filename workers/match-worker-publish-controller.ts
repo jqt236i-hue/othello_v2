@@ -65,18 +65,28 @@ function createMatchWorkerPublishController(config?: any): any {
     }
 
     if (seatKey !== playerKey) {
-      return cfg.jsonResponse(403, cfg.buildPublishPayload(room, viewerSeatKey, cfg.MatchAuthority.buildPublishResponseOptions({
-        ok: false,
-        rejectedReason: 'SEAT_MISMATCH',
-        publishKind: 'rejected',
-        operationId,
-        actionType,
-        receivedBaseVersion: baseVersion,
-        authoritativeStateVersion: room.stateVersion
-      })));
+      // FATE_WILL controller publishes an action for the turn owner (playerKey = owner).
+      // Allow when the local seat is the FATE_WILL controller for the current turn owner.
+      // Symmetric with the client-side gate (ui/network/publish-flow.ts) and the server-side
+      // validatePendingSelectionPublish fallback (utils/match-authority.ts:2146).
+      const isFateWillControllerForOwner = (
+        cfg.MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, seatKey) === true
+        && cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState) === playerKey
+      );
+      if (!isFateWillControllerForOwner) {
+        return cfg.jsonResponse(403, cfg.buildPublishPayload(room, viewerSeatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+          ok: false,
+          rejectedReason: 'SEAT_MISMATCH',
+          publishKind: 'rejected',
+          operationId,
+          actionType,
+          receivedBaseVersion: baseVersion,
+          authoritativeStateVersion: room.stateVersion
+        })));
+      }
     }
 
-    if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
+        if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
       return cfg.jsonResponse(403, cfg.buildPublishPayload(room, null, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'SEAT_TOKEN_MISMATCH',

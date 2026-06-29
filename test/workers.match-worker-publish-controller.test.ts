@@ -153,3 +153,167 @@ describe('match worker publish controller', () => {
     }));
   });
 });
+
+describe('match worker publish controller: FATE_WILL controller can publish owner-side action', () => {
+  function jsonResponse(status: number, data: any) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => data
+    };
+  }
+
+  function makeController(opts: {
+    isFateWillController: boolean;
+    currentPlayer: 'black' | 'white';
+  }) {
+    const room: any = {
+      roomId: 'R_FW',
+      stateVersion: 5,
+      updatedAt: 1000,
+      seats: { black: true, white: true },
+      seatTokens: { black: 'token_black', white: 'token_white' },
+      acceptedOperationsBySeat: { black: null, white: null },
+      authorityLog: [],
+      sseEventBuffer: [],
+      snapshot: {
+        gameState: { currentPlayer: opts.currentPlayer === 'white' ? -1 : 1, turnNumber: 5 },
+        cardState: {
+          pendingEffectByPlayer: { black: null, white: null },
+          fateWillControllerByTurnOwner: {
+            black: null,
+            white: opts.isFateWillController ? 'black' : null
+          }
+        }
+      }
+    };
+    const order: string[] = [];
+    return {
+      room,
+      order,
+      controller: createMatchWorkerPublishController({
+        loadRoom: async () => { order.push('loadRoom'); },
+        getRoom: () => room,
+        applyExpiredTurnTimeoutIfNeeded: async () => { order.push('applyExpiredTurnTimeoutIfNeeded'); },
+        normalizePlayerKey: (value: any) => (value === 'white' || value === -1 || value === '-1' ? 'white' : 'black'),
+        normalizeOperationId: (value: any) => String(value || '').trim(),
+        isNetworkDebugFillHandPayload: () => false,
+        resolveAuthenticatedSeatKey: (_room: any, seatKey: any) => seatKey,
+        ensureAcceptedOperationsBySeat: (currentRoom: any) => currentRoom.acceptedOperationsBySeat,
+        MatchAuthority: {
+          computeAuthoritativeStateHash: () => 'hash_state',
+          buildPublishResponseOptions: (options: any) => options,
+          hasRequiredOperationId: () => true,
+          resolveAcceptedOperation: () => null,
+          buildVersionRejectedPublishResponseOptions: () => ({ ok: false, rejectedReason: 'VERSION_MISMATCH' }),
+          appendAuthorityLog: () => undefined,
+          isFateWillControllerForCurrentTurn: (_snapshot: any, seatKey: any) => {
+            // Returns true only if seatKey is the FATE_WILL controller for the current turn owner.
+            return opts.isFateWillController && seatKey === 'black' && opts.currentPlayer === 'white';
+          },
+          getCurrentPlayerKey: (gameState: any) => {
+            if (!gameState) return 'black';
+            return gameState.currentPlayer === -1 ? 'white' : 'black';
+          },
+          rememberAcceptedOperationBySeat: (currentRoom: any, seatKey: any, entry: any) => {
+            currentRoom.acceptedOperationsBySeat[seatKey] = entry;
+          },
+          stripTransientChargeDeltaState: () => undefined,
+          buildPublishPayload: (_room: any, _viewerSeatKey: any, options: any) => ({
+            ok: options.ok,
+            stateVersion: _room.stateVersion,
+            operationId: options.operationId || null,
+            rejectedReason: options.rejectedReason,
+            snapshot: _room.snapshot
+          })
+        },
+        asRecord: (value: any) => (value && typeof value === 'object' ? value : {}),
+        getCurrentPlayerKey: (gameState: any) => {
+          if (!gameState) return 'black';
+          return gameState.currentPlayer === -1 ? 'white' : 'black';
+        },
+        buildPublishPayload: (_room: any, _viewerSeatKey: any, options: any) => ({
+          ok: options.ok !== false,
+          stateVersion: _room.stateVersion,
+          operationId: options.operationId || null,
+          rejectedReason: options.rejectedReason,
+          snapshot: options.snapshot || _room.snapshot
+        }),
+        getSnapshotGameOver: async () => false,
+        toPublicNetworkDebugEnabled: () => false,
+        deepClone: (value: any) => JSON.parse(JSON.stringify(value)),
+        applyCommandPublishToSnapshot: async () => ({
+          ok: true,
+          snapshot: {
+            gameState: { currentPlayer: -1, turnNumber: 6 },
+            cardState: { pendingEffectByPlayer: { black: null, white: null } }
+          },
+          playbackEvents: [],
+          effectLogs: [],
+          playbackDiagnostics: { accepted: true },
+          action: { type: 'place' },
+          pendingEffectId: 'pending_fw_1'
+        }),
+        refreshTurnTimer: async () => { order.push('refreshTurnTimer'); return true; },
+        prepareSnapshotBroadcast: (meta: any) => { order.push('prepareSnapshotBroadcast'); return null; },
+        saveRoom: async () => { order.push('saveRoom'); },
+        broadcastSnapshot: async () => { order.push('broadcastSnapshot'); },
+        jsonResponse
+      })
+    };
+  }
+
+  test('FATE_WILL controller (black) publishing an owner-side (white) action is allowed', async () => {
+    const { controller, order } = makeController({ isFateWillController: true, currentPlayer: 'white' });
+    const response: any = await controller.handlePublish({
+      seatKey: 'black',  // controller
+      playerKey: 'white', // owner
+      seatToken: 'token_black',
+      baseVersion: 5,
+      operationId: 'op_fw_publish_1',
+      actionType: 'place',
+      actor: 'black', // HTTP seat (after Round 1 fix)
+      action: {
+        type: 'place',
+        playerKey: 'white',
+        row: 2,
+        col: 3,
+        turnIndex: 5
+      }
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+  });
+
+  test('non-FATE_WILL controller (black) publishing a white action is still rejected with 403 SEAT_MISMATCH', async () => {
+    const { controller } = makeController({ isFateWillController: false, currentPlayer: 'white' });
+    const response: any = await controller.handlePublish({
+      seatKey: 'black',  // not the FATE_WILL controller
+      playerKey: 'white', // impersonation
+      seatToken: 'token_black',
+      baseVersion: 5,
+      operationId: 'op_no_fw',
+      actionType: 'place',
+      actor: 'black',
+      action: { type: 'place', playerKey: 'white', row: 2, col: 3 }
+    });
+    expect(response.status).toBe(403);
+    expect((await response.json()).rejectedReason).toBe('SEAT_MISMATCH');
+  });
+
+  test('regression: same-seat (black publishes black) is allowed', async () => {
+    const { controller } = makeController({ isFateWillController: false, currentPlayer: 'black' });
+    const response: any = await controller.handlePublish({
+      seatKey: 'black',
+      playerKey: 'black',
+      seatToken: 'token_black',
+      baseVersion: 5,
+      operationId: 'op_same_seat',
+      actionType: 'use_card',
+      actor: 'black',
+      action: { type: 'use_card', useCardId: 'super_attraction' }
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+  });
+});
