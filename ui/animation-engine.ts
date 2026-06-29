@@ -470,6 +470,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return Math.max(3000, this._resolvePlaybackWatchdogMs() + 250);
         }
 
+        _resolvePlaybackEventCap() {
+            const configured = (typeof window !== 'undefined')
+                ? Number(window.PLAYBACK_EVENT_CAP)
+                : NaN;
+            return Number.isFinite(configured) && configured >= 0
+                ? Math.trunc(configured)
+                : 50;
+        }
+
         async _waitForActivePlaybackToSettle(timeoutMs: any) {
             const safeTimeoutMs = Number.isFinite(Number(timeoutMs))
                 ? Math.max(0, Number(timeoutMs))
@@ -1247,22 +1256,11 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 this.setGlobalInteractionLock(false);
                 return;
             }
-            // Clear stale abort/watchdog state from previous runs.
-            this.isAborted = false;
-            this._watchdogFired = false;
-            this._strictNetworkPlayback = playOptions.strictNetworkPlayback === true
+            const strictNetworkPlaybackThisRun = playOptions.strictNetworkPlayback === true
                 || normalizedEvents.some((event) => event && event.strictNetworkPlayback === true);
-            this._strictNetworkPlaybackError = null;
-            this._strictNetworkPlaybackReject = null;
-            const strictNetworkPlaybackThisRun = this._strictNetworkPlayback === true;
             let abortedDuringPlay = false;
             let playbackError: any = null;
             let strictWatchdogPromise: Promise<never> | null = null;
-            if (strictNetworkPlaybackThisRun) {
-                strictWatchdogPromise = new Promise((resolve, reject) => {
-                    this._strictNetworkPlaybackReject = reject;
-                });
-            }
             const awaitPlaybackStep = (promise: any) => {
                 if (strictNetworkPlaybackThisRun && strictWatchdogPromise) {
                     return Promise.race([Promise.resolve(promise), strictWatchdogPromise]);
@@ -1292,6 +1290,33 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     await new Promise(r => _Timer().setTimeout(r, 100));
                     this.isAborted = false;
                 }
+            }
+
+            const playbackEventCap = this._resolvePlaybackEventCap();
+            if (normalizedEvents.length > playbackEventCap) {
+                console.warn('[AnimationEngine] playback event cap exceeded. Fast-forwarding to board sync.', {
+                    original: normalizedEvents.length,
+                    cap: playbackEventCap,
+                    strictNetworkPlayback: strictNetworkPlaybackThisRun === true
+                });
+                if (typeof window !== 'undefined') {
+                    window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
+                    window.__telemetry__.playbackFastForwarded = (window.__telemetry__.playbackFastForwarded || 0) + 1;
+                }
+                _requestBoardUpdate();
+                return;
+            }
+
+            // Clear stale abort/watchdog state from previous runs.
+            this.isAborted = false;
+            this._watchdogFired = false;
+            this._strictNetworkPlayback = strictNetworkPlaybackThisRun;
+            this._strictNetworkPlaybackError = null;
+            this._strictNetworkPlaybackReject = null;
+            if (strictNetworkPlaybackThisRun) {
+                strictWatchdogPromise = new Promise((resolve, reject) => {
+                    this._strictNetworkPlaybackReject = reject;
+                });
             }
 
             const runId = this._playbackRunSequence + 1;

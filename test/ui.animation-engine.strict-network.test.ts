@@ -77,6 +77,40 @@ describe('AnimationEngine strict network playback', () => {
     }
   });
 
+  test('strict network playback over the event cap fast-forwards without rejecting', async () => {
+    const requestBoardUpdate = jest.fn();
+    (global as any).window.PLAYBACK_EVENT_CAP = 2;
+    jest.doMock('../ui/animation-resolver', () => ({
+      getAnimationShared: () => null,
+      resolveModuleOrGlobal: (modulePath: string) => {
+        if (modulePath === './board-update-dispatch') {
+          return { requestBoardUpdate };
+        }
+        return null;
+      }
+    }));
+
+    try {
+      const AnimationEngine = require('../ui/animation-engine');
+      const executePhaseSpy = jest.spyOn(AnimationEngine, 'executePhase').mockResolvedValue(undefined);
+
+      try {
+        await expect(AnimationEngine.play([
+          { type: 'flip', phase: 1, strictNetworkPlayback: true, targets: [] },
+          { type: 'move', phase: 2, strictNetworkPlayback: true, targets: [] },
+          { type: 'destroy', phase: 3, strictNetworkPlayback: true, targets: [] }
+        ], { strictNetworkPlayback: true })).resolves.toBeUndefined();
+
+        expect(requestBoardUpdate).toHaveBeenCalledTimes(1);
+        expect(executePhaseSpy).not.toHaveBeenCalled();
+      } finally {
+        executePhaseSpy.mockRestore();
+      }
+    } finally {
+      jest.dontMock('../ui/animation-resolver');
+    }
+  });
+
   test('playing network presentation timeline keeps playback state busy', () => {
     (global as any).NetworkPresentationTimeline = {
       getDiagnostics: () => ({ playing: true, paused: false })

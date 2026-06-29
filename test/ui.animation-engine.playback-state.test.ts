@@ -171,6 +171,24 @@ describe('animation-engine playback-state integration', () => {
     }
   });
 
+  test('oversized playback batches fast-forward to board sync without entering playback', async () => {
+    global.window.PLAYBACK_EVENT_CAP = 2;
+    const engine = require('../ui/animation-engine.js');
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockResolvedValue(undefined);
+
+    await engine.play([
+      { type: 'move', phase: 1, targets: [] },
+      { type: 'flip', phase: 2, targets: [] },
+      { type: 'destroy', phase: 3, targets: [] }
+    ]);
+
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+    expect(executePhaseSpy).not.toHaveBeenCalled();
+    expect(engine.isPlaying).toBe(false);
+
+    executePhaseSpy.mockRestore();
+  });
+
   test('cell teleport playback arms board update context to suppress expansion reveal sound', async () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
