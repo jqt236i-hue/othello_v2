@@ -197,7 +197,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続', '出現時反転なし']);
+    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続']);
       expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
       expect(document.getElementById('card-detail-more').textContent).toContain('4T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大5回特殊石を出現できる');
@@ -206,46 +206,6 @@ describe('card detail effect tags', () => {
       expect(document.getElementById('card-detail-more').textContent).not.toContain('出現時に反転した枚数ぶんの布石は獲得する');
     });
 
-    test('CLONE_WILL shows the no-spawn-flip tag for the cloned stone', () => {
-      require('../cards/card-interaction.js');
-
-      const cardDef = {
-        id: 'clone_01',
-        name: '複製の意志',
-        type: 'CLONE_WILL',
-        cost: 16,
-        desc: '盤面上の自分の石1つを選び、周囲8マスの空きがあればそこへ、なければ最も近い空きへ同じ石を複製する。複製で生まれた石は反転しない。特殊石は残り持続ターンなどを引き継ぐ。空きマスがない場合だけ複製できない。'
-      };
-
-      global.cardState.selectedCardId = cardDef.id;
-      global.cardState.hands.black = [cardDef.id];
-      global.CardLogic.getCardDef = () => cardDef;
-
-      window.updateCardDetailPanel();
-
-      expect(getTagLabels()).toEqual(['出現時反転なし']);
-      expect(document.getElementById('card-detail-desc').textContent).toContain('反転しない');
-    });
-
-    test('CHAOS_SUMMON shows the special stone and no-spawn-flip tags', () => {
-      require('../cards/card-interaction.js');
-
-      const cardDef = {
-        id: 'chaos_summon_01',
-        name: '混沌召喚',
-        type: 'CHAOS_SUMMON',
-        cost: 15,
-        desc: 'ランダムな空きマスに、罠石と時限爆弾を除いたランダムな特殊石を1体出現させる。出現した特殊石は反転せず、反転由来の布石獲得もしない。'
-      };
-
-      global.cardState.selectedCardId = cardDef.id;
-      global.cardState.hands.black = [cardDef.id];
-      global.CardLogic.getCardDef = () => cardDef;
-
-      window.updateCardDetailPanel();
-
-      expect(getTagLabels()).toEqual(['特殊石', '出現時反転なし']);
-    });
     test('BOARD_EXECUTOR shows usage condition, hole-cell, absolute execution, inviolable, and duration tags', () => {
     require('../cards/card-interaction.js');
 

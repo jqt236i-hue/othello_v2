@@ -37,8 +37,7 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   DESTROY_EVASION: 'destroy-evasion',
   DURATION_TURNS: 'duration-turns',
   DELAYED_ACTIVATION_TURNS: 'delayed-activation-turns',
-  USAGE_CONDITION: 'usage-condition',
-    NO_SPAWN_FLIP: 'no-spawn-flip'
+  USAGE_CONDITION: 'usage-condition'
 });
 
 const CARD_NUMERIC_TAG_KIND = Object.freeze({
@@ -77,11 +76,7 @@ function buildCardEffectTag(kind: string, value?: number) {
   }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.INVIOLABLE) {
     return Object.freeze({ kind: normalizedKind, label: '不可侵' });
-    }
-    if (normalizedKind === CARD_EFFECT_TAG_KIND.NO_SPAWN_FLIP) {
-      return Object.freeze({ kind: normalizedKind, label: '出現時反転なし' });
-    }
-
+  }
   const normalizedValue = Math.floor(Number(value));
   if (!Number.isFinite(normalizedValue) || normalizedValue <= 0) return null;
 
@@ -115,7 +110,6 @@ const specialStoneTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.SPECIAL_ST
 const holeCellTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.HOLE_CELL);
 const erasureTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ERASURE);
 const absoluteExecutionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_EXECUTION);
-const noSpawnFlipTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.NO_SPAWN_FLIP);
 const fullProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FULL_PROTECTION);
 const inviolableTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.INVIOLABLE);
 const flipEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_EVASION, value);
@@ -346,8 +340,7 @@ const cardEffectTagsByType = Object.freeze({
   BREEDING_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5), flipProtectionTag()]),
   PROLIFERATION_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(10)]),
   CELL_TELEPORT_WILL: freezeCardEffectTags([holeCellTag()]),
-      CLONE_WILL: freezeCardEffectTags([noSpawnFlipTag()]),
-    SEED_WILL: freezeCardEffectTags([delayedActivationTurnsTag(5)]),
+      SEED_WILL: freezeCardEffectTags([delayedActivationTurnsTag(5)]),
     HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
   ESCAPE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
   ROBOT_VACUUM_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
@@ -357,8 +350,8 @@ const cardEffectTagsByType = Object.freeze({
   WORK_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
   GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
-  THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(4), noSpawnFlipTag()]),
-      CHAOS_SUMMON: freezeCardEffectTags([specialStoneTag(), noSpawnFlipTag()]),
+  THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(4)]),
+      CHAOS_SUMMON: freezeCardEffectTags([specialStoneTag()]),
   BOARD_EXECUTOR: freezeCardEffectTags([usageConditionTag('自特殊石存在時使用可能'), holeCellTag(), absoluteExecutionTag(), inviolableTag(), durationTurnsTag(4)]),
   OBSERVER_WILL: freezeCardEffectTags([usageConditionTag('18手後使用可能'), inviolableTag(), durationTurnsTag(5)]),
   ULTIMATE_DESTROY_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
