@@ -172,7 +172,7 @@ describe('cards catalog consistency', () => {
       display_type_ja: '特殊'
     }));
     expect(card.desc_ja).not.toContain('使用可能');
-    expect(card.desc_ja).toBe('空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる。');
+    expect(card.desc_ja).toBe('空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる。出現した特殊石は反転せず、理論数字マス値でも反転枚数でも布石を獲得しない。');
   });
 
   test('observer will special card is present with expected cost and type', () => {
@@ -218,6 +218,21 @@ describe('cards catalog consistency', () => {
       display_type_ja: '特殊'
     }));
     expect(card.desc_ja).toContain('罠石と時限爆弾を除いたランダムな特殊石');
+    expect(card.desc_ja).toContain('反転せず');
+  });
+
+  test('clone will card is present with expected cost, type, and no-flip spawn description', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map((c) => [c.id, c]));
+    const card = byId.get('clone_01');
+    expect(card).toEqual(expect.objectContaining({
+      id: 'clone_01',
+      name_ja: '複製の意志',
+      type: 'CLONE_WILL',
+      cost: 16,
+      display_type_ja: '繁栄'
+    }));
+    expect(card.desc_ja).toContain('反転しない');
   });
 
   test('regen/perma costs reflect latest balance', () => {

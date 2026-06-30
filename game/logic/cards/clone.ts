@@ -178,6 +178,7 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
                 clearHyperactiveAtPositions: deps.clearHyperactiveAtPositions,
                 changeCause: 'CLONE_WILL',
                 changeReason: 'clone_spawn_flip',
+                noFlip: true,
                 spawnMeta: {
                     fromRow: row,
                     fromCol: col,

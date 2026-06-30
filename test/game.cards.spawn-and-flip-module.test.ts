@@ -332,4 +332,78 @@ describe('cards spawn-and-flip module', () => {
     });
     expect(gameState.boardExpansion.cells[0]).toEqual({ side: 'top', row: -1, col: 0, owner: 1 });
   });
+  test('spawnAndFlipPlacement skips flip processing when noFlip is set', () => {
+    const gameState = { board: [[0, -1, 1]] };
+    const BoardOps = {
+      spawnAt: jest.fn((cs, gs, row, col) => {
+        gs.board[row][col] = 1;
+        return { spawned: true, stoneId: 'stone-no-flip' };
+      }),
+      changeAt: jest.fn(() => ({ changed: true }))
+    };
+    const getFlipsWithContext = jest.fn(() => {
+      throw new Error('getFlipsWithContext must not run when noFlip is set');
+    });
+    const result = spawnAndFlipPlacement({
+      cardState: {},
+      gameState,
+      playerKey: 'black',
+      playerValue: 1,
+      row: 0,
+      col: 0,
+      allowZeroFlips: true,
+      noFlip: true,
+      BoardOps,
+      getCardContext: () => ({}),
+      getFlipsWithContext,
+      spawnCause: 'CHAOS_SUMMON',
+      spawnReason: 'chaos_summon_spawn',
+      flipCause: 'CHAOS_SUMMON',
+      flipReason: 'chaos_summon_flip'
+    });
+    expect(result).toEqual(expect.objectContaining({
+      spawned: true,
+      stoneId: 'stone-no-flip',
+      attemptedFlips: [],
+      appliedFlips: [],
+      flipEvadeResult: null
+    }));
+    expect(getFlipsWithContext).not.toHaveBeenCalled();
+    expect(BoardOps.changeAt).not.toHaveBeenCalled();
+    expect(gameState.board[0]).toEqual([1, -1, 1]);
+  });
+  test('spawnAndFlipBatch skips generated flip lookup when deps.noFlip is set', () => {
+    const cardState = { markers: [] };
+    const gameState = { board: createBoard(4, 4) };
+    const getFlipsWithContext = jest.fn(() => {
+      throw new Error('getFlipsWithContext must not run when deps.noFlip is set');
+    });
+    const clearHyperactiveAtPositions = jest.fn();
+
+    const result = spawnAndFlipBatch(
+      cardState,
+      gameState,
+      'black',
+      1,
+      [{ row: 1, col: 1 }],
+      'CLONE_WILL',
+      'clone_spawn',
+      { row: null, col: null },
+      {
+        BoardOps: { changeAt: jest.fn(() => ({ changed: true })) },
+        noFlip: true,
+        getCardContext: () => ({}),
+        getFlipsWithContext,
+        clearHyperactiveAtPositions
+      }
+    );
+
+    expect(result).toEqual({
+      spawned: [{ row: 1, col: 1, anchorRow: null, anchorCol: null, stoneId: undefined }],
+      flipped: []
+    });
+    expect(getFlipsWithContext).not.toHaveBeenCalled();
+    expect(clearHyperactiveAtPositions).not.toHaveBeenCalled();
+    expect(gameState.board[1][1]).toBe(1);
+  });
 });

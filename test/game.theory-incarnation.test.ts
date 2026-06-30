@@ -118,7 +118,7 @@ describe('理論の化身', () => {
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
   });
 
-  test('理論召喚は確定マスで挟める列があれば反転枚数ぶん布石を獲得する', () => {
+  test('理論召喚は確定マスで挟める列があっても反転せず、布石も獲得しない', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
     const gameState = createGameState();
@@ -177,29 +177,19 @@ describe('理論の化身', () => {
       row: 0,
       col: 0,
       type: 'GHOST',
-      flips: [{ row: 0, col: 1 }, { row: 0, col: 2 }],
-      chargeGained: 2
+      flips: [],
+      chargeGained: 0
     }));
     expect(gameState.board[0][0]).toBe(Shared.BLACK);
-    expect(gameState.board[0][1]).toBe(Shared.BLACK);
-    expect(gameState.board[0][2]).toBe(Shared.BLACK);
+    expect(gameState.board[0][1]).toBe(Shared.WHITE);
+    expect(gameState.board[0][2]).toBe(Shared.WHITE);
     expect(gameState.board[0][3]).toBe(Shared.BLACK);
-    expect(cardState.charge.black).toBe(2);
-    expect(cardState.chargeGainedTotal.black || 0).toBe(2);
-    expect(cardState.chargeDeltaEvents || []).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        player: 'black',
-        delta: 2,
-        before: 0,
-        after: 2,
-        reason: 'placement_or_effect_gain',
-        popupKind: 'board',
-        sourceType: 'theory_incarnation_flip_gain',
-        anchorRow: 0,
-        anchorCol: 0
-      })
-    ]));
-    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
+    expect(cardState.charge.black).toBe(0);
+    expect(cardState.chargeGainedTotal.black || 0).toBe(0);
+    expect(cardState.chargeDeltaEvents || []).not.toContainEqual(expect.objectContaining({
+      sourceType: 'theory_incarnation_flip_gain'
+    }));
+expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
     expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
     const removedSpawnGainSource = ['theory_incarnation', 'spawn_gain'].join('_');
     expect(cardState.chargeDeltaEvents || []).not.toContainEqual(expect.objectContaining({
@@ -261,7 +251,8 @@ describe('理論の化身', () => {
       row: 0,
       col: 0,
       type: 'GHOST',
-      flips: []
+      flips: [],
+      chargeGained: 0
     }));
     expect(gameState.board[0][0]).toBe(Shared.BLACK);
     expect(cardState.markers).toEqual(expect.arrayContaining([
@@ -405,7 +396,7 @@ describe('理論の化身', () => {
 
     TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng, { skipTurnStart: true });
 
-    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
+        expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
     expect(CardLogic.canUseTheoryIncarnation(cardState, 'black')).toBe(true);
 
     cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };

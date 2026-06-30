@@ -62,7 +62,7 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('選択石の周囲空きからランダム1マスへ複製し、生成後に通常反転する。特殊石は持続値を引き継ぐ', () => {
+  test('選択石の周囲空きからランダム1マスへ複製するが、生成石は反転しない。特殊石は持続値を引き継ぐ', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
@@ -90,7 +90,7 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(res && res.applied).toBe(true);
     expect(Array.isArray(res.spawned)).toBe(true);
     expect(res.spawned.length).toBe(1);
-    expect(res.flipped).toEqual([{ row: 3, col: 5 }]);
+    expect(res.flipped).toEqual([]);
 
     expect(res.spawned[0]).toEqual({ row: 3, col: 4 });
 
@@ -108,7 +108,7 @@ describe('CLONE_WILL（複製の意志）', () => {
       expect(copied.data.remainingOwnerTurns).toBe(2);
     }
 
-    expect(gameState.board[3][5]).toBe(Core.BLACK);
+    expect(gameState.board[3][5]).toBe(Core.WHITE);
     expect(gameState.board[2][2]).toBe(Core.EMPTY);
     expect(gameState.board[2][3]).toBe(Core.EMPTY);
     expect(gameState.board[2][4]).toBe(Core.EMPTY);
@@ -119,7 +119,7 @@ describe('CLONE_WILL（複製の意志）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('turn pipeline 経由の複製でも生成反転ぶんの布石が入る', () => {
+  test('turn pipeline 経由の複製でも生成反転は発生しないので布石も増えない', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
@@ -148,9 +148,9 @@ describe('CLONE_WILL（複製の意志）', () => {
     );
 
     expect(result.gameState.board[3][4]).toBe(Core.BLACK);
-    expect(result.gameState.board[3][5]).toBe(Core.BLACK);
-    expect(result.cardState.charge.black).toBe(1);
-    expect(result.cardState.chargeGainedTotal.black).toBe(1);
+    expect(result.gameState.board[3][5]).toBe(Core.WHITE);
+    expect(result.cardState.charge.black).toBe(0);
+    expect(result.cardState.chargeGainedTotal.black).toBe(0);
   });
 
   test('expansion stone can be cloned into an adjacent main-board cell', () => {

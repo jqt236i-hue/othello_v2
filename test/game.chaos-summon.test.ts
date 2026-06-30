@@ -49,7 +49,7 @@ describe('混沌召喚', () => {
     }));
   });
 
-  test('ランダム空きマスに特殊石を出現させ、理論数字 value なしのルーレット payload を渡す', () => {
+  test('ランダム空きマスに特殊石を出現させ、反転も布石獲得も発生させず、理論数字 value なしのルーレット payload を渡す', () => {
     const deps = createDeps();
     const cardState: any = {};
     const gameState: any = {
@@ -68,7 +68,7 @@ describe('混沌召喚', () => {
       type: 'HYPERACTIVE',
       sourceCardId: 'hyperactive_01',
       sourceCardType: 'HYPERACTIVE_WILL',
-      chargeGained: 1
+      chargeGained: 0
     }));
     expect(deps.spawnAndFlipPlacement).toHaveBeenCalledWith(expect.objectContaining({
       allowZeroFlips: true,
@@ -76,7 +76,8 @@ describe('混沌召喚', () => {
       spawnReason: 'chaos_summon_spawn',
       flipCause: 'CHAOS_SUMMON',
       flipReason: 'chaos_summon_flip',
-      spawnMeta: expect.objectContaining({
+        noFlip: true,
+        spawnMeta: expect.objectContaining({
         special: 'HYPERACTIVE',
         sourceCardId: 'hyperactive_01',
         sourceCardType: 'HYPERACTIVE_WILL',
@@ -106,12 +107,7 @@ describe('混沌召喚', () => {
         sourceType: 'CHAOS_SUMMON'
       })
     );
-    expect(deps.addChargeWithTotal).toHaveBeenCalledWith(
-      cardState,
-      'black',
-      1,
-      expect.objectContaining({ sourceType: 'chaos_summon_flip_gain' })
-    );
+    expect(deps.addChargeWithTotal).not.toHaveBeenCalled();
   });
 
   test('理論数字マスが候補に含まれてもルーレット payload に value を含めない', () => {

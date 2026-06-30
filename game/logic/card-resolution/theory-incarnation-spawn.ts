@@ -162,6 +162,7 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
             spawnReason: 'theory_incarnation_spawn',
             flipCause: THEORY_MARKER_TYPE,
             flipReason: 'theory_incarnation_flip',
+            noFlip: true,
             spawnMeta: {
                 special: markerData.type,
                 owner: ownerKey,
@@ -176,15 +177,9 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
         ? boardPlacement.appliedFlips.slice()
         : [];
     const theoryNumberValue = getTheorySpawnNumberValue(cardState, picked.key, picked.cell);
-    // Theory spawns ignore the selected theory number value, but real flips still grant normal flip charge.
-    const chargeGained = appliedFlips.length > 0 && typeof deps.addChargeWithTotal === 'function'
-        ? deps.addChargeWithTotal(cardState, ownerKey, appliedFlips.length, {
-            popupKind: 'board',
-            anchorRow: picked.cell.row,
-            anchorCol: picked.cell.col,
-            sourceType: 'theory_incarnation_flip_gain'
-        })
-        : 0;
+    // Theory spawns ignore the selected theory number value, and the no-flip spawn
+    // contract never grants charge from bracketed flips either.
+    const chargeGained = 0;
     const markerKinds = deps && deps.MARKER_KINDS;
     const specialKind = markerKinds && markerKinds.SPECIAL_STONE ? markerKinds.SPECIAL_STONE : 'specialStone';
     const marker = deps.addMarker(cardState, specialKind, picked.cell.row, picked.cell.col, ownerKey, {

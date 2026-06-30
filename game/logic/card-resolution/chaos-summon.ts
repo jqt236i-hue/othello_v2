@@ -165,6 +165,7 @@ function applyChaosSummonUsage(cardState: any, gameState: GameState, playerKey: 
             spawnReason: CHAOS_SUMMON_SPAWN_REASON,
             flipCause: CHAOS_SUMMON_TYPE,
             flipReason: CHAOS_SUMMON_FLIP_REASON,
+            noFlip: true,
             spawnMeta: {
                 special: markerData.type,
                 owner: ownerKey,
@@ -181,14 +182,8 @@ function applyChaosSummonUsage(cardState: any, gameState: GameState, playerKey: 
     const appliedFlips = Array.isArray(boardPlacement.appliedFlips)
         ? boardPlacement.appliedFlips.slice()
         : [];
-    const chargeGained = appliedFlips.length > 0 && typeof deps.addChargeWithTotal === 'function'
-        ? deps.addChargeWithTotal(cardState, ownerKey, appliedFlips.length, {
-            popupKind: 'board',
-            anchorRow: pickedCell.cell.row,
-            anchorCol: pickedCell.cell.col,
-            sourceType: 'chaos_summon_flip_gain'
-        })
-        : 0;
+    // The no-flip spawn contract never grants charge from bracketed flips.
+    const chargeGained = 0;
 
     const markerKinds = deps && deps.MARKER_KINDS;
     const specialKind = markerKinds && markerKinds.SPECIAL_STONE ? markerKinds.SPECIAL_STONE : 'specialStone';

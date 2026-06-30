@@ -37,7 +37,8 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   DESTROY_EVASION: 'destroy-evasion',
   DURATION_TURNS: 'duration-turns',
   DELAYED_ACTIVATION_TURNS: 'delayed-activation-turns',
-  USAGE_CONDITION: 'usage-condition'
+  USAGE_CONDITION: 'usage-condition',
+    NO_SPAWN_FLIP: 'no-spawn-flip'
 });
 
 const CARD_NUMERIC_TAG_KIND = Object.freeze({
@@ -76,7 +77,10 @@ function buildCardEffectTag(kind: string, value?: number) {
   }
   if (normalizedKind === CARD_EFFECT_TAG_KIND.INVIOLABLE) {
     return Object.freeze({ kind: normalizedKind, label: '不可侵' });
-  }
+    }
+    if (normalizedKind === CARD_EFFECT_TAG_KIND.NO_SPAWN_FLIP) {
+      return Object.freeze({ kind: normalizedKind, label: '出現時反転なし' });
+    }
 
   const normalizedValue = Math.floor(Number(value));
   if (!Number.isFinite(normalizedValue) || normalizedValue <= 0) return null;
@@ -111,6 +115,7 @@ const specialStoneTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.SPECIAL_ST
 const holeCellTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.HOLE_CELL);
 const erasureTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ERASURE);
 const absoluteExecutionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.ABSOLUTE_EXECUTION);
+const noSpawnFlipTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.NO_SPAWN_FLIP);
 const fullProtectionTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FULL_PROTECTION);
 const inviolableTag = () => buildCardEffectTag(CARD_EFFECT_TAG_KIND.INVIOLABLE);
 const flipEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.FLIP_EVASION, value);
@@ -165,7 +170,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   ULTIMATE_REVERSE_DRAGON: '空きマス自由配置可。置いた石が龍化し、配置時に周囲1マスを反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マスを反転（8ターン）。',
   BREEDING_WILL: '次に置く石を繁殖化。周囲優先で1個生成し、詰まり時は最寄り空きへ生成。各生成後に通常反転判定。',
   PROLIFERATION_WILL: '次に置く石を増殖石化。破壊時に最も近い空きへ1個増殖して破壊を防ぎ、増殖先で通常反転',
-  CLONE_WILL: '自分石1つを選び、周囲優先・詰まり時は最寄り空きへ1個複製。生成石で通常反転',
+  CLONE_WILL: '自分石1つを選び、周囲優先・詰まり時は最寄り空きへ1個複製。生成石は反転しない',
   SEED_WILL: '空きマス1つに種をまき、5回目の自ターン開始で通常石が芽生える。芽生え石で通常反転',
   CROSS_BOMB: '次に置く石へ十字爆弾の配置時効果を付け、縦横2マスを爆破（通常反転後）',
   X_BOMB: '次に置く石へクロス爆弾の配置時効果を付け、斜め2マスを爆破（通常反転後）',
@@ -191,8 +196,8 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   INFINITE_PLACE: '使用ターンだけ合法手がなくなるまで石を連続で置ける。置けなくなった時点で終了する。',
   HEAVEN_BLESSING: '候補5枚から1枚を選んで獲得',
   REVEAL_HAND_WILL: '現在の相手手札をすべて表にする',
-  THEORY_INCARNATION: '空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる。',
-  CHAOS_SUMMON: 'ランダムな空きマスに、罠石と時限爆弾を除いたランダムな特殊石を1体出現させる。',
+  THEORY_INCARNATION: '空きマスを理論数字マス化し、理論の化身を顕現。顕現中は石配置後に理論数字マスから特殊石が現れる（反転しない）。',
+  CHAOS_SUMMON: 'ランダムな空きマスに、罠石と時限爆弾を除いたランダムな特殊石を1体出現させる（反転しない）。',
   BOARD_EXECUTOR: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。',
   OBSERVER_WILL: '相手手札を1つ奪って0コスト化し、観測者を顕現させる。ターン持続中は常時相手の手札を観測でき、観測した手札のコスト＋5。終了後観測の代償を支払う。',
   CONDEMN_WILL: '相手手札を見て1枚破壊',
@@ -262,8 +267,8 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   ULTIMATE_REVERSE_DRAGON: '反転が0でも空きマスに配置できる。\n配置時に周囲1マス（8方向）を反転する。\n自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転する。\n移動先が無いときはその場で反転する。\n持続は8ターン。\n反転保護を持つ特殊石として扱う。',
   BREEDING_WILL: '生成先は起点の周囲8マスの空きを優先する。\n周囲8マスに空きが無い場合は、盤面上の最も近い有効な空きマスへ生成する。\n近さは8方向距離で判定し、同距離候補はランダム。\n盤面上に有効な空きが1つも無い場合だけ生成しない。\n持続中は前回生成石の周囲へ拡散する。\n各生成石は、そのマスを起点に通常の挟み反転を行う。',
   PROLIFERATION_WILL: '破壊される時、盤面上の有効な空きマスから最も近い1マスへ同色の増殖石を1個生成して破壊を防ぐ。\n近さは8方向距離で判定し、同距離の候補はランダムで選ばれる。\n空きが1つも無い場合だけ通常どおり破壊される。\n増殖で生まれた石は、そのマスを起点に通常の挟み反転を行う。\n増殖で生まれた石は持続終了時や反転時に通常石に戻る。',
-  CLONE_WILL: '複製先は選んだ石の周囲8マスの空きを優先する。\n周囲8マスに空きが無い場合は、盤面上の最も近い有効な空きマスへ複製する。\n近さは8方向距離で判定し、同距離候補はランダム。\n盤面上に有効な空きマスが1つも無い場合だけ複製しない。\n複製で生まれた石は、そのマスを起点に通常の挟み反転を行う。\n特殊石は残り持続ターンを引き継ぐ。',
-  CROSS_BOMB: '次に置く石へ十字爆弾の配置時効果を付ける。\n中心マスを含む十字範囲を爆破する。',
+  CLONE_WILL: '複製先は選んだ石の周囲8マスの空きを優先する。\n周囲8マスに空きが無い場合は、盤面上の最も近い有効な空きマスへ複製する。\n近さは8方向距離で判定し、同距離候補はランダム。\n盤面上に有効な空きマスが1つも無い場合だけ複製しない。\n複製で生まれた石は反転しない。\n特殊石は残り持続ターンを引き継ぐ。',
+    CROSS_BOMB: '次に置く石へ十字爆弾の配置時効果を付ける。\n中心マスを含む十字範囲を爆破する。',
   X_BOMB: '次に置く石へクロス爆弾の配置時効果を付ける。\n中心マスを含むX字範囲を爆破する。',
   HYPERACTIVE_WILL: 'ターン開始移動の移動先は周囲の空きマスから選ばれる。\nターン開始移動で空きが無い場合は同色の通常石に戻る。\n移動後に挟める列があれば反転する。\n反転対象時は、盤面上の最も近い有効な空きマスへ1回だけ移動して回避する。\n回避移動後、移動先で挟める列があればその石の色で反転する。\n有効な空きマスが1つも無い場合だけ回避不成立となり、回数は消費しない。',
   EXTREME_HYPERACTIVE_WILL: '両者ターン開始時に周囲8マス（空き・占有）からランダム1マス移動する。\n占有マスへ入る時は、その石を退避させるか位置交換する。\n進入・退避・位置交換ができる候補が無い場合は同色の通常石に戻る。\n移動後に挟める列があれば反転し、隣接石を敵味方問わず遠ざける。\n反転対象時は最大5回、破壊対象時は5回だけ、盤面上の最も近い有効な空きマスへ移動して回避する。\n回避移動後、移動先で挟める列があればその石の色で反転する。\n有効な空きマスが1つも無い場合だけ回避不成立となり、回数は消費しない。\nターン制限はない。',
@@ -292,7 +297,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   INFINITE_PLACE: '合法手がなくなった時点でそのまま終了する。',
   HEAVEN_BLESSING: '選ばなかった候補は消える。',
   REVEAL_HAND_WILL: '使用時点の相手手札をすべて公開する。\n使用後に相手が引いたカードは公開しない。\n一度公開した同じカードは、手札を離れて後で戻っても表のまま。',
-  THEORY_INCARNATION: '演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を4T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカードを使用できないが、合法手があれば通常通り石を置ける。\n次の自分ターン以降、合法手があれば通常配置後に理論数字マスから対応コストの特殊石がランダムで1体現れる。合法手がない場合は通常のパスを選ぶ。\n理論の化身による特殊石出現では理論数字マス値の布石を獲得しないが、出現時に反転した枚数ぶんの布石は獲得する。\n配置直後の出現は4Tぶんの出現回数を消費しないため、最大5回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
+  THEORY_INCARNATION: '演算の意志などで数字マス布石が増えた場合は、増加後の獲得量で数える。通常反転ぶんの布石は数えない。\n盤面に顕現石が存在する間は使用できない。\n使用時、盤面上の空きマスを特殊石カードのコストに対応した理論数字マスへ書き換える。\n次に置く自石として理論の化身を4T不可侵の顕現石として出し、配置直後にも理論数字マスから特殊石を1体出現させる。\n理論の化身が盤上にいる間、自分はカードを使用できないが、合法手があれば通常通り石を置ける。\n次の自分ターン以降、合法手があれば通常配置後に理論数字マスから対応コストの特殊石がランダムで1体現れる。合法手がない場合は通常のパスを選ぶ。\n理論の化身で出現する特殊石は反転しない。理論数字マス値でも反転枚数でも布石は獲得しない。\n配置直後の出現は4Tぶんの出現回数を消費しないため、最大5回特殊石を出現できる。\n罠石と時限爆弾は理論の出現候補に含まれない。\n理論の化身が消滅すると、未消費の理論数字マスは元の数字マスへ戻る。',
   CHAOS_SUMMON: '使用時、盤面上の空きマスからランダムに1マスを選び、ランダムな特殊石を1体出現させる。\n出現候補は理論の化身と同じ特殊石候補を使い、罠石と時限爆弾は候補に含まれない。\n出現した特殊石は通常配置と同じ反転判定を行い、反転した枚数ぶんの布石を得る。\n候補マスは理論の化身と同じルーレット演出で表示するが、理論数字マス値は表示しない。',
   BOARD_EXECUTOR: '使用時、盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。罠石と時限爆弾も対象に含む。\n顕現石・石状態・盤面マーカー・配置時効果は対象に含まれない。\n使用後、次に置く自石として盤界の執行者を4T不可侵の顕現石として出す。\n盤界の執行者が盤上にいる間、両者は手札からカードを使用できない。\n両者ターン開始時、その手番プレイヤーはドロー前の所持カード枚数に応じて布石を失う。',
   OBSERVER_WILL: '盤面に顕現石が存在する間は使用できない。\n使用時に相手手札を公開して1枚選ぶ。選んだカードは自分の手札に加わり0コストになる。\n観測済みになった相手手札はカードcopyごとに1回だけコスト+5になる。奪ったカードは0コストになり、盤理の観測者による+5は残らない。特殊カードは観測で表表示にはなるが、コスト+5は受けない。\n選択後、次に置く自石として盤理の観測者を5T不可侵の顕現石として出す。盤理の観測者が盤上にいる間、相手手札は常に表表示。\n一度観測した相手手札は観測済みとなり、盤理の観測者が消滅した後も表表示のまま残る。盤理の観測者が盤上にいる間に相手が新たに引いた手札も観測済みになる。観測済みカードには双方にタグを表示する。\n盤理の観測者が消滅した後、観測の代償として奪ったカードの元コスト20%を自ターン開始時に最大9回返済する。布石不足時は自石4個をランダム破壊する。',
@@ -341,8 +346,9 @@ const cardEffectTagsByType = Object.freeze({
   BREEDING_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5), flipProtectionTag()]),
   PROLIFERATION_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(10)]),
   CELL_TELEPORT_WILL: freezeCardEffectTags([holeCellTag()]),
-  SEED_WILL: freezeCardEffectTags([delayedActivationTurnsTag(5)]),
-  HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
+      CLONE_WILL: freezeCardEffectTags([noSpawnFlipTag()]),
+    SEED_WILL: freezeCardEffectTags([delayedActivationTurnsTag(5)]),
+    HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
   ESCAPE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
   ROBOT_VACUUM_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
   GLUTTONOUS_WILL: freezeCardEffectTags([specialStoneTag(), flipProtectionTag()]),
@@ -351,8 +357,8 @@ const cardEffectTagsByType = Object.freeze({
   WORK_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
   GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
-  THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(4)]),
-  CHAOS_SUMMON: freezeCardEffectTags([specialStoneTag()]),
+  THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(4), noSpawnFlipTag()]),
+      CHAOS_SUMMON: freezeCardEffectTags([specialStoneTag(), noSpawnFlipTag()]),
   BOARD_EXECUTOR: freezeCardEffectTags([usageConditionTag('自特殊石存在時使用可能'), holeCellTag(), absoluteExecutionTag(), inviolableTag(), durationTurnsTag(4)]),
   OBSERVER_WILL: freezeCardEffectTags([usageConditionTag('18手後使用可能'), inviolableTag(), durationTurnsTag(5)]),
   ULTIMATE_DESTROY_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
