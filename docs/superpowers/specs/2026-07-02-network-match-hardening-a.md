@@ -111,7 +111,7 @@ local server 側の `randomFromChars` を shared 実装へ寄せて 1 箇所化�
   - create payload shaping は後方互換のため field を残すか、常に無視される入力として扱う
   - `A` では field 削除までは行わない
 - [01-rulebook.md](/C:/Users/quarr/Desktop/othello_v2/01-rulebook.md)
-  - `ネット対戦` の `デバッグモード有効化` / `DEBUG` に関する記述を、公開ネット対戦の正式機能ではない形へ修正する
+  - `ネット対戦` の `デバッグモード有効化` / `DEBUG` に関する記述を、server-authoritative な公開機能ではない形へ修正する
 
 #### Behavior intentionally not changed in `A`
 

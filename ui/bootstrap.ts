@@ -368,6 +368,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     function isDebugSessionEnabled() {
         const seed = (_uiGlobals && typeof _uiGlobals === 'object') ? _uiGlobals : {};
         if (seed.DEBUG_UNLIMITED_USAGE === true) return true;
+        if (seed.NETWORK_LOCAL_DEBUG_MODE === true) return true;
         if (seed.DEBUG_MODE_ALLOWED === true) return true;
         if (seed.DEBUG_MODE_ALLOWED === false) return false;
         const query = readDebugQueryString();

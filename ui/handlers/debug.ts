@@ -93,10 +93,36 @@ let _networkDebugModeAccessState: any = {
     roomDebugEnabled: false
 };
 
+function _readDebugSeed(): any {
+    return (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
+}
+
+function _isAnyDebugModeEnabled(): boolean {
+    try {
+        const seed = _readDebugSeed();
+        return seed.DEBUG_UNLIMITED_USAGE === true || seed.NETWORK_LOCAL_DEBUG_MODE === true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function _setNetworkLocalDebugModeEnabled(enabled: boolean): void {
+    const normalized = enabled === true;
+    try {
+        if (_registerUIGlobals_debug) {
+            _registerUIGlobals_debug({ NETWORK_LOCAL_DEBUG_MODE: normalized });
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined') {
+            (window as any).NETWORK_LOCAL_DEBUG_MODE = normalized;
+        }
+    } catch (e) { /* ignore */ }
+}
+
 function _isDebugLayoutEnabled(): boolean {
     try {
-        const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
-        return seed.DEBUG_UNLIMITED_USAGE === true;
+        return _isAnyDebugModeEnabled();
     } catch (e) {
         return false;
     }
@@ -533,8 +559,9 @@ function _isNetworkModeForDebug(): boolean {
 }
 
 function _applyDebugSubButtonVisibility(humanVsHumanBtn: any, visualTestBtn: any, debugEnabled: boolean): void {
-    const visualDisplay = debugEnabled ? 'block' : 'none';
-    const humanDisplay = (debugEnabled && !_isNetworkModeForDebug()) ? 'block' : 'none';
+    const networkMode = _isNetworkModeForDebug();
+    const visualDisplay = (debugEnabled && !networkMode) ? 'block' : 'none';
+    const humanDisplay = (debugEnabled && !networkMode) ? 'block' : 'none';
     if (visualTestBtn) visualTestBtn.style.display = visualDisplay;
     if (humanVsHumanBtn) humanVsHumanBtn.style.display = humanDisplay;
 }
@@ -606,25 +633,27 @@ function _applyNetworkDebugModeAccessState(): void {
     const debugModeBtn = refs.debugModeBtn;
     const humanVsHumanBtn = refs.humanVsHumanBtn;
     const visualTestBtn = refs.visualTestBtn;
-    if (!debugModeBtn) return;
 
     const networkMode = _networkDebugModeAccessState.networkMode === true;
     const roomDebugEnabled = _networkDebugModeAccessState.roomDebugEnabled === true;
-    if (networkMode && !roomDebugEnabled) {
-        _syncDebugFlags(false, false);
-        _applyDebugLayoutState(false);
-        _applyDebugButtonState(debugModeBtn, false);
-        _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, false);
-        debugModeBtn.style.display = 'none';
-        return;
+    let seed = _readDebugSeed();
+    if (!networkMode && seed.NETWORK_LOCAL_DEBUG_MODE === true) {
+        _setNetworkLocalDebugModeEnabled(false);
+        seed = _readDebugSeed();
     }
-
+    if (networkMode && !roomDebugEnabled) {
+        const keepLocalDebug = seed.DEBUG_UNLIMITED_USAGE === true || seed.NETWORK_LOCAL_DEBUG_MODE === true;
+        _syncDebugFlags(false, false);
+        _setNetworkLocalDebugModeEnabled(keepLocalDebug);
+        seed = _readDebugSeed();
+    }
+    if (!debugModeBtn) return;
     debugModeBtn.style.display = 'block';
-    const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
+    seed = _readDebugSeed();
     if (networkMode && seed.DEBUG_HUMAN_VS_HUMAN === true) {
         _syncDebugFlags(seed.DEBUG_UNLIMITED_USAGE === true, false);
     }
-    const isDebug = seed.DEBUG_UNLIMITED_USAGE === true;
+    const isDebug = seed.DEBUG_UNLIMITED_USAGE === true || seed.NETWORK_LOCAL_DEBUG_MODE === true;
     _applyDebugButtonState(debugModeBtn, isDebug);
     _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, isDebug);
 }
@@ -642,17 +671,14 @@ function setDebugModeEnabled(debugEnabled: boolean): boolean {
     const humanVsHumanBtn = refs.humanVsHumanBtn;
     const visualTestBtn = refs.visualTestBtn;
     const nextDebugEnabled = debugEnabled === true;
-    const currentGlobals = (_getUIBootstrapGlobals_debug
-        ? (_getUIBootstrapGlobals_debug() || {})
-        : (typeof window !== 'undefined' ? window : {})) as any;
+    const currentGlobals = _readDebugSeed();
     const wasDebugEnabled = currentGlobals.DEBUG_UNLIMITED_USAGE === true;
+    const wasNetworkLocalDebugEnabled = currentGlobals.NETWORK_LOCAL_DEBUG_MODE === true;
+    const wasAnyDebugEnabled = wasDebugEnabled || wasNetworkLocalDebugEnabled;
     const hadMutatedDebugState = !nextDebugEnabled && wasDebugEnabled && _hasMutatedDebugSessionState();
     const nextHumanVsHuman = nextDebugEnabled ? !_isNetworkModeForDebug() : false;
+    const networkLocalOnly = _networkDebugModeAccessState.networkMode === true && _networkDebugModeAccessState.roomDebugEnabled !== true;
     let requestedLocalReset = false;
-
-    if (nextDebugEnabled && _networkDebugModeAccessState.networkMode === true && _networkDebugModeAccessState.roomDebugEnabled !== true) {
-        return false;
-    }
 
     if (nextDebugEnabled) _setDebugModeAllowed(true);
     _applyDebugButtonState(debugModeBtn, nextDebugEnabled);
@@ -660,39 +686,53 @@ function setDebugModeEnabled(debugEnabled: boolean): boolean {
     _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, nextDebugEnabled);
 
     if (nextDebugEnabled) {
-        if (!wasDebugEnabled) {
-            (addLog as any)('🐛 デバッグモード: ON （制限なしでカード使用可能）');
-        }
-        _syncDebugFlags(true, nextHumanVsHuman);
-        try {
-            const g = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
-            if (typeof g.disableAutoMode === 'function') {
-                g.disableAutoMode();
-                const autoBtn = document.getElementById('autoToggleBtn');
-                if (autoBtn) autoBtn.textContent = 'AUTO: OFF';
+        if (networkLocalOnly) {
+            if (!wasAnyDebugEnabled) {
+                (addLog as any)('🐛 デバッグモード: ON （ネット対戦ではローカル表示のみ）');
             }
-        } catch (e) { /* ignore */ }
+            _syncDebugFlags(false, false);
+            _setNetworkLocalDebugModeEnabled(true);
+            if (humanVsHumanBtn) {
+                humanVsHumanBtn.textContent = '人間vs人間: OFF';
+                humanVsHumanBtn.style.color = '#ffb366';
+            }
+        } else {
+            _setNetworkLocalDebugModeEnabled(false);
+            if (!wasDebugEnabled) {
+                (addLog as any)('🐛 デバッグモード: ON （制限なしでカード使用可能）');
+            }
+            _syncDebugFlags(true, nextHumanVsHuman);
+            try {
+                const g = _readDebugSeed();
+                if (typeof g.disableAutoMode === 'function') {
+                    g.disableAutoMode();
+                    const autoBtn = document.getElementById('autoToggleBtn');
+                    if (autoBtn) autoBtn.textContent = 'AUTO: OFF';
+                }
+            } catch (e) { /* ignore */ }
 
-        if (!wasDebugEnabled) {
-            const g2 = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
-            if (typeof g2.ensureDebugActionsLoaded === 'function') {
-                g2.ensureDebugActionsLoaded(() => {
+            if (!wasDebugEnabled) {
+                const g2 = _readDebugSeed();
+                if (typeof g2.ensureDebugActionsLoaded === 'function') {
+                    g2.ensureDebugActionsLoaded(() => {
+                        (fillDebugHand as any)();
+                    });
+                } else {
                     (fillDebugHand as any)();
-                });
-            } else {
-                (fillDebugHand as any)();
+                }
             }
-        }
-        if (humanVsHumanBtn) {
-            humanVsHumanBtn.textContent = nextHumanVsHuman ? '人間vs人間: ON' : '人間vs人間: OFF';
-            humanVsHumanBtn.style.color = nextHumanVsHuman ? '#90ee90' : '#ffb366';
-        }
-        if (!wasDebugEnabled && nextHumanVsHuman) {
-            (addLog as any)('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
+            if (humanVsHumanBtn) {
+                humanVsHumanBtn.textContent = nextHumanVsHuman ? '人間vs人間: ON' : '人間vs人間: OFF';
+                humanVsHumanBtn.style.color = nextHumanVsHuman ? '#90ee90' : '#ffb366';
+            }
+            if (!wasDebugEnabled && nextHumanVsHuman) {
+                (addLog as any)('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
+            }
         }
     } else {
         (addLog as any)('デバッグモード: OFF');
         _syncDebugFlags(false, false);
+        _setNetworkLocalDebugModeEnabled(false);
         _clearMutatedDebugSessionStateFlags();
         if (hadMutatedDebugState && _getCurrentMatchModeForDebug() !== 'network') {
             const resetGameFn = _resolveResetGameForDebug();
@@ -736,7 +776,7 @@ function setupDebugControls(debugModeBtn: any, humanVsHumanBtn: any, visualTestB
         _syncDebugFlags(true, seed.DEBUG_HUMAN_VS_HUMAN === true);
     }
     const activeSeed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
-    _applyDebugLayoutState(activeSeed.DEBUG_UNLIMITED_USAGE === true);
+    _applyDebugLayoutState(activeSeed.DEBUG_UNLIMITED_USAGE === true || activeSeed.NETWORK_LOCAL_DEBUG_MODE === true);
     _syncDebugFlags(activeSeed.DEBUG_UNLIMITED_USAGE === true, activeSeed.DEBUG_HUMAN_VS_HUMAN === true);
     if (activeSeed.DEBUG_UNLIMITED_USAGE === true && typeof activeSeed.ensureDebugActionsLoaded === 'function') {
         activeSeed.ensureDebugActionsLoaded(() => {});
@@ -744,11 +784,12 @@ function setupDebugControls(debugModeBtn: any, humanVsHumanBtn: any, visualTestB
 
     if (debugModeBtn) {
         debugModeBtn.style.display = 'block';
-        const isDebug = activeSeed.DEBUG_UNLIMITED_USAGE === true;
+        const isDebug = activeSeed.DEBUG_UNLIMITED_USAGE === true || activeSeed.NETWORK_LOCAL_DEBUG_MODE === true;
         _applyDebugButtonState(debugModeBtn, isDebug);
         _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, isDebug);
         debugModeBtn.addEventListener('click', () => {
-            const updatedDebug = !(_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug().DEBUG_UNLIMITED_USAGE === true) : (typeof window !== 'undefined' && (window as any).DEBUG_UNLIMITED_USAGE === true));
+            const current = _readDebugSeed();
+            const updatedDebug = !(current.DEBUG_UNLIMITED_USAGE === true || current.NETWORK_LOCAL_DEBUG_MODE === true);
             setDebugModeEnabled(updatedDebug);
         });
     }

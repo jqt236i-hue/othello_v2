@@ -85,6 +85,31 @@ describe('ui bootstrap debug logging', () => {
     dom.window.close();
   });
 
+  test('network local debug mode also enables global debugLog without unlimited usage', () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+      url: 'http://localhost/'
+    });
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.location = dom.window.location;
+
+    const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+    const bootstrap = require('../ui/bootstrap.js');
+    const envCapable = require('../is-env-capable.js');
+    expect(envCapable.isDebugLogAvailable()).toBe(false);
+
+    bootstrap.registerUIGlobals({ NETWORK_LOCAL_DEBUG_MODE: true, DEBUG_UNLIMITED_USAGE: false, DEBUG_MODE_ALLOWED: false });
+    expect(envCapable.isDebugLogAvailable()).toBe(true);
+    expect(global.window.debugLog).toBe(bootstrap.debugLog);
+    expect(bootstrap.debugLog('network local trace', 'info')).toBe(true);
+    expect(infoSpy).toHaveBeenCalledWith('[debug:info]', 'network local trace');
+
+    bootstrap.registerUIGlobals({ NETWORK_LOCAL_DEBUG_MODE: false, DEBUG_UNLIMITED_USAGE: false, DEBUG_MODE_ALLOWED: false });
+    expect(envCapable.isDebugLogAvailable()).toBe(false);
+
+    dom.window.close();
+  });
+
   test('window.addLog keeps routing to the bootstrap DOM logger after ui exports are mirrored onto window', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div><div id="log"></div></body></html>', {
       url: 'http://localhost/'
