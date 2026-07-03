@@ -62,11 +62,20 @@ function hasRoomPassword(roomValue: unknown): boolean {
   return normalizeRoomPassword(room.roomPassword).length > 0;
 }
 
+function constantTimeStringEquals(left: string, right: string): boolean {
+  if (left.length !== right.length) return false;
+  let diff = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return diff === 0;
+}
+
 function isJoinPasswordAccepted(roomValue: unknown, passwordValue: unknown): boolean {
   const room = asRecord(roomValue);
   const expected = normalizeRoomPassword(room.roomPassword);
   if (!expected) return true;
-  return normalizeRoomPassword(passwordValue) === expected;
+  return constantTimeStringEquals(normalizeRoomPassword(passwordValue), expected);
 }
 
 function readSeatActive(seats: Record<string, any>, seatKey: string): boolean {

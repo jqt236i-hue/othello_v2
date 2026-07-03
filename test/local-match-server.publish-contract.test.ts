@@ -1,4 +1,6 @@
 import * as http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as Core from '../game/logic/core.js';
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
 
@@ -29,6 +31,30 @@ function requestJson(port, method, path, payload) {
     if (payload !== undefined) {
       req.write(JSON.stringify(payload));
     }
+    req.end();
+  });
+}
+
+function requestRaw(port, method, requestPath, rawBody) {
+  return new Promise((resolve) => {
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port,
+      path: requestPath,
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    }, (res) => {
+      let raw = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { raw += chunk; });
+      res.on('end', () => {
+        resolve({ status: res.statusCode || 0, data: raw, errorCode: '' });
+      });
+    });
+    req.on('error', (error) => {
+      resolve({ status: 0, data: '', errorCode: error && error.code ? String(error.code) : 'REQUEST_ERROR' });
+    });
+    req.write(rawBody);
     req.end();
   });
 }
@@ -274,7 +300,7 @@ describe('local match server publish contract', () => {
     }
   });
 
-  test('network debug fill hand can replace the acting seat hand with requested cards only', async () => {
+  test('network debug fill hand is rejected even when create payload requests debug', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
 
@@ -284,6 +310,7 @@ describe('local match server publish contract', () => {
         networkDebugEnabled: true
       });
       expect(created.status).toBe(200);
+      expect(created.data.networkDebugEnabled).toBe(false);
 
       const response = await requestJson(port, 'POST', '/api/match/publish', {
         roomId: created.data.roomId,
@@ -306,19 +333,42 @@ describe('local match server publish contract', () => {
         }
       });
 
-      expect(response.status).toBe(200);
-      expect(response.data.ok).toBe(true);
-      expect(response.data.snapshot.cardState.hands.black).toEqual(['heaven_01']);
-      expect(response.data.snapshot.cardState.debugHandFilled).toBe(true);
-      expect(response.data.snapshot.cardState.debugNoDraw).toBe(true);
+      expect(response.status).toBe(409);
+      expect(response.data.ok).toBe(false);
+      expect(response.data.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
+      expect(response.data.snapshot.cardState.hands.black).not.toEqual(['heaven_01']);
       expect(response.data.publishMeta).toEqual(expect.objectContaining({
-        kind: 'accepted',
+        kind: 'rejected',
         actionType: 'debug_fill_hand',
-        operationId: 'op_debug_targeted_fill'
+        operationId: 'op_debug_targeted_fill',
+        rejectedReason: 'NETWORK_DEBUG_DISABLED'
       }));
     } finally {
       await closeServer(server);
     }
+  });
+
+  test('oversized request body closes the local connection while rejecting parse', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const oversizedBody = `{"padding":"${'x'.repeat(5 * 1024 * 1024 + 1)}"}`;
+      const response = await requestRaw(port, 'POST', '/api/match/create', oversizedBody);
+
+      expect(response.status).toBe(0);
+      expect(response.errorCode).toBeTruthy();
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('local randomFromChars uses rejection sampling instead of modulo bias', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../scripts/local-match-server.ts'), 'utf8');
+    const match = source.match(/function randomFromChars[\s\S]*?\n}\n/);
+
+    expect(match && match[0]).toContain('maxUnbiasedByte');
+    expect(match && match[0]).toContain('if (byte >= maxUnbiasedByte) continue;');
   });
 
   test('missing operationId publish is rejected before command handling', async () => {
@@ -749,6 +799,10 @@ describe('local match server publish contract', () => {
 
       let snapshot = joined.data.snapshot;
       let stateVersion = joined.data.stateVersion;
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.snapshot.cardState.hands.white = ['afterimage_will_01'];
+        room.snapshot.cardState.charge.white = 99;
+      })).toBe(true);
 
       const publish = async (seatKey, seatToken, actionType, params, operationId) => {
         const turnIndex = snapshot && snapshot.cardState && Number.isFinite(Number(snapshot.cardState.turnIndex))
@@ -773,12 +827,6 @@ describe('local match server publish contract', () => {
         stateVersion = response.data.stateVersion;
         return response;
       };
-
-      await publish('white', whiteToken, 'debug_fill_hand', {
-        cardIds: ['afterimage_will_01'],
-        replaceExisting: true,
-        charge: 99
-      }, 'op_afterimage_card_use_fill_white');
 
       await publish('black', blackToken, 'place', { row: 2, col: 3 }, 'op_afterimage_card_use_black_opening');
       await publish('white', whiteToken, 'use_card', {

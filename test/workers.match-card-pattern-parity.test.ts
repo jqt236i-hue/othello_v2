@@ -4,7 +4,6 @@ import { spawnSync } from 'child_process';
 import * as Core from '../game/logic/core.js';
 import * as MatchAuthority from '../utils/match-authority.js';
 import * as LocalMatchRuntime from '../scripts/local-match-runtime';
-import * as DebugActions from '../game/debug/debug-actions';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 const WORKER_RESULT_MARKER = '__WORKER_CARD_PATTERN_PARITY__';
@@ -757,31 +756,25 @@ describe('worker card pattern parity', () => {
     ]));
   }, 90000);
 
-  test('network debug fill can use position swap will with debug no-consume options', () => {
+  test('worker publish can use position swap will from a prepared normal hand', () => {
     const cardId = 'position_swap_01';
-    const runtime = LocalMatchRuntime.createRuntime({ seed: 71, networkDebugEnabled: true });
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 71 });
     const runtimeSnapshot = runtime.getSnapshot();
-    DebugActions.fillDebugHand(runtimeSnapshot.cardState, {
-      playerKey: 'black',
-      replaceExisting: true,
-      charge: 99
-    });
+    runtimeSnapshot.cardState.hands.black = [cardId];
     runtimeSnapshot.cardState.deck.black = [];
     runtimeSnapshot.cardState.deck.white = [];
     runtimeSnapshot.cardState.discard = [];
+    runtimeSnapshot.cardState.charge.black = 99;
     runtimeSnapshot.cardState.selectedCardId = cardId;
     runtimeSnapshot.cardState.selectedCardOwnerKey = 'black';
     runtimeSnapshot.gameState.currentPlayer = Core.BLACK;
     runtime.getRoom().stateVersion = 0;
     runtimeSnapshot.stateVersion = 0;
-    runtime.getRoom().networkDebugEnabled = true;
     runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
 
     const initialSnapshot = clone(runtimeSnapshot);
     const initialVersion = runtime.getRoom().stateVersion;
     const body = buildUseCardBody(runtime, cardId, 'op_worker_pattern_debug_position_swap_use');
-    body.params.debugOptions = { ignoreCost: true, noConsume: true };
-    body.action.debugOptions = { ignoreCost: true, noConsume: true };
 
     const workerResult = runWorkerPublish(initialSnapshot, initialVersion, body);
 
@@ -793,22 +786,18 @@ describe('worker card pattern parity', () => {
     }));
   }, 90000);
 
-  test('network debug fill then move still allows next player to use position swap will', () => {
+  test('worker publish after a move still allows next player to use position swap will from a prepared normal hand', () => {
     const cardId = 'position_swap_01';
-    const runtime = LocalMatchRuntime.createRuntime({ seed: 71, networkDebugEnabled: true });
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 71 });
     const runtimeSnapshot = runtime.getSnapshot();
-    DebugActions.fillDebugHand(runtimeSnapshot.cardState, {
-      playerKey: 'white',
-      replaceExisting: true,
-      charge: 99
-    });
+    runtimeSnapshot.cardState.hands.white = [cardId];
     runtimeSnapshot.cardState.deck.black = [];
     runtimeSnapshot.cardState.deck.white = [];
     runtimeSnapshot.cardState.discard = [];
+    runtimeSnapshot.cardState.charge.white = 99;
     runtimeSnapshot.gameState.currentPlayer = Core.BLACK;
     runtime.getRoom().stateVersion = 0;
     runtimeSnapshot.stateVersion = 0;
-    runtime.getRoom().networkDebugEnabled = true;
     runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
 
     const move = pickFirstLegalMove(runtimeSnapshot, 'black');
@@ -837,7 +826,7 @@ describe('worker card pattern parity', () => {
     expect(moveResult.status).toBe(200);
     expect(moveResult.payload.ok).toBe(true);
 
-    const afterMoveSnapshot = clone(moveResult.payload.snapshot);
+    const afterMoveSnapshot = clone(moveResult.internalSnapshot);
     const useTurnIndex = Number(afterMoveSnapshot.cardState && afterMoveSnapshot.cardState.turnIndex) || 0;
     const useBody = {
       seatKey: 'white',
@@ -848,8 +837,7 @@ describe('worker card pattern parity', () => {
       actor: 'white',
       params: {
         useCardId: cardId,
-        useCardOwnerKey: 'white',
-        debugOptions: { ignoreCost: true, noConsume: true }
+        useCardOwnerKey: 'white'
       },
       turnIndex: useTurnIndex,
       action: {
@@ -857,7 +845,6 @@ describe('worker card pattern parity', () => {
         playerKey: 'white',
         useCardId: cardId,
         useCardOwnerKey: 'white',
-        debugOptions: { ignoreCost: true, noConsume: true },
         turnIndex: useTurnIndex
       }
     };

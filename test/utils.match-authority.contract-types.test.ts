@@ -33,6 +33,20 @@ describe('match-authority public contract types', () => {
     expect(MatchAuthority.makeRematchRequestId(makeSeatToken, now)).toBe('rematch_1234567890_abcDEF-123_e');
   });
 
+  test('randomFromChars rejects biased bytes before selecting output characters', () => {
+    const bytes = [255, 0, 1, 2];
+    const fakeCrypto = {
+      getRandomValues(array: Uint8Array) {
+        for (let index = 0; index < array.length; index += 1) {
+          array[index] = bytes.shift() ?? 0;
+        }
+        return array;
+      }
+    };
+
+    expect(MatchAuthority.randomFromChars('ABC', 3, fakeCrypto)).toBe('ABC');
+  });
+
   test('publish response exposes typed authority metadata', () => {
     const payload: MatchAuthorityPublishResponsePayload = MatchAuthority.buildPublishResponsePayload({
       ok: false,

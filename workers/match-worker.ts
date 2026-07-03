@@ -1703,7 +1703,7 @@ function toPublicRoomBoardConfig(room: MatchWorkerRoomState | null | undefined):
 }
 
 function toPublicNetworkDebugEnabled(room: MatchWorkerRoomState | null | undefined): boolean {
-    return !!(room && room.networkDebugEnabled === true);
+    return false;
 }
 
 function toPublicNetworkAutoEnabled(room: MatchWorkerRoomState | null | undefined): boolean {
@@ -1888,7 +1888,7 @@ async function resolveAllCardsDeckSelection(): Promise<{
 
 async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Response> {
     const opts = asRecord(options);
-    const networkDebugEnabled = opts.networkDebugEnabled === true;
+    const networkDebugEnabled = false;
     const networkAutoEnabled = opts.networkAutoEnabled === true;
     const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
     const playerName = normalizeNetworkPlayerName(opts.playerName) || MatchRoomLobby.createRandomPlayerName();
@@ -3216,7 +3216,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             opts.roomBoardConfig,
             asRecord(snapshot && snapshot.gameState).board
         );
-        const networkDebugEnabled = opts.networkDebugEnabled === true;
+        const networkDebugEnabled = false;
         const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
         const networkAutoEnabled = opts.networkAutoEnabled === true;
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);

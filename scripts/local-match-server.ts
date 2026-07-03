@@ -1066,7 +1066,7 @@ function toPublicRoomBoardConfig(room: any) {
 }
 
 function toPublicNetworkDebugEnabled(room: any) {
-    return !!(room && room.networkDebugEnabled === true);
+    return false;
 }
 
 function toPublicNetworkAutoEnabled(room: any) {
@@ -1121,13 +1121,22 @@ function writeSse(res: any, eventName: any, payload: any, eventId: any) {
 function parseBody(req: any): Promise<any> {
     return new Promise<any>((resolve: any, reject: any) => {
         let raw = '';
+        let settled = false;
         req.on('data', (chunk: any) => {
+            if (settled) return;
             raw += chunk;
             if (raw.length > 5 * 1024 * 1024) {
-                reject(new Error('payload_too_large'));
+                settled = true;
+                const error = new Error('payload_too_large');
+                reject(error);
+                if (req && typeof req.destroy === 'function') {
+                    req.destroy(error);
+                }
             }
         });
         req.on('end', () => {
+            if (settled) return;
+            settled = true;
             if (!raw) {
                 resolve({});
                 return;
@@ -1138,7 +1147,11 @@ function parseBody(req: any): Promise<any> {
                 reject(new Error('invalid_json'));
             }
         });
-        req.on('error', reject);
+        req.on('error', (error: any) => {
+            if (settled) return;
+            settled = true;
+            reject(error);
+        });
     });
 }
 
@@ -1468,7 +1481,7 @@ function makeRoom(options: any) {
             : null,
         roomDeck: opts.roomDeck && typeof opts.roomDeck === 'object' ? deepClone(opts.roomDeck) : null,
         roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
-        networkDebugEnabled: opts.networkDebugEnabled === true,
+        networkDebugEnabled: false,
         networkAutoEnabled: opts.networkAutoEnabled === true,
         matchType: typeof opts.matchType === 'string' ? opts.matchType : '',
         ratedMatch: opts.ratedMatch && typeof opts.ratedMatch === 'object' ? deepClone(opts.ratedMatch) : null,
@@ -1583,8 +1596,19 @@ const PLAYER_ID_TOKEN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 const RECOVERY_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ234567';
 
 function randomFromChars(chars: string, length: number) {
-    const bytes = nodeCrypto.randomBytes(length);
-    return Array.from(bytes).map((byte: any) => chars[byte % chars.length]).join('');
+    if (!chars || !Number.isInteger(length) || length <= 0) return '';
+    if (chars.length > 256) throw new Error('randomFromChars charset must contain at most 256 characters.');
+    const maxUnbiasedByte = Math.floor(256 / chars.length) * chars.length;
+    let out = '';
+    while (out.length < length) {
+        const bytes = nodeCrypto.randomBytes(Math.max(16, length - out.length));
+        for (const byte of bytes) {
+            if (byte >= maxUnbiasedByte) continue;
+            out += chars[byte % chars.length];
+            if (out.length >= length) break;
+        }
+    }
+    return out;
 }
 
 function makeLocalPlayerId() {
@@ -2056,7 +2080,7 @@ async function handleCreate(req: any, res: any) {
     }
     const playerName = normalizeNetworkPlayerName(body.playerName) || MatchRoomLobby.createRandomPlayerName();
     const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
-    const networkDebugEnabled = body.networkDebugEnabled === true;
+    const networkDebugEnabled = false;
     const roomName = MatchRoomLobby.resolveRoomName(body.roomName);
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(body.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(body.roomBoardConfig);

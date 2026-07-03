@@ -152,7 +152,9 @@ describe('shared match room lobby helpers', () => {
     expect(MatchRoomLobby.hasRoomPassword(room)).toBe(true);
     expect(MatchRoomLobby.isJoinPasswordAccepted(room, 'swordfish')).toBe(true);
     expect(MatchRoomLobby.isJoinPasswordAccepted(room, 'wrong')).toBe(false);
+    expect(MatchRoomLobby.isJoinPasswordAccepted(room, 'swordfizz')).toBe(false);
     expect(MatchRoomLobby.isJoinPasswordAccepted({ roomId: 'OPEN' }, '')).toBe(true);
+    expect(String(MatchRoomLobby.isJoinPasswordAccepted)).toContain('constantTimeStringEquals');
   });
 
   test('作成から10分を超えた未参加ルームは期限切れとして扱う', () => {

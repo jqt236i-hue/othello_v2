@@ -1261,22 +1261,22 @@ describe('match worker publish sanitize', () => {
     ]));
   });
 
-  test('network debug room では手番外の debug fill hand command を許可し自席だけ補充する', () => {
-    const result = runCommandPublishDebugFillScenario(true, 'white');
+  test('network debug room でも debug fill hand command を公開 publish では拒否する', () => {
+    const result = runCommandPublishDebugFillScenario(true, 'black');
 
-    expect(result.status).toBe(200);
-    expect(result.payload.ok).toBe(true);
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.payload.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
     expect(result.internalCardState.hands.black).toEqual([]);
-    expect(result.internalCardState.hands.white.length).toBeGreaterThan(20);
-    expect(result.internalCardState.debugHandFilled).toBe(true);
-    expect(result.internalCardState.debugNoDraw).toBe(true);
-    expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
-    expect(result.broadcastMeta.playbackEvents).toEqual([]);
+    expect(result.internalCardState.hands.white).toEqual([]);
+    expect(result.internalCardState.debugHandFilled).toBe(false);
+    expect(result.internalCardState.debugNoDraw).toBe(false);
+    expect(result.broadcastMeta).toBeNull();
     expect(result.internalTurnTimer).toMatchObject(result.expectedTurnTimer);
   });
 
-  test('network debug room では debug fill hand command で requested cards only に置き換えられる', () => {
-    const result = runCommandPublishDebugFillScenario(true, 'white', {
+  test('network debug room でも requested cards の debug fill hand command は状態を変更しない', () => {
+    const result = runCommandPublishDebugFillScenario(true, 'black', {
       params: {
         cardIds: ['condemn_01'],
         replaceExisting: true
@@ -1287,12 +1287,13 @@ describe('match worker publish sanitize', () => {
       }
     });
 
-    expect(result.status).toBe(200);
-    expect(result.payload.ok).toBe(true);
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.payload.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
     expect(result.internalCardState.hands.black).toEqual([]);
-    expect(result.internalCardState.hands.white).toEqual(['condemn_01']);
-    expect(result.internalCardState.debugHandFilled).toBe(true);
-    expect(result.internalCardState.debugNoDraw).toBe(true);
+    expect(result.internalCardState.hands.white).toEqual([]);
+    expect(result.internalCardState.debugHandFilled).toBe(false);
+    expect(result.internalCardState.debugNoDraw).toBe(false);
   });
 
   test('network debug room でない場合は debug fill hand command を拒否する', () => {

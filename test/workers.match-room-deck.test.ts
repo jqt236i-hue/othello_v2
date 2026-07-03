@@ -426,7 +426,7 @@ describe('match worker room deck', () => {
     expect(result.joinStatus).toBe(200);
     expect(result.stateStatus).toBe(200);
     expect(result.createPayload.ok).toBe(true);
-    expect(result.createPayload.networkDebugEnabled).toBe(true);
+    expect(result.createPayload.networkDebugEnabled).toBe(false);
     expect(result.createPayload.roomBoardConfig).toMatchObject({
       rows: 7,
       cols: 9,
@@ -435,7 +435,7 @@ describe('match worker room deck', () => {
     expect(result.createPayload.roomDeck.mode).toBe('perPlayer');
     expect(result.createPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.createPayload.roomDeck.deckCodeByPlayer.white).toBe('');
-    expect(result.joinPayload.networkDebugEnabled).toBe(true);
+    expect(result.joinPayload.networkDebugEnabled).toBe(false);
     expect(result.joinPayload.roomBoardConfig).toMatchObject({
       rows: 7,
       cols: 9,
@@ -443,7 +443,7 @@ describe('match worker room deck', () => {
     });
     expect(result.joinPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.joinPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
-    expect(result.statePayload.networkDebugEnabled).toBe(true);
+    expect(result.statePayload.networkDebugEnabled).toBe(false);
     expect(result.statePayload.roomBoardConfig).toMatchObject({
       rows: 7,
       cols: 9,

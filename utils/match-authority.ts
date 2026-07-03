@@ -166,13 +166,20 @@ function resolveSecureCrypto(explicitCrypto?: MatchAuthorityCryptoLike | null): 
 function randomFromChars(chars: unknown, length: unknown, explicitCrypto?: MatchAuthorityCryptoLike | null): string {
     const safeChars = String(chars || '');
     if (!safeChars || typeof length !== 'number' || !Number.isInteger(length) || length <= 0) return '';
+    if (safeChars.length > 256) throw new Error('randomFromChars charset must contain at most 256 characters.');
     const safeLength = length;
     const cryptoLike = resolveSecureCrypto(explicitCrypto);
-    const bytes = new Uint8Array(safeLength);
-    cryptoLike.getRandomValues(bytes);
+    const maxUnbiasedByte = Math.floor(256 / safeChars.length) * safeChars.length;
     let out = '';
-    for (let index = 0; index < safeLength; index += 1) {
-        out += safeChars[bytes[index] % safeChars.length];
+    while (out.length < safeLength) {
+        const bytes = new Uint8Array(Math.max(16, safeLength - out.length));
+        cryptoLike.getRandomValues(bytes);
+        for (let index = 0; index < bytes.length; index += 1) {
+            const byte = bytes[index];
+            if (byte >= maxUnbiasedByte) continue;
+            out += safeChars[byte % safeChars.length];
+            if (out.length >= safeLength) break;
+        }
     }
     return out;
 }

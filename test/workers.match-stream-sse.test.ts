@@ -495,7 +495,7 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('event: snapshot');
     expect(result.firstChunk).toContain('id: ');
     expect(result.firstChunk).toContain('data: ');
-    expect(result.firstChunk).toContain('"networkDebugEnabled":true');
+    expect(result.firstChunk).toContain('"networkDebugEnabled":false');
     expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');
     expect(result.firstChunk).toContain('"seatHandSkins":{"black":"gacha__n__陽気な手","white":""}');
     expect(result.firstChunk).toContain('"effectLogs":[]');
