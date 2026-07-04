@@ -113,6 +113,10 @@ let CpuPolicyBoardMarkerPrimitives: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyBoardMarkerPrimitives = _require('./ai/cpu-policy-board-marker-primitives'); } catch (e) { /* ignore */ }
 }
+let CpuPolicyPlacementFilters: any = null;
+if (typeof require === 'function') {
+    try { CpuPolicyPlacementFilters = _require('./ai/cpu-policy-placement-filters'); } catch (e) { /* ignore */ }
+}
 let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
@@ -2797,18 +2801,41 @@ function getMoveOpponentSpecialFlipProfile(playerKey: any, move: any): any {
 }
 
 function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any): any {
+    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.filterLv6OpenCornerAdjacentMoves === 'function') {
+        return CpuPolicyPlacementFilters.filterLv6OpenCornerAdjacentMoves(candidateMoves, board, {
+            placementPriority: CpuDecisionPlacementPriority,
+            getCornerProximity,
+            getBoardCellValueSafe,
+            isCornerCell
+        });
+    }
     return CpuDecisionPlacementPriority && typeof CpuDecisionPlacementPriority.filterLv6OpenCornerAdjacentMoves === 'function'
         ? CpuDecisionPlacementPriority.filterLv6OpenCornerAdjacentMoves(candidateMoves, board)
         : candidateMoves;
 }
 
 function filterMovesByLv6PlacementPriority(playerKey: any, level: any, candidateMoves: any): any {
+    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.filterMovesByLv6PlacementPriority === 'function') {
+        return CpuPolicyPlacementFilters.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves, {
+            placementPriority: CpuDecisionPlacementPriority
+        });
+    }
     return CpuDecisionPlacementPriority && typeof CpuDecisionPlacementPriority.filterMovesByLv6PlacementPriority === 'function'
         ? CpuDecisionPlacementPriority.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves)
         : candidateMoves;
 }
 
 function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerProfile?: any): any {
+    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.isCloneSplitEligibleSource === 'function') {
+        return CpuPolicyPlacementFilters.isCloneSplitEligibleSource(playerKey, row, col, markerProfile, {
+            getCurrentCpuBoard,
+            resolvePlayerValue: (key: any) => (key === 'black'
+                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+            getBoardCellValueSafe,
+            getMarkerProfileAt
+        });
+    }
     const board = getCurrentCpuBoard();
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
@@ -2826,6 +2853,17 @@ function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerPr
 }
 
 function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
+    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.filterCloneSplitTargetsForLv6 === 'function') {
+        return CpuPolicyPlacementFilters.filterCloneSplitTargetsForLv6(playerKey, targets, {
+            getCurrentCpuBoard,
+            resolvePlayerValue: (key: any) => (key === 'black'
+                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+            getBoardCellValueSafe,
+            getMarkerProfileAt,
+            resolveCpuCardPolicyLevelForPlayer
+        });
+    }
     if (!Array.isArray(targets) || targets.length <= 0) return [];
     const level = resolveCpuCardPolicyLevelForPlayer(playerKey);
     if (level < 6) return targets;
