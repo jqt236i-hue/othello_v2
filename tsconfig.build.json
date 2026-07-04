@@ -21,7 +21,6 @@
     "ui.ts",
     "is-env-capable.ts",
     "card-system.ts",
-    "fix_registry_turnmanager.ts",
     "analyze-selfplay-moves.ts",
     "analyze-destroy-cycle.ts",
     "analyze-crystal-stone.ts",
@@ -40,3 +39,4 @@
     "tests/**/*"
   ]
 }
+
