@@ -1,3 +1,21 @@
+function getOwnerValueForDiff(owner: any, BLACK: any, WHITE: any): any {
+    if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
+    return WHITE;
+}
+
+function specialSupportsFlipEvadeForDiff(special: any): boolean {
+    if (!special) return false;
+    const type = String(special.type || '').toUpperCase();
+    return (
+        type === 'HYPERACTIVE' ||
+        type === 'EXTREME_HYPERACTIVE' ||
+        type === 'ESCAPE_HYPERACTIVE' ||
+        type === 'ULTIMATE_HYPERACTIVE' ||
+        type === 'WILL_HUNTER_KING' ||
+        type === 'AFTERIMAGE_WILL'
+    );
+}
+
 function buildCurrentCellState(deps: any) {
     const {
         _resolveGameStateForDiffRender,
@@ -331,23 +349,7 @@ function buildCurrentCellState(deps: any) {
             const bomb = val !== EMPTY ? bombMap.get(key) : null;
             const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special);
             const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special);
-            const specialSupportsFlipEvade = !!(
-                special &&
-                (
-                    String(special.type || '').toUpperCase() === 'HYPERACTIVE' ||
-                    String(special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
-                    String(special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
-                    String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                    String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
-                    String(special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
-                )
-            );
-
-            // Normalize owner to BLACK/WHITE constant
-            const getOwnerVal = (owner: any) => {
-                if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
-                return WHITE;
-            };
+            const specialSupportsFlipEvade = specialSupportsFlipEvadeForDiff(special);
 
             state[r][c] = {
                 value: val,
@@ -366,7 +368,7 @@ function buildCurrentCellState(deps: any) {
                 // Unified special stone field
                 special: special ? {
                     type: special.type,
-                    owner: getOwnerVal(special.owner),
+                    owner: getOwnerValueForDiff(special.owner, BLACK, WHITE),
                     remainingOwnerTurns: special.remainingOwnerTurns,
                     regenRemaining: special.regenRemaining,
                     flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
@@ -374,26 +376,26 @@ function buildCurrentCellState(deps: any) {
                 } : null,
                 livingWillAura: !!livingWill,
                 manifestAura: manifestAura ? {
-                    owner: getOwnerVal(manifestAura.owner)
+                    owner: getOwnerValueForDiff(manifestAura.owner, BLACK, WHITE)
                 } : null,
                 guard: guard ? {
-                    owner: getOwnerVal(guard.owner),
+                    owner: getOwnerValueForDiff(guard.owner, BLACK, WHITE),
                     remainingOwnerTurns: guard.remainingOwnerTurns
                 } : null,
-                bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerVal(bomb.owner) } : null,
+                bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerValueForDiff(bomb.owner, BLACK, WHITE) } : null,
                 blockade: blockade ? {
                     type: blockade.type,
-                    owner: getOwnerVal(blockade.owner),
+                    owner: getOwnerValueForDiff(blockade.owner, BLACK, WHITE),
                     remainingOwnerTurns: blockade.remainingOwnerTurns,
                     visualVariant: blockade.visualVariant,
                     innerBoundaryMask: getBoardShrinkInnerBoundaryMask(r, c, blockade.visualVariant)
                 } : null,
                 frozen: frozen ? {
-                    owner: getOwnerVal(frozen.owner),
+                    owner: getOwnerValueForDiff(frozen.owner, BLACK, WHITE),
                     remainingOwnerTurns: frozen.remainingOwnerTurns
                 } : null,
                 seed: seed ? {
-                    owner: getOwnerVal(seed.owner),
+                    owner: getOwnerValueForDiff(seed.owner, BLACK, WHITE),
                     remainingOwnerTurns: seed.remainingOwnerTurns
                 } : null,
                 destroyEvadeRemaining: destroyEvadeDisplay
@@ -426,22 +428,7 @@ function buildCurrentCellState(deps: any) {
         const bomb = expVal !== EMPTY ? bombMap.get(expKey) : null;
         const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special);
         const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special);
-        const specialSupportsFlipEvade = !!(
-            special &&
-            (
-                String(special.type || '').toUpperCase() === 'HYPERACTIVE' ||
-                String(special.type || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ||
-                String(special.type || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ||
-                String(special.type || '').toUpperCase() === 'ULTIMATE_HYPERACTIVE' ||
-                String(special.type || '').toUpperCase() === 'WILL_HUNTER_KING' ||
-                String(special.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
-            )
-        );
-
-        const getOwnerVal = (owner: any) => {
-            if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
-            return WHITE;
-        };
+        const specialSupportsFlipEvade = specialSupportsFlipEvadeForDiff(special);
 
         state._expansionCells.push({
             row: expansion.row,
@@ -461,16 +448,16 @@ function buildCurrentCellState(deps: any) {
             boardBonus: null,
             theoryNumberCell: false,
             frozen: frozen ? {
-                owner: getOwnerVal(frozen.owner),
+                owner: getOwnerValueForDiff(frozen.owner, BLACK, WHITE),
                 remainingOwnerTurns: frozen.remainingOwnerTurns
             } : null,
             seed: seed ? {
-                owner: getOwnerVal(seed.owner),
+                owner: getOwnerValueForDiff(seed.owner, BLACK, WHITE),
                 remainingOwnerTurns: seed.remainingOwnerTurns
             } : null,
             special: special ? {
                 type: special.type,
-                owner: getOwnerVal(special.owner),
+                owner: getOwnerValueForDiff(special.owner, BLACK, WHITE),
                 remainingOwnerTurns: special.remainingOwnerTurns,
                 regenRemaining: special.regenRemaining,
                 flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
@@ -478,16 +465,16 @@ function buildCurrentCellState(deps: any) {
             } : null,
             livingWillAura: !!livingWill,
             manifestAura: manifestAura ? {
-                owner: getOwnerVal(manifestAura.owner)
+                owner: getOwnerValueForDiff(manifestAura.owner, BLACK, WHITE)
             } : null,
             guard: guard ? {
-                owner: getOwnerVal(guard.owner),
+                owner: getOwnerValueForDiff(guard.owner, BLACK, WHITE),
                 remainingOwnerTurns: guard.remainingOwnerTurns
             } : null,
-            bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerVal(bomb.owner) } : null,
+            bomb: bomb ? { remainingTurns: bomb.remainingTurns, owner: getOwnerValueForDiff(bomb.owner, BLACK, WHITE) } : null,
             blockade: blockade ? {
                 type: blockade.type,
-                owner: getOwnerVal(blockade.owner),
+                owner: getOwnerValueForDiff(blockade.owner, BLACK, WHITE),
                 remainingOwnerTurns: blockade.remainingOwnerTurns,
                 visualVariant: blockade.visualVariant,
                 innerBoundaryMask: getBoardShrinkInnerBoundaryMask(expansion.row, expansion.col, blockade.visualVariant)
