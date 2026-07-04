@@ -794,22 +794,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function buildIntakeApplyOptions(meta: any): any {
-        const applyOptions = Object.assign(
-            {},
-            (meta && meta.applyOptions && typeof meta.applyOptions === 'object') ? meta.applyOptions : {}
-        );
-        applyOptions.force = meta && meta.force === true;
-        applyOptions.skipResultOverlay = meta && meta.skipResultOverlay === true;
-        const frames = Array.isArray(meta && meta.presentationFrames) ? meta.presentationFrames : [];
-        if (frames.length > 0) {
-            delete applyOptions.presentationFrames;
-            applyOptions.playbackEvents = [];
-            applyOptions.presentationFrameSource = meta && meta.source ? String(meta.source) : 'network_intake';
-        } else if (!Array.isArray(applyOptions.playbackEvents) && Array.isArray(meta && meta.playbackEvents)) {
-            applyOptions.playbackEvents = meta.playbackEvents;
+        const mod = networkIntakeCoordinatorModule;
+        if (mod && typeof mod.buildNetworkIntakeApplyOptions === 'function') {
+            return mod.buildNetworkIntakeApplyOptions(meta);
         }
-        applyOptions.source = meta && meta.source ? String(meta.source) : 'network_intake';
-        return applyOptions;
+        return {
+            force: meta && meta.force === true,
+            skipResultOverlay: meta && meta.skipResultOverlay === true,
+            source: meta && meta.source ? String(meta.source) : 'network_intake'
+        };
     }
 
     function getNetworkIntakeCoordinator() {

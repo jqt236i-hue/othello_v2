@@ -65,6 +65,25 @@ function createApplyMeta(envelope: NetworkSnapshotEnvelope): NetworkIntakeApplyM
   };
 }
 
+export function buildNetworkIntakeApplyOptions(meta: NetworkIntakeApplyMeta | null | undefined): Record<string, unknown> {
+  const sourceMeta = meta && typeof meta === 'object' ? meta : null;
+  const applyOptions = {
+    ...((sourceMeta && sourceMeta.applyOptions && typeof sourceMeta.applyOptions === 'object') ? sourceMeta.applyOptions : {})
+  };
+  applyOptions.force = sourceMeta ? sourceMeta.force === true : false;
+  applyOptions.skipResultOverlay = sourceMeta ? sourceMeta.skipResultOverlay === true : false;
+  const frames = sourceMeta && Array.isArray(sourceMeta.presentationFrames) ? sourceMeta.presentationFrames : [];
+  if (frames.length > 0) {
+    delete applyOptions.presentationFrames;
+    applyOptions.playbackEvents = [];
+    applyOptions.presentationFrameSource = sourceMeta && sourceMeta.source ? String(sourceMeta.source) : 'network_intake';
+  } else if (!Array.isArray(applyOptions.playbackEvents) && sourceMeta && Array.isArray(sourceMeta.playbackEvents)) {
+    applyOptions.playbackEvents = sourceMeta.playbackEvents;
+  }
+  applyOptions.source = sourceMeta && sourceMeta.source ? String(sourceMeta.source) : 'network_intake';
+  return applyOptions;
+}
+
 function readPlaybackActive(config: NetworkIntakeCoordinatorConfig): boolean | null {
   if (typeof config.getPlaybackActive !== 'function') return null;
   try {

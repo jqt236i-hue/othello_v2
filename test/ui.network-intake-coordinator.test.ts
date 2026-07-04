@@ -1,4 +1,4 @@
-import { createNetworkIntakeCoordinator } from '../ui/network/intake-coordinator';
+import { buildNetworkIntakeApplyOptions, createNetworkIntakeCoordinator } from '../ui/network/intake-coordinator';
 import type { NetworkSnapshotEnvelope } from '../ui/network/intake-envelope';
 
 function envelope(overrides: Partial<NetworkSnapshotEnvelope>): NetworkSnapshotEnvelope {
@@ -19,6 +19,28 @@ function envelope(overrides: Partial<NetworkSnapshotEnvelope>): NetworkSnapshotE
 }
 
 describe('network intake coordinator', () => {
+  test('builds snapshot apply options for presentation-frame intake', () => {
+    expect(buildNetworkIntakeApplyOptions({
+      source: 'stream',
+      force: true,
+      skipResultOverlay: true,
+      playbackEvents: [{ type: 'ignored_when_frames_exist' }],
+      presentationFrames: [{ visualSeq: 4 }],
+      applyOptions: {
+        playbackEvents: [{ type: 'old' }],
+        presentationFrames: [{ visualSeq: 3 }],
+        custom: 'kept'
+      }
+    })).toEqual({
+      custom: 'kept',
+      force: true,
+      skipResultOverlay: true,
+      playbackEvents: [],
+      presentationFrameSource: 'stream',
+      source: 'stream'
+    });
+  });
+
   test('dedupes same visualSeq from publish response and stream', () => {
     const applied: string[] = [];
     const enqueued: number[] = [];
