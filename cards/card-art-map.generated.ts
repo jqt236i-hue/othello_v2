@@ -19,7 +19,7 @@ export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freez
     "super_attraction_01": "15_超引力.png",
     "gravity_01": "16_重力.png",
     "trap_01": "17_罠の意志.png",
-    "tempt_01": "18_誘惑の意志.png",
+    "tempt_01": "18_意志の反転.png",
     "capture_01": "19_捕獲の意志.png",
     "double_chain_01": "20_二連鎖の意志.png",
     "triple_chain_01": "21_三連鎖の意志.png",

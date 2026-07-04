@@ -150,7 +150,7 @@ window.CardCatalog = {
     },
     {
       "id": "tempt_01",
-      "name_ja": "誘惑の意志",
+      "name_ja": "意志の反転",
       "type": "TEMPT_WILL",
       "cost": 34,
       "desc_ja": "相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。",
