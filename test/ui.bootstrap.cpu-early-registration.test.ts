@@ -77,7 +77,9 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readProcessing).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readAnimationBusy).toBe('function');
     expect(setPassHandlerRuntime).toHaveBeenCalledTimes(1);
-    expect(setPassHandlerRuntime.mock.calls[0][0].processCpuTurn).toBe(mockCpu.processCpuTurn);
+    expect(typeof setPassHandlerRuntime.mock.calls[0][0].processCpuTurn).toBe('function');
+    setPassHandlerRuntime.mock.calls[0][0].processCpuTurn('black');
+    expect(mockCpu.processCpuTurn).toHaveBeenCalledWith('black');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction).toBe('function');
