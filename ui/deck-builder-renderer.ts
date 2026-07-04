@@ -400,7 +400,32 @@ function classifyPresetSlotState(preset: any): string {
   return 'empty';
 }
 
-function createPresetCard(preset: any, actions: HTMLElement): HTMLElement {
+function formatSlotNumber(slotIndex: any): string {
+  const numericIndex = Number(slotIndex);
+  if (!Number.isFinite(numericIndex) || numericIndex < 0) return '';
+  return String(Math.floor(numericIndex) + 1).padStart(2, '0');
+}
+
+function createSlotBadgeElement(slotIndex: any): HTMLElement | null {
+  const label = formatSlotNumber(slotIndex);
+  if (!label) return null;
+  const badge = document.createElement('div');
+  badge.className = 'deck-builder-slot-badge';
+  badge.setAttribute('aria-hidden', 'true');
+  badge.textContent = `No.${label}`;
+  return badge;
+}
+
+function createActiveStripElement(): HTMLElement {
+  const strip = document.createElement('div');
+  strip.className = 'deck-builder-active-strip';
+  strip.setAttribute('aria-hidden', 'true');
+  strip.textContent = 'IN USE';
+  return strip;
+}
+
+function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTMLElement {
+  const opts = (options && typeof options === 'object') ? options : {};
   const presetCard = document.createElement('div');
   presetCard.className = 'deck-builder-preset-card';
   const slotState = classifyPresetSlotState(preset);
@@ -412,6 +437,16 @@ function createPresetCard(preset: any, actions: HTMLElement): HTMLElement {
     presetCard.dataset.presetId = preset.id;
   }
   presetCard.dataset.slotState = slotState;
+
+  const slotBadge = createSlotBadgeElement(opts.slotIndex);
+  if (slotBadge) {
+    presetCard.dataset.slotIndex = String(opts.slotIndex);
+    presetCard.appendChild(slotBadge);
+  }
+
+  if (preset.isActive) {
+    presetCard.appendChild(createActiveStripElement());
+  }
 
   const title = document.createElement('div');
   title.className = 'deck-builder-preset-title';
@@ -433,6 +468,18 @@ function createPresetCard(preset: any, actions: HTMLElement): HTMLElement {
   presetCard.appendChild(actions);
   return presetCard;
 }
+
+function createSectionIcon(svgInner: string): HTMLElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'deck-builder-section-icon';
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.innerHTML = svgInner;
+  return wrap;
+}
+
+const BUILT_IN_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5l5-2 5 2v6.6c0 .9-.45 1.74-1.2 2.24L8 14.8l-3.8-1.46A2.5 2.5 0 0 1 3 11.1V4.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5.6 7.6L7.2 9.2l3.2-3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const SAVE_SLOT_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.6" stroke="currentColor" stroke-width="1.3"/><path d="M2.2 6.4h11.6" stroke="currentColor" stroke-width="1.3"/><path d="M5 9.4h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 
 function renderPresetView(container: HTMLElement, viewModel: any, handlers: any): void {
   const wrapper = document.createElement('div');
@@ -469,8 +516,12 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
     builtInSection.className = 'deck-builder-built-in-preset-section';
 
     const builtInTitle = document.createElement('div');
-    builtInTitle.className = 'deck-builder-section-title';
-    builtInTitle.textContent = 'デフォルトプリセットデッキ';
+    builtInTitle.className = 'deck-builder-section-title deck-builder-section-title-with-icon';
+    builtInTitle.appendChild(createSectionIcon(BUILT_IN_SECTION_ICON_SVG));
+    const builtInTitleText = document.createElement('span');
+    builtInTitleText.className = 'deck-builder-section-title-text';
+    builtInTitleText.textContent = 'デフォルトプリセットデッキ';
+    builtInTitle.appendChild(builtInTitleText);
     builtInSection.appendChild(builtInTitle);
 
     const builtInGrid = document.createElement('div');
@@ -487,15 +538,29 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   }
   wrapper.appendChild(defaultPresetRow);
 
+  const saveSlotTitle = document.createElement('div');
+  saveSlotTitle.className = 'deck-builder-section-title deck-builder-section-title-with-icon deck-builder-save-slot-title';
+  saveSlotTitle.appendChild(createSectionIcon(SAVE_SLOT_SECTION_ICON_SVG));
+  const saveSlotTitleText = document.createElement('span');
+  saveSlotTitleText.className = 'deck-builder-section-title-text';
+  saveSlotTitleText.textContent = '保存スロット';
+  saveSlotTitle.appendChild(saveSlotTitleText);
+  const saveSlotCounter = document.createElement('span');
+  saveSlotCounter.className = 'deck-builder-section-counter';
+  const filledCount = (Array.isArray(viewModel.presets) ? viewModel.presets : []).filter((p: any) => p && p.canUse).length;
+  saveSlotCounter.textContent = `${filledCount}/6 使用中`;
+  saveSlotTitle.appendChild(saveSlotCounter);
+  wrapper.appendChild(saveSlotTitle);
+
   const presetGrid = document.createElement('div');
   presetGrid.className = 'deck-builder-preset-grid';
-  viewModel.presets.forEach((preset: any) => {
+  viewModel.presets.forEach((preset: any, slotIndex: number) => {
     const actions = document.createElement('div');
     actions.className = 'deck-builder-actions-row';
     actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
     actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
 
-    presetGrid.appendChild(createPresetCard(preset, actions));
+    presetGrid.appendChild(createPresetCard(preset, actions, { slotIndex }));
   });
   wrapper.appendChild(presetGrid);
 
@@ -577,8 +642,12 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   const codeBlock = document.createElement('div');
   codeBlock.className = 'deck-builder-code-block';
   const codeLabel = document.createElement('div');
-  codeLabel.className = 'deck-builder-section-title';
-  codeLabel.textContent = 'deckCode';
+  codeLabel.className = 'deck-builder-section-title deck-builder-section-title-with-icon';
+  codeLabel.appendChild(createSectionIcon('<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 4.5l-3 3.5 3 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 4.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 3l-2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'));
+  const codeLabelText = document.createElement('span');
+  codeLabelText.className = 'deck-builder-section-title-text';
+  codeLabelText.textContent = 'deckCode';
+  codeLabel.appendChild(codeLabelText);
   codeBlock.appendChild(codeLabel);
   const codeInput = document.createElement('textarea');
   codeInput.className = 'deck-builder-code-input';
@@ -594,8 +663,12 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   const selectedSection = document.createElement('div');
   selectedSection.className = 'deck-builder-section';
   const selectedTitle = document.createElement('div');
-  selectedTitle.className = 'deck-builder-section-title';
-  selectedTitle.textContent = '選択中カード';
+  selectedTitle.className = 'deck-builder-section-title deck-builder-section-title-with-icon';
+  selectedTitle.appendChild(createSectionIcon('<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="4" width="11.6" height="8" rx="1.4" stroke="currentColor" stroke-width="1.3"/><path d="M2.2 7h11.6" stroke="currentColor" stroke-width="1.3"/><circle cx="5" cy="9.2" r="0.8" fill="currentColor"/><circle cx="11" cy="9.2" r="0.8" fill="currentColor"/></svg>'));
+  const selectedTitleText = document.createElement('span');
+  selectedTitleText.className = 'deck-builder-section-title-text';
+  selectedTitleText.textContent = '選択中カード';
+  selectedTitle.appendChild(selectedTitleText);
   selectedSection.appendChild(selectedTitle);
   if (editor.selectedCards.length === 0) {
     const empty = document.createElement('div');
@@ -624,8 +697,12 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   const candidateSection = document.createElement('div');
   candidateSection.className = 'deck-builder-section';
   const candidateTitle = document.createElement('div');
-  candidateTitle.className = 'deck-builder-section-title';
-  candidateTitle.textContent = '候補カード';
+  candidateTitle.className = 'deck-builder-section-title deck-builder-section-title-with-icon';
+  candidateTitle.appendChild(createSectionIcon('<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.6" y="2.6" width="4.6" height="4.6" rx="0.8" stroke="currentColor" stroke-width="1.3"/><rect x="8.8" y="2.6" width="4.6" height="4.6" rx="0.8" stroke="currentColor" stroke-width="1.3"/><rect x="2.6" y="8.8" width="4.6" height="4.6" rx="0.8" stroke="currentColor" stroke-width="1.3"/><rect x="8.8" y="8.8" width="4.6" height="4.6" rx="0.8" stroke="currentColor" stroke-width="1.3"/></svg>'));
+  const candidateTitleText = document.createElement('span');
+  candidateTitleText.className = 'deck-builder-section-title-text';
+  candidateTitleText.textContent = '候補カード';
+  candidateTitle.appendChild(candidateTitleText);
   candidateSection.appendChild(candidateTitle);
   const candidateGrid = document.createElement('div');
   candidateGrid.className = 'deck-builder-card-grid deck-builder-candidate-grid';
