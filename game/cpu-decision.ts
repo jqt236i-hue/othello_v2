@@ -388,6 +388,7 @@ const CpuDecisionPendingActionsModule = requireCpuDecisionModuleOrNull('./cpu-de
 const CpuDecisionPendingScoreModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-score');
 const CpuDecisionPendingOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-onnx');
 const CpuDecisionOnnxMoveModule = requireCpuDecisionModuleOrNull('./cpu-decision-onnx-move');
+const CpuDecisionActionModule = requireCpuDecisionModuleOrNull('./cpu-decision-action');
 const CpuDecisionPlacementPriorityModule = requireCpuDecisionModuleOrNull('./cpu-decision-placement-priority');
 const CpuDecisionPublicApiModule = requireCpuDecisionModuleOrNull('./cpu-decision-public-api');
 const CpuDecisionCardActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-actions');
@@ -3534,29 +3535,22 @@ async function cpuSelectCaptureWillWithPolicy(playerKey: any): Promise<any> {
 // { type: 'useCard', cardId, cardDef }
 // { type: 'pass' }
 function computeCpuAction(playerKey: any): any {
-    const player = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const protection = getActiveProtectionForPlayer(player);
-    const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
-    const legalMoves = getLegalMoves(gameState, protection, perma);
-
-    if (!legalMoves.length) {
-        // ask the centralized selector for a candidate
-        let cardChoice: any = null;
-        try {
-            cardChoice = selectCardToUse(playerKey);
-        } catch (e) {
-            cardChoice = null;
-        }
-        if (cardChoice && cardChoice.cardId) {
-            return { type: 'useCard', cardId: cardChoice.cardId, cardDef: cardChoice.cardDef };
-        }
-        return { type: 'pass' };
+    if (CpuDecisionActionModule && typeof CpuDecisionActionModule.computeCpuActionWithPolicy === 'function') {
+        return CpuDecisionActionModule.computeCpuActionWithPolicy(playerKey, {
+            resolvePlayerValue: (key: any) => (key === 'black'
+                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+            getActiveProtectionForPlayer: (playerValue: any) => getActiveProtectionForPlayer(playerValue),
+            getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
+            getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+            getLegalMoves: (gameStateValue: any, protection: any, perma: any) => (
+                (typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []
+            ),
+            selectCardToUse: (key: any) => selectCardToUse(key),
+            selectCpuMoveWithPolicy: (legalMoves: any, key: any) => selectCpuMoveWithPolicy(legalMoves, key)
+        });
     }
-
-    const move = selectCpuMoveWithPolicy(legalMoves, playerKey);
-    return { type: 'move', move };
+    return { type: 'pass' };
 }
 
 // Node.js環境用エクスポート
