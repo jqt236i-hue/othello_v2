@@ -109,6 +109,10 @@ let SharedBoardUtilsModule: any = null;
 if (typeof require === 'function') {
     try { SharedBoardUtilsModule = _require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
 }
+let CpuPolicyBoardMarkerPrimitives: any = null;
+if (typeof require === 'function') {
+    try { CpuPolicyBoardMarkerPrimitives = _require('./ai/cpu-policy-board-marker-primitives'); } catch (e) { /* ignore */ }
+}
 let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
@@ -2529,12 +2533,18 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
 }
 
 function getBoardCellValueSafe(board: any, row: any, col: any): any {
+    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getBoardCellValueSafe === 'function') {
+        return CpuPolicyBoardMarkerPrimitives.getBoardCellValueSafe(resolveSharedBoardUtilsModule(), board, row, col);
+    }
     if (!Array.isArray(board)) return null;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
     return getBoardCellValue(board, row, col);
 }
 
 function countAdjacentCellsByValue(board: any, row: any, col: any, value: any): any {
+    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.countAdjacentCellsByValue === 'function') {
+        return CpuPolicyBoardMarkerPrimitives.countAdjacentCellsByValue(resolveSharedBoardUtilsModule(), board, row, col, value);
+    }
     if (!Array.isArray(board)) return 0;
     let count = 0;
     for (let dr = -1; dr <= 1; dr++) {
@@ -2550,6 +2560,9 @@ function countAdjacentCellsByValue(board: any, row: any, col: any, value: any): 
 }
 
 function getMarkerPriorityValue(type: any): any {
+    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getMarkerPriorityValue === 'function') {
+        return CpuPolicyBoardMarkerPrimitives.getMarkerPriorityValue(type);
+    }
     const t = String(type || '').toUpperCase();
     if (!t) return 120;
     if (t === 'GUARD') return 280;
@@ -2561,6 +2574,9 @@ function getMarkerPriorityValue(type: any): any {
 }
 
 function getTimedMarkerProfileAt(playerKey: any, row: any, col: any): any {
+    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getTimedMarkerProfileAt === 'function') {
+        return CpuPolicyBoardMarkerPrimitives.getTimedMarkerProfileAt(cardState, playerKey, row, col);
+    }
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const out = {
         ownTimedCount: 0,
@@ -2714,6 +2730,9 @@ function scoreSeatStrategicValue(playerKey: any, row: any, col: any, markerProfi
 }
 
 function getMarkerProfileAt(playerKey: any, row: any, col: any): any {
+    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getMarkerProfileAt === 'function') {
+        return CpuPolicyBoardMarkerPrimitives.getMarkerProfileAt(cardState, playerKey, row, col);
+    }
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const out = {
         ownSpecialScore: 0,
