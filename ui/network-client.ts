@@ -2937,26 +2937,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function getPendingLocalPublishProjectedSnapshotHash(options: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
-            ? Number(opts.ignoreSequence)
-            : null;
-        const tracker = ensurePublishTracker();
-        const operations = Array.isArray(tracker && tracker.operations) ? tracker.operations : [];
-        for (let index = operations.length - 1; index >= 0; index -= 1) {
-            const entry = operations[index];
-            if (!entry || (entry.phase !== 'queued' && entry.phase !== 'inflight')) continue;
-            if (ignoredSequence !== null && Number(entry.sequence) === ignoredSequence) continue;
-            const requestMeta = entry.requestMeta;
-            if (
-                requestMeta
-                && typeof requestMeta.snapshotProjectedHash === 'string'
-                && requestMeta.snapshotProjectedHash
-            ) {
-                return requestMeta.snapshotProjectedHash;
-            }
-        }
-        return null;
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.getPendingLocalPublishProjectedSnapshotHash !== 'function') return null;
+        return controller.getPendingLocalPublishProjectedSnapshotHash(options);
     }
 
     function applySnapshotThroughCoordinator(snapshot: any, options: any) {

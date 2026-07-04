@@ -209,6 +209,28 @@ function createNetworkPublishTracker(config?: any): any {
     });
   }
 
+  function getPendingLocalPublishProjectedSnapshotHash(options?: any): string | null {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
+      ? Number(opts.ignoreSequence)
+      : null;
+    const operations = pruneTrackedPublishes();
+    for (let index = operations.length - 1; index >= 0; index -= 1) {
+      const entry = operations[index];
+      if (!entry || (entry.phase !== 'queued' && entry.phase !== 'inflight')) continue;
+      if (ignoredSequence !== null && Number(entry.sequence) === ignoredSequence) continue;
+      const requestMeta = entry.requestMeta;
+      if (
+        requestMeta
+        && typeof requestMeta.snapshotProjectedHash === 'string'
+        && requestMeta.snapshotProjectedHash
+      ) {
+        return requestMeta.snapshotProjectedHash;
+      }
+    }
+    return null;
+  }
+
   return {
     ensurePublishTracker,
     pruneTrackedPublishes,
@@ -225,7 +247,8 @@ function createNetworkPublishTracker(config?: any): any {
     hasTrackedPublishPresentedResult,
     markTrackedPublishResultPresented,
     hasPendingLocalPublishes,
-    hasNewerQueuedPublish
+    hasNewerQueuedPublish,
+    getPendingLocalPublishProjectedSnapshotHash
   };
 }
 
