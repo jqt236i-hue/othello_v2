@@ -117,6 +117,10 @@ let CpuPolicyPlacementFilters: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyPlacementFilters = _require('./ai/cpu-policy-placement-filters'); } catch (e) { /* ignore */ }
 }
+let CpuPolicyPendingTargets: any = null;
+if (typeof require === 'function') {
+    try { CpuPolicyPendingTargets = _require('./ai/cpu-policy-pending-targets'); } catch (e) { /* ignore */ }
+}
 let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
@@ -2874,6 +2878,13 @@ function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
 }
 
 function getCornerProximity(row: any, col: any, boardOverride: any): any {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.getCornerProximity === 'function') {
+        return CpuPolicyPendingTargets.getCornerProximity(row, col, boardOverride, {
+            resolveSharedBoardUtilsModule,
+            getCurrentCpuBoard,
+            getBoardCellValueSafe
+        });
+    }
     const board = Array.isArray(boardOverride) ? boardOverride : getCurrentCpuBoard();
     const boardUtils = resolveSharedBoardUtilsModule();
     if (!board || !boardUtils) return null;
@@ -2916,6 +2927,12 @@ function getCornerProximity(row: any, col: any, boardOverride: any): any {
 }
 
 function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, board: any, playerValue: any): any {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.getForcedCornerLaneBonus === 'function') {
+        return CpuPolicyPendingTargets.getForcedCornerLaneBonus(pendingType, row, col, board, playerValue, {
+            resolveSharedBoardUtilsModule,
+            getBoardCellValueSafe
+        });
+    }
     if (!Array.isArray(board) || board.length <= 0) return 0;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const targetCell = getBoardCellValueSafe(board, row, col);
@@ -2939,6 +2956,12 @@ function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, board: a
 }
 
 function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: any, board: any, playerValue: any): any {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.getForcedCornerLaneAntiPatternPenalty === 'function') {
+        return CpuPolicyPendingTargets.getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, playerValue, {
+            resolveSharedBoardUtilsModule,
+            getBoardCellValueSafe
+        });
+    }
     if (!Array.isArray(board) || board.length <= 0) return 0;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const targetCell = getBoardCellValueSafe(board, row, col);
@@ -2970,6 +2993,12 @@ function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: 
 }
 
 function simulatePendingPlacementBoard(board: any, playerValue: any, target: any): any {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.simulatePendingPlacementBoard === 'function') {
+        return CpuPolicyPendingTargets.simulatePendingPlacementBoard(board, playerValue, target, {
+            cloneBoardForCpu,
+            setBoardCellValue
+        });
+    }
     if (!Array.isArray(board)) return null;
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
     const next = cloneBoardForCpu(board);
@@ -2990,6 +3019,12 @@ function scorePendingTargetByType(playerKey: any, pendingType: any, target: any,
 }
 
 function choosePendingTargetWithPolicy(playerKey: any, pendingType: any, targets: any, pending: any): any {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.choosePendingTargetWithPolicy === 'function') {
+        return CpuPolicyPendingTargets.choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending, {
+            pendingTargetSelector: PendingTargetSelector,
+            scorePendingTargetByType
+        });
+    }
     if (
         PendingTargetSelector &&
         typeof PendingTargetSelector.choosePendingTargetWithPolicy === 'function'
@@ -3075,6 +3110,12 @@ function resolveCurrentLegalMovesCountForPlayer(playerKey: any): any {
 }
 
 function buildPendingTargetOnnxContext(playerKey: any, level: any, pendingType: any, targets: any): any {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.buildPendingTargetOnnxContext === 'function') {
+        return CpuPolicyPendingTargets.buildPendingTargetOnnxContext(playerKey, level, pendingType, targets, {
+            cpuDecisionPendingOnnx: CpuDecisionPendingOnnx,
+            resolveCpuCardPolicyLevelFromLevel
+        });
+    }
     const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.buildPendingTargetOnnxContext === 'function'
         ? CpuDecisionPendingOnnx.buildPendingTargetOnnxContext(playerKey, policyLevel, pendingType, targets)
@@ -3114,6 +3155,11 @@ async function rerankOnnxPendingTargetChoice(runtime: any, selectedTarget: any, 
 }
 
 async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
+    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.choosePendingTargetWithPolicyAsync === 'function') {
+        return CpuPolicyPendingTargets.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending, {
+            cpuDecisionPendingOnnx: CpuDecisionPendingOnnx
+        });
+    }
     return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync === 'function'
         ? CpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending)
         : (Array.isArray(targets) && targets.length ? targets[0] : null);
