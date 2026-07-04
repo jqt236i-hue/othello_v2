@@ -1,17 +1,21 @@
 (function (root: any, factory) {
     if (root && root.SharedConstants) {
-        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null);
+        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null, root.SpecialCardRegistry || null);
     } else if (typeof module !== 'undefined' && module.exports) {
         let cardCatalog = null;
         try {
             const path = require('path');
             cardCatalog = require(path.resolve(process.cwd(), 'cards', 'catalog.json'));
         } catch (e) { /* ignore */ }
-        module.exports = factory(require('../shared-constants'), cardCatalog);
+        let specialCardRegistry = null;
+        try {
+            specialCardRegistry = require('./special-card-registry');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../shared-constants'), cardCatalog, specialCardRegistry);
     } else {
-        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null);
+        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null, root.SpecialCardRegistry || null);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown, SpecialCardRegistryInput: unknown) {
     'use strict';
 
     interface CardDef {
@@ -54,20 +58,9 @@
     const DEFAULT_DECK_SIZE = 30;
     const CUSTOM_DECK_SIZE = 30;
     const MAX_DUPLICATES_PER_CARD = 3;
-    const SpecialCardRegistry = (function resolveSpecialCardRegistry() {
-        if (typeof module !== 'undefined' && module.exports) {
-            try {
-                return require('./special-card-registry');
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).SpecialCardRegistry) {
-            return (globalThis as Record<string, unknown>).SpecialCardRegistry;
-        }
-        if (typeof self !== 'undefined' && (self as Record<string, unknown>).SpecialCardRegistry) {
-            return (self as Record<string, unknown>).SpecialCardRegistry;
-        }
-        return null;
-    }());
+    const SpecialCardRegistry = (SpecialCardRegistryInput && typeof SpecialCardRegistryInput === 'object')
+        ? SpecialCardRegistryInput as Record<string, unknown>
+        : null;
     const SPECIAL_FOUNDATION_CARD_IDS = Object.freeze(
         SpecialCardRegistry && typeof SpecialCardRegistry.getInviolableSpecialCardIds === 'function'
             ? SpecialCardRegistry.getInviolableSpecialCardIds()
