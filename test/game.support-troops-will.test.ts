@@ -262,7 +262,7 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     expect(result.cardState.totalFlipCountByPlayer.black).toBe(1);
   });
 
-  test('配置先の数字マスを複数まとめて通常配置と同じく獲得する', () => {
+  test('配置先の数字マスを複数まとめても出現による布石と理論の化身進捗は獲得しない(数字マスは通常配置と同じく消費される)', () => {
     expect(supportTroopsDef).toBeTruthy();
 
     const board = createBoard();
@@ -283,7 +283,7 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     );
 
     const bonusEvents = result.events.filter((event) => event && event.type === 'board_bonus_gain');
-    const chargeBubbles = (result.presentationEvents || []).filter((event) => (
+    const numberCellChargeBubbles = (result.presentationEvents || []).filter((event) => (
       event &&
       event.type === 'CHARGE_BUBBLE' &&
       event.meta &&
@@ -294,20 +294,50 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
       spawnedCount: 3,
       flippedCount: 0
     });
-    expect(bonusEvents.map((event) => [event.row, event.col, event.gained])).toEqual([
-      [2, 2, 4],
-      [2, 3, 5],
-      [2, 4, 6]
-    ]);
-    expect(chargeBubbles.map((event) => [event.row, event.col, event.gained])).toEqual([
-      [2, 2, 4],
-      [2, 3, 5],
-      [2, 4, 6]
-    ]);
-    expect(cardState.charge.black).toBe(15);
+    expect(bonusEvents).toEqual([]);
+    expect(numberCellChargeBubbles).toEqual([]);
+    expect(cardState.charge.black).toBe(0);
     expect(cardState.boardBonusConsumedByCell['2,2']).toBe(true);
     expect(cardState.boardBonusConsumedByCell['2,3']).toBe(true);
     expect(cardState.boardBonusConsumedByCell['2,4']).toBe(true);
-    expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(15);
+    expect(cardState.numberCellCollectedTotalByPlayer.black || 0).toBe(0);
+  });
+
+  test('援軍の各配置で反転が成立すれば反転由来の布石は通常配置と同じく獲得する', () => {
+    expect(supportTroopsDef).toBeTruthy();
+
+    const board = createBoard(Shared.BLACK);
+    board[2][2] = Shared.EMPTY;
+    board[4][2] = Shared.EMPTY;
+    board[4][4] = Shared.EMPTY;
+    board[2][3] = Shared.WHITE;
+
+    const prng = createPrng([0, 0, 0]);
+    const cardState = createCardState(prng, supportTroopsDef.id, supportTroopsDef.cost);
+    cardState.charge.black = supportTroopsDef.cost + 20;
+    cardState.boardBonusByCell = { '2,2': 9, '4,2': 9, '4,4': 9 };
+    const gameState = createGameState(board);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: supportTroopsDef.id },
+      prng
+    );
+
+    const bonusEvents = result.events.filter((event) => event && event.type === 'board_bonus_gain');
+    const resolveEvent = result.events.find((event) => event && event.type === 'support_troops_will_resolved');
+
+    expect(resolveEvent).toMatchObject({
+      spawnedCount: 3,
+      flippedCount: 1
+    });
+    expect(bonusEvents).toEqual([]);
+    expect(cardState.charge.black).toBe(supportTroopsDef.cost + 20 - supportTroopsDef.cost + 1);
+    expect(cardState.boardBonusConsumedByCell['2,2']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['4,2']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['4,4']).toBe(true);
+    expect(cardState.numberCellCollectedTotalByPlayer.black || 0).toBe(0);
   });
 });

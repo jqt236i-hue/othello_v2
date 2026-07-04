@@ -66,13 +66,14 @@ function resetConsecutivePassesAfterBoardMutation(gameState: any, result: any): 
     }
 }
 
-function applySpawnedNumberCellGains(options: ResolveImmediateCardUsageEffectsOptions, result: any): void {
+function applySpawnedNumberCellGains(options: ResolveImmediateCardUsageEffectsOptions, result: any, spawnedOptions: { skipBoardCharge?: boolean } = {}): void {
     if (!result || !Array.isArray(result.spawned) || !result.spawned.length) {
         return;
     }
     if (typeof options.resolveBoardBonusGain !== 'function') {
         return;
     }
+    const skipBoardCharge = spawnedOptions && spawnedOptions.skipBoardCharge === true;
     for (const spawned of result.spawned) {
         const row = Number(spawned && spawned.row);
         const col = Number(spawned && spawned.col);
@@ -85,10 +86,11 @@ function applySpawnedNumberCellGains(options: ResolveImmediateCardUsageEffectsOp
             col,
             {
                 othelloMode: false,
-                flipCount: 0
+                flipCount: 0,
+                skipBoardCharge
             }
         );
-        if (bonusGain) {
+        if (bonusGain && (Number(bonusGain.gained) || 0) > 0) {
             options.events.push(Object.assign({
                 type: 'board_bonus_gain'
             }, bonusGain));
@@ -158,7 +160,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
             throw new Error('REINFORCEMENT_WILL resolve failed');
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
-        applySpawnedNumberCellGains(opts, res);
+        applySpawnedNumberCellGains(opts, res, { skipBoardCharge: true });
         applyImmediateFlipResolutionFollowups(opts, res, 'reinforcement_will_immediate');
         resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({
@@ -180,7 +182,7 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
             throw new Error('SUPPORT_TROOPS_WILL resolve failed');
         }
         opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
-        applySpawnedNumberCellGains(opts, res);
+        applySpawnedNumberCellGains(opts, res, { skipBoardCharge: true });
         applyImmediateFlipResolutionFollowups(opts, res, 'support_troops_will_immediate');
         resetConsecutivePassesAfterBoardMutation(opts.gameState, res);
         opts.events.push({

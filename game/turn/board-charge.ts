@@ -8,6 +8,7 @@ type BoardBonusGainOptions = {
     othelloMode?: boolean;
     numberCellMultiplierConfig?: any;
     flipCount?: any;
+    skipBoardCharge?: boolean;
 };
 
 function buildBoardChargeDeltaMeta(row: any, col: any, sourceType: any) {
@@ -184,20 +185,23 @@ function resolveBoardBonusGain(CardLogic: any, cardState: any, playerKey: any, r
     const multiplier = numberCellMultiplierConfig
         ? Number(numberCellMultiplierConfig.multiplier || 1)
         : 1;
-    const appliedBonus = bonusValue * multiplier;
-    if (CardLogic && typeof CardLogic.addNumberCellCollectedTotal === 'function') {
+    const skipBoardCharge = opts.skipBoardCharge === true;
+    const appliedBonus = skipBoardCharge ? 0 : (bonusValue * multiplier);
+    if (CardLogic && typeof CardLogic.addNumberCellCollectedTotal === 'function' && !skipBoardCharge) {
         CardLogic.addNumberCellCollectedTotal(cardState, playerKey, appliedBonus);
     }
-    const gained = applyPlacementBoardBonusGain(
-        CardLogic,
-        cardState,
-        playerKey,
-        targetRow,
-        targetCol,
-        appliedBonus,
-        Number(opts.flipCount) || 0,
-        deps
-    );
+    const gained = skipBoardCharge
+        ? 0
+        : applyPlacementBoardBonusGain(
+            CardLogic,
+            cardState,
+            playerKey,
+            targetRow,
+            targetCol,
+            appliedBonus,
+            Number(opts.flipCount) || 0,
+            deps
+        );
     return {
         player: playerKey,
         row: targetRow,
