@@ -3374,7 +3374,7 @@ async function cpuSelectCellTeleportWillWithPolicy(playerKey: any): Promise<any>
 }
 
 /**
- * 誘惑の意志 対象選択
+ * 意志の反転 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectTemptWillWithPolicy(playerKey: any): Promise<any> {

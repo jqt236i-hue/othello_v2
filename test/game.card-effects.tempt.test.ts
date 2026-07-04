@@ -44,7 +44,7 @@ describe('tempt', () => {
         expect(callArg.actionPayload).toEqual({ temptTarget: { row: 2, col: 4 } });
         expect(callArg.invalidMessage()).toBe('誘惑する相手の石効果を選んでください');
         expect(callArg.buildPlaybackMeta()).toEqual({ cause: 'TEMPT_WILL', target: { row: 2, col: 4 } });
-        expect(global.emitLogAdded).toHaveBeenCalledWith('白が誘惑の意志で e3 の支配権を奪った');
+        expect(global.emitLogAdded).toHaveBeenCalledWith('白が意志の反転で e3 の支配権を奪った');
     });
 
     test('境界条件: 対象イベントがない場合は無効', async () => {

@@ -4,7 +4,7 @@ const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-cat
 
 const EXPECTED_BASE_CARD = Object.freeze({
   id: 'tempt_01',
-  name_ja: '誘惑の意志',
+  name_ja: '意志の反転',
   type: 'TEMPT_WILL',
   cost: 34,
   desc_ja: '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。',
@@ -13,7 +13,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
-  name: '誘惑の意志',
+  name: '意志の反転',
   desc: '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。'
 });
 

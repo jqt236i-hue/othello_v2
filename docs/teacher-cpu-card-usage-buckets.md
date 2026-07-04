@@ -49,7 +49,7 @@
 - 超浮力 (`SUPER_BUOYANCY_WILL`)
 - 超重力 (`SUPER_GRAVITY_WILL`)
 - 罠の意志 (`TRAP_WILL`)
-- 誘惑の意志 (`TEMPT_WILL`)
+- 意志の反転 (`TEMPT_WILL`)
 - 二連鎖の意志 (`DOUBLE_CHAIN_WILL`)
 - 禁忌の反転 (`TABOO_REVERSE_WILL`)
 - 復活の意志 (`REGEN_WILL`)
