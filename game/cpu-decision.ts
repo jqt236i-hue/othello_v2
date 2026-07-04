@@ -121,6 +121,10 @@ let CpuPolicyPendingTargets: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyPendingTargets = _require('./ai/cpu-policy-pending-targets'); } catch (e) { /* ignore */ }
 }
+let CpuPolicyTimeBombTargets: any = null;
+if (typeof require === 'function') {
+    try { CpuPolicyTimeBombTargets = _require('./ai/cpu-policy-time-bomb-targets'); } catch (e) { /* ignore */ }
+}
 let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
@@ -3315,6 +3319,21 @@ async function cpuSelectCorrosionWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 function scoreTimeBombTarget(playerKey: any, target: any): any {
+    if (CpuPolicyTimeBombTargets && typeof CpuPolicyTimeBombTargets.scoreTimeBombTarget === 'function') {
+        return CpuPolicyTimeBombTargets.scoreTimeBombTarget(playerKey, target, {
+            getCurrentCpuBoard,
+            getBoardCellValueSafe,
+            resolvePlayerValue: (key: any) => (key === 'black'
+                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+            countBoardStatsForPlayer,
+            isCornerCell,
+            isEdgeCell,
+            getMarkerProfileAt,
+            getTimedMarkerProfileAt,
+            random: () => cpuRng.random()
+        });
+    }
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return -Infinity;
     const board = getCurrentCpuBoard();
     if (!board) return -Infinity;
@@ -3371,6 +3390,21 @@ function scoreTimeBombTarget(playerKey: any, target: any): any {
 }
 
 function chooseTimeBombTargetWithPolicy(playerKey: any, targets: any): any {
+    if (CpuPolicyTimeBombTargets && typeof CpuPolicyTimeBombTargets.chooseTimeBombTargetWithPolicy === 'function') {
+        return CpuPolicyTimeBombTargets.chooseTimeBombTargetWithPolicy(playerKey, targets, {
+            getCurrentCpuBoard,
+            getBoardCellValueSafe,
+            resolvePlayerValue: (key: any) => (key === 'black'
+                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+            countBoardStatsForPlayer,
+            isCornerCell,
+            isEdgeCell,
+            getMarkerProfileAt,
+            getTimedMarkerProfileAt,
+            random: () => cpuRng.random()
+        });
+    }
     if (!Array.isArray(targets) || targets.length <= 0) return null;
     let best: any = null;
     let bestScore = -Infinity;
