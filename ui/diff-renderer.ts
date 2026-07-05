@@ -3560,7 +3560,15 @@ function renderBoardDiff(boardEl: any) {
     let updatedCount: number | null = null;
     let updateCellDOMCount = 0;
     let updateCellDOMDurationMs = 0;
+    // PR1.5: gating. OFF path falls through to a bare updateCellDOM with no
+    // performance.now() and no counter increment, so the instrumentation
+    // does not touch the normal play path.
     const _measureUpdateCellDOM = (cell: any, state: any, row: any, col: any, prevState: any) => {
+        const _perfOn = !!(PerfBenchmarks && typeof PerfBenchmarks.isPerfBenchEnabled === 'function' && PerfBenchmarks.isPerfBenchEnabled());
+        if (!_perfOn) {
+            updateCellDOM(cell, state, row, col, prevState);
+            return;
+        }
         const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
         updateCellDOM(cell, state, row, col, prevState);
         const _t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
@@ -3718,16 +3726,19 @@ function renderBoardDiff(boardEl: any) {
         pendingFlipTargetKeysThisRender = null;
     }
     } finally {
-        // PR1: outer perf bench. Inner try/finally above resets per-render flags.
-        // The summary mark captures updatedCount + updateCellDOM count + accumulated
-        // duration so we can size N1's expected savings before implementation.
-        if (PerfBenchmarks) {
+        // PR1.5: gating. Outer finally builds the summary detail object only
+        // when the perf bench is enabled. OFF path: only perfEnd is called and
+        // the helper itself early-returns without any allocation or work.
+        const _perfOn = !!(PerfBenchmarks && typeof PerfBenchmarks.isPerfBenchEnabled === 'function' && PerfBenchmarks.isPerfBenchEnabled());
+        if (PerfBenchmarks && _perfOn) {
             PerfBenchmarks.perfMarkOnly('renderBoardDiff.summary', {
                 updatedCount: updatedCount,
                 totalCells: typeof cellCacheMap !== 'undefined' && cellCacheMap && typeof cellCacheMap.size === 'number' ? cellCacheMap.size : null,
                 updateCellDOMCount: updateCellDOMCount,
                 updateCellDOMDurationMs: updateCellDOMDurationMs
             });
+        }
+        if (PerfBenchmarks) {
             PerfBenchmarks.perfEnd('renderBoardDiff');
         }
     }
