@@ -8,6 +8,7 @@ const SKIP_DIRS = new Set([
   '.sisyphus',
   '.wrangler',
   '.venv',
+  'artifacts',
   'assets',
   'coverage',
   'dist',
