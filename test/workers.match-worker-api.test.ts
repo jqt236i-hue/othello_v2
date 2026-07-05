@@ -71,7 +71,7 @@ describe('match worker api controller', () => {
         roomId: 'ABC',
         method: 'POST',
         pathname: '/api/match/join',
-        body: { roomId: 'ABC', seatKey: 'white' }
+        body: { roomId: 'ABC', seatKey: 'white', playerId: '' }
       }
     ]);
   });
@@ -244,7 +244,7 @@ describe('match worker api controller', () => {
     ]);
   });
 
-  test('leaderboard submit は leaderboard durable object へ転送する', async () => {
+  test('leaderboard submit は playerToken が無ければ 403 fail-closed で返す', async () => {
     const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
     const controller = createMatchWorkerApiController({
       corsHeaders: { 'Access-Control-Allow-Origin': '*' },
@@ -270,14 +270,9 @@ describe('match worker api controller', () => {
       body: JSON.stringify({ playerId: 'player_alpha_0001', score: 7200 })
     }), env as any);
 
-    expect(response.status).toBe(200);
-    expect(seen).toEqual([
-      {
-        roomId: '__leaderboard__',
-        pathname: '/api/leaderboard/submit',
-        body: { playerId: 'player_alpha_0001', score: 7200 }
-      }
-    ]);
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+    expect(seen).toEqual([]);
   });
 
   test('invalid json と roomId不足を fail-closed で返す', async () => {
