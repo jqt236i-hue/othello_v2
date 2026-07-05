@@ -6,6 +6,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+// PR1: debug-only perf benchmark helper (window.__DEV_PERF__ === true or ?perf=1).
+// OFF path is zero-cost: every helper early-returns after the internal flag check.
+let PerfBenchmarks: any = null;
+if (typeof _require === 'function') {
+    try { PerfBenchmarks = _require('./perf-benchmarks'); } catch (e: any) { /* ignore */ }
+}
+if (!PerfBenchmarks && typeof globalThis !== 'undefined') {
+    try {
+        const globalPerf = (globalThis as any).PerfBenchmarks;
+        if (globalPerf) PerfBenchmarks = globalPerf;
+    } catch (e: any) { /* ignore */ }
+}
+
 declare const gameState: any;
 declare const cardState: any;
 declare const boardEl: any;
@@ -676,7 +689,9 @@ function _ensureBoardPixelSizingObserver(boardElement: any) {
 }
 
 function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
-    const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('syncBoardPixelSizing');
+    try {
+        const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
     if (!boardElement || !boardElement.style) return shape;
 
     _ensureBoardPixelSizingObserver(boardElement);
@@ -722,6 +737,9 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     }
     syncBoardExpansionLayerGeometry(boardElement, shape);
     return shape;
+    } finally {
+        if (PerfBenchmarks) PerfBenchmarks.perfEnd('syncBoardPixelSizing');
+    }
 }
 
 function _applyBoardCssVarsForBoardRenderer(boardElement: any) {
@@ -1137,12 +1155,14 @@ function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, hintProjection:
 }
 
 function renderBoard() {
-    _syncTimeStopClassForBoardRenderer();
-    // Single Visual Writer: skip renders while playback is active or already queued.
-    if (_shouldSkipBoardRenderForPlayback()) {
-        return;
-    }
-    // Determine whether we are in a "target selection" card mode.
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('renderBoard');
+    try {
+        _syncTimeStopClassForBoardRenderer();
+        // Single Visual Writer: skip renders while playback is active or already queued.
+        if (_shouldSkipBoardRenderForPlayback()) {
+            return;
+        }
+        // Determine whether we are in a "target selection" card mode.
     // In selection mode, normal "placeable move" hints must not appear.
     try {
         const renderState = _resolveBoardRenderStateForBoardRenderer();
@@ -1175,6 +1195,9 @@ function renderBoard() {
         return;
     }
     updateOccupancyUI();
+    } finally {
+        if (PerfBenchmarks) PerfBenchmarks.perfEnd('renderBoard');
+    }
 }
 
 /**

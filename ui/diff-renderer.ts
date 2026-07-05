@@ -23,6 +23,19 @@ declare const BLACK: number;
 declare const WHITE: number;
 declare const EMPTY: number;
 
+// PR1: debug-only perf benchmark helper (window.__DEV_PERF__ === true or ?perf=1).
+// OFF path is zero-cost: every helper early-returns after the internal flag check.
+let PerfBenchmarks: any = null;
+if (typeof _require === 'function') {
+    try { PerfBenchmarks = _require('./perf-benchmarks'); } catch (e: any) { /* ignore */ }
+}
+if (!PerfBenchmarks && typeof globalThis !== 'undefined') {
+    try {
+        const globalPerf = (globalThis as any).PerfBenchmarks;
+        if (globalPerf) PerfBenchmarks = globalPerf;
+    } catch (e: any) { /* ignore */ }
+}
+
 const DiffRendererEquality = _require('./diff-renderer/equality');
 const DiffRendererProjector = _require('./diff-renderer/projector');
 const DiffRendererDomPatcher = _require('./diff-renderer/dom-patcher');
@@ -2239,8 +2252,10 @@ function _ensureBoardExpansionDirectionHintForDiff(cell: any, direction: any) {
 }
 
 function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
-    if (!boardEl) return;
-    const gameState = _resolveGameStateForDiffRender();
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('_syncBoardShrinkGodDirectionHintsForDiff');
+    try {
+        if (!boardEl) return;
+        const gameState = _resolveGameStateForDiffRender();
     const cardState = _resolveCardStateForDiffRender();
     const playerKey = gameState ? getPlayerKey(gameState.currentPlayer) : null;
     const pending = playerKey && cardState && cardState.pendingEffectByPlayer
@@ -2286,6 +2301,9 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
             _ensureBoardExpansionDirectionHintForDiff(cell, expansionHintMap.get(key));
         }
     });
+    } finally {
+        if (PerfBenchmarks) PerfBenchmarks.perfEnd('_syncBoardShrinkGodDirectionHintsForDiff');
+    }
 }
 
 function _normalizeSuperAttractionPreviewPoint(point: any) {
@@ -3403,15 +3421,20 @@ function getEffectKeyForType(type: any) {
 }
 
 function reconcileCellHasDiscClasses(boardEl: any) {
-    if (!boardEl) return;
-    const cells = _getRenderedCellsForDiff(boardEl);
-    cells.forEach((cell: any) => {
-        try {
-            const hasDisc = !!cell.querySelector('.disc');
-            if (hasDisc) cell.classList.add('has-disc');
-            else cell.classList.remove('has-disc');
-        } catch (e: any) { /* ignore */ }
-    });
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('reconcileCellHasDiscClasses');
+    try {
+        if (!boardEl) return;
+        const cells = _getRenderedCellsForDiff(boardEl);
+        cells.forEach((cell: any) => {
+            try {
+                const hasDisc = !!cell.querySelector('.disc');
+                if (hasDisc) cell.classList.add('has-disc');
+                else cell.classList.remove('has-disc');
+            } catch (e: any) { /* ignore */ }
+        });
+    } finally {
+        if (PerfBenchmarks) PerfBenchmarks.perfEnd('reconcileCellHasDiscClasses');
+    }
 }
 
 function canShowSelectableFriendlyForState(state: any): boolean {
@@ -3443,54 +3466,59 @@ function applyActiveTransientCellHighlightForDiff(cell: any): void {
 }
 
 function reconcileCellHintClasses(boardEl: any, currentState: any) {
-    if (!boardEl || !currentState || typeof currentState !== 'object') return;
-    const boardShape = _getStateBoardShapeForDiff(currentState);
-    const expansionStateMap = new Map(
-        _getExpansionStateListForDiff(currentState)
-            .filter(Boolean)
-            .map((exp: any) => [`${exp.row},${exp.col}`, exp])
-    );
-    const cells = _getRenderedCellsForDiff(boardEl);
-    cells.forEach((cell: any) => {
-        try {
-            const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
-            const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-            const state = (row >= 0 && row < boardShape.rows && col >= 0 && col < boardShape.cols)
-                ? currentState[row][col]
-                : (expansionStateMap.get(`${row},${col}`) || null);
-            const canShowHint = !!(state && !state.blockade && !state.frozen);
-            const shouldShowLegalFree = !!(canShowHint && state && state.isLegalFree);
-            const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
-            const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
-            const shouldShowRandomSpawnPreview = !!(canShowHint && state && state.isRandomSpawnPreview);
-            const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
-            const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
-            const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
-            const shouldShowSelectable = canShowSelectableFriendlyForState(state);
-            const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
-            const transientHighlightClass = getActiveTransientCellHighlightClassForDiff(cell);
-            const shouldRaiseRegenBadge = !!(
-                state &&
-                state.special &&
-                String(state.special.type || '').toUpperCase() === 'REGEN' &&
-                Number.isFinite(Number(state.special.regenRemaining))
-            );
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('reconcileCellHintClasses');
+    try {
+        if (!boardEl || !currentState || typeof currentState !== 'object') return;
+        const boardShape = _getStateBoardShapeForDiff(currentState);
+        const expansionStateMap = new Map(
+            _getExpansionStateListForDiff(currentState)
+                .filter(Boolean)
+                .map((exp: any) => [`${exp.row},${exp.col}`, exp])
+        );
+        const cells = _getRenderedCellsForDiff(boardEl);
+        cells.forEach((cell: any) => {
+            try {
+                const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
+                const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
+                if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+                const state = (row >= 0 && row < boardShape.rows && col >= 0 && col < boardShape.cols)
+                    ? currentState[row][col]
+                    : (expansionStateMap.get(`${row},${col}`) || null);
+                const canShowHint = !!(state && !state.blockade && !state.frozen);
+                const shouldShowLegalFree = !!(canShowHint && state && state.isLegalFree);
+                const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
+                const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
+                const shouldShowRandomSpawnPreview = !!(canShowHint && state && state.isRandomSpawnPreview);
+                const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
+                const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
+                const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
+                const shouldShowSelectable = canShowSelectableFriendlyForState(state);
+                const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
+                const transientHighlightClass = getActiveTransientCellHighlightClassForDiff(cell);
+                const shouldRaiseRegenBadge = !!(
+                    state &&
+                    state.special &&
+                    String(state.special.type || '').toUpperCase() === 'REGEN' &&
+                    Number.isFinite(Number(state.special.regenRemaining))
+                );
 
-            cell.classList.toggle('legal-free', shouldShowLegalFree);
-            cell.classList.toggle('legal', shouldShowLegal);
-            cell.classList.toggle('effect-target-highlight', transientHighlightClass === 'effect-target-highlight');
-            cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal || transientHighlightClass === 'effect-target-highlight-positive');
-            cell.classList.toggle('effect-target-highlight-placement', transientHighlightClass === 'effect-target-highlight-placement');
-            cell.classList.toggle('random-spawn-preview', shouldShowRandomSpawnPreview);
-            cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
-            cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
-            cell.classList.toggle('selectable-friendly', shouldShowSelectable);
-            cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
-            cell.classList.toggle('has-regen-badge', shouldRaiseRegenBadge);
-            _applyTimeStopLegalEmphasisForDiff(cell);
-        } catch (e: any) { /* ignore */ }
-    });
+                cell.classList.toggle('legal-free', shouldShowLegalFree);
+                cell.classList.toggle('legal', shouldShowLegal);
+                cell.classList.toggle('effect-target-highlight', transientHighlightClass === 'effect-target-highlight');
+                cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal || transientHighlightClass === 'effect-target-highlight-positive');
+                cell.classList.toggle('effect-target-highlight-placement', transientHighlightClass === 'effect-target-highlight-placement');
+                cell.classList.toggle('random-spawn-preview', shouldShowRandomSpawnPreview);
+                cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
+                cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
+                cell.classList.toggle('selectable-friendly', shouldShowSelectable);
+                cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
+                cell.classList.toggle('has-regen-badge', shouldRaiseRegenBadge);
+                _applyTimeStopLegalEmphasisForDiff(cell);
+            } catch (e: any) { /* ignore */ }
+        });
+    } finally {
+        if (PerfBenchmarks) PerfBenchmarks.perfEnd('reconcileCellHintClasses');
+    }
 }
 
 function _syncSelectionModeForDiff(boardEl: any) {
@@ -3524,8 +3552,24 @@ function _syncSelectionModeForDiff(boardEl: any) {
  * @returns {number} 更新されたセル数
  */
 function renderBoardDiff(boardEl: any) {
-    const cardStateForManifestSync = _resolveCardStateForDiffRender();
-    _syncManifestBgmForDiff(cardStateForManifestSync);
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('renderBoardDiff');
+    // PR1 summary accumulators live in function scope so the outer finally
+    // can emit them. The inner try/finally below still mutates these via the
+    // _measureUpdateCellDOM wrapper. updatedCount is reset to 0 inside the
+    // initial/diff render branches; it stays null on early returns.
+    let updatedCount: number | null = null;
+    let updateCellDOMCount = 0;
+    let updateCellDOMDurationMs = 0;
+    const _measureUpdateCellDOM = (cell: any, state: any, row: any, col: any, prevState: any) => {
+        const _t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+        updateCellDOM(cell, state, row, col, prevState);
+        const _t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+        updateCellDOMCount++;
+        updateCellDOMDurationMs += _t1 - _t0;
+    };
+    try {
+        const cardStateForManifestSync = _resolveCardStateForDiffRender();
+        _syncManifestBgmForDiff(cardStateForManifestSync);
     _syncManifestWorldBackgroundForDiff(cardStateForManifestSync);
     _syncManifestEffectPanelForDiff(cardStateForManifestSync);
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
@@ -3592,7 +3636,7 @@ function renderBoardDiff(boardEl: any) {
             for (let r = 0; r < initialBoardShape.rows; r++) {
                 for (let c = 0; c < initialBoardShape.cols; c++) {
                     const cell = _getCachedCell(r, c);
-                    if (cell) updateCellDOM(cell, previousBoardState[r][c], r, c, null);
+                    if (cell) _measureUpdateCellDOM(cell, previousBoardState[r][c], r, c, null);
                 }
             }
             const initialExpansions = _getExpansionStateListForDiff(previousBoardState);
@@ -3600,7 +3644,7 @@ function renderBoardDiff(boardEl: any) {
                 if (!exp) continue;
                 const expCell = _getCachedCell(exp.row, exp.col);
                 if (expCell) {
-                    updateCellDOM(expCell, exp, exp.row, exp.col, null);
+                    _measureUpdateCellDOM(expCell, exp, exp.row, exp.col, null);
                     if (revealExpansionKeys.has(`${exp.row},${exp.col}`)) {
                         expCell.classList.add('cell-expanded-reveal');
                     }
@@ -3618,7 +3662,9 @@ function renderBoardDiff(boardEl: any) {
 
         const currentState = buildCurrentCellState();
         const currentBoardShape = _getStateBoardShapeForDiff(currentState);
-        let updatedCount = 0;
+        // updatedCount / updateCellDOMCount / updateCellDOMDurationMs are
+        // declared at function scope above so the outer finally can emit them.
+        updatedCount = 0;
 
         // 差分検出と更新
         for (let r = 0; r < currentBoardShape.rows; r++) {
@@ -3629,7 +3675,7 @@ function renderBoardDiff(boardEl: any) {
                 if (!cellStatesEqual(prev, curr)) {
                     const cell = _getCachedCell(r, c);
                     if (cell) {
-                        updateCellDOM(cell, curr, r, c, prev);
+                        _measureUpdateCellDOM(cell, curr, r, c, prev);
                         updatedCount++;
                     }
                 }
@@ -3648,7 +3694,7 @@ function renderBoardDiff(boardEl: any) {
             if (!cellStatesEqual(prevExp, currExp)) {
                 const cell = _getCachedCell(currExp.row, currExp.col);
                 if (cell) {
-                    updateCellDOM(cell, currExp, currExp.row, currExp.col, prevExp);
+                    _measureUpdateCellDOM(cell, currExp, currExp.row, currExp.col, prevExp);
                     updatedCount++;
                 }
             }
@@ -3670,6 +3716,20 @@ function renderBoardDiff(boardEl: any) {
         suppressBoardExpansionRevealSoundThisRender = false;
         pendingMoveSourceKeysThisRender = null;
         pendingFlipTargetKeysThisRender = null;
+    }
+    } finally {
+        // PR1: outer perf bench. Inner try/finally above resets per-render flags.
+        // The summary mark captures updatedCount + updateCellDOM count + accumulated
+        // duration so we can size N1's expected savings before implementation.
+        if (PerfBenchmarks) {
+            PerfBenchmarks.perfMarkOnly('renderBoardDiff.summary', {
+                updatedCount: updatedCount,
+                totalCells: typeof cellCacheMap !== 'undefined' && cellCacheMap && typeof cellCacheMap.size === 'number' ? cellCacheMap.size : null,
+                updateCellDOMCount: updateCellDOMCount,
+                updateCellDOMDurationMs: updateCellDOMDurationMs
+            });
+            PerfBenchmarks.perfEnd('renderBoardDiff');
+        }
     }
 }
 

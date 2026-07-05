@@ -1,3 +1,22 @@
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
+// PR1: debug-only perf benchmark helper (window.__DEV_PERF__ === true or ?perf=1).
+// OFF path is zero-cost: every helper early-returns after the internal flag check.
+let PerfBenchmarks: any = null;
+if (typeof _require === 'function') {
+    try { PerfBenchmarks = _require('../perf-benchmarks'); } catch (e: any) { /* ignore */ }
+}
+if (!PerfBenchmarks && typeof globalThis !== 'undefined') {
+    try {
+        const globalPerf = (globalThis as any).PerfBenchmarks;
+        if (globalPerf) PerfBenchmarks = globalPerf;
+    } catch (e: any) { /* ignore */ }
+}
+
 function getOwnerValueForDiff(owner: any, BLACK: any, WHITE: any): any {
     if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
     return WHITE;
@@ -17,12 +36,14 @@ function specialSupportsFlipEvadeForDiff(special: any): boolean {
 }
 
 function buildCurrentCellState(deps: any) {
-    const {
-        _resolveGameStateForDiffRender,
-        _resolveCardStateForDiffRender,
-        _getBoardShapeForDiff,
-        _buildEmptyCellStateForDiffRender,
-        CardLogic,
+    if (PerfBenchmarks) PerfBenchmarks.perfStart('buildCurrentCellState');
+    try {
+        const {
+            _resolveGameStateForDiffRender,
+            _resolveCardStateForDiffRender,
+            _getBoardShapeForDiff,
+            _buildEmptyCellStateForDiffRender,
+            CardLogic,
         getPlayerKey,
         _resolveViewerContextForDiff,
         _canLocalPlayerControlCurrentTurnForDiff,
@@ -482,8 +503,11 @@ function buildCurrentCellState(deps: any) {
             destroyEvadeRemaining: destroyEvadeDisplay
         });
     }
-    state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
-    return state;
+        state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
+        return state;
+    } finally {
+        if (PerfBenchmarks) PerfBenchmarks.perfEnd('buildCurrentCellState');
+    }
 }
 
 const DiffRendererProjector = {
