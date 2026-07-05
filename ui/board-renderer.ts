@@ -229,6 +229,15 @@ function _getBoardShapeForBoardRenderer() {
     return { rows, cols };
 }
 
+// PR2 (N3 syncBoardPixelSizing dirty gate):
+// stable fingerprint of (shape rows/cols, boardElement frame availability).
+// Both are stable across normal renders; they only change at shape swap
+// or boardEl/frame swap. The dirty flag is forced true:
+//   - at module load (initial sync)
+//   - by _handleBoardPixelSizingViewportChange (window/frame resize)
+//   - by _ensureBoardPixelSizingObserver when the observed frame is swapped
+let _boardPixelSizingSignature: string | null = null;
+let _boardPixelSizingDirty = true;
 let boardPixelSizingObserver: any = null;
 let boardPixelSizingObservedFrame: any = null;
 let boardPixelSizingObservedElement: any = null;
@@ -659,6 +668,9 @@ function _applyBoardFramePixelSizing(frameMetrics: any, outerWidth: any, outerHe
 
 function _handleBoardPixelSizingViewportChange() {
     if (!boardPixelSizingObservedElement) return;
+    // PR2 (N3 dirty gate): window/frame resize must always re-sync even when
+    // the (shape, frame) signature is unchanged.
+    _boardPixelSizingDirty = true;
     syncBoardPixelSizing(boardPixelSizingObservedElement);
 }
 
@@ -686,6 +698,10 @@ function _ensureBoardPixelSizingObserver(boardElement: any) {
     } catch (e: any) {
         boardPixelSizingObserver = null;
     }
+    // PR2 (N3 dirty gate): when the observed frame element is swapped (or this
+    // is the first live element), the cached signature no longer applies.
+    // Force re-sync on the next syncBoardPixelSizing call.
+    _boardPixelSizingDirty = true;
 }
 
 function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
@@ -695,6 +711,17 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     if (!boardElement || !boardElement.style) return shape;
 
     _ensureBoardPixelSizingObserver(boardElement);
+
+    // PR2 (N3 dirty gate): skip the body when signature is unchanged and no
+    // force-dirty flag was set. The skipped steps include getComputedStyle,
+    // getBoundingClientRect (incl. the snap-to-whole-pixel call), every
+    // style.* write, and the follow-on syncBoardExpansionLayerGeometry.
+    const _frameElForSig = _getBoardFrameElementForPixelSizing(boardElement);
+    const _currentSig = `${shape.rows}|${shape.cols}|${_frameElForSig ? '1' : '0'}`;
+    if (!_boardPixelSizingDirty && _currentSig === _boardPixelSizingSignature) {
+        return shape;
+    }
+
     const boxMetrics = _getBoardBoxMetricsForPixelSizing(boardElement);
     const baseSize = _getBoardBaseSizeForPixelSizing(boardElement);
     if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) {
@@ -736,6 +763,10 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
         }
     }
     syncBoardExpansionLayerGeometry(boardElement, shape);
+    // PR2 (N3 dirty gate): commit new signature and clear the dirty flag so
+    // the next call (with the same signature) can early-return.
+    _boardPixelSizingSignature = _currentSig;
+    _boardPixelSizingDirty = false;
     return shape;
     } finally {
         if (PerfBenchmarks) PerfBenchmarks.perfEnd('syncBoardPixelSizing');
