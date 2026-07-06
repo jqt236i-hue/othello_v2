@@ -229,20 +229,31 @@ function _getBoardShapeForBoardRenderer() {
     return { rows, cols };
 }
 
-// PR2 (N3 syncBoardPixelSizing dirty gate):
-// stable fingerprint of (shape rows/cols, boardElement frame availability).
-// Both are stable across normal renders; they only change at shape swap
-// or boardEl/frame swap. The dirty flag is forced true:
-//   - at module load (initial sync)
-//   - by _handleBoardPixelSizingViewportChange (window/frame resize)
-//   - by _ensureBoardPixelSizingObserver when the observed frame is swapped
+// PR2 N3 syncBoardPixelSizing dirty gate.
+// Revision 2 (PR2 v2):
+//   signature expanded from (rows, cols, frameExists) to a 12-key composite that
+//   also catches element identity swaps, skin switches, layout scale changes,
+//   frame padding changes, and devicePixelRatio shifts. getComputedStyle() is
+//   intentionally NOT used in signature computation (would reflow inside the
+//   gate we just opened to remove reflow). The dirty flag is forced true on:
+//     - module load (initial sync)
+//     - _handleBoardPixelSizingViewportChange (window/frame resize)
+//     - _ensureBoardPixelSizingObserver when the observed frame is swapped
+//     - ResizeObserver-less / frame-absent fallback paths
+//     - visibilitychange (when document becomes visible)
+//     - pageshow (bfcache restoration)
 let _boardPixelSizingSignature: string | null = null;
 let _boardPixelSizingDirty = true;
 let boardPixelSizingObserver: any = null;
 let boardPixelSizingObservedFrame: any = null;
 let boardPixelSizingObservedElement: any = null;
 let boardPixelSizingWindowHandlerInstalled = false;
+let _boardPixelSizingPageStateHandlersInstalled = false;
 let timeStopBgmPausedByBoardRenderer = false;
+const _boardElementIdentityToken = new WeakMap<any, number>();
+const _frameElementIdentityToken = new WeakMap<any, number>();
+let _nextBoardElementIdentity = 1;
+let _nextFrameElementIdentity = 1;
 const STANDARD_BOARD_BASELINE_ROWS = 8;
 const STANDARD_BOARD_BASELINE_COLS = 8;
 const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
@@ -666,6 +677,83 @@ function _applyBoardFramePixelSizing(frameMetrics: any, outerWidth: any, outerHe
     _setBoardOversizeLayoutState(frameMetrics.frameElement, oversizeActive);
 }
 
+// PR2 v2: page-state listeners (visibilitychange / pageshow). Visible-tab
+// transitions and bfcache restoration can re-introduce viewport / DPR
+// changes without firing resize, so we always re-sync on those events.
+function _installBoardPixelSizingPageStateHandlers() {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+    if (_boardPixelSizingPageStateHandlersInstalled) return;
+    window.addEventListener('visibilitychange', () => {
+        if (typeof document !== 'undefined' && document && (document as any).visibilityState === 'visible') {
+            _boardPixelSizingDirty = true;
+        }
+    });
+    window.addEventListener('pageshow', () => {
+        _boardPixelSizingDirty = true;
+    });
+    _boardPixelSizingPageStateHandlersInstalled = true;
+}
+
+// PR2 v2: stable identity tokens for boardEl / frameEl. Same ref always returns
+// the same token; a ref swap gets a fresh token which immediately invalidates
+// the cached signature.
+function _getBoardElementIdentityToken(el: any): number {
+    if (!el) return 0;
+    let t = _boardElementIdentityToken.get(el);
+    if (t === undefined) {
+        t = _nextBoardElementIdentity++;
+        _boardElementIdentityToken.set(el, t);
+    }
+    return t;
+}
+
+function _getFrameElementIdentityToken(el: any): number {
+    if (!el) return 0;
+    let t = _frameElementIdentityToken.get(el);
+    if (t === undefined) {
+        t = _nextFrameElementIdentity++;
+        _frameElementIdentityToken.set(el, t);
+    }
+    return t;
+}
+
+// PR2 v2: 12-key signature. All entries are stable across normal renders and
+// change only at the boundaries where _boardPixelSizingDirty is forced true:
+//   1-2: shape rows/cols
+//   3-4: boardEl / frameEl WeakMap identity tokens
+//   5-6: root data-board-skin-id / data-board-frame-skin-id (skin switch)
+//   7:   --layout-stage-scale (inline root style, layout profile scale)
+//   8-11: --board-frame-padding-{top,right,bottom,left} (frame skin switch)
+//   12:  window.devicePixelRatio (DPR shift)
+// getComputedStyle() is intentionally avoided here (would force layout
+// inside the very gate that exists to avoid layout).
+function _computeBoardPixelSizingSignature(boardElement: any, shape: any): string {
+    const frameEl = _getBoardFrameElementForPixelSizing(boardElement);
+    const docEl = (typeof document !== 'undefined' && document && document.documentElement) || null;
+    const rootStyle = (docEl && (docEl as any).style) || null;
+    const rootDataset = (docEl && (docEl as any).dataset) || null;
+    const dpr = (typeof window !== 'undefined' && Number.isFinite((window as any).devicePixelRatio))
+        ? String((window as any).devicePixelRatio) : '0';
+    const boardSkinId = rootDataset ? String((rootDataset as any).boardSkinId || '') : '';
+    const frameSkinId = rootDataset ? String((rootDataset as any).boardFrameSkinId || '') : '';
+    const layoutScale = rootStyle ? rootStyle.getPropertyValue('--layout-stage-scale') : '';
+    const padTop = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-top') : '';
+    const padRight = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-right') : '';
+    const padBottom = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-bottom') : '';
+    const padLeft = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-left') : '';
+    return [
+        shape.rows,
+        shape.cols,
+        _getBoardElementIdentityToken(boardElement),
+        _getFrameElementIdentityToken(frameEl),
+        boardSkinId,
+        frameSkinId,
+        layoutScale,
+        padTop, padRight, padBottom, padLeft,
+        dpr
+    ].join('|');
+}
+
 function _handleBoardPixelSizingViewportChange() {
     if (!boardPixelSizingObservedElement) return;
     // PR2 (N3 dirty gate): window/frame resize must always re-sync even when
@@ -678,11 +766,20 @@ function _ensureBoardPixelSizingObserver(boardElement: any) {
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !boardPixelSizingWindowHandlerInstalled) {
         window.addEventListener('resize', _handleBoardPixelSizingViewportChange, { passive: true });
         boardPixelSizingWindowHandlerInstalled = true;
+        // PR2 v2: page-state listeners installed alongside the resize listener
+        // so they share the same one-time setup contract.
+        _installBoardPixelSizingPageStateHandlers();
     }
 
     boardPixelSizingObservedElement = boardElement || boardPixelSizingObservedElement;
     const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
-    if (typeof ResizeObserver !== 'function' || !frameElement) return;
+    // PR2 v2: in fallback / frame-detached paths, the cached signature can no
+    // longer be trusted to represent current state, so force the next
+    // syncBoardPixelSizing() call into the full path.
+    if (typeof ResizeObserver !== 'function' || !frameElement) {
+        _boardPixelSizingDirty = true;
+        return;
+    }
     if (boardPixelSizingObserver && boardPixelSizingObservedFrame === frameElement) return;
 
     if (boardPixelSizingObserver && typeof boardPixelSizingObserver.disconnect === 'function') {
@@ -716,8 +813,10 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     // force-dirty flag was set. The skipped steps include getComputedStyle,
     // getBoundingClientRect (incl. the snap-to-whole-pixel call), every
     // style.* write, and the follow-on syncBoardExpansionLayerGeometry.
-    const _frameElForSig = _getBoardFrameElementForPixelSizing(boardElement);
-    const _currentSig = `${shape.rows}|${shape.cols}|${_frameElForSig ? '1' : '0'}`;
+    // PR2 v2: signature expanded to 12 keys (shape, element identity tokens,
+    // root skin ids, layout-stage-scale, frame padding vars, DPR) so that
+    // skin switches and layout-scale changes invalidate the cached gate.
+    const _currentSig = _computeBoardPixelSizingSignature(boardElement, shape);
     if (!_boardPixelSizingDirty && _currentSig === _boardPixelSizingSignature) {
         return shape;
     }
