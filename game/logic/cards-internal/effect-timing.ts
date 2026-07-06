@@ -72,6 +72,7 @@ interface Constants {
     WILL_HUNTER_KING_TURNS: any;
     ROBOT_VACUUM_TURNS: any;
     TIME_STOP_GOD_TURNS: number;
+    TIME_STOP_DEITY_TURNS: number;
     DOUBLE_PLACE_EXTRA: any;
     THROW_CHAIN_CONFIG_BY_TYPE: Record<string, any>;
     MARKER_KINDS: any;
@@ -171,6 +172,9 @@ function getConstants(context: Context): Constants {
         TIME_STOP_GOD_TURNS: Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
             ? Number(constants.TIME_STOP_GOD_TURNS)
             : 3,
+        TIME_STOP_DEITY_TURNS: Number.isFinite(Number(constants.TIME_STOP_DEITY_TURNS))
+            ? Number(constants.TIME_STOP_DEITY_TURNS)
+            : 5,
         DOUBLE_PLACE_EXTRA: constants.DOUBLE_PLACE_EXTRA,
         THROW_CHAIN_CONFIG_BY_TYPE: constants.THROW_CHAIN_CONFIG_BY_TYPE || {},
         MARKER_KINDS: constants.MARKER_KINDS || null
@@ -1109,15 +1113,19 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         effects.afterimagePlaced = true;
     }
 
-    if (pending && pending.type === 'TIME_STOP_GOD' && typeof helpers.addMarker === 'function') {
-        const remainingOwnerTurns = Number.isFinite(Number(constants.TIME_STOP_GOD_TURNS))
-            ? Math.max(1, Math.trunc(Number(constants.TIME_STOP_GOD_TURNS)))
-            : 3;
+    if (pending && (pending.type === 'TIME_STOP_GOD' || pending.type === 'TIME_STOP_DEITY') && typeof helpers.addMarker === 'function') {
+        const isDeity = pending.type === 'TIME_STOP_DEITY';
+        const turnsSource = isDeity ? constants.TIME_STOP_DEITY_TURNS : constants.TIME_STOP_GOD_TURNS;
+        const remainingOwnerTurns = Number.isFinite(Number(turnsSource))
+            ? Math.max(1, Math.trunc(Number(turnsSource)))
+            : (isDeity ? 5 : 3);
+        const markerType = isDeity ? 'TIME_STOP_DEITY' : 'TIME_STOP';
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
-            type: 'TIME_STOP',
+            type: markerType,
             remainingOwnerTurns
         });
         effects.timeStopPlaced = true;
+        effects.timeStopDeityPlaced = isDeity;
     }
 
     if (pending && pending.type === 'WILL_HUNTER_KING' && typeof helpers.addMarker === 'function') {

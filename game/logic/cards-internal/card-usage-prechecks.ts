@@ -206,6 +206,14 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
+    if (cardType === 'TIME_STOP_DEITY') {
+        if (typeof context.canUseTimeStopDeityForPlayer !== 'function') {
+            return buildFailureResult();
+        }
+        return context.canUseTimeStopDeityForPlayer(context.cardState, context.gameState, context.playerKey)
+            ? result
+            : buildFailureResult();
+    }
     if (cardType === 'LOSS_WILL') {
         if (typeof context.getLossWillRemovableCount !== 'function')
             return buildFailureResult();

@@ -937,6 +937,11 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
                 if (!helpers.canUseTimeStopGodForPlayer(cardState, gameState, playerKey)) continue;
             }
 
+            if (type === 'TIME_STOP_DEITY') {
+                if (typeof helpers.canUseTimeStopDeityForPlayer !== 'function') continue;
+                if (!helpers.canUseTimeStopDeityForPlayer(cardState, gameState, playerKey)) continue;
+            }
+
             if (type === 'TEMPT_WILL' && !requireLocalTargets(context, 'getTemptWillTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TRAP_WILL' && !requireLocalTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
             if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;

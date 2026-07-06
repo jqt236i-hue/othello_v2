@@ -209,6 +209,19 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         });
     }
 
+    if (pendingType === 'TIME_STOP_DEITY') {
+        const res = (typeof opts.CardLogic.resolveTimeStopDeityUsage === 'function')
+            ? opts.CardLogic.resolveTimeStopDeityUsage(opts.cardState, opts.gameState, opts.playerKey, p)
+            : { applied: false, destroyed: [], destroyedCount: 0, requestedCount: 9 };
+        opts.events.push({
+            type: 'time_stop_deity_cost_resolved',
+            player: opts.playerKey,
+            destroyed: Array.isArray(res && res.destroyed) ? res.destroyed.slice() : [],
+            destroyedCount: Number(res && res.destroyedCount) || 0,
+            requestedCount: Number(res && res.requestedCount) || 0
+        });
+    }
+
     if (pendingType === 'REBUILD_WILL') {
         const clearResult = (typeof opts.CardLogic.clearHandToDiscard === 'function')
             ? opts.CardLogic.clearHandToDiscard(opts.cardState, opts.playerKey)

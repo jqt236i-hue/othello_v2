@@ -307,6 +307,11 @@
             desc: 'カウント終了時に時間停止を発動する。',
             timerClass: 'countdown-timer'
         }),
+        TIME_STOP_DEITY: Object.freeze({
+            name: '時間停神',
+            desc: 'カウント終了時に時間停止を発動し、発動ターンを含めた四連続動作をします。',
+            timerClass: 'countdown-timer'
+        }),
         CROSS_BOMB: Object.freeze({
             name: '十字爆弾',
             desc: '通常反転の直後に即起爆し、中心と縦横2マスの石を爆破。'
@@ -393,6 +398,7 @@
         TRAP_WILL: Object.freeze({ cardId: 'trap_01', cardNameJa: '罠の意志', cardType: 'TRAP_WILL', markerType: 'TRAP' }),
         TIME_BOMB: Object.freeze({ cardId: 'bomb_01', cardNameJa: '時限爆弾', cardType: 'TIME_BOMB', markerType: 'TIME_BOMB' }),
         TIME_STOP_GOD: Object.freeze({ cardId: 'time_stop_god_01', cardNameJa: '時間停石', cardType: 'TIME_STOP_GOD', markerType: 'TIME_STOP' }),
+        TIME_STOP_DEITY: Object.freeze({ cardId: 'time_stop_deity_01', cardNameJa: '時間停神', cardType: 'TIME_STOP_DEITY', markerType: 'TIME_STOP_DEITY' }),
         REGEN_WILL: Object.freeze({ cardId: 'regen_01', cardNameJa: '復活の意志', cardType: 'REGEN_WILL', markerType: 'REGEN' }),
         ULTIMATE_REVERSE_DRAGON: Object.freeze({ cardId: 'udr_01', cardNameJa: '究極反転龍', cardType: 'ULTIMATE_REVERSE_DRAGON', markerType: 'DRAGON' }),
         BREEDING_WILL: Object.freeze({ cardId: 'breeding_01', cardNameJa: '繁殖の意志', cardType: 'BREEDING_WILL', markerType: 'BREEDING' }),
