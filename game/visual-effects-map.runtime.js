@@ -10,14 +10,16 @@
 // To avoid polluting the global scope (and colliding with ui/visual-effects-map.js),
 // wrap everything in an IIFE and only export via module.exports (CommonJS).
 (function () {
-const TIME_STOP_STONE_IMAGE_BY_OWNER = {
-    '1': 'assets/images/special-stones/TIME_STOP-black.png',
-    '-1': 'assets/images/special-stones/TIME_STOP-white.png'
-};
-const TIME_STOP_DEITY_STONE_IMAGE_BY_OWNER = {
-    '1': 'assets/images/special-stones/TIME_STOP_DEITY-black.png',
-    '-1': 'assets/images/special-stones/TIME_STOP_DEITY-white.png'
-};
+// Stone image maps share a single shape keyed by owner side (1 = black, -1 = white).
+// New TIME_STOP_* stone types only need to add a single call below.
+function buildStoneImageMapByOwner(prefix) {
+    return {
+        '1': 'assets/images/special-stones/' + prefix + '-black.png',
+        '-1': 'assets/images/special-stones/' + prefix + '-white.png'
+    };
+}
+const TIME_STOP_STONE_IMAGE_BY_OWNER = buildStoneImageMapByOwner('TIME_STOP');
+const TIME_STOP_DEITY_STONE_IMAGE_BY_OWNER = buildStoneImageMapByOwner('TIME_STOP_DEITY');
 const DEFAULT_CARD_VISUAL_SIDE = '1';
 const NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
     'normal_stone-black.png',

@@ -183,12 +183,16 @@ function armRiboWillEffect(cardState: any, playerKey: any, deps: RiboTimeStopDep
 type TimeStopProfile = {
     cardType: string;
     markerType: string;
-    displayName: string;
     turns: number;
     consecutiveTurns: number;
     destroyCount: number;
-    costReason: string;
 };
+
+// The destroy-cell reason is derived from the card type so that adding a new TIME_STOP_*
+// card only requires a constant profile entry, not a parallel costReason string.
+function timeStopCostReasonForCardType(cardType: string): string {
+    return String(cardType || '').trim().toLowerCase() + '_cost';
+}
 
 function readPositiveConstant(value: any, fallback: number): number {
     const n = Number(value);
@@ -201,22 +205,18 @@ function getTimeStopProfile(cardType: any, deps: RiboTimeStopDeps): TimeStopProf
         return {
             cardType: 'TIME_STOP_DEITY',
             markerType: 'TIME_STOP_DEITY',
-            displayName: '時間停神',
             turns: readPositiveConstant(deps.constants.TIME_STOP_DEITY_TURNS, 5),
             consecutiveTurns: readPositiveConstant(deps.constants.TIME_STOP_DEITY_CONSECUTIVE_TURNS, 4),
-            destroyCount: readPositiveConstant(deps.constants.TIME_STOP_DEITY_SELF_DESTROY_COUNT, 9),
-            costReason: 'time_stop_deity_cost'
+            destroyCount: readPositiveConstant(deps.constants.TIME_STOP_DEITY_SELF_DESTROY_COUNT, 9)
         };
     }
     if (type === 'TIME_STOP_GOD') {
         return {
             cardType: 'TIME_STOP_GOD',
             markerType: 'TIME_STOP',
-            displayName: '時間停石',
             turns: readPositiveConstant(deps.constants.TIME_STOP_GOD_TURNS, 5),
             consecutiveTurns: readPositiveConstant(deps.constants.TIME_STOP_GOD_CONSECUTIVE_TURNS, 2),
-            destroyCount: readPositiveConstant(deps.constants.TIME_STOP_GOD_SELF_DESTROY_COUNT, 3),
-            costReason: 'time_stop_god_cost'
+            destroyCount: readPositiveConstant(deps.constants.TIME_STOP_GOD_SELF_DESTROY_COUNT, 3)
         };
     }
     return null;
@@ -261,7 +261,7 @@ function resolveTimeStopCardUsage(cardState: any, gameState: any, playerKey: any
             target.row,
             target.col,
             profile.cardType,
-            profile.costReason,
+            timeStopCostReasonForCardType(profile.cardType),
             { owner: playerKey, cardType: profile.cardType, markerType: profile.markerType }
         );
         if (destroyRes && destroyRes.destroyed) {
@@ -359,7 +359,7 @@ function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any,
     });
     const totalReservedTurns = reserveTimeStopConsecutiveTurns(cardState, playerKey, profile.consecutiveTurns, deps);
     return {
-        triggered: [{ row, col, owner: playerKey, cardType: profile.cardType, markerType: profile.markerType, displayName: profile.displayName, totalReservedTurns }],
+        triggered: [{ row, col, owner: playerKey, cardType: profile.cardType, markerType: profile.markerType, totalReservedTurns }],
         fizzled: []
     };
 }
@@ -476,8 +476,6 @@ module.exports = {
     resolveTimeStopDeityUsage,
     consumeTimeStopConsecutiveTurn,
     processTimeStopEffectsAtTurnStartAnchor,
-    processRiboWillTurnStartEffects,
-    getTimeStopProfile,
-    getTimeStopProfileByMarkerType
+    processRiboWillTurnStartEffects
 };
 

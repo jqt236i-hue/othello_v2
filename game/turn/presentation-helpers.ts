@@ -796,6 +796,11 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
         }
     }
 
+    // Each deferred phase event is a 'time_stop_triggered' / 'time_stop_fizzled' shape
+    // produced by processTimeStopEffectsAtTurnStartAnchor. The markerType field
+    // (one of 'TIME_STOP' | 'TIME_STOP_DEITY') identifies which time-stop variant triggered;
+    // new TIME_STOP_* card types should be added here so the bubble special/scenario map to
+    // the right presentation entry without affecting unrelated phase events.
     for (const ev of deferredPhaseEvents) {
         const evMarkerType = ev && ev.markerType;
         const bubbleSpecial = (evMarkerType === 'TIME_STOP_DEITY') ? 'TIME_STOP_DEITY' : 'TIME_STOP';

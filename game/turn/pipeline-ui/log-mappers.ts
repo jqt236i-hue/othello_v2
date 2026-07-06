@@ -22,6 +22,15 @@ function _toPosText(pos: any, deps: PipelineUILogMapperDeps) {
     return `${file}${pos.row + 1}`;
 }
 
+// Time-stop log labels for triggered/fizzled variants. Adding a new TIME_STOP_* card
+// type only requires adding its markerType/cardType here plus updating presentation-helpers.
+const _TIME_STOP_LOG_BY_TYPE: Record<string, string> = Object.freeze({
+    time_stop_triggered: '時間停石: 時間停止が発動し、2連続で行動',
+    time_stop_deity_triggered: '時間停神: 時間停止が発動し、4連続で行動',
+    time_stop_fizzled: '時間停石: 親石消失で不発',
+    time_stop_deity_fizzled: '時間停神: 親石消失で不発'
+});
+
 function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (deps && deps.SpecialStoneRegistry && typeof deps.SpecialStoneRegistry.getSpecialStoneDisplayName === 'function') {
         const displayName = deps.SpecialStoneRegistry.getSpecialStoneDisplayName(rawSpecial, null);
