@@ -287,17 +287,12 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 break;
             case 'time_stop_triggered':
                 push('時間停石: 時間停止が発動し、2連続で行動');
+                break;
             case 'time_stop_deity_triggered':
                 push('時間停神: 時間停止が発動し、4連続で行動');
                 break;
             case 'time_stop_deity_fizzled':
                 push('時間停神: 親石消失で不発');
-                break;
-            case 'time_stop_triggered':
-                push('時間停石: 時間停止が発動し、2連続で行動');
-                break;
-            case 'time_stop_fizzled':
-                push('時間停石: 親石消失で不発');
                 break;
             case 'time_stop_fizzled':
                 push('時間停石: 親石消失で不発');

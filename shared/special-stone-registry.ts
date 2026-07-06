@@ -309,7 +309,7 @@
         }),
         TIME_STOP_DEITY: Object.freeze({
             name: '時間停神',
-            desc: 'カウント終了時に時間停止を発動し、発動ターンを含めた四連続動作をします。',
+            desc: 'カウント終了時に時間停止を発動し、発動ターンを含めて合計4回連続で行動する。',
             timerClass: 'countdown-timer'
         }),
         CROSS_BOMB: Object.freeze({

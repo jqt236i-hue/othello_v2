@@ -61,4 +61,33 @@ describe('pipeline_ui_adapter normal logs', () => {
     ], [], 'black');
     expect(out).toEqual(['黒: 援軍の意志: 通常石3個を配置、4枚を反転']);
   });
+
+
+  test('time_stop_triggered emits a single time stop stone log line', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'time_stop_triggered', player: 'black', row: 3, col: 4, remainingBonusTurns: 2 }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 時間停石: 時間停止が発動し、2連続で行動']);
+  });
+
+  test('time_stop_deity_triggered emits a single time stop deity log line', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'time_stop_deity_triggered', player: 'black', row: 3, col: 4, remainingBonusTurns: 4 }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 時間停神: 時間停止が発動し、4連続で行動']);
+  });
+
+  test('time_stop_fizzled emits a single fizzled log line', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'time_stop_fizzled', player: 'black', row: 3, col: 4, reason: 'anchor_lost' }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 時間停石: 親石消失で不発']);
+  });
+
+  test('time_stop_deity_fizzled emits a single fizzled log line', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'time_stop_deity_fizzled', player: 'black', row: 3, col: 4, reason: 'anchor_lost' }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 時間停神: 親石消失で不発']);
+  });
 });

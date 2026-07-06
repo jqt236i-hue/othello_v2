@@ -1201,6 +1201,26 @@ function runTimeStopDeityScenario() {
     expect(result.afterPlace.turnTimer.turnSeatKey).toBe('white');
   });
 
+  test('time stop deity marker survives publish sanitize', () => {
+    const result = runTimeStopDeityScenario();
+    const cardState = result.internalCardState;
+
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 9301,
+        row: 3,
+        col: 4,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'TIME_STOP_DEITY', remainingOwnerTurns: 1 })
+      })
+    ]));
+    expect(cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 4, white: 0 });
+    // Note: the legacy 'snapshot' publish path does not strip presentationEvents for a 'place' action;
+    // marker and consecutive-turn survival is what this scenario verifies, and that is the contract
+    // we want locked down for the TIME_STOP_DEITY card type.
+  });
+
+
   test('command publish with RAINBOW_STONE emits destroy playback and leaves source empty', () => {
     const result = runCommandPublishPendingPlaceScenario('RAINBOW_STONE');
     const cardState = result.internalCardState;
