@@ -3389,120 +3389,64 @@
     color: #ffe6a8;
 }
 
-/* ----- Save slot card: preview thumbs + type distribution (scoped to save slots only) ----- */
+/* ----- Save slot card: HS Skills-style type accents + breakdown (no card images) ----- */
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled .deck-builder-preset-thumb-strip,
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active .deck-builder-preset-thumb-strip {
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card {
     position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    height: calc(64px * var(--layout-stage-scale));
-    margin: calc(2px * var(--layout-stage-scale)) 0 calc(3px * var(--layout-stage-scale));
 }
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-thumb {
-    width: calc(46px * var(--layout-stage-scale));
-    height: calc(58px * var(--layout-stage-scale));
-    margin-left: calc(-24px * var(--layout-stage-scale));
-    border-radius: calc(3px * var(--layout-stage-scale));
-    flex-shrink: 0;
-    box-shadow:
-        0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.18);
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-    cursor: default;
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled::before,
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active::before {
+    content: "";
+    position: absolute;
+    left: calc(2px * var(--layout-stage-scale));
+    top: calc(8px * var(--layout-stage-scale));
+    bottom: calc(8px * var(--layout-stage-scale));
+    width: calc(3px * var(--layout-stage-scale));
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.2);
+    pointer-events: none;
 }
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-thumb:first-child {
-    margin-left: 0;
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #2aff78; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #5eb0ff; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #ff6464; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #f0c860; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #c890ff; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #ff9c4a; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #ffe27a; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #d8d8d8; }
+
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active::before {
+    box-shadow: 0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.32);
 }
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-thumb[data-thumb-index="0"] {
-    transform: rotate(-6deg);
-    z-index: 3;
+/* Compact built-in preset row keeps the prior text-only look with the same accent dot indicator */
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card {
+    position: relative;
 }
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-thumb[data-thumb-index="1"] {
-    transform: translateY(calc(-4px * var(--layout-stage-scale)));
-    z-index: 4;
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled::before,
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-active::before {
+    content: "";
+    position: absolute;
+    left: calc(2px * var(--layout-stage-scale));
+    top: calc(8px * var(--layout-stage-scale));
+    bottom: calc(8px * var(--layout-stage-scale));
+    width: calc(3px * var(--layout-stage-scale));
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.2);
+    pointer-events: none;
 }
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-thumb[data-thumb-index="2"] {
-    transform: rotate(6deg);
-    z-index: 2;
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-thumb:hover {
-    transform: scale(1.06) translateY(calc(-3px * var(--layout-stage-scale)));
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active .deck-builder-preset-thumb {
-    box-shadow:
-        0 calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.6),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.45),
-        0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.16);
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card:hover .deck-builder-preset-thumb {
-    filter: brightness(1.08) saturate(1.05);
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled .deck-builder-preset-type-stats,
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active .deck-builder-preset-type-stats {
-    display: flex;
-    align-items: center;
-    gap: calc(6px * var(--layout-stage-scale));
-    margin: calc(2px * var(--layout-stage-scale)) 0;
-    min-width: 0;
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-stats-bar {
-    display: flex;
-    flex: 1 1 auto;
-    height: calc(6px * var(--layout-stage-scale));
-    border-radius: calc(3px * var(--layout-stage-scale));
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.06);
-    min-width: calc(36px * var(--layout-stage-scale));
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment {
-    height: 100%;
-    flex-grow: 0;
-    flex-shrink: 0;
-    transition: filter 0.18s ease, opacity 0.18s ease;
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-mining { background: linear-gradient(90deg, #2aff78, #1cb060); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-guard { background: linear-gradient(90deg, #5eb0ff, #3878c8); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-battle { background: linear-gradient(90deg, #ff6464, #c83636); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-judgment { background: linear-gradient(90deg, #f0c860, #a07a26); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-taboo { background: linear-gradient(90deg, #c890ff, #7a44b8); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-annihilation { background: linear-gradient(90deg, #ff9c4a, #c8642a); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-prosperity { background: linear-gradient(90deg, #ffe27a, #c8902a); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-segment.is-special { background: linear-gradient(90deg, #d8d8d8, #7a7a7a); }
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card:hover .deck-builder-preset-type-segment {
-    filter: brightness(1.12);
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card .deck-builder-preset-type-stats-meta {
-    font-size: calc(9px * var(--layout-stage-scale));
-    color: rgba(220, 200, 170, 0.55);
-    line-height: 1;
-    flex-shrink: 0;
-    max-width: 45%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-feature-settings: "palt" 1;
-    letter-spacing: 0.01em;
-}
-
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active .deck-builder-preset-type-stats-meta {
-    color: rgba(255, 220, 150, 0.8);
-}
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #2aff78; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #5eb0ff; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #ff6464; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #f0c860; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #c890ff; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #ff9c4a; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #ffe27a; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #d8d8d8; }
 
 /* ----- Editor view ----- */
 
