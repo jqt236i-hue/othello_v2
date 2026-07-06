@@ -210,6 +210,47 @@ describe('match authority public snapshot trap visibility', () => {
     expect(projected.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
   });
 
+  test('time stop deity marker details stay visible in opponent public snapshots', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.markers.push({
+      id: 22,
+      kind: 'specialStone',
+      row: 3,
+      col: 4,
+      owner: 'black',
+      data: { type: 'TIME_STOP_DEITY', remainingOwnerTurns: 1 }
+    });
+    snapshot.cardState.specialStones.push({
+      row: 3,
+      col: 4,
+      owner: 'black',
+      type: 'TIME_STOP_DEITY',
+      remainingOwnerTurns: 1
+    });
+    snapshot.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
+
+    const projected = MatchAuthority.projectSnapshotForViewer(snapshot, 'white');
+
+    expect(projected.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 4,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'TIME_STOP_DEITY', remainingOwnerTurns: 1 })
+      })
+    ]));
+    expect(projected.cardState.specialStones).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 4,
+        owner: 'black',
+        type: 'TIME_STOP_DEITY',
+        remainingOwnerTurns: 1
+      })
+    ]));
+    expect(projected.cardState.timeStopConsecutiveTurnsRemainingByPlayer).toEqual({ black: 1, white: 0 });
+  });
+
   test('projectSnapshotForViewer reveals only marked opponent hand copies and strips internal copy metadata', () => {
     const snapshot = {
       stateVersion: 10,

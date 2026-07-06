@@ -1005,6 +1005,25 @@ function buildTimeStopTriggeredFixture() {
   };
 }
 
+function buildTimeStopDeityTriggeredFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 4, 'black');
+  addSpecialMarker(snapshot, 3, 4, 'black', 'TIME_STOP_DEITY', {
+    remainingOwnerTurns: 1
+  });
+  return {
+    name: 'TIME_STOP_DEITY_TRIGGERED',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_time_stop_deity_triggered_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
 function buildFreezeDurationEndFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   setStone(snapshot, 3, 4, 'black');
@@ -2199,6 +2218,22 @@ describe('network playback event assembly contract', () => {
             rawType: 'SPECIAL_STONE_BUBBLE',
             targets: expect.arrayContaining([
               expect.objectContaining({ r: 3, col: 4, owner: 'black', special: 'TIME_STOP' })
+            ])
+          })
+        ]));
+      }
+      if (fixture.name === 'TIME_STOP_DEITY_TRIGGERED') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_removed',
+            rawType: 'STATUS_REMOVED',
+            meta: expect.objectContaining({ special: 'TIME_STOP_DEITY', reason: 'duration_end' })
+          }),
+          expect.objectContaining({
+            type: 'observer_bubble',
+            rawType: 'SPECIAL_STONE_BUBBLE',
+            targets: expect.arrayContaining([
+              expect.objectContaining({ r: 3, col: 4, owner: 'black', special: 'TIME_STOP_DEITY' })
             ])
           })
         ]));
