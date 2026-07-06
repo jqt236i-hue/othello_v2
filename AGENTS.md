@@ -100,12 +100,13 @@ othello_v2/
 | Level | Typical changes | Appropriate verification | New test guidance |
 | --- | --- | --- | --- |
 | 0 | Docs, comments, typo fixes, trivial text, tiny CSS-only tweaks, reference-only updates, script-produced generated-manifest diffs | `git diff`, `git diff --check`, source inspection, targeted file/path checks | Do not add tests. |
-| 1 | Localized UI display adjustments, narrow config changes, small helper edits with obvious existing coverage | Smallest relevant existing check, focused typecheck/build/preflight, or browser/manual inspection when visual | Usually do not add tests. |
+| 1 | Localized UI display adjustments, narrow config changes, small helper edits with obvious existing coverage | Smallest relevant existing check, focused typecheck/build/preflight, or non-game source/visual inspection when visual | Usually do not add tests. |
 | 2 | Gameplay rules, card logic, turn flow, owner/player normalization, CPU decisions, shared helpers, public APIs, confirmed regressions | Focused Jest or existing contract tests for the touched behavior | Add or update tests when focused coverage is missing or a regression should stay fixed. |
 | 3 | Worker/local/browser/headless contract changes, network publish/snapshot/reconnect, authority boundaries, root-to-worker mirror impact | Contract/parity/e2e checks such as `npm run test:network:parity`; use `npm run worker:prepare` for mirror impact | Add or update tests for durable cross-runtime contracts or uncovered failure modes. |
 
 - Level 0 generated-manifest diffs are review-only outputs from existing scripts; do not hand-edit generated or mirrored files just because their verification level is low.
 - If existing focused coverage already proves the changed behavior, run that coverage instead of adding duplicate tests. If no practical automated check exists, state the manual/source inspection performed and the residual risk.
+- 実機ゲーム検証 (ブラウザでゲームを起動して実際にプレイ・操作確認する検証、Playwright 等で実ゲーム UI を操作する検証を含む) は、ユーザーから明示指示がある場合だけ行う。ユーザー指示がない場合は原則禁止し、代わりにソース確認、diff 確認、focused tests、typecheck/build/preflight など実機ゲーム操作を伴わない検証を選ぶ。
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
 ## IMPLEMENTATION QUALITY
