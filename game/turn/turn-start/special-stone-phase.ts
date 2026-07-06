@@ -287,8 +287,8 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
         ]);
         return processingState;
     }
-if (typeKey === 'TIME_STOP' && owner === opts.playerKey && typeof opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
-        const res = opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col);
+if ((typeKey === 'TIME_STOP' || typeKey === 'TIME_STOP_DEITY') && owner === opts.playerKey && typeof opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
+        const res = opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, typeKey);
         pushTimeStopTurnStartEvents(opts.events, opts.playerKey, row, col, res);
         return processingState;
     }

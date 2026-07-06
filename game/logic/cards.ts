@@ -90,7 +90,10 @@ const {
         INITIAL_BOARD_BONUS_DISTRIBUTION,
         TIME_STOP_GOD_TURNS: SHARED_TIME_STOP_GOD_TURNS,
         TIME_STOP_GOD_CONSECUTIVE_TURNS: SHARED_TIME_STOP_GOD_CONSECUTIVE_TURNS,
-        TIME_STOP_GOD_SELF_DESTROY_COUNT: SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT
+        TIME_STOP_GOD_SELF_DESTROY_COUNT: SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT,
+        TIME_STOP_DEITY_TURNS: SHARED_TIME_STOP_DEITY_TURNS,
+        TIME_STOP_DEITY_CONSECUTIVE_TURNS: SHARED_TIME_STOP_DEITY_CONSECUTIVE_TURNS,
+        TIME_STOP_DEITY_SELF_DESTROY_COUNT: SHARED_TIME_STOP_DEITY_SELF_DESTROY_COUNT
     } = SharedConstants || {};
     const BoardUtils = SharedBoardUtils || null;
 
@@ -254,6 +257,15 @@ const {
     const TIME_STOP_GOD_SELF_DESTROY_COUNT = Number.isFinite(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT))
         ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_GOD_SELF_DESTROY_COUNT)))
         : 3;
+    const TIME_STOP_DEITY_TURNS = Number.isFinite(Number(SHARED_TIME_STOP_DEITY_TURNS))
+        ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_DEITY_TURNS)))
+        : 5;
+    const TIME_STOP_DEITY_CONSECUTIVE_TURNS = Number.isFinite(Number(SHARED_TIME_STOP_DEITY_CONSECUTIVE_TURNS))
+        ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_DEITY_CONSECUTIVE_TURNS)))
+        : 4;
+    const TIME_STOP_DEITY_SELF_DESTROY_COUNT = Number.isFinite(Number(SHARED_TIME_STOP_DEITY_SELF_DESTROY_COUNT))
+        ? Math.max(1, Math.floor(Number(SHARED_TIME_STOP_DEITY_SELF_DESTROY_COUNT)))
+        : 9;
     const ULTIMATE_DRAGON_TURNS = 8;
     const ULTIMATE_DESTROY_GOD_TURNS = 6;
     const ULTIMATE_HYPERACTIVE_TURNS = 12;
@@ -403,7 +415,10 @@ const {
                 RIBO_WILL_SHORTAGE_DESTROY_COUNT,
                 TIME_STOP_GOD_TURNS,
                 TIME_STOP_GOD_CONSECUTIVE_TURNS,
-                TIME_STOP_GOD_SELF_DESTROY_COUNT
+                TIME_STOP_GOD_SELF_DESTROY_COUNT,
+                TIME_STOP_DEITY_TURNS,
+                TIME_STOP_DEITY_CONSECUTIVE_TURNS,
+                TIME_STOP_DEITY_SELF_DESTROY_COUNT
             }
         };
     }
@@ -844,6 +859,18 @@ const {
         return CardRiboTimeStopModule.getTimeStopGodDestroyableCount(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
     }
 
+    function getTimeStopDeityDestroyableCount(cardState: any, gameState: any, playerKey: any) {
+        return CardRiboTimeStopModule.getTimeStopDeityDestroyableCount(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
+    }
+
+    function canUseTimeStopDeityForPlayer(cardState: any, gameState: any, playerKey: any) {
+        return CardRiboTimeStopModule.canUseTimeStopDeityForPlayer(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
+    }
+
+    function resolveTimeStopDeityUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardRiboTimeStopModule.resolveTimeStopDeityUsage(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps());
+    }
+
     function canUseTimeStopGodForPlayer(cardState: any, gameState: any, playerKey: any) {
         return CardRiboTimeStopModule.canUseTimeStopGodForPlayer(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
     }
@@ -856,8 +883,8 @@ const {
         return CardRiboTimeStopModule.consumeTimeStopConsecutiveTurn(cardState, playerKey);
     }
 
-    function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardRiboTimeStopModule.processTimeStopEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, getCardRiboTimeStopDeps());
+    function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, markerType: any) {
+        return CardRiboTimeStopModule.processTimeStopEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, markerType, getCardRiboTimeStopDeps());
     }
 
     function armRiboWillEffect(cardState: any, playerKey: any) {
@@ -4735,7 +4762,10 @@ const cardsApi: any = {
         resolveReinforcementWillUsage,
         resolveSupportTroopsWillUsage,
         getTimeStopGodDestroyableCount,
+        getTimeStopDeityDestroyableCount,
+        canUseTimeStopDeityForPlayer,
         resolveTimeStopGodUsage,
+        resolveTimeStopDeityUsage,
         consumeTimeStopConsecutiveTurn,
         applyRegenWill,
         applyRegenAfterFlips,

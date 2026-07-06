@@ -8,6 +8,9 @@ type RiboTimeStopConstants = {
     TIME_STOP_GOD_TURNS: number;
     TIME_STOP_GOD_CONSECUTIVE_TURNS: number;
     TIME_STOP_GOD_SELF_DESTROY_COUNT: number;
+    TIME_STOP_DEITY_TURNS: number;
+    TIME_STOP_DEITY_CONSECUTIVE_TURNS: number;
+    TIME_STOP_DEITY_SELF_DESTROY_COUNT: number;
 };
 
 type RiboTimeStopDeps = {
@@ -177,22 +180,78 @@ function armRiboWillEffect(cardState: any, playerKey: any, deps: RiboTimeStopDep
     };
 }
 
-function getTimeStopGodDestroyableCount(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
+type TimeStopProfile = {
+    cardType: string;
+    markerType: string;
+    displayName: string;
+    turns: number;
+    consecutiveTurns: number;
+    destroyCount: number;
+    costReason: string;
+};
+
+function readPositiveConstant(value: any, fallback: number): number {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function getTimeStopProfile(cardType: any, deps: RiboTimeStopDeps): TimeStopProfile | null {
+    const type = String(cardType || '').trim().toUpperCase();
+    if (type === 'TIME_STOP_DEITY') {
+        return {
+            cardType: 'TIME_STOP_DEITY',
+            markerType: 'TIME_STOP_DEITY',
+            displayName: '時間停神',
+            turns: readPositiveConstant(deps.constants.TIME_STOP_DEITY_TURNS, 5),
+            consecutiveTurns: readPositiveConstant(deps.constants.TIME_STOP_DEITY_CONSECUTIVE_TURNS, 4),
+            destroyCount: readPositiveConstant(deps.constants.TIME_STOP_DEITY_SELF_DESTROY_COUNT, 9),
+            costReason: 'time_stop_deity_cost'
+        };
+    }
+    if (type === 'TIME_STOP_GOD') {
+        return {
+            cardType: 'TIME_STOP_GOD',
+            markerType: 'TIME_STOP',
+            displayName: '時間停石',
+            turns: readPositiveConstant(deps.constants.TIME_STOP_GOD_TURNS, 5),
+            consecutiveTurns: readPositiveConstant(deps.constants.TIME_STOP_GOD_CONSECUTIVE_TURNS, 2),
+            destroyCount: readPositiveConstant(deps.constants.TIME_STOP_GOD_SELF_DESTROY_COUNT, 3),
+            costReason: 'time_stop_god_cost'
+        };
+    }
+    return null;
+}
+
+function getTimeStopProfileByMarkerType(markerType: any, deps: RiboTimeStopDeps): TimeStopProfile | null {
+    const type = String(markerType || '').trim().toUpperCase();
+    if (type === 'TIME_STOP_DEITY') return getTimeStopProfile('TIME_STOP_DEITY', deps);
+    if (type === 'TIME_STOP') return getTimeStopProfile('TIME_STOP_GOD', deps);
+    return null;
+}
+
+function getTimeStopDestroyableCount(cardState: any, gameState: any, playerKey: any, cardType: any, deps: RiboTimeStopDeps) {
+    const profile = getTimeStopProfile(cardType, deps);
+    if (!profile) return 0;
     return collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey, deps).length;
 }
 
-function canUseTimeStopGodForPlayer(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
-    if (!gameState || !Array.isArray(gameState.board)) return false;
-    return getTimeStopGodDestroyableCount(cardState, gameState, playerKey, deps) >= deps.constants.TIME_STOP_GOD_SELF_DESTROY_COUNT;
+function canUseTimeStopCardForPlayer(cardState: any, gameState: any, playerKey: any, cardType: any, deps: RiboTimeStopDeps) {
+    const profile = getTimeStopProfile(cardType, deps);
+    if (!profile || !gameState || !Array.isArray(gameState.board)) return false;
+    return getTimeStopDestroyableCount(cardState, gameState, playerKey, cardType, deps) >= profile.destroyCount;
 }
 
-function resolveTimeStopGodUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RiboTimeStopDeps) {
+function resolveTimeStopCardUsage(cardState: any, gameState: any, playerKey: any, cardType: any, prng: any, deps: RiboTimeStopDeps) {
+    const profile = getTimeStopProfile(cardType, deps);
+    if (!profile) {
+        return { applied: false, reason: 'unknown_time_stop_card' };
+    }
     const targets = deps.sampleRandomPositions(
         collectTimeStopGodDestroyableOwnStonePositions(cardState, gameState, playerKey, deps),
-        deps.constants.TIME_STOP_GOD_SELF_DESTROY_COUNT,
+        profile.destroyCount,
         prng
     );
-    const destroyed = [];
+    const destroyed: any[] = [];
 
     for (const target of targets) {
         if (!target) continue;
@@ -201,9 +260,9 @@ function resolveTimeStopGodUsage(cardState: any, gameState: any, playerKey: any,
             gameState,
             target.row,
             target.col,
-            'TIME_STOP_GOD',
-            'time_stop_god_cost',
-            { owner: playerKey }
+            profile.cardType,
+            profile.costReason,
+            { owner: playerKey, cardType: profile.cardType, markerType: profile.markerType }
         );
         if (destroyRes && destroyRes.destroyed) {
             destroyed.push({ row: target.row, col: target.col });
@@ -212,10 +271,36 @@ function resolveTimeStopGodUsage(cardState: any, gameState: any, playerKey: any,
 
     return {
         applied: true,
-        requestedCount: deps.constants.TIME_STOP_GOD_SELF_DESTROY_COUNT,
+        cardType: profile.cardType,
+        markerType: profile.markerType,
+        requestedCount: profile.destroyCount,
         destroyedCount: destroyed.length,
         destroyed
     };
+}
+
+function getTimeStopGodDestroyableCount(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
+    return getTimeStopDestroyableCount(cardState, gameState, playerKey, 'TIME_STOP_GOD', deps);
+}
+
+function getTimeStopDeityDestroyableCount(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
+    return getTimeStopDestroyableCount(cardState, gameState, playerKey, 'TIME_STOP_DEITY', deps);
+}
+
+function canUseTimeStopGodForPlayer(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
+    return canUseTimeStopCardForPlayer(cardState, gameState, playerKey, 'TIME_STOP_GOD', deps);
+}
+
+function canUseTimeStopDeityForPlayer(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
+    return canUseTimeStopCardForPlayer(cardState, gameState, playerKey, 'TIME_STOP_DEITY', deps);
+}
+
+function resolveTimeStopGodUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RiboTimeStopDeps) {
+    return resolveTimeStopCardUsage(cardState, gameState, playerKey, 'TIME_STOP_GOD', prng, deps);
+}
+
+function resolveTimeStopDeityUsage(cardState: any, gameState: any, playerKey: any, prng: any, deps: RiboTimeStopDeps) {
+    return resolveTimeStopCardUsage(cardState, gameState, playerKey, 'TIME_STOP_DEITY', prng, deps);
 }
 
 function consumeTimeStopConsecutiveTurn(cardState: any, playerKey: any) {
@@ -232,8 +317,12 @@ function consumeTimeStopConsecutiveTurn(cardState: any, playerKey: any) {
     };
 }
 
-function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, deps: RiboTimeStopDeps) {
-    const marker = deps.findSpecialMarkerAt(cardState, row, col, 'TIME_STOP', playerKey);
+function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, markerType: any, deps: RiboTimeStopDeps) {
+    const profile = getTimeStopProfileByMarkerType(markerType, deps);
+    if (!profile) {
+        return { triggered: [], fizzled: [] };
+    }
+    const marker = deps.findSpecialMarkerAt(cardState, row, col, profile.markerType, playerKey);
     if (!marker) {
         return { triggered: [], fizzled: [] };
     }
@@ -244,7 +333,7 @@ function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any,
         if (marker.id !== undefined && marker.id !== null) {
             deps.removeMarkerById(cardState, marker.id);
         } else {
-            deps.removeMarkersAt(cardState, row, col, { kind: deps.specialStoneKind, type: 'TIME_STOP', owner: playerKey });
+            deps.removeMarkersAt(cardState, row, col, { kind: deps.specialStoneKind, type: profile.markerType, owner: playerKey });
         }
         return {
             triggered: [],
@@ -255,20 +344,22 @@ function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any,
     if (!marker.data) marker.data = {};
     const remainingOwnerTurns = Number.isFinite(Number(marker.data.remainingOwnerTurns))
         ? Math.max(0, Math.floor(Number(marker.data.remainingOwnerTurns)))
-        : deps.constants.TIME_STOP_GOD_TURNS;
+        : profile.turns;
     const remainingAfter = Math.max(0, remainingOwnerTurns - 1);
     marker.data.remainingOwnerTurns = remainingAfter;
     if (remainingAfter > 0) {
         return { triggered: [], fizzled: [] };
     }
 
-    deps.revertSpecialStoneWithPresentation(cardState, gameState, row, col, 'TIME_STOP', playerKey, 'TIME_STOP', 'duration_end', {
+    deps.revertSpecialStoneWithPresentation(cardState, gameState, row, col, profile.markerType, playerKey, profile.cardType, 'duration_end', {
         owner: playerKey,
-        timer: 0
+        timer: 0,
+        cardType: profile.cardType,
+        markerType: profile.markerType
     });
-    const totalReservedTurns = reserveTimeStopConsecutiveTurns(cardState, playerKey, deps.constants.TIME_STOP_GOD_CONSECUTIVE_TURNS, deps);
+    const totalReservedTurns = reserveTimeStopConsecutiveTurns(cardState, playerKey, profile.consecutiveTurns, deps);
     return {
-        triggered: [{ row, col, owner: playerKey, totalReservedTurns }],
+        triggered: [{ row, col, owner: playerKey, cardType: profile.cardType, markerType: profile.markerType, displayName: profile.displayName, totalReservedTurns }],
         fizzled: []
     };
 }
@@ -378,9 +469,15 @@ function processRiboWillTurnStartEffects(cardState: any, gameState: any, playerK
 module.exports = {
     armRiboWillEffect,
     getTimeStopGodDestroyableCount,
+    getTimeStopDeityDestroyableCount,
     canUseTimeStopGodForPlayer,
+    canUseTimeStopDeityForPlayer,
     resolveTimeStopGodUsage,
+    resolveTimeStopDeityUsage,
     consumeTimeStopConsecutiveTurn,
     processTimeStopEffectsAtTurnStartAnchor,
-    processRiboWillTurnStartEffects
+    processRiboWillTurnStartEffects,
+    getTimeStopProfile,
+    getTimeStopProfileByMarkerType
 };
+
