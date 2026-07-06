@@ -222,6 +222,23 @@ describe('visual-effects map shared between game/ui', () => {
     expect(gluttonousMap.imagePathByOwner['-1']).toContain('GLUTTONOUS_WILL-white.png');
   });
 
+
+  test('TIME_STOP_DEITY が導用 PNG 画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.TIME_STOP_DEITY).toBe('timeStopDeityStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.TIME_STOP_DEITY).toBe('timeStopDeityStone');
+
+    const timeStopDeityMap = shared.STONE_VISUAL_EFFECTS.timeStopDeityStone;
+    expect(timeStopDeityMap).toBeTruthy();
+    expect(timeStopDeityMap.imagePathByOwner['1']).toContain('TIME_STOP_DEITY-black.png');
+    expect(timeStopDeityMap.imagePathByOwner['-1']).toContain('TIME_STOP_DEITY-white.png');
+    expect(timeStopDeityMap.imagePathByOwner['1']).not.toContain('data:image/svg+xml');
+    expect(timeStopDeityMap.imagePathByOwner['-1']).not.toContain('data:image/svg+xml');
+  });
   test('TIME_STOP_GOD と TIME_STOP が専用 PNG 画像へ解決される', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

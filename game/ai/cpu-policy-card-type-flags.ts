@@ -37,6 +37,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isWorkWill = cardType === 'WORK_WILL';
         const isTimeBomb = cardType === 'TIME_BOMB';
         const isTimeStopGod = cardType === 'TIME_STOP_GOD';
+        const isTimeStopDeity = cardType === 'TIME_STOP_DEITY';
         const isThrowChainCard = throwChainCardTypes.includes(cardType);
         const isChainWill = chainWillCardTypes.includes(cardType);
         const isLastResort = cardType === 'LAST_RESORT';

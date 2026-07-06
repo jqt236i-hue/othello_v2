@@ -14,6 +14,10 @@ const TIME_STOP_STONE_IMAGE_BY_OWNER = {
     '1': 'assets/images/special-stones/TIME_STOP-black.png',
     '-1': 'assets/images/special-stones/TIME_STOP-white.png'
 };
+const TIME_STOP_DEITY_STONE_IMAGE_BY_OWNER = {
+    '1': 'assets/images/special-stones/TIME_STOP_DEITY-black.png',
+    '-1': 'assets/images/special-stones/TIME_STOP_DEITY-white.png'
+};
 const DEFAULT_CARD_VISUAL_SIDE = '1';
 const NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
     'normal_stone-black.png',
@@ -325,6 +329,12 @@ const GAME_STONE_VISUAL_EFFECTS = {
         imagePathByOwner: TIME_STOP_STONE_IMAGE_BY_OWNER,
         dataAttributes: {}
     },
+    timeStopDeityStone: {
+        cssClass: 'time-stop-deity-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: TIME_STOP_DEITY_STONE_IMAGE_BY_OWNER,
+        dataAttributes: {}
+    },
     crossBombStone: {
         cssClass: 'cross-bomb-stone',
         cssMethod: 'pseudoElement',
@@ -387,6 +397,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     ,
     'TIME_BOMB': 'timeBombStone',
     'TIME_STOP_GOD': 'timeStopStone',
+    'TIME_STOP_DEITY': 'timeStopDeityStone',
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
     'TRAP_WILL': 'trapStone'
@@ -538,6 +549,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     ,
     'TIME_BOMB': 'timeBombStone',
     'TIME_STOP': 'timeStopStone',
+    'TIME_STOP_DEITY': 'timeStopDeityStone',
     'CROSS_BOMB': 'crossBombStone',
     'X_BOMB': 'xBombStone',
     'TRAP': 'trapStone',

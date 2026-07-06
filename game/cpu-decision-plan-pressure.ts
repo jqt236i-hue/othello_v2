@@ -103,6 +103,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     THEORY_INCARNATION: makePlanPressureProfile(2, 3, 2, 3),
     TIME_BOMB: makePlanPressureProfile(3, 4, 3, 2),
     TIME_STOP_GOD: makePlanPressureProfile(3, 4, 3, 2),
+    TIME_STOP_DEITY: makePlanPressureProfile(9, 7, 5, 4),
     TRAP_WILL: makePlanPressureProfile(1, 2, 1, 2),
     TREASURE_BOX: makePlanPressureProfile(1, 2, 0, 2),
     ULTIMATE_DESTROY_GOD: makePlanPressureProfile(3, 4, 3, 2),

@@ -31,6 +31,7 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'BREEDING') return '繁殖石';
     if (s === 'TIME_BOMB') return '時限爆弾';
     if (s === 'TIME_STOP') return '時間停石';
+    if (s === 'TIME_STOP_DEITY') return '時間停神';
     if (s === 'DRAGON') return '究極反転龍';
     if (s === 'DESTROY_DRAGON' || s === 'DESTROY_DRAGON_WILL') return '破壊龍';
     if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
@@ -286,6 +287,17 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 break;
             case 'time_stop_triggered':
                 push('時間停石: 時間停止が発動し、2連続で行動');
+            case 'time_stop_deity_triggered':
+                push('時間停神: 時間停止が発動し、4連続で行動');
+                break;
+            case 'time_stop_deity_fizzled':
+                push('時間停神: 親石消失で不発');
+                break;
+            case 'time_stop_triggered':
+                push('時間停石: 時間停止が発動し、2連続で行動');
+                break;
+            case 'time_stop_fizzled':
+                push('時間停石: 親石消失で不発');
                 break;
             case 'time_stop_fizzled':
                 push('時間停石: 親石消失で不発');
@@ -398,6 +410,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.permaProtected) push('永続反転保護を付与');
                     if (e.bombPlaced) push('時限爆弾を設置');
                     if (e.timeStopPlaced) push('時間停石を設置');
+                    if (e.timeStopDeityPlaced) push('時間停神を設置');
                     if (e.dragonPlaced) push('究極反転龍を設置');
                     if (e.ultimateDestroyGodPlaced) push('究極破壊神を設置');
                     if (e.ultimateHyperactivePlaced) push('究極多動神を設置');

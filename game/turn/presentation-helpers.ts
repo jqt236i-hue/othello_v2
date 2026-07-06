@@ -26,6 +26,7 @@ const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'afterimagePlaced', special: 'AFTERIMAGE_WILL' }),
     Object.freeze({ flag: 'sacrificePlaced', special: 'SACRIFICE' }),
     Object.freeze({ flag: 'timeStopPlaced', special: 'TIME_STOP' }),
+    Object.freeze({ flag: 'timeStopDeityPlaced', special: 'TIME_STOP_DEITY' }),
     Object.freeze({ flag: 'willHunterKingPlaced', special: 'WILL_HUNTER_KING' }),
     Object.freeze({ flag: 'destroyDragonPlaced', special: 'DESTROY_DRAGON' }),
     Object.freeze({ flag: 'lightningPlaced', special: 'LIGHTNING' }),
@@ -796,9 +797,12 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
     }
 
     for (const ev of deferredPhaseEvents) {
+        const evMarkerType = ev && ev.markerType;
+        const bubbleSpecial = (evMarkerType === 'TIME_STOP_DEITY') ? 'TIME_STOP_DEITY' : 'TIME_STOP';
+        const bubbleScenario = (evMarkerType === 'TIME_STOP_DEITY') ? 'time_stop_deity_triggered' : 'time_stop_triggered';
         emitBubble({
-            special: 'TIME_STOP',
-            scenario: 'time_stop_triggered',
+            special: bubbleSpecial,
+            scenario: bubbleScenario,
             player: ev.player || opts.fallbackPlayer || null,
             row: ev.row,
             col: ev.col,

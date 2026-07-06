@@ -126,6 +126,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_HYPERACTIVE_GOD',
         'TIME_STOP',
+        'TIME_STOP_DEITY',
         'TRAP_WILL'
     ]);
     const SPECIAL_DURATION_REVERT_SPECIALS = new Set([
@@ -142,6 +143,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'SNIPER',
         'STONE_SALVATION_GOD',
         'TIME_STOP',
+        'TIME_STOP_DEITY',
         'ULTIMATE_DESTROY_GOD',
         'ULTIMATE_HYPERACTIVE',
         'WILL_HUNTER_KING',
