@@ -3389,6 +3389,65 @@
     color: #ffe6a8;
 }
 
+/* ----- Save slot card: HS Skills-style type accents + breakdown (no card images) ----- */
+
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card {
+    position: relative;
+}
+
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled::before,
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active::before {
+    content: "";
+    position: absolute;
+    left: calc(2px * var(--layout-stage-scale));
+    top: calc(8px * var(--layout-stage-scale));
+    bottom: calc(8px * var(--layout-stage-scale));
+    width: calc(3px * var(--layout-stage-scale));
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+}
+
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #2aff78; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #5eb0ff; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #ff6464; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #f0c860; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #c890ff; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #ff9c4a; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #ffe27a; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #d8d8d8; }
+
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active::before {
+    box-shadow: 0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.32);
+}
+
+/* Compact built-in preset row keeps the prior text-only look with the same accent dot indicator */
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card {
+    position: relative;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled::before,
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-active::before {
+    content: "";
+    position: absolute;
+    left: calc(2px * var(--layout-stage-scale));
+    top: calc(8px * var(--layout-stage-scale));
+    bottom: calc(8px * var(--layout-stage-scale));
+    width: calc(3px * var(--layout-stage-scale));
+    border-radius: calc(2px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #2aff78; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #5eb0ff; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #ff6464; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #f0c860; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #c890ff; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #ff9c4a; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #ffe27a; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #d8d8d8; }
+
 /* ----- Editor view ----- */
 
 .deck-builder-editor-top {
