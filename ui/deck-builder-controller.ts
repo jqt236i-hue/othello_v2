@@ -325,6 +325,105 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             return decoded.ok ? decoded.deckSpec : null;
         }
 
+        const CARD_DISPLAY_TYPE_KEY_MAP: Record<string, string> = Object.freeze({
+            '採掘': 'mining',
+            '守護': 'guard',
+            '戦闘': 'battle',
+            '執行': 'judgment',
+            '禁忌': 'taboo',
+            '殲滅': 'annihilation',
+            '繁栄': 'prosperity',
+            '特殊': 'special'
+        });
+
+        function getCardDisplayTypeKeyFromDef(cardDef: any): string {
+            const label = String(
+                (cardDef && cardDef.display_type_ja)
+                || (cardDef && cardDef.displayTypeJa)
+                || (cardDef && cardDef.displayTypeLabel)
+                || ''
+            ).trim();
+            return CARD_DISPLAY_TYPE_KEY_MAP[label] || '';
+        }
+
+        function getCardDisplayTypeLabelFromDef(cardDef: any): string {
+            const label = String(
+                (cardDef && cardDef.display_type_ja)
+                || (cardDef && cardDef.displayTypeJa)
+                || (cardDef && cardDef.displayTypeLabel)
+                || ''
+            ).trim();
+            return label;
+        }
+
+        function summarizeDeckComposition(deckSpec: any) {
+            const result = {
+                previewCards: [] as Array<{ cardId: string; cardDef: any; count: number }>,
+                typeStats: [] as Array<{ typeKey: string; label: string; count: number; ratio: number }>,
+                totalCount: 0
+            };
+            if (!deckSpec || typeof deckSpec !== 'object' || !Array.isArray(deckSpec.cards)) {
+                return result;
+            }
+
+            const cardDefMap = (DeckSpecHelpers && typeof DeckSpecHelpers.getEnabledCardDefMap === 'function')
+                ? DeckSpecHelpers.getEnabledCardDefMap()
+                : new Map<string, any>();
+
+            const aggregated: Array<{ cardId: string; def: any; count: number }> = [];
+            const typeStatsMap = new Map<string, { typeKey: string; label: string; count: number }>();
+            let totalCount = 0;
+
+            for (const entry of deckSpec.cards) {
+                if (!entry || typeof entry !== 'object') continue;
+                const cardId = String(entry.cardId || '').trim();
+                const count = Math.max(0, Math.floor(Number(entry.count)));
+                if (!cardId || count <= 0) continue;
+                const def = cardDefMap.get(cardId);
+                if (!def) continue;
+                aggregated.push({ cardId, def, count });
+                totalCount += count;
+
+                const typeKey = getCardDisplayTypeKeyFromDef(def);
+                if (!typeKey) continue;
+                const label = getCardDisplayTypeLabelFromDef(def) || typeKey;
+                const existing = typeStatsMap.get(typeKey);
+                if (existing) {
+                    existing.count += count;
+                } else {
+                    typeStatsMap.set(typeKey, { typeKey, label, count });
+                }
+            }
+
+            aggregated.sort((left, right) => {
+                if (right.count !== left.count) return right.count - left.count;
+                const leftCost = Number((left.def && left.def.cost) || 0) || 0;
+                const rightCost = Number((right.def && right.def.cost) || 0) || 0;
+                if (rightCost !== leftCost) return rightCost - leftCost;
+                return String(left.cardId || '').localeCompare(String(right.cardId || ''), 'en');
+            });
+
+            const previewCards = aggregated.slice(0, 3).map((entry) => ({
+                cardId: entry.cardId,
+                cardDef: entry.def,
+                count: entry.count
+            }));
+
+            const typeStats = Array.from(typeStatsMap.values())
+                .sort((left, right) => {
+                    if (right.count !== left.count) return right.count - left.count;
+                    return String(left.typeKey || '').localeCompare(String(right.typeKey || ''), 'en');
+                })
+                .map((entry) => ({
+                    typeKey: entry.typeKey,
+                    label: entry.label,
+                    count: entry.count,
+                    ratio: totalCount > 0 ? entry.count / totalCount : 0
+                }));
+
+            return { previewCards, typeStats, totalCount };
+        }
+
         function createChoiceFromDeckCode(deckCode: any, context: any) {
             const deckSpec = decodeDeckSpecOrNull(deckCode);
             return deckSpec ? createCustomChoice(deckSpec, context) : null;
@@ -953,7 +1052,9 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                         noteText: '',
                         noteIsError: false,
                         canUse: false,
-                        isActive: preset.id === state.presetState.activePresetId
+                        isActive: preset.id === state.presetState.activePresetId,
+                        previewCards: [],
+                        typeStats: []
                     };
                 }
 
@@ -966,11 +1067,14 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                         noteText: 'catalog 変更などで無効です',
                         noteIsError: true,
                         canUse: false,
-                        isActive: false
+                        isActive: false,
+                        previewCards: [],
+                        typeStats: []
                     };
                 }
 
                 const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
+                const composition = summarizeDeckComposition(deckSpec);
                 return {
                     id: preset.id,
                     displayName: getPresetDisplayName(preset, index),
@@ -978,7 +1082,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                     noteText: preset.id === state.presetState.activePresetId ? '現在使用中' : '',
                     noteIsError: false,
                     canUse: true,
-                    isActive: preset.id === state.presetState.activePresetId
+                    isActive: preset.id === state.presetState.activePresetId,
+                    previewCards: composition.previewCards,
+                    typeStats: composition.typeStats,
+                    totalCardCount: composition.totalCount
                 };
             });
         }
@@ -999,11 +1106,14 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                         noteText: 'catalog 変更などで無効です',
                         noteIsError: true,
                         canUse: false,
-                        isActive: false
+                        isActive: false,
+                        previewCards: [],
+                        typeStats: []
                     };
                 }
 
                 const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
+                const composition = summarizeDeckComposition(deckSpec);
                 const active = state.activeLocalChoice
                     && state.activeLocalChoice.source === 'built-in-preset'
                     && state.activeLocalChoice.presetId === presetId;
@@ -1014,7 +1124,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                     noteText: active ? '現在使用中' : '',
                     noteIsError: false,
                     canUse: true,
-                    isActive: active
+                    isActive: active,
+                    previewCards: composition.previewCards,
+                    typeStats: composition.typeStats,
+                    totalCardCount: composition.totalCount
                 };
             });
         }

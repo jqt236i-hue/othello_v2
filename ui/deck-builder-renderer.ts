@@ -426,6 +426,7 @@ function createActiveStripElement(): HTMLElement {
 
 function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTMLElement {
   const opts = (options && typeof options === 'object') ? options : {};
+  const showThumbnails = opts.thumbnails === true;
   const presetCard = document.createElement('div');
   presetCard.className = 'deck-builder-preset-card';
   const slotState = classifyPresetSlotState(preset);
@@ -448,6 +449,11 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
     presetCard.appendChild(createActiveStripElement());
   }
 
+  if (showThumbnails && Array.isArray(preset.previewCards) && preset.previewCards.length > 0) {
+    const thumbStrip = createPreviewThumbStrip(preset.previewCards);
+    if (thumbStrip) presetCard.appendChild(thumbStrip);
+  }
+
   const title = document.createElement('div');
   title.className = 'deck-builder-preset-title';
   title.textContent = preset.displayName;
@@ -458,6 +464,11 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
   summary.textContent = preset.summaryText;
   presetCard.appendChild(summary);
 
+  if (showThumbnails && Array.isArray(preset.typeStats) && preset.typeStats.length > 0) {
+    const statsBar = createDeckBuilderTypeStatsBar(preset.typeStats, preset.totalCardCount);
+    if (statsBar) presetCard.appendChild(statsBar);
+  }
+
   if (preset.noteText) {
     const note = document.createElement('div');
     note.className = `deck-builder-preset-note${preset.noteIsError ? ' is-error' : ''}`;
@@ -467,6 +478,86 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
 
   presetCard.appendChild(actions);
   return presetCard;
+}
+
+function createPreviewThumbStrip(previewCards: any[]): HTMLElement | null {
+  if (!Array.isArray(previewCards) || previewCards.length === 0) return null;
+
+  const strip = document.createElement('div');
+  strip.className = 'deck-builder-preset-thumb-strip';
+  strip.setAttribute('aria-hidden', 'true');
+
+  let thumbIndex = 0;
+  for (const entry of previewCards) {
+    if (!entry || typeof entry !== 'object') continue;
+    const cardDef = entry.cardDef;
+    if (!cardDef || !cardDef.id) continue;
+    const count = Math.max(0, Math.floor(Number(entry.count)));
+    if (count <= 0) continue;
+
+    let thumb: HTMLElement | null = null;
+    try {
+      thumb = createDeckCardElement(cardDef, {
+        count,
+        clickable: false,
+        active: false,
+        detailButton: false
+      });
+    } catch (e) {
+      thumb = null;
+    }
+    if (!thumb) continue;
+    thumb.classList.add('deck-builder-preset-thumb');
+    thumb.dataset.cardId = String(cardDef.id);
+    thumb.dataset.thumbIndex = String(thumbIndex);
+    strip.appendChild(thumb);
+    thumbIndex += 1;
+    if (thumbIndex >= 3) break;
+  }
+
+  if (strip.childElementCount === 0) return null;
+  return strip;
+}
+
+function createDeckBuilderTypeStatsBar(typeStats: any[], totalCount: any): HTMLElement | null {
+  if (!Array.isArray(typeStats) || typeStats.length === 0) return null;
+
+  const total = Math.max(0, Math.floor(Number(totalCount)));
+  if (total <= 0) return null;
+
+  const bar = document.createElement('div');
+  bar.className = 'deck-builder-preset-type-stats';
+  bar.setAttribute('aria-hidden', 'true');
+
+  const segments = document.createElement('div');
+  segments.className = 'deck-builder-preset-type-stats-bar';
+  segments.setAttribute('role', 'presentation');
+
+  for (const entry of typeStats) {
+    if (!entry || typeof entry !== 'object') continue;
+    const typeKey = String(entry.typeKey || '').trim();
+    const count = Math.max(0, Math.floor(Number(entry.count)));
+    if (!typeKey || count <= 0) continue;
+    const segment = document.createElement('span');
+    segment.className = `deck-builder-preset-type-segment is-${typeKey}`;
+    segment.style.flexBasis = `${(count / total * 100).toFixed(2)}%`;
+    segment.title = `${entry.label || typeKey} / ${count}枚`;
+    segments.appendChild(segment);
+  }
+  if (segments.childElementCount === 0) return null;
+
+  const meta = document.createElement('span');
+  meta.className = 'deck-builder-preset-type-stats-meta';
+  const head = typeStats
+    .slice(0, 2)
+    .map((entry: any) => String(entry.label || entry.typeKey || '').trim())
+    .filter((label: string) => !!label)
+    .join(' / ');
+  meta.textContent = head ? `${head} ほか` : '';
+
+  bar.appendChild(segments);
+  if (meta.textContent) bar.appendChild(meta);
+  return bar;
 }
 
 function createSectionIcon(svgInner: string): HTMLElement {
@@ -531,7 +622,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
       actions.className = 'deck-builder-actions-row';
       actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUseBuiltInPreset(preset.id), { disabled: !preset.canUse }));
       actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditBuiltInPreset(preset.id), { disabled: !preset.canUse }));
-      builtInGrid.appendChild(createPresetCard(preset, actions));
+      builtInGrid.appendChild(createPresetCard(preset, actions, { thumbnails: false }));
     });
     builtInSection.appendChild(builtInGrid);
     defaultPresetRow.appendChild(builtInSection);
@@ -560,7 +651,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
     actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
     actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
 
-    presetGrid.appendChild(createPresetCard(preset, actions, { slotIndex }));
+    presetGrid.appendChild(createPresetCard(preset, actions, { slotIndex, thumbnails: true }));
   });
   wrapper.appendChild(presetGrid);
 
