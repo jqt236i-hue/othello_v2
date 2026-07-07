@@ -26,8 +26,8 @@ describe('deck builder layout CSS', () => {
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-built-in-preset-section\s*\{[\s\S]*rgba\(83,\s*214,\s*209,\s*0\.08\)[\s\S]*border:\s*var\(--layout-size-border-thin\)\s*solid\s*rgba\(83,\s*214,\s*209,\s*0\.18\)/);
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-built-in-preset-grid\s+\.deck-builder-preset-card\s*\{[\s\S]*rgba\(83,\s*214,\s*209,\s*0\.1\)[\s\S]*border-color:\s*rgba\(83,\s*214,\s*209,\s*0\.22\)[\s\S]*box-shadow:\s*inset\s*calc\(3px\s*\*\s*var\(--layout-stage-scale\)\)\s*0\s*0\s*rgba\(83,\s*214,\s*209,\s*0\.18\)/);
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-built-in-preset-grid\s+\.deck-builder-preset-title\s*\{[\s\S]*color:\s*rgba\(184,\s*236,\s*231,\s*0\.9\)/);
-    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-view-presets\s*>\s*\.deck-builder-preset-grid\s*>\s*\.deck-builder-preset-card\s*\{[\s\S]*rgba\(88,\s*156,\s*255,\s*0\.16\)[\s\S]*border-color:\s*rgba\(88,\s*156,\s*255,\s*0\.28\)/);
-    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-view-presets\s*>\s*\.deck-builder-preset-grid\s*>\s*\.deck-builder-preset-card\s+\.deck-builder-preset-title\s*\{[\s\S]*color:\s*rgba\(225,\s*239,\s*255,\s*0\.94\)/);
+    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-view-presets\s*>\s*\.deck-builder-preset-grid\s*>\s*\.deck-builder-preset-card\s*\{[\s\S]*rgba\(212,\s*169,\s*122,\s*0\.14\)[\s\S]*border-color:\s*rgba\(212,\s*169,\s*122,\s*0\.38\)/);
+    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-view-presets\s*>\s*\.deck-builder-preset-grid\s*>\s*\.deck-builder-preset-card\s+\.deck-builder-preset-title\s*\{[\s\S]*color:\s*rgba\(255,\s*232,\s*178,\s*0\.94\)/);
   });
 
   test('preset action buttons use lighter role-specific styling instead of the generic brown buttons', () => {
