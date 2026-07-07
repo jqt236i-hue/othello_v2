@@ -343,6 +343,25 @@ describe('match-mode network button behavior', () => {
     expect(leaveRoom).not.toHaveBeenCalled();
   });
 
+  test('ネット対戦の名前欄は変更確定だけでプロフィール名として保存する', async () => {
+    window.LeaderboardClient.setPlayerName = jest.fn((value) => value);
+    window.LeaderboardClient.updatePublicProfile = jest.fn(async () => ({ ok: true }));
+
+    const playerInput = document.getElementById('networkPlayerNameInput');
+
+    playerInput.value = '  新しい名前  ';
+    playerInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    expect(window.LeaderboardClient.setPlayerName).toHaveBeenCalledWith('新しい名前');
+    expect(window.LeaderboardClient.updatePublicProfile).toHaveBeenCalledTimes(1);
+
+    playerInput.value = '閉じる前';
+    playerInput.dispatchEvent(new dom.window.Event('blur', { bubbles: true }));
+
+    expect(window.LeaderboardClient.setPlayerName).toHaveBeenLastCalledWith('閉じる前');
+    expect(window.LeaderboardClient.updatePublicProfile).toHaveBeenCalledTimes(2);
+  });
+
   test('レート戦ボタンは通常プレイを維持したまま専用キューに入れる', async () => {
     const identity = {
       playerId: 'p_ABCDEFGHIJKLMNOPQRSTUVWXYZ',

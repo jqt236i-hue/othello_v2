@@ -248,17 +248,31 @@ function bindNetworkButtons(context: any) {
         uiRefs.networkPlayerNameInput.setAttribute('maxlength', String(PLAYER_NAME_MAX));
         uiRefs.networkPlayerNameInput.setAttribute('placeholder', '名前を入力してください');
         const initialName = normalizePlayerName(getSharedPlayerName());
+        let lastPersistedNetworkPlayerName = initialName && initialName !== DEFAULT_PLAYER_NAME ? initialName : '';
         if (initialName && initialName !== DEFAULT_PLAYER_NAME) {
             uiRefs.networkPlayerNameInput.value = initialName;
         } else if (normalizePlayerName(uiRefs.networkPlayerNameInput.value) === DEFAULT_PLAYER_NAME) {
             uiRefs.networkPlayerNameInput.value = '';
         }
+        const persistNetworkPlayerName = () => {
+            const nextName = normalizePlayerName(uiRefs.networkPlayerNameInput.value);
+            uiRefs.networkPlayerNameInput.value = nextName;
+            if (!nextName || nextName === lastPersistedNetworkPlayerName) return;
+            lastPersistedNetworkPlayerName = setSharedPlayerName(nextName) || nextName;
+            try {
+                const leaderboard = root && root.LeaderboardClient;
+                if (leaderboard && typeof leaderboard.updatePublicProfile === 'function') {
+                    void Promise.resolve(leaderboard.updatePublicProfile()).catch(() => undefined);
+                }
+            } catch (e) { /* ignore */ }
+        };
         uiRefs.networkPlayerNameInput.addEventListener('input', () => {
             uiRefs.networkPlayerNameInput.value = normalizePlayerName(uiRefs.networkPlayerNameInput.value);
         });
         uiRefs.networkPlayerNameInput.addEventListener('change', () => {
-            uiRefs.networkPlayerNameInput.value = normalizePlayerName(uiRefs.networkPlayerNameInput.value);
+            persistNetworkPlayerName();
         });
+        uiRefs.networkPlayerNameInput.addEventListener('blur', persistNetworkPlayerName);
     }
 
     if (uiRefs.networkRoomPasswordInput) {
